@@ -85,7 +85,6 @@ export function CollectionScreen(): JSX.Element | null {
 const EMPTY: readonly string[] = [];
 
 export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): JSX.Element {
-  const close = useGame((s) => s.closeCollection);
   const mirror = useProgression((s) => s.mirror);
   const crateList = useProgression((s) => s.crateList);
   const cratesOn = useProgression(cratesVisible);
@@ -246,7 +245,6 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     sfx.pulse(); setCategory(c); setPicked(null); setDefaultShown(null); setHover(null); setError(null);
     setSeenFor((prev) => ({ ...prev, ...readSeen() })); // the tab you are leaving has been seen
   };
-  const back = (): void => { sfx.pulse(); close(); };
   const lp = levelProgress(me?.accountXp ?? 0);
   const name = playerName || tempHandle(userId);
   const live = categoryLive(category);
@@ -265,7 +263,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
-      <MenuSidebar current="collection" onBack={back} />
+      <MenuSidebar current="collection" />
       <div className="lbtopbar colls-top">
         <div className="lbtitle">
           <IconChest />
@@ -311,6 +309,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                   <CategoryIcon category={c} />
                   <span className="colls-tab-name">{COSMETIC_CATEGORY_DEFS[c].label}</span>
                   {on ? <span className="colls-tab-count">{cnt!.owned}/{cnt!.total}</span> : <span className="colls-tab-soon"><LockGlyph />Soon</span>}
+                  {on && cnt!.total > 0 && <span className="colls-tab-bar" aria-hidden><span style={{ transform: `scaleX(${cnt!.owned / cnt!.total})` }} /></span>}
                   {freshCount > 0 && <span className="colls-tab-new" aria-hidden>{freshCount}</span>}
                 </button>
               );
@@ -352,6 +351,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
                         <ItemTile
                           id={c.id} name={c.name} rarity={c.rarity} art={c.category === 'portrait_frame' ? frameSrc(c.id) : c.category === 'emote' ? emoteSrc(c.id) : c.category === 'card_plate' ? plateLookOf(c)?.thumb : skinArtOf(c)} ring={c.category === 'portrait_frame' || c.category === 'card_plate'} emote={c.category === 'emote'} target={skinTargetName(c) ?? undefined}
                           owned={owned.has(c.id)} equipped={worn(c)} fresh={fresh(c)} selected={selectedId === c.id} master={isMasterTitle(c.id)}
+                          how={owned.has(c.id) ? undefined : acquisitionText(c)}
                           onPick={onPick} onHover={c.target?.type === 'card' || c.category === 'card_plate' ? onHover : undefined}
                         />
                       </li>
@@ -427,9 +427,11 @@ interface TileProps {
   onHover?: (id: string | null, el?: HTMLElement) => void;
   /** An emote: `art` is the whole painted bubble, contained. */
   emote?: boolean;
+  /** How to get it, printed on a MISSING item's tile (WS-6: the path to own it, not just a lock). */
+  how?: string;
 }
 
-const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover, ring, emote }: TileProps): JSX.Element {
+const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fresh, selected, onPick, art, target, master, onHover, ring, emote, how }: TileProps): JSX.Element {
   const state = equipped ? 'equipped' : owned ? 'owned' : 'not owned';
   return (
     <button
@@ -451,6 +453,7 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
           <span className="colls-tile-rar">{RARITY_LABELS[rarity]}</span>
         </span>
         <span className="colls-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
+        {how && <span className="colls-tile-how">{how}</span>}
       </span>
       {!owned && <span className="colls-tile-lock" aria-hidden><LockGlyph /></span>}
       {fresh && <span className="colls-new" aria-hidden>New</span>}

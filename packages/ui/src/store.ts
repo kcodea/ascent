@@ -30,6 +30,8 @@ export interface CareerView {
    *  already holds it (a Rankings row, the Recent Games profile fetch) so the Seasonal Ranked card paints
    *  their crest + bar at once. Absent → Career fetches the profile's rank columns by `userId` itself. */
   rank?: RankedProfile;
+  /** The viewed player's CHOSEN profile picture (`profiles.avatar`, 2026-10-16), handed over by the entry point. */
+  avatar?: string;
   /** Set only when opened from a single game (Recent Games) — the run to auto-expand + scroll to. */
   focus?: CareerFocus;
 }
@@ -95,7 +97,7 @@ import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, se
 import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
-import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { pushProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
@@ -123,6 +125,7 @@ import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug
 import { parseBugScenario } from './bug-report/bugScenario';
 import { spectatorTapOn, tapAct, tapEndTurn } from './versus/spectateTap';
 import { versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
+import { HALL_VISIBLE } from './hallFlag';
 
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -2311,6 +2314,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
     try { if (id) localStorage.setItem('ascent.avatar', id); else localStorage.removeItem('ascent.avatar'); } catch { /* ignore */ }
+    // Published to your profile row (2026-10-16) so the Leaderboard and your Career show it to everyone. Best-effort.
+    void pushProfileAvatar(id);
     set({ playerAvatar: id });
   },
   avatarPickerOpen: false,
@@ -2864,7 +2869,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes', navHopAt }); break;
       case 'career': set({ ...PAGES_CLOSED, showCareer: true, navHopAt }); break;
       case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
-      case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true, navHopAt }); break;
+      // Hidden Hall (hallFlag.ts): a request for it lands on the player Leaderboard.
+      case 'hall': set({ ...PAGES_CLOSED, ...(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }), navHopAt }); break;
       case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
       case 'live': set({ ...PAGES_CLOSED, showLiveGames: true, navHopAt }); break;
       case 'collection': set({ ...PAGES_CLOSED, showCollection: true, navHopAt }); break;
@@ -2874,7 +2880,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   settingsOpen: false,
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
-  openLeaderboard: () => set({ showLeaderboard: true }),
+  openLeaderboard: () => set(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
   showRankings: false,
   openRankings: () => set({ showRankings: true }),

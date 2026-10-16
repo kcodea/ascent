@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { RunCosmeticSnapshot } from '@game/progression';
+import { CARD_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetails/matchDetailsText';
@@ -10,7 +12,9 @@ import { useSocial } from './socialCache';
 import { LazyRow, LazyRowsProvider } from './lazyRows';
 import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
-import { LbHeroFrame, LbLabel, LbRunes, LbTeam } from './LadderBits';
+import { LbHeroFrame, LbRunes, LbTeam } from './LadderBits';
+import { GameCard, bandOf, placeText } from './GameCard';
+import { MatchScoreboard } from './matchDetails/MatchScoreboard';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
@@ -52,9 +56,164 @@ export const RECENT_PRACTICE_KEY = 'recent:practice';
 export const loadRecentRanked = (): Promise<RecentGameRow[]> => fetchRecentGames(FEED_ROWS);
 export const loadRecentPractice = (): Promise<PracticeGameRow[]> => fetchPracticeGames(FEED_ROWS);
 
+/** A feed row (ranked or practice). */
+type FeedRow = RecentGameRow | PracticeGameRow;
+
+/** THE TWO LAYOUTS on trial (owner 2026-10-16: "i feel like the recent games page can be massively improved"; he picks
+ *  before one is polished): `list`, a full-width match history of game cards (TFT's), and `split`, a compact list on
+ *  the left with the selected game large on the right. A DEV toggle in the top bar flips them; production shows `list`
+ *  until the pick. Per-device (localStorage), wrapped. */
+export type RecentLayout = 'list' | 'split';
+const LAYOUT_KEY = 'ascent.recentLayout';
+function readLayout(): RecentLayout {
+  try { return localStorage.getItem(LAYOUT_KEY) === 'split' ? 'split' : 'list'; } catch { return 'list'; }
+}
+
+/** The SUMMARY over the games shown (Valorant / League put this over their history): count, average placement, top-4
+ *  rate, wins, the most-played hero and the most common tribe on the final boards, plus a placement sparkline. */
+export function summaryOf(rows: readonly FeedRow[]): {
+  games: number; avgPlace: number | null; top4: number | null; wins: number;
+  hero: { id: string; n: number } | null; tribe: { id: string; n: number } | null; places: number[];
+} {
+  const placed = rows.filter((r) => r.placement !== null && r.placement > 0).map((r) => r.placement!);
+  const heroN = new Map<string, number>();
+  const tribeN = new Map<string, number>();
+  for (const r of rows) {
+    if (r.heroId) heroN.set(r.heroId, (heroN.get(r.heroId) ?? 0) + 1);
+    for (const m of r.board?.minions ?? []) {
+      const t = CARD_INDEX[m.cardId]?.tribe;
+      if (t && t !== 'neutral') tribeN.set(t, (tribeN.get(t) ?? 0) + 1);
+    }
+  }
+  const top = (m: Map<string, number>): { id: string; n: number } | null => {
+    let best: { id: string; n: number } | null = null;
+    for (const [id, n] of m) if (!best || n > best.n) best = { id, n };
+    return best;
+  };
+  return {
+    games: rows.length,
+    avgPlace: placed.length ? placed.reduce((a, b) => a + b, 0) / placed.length : null,
+    top4: placed.length ? placed.filter((p) => p <= 4).length / placed.length : null,
+    wins: placed.filter((p) => p === 1).length,
+    hero: top(heroN),
+    tribe: top(tribeN),
+    // Oldest first, so the line reads left to right in time (the feed is newest first).
+    places: [...rows].reverse().map((r) => r.placement).filter((p): p is number => p !== null && p > 0),
+  };
+}
+
+const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+function Summary({ rows, practice }: { rows: readonly FeedRow[]; practice: boolean }) {
+  const s = useMemo(() => summaryOf(rows), [rows]);
+  const W = 260; const H = 54; const P = 4;
+  const pts = s.places.length > 1
+    ? s.places.map((p, i) => `${(P + (i * (W - 2 * P)) / (s.places.length - 1)).toFixed(1)},${(P + ((p - 1) * (H - 2 * P)) / 7).toFixed(1)}`).join(' ')
+    : '';
+  return (
+    <section className="rg-summary" aria-label={practice ? 'The latest practice games at a glance' : 'The latest games at a glance'}>
+      <div className="rg-sum-stat"><span className="rg-sum-v">{s.games}</span><span className="rg-sum-l">Games</span></div>
+      <div className="rg-sum-stat"><span className="rg-sum-v">{s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)}</span><span className="rg-sum-l">Avg placement</span></div>
+      <div className="rg-sum-stat"><span className="rg-sum-v">{s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`}</span><span className="rg-sum-l">Top 4</span></div>
+      <div className="rg-sum-stat"><span className="rg-sum-v won">{s.wins}</span><span className="rg-sum-l">Wins</span></div>
+      <div className="rg-sum-stat rg-sum-hero">
+        {s.hero && <LbHeroFrame heroId={s.hero.id} />}
+        <span className="rg-sum-txt"><span className="rg-sum-v sm">{s.hero ? getHero(s.hero.id).name : '-'}</span><span className="rg-sum-l">Most played{s.hero ? `, ${s.hero.n} games` : ''}</span></span>
+      </div>
+      <div className="rg-sum-stat"><span className="rg-sum-v sm">{s.tribe ? cap(s.tribe.id) : '-'}</span><span className="rg-sum-l">Top tribe</span></div>
+      <div className="rg-sum-spark" aria-hidden>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+          <line className="rg-spark-mid" x1={P} x2={W - P} y1={P + (3.5 * (H - 2 * P)) / 7} y2={P + (3.5 * (H - 2 * P)) / 7} />
+          {pts && <polyline className="rg-spark" points={pts} />}
+        </svg>
+        <span className="rg-sum-l">Placements, oldest to newest</span>
+      </div>
+    </section>
+  );
+}
+
+interface CardProps {
+  r: FeedRow; rowKey: string; practice: boolean; mine: boolean; skins: RunCosmeticSnapshot | null;
+  busy: boolean; unplayable: boolean; opening: boolean; selected?: boolean; large?: boolean;
+  onOpen: (r: FeedRow, key: string) => void; onWatch: (e: React.MouseEvent, r: FeedRow, key: string) => void;
+}
+
+/** One game as the shared GameCard. Memoised: a Watch press or a filter click never re-renders the other cards. */
+const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy, unplayable, opening, large, onOpen, onWatch }: CardProps) {
+  const cfg = 'practice' in r ? r.practice : null;
+  const hero = r.heroId ? getHero(r.heroId) : null;
+  const o = outcomeOf(r.placement);
+  const watchable = r.hasReplay && r.rowId != null;
+  const when = playedAtText(r.createdAt);
+  const length = runLengthText(r.durationMs, r.lengthOverCap);
+  const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
+  const match = 'match' in r ? r.match : undefined;
+  // A banner with a known player opens their Career; a pre-accounts row (no user_id) is a plain banner.
+  const clickable = !!r.userId;
+  return (
+    <GameCard
+      as="div"
+      place={r.placement}
+      label={o.label === 'VICTORY' ? 'Victory' : `${o.label.toLowerCase()} place`}
+      resultClass={`lb-verdict ${o.cls}`}
+      className={`lb-row rg-card${clickable ? ' lb-row-btn' : ''}${r.partial ? ' partial' : ''}${large ? ' rg-large' : ''}`}
+      rootProps={clickable ? {
+        role: 'button', tabIndex: 0,
+        onClick: () => onOpen(r, rowKey),
+        onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') onOpen(r, rowKey); },
+        'aria-disabled': opening,
+        'aria-label': `View ${r.author || 'this player'}'s Career`,
+      } : undefined}
+      hero={<LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />}
+      title={<span className="lb-row-name">{r.author || 'Unnamed player'}</span>}
+      subtitle={<span className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</span>}
+      record={<span className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</span>}
+      board={<LbTeam board={r.board} empty={r.hasReplay ? 'No board recorded' : 'No board recorded for this game'} />}
+      runes={<LbRunes runes={r.runes} empty="No runes taken" />}
+      actions={(!practice || watchable) ? (
+        <button
+          type="button"
+          className="lb-btn lb-watch pressable"
+          onClick={(e) => onWatch(e, r, rowKey)}
+          disabled={!watchable || busy || unplayable}
+          aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
+        >
+          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Replay' : 'No replay'}
+        </button>
+      ) : undefined}
+      meta={<div className="lb-facts">
+        {when && <span className="lb-fact lb-fact-when"><span className="lb-when">{when}</span></span>}
+        <span className="lb-fact"><span className="lb-fact-l">Length</span><span className="lb-fact-v">{length}</span></span>
+        {r.wave !== null && <span className="lb-fact"><span className="lb-fact-l">Rounds</span><span className="lb-fact-v">{r.wave}</span></span>}
+        {cfg && <span className="lb-fact"><span className="lb-fact-l">Opponents</span><span className="lb-fact-v">{practiceOpponentsText(cfg)}</span></span>}
+        {cfg && <span className="lb-fact"><span className="lb-fact-l">Health</span><span className="lb-fact-v">{cfg.health === 'normal' ? 'Normal' : 'Unlimited'}</span></span>}
+        {SHOW_LOBBY_STRENGTH && r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.value} percent`}>{strengthText(r.lobbyStrength)}</span></span>}
+        {/* BOARD STRENGTH (R-LOBBY-09): frozen when the game ended; nothing at all when it was not scored. */}
+        {r.boardStrength != null && <span className="lb-fact gtip" data-tip={GAME_STRENGTH_TIP}><span className="lb-fact-l">{GAME_STRENGTH_LABEL}</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
+        {r.partial && <span className="lb-fact lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</span>}
+      </div>}
+      extra={large && match ? <section className="rg-lobby" aria-label="Players in this lobby"><MatchScoreboard details={match} own={mine} /></section> : undefined}
+    />
+  );
+});
+
+/** The compact entry in the split layout's left list: placement, portrait, player, hero, when. */
+const SplitItem = memo(function SplitItem({ r, rowKey, mine, skins, selected, onPick }: {
+  r: FeedRow; rowKey: string; mine: boolean; skins: RunCosmeticSnapshot | null; selected: boolean; onPick: (key: string) => void;
+}) {
+  const band = bandOf(r.placement);
+  return (
+    <button type="button" className={`rg-item gc-${band}${selected ? ' on' : ''}`} aria-pressed={selected} onClick={() => onPick(rowKey)}>
+      <span className={`gc-place ${band}`}>{band === 'won' && <span className="gc-crown" aria-hidden><Icon name="crown" /></span>}<span className="gc-place-n">{placeText(r.placement)}</span></span>
+      <LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />
+      <span className="rg-item-who"><span className="rg-item-name">{r.author || 'Unnamed player'}</span><span className="rg-item-sub">{r.heroId ? getHero(r.heroId).name : 'Unknown hero'}</span></span>
+      <span className="rg-item-when">{playedAtText(r.createdAt)}</span>
+    </button>
+  );
+});
+
 export function RecentGames(): JSX.Element | null {
   const show = useGame((s) => s.showRecentGames);
-  const close = useGame((s) => s.closeRecentGames);
   const openCareer = useGame((s) => s.openCareer);
   const myId = useGame((s) => s.account.userId);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins);
@@ -67,45 +226,59 @@ export function RecentGames(): JSX.Element | null {
   const [opening, setOpening] = useState<string | null>(null); // row key currently being opened
   const [watching, setWatching] = useState<string | null>(null); // row key whose replay payload is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // row key whose payload came back unplayable
+  const [heroFilter, setHeroFilter] = useState<string | null>(null);
+  const [layout, setLayoutState] = useState<RecentLayout>(readLayout);
+  const [picked, setPicked] = useState<string | null>(null); // the split layout's selected game
 
   // Every open starts on RANKED (reset on close, so a reopen never reads the practice feed for a frame first).
   useEffect(() => {
-    if (!show) setTab('ranked');
+    if (!show) { setTab('ranked'); setHeroFilter(null); } else setLayoutState(readLayout());
   }, [show]);
 
-  if (!show) return null;
-  const back = (): void => { sfx.pulse(); close(); };
-  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); };
   const practice = tab === 'practice';
-  const shown: Array<RecentGameRow | PracticeGameRow> | null = practice ? practiceRows : rows;
+  const all: FeedRow[] | null = practice ? practiceRows : rows;
+  const shown = useMemo(() => (all && heroFilter ? all.filter((r) => r.heroId === heroFilter) : all), [all, heroFilter]);
+  const keyOf = useCallback((r: FeedRow, i: number): string => `${tab}-${r.rowId ?? r.author ?? '?'}-${r.createdAt ?? ''}-${i}`, [tab]);
+  // The hero chips: the heroes in this feed, most played first (at most eight, plus All).
+  const heroChips = useMemo(() => {
+    const n = new Map<string, number>();
+    for (const r of all ?? []) if (r.heroId) n.set(r.heroId, (n.get(r.heroId) ?? 0) + 1);
+    return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id]) => id);
+  }, [all]);
 
   // Open the clicked game inside the player's Career, expanded to that run. The Career header wants a
   // rating / games-played that the feed row doesn't carry, so pull the player's profile first (best-effort —
   // an absent profile just opens with the name we have). The same fetch brings their medal rank, so the
   // Seasonal Ranked card paints the crest + bar at once. `focus` pins WHICH run to expand + scroll to.
-  const openGame = async (r: RecentGameRow, key: string, focusRun = true): Promise<void> => {
-    if (!r.userId || opening) return;
+  // Stable (refs to the latest state): the memoised cards never re-render because a callback changed identity.
+  const live = useRef({ opening, watching, practice, openCareer });
+  live.current = { opening, watching, practice, openCareer };
+  const onOpen = useCallback((r: FeedRow, key: string): void => {
+    const L = live.current;
+    if (!r.userId || L.opening) return;
     sfx.pulse();
     setOpening(key);
-    const p = await fetchPlayerById(r.userId).catch(() => null);
-    openCareer({
-      userId: r.userId,
-      author: p?.author || r.author || '',
-      rating: p?.rating ?? 0,
-      gamesPlayed: p?.gamesPlayed ?? 0,
-      favoriteHero: p?.favoriteHero,
-      ...(p?.rank ? { rank: p.rank } : {}),
-      ...(focusRun ? { focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt } } : {}),
+    void fetchPlayerById(r.userId).catch(() => null).then((p) => {
+      L.openCareer({
+        userId: r.userId!,
+        author: p?.author || r.author || '',
+        rating: p?.rating ?? 0,
+        gamesPlayed: p?.gamesPlayed ?? 0,
+        favoriteHero: p?.favoriteHero,
+        ...(p?.rank ? { rank: p.rank } : {}),
+        ...(p?.avatar ? { avatar: p.avatar } : {}),
+        ...(!L.practice ? { focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt } } : {}),
+      });
+      setOpening(null);
     });
-    setOpening(null);
-  };
+  }, []);
 
   // Watch the row's recorded run — fetch its full v2 payload (only now: the list stayed light) and hand it to
   // the viewer. The click is stopped from bubbling to the banner (which opens the Career). If the payload turns
   // out unplayable (deleted / malformed), the button degrades to "No replay" instead of a broken viewer.
-  const watchGame = (e: React.MouseEvent, r: RecentGameRow, key: string): void => {
+  const onWatch = useCallback((e: React.MouseEvent, r: FeedRow, key: string): void => {
     e.stopPropagation();
-    if (r.rowId == null || watching) return;
+    if (r.rowId == null || live.current.watching) return;
     sfx.pulse();
     setNoReplay(null);
     setWatching(key);
@@ -116,11 +289,72 @@ export function RecentGames(): JSX.Element | null {
         else setNoReplay(key);
       })
       .finally(() => setWatching(null));
+  }, []);
+  const onPick = useCallback((key: string): void => { sfx.tick(); setPicked(key); }, []);
+
+  if (!show) return null;
+  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); setHeroFilter(null); setPicked(null); };
+  const setLayout = (l: RecentLayout): void => { sfx.pulse(); setLayoutState(l); try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* per-device only */ } };
+  // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16): your own game always, everyone
+  // else's through "Show opponent cosmetics". No recorded cosmetics = the hero's own art in the default ring.
+  const skinsOf = (r: FeedRow): { mine: boolean; skins: RunCosmeticSnapshot | null } => {
+    const mine = !!myId && r.userId === myId;
+    return { mine, skins: mine ? (r.board?.cosmetics ?? null) : opponentSkins(showOppCosmetics, r.board?.cosmetics) };
+  };
+  const card = (r: FeedRow, key: string, large = false): JSX.Element => {
+    const { mine, skins } = skinsOf(r);
+    return (
+      <FeedCard r={r} rowKey={key} practice={practice} mine={mine} skins={skins} large={large}
+        busy={watching === key} unplayable={noReplay === key} opening={opening === key} onOpen={onOpen} onWatch={onWatch} />
+    );
   };
 
+  let body: JSX.Element;
+  if (!remoteEnabled()) body = <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable. No backend configured.</div></div>;
+  else if (shown === null) body = <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{practice ? 'Gathering the latest practice games…' : 'Gathering the latest games…'}</div></div>;
+  else if ((all ?? []).length === 0) {
+    body = practice
+      ? <div className="lbempty lb-state"><Icon name="target" /><div>No practice games yet. Finish a practice game to see it here.</div></div>
+      : <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>;
+  } else {
+    const keyed = shown.map((r, i) => ({ r, key: keyOf(r, i) }));
+    const sel = keyed.find((k) => k.key === picked) ?? keyed[0];
+    body = (
+      <>
+        <Summary rows={shown} practice={practice} />
+        <div className="rg-filters" role="group" aria-label="Filter by hero">
+          <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { sfx.pulse(); setHeroFilter(null); setPicked(null); }}>All heroes</button>
+          {heroChips.map((id) => (
+            <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { sfx.pulse(); setHeroFilter(id); setPicked(null); }}>{getHero(id).name}</button>
+          ))}
+        </div>
+        {layout === 'split' ? (
+          <div className="rg-split">
+            <div className="rg-split-list" role="list">
+              {keyed.map(({ r, key }) => {
+                const { mine, skins } = skinsOf(r);
+                return <SplitItem key={key} r={r} rowKey={key} mine={mine} skins={skins} selected={sel?.key === key} onPick={onPick} />;
+              })}
+            </div>
+            <div className="rg-split-detail">{sel && <div key={sel.key} className="rg-detail-in">{card(sel.r, sel.key, true)}</div>}</div>
+          </div>
+        ) : (
+          <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`} ref={setListEl}>
+            <LazyRowsProvider list={listEl}>
+              {keyed.map(({ r, key }, i) => (
+                // LAZY (perf 2026-10-09, lazyRows.tsx): each card is seven real cards; only those near the view mount.
+                <LazyRow key={key} eager={i < EAGER_ROWS} className="lb-lazy">{() => card(r, key)}</LazyRow>
+              ))}
+            </LazyRowsProvider>
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
-    <SidebarHost className="lbpage lb-ladder rg-page">
-      <MenuSidebar current="recent" onBack={back} />
+    <SidebarHost className={`lbpage lb-ladder rg-page rg-layout-${layout}`}>
+      <MenuSidebar current="recent" />
       <div className="lbtopbar">
         <div className="lbtitle">
           <Icon name="clock" />
@@ -129,6 +363,13 @@ export function RecentGames(): JSX.Element | null {
             <div className="lbsub">{practice ? `The last ${FEED_ROWS} practice games across every player` : `The last ${FEED_ROWS} games across every player`}</div>
           </div>
         </div>
+        {/* DEV ONLY: the layout trial (list / split) until the owner picks one. */}
+        {import.meta.env.DEV && (
+          <div className="cv2-tabs rg-layouts" role="group" aria-label="Layout (dev)">
+            <button type="button" className={`cv2-tab${layout === 'list' ? ' on' : ''}`} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>A: List</button>
+            <button type="button" className={`cv2-tab${layout === 'split' ? ' on' : ''}`} aria-pressed={layout === 'split'} onClick={() => setLayout('split')}>B: Split</button>
+          </div>
+        )}
         <div className="cv2-tabs rg-tabs" role="tablist" aria-label="Recent games view">
           <button type="button" role="tab" className={`cv2-tab${tab === 'ranked' ? ' on' : ''}`} aria-selected={tab === 'ranked'} onClick={() => pickTab('ranked')}>
             <Icon name="crown" />Ranked
@@ -138,100 +379,7 @@ export function RecentGames(): JSX.Element | null {
           </button>
         </div>
       </div>
-
-      <div className="lbscroll">
-        {!remoteEnabled() ? (
-          <div className="lbempty lb-state"><Icon name="gear" /><div>Recent games unavailable. No backend configured.</div></div>
-        ) : shown === null ? (
-          <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{practice ? 'Gathering the latest practice games…' : 'Gathering the latest games…'}</div></div>
-        ) : shown.length === 0 ? (
-          practice
-            ? <div className="lbempty lb-state"><Icon name="target" /><div>No practice games yet. Finish a practice game to see it here.</div></div>
-            : <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>
-        ) : (
-          <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`} ref={setListEl}>
-            <LazyRowsProvider list={listEl}>
-            {shown.map((r, i) => {
-              const cfg = 'practice' in r ? r.practice : null;
-              const hero = r.heroId ? getHero(r.heroId) : null;
-              const o = outcomeOf(r.placement);
-              const key = `${tab}-${r.rowId ?? r.author ?? '?'}-${r.createdAt ?? ''}-${i}`;
-              const watchable = r.hasReplay && r.rowId != null;
-              const busy = watching === key;
-              const unplayable = noReplay === key;
-              const when = playedAtText(r.createdAt);
-              const length = runLengthText(r.durationMs, r.lengthOverCap);
-              const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
-              // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16: "the player frames they
-              // have equipped arent showing here and they should"): your own game always, everyone else's through
-              // "Show opponent cosmetics". No recorded cosmetics = the hero's own art in the default ring.
-              const mine = !!myId && r.userId === myId;
-              const skins = mine ? (r.board?.cosmetics ?? null) : opponentSkins(showOppCosmetics, r.board?.cosmetics);
-              const inner = (
-                <>
-                  <div className="lb-row-hero">
-                    <LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />
-                    <div className="lb-row-name">{r.author || 'Unnamed player'}</div>
-                    <div className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</div>
-                    <div className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</div>
-                  </div>
-                  <div className="lb-row-team">
-                    <LbLabel>Final team</LbLabel>
-                    <LbTeam board={r.board} empty={r.hasReplay ? 'No board recorded' : 'No board recorded for this game'} />
-                    <LbLabel>Runes</LbLabel>
-                    <LbRunes runes={r.runes} empty="No runes taken" />
-                  </div>
-                  <div className="lb-row-outcome">
-                    <LbLabel>Match outcome</LbLabel>
-                    <div className={`lb-verdict ${o.cls}`}>{o.label}</div>
-                    <div className="lb-when">{when || '—'}</div>
-                    <div className="lb-facts">
-                      <span className="lb-fact"><span className="lb-fact-l">Length</span><span className="lb-fact-v">{length}</span></span>
-                      {r.wave !== null && <span className="lb-fact"><span className="lb-fact-l">Rounds</span><span className="lb-fact-v">{r.wave}</span></span>}
-                      {cfg && <span className="lb-fact"><span className="lb-fact-l">Opponents</span><span className="lb-fact-v">{practiceOpponentsText(cfg)}</span></span>}
-                      {cfg && <span className="lb-fact"><span className="lb-fact-l">Health</span><span className="lb-fact-v">{cfg.health === 'normal' ? 'Normal' : 'Unlimited'}</span></span>}
-                      {SHOW_LOBBY_STRENGTH && r.lobbyStrength && <span className="lb-fact"><span className="lb-fact-l">Lobby</span><span className="lb-fact-v lb-fact-lobby" aria-label={`Lobby strength ${r.lobbyStrength.value} percent`}>{strengthText(r.lobbyStrength)}</span></span>}
-                      {/* BOARD STRENGTH (R-LOBBY-09): frozen when the game ended; nothing at all when it was not scored. */}
-                      {r.boardStrength != null && <span className="lb-fact gtip" data-tip={GAME_STRENGTH_TIP}><span className="lb-fact-l">{GAME_STRENGTH_LABEL}</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
-                    </div>
-                    {r.partial && <div className="lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</div>}
-                    {(!practice || watchable) && <button
-                      type="button"
-                      className="lb-btn lb-watch pressable"
-                      onClick={(e) => watchGame(e, r, key)}
-                      disabled={!watchable || busy || unplayable}
-                      aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
-                    >
-                      {busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Watch replay' : 'No replay'}
-                    </button>}
-                  </div>
-                </>
-              );
-              // A banner with a known player opens their Career (that run focused); a pre-accounts row (no
-              // user_id) has nothing to open, so it stays a plain, non-interactive banner. A div[role=button],
-              // not a <button>: the banner nests the Watch button and a button can't nest a button.
-              // LAZY (perf 2026-10-09, lazyRows.tsx): each banner is seven real cards; only those near the view mount.
-              const row = r.userId ? (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className={`lb-row lb-row-btn${r.partial ? ' partial' : ''}`}
-                  onClick={() => void openGame(r, key, !practice)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') void openGame(r, key, !practice); }}
-                  aria-disabled={opening === key}
-                  aria-label={`View ${r.author || 'this player'}'s Career`}
-                >
-                  {inner}
-                </div>
-              ) : (
-                <div className={`lb-row${r.partial ? ' partial' : ''}`}>{inner}</div>
-              );
-              return <LazyRow key={key} eager={i < EAGER_ROWS} className="lb-lazy">{() => row}</LazyRow>;
-            })}
-            </LazyRowsProvider>
-          </div>
-        )}
-      </div>
+      <div className="lbscroll">{body}</div>
     </SidebarHost>
   );
 }

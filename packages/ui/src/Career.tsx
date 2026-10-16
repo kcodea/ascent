@@ -7,6 +7,9 @@ import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
+import { GameCard } from './GameCard';
+import { TrendsBody } from './careerTrends';
+import { avatarSrc } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
@@ -30,8 +33,8 @@ import { achievementsVisible, useProgression } from './progression/progressionSt
 import { rankScalar, scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
-  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, mmrAxisOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
-  trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
+  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, runLengthText,
+  trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendWindow,
 } from './careerData';
 import { rectToStage, stageHost, stageViewport } from './stage';
 
@@ -128,6 +131,18 @@ function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; 
   return <HeroPortraitRing art={art} alt={name} small={small} side={useContext(CareerSkinContext).own ? 'self' : 'opp'} frameId={frameIdOf(shown)} />;
 }
 
+/** THE PLAYER'S PORTRAIT on their Career (owner 2026-10-16: "the chosen profile art should be displayed"): their
+ *  CHOSEN profile picture in their frame, your own always, someone else's through "Show opponent cosmetics". With no
+ *  chosen picture (or before the profiles.avatar migration) the favourite hero stands in, as before. */
+function ProfilePortrait({ avatar, heroId, loadout }: { avatar: string | null | undefined; heroId: string; loadout: RunCosmeticSnapshot | null | undefined }) {
+  const { own } = useContext(CareerSkinContext);
+  const showOpp = useGame((s) => s.showOpponentSkins);
+  const shown = useCareerSkins(loadout);
+  const pic = avatar && (own || showOpp) ? avatarSrc(avatar) : undefined;
+  if (!pic) return <HeroFrame heroId={heroId} skins={loadout} />;
+  return <HeroPortraitRing art={pic} alt="Profile picture" side={own ? 'self' : 'opp'} frameId={own ? undefined : frameIdOf(shown)} />;
+}
+
 /** The final team: the shared stored-board renderer, wearing the skins RECORDED on this board (an old board has
  *  none: default art), through the page's own/opponent rule. */
 function FinalTeam({ board }: { board: BoardSnapshot }) {
@@ -146,49 +161,6 @@ function StatTile({ label, value, icon }: { label: string; value: string; icon?:
   );
 }
 
-const CHART_W = 300, CHART_H = 110, CHART_PAD = 10;
-
-/** One trend: a static inline-SVG polyline (no library, nothing animated) with the series' headline (the window
- *  average; for MMR the latest rating) and the axis extremes labelled. `invert` puts `yMin` at the top
- *  (placement: 1st reads high). */
-function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
-  title: string; series: TrendSeries; yMin: number; yMax: number; invert?: boolean; unit?: string; empty: string;
-}) {
-  const pts = polylineOf(series.points, { w: CHART_W, h: CHART_H, pad: CHART_PAD, yMin, yMax, invert });
-  const one = series.points.length === 1 ? pts.split(',').map(Number) : null;
-  const avgText = series.avg === null ? '—' : `${series.avg}${unit ?? ''}`;
-  const n = series.points.length;
-  // The MMR line's closing "now" point (the live rating) is not a run: the footer counts runs only.
-  const runCount = series.points.filter((p) => !p.now).length;
-  return (
-    <div className="cv2-trend">
-      <div className="cv2-trend-head">
-        <span className="cv2-trend-title">{title}</span>
-        <span className="cv2-trend-avg">{avgText}</span>
-      </div>
-      <div className="cv2-chart">
-        <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} preserveAspectRatio="none" role="img" aria-label={`${title} over the window`}>
-          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_PAD} y2={CHART_PAD} />
-          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H / 2} y2={CHART_H / 2} />
-          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H - CHART_PAD} y2={CHART_H - CHART_PAD} />
-          {n > 1 && <polyline className="cv2-line" points={pts} />}
-          {one && <line className="cv2-line cv2-dot" x1={one[0]} y1={one[1]} x2={one[0]} y2={one[1]} />}
-        </svg>
-        <span className="cv2-axis top">{invert ? yMin : yMax}{unit}</span>
-        <span className="cv2-axis bottom">{invert ? yMax : yMin}{unit}</span>
-        {n === 0 && <span className="cv2-chart-empty">{empty}</span>}
-      </div>
-      <div className="cv2-trend-foot">{runCount} run{runCount === 1 ? '' : 's'}</div>
-    </div>
-  );
-}
-
-/** The APM axis top: the series' max rounded up to the next 10, never below 10 (so an empty / tiny series
- *  still draws a sensible box). */
-function apmAxisMax(series: TrendSeries): number {
-  const top = series.points.reduce((m, p) => Math.max(m, p.y), 0);
-  return Math.max(10, Math.ceil((top + 5) / 10) * 10);
-}
 
 /** Which match row a Recent-Games click meant: the same-hero run nearest in time to the game's `createdAt`
  *  (run_history and run_telemetry stamp the same end time within seconds). -1 = no focus / no match. */
@@ -262,75 +234,56 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const fights = run.wins + run.losses + run.draws;
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
+  // THE GAME CARD (GameCard.tsx, 2026-10-16): the placement once, the hero + record, the board strip, runes and actions
+  // at the side, and one quiet meta line. The match WIN / LOSS (top 4 or not) is the card's band colour now.
   return (
-    <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}`}>
-      <header className="cv2-row-head">
-        <div className="cv2-row-hero">
-          <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />
-          <div className="cv2-row-heroid">
-            <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
-            {/* The MATCH result — by placement (top 4 = WIN, 5th–8th = LOSS; owner 2026-09-20). The fight
-                record is only a small caption beneath it — a bare "N–M" (owner 2026-09-21: no "Fights" word;
-                the aria-label keeps the meaning) — and only when the run recorded any fights. */}
-            <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
-              {result.label}
-            </div>
-            {fights > 0 && (
-              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>
-                {recordText(run)}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="cv2-row-outcome">
-          <div className="cv2-row-label">Match Outcome</div>
-          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
-          <div className="cv2-row-meta">
-            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></span>
-            {/* LOBBY STRENGTH (owner 2026-09-22): the number as a percentage, post-game only, and only when the run
-                carries a stamp — a row without one prints nothing here rather than a guess. Hidden for now behind
-                SHOW_LOBBY_STRENGTH (owner 2026-09-30); the stamp itself is still read. */}
-            {SHOW_LOBBY_STRENGTH && run.lobbyStrength && (
-              <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.value} percent`}>{strengthText(run.lobbyStrength)}</span></span>
-            )}
-            {/* BOARD STRENGTH (R-LOBBY-09): the run's percentile, frozen when it ended; nothing when it was not scored. */}
-            {run.boardStrength != null && (
-              <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
-            )}
-          </div>
-        </div>
-      </header>
-      {/* No "Final Team" label (owner 2026-09-20): it collided with the first tile's crown / tier stars, and the
-          card row speaks for itself. The row keeps headroom above the tiles for those overhangs instead. */}
-      <div className="cv2-row-team">
-        {hasBoard
-          ? <FinalTeam board={run.board!} />
-          : <div className="cv2-row-none">No final team recorded for this run.</div>}
-      </div>
-      <footer className="cv2-row-foot">
-        <div className="cv2-row-runes">
-          <div className="cv2-row-label">Runes</div>
-          {runes.length > 0
-            ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
-            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
-        </div>
-        <div className="cv2-foot-actions">
-          <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
-          <button
-            type="button"
-            className="cv2-btn cv2-watch pressable"
-            disabled={!watchable || busy || unplayable}
-            onClick={() => onWatch(run)}
-            aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
-          >
-            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-          </button>
-        </div>
-      </footer>
-      {lobbyOpen && <LobbyPanel match={run.match} id={lobbyId} />}
-    </article>
+    <GameCard
+      place={run.placement}
+      label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
+      resultClass={`cv2-verdict ${o.cls}`}
+      className={`cv2-row gc-stack ${o.cls}${focus ? ' focus' : ''}`}
+      rootProps={{ 'aria-label': `${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}` }}
+      hero={<HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />}
+      title={<span className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '-'}</span>}
+      record={fights > 0 ? (
+        <span className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>{recordText(run)}</span>
+      ) : undefined}
+      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
+      runes={runes.length > 0
+        ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+      actions={<>
+        <button
+          type="button"
+          className="cv2-btn cv2-watch pressable"
+          disabled={!watchable || busy || unplayable}
+          onClick={() => onWatch(run)}
+          aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
+        >
+          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+        </button>
+        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
+      </>}
+      meta={<div className="cv2-row-meta">
+        <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
+        <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
+        {run.wave > 0 && <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{run.wave}</span></span>}
+        <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '-' : run.goldSpent}</span></span>
+        {/* The RATING CHANGE the run settled (green up, red down); nothing when it carries none. */}
+        {run.ratingDelta != null && run.ratingDelta !== 0 && (
+          <span className="cv2-meta"><span className="cv2-meta-l">Rating</span><span className={`cv2-meta-v cv2-row-delta ${run.ratingDelta > 0 ? 'up' : 'down'}`}>{run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}`}</span></span>
+        )}
+        {/* LOBBY STRENGTH (owner 2026-09-22), hidden for now behind SHOW_LOBBY_STRENGTH (owner 2026-09-30). */}
+        {SHOW_LOBBY_STRENGTH && run.lobbyStrength && (
+          <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.value} percent`}>{strengthText(run.lobbyStrength)}</span></span>
+        )}
+        {/* BOARD STRENGTH (R-LOBBY-09): the run's percentile, frozen when it ended; nothing when it was not scored. */}
+        {run.boardStrength != null && (
+          <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
+        )}
+      </div>}
+      extra={lobbyOpen ? <LobbyPanel match={run.match} id={lobbyId} /> : undefined}
+    />
   );
 });
 
@@ -360,69 +313,43 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-p${game.rowId ?? game.createdAt ?? 'x'}`;
   return (
-    <article className={`cv2-row cv2-prow ${o.cls}`} aria-label={`Practice, ${heroName}: ${o.label}`}>
-      <header className="cv2-row-head">
-        <div className="cv2-row-hero">
-          <HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />
-          <div className="cv2-row-heroid">
-            <div className="cv2-row-heroname">{heroName}</div>
-            <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
-              {result.label}
-            </div>
-            {rec && fights > 0 && (
-              <div className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>
-                {recordText(rec)}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="cv2-row-outcome">
-          <div className="cv2-row-label">Match Outcome</div>
-          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
-          <div className="cv2-row-meta">
-            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs, game.lengthOverCap)}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '—'}</span></span>
-          </div>
-        </div>
-      </header>
-      <div className="cv2-row-team">
-        {hasBoard
-          ? <FinalTeam board={game.board!} />
-          : <div className="cv2-row-none">No final team recorded for this game.</div>}
-      </div>
-      <footer className="cv2-row-foot">
-        <div className="cv2-row-runes">
-          <div className="cv2-row-label">Runes</div>
-          {runes.length > 0
-            ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
-            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
-        </div>
-        <div className="cv2-prow-side">
-          {cfg && (
-            <div className="cv2-ppills" aria-label="Practice options">
-              <span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span>
-              <span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span>
-            </div>
-          )}
-          <div className="cv2-foot-actions">
-            <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
-            {game.hasReplay && (
-              <button
-                type="button"
-                className="cv2-btn cv2-watch pressable"
-                disabled={busy || unplayable}
-                onClick={onWatch}
-                aria-label="Watch this practice game’s replay"
-              >
-                <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-              </button>
-            )}
-          </div>
-        </div>
-      </footer>
-      {lobbyOpen && <LobbyPanel match={game.match} id={lobbyId} />}
-    </article>
+    <GameCard
+      place={game.placement}
+      label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
+      resultClass={`cv2-verdict ${o.cls}`}
+      className={`cv2-row cv2-prow gc-stack ${o.cls}`}
+      rootProps={{ 'aria-label': `Practice, ${heroName}: ${o.label}` }}
+      hero={<HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />}
+      title={<span className="cv2-row-heroname">{heroName}</span>}
+      record={rec && fights > 0 ? (
+        <span className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>{recordText(rec)}</span>
+      ) : undefined}
+      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
+      runes={runes.length > 0
+        ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+      actions={<>
+        {game.hasReplay && (
+          <button
+            type="button"
+            className="cv2-btn cv2-watch pressable"
+            disabled={busy || unplayable}
+            onClick={onWatch}
+            aria-label="Watch this practice game’s replay"
+          >
+            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+          </button>
+        )}
+        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
+      </>}
+      meta={<div className="cv2-row-meta">
+        <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
+        <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs, game.lengthOverCap)}</span></span>
+        <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '-'}</span></span>
+        {cfg && <span className="cv2-meta cv2-ppills" aria-label="Practice options"><span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span><span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span></span>}
+      </div>}
+      extra={lobbyOpen ? <LobbyPanel match={game.match} id={lobbyId} /> : undefined}
+    />
   );
 }
 
@@ -515,8 +442,8 @@ function HeroTile({ h }: { h: HeroCareer }) {
 
 export function Career() {
   const show = useGame((s) => s.showCareer);
-  const close = useGame((s) => s.closeCareer);
   const playerName = useGame((s) => s.playerName);
+  const playerAvatar = useGame((s) => s.playerAvatar);
   const profile = useGame((s) => s.profile);
   const careerOf = useGame((s) => s.careerOf); // null = your own career
   const myId = useGame((s) => s.account.userId);
@@ -626,6 +553,8 @@ export function Career() {
   // scalar when a rank exists, else the bare live rating; while a viewed player's rank is in flight, none yet.
   const liveMmr = rank ? rankScalar(rank) : rankPending ? null : mmr;
   const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now(), liveMmr), [runs, window_, liveMmr]);
+  // The clock is read once per data / window change, on purpose (a stable `nowMs` keeps the charts' memos stable).
+  const trendNow = useMemo(() => Date.now(), [runs, window_]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
   // ACCOUNT LEVEL (2026-09-27): your own mirror, or the viewed player's public row. Null until the feature is on.
@@ -648,7 +577,6 @@ export function Career() {
 
   if (!show) return null;
 
-  const back = (): void => { sfx.pulse(); close(); };
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
@@ -721,11 +649,10 @@ export function Career() {
         <aside className="cv2-col cv2-leftcol">
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Career Stats</div></div>
           <div className="cv2-panel cv2-left">
-            {/* FAVORITE HERO (owner ask 2026-09-28: "clearly say favorite hero in the box"): the most-played hero,
-                labelled. The player's name and title moved up into the page header. */}
-            <div className="cv2-favlabel">Favorite hero</div>
-            <HeroFrame heroId={heroId} skins={accountProgression?.loadout} />
-            <div className="cv2-heroname hudpill-name">{heroName}</div>
+            {/* THE PLAYER'S PORTRAIT (owner 2026-10-16): their chosen profile picture, the favourite hero as a small
+                line under it (it was the portrait before; owner 2026-09-28 asked for it to be clearly labelled). */}
+            <ProfilePortrait avatar={viewing ? viewing.avatar : playerAvatar} heroId={heroId} loadout={accountProgression?.loadout} />
+            <div className="cv2-favline"><span className="cv2-favlabel">Favorite hero</span><span className="cv2-heroname">{heroName}</span></div>
             {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
                 not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
             {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}
@@ -889,10 +816,9 @@ export function Career() {
             {/* MMR FIRST (owner ask 2026-09-22): the crest above prints "N MMR" and, with a rated run in the window,
                 this headline is that same number — crest → number → line — before the three rates that explain it.
                 Raw ratings on a division-snapped axis (`mmrAxisOf`); nothing here animates. */}
-            <TrendChart title="MMR" series={trends.mmr} {...mmrAxisOf(trends.mmr)} empty="No rated runs in this window" />
-            <TrendChart title="Avg Placement" series={trends.placement} yMin={1} yMax={8} invert empty="No placements in this window" />
-            <TrendChart title="Win Rate" series={trends.winRate} yMin={0} yMax={100} unit="%" empty="No placed runs in this window" />
-            <TrendChart title="Avg APM" series={trends.apm} yMin={0} yMax={apmAxisMax(trends.apm)} empty="No replays with a clock in this window" />
+            {/* WITH DEPTH (owner 2026-10-16, careerTrends.tsx): one big MMR chart over the medal bands, then placement,
+                top 4 rate, APM and games as small multiples with rolling averages and the change vs the period before. */}
+            <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} />
           </div>
         </aside>
       </div>
@@ -901,9 +827,9 @@ export function Career() {
 
   return (
     <SidebarHost className="lbpage cv2-page">
-      {/* Back + the main menu live in the left sidebar (owner ask 2026-09-21). Back keeps this page's own
-          close, so a Career opened from the Leaderboard still returns there. */}
-      <MenuSidebar current="career" onBack={back} />
+      {/* The main menu lives in the left sidebar (owner ask 2026-09-21); since the WS-2 regroup its ASCENT mark
+          goes home and the rail itself replaces Back (a Career opened from the Leaderboard: the Leaderboard plaque). */}
+      <MenuSidebar current="career" />
       <div className="lbtopbar">
         {/* THE NAME HEADER (owner ask 2026-09-28: "the player's name and title should be at the top of the career
             page and more obvious ... dont push everything down much at all"): a small "Career" kicker, then the

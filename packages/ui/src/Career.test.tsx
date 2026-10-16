@@ -165,10 +165,11 @@ describe('Match History', () => {
     expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 3 runs');
     expect(text('.cv2-row .cv2-row-heroname')).toEqual(['Sable', 'Brackus', 'Brackus']);
     // The record under the name is the MATCH result by placement: 1st + 3rd = WIN, 7th = LOSS (owner 2026-09-20).
-    expect(text('.cv2-row .cv2-row-result')).toEqual(['WIN', 'WIN', 'LOSS']);
-    expect(rows.map((r) => r.querySelector('.cv2-row-result')?.classList.contains('win'))).toEqual([true, true, false]);
-    expect(rows[2]!.querySelector('.cv2-row-result')?.classList.contains('loss')).toBe(true);
-    expect(rows.map((r) => r.querySelector('.cv2-row-result')?.getAttribute('aria-label'))).toEqual(['Match win', 'Match win', 'Match loss']);
+    // The GAME CARD (2026-10-16): the match WIN / LOSS is said once, as the card's band (top 4 green, else red) and in
+    // the placement's aria-label; there is no separate WIN pill.
+    expect(text('.cv2-row .cv2-row-result')).toEqual([]);
+    expect(rows.map((r) => r.classList.contains('gc-lost'))).toEqual([false, false, true]);
+    expect(rows.map((r) => r.querySelector('.gc-place')?.getAttribute('aria-label'))).toEqual(['Victory, match win', '3rd, match win', '7th, match loss']);
     // The fight record survives only as a small bare "N–M" caption (no "Fights" word — owner 2026-09-21; the
     // aria-label carries the meaning) — never the headline W–L any more.
     // A DRAW is a round too (owner report 2026-09-22: a 14-round run read as "8-3"): the caption carries it as a
@@ -176,18 +177,18 @@ describe('Match History', () => {
     expect(text('.cv2-row .cv2-row-fights')).toEqual(['9–4', '5–5–2', '2–5']);
     expect(rows.map((r) => r.querySelector('.cv2-row-fights')?.getAttribute('aria-label'))).toEqual(['Fights: 9 won, 4 lost', 'Fights: 5 won, 5 lost, 2 drawn', 'Fights: 2 won, 5 lost']);
     expect(ui.container.querySelector('.cv2-row-record')).toBeNull();
-    // Reading order inside a banner: head (hero ‖ outcome) → team → foot (runes ‖ watch).
+    // Reading order inside a GAME CARD (GameCard.tsx, 2026-10-16): placement → hero → board → side (runes, actions),
+    // then the meta line.
     for (const r of rows) {
-      const kids = [...r.children].map((c) => c.className);
-      expect(kids).toEqual(['cv2-row-head', 'cv2-row-team', 'cv2-row-foot']);
-      expect(r.querySelector('.cv2-row-head .cv2-row-hero .cv2-heroframe.small .hero .f')).not.toBeNull();
-      expect(r.querySelector('.cv2-row-head .cv2-row-outcome .cv2-verdict')).not.toBeNull();
+      const kids = [...r.querySelector('.gc-body')!.children].map((c) => c.className.split(' ')[0]);
+      expect(kids).toEqual(['gc-place', 'gc-hero', 'gc-board', 'gc-side', 'gc-meta']);
+      expect(r.querySelector('.gc-hero .cv2-heroframe.small .hero .f')).not.toBeNull();
+      expect(r.querySelector('.gc-place.cv2-verdict')).not.toBeNull();
       expect(r.querySelector('.cv2-row-team .cv2-row-label'), 'no "Final Team" label over the tiles (owner 2026-09-20)').toBeNull();
-      expect(r.querySelector('.cv2-row-foot .cv2-row-runes .cv2-row-label')?.textContent).toBe('Runes');
       // ONE action button (+ the Lobby expand chevron, Match details 2026-09-28, which is not an action).
       expect(r.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(1);
       expect(r.querySelectorAll('.cv2-lobbybtn')).toHaveLength(1);
-      expect(r.querySelector('.cv2-row-foot .cv2-watch')).not.toBeNull();
+      expect(r.querySelector('.gc-actions .cv2-watch')).not.toBeNull();
     }
     // Row 1 has a FULL board: exactly 7 slots, all real cards, the gilded one wearing the golden frame.
     const team = rows[0]!.querySelectorAll('.cv2-team .cv2-tile');
@@ -246,40 +247,44 @@ describe('Match History', () => {
       ui.unmount();
       ui = mount(<Career />);
       await flush();
-      expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+      expect(text('.cv2-row .cv2-meta-l').filter((l) => l !== 'Rounds' && l !== 'Rating')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
       expect(text('.cv2-row-lobby')).toEqual(['74%']);
     } finally { lobbyDisplay.show = false; }
   });
 
   it('the outcome block: VICTORY for 1st (green) else the placement; the date, run length and Gold, each labelled; "—" when unknown', () => {
     const verdicts = [...ui.container.querySelectorAll('.cv2-verdict')];
-    expect(verdicts.map((v) => v.textContent)).toEqual(['VICTORY', '3RD', '7TH']);
+    expect(verdicts.map((v) => v.textContent)).toEqual(['1st', '3rd', '7th']);
     expect(verdicts[0]!.classList.contains('won')).toBe(true);
     expect(verdicts[1]!.classList.contains('top4')).toBe(true);
     expect(verdicts[2]!.classList.contains('lost')).toBe(true);
     // The banner's edge carries the same result colour.
     expect([...ui.container.querySelectorAll('.cv2-row')].map((r) => r.classList.contains('won'))).toEqual([true, false, false]);
-    expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
+    // The verdict IS the outcome block's headline (WS-4, 2026-10-16): no "Match Outcome" label over it.
+    expect(text('.cv2-row-outcome .cv2-row-label')).toEqual([]);
     // The LOBBY STRENGTH (owner 2026-09-22) is HIDDEN for now (owner 2026-09-30): no Lobby fact even on the stamped run.
     // BOARD STRENGTH (R-LOBBY-09) shows, frozen on the run; a run without a score prints nothing (no placeholder).
-    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    // Rounds and the Rating change joined the meta line with the game card (2026-10-16); the rest keep their order.
+    expect(text('.cv2-row .cv2-meta-l').filter((l) => l !== 'Rounds' && l !== 'Rating')).toEqual(['Played', 'Length', 'Gold spent', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
     expect(text('.cv2-row-lobby')).toEqual([]);
     expect(text('.cv2-row-bstrength')).toEqual(['72']);
     const when = text('.cv2-row-when');
     expect(when[0]).toMatch(/\d{4}$/);          // a real date
     expect(text('.cv2-row-length')).toEqual(['15 min', '12 min', '—']);   // 883 s · 690 s · no telemetry clock
-    expect(text('.cv2-row-gold-v')).toEqual(['120', '90', '—']);
+    expect(text('.cv2-row-gold-v')).toEqual(['120', '90', '-']);
   });
 
-  it('ONE button per row — Watch Replay — enabled only where a replay row exists; no Share button, no power stat, no rating delta', () => {
+  it('ONE button per row — Replay — enabled only where a replay row exists; no Share button, no power stat; the rating change on the meta line', () => {
     const buttons = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-watch')];
-    expect(buttons.map((b) => b.textContent)).toEqual(['Watch Replay', 'Watch Replay', 'Watch Replay']);
+    expect(buttons.map((b) => b.textContent)).toEqual(['Replay', 'Replay', 'Replay']);
     expect(buttons.map((b) => b.disabled)).toEqual([false, true, true]);
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch this run’s replay', 'No replay stored for this run', 'No replay stored for this run']);
     const all = ui.container.textContent ?? '';
     expect(all).not.toMatch(/share/i);
     expect(all).not.toMatch(/power/i);
-    expect(all).not.toMatch(/\+41|−41|-41/);
+    // The RATING CHANGE is on the card's meta line since the game card (owner ask 2026-10-16), green when it rose.
+    expect(text('.cv2-row-delta')[0]).toBe('+41');
+    expect(ui.container.querySelector('.cv2-row-delta')?.classList.contains('up')).toBe(true);
     expect(ui.container.querySelector('.carinsights')).toBeNull();
     expect(ui.container.querySelector('[title]'), 'no native tooltips anywhere on the page').toBeNull();
   });
@@ -319,42 +324,36 @@ describe('the right column', () => {
     expect(ui.container.textContent).not.toMatch(/division|tier|bronze|silver|gold rank/i);
   });
 
-  it('Performance Trends: four inline-SVG charts — MMR first, then the three rates — 30 days by default, the 7 / 30 / 90 / All time toggle re-scopes them', () => {
-    expect(text('.cv2-trend-title')).toEqual(['MMR', 'Avg Placement', 'Win Rate', 'Avg APM']);
-    expect(ui.container.textContent).not.toMatch(/fight win rate/i);
-    expect(ui.container.querySelectorAll('.cv2-chart svg')).toHaveLength(4);
-    expect(ui.container.querySelectorAll('.cv2-chart canvas')).toHaveLength(0);
+  // PERFORMANCE TRENDS WITH DEPTH (careerTrends.tsx, owner 2026-10-16): one big MMR chart, then four small multiples
+  // (placement per game + rolling average, top 4 rate, APM, games), each with its window figure.
+  const smallV = (): string[] => text('.ct-small-v');
+  it('Performance Trends: the MMR chart first, then Placement / Top 4 rate / APM / Games, 30 days by default, the 7 / 30 / 90 / All time toggle re-scopes them', () => {
+    expect(text('.ct-small-t')).toEqual(['Placement', 'Top 4 rate', 'APM', 'Games']);
+    expect(ui.container.querySelectorAll('.ct-mmr svg')).toHaveLength(1);
+    expect(ui.container.querySelectorAll('.cv2-trends canvas')).toHaveLength(0);
     // MMR sits directly under the Seasonal Ranked card (crest → number → line).
-    const charts = [...ui.container.querySelectorAll('.cv2-trend')];
-    expect(charts[0]!.querySelector('.cv2-trend-title')?.textContent).toBe('MMR');
-    expect(ui.container.querySelector('.cv2-ranked')!.compareDocumentPosition(charts[0]!) & 4).toBe(4);
+    expect(ui.container.querySelector('.cv2-ranked')!.compareDocumentPosition(ui.container.querySelector('.ct-mmr')!) & 4).toBe(4);
     const seg = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-seg-btn')];
     expect(seg.map((b) => b.textContent)).toEqual(['7d', '30d', '90d', 'All time']);
     expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'true', 'false', 'false']);
-    // 30 days: the two recent runs → MMR 1193 → 1234 raw, the headline the LATEST rating = the crest's own 1234;
-    // placements 3, 1 (avg 2); both top 4 → MATCH win rate 100%; APM from run 12 only (run 11 has no APT)
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '2 runs', '2 runs', '1 run']);
-    expect(text('.cv2-trend-avg')).toEqual(['1234', '2', '100%', '26.6']);
+    // 30 days: the two recent runs, placements 3 and 1 (avg 2.0), both top 4, APM from run 12 only.
+    expect(text('.ct-mmr-head .cv2-trend-avg')).toEqual(['1234']);
+    expect(smallV()).toEqual(['2.0', '100%', '26.6', '2']);
     expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
-    // The MMR axis is snapped to the ladder's 100-point divisions around the window's ratings, labelled plain.
-    expect(charts[0]!.querySelector('.cv2-axis.top')?.textContent).toBe('1300');
-    expect(charts[0]!.querySelector('.cv2-axis.bottom')?.textContent).toBe('1100');
+    // Every placed game is its own mark, the 1st a diamond (shape as well as colour).
+    expect(ui.container.querySelectorAll('.ct-small .ct-pt.won')).toHaveLength(1);
+    expect(ui.container.querySelectorAll('.ct-small .ct-pt.top4')).toHaveLength(1);
     click(seg[2]!);
-    // 90 days adds the 7th-place run → 2 of 3 = 67% (the fight records 9–4 / 5–5 / 2–5 would have said
-    // otherwise). Its row carries no settle stamp, so MMR keeps its two points — never a 0 for an unrated run.
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '3 runs', '3 runs', '1 run']);
-    expect(text('.cv2-trend-avg')[0]).toBe('1234');
-    expect(text('.cv2-trend-avg')[2]).toBe('67%');
+    // 90 days adds the 7th-place run: 2 of 3 top 4 = 67%; it carries no settle stamp, so MMR keeps its two points.
+    expect(smallV()).toEqual(['3.7', '67%', '26.6', '3']);
+    expect(ui.container.querySelectorAll('.ct-small .ct-pt.lost')).toHaveLength(1);
     click(seg[0]!);
     expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false', 'false']);
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '2 runs', '2 runs', '1 run']);
-    expect(ui.container.querySelectorAll('.cv2-chart polyline')).toHaveLength(3); // APM has a lone point → a dot, not a line
-    expect(ui.container.querySelectorAll('.cv2-chart .cv2-dot')).toHaveLength(1);
-    // Static paint only: no SMIL, no canvas, no native tooltip on any chart.
-    expect(ui.container.querySelector('.cv2-chart animate, .cv2-chart animateTransform, .cv2-chart [title]')).toBeNull();
+    // Static paint only: no SMIL, no native tooltip on any chart.
+    expect(ui.container.querySelector('.cv2-trends animate, .cv2-trends animateTransform, .cv2-trends [title]')).toBeNull();
   });
 
-  it('All time has no lower bound (a run from 400 days back joins the rates); a window with no rated run shows the MMR chart empty, never a line of zeros, its headline the live crest number', async () => {
+  it('All time has no lower bound (a run from 400 days back joins); a window with no rated run shows the MMR chart empty, never a line of zeros, its headline the live crest number', async () => {
     ui.unmount();
     fetchMyRuns.mockResolvedValue([
       ...RUNS,
@@ -365,41 +364,36 @@ describe('the right column', () => {
     await flush();
     const seg = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-seg-btn')];
     click(seg[2]!); // 90d: the 400-day-old run is out
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '3 runs', '3 runs', '1 run']);
+    expect(smallV()[3]).toBe('3');
     click(seg[3]!); // All time: in
     expect(seg[3]!.textContent).toBe('All time');
-    expect(seg.map((b) => b.getAttribute('aria-pressed'))).toEqual(['false', 'false', 'false', 'true']);
-    expect(text('.cv2-trend-foot')).toEqual(['2 runs', '4 runs', '4 runs', '1 run']);
-    expect(text('.cv2-trend-avg')[0]).toBe('1234');
-    expect(text('.cv2-trend-avg')[2]).toBe('50%'); // 1st, 3rd (W) · 7th, 5th (L)
+    expect(smallV()[3]).toBe('4');
+    expect(smallV()[1]).toBe('50%'); // 1st, 3rd (W) · 7th, 5th (L)
+    expect(text('.ct-mmr-head .cv2-trend-avg')).toEqual(['1234']);
 
     ui.unmount();
     fetchMyRuns.mockResolvedValue([run({ id: 3, atMs: NOW - DAY, placement: 2, ratingAfter: null })]);
     useGame.setState({ careerCache: null });
     ui = mount(<Career />);
     await flush();
-    const mmrChart = ui.container.querySelector('.cv2-trend')!;
-    expect(mmrChart.querySelector('.cv2-trend-title')?.textContent).toBe('MMR');
     // The headline is the LIVE rating the crest prints (owner 2026-10-03), even with no stamped point to draw.
-    expect(mmrChart.querySelector('.cv2-trend-avg')?.textContent).toBe('1234');
-    expect(mmrChart.querySelector('.cv2-chart-empty')?.textContent).toBe('No rated runs in this window');
-    expect(mmrChart.querySelector('.cv2-trend-foot')?.textContent).toBe('0 runs');
-    expect(mmrChart.querySelector('polyline, .cv2-dot')).toBeNull();
+    expect(text('.ct-mmr-head .cv2-trend-avg')).toEqual(['1234']);
+    expect(ui.container.querySelector('.ct-empty')?.textContent).toBe('No rated runs in this window');
+    expect(ui.container.querySelector('.ct-line')).toBeNull();
     expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
   });
 
-  it('a stale last stamp: the MMR chart ENDS on the crest number with a closing "now" point that is not counted as a run (owner 2026-10-03)', async () => {
+  it('a stale last stamp: the MMR chart ENDS on the crest number with a closing "now" point (owner 2026-10-03)', async () => {
     ui.unmount();
     // The newest stamped run says 1250, but the live profile rating (the crest) is 1234.
     fetchMyRuns.mockResolvedValue([run({ id: 3, atMs: NOW - DAY, placement: 2, ratingAfter: 1250 })]);
     useGame.setState({ careerCache: null });
     ui = mount(<Career />);
     await flush();
-    const mmrChart = ui.container.querySelector('.cv2-trend')!;
-    expect(mmrChart.querySelector('.cv2-trend-avg')?.textContent).toBe('1234');
+    expect(text('.ct-mmr-head .cv2-trend-avg')).toEqual(['1234']);
     expect(ui.container.querySelector('.cv2-ranked .rankbar-caption')?.textContent).toBe('1234 MMR');
-    expect(mmrChart.querySelector('polyline')).not.toBeNull(); // run point → now point: a line, not a lone dot
-    expect(mmrChart.querySelector('.cv2-trend-foot')?.textContent).toBe('1 run');
+    // run point → now point: a line of two points, not a lone dot.
+    expect(ui.container.querySelector('.ct-line')?.getAttribute('points')?.split(' ')).toHaveLength(2);
   });
 });
 
@@ -702,9 +696,9 @@ describe('the Practice tab', () => {
     expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 2 practice games');
     expect(text('.cv2-practicelist .cv2-row-heroname')).toEqual(['Sable', 'Brackus']);
     // The result by placement (2nd = WIN, 6th = LOSS), the fight record caption, the outcome block.
-    expect(text('.cv2-practicelist .cv2-row-result')).toEqual(['WIN', 'LOSS']);
+    expect(text('.cv2-practicelist .cv2-row-result')).toEqual([]);
     expect(text('.cv2-practicelist .cv2-row-fights')).toEqual(['7–5–1', '3–6']);
-    expect(text('.cv2-practicelist .cv2-verdict')).toEqual(['2ND', '6TH']);
+    expect(text('.cv2-practicelist .cv2-verdict')).toEqual(['2nd', '6th']);
     expect(text('.cv2-practicelist .cv2-row-rounds')).toEqual(['15', '9']);
     expect(text('.cv2-practicelist .cv2-row-length')).toEqual(['21 min', '21 min']);
     expect(text('.cv2-practicelist .cv2-row-when').every((w) => w.length > 0 && w !== '—')).toBe(true);
@@ -726,7 +720,7 @@ describe('the Practice tab', () => {
     await openPractice();
     const rows = [...ui.container.querySelectorAll('.cv2-practicelist .cv2-row')];
     expect(rows[0]!.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(1);
-    expect(rows[0]!.querySelector('.cv2-watch')?.textContent).toBe('Watch Replay');
+    expect(rows[0]!.querySelector('.cv2-watch')?.textContent).toBe('Replay');
     expect(rows[1]!.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(0); // the Lobby chevron is always there
     expect(rows[1]!.textContent).not.toMatch(/replay/i);
   });

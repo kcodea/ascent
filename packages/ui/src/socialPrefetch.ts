@@ -1,6 +1,7 @@
 import { careerFresh, loadCareer } from './careerLoad';
 import { browserIdle, type IdleHandle } from './idleWork';
 import { HALL_KEY, loadHall } from './Leaderboard';
+import { HALL_VISIBLE } from './hallFlag';
 import { RANKINGS_KEY, loadRankings } from './Rankings';
 import { RECENT_RANKED_KEY, loadRecentRanked } from './RecentGames';
 import { remoteEnabled, replayFactsState } from './remoteBoards';
@@ -33,7 +34,8 @@ export async function prefetchSocial(): Promise<void> {
     const key = `${userId}|${s.careerVersion}`;
     if (!careerFresh(key)) tasks.push(loadCareer(key));
   }
-  tasks.push(loadSocial(RANKINGS_KEY, loadRankings), loadSocial(HALL_KEY, loadHall));
+  tasks.push(loadSocial(RANKINGS_KEY, loadRankings));
+  if (HALL_VISIBLE) tasks.push(loadSocial(HALL_KEY, loadHall)); // a hidden Hall is never fetched (hallFlag.ts)
   await Promise.allSettled(tasks);
   if (replayFactsState('run_telemetry') === true) await loadSocial(RECENT_RANKED_KEY, loadRecentRanked);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { AscentLogo } from './AscentLogo';
 import { LEARN_ASCENT } from '@game/sim';
 import { avatarSrc, modeArt } from './art';
@@ -31,6 +31,8 @@ import { VersusTitle } from './versus/VersusTitle';
 import { VersusRoom } from './versus/VersusRoom';
 import { openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
 import { versusEnabled } from './versus/versusFlag';
+import { readLastMode, rememberMode, type ModeKey } from './lastMode';
+import { PlayerStrip } from './PlayerStrip';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -59,6 +61,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // Which view the title shows (main menu / mode picker / Learn hub) — store-held so the menu sidebar on any
   // ladder page can open the picker, and so `openTitle` lands on the main menu.
   const titleView = useGame((s) => s.titleView);
+  // Bumps on every `goTo('modes')` (the sidebar's Play), so the mode picker's content replays its entrance.
+  const modesEnterKey = useGame((s) => s.navHopAt);
   const setTitleView = useGame((s) => s.setTitleView);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
@@ -202,8 +206,37 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     </button>
   );
 
+  // The mode you last launched from the picker (read per render: the title stays mounted across runs).
+  const lastMode = titleView !== 'menu' ? readLastMode() : null;
+  // A secondary mode tile: the art clipped to the frame, the name pill on the top edge (the hero-card idiom),
+  // the description always on show along the bottom, and the "Last played" tag when it applies.
+  const modeTile = (mode: string, mp: ModeKey, name: string, desc: string, onClick: () => void, emblem: ReactNode): JSX.Element => (
+    <button className="modecard mc-tile" data-mp={mp} onClick={onClick}>
+      <div className="mcframe" data-mode={mode} data-mp={mp}>
+        <div className="mcname hudpill-name">{name}</div>
+        {modeArt(mode)
+          ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt(mode)} alt="" draggable={false} /></div>
+          : <span className="mcemblem">{emblem}</span>}
+        <div className="mcdesc">{desc}</div>
+        {lastMode === mp && <span className="mclast">Last played</span>}
+      </div>
+    </button>
+  );
+  // A picker sub-view's heading: a crumb back to the picker, then the view's name (the rail's Play goes there too).
+  const subHead = (name: string): JSX.Element => (
+    <div className="mphead">
+      <button className="mpcrumb" onClick={() => { sfx.pulse(); setTitleView('modes'); }}>Modes</button>
+      <span className="mpsep" aria-hidden="true">/</span>
+      <h1 className="disp mptitle">{name}</h1>
+    </div>
+  );
+
   return (
-    <div className={`titlescreen${covered ? ' covered' : ''}`}>
+    // `covered && pageOpen`, not `covered` alone (2026-10-16, owner: "when going from career -> play there's a weird
+    // flash"): the effect that clears `covered` runs AFTER the frame in which the page closed, so for one frame the page
+    // was gone and the title (and the mode picker inside it) was still skipped by `content-visibility: hidden`, a blank
+    // frame. Deriving it in render un-skips the title in the same commit that removes the page.
+    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}`}>
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 
@@ -371,97 +404,61 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       </div>
 
-      {/* MODE PICKER — a full-screen view in the HERO-SELECT idiom (owner request): big framed cards in a
-          row, each with a name pill eclipsing the frame's top edge, a tag pill eclipsing the bottom, and the
-          description fading in on hover. Play is the ranked lobby; Practice is unscored. (The Rift card went
-          with the retired course format, owner 2026-09-30 / R-PERSIST-01: a rift run was a 17-round climb.) */}
+      {/* MODE PICKER (redesigned for UI refinement WS-2, 2026-10-16; owner: "our play mode screen seems bad").
+          One fixed grid over the painted hall (MenuBackdrop): PLAY, the ranked lobby, is the large tile with the one
+          gold call to action; Practice and Versus stack beside it; Gauntlet and Learn share the row below. Every
+          mode stays one click away and the tiles never move (muscle memory); the mode you last launched wears a
+          "Last played" tag instead (lastMode.ts). Descriptions are always shown, never hidden behind a hover.
+          The mode id stays `lobby` everywhere internally; only the LABEL is "Play" (owner 2026-08-17). */}
+      {/* Mounted under the Learn / Gauntlet / Versus views too (they open OVER it), so opening one never flashes
+          the title through its fade-in. */}
       {titleView !== 'menu' && (
-        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Choose a mode">
-          {/* The menu sidebar carries Back (→ the main menu) + the main menu itself (owner ask 2026-09-21). */}
-          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('menu'); }} />
-          <div className="mpbox">
-            <h1 className="disp mptitle">MODE</h1>
-            {/* PLAY is the hero of the screen — a wide 21:9 banner (PlayMode2 art). The mode id stays `lobby`
-                everywhere internally (store, run state, replays); only the LABEL is "Play" (owner 2026-08-17).
-                A new player is offered the tutorial first (see `onPlay`). */}
-            <div className="mprow">
-              <button className="modecard" data-mp="play" onClick={onPlay}>
+        <SidebarHost className="modepick sb-host mp-home" role="dialog" aria-label="Choose a mode">
+          <MenuSidebar current="modes" />
+          {/* Keyed on the nav stamp (owner 2026-10-16: "the cards dont fade/slide in when going to play from career"):
+              the picker stays mounted under a menu page (so closing the page never flashes), so a hop back to Play would
+              otherwise re-show it with no entrance. A fresh key remounts only the CONTENT, which replays the strip's rise
+              and the tiles' stagger; the backdrop and the rail stay put. */}
+          <div className="mpbox" key={titleView === 'modes' ? modesEnterKey : 'sub'}>
+            {/* WHO YOU ARE, across the top (owner 2026-10-16): portrait + frame, name + title, rank + MMR, level + XP. */}
+            <PlayerStrip />
+            <div className="mphead"><h1 className="disp mptitle">Choose a mode</h1></div>
+            <div className="mpgrid">
+              <button className="modecard mc-hero" data-mp="play" onClick={() => { rememberMode('play'); onPlay(); }}>
                 <div className="mcframe" data-mode="lobby" data-mp="play">
-                  <div className="mcname hudpill-name">Play</div>
                   {modeArt('lobby')
                     ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
                     : <span className="mcemblem"><IconHelm /></span>}
                   {/* No rank on the Play card (owner 2026-09-21): the crest + bar live on the Career page and the
                       Leaderboard; the card is just the door to the ranked lobby. */}
                   <div className="mcdesc">The ranked eight-seat lobby.</div>
+                  {lastMode === 'play' && <span className="mclast">Last played</span>}
+                  <span className="mcname mc-cta"><Crest /><span>Play</span></span>
                 </div>
               </button>
-            </div>
-
-            {/* LEARN + Practice below. Learn opens the learning hub (Tutorial + future lessons); it does not
-                launch a run directly. */}
-            <div className="mprow">
-              <button className="modecard" data-mp="learn" onClick={() => { sfx.pulse(); setTitleView('learn'); }}>
-                <div className="mcframe" data-mode="learn" data-mp="learn">
-                  <div className="mcname hudpill-name">Learn</div>
-                  {modeArt('learn')
-                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
-                    : <span className="mcemblem"><IconHelm /></span>}
-                  <div className="mcdesc">Tutorial + techniques.</div>
-                </div>
-              </button>
-
-              <button className="modecard" data-mp="practice" onClick={() => { sfx.pulse(); startPractice(); }}>
-                <div className="mcframe" data-mode="practice" data-mp="practice">
-                  <div className="mcname hudpill-name">Practice</div>
-                  {modeArt('practice')
-                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('practice')} alt="" draggable={false} /></div>
-                    : <span className="mcemblem"><IconHelm /></span>}
-                  <div className="mcdesc">More time and unlimited Health.</div>
-                </div>
-              </button>
-            </div>
-
-            {/* GAUNTLET — a wide banner on its own row under Learn (same footprint), opening the stage select. */}
-            <div className="mprow">
-              <button className="modecard" data-mp="gauntlet" onClick={() => { sfx.pulse(); setTitleView('gauntlet'); }}>
-                <div className="mcframe" data-mode="gauntlet" data-mp="gauntlet">
-                  <div className="mcname hudpill-name">Gauntlet</div>
-                  {modeArt('gauntlet')
-                    ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('gauntlet')} alt="" draggable={false} /></div>
-                    : <span className="mcemblem"><Crest /></span>}
-                  <div className="mcdesc">Survive 10 rounds against a hand-built foe.</div>
-                </div>
-              </button>
-            </div>
-
-            {/* VERSUS (2026-10-13): real-time 1v1 rooms. Behind `versusEnabled()` until the server side is live. */}
-            {versusEnabled() && (
-              <div className="mprow">
-                <button className="modecard" data-mp="versus" onClick={() => { sfx.pulse(); openVersus(); }}>
-                  <div className="mcframe" data-mode="versus" data-mp="versus">
-                    <div className="mcname hudpill-name">Versus</div>
-                    {modeArt('versus')
-                      ? <div className="mcart-clip"><img decoding="sync" className="mcframe-art" src={modeArt('versus')} alt="" draggable={false} /></div>
-                      : <span className="mcemblem"><Crest /></span>}
-                    <div className="mcdesc">Real-time 1v1. Seven hearts each. Unranked.</div>
-                  </div>
-                </button>
+              <div className="mpside">
+                {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}
+                {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Seven hearts each. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
               </div>
-            )}
+              <div className="mprow2">
+                {modeTile('gauntlet', 'gauntlet', 'Gauntlet', 'Survive 10 rounds against a hand-built foe.', () => { rememberMode('gauntlet'); sfx.pulse(); setTitleView('gauntlet'); }, <Crest />)}
+                {modeTile('learn', 'learn', 'Learn', 'The tutorial and techniques.', () => { sfx.pulse(); setTitleView('learn'); }, <IconHelm />)}
+              </div>
+            </div>
           </div>
         </SidebarHost>
       )}
 
       {/* LEARN HUB — opened from the Learn card in the mode picker. Holds the guided Tutorial today; the
-          advanced-lessons slots are placeholders for lessons we add later (owner 2026-08-17). */}
+          advanced-lessons slots are placeholders for lessons we add later (owner 2026-08-17). The crumb (and the
+          rail's Play) lead back to the picker. */}
       {titleView === 'learn' && (
         <SidebarHost className="modepick sb-host" role="dialog" aria-label="Learn">
-          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
+          <MenuSidebar current="modes" />
           <div className="mpbox">
-            <h1 className="disp mptitle">LEARN</h1>
+            {subHead('Learn')}
             <div className="mprow">
-              <button className="modecard" onClick={() => { sfx.pulse(); startTutorial(LEARN_ASCENT); }}>
+              <button className="modecard" onClick={() => { rememberMode('learn'); sfx.pulse(); startTutorial(LEARN_ASCENT); }}>
                 <div className="mcframe" data-mode="learn">
                   <div className="mcname hudpill-name">Tutorial</div>
                   {modeArt('learn')
@@ -484,12 +481,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       )}
 
       {/* GAUNTLET STAGE SELECT — opened from the Gauntlet card in the mode picker (the Learn hub's pattern: it sits
-          over the picker, and Back returns to it). Picking a stage opens the hero picker for that stage. */}
+          over the picker, and the crumb returns to it). Picking a stage opens the hero picker for that stage. */}
       {titleView === 'gauntlet' && (
         <SidebarHost className="modepick sb-host" role="dialog" aria-label="Gauntlet">
-          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
+          <MenuSidebar current="modes" />
           <div className="mpbox">
-            <h1 className="disp mptitle">GAUNTLET</h1>
+            {subHead('Gauntlet')}
             <StageSelect />
           </div>
         </SidebarHost>
@@ -499,9 +496,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {titleView === 'versus' && versusScreen === 'room' && <VersusRoom />}
       {titleView === 'versus' && versusScreen !== 'room' && (
         <SidebarHost className="modepick sb-host" role="dialog" aria-label="Versus">
-          <MenuSidebar current="modes" onBack={() => { sfx.pulse(); setTitleView('modes'); }} />
+          <MenuSidebar current="modes" />
           <div className="mpbox">
-            <h1 className="disp mptitle">VERSUS</h1>
+            {subHead('Versus')}
             <VersusTitle />
           </div>
         </SidebarHost>

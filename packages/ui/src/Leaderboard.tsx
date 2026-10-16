@@ -72,7 +72,6 @@ export async function loadHall(): Promise<HallData> {
 
 export function Leaderboard() {
   const show = useGame((s) => s.showLeaderboard);
-  const close = useGame((s) => s.closeLeaderboard);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // recorded titles ride the opponent cosmetics switch
   // Cached across opens (socialCache.ts): a revisit paints the last Hall at once and refreshes behind it.
   const hall = useSocial<HallData>(show ? HALL_KEY : null, loadHall);
@@ -89,11 +88,10 @@ export function Leaderboard() {
 
   if (!show) return null;
 
-  const back = (): void => { sfx.pulse(); close(); };
 
   return (
     <SidebarHost className="lbpage lb-ladder lb-hall">
-      <MenuSidebar current="hall" onBack={back} />
+      <MenuSidebar current="hall" />
       <div className="lbtopbar">
         <div className="lbtitle">
           <Icon name="crown" />
@@ -128,7 +126,7 @@ export function Leaderboard() {
               // outside it pause their card FX.
               return (
                 <LazyRow key={r.key} eager={i < 4} className="lb-lazy">{() => (
-                <div className="lb-row">
+                <div className="lb-row" data-place={i < 3 ? i + 1 : undefined}>
                   <div className="lb-row-rank"><LbMedallion rank={i + 1} /></div>
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.heroId} frameId={frameIdOf(opponentSkins(showOppCosmetics, (r.board as BoardSnapshot | null)?.cosmetics))} />

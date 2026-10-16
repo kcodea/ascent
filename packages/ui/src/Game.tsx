@@ -310,6 +310,9 @@ export function Game() {
     const SEL = MENU_SFX_SEL;
     const SKIP = MENU_SFX_SKIP;
     let last: Element | null = null;
+    // RATE LIMIT (UI refinement WS-7, 2026-10-16): a fast sweep across a column of plaques no longer stacks a burst of
+    // overlapping ticks; one tick per 45 ms at most (the research's standard practice for hover sounds).
+    let lastTickAt = -1e9;
     const onOver = (e: PointerEvent): void => {
       if (e.pointerType === 'touch') return;                 // hover is a mouse/pen affordance only
       let el = (e.target as Element | null)?.closest?.(SEL) ?? null;
@@ -321,6 +324,9 @@ export function Game() {
       if (el === last) return;                               // still within the same target (or still on nothing)
       last = el;
       if (!el || el.closest(SKIP) || (el as HTMLButtonElement).disabled) return;
+      const now = performance.now();
+      if (now - lastTickAt < 45) return;
+      lastTickAt = now;
       sfx.uiHover();
     };
     window.addEventListener('pointerover', onOver, { passive: true });

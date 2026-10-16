@@ -249,16 +249,14 @@ describe('Rankings — the ranked table', () => {
     expect(text('.lb-trow-btn .lb-c-rating')).toEqual(['782MMR', '763MMR', '264MMR']);
   });
 
-  it('the CAREER PAGE button opens THAT row’s Career (once — the row click underneath does not double-fire)', () => {
+  it('a row opens THAT player’s Career, once; rows carry no Career page / Watch buttons (owner 2026-10-16)', () => {
     const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
-    const careerBtns = [...ui.container.querySelectorAll('.lb-career')];
-    expect(careerBtns).toHaveLength(3);
-    expect(careerBtns.map((b) => b.textContent)).toEqual(['Career page', 'Career page', 'Career page']);
+    expect(ui.container.querySelectorAll('.lb-trow-btn button')).toHaveLength(0);
     const real = useGame.getState().openCareer;
     const openCareer = vi.fn(real);
     act(() => { useGame.setState({ openCareer }); });
     try {
-      click(rows[2]!.querySelector('.lb-career'));
+      click(rows[2]!);
       expect(openCareer).toHaveBeenCalledTimes(1);
       expect(openCareer).toHaveBeenCalledWith({ userId: 'u-three', author: 'Robin', rating: 264, gamesPlayed: 2, favoriteHero: undefined });
       expect(useGame.getState().careerOf?.userId).toBe('u-three');
@@ -266,18 +264,6 @@ describe('Rankings — the ranked table', () => {
     } finally {
       act(() => { useGame.setState({ openCareer: real }); });
     }
-  });
-
-  it('a row opens that player’s Career; its Watch button plays their latest run without opening the Career', async () => {
-    const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
-    click(rows[0]!.querySelector('.lb-watch-latest'));
-    await flush();
-    expect(fetchLatestReplayForUser).toHaveBeenCalledWith('u-top');
-    expect(startReplay).toHaveBeenCalledTimes(1);
-    expect(useGame.getState().showCareer).toBe(false);
-    click(rows[0]);
-    expect(useGame.getState().showCareer).toBe(true);
-    expect(useGame.getState().careerOf?.userId).toBe('u-top');
   });
 });
 
@@ -296,13 +282,13 @@ describe('Rankings — the medal rank rides into the Career page', () => {
     const openCareer = vi.fn(real);
     act(() => { useGame.setState({ openCareer }); });
     try {
-      click(ranked.querySelector('.lb-career'));
+      click(ranked);
       expect(openCareer).toHaveBeenCalledTimes(1);
       expect(openCareer).toHaveBeenCalledWith({ userId: 'u-top', author: 'Nadja', rating: 46, gamesPlayed: 46, favoriteHero: 'brackus', rank });
       expect(useGame.getState().careerOf?.rank?.position).toEqual({ divisionIndex: 0, points: 46, demotionReady: false });
       // A rankless row (pre-migration) hands nothing extra over.
       const plain = rows.find((r) => r.querySelector('.lb-handle')?.textContent?.startsWith('Robin'))!;
-      click(plain.querySelector('.lb-career'));
+      click(plain);
       expect(openCareer).toHaveBeenLastCalledWith({ userId: 'u-three', author: 'Robin', rating: 264, gamesPlayed: 2, favoriteHero: undefined });
       expect('rank' in (openCareer.mock.calls[1]![0] as object)).toBe(false);
     } finally {
@@ -515,8 +501,8 @@ describe('RecentGames — the recording banners', () => {
     expect(text('.lb-rune-name').slice(0, 2)).toEqual(['Rune of Spellslinging', 'Happy Birthday']);
     expect(rows[0]!.querySelectorAll('.lb-rune-em img, .lb-rune-em svg')).toHaveLength(2);
     expect(rows[1]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
-    expect(text('.lb-verdict')).toEqual(['VICTORY', '5TH', '2ND']);
-    expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['lb-verdict won', 'lb-verdict lost', 'lb-verdict top4']);
+    expect(text('.lb-verdict')).toEqual(['1st', '5th', '2nd']);
+    expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['gc-place won lb-verdict won', 'gc-place lost lb-verdict lost', 'gc-place top4 lb-verdict top4']);
     // length · rounds · board strength (only on the scored row) per row; row 3 has no rounds. The lobby strength is
     // HIDDEN for now (owner 2026-09-30).
     expect(text('.lb-fact-v')).toEqual(['18 min', '15', '72', '7 min', '11', '—']);
@@ -554,7 +540,7 @@ describe('RecentGames — the recording banners', () => {
     const btns = [...ui.container.querySelectorAll('.lb-watch')] as HTMLButtonElement[];
     expect(btns).toHaveLength(3);
     expect(btns.map((b) => b.disabled)).toEqual([false, false, true]);
-    expect(btns.map((b) => b.textContent)).toEqual(['Watch replay', 'Watch replay', 'No replay']);
+    expect(btns.map((b) => b.textContent)).toEqual(['Replay', 'Replay', 'No replay']);
     click(btns[0]!);
     await flush();
     expect(fetchReplayPayload).toHaveBeenCalledWith(91);
@@ -637,7 +623,7 @@ describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
     expect(selected()).toBe('Practice');
     expect(fetchPracticeGames).toHaveBeenCalledTimes(1);
     expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev']);
-    expect(text('.lb-verdict')).toEqual(['3RD', '6TH']);
+    expect(text('.lb-verdict')).toEqual(['3rd', '6th']);
     expect(text('.lb-row-record')).toEqual(['9–4', '3–6']);
     expect(text('.lb-fact-l')).toEqual(['Length', 'Rounds', 'Opponents', 'Health', 'Length', 'Rounds', 'Opponents', 'Health']);
     expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Bots Lv 5', 'Unlimited', '18 min', '9', 'Players', 'Normal']);

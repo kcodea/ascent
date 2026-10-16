@@ -181,7 +181,7 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(dialog!.classList.contains('closing')).toBe(false);
   });
 
-  it('the motion is compositor-only: transform + opacity keyframes, a static blur, reduced motion honoured', () => {
+  it('the motion is compositor-only: transform + opacity keyframes, a pre-blurred plate, reduced motion honoured', () => {
     const css = readFileSync(join(__dirname, '..', 'styles.css'), 'utf8');
     const block = (name: string): string => {
       const at = css.indexOf(`@keyframes ${name} {`);
@@ -204,8 +204,10 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(Math.max(...scales)).toBeGreaterThan(1);
     expect(scales[scales.length - 1]).toBe(1);
     const veil = css.slice(css.indexOf('.rankedconfirm-veil {'), css.indexOf('}', css.indexOf('.rankedconfirm-veil {')));
-    expect(veil).toMatch(/backdrop-filter: blur\(\d+px\)/);
-    expect(veil, 'the veil darkens').toMatch(/background: rgba\(/);
+    // WS-7 (2026-10-16): the veil is the PRE-BLURRED hall plate, never a live backdrop-filter.
+    expect(veil).not.toMatch(/backdrop-filter/);
+    expect(veil).toMatch(/backdrops\/hall-dim\.webp/);
+    expect(veil, 'the veil darkens').toMatch(/background: linear-gradient\(rgba\(/);
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\s*\.rankedconfirm-veil,[^}]*animation: none;/);
     expect(css).toContain(`rc-out ${RANKED_CONFIRM_EXIT_MS / 1000}s`);
     expect(css).not.toMatch(/\.rankedconfirm[^{]*\{[^}]*cursor:\s*pointer/);

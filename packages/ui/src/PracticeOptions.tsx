@@ -1,4 +1,7 @@
 import { useGame } from './store';
+import { modeArt } from './art';
+import { FadeImg } from './FadeImg';
+import { MenuBackdrop } from './MenuBackdrop';
 import { sfx } from './sfx';
 import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
 
@@ -78,19 +81,37 @@ const TRIBE_OPTIONS: { value: PracticeTribe | null; label: string }[] = [
   ...practiceTribeOptions().map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
 ];
 
-/** One of the Practice screen's two modes (owner sketch 2026-10-08): heading, Select button, description. */
-function ModeColumn({ mode, title, text, on, onSelect }: {
-  mode: 'god' | 'sandbox'; title: string; text: string; on: boolean; onSelect: () => void;
+/** One of the Practice screen's two modes as a SELECTABLE TILE (UI refinement 2026-10-16; owner sketch 2026-10-08 for
+ *  the two modes): the mode's art, its name and its one-line description, the selected one lit with a clear state.
+ *  The whole tile is the button (`.pomode-select`, aria-pressed); no separate Select / Selected button. */
+function ModeTile({ mode, title, text, art, on, onSelect }: {
+  mode: 'god' | 'sandbox'; title: string; text: string; art: string | undefined; on: boolean; onSelect: () => void;
 }) {
   return (
     <div className={`pomode${on ? ' on' : ''}`} data-mode={mode}>
-      <h2 className="disp pomode-title">{title}</h2>
-      <button className={`pomode-select pressable${on ? ' on' : ''}`} aria-pressed={on}
-        onPointerDown={() => { if (!on) { sfx.tick(); onSelect(); } }}>{on ? 'Selected' : 'Select'}</button>
-      <p className="pomode-text">{text}</p>
+      <button className={`pomode-select${on ? ' on' : ''}`} aria-pressed={on}
+        onPointerDown={() => { if (!on) { sfx.tick(); onSelect(); } }} onClick={() => { if (!on) onSelect(); }}>
+        {art && <span className="pomode-art"><FadeImg src={art} alt="" draggable={false} /></span>}
+        <span className="pomode-body">
+          <h2 className="disp pomode-title">{title}</h2>
+          <span className="pomode-text">{text}</span>
+        </span>
+        <span className="pomode-state" aria-hidden="true">{on ? 'Selected' : 'Select'}</span>
+      </button>
     </div>
   );
 }
+
+/** What God Mode gives you, shown in the options panel while it is selected (it has nothing to set up here: every
+ *  God Mode control lives in the game itself). */
+const GOD_FEATURES: { title: string; text: string }[] = [
+  { title: '999 Gold', text: 'Buy, roll and level up as much as you like.' },
+  { title: 'No timer', text: 'Every turn waits for you.' },
+  { title: 'Any card', text: 'Put any minion or spell straight into your shop.' },
+  { title: 'Any rune', text: 'Take any rune at any time.' },
+  { title: 'Pick the opponent', text: 'Choose which round your next opponent comes from.' },
+  { title: 'Nothing is saved', text: 'No rating, no history. Experiment freely.' },
+];
 
 export function PracticeOptions() {
   const open = useGame((s) => s.practiceSetupOpen);
@@ -103,62 +124,80 @@ export function PracticeOptions() {
   // health, every tribe, no timer), so they are greyed out and inert until Sandbox Mode is selected.
   const god = cfg.godMode === true;
 
+  const setTitleView = (v: 'modes') => { useGame.getState().setTitleView(v); };
+  // Back to the mode picker (the crumb), the way the Learn / Gauntlet / Versus views lead back.
+  const back = (): void => { sfx.pulse(); cancel(); setTitleView('modes'); };
+
   return (
-    <div className="modepick practiceopts" role="dialog" aria-label="Practice options">
-      <button className="hsback" onPointerDown={() => { sfx.pulse(); cancel(); }}>← Back</button>
+    <div className="modepick practiceopts mp-practice" role="dialog" aria-label="Practice options">
+      <MenuBackdrop screen="modes" />
       <div className="mpbox pobox pomodes-box">
-        <h1 className="disp mptitle">PRACTICE</h1>
+        <div className="mphead">
+          <button className="mpcrumb" onPointerDown={back}>Modes</button>
+          <span className="mpsep" aria-hidden="true">/</span>
+          <h1 className="disp mptitle">Practice</h1>
+        </div>
         <div className="pomodes">
-          <div className="pomode-col">
-            <ModeColumn mode="sandbox" title="Sandbox Mode" on={!god} onSelect={() => setDraft({ godMode: false })}
-              text="The Practice game, set up your way. Nothing here is rated." />
-            <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
-              <Segmented
-                label="Heroes"
-                hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
-                value={cfg.heroes ?? 'beginner'}
-                options={HERO_MODES}
-                onPick={(v) => setDraft({ heroes: v })}
-                disabled={god}
-              />
-              <Segmented
-                label="Health"
-                hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
-                value={cfg.health}
-                options={HEALTH}
-                onPick={(v) => setDraft({ health: v })}
-                disabled={god}
-              />
-              <Segmented
-                label="Time"
-                hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
-                value={cfg.timeMult}
-                options={TIMES}
-                onPick={(v) => setDraft({ timeMult: v })}
-                disabled={god}
-              />
-              <Segmented
-                label="Opponent Rank"
-                hint={rankHint(normalizePracticeRank(cfg.rank))}
-                value={normalizePracticeRank(cfg.rank)}
-                options={RANKS}
-                onPick={(v) => setDraft({ rank: v })}
-                disabled={god}
-              />
-              <Segmented
-                label="Tribes"
-                hint={`Select as many as you'd like. Selected tribes will be included in the game in addition to Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
-                isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
-                options={TRIBE_OPTIONS}
-                onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
-                disabled={god}
-              />
-            </div>
-          </div>
-          <ModeColumn mode="god" title="God Mode" on={god} onSelect={() => setDraft({ godMode: true })}
+          <ModeTile mode="sandbox" title="Sandbox Mode" on={!god} art={modeArt('practice')} onSelect={() => setDraft({ godMode: false })}
+            text="The Practice game, set up your way. Nothing here is rated." />
+          <ModeTile mode="god" title="God Mode" on={god} art={modeArt('gauntlet')} onSelect={() => setDraft({ godMode: true })}
             text="999 Gold and no timer. Put any card in your shop, take any rune, and choose which round your opponent comes from. Nothing is saved." />
         </div>
+        <div className="popanel">
+          {god && (
+            <div className="pogod" aria-label="What God Mode gives you">
+              {GOD_FEATURES.map((f) => (
+                <div className="pogod-item" key={f.title}><span className="pogod-t">{f.title}</span><span className="pogod-x">{f.text}</span></div>
+              ))}
+            </div>
+          )}
+          {/* GOD MODE (owner sketch 2026-10-08): it ignores the Sandbox options (it always plays every hero, Unlimited
+              health, every tribe, no timer), so they are inert (and folded away) while God Mode is selected. */}
+          <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
+            <Segmented
+              label="Heroes"
+              hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
+              value={cfg.heroes ?? 'beginner'}
+              options={HERO_MODES}
+              onPick={(v) => setDraft({ heroes: v })}
+              disabled={god}
+            />
+            <Segmented
+              label="Health"
+              hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
+              value={cfg.health}
+              options={HEALTH}
+              onPick={(v) => setDraft({ health: v })}
+              disabled={god}
+            />
+            <Segmented
+              label="Time"
+              hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
+              value={cfg.timeMult}
+              options={TIMES}
+              onPick={(v) => setDraft({ timeMult: v })}
+              disabled={god}
+            />
+            <Segmented
+              label="Opponent Rank"
+              hint={rankHint(normalizePracticeRank(cfg.rank))}
+              value={normalizePracticeRank(cfg.rank)}
+              options={RANKS}
+              onPick={(v) => setDraft({ rank: v })}
+              disabled={god}
+            />
+            <Segmented
+              label="Tribes"
+              hint={`Select as many as you'd like. Selected tribes join the Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
+              isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
+              options={TRIBE_OPTIONS}
+              onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
+              disabled={god}
+            />
+          </div>
+        </div>
 
+        {/* START: the one bright gold action on this screen (the gold rule). */}
         <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
@@ -6,12 +6,14 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { peekSocial, putSocial, useSocial } from './socialCache';
-import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
+import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { TitleBadge } from './titles/TitleBadge';
-import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
 import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
+import { useCurrentRank } from './rank/rankSource';
+import { avatarSrc } from './art';
+import { scalarCaption } from './rank/rankFormat';
 import { fetchPortraitLoadouts } from './progression/progressionRemote';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins, useLiveLoadout } from './skins/skins';
@@ -77,22 +79,23 @@ export const loadRankings = async (): Promise<RankedRow[]> => {
 
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
-  const close = useGame((s) => s.closeRankings);
   const myId = useGame((s) => s.account.userId);
+  const myName = useGame((s) => s.playerName);
+  const myDisc = useGame((s) => s.account.discriminator);
+  const myRank = useCurrentRank();
+  const myAvatar = useGame((s) => s.playerAvatar);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
   // Cached across opens (socialCache.ts): a revisit paints the last ladder at once and refreshes behind it.
   const rows = useSocial<RankedRow[]>(show ? RANKINGS_KEY : null, loadRankings) ?? null;
   // YOUR row wears your live loadout (always current, never filtered); everyone else's through "Show opponent skins".
   const myLoadout = useLiveLoadout();
-  const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
-  const [noReplay, setNoReplay] = useState<string | null>(null); // userId with no watchable v2 run
   const mineRef = useRef<HTMLDivElement | null>(null);
 
   // Bring YOUR row into view once the list has painted — one scroll, not a per-frame read.
   useEffect(() => {
     if (!rows || !mineRef.current) return;
-    mineRef.current.scrollIntoView({ block: 'center' });
+    mineRef.current.scrollIntoView({ block: 'nearest' }); // nearest: a podium row is already in view; a row below scrolls up just enough
   }, [rows]);
 
   if (!show) return null;
@@ -100,11 +103,90 @@ export function Rankings() {
   // Medal ranks on the table → the rating cell is the crest + bar, and the MMR number gets its own column.
   const ranked = !!rows?.some((r) => rankOfRow(r));
 
-  const back = (): void => { sfx.pulse(); close(); };
+
+  const renderRow = (r: RankedRow, i: number): JSX.Element => {
+    const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
+    const handle = displayHandle(r.author, r.discriminator, r.userId);
+    const rowRank = rankOfRow(r);
+    // Match the player by their real identity (`user_id`), NOT the display name — two accounts can
+    // share a name (that's what the `#tag` disambiguates), and matching by name lit up every row of
+    // duplicates as "YOU" (owner report 2026-08-10).
+    const mine = !!myId && r.userId === myId;
+    // Another player's equipped cosmetics (skin + frame), through "Show opponent cosmetics".
+    const theirs = mine ? null : opponentSkins(showOppCosmetics, r.skins);
+    // The row OPENS THEIR CAREER. Rankings stays mounted underneath, so Back returns here rather
+    // than to the title — the Career overlay renders after it and simply covers it. The row's medal
+    // rank rides along (when the backend carries one) so the Seasonal Ranked card there paints the
+    // SAME crest + bar this row shows, at once, instead of a bare rating number (owner 2026-09-21).
+    const openTheirs = (): void => {
+      sfx.pulse();
+      openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) });
+    };
+    // A div[role=button], not a <button> — the row nests its action buttons and a button can't nest a button.
+    return (
+      <div
+        role="button"
+        tabIndex={0}
+        className={`lb-trow lb-trow-btn${mine ? ' me' : ''}`}
+        key={r.userId || r.author}
+        ref={mine ? mineRef : undefined}
+        onClick={openTheirs}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openTheirs(); }}
+        aria-label={`View ${handle}'s career`}
+      >
+        <span className="lb-c-rank"><LbMedallion rank={i + 1} /></span>
+        <span className="lb-c-player">
+          {/* The portrait: the player's equipped skin for that hero (owner 2026-10-12) in their equipped PORTRAIT
+              FRAME (owner 2026-10-16: "the player frames they have equipped arent showing here and they should").
+              Your row reads your live frame (`frameId` undefined on the self side); everyone else's comes from
+              their loadout through "Show opponent cosmetics". The RANK ring is a different thing: it goes on the
+              RANK column's crest (RankCrest). */}
+          {/* The PLAYER's chosen profile picture (owner 2026-10-16), yours always, theirs through "Show opponent cosmetics";
+              with none chosen (or before the profiles.avatar migration), their favourite hero in its skin as before. */}
+          <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} art={(mine ? avatarSrc(myAvatar ?? r.avatar ?? null) : showOppCosmetics ? avatarSrc(r.avatar ?? null) : undefined) ?? heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : theirs)} frameId={mine ? undefined : frameIdOf(theirs)} />
+          <span className="lb-who">
+            <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
+            <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>
+          </span>
+        </span>
+        <span className="lb-c-rating rk-rating">
+          {rowRank
+            ? <RankBar position={rowRank} size="row" showGate={false} />
+            : ranked
+              ? <span className="lb-unranked">Unranked</span> // the MMR column beside it carries the number
+              : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
+        </span>
+        {ranked && <span className="lb-c-mmr"><span className="lb-num lb-mmr">{r.rating}</span><span className="lb-unit">rating</span></span>}
+        <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
+        {/* No buttons (owner 2026-10-16: "the big CAREER PAGE + WATCH buttons on every row are heavy"): the whole row opens
+            the Career. Watch-live waits on live rows carrying a user id (they carry only a display name today, and
+            matching players by name is banned), so no Watch is shown rather than a guess. */}
+        <span className="lb-c-act" aria-hidden="true"><span className="lb-row-go">›</span></span>
+      </div>
+    );
+  };
+
+  // THE PODIUM (UI refinement WS-5, 2026-10-16): the top three stand as large cards across the top (2nd, 1st, 3rd),
+  // the rest form a tighter table under them. Same rows, same cells, just laid out as cards (styles.css .lb-podium).
+  const podium = !!rows && rows.length >= 3;
+  const restFrom = podium ? 3 : 0;
+  const rest = rows ? rows.slice(restFrom) : [];
+  // YOUR STANDING, pinned to the foot of the view when you are not on the board (your row, when you are on it,
+  // pins itself to the foot while it is scrolled below the view: `position: sticky` in styles.css, no JS).
+  const meOnBoard = !!rows && !!myId && rows.some((r) => r.userId === myId);
+  const pin = rows && rows.length > 0 && !meOnBoard && myRank ? (
+    <div className="lb-mepin" role="note" aria-label="Your standing">
+      <span className="lb-mepin-you">You</span>
+      <span className="lb-mepin-name">{displayHandle(myName, myDisc, myId)}</span>
+      <span className="lb-mepin-rank"><RankBar position={myRank} size="row" showGate={false} /></span>
+      <span className="lb-mepin-mmr"><span className="lb-num lb-mmr">{scalarCaption(myRank)}</span><span className="lb-unit">MMR</span></span>
+      <span className="lb-mepin-note">Outside the top {RANKED_ROWS}</span>
+    </div>
+  ) : null;
 
   return (
     <SidebarHost className="lbpage rankpage lb-ladder">
-      <MenuSidebar current="rankings" onBack={back} />
+      <MenuSidebar current="rankings" />
       <div className="lbtopbar">
         <div className="lbtitle">
           <Icon name="crown" />
@@ -124,7 +206,13 @@ export function Rankings() {
           <div className="lbempty lb-state"><Icon name="crown" /><div>No ranked players yet. Finish a run to claim a slot.</div></div>
         ) : (
           <div className={`lb-panel lb-table${ranked ? ' lb-has-mmr' : ''}`} role="table" aria-label="Top players by rating">
-            <div className="lb-trow lb-thead" role="row">
+            {podium && (
+              <div className="lb-podium" role="rowgroup" aria-label="Top three">{rows.slice(0, 3).map((r, i) => renderRow(r, i))}</div>
+            )}
+            {/* The column header always exists (it names the cells for assistive tech); it is only hidden when the
+                podium holds every row and there is no table under it. */}
+            {(
+            <div className={`lb-trow lb-thead${rest.length === 0 ? ' lb-thead-idle' : ''}`} role="row">
               <span className="lb-c-rank">#</span>
               <span className="lb-c-player">Player</span>
               <span className="lb-c-rating">{ranked ? 'Rank' : 'Rating'}</span>
@@ -132,95 +220,9 @@ export function Rankings() {
               <span className="lb-c-games">Games</span>
               <span className="lb-c-act" />
             </div>
-            {rows.map((r, i) => {
-              const hero = r.favoriteHero ? getHero(r.favoriteHero) : null;
-              const handle = displayHandle(r.author, r.discriminator, r.userId);
-              const rowRank = rankOfRow(r);
-              // Match the player by their real identity (`user_id`), NOT the display name — two accounts can
-              // share a name (that's what the `#tag` disambiguates), and matching by name lit up every row of
-              // duplicates as "YOU" (owner report 2026-08-10).
-              const mine = !!myId && r.userId === myId;
-              // Another player's equipped cosmetics (skin + frame), through "Show opponent cosmetics".
-              const theirs = mine ? null : opponentSkins(showOppCosmetics, r.skins);
-              // The row OPENS THEIR CAREER. Rankings stays mounted underneath, so Back returns here rather
-              // than to the title — the Career overlay renders after it and simply covers it. The row's medal
-              // rank rides along (when the backend carries one) so the Seasonal Ranked card there paints the
-              // SAME crest + bar this row shows, at once, instead of a bare rating number (owner 2026-09-21).
-              const openTheirs = (): void => {
-                sfx.pulse();
-                openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}) });
-              };
-              // The CAREER PAGE button does the same thing as the row — stop the bubble so it opens ONCE.
-              const openTheirsBtn = (e: React.MouseEvent): void => { e.stopPropagation(); openTheirs(); };
-              // Watch their latest run — fetch that player's newest v2 replay and hand it to the viewer.
-              // `startReplay` closes this overlay; exiting the replay restores it. A player with no
-              // watchable run yet degrades the pill to "No run" rather than opening a broken viewer.
-              const watch = (e: React.MouseEvent): void => {
-                e.stopPropagation();
-                if (!r.userId || watching) return;
-                sfx.pulse();
-                setNoReplay(null);
-                setWatching(r.userId);
-                void fetchLatestReplayForUser(r.userId)
-                  .then((rep) => { if (rep) startReplay(rep, { authorName: handle }); else setNoReplay(r.userId); })
-                  .finally(() => setWatching(null));
-              };
-              // A div[role=button], not a <button> — the row nests its action buttons and a button can't nest a button.
-              return (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  className={`lb-trow lb-trow-btn${mine ? ' me' : ''}`}
-                  key={r.userId || r.author}
-                  ref={mine ? mineRef : undefined}
-                  onClick={openTheirs}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') openTheirs(); }}
-                  aria-label={`View ${handle}'s career`}
-                >
-                  <span className="lb-c-rank"><LbMedallion rank={i + 1} /></span>
-                  <span className="lb-c-player">
-                    {/* The portrait: the player's equipped skin for that hero (owner 2026-10-12) in their equipped PORTRAIT
-                        FRAME (owner 2026-10-16: "the player frames they have equipped arent showing here and they should").
-                        Your row reads your live frame (`frameId` undefined on the self side); everyone else's comes from
-                        their loadout through "Show opponent cosmetics". The RANK ring is a different thing: it goes on the
-                        RANK column's crest (RankCrest). */}
-                    <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} art={heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : theirs)} frameId={mine ? undefined : frameIdOf(theirs)} />
-                    <span className="lb-who">
-                      <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
-                      <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>
-                    </span>
-                  </span>
-                  <span className="lb-c-rating rk-rating">
-                    {rowRank
-                      ? <RankBar position={rowRank} size="row" showGate={false} />
-                      : ranked
-                        ? <span className="lb-unranked">Unranked</span> // the MMR column beside it carries the number
-                        : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
-                  </span>
-                  {ranked && <span className="lb-c-mmr"><span className="lb-num lb-mmr">{r.rating}</span><span className="lb-unit">rating</span></span>}
-                  <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
-                  <span className="lb-c-act">
-                    <button
-                      type="button"
-                      className="lb-btn lb-career pressable"
-                      onClick={openTheirsBtn}
-                      aria-label={`Open ${handle}'s career page`}
-                    >
-                      Career page
-                    </button>
-                    <button
-                      type="button"
-                      className="lb-btn lb-btn-ghost lb-watch-latest pressable"
-                      onClick={watch}
-                      disabled={!r.userId || watching === r.userId || noReplay === r.userId}
-                      aria-label={noReplay === r.userId ? 'No watchable run yet' : `Watch ${handle}'s latest run`}
-                    >
-                      {watching === r.userId ? 'Loading…' : noReplay === r.userId ? 'No run' : 'Watch'}
-                    </button>
-                  </span>
-                </div>
-              );
-            })}
+            )}
+            {rest.map((r, j) => renderRow(r, j + restFrom))}
+            {pin}
           </div>
         )}
       </div>

@@ -29,7 +29,6 @@ export function liveStatusText(r: Pick<LiveGameRow, 'round' | 'phase' | 'placeme
 
 export function LiveGames(): JSX.Element | null {
   const show = useGame((s) => s.showLiveGames);
-  const close = useGame((s) => s.closeLiveGames);
   const showOpp = useGame((s) => s.showOpponentSkins);
   const error = useLiveWatch((s) => s.error);
   const [page, setPage] = useState(0);
@@ -49,7 +48,6 @@ export function LiveGames(): JSX.Element | null {
   }, [show, page]);
 
   if (!show) return null;
-  const back = (): void => { sfx.pulse(); close(); };
   const watch = (r: LiveGameRow): void => {
     if (joining) return;
     sfx.pulse();
@@ -62,7 +60,7 @@ export function LiveGames(): JSX.Element | null {
 
   return (
     <SidebarHost className="lbpage lb-ladder lv-page">
-      <MenuSidebar current="live" onBack={back} />
+      <MenuSidebar current="live" />
       <div className="lbtopbar">
         <div className="lbtitle">
           <Icon name="sword" />

@@ -98,7 +98,7 @@ const settle = async (): Promise<void> => { await act(async () => { await Promis
 const clean = (): void => { expect(document.body.textContent).not.toMatch(/[—–]/); expect(document.querySelector('[title]')).toBeNull(); };
 
 describe('the Collection screen: routing', () => {
-  it('the store flag (title plaque, sidebar, Career card) mounts it; Back closes it and returns to the Career', () => {
+  it('the store flag (title plaque, sidebar, Career card) mounts it; the rail\'s Career plaque returns to the Career', () => {
     useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile() } });
     ui = mount(<CollectionScreen />);
     expect($('.colls-page')).toBeNull();
@@ -108,7 +108,7 @@ describe('the Collection screen: routing', () => {
     act(() => { useGame.getState().goTo('career'); });
     expect($('.colls-page')).toBeNull();
     act(() => { useGame.getState().openCareer(); useGame.getState().openCollection(); });
-    act(() => $('.msb-back')!.click());
+    act(() => ([...document.querySelectorAll<HTMLButtonElement>('.msb .sbbtn')].find((b) => b.textContent?.trim() === 'Career'))!.click());
     expect(useGame.getState().showCollection).toBe(false);
     expect(useGame.getState().showCareer).toBe(true);
   });
@@ -680,11 +680,12 @@ describe('the Collection screen: stage and performance tripwires', () => {
       for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
     }
   });
-  // Owner 2026-09-28: "blur unowned titles". A static blur on the name (tile, nameplate, preview), never animated.
-  it('an unowned title name is blurred on the tile, the detail nameplate and the preview', () => {
+  // UI refinement WS-6 (2026-10-16), superseding the 2026-09-28 "blur unowned titles": an unowned title is DIMMED but readable, never blurred.
+  it('an unowned title name is dimmed, never blurred, on the tile, the detail nameplate and the preview', () => {
     for (const sel of ['.colls-tile.missing .colls-tile-name', '.colls-detail.missing .colls-plate-name', '.colls-detail.missing .colls-preview-title']) {
       const rule = css.match(new RegExp(`${sel.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
-      expect(rule, sel).toMatch(/filter:\s*blur\(\d+px\)/);
+      expect(rule, sel).not.toBe('');
+      expect(rule, sel).not.toMatch(/blur\(/);
     }
     expect(css).not.toMatch(/transition:[^;]*filter/);
   });

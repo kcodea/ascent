@@ -69,7 +69,7 @@ describe('the queue', () => {
 describe('the NEW pill on the Collection entry points', () => {
   it('the side menu Collection plaque wears NEW (orange) while rewards wait, and drops it once seen', () => {
     queueNewRewards('u-1', result());
-    ui = mount(<MenuSidebar current="career" onBack={() => {}} />);
+    ui = mount(<MenuSidebar current="career" />);
     const plaque = (): HTMLElement | undefined => [...ui!.container.querySelectorAll<HTMLElement>('.sbbtn')].find((b) => b.textContent?.includes('Collection'));
     expect(plaque()?.classList.contains('hasnew')).toBe(true);
     expect(plaque()?.querySelector('.newpill')?.textContent).toBe('New');

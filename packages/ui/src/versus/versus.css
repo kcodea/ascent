@@ -350,3 +350,9 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 .vswatch .vswatch-ring { --ring: calc(44 * var(--u)); }
 .vswatch .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(11 * var(--u)); letter-spacing: 0.04em; }
 .vswatch .vswatch-more { pointer-events: auto; align-self: center; }
+/* UI refinement 2026-10-16: the room browser sits in a list panel on the hall (the ladder pages' panel), with room for
+   the list to breathe, instead of a bare input row floating over the painting. */
+.vsbrowser { padding: 22px 24px 26px; border-radius: 16px; background: linear-gradient(180deg, rgba(13, 22, 40, 0.86), rgba(9, 15, 29, 0.92));
+  border: 2px solid rgba(196, 160, 92, 0.4); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.12), 0 14px 34px -14px rgba(0, 0, 0, 0.8); }
+.vsrooms { min-height: 320px; }
+.vsrooms:has(> .vsempty:only-child) { display: grid; place-items: center; }

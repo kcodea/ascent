@@ -50,6 +50,11 @@
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
   --gold: #c8922e; --gold-lt: #e6b45a; /* HUD plaque trim (matches the shopbutton frame) */
+  /* THE GOLD RULE (UI refinement 2026-10-16): Play is the ONE bright filled-gold control on a menu screen (the
+     title's primary plaque, the rail's Play, the mode picker's Play). Navigation, frames and headers stay navy with
+     a muted bronze rim; Legendary and 1st place keep gold but always with their own shape or icon. */
+  --cta-face: linear-gradient(180deg, #ffe9ad 0%, #f3c96a 36%, #dba446 68%, #bb8532 100%);
+  --cta-edge: #7d5619; --cta-ink: #2a1a06; --cta-depth: #5f3f12;
   /* Tier palette — one source of truth for the card tier badges + the SHOP TIER label. */
   --tier-1: #74809a; --tier-2: #1f9d6b; --tier-3: #2b82d4; --tier-4: #7b54c8; --tier-5: #ef8a25; --tier-6: #e0395f;
   /* Tier 7 — Summit rift only. Rift-purple, deliberately outside the 1-6 ramp so it reads as "beyond the ladder". */
@@ -225,12 +230,12 @@ body { background: #160f08; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
    ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
    game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
-.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix {
+.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix, .rg-split-list, .colls-gridwrap {
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar, .avatarpick-scroll::-webkit-scrollbar,
 .lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .fr-body::-webkit-scrollbar,
-.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar, .rg-split-list::-webkit-scrollbar, .colls-gridwrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
 .heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
@@ -6383,18 +6388,19 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .avatarpick-close { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(0, 0, 0, 0.45); }
 
 /* Active (Play) — the brighter blue call-to-action from the mockup. */
-.menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
+.menubtn.active { background: var(--cta-face); border-color: var(--cta-edge); color: var(--cta-ink);
   /* Thickness in its OWN darkened hue (the rule every primary control in the game follows), plus a neutral
      contact shadow. This replaces a soft blue bloom: a glow says "look at me", an edge says "push me", and
      for the one control the player is meant to hit, the second is the right sentence.
      `.menubtn.active` is later in the file than `.menubtn:active` and ties it on specificity, so the press
      state below MUST be re-stated at `.menubtn.active:active` or the primary button never compresses. */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(120, 175, 255, 0.35),
-              0 4px 0 #173f6b, 0 9px 18px -9px rgba(0, 0, 0, 0.6); }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(120, 70, 10, 0.25),
+              0 4px 0 var(--cta-depth), 0 9px 18px -9px rgba(0, 0, 0, 0.6); }
 .menubtn.active:active, .menubtn.active:hover:active {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(120, 175, 255, 0.3),
-              0 1px 0 #173f6b, 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
-.menubtn.active .mbicon { color: #fff; }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 0 rgba(120, 70, 10, 0.25),
+              0 1px 0 var(--cta-depth), 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
+.menubtn.active:hover { border-color: var(--cta-edge); }
+.menubtn.active .mbicon, .menubtn.active:hover .mbicon { color: var(--cta-ink); }
 .menubtn.active .mblabel { font-weight: 900; }
 .menubtn.disabled { opacity: 0.62; }
 .menubtn.disabled:hover { transform: none; filter: none; border-color: rgba(196, 160, 92, 0.6); cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
@@ -7307,20 +7313,37 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    panels. STATIC — no animation; the plaques' hover/press are one-shot transitions (transform/filter). ── */
 .lbpage, .modepick.sb-host { --sb-w: 240px; padding-left: var(--sb-w); }
 .msb { position: absolute; left: 0; top: 0; bottom: 0; width: var(--sb-w); z-index: 5; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 22px;
-  background: linear-gradient(180deg, #1f4380 0%, #14305c 40%, #0c1d3d 72%, #070f22 100%);
+  /* Translucent since the painted backdrop (WS-1): the plate glows through the column. Static alpha, never a
+     backdrop-filter. */
+  background: linear-gradient(180deg, rgba(8, 16, 34, 0.78) 0%, rgba(10, 22, 46, 0.52) 30%, rgba(8, 18, 38, 0.5) 62%, rgba(4, 9, 22, 0.82) 100%);
   border-right: 2px solid rgba(196, 160, 92, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 72px rgba(70, 130, 220, 0.16), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The picker SCROLLS as a whole on a short viewport (`.modepick { overflow-y: auto }`), so its sidebar is fixed
    to the viewport rather than absolute in the scroller — it would scroll away with the cards otherwise. */
 .modepick.sb-host .msb { position: fixed; }
-/* Back top-left: the page's .lbback pill, unchanged. */
-.msb .msb-back { align-self: flex-start; }
+/* HOME (WS-2, 2026-10-16): the ASCENT mark at the top of the column, back to the main menu. It fills the space that
+   used to sit empty above the plaques and replaces the Back pill. Hover lifts the mark (transform, one-shot). */
+.msb-home { display: flex; align-items: center; gap: 10px; align-self: stretch; padding: 4px 6px 10px; margin: 0 0 2px;
+  background: none; border: none; border-bottom: 1px solid rgba(196, 160, 92, 0.28); border-radius: 0; color: #f6efe2; }
+.msb-mark { width: 46px; height: 46px; object-fit: contain; flex: none; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.msb-word { font-family: var(--title-font, var(--font-title)); font-weight: 700; font-size: 27px; letter-spacing: 0.1em; line-height: 1;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6); }
+.msb-home:hover .msb-mark { transform: translateY(-2px) scale(1.04); }
+.msb-home:active .msb-mark { transform: scale(0.96); transition-duration: 0.05s; }
+.msb-home:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
+/* The two groups: a quiet bronze caption (12px floor, the WS-4 label minimum) over each group's plaques. */
+.msb-group { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+.msb-gh { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(222, 196, 140, 0.72); padding: 0 4px; }
+/* Settings sits at the foot of the column, apart from the destinations. */
+.msb-settings { flex: none; }
 /* The main menu, vertically centred in the height left under Back. `safe` so a stack taller than the column
    (a short window) aligns to the top under Back instead of overflowing both ends into it; NOT a scroll
    container — that would clip the plaques' shadows and the Play bubble beside the column — the plaques compact
    on a short viewport instead (below). */
-.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center; gap: 10px; }
+.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; padding-top: 14px; }
 .msb-item, .tn-item { display: block; }
 /* The compact plaque — the title's `.menubtn` language (navy plaque, gold rim, 4px hard edge, lamp-catch sheen,
    press compresses) sized for the column: 15px label, a 28px icon cell, full sidebar width minus the gutters.
@@ -7328,7 +7351,7 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    No `cursor` — the global button rule paints the gauntlet. Long labels (HALL OF CHAMPIONS) wrap to two
    lines; the min-height is that two-line plaque's height (2 × 16.5 + 20 padding + 3 border) so every plaque is
    the same height and the stack stays even. */
-.sbbtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 12px; border-radius: 9px; text-align: left;
+.sbbtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 12px; border-radius: 9px; text-align: left;
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
   color: #e7d9b5; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
@@ -7360,6 +7383,16 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(120, 175, 255, 0.3), 0 1px 0 #173f6b, 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
 .sbbtn.active .mbicon, .sbbtn.active:hover .mbicon { color: #fff; }
 .sbbtn.active .mblabel { font-weight: 900; }
+/* PLAY on the rail (WS-2): the primary plaque, larger, and the gold face (the gold rule). On the mode picker it is
+   the current page, so it wears the blue current-page plaque instead and the picker's own Play keeps the gold. */
+.sbbtn.sb-play { min-height: 64px; margin-bottom: 4px; }
+.sbbtn.sb-play .mblabel { font-size: 20px; letter-spacing: 0.14em; font-weight: 900; }
+.sbbtn.sb-play .mbicon .crest { font-size: 26px; }
+.sbbtn.sb-play:not(.active) { background: var(--cta-face); border-color: var(--cta-edge); color: var(--cta-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 4px 0 var(--cta-depth), 0 9px 18px -9px rgba(0, 0, 0, 0.7); }
+.sbbtn.sb-play:not(.active):hover { border-color: var(--cta-edge); filter: brightness(1.06); }
+.sbbtn.sb-play:not(.active):active, .sbbtn.sb-play:not(.active):hover:active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 0 var(--cta-depth), 0 3px 8px -6px rgba(0, 0, 0, 0.75); }
 @media (prefers-reduced-motion: reduce) {
   .sbbtn:hover::after { animation: none; }
   .sbbtn { transition: filter 0.1s ease, border-color 0.1s ease; }
@@ -7376,7 +7409,42 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    and skips its own fade; only the content beside the sidebar fades in, so the column reads as one persistent
    surface. Opacity-only, one-shot. */
 .lbpage.hop, .modepick.hop { animation: none; }
-.lbpage.hop > :not(.msb), .modepick.hop > :not(.msb) { animation: fadein 0.2s ease; }
+/* PAGE TRANSITIONS (owner 2026-10-16: "add better transitions between pages"): the content beside the sidebar ENTERS
+   with opacity + a short rise, 225 ms on the decelerate curve; the sidebar and the backdrop stay put, so there is never
+   an empty frame between two pages (the old page's content leaves in the same commit the new one arrives). */
+@keyframes page-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd) { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
+.lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd), .lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: fadein 0.12s ease both; }
+}
+
+/* ── MENU BACKDROP (UI refinement WS-1, 2026-10-16; `MenuBackdrop.tsx`) — the painted plate behind every sidebar
+   host. It sits at z -1 INSIDE the host's stacking context (both hosts are fixed + z-indexed), so it paints over the
+   host's navy radial (kept as the fallback while the plate decodes) and under every in-flow child. The picker
+   scrolls as a whole, so there the layer is fixed like its sidebar. A sidebar hop does NOT re-fade it (the `.hop`
+   rule above skips `.mbd`): the plate stays put and only the page content fades, unless the plate itself changed,
+   in which case the new one crossfades in over the old (`.mbd-in`, one-shot opacity). The veils are STATIC
+   gradients: never animate them (a full-screen gradient repaint per frame). ── */
+.mbd { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.modepick .mbd { position: fixed; }
+.mbd-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.mbd-img.mbd-in { animation: fadein 0.26s cubic-bezier(0, 0, 0.2, 1); }
+.mbd-veil { position: absolute; inset: 0; }
+/* The Mode screen pans the hall a touch right so its hearth sits behind the middle of the mode cluster, not under
+   the rail (object-position on the plate itself: no transform, no extra scaling, the art stays crisp). */
+.mbd[data-screen='modes'] .mbd-img { object-position: 42% 50%; }
+/* SCENE (the mode picker): the painting stays bright in the middle; the edges and the floor fall into shadow so the
+   tiles read, and the left edge darkens under the sidebar. */
+.mbd-veil[data-veil='scene'] {
+  background:
+    linear-gradient(90deg, rgba(4, 9, 20, 0.7) 0%, rgba(4, 9, 20, 0.18) 22%, rgba(4, 9, 20, 0) 40%),
+    linear-gradient(180deg, rgba(4, 9, 20, 0.35) 0%, rgba(4, 9, 20, 0) 22%, rgba(4, 9, 20, 0) 55%, rgba(4, 9, 20, 0.6) 100%),
+    radial-gradient(ellipse 80% 75% at 55% 45%, rgba(4, 9, 20, 0) 55%, rgba(4, 9, 20, 0.55) 100%); }
+/* DATA (Career, Leaderboard, ...): the plate is already blurred and darkened; a soft vignette keeps the eye in. */
+.mbd-veil[data-veil='data'] {
+  background: radial-gradient(ellipse 75% 70% at 55% 50%, rgba(4, 9, 20, 0) 45%, rgba(4, 9, 20, 0.5) 100%); }
+@media (prefers-reduced-motion: reduce) { .mbd-img.mbd-in { animation: none; } }
 
 /* DEV-only Balance Report panel — reuses the .lbpage shell; adds a controls row + progress bar + dense tables. */
 .balpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.9), rgba(6, 11, 22, 0.95)); animation: fadein 0.2s ease; font-family: var(--font-ui); }
@@ -7958,7 +8026,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lazy-row.is-pending { height: var(--lazy-h, 300px); }
 .lazy-row.is-far, .lazy-row.is-far *, .lazy-row.is-far *::before, .lazy-row.is-far *::after { animation-play-state: paused !important; }
 .cv2-lazy { --lazy-h: 425px; }
-.lb-lazy { --lazy-h: 300px; }
+.lb-lazy { --lazy-h: 340px; } /* the game card's height (2026-10-16), so lazy placeholders keep the list honest */
 .cv2-list::-webkit-scrollbar, .cv2-right::-webkit-scrollbar, .cv2-left::-webkit-scrollbar { width: 8px; }
 .cv2-list::-webkit-scrollbar-thumb, .cv2-right::-webkit-scrollbar-thumb, .cv2-left::-webkit-scrollbar-thumb { background: rgba(196, 160, 92, 0.35); border-radius: 6px; }
 .cv2-none { align-items: center; text-align: center; padding: 44px 24px; margin-top: 8px; }
@@ -8471,52 +8539,65 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .mcframe[data-mode='soon'] { background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); }
 .mcframe[data-mode='gauntlet'] { background: radial-gradient(120% 100% at 50% 0%, #63221e 0%, #331210 60%, #200a0a 100%); }
 
-/* WIDE mode card — a 21:9 banner (PlayMode2 / LearnMode art is 1916×821). The frame keeps the same gold border
-   and eclipsing name pill; only its footprint changes. `mpbox` stacks two `.mprow`s (Play; then Learn+Practice),
-   so a wide card sits naturally on its own line beside nothing or beside the square Practice tile. */
-/* PLAY-SCREEN TUNER hooks — Scale / Width / Height / X / Y live on the `.modecard` (the BUTTON itself), so its
-   HIT AREA and `:hover` move with the visual. (Putting the transform on the inner frame moved the art but left
-   the clickable box behind, so hovering one card selected another.) The frame fills the card; the art pan/zoom
-   stays on the frame's own art layer. Fallbacks = the shipped layout, so production (vars unset) matches. */
-.modecard[data-mp] { width: auto; padding: 0; }
-.modecard[data-mp='play'] {
-  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px);
-  transform: translate(var(--mp-play-x, -160px), var(--mp-play-y, 18px)) scale(var(--mp-play-s, 0.84));
-}
-.modecard[data-mp='learn'] {
-  width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 128px);
-  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 255px)) scale(var(--mp-learn-s, 1));
-}
-.modecard[data-mp='practice'] {
-  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
-  transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -266px)) scale(var(--mp-practice-s, 0.84));
-}
-/* GAUNTLET — a third row under Learn, same 880×128 banner footprint. Alone in its row it lays out centred, one
-   row below Learn's layout box; the fallbacks lift it to sit ~44px under Learn's visual edge, lined up with it. */
-.modecard[data-mp='gauntlet'] {
-  width: var(--mp-gauntlet-w, 880px); height: var(--mp-gauntlet-h, 128px);
-  transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -203px)) scale(var(--mp-gauntlet-s, 1));
-}
-.modecard[data-mp='versus'] {
-  width: var(--mp-versus-w, 880px); height: var(--mp-versus-h, 128px);
-  transform: translate(var(--mp-versus-x, 6px), var(--mp-versus-y, 16px)) scale(var(--mp-versus-s, 1));
-}
-/* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
-.mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
-
-/* ART CLIP — the card art now lives in an overflow-clipped wrapper so it can be panned / zoomed INSIDE the
-   frame (via the tuner's Art X / Y / Scale) without spilling past the rounded edge. */
+/* ── THE MODE PICKER GRID (UI refinement WS-2, 2026-10-16) — one fixed grid over the painted hall: PLAY (the ranked
+   lobby) is the large 21:9 tile with the gold call to action; Practice and Versus stack beside it; Gauntlet and
+   Learn share the row below. Sizes are 1080p stage px inside `.mpbox` (which zooms with the stage). The tiles never
+   move, so the "Last played" tag (`.mclast`) marks the habit instead. Hover = a 4px lift + a glow ring whose
+   OPACITY fades (the ring's shadow is static, the `kwglow` pattern); nothing loops. The art pan/zoom vars are the
+   dev Play Mode Screen tuner's (modePickConfig.ts); fallbacks are neutral. ── */
+.mpgrid { display: grid; grid-template-columns: 900px 396px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 58px; }
+/* The picker sits centred on the stage, a little below the middle, with room under the bottom row. */
+.modepick.mp-home { place-items: center; padding: 30px 0 56px; }
+.mc-hero { grid-area: hero; }
+.mpside { grid-area: side; display: flex; flex-direction: column; gap: 44px; }
+.mprow2 { grid-area: row; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.modecard[data-mp] { width: auto; padding: 0; position: relative; transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.modecard.mc-hero { height: 386px; }
+.mpside > .modecard { flex: 1 1 0; min-height: 0; }
+.mprow2 > .modecard { height: 148px; }
+.modecard[data-mp]:hover { transform: translateY(-4px); }
+.mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; border-width: 2px;
+  border-color: rgba(214, 178, 108, 0.85); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.mcframe[data-mp='play'] { border-width: 3px; border-color: var(--gold-lt); }
+/* The hover ring: a static shadow on a pseudo whose opacity fades in. */
+.mcframe[data-mp]::after { content: ''; position: absolute; inset: -4px; border-radius: 31px; pointer-events: none; z-index: 1;
+  box-shadow: 0 0 0 2px rgba(255, 226, 160, 0.9), 0 0 26px 2px rgba(255, 196, 96, 0.4); opacity: 0; transition: opacity 0.16s ease-out; }
+.modecard[data-mp]:hover .mcframe::after, .modecard[data-mp]:focus-visible .mcframe::after { opacity: 1; }
+/* The description is always on show along the bottom over a STATIC dark gradient (no hover-gated blur). */
+.mcframe[data-mp] .mcdesc { inset: auto 0 0 0; height: auto; display: block; padding: 34px 22px 16px; border-radius: 0 0 25px 25px;
+  font-family: var(--font-ui); font-size: 17px; font-weight: 700; line-height: 1.25; text-align: left; color: rgba(255, 246, 228, 0.94);
+  background: linear-gradient(180deg, rgba(4, 8, 18, 0) 0%, rgba(4, 8, 18, 0.72) 48%, rgba(4, 8, 18, 0.88) 100%);
+  opacity: 1; -webkit-backdrop-filter: none; backdrop-filter: none; transition: none; }
+.modecard[data-mp]:hover .mcdesc { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.mcframe[data-mp='play'] .mcdesc { padding: 60px 28px 54px; font-size: 21px; text-align: center; }
+.mcframe[data-mp] .mcname { font-size: 23px; padding: 3px 22px; }
+/* PLAY's call to action: the one gold-filled control, eclipsing the bottom edge (the name pill's eclipse, on the
+   other edge, so the eye reads it as the button). Not a `.hudpill-name`, so the Gem look leaves it gold. */
+.mcframe[data-mp] .mcname.mc-cta { top: auto; bottom: 0; transform: translate(-50%, 50%); display: inline-flex; align-items: center; gap: 12px;
+  font-size: 36px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; padding: 8px 54px 8px 44px;
+  background: var(--cta-face); color: var(--cta-ink); border: 2px solid var(--cta-edge); text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
+.mcframe[data-mp] .mcname.mc-cta .crest { font-size: 34px; }
+.modecard.mc-hero:active .mc-cta { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 var(--cta-depth), 0 6px 12px -8px rgba(0, 0, 0, 0.8); }
+/* "Last played": a small plate in the top-right corner, the UI theme's own plate (no new chrome). */
+.mclast { position: absolute; top: 14px; right: 14px; z-index: 3; padding: 4px 12px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  border: 1.5px solid transparent; background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+/* The art inside each tile, pannable from the dev tuner. Versus's square art keeps its focal height. */
 .mcart-clip { position: absolute; inset: 0; border-radius: 25px; overflow: hidden; }
 .mcart-clip .mcframe-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
 .mcframe[data-mp='play'] .mcframe-art { transform: translate(var(--mp-play-artx, 0px), var(--mp-play-arty, 0px)) scale(var(--mp-play-arts, 1)); }
-.mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 3px)) scale(var(--mp-learn-arts, 1.02)); }
-.mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
+.mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 0px)) scale(var(--mp-learn-arts, 1)); }
+.mcframe[data-mp='practice'] .mcframe-art { object-position: 50% 22%; transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
 .mcframe[data-mp='gauntlet'] .mcframe-art { transform: translate(var(--mp-gauntlet-artx, 0px), var(--mp-gauntlet-arty, 0px)) scale(var(--mp-gauntlet-arts, 1)); }
-.mcframe[data-mp='versus'] .mcframe-art { object-position: 50% var(--mp-versus-focus, 30%); transform: translate(var(--mp-versus-artx, 0px), var(--mp-versus-arty, 0px)) scale(var(--mp-versus-arts, 1)); }
-.mcframe[data-mp='versus'] .mcemblem { width: 84px; height: 84px; }
-/* The banner is only 128px tall, so the fallback emblem shrinks to fit inside it. */
-.mcframe[data-mp='gauntlet'] .mcemblem { width: 84px; height: 84px; }
+.mcframe[data-mp='versus'] .mcframe-art { object-position: 50% var(--mp-versus-focus, 40%); transform: translate(var(--mp-versus-artx, 0px), var(--mp-versus-arty, 0px)) scale(var(--mp-versus-arts, 1)); }
+.mcframe[data-mp] .mcemblem { width: 84px; height: 84px; }
 .mcframe[data-mode='gauntlet'] .mcemblem svg { color: #f0c9b8; }
+@media (prefers-reduced-motion: reduce) {
+  .modecard[data-mp], .mcframe[data-mp]::after { transition: none; }
+  .modecard[data-mp]:hover { transform: none; }
+}
 
 /* ── GAUNTLET STAGE SELECT (`gauntlet/StageSelect.tsx`) — ten framed slots, five to a row, in the mode-card
    idiom (gold border, dark tint, cream name). No per-slot `cursor` — the global button rule paints the game
@@ -8575,7 +8656,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 }
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
-.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }
+/* The picker's heading row (WS-2): a quiet left-aligned title, with a crumb back to the picker on its sub-views. */
+.mphead { align-self: stretch; display: flex; align-items: baseline; gap: 12px; margin: 0 0 34px; }
+.mp-home .mphead { margin: 22px 0 30px; }
+.mp-home .mphead .mptitle { font-size: 26px; color: rgba(246, 239, 226, 0.92); }
+.mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; color: #f6efe2;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75); }
+.mpcrumb { font-family: var(--font-ui); font-weight: 800; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(222, 196, 140, 0.85); background: none; border: none; padding: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
+.mpcrumb:hover { color: #ffe2a0; }
+.mpsep { font-family: var(--font-ui); font-size: 22px; color: rgba(222, 196, 140, 0.5); }
 
 /* DevMenu-hosted tuners float via useDraggablePanel (z 600+), above the mode picker (z 400) — no extra z hook
    needed. The Play Mode Screen tuner lives in the Dev tuning menu now, not an inline pill. */
@@ -8729,8 +8819,11 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    rank/rankedEntry.ts mirrors `rc-out`'s 160ms). */
 .rankedconfirm-ov { position: fixed; inset: 0; z-index: 401; display: grid; place-items: center; padding: 24px; }
 .rankedconfirm-veil {
-  position: absolute; inset: 0; background: rgba(3, 7, 16, 0.6);
-  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  /* The PRE-BLURRED hall (UI refinement WS-7, 2026-10-16; owner-approved swap): the same plate the mode picker sits
+     on, baked blurred + darkened (scripts/build-menu-backdrop.mjs), under a navy tint. It replaced a live full-screen
+     backdrop blur, which re-blurred the whole stage every frame of the fade; now only its OPACITY animates. */
+  position: absolute; inset: 0;
+  background: linear-gradient(rgba(3, 7, 16, 0.45), rgba(3, 7, 16, 0.45)), url('/backdrops/hall-dim.webp') center / cover no-repeat;
   animation: rc-veil 0.26s ease-out both;
 }
 .rankedconfirm-ov .rankedconfirm { transform-origin: 50% 50%; animation: rc-pop 0.44s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -11154,7 +11247,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 /* Tuner-positioned cards carry a big translate/scale of their own — a press transform would drop it and make the
    card LEAP to its flex slot. So they get a brightness-only press (no transform, no jump). */
-.modecard[data-mp]:active { filter: brightness(0.92); transition-duration: 0.07s; }
+.modecard[data-mp]:active, .modecard[data-mp]:hover:active { transform: translateY(-1px) scale(0.975); filter: brightness(0.94); transition-duration: 0.06s; }
 
 /* (The Compendium's keyword chip + glossary row press states live in compendium.css.) */
 
@@ -11868,11 +11961,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    `title=`) is the same stack with the same problem, so it shares these rules; so does the Continue row's
    discard button (`.clearrun`), whose hover `filter` + `transform` make it a stacking context, so a bubble
    BELOW it painted under the Play plaque — to the right there is nothing to hide behind. */
-.msb .msb-item[data-tip]::after, .titlenav .tn-item[data-tip]::after, .continuerow .clearrun[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
-.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after,
+.msb .msb-item[data-tip]::after, .msb .msb-home[data-tip]::after, .titlenav .tn-item[data-tip]::after, .continuerow .clearrun[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
+.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after, .msb .msb-home[data-tip]:hover::after, .msb .msb-home[data-tip]:focus-visible::after, .msb .msb-home[data-tip].tt-on::after,
 .titlenav .tn-item[data-tip]:hover::after, .titlenav .tn-item[data-tip]:focus-visible::after,
 .continuerow .clearrun[data-tip]:hover::after, .continuerow .clearrun[data-tip]:focus-visible::after, .msb .msb-item[data-tip].tt-on::after, .titlenav .tn-item[data-tip].tt-on::after, .continuerow .clearrun[data-tip].tt-on::after { transform: translateY(-50%) translateX(0); }
-.msb .msb-item[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); }
+.msb .msb-item[data-tip]::before, .msb .msb-home[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); }
 
 
 /* ══ SHOP → COMBAT → SHOP (owner ask 2026-08-25) ═════════════════════════════════════════════════════════
@@ -12903,6 +12996,487 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .coll-equip.worn { color: #ffe08a; background: rgba(0, 0, 0, 0.35); border-color: rgba(232, 200, 119, 0.6); }
 .coll-equip:disabled { opacity: 0.6; }
 .coll-save { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; font-weight: 600; font-size: 13px; line-height: 1.35; color: rgba(238, 244, 251, 0.82); }
+
+/* ── UI REFINEMENT 2026-10-16 (the menu screens). Kept ABOVE the portrait-frame section, which its test reads to the
+   end of the file and requires to be free of @media / animation. ── */
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-4 TYPE HIERARCHY (UI refinement, 2026-10-16) — data screens lead with ONE dominant element per block.
+   Match rows (Career, Recent Games): the outcome (VICTORY / 2ND) is the headline; length, rounds, gold and game
+   strength collapse into one quiet secondary line (TFT's match history leads with placement). Career: the rank
+   crest + MMR are the focal point; the stat tiles drop to a quiet inset list; MMR keeps the one large trend chart
+   and the other three trends become sparklines. Labels stay at or above 12px. Static styling only.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.cv2-verdict { font-size: 44px; letter-spacing: 0.06em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.cv2-row-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0; margin-top: 2px; }
+.cv2-meta { flex-direction: row; align-items: baseline; gap: 6px; }
+/* Separators are a left rule, never a ::before: a fact with a hover tip (`.gtip`, Game strength) owns its ::before /
+   ::after for the bubble, and a dot there collided ("194GAME STRENGTH", owner report 2026-10-16). */
+.cv2-meta + .cv2-meta { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
+.cv2-meta-l { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.cv2-meta-v { font-size: 14px; font-weight: 700; color: rgba(255, 255, 255, 0.82); }
+/* Recent Games: the same rule on the ladder banner. */
+.rg-page .lb-verdict { font-size: 44px; letter-spacing: 0.06em; line-height: 1; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.rg-page .lb-facts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0; }
+.rg-page .lb-fact { display: inline-flex; flex-direction: row; align-items: baseline; gap: 6px; }
+.rg-page .lb-fact + .lb-fact { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
+.rg-page .lb-fact-l { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.rg-page .lb-fact-v { font-size: 14px; font-weight: 700; color: rgba(255, 255, 255, 0.82); }
+/* Career: the stat tiles are an inset list now, not six competing panels. */
+.cv2-stat { padding: 9px 12px; background: rgba(0, 0, 0, 0.22); border-color: transparent; }
+.cv2-stat-ico { width: 32px; height: 32px; background: none; color: rgba(240, 201, 119, 0.8); }
+.cv2-stat { grid-template-columns: 32px minmax(0, 1fr); }
+.cv2-stat-v { font-size: 22px; }
+.cv2-stat-l { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+/* Career: the rank is the focal point (crest, then the MMR in large figures). */
+.cv2-ranked .rankbar-caption { font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: 0.04em; color: #fff;
+  font-variant-numeric: tabular-nums; margin-top: 4px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55); }
+/* Career trends: MMR is the one big chart; the rest are sparklines (no axis numbers, a thin line). */
+.cv2-trends-head + .cv2-trend .cv2-chart svg { height: 132px; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-chart { padding-left: 0; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-chart svg { height: 34px; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-axis { display: none; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-chart-empty { inset: 0; font-size: 12px; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-trend-foot { display: none; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-5 THE LEADERBOARD PODIUM (UI refinement, 2026-10-16) — the top three stand as large cards across the top in
+   2nd · 1st · 3rd order (1st raised and wider), the rest form the table beneath. They are the SAME `.lb-trow`
+   rows with the same cells, re-laid as cards, so nothing about a row's behaviour changes. No code-drawn dais: the
+   standing is the cards' offsets, the medallions (1st keeps the crown: gold plus its own shape) and the rims.
+   YOUR row pins itself to the foot of the view while it is scrolled below it (`position: sticky`, no JS), and a
+   player off the board gets the same pinned strip with their own standing (`.lb-mepin`). Static styling only;
+   hover is the rows' existing one-shot border transition.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+/* Own row: highlighted (existing `.me`), and pinned to the foot of the scroller while it sits below the view. */
+.lb-table > .lb-trow-btn.me { position: sticky; bottom: 10px; z-index: 3; }
+/* Off the board: your standing, pinned the same way. */
+.lb-mepin { position: sticky; bottom: 10px; z-index: 3; display: grid; grid-template-columns: auto minmax(0, 1fr) 240px auto auto; align-items: center; column-gap: 22px;
+  margin-top: 6px; padding: 12px 24px; border-radius: 14px; color: #f4eee2; border: 2px solid var(--acc);
+  background: linear-gradient(90deg, rgba(60, 34, 12, 0.92), rgba(13, 21, 40, 0.96)); box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.8); }
+.lb-mepin-you { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--acc); }
+.lb-mepin-name { font-family: var(--font-ui); font-weight: 900; font-size: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-mepin-mmr { display: flex; align-items: baseline; gap: 8px; }
+.lb-mepin-note { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+/* WS-5 on the HALL OF CHAMPIONS: the top three warbands wear the podium (a gold / silver / bronze rim and a warm
+   wash for 1st; the medallion keeps the crown), the record is the row's headline like a match verdict, and the
+   final teams are drawn at full tile size so the row's middle is filled rather than half empty. */
+.lb-hall .lb-row[data-place='1'] { border-color: rgba(255, 215, 120, 0.85); background: linear-gradient(90deg, rgba(64, 46, 16, 0.78), rgba(12, 19, 36, 0.9) 45%); }
+.lb-hall .lb-row[data-place='2'] { border-color: rgba(205, 215, 230, 0.6); }
+.lb-hall .lb-row[data-place='3'] { border-color: rgba(214, 150, 96, 0.6); }
+.lb-hall .lb-row[data-place] .lb-medal { width: 52px; height: 52px; font-size: 24px; }
+.lb-hall .lb-hallrecord { font-size: 44px; line-height: 1; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.lb-hall .lb-team, .rg-page .lb-team { --tile-s: 1; }
+/* PERF (WS-5 bonus, 2026-10-16): a menu board's cards keep their keyword FX (wisps, rings, ward glass) still until
+   you point at that row; ten banners of seven looping cards were ~226 running animations and a 4 ms idle frame on
+   the Hall, and every hover sweep repainted them. The row you hover plays (the `.is-far` pause, made local). */
+.lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
+.cv2-row:not(:hover) .cv2-team *, .cv2-row:not(:hover) .cv2-team *::before, .cv2-row:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
+/* `!important` like `.is-far`'s: the card FX rules set the `animation` SHORTHAND, which resets play-state to running and
+   out-ranks a plain declaration here (measured 2026-10-16: wisp / fl-ring / ex-shard / wardglass kept animating, a
+   239-element style recalc every frame on Recent Games, ~0.9 s of style per 2 s idle). */
+.lb-thead.lb-thead-idle { display: none; }
+/* THE PLAYER STRIP (PlayerStrip.tsx, 2026-10-16) — a compact identity bar across the top of the Mode screen, built from
+   the existing portrait ring, title badge, rank crest and XP bar. One plain navy plate with the bronze rim (no new
+   chrome); hover is the menu tiles' 2px lift (transform, one-shot). The whole strip opens your Career. */
+.pstrip { align-self: stretch; display: flex; align-items: center; gap: 26px; padding: 10px 22px 10px 12px; border-radius: 16px; text-align: left;
+  border: 1.5px solid rgba(196, 160, 92, 0.55); background: linear-gradient(90deg, rgba(8, 15, 32, 0.86), rgba(10, 19, 38, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 26px -14px rgba(0, 0, 0, 0.85); color: #f4eee2;
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
+.pstrip:hover { transform: translateY(-2px); border-color: rgba(230, 200, 130, 0.9); }
+.pstrip:active { transform: translateY(1px); transition-duration: 0.05s; }
+.pstrip:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; }
+.pstrip-portrait { flex: none; display: block; }
+.pstrip-portrait .portring { --ring: 70px; }
+.pstrip-portrait .portring .f { display: block; }
+.pstrip-ph { display: grid; place-items: center; width: 100%; height: 100%; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #1a1206; background: linear-gradient(160deg, #f0c27a, #c98a3a); }
+.pstrip-rank .rankcrest { --ring: 50px; }
+.pstrip-who { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.pstrip-name { font-family: var(--font-ui); font-weight: 900; font-size: 24px; line-height: 1.1; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+.pstrip-rank, .pstrip-level { display: flex; align-items: center; gap: 12px; padding-left: 26px; border-left: 1px solid rgba(196, 160, 92, 0.25); }
+.pstrip-rank-txt { display: flex; flex-direction: column; gap: 2px; }
+.pstrip-rank-name { font-family: var(--font-ui); font-weight: 900; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; color: #f4eee2; }
+.pstrip-rank-mmr { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: rgba(255, 255, 255, 0.7); font-variant-numeric: tabular-nums; }
+.pstrip-xp { display: flex; flex-direction: column; gap: 4px; width: 200px; }
+.pstrip-xp .acctxp-track { flex: none; height: 9px; }
+.pstrip-xp-num { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.62); font-variant-numeric: tabular-nums; }
+.pstrip-crates { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; color: #f6dfa2; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(232, 200, 119, 0.5); background: rgba(0, 0, 0, 0.3); }
+.pstrip-go { margin-left: auto; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(222, 196, 140, 0.8); }
+@media (prefers-reduced-motion: reduce) { .pstrip, .pstrip:hover, .pstrip:active { transform: none; transition: border-color 0.1s ease; } }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-3 COLOUR DISCIPLINE + THREE PANEL STYLES (UI refinement, 2026-10-16). THE GOLD RULE: Play is the one bright
+   filled-gold control on a menu screen (--cta-*). Every other button on the menu pages (Career page, Watch, Sign in,
+   Collection, crate Open, ...) wears the UI theme's own Gem plate (the Compendium / ranked-confirm buttons,
+   --ui-plate + --ui-edge), and a SELECTED tab or segment is the lit plate with gold LETTERS, never a gold fill.
+   Win / loss keep green / red; 1st place keeps gold with its crown medallion (a shape, not colour alone).
+   PANELS: HERO (the richest: the Compendium's painted frame, on the rank card and the Career's hero column),
+   LIST (rows: plain navy, a thin bronze rim), INSET (stats: a darker well, no rim). Static styling only.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.lb-btn, .cv2-btn, .crate-btn {
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  border: 1.5px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  --pr-edge-c: #0a1220;
+}
+.lb-btn:hover:not(:disabled), .cv2-btn:hover:not(:disabled), .crate-btn:hover:not(:disabled), .crate-btn:focus-visible {
+  color: #fff; border-color: transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.lb-btn-ghost { color: var(--ui-text); background: rgba(0, 0, 0, 0.3) padding-box; border: 1.5px solid rgba(196, 160, 92, 0.55); box-shadow: none; }
+.lb-btn-ghost:hover:not(:disabled) { background: rgba(0, 0, 0, 0.42) padding-box; border-color: rgba(232, 200, 119, 0.85); }
+/* Selected tabs and segments: the lit plate, gold letters. */
+.cv2-tab.on, .lb-seg-btn.on, .cv2-seg-btn.on {
+  color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--ui-sheen), var(--ui-hover-plate);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title) 45%, transparent); }
+/* HERO panels: the rank card and the Career's hero column wear the Compendium's painted frame. */
+.cv2-panel.cv2-ranked, .cv2-panel.cv2-left { position: relative; border-color: transparent; box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.8); }
+/* The frame sits INSIDE the panel box (inset 0): reaching 6px outside made both scrolling columns grow a scrollbar
+   (owner 2026-10-16: "remove the sliders"). */
+.cv2-panel.cv2-ranked::after, .cv2-panel.cv2-left::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  border: 32px solid transparent; border-image: url('/frames/compendium-frame.webp') 270 stretch; }
+/* LIST panels stay as they are (navy + thin bronze rim). INSET panels: a darker well with no rim. */
+.cv2-trend { border-top-color: rgba(255, 255, 255, 0.06); }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-7 MOTION (UI refinement, 2026-10-16) — one-shot, transform + opacity only, under 400 ms, nothing loops.
+   Enter = decelerate cubic-bezier(0,0,0.2,1). Mode tiles and Leaderboard rows arrive with a short stagger
+   (30-40 ms a step, capped ~300 ms); the podium cards rise; the player strip settles in first. Press is on
+   pointerdown (`:active`): tiles compress to 0.975, the menu plaques already do. Reduced motion: none of it.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+@keyframes menu-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.mp-home .pstrip { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) both; }
+.mp-home .mpgrid .mc-hero { animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) 0.04s both; }
+.mp-home .mpgrid .mpside > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.08s both; }
+.mp-home .mpgrid .mpside > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.12s both; }
+.mp-home .mpgrid .mprow2 > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.16s both; }
+.mp-home .mpgrid .mprow2 > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.2s both; }
+.lb-table > .lb-trow-btn { animation: menu-rise 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+.lb-table > .lb-trow-btn:nth-of-type(2) { animation-delay: 0.1s; }
+.lb-table > .lb-trow-btn:nth-of-type(3) { animation-delay: 0.13s; }
+.lb-table > .lb-trow-btn:nth-of-type(4) { animation-delay: 0.16s; }
+.lb-table > .lb-trow-btn:nth-of-type(5) { animation-delay: 0.19s; }
+.lb-table > .lb-trow-btn:nth-of-type(6) { animation-delay: 0.22s; }
+.lb-table > .lb-trow-btn:nth-of-type(n+7) { animation-delay: 0.25s; }
+/* A hop between pages re-mounts these, so they never animate while you are just looking: one entrance per open. */
+@media (prefers-reduced-motion: reduce) {
+  .mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-podium .lb-trow, .lb-table > .lb-trow-btn { animation: none; }
+  .modecard[data-mp]:active, .modecard[data-mp]:hover:active { transform: none; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   REMAINING META SCREENS (UI refinement, 2026-10-16).
+   - Every ladder page's empty / loading / unavailable state (Live Games with nobody playing, a Leaderboard before
+     the backend answers) sits centred on the stage in a list panel, like the Career's "No runs yet" card, instead
+     of a small line of text near the top of an empty page.
+   - The title's primary plaque (Play, or Continue with a run saved) is the largest control on the screen.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.lbscroll > .lb-state { margin: auto; min-width: 460px; max-width: 640px; padding: 40px 48px; border-radius: 16px; gap: 16px;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.86), rgba(9, 15, 29, 0.92)); border: 2px solid rgba(196, 160, 92, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.12), 0 14px 34px -14px rgba(0, 0, 0, 0.8); color: rgba(255, 246, 228, 0.86); line-height: 1.35; }
+.lbscroll > .lb-state svg { width: 46px; height: 46px; padding: 12px; box-sizing: content-box; border-radius: 50%; background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 1.5px rgba(196, 160, 92, 0.45); }
+.titlenav .menubtn.active { padding: 22px 24px; }
+.titlenav .menubtn.active .mblabel { font-size: 30px; letter-spacing: 0.16em; }
+.titlenav .menubtn.active .mbicon .crest { font-size: 32px; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   THE GAME CARD (GameCard.tsx, 2026-10-16): one card for a finished game, on the Career and on Recent Games.
+   Placement once (big ordinal, band colour: 1st gold + crown, top 4 green, 5th-8th red), a band down the left edge,
+   the hero + record, the final board strip, runes and actions at the side, one quiet dotted meta line. Hover is a
+   2px transform lift (one-shot); the band and wash are static gradients.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.gc { --band: rgba(255, 255, 255, 0.25); position: relative; display: block; padding: 0; border-radius: 14px; color: #f4eee2; min-width: 0;
+  border: 1.5px solid rgba(196, 160, 92, 0.28);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--band) 16%, transparent) 0, transparent 260px), linear-gradient(90deg, rgba(13, 22, 40, 0.88), rgba(9, 15, 29, 0.92));
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.08), 0 10px 24px -14px rgba(0, 0, 0, 0.75);
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
+.gc::before { content: ''; position: absolute; left: -1.5px; top: -1.5px; bottom: -1.5px; width: 7px; border-radius: 14px 0 0 14px; background: var(--band); pointer-events: none; }
+.gc-won { --band: #e8b84e; }
+.gc-top4 { --band: #55c98a; }
+.gc-lost { --band: #d9666a; }
+.gc.gc.lb-row, .gc.gc.cv2-row { display: block; padding: 0; gap: 0; border-left-width: 1.5px; }
+.gc.lb-row-btn:hover, .gc.cv2-row:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.6); }
+.gc.cv2-row.focus { border-color: var(--acc); }
+/* ONE ROW (owner 2026-10-16: the board must be one row of up to seven, the card about 180-220px tall). Recent Games:
+   placement | hero | board | runes + actions, the meta line under them. The Career column is narrower, so its card
+   (`.gc-stack`) puts hero, meta and actions on the top line and the board on one row under them. */
+.gc-body { display: grid; grid-template-columns: 96px 200px minmax(0, 1fr) auto; grid-template-areas: 'place hero board side' 'place meta meta meta';
+  column-gap: 22px; row-gap: 2px; align-items: center; padding: 8px 20px 8px 20px; }
+.gc.gc-stack .gc-body { grid-template-columns: 96px auto minmax(0, 1fr) auto; grid-template-areas: 'place hero meta side' 'place board board board'; row-gap: 0; }
+.gc.gc-stack .gc-meta { border-top: none; padding-top: 0; }
+.gc.gc-stack .gc-hero .cv2-heroframe.small { --ring: 62px; }
+.gc.gc-stack .gc-meta .cv2-row-meta { justify-content: flex-start; row-gap: 4px; }
+.gc .gc-place { grid-area: place; align-self: stretch; justify-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 40px; line-height: 1; letter-spacing: 0.01em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  border-right: 1px solid rgba(255, 255, 255, 0.07); padding-right: 14px; margin: 0; }
+.gc .gc-place.won { color: #ffd76a; }
+.gc .gc-place.top4 { color: #7fe8ac; }
+.gc .gc-place.lost { color: #ff9a9a; }
+.gc .gc-place.none { color: rgba(255, 255, 255, 0.4); }
+.gc-crown svg { width: 26px; height: 26px; color: #ffd76a; display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
+.gc-hero { grid-area: hero; display: flex; align-items: center; gap: 12px; min-width: 0; }
+.gc-hero .lb-heroframe .hero { width: 64px; height: 64px; padding: 3px; }
+.gc-heroid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gc-title, .gc-title > * { font-family: var(--font-ui); font-weight: 900; font-size: 19px; line-height: 1.15; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gc-sub, .gc-sub > * { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.62); }
+.gc-record, .gc-record > * { font-family: var(--font-ui); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.72); }
+.gc-board { grid-area: board; min-width: 0; container-type: inline-size; }
+/* The strip gives every portrait a slot wide enough for ITS OWN two stat badges (they sit on the bottom corners and
+   overhang the card): a 26px gap between tiles, so neighbouring badges never chain into one row of circles. */
+/* THE STRIP, computed (badge minimums from #2120: a card's two badges hang ~18px past each side, ~26px with the 500+
+   glow, so the tile PITCH must be the card width + 36..52px, with ~25..33px reserved under it). Seven in ONE row, never
+   wrapped. Recent Games' board column is ~970px at 1920: 7 x 103px cards (tile scale 0.78, the floor) + 6 x 40px gaps =
+   961px. The Career column is ~820px: the card width is DERIVED from the column (100cqw minus six 40px gaps, over 7),
+   ~83px there. Specificity doubled so the wide-stage (w2200) `.lb-team` scale cannot override it. */
+.gc .gc-board .lb-team.lb-team { --tile-s: 0.78; gap: 40px; flex-wrap: nowrap; padding: 22px 0 26px 10px; }
+.gc .gc-board .cv2-team.cv2-team { --tile-gap: 40px; --tw: min(112px, calc((100cqw - 6 * 40px - 24px) / 7)); flex-wrap: nowrap; justify-content: flex-start; padding: calc(var(--tw) * 0.24) 12px 26px 12px; }
+.gc-board .cv2-row-team { gap: 0; width: 100%; }
+.gc-side { grid-area: side; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 10px; }
+.gc-runes { display: flex; gap: 6px; }
+.gc-runes .cv2-runes, .gc-runes .rg-runes { display: flex; gap: 6px; }
+/* Runes on the card are emblems only; the name and text are in each emblem's hover tip. */
+.gc-runes .cv2-rune-name { display: none; }
+.gc:not(.rg-large) .gc-runes .lb-rune-name { display: none; }
+.gc-runes .lb-runes { display: flex; gap: 6px; }
+.gc:not(.rg-large) .gc-runes .lb-rune { padding: 0; background: none; border: none; }
+/* The card's runes sit at its right edge: their tips open leftward from the emblem, never past the page. */
+.gc-runes .runtrophy-tip { left: auto; right: 0; }
+/* Safety net only: no menu scroller ever scrolls sideways. */
+.lbpage .lbscroll, .cv2-col, .cv2-panel { overflow-x: clip; }
+.gc-runes .cv2-rune { padding: 0; background: none; border: none; box-shadow: none; }
+.rg-norunes, .gc-runes .cv2-norunes { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.4); padding: 0; }
+.gc-actions { display: flex; gap: 8px; align-items: center; }
+.gc-actions .lb-btn, .gc-actions .cv2-btn, .gc-actions .cv2-lobbybtn { margin: 0; font-size: 13px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 6px; }
+.gc-actions svg { width: 15px; height: 15px; }
+.gc-meta { grid-area: meta; min-width: 0; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.gc-meta .cv2-row-meta, .gc-meta .lb-facts { display: flex; flex-wrap: wrap; justify-content: flex-start; align-items: baseline; gap: 0; margin: 0; }
+.gc-meta .cv2-meta, .gc-meta .lb-fact { display: inline-flex; flex-direction: row; align-items: baseline; gap: 6px; white-space: nowrap; }
+.gc-meta .cv2-meta + .cv2-meta, .gc-meta .lb-fact + .lb-fact { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
+.gc-meta .cv2-meta-l, .gc-meta .lb-fact-l { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.48); }
+.gc-meta .cv2-meta-v, .gc-meta .lb-fact-v { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.85); }
+.gc-meta .lb-partial { color: rgba(255, 255, 255, 0.6); font-size: 13px; }
+.gc-meta .lb-partial svg { width: 13px; height: 13px; }
+.cv2-row-delta.up { color: #7fe8ac; }
+.cv2-row-delta.down { color: #ff9a9a; }
+.gc-meta .cv2-ppills { gap: 8px; }
+.gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
+/* LARGE (the split layout's detail): the board takes the full width under the header. */
+.gc.rg-large .gc-body { grid-template-columns: 96px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 10px; padding: 16px 24px 14px 26px; }
+.gc.rg-large .gc-board .lb-team.lb-team { justify-content: center; padding-left: 0; }
+.gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
+.gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
+.gc.rg-large .gc-place { font-size: 54px; }
+.gc.rg-large .gc-side { flex-direction: row-reverse; align-items: center; }
+
+/* RECENT GAMES (2026-10-16 redesign): summary strip, hero filter chips, then the layout under trial. */
+.rg-page .lbscroll { gap: 14px; }
+.rg-summary { display: flex; align-items: center; gap: 30px; padding: 14px 24px; border-radius: 14px; flex: none;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.86), rgba(9, 15, 29, 0.92)); border: 1.5px solid rgba(196, 160, 92, 0.36); box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.75); }
+.rg-sum-stat { display: flex; flex-direction: column; gap: 3px; }
+.rg-sum-v { font-family: var(--font-ui); font-weight: 900; font-size: 30px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.rg-sum-v.sm { font-size: 20px; }
+.rg-sum-v.won { color: #ffd76a; }
+.rg-sum-l { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.52); }
+.rg-sum-hero { flex-direction: row; align-items: center; gap: 10px; }
+.rg-sum-hero .lb-heroframe .hero { width: 46px; height: 46px; padding: 2px; }
+.rg-sum-txt { display: flex; flex-direction: column; gap: 3px; }
+.rg-sum-spark { margin-left: auto; display: flex; flex-direction: column; gap: 4px; width: 280px; }
+.rg-sum-spark svg { width: 100%; height: 54px; display: block; }
+.rg-spark { fill: none; stroke: #e8c877; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.rg-spark-mid { stroke: rgba(255, 255, 255, 0.14); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.rg-filters { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
+.rg-chip { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; padding: 7px 14px; border-radius: 999px; color: rgba(255, 246, 228, 0.78);
+  background: rgba(0, 0, 0, 0.32); border: 1.5px solid rgba(196, 160, 92, 0.32); }
+.rg-chip:hover { color: #fff; border-color: rgba(232, 200, 119, 0.7); }
+.rg-chip.on { color: var(--ui-title); border-color: transparent; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.rg-layouts { margin-left: auto; margin-right: 12px; }
+.rg-list.lb-rows { gap: 10px; }
+.rg-split { display: grid; grid-template-columns: 440px minmax(0, 1fr); gap: 18px; min-height: 0; align-items: start; }
+.rg-split-list { display: flex; flex-direction: column; gap: 6px; max-height: 760px; overflow-y: auto; padding: 4px 6px 4px 2px; }
+.rg-item { --band: rgba(255, 255, 255, 0.25); position: relative; display: grid; grid-template-columns: 64px 54px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 12px 6px 14px; text-align: left;
+  border-radius: 10px; border: 1.5px solid rgba(196, 160, 92, 0.22); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 14%, transparent), rgba(9, 15, 29, 0.88) 140px); color: #f4eee2;
+  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
+.rg-item::before { content: ''; position: absolute; left: -1.5px; top: -1.5px; bottom: -1.5px; width: 5px; border-radius: 10px 0 0 10px; background: var(--band); }
+.rg-item:hover { transform: translateX(3px); border-color: rgba(232, 200, 119, 0.55); }
+.rg-item.on { border-color: rgba(255, 217, 138, 0.85); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 22%, transparent), rgba(20, 31, 54, 0.95) 160px); }
+.rg-item .gc-place { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; }
+.rg-item .gc-place.won { color: #ffd76a; }
+.rg-item .gc-place.top4 { color: #7fe8ac; }
+.rg-item .gc-place.lost { color: #ff9a9a; }
+.rg-item .gc-crown svg { width: 16px; height: 16px; }
+.rg-item .lb-heroframe .hero { width: 48px; height: 48px; padding: 2px; }
+.rg-item-who { display: flex; flex-direction: column; min-width: 0; }
+.rg-item-name { font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rg-item-sub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.58); }
+.rg-item-when { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
+.rg-split-detail { min-width: 0; }
+.rg-detail-in { animation: menu-rise 0.2s cubic-bezier(0, 0, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .gc, .rg-item, .gc.lb-row-btn:hover, .gc.cv2-row:hover, .rg-item:hover { transition: none; transform: none; }
+  .rg-detail-in { animation: none; }
+}
+
+
+
+/* Career: the player's chosen profile picture leads the left column; the favourite hero is a quiet line under it. */
+.cv2-favline { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-top: 6px; }
+.cv2-favline .cv2-favlabel { margin: 0; font-size: 12px; }
+.cv2-favline .cv2-heroname { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(255, 246, 228, 0.88); background: none; border: none; padding: 0; box-shadow: none; }
+
+/* THE RAIL'S SELECTION INDICATOR (2026-10-16): a gold edge bar on the current plaque that SLIDES (transform only) from
+   the page you came from to the one you opened. MenuSidebar measures the active plaque once per page (never per
+   frame) and starts the bar at the previous page's offset. */
+.msb-nav { position: relative; }
+.msb-ind { position: absolute; left: -16px; top: 0; width: 5px; height: 52px; border-radius: 0 4px 4px 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(180deg, #ffe9ad, #e2b458); box-shadow: 0 0 10px rgba(255, 210, 120, 0.55); opacity: 0; will-change: transform; }
+.msb-ind.on { opacity: 1; }
+/* LIST STAGGER: game cards and Career rows arrive 30 ms apart, the whole list inside ~250 ms. */
+.lb-rows > .lb-lazy, .cv2-list > .cv2-lazy { animation: menu-rise 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+.lb-rows > .lb-lazy:nth-child(2), .cv2-list > .cv2-lazy:nth-child(2) { animation-delay: 0.03s; }
+.lb-rows > .lb-lazy:nth-child(3), .cv2-list > .cv2-lazy:nth-child(3) { animation-delay: 0.06s; }
+.lb-rows > .lb-lazy:nth-child(4), .cv2-list > .cv2-lazy:nth-child(4) { animation-delay: 0.09s; }
+.lb-rows > .lb-lazy:nth-child(5), .cv2-list > .cv2-lazy:nth-child(5) { animation-delay: 0.12s; }
+.lb-rows > .lb-lazy:nth-child(6), .cv2-list > .cv2-lazy:nth-child(6) { animation-delay: 0.15s; }
+.lb-rows > .lb-lazy:nth-child(n+7), .cv2-list > .cv2-lazy:nth-child(n+7) { animation-delay: 0.18s; }
+@media (prefers-reduced-motion: reduce) { .lb-rows > .lb-lazy, .cv2-list > .cv2-lazy { animation: none; } .msb-ind { transition: none !important; } }
+
+/* PERFORMANCE TRENDS WITH DEPTH (careerTrends.tsx, 2026-10-16). Static SVG; the gold is the series, the green / gold /
+   red are the placement bands (always paired with a shape); grid and bands stay recessive; text wears text colours. */
+.cv2-trends .ct-mmr-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
+.ct-mmr { position: relative; }
+.ct-mmr svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ct-band { fill: rgba(255, 255, 255, 0.018); }
+.ct-band.alt { fill: rgba(255, 255, 255, 0.05); }
+.ct-band-l { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; fill: rgba(255, 246, 228, 0.6); }
+.ct-grid { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.ct-area { stroke: none; }
+.ct-glow { fill: none; stroke: #e8c877; stroke-width: 6; stroke-opacity: 0.16; stroke-linejoin: round; stroke-linecap: round; }
+.ct-line { fill: none; stroke: #e8c877; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ct-last { fill: #ffe9ad; stroke: #0d1628; stroke-width: 2; }
+.ct-peak circle { fill: #0d1628; stroke: #ffe9ad; stroke-width: 1.5; }
+.ct-peak text { font-family: var(--font-ui); font-weight: 800; font-size: 11px; fill: rgba(255, 246, 228, 0.8); }
+.ct-date { font-family: var(--font-ui); font-weight: 700; font-size: 11px; fill: rgba(255, 255, 255, 0.5); }
+.ct-cross { stroke: rgba(255, 246, 228, 0.45); stroke-width: 1; stroke-dasharray: 2 3; }
+.ct-hot { fill: #e8c877; stroke: #0d1628; stroke-width: 2; }
+.ct-pos { position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 12px)); pointer-events: none; display: flex; flex-direction: column; gap: 2px; white-space: nowrap; }
+.ct-pos b { font-weight: 900; }
+.ct-pos .good { color: #7fe8ac; } .ct-pos .bad { color: #ff9a9a; } .ct-pos .dim { opacity: 0.65; font-size: 0.92em; }
+.ct-empty { padding: 26px 8px; text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+.ct-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.ct-small { display: flex; flex-direction: column; gap: 4px; padding: 8px 8px 6px; border-radius: 10px; background: rgba(0, 0, 0, 0.22); min-width: 0; }
+.ct-small-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.ct-small-t { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+.ct-small-v { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: #fff; font-variant-numeric: tabular-nums; }
+.ct-small svg { display: block; width: 100%; height: auto; }
+.ct-small-d { min-height: 15px; }
+.ct-delta { font-family: var(--font-ui); font-weight: 800; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ct-delta.good { color: #7fe8ac; } .ct-delta.bad { color: #ff9a9a; } .ct-delta.neutral { color: rgba(255, 255, 255, 0.5); font-weight: 700; }
+.ct-ref { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; stroke-dasharray: 3 3; }
+.ct-roll { fill: none; stroke: #f4eee2; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ct-sarea { fill: rgba(85, 201, 138, 0.16); stroke: none; }
+.ct-pt.won { fill: #e8b84e; }
+.ct-pt.top4 { fill: #55c98a; }
+.ct-pt.lost { fill: none; stroke: #e0646a; stroke-width: 1.5; }
+.ct-pt.faint { fill: rgba(232, 200, 119, 0.35); }
+.ct-bar { fill: rgba(232, 200, 119, 0.55); }
+.ct-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.ct-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ct-key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.ct-key.won { background: #e8b84e; border-radius: 1px; transform: rotate(45deg); }
+.ct-key.top4 { background: #55c98a; }
+.ct-key.lost { border: 1.5px solid #e0646a; }
+.ct-key.roll { width: 14px; height: 2px; border-radius: 1px; background: #f4eee2; }
+
+/* PRACTICE SETUP (UI refinement 2026-10-16; owner: "make sure to improve this view too"). On the great hall like the
+   other mode screens, with the "Modes /" crumb; Sandbox and God Mode are two selectable art tiles (the selected one
+   lit and badged); the options sit in one panel in two columns at a readable size; the selected segment is the lit
+   plate with gold letters (navigation look), and START is the one bright gold action. Static styling. */
+.mp-practice { place-items: center; padding: 40px 0 56px; }
+.mp-practice .pomodes-box { width: 1240px; min-width: 0; max-width: calc(100% - 80px); align-items: stretch; gap: 0; }
+.mp-practice .mphead { margin: 0 0 24px; }
+.mp-practice .mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; }
+.mp-practice .pomodes { grid-template-columns: 1fr 1fr; gap: 26px; margin: 0; }
+.mp-practice .pomode { display: block; }
+.mp-practice .pomode-select { position: relative; display: grid; grid-template-columns: 200px 1fr; align-items: stretch; width: 100%; min-width: 0; height: 150px; padding: 0; overflow: hidden; text-align: left;
+  border-radius: 18px; border: 2px solid rgba(214, 178, 108, 0.45); background: linear-gradient(90deg, rgba(13, 22, 40, 0.9), rgba(9, 15, 29, 0.94)); color: #f4eee2;
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.85); transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
+.mp-practice .pomode-select:hover { transform: translateY(-3px); border-color: rgba(232, 200, 119, 0.8); }
+.mp-practice .pomode-select.on { border-color: #ffd98a; background: linear-gradient(90deg, rgba(40, 52, 88, 0.95), rgba(14, 24, 46, 0.95)); box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.35), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.mp-practice .pomode:not(.on) .pomode-select { opacity: 0.78; }
+.mp-practice .pomode-art { position: relative; display: block; overflow: hidden; }
+.mp-practice .pomode-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mp-practice .pomode-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 55%, rgba(13, 22, 40, 0.92)); }
+.mp-practice .pomode-body { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 14px 22px 14px 8px; }
+.mp-practice .pomode-title { margin: 0; font-size: 26px; letter-spacing: 0.04em; color: #fff; }
+.mp-practice .pomode-text { text-transform: none; letter-spacing: 0; max-width: none; font-family: var(--font-ui); font-weight: 600; font-size: 15px; line-height: 1.4; color: rgba(255, 246, 228, 0.8); }
+.mp-practice .pomode-state { position: absolute; top: 12px; right: 14px; padding: 3px 12px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255, 246, 228, 0.6); border: 1.5px solid rgba(196, 160, 92, 0.4); background: rgba(0, 0, 0, 0.3); }
+.mp-practice .pomode-select.on .pomode-state { color: var(--ui-title); border-color: transparent; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.mp-practice .popanel { margin-top: 22px; padding: 18px 26px; border-radius: 16px; background: linear-gradient(180deg, rgba(13, 22, 40, 0.88), rgba(9, 15, 29, 0.93));
+  border: 1.5px solid rgba(196, 160, 92, 0.38); box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.mp-practice .posandbox { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; padding: 0; border: none; background: none; }
+.mp-practice .posandbox.off { display: none; }
+.mp-practice .posandbox .porow { grid-template-columns: 1fr; gap: 10px; padding: 14px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.mp-practice .posandbox .porow:nth-child(-n+2) { border-top: none; }
+.mp-practice .posandbox .porow:last-child { grid-column: 1 / -1; }
+.mp-practice .polabel { font-size: 18px; }
+.mp-practice .pohint { font-size: 14px; font-weight: 600; color: rgba(255, 246, 228, 0.66); }
+.mp-practice .poseg-btn { font-size: 15px; padding: 9px 16px; }
+.mp-practice .poseg-btn.on, .mp-practice .poseg-btn.on:hover { color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title) 45%, transparent); }
+.mp-practice .pogod { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 28px; padding: 6px 0; }
+.mp-practice .pogod-item { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.24); }
+.mp-practice .pogod-t { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: #fff; }
+.mp-practice .pogod-x { font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: 1.35; color: rgba(255, 246, 228, 0.7); }
+.mp-practice .postart { margin-top: 26px; align-self: center; font-size: 26px; letter-spacing: 0.16em; padding: 14px 84px; border-radius: 14px; background: var(--cta-face); color: var(--cta-ink); border: 2px solid var(--cta-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
+@media (prefers-reduced-motion: reduce) { .mp-practice .pomode-select, .mp-practice .pomode-select:hover { transition: none; transform: none; } }
+
+/* PODIUM v3 + LIST ROWS (owner 2026-10-16, "they are all messed up"). The v2 podium was overridden on a wide stage by
+   the `:root[data-lv~=w2200] .lb-has-mmr .lb-trow` grid (six table columns inside a card), which threw the portrait,
+   the medal and the crest outside the card. Every rule here outranks that one (selectors carry five classes) and uses
+   plain flow, no absolute offsets that depend on content: each card is a centred stack (portrait with the placement
+   medal on its top-right edge, name, title under it, then ONE centred row of crest, division and rating); 1st is
+   raised and larger, 2nd and 3rd equal. List rows have no buttons: the row opens the Career. */
+.rankpage .lb-table.lb-panel { background: none; border: none; box-shadow: none; padding: 0; }
+.rankpage .lb-table .lb-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 26px; margin: 4px 0 22px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { display: flex; flex-flow: row wrap; justify-content: center; align-items: center; gap: 10px 14px; min-width: 0; overflow: hidden;
+  grid-template-columns: none; padding: 20px 20px 18px; text-align: center; border-width: 1.5px;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.92), rgba(9, 15, 29, 0.95)); animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) both; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) { order: 2; padding: 28px 24px 22px; border-color: rgba(255, 215, 120, 0.85);
+  background: linear-gradient(180deg, rgba(48, 36, 14, 0.92), rgba(12, 19, 36, 0.95) 62%); animation-delay: 0.04s; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(2) { order: 1; border-color: rgba(205, 215, 230, 0.55); }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(3) { order: 3; border-color: rgba(214, 150, 96, 0.55); animation-delay: 0.08s; }
+/* The portrait and its medal: the medal cell is the FIRST cell, so it is pulled down onto the portrait's top-right edge
+   with a negative bottom margin of its own height (no measurement, no absolute position). */
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rank { order: 0; flex: 0 0 100%; display: flex; justify-content: center; position: relative; z-index: 4; height: 0; margin: 0 0 -10px; transform: translate(42px, 4px); overflow: visible; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) > .lb-c-rank { transform: translate(52px, 6px); }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-medal { width: 42px; height: 42px; font-size: 19px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-medal { width: 50px; height: 50px; font-size: 23px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-medal svg { top: -10px; width: 17px; height: 17px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-player { flex: 0 0 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-heroframe .hero { width: 100px; height: 100px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-heroframe .hero { width: 124px; height: 124px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-who { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-handle { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; font-size: 22px; white-space: nowrap; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-handle { font-size: 26px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-you { order: -1; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-herosub { font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rating { display: flex; justify-content: center; align-items: center; gap: 10px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankbar-track, .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankbar-points { display: none; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankcrest-row { --ring: 44px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-mmr { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-mmr { font-size: 24px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-games, .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-act { display: none; }
+/* List rows: no button column, just a chevron that says the row opens. */
+.rankpage .lb-table .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px 40px; }
+.rankpage .lb-table.lb-has-mmr .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px 130px 40px; }
+.rankpage .lb-c-act { justify-content: center; }
+.lb-row-go { font-family: var(--font-ui); font-weight: 900; font-size: 28px; color: rgba(232, 200, 119, 0.55); transition: transform 0.14s ease-out, color 0.14s ease; }
+.lb-trow-btn:hover .lb-row-go { color: #ffe2a0; transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) { .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { animation: none; } .lb-trow-btn:hover .lb-row-go { transform: none; } }
+
+/* Reduced motion: the Mode screen's content still arrives with a short fade on every visit (no rise, no stagger). */
+@media (prefers-reduced-motion: reduce) { .modepick.mp-home > .mpbox { animation: fadein 0.12s ease both; } }
 
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the

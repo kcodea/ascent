@@ -60,7 +60,9 @@ describe('Practice screen — God Mode | Sandbox Mode', { timeout: 60_000 }, () 
     expect(useGame.getState().practiceDraft.timeMult).toBe(2);
     ui = mount(<PracticeOptions />);
     expect(col(ui.container, 'sandbox').classList.contains('on')).toBe(true);
-    expect(select(ui.container, 'sandbox').textContent).toBe('Selected');
+    // The whole tile is the button now (UI refinement 2026-10-16); its state reads Selected.
+    expect(select(ui.container, 'sandbox').querySelector('.pomode-state')?.textContent).toBe('Selected');
+    expect(select(ui.container, 'sandbox').getAttribute('aria-pressed')).toBe('true');
     expect(rowButtons(ui.container).every((b) => !b.disabled)).toBe(true);
   });
   it('Select switches the mode', () => {

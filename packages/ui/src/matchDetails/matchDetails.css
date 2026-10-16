@@ -126,3 +126,67 @@
    board card opened it hidden behind the scrim. */
 body:has(.mdd-scrim) .cardref { z-index: 580; }
 body:has(.mdd-scrim) .cv2-rune-tip { z-index: 580; }
+
+/* ── 2026-10-16 POLISH (owner: "can you improve this expanded lobby view as well") ──────────────────────────────
+   Standings as slim rows (~60px): placement | portrait | name + hero (title smaller) | strength | status tag | health.
+   The selected seat's board sits right under the standings with ONE header line (name, hero, tier, what the board
+   is, runes as icons), the strip sized to the badge slot rules (40px between cards) so nothing overflows sideways.
+   The expansion fades and rises in once and the rows stagger (transform + opacity, one-shot). */
+.mds { gap: 12px; }
+.mds-list { gap: 6px 12px; }
+.mds-row { grid-template-columns: 46px 50px minmax(96px, 1fr) auto auto auto; min-height: 60px; column-gap: 12px; padding: 5px 12px 5px 8px; }
+.mds-portrait { --ring: 48px; }
+.mds-place { font-size: 20px; }
+.mds-name-text { font-size: 16px; }
+.mds-hero { font-size: 13px; }
+.titlebadge.mds-row-title { --tb-fs: 10px; opacity: 0.85; }
+.mds-who { gap: 1px; }
+.mds-killer { font-size: 11px; font-family: var(--font-ui); font-weight: 800; text-transform: uppercase; align-self: flex-start; }
+.mds-strcol { display: flex; flex-direction: column; align-items: flex-end; min-width: 40px; }
+.mds-strength { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0; line-height: 1.05; }
+.mds-strength-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); } /* read by assistive tech and the tip; the column shows the number */
+.mds-strength-v { padding: 1px 8px; border-radius: 8px; background: rgba(255, 214, 107, 0.1); border: 1px solid rgba(255, 214, 107, 0.3); }
+.mds-strength-v { font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #ffd66b; font-variant-numeric: tabular-nums; }
+.mds-status { padding: 3px 9px; border-radius: 999px; font-size: 12px; white-space: nowrap; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.12); }
+.mds-status.winner { border-color: rgba(255, 214, 107, 0.55); }
+.mds-status.in { border-color: rgba(127, 224, 168, 0.45); }
+.mds-hp { font-size: 15px; }
+/* The selected seat: one header line, then the strip. */
+.mds-board { gap: 0; padding: 10px 18px 4px; }
+.mds-board-head { flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px 14px; }
+.mds-board-name { font-size: 19px; align-items: baseline; }
+.mds-board-caption { font-size: 14px; color: rgba(232, 200, 119, 0.85); }
+.mds-board-head .mds-runes { margin-left: auto; min-height: 0; padding: 0; border-top: none; gap: 6px; }
+.mds-board-head .mds-runes .cv2-row-label { display: none; }
+.mds-board-head .cv2-rune { padding: 0; background: none; border: none; }
+.mds-board-head .cv2-rune-name { display: none; }
+.mds-board-head .cv2-rune-tip { left: auto; right: 0; }
+.mds-board-head .mds-norunes { font-size: 13px; }
+.mds-team { min-height: 0; }
+.mds-team .cv2-team { --tile-gap: 40px; --tw: min(122px, calc((100cqw - 6 * 40px - 40px) / 7)); justify-content: center; flex-wrap: nowrap; padding: calc(var(--tw) * 0.24 + 4px) 20px 30px; }
+.mds-strength-panel { padding: 6px 0 8px; }
+/* The expansion arrives once: the panel fades and rises, the rows follow 25 ms apart. */
+.cv2-lobby { animation: menu-rise 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+.cv2-lobby .mds-row { animation: menu-rise 0.2s cubic-bezier(0, 0, 0.2, 1) both; }
+.cv2-lobby .mds-row:nth-child(2) { animation-delay: 0.025s; }
+.cv2-lobby .mds-row:nth-child(3) { animation-delay: 0.05s; }
+.cv2-lobby .mds-row:nth-child(4) { animation-delay: 0.075s; }
+.cv2-lobby .mds-row:nth-child(5) { animation-delay: 0.1s; }
+.cv2-lobby .mds-row:nth-child(6) { animation-delay: 0.125s; }
+.cv2-lobby .mds-row:nth-child(7) { animation-delay: 0.15s; }
+.cv2-lobby .mds-row:nth-child(8) { animation-delay: 0.175s; }
+@media (prefers-reduced-motion: reduce) { .cv2-lobby, .cv2-lobby .mds-row { animation: fadein 0.12s ease both; } }
+/* The lobby lives inside the Career's scrolling list; a seat's hover bubble at the right edge must never make that list
+   scroll sideways (the stray scrollbar, owner 2026-10-16). */
+.cv2-list:has(.cv2-lobby) { overflow-x: hidden; }
+/* Placement coloured by band, like the game card (1st gold, top 4 green, 5th to 8th red). */
+.mds-place[data-band='won'] { color: #ffd76a; }
+.mds-place[data-band='top4'] { color: #7fe8ac; }
+.mds-place[data-band='lost'] { color: #ff9a9a; }
+/* Name first: the name column keeps its width and the tags shrink (2026-10-16); health rides inside the status tag. */
+.mds-row { grid-template-columns: 46px 50px minmax(120px, 1fr) auto auto; }
+.mds-status .mds-hp { flex-direction: row; align-items: center; gap: 6px; margin-left: 4px; padding-left: 7px; border-left: 1px solid rgba(255, 255, 255, 0.18); font-size: 13px; letter-spacing: 0; }
+.mds-status .mds-hp-v svg { width: 12px; height: 12px; }
+.mds-status .mds-hp-v.armor { font-size: 12px; }
+.mds-status { flex-wrap: nowrap; }
+.mds-heroline .mds-tag { font-size: 10px; padding: 1px 6px 0; }

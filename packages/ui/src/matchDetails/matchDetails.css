@@ -183,3 +183,10 @@ body:has(.mdd-scrim) .cv2-rune-tip { z-index: 580; }
 .mds-place[data-band='won'] { color: #ffd76a; }
 .mds-place[data-band='top4'] { color: #7fe8ac; }
 .mds-place[data-band='lost'] { color: #ff9a9a; }
+/* Name first: the name column keeps its width and the tags shrink (2026-10-16); health rides inside the status tag. */
+.mds-row { grid-template-columns: 46px 50px minmax(120px, 1fr) auto auto; }
+.mds-status .mds-hp { flex-direction: row; align-items: center; gap: 6px; margin-left: 4px; padding-left: 7px; border-left: 1px solid rgba(255, 255, 255, 0.18); font-size: 13px; letter-spacing: 0; }
+.mds-status .mds-hp-v svg { width: 12px; height: 12px; }
+.mds-status .mds-hp-v.armor { font-size: 12px; }
+.mds-status { flex-wrap: nowrap; }
+.mds-heroline .mds-tag { font-size: 10px; padding: 1px 6px 0; }

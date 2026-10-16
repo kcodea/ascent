@@ -106,10 +106,12 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
         <span className="mds-name">
           <span className="mds-name-text">{seat.name}</span>
           {hall && <HallCrown />}
+        </span>
+        {/* The You/Bot tags ride the hero line, so the name line belongs to the name (owner 2026-10-16: "fix cut off
+            name"). */}
+        <span className="mds-heroline">
           {seat.self && <span className="mds-tag you">You</span>}
           {seat.bot && !seat.self && <span className="mds-tag bot">Bot</span>}
-        </span>
-        <span className="mds-heroline">
           <span className="mds-hero">{heroName}</span>
           {title && <TitleBadge snapshot={title} className="mds-row-title" />}
         </span>
@@ -120,15 +122,17 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
       <span className="mds-strcol">
         {strength && <span className="mds-strength gtip" data-tip={GAME_STRENGTH_TIP}><span className="mds-strength-l">{strength.replace(/\s*\d+$/, '')}</span> <span className="mds-strength-v">{seat.strength}</span></span>}
       </span>
+      {/* Health folds INTO the status tag ("Winner ♥25"), so a standing seat's row never squeezes its name (owner
+          2026-10-16: "fix cut off name"). */}
       <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
         {winner && <Icon name="crown" />}{status.replace(/^Out in round /, 'Out R')}
+        {standing && (seat.health > 0 || seat.armor > 0) && (
+          <span className="mds-hp" aria-hidden="true">
+            <span className="mds-hp-v"><Icon name="heart" />{seat.health}</span>
+            {seat.armor > 0 && <span className="mds-hp-v armor"><Icon name="shield" />{seat.armor}</span>}
+          </span>
+        )}
       </span>
-      {standing && (seat.health > 0 || seat.armor > 0) && (
-        <span className="mds-hp" aria-hidden="true">
-          <span className="mds-hp-v"><Icon name="heart" />{seat.health}</span>
-          {seat.armor > 0 && <span className="mds-hp-v armor"><Icon name="shield" />{seat.armor}</span>}
-        </span>
-      )}
     </button>
   );
 });

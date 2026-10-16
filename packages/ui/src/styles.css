@@ -13214,9 +13214,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc.gc.lb-row, .gc.gc.cv2-row { display: block; padding: 0; gap: 0; border-left-width: 1.5px; }
 .gc.lb-row-btn:hover, .gc.cv2-row:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.6); }
 .gc.cv2-row.focus { border-color: var(--acc); }
-.gc-body { display: grid; grid-template-columns: 104px 236px minmax(0, 1fr) auto; grid-template-areas: 'place hero board side' 'place meta meta meta';
-  column-gap: 22px; row-gap: 6px; align-items: center; padding: 12px 20px 10px 22px; }
-.gc .gc-place { grid-area: place; align-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+/* The BOARD gets its own full-width row (owner 2026-10-16: the strip was too small; the board is the most interesting
+   part of a game): hero + side on top, the strip under them at a real size, the meta line last. */
+.gc-body { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'place board board' 'place meta meta';
+  column-gap: 22px; row-gap: 4px; align-items: center; padding: 12px 20px 10px 22px; }
+.gc .gc-place { grid-area: place; align-self: stretch; justify-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   font-family: var(--font-ui); font-weight: 900; font-size: 42px; line-height: 1; letter-spacing: 0.01em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   border-right: 1px solid rgba(255, 255, 255, 0.07); padding-right: 14px; margin: 0; }
 .gc .gc-place.won { color: #ffd76a; }
@@ -13233,9 +13235,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-board { grid-area: board; min-width: 0; container-type: inline-size; }
 /* The strip gives every portrait a slot wide enough for ITS OWN two stat badges (they sit on the bottom corners and
    overhang the card): a 26px gap between tiles, so neighbouring badges never chain into one row of circles. */
-.gc-board .lb-team { --tile-s: 0.78; gap: 26px; padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: 8px; padding-left: 10px; }
+.gc-board .lb-team { --tile-s: 1; gap: 26px; padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: 8px; padding-left: 10px; }
 .gc-board .cv2-team { --tile-gap: 26px; padding-left: 10px; padding-bottom: 10px; }
-.gc-board .cv2-row-team { gap: 0; }
+.gc-board .cv2-row-team { gap: 0; width: 100%; }
 .gc-side { grid-area: side; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 10px; }
 .gc-runes { display: flex; gap: 6px; }
 .gc-runes .cv2-runes, .gc-runes .rg-runes { display: flex; gap: 6px; }
@@ -13262,8 +13264,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-meta .cv2-ppills { gap: 8px; }
 .gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
 /* LARGE (the split layout's detail): the board takes the full width under the header. */
-.gc.rg-large .gc-body { grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 14px; padding: 18px 24px 16px 26px; }
-.gc.rg-large .gc-board .lb-team { --tile-s: 0.98; gap: 30px; justify-content: center; }
+.gc.rg-large .gc-body { grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 14px; padding: 18px 24px 16px 26px; }
+.gc.rg-large .gc-board .lb-team { --tile-s: 1.05; gap: 30px; justify-content: center; }
 .gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
 .gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
 .gc.rg-large .gc-place { font-size: 54px; }

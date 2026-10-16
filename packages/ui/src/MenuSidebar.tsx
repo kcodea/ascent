@@ -26,7 +26,7 @@
  * `navHopAt` stamp it wears `.hop`, which turns the page fade off and fades only the content beside the
  * sidebar (see the `.hop` rules in styles.css).
  */
-import { useState, type HTMLAttributes, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { Crest, IconChest, IconHelm, IconTrophy } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
@@ -73,7 +73,34 @@ interface Item { dest: SidebarCurrent; label: string; icon: ReactNode }
  *   - Settings, pinned to the foot.
  * Every destination is still one click from every page (Valorant 5.08 hid modes behind Play and had to revert).
  */
+// Where the rail's selection bar last sat (stage px within the nav), so the next page's rail can slide it from there.
+let lastIndicatorY: number | null = null;
+
 export function MenuSidebar({ current }: { current: SidebarCurrent }) {
+  const navRef = useRef<HTMLElement>(null);
+  const indRef = useRef<HTMLSpanElement>(null);
+  // THE SELECTION BAR (2026-10-16): measured ONCE per page (offsetTop, before paint), then a single transform
+  // transition from the previous page's position. Nothing runs per frame; reduced motion just places it.
+  useLayoutEffect(() => {
+    const nav = navRef.current; const ind = indRef.current;
+    if (!nav || !ind) return undefined;
+    const act = nav.querySelector<HTMLElement>('.sbbtn.active');
+    if (!act) { ind.classList.remove('on'); return undefined; }
+    let y = 0; for (let el: HTMLElement | null = act; el && el !== nav; el = el.offsetParent as HTMLElement | null) y += el.offsetTop;
+    ind.style.height = `${act.offsetHeight}px`;
+    ind.classList.add('on');
+    const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const from = lastIndicatorY;
+    lastIndicatorY = y;
+    if (from === null || from === y || reduced) { ind.style.transition = 'none'; ind.style.transform = `translateY(${y}px)`; return undefined; }
+    ind.style.transition = 'none';
+    ind.style.transform = `translateY(${from}px)`;
+    const raf = requestAnimationFrame(() => {
+      ind.style.transition = 'transform 0.24s cubic-bezier(0.4, 0, 0.2, 1)';
+      ind.style.transform = `translateY(${y}px)`;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [current]);
   const goTo = useGame((s) => s.goTo);
   const openSettings = useGame((s) => s.openSettings);
   const savedRun = useGame((s) => s.savedRun);
@@ -124,7 +151,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         <img className="msb-mark" src={TITLE_LOGO_SRC} alt="" draggable={false} decoding="sync" />
         <span className="msb-word">{txt.wordmark}</span>
       </button>
-      <nav className="msb-nav" aria-label="Main menu">
+      <nav className="msb-nav" aria-label="Main menu" ref={navRef}>
+        <span className="msb-ind" ref={indRef} aria-hidden="true" />
         {/* Play with a run saved: the same warning the title's Play carries, as a styled bubble on a WRAPPER
             (the plaque's own ::after is its sheen). Attribute text, not visible textContent. */}
         {savedRun

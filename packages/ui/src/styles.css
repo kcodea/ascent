@@ -7416,7 +7416,15 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    and skips its own fade; only the content beside the sidebar fades in, so the column reads as one persistent
    surface. Opacity-only, one-shot. */
 .lbpage.hop, .modepick.hop { animation: none; }
-.lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd) { animation: fadein 0.2s ease; }
+/* PAGE TRANSITIONS (owner 2026-10-16: "add better transitions between pages"): the content beside the sidebar ENTERS
+   with opacity + a short rise, 225 ms on the decelerate curve; the sidebar and the backdrop stay put, so there is never
+   an empty frame between two pages (the old page's content leaves in the same commit the new one arrives). */
+@keyframes page-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd) { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
+.lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: page-enter 0.225s cubic-bezier(0, 0, 0.2, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd), .lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: fadein 0.12s ease both; }
+}
 
 /* ── MENU BACKDROP (UI refinement WS-1, 2026-10-16; `MenuBackdrop.tsx`) — the painted plate behind every sidebar
    host. It sits at z -1 INSIDE the host's stacking context (both hosts are fixed + z-indexed), so it paints over the
@@ -13237,8 +13245,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-board { grid-area: board; min-width: 0; container-type: inline-size; }
 /* The strip gives every portrait a slot wide enough for ITS OWN two stat badges (they sit on the bottom corners and
    overhang the card): a 26px gap between tiles, so neighbouring badges never chain into one row of circles. */
-.gc-board .lb-team { --tile-s: 1; gap: 26px; padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: 8px; padding-left: 10px; }
-.gc-board .cv2-team { --tile-gap: 26px; padding-left: 10px; padding-bottom: 10px; }
+/* Sized to the badge minimums (badge fix #2120): badges hang ~26px past each side of the art with the 500+ glow, so the
+   tile PITCH is the card width + 52px (x the tile scale) and ~33px is reserved under the card; the scale stays >= 0.78.
+   Recent Games fits seven at full tile size in one row. Career's column is narrower, so its seven wrap 4 + 3 at a real
+   size instead of shrinking under the floor. */
+.gc-board .lb-team { --tile-s: 1; gap: calc(52px * var(--tile-s)); padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: calc(33px * var(--tile-s)); padding-left: calc(26px * var(--tile-s)); }
+.gc-board .cv2-team { --tile-gap: 52px; --tw: 132px; flex-wrap: wrap; justify-content: center; row-gap: 40px; padding: calc(var(--tw) * 0.25) 26px 33px; }
 .gc-board .cv2-row-team { gap: 0; width: 100%; }
 .gc-side { grid-area: side; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 10px; }
 .gc-runes { display: flex; gap: 6px; }
@@ -13271,7 +13283,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
 /* LARGE (the split layout's detail): the board takes the full width under the header. */
 .gc.rg-large .gc-body { grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 14px; padding: 18px 24px 16px 26px; }
-.gc.rg-large .gc-board .lb-team { --tile-s: 1.05; gap: 30px; justify-content: center; }
+.gc.rg-large .gc-board .lb-team { --tile-s: 0.82; justify-content: center; }
 .gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
 .gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
 .gc.rg-large .gc-place { font-size: 54px; }
@@ -13361,6 +13373,23 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-favline { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-top: 6px; }
 .cv2-favline .cv2-favlabel { margin: 0; font-size: 12px; }
 .cv2-favline .cv2-heroname { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(255, 246, 228, 0.88); background: none; border: none; padding: 0; box-shadow: none; }
+
+/* THE RAIL'S SELECTION INDICATOR (2026-10-16): a gold edge bar on the current plaque that SLIDES (transform only) from
+   the page you came from to the one you opened. MenuSidebar measures the active plaque once per page (never per
+   frame) and starts the bar at the previous page's offset. */
+.msb-nav { position: relative; }
+.msb-ind { position: absolute; left: -16px; top: 0; width: 5px; height: 52px; border-radius: 0 4px 4px 0; pointer-events: none; z-index: 2;
+  background: linear-gradient(180deg, #ffe9ad, #e2b458); box-shadow: 0 0 10px rgba(255, 210, 120, 0.55); opacity: 0; will-change: transform; }
+.msb-ind.on { opacity: 1; }
+/* LIST STAGGER: game cards and Career rows arrive 30 ms apart, the whole list inside ~250 ms. */
+.lb-rows > .lb-lazy, .cv2-list > .cv2-lazy { animation: menu-rise 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+.lb-rows > .lb-lazy:nth-child(2), .cv2-list > .cv2-lazy:nth-child(2) { animation-delay: 0.03s; }
+.lb-rows > .lb-lazy:nth-child(3), .cv2-list > .cv2-lazy:nth-child(3) { animation-delay: 0.06s; }
+.lb-rows > .lb-lazy:nth-child(4), .cv2-list > .cv2-lazy:nth-child(4) { animation-delay: 0.09s; }
+.lb-rows > .lb-lazy:nth-child(5), .cv2-list > .cv2-lazy:nth-child(5) { animation-delay: 0.12s; }
+.lb-rows > .lb-lazy:nth-child(6), .cv2-list > .cv2-lazy:nth-child(6) { animation-delay: 0.15s; }
+.lb-rows > .lb-lazy:nth-child(n+7), .cv2-list > .cv2-lazy:nth-child(n+7) { animation-delay: 0.18s; }
+@media (prefers-reduced-motion: reduce) { .lb-rows > .lb-lazy, .cv2-list > .cv2-lazy { animation: none; } .msb-ind { transition: none !important; } }
 
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the

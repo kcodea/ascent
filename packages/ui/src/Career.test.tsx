@@ -165,10 +165,11 @@ describe('Match History', () => {
     expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 3 runs');
     expect(text('.cv2-row .cv2-row-heroname')).toEqual(['Sable', 'Brackus', 'Brackus']);
     // The record under the name is the MATCH result by placement: 1st + 3rd = WIN, 7th = LOSS (owner 2026-09-20).
-    expect(text('.cv2-row .cv2-row-result')).toEqual(['WIN', 'WIN', 'LOSS']);
-    expect(rows.map((r) => r.querySelector('.cv2-row-result')?.classList.contains('win'))).toEqual([true, true, false]);
-    expect(rows[2]!.querySelector('.cv2-row-result')?.classList.contains('loss')).toBe(true);
-    expect(rows.map((r) => r.querySelector('.cv2-row-result')?.getAttribute('aria-label'))).toEqual(['Match win', 'Match win', 'Match loss']);
+    // The GAME CARD (2026-10-16): the match WIN / LOSS is said once, as the card's band (top 4 green, else red) and in
+    // the placement's aria-label; there is no separate WIN pill.
+    expect(text('.cv2-row .cv2-row-result')).toEqual([]);
+    expect(rows.map((r) => r.classList.contains('gc-lost'))).toEqual([false, false, true]);
+    expect(rows.map((r) => r.querySelector('.gc-place')?.getAttribute('aria-label'))).toEqual(['Victory, match win', '3rd, match win', '7th, match loss']);
     // The fight record survives only as a small bare "N–M" caption (no "Fights" word — owner 2026-09-21; the
     // aria-label carries the meaning) — never the headline W–L any more.
     // A DRAW is a round too (owner report 2026-09-22: a 14-round run read as "8-3"): the caption carries it as a
@@ -176,18 +177,18 @@ describe('Match History', () => {
     expect(text('.cv2-row .cv2-row-fights')).toEqual(['9–4', '5–5–2', '2–5']);
     expect(rows.map((r) => r.querySelector('.cv2-row-fights')?.getAttribute('aria-label'))).toEqual(['Fights: 9 won, 4 lost', 'Fights: 5 won, 5 lost, 2 drawn', 'Fights: 2 won, 5 lost']);
     expect(ui.container.querySelector('.cv2-row-record')).toBeNull();
-    // Reading order inside a banner: head (hero ‖ outcome) → team → foot (runes ‖ watch).
+    // Reading order inside a GAME CARD (GameCard.tsx, 2026-10-16): placement → hero → board → side (runes, actions),
+    // then the meta line.
     for (const r of rows) {
-      const kids = [...r.children].map((c) => c.className);
-      expect(kids).toEqual(['cv2-row-head', 'cv2-row-team', 'cv2-row-foot']);
-      expect(r.querySelector('.cv2-row-head .cv2-row-hero .cv2-heroframe.small .hero .f')).not.toBeNull();
-      expect(r.querySelector('.cv2-row-head .cv2-row-outcome .cv2-verdict')).not.toBeNull();
+      const kids = [...r.querySelector('.gc-body')!.children].map((c) => c.className.split(' ')[0]);
+      expect(kids).toEqual(['gc-place', 'gc-hero', 'gc-board', 'gc-side', 'gc-meta']);
+      expect(r.querySelector('.gc-hero .cv2-heroframe.small .hero .f')).not.toBeNull();
+      expect(r.querySelector('.gc-place.cv2-verdict')).not.toBeNull();
       expect(r.querySelector('.cv2-row-team .cv2-row-label'), 'no "Final Team" label over the tiles (owner 2026-09-20)').toBeNull();
-      expect(r.querySelector('.cv2-row-foot .cv2-row-runes .cv2-row-label')?.textContent).toBe('Runes');
       // ONE action button (+ the Lobby expand chevron, Match details 2026-09-28, which is not an action).
       expect(r.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(1);
       expect(r.querySelectorAll('.cv2-lobbybtn')).toHaveLength(1);
-      expect(r.querySelector('.cv2-row-foot .cv2-watch')).not.toBeNull();
+      expect(r.querySelector('.gc-actions .cv2-watch')).not.toBeNull();
     }
     // Row 1 has a FULL board: exactly 7 slots, all real cards, the gilded one wearing the golden frame.
     const team = rows[0]!.querySelectorAll('.cv2-team .cv2-tile');
@@ -246,14 +247,14 @@ describe('Match History', () => {
       ui.unmount();
       ui = mount(<Career />);
       await flush();
-      expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+      expect(text('.cv2-row .cv2-meta-l').filter((l) => l !== 'Rounds' && l !== 'Rating')).toEqual(['Played', 'Length', 'Gold spent', 'Lobby', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
       expect(text('.cv2-row-lobby')).toEqual(['74%']);
     } finally { lobbyDisplay.show = false; }
   });
 
   it('the outcome block: VICTORY for 1st (green) else the placement; the date, run length and Gold, each labelled; "—" when unknown', () => {
     const verdicts = [...ui.container.querySelectorAll('.cv2-verdict')];
-    expect(verdicts.map((v) => v.textContent)).toEqual(['VICTORY', '3RD', '7TH']);
+    expect(verdicts.map((v) => v.textContent)).toEqual(['1st', '3rd', '7th']);
     expect(verdicts[0]!.classList.contains('won')).toBe(true);
     expect(verdicts[1]!.classList.contains('top4')).toBe(true);
     expect(verdicts[2]!.classList.contains('lost')).toBe(true);
@@ -263,24 +264,27 @@ describe('Match History', () => {
     expect(text('.cv2-row-outcome .cv2-row-label')).toEqual([]);
     // The LOBBY STRENGTH (owner 2026-09-22) is HIDDEN for now (owner 2026-09-30): no Lobby fact even on the stamped run.
     // BOARD STRENGTH (R-LOBBY-09) shows, frozen on the run; a run without a score prints nothing (no placeholder).
-    expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
+    // Rounds and the Rating change joined the meta line with the game card (2026-10-16); the rest keep their order.
+    expect(text('.cv2-row .cv2-meta-l').filter((l) => l !== 'Rounds' && l !== 'Rating')).toEqual(['Played', 'Length', 'Gold spent', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);
     expect(text('.cv2-row-lobby')).toEqual([]);
     expect(text('.cv2-row-bstrength')).toEqual(['72']);
     const when = text('.cv2-row-when');
     expect(when[0]).toMatch(/\d{4}$/);          // a real date
     expect(text('.cv2-row-length')).toEqual(['15 min', '12 min', '—']);   // 883 s · 690 s · no telemetry clock
-    expect(text('.cv2-row-gold-v')).toEqual(['120', '90', '—']);
+    expect(text('.cv2-row-gold-v')).toEqual(['120', '90', '-']);
   });
 
-  it('ONE button per row — Watch Replay — enabled only where a replay row exists; no Share button, no power stat, no rating delta', () => {
+  it('ONE button per row — Replay — enabled only where a replay row exists; no Share button, no power stat; the rating change on the meta line', () => {
     const buttons = [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-watch')];
-    expect(buttons.map((b) => b.textContent)).toEqual(['Watch Replay', 'Watch Replay', 'Watch Replay']);
+    expect(buttons.map((b) => b.textContent)).toEqual(['Replay', 'Replay', 'Replay']);
     expect(buttons.map((b) => b.disabled)).toEqual([false, true, true]);
     expect(buttons.map((b) => b.getAttribute('aria-label'))).toEqual(['Watch this run’s replay', 'No replay stored for this run', 'No replay stored for this run']);
     const all = ui.container.textContent ?? '';
     expect(all).not.toMatch(/share/i);
     expect(all).not.toMatch(/power/i);
-    expect(all).not.toMatch(/\+41|−41|-41/);
+    // The RATING CHANGE is on the card's meta line since the game card (owner ask 2026-10-16), green when it rose.
+    expect(text('.cv2-row-delta')[0]).toBe('+41');
+    expect(ui.container.querySelector('.cv2-row-delta')?.classList.contains('up')).toBe(true);
     expect(ui.container.querySelector('.carinsights')).toBeNull();
     expect(ui.container.querySelector('[title]'), 'no native tooltips anywhere on the page').toBeNull();
   });
@@ -703,9 +707,9 @@ describe('the Practice tab', () => {
     expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 2 practice games');
     expect(text('.cv2-practicelist .cv2-row-heroname')).toEqual(['Sable', 'Brackus']);
     // The result by placement (2nd = WIN, 6th = LOSS), the fight record caption, the outcome block.
-    expect(text('.cv2-practicelist .cv2-row-result')).toEqual(['WIN', 'LOSS']);
+    expect(text('.cv2-practicelist .cv2-row-result')).toEqual([]);
     expect(text('.cv2-practicelist .cv2-row-fights')).toEqual(['7–5–1', '3–6']);
-    expect(text('.cv2-practicelist .cv2-verdict')).toEqual(['2ND', '6TH']);
+    expect(text('.cv2-practicelist .cv2-verdict')).toEqual(['2nd', '6th']);
     expect(text('.cv2-practicelist .cv2-row-rounds')).toEqual(['15', '9']);
     expect(text('.cv2-practicelist .cv2-row-length')).toEqual(['21 min', '21 min']);
     expect(text('.cv2-practicelist .cv2-row-when').every((w) => w.length > 0 && w !== '—')).toBe(true);
@@ -727,7 +731,7 @@ describe('the Practice tab', () => {
     await openPractice();
     const rows = [...ui.container.querySelectorAll('.cv2-practicelist .cv2-row')];
     expect(rows[0]!.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(1);
-    expect(rows[0]!.querySelector('.cv2-watch')?.textContent).toBe('Watch Replay');
+    expect(rows[0]!.querySelector('.cv2-watch')?.textContent).toBe('Replay');
     expect(rows[1]!.querySelectorAll('button:not(.cv2-lobbybtn)')).toHaveLength(0); // the Lobby chevron is always there
     expect(rows[1]!.textContent).not.toMatch(/replay/i);
   });

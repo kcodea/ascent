@@ -7,6 +7,7 @@ import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
+import { GameCard } from './GameCard';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
@@ -262,74 +263,56 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const fights = run.wins + run.losses + run.draws;
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
+  // THE GAME CARD (GameCard.tsx, 2026-10-16): the placement once, the hero + record, the board strip, runes and actions
+  // at the side, and one quiet meta line. The match WIN / LOSS (top 4 or not) is the card's band colour now.
   return (
-    <article className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`} aria-label={`${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}`}>
-      <header className="cv2-row-head">
-        <div className="cv2-row-hero">
-          <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />
-          <div className="cv2-row-heroid">
-            <div className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '—'}</div>
-            {/* The MATCH result — by placement (top 4 = WIN, 5th–8th = LOSS; owner 2026-09-20). The fight
-                record is only a small caption beneath it — a bare "N–M" (owner 2026-09-21: no "Fights" word;
-                the aria-label keeps the meaning) — and only when the run recorded any fights. */}
-            <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
-              {result.label}
-            </div>
-            {fights > 0 && (
-              <div className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>
-                {recordText(run)}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="cv2-row-outcome">
-          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
-          <div className="cv2-row-meta">
-            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '—' : run.goldSpent}</span></span>
-            {/* LOBBY STRENGTH (owner 2026-09-22): the number as a percentage, post-game only, and only when the run
-                carries a stamp — a row without one prints nothing here rather than a guess. Hidden for now behind
-                SHOW_LOBBY_STRENGTH (owner 2026-09-30); the stamp itself is still read. */}
-            {SHOW_LOBBY_STRENGTH && run.lobbyStrength && (
-              <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.value} percent`}>{strengthText(run.lobbyStrength)}</span></span>
-            )}
-            {/* BOARD STRENGTH (R-LOBBY-09): the run's percentile, frozen when it ended; nothing when it was not scored. */}
-            {run.boardStrength != null && (
-              <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
-            )}
-          </div>
-        </div>
-      </header>
-      {/* No "Final Team" label (owner 2026-09-20): it collided with the first tile's crown / tier stars, and the
-          card row speaks for itself. The row keeps headroom above the tiles for those overhangs instead. */}
-      <div className="cv2-row-team">
-        {hasBoard
-          ? <FinalTeam board={run.board!} />
-          : <div className="cv2-row-none">No final team recorded for this run.</div>}
-      </div>
-      <footer className="cv2-row-foot">
-        <div className="cv2-row-runes">
-          <div className="cv2-row-label">Runes</div>
-          {runes.length > 0
-            ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
-            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
-        </div>
-        <div className="cv2-foot-actions">
-          <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
-          <button
-            type="button"
-            className="cv2-btn cv2-watch pressable"
-            disabled={!watchable || busy || unplayable}
-            onClick={() => onWatch(run)}
-            aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
-          >
-            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-          </button>
-        </div>
-      </footer>
-      {lobbyOpen && <LobbyPanel match={run.match} id={lobbyId} />}
-    </article>
+    <GameCard
+      place={run.placement}
+      label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
+      resultClass={`cv2-verdict ${o.cls}`}
+      className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`}
+      rootProps={{ 'aria-label': `${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}` }}
+      hero={<HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />}
+      title={<span className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '-'}</span>}
+      record={fights > 0 ? (
+        <span className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>{recordText(run)}</span>
+      ) : undefined}
+      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
+      runes={runes.length > 0
+        ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+      actions={<>
+        <button
+          type="button"
+          className="cv2-btn cv2-watch pressable"
+          disabled={!watchable || busy || unplayable}
+          onClick={() => onWatch(run)}
+          aria-label={watchable ? 'Watch this run’s replay' : 'No replay stored for this run'}
+        >
+          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+        </button>
+        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
+      </>}
+      meta={<div className="cv2-row-meta">
+        <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
+        <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{length}</span></span>
+        {run.wave > 0 && <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{run.wave}</span></span>}
+        <span className="cv2-meta"><span className="cv2-meta-l">Gold spent</span><span className="cv2-meta-v cv2-row-gold-v">{run.goldSpent === null ? '-' : run.goldSpent}</span></span>
+        {/* The RATING CHANGE the run settled (green up, red down); nothing when it carries none. */}
+        {run.ratingDelta != null && run.ratingDelta !== 0 && (
+          <span className="cv2-meta"><span className="cv2-meta-l">Rating</span><span className={`cv2-meta-v cv2-row-delta ${run.ratingDelta > 0 ? 'up' : 'down'}`}>{run.ratingDelta > 0 ? `+${run.ratingDelta}` : `${run.ratingDelta}`}</span></span>
+        )}
+        {/* LOBBY STRENGTH (owner 2026-09-22), hidden for now behind SHOW_LOBBY_STRENGTH (owner 2026-09-30). */}
+        {SHOW_LOBBY_STRENGTH && run.lobbyStrength && (
+          <span className="cv2-meta"><span className="cv2-meta-l">Lobby</span><span className="cv2-meta-v cv2-row-lobby" aria-label={`Lobby strength ${run.lobbyStrength.value} percent`}>{strengthText(run.lobbyStrength)}</span></span>
+        )}
+        {/* BOARD STRENGTH (R-LOBBY-09): the run's percentile, frozen when it ended; nothing when it was not scored. */}
+        {run.boardStrength != null && (
+          <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
+        )}
+      </div>}
+      extra={lobbyOpen ? <LobbyPanel match={run.match} id={lobbyId} /> : undefined}
+    />
   );
 });
 
@@ -359,68 +342,43 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-p${game.rowId ?? game.createdAt ?? 'x'}`;
   return (
-    <article className={`cv2-row cv2-prow ${o.cls}`} aria-label={`Practice, ${heroName}: ${o.label}`}>
-      <header className="cv2-row-head">
-        <div className="cv2-row-hero">
-          <HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />
-          <div className="cv2-row-heroid">
-            <div className="cv2-row-heroname">{heroName}</div>
-            <div className={`cv2-row-result ${result.cls}`} aria-label={result.cls === 'none' ? 'No placement recorded' : `Match ${result.label.toLowerCase()}`}>
-              {result.label}
-            </div>
-            {rec && fights > 0 && (
-              <div className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>
-                {recordText(rec)}
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="cv2-row-outcome">
-          <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
-          <div className="cv2-row-meta">
-            <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs, game.lengthOverCap)}</span></span>
-            <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '—'}</span></span>
-          </div>
-        </div>
-      </header>
-      <div className="cv2-row-team">
-        {hasBoard
-          ? <FinalTeam board={game.board!} />
-          : <div className="cv2-row-none">No final team recorded for this game.</div>}
-      </div>
-      <footer className="cv2-row-foot">
-        <div className="cv2-row-runes">
-          <div className="cv2-row-label">Runes</div>
-          {runes.length > 0
-            ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
-            : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
-        </div>
-        <div className="cv2-prow-side">
-          {cfg && (
-            <div className="cv2-ppills" aria-label="Practice options">
-              <span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span>
-              <span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span>
-            </div>
-          )}
-          <div className="cv2-foot-actions">
-            <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
-            {game.hasReplay && (
-              <button
-                type="button"
-                className="cv2-btn cv2-watch pressable"
-                disabled={busy || unplayable}
-                onClick={onWatch}
-                aria-label="Watch this practice game’s replay"
-              >
-                <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Watch Replay'}
-              </button>
-            )}
-          </div>
-        </div>
-      </footer>
-      {lobbyOpen && <LobbyPanel match={game.match} id={lobbyId} />}
-    </article>
+    <GameCard
+      place={game.placement}
+      label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
+      resultClass={`cv2-verdict ${o.cls}`}
+      className={`cv2-row cv2-prow ${o.cls}`}
+      rootProps={{ 'aria-label': `Practice, ${heroName}: ${o.label}` }}
+      hero={<HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />}
+      title={<span className="cv2-row-heroname">{heroName}</span>}
+      record={rec && fights > 0 ? (
+        <span className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>{recordText(rec)}</span>
+      ) : undefined}
+      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
+      runes={runes.length > 0
+        ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
+      actions={<>
+        {game.hasReplay && (
+          <button
+            type="button"
+            className="cv2-btn cv2-watch pressable"
+            disabled={busy || unplayable}
+            onClick={onWatch}
+            aria-label="Watch this practice game’s replay"
+          >
+            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
+          </button>
+        )}
+        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
+      </>}
+      meta={<div className="cv2-row-meta">
+        <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
+        <span className="cv2-meta"><span className="cv2-meta-l">Length</span><span className="cv2-meta-v cv2-row-length">{runLengthText(game.durationMs, game.lengthOverCap)}</span></span>
+        <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '-'}</span></span>
+        {cfg && <span className="cv2-meta cv2-ppills" aria-label="Practice options"><span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span><span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span></span>}
+      </div>}
+      extra={lobbyOpen ? <LobbyPanel match={game.match} id={lobbyId} /> : undefined}
+    />
   );
 }
 

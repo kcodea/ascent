@@ -515,8 +515,8 @@ describe('RecentGames — the recording banners', () => {
     expect(text('.lb-rune-name').slice(0, 2)).toEqual(['Rune of Spellslinging', 'Happy Birthday']);
     expect(rows[0]!.querySelectorAll('.lb-rune-em img, .lb-rune-em svg')).toHaveLength(2);
     expect(rows[1]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
-    expect(text('.lb-verdict')).toEqual(['VICTORY', '5TH', '2ND']);
-    expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['lb-verdict won', 'lb-verdict lost', 'lb-verdict top4']);
+    expect(text('.lb-verdict')).toEqual(['1st', '5th', '2nd']);
+    expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['gc-place won lb-verdict won', 'gc-place lost lb-verdict lost', 'gc-place top4 lb-verdict top4']);
     // length · rounds · board strength (only on the scored row) per row; row 3 has no rounds. The lobby strength is
     // HIDDEN for now (owner 2026-09-30).
     expect(text('.lb-fact-v')).toEqual(['18 min', '15', '72', '7 min', '11', '—']);
@@ -554,7 +554,7 @@ describe('RecentGames — the recording banners', () => {
     const btns = [...ui.container.querySelectorAll('.lb-watch')] as HTMLButtonElement[];
     expect(btns).toHaveLength(3);
     expect(btns.map((b) => b.disabled)).toEqual([false, false, true]);
-    expect(btns.map((b) => b.textContent)).toEqual(['Watch replay', 'Watch replay', 'No replay']);
+    expect(btns.map((b) => b.textContent)).toEqual(['Replay', 'Replay', 'No replay']);
     click(btns[0]!);
     await flush();
     expect(fetchReplayPayload).toHaveBeenCalledWith(91);
@@ -637,7 +637,7 @@ describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
     expect(selected()).toBe('Practice');
     expect(fetchPracticeGames).toHaveBeenCalledTimes(1);
     expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev']);
-    expect(text('.lb-verdict')).toEqual(['3RD', '6TH']);
+    expect(text('.lb-verdict')).toEqual(['3rd', '6th']);
     expect(text('.lb-row-record')).toEqual(['9–4', '3–6']);
     expect(text('.lb-fact-l')).toEqual(['Length', 'Rounds', 'Opponents', 'Health', 'Length', 'Rounds', 'Opponents', 'Health']);
     expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Bots Lv 5', 'Unlimited', '18 min', '9', 'Players', 'Normal']);

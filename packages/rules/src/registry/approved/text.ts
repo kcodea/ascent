@@ -623,24 +623,27 @@ export const TEXT_RULES: GameRule[] = [
     id: 'R-BADGE-FIT-01',
     title: 'A stat badge with a big number looks like every other badge: the number fits inside it on every surface',
     statement:
-      'An Attack or Health badge stays inside its own spot whatever the number. A printed value of four or more '
-      + 'characters (1000, 10000, 104k, 1.2m) shrinks to fit inside the badge instead of spilling onto the portrait or the '
-      + 'other badge. The milestone frame a badge wears once its stat crosses a value tier (silver, gold, pink, blue, '
-      + 'crystal) is sized to the card, not fixed in pixels, so a small card (the Career, Recent Games and Match details '
-      + 'final boards, the hover preview) shows the same badge as the board, only smaller. On the Shop, board and combat '
-      + 'cards nothing changes size.',
+      'An Attack or Health badge stays readable and inside its own spot whatever the number. A printed value of four or '
+      + 'more characters (1000, 10000, 104k, 103.7k, 1.2m) steps its font down so it sits about as wide as a three-digit '
+      + 'number, never below a readable size. Up to three characters keeps the authored size. The badge itself (the '
+      + 'milestone frame, its glow and the number) is NOT scaled by the card: it keeps its authored size on every surface, '
+      + 'so the Shop, board, combat, hand and Discover badges look exactly as they did before the fix, and the Career and '
+      + 'Recent Games strips stay readable.',
     domain: 'text',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (screenshot: a WIN 12-2 final-board strip, a 104k / 209k minion)', quote: "the badges got messed up for some reason when they go into the 1000's, please fix" },
       { kind: 'fix-pr', ref: 'fix/big-stat-badges: packages/ui/src/formatStat.ts (statFit), packages/ui/src/Card.tsx (data-fit), packages/ui/src/styles.css (--sv-fit, --ms-k, --ccw-board)' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (after #2119, Career + Recent Games screenshots)', quote: '2119 seemed to break the badges' },
+      { kind: 'fix-pr', ref: 'fix/badge-regression-2119: packages/ui/src/styles.css (drops --ms-k / --ccw-board; gentler --sv-fit)' },
     ],
     currentBehaviour:
-      'Conforms, FIXED 2026-10-16. The badge number was a fixed font sized for three glyphs and the milestone frame, glow '
-      + 'and tint were fixed px tuned at the board card. On a Career tile (about 60% of a board card) a 104k / 209k minion '
-      + 'wore a board-sized crystal frame and a 26px number, so the two badges overlapped each other and the portrait. Now '
-      + 'the number steps down by glyph count (statFit) and every milestone px multiplies by --ccw / --ccw-board (1 on the board).',
-    example: 'A minion at 104000 / 209000 on a Recent Games final board shows "104k" and "209k" inside two crystal badges that do not touch.',
+      'Conforms, FIXED 2026-10-16 (twice). #2119 fixed the overflow by stepping long numbers down AND by scaling the whole '
+      + 'badge with the card (--ccw / --ccw-board). The card scaling shrank the Career / Recent Games numbers to 8-10px and '
+      + '"103.7k" to a smudge (owner: "2119 seemed to break the badges"). fix/badge-regression-2119 removed the card scaling '
+      + '(the badge is back to its authored px everywhere) and made the steps gentler: 4 / 5 / 6 / 7+ glyphs = 0.8 / 0.7 / '
+      + '0.66 / 0.58 of the authored size, so a six-glyph number is at least 13px on the 0.78-scaled Recent Games tile.',
+    example: 'A minion at 104000 / 209000 on a Recent Games final board shows "104k" and "209k" in two readable crystal badges, the same size as on the board.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/bigStatBadge.test.tsx'], lastVerifiedAt: '2026-10-16' },
   },
 ];

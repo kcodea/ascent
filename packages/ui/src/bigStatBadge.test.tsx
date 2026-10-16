@@ -3,11 +3,10 @@
  * BIG STAT BADGES (owner report 2026-10-16: "the badges got messed up for some reason when they go into the 1000's,
  * please fix"). R-BADGE-FIT-01.
  *
- * Two things went wrong together once a stat got big: the printed number (sized for three glyphs) ran wider than
- * the badge's disc, and the milestone frame art (the pink / blue / crystal tiers, intentional since 2026-09-14) was
- * fixed px, so on a small card (the Career / Recent Games / Match details strip) a board-sized frame sat on a
- * tile-sized card and overlapped the portrait and the other badge. The fix keeps the tier art and (1) steps the
- * number down by glyph count (`statFit` → `data-fit`), (2) scales every milestone px by --ccw / --ccw-board.
+ * The badge number (sized for three glyphs) ran wider than the badge's disc once a stat got big. The fix steps a 4+
+ * glyph number down by glyph count (`statFit` → `data-fit`), gently enough to stay readable. #2119 ALSO scaled the
+ * whole badge with the card; that made the Career / Recent Games numbers unreadable and was reverted (the regression
+ * test below): the milestone frame keeps its authored px on every surface, as it did before #2119.
  */
 import { afterAll, describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
@@ -16,6 +15,7 @@ import { Card, type CardView } from './Card';
 import { formatStat, statFit } from './formatStat';
 import { tierOf } from './choreo/statMilestones';
 import { mount } from './renderedText.mount';
+import { MILESTONE_FRAME_DEFAULTS } from './milestoneFrameConfig';
 
 /** The owner's test values: 999, 1000, 10k, 104k, 209k, 1.2M. */
 const CASES: Array<{ n: number; text: string; fit: string | undefined; tier: number }> = [
@@ -88,15 +88,27 @@ describe('big stat badges: the CSS contract', () => {
   it('every badge number font multiplies the fit scale', () => {
     expect(rule('.badge > .value')).toContain('var(--sv-fit, 1)');
     expect(rule('.card.compact .badge > .value')).toContain('var(--sv-fit, 1)');
-    expect(rule(".card.compact .badge:not([data-milestone='0']) > .value")).toMatch(/var\(--ms-k, 1\) \* var\(--sv-fit, 1\)/);
-    expect(rule(".badge:not([data-milestone='0']) > .value")).toMatch(/var\(--ms-k, 1\) \* var\(--sv-fit, 1\)/);
+    expect(rule(".card.compact .badge:not([data-milestone='0']) > .value")).toContain('calc(var(--msnum-size, 33px) * var(--sv-fit, 1))');
+    expect(rule(".badge:not([data-milestone='0']) > .value")).toContain('calc(var(--msnum-size, 33px) * var(--sv-fit, 1))');
   });
 
-  it('the milestone frame, glow and tint scale with the card (--ms-k), 1 on the board card', () => {
-    expect(css).toMatch(/--ccw-board: var\(--ccw\);/);
-    expect(css).toMatch(/\.badge \{ --ms-k: calc\(var\(--ccw\) \/ var\(--ccw-board, var\(--ccw\)\)\); \}/);
-    for (const sel of ['.badge > .msframe', '.badge > .msglow', '.badge > .mstint']) {
-      expect(rule(sel)).toMatch(/width: calc\(60px \* var\(--msf-scale, 1\)[^;]*\* var\(--ms-k, 1\)\);/);
+  // REGRESSION (#2119, owner report 2026-10-16): #2119 also multiplied the frame and the number by the card's size
+  // (--ms-k = --ccw / --ccw-board). On the Career / Recent Games strips that shrank a 3-digit number to ~8-10px and
+  // "103.7k" to a smudge, and it changed the hand / Discover badges. The badge is NOT card-scaled: the frame, glow,
+  // tint and number keep their authored px on every surface, exactly as before #2119.
+  it('the badge frame and number are never scaled by the card size (#2119 regression)', () => {
+    expect(css).not.toMatch(/--ms-k/);
+    expect(css).not.toMatch(/--ccw-board/);
+    expect(rule('.badge > .msframe')).toMatch(/width: calc\(60px \* var\(--msf-scale, 1\)\);/);
+    expect(rule('.badge > .msglow')).toMatch(/width: calc\(60px \* var\(--msf-scale, 1\) \* var\(--msglow-frac, 0\.95\)\);/);
+    expect(rule('.badge > .mstint')).toMatch(/width: calc\(60px \* var\(--msf-scale, 1\) \* var\(--mstint-frac, 0\.66\)\);/);
+  });
+
+  it('shrink-to-fit stays readable: a 4-6 glyph number is >= 13px even on the 0.78-scaled Recent Games tile', () => {
+    const numSize = MILESTONE_FRAME_DEFAULTS.numSize; // the framed number's authored px
+    for (const b of ['4', '5', '6']) {
+      const fit = Number(new RegExp(`\\.badge > \\.value\\[data-fit='${b}'\\] \\{ --sv-fit: (0\\.\\d+); \\}`).exec(css)?.[1]);
+      expect(numSize * fit * 0.78, `bucket ${b}`).toBeGreaterThanOrEqual(13);
     }
   });
 

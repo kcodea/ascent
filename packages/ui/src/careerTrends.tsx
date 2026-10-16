@@ -182,10 +182,10 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
 
 const SW = 134, SH = 78, SP = 6;
 
-function Small({ title, value, delta, children }: { title: string; value: string; delta: JSX.Element | null; children: React.ReactNode }) {
+function Small({ name, value, delta, children }: { name: string; value: string; delta: JSX.Element | null; children: React.ReactNode }) {
   return (
     <div className="ct-small">
-      <div className="ct-small-head"><span className="ct-small-t">{title}</span><span className="ct-small-v">{value}</span></div>
+      <div className="ct-small-head"><span className="ct-small-t">{name}</span><span className="ct-small-v">{value}</span></div>
       <svg viewBox={`0 0 ${SW} ${SH}`} aria-hidden="true">{children}</svg>
       <div className="ct-small-d">{delta}</div>
     </div>
@@ -215,7 +215,7 @@ export function TrendsBody({ runs, window_, nowMs, live }: { runs: readonly Care
       <div className="ct-mmr-head"><span className="cv2-trend-title">MMR</span><span className="cv2-trend-avg">{live ?? (cur.filter((p) => p.mmr !== null).pop()?.mmr ?? '-')}</span></div>
       <MmrChart pts={cur} live={live} nowMs={nowMs} />
       <div className="ct-grid2">
-        <Small title="Placement" value={f.place === null ? '-' : f.place.toFixed(1)} delta={<Delta v={f.placeD} better="down" />}>
+        <Small name="Placement" value={f.place === null ? '-' : f.place.toFixed(1)} delta={<Delta v={f.placeD} better="down" />}>
           <line className="ct-ref" x1={SP} x2={SW - SP} y1={py(4.5)} y2={py(4.5)} />
           {placed.map((p, i) => {
             const x = sx(i, placed.length), y = py(p.place);
@@ -225,16 +225,16 @@ export function TrendsBody({ runs, window_, nowMs, live }: { runs: readonly Care
           })}
           {places.length > 1 && <polyline className="ct-roll" points={poly(rolling(places), py)} />}
         </Small>
-        <Small title="Top 4 rate" value={f.top4 === null ? '-' : `${Math.round(f.top4)}%`} delta={<Delta v={f.top4D} better="up" unit="%" digits={0} />}>
+        <Small name="Top 4 rate" value={f.top4 === null ? '-' : `${Math.round(f.top4)}%`} delta={<Delta v={f.top4D} better="up" unit="%" digits={0} />}>
           <line className="ct-ref" x1={SP} x2={SW - SP} y1={ty(50)} y2={ty(50)} />
           {top4.length > 1 && <polygon className="ct-sarea" points={`${sx(0, top4.length)},${SH - SP} ${poly(top4, ty)} ${sx(top4.length - 1, top4.length)},${SH - SP}`} />}
           {top4.length > 1 && <polyline className="ct-roll" points={poly(top4, ty)} />}
         </Small>
-        <Small title="APM" value={f.apm === null ? '-' : f.apm.toFixed(1)} delta={<Delta v={f.apmD} better="up" />}>
+        <Small name="APM" value={f.apm === null ? '-' : f.apm.toFixed(1)} delta={<Delta v={f.apmD} better="up" />}>
           {apms.map((a, i) => <circle key={i} className="ct-pt faint" cx={sx(i, apms.length)} cy={ay(a)} r="2" />)}
           {apms.length > 1 && <polyline className="ct-roll" points={poly(rolling(apms), ay)} />}
         </Small>
-        <Small title="Games" value={String(cur.length)} delta={prev ? <span className="ct-delta neutral">{prev.length} the period before</span> : null}>
+        <Small name="Games" value={String(cur.length)} delta={prev ? <span className="ct-delta neutral">{prev.length} the period before</span> : null}>
           {cur.length > 0 && (() => {
             // Games per day across the window, as thin bars (the volume behind the other three).
             const span = window_ === 'all' ? Math.max(1, Math.ceil((nowMs - cur[0]!.atMs) / DAY)) : window_;

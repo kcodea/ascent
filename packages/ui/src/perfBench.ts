@@ -1,4 +1,5 @@
 import { useGame } from './store';
+import { useProgression } from './progression/progressionStore';
 import { pixiFx } from './pixiFx';
 import { ensureDefsReady, playDef } from './fx/playDef';
 import { livePlaysSnapshot } from './fx/fxBudget';
@@ -17,6 +18,8 @@ export function installPerfBench(): void {
   if (import.meta.env.VITE_PERF_BENCH !== '1' || typeof window === 'undefined') return;
   (window as unknown as Record<string, unknown>).__bench = {
     store: useGame,
+    // The progression store (UI refinement 2026-10-16): a bench capture can show the signed-in menus (Collection plaque).
+    progression: useProgression,
     pixiFx,
     playDef,
     ready: ensureDefsReady,

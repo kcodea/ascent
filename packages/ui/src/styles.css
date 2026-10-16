@@ -7305,9 +7305,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .msb { position: absolute; left: 0; top: 0; bottom: 0; width: var(--sb-w); z-index: 5; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 22px;
   /* Translucent since the painted backdrop (WS-1): the plate glows through the column. Static alpha, never a
      backdrop-filter. */
-  background: linear-gradient(180deg, rgba(20, 44, 88, 0.84) 0%, rgba(13, 30, 62, 0.86) 40%, rgba(8, 18, 40, 0.9) 72%, rgba(5, 11, 26, 0.93) 100%);
+  background: linear-gradient(180deg, rgba(8, 16, 34, 0.78) 0%, rgba(10, 22, 46, 0.52) 30%, rgba(8, 18, 38, 0.5) 62%, rgba(4, 9, 22, 0.82) 100%);
   border-right: 2px solid rgba(196, 160, 92, 0.55);
-  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 72px rgba(70, 130, 220, 0.16), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
 /* The picker SCROLLS as a whole on a short viewport (`.modepick { overflow-y: auto }`), so its sidebar is fixed
    to the viewport rather than absolute in the scroller — it would scroll away with the cards otherwise. */
@@ -7324,7 +7324,7 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .msb-home:active .msb-mark { transform: scale(0.96); transition-duration: 0.05s; }
 .msb-home:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
 /* The two groups: a quiet bronze caption (12px floor, the WS-4 label minimum) over each group's plaques. */
-.msb-group { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.msb-group { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .msb-gh { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
   color: rgba(222, 196, 140, 0.72); padding: 0 4px; }
 /* Settings sits at the foot of the column, apart from the destinations. */
@@ -7333,7 +7333,7 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    (a short window) aligns to the top under Back instead of overflowing both ends into it; NOT a scroll
    container — that would clip the plaques' shadows and the Play bubble beside the column — the plaques compact
    on a short viewport instead (below). */
-.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center; gap: 8px; }
+.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 8px; padding-top: 14px; }
 .msb-item, .tn-item { display: block; }
 /* The compact plaque — the title's `.menubtn` language (navy plaque, gold rim, 4px hard edge, lamp-catch sheen,
    press compresses) sized for the column: 15px label, a 28px icon cell, full sidebar width minus the gutters.
@@ -7413,6 +7413,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .mbd-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .mbd-img.mbd-in { animation: fadein 0.26s cubic-bezier(0, 0, 0.2, 1); }
 .mbd-veil { position: absolute; inset: 0; }
+/* The Mode screen frames the hall's fireplace ABOVE the tiles (the tiles sit low, on the floor): the plate is
+   enlarged a little from its bottom edge and nudged right so the hearth lands over the content column's centre. */
+.mbd[data-screen='modes'] .mbd-img { transform: translateX(120px) scale(1.12); transform-origin: 50% 100%; }
 /* SCENE (the mode picker): the painting stays bright in the middle; the edges and the floor fall into shadow so the
    tiles read, and the left edge darkens under the sidebar. */
 .mbd-veil[data-veil='scene'] {
@@ -8524,14 +8527,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    move, so the "Last played" tag (`.mclast`) marks the habit instead. Hover = a 4px lift + a glow ring whose
    OPACITY fades (the ring's shadow is static, the `kwglow` pattern); nothing loops. The art pan/zoom vars are the
    dev Play Mode Screen tuner's (modePickConfig.ts); fallbacks are neutral. ── */
-.mpgrid { display: grid; grid-template-columns: 940px 432px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 62px; }
+.mpgrid { display: grid; grid-template-columns: 820px 360px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 58px; }
+/* The picker itself sits LOW on the stage (on the hall's floor), leaving the hearth visible above it. */
+.modepick.mp-home { place-items: end center; padding-bottom: 44px; }
 .mc-hero { grid-area: hero; }
-.mpside { grid-area: side; display: flex; flex-direction: column; gap: 46px; }
+.mpside { grid-area: side; display: flex; flex-direction: column; gap: 44px; }
 .mprow2 { grid-area: row; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .modecard[data-mp] { width: auto; padding: 0; position: relative; transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
-.modecard.mc-hero { height: 403px; }
+.modecard.mc-hero { height: 352px; }
 .mpside > .modecard { flex: 1 1 0; min-height: 0; }
-.mprow2 > .modecard { height: 170px; }
+.mprow2 > .modecard { height: 136px; }
 .modecard[data-mp]:hover { transform: translateY(-4px); }
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; border-width: 2px;
   border-color: rgba(214, 178, 108, 0.85); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
@@ -8634,7 +8639,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
 /* The picker's heading row (WS-2): a quiet left-aligned title, with a crumb back to the picker on its sub-views. */
-.mphead { align-self: stretch; display: flex; align-items: baseline; gap: 12px; margin: 0 0 40px; }
+.mphead { align-self: stretch; display: flex; align-items: baseline; gap: 12px; margin: 0 0 34px; }
 .mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; color: #f6efe2;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75); }
 .mpcrumb { font-family: var(--font-ui); font-weight: 800; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase;

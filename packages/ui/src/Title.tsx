@@ -406,7 +406,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {/* Mounted under the Learn / Gauntlet / Versus views too (they open OVER it), so opening one never flashes
           the title through its fade-in. */}
       {titleView !== 'menu' && (
-        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Choose a mode">
+        <SidebarHost className="modepick sb-host mp-home" role="dialog" aria-label="Choose a mode">
           <MenuSidebar current="modes" />
           <div className="mpbox">
             <div className="mphead"><h1 className="disp mptitle">Choose a mode</h1></div>

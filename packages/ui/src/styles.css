@@ -235,12 +235,12 @@ body { background: #160f08; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
    ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
    game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
-.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix {
+.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix, .rg-split-list, .colls-gridwrap {
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar, .avatarpick-scroll::-webkit-scrollbar,
 .lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .fr-body::-webkit-scrollbar,
-.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar, .rg-split-list::-webkit-scrollbar, .colls-gridwrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
 .heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
@@ -8025,7 +8025,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lazy-row.is-pending { height: var(--lazy-h, 300px); }
 .lazy-row.is-far, .lazy-row.is-far *, .lazy-row.is-far *::before, .lazy-row.is-far *::after { animation-play-state: paused !important; }
 .cv2-lazy { --lazy-h: 425px; }
-.lb-lazy { --lazy-h: 300px; }
+.lb-lazy { --lazy-h: 340px; } /* the game card's height (2026-10-16), so lazy placeholders keep the list honest */
 .cv2-list::-webkit-scrollbar, .cv2-right::-webkit-scrollbar, .cv2-left::-webkit-scrollbar { width: 8px; }
 .cv2-list::-webkit-scrollbar-thumb, .cv2-right::-webkit-scrollbar-thumb, .cv2-left::-webkit-scrollbar-thumb { background: rgba(196, 160, 92, 0.35); border-radius: 6px; }
 .cv2-none { align-items: center; text-align: center; padding: 44px 24px; margin-top: 8px; }
@@ -13147,7 +13147,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title) 45%, transparent); }
 /* HERO panels: the rank card and the Career's hero column wear the Compendium's painted frame. */
 .cv2-panel.cv2-ranked, .cv2-panel.cv2-left { position: relative; border-color: transparent; box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.8); }
-.cv2-panel.cv2-ranked::after, .cv2-panel.cv2-left::after { content: ''; position: absolute; inset: -6px; pointer-events: none; z-index: 2;
+/* The frame sits INSIDE the panel box (inset 0): reaching 6px outside made both scrolling columns grow a scrollbar
+   (owner 2026-10-16: "remove the sliders"). */
+.cv2-panel.cv2-ranked::after, .cv2-panel.cv2-left::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 2;
   border: 32px solid transparent; border-image: url('/frames/compendium-frame.webp') 270 stretch; }
 /* LIST panels stay as they are (navy + thin bronze rim). INSET panels: a darker well with no rim. */
 .cv2-trend { border-top-color: rgba(255, 255, 255, 0.06); }
@@ -13246,6 +13248,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc:not(.rg-large) .gc-runes .lb-rune-name { display: none; }
 .gc-runes .lb-runes { display: flex; gap: 6px; }
 .gc:not(.rg-large) .gc-runes .lb-rune { padding: 0; background: none; border: none; }
+/* The card's runes sit at its right edge: their tips open leftward from the emblem, never past the page. */
+.gc-runes .runtrophy-tip { left: auto; right: 0; }
+/* Safety net only: no menu scroller ever scrolls sideways. */
+.lbpage .lbscroll, .cv2-col, .cv2-panel { overflow-x: clip; }
 .gc-runes .cv2-rune { padding: 0; background: none; border: none; box-shadow: none; }
 .rg-norunes, .gc-runes .cv2-norunes { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.4); padding: 0; }
 .gc-actions { display: flex; gap: 8px; align-items: center; }
@@ -13319,6 +13325,42 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   .rg-detail-in { animation: none; }
 }
 
+
+/* PODIUM v2 (owner 2026-10-16: "the podium view is nice but they need to be cleaned up"). The same row cells, re-laid
+   as a compact card: the placement medal sits ON the portrait ring (one object, not two stacked), the name with the
+   title UNDER it, the favourite hero as a quiet line, the rank crest and MMR on ONE row, no division bar, no buttons
+   (the whole card opens the Career). 1st stands taller and larger, gold with its crown medal; 2nd and 3rd flank it in
+   the same style. The cards sit on the page, not inside a second panel. Static styling. */
+.rankpage .lb-table.lb-panel { background: none; border: none; box-shadow: none; padding: 0; }
+.lb-podium { gap: 26px; margin: 4px 0 20px; align-items: end; }
+.lb-podium .lb-trow { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'player player' 'rating mmr';
+  justify-items: center; align-items: center; row-gap: 12px; column-gap: 18px; padding: 22px 22px 18px; text-align: center;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.9), rgba(9, 15, 29, 0.94)); border-width: 1.5px; }
+.lb-podium .lb-trow:nth-child(1) { padding: 30px 26px 22px; background: linear-gradient(180deg, rgba(48, 36, 14, 0.9), rgba(12, 19, 36, 0.94) 60%); border-color: rgba(255, 215, 120, 0.8); }
+.lb-podium .lb-c-player { grid-area: player; flex-direction: column; align-items: center; gap: 8px; }
+.lb-podium .lb-c-rank { position: absolute; z-index: 2; left: calc(50% + 26px); top: 14px; }
+.lb-podium .lb-trow:nth-child(1) .lb-c-rank { left: calc(50% + 36px); top: 20px; }
+.lb-podium .lb-trow-btn .lb-medal { width: 44px; height: 44px; font-size: 20px; }
+.lb-podium .lb-trow:nth-child(1) .lb-medal { width: 54px; height: 54px; font-size: 24px; }
+.lb-podium .lb-trow-btn .lb-medal svg { top: -10px; width: 18px; height: 18px; }
+.lb-podium .lb-trow-btn .lb-heroframe .hero, .lb-podium .lb-heroframe .hero { width: 104px; height: 104px; }
+.lb-podium .lb-trow:nth-child(1) .lb-heroframe .hero { width: 132px; height: 132px; }
+.lb-podium .lb-who { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.lb-podium .lb-handle { flex-direction: column; gap: 5px; font-size: 22px; white-space: nowrap; }
+.lb-podium .lb-trow:nth-child(1) .lb-handle { font-size: 26px; }
+.lb-podium .lb-you { order: -1; }
+.lb-podium .lb-herosub { font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+.lb-podium .lb-c-rating { grid-area: rating; justify-self: end; }
+.lb-podium .lb-c-mmr { grid-area: mmr; justify-self: start; display: flex; flex-direction: row; align-items: baseline; gap: 6px; }
+.lb-podium .rankbar-track, .lb-podium .rankbar-points { display: none; }
+.lb-podium .rankbar { gap: 8px; }
+.lb-podium .lb-c-games, .lb-podium .lb-c-act { display: none; }
+.lb-podium .lb-mmr { font-size: 26px; }
+
+/* Career: the player's chosen profile picture leads the left column; the favourite hero is a quiet line under it. */
+.cv2-favline { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-top: 6px; }
+.cv2-favline .cv2-favlabel { margin: 0; font-size: 12px; }
+.cv2-favline .cv2-heroname { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: rgba(255, 246, 228, 0.88); background: none; border: none; padding: 0; box-shadow: none; }
 
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the

@@ -30,6 +30,8 @@ export interface CareerView {
    *  already holds it (a Rankings row, the Recent Games profile fetch) so the Seasonal Ranked card paints
    *  their crest + bar at once. Absent → Career fetches the profile's rank columns by `userId` itself. */
   rank?: RankedProfile;
+  /** The viewed player's CHOSEN profile picture (`profiles.avatar`, 2026-10-16), handed over by the entry point. */
+  avatar?: string;
   /** Set only when opened from a single game (Recent Games) — the run to auto-expand + scroll to. */
   focus?: CareerFocus;
 }
@@ -95,7 +97,7 @@ import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, se
 import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
-import { fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { pushProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
@@ -2312,6 +2314,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   playerAvatar: loadPlayerAvatar(),
   setPlayerAvatar: (id) => {
     try { if (id) localStorage.setItem('ascent.avatar', id); else localStorage.removeItem('ascent.avatar'); } catch { /* ignore */ }
+    // Published to your profile row (2026-10-16) so the Leaderboard and your Career show it to everyone. Best-effort.
+    void pushProfileAvatar(id);
     set({ playerAvatar: id });
   },
   avatarPickerOpen: false,

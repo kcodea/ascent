@@ -1110,13 +1110,16 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
   if (!c || !userId) return null;
   try {
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
-    const ranked = await Promise.race([
+    const byId = (extra: string) => Promise.race([
       Promise.resolve(
-        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}`)
+        c.from('profiles').select(`user_id, author, discriminator, games_played, favorite_hero, ${RANK_COLUMNS}${extra}`)
           .eq('user_id', userId).limit(1),
       ),
       timeout,
     ]);
+    // The chosen profile picture (2026-10-16) when the backend has the column; else the plain ranked read.
+    const withAvatar = await byId(', avatar');
+    const ranked = withAvatar && !withAvatar.error && withAvatar.data ? withAvatar : await byId('');
     const result = ranked && !ranked.error && ranked.data
       ? ranked
       : await Promise.race([
@@ -1132,10 +1135,23 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
       userId: r.user_id, author: r.author ?? '', discriminator: r.discriminator ?? undefined, rating: r.rating,
       gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined,
       ...(typeof r.rank_revision === 'number' ? { rank: rankedProfileOfRow(r) } : {}),
+      ...(typeof r.avatar === 'string' && r.avatar ? { avatar: r.avatar } : {}),
     };
   } catch {
     return null;
   }
+}
+
+/**
+ * Publish YOUR chosen profile picture to your profile row (`profiles.avatar`, 2026-10-16) so the Leaderboard and your
+ * Career show it to everyone. Its own best-effort UPDATE, never part of the run-end profile sync: a backend without
+ * the column rejects only this write, and nothing else waits on it.
+ */
+export async function pushProfileAvatar(avatar: string | null): Promise<void> {
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return;
+  try { await c.from('profiles').update({ avatar }).eq('user_id', userId); } catch { /* best-effort */ }
 }
 
 
@@ -1164,6 +1180,9 @@ export interface PlayerRow {
   /** The player's CURRENTLY equipped title (`profiles.equipped_title_id`, owner ask 2026-09-28). Absent when none
    *  or on a backend without the progression columns. The badge validates it against the catalog. */
   equippedTitleId?: string;
+  /** The player's CHOSEN profile picture (`profiles.avatar`, 2026-10-16): an avatar-picker id, resolved by `avatarSrc`.
+   *  Absent when they never chose one, or on a backend without the column (then the favourite hero stands in). */
+  avatar?: string;
 }
 
 /**
@@ -1387,7 +1406,9 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
       ),
       timeout,
     ]);
-    const titled = await rankedSelect(', equipped_title_id');
+    // AVATAR (2026-10-16): the chosen profile picture rides the same read; a backend without the column falls back.
+    const withAvatar = await rankedSelect(', equipped_title_id, avatar');
+    const titled = withAvatar && !withAvatar.error && withAvatar.data ? withAvatar : await rankedSelect(', equipped_title_id');
     const ranked = titled && !titled.error && titled.data ? titled : await rankedSelect('');
     const result = ranked && !ranked.error && ranked.data
       ? ranked
@@ -1406,6 +1427,7 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
         gamesPlayed: r.games_played, favoriteHero: r.favorite_hero ?? undefined,
         ...(typeof r.rank_revision === 'number' ? { rank: rankedProfileOfRow(r) } : {}),
         ...(typeof r.equipped_title_id === 'string' && r.equipped_title_id ? { equippedTitleId: r.equipped_title_id } : {}),
+        ...(typeof r.avatar === 'string' && r.avatar ? { avatar: r.avatar } : {}),
       }));
   } catch {
     return [];

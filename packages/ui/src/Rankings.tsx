@@ -13,6 +13,7 @@ import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
 import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
 import { useCurrentRank } from './rank/rankSource';
+import { avatarSrc } from './art';
 import { scalarCaption } from './rank/rankFormat';
 import { fetchPortraitLoadouts } from './progression/progressionRemote';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
@@ -83,6 +84,7 @@ export function Rankings() {
   const myName = useGame((s) => s.playerName);
   const myDisc = useGame((s) => s.account.discriminator);
   const myRank = useCurrentRank();
+  const myAvatar = useGame((s) => s.playerAvatar);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
   // Cached across opens (socialCache.ts): a revisit paints the last ladder at once and refreshes behind it.
@@ -121,7 +123,7 @@ export function Rankings() {
     // SAME crest + bar this row shows, at once, instead of a bare rating number (owner 2026-09-21).
     const openTheirs = (): void => {
       sfx.pulse();
-      openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}) });
+      openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) });
     };
     // The CAREER PAGE button does the same thing as the row — stop the bubble so it opens ONCE.
     const openTheirsBtn = (e: React.MouseEvent): void => { e.stopPropagation(); openTheirs(); };
@@ -157,7 +159,9 @@ export function Rankings() {
               Your row reads your live frame (`frameId` undefined on the self side); everyone else's comes from
               their loadout through "Show opponent cosmetics". The RANK ring is a different thing: it goes on the
               RANK column's crest (RankCrest). */}
-          <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} art={heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : theirs)} frameId={mine ? undefined : frameIdOf(theirs)} />
+          {/* The PLAYER's chosen profile picture (owner 2026-10-16), yours always, theirs through "Show opponent cosmetics";
+              with none chosen (or before the profiles.avatar migration), their favourite hero in its skin as before. */}
+          <LbHeroFrame heroId={r.favoriteHero} side={mine ? 'self' : 'opp'} art={(mine ? avatarSrc(myAvatar ?? r.avatar ?? null) : showOppCosmetics ? avatarSrc(r.avatar ?? null) : undefined) ?? heroPortrait(r.favoriteHero, mine ? (myLoadout ?? r.skins) : theirs)} frameId={mine ? undefined : frameIdOf(theirs)} />
           <span className="lb-who">
             <span className="lb-handle">{handle}{mine && <span className="lb-you">you</span>}<TitleBadge id={mine || showOppCosmetics ? r.equippedTitleId : null} className="lb-handle-title" /></span>
             <span className="lb-herosub">{hero ? hero.name : 'No favorite hero yet'}</span>

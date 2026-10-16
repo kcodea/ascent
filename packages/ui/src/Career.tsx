@@ -8,6 +8,7 @@ import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
 import { GameCard } from './GameCard';
+import { avatarSrc } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
 import { heroPortrait, opponentSkins } from './skins/skins';
@@ -127,6 +128,18 @@ function HeroFrame({ heroId, small, skins }: { heroId: string; small?: boolean; 
   // portrait the owner's current one), through the page's own/opponent rule; none = the tuner's ring, where your own
   // Career wears YOUR frame and someone else's Career wears the opponents' frame.
   return <HeroPortraitRing art={art} alt={name} small={small} side={useContext(CareerSkinContext).own ? 'self' : 'opp'} frameId={frameIdOf(shown)} />;
+}
+
+/** THE PLAYER'S PORTRAIT on their Career (owner 2026-10-16: "the chosen profile art should be displayed"): their
+ *  CHOSEN profile picture in their frame, your own always, someone else's through "Show opponent cosmetics". With no
+ *  chosen picture (or before the profiles.avatar migration) the favourite hero stands in, as before. */
+function ProfilePortrait({ avatar, heroId, loadout }: { avatar: string | null | undefined; heroId: string; loadout: RunCosmeticSnapshot | null | undefined }) {
+  const { own } = useContext(CareerSkinContext);
+  const showOpp = useGame((s) => s.showOpponentSkins);
+  const shown = useCareerSkins(loadout);
+  const pic = avatar && (own || showOpp) ? avatarSrc(avatar) : undefined;
+  if (!pic) return <HeroFrame heroId={heroId} skins={loadout} />;
+  return <HeroPortraitRing art={pic} alt="Profile picture" side={own ? 'self' : 'opp'} frameId={own ? undefined : frameIdOf(shown)} />;
 }
 
 /** The final team: the shared stored-board renderer, wearing the skins RECORDED on this board (an old board has
@@ -472,6 +485,7 @@ function HeroTile({ h }: { h: HeroCareer }) {
 export function Career() {
   const show = useGame((s) => s.showCareer);
   const playerName = useGame((s) => s.playerName);
+  const playerAvatar = useGame((s) => s.playerAvatar);
   const profile = useGame((s) => s.profile);
   const careerOf = useGame((s) => s.careerOf); // null = your own career
   const myId = useGame((s) => s.account.userId);
@@ -675,11 +689,10 @@ export function Career() {
         <aside className="cv2-col cv2-leftcol">
           <div className="cv2-colhead"><div className="cv2-sec"><Icon name="crown" />Career Stats</div></div>
           <div className="cv2-panel cv2-left">
-            {/* FAVORITE HERO (owner ask 2026-09-28: "clearly say favorite hero in the box"): the most-played hero,
-                labelled. The player's name and title moved up into the page header. */}
-            <div className="cv2-favlabel">Favorite hero</div>
-            <HeroFrame heroId={heroId} skins={accountProgression?.loadout} />
-            <div className="cv2-heroname hudpill-name">{heroName}</div>
+            {/* THE PLAYER'S PORTRAIT (owner 2026-10-16): their chosen profile picture, the favourite hero as a small
+                line under it (it was the portrait before; owner 2026-09-28 asked for it to be clearly labelled). */}
+            <ProfilePortrait avatar={viewing ? viewing.avatar : playerAvatar} heroId={heroId} loadout={accountProgression?.loadout} />
+            <div className="cv2-favline"><span className="cv2-favlabel">Favorite hero</span><span className="cv2-heroname">{heroName}</span></div>
             {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
                 not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
             {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}

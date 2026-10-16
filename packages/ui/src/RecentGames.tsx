@@ -266,6 +266,7 @@ export function RecentGames(): JSX.Element | null {
         gamesPlayed: p?.gamesPlayed ?? 0,
         favoriteHero: p?.favoriteHero,
         ...(p?.rank ? { rank: p.rank } : {}),
+        ...(p?.avatar ? { avatar: p.avatar } : {}),
         ...(!L.practice ? { focus: { heroId: r.heroId, wins: r.wins, placement: r.placement, createdAt: r.createdAt } } : {}),
       });
       setOpening(null);

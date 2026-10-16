@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
-      { category: 'Systems', text: 'Attack and Health badges with very big numbers now fit cleanly on every card, including the final boards in Career, Recent Games and Match details.', details: ['Numbers of four or more digits, like 1000, 10000 or 104k, shrink to fit inside the badge.', 'The badge frames for big stats now scale with the card, so they no longer spill over the portrait or the other badge on small cards.'] },
+      { category: 'Systems', text: 'Attack and Health badges with very big numbers now fit cleanly on every card, including the final boards in Career, Recent Games and Match details.', details: ['Numbers of four or more digits, like 1000, 10000 or 104k, shrink a little to fit inside the badge.', 'Badges keep their normal size on every screen, so they stay easy to read on the Career and Recent Games boards.'] },
       { category: 'Systems', text: 'The Leaderboard and Recent Games now show every player in the portrait frame they have equipped, not just you.', details: ['Leaderboard rows show each player their equipped frame and hero skin.', 'Recent Games shows the frame and skin each player had in that game.', 'Turning off Show opponent cosmetics puts the default ring back on other players.'] },
       {
         category: 'Balance',

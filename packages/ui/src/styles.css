@@ -13202,7 +13202,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    (`.gc-stack`) puts hero, meta and actions on the top line and the board on one row under them. */
 .gc-body { display: grid; grid-template-columns: 96px 200px minmax(0, 1fr) auto; grid-template-areas: 'place hero board side' 'place meta meta meta';
   column-gap: 22px; row-gap: 2px; align-items: center; padding: 8px 20px 8px 20px; }
-.gc.gc-stack .gc-body { grid-template-columns: 96px auto minmax(0, 1fr) auto; grid-template-areas: 'place hero meta side' 'place board board board'; row-gap: 0; }
+.gc.gc-stack .gc-body { grid-template-columns: 96px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'place meta meta' 'place board board'; row-gap: 4px; }
+/* The meta line on the Career card never wraps (2026-10-16): it has the card's full width, and the date needs no
+   "Played" caption (kept for assistive tech, visually hidden). */
+.gc.gc-stack .gc-meta .cv2-row-meta { flex-wrap: nowrap; white-space: nowrap; }
+.gc.gc-stack .gc-meta .cv2-meta:first-child .cv2-meta-l { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 .gc.gc-stack .gc-meta { border-top: none; padding-top: 0; }
 .gc.gc-stack .gc-hero .cv2-heroframe.small { --ring: 62px; }
 .gc.gc-stack .gc-meta .cv2-row-meta { justify-content: flex-start; row-gap: 4px; }

@@ -133,13 +133,15 @@ describe('board strength in match details (R-LOBBY-09)', () => {
     ui = mount(<MatchScoreboard details={STRONG} own />);
     const rows = [...ui.container.querySelectorAll('.mds-row')];
     expect(rows.map((r) => r.querySelector('.mds-strength')?.textContent ?? null)).toEqual(['Game strength 81', 'Game strength 58', null]);
-    // Opens on who knocked you out: their strength under the board, no rounds (those are yours only).
-    expect(ui.container.querySelector('.mds-strength-panel')?.textContent).toBe('Game strength 81');
+    // Opens on who knocked you out: their strength is on their row only (2026-10-16 polish: no duplicate line under the
+    // board), and there are no rounds (those are yours only).
+    expect(ui.container.querySelector('.mds-strength-panel')).toBeNull();
     // The run's number is relabelled "Game strength" with the game's hover bubble (owner 2026-09-30), never title=.
     expect(rows[0]!.querySelector('.mds-strength')?.getAttribute('data-tip')).toBe(GAME_STRENGTH_TIP);
     expect(rows[0]!.querySelector('.mds-strength')?.getAttribute('title')).toBeNull();
     act(() => { (rows[1] as HTMLButtonElement).click(); });
     expect([...ui.container.querySelectorAll('.mds-strength-round')].map((e) => e.textContent)).toEqual(['R140', 'R276']);
+    expect(ui.container.querySelector('.mds-strength-panel .cv2-row-label')?.textContent).toBe('Game strength by round');
     act(() => { (rows[2] as HTMLButtonElement).click(); });
     expect(ui.container.querySelector('.mds-strength-panel')).toBeNull();
     // No em dash anywhere in what it prints.

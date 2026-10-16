@@ -13,7 +13,7 @@ import { sfx } from '../sfx';
 import { stageHost } from '../stage';
 import { TitleBadge } from '../titles/TitleBadge';
 import { useHallKeys } from './hallKeys';
-import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText, GAME_STRENGTH_TIP } from './matchDetailsText';
+import { boardCaption, defaultSeatId, placeLabel, statusText, strengthLabel, summaryText, GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetailsText';
 import './matchDetails.css';
 
 /**
@@ -100,7 +100,7 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
       onClick={() => onSelect(seat.id)}
       onKeyDown={(e) => onKey(e, seat.id)}
     >
-      <span className={`mds-place${place.startsWith('Top') ? ' top' : ''}`}>{place}</span>
+      <span className={`mds-place${place.startsWith('Top') ? ' top' : ''}`} data-band={seat.placement === undefined ? undefined : seat.placement === 1 ? 'won' : seat.placement <= 4 ? 'top4' : 'lost'}>{place}</span>
       <SeatPortrait heroId={seat.heroId} skins={skins} self={!!seat.self} />
       <span className="mds-who">
         <span className="mds-name">
@@ -113,11 +113,15 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
           <span className="mds-hero">{heroName}</span>
           {title && <TitleBadge snapshot={title} className="mds-row-title" />}
         </span>
-        {strength && <span className="mds-strength gtip" data-tip={GAME_STRENGTH_TIP}>{strength}</span>}
-        <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
-          {winner && <Icon name="crown" />}{status}
-          {killer && <span className="mds-killer"><Icon name="sword" />Knocked you out</span>}
-        </span>
+        {killer && <span className="mds-killer"><Icon name="sword" />Knocked you out</span>}
+      </span>
+      {/* COMPACT ROW (2026-10-16 polish): strength and status are their own small columns, not two more lines. The
+          strength keeps its label for assistive tech and the tip; on screen the number reads under a small caption. */}
+      <span className="mds-strcol">
+        {strength && <span className="mds-strength gtip" data-tip={GAME_STRENGTH_TIP}><span className="mds-strength-l">{strength.replace(/\s*\d+$/, '')}</span> <span className="mds-strength-v">{seat.strength}</span></span>}
+      </span>
+      <span className={`mds-status${winner ? ' winner' : standing ? ' in' : ' out'}`}>
+        {winner && <Icon name="crown" />}{status.replace(/^Out in round /, 'Out R')}
       </span>
       {standing && (seat.health > 0 || seat.armor > 0) && (
         <span className="mds-hp" aria-hidden="true">
@@ -147,12 +151,13 @@ export function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
 /** BOARD STRENGTH (R-LOBBY-09): the selected seat's run strength, and for your own seat each round's board. Renders
  *  nothing for a seat that was not scored (no placeholder). */
 function SeatStrength({ seat }: { seat: MatchSeat }) {
-  const label = strengthLabel(seat);
+  // The seat's overall strength is on its row already (2026-10-16 polish: no duplicate line); here only your own
+  // per-round chips, labelled.
   const rounds = seat.self ? seat.roundStrength ?? [] : [];
-  if (!label && rounds.length === 0) return null;
+  if (rounds.length === 0) return null;
   return (
     <div className="mds-strength-panel">
-      {label && <span className="cv2-row-label gtip" data-tip={GAME_STRENGTH_TIP}>{label}</span>}
+      <span className="cv2-row-label gtip" data-tip={GAME_STRENGTH_TIP}>{GAME_STRENGTH_LABEL} by round</span>
       {rounds.length > 0 && (
         <div className="mds-strength-rounds" aria-label="Your board strength by round">
           {rounds.map((r) => <span className="mds-strength-round" key={r.round}><span className="mds-strength-r">R{r.round}</span>{r.value}</span>)}
@@ -236,14 +241,14 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
               {!!selected.runKey && hallKeys.has(selected.runKey) && <HallCrown />}
             </span>
             {selected.board && <span className="mds-board-tier">Tier {selected.board.tier}</span>}
+            <span className="mds-board-caption">{boardCaption(selected, details)}</span>
+            <SeatRunes runes={selected.board?.runes} />
           </header>
-          <div className="mds-board-caption">{boardCaption(selected, details)}</div>
           <div className="mds-team">
             {selected.board && selected.board.minions.length > 0
               ? <StoredTeam minions={selected.board.minions} skins={selSkins} label={`${selected.name}'s board`} compact />
               : <div className="mds-empty">{selected.board ? 'This board was empty.' : 'No board was recorded for this player.'}</div>}
           </div>
-          <SeatRunes runes={selected.board?.runes} />
           <SeatStrength seat={selected} />
         </section>
       )}

@@ -32,6 +32,7 @@ import { VersusRoom } from './versus/VersusRoom';
 import { openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
 import { versusEnabled } from './versus/versusFlag';
 import { readLastMode, rememberMode, type ModeKey } from './lastMode';
+import { PlayerStrip } from './PlayerStrip';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -409,6 +410,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         <SidebarHost className="modepick sb-host mp-home" role="dialog" aria-label="Choose a mode">
           <MenuSidebar current="modes" />
           <div className="mpbox">
+            {/* WHO YOU ARE, across the top (owner 2026-10-16): portrait + frame, name + title, rank + MMR, level + XP. */}
+            <PlayerStrip />
             <div className="mphead"><h1 className="disp mptitle">Choose a mode</h1></div>
             <div className="mpgrid">
               <button className="modecard mc-hero" data-mp="play" onClick={() => { rememberMode('play'); onPlay(); }}>

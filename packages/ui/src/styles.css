@@ -7413,9 +7413,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 .mbd-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
 .mbd-img.mbd-in { animation: fadein 0.26s cubic-bezier(0, 0, 0.2, 1); }
 .mbd-veil { position: absolute; inset: 0; }
-/* The Mode screen frames the hall's fireplace ABOVE the tiles (the tiles sit low, on the floor): the plate is
-   enlarged a little from its bottom edge and nudged right so the hearth lands over the content column's centre. */
-.mbd[data-screen='modes'] .mbd-img { transform: translateX(120px) scale(1.12); transform-origin: 50% 100%; }
+/* The Mode screen pans the hall a touch right so its hearth sits behind the middle of the mode cluster, not under
+   the rail (object-position on the plate itself: no transform, no extra scaling, the art stays crisp). */
+.mbd[data-screen='modes'] .mbd-img { object-position: 42% 50%; }
 /* SCENE (the mode picker): the painting stays bright in the middle; the edges and the floor fall into shadow so the
    tiles read, and the left edge darkens under the sidebar. */
 .mbd-veil[data-veil='scene'] {
@@ -8527,16 +8527,16 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    move, so the "Last played" tag (`.mclast`) marks the habit instead. Hover = a 4px lift + a glow ring whose
    OPACITY fades (the ring's shadow is static, the `kwglow` pattern); nothing loops. The art pan/zoom vars are the
    dev Play Mode Screen tuner's (modePickConfig.ts); fallbacks are neutral. ── */
-.mpgrid { display: grid; grid-template-columns: 820px 360px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 58px; }
-/* The picker itself sits LOW on the stage (on the hall's floor), leaving the hearth visible above it. */
-.modepick.mp-home { place-items: end center; padding-bottom: 44px; }
+.mpgrid { display: grid; grid-template-columns: 900px 396px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 58px; }
+/* The picker sits centred on the stage, a little below the middle, with room under the bottom row. */
+.modepick.mp-home { place-items: center; padding: 30px 0 56px; }
 .mc-hero { grid-area: hero; }
 .mpside { grid-area: side; display: flex; flex-direction: column; gap: 44px; }
 .mprow2 { grid-area: row; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
 .modecard[data-mp] { width: auto; padding: 0; position: relative; transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
-.modecard.mc-hero { height: 352px; }
+.modecard.mc-hero { height: 386px; }
 .mpside > .modecard { flex: 1 1 0; min-height: 0; }
-.mprow2 > .modecard { height: 136px; }
+.mprow2 > .modecard { height: 148px; }
 .modecard[data-mp]:hover { transform: translateY(-4px); }
 .mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; border-width: 2px;
   border-color: rgba(214, 178, 108, 0.85); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
@@ -8640,6 +8640,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
 /* The picker's heading row (WS-2): a quiet left-aligned title, with a crumb back to the picker on its sub-views. */
 .mphead { align-self: stretch; display: flex; align-items: baseline; gap: 12px; margin: 0 0 34px; }
+.mp-home .mphead { margin: 22px 0 30px; }
+.mp-home .mphead .mptitle { font-size: 26px; color: rgba(246, 239, 226, 0.92); }
 .mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; color: #f6efe2;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75); }
 .mpcrumb { font-family: var(--font-ui); font-weight: 800; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase;
@@ -13140,3 +13142,30 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
 .cv2-row:not(:hover) .cv2-team *, .cv2-row:not(:hover) .cv2-team *::before, .cv2-row:not(:hover) .cv2-team *::after { animation-play-state: paused; }
 .lb-thead.lb-thead-idle { display: none; }
+/* THE PLAYER STRIP (PlayerStrip.tsx, 2026-10-16) — a compact identity bar across the top of the Mode screen, built from
+   the existing portrait ring, title badge, rank crest and XP bar. One plain navy plate with the bronze rim (no new
+   chrome); hover is the menu tiles' 2px lift (transform, one-shot). The whole strip opens your Career. */
+.pstrip { align-self: stretch; display: flex; align-items: center; gap: 26px; padding: 10px 22px 10px 12px; border-radius: 16px; text-align: left;
+  border: 1.5px solid rgba(196, 160, 92, 0.55); background: linear-gradient(90deg, rgba(8, 15, 32, 0.86), rgba(10, 19, 38, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 12px 26px -14px rgba(0, 0, 0, 0.85); color: #f4eee2;
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
+.pstrip:hover { transform: translateY(-2px); border-color: rgba(230, 200, 130, 0.9); }
+.pstrip:active { transform: translateY(1px); transition-duration: 0.05s; }
+.pstrip:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; }
+.pstrip-portrait { flex: none; display: block; }
+.pstrip-portrait .portring { --ring: 70px; }
+.pstrip-portrait .portring .f { display: block; }
+.pstrip-ph { display: grid; place-items: center; width: 100%; height: 100%; font-family: var(--font-ui); font-weight: 900; font-size: 30px; color: #1a1206; background: linear-gradient(160deg, #f0c27a, #c98a3a); }
+.pstrip-rank .rankcrest { --ring: 50px; }
+.pstrip-who { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.pstrip-name { font-family: var(--font-ui); font-weight: 900; font-size: 24px; line-height: 1.1; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 360px; }
+.pstrip-rank, .pstrip-level { display: flex; align-items: center; gap: 12px; padding-left: 26px; border-left: 1px solid rgba(196, 160, 92, 0.25); }
+.pstrip-rank-txt { display: flex; flex-direction: column; gap: 2px; }
+.pstrip-rank-name { font-family: var(--font-ui); font-weight: 900; font-size: 16px; letter-spacing: 0.08em; text-transform: uppercase; color: #f4eee2; }
+.pstrip-rank-mmr { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: rgba(255, 255, 255, 0.7); font-variant-numeric: tabular-nums; }
+.pstrip-xp { display: flex; flex-direction: column; gap: 4px; width: 200px; }
+.pstrip-xp .acctxp-track { flex: none; height: 9px; }
+.pstrip-xp-num { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.62); font-variant-numeric: tabular-nums; }
+.pstrip-crates { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; color: #f6dfa2; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(232, 200, 119, 0.5); background: rgba(0, 0, 0, 0.3); }
+.pstrip-go { margin-left: auto; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(222, 196, 140, 0.8); }
+@media (prefers-reduced-motion: reduce) { .pstrip, .pstrip:hover, .pstrip:active { transform: none; transition: border-color 0.1s ease; } }

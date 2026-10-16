@@ -104,6 +104,15 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: "Watching a live game, the next opponent's hover card could show a Shop Tier, build and runes that player never had. It now shows what they really had, like every other player on the rail." },
       { category: 'Systems', text: 'The lobby hover card now says "gilded made" instead of "gilded units". The number counts every Gilded unit that player made this game.' },
       { category: 'Systems', text: "Watching a live game, the lobby rail now matches the player's. Their next opponent and every hover card show exactly what the player sees." },
+      {
+        category: 'Systems',
+        text: 'The main menu is cleaner. Play is the big button, and your name, rank and level sit in one card at the top right.',
+        details: [
+          'The newest patch note shows in the bottom right corner. Click it to read all the patch notes.',
+          'Report a Problem and the build number moved to the bottom left corner.',
+          'Click your portrait to change it and your name to rename yourself, as before.',
+        ],
+      },
     ],
   },
   {

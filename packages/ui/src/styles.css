@@ -13488,6 +13488,81 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   padding: calc(var(--tile-cw) * 0.23 + 4px) 12px 30px; }
 .rg-page .gc .gc-board .lb-team-none { font-size: 15px; }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   THE FRONT DOOR (UI pass 2, 2026-10-16; owner: "look at the starting main screen as well"). Four zones over the
+   painted castle: the logo + menu on the left with PLAY as the one big gold call to action; WHO YOU ARE as a compact
+   identity card top right (portrait ring + frame, name, title, rank + MMR, level + XP), built from the same parts as
+   the Mode screen's player strip; WHAT'S NEW bottom right (the newest patch headline, opens Patch Notes); and the
+   small links + build stamp in the bottom-left corner. The old 264px portrait corner and its tuner offsets are
+   overridden here, not removed (the tuner still drives nothing visible). Static styling; hovers are one-shot.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.titleaccount.ta-card { top: 34px; right: 44px; transform: none; display: flex; align-items: center; gap: 18px;
+  padding: 12px 26px 12px 12px; border-radius: 18px; border: 1.5px solid rgba(196, 160, 92, 0.55);
+  background: linear-gradient(90deg, rgba(8, 15, 32, 0.88), rgba(10, 19, 38, 0.76));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.ta-card .titleportrait .portring { --ring: 96px; }
+.ta-card .titleportrait-ph { font-size: 40px; }
+.ta-card .ta-info { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.ta-card .titlename-seat { position: relative; left: auto; bottom: auto; transform: none; z-index: 3; }
+.ta-card .titlename { max-width: 300px; padding: 0 4px; margin-left: -4px; border: none; border-radius: 8px; background: none; box-shadow: none;
+  color: #fff; font-size: 28px; font-weight: 900; letter-spacing: 0.01em; text-align: left; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  transition: color 0.12s ease; }
+.ta-card .titlename:hover { color: #f6dfa2; }
+.ta-card .titlename-seat .titlename-input { width: 260px; padding: 2px 12px; font-size: 22px; text-align: left; color: #fff; border: 1.5px solid rgba(230, 200, 130, 0.8); border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45); box-shadow: none; }
+.ta-card .titlename-seat .titlename-input::placeholder { color: rgba(255, 255, 255, 0.4); }
+.ta-card .titlename-nudge { inset: -3px -8px; border-radius: 10px; }
+.ta-card .ta-stats { display: flex; align-items: center; gap: 18px; }
+.ta-card .titlerank { position: static; transform: none; padding: 0; gap: 10px; background: none; border: none; box-shadow: none; }
+.ta-card .titlerank .rankcrest { --ring: 44px; }
+.ta-card .titlerank-txt { display: flex; flex-direction: column; gap: 1px; }
+.ta-card .titlerank-label { font-size: 15px; text-shadow: none; }
+.titlerank-mmr { font-family: var(--font-ui); font-weight: 800; font-size: 13px; color: rgba(255, 255, 255, 0.7); font-variant-numeric: tabular-nums; }
+.ta-card .ta-level { display: flex; align-items: center; gap: 10px; padding-left: 18px; border-left: 1px solid rgba(196, 160, 92, 0.25); }
+.ta-card .ta-xp { display: flex; flex-direction: column; gap: 4px; width: 130px; }
+.ta-card .ta-xp .acctxp-track { flex: none; height: 8px; }
+.ta-xp-num { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.62); font-variant-numeric: tabular-nums; }
+/* The guest's "Sign in!" keeps its seat left of the card. */
+.ta-card .guestsignin-seat { right: calc(100% + 18px); }
+/* The corner tooltips open BELOW the card now (the left seat was for the tall ring). */
+.titlescreen .ta-card .titleportrait[data-tip]::after, .titlescreen .ta-card .titlename[data-tip]::after { right: auto; left: 50%; top: calc(100% + 12px); transform: translateX(-50%) translateY(-4px); }
+.titlescreen .ta-card .titleportrait[data-tip]:hover::after, .titlescreen .ta-card .titleportrait[data-tip]:focus-visible::after,
+.titlescreen .ta-card .titlename[data-tip]:hover::after, .titlescreen .ta-card .titlename[data-tip]:focus-visible::after,
+.titlescreen .ta-card .titleportrait[data-tip].tt-on::after, .titlescreen .ta-card .titlename[data-tip].tt-on::after { transform: translateX(-50%) translateY(0); }
+.titlescreen .ta-card .titleportrait[data-tip]::before, .titlescreen .ta-card .titlename[data-tip]::before { display: none; }
+
+/* PLAY, the hero call to action: taller and louder than the plaques under it (Continue, when a run is saved, takes the
+   same gold seat; Play then sits as a plain plaque below it). */
+.titlenav .menubtn.active { padding: 24px 28px; }
+.titlenav .menubtn.active .mblabel { font-size: 34px; letter-spacing: 0.16em; }
+.titlenav .menubtn.active .mbicon { width: 42px; height: 42px; }
+.titlenav .menubtn.active .mbicon .crest { font-size: 34px; }
+.titlenav .continuerow .menubtn.active .mbnote { font-size: 14px; }
+
+/* WHAT'S NEW, bottom right, above the Compendium + help corner. */
+.titlenews { zoom: var(--ui-zoom); position: absolute; right: 44px; bottom: 96px; z-index: 2; width: 440px; display: flex; flex-direction: column; gap: 8px;
+  padding: 16px 20px 14px; border-radius: 14px; text-align: left; color: #f4eee2;
+  border: 1.5px solid rgba(196, 160, 92, 0.5); background: linear-gradient(180deg, rgba(10, 18, 36, 0.86), rgba(8, 14, 28, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px -14px rgba(0, 0, 0, 0.85);
+  animation: menu-rise 0.3s cubic-bezier(0, 0, 0.2, 1) 0.2s both; transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
+.titlenews:hover { transform: translateY(-2px); border-color: rgba(230, 200, 130, 0.9); }
+.titlenews:active { transform: translateY(1px); transition-duration: 0.05s; }
+.titlenews:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; }
+.titlenews-kicker { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
+.titlenews-kicker svg { width: 16px; height: 16px; }
+.titlenews-date { margin-left: auto; font-weight: 700; font-size: 13px; letter-spacing: 0.04em; text-transform: none; color: rgba(255, 255, 255, 0.6); }
+.titlenews-text { font-family: var(--font-ui); font-weight: 600; font-size: 16px; line-height: 1.4; color: #f4eee2;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.titlenews-go { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(222, 196, 140, 0.85); }
+.titlenews:hover .titlenews-go { color: #f6dfa2; }
+
+/* The corner footer: links then the build stamp, bottom left. */
+.titlefoot { zoom: var(--ui-zoom); position: absolute; left: 36px; bottom: 18px; z-index: 2; display: flex; align-items: center; gap: 18px; }
+.titlefoot .titlesecondary { padding-left: 0; }
+.titlefoot .titlesecondary button { font-size: 13px; }
+.titlefoot .titleversion { position: static; font-size: 12px; color: rgba(236, 220, 178, 0.5); }
+@media (prefers-reduced-motion: reduce) { .titlenews { animation: none; } .titlenews, .titlenews:hover, .titlenews:active { transform: none; } }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

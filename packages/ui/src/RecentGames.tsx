@@ -180,7 +180,6 @@ export function RecentGames(): JSX.Element | null {
                     <LbRunes runes={r.runes} empty="No runes taken" />
                   </div>
                   <div className="lb-row-outcome">
-                    <LbLabel>Match outcome</LbLabel>
                     <div className={`lb-verdict ${o.cls}`}>{o.label}</div>
                     <div className="lb-when">{when || '—'}</div>
                     <div className="lb-facts">

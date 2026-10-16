@@ -13051,3 +13051,43 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gauntletend-actions { display: flex; align-items: center; justify-content: center; gap: 24px; }
 .gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 .gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-4 TYPE HIERARCHY (UI refinement, 2026-10-16) — data screens lead with ONE dominant element per block.
+   Match rows (Career, Recent Games): the outcome (VICTORY / 2ND) is the headline; length, rounds, gold and game
+   strength collapse into one quiet secondary line (TFT's match history leads with placement). Career: the rank
+   crest + MMR are the focal point; the stat tiles drop to a quiet inset list; MMR keeps the one large trend chart
+   and the other three trends become sparklines. Labels stay at or above 12px. Static styling only.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.cv2-verdict { font-size: 44px; letter-spacing: 0.06em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.cv2-row-meta { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0; margin-top: 2px; }
+.cv2-meta { flex-direction: row; align-items: baseline; gap: 6px; }
+.cv2-meta + .cv2-meta::before { content: '·'; margin: 0 10px; color: rgba(255, 255, 255, 0.3); font-weight: 900; }
+.cv2-meta-l { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.cv2-meta-v { font-size: 14px; font-weight: 700; color: rgba(255, 255, 255, 0.82); }
+/* Recent Games: the same rule on the ladder banner. */
+.rg-page .lb-verdict { font-size: 44px; letter-spacing: 0.06em; line-height: 1; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.rg-page .lb-facts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0; }
+.rg-page .lb-fact { display: inline-flex; flex-direction: row; align-items: baseline; gap: 6px; }
+.rg-page .lb-fact + .lb-fact::before { content: '·'; margin: 0 10px; color: rgba(255, 255, 255, 0.3); font-weight: 900; }
+.rg-page .lb-fact-l { font-size: 12px; color: rgba(255, 255, 255, 0.5); }
+.rg-page .lb-fact-v { font-size: 14px; font-weight: 700; color: rgba(255, 255, 255, 0.82); }
+/* Career: the stat tiles are an inset list now, not six competing panels. */
+.cv2-stat { padding: 9px 12px; background: rgba(0, 0, 0, 0.22); border-color: transparent; }
+.cv2-stat-ico { width: 32px; height: 32px; background: none; color: rgba(240, 201, 119, 0.8); }
+.cv2-stat { grid-template-columns: 32px minmax(0, 1fr); }
+.cv2-stat-v { font-size: 22px; }
+.cv2-stat-l { font-size: 12px; color: rgba(255, 255, 255, 0.55); }
+/* Career: the rank is the focal point (crest, then the MMR in large figures). */
+.cv2-ranked .rankbar-caption { font-family: var(--font-ui); font-weight: 900; font-size: 30px; letter-spacing: 0.04em; color: #fff;
+  font-variant-numeric: tabular-nums; margin-top: 4px; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.55); }
+/* Career trends: MMR is the one big chart; the rest are sparklines (no axis numbers, a thin line). */
+.cv2-trends-head + .cv2-trend .cv2-chart svg { height: 132px; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-chart { padding-left: 0; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-chart svg { height: 34px; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-axis { display: none; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-chart-empty { inset: 0; font-size: 12px; }
+.cv2-trends .cv2-trend + .cv2-trend .cv2-trend-foot { display: none; }
+/* Menu boards: a four-glyph stat (1.5k, 209k) tightens inside its badge rather than overrunning the next card. */
+/* The `scale` property (static, never animated) composes with the transform a milestone badge already puts on its digits, and holds whatever font-size the tier applies. */
+.lb-team .badge > .value[data-long], .cv2-team .badge > .value[data-long] { scale: 0.74; letter-spacing: -0.03em; }

@@ -259,7 +259,8 @@ describe('Match History', () => {
     expect(verdicts[2]!.classList.contains('lost')).toBe(true);
     // The banner's edge carries the same result colour.
     expect([...ui.container.querySelectorAll('.cv2-row')].map((r) => r.classList.contains('won'))).toEqual([true, false, false]);
-    expect(text('.cv2-row-outcome .cv2-row-label')).toEqual(['Match Outcome', 'Match Outcome', 'Match Outcome']);
+    // The verdict IS the outcome block's headline (WS-4, 2026-10-16): no "Match Outcome" label over it.
+    expect(text('.cv2-row-outcome .cv2-row-label')).toEqual([]);
     // The LOBBY STRENGTH (owner 2026-09-22) is HIDDEN for now (owner 2026-09-30): no Lobby fact even on the stamped run.
     // BOARD STRENGTH (R-LOBBY-09) shows, frozen on the run; a run without a score prints nothing (no placeholder).
     expect(text('.cv2-row .cv2-meta-l')).toEqual(['Played', 'Length', 'Gold spent', 'Game strength', 'Played', 'Length', 'Gold spent', 'Played', 'Length', 'Gold spent']);

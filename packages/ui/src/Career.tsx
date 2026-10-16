@@ -283,7 +283,6 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
           </div>
         </div>
         <div className="cv2-row-outcome">
-          <div className="cv2-row-label">Match Outcome</div>
           <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
           <div className="cv2-row-meta">
             <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>
@@ -377,7 +376,6 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
           </div>
         </div>
         <div className="cv2-row-outcome">
-          <div className="cv2-row-label">Match Outcome</div>
           <div className={`cv2-verdict ${o.cls}`}>{o.label}</div>
           <div className="cv2-row-meta">
             <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '—'}</span></span>

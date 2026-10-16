@@ -1,11 +1,11 @@
-import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
+import { memo, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import type { CSSProperties, DragEvent, PointerEvent as ReactPointerEvent } from 'react';
 import { damageMeterOf, type Keyword, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { bindingFor } from './choreo/bindings';
 import type { StepProgress } from './cardText';
-import { formatStat } from './formatStat';
+import { StatFormatContext } from './statFormatContext';
 import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
 } from './cardArtConfig';
@@ -1302,14 +1302,14 @@ export const Card = memo(function Card({
               {atkMs >= 1 && <span className="mstint" aria-hidden="true" />}
               {atkMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
-              <span className="value">{formatStat(shownAttack)}</span>
+              <StatValue n={shownAttack} />
             </span>
             <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               {hpMs >= 1 && <span className="msglow" aria-hidden="true" />}
               {hpMs >= 1 && <span className="mstint" aria-hidden="true" />}
               {hpMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
-              <span className="value">{formatStat(shownHealth)}</span>
+              <StatValue n={shownHealth} />
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
                 ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle.
@@ -1470,6 +1470,13 @@ const RESIL_SHARDS: readonly { x: string; y: string; w: string; r0: string; dx: 
  * The Pixi `resilient-ward-shatter` sparks fire with it (aura channel). Transform/opacity only; the layer unmounts on
  * its animation end. No loop touches a paint property.
  */
+/** A stat badge's digits, through the surrounding board's formatter (statFormatContext.ts). `data-long` marks a
+ *  four-glyph value so a menu board can tighten it; in-game nothing styles it. */
+function StatValue({ n }: { n: number }) {
+  const text = useContext(StatFormatContext)(n);
+  return <span className="value" data-long={text.length >= 4 ? '' : undefined}>{text}</span>;
+}
+
 const WardGlass = memo(function WardGlass({ resilient }: { resilient: boolean }) {
   const was = useRef(resilient);
   const [crack, setCrack] = useState(0);

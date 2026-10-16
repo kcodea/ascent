@@ -10,6 +10,8 @@ import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/Portra
 import type { PortraitSide } from './portraitFrame/portraitFrameConfig';
 import { medalOf } from './leaderboardData';
 import { MinionSkins, useOpponentSkins } from './skins/skins';
+import { formatStatCompact } from './formatStat';
+import { StatFormatContext } from './statFormatContext';
 
 /**
  * LADDER BITS (owner polish 2026-09-20) — the presentational pieces the three ladder pages share (the ranked
@@ -56,6 +58,7 @@ export function LbTeam({ board, empty = 'No board recorded' }: { board: BoardSna
   const minions = board.minions.slice(0, LB_BOARD_SLOTS);
   return (
     <MinionSkins snapshot={skins}>
+    <StatFormatContext.Provider value={formatStatCompact}>
     <div className="lb-team" aria-label="Final team">
       {Array.from({ length: LB_BOARD_SLOTS }, (_, i) => {
         const m = minions[i];
@@ -64,6 +67,7 @@ export function LbTeam({ board, empty = 'No board recorded' }: { board: BoardSna
           : <div className="lb-tile empty" key={i} aria-hidden="true" />;
       })}
     </div>
+    </StatFormatContext.Provider>
     </MinionSkins>
   );
 }

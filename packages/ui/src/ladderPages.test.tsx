@@ -242,7 +242,7 @@ describe('Rankings — the ranked table', () => {
   });
 
   it('the columns are # · Player · Rating · Games (+ actions) — no board tiles, no latest-game caption', () => {
-    expect(text('.lb-thead > *')).toEqual(['#', 'Player', 'Rating', 'Games', '']);
+    expect(text('.lb-thead > *')).toEqual(['#', 'Player', 'MMR', 'Games', '']);
     expect(ui.container.querySelectorAll('.lb-tile, .lb-team, .lb-team-none, .lb-latest-place, .lb-c-board')).toHaveLength(0);
     // The rating cell is ONE element (aliased .rk-rating) so a crest can be slotted into it.
     expect(ui.container.querySelectorAll('.lb-trow-btn .lb-c-rating.rk-rating')).toHaveLength(3);
@@ -306,7 +306,7 @@ describe('Rankings — the MMR column', () => {
     await flush();
     expect(ui.container.querySelector('.lb-table')!.classList.contains('lb-has-mmr')).toBe(true);
     expect(text('.lb-thead > *')).toEqual(['#', 'Player', 'Rank', 'MMR', 'Games', '']);
-    expect(text('.lb-trow-btn .lb-c-mmr')).toEqual(['610rating', '763rating', '264rating']);
+    expect(text('.lb-trow-btn .lb-c-mmr')).toEqual(['610MMR', '763MMR', '264MMR']);
     expect(text('.lb-trow-btn .lb-c-mmr .lb-mmr')).toEqual(['610', '763', '264']);
     // The ranked row keeps its crest + bar; the rankless rows no longer repeat the number in the rank cell.
     const cells = [...ui.container.querySelectorAll('.lb-trow-btn .lb-c-rating')];

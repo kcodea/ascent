@@ -14,7 +14,6 @@ import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerB
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbRunes, LbTeam } from './LadderBits';
 import { GameCard, bandOf, placeText } from './GameCard';
-import { MatchScoreboard } from './matchDetails/MatchScoreboard';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
@@ -59,16 +58,6 @@ export const loadRecentPractice = (): Promise<PracticeGameRow[]> => fetchPractic
 /** A feed row (ranked or practice). */
 type FeedRow = RecentGameRow | PracticeGameRow;
 
-/** THE TWO LAYOUTS on trial (owner 2026-10-16: "i feel like the recent games page can be massively improved"; he picks
- *  before one is polished): `list`, a full-width match history of game cards (TFT's), and `split`, a compact list on
- *  the left with the selected game large on the right. A DEV toggle in the top bar flips them; production shows `list`
- *  until the pick. Per-device (localStorage), wrapped. */
-export type RecentLayout = 'list' | 'split';
-const LAYOUT_KEY = 'ascent.recentLayout';
-function readLayout(): RecentLayout {
-  try { return localStorage.getItem(LAYOUT_KEY) === 'split' ? 'split' : 'list'; } catch { return 'list'; }
-}
-
 /** The SUMMARY over the games shown (Valorant / League put this over their history): count, average placement, top-4
  *  rate, wins, the most-played hero and the most common tribe on the final boards, plus a placement sparkline. */
 export function summaryOf(rows: readonly FeedRow[]): {
@@ -106,27 +95,42 @@ const cap = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 function Summary({ rows, practice }: { rows: readonly FeedRow[]; practice: boolean }) {
   const s = useMemo(() => summaryOf(rows), [rows]);
-  const W = 260; const H = 54; const P = 4;
-  const pts = s.places.length > 1
-    ? s.places.map((p, i) => `${(P + (i * (W - 2 * P)) / (s.places.length - 1)).toFixed(1)},${(P + ((p - 1) * (H - 2 * P)) / 7).toFixed(1)}`).join(' ')
-    : '';
+  // THE PLACEMENT CHART (2026-10-16 polish): every game a mark on a 1st (top) to 8th axis, in its band colour AND shape
+  // (1st a gold diamond, top 4 a green dot, 5th-8th a red ring), a thin line joining them, the 4.5 split dashed.
+  const W = 520; const H = 120; const L = 30; const R = 8; const T = 10; const B = 10;
+  const n = s.places.length;
+  const x = (i: number): number => (n <= 1 ? (L + W - R) / 2 : L + (i * (W - L - R)) / (n - 1));
+  const y = (p: number): number => T + ((p - 1) * (H - T - B)) / 7;
+  const line = n > 1 ? s.places.map((p, i) => `${x(i).toFixed(1)},${y(p).toFixed(1)}`).join(' ') : '';
   return (
     <section className="rg-summary" aria-label={practice ? 'The latest practice games at a glance' : 'The latest games at a glance'}>
-      <div className="rg-sum-stat"><span className="rg-sum-v">{s.games}</span><span className="rg-sum-l">Games</span></div>
-      <div className="rg-sum-stat"><span className="rg-sum-v">{s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)}</span><span className="rg-sum-l">Avg placement</span></div>
-      <div className="rg-sum-stat"><span className="rg-sum-v">{s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`}</span><span className="rg-sum-l">Top 4</span></div>
-      <div className="rg-sum-stat"><span className="rg-sum-v won">{s.wins}</span><span className="rg-sum-l">Wins</span></div>
-      <div className="rg-sum-stat rg-sum-hero">
-        {s.hero && <LbHeroFrame heroId={s.hero.id} />}
-        <span className="rg-sum-txt"><span className="rg-sum-v sm">{s.hero ? getHero(s.hero.id).name : '-'}</span><span className="rg-sum-l">Most played{s.hero ? `, ${s.hero.n} games` : ''}</span></span>
+      <div className="rg-sum-stats">
+        <div className="rg-sum-stat"><span className="rg-sum-v">{s.games}</span><span className="rg-sum-l">Games</span></div>
+        <div className="rg-sum-stat"><span className="rg-sum-v">{s.avgPlace === null ? '-' : s.avgPlace.toFixed(1)}</span><span className="rg-sum-l">Avg placement</span></div>
+        <div className="rg-sum-stat"><span className="rg-sum-v">{s.top4 === null ? '-' : `${Math.round(s.top4 * 100)}%`}</span><span className="rg-sum-l">Top 4</span></div>
+        <div className="rg-sum-stat"><span className="rg-sum-v won">{s.wins}</span><span className="rg-sum-l">Wins</span></div>
       </div>
-      <div className="rg-sum-stat"><span className="rg-sum-v sm">{s.tribe ? cap(s.tribe.id) : '-'}</span><span className="rg-sum-l">Top tribe</span></div>
-      <div className="rg-sum-spark" aria-hidden>
-        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
-          <line className="rg-spark-mid" x1={P} x2={W - P} y1={P + (3.5 * (H - 2 * P)) / 7} y2={P + (3.5 * (H - 2 * P)) / 7} />
-          {pts && <polyline className="rg-spark" points={pts} />}
-        </svg>
+      <div className="rg-sum-hero">
+        {s.hero && <LbHeroFrame heroId={s.hero.id} />}
+        <span className="rg-sum-txt">
+          <span className="rg-sum-l">Most played</span>
+          <span className="rg-sum-name">{s.hero ? getHero(s.hero.id).name : '-'}</span>
+          <span className="rg-sum-sub">{s.hero ? `${s.hero.n} ${s.hero.n === 1 ? 'game' : 'games'}` : ''}{s.tribe ? ` · Top tribe ${cap(s.tribe.id)}` : ''}</span>
+        </span>
+      </div>
+      <div className="rg-sum-chart">
         <span className="rg-sum-l">Placements, oldest to newest</span>
+        <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMinYMid meet" role="img" aria-label={`Placements of the last ${n} games`}>
+          {[1, 4, 8].map((p) => <text key={p} className="rg-ax" x={L - 8} y={y(p) + 4} textAnchor="end">{placeText(p)}</text>)}
+          <line className="rg-spark-mid" x1={L} x2={W - R} y1={y(4.5)} y2={y(4.5)} />
+          {line && <polyline className="rg-spark" points={line} />}
+          {s.places.map((p, i) => {
+            const band = bandOf(p);
+            return band === 'won'
+              ? <rect key={i} className="rg-pt won" x={x(i) - 4} y={y(p) - 4} width="8" height="8" transform={`rotate(45 ${x(i)} ${y(p)})`} />
+              : <circle key={i} className={`rg-pt ${band}`} cx={x(i)} cy={y(p)} r={band === 'top4' ? 4 : 3.5} />;
+          })}
+        </svg>
       </div>
     </section>
   );
@@ -134,12 +138,12 @@ function Summary({ rows, practice }: { rows: readonly FeedRow[]; practice: boole
 
 interface CardProps {
   r: FeedRow; rowKey: string; practice: boolean; mine: boolean; skins: RunCosmeticSnapshot | null;
-  busy: boolean; unplayable: boolean; opening: boolean; selected?: boolean; large?: boolean;
+  busy: boolean; unplayable: boolean; opening: boolean;
   onOpen: (r: FeedRow, key: string) => void; onWatch: (e: React.MouseEvent, r: FeedRow, key: string) => void;
 }
 
 /** One game as the shared GameCard. Memoised: a Watch press or a filter click never re-renders the other cards. */
-const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy, unplayable, opening, large, onOpen, onWatch }: CardProps) {
+const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy, unplayable, opening, onOpen, onWatch }: CardProps) {
   const cfg = 'practice' in r ? r.practice : null;
   const hero = r.heroId ? getHero(r.heroId) : null;
   const o = outcomeOf(r.placement);
@@ -147,7 +151,6 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
   const when = playedAtText(r.createdAt);
   const length = runLengthText(r.durationMs, r.lengthOverCap);
   const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
-  const match = 'match' in r ? r.match : undefined;
   // A banner with a known player opens their Career; a pre-accounts row (no user_id) is a plain banner.
   const clickable = !!r.userId;
   return (
@@ -156,7 +159,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
       place={r.placement}
       label={o.label === 'VICTORY' ? 'Victory' : `${o.label.toLowerCase()} place`}
       resultClass={`lb-verdict ${o.cls}`}
-      className={`lb-row rg-card${clickable ? ' lb-row-btn' : ''}${r.partial ? ' partial' : ''}${large ? ' rg-large' : ''}`}
+      className={`lb-row rg-card${clickable ? ' lb-row-btn' : ''}${r.partial ? ' partial' : ''}`}
       rootProps={clickable ? {
         role: 'button', tabIndex: 0,
         onClick: () => onOpen(r, rowKey),
@@ -192,23 +195,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
         {r.boardStrength != null && <span className="lb-fact gtip" data-tip={GAME_STRENGTH_TIP}><span className="lb-fact-l">{GAME_STRENGTH_LABEL}</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
         {r.partial && <span className="lb-fact lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</span>}
       </div>}
-      extra={large && match ? <section className="rg-lobby" aria-label="Players in this lobby"><MatchScoreboard details={match} own={mine} /></section> : undefined}
     />
-  );
-});
-
-/** The compact entry in the split layout's left list: placement, portrait, player, hero, when. */
-const SplitItem = memo(function SplitItem({ r, rowKey, mine, skins, selected, onPick }: {
-  r: FeedRow; rowKey: string; mine: boolean; skins: RunCosmeticSnapshot | null; selected: boolean; onPick: (key: string) => void;
-}) {
-  const band = bandOf(r.placement);
-  return (
-    <button type="button" className={`rg-item gc-${band}${selected ? ' on' : ''}`} aria-pressed={selected} onClick={() => onPick(rowKey)}>
-      <span className={`gc-place ${band}`}>{band === 'won' && <span className="gc-crown" aria-hidden><Icon name="crown" /></span>}<span className="gc-place-n">{placeText(r.placement)}</span></span>
-      <LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />
-      <span className="rg-item-who"><span className="rg-item-name">{r.author || 'Unnamed player'}</span><span className="rg-item-sub">{r.heroId ? getHero(r.heroId).name : 'Unknown hero'}</span></span>
-      <span className="rg-item-when">{playedAtText(r.createdAt)}</span>
-    </button>
   );
 });
 
@@ -227,12 +214,10 @@ export function RecentGames(): JSX.Element | null {
   const [watching, setWatching] = useState<string | null>(null); // row key whose replay payload is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // row key whose payload came back unplayable
   const [heroFilter, setHeroFilter] = useState<string | null>(null);
-  const [layout, setLayoutState] = useState<RecentLayout>(readLayout);
-  const [picked, setPicked] = useState<string | null>(null); // the split layout's selected game
 
   // Every open starts on RANKED (reset on close, so a reopen never reads the practice feed for a frame first).
   useEffect(() => {
-    if (!show) { setTab('ranked'); setHeroFilter(null); } else setLayoutState(readLayout());
+    if (!show) { setTab('ranked'); setHeroFilter(null); }
   }, [show]);
 
   const practice = tab === 'practice';
@@ -290,21 +275,19 @@ export function RecentGames(): JSX.Element | null {
       })
       .finally(() => setWatching(null));
   }, []);
-  const onPick = useCallback((key: string): void => { sfx.tick(); setPicked(key); }, []);
 
   if (!show) return null;
-  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); setHeroFilter(null); setPicked(null); };
-  const setLayout = (l: RecentLayout): void => { sfx.pulse(); setLayoutState(l); try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* per-device only */ } };
+  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); setHeroFilter(null); };
   // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16): your own game always, everyone
   // else's through "Show opponent cosmetics". No recorded cosmetics = the hero's own art in the default ring.
   const skinsOf = (r: FeedRow): { mine: boolean; skins: RunCosmeticSnapshot | null } => {
     const mine = !!myId && r.userId === myId;
     return { mine, skins: mine ? (r.board?.cosmetics ?? null) : opponentSkins(showOppCosmetics, r.board?.cosmetics) };
   };
-  const card = (r: FeedRow, key: string, large = false): JSX.Element => {
+  const card = (r: FeedRow, key: string): JSX.Element => {
     const { mine, skins } = skinsOf(r);
     return (
-      <FeedCard r={r} rowKey={key} practice={practice} mine={mine} skins={skins} large={large}
+      <FeedCard r={r} rowKey={key} practice={practice} mine={mine} skins={skins}
         busy={watching === key} unplayable={noReplay === key} opening={opening === key} onOpen={onOpen} onWatch={onWatch} />
     );
   };
@@ -318,42 +301,22 @@ export function RecentGames(): JSX.Element | null {
       : <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>;
   } else {
     const keyed = shown.map((r, i) => ({ r, key: keyOf(r, i) }));
-    const sel = keyed.find((k) => k.key === picked) ?? keyed[0];
     body = (
       <>
-        <Summary rows={shown} practice={practice} />
-        <div className="rg-filters" role="group" aria-label="Filter by hero">
-          <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { sfx.pulse(); setHeroFilter(null); setPicked(null); }}>All heroes</button>
-          {heroChips.map((id) => (
-            <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { sfx.pulse(); setHeroFilter(id); setPicked(null); }}>{getHero(id).name}</button>
-          ))}
+        <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`} ref={setListEl}>
+          <LazyRowsProvider list={listEl}>
+            {keyed.map(({ r, key }, i) => (
+              // LAZY (perf 2026-10-09, lazyRows.tsx): each card is seven real cards; only those near the view mount.
+              <LazyRow key={key} eager={i < EAGER_ROWS} className="lb-lazy">{() => card(r, key)}</LazyRow>
+            ))}
+          </LazyRowsProvider>
         </div>
-        {layout === 'split' ? (
-          <div className="rg-split">
-            <div className="rg-split-list" role="list">
-              {keyed.map(({ r, key }) => {
-                const { mine, skins } = skinsOf(r);
-                return <SplitItem key={key} r={r} rowKey={key} mine={mine} skins={skins} selected={sel?.key === key} onPick={onPick} />;
-              })}
-            </div>
-            <div className="rg-split-detail">{sel && <div key={sel.key} className="rg-detail-in">{card(sel.r, sel.key, true)}</div>}</div>
-          </div>
-        ) : (
-          <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`} ref={setListEl}>
-            <LazyRowsProvider list={listEl}>
-              {keyed.map(({ r, key }, i) => (
-                // LAZY (perf 2026-10-09, lazyRows.tsx): each card is seven real cards; only those near the view mount.
-                <LazyRow key={key} eager={i < EAGER_ROWS} className="lb-lazy">{() => card(r, key)}</LazyRow>
-              ))}
-            </LazyRowsProvider>
-          </div>
-        )}
       </>
     );
   }
 
   return (
-    <SidebarHost className={`lbpage lb-ladder rg-page rg-layout-${layout}`}>
+    <SidebarHost className="lbpage lb-ladder rg-page">
       <MenuSidebar current="recent" />
       <div className="lbtopbar">
         <div className="lbtitle">
@@ -363,23 +326,30 @@ export function RecentGames(): JSX.Element | null {
             <div className="lbsub">{practice ? `The last ${FEED_ROWS} practice games across every player` : `The last ${FEED_ROWS} games across every player`}</div>
           </div>
         </div>
-        {/* DEV ONLY: the layout trial (list / split) until the owner picks one. */}
-        {import.meta.env.DEV && (
-          <div className="cv2-tabs rg-layouts" role="group" aria-label="Layout (dev)">
-            <button type="button" className={`cv2-tab${layout === 'list' ? ' on' : ''}`} aria-pressed={layout === 'list'} onClick={() => setLayout('list')}>A: List</button>
-            <button type="button" className={`cv2-tab${layout === 'split' ? ' on' : ''}`} aria-pressed={layout === 'split'} onClick={() => setLayout('split')}>B: Split</button>
-          </div>
-        )}
-        <div className="cv2-tabs rg-tabs" role="tablist" aria-label="Recent games view">
-          <button type="button" role="tab" className={`cv2-tab${tab === 'ranked' ? ' on' : ''}`} aria-selected={tab === 'ranked'} onClick={() => pickTab('ranked')}>
-            <Icon name="crown" />Ranked
-          </button>
-          <button type="button" role="tab" className={`cv2-tab${practice ? ' on' : ''}`} aria-selected={practice} onClick={() => pickTab('practice')}>
-            <Icon name="target" />Practice
-          </button>
-        </div>
       </div>
-      <div className="lbscroll">{body}</div>
+      <div className="lbscroll">
+        {shown && shown.length > 0 && <Summary rows={shown} practice={practice} />}
+        {/* ONE FILTER BAR (2026-10-16 polish): the Ranked / Practice feed and the hero chips together. */}
+        <div className="rg-filterbar">
+          <div className="cv2-tabs rg-tabs" role="tablist" aria-label="Recent games view">
+            <button type="button" role="tab" className={`cv2-tab${tab === 'ranked' ? ' on' : ''}`} aria-selected={tab === 'ranked'} onClick={() => pickTab('ranked')}>
+              <Icon name="crown" />Ranked
+            </button>
+            <button type="button" role="tab" className={`cv2-tab${practice ? ' on' : ''}`} aria-selected={practice} onClick={() => pickTab('practice')}>
+              <Icon name="target" />Practice
+            </button>
+          </div>
+          {heroChips.length > 0 && (
+            <div className="rg-filters" role="group" aria-label="Filter by hero">
+              <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { sfx.pulse(); setHeroFilter(null); }}>All heroes</button>
+              {heroChips.map((id) => (
+                <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { sfx.pulse(); setHeroFilter(id); }}>{getHero(id).name}</button>
+              ))}
+            </div>
+          )}
+        </div>
+        {body}
+      </div>
     </SidebarHost>
   );
 }

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-15',
     changes: [
+      { category: 'Systems', text: 'The lobby hover card now shows the current Shop Tier, Gilded units and build of every player. It could show an older round, most often for the player you just fought.' },
       { category: 'Systems', text: 'A skinned minion keeps its skin while it is held. Watching a game or a replay, a picked up card showed its default art until it was played. Right-click Inspect and the ladder teams show skins too.' },
       {
         category: 'Systems',

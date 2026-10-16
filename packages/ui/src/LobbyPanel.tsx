@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  boardIntel, getHero, lastRoundDamage, playerOpponent, roundLossCap, seatResults, snapshotBoard,
+  boardIntel, getHero, lastRoundDamage, playerOpponent, roundLossCap, seatResults, seatScoutIntel, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
@@ -443,7 +443,11 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           const isGhost = isFoe && !!next?.ghost;
           const live = hpOf(seat);
           const hp = live.resolve + live.armor;
-          const intel = isFoe ? foeIntel : seat.intel;
+          // The scout card reads the seat's board for the round you are IN (`seatScoutIntel`, R-LOBBY-SCOUT-01), the
+          // same round the foe's card reads, never the settle-recorded `seat.intel` (a round behind, and never written
+          // for the seat you fought). Read only for a hovered / pinned card, so the rail pays nothing otherwise.
+          const scoutOpen = !staged && !isYou && (hovered?.id === seat.id || pinned?.id === seat.id);
+          const intel = !scoutOpen ? undefined : isFoe ? foeIntel : seatScoutIntel(lobby, seat);
           return (
             <div
               key={seat.id}

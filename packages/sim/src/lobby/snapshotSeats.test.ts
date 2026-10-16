@@ -5,7 +5,7 @@ import { reduce } from '../reducer';
 import { replayRun } from '../snapshot';
 import { DEFAULT_BOT } from '../bots/index';
 import type { Action, RunState } from '../state';
-import { createLobbyRun, createRunLobby, driverFor, resetLobbyDrivers } from './runLobby';
+import { createLobbyRun, createRunLobby, driverFor, resetLobbyDrivers, seatScoutIntel, type LobbySeatState, type RunLobby } from './runLobby';
 import { playerRunByKey, playerRunsFrom, snapshotSeat } from './snapshotSeats';
 
 /**
@@ -222,5 +222,31 @@ describe("set separation — a lobby never seats another set's boards", () => {
 
   it('an unfiltered call still sees everything — the tools and pre-set tests depend on it', () => {
     expect(playerRunsFrom().some((r) => r.author === 'set2player')).toBe(true);
+  });
+});
+
+describe('a snapshot seat\'s scout card reads its CURRENT recorded board (R-LOBBY-SCOUT-01)', () => {
+  // Owner bug 2026-10-15: a real player's seat (LazerLemon) showed SHOP TIER 2 on the rail's hover card while their
+  // recorded run was further along. RUN_A's tier climbs 1 + floor(wave / 3), so rounds 5 and 6 differ (2 vs 3).
+  const lobbyAt = (round: number, seat: LobbySeatState): RunLobby => ({
+    version: 1, seed: 1, round, finished: false, encounters: [], rules: {} as RunLobby['rules'],
+    seats: [{ id: 's0', label: 'You', heroId: 'drakko', kind: 'player', seed: 1, resolve: 30, armor: 0, alive: true }, seat],
+  });
+  const adaSeat = (runKey: string): LobbySeatState => ({
+    id: 's1', label: 'Ada', heroId: 'drakko', kind: 'snapshot', seed: 111, runKey, resolve: 30, armor: 0, alive: true,
+    // What settle recorded: the round-4 board (tier 2), exactly the stale read the card printed.
+    intel: { tier: 2, triples: 0, round: 4 },
+  });
+
+  it('prints the tier of the round the viewer is in, not the one settle recorded', () => {
+    const seat = adaSeat(playerRunsFrom().find((r) => r.author === 'Ada')!.key);
+    resetLobbyDrivers([seat]);
+    expect(seatScoutIntel(lobbyAt(6, seat), seat)).toMatchObject({ tier: 3, round: 6 });
+  });
+
+  it('keeps the recorded read when this client cannot resolve the real run (a generated stand-in is not that player)', () => {
+    const seat = adaSeat('no-such-run');
+    resetLobbyDrivers([seat]);
+    expect(seatScoutIntel(lobbyAt(6, seat), seat)).toBe(seat.intel);
   });
 });

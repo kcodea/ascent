@@ -230,7 +230,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   );
 
   return (
-    <div className={`titlescreen${covered ? ' covered' : ''}`}>
+    // `covered && pageOpen`, not `covered` alone (2026-10-16, owner: "when going from career -> play there's a weird
+    // flash"): the effect that clears `covered` runs AFTER the frame in which the page closed, so for one frame the page
+    // was gone and the title (and the mode picker inside it) was still skipped by `content-visibility: hidden`, a blank
+    // frame. Deriving it in render un-skips the title in the same commit that removes the page.
+    <div className={`titlescreen${covered && pageOpen ? ' covered' : ''}`}>
       {/* Static homescreen background — the looping menu video is disabled for now (owner request 2026-07-08);
           the full-bleed sky-castle art comes from the `.titlescreen` CSS background (homescreen.webp). */}
 

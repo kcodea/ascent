@@ -1,11 +1,11 @@
-import type { CardDef } from '@game/core';
+import { whisperOwnerTiers, type CardDef, type Tier } from '@game/core';
 import { ARCHIVED_CARDS } from './cards/archive';
 import { CardDefSchema } from './schema';
 import { TOKENS } from './cards/set1/tokens';
 import { HENCHMEN } from './cards/henchmen';
 import { GIFTS } from './cards/gifts';
 import { SET3_HAND_SPELLS } from './cards/set3/handSpells';
-import { SET3_WHISPERS } from './cards/set3/whispers';
+import { SET3_WHISPERS as RAW_SET3_WHISPERS } from './cards/set3/whispers';
 import { SET2_TOKENS } from './cards/set2/tokens';
 import { ENEMY } from './cards/set1/enemy';
 import { SETS, poolFor } from './sets';
@@ -15,10 +15,9 @@ export * from './sets';
 export { HENCHMEN } from './cards/henchmen';
 export { GIFTS, GIFT_IDS } from './cards/gifts'; // a card class of its own — member of no set (see gifts.ts)
 export { SET3_HAND_SPELLS } from './cards/set3/handSpells';
-/** Every Whisper, in declaration order: the pool "get a random Whisper" draws from (Jar of Secrets, Shush's Equipment).
- *  A new Whisper joins it by being added to `SET3_WHISPERS`. */
-export const WHISPER_IDS: readonly string[] = SET3_WHISPERS.filter((c) => c.whisper).map((c) => c.id);
-export { SET3_WHISPERS } from './cards/set3/whispers'; // Set 3 Whispers (Tome, Runebind; Set 4 until 2026-10-14) — granted Gift-class spells, member of no set
+/** Every Whisper, in declaration order: the pool "get a random Whisper" draws from (Jar of Secrets, Woozy), before the
+ *  tier gate and the run's set narrow it (`rollableWhisperIds`). A new Whisper joins it by being added to `SET3_WHISPERS`. */
+export const WHISPER_IDS: readonly string[] = RAW_SET3_WHISPERS.filter((c) => c.whisper).map((c) => c.id);
 export { REVELER_IDS } from './cards/set3/spirits'; // the Reveler class (Flame / Tide / Grove) other Spirits name // card-minted Gifts (Tower Shield, Clue) — member of no set, not in GIFT_IDS
 export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of no set — see the archive contract
 
@@ -34,7 +33,7 @@ export { ARCHIVED_CARDS } from './cards/archive'; // resolvable by id, member of
  * names them, so they can't leak across sets. HENCHMEN follow the same doctrine — reachable only through
  * the HERO that names them (`HeroDef.henchman`), never from a pool.
  */
-export const ALL_CARDS: CardDef[] = [
+const RAW_ALL_CARDS: CardDef[] = [
   ...Object.values(SETS).flatMap((s) => s.own),
   ...TOKENS,
   ...SET2_TOKENS,
@@ -48,8 +47,21 @@ export const ALL_CARDS: CardDef[] = [
   ...ARCHIVED_CARDS, // resolvable by id (saved runs / replays), member of NO set — never drawable
   // Set 3 WHISPERS (Tome, Runebind; authored for Set 4, moved 2026-10-14): Gift-class spells a card GRANTS, reachable only through that card. Appended
   // last so no earlier position in this list moves.
-  ...SET3_WHISPERS,
+  ...RAW_SET3_WHISPERS,
 ].filter((card, i, arr) => arr.findIndex((c) => c.id === card.id) === i); // a shared card appears once
+
+/**
+ * WHISPER TIERS (owner 2026-10-16, R-WHISPER-TIER-01): "whispers should be the tier of the unit they came from". A
+ * Whisper's `tier` is DERIVED here from the minion that owns it (its `grantWhisper` marker; the lowest when several do,
+ * Tier 1 when none does) and stamped onto a fresh copy of its def, so the number can never drift from the Dragon. The
+ * authored `tier` in `cards/set3/whispers.ts` is a placeholder this overwrites. Archived cards own nothing.
+ */
+const ARCHIVED_IDS = new Set(ARCHIVED_CARDS.map((c) => c.id));
+export const WHISPER_TIERS: Readonly<Record<string, number>> = whisperOwnerTiers(RAW_ALL_CARDS.filter((c) => !ARCHIVED_IDS.has(c.id)));
+export const ALL_CARDS: CardDef[] = RAW_ALL_CARDS.map((c) => (c.whisper ? { ...c, tier: (WHISPER_TIERS[c.id] ?? 1) as Tier } : c));
+/** The Whisper defs as the index holds them (tier stamped). Set 3 Whispers (Tome, Runebind; Set 4 until 2026-10-14):
+ *  granted Gift-class spells, member of no set. */
+export const SET3_WHISPERS: readonly CardDef[] = ALL_CARDS.filter((c) => c.whisper);
 
 export const CARD_INDEX: Record<string, CardDef> = Object.fromEntries(
   ALL_CARDS.map((card) => [card.id, card]),

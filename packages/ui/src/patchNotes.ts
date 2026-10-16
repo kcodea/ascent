@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-16',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Whispers now have a tier: the tier of the Dragon they come from. Random Whispers only give ones of your tier or lower.',
+        details: [
+          'Jar of Secrets, Woozy and every other way to get a Whisper only give Whispers of your current tier or lower.',
+          'A Whisper Dragon on your board always gives its own Whisper, even above your tier.',
+          'Tamby still copies any Whisper cast on it, whatever its tier.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-15',
     changes: [
       { category: 'Systems', text: 'The lobby hover card now shows the current Shop Tier, Gilded units and build of every player. It could show an older round, most often for the player you just fought.' },

@@ -119,11 +119,11 @@ export const GIFTS_RULES: GameRule[] = [
   },
   {
     id: 'R-WHISPER-05',
-    title: 'Shush equips Jar of Secrets: (2) Gold, get 3 random Whispers from the whole Whisper pool, each an ordinary Whisper',
+    title: 'Shush equips Jar of Secrets: (2) Gold, get 3 random Whispers (your tier and below), each an ordinary Whisper',
     statement:
       'Shush (Set 3 Dragon, T4 5/4) equips Jar of Secrets, whose "(2)" is its Gold cost (the Equip convention; one use '
-      + 'per turn like every Equipment). Using it draws 3 times (seeded) from every Whisper (Tome, Runebind, Ripple, and '
-      + 'any future one); each is an ordinary Whisper: it fades at End of Turn if unused, prints its live value, counts '
+      + 'per turn like every Equipment). Using it draws 3 times (seeded) from the Whispers of tier <= your shop tier in the '
+      + 'pinned set (R-WHISPER-TIER-01); each is an ordinary Whisper: it fades at End of Turn if unused, prints its live value, counts '
       + 'as a spell cast. A Gilded Shush gets 3 GILDED Whispers from its Jar of Secrets. (Jar of Secrets was briefly '
       + 'specced as a Shop spell; the owner made it the Equipment of Shush the same day, and the spell never shipped.)',
     domain: 'gifts',
@@ -261,7 +261,7 @@ export const GIFTS_RULES: GameRule[] = [
     id: 'R-WHISPER-09',
     title: "Woozy: \"Avenge (3): Get 2 Whispers.\" random from the whole Whisper pool, mid-fight, arriving for the next Shop under every Whisper rule",
     statement:
-      "Woozy (Set 3 Dragon, T3 5/3): every 3 friendly deaths in combat it gets 2 random Whispers (seeded draws from every Whisper, the Jar of Secrets pool), flown to hand mid-fight. They arrive in the next Shop's hand and follow every Whisper rule there (they fade at that turn's End of Turn if unused, and count as spells when cast). Gilded: 2 GILDED Whispers (Shush's rule).",
+      "Woozy (Set 3 Dragon, T3 5/3): every 3 friendly deaths in combat it gets 2 random Whispers (seeded draws from the Jar of Secrets pool: since R-WHISPER-TIER-01, Whispers of tier <= your shop tier from the run's set), flown to hand mid-fight. They arrive in the next Shop's hand and follow every Whisper rule there (they fade at that turn's End of Turn if unused, and count as spells when cast). Gilded: 2 GILDED Whispers (Shush's rule).",
     domain: 'gifts',
     status: 'approved',
     evidence: [
@@ -363,5 +363,23 @@ export const GIFTS_RULES: GameRule[] = [
     contentIds: ["d3_hatcher", "w3_clutch"],
     currentBehaviour: "Conforms as of 2026-10-15. The Whisper's name is a placeholder ('Clutch') awaiting the owner.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/set3Dragons1015.test.ts", "packages/ui/src/dragons1015.test.ts"], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-WHISPER-TIER-01',
+    title: "A Whisper has the tier of the Whisper minion that owns it; its own minion always grants it, every other source rolls only Whispers of your shop tier and below",
+    statement:
+      "Every Whisper has a tier: the tier of the Whisper minion that owns it (the Dragon whose 'Whisper:' grants it), derived from data at index build (`WHISPER_TIERS`; the lowest owner tier if several own it; Tier 1 if none does). Two exemptions are never gated: a Whisper minion granting its OWN Whisper (played from hand, every Start of Turn; a Tier 5 Dragon on a Tier 4 board still grants its Whisper), and Tamby's copy of a Whisper cast on it (Shop and combat, even above your tier). EVERY other way of getting a Whisper is gated to Whispers of tier <= the player's current shop tier, in every phase: random-Whisper Equipment and spells (Jar of Secrets), minion effects through Avenge / Echo / Shout (Woozy), runes and heroes. A random roll draws, seeded, from Whispers of tier <= your tier whose owning minion is in the run's pinned set (`rollableWhisperIds`, the one helper the Shop and combat both read). Spells and Equipment give a Whisper no tier of their own; they are gated sources.",
+    domain: 'gifts',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-15/16 (Whisper tiers)', quote: "whispers should be the tier of the unit they came from, so you should only be able to get whispers from your tier etc from sources like jar of secrets or woozy." },
+      { kind: 'owner-chat', ref: 'Owner follow-up 2026-10-16 (random rolls)', quote: "Random rolls give Whispers from your shop tier and below (at tier 3: Whispers of tier 1, 2 and 3), the same as the shop and Discovers." },
+      { kind: 'owner-chat', ref: 'Owner correction 2026-10-16 (replaces the earlier non-minion-source answer)', quote: "no spell and equipment should follow tier rules … but if you somehow have a t5 whisper unit on your board and you're t4, the t5 whisper minion still grants its whisper. it's just that from sources like echo/avenge/spell/equipment should abide by player tier." },
+      { kind: 'owner-chat', ref: 'Owner ruling on PR #2111 (2026-10-16, Tamby exemption)', quote: "tamby should always copy a whisper cast on it, even above tier" },
+      { kind: 'code', ref: "packages/core/src/whisperTier.ts whisperOwners / whisperOwnerTiers / whisperAllowedAtTier / rollableWhisperIds; packages/content/src/index.ts WHISPER_TIERS; packages/sim/src/recruit.ts mintWhisper (owner flag) / rollableWhispersFor / mintRandomWhispers; packages/core/src/combat/simulate.ts grantWhisperToHand / grantRandomWhispers" },
+    ],
+    contentIds: ["d3_shush", "d3_woozy", "d4_tamby", "w4_tome", "w4_runebind", "w3_ripple", "w3_wellofdragons", "w3_seed", "w3_bait", "w3_clutch", "w3_wardingcall"],
+    currentBehaviour: "Conforms as of 2026-10-16. Tamby's copy is exempt (owner ruling on PR #2111). Whaloo CASTS Runebind directly (no Whisper is gained), so it is not gated.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/whisperTiers.test.ts"], lastVerifiedAt: '2026-10-16' },
   },
 ];

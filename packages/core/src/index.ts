@@ -14,3 +14,4 @@ export * from './presentation/events';
 export * from './presentation/collector';
 export * from './presentation/combatTrace'; // WP C — the pure post-hoc combat semantic-trace adapter
 export * from './tribeGate';
+export * from './whisperTier'; // Whisper tiers (owner 2026-10-16, R-WHISPER-TIER-01)

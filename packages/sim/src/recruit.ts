@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -7,7 +7,7 @@ import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
-import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, WHISPER_IDS, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
+import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
@@ -2966,10 +2966,17 @@ export function mintHandSpells(state: RunState, cardId: string, count: number): 
  * SET 4 — mint `count` copies of a WHISPER into hand at multiplier `mult` (a Gilded granter's Whisper is worth double),
  * honouring the hand cap. The `mintHandSpells` shape: a Whisper is a card arriving in hand, so the `onGainCard` round
  * fires per copy (Gangplank) under the same ledger contract. Only a `whisper` def mints this way.
+ *
+ * TIER GATE (owner 2026-10-16, R-WHISPER-TIER-01): every source but the Whisper's OWN minion is gated to Whispers of
+ * tier <= the player's shop tier ("the t5 whisper minion still grants its whisper. it's just that from sources like
+ * echo/avenge/spell/equipment should abide by player tier"). Gated is the DEFAULT, so a new source cannot forget it;
+ * only the owner's grant (`grantWhisperFrom` / the `grantWhisper` Start of Turn) and Tamby's copy ("tamby should always
+ * copy a whisper cast on it, even above tier") pass `owner = true` (= ungated).
  */
-export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number): void {
+export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number, owner = false): void {
   const def = CARD_INDEX[cardId];
   if (!def?.whisper) return;
+  if (!owner && !whisperAllowedAtTier(def, state.tier)) return;
   let minted = 0;
   for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
     state.hand.push({
@@ -2992,15 +2999,21 @@ export function mintWhisper(state: RunState, cardId: string, count: number, mult
   }
 }
 
-/** Get `count` RANDOM Whispers (Jar of Secrets, Shush's Equipment; owner 2026-10-14) from the whole Whisper pool
- *  (`WHISPER_IDS`: Tome, Runebind, Ripple and any future one), one seeded draw each, at multiplier `mult` (a Gilded
- *  source's copies are gilded Whispers). Each follows every Whisper rule: it fades at End of Turn if unused, prints its
+/** Get `count` RANDOM Whispers (Jar of Secrets, Shush's Equipment; owner 2026-10-14), one seeded draw each, at
+ *  multiplier `mult` (a Gilded source's copies are gilded Whispers). The pool (owner 2026-10-16, R-WHISPER-TIER-01) is
+ *  every Whisper of tier <= your shop tier whose owning Dragon is in the run's pinned set (`rollableWhisperIds`, the
+ *  same helper combat's Woozy reads). Each follows every Whisper rule: it fades at End of Turn if unused, prints its
  *  live value, counts as a spell cast. The hand cap applies, as for every Whisper. */
+export function rollableWhispersFor(state: RunState): string[] {
+  const inSet = new Set(poolOf(state).all.map((c) => c.id));
+  return rollableWhisperIds(CARD_INDEX, state.tier, (id) => inSet.has(id));
+}
 export function mintRandomWhispers(state: RunState, count: number, mult = 1): void {
-  if (WHISPER_IDS.length === 0 || count <= 0) return;
+  const ids = rollableWhispersFor(state);
+  if (ids.length === 0 || count <= 0) return;
   const rng = makeRng(state.rngCursor);
   const picks: string[] = [];
-  for (let i = 0; i < count; i++) picks.push(WHISPER_IDS[rng.int(WHISPER_IDS.length)]!);
+  for (let i = 0; i < count; i++) picks.push(ids[rng.int(ids.length)]!);
   state.rngCursor = rng.state();
   for (const id of picks) mintWhisper(state, id, 1, mult);
 }
@@ -4946,13 +4959,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Tamby: when a WHISPER is cast on this, get a copy of it (x golden copies), once per turn. The copy is that same
    *  Whisper at the same multiplier, so it vanishes at End of Turn like any Whisper. A re-cast landing on this again
-   *  cannot pay twice: the once-per-turn latch is set before the copy is minted. */
+   *  cannot pay twice: the once-per-turn latch is set before the copy is minted. EXEMPT from the Whisper tier gate
+   *  (owner 2026-10-16, R-WHISPER-TIER-01: "tamby should always copy a whisper cast on it, even above tier"). */
   whisperCastOnThisCopy: (ctx, self, params, payload) => {
     const def = (payload as { spellDef?: CardDef } | undefined)?.spellDef;
     if (!def?.whisper || self.whisperCopiedThisTurn) return;
     if (!ctx.state.board.includes(self)) return;
     self.whisperCopiedThisTurn = true;
-    mintWhisper(ctx.state, def.id, num(params.count, 1) * gold(self), currentWhisperMult());
+    mintWhisper(ctx.state, def.id, num(params.count, 1) * gold(self), currentWhisperMult(), undefined, true); // ungated: Tamby
   },
 
   /** RIPPLE (Falx's Whisper, owner 2026-10-14): "Trigger a minion's Shout." The target's Shout fires through the shared
@@ -5012,10 +5026,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // over on play is Tier 1 and the next Start of Turn's is Tier 2. Capped at T6 (the tick stops there too).
     if (params.tierStep === true) {
       if (hatcherTier(self) < HATCHER_MAX_TIER) self.whisperTick = (self.whisperTick ?? 0) + 1;
-      mintWhisper(ctx.state, str(params.cardId), 1, gold(self), hatcherTier(self));
+      mintWhisper(ctx.state, str(params.cardId), 1, gold(self), hatcherTier(self), true);
       return;
     }
-    mintWhisper(ctx.state, str(params.cardId), 1, gold(self));
+    mintWhisper(ctx.state, str(params.cardId), 1, gold(self), undefined, true); // the OWNER's grant: never tier-gated
   },
 
   // ── SET 4 BEASTS (owner 2026-10-13, R-WOUND-01): the Shop halves of the arena bodies ──

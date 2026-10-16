@@ -14,7 +14,9 @@ import type { CardDef } from '@game/core';
  * run state, so a Whisper in hand always prints the number it will grant right now.
  *
  * `target: 'friendly'` (judgement call, flagged in the devlog): a temporary grant needs a real body to expire from.
- * `attack`/`health` are the schema's required stat fields; a spell's are inert.
+ * `attack`/`health` are the schema's required stat fields; a spell's are inert. `tier: 1` here is a PLACEHOLDER: the
+ * content index stamps each Whisper's real tier from the Dragon that owns it (`WHISPER_TIERS`, owner 2026-10-16,
+ * R-WHISPER-TIER-01), so never hand-edit it to match.
  */
 export const SET3_WHISPERS: CardDef[] = [
   {

@@ -82,6 +82,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Each Collection category shows a progress bar, and every rarity has its own gem shape as well as its colour.',
         ],
       },
+      { category: 'Systems', text: 'Attack and Health badges with very big numbers now fit cleanly on every card, including the final boards in Career, Recent Games and Match details.', details: ['Numbers of four or more digits, like 1000, 10000 or 104k, shrink to fit inside the badge.', 'The badge frames for big stats now scale with the card, so they no longer spill over the portrait or the other badge on small cards.'] },
       { category: 'Systems', text: 'The Leaderboard and Recent Games now show every player in the portrait frame they have equipped, not just you.', details: ['Leaderboard rows show each player their equipped frame and hero skin.', 'Recent Games shows the frame and skin each player had in that game.', 'Turning off Show opponent cosmetics puts the default ring back on other players.'] },
       {
         category: 'Balance',
@@ -102,6 +103,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Tamby still copies any Whisper cast on it, whatever its tier.',
         ],
       },
+      { category: 'Balance', text: 'Rune of the Conduit now works in combat too. Rubies cast during a fight bounce one more time, and you see the bounce happen. A permanent Ruby, like the ones Boulderdash casts, bounces permanently, so the minion it bounces to keeps it after the fight.' },
       { category: 'Systems', text: "Watching a live game, the next opponent's hover card could show a Shop Tier, build and runes that player never had. It now shows what they really had, like every other player on the rail." },
       { category: 'Systems', text: 'The lobby hover card now says "gilded made" instead of "gilded units". The number counts every Gilded unit that player made this game.' },
       { category: 'Systems', text: "Watching a live game, the lobby rail now matches the player's. Their next opponent and every hover card show exactly what the player sees." },

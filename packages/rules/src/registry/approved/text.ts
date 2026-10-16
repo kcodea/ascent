@@ -619,4 +619,28 @@ export const TEXT_RULES: GameRule[] = [
     example: 'At Tavern Tier 4 with +2/+3 spell power, Lantern Light reads "Give a minion +6/+7." in the Shop spell slot, the Shop row, hand and Discover.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/liveTextAudit.test.ts', 'packages/ui/src/shopSpellLiveText.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-BADGE-FIT-01',
+    title: 'A stat badge with a big number looks like every other badge: the number fits inside it on every surface',
+    statement:
+      'An Attack or Health badge stays inside its own spot whatever the number. A printed value of four or more '
+      + 'characters (1000, 10000, 104k, 1.2m) shrinks to fit inside the badge instead of spilling onto the portrait or the '
+      + 'other badge. The milestone frame a badge wears once its stat crosses a value tier (silver, gold, pink, blue, '
+      + 'crystal) is sized to the card, not fixed in pixels, so a small card (the Career, Recent Games and Match details '
+      + 'final boards, the hover preview) shows the same badge as the board, only smaller. On the Shop, board and combat '
+      + 'cards nothing changes size.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (screenshot: a WIN 12-2 final-board strip, a 104k / 209k minion)', quote: "the badges got messed up for some reason when they go into the 1000's, please fix" },
+      { kind: 'fix-pr', ref: 'fix/big-stat-badges: packages/ui/src/formatStat.ts (statFit), packages/ui/src/Card.tsx (data-fit), packages/ui/src/styles.css (--sv-fit, --ms-k, --ccw-board)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-16. The badge number was a fixed font sized for three glyphs and the milestone frame, glow '
+      + 'and tint were fixed px tuned at the board card. On a Career tile (about 60% of a board card) a 104k / 209k minion '
+      + 'wore a board-sized crystal frame and a 26px number, so the two badges overlapped each other and the portrait. Now '
+      + 'the number steps down by glyph count (statFit) and every milestone px multiplies by --ccw / --ccw-board (1 on the board).',
+    example: 'A minion at 104000 / 209000 on a Recent Games final board shows "104k" and "209k" inside two crystal badges that do not touch.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/bigStatBadge.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
 ];

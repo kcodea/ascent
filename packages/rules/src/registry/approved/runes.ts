@@ -2127,4 +2127,31 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-08. Before, the guarantee accepted any tag overlap: mechanic tags are presence tags, so a Dragon/Dwarf board already "matched" a Demon summon rune and the swap never fired (Epic 4 Dragon + 3 Dwarf boards saw no Dragon or Dwarf rune in about 33% of forges), and gate-only tribe runes were not tribe runes to the forge at all.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgeTribeFitGuarantee.test.ts', 'packages/sim/src/runeforgeClockEpicBoardfit.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
+  {
+    id: 'R-RUNE-CONDUIT-COMBAT-01',
+    title: 'Rune of the Conduit bounces combat Rubies too; a permanent Ruby bounces permanently, with the ruby-bounce cue',
+    statement:
+      'Rune of the Conduit ("Your Rubies all bounce an additional time") is cross-phase: every Ruby CAST in combat on a side '
+      + 'holding it (either side, a served enemy board included) hops once more per copy held to a random OTHER living '
+      + 'friendly minion, carrying the whole cast (one hop per cast, the same granularity as the Shop half). The hop is '
+      + 'stats only (no watchers, so it never re-bounces) and INHERITS the permanence of the landing Ruby: a Boulderdash / Korn / '
+      + 'Blazer "permanent Ruby" (or any Ruby made permanent by Rune of Engraving Gems) bounces PERMANENTLY and carries back '
+      + 'to the Shop card of the hop target as a Ruby at settle, while the hop of a plain combat Ruby stays combat-only. Every hop is a '
+      + '`buff` event stamped `ruby` + `bounce`, so combat plays the same `ruby-bounce` ribbon the Shop plays, in the beat the '
+      + 'hop happens, and the rune badge bursts off a `questTrigger` (`runeConduit`).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-16 (Rune of the Conduit + Boulderdash)', quote: 'rune of the conduit should work in combat, and for a case of boulderdash, those rubies that bounce should be permanent. show the bounce animation in combat when it happens.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (the Conduit hop); packages/sim/src/reducer.ts questCombatMods (runeConduit copy count)' },
+    ],
+    contentIds: ['rune_conduit', 'k_boulderdash'],
+    cardText: 'Your **Rubies** all bounce an additional time.',
+    currentBehaviour: 'Conforms as of 2026-10-16. Before, the rune was read only by the Shop (`fireOnRubyPlayed`); combat never received it, so no combat Ruby bounced and nothing carried back.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/runeConduitCombat.test.ts', 'packages/sim/src/runeConduitCombat.test.ts', 'packages/ui/src/choreo/conduitCombatBounce.test.ts'],
+      lastVerifiedAt: '2026-10-16',
+    },
+  },
 ];

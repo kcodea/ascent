@@ -202,6 +202,22 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, engraved, { from: target.uid, kind: 'ruby' });
     }
   }
+  // RUNE OF THE CONDUIT (owner 2026-10-16: "rune of the conduit should work in combat"): "Your Rubies all bounce an
+  // additional time." The Shop half (`fireOnRubyPlayed`) gives every Ruby cast one extra hop per copy; this is the
+  // same rule for a Ruby cast in combat, on either side. Same hop shape as Ruptured Rubies above: stats only (no
+  // watchers, so a hop never re-bounces), a random OTHER living friendly minion, and the landing's permanence is
+  // INHERITED (`engraved`) — so a Boulderdash / Kobe / Blazer "permanent Ruby" that bounces lands a PERMANENT hop
+  // that carries back to the Shop board (owner 2026-10-16: "those rubies that bounce should be permanent").
+  const conduit = ctx.rubyConduitBouncesFor?.(self.side) ?? 0;
+  if (conduit > 0) {
+    let hopped = false;
+    for (let b = 0; b < conduit; b++) {
+      const others = ctx.living(self.side).filter((x) => x !== target && !x.dead);
+      if (others.length === 0) break;
+      if (!hopped) { ctx.log({ type: 'questTrigger', flag: 'runeConduit', side: self.side }); hopped = true; }
+      applyRubyStats(ctx, self, ctx.rng.pick(others), a, h, engraved, { from: target.uid, kind: 'ruby' });
+    }
+  }
   // CANDLE CONDUIT (owner rework 2026-08-07): every Ruby played on this side bounces to 1 more minion per
   // Conduit (golden 2). The bounce is STATS ONLY (`applyRubyStats`, never the watchers below), which is the
   // same no-rebounce guard Resonance Idol's bounce uses — a bounce can never trigger another bounce.

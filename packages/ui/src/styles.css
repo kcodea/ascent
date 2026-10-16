@@ -13475,6 +13475,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lb-trow-btn:hover .lb-row-go { color: #ffe2a0; transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) { .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { animation: none; } .lb-trow-btn:hover .lb-row-go { transform: none; } }
 
+/* Reduced motion: the Mode screen's content still arrives with a short fade on every visit (no rise, no stagger). */
+@media (prefers-reduced-motion: reduce) { .modepick.mp-home > .mpbox { animation: fadein 0.12s ease both; } }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

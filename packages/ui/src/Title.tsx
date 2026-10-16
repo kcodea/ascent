@@ -61,6 +61,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // Which view the title shows (main menu / mode picker / Learn hub) — store-held so the menu sidebar on any
   // ladder page can open the picker, and so `openTitle` lands on the main menu.
   const titleView = useGame((s) => s.titleView);
+  // Bumps on every `goTo('modes')` (the sidebar's Play), so the mode picker's content replays its entrance.
+  const modesEnterKey = useGame((s) => s.navHopAt);
   const setTitleView = useGame((s) => s.setTitleView);
   const startPractice = useGame((s) => s.startPractice);
   const startLobby = useGame((s) => s.startLobby);
@@ -413,7 +415,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       {titleView !== 'menu' && (
         <SidebarHost className="modepick sb-host mp-home" role="dialog" aria-label="Choose a mode">
           <MenuSidebar current="modes" />
-          <div className="mpbox">
+          {/* Keyed on the nav stamp (owner 2026-10-16: "the cards dont fade/slide in when going to play from career"):
+              the picker stays mounted under a menu page (so closing the page never flashes), so a hop back to Play would
+              otherwise re-show it with no entrance. A fresh key remounts only the CONTENT, which replays the strip's rise
+              and the tiles' stagger; the backdrop and the rail stay put. */}
+          <div className="mpbox" key={titleView === 'modes' ? modesEnterKey : 'sub'}>
             {/* WHO YOU ARE, across the top (owner 2026-10-16): portrait + frame, name + title, rank + MMR, level + XP. */}
             <PlayerStrip />
             <div className="mphead"><h1 className="disp mptitle">Choose a mode</h1></div>

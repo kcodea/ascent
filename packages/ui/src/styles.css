@@ -13054,23 +13054,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    player off the board gets the same pinned strip with their own standing (`.lb-mepin`). Static styling only;
    hover is the rows' existing one-shot border transition.
    ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
-.lb-podium { display: grid; grid-template-columns: 1fr 1.18fr 1fr; align-items: end; gap: 22px; margin: 6px 0 12px; }
-.lb-podium .lb-trow { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 16px 18px 16px; }
-.lb-podium .lb-trow:nth-child(1) { order: 2; padding-top: 26px; padding-bottom: 20px; border-color: rgba(255, 215, 120, 0.85);
-  background: linear-gradient(180deg, rgba(64, 46, 16, 0.78), rgba(12, 19, 36, 0.92) 55%); }
-.lb-podium .lb-trow:nth-child(2) { order: 1; border-color: rgba(205, 215, 230, 0.6); }
-.lb-podium .lb-trow:nth-child(3) { order: 3; border-color: rgba(214, 150, 96, 0.6); }
-.lb-podium .lb-c-player { flex-direction: column; gap: 10px; }
-.lb-podium .lb-who { align-items: center; }
-.lb-podium .lb-handle { justify-content: center; flex-wrap: wrap; white-space: normal; font-size: 26px; }
-.lb-podium .lb-trow-btn .lb-heroframe .hero, .lb-podium .lb-heroframe .hero { width: 112px; height: 112px; }
-.lb-podium .lb-trow:nth-child(1) .lb-heroframe .hero { width: 136px; height: 136px; }
-.lb-podium .lb-trow-btn .lb-medal { width: 56px; height: 56px; font-size: 26px; }
-.lb-podium .lb-trow:nth-child(1) .lb-medal { width: 68px; height: 68px; font-size: 32px; }
-.lb-podium .lb-c-rating, .lb-podium .lb-c-mmr, .lb-podium .lb-c-games { justify-content: center; align-items: center; }
-.lb-podium .lb-c-mmr, .lb-podium .lb-c-games { flex-direction: row; align-items: baseline; gap: 8px; }
-.lb-podium .lb-c-games { display: none; } /* the podium reads rank + MMR; games played stays in the table and on the Career */
-.lb-podium .lb-c-act { justify-content: center; margin-top: 4px; }
 /* Own row: highlighted (existing `.me`), and pinned to the foot of the scroller while it sits below the view. */
 .lb-table > .lb-trow-btn.me { position: sticky; bottom: 10px; z-index: 3; }
 /* Off the board: your standing, pinned the same way. */
@@ -13175,9 +13158,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .mp-home .mpgrid .mpside > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.12s both; }
 .mp-home .mpgrid .mprow2 > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.16s both; }
 .mp-home .mpgrid .mprow2 > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.2s both; }
-.lb-podium .lb-trow { animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) both; }
-.lb-podium .lb-trow:nth-child(1) { animation-delay: 0.04s; }
-.lb-podium .lb-trow:nth-child(3) { animation-delay: 0.08s; }
 .lb-table > .lb-trow-btn { animation: menu-rise 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
 .lb-table > .lb-trow-btn:nth-of-type(2) { animation-delay: 0.1s; }
 .lb-table > .lb-trow-btn:nth-of-type(3) { animation-delay: 0.13s; }
@@ -13224,12 +13204,17 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc.gc.lb-row, .gc.gc.cv2-row { display: block; padding: 0; gap: 0; border-left-width: 1.5px; }
 .gc.lb-row-btn:hover, .gc.cv2-row:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.6); }
 .gc.cv2-row.focus { border-color: var(--acc); }
-/* The BOARD gets its own full-width row (owner 2026-10-16: the strip was too small; the board is the most interesting
-   part of a game): hero + side on top, the strip under them at a real size, the meta line last. */
-.gc-body { display: grid; grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'place board board' 'place meta meta';
-  column-gap: 22px; row-gap: 4px; align-items: center; padding: 12px 20px 10px 22px; }
+/* ONE ROW (owner 2026-10-16: the board must be one row of up to seven, the card about 180-220px tall). Recent Games:
+   placement | hero | board | runes + actions, the meta line under them. The Career column is narrower, so its card
+   (`.gc-stack`) puts hero, meta and actions on the top line and the board on one row under them. */
+.gc-body { display: grid; grid-template-columns: 96px 200px minmax(0, 1fr) auto; grid-template-areas: 'place hero board side' 'place meta meta meta';
+  column-gap: 22px; row-gap: 2px; align-items: center; padding: 8px 20px 8px 20px; }
+.gc.gc-stack .gc-body { grid-template-columns: 96px auto minmax(0, 1fr) auto; grid-template-areas: 'place hero meta side' 'place board board board'; row-gap: 0; }
+.gc.gc-stack .gc-meta { border-top: none; padding-top: 0; }
+.gc.gc-stack .gc-hero .cv2-heroframe.small { --ring: 62px; }
+.gc.gc-stack .gc-meta .cv2-row-meta { justify-content: flex-start; row-gap: 4px; }
 .gc .gc-place { grid-area: place; align-self: stretch; justify-self: stretch; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
-  font-family: var(--font-ui); font-weight: 900; font-size: 42px; line-height: 1; letter-spacing: 0.01em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui); font-weight: 900; font-size: 40px; line-height: 1; letter-spacing: 0.01em; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   border-right: 1px solid rgba(255, 255, 255, 0.07); padding-right: 14px; margin: 0; }
 .gc .gc-place.won { color: #ffd76a; }
 .gc .gc-place.top4 { color: #7fe8ac; }
@@ -13237,7 +13222,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc .gc-place.none { color: rgba(255, 255, 255, 0.4); }
 .gc-crown svg { width: 26px; height: 26px; color: #ffd76a; display: block; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6)); }
 .gc-hero { grid-area: hero; display: flex; align-items: center; gap: 12px; min-width: 0; }
-.gc-hero .lb-heroframe .hero { width: 70px; height: 70px; padding: 3px; }
+.gc-hero .lb-heroframe .hero { width: 64px; height: 64px; padding: 3px; }
 .gc-heroid { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .gc-title, .gc-title > * { font-family: var(--font-ui); font-weight: 900; font-size: 19px; line-height: 1.15; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gc-sub, .gc-sub > * { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.62); }
@@ -13245,12 +13230,13 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-board { grid-area: board; min-width: 0; container-type: inline-size; }
 /* The strip gives every portrait a slot wide enough for ITS OWN two stat badges (they sit on the bottom corners and
    overhang the card): a 26px gap between tiles, so neighbouring badges never chain into one row of circles. */
-/* Sized to the badge minimums (badge fix #2120): badges hang ~26px past each side of the art with the 500+ glow, so the
-   tile PITCH is the card width + 52px (x the tile scale) and ~33px is reserved under the card; the scale stays >= 0.78.
-   Recent Games fits seven at full tile size in one row. Career's column is narrower, so its seven wrap 4 + 3 at a real
-   size instead of shrinking under the floor. */
-.gc-board .lb-team { --tile-s: 1; gap: calc(52px * var(--tile-s)); padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: calc(33px * var(--tile-s)); padding-left: calc(26px * var(--tile-s)); }
-.gc-board .cv2-team { --tile-gap: 52px; --tw: 132px; flex-wrap: wrap; justify-content: center; row-gap: 40px; padding: calc(var(--tw) * 0.25) 26px 33px; }
+/* THE STRIP, computed (badge minimums from #2120: a card's two badges hang ~18px past each side, ~26px with the 500+
+   glow, so the tile PITCH must be the card width + 36..52px, with ~25..33px reserved under it). Seven in ONE row, never
+   wrapped. Recent Games' board column is ~970px at 1920: 7 x 103px cards (tile scale 0.78, the floor) + 6 x 40px gaps =
+   961px. The Career column is ~820px: the card width is DERIVED from the column (100cqw minus six 40px gaps, over 7),
+   ~83px there. Specificity doubled so the wide-stage (w2200) `.lb-team` scale cannot override it. */
+.gc .gc-board .lb-team.lb-team { --tile-s: 0.78; gap: 40px; flex-wrap: nowrap; padding: 22px 0 26px 10px; }
+.gc .gc-board .cv2-team.cv2-team { --tile-gap: 40px; --tw: min(112px, calc((100cqw - 6 * 40px - 24px) / 7)); flex-wrap: nowrap; justify-content: flex-start; padding: calc(var(--tw) * 0.24) 12px 26px 12px; }
 .gc-board .cv2-row-team { gap: 0; width: 100%; }
 .gc-side { grid-area: side; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 10px; }
 .gc-runes { display: flex; gap: 6px; }
@@ -13282,8 +13268,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-meta .cv2-ppills { gap: 8px; }
 .gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
 /* LARGE (the split layout's detail): the board takes the full width under the header. */
-.gc.rg-large .gc-body { grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 14px; padding: 18px 24px 16px 26px; }
-.gc.rg-large .gc-board .lb-team { --tile-s: 0.78; justify-content: center; padding-left: 0; }
+.gc.rg-large .gc-body { grid-template-columns: 96px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 10px; padding: 16px 24px 14px 26px; }
+.gc.rg-large .gc-board .lb-team.lb-team { justify-content: center; padding-left: 0; }
 .gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
 .gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
 .gc.rg-large .gc-place { font-size: 54px; }
@@ -13338,36 +13324,6 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 }
 
 
-/* PODIUM v2 (owner 2026-10-16: "the podium view is nice but they need to be cleaned up"). The same row cells, re-laid
-   as a compact card: the placement medal sits ON the portrait ring (one object, not two stacked), the name with the
-   title UNDER it, the favourite hero as a quiet line, the rank crest and MMR on ONE row, no division bar, no buttons
-   (the whole card opens the Career). 1st stands taller and larger, gold with its crown medal; 2nd and 3rd flank it in
-   the same style. The cards sit on the page, not inside a second panel. Static styling. */
-.rankpage .lb-table.lb-panel { background: none; border: none; box-shadow: none; padding: 0; }
-.lb-podium { gap: 26px; margin: 4px 0 20px; align-items: end; }
-.lb-podium .lb-trow { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: 'player player' 'rating mmr';
-  justify-items: center; align-items: center; row-gap: 12px; column-gap: 18px; padding: 22px 22px 18px; text-align: center;
-  background: linear-gradient(180deg, rgba(13, 22, 40, 0.9), rgba(9, 15, 29, 0.94)); border-width: 1.5px; }
-.lb-podium .lb-trow:nth-child(1) { padding: 30px 26px 22px; background: linear-gradient(180deg, rgba(48, 36, 14, 0.9), rgba(12, 19, 36, 0.94) 60%); border-color: rgba(255, 215, 120, 0.8); }
-.lb-podium .lb-c-player { grid-area: player; flex-direction: column; align-items: center; gap: 8px; }
-.lb-podium .lb-c-rank { position: absolute; z-index: 2; left: calc(50% + 26px); top: 14px; }
-.lb-podium .lb-trow:nth-child(1) .lb-c-rank { left: calc(50% + 36px); top: 20px; }
-.lb-podium .lb-trow-btn .lb-medal { width: 44px; height: 44px; font-size: 20px; }
-.lb-podium .lb-trow:nth-child(1) .lb-medal { width: 54px; height: 54px; font-size: 24px; }
-.lb-podium .lb-trow-btn .lb-medal svg { top: -10px; width: 18px; height: 18px; }
-.lb-podium .lb-trow-btn .lb-heroframe .hero, .lb-podium .lb-heroframe .hero { width: 104px; height: 104px; }
-.lb-podium .lb-trow:nth-child(1) .lb-heroframe .hero { width: 132px; height: 132px; }
-.lb-podium .lb-who { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.lb-podium .lb-handle { flex-direction: column; gap: 5px; font-size: 22px; white-space: nowrap; }
-.lb-podium .lb-trow:nth-child(1) .lb-handle { font-size: 26px; }
-.lb-podium .lb-you { order: -1; }
-.lb-podium .lb-herosub { font-size: 13px; color: rgba(255, 255, 255, 0.45); }
-.lb-podium .lb-c-rating { grid-area: rating; justify-self: end; }
-.lb-podium .lb-c-mmr { grid-area: mmr; justify-self: start; display: flex; flex-direction: row; align-items: baseline; gap: 6px; }
-.lb-podium .rankbar-track, .lb-podium .rankbar-points { display: none; }
-.lb-podium .rankbar { gap: 8px; }
-.lb-podium .lb-c-games, .lb-podium .lb-c-act { display: none; }
-.lb-podium .lb-mmr { font-size: 26px; }
 
 /* Career: the player's chosen profile picture leads the left column; the favourite hero is a quiet line under it. */
 .cv2-favline { display: flex; align-items: baseline; justify-content: center; gap: 8px; margin-top: 6px; }
@@ -13481,6 +13437,50 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .mp-practice .postart { margin-top: 26px; align-self: center; font-size: 26px; letter-spacing: 0.16em; padding: 14px 84px; border-radius: 14px; background: var(--cta-face); color: var(--cta-ink); border: 2px solid var(--cta-edge);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
 @media (prefers-reduced-motion: reduce) { .mp-practice .pomode-select, .mp-practice .pomode-select:hover { transition: none; transform: none; } }
+
+/* PODIUM v3 + LIST ROWS (owner 2026-10-16, "they are all messed up"). The v2 podium was overridden on a wide stage by
+   the `:root[data-lv~=w2200] .lb-has-mmr .lb-trow` grid (six table columns inside a card), which threw the portrait,
+   the medal and the crest outside the card. Every rule here outranks that one (selectors carry five classes) and uses
+   plain flow, no absolute offsets that depend on content: each card is a centred stack (portrait with the placement
+   medal on its top-right edge, name, title under it, then ONE centred row of crest, division and rating); 1st is
+   raised and larger, 2nd and 3rd equal. List rows have no buttons: the row opens the Career. */
+.rankpage .lb-table.lb-panel { background: none; border: none; box-shadow: none; padding: 0; }
+.rankpage .lb-table .lb-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 26px; margin: 4px 0 22px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { display: flex; flex-flow: row wrap; justify-content: center; align-items: center; gap: 10px 14px; min-width: 0; overflow: hidden;
+  grid-template-columns: none; padding: 20px 20px 18px; text-align: center; border-width: 1.5px;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.92), rgba(9, 15, 29, 0.95)); animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) both; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) { order: 2; padding: 28px 24px 22px; border-color: rgba(255, 215, 120, 0.85);
+  background: linear-gradient(180deg, rgba(48, 36, 14, 0.92), rgba(12, 19, 36, 0.95) 62%); animation-delay: 0.04s; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(2) { order: 1; border-color: rgba(205, 215, 230, 0.55); }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(3) { order: 3; border-color: rgba(214, 150, 96, 0.55); animation-delay: 0.08s; }
+/* The portrait and its medal: the medal cell is the FIRST cell, so it is pulled down onto the portrait's top-right edge
+   with a negative bottom margin of its own height (no measurement, no absolute position). */
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rank { order: 0; flex: 0 0 100%; display: flex; justify-content: center; position: relative; z-index: 4; height: 0; margin: 0 0 -10px; transform: translate(42px, 4px); overflow: visible; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) > .lb-c-rank { transform: translate(52px, 6px); }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-medal { width: 42px; height: 42px; font-size: 19px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-medal { width: 50px; height: 50px; font-size: 23px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-medal svg { top: -10px; width: 17px; height: 17px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-player { flex: 0 0 100%; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-heroframe .hero { width: 100px; height: 100px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-heroframe .hero { width: 124px; height: 124px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-who { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; max-width: 100%; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-handle { display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 100%; font-size: 22px; white-space: nowrap; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-handle { font-size: 26px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-you { order: -1; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-herosub { font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rating { display: flex; justify-content: center; align-items: center; gap: 10px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankbar-track, .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankbar-points { display: none; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankcrest-row { --ring: 44px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-mmr { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-mmr { font-size: 24px; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-games, .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-act { display: none; }
+/* List rows: no button column, just a chevron that says the row opens. */
+.rankpage .lb-table .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px 40px; }
+.rankpage .lb-table.lb-has-mmr .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px 130px 40px; }
+.rankpage .lb-c-act { justify-content: center; }
+.lb-row-go { font-family: var(--font-ui); font-weight: 900; font-size: 28px; color: rgba(232, 200, 119, 0.55); transition: transform 0.14s ease-out, color 0.14s ease; }
+.lb-trow-btn:hover .lb-row-go { color: #ffe2a0; transform: translateX(3px); }
+@media (prefers-reduced-motion: reduce) { .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { animation: none; } .lb-trow-btn:hover .lb-row-go { transform: none; } }
 
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the

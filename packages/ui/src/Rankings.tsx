@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
@@ -6,9 +6,8 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { peekSocial, putSocial, useSocial } from './socialCache';
-import { fetchTopPlayers, fetchLatestReplayForUser, remoteEnabled, type PlayerRow } from './remoteBoards';
+import { fetchTopPlayers, remoteEnabled, type PlayerRow } from './remoteBoards';
 import { TitleBadge } from './titles/TitleBadge';
-import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbMedallion } from './LadderBits';
 import { RankBar } from './rank/RankBar';
 import { compareRankDesc, rankPositionOf, type RankPosition } from './rank/types';
@@ -91,8 +90,6 @@ export function Rankings() {
   const rows = useSocial<RankedRow[]>(show ? RANKINGS_KEY : null, loadRankings) ?? null;
   // YOUR row wears your live loadout (always current, never filtered); everyone else's through "Show opponent skins".
   const myLoadout = useLiveLoadout();
-  const [watching, setWatching] = useState<string | null>(null); // userId whose replay is loading
-  const [noReplay, setNoReplay] = useState<string | null>(null); // userId with no watchable v2 run
   const mineRef = useRef<HTMLDivElement | null>(null);
 
   // Bring YOUR row into view once the list has painted — one scroll, not a per-frame read.
@@ -124,21 +121,6 @@ export function Rankings() {
     const openTheirs = (): void => {
       sfx.pulse();
       openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) });
-    };
-    // The CAREER PAGE button does the same thing as the row — stop the bubble so it opens ONCE.
-    const openTheirsBtn = (e: React.MouseEvent): void => { e.stopPropagation(); openTheirs(); };
-    // Watch their latest run — fetch that player's newest v2 replay and hand it to the viewer.
-    // `startReplay` closes this overlay; exiting the replay restores it. A player with no
-    // watchable run yet degrades the pill to "No run" rather than opening a broken viewer.
-    const watch = (e: React.MouseEvent): void => {
-      e.stopPropagation();
-      if (!r.userId || watching) return;
-      sfx.pulse();
-      setNoReplay(null);
-      setWatching(r.userId);
-      void fetchLatestReplayForUser(r.userId)
-        .then((rep) => { if (rep) startReplay(rep, { authorName: handle }); else setNoReplay(r.userId); })
-        .finally(() => setWatching(null));
     };
     // A div[role=button], not a <button> — the row nests its action buttons and a button can't nest a button.
     return (
@@ -176,25 +158,10 @@ export function Rankings() {
         </span>
         {ranked && <span className="lb-c-mmr"><span className="lb-num lb-mmr">{r.rating}</span><span className="lb-unit">rating</span></span>}
         <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
-        <span className="lb-c-act">
-          <button
-            type="button"
-            className="lb-btn lb-career pressable"
-            onClick={openTheirsBtn}
-            aria-label={`Open ${handle}'s career page`}
-          >
-            Career page
-          </button>
-          <button
-            type="button"
-            className="lb-btn lb-btn-ghost lb-watch-latest pressable"
-            onClick={watch}
-            disabled={!r.userId || watching === r.userId || noReplay === r.userId}
-            aria-label={noReplay === r.userId ? 'No watchable run yet' : `Watch ${handle}'s latest run`}
-          >
-            {watching === r.userId ? 'Loading…' : noReplay === r.userId ? 'No run' : 'Watch'}
-          </button>
-        </span>
+        {/* No buttons (owner 2026-10-16: "the big CAREER PAGE + WATCH buttons on every row are heavy"): the whole row opens
+            the Career. Watch-live waits on live rows carrying a user id (they carry only a display name today, and
+            matching players by name is banned), so no Watch is shown rather than a guess. */}
+        <span className="lb-c-act" aria-hidden="true"><span className="lb-row-go">›</span></span>
       </div>
     );
   };

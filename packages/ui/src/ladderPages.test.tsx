@@ -249,16 +249,14 @@ describe('Rankings — the ranked table', () => {
     expect(text('.lb-trow-btn .lb-c-rating')).toEqual(['782MMR', '763MMR', '264MMR']);
   });
 
-  it('the CAREER PAGE button opens THAT row’s Career (once — the row click underneath does not double-fire)', () => {
+  it('a row opens THAT player’s Career, once; rows carry no Career page / Watch buttons (owner 2026-10-16)', () => {
     const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
-    const careerBtns = [...ui.container.querySelectorAll('.lb-career')];
-    expect(careerBtns).toHaveLength(3);
-    expect(careerBtns.map((b) => b.textContent)).toEqual(['Career page', 'Career page', 'Career page']);
+    expect(ui.container.querySelectorAll('.lb-trow-btn button')).toHaveLength(0);
     const real = useGame.getState().openCareer;
     const openCareer = vi.fn(real);
     act(() => { useGame.setState({ openCareer }); });
     try {
-      click(rows[2]!.querySelector('.lb-career'));
+      click(rows[2]!);
       expect(openCareer).toHaveBeenCalledTimes(1);
       expect(openCareer).toHaveBeenCalledWith({ userId: 'u-three', author: 'Robin', rating: 264, gamesPlayed: 2, favoriteHero: undefined });
       expect(useGame.getState().careerOf?.userId).toBe('u-three');
@@ -266,18 +264,6 @@ describe('Rankings — the ranked table', () => {
     } finally {
       act(() => { useGame.setState({ openCareer: real }); });
     }
-  });
-
-  it('a row opens that player’s Career; its Watch button plays their latest run without opening the Career', async () => {
-    const rows = [...ui.container.querySelectorAll('.lb-trow-btn')];
-    click(rows[0]!.querySelector('.lb-watch-latest'));
-    await flush();
-    expect(fetchLatestReplayForUser).toHaveBeenCalledWith('u-top');
-    expect(startReplay).toHaveBeenCalledTimes(1);
-    expect(useGame.getState().showCareer).toBe(false);
-    click(rows[0]);
-    expect(useGame.getState().showCareer).toBe(true);
-    expect(useGame.getState().careerOf?.userId).toBe('u-top');
   });
 });
 
@@ -296,13 +282,13 @@ describe('Rankings — the medal rank rides into the Career page', () => {
     const openCareer = vi.fn(real);
     act(() => { useGame.setState({ openCareer }); });
     try {
-      click(ranked.querySelector('.lb-career'));
+      click(ranked);
       expect(openCareer).toHaveBeenCalledTimes(1);
       expect(openCareer).toHaveBeenCalledWith({ userId: 'u-top', author: 'Nadja', rating: 46, gamesPlayed: 46, favoriteHero: 'brackus', rank });
       expect(useGame.getState().careerOf?.rank?.position).toEqual({ divisionIndex: 0, points: 46, demotionReady: false });
       // A rankless row (pre-migration) hands nothing extra over.
       const plain = rows.find((r) => r.querySelector('.lb-handle')?.textContent?.startsWith('Robin'))!;
-      click(plain.querySelector('.lb-career'));
+      click(plain);
       expect(openCareer).toHaveBeenLastCalledWith({ userId: 'u-three', author: 'Robin', rating: 264, gamesPlayed: 2, favoriteHero: undefined });
       expect('rank' in (openCareer.mock.calls[1]![0] as object)).toBe(false);
     } finally {

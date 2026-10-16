@@ -241,7 +241,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
       place={run.placement}
       label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
       resultClass={`cv2-verdict ${o.cls}`}
-      className={`cv2-row ${o.cls}${focus ? ' focus' : ''}`}
+      className={`cv2-row gc-stack ${o.cls}${focus ? ' focus' : ''}`}
       rootProps={{ 'aria-label': `${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}` }}
       hero={<HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />}
       title={<span className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '-'}</span>}
@@ -317,7 +317,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
       place={game.placement}
       label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
       resultClass={`cv2-verdict ${o.cls}`}
-      className={`cv2-row cv2-prow ${o.cls}`}
+      className={`cv2-row cv2-prow gc-stack ${o.cls}`}
       rootProps={{ 'aria-label': `Practice, ${heroName}: ${o.label}` }}
       hero={<HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />}
       title={<span className="cv2-row-heroname">{heroName}</span>}

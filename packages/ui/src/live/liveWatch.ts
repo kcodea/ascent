@@ -7,8 +7,9 @@
  * goes back to the Live games list. Leave goes back at once.
  */
 import { create } from 'zustand';
+import { playerRunsFrom, resetLobbyDrivers, runKeyOf, setWatchedSeatRuns, type RunLobby } from '@game/sim';
 import { useGame } from '../store';
-import { installSpectateIo, liveSync, receiveSpectate, receiveSpectatorCursor, SPECTATE_KEY_EVENT, useSpectate } from '../versus/spectate';
+import { installSpectateIo, liveSync, receiveSpectate, receiveSpectatorCursor, refreshSpectatorSeats, SPECTATE_KEY_EVENT, useSpectate } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT, SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
 import { myWatcherIdentity } from '../versus/watchers';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
@@ -32,7 +33,56 @@ export const LIVE_END_HOLD_MS = 6000;
 let remote: LiveRemote = liveRemote;
 export function setLiveWatchRemoteForTests(r: LiveRemote): void { remote = r; }
 
-let session: { gameId: string; channel: { send: (e: string, p: unknown) => void; close: () => void } | null; poll: number | null; endTimer: number | null } | null = null;
+let session: {
+  gameId: string; channel: { send: (e: string, p: unknown) => void; close: () => void } | null; poll: number | null; endTimer: number | null;
+  /** Stops waiting for the game's first lobby (`watchSeatRecordings`). */
+  seatsUnsub: (() => void) | null;
+  /** The watched game's seats, so leaving evicts the drivers built from its recordings. */
+  seats: RunLobby['seats'] | null;
+} | null = null;
+
+/** The watched game's recorded-seat run keys this client cannot drive from its own pool. Pure; exported for tests. */
+export function missingSeatRunKeys(lobby: Pick<RunLobby, 'seats' | 'setId'>): string[] {
+  const keys = lobby.seats.filter((s) => s.kind === 'snapshot' && s.runKey).map((s) => s.runKey!);
+  if (keys.length === 0) return [];
+  const held = new Set(playerRunsFrom(undefined, undefined, lobby.setId).map((r) => r.key));
+  return keys.filter((k) => !held.has(k));
+}
+
+/**
+ * THE WATCHED GAME'S RECORDED SEATS, 1:1 (owner 2026-10-16: "spectators should get as close to 1:1 experience as a
+ * player", R-SPECTATE-SEATS-01). The first lobby that arrives names every seat for the whole game. Any recorded seat
+ * whose run this client's pool lacks is fetched ONCE, by seed, and handed to the sim (`setWatchedSeatRuns`, kept apart
+ * from the watcher's own pool), then the screen re-reads the seats (`refreshSpectatorSeats`). One read per watch, off
+ * the render path; nothing is sent on the game's channel and the player's client does nothing new. A failed read
+ * leaves the seats as they were (their recorded reads).
+ */
+function watchSeatRecordings(s: NonNullable<typeof session>): void {
+  // Only the WATCHED game's screen counts (`spectatorRunOf` names it `spectate:<game>:p1`), never the run the watcher
+  // left on screen before the first frame arrived.
+  const tryLobby = (run: { runId?: string; lobby?: RunLobby }): boolean => {
+    const lobby = run.lobby;
+    if (!lobby || session !== s || !run.runId?.startsWith(`spectate:${s.gameId}:`)) return false;
+    s.seats = lobby.seats;
+    const missing = missingSeatRunKeys(lobby);
+    if (missing.length === 0) return true;
+    const want = new Set(missing);
+    const seeds = [...new Set(missing.map((k) => Number(k.slice(k.lastIndexOf('|') + 1))).filter(Number.isFinite))];
+    void remote.seatRecordings?.(seeds).then((boards) => {
+      if (session !== s) return;
+      setWatchedSeatRuns(boards.filter((b) => want.has(runKeyOf(b))));
+      resetLobbyDrivers(lobby.seats); // drop the stand-ins already built for those seats
+      refreshSpectatorSeats();
+    }).catch(() => undefined);
+    return true;
+  };
+  if (tryLobby(useGame.getState().run)) return;
+  s.seatsUnsub = useGame.subscribe((st) => {
+    if (!tryLobby(st.run)) return;
+    s.seatsUnsub?.();
+    s.seatsUnsub = null;
+  });
+}
 
 const ERRORS: Record<string, string> = {
   spectators_full: 'That game has 20 watchers already.',
@@ -55,7 +105,7 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
     useLiveWatch.setState({ error: errorText(e) });
     return false;
   }
-  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, endTimer: null };
+  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, endTimer: null, seatsUnsub: null, seats: null };
   session = s;
   installSpectateIo({
     latestFrames: async (id) => { const f = await remote.latestFrame(id); return f ? [{ seat: 'p1' as const, frame: f }] : []; },
@@ -75,6 +125,7 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
   liveSync(gameId);
   s.channel.send(SPECTATE_KEY_EVENT, {}); // a keyframe now, if the player is already publishing
   s.poll = window.setInterval(() => void follow(s), LIVE_WATCH_POLL_MS);
+  watchSeatRecordings(s);
   return true;
 }
 
@@ -107,6 +158,9 @@ export function leaveLiveGame(back = true): void {
   session = null;
   if (s.poll != null) window.clearInterval(s.poll);
   if (s.endTimer != null) window.clearTimeout(s.endTimer);
+  s.seatsUnsub?.();
+  setWatchedSeatRuns(null);
+  if (s.seats) resetLobbyDrivers(s.seats);
   // Tell the player at once (their indicator drops me on its next heartbeat, asked for now instead of in 15 s).
   s.channel?.send(SPECTATE_BYE_EVENT, {});
   s.channel?.close();

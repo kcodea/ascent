@@ -168,4 +168,33 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-08',
     },
   },
+  {
+    id: 'R-SUMMON-RECLAIM-01',
+    title: "Soren's Reclaim resummon IS a combat summon for every \"summoned in combat\" listener, on both sides",
+    statement:
+      "The copy Soren's Reclaim brings back (at Start of Combat, or later when room opens) counts as a minion SUMMONED in "
+      + 'combat for every effect that keys on a summon, exactly like any other combat summon (an Echo token, a Rise or '
+      + 'Rebirth return, a hand-summon, a resummon). It takes the body grants on its first frame (Rune of the Food Chain '
+      + 'when it is the first summon, Rune of the Hatchery, Rune of Packcraft, Rune of the Undertow, Rune of the Spare '
+      + 'Chair, Solid Ground, the Containment Rune of the foe) and runs the summon-entry suite (onSummon watchers, tribe '
+      + 'auras, summon tallies and quests). Each copy is ONE summon. It applies to whichever side holds Soren (a served '
+      + 'snapshot too). Every combat summon path now runs these: `summonMinion` / `placeSummon` (tokens, Echo, Rally, '
+      + 'Avenge, spell / hero / Whisper summons, hand-summons, resummons), the Rise / Rebirth return, and the Reclaim copy.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-16 (Rune of the Food Chain x Soren)', quote: "rune of the food chain should work with soren's hero power resummon, and anything that summons a minion in combat basically." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts flushResummons (now calls applyCombatSummonGrants, applySolidGround, applyContainment and summonEntryEffects)' },
+    ],
+    contentIds: ['rune_food_chain', 'rune_hatchery', 'rune_packcraft', 'rune_undertow', 'rune_spare_chair'],
+    currentBehaviour:
+      'Conforms as of 2026-10-16. Before: `flushResummons` inserted the Reclaim copy straight onto the board, bypassing '
+      + '`summonMinion` / `placeSummon`, so it ran only the tribe auras and onSummon watchers by hand. Food Chain, '
+      + 'Hatchery, Packcraft, Undertow, Spare Chair, Solid Ground, Containment and the summon tallies all skipped it.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/foodChainEverySummon.test.ts'],
+      lastVerifiedAt: '2026-10-16',
+    },
+  },
 ];

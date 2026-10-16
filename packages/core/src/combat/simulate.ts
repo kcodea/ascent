@@ -3995,6 +3995,20 @@ export function simulate(
       nextStep(); // each reclaimed body re-entering is its own moment
       const copy = instantiate(board, side, cards, mkUid);
       applyCombatGains(copy); // re-apply per-card stacks banked this fight (either side)
+      // A RECLAIMED body IS a combat summon (owner 2026-10-16: "rune of the food chain should work with soren's hero
+      // power resummon, and anything that summons a minion in combat basically"; R-SUMMON-RECLAIM-01). This path
+      // inserts the copy directly rather than through `summonMinion` / `placeSummon`, so it used to skip the whole
+      // "summoned in combat" grant helper (Food Chain, Hatchery, Packcraft, Spare Chair, Undertow, the Ancient of
+      // War summon-attack) plus Solid Ground and Containment. Run here, in the placed summon's order (grants before
+      // the slot, Solid Ground + Containment after), all before the `summon` snapshot so the replay shows the real
+      // body from its first frame, and the rune pulses share this beat. Room was just checked above, so the cap is
+      // judged here (`capJudgedElsewhere`): the copy always lands. Run before the splice, so Food Chain's left-most
+      // Demon is never the copy itself.
+      const reclaimGrant = applyCombatSummonGrants(copy, side, true);
+      if (reclaimGrant.ward) {
+        copy.divineShield = true;
+        if (!copy.keywords.includes('DS')) copy.keywords.push('DS');
+      }
       const at = boards[side].indexOf(anchor);
       boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
       // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
@@ -4005,10 +4019,15 @@ export function simulate(
       // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
       // the combat card prints (computeFrame stamps the same floor on every `summon` event).
       copy.avengeBaseline = deaths[side];
+      applySolidGround(copy, side);
+      applyContainment(copy, side);
       registerEffects(copy);
       emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
-      applyTribeAuras(copy); // a resummoned Beast (The Reclaimer) inherits the aura too — AURAS FIRST (owner 2026-08-12)
-      emitOnSummonOrdered(copy, side); // …then the augmenting watchers, board order left→right
+      // The single summon-entry suite (R-SUMMON-RECLAIM-01), as every placed summon and every Rise runs it: tribe
+      // auras FIRST, then the onSummon watchers left→right (both were called by hand here before), plus everything
+      // else that counts a combat summon (quest tallies, Remains / Reinvestment, Returning Pack, Emberline, Unity,
+      // Summoning Bulwark's Taunts, Robin's Spoils gain).
+      summonEntryEffects(copy, side);
       // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
       // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
       if (reclaim && !copy.dead && copy.health > 0) {
@@ -4019,6 +4038,11 @@ export function simulate(
           const near = livingNeighbours(ctx, copy);
           if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
         }
+      }
+      // Spare Chair / Ancient of War on a reclaimed body: it strikes the instant it lands, riding the same single
+      // interrupting queue item a Rise return uses.
+      if (reclaimGrant.attackNow && !copy.dead && copy.health > 0) {
+        pendingAttackOnSummon.push({ minion: copy, interrupts: true, seq: immediateSummonSeq++ });
       }
     }
     flushSummitCopies(); // Brackus × War's waiting copies, after Reclaim's (queued first, so they keep their place)

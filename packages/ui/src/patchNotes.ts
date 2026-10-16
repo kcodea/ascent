@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: "Soren's Reclaim now counts as a summon in combat. Rune of the Food Chain and other summon effects now work on the minion it brings back.",
+        details: [
+          'Rune of the Food Chain feeds the Reclaimed minion when it is your first summon of the fight.',
+          'Rune of the Hatchery, Rune of Packcraft, Rune of the Undertow, Rune of the Spare Chair and Solid Ground also apply to it.',
+          'It counts for "summon minions in combat" quests and every other summon tally.',
+          'This works the same for an opponent playing Soren.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Whispers now have a tier: the tier of the Dragon they come from. Random Whispers only give ones of your tier or lower.',
         details: [
           'Jar of Secrets, Woozy and every other way to get a Whisper only give Whispers of your current tier or lower.',

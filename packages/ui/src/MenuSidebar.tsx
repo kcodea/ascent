@@ -37,6 +37,7 @@ import { TITLE_LOGO_SRC } from './AscentLogo';
 import { withAbandonWarning } from './rank/ratedRun';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { MenuBackdrop } from './MenuBackdrop';
+import { HALL_VISIBLE } from './hallFlag';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -87,7 +88,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   ];
   const community: Item[] = [
     { dest: 'rankings', label: txt.leaderboard, icon: <IconTrophy /> },
-    { dest: 'hall', label: txt.champions, icon: <Icon name="crown" /> },
+    // The Hall of Champions is hidden for now (owner 2026-10-16, hallFlag.ts): one switch brings the plaque back.
+    ...(HALL_VISIBLE ? [{ dest: 'hall' as const, label: txt.champions, icon: <Icon name="crown" /> }] : []),
     { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
     { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
   ];

@@ -21,6 +21,9 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   remoteEnabled: () => false,
 }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: vi.fn() }));
+// These pins cover the full rail WITH the Hall of Champions; its hidden state (hallFlag.ts, owner 2026-10-16) is
+// pinned in hallHidden.test.tsx.
+vi.mock('./hallFlag', () => ({ HALL_VISIBLE: true }));
 
 import { Career } from './Career';
 import { Rankings } from './Rankings';

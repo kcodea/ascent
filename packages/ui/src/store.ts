@@ -123,6 +123,7 @@ import type { BugClientContext, BugIncidentCapsule, BugReportDraft } from './bug
 import { parseBugScenario } from './bug-report/bugScenario';
 import { spectatorTapOn, tapAct, tapEndTurn } from './versus/spectateTap';
 import { versusAction, versusAfterCommit, versusFreeze, versusLand, versusRefuses } from './versus/versusHooks';
+import { HALL_VISIBLE } from './hallFlag';
 
 
 // Serve real, buildable boards as enemies: load the COMMITTED opponent pool (`OPPONENT_POOL_DATA`, baked by
@@ -2864,7 +2865,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes', navHopAt }); break;
       case 'career': set({ ...PAGES_CLOSED, showCareer: true, navHopAt }); break;
       case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
-      case 'hall': set({ ...PAGES_CLOSED, showLeaderboard: true, navHopAt }); break;
+      // Hidden Hall (hallFlag.ts): a request for it lands on the player Leaderboard.
+      case 'hall': set({ ...PAGES_CLOSED, ...(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }), navHopAt }); break;
       case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
       case 'live': set({ ...PAGES_CLOSED, showLiveGames: true, navHopAt }); break;
       case 'collection': set({ ...PAGES_CLOSED, showCollection: true, navHopAt }); break;
@@ -2874,7 +2876,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   settingsOpen: false,
   openSettings: () => set({ settingsOpen: true }),
   closeSettings: () => set({ settingsOpen: false }),
-  openLeaderboard: () => set({ showLeaderboard: true }),
+  openLeaderboard: () => set(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }),
   closeLeaderboard: () => set({ showLeaderboard: false }),
   showRankings: false,
   openRankings: () => set({ showRankings: true }),

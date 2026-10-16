@@ -680,11 +680,12 @@ describe('the Collection screen: stage and performance tripwires', () => {
       for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);
     }
   });
-  // Owner 2026-09-28: "blur unowned titles". A static blur on the name (tile, nameplate, preview), never animated.
-  it('an unowned title name is blurred on the tile, the detail nameplate and the preview', () => {
+  // UI refinement WS-6 (2026-10-16), superseding the 2026-09-28 "blur unowned titles": an unowned title is DIMMED but readable, never blurred.
+  it('an unowned title name is dimmed, never blurred, on the tile, the detail nameplate and the preview', () => {
     for (const sel of ['.colls-tile.missing .colls-tile-name', '.colls-detail.missing .colls-plate-name', '.colls-detail.missing .colls-preview-title']) {
       const rule = css.match(new RegExp(`${sel.replace(/\./g, '\\.')}\\s*\\{([^}]*)\\}`))?.[1] ?? '';
-      expect(rule, sel).toMatch(/filter:\s*blur\(\d+px\)/);
+      expect(rule, sel).not.toBe('');
+      expect(rule, sel).not.toMatch(/blur\(/);
     }
     expect(css).not.toMatch(/transition:[^;]*filter/);
   });

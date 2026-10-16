@@ -72,7 +72,8 @@
   text-transform: uppercase; color: var(--colls-dim); background: rgba(8, 16, 34, 0.66); border: 1.5px solid var(--colls-line); transition: border-color 0.14s ease, color 0.14s ease; }
 .colls-chip:hover { color: var(--colls-ink); border-color: rgba(232, 200, 119, 0.7); }
 .colls-chip:focus-visible { outline: 2px solid var(--acc); outline-offset: 3px; }
-.colls-chip.on { color: #1a1206; background: linear-gradient(180deg, #f0d089, #c99d4e); border-color: #8a6428; }
+.colls-chip.on { color: var(--ui-title); border-color: transparent; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; } /* the gold rule: lit plate, gold letters */
 .colls-chip-n { font-weight: 800; font-size: 12px; letter-spacing: 0.02em; opacity: 0.8; font-variant-numeric: tabular-nums; }
 .colls-chip-r { color: var(--rc); }
 .colls-chip-r.on { color: #0a1326; background: var(--rc); border-color: rgba(0, 0, 0, 0.5); }
@@ -117,9 +118,11 @@
 /* Missing: dimmed, the rarity frame still readable, a lock in the corner. */
 .colls-tile.missing { background: radial-gradient(120% 95% at 50% 0%, color-mix(in srgb, var(--rc) 9%, #0a1226), #060b17 78%);
   border-color: color-mix(in srgb, var(--rc) 34%, #0a1226); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03), 0 8px 18px -14px #000; }
-.colls-tile.missing .colls-tile-name { color: rgba(255, 246, 228, 0.34); text-shadow: none; filter: blur(4px); user-select: none; }
-/* Owner 2026-09-28: "blur unowned titles". The name of a title you do not own is blurred (static, never animated),
-   on the tile, the detail nameplate and the preview; the rarity stays readable. */
+.colls-tile.missing .colls-tile-name { color: rgba(255, 246, 228, 0.5); text-shadow: none; }
+/* UNOWNED = DIMMED, NEVER BLURRED (UI refinement WS-6, 2026-10-16, superseding the 2026-09-28 "blur unowned titles"):
+   a title you do not own reads plainly but dimmed, with its rarity and how to get it (Hearthstone shows missing cards
+   faded but readable; League and Snap show the title text). Art you do not own is the real art darkened into a
+   silhouette. All static. */
 .colls-tile.missing .colls-tile-rar { opacity: 0.6; }
 .colls-tile.missing .colls-gem { opacity: 0.5; box-shadow: none; }
 .colls-tile.missing::after { border-color: rgba(232, 200, 119, 0.07); }
@@ -208,7 +211,7 @@
 .colls-plate-rar::before, .colls-plate-rar::after { content: ''; width: 46px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, var(--rc)); }
 .colls-plate-rar::after { background: linear-gradient(90deg, var(--rc), transparent); }
 .colls-detail.missing .colls-plate { background: radial-gradient(120% 110% at 50% 0%, color-mix(in srgb, var(--rc) 10%, #0a1226), #060b17 80%); border-color: color-mix(in srgb, var(--rc) 45%, #0a1226); }
-.colls-detail.missing .colls-plate-name { color: rgba(255, 246, 228, 0.5); filter: blur(6px); user-select: none; }
+.colls-detail.missing .colls-plate-name { color: rgba(255, 246, 228, 0.55); }
 .colls-facts { display: grid; gap: 8px; }
 .colls-fact { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 9px 12px; border-radius: 10px; background: rgba(0, 0, 0, 0.25);
   border: 1px solid rgba(196, 160, 92, 0.16); font-size: 15px; }
@@ -219,7 +222,7 @@
 .colls-preview-lbl { align-self: flex-start; font-weight: 800; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--colls-dim); margin-bottom: 4px; }
 .colls-preview-name { font-weight: 800; font-size: 17px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(232, 200, 119, 0.8); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .colls-preview-title { font-weight: 800; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffe08a; }
-.colls-detail.missing .colls-preview-title { opacity: 0.55; filter: blur(4px); user-select: none; }
+.colls-detail.missing .colls-preview-title { opacity: 0.55; }
 .colls-detail-actions { display: flex; align-items: center; gap: 10px; margin-top: auto; }
 .colls-worn-tag { flex: 1; display: grid; place-items: center; min-height: 56px; border-radius: 10px; font-weight: 900; font-size: 16px; letter-spacing: 0.12em; text-transform: uppercase;
   color: #ffe08a; background: rgba(232, 200, 119, 0.12); border: 1.5px solid rgba(232, 200, 119, 0.6); }
@@ -274,7 +277,7 @@
 .colls-tile.skin:not(.ring) .colls-tile-for, .colls-tile.skin:not(.ring) .colls-tile-rar, .colls-tile.skin.owned:not(.ring) .colls-tile-name {
   -webkit-text-stroke: 2px #000; paint-order: stroke fill;
   text-shadow: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); }
-.colls-tile.skin.missing .colls-tile-art { filter: blur(6px) saturate(0.35) brightness(0.45); transform: scale(1.08); }
+.colls-tile.skin.missing .colls-tile-art { filter: saturate(0) brightness(0.3) contrast(1.2); }
 .colls-tile.skin.missing .colls-tile-for { color: rgba(255, 246, 228, 0.55); }
 /* A PORTRAIT FRAME's tile (2026-10-01): the ring shown whole, centred above the name (static). */
 .colls-tile.ring .colls-tile-art { object-fit: contain; inset: 14px 14px 46px; width: calc(100% - 28px); height: calc(100% - 60px); border-radius: 0; }
@@ -287,7 +290,7 @@
    are the game's own rules; this only sizes it. */
 .colls-heropreview { position: relative; align-self: center; display: grid; place-items: center; }
 .colls-heroring { --ring: 220px; }
-.colls-detail.missing .colls-heroring .heroimg { filter: blur(8px) saturate(0.35) brightness(0.5); transform: scale(1.08); }
+.colls-detail.missing .colls-heroring .heroimg { filter: saturate(0.25) brightness(0.5); }
 /* "Default art" label on a preview after "Use default art" (static). */
 .colls-default-tag { position: absolute; left: 50%; bottom: 4px; z-index: 3; transform: translateX(-50%); white-space: nowrap; padding: 4px 12px 3px; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase;
@@ -302,8 +305,8 @@
 .colls-detail.skin .colls-plate { flex: 0 0 auto; min-height: 0; padding: 14px 14px 12px; }
 .colls-detail.skin .colls-plate-name { font-size: 30px; }
 .colls-skinart img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.colls-detail.missing .colls-skinart img { filter: blur(8px) saturate(0.35) brightness(0.5); transform: scale(1.08); }
-/* An UNOWNED portrait frame in the detail panel: the ring alone, blurred by the rule above, never around a portrait. */
+.colls-detail.missing .colls-skinart img { filter: saturate(0.25) brightness(0.5); }
+/* An UNOWNED portrait frame in the detail panel: the ring alone, dimmed by the rule above, never around a portrait. */
 .colls-skinart.colls-framelocked { width: 220px; height: 220px; border: 0; box-shadow: none; background: transparent; border-radius: 50%; }
 .colls-skinart.colls-framelocked img { object-fit: contain; }
 /* A CARD PLATE (2026-10-14) in the detail panel: the plate whole, at its own tall 800x1244 shape, with no tile chrome. */
@@ -373,3 +376,16 @@
 
 /* CROSS-DEVICE SAVES: the "your game moved" prompt blocks the stale run, above the game HUD and menus. */
 .nrw-scrim.cloudmoved-scrim { z-index: 8000; }
+
+/* WS-6 (2026-10-16): PROGRESS AT THREE LEVELS — the overall total (header), a bar on every category tab, and the
+   way to get each missing item printed on its tile. RARITY BY SHAPE AS WELL AS COLOUR (Valorant's tiers): common a
+   round gem, rare the cut diamond, epic a triangle, legendary a four-point star, ancient a hexagon. Static. */
+.colls-tab-bar { display: block; width: 72%; height: 5px; border-radius: 999px; background: rgba(0, 0, 0, 0.45); overflow: hidden; margin-top: 2px; }
+.colls-tab-bar > span { display: block; height: 100%; border-radius: inherit; transform-origin: left center; background: linear-gradient(90deg, #c99d4e, #f0d089); }
+.colls-tile-how { font-weight: 700; font-size: 12px; line-height: 1.25; color: rgba(255, 246, 228, 0.62); text-align: center; max-width: 92%; }
+.colls-tile.skin .colls-tile-how { color: rgba(255, 246, 228, 0.78); text-shadow: 0 1px 3px #000; }
+.r-common .colls-gem, .colls-gem.r-common { transform: none; border-radius: 50%; }
+.r-epic .colls-gem, .colls-gem.r-epic { transform: none; border-radius: 0; width: 15px; height: 14px; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.r-legendary .colls-gem, .colls-gem.r-legendary { transform: none; border-radius: 0; width: 15px; height: 15px; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
+.r-ancient .colls-gem, .colls-gem.r-ancient { transform: none; border-radius: 0; width: 13px; height: 15px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+.colls-gem-lg.colls-gem { width: 22px; height: 22px; }

@@ -83,10 +83,7 @@ const ART_PENDING = new Set<string>([
   // Owner Set 3 batch (2026-10-13): Indy, the Golden Monkey and Amplification Agnus shipped with no art yet.
   'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
   // SET 4: NONE LEFT (owner 2026-10-13: the eight minions and the two Whispers, Tome + Runebind, are arted).
-  // SET 3 DRAGONS (owner batches 2026-10-14 / 10-15 / 10-16): every Dragon and Whisper is arted except Matriarch.
-  // (Ripple was arted in #2087; Hatcher, Whispwarder, Seed, Clutch and Warding Call on 2026-10-16: "wire the art for
-  // set 3 dragons/whispers etc missing art".)
-  'd3_matriarch',
+  // SET 3 DRAGONS: NONE LEFT (Matriarch arted in the 2026-10-16 re-wire: "re-wire the set 3 dragon art").
 ]);
 
 describe('art coverage for live cards', () => {

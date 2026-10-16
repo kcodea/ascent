@@ -89,7 +89,9 @@ export interface LobbySeatState {
   policy?: SeatPolicy;
   placement?: number;
   eliminatedRound?: number;
-  /** Scouting intel about the board this seat last fielded — what the rail's hover card reads.
+  /** Scouting intel about the board this seat last fielded against another SEAT (a fight against the player never
+   *  writes it), as of that round. The production bots' scouting reads it; the rail's hover card does NOT any more
+   *  (it reads `seatScoutIntel`, the current round, R-LOBBY-SCOUT-01).
    *
    *  RECORDED at settle, never derived on demand. `prepare()` costs 200-900 ms for a bot seat, so calling it
    *  from a render to answer "what tier is seat 5 on" would stall the shop phase once per hovered seat. Settle
@@ -750,6 +752,34 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
   };
+}
+
+/**
+ * THE SCOUT CARD'S INTEL FOR A SEAT, AS OF THE ROUND THE VIEWER IS IN (owner bug 2026-10-15: "shop tier here is
+ * incorrect please fix this", R-LOBBY-SCOUT-01).
+ *
+ * `seat.intel` is what settle RECORDED, and it is stale twice over: it is the board of the round that just closed
+ * (one round behind the shop the viewer is in), and a seat's fight against the PLAYER never writes it at all, so the
+ * seat you fought last keeps an even older read (or none). The imminent foe's card already read its CURRENT board
+ * (`playerOpponent`), so two seats on one rail answered "what tier are they on" from different rounds.
+ *
+ * This reads the board the seat brings THIS round, through the same driver request the round itself makes, so it is
+ * exactly what the foe's card shows when that seat comes up. For every seat a live lobby holds (`snapshot`,
+ * `hybrid`, `authored`) that request is a lookup into an already-built recording (the shop phase warms the drivers,
+ * `warmLobbySeat`). A live `bot` seat (balance self-play only) would ADVANCE its run to answer, so it keeps the
+ * recorded read, as does the player's seat (the UI reads your own run), and so does a recorded seat this client cannot
+ * resolve to its real run (its stand-in's board is not that player's). A fallen seat shows the board it fell with.
+ * `seat.intel` itself is untouched: the production bots' scouting reads it as recorded at settle.
+ */
+export function seatScoutIntel(lobby: RunLobby, seat: LobbySeatState): SeatIntel | undefined {
+  if (seat.kind === 'player' || seat.kind === 'bot') return seat.intel;
+  const d = driverFor(seat, lobby.setId);
+  // A recorded seat whose run this client does not hold (a spectator's pool, a restored game on another device)
+  // is driven by a generated stand-in: its board is not that player's, so the recorded read is the honest one.
+  if (!d || (seat.kind === 'snapshot' && !d.realPlayer)) return seat.intel;
+  const round = seat.alive ? lobby.round : (seat.eliminatedRound ?? lobby.round);
+  const board = d.prepare(round) ?? d.finalBoard?.() ?? null;
+  return board ? boardIntel(board, round) : seat.intel;
 }
 
 /** One past fight from a seat's point of view — the rail's "last 3 results" list. */

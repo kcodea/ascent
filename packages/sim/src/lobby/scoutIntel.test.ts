@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
-import { boardIntel, seatResults } from './runLobby';
+import { boardIntel, playerOpponent, resetLobbyDrivers, seatResults, seatScoutIntel, settleRunLobbyRound } from './runLobby';
+import { createTutorialLobby } from './tutorialSeats';
 import type { RunLobby } from './runLobby';
 import type { PreparedBoard } from './types';
 
@@ -97,5 +98,54 @@ describe('seatResults — the last fights, from one seat\'s side', () => {
 
   it('returns nothing for a seat that has never fought', () => {
     expect(seatResults(lobby([]), 'a', 3)).toEqual([]);
+  });
+});
+
+describe('seatScoutIntel: the scout card reads the round the viewer is IN (R-LOBBY-SCOUT-01)', () => {
+  // Owner bug 2026-10-15 ("shop tier here is incorrect please fix this"): a seat's hover card showed SHOP TIER 2
+  // while the seat was on a higher tier. The card read `seat.intel`, recorded at settle: a round behind the shop the
+  // viewer is in, and never written at all for the seat that fought the PLAYER. Every opponent here climbs one tier a
+  // round, so the tier a card prints IS the round it read.
+  const beast = Object.values(CARD_INDEX).find((c) => c.tribe === 'beast' && !c.spell && !c.token)!;
+  const build = (): RunLobby => {
+    const lobby = createTutorialLobby(7, 'drakko', Array.from({ length: 8 }, () => [{ cardId: beast.id, attack: 2, health: 2 }]), [], { seatCount: 8 });
+    for (const s of lobby.seats) if (s.kind === 'authored') s.authoredTiers = [1, 2, 3, 4, 5, 6, 6, 6];
+    resetLobbyDrivers(lobby.seats);
+    return lobby;
+  };
+  const playerLoses = { result: 'lose', playerDamage: 1, enemyDamage: 0 } as unknown as Parameters<typeof settleRunLobbyRound>[1];
+
+  it('every opponent card prints its CURRENT tier, the one the imminent foe card already showed', () => {
+    const lobby = build();
+    const foughtPlayer: string[] = [];
+    for (let r = 1; r <= 3; r++) {
+      foughtPlayer.push(playerOpponent(lobby)!.seat.id);
+      settleRunLobbyRound(lobby, playerLoses);
+    }
+    expect(lobby.round).toBe(4);
+    const lastFoe = lobby.seats.find((s) => s.id === foughtPlayer[2])!;
+    // THE BUG, pinned: the recorded read is from an earlier round. The seat that fought you last round never had its
+    // intel written by that fight, so it is at least two rounds stale (or missing).
+    expect(lastFoe.intel?.tier ?? 0, 'the recorded read the old card printed').toBeLessThan(4);
+    for (const s of lobby.seats) {
+      if (s.kind === 'player') continue;
+      const intel = seatScoutIntel(lobby, s)!;
+      expect(intel.tier, `${s.id} prints its round-4 tier`).toBe(4);
+      expect(intel.round).toBe(4);
+    }
+    // The imminent foe's card and the rail card agree.
+    const next = playerOpponent(lobby)!;
+    expect(seatScoutIntel(lobby, next.seat)!.tier).toBe(boardIntel(next.board, lobby.round).tier);
+  });
+
+  it('a fallen seat shows the board it fell with, and the player seat keeps its own read', () => {
+    const lobby = build();
+    settleRunLobbyRound(lobby, playerLoses);
+    settleRunLobbyRound(lobby, playerLoses);
+    const fallen = lobby.seats.find((s) => s.kind === 'authored')!;
+    fallen.alive = false;
+    fallen.eliminatedRound = 2;
+    expect(seatScoutIntel(lobby, fallen)).toMatchObject({ tier: 2, round: 2 });
+    expect(seatScoutIntel(lobby, lobby.seats[0]!)).toBe(lobby.seats[0]!.intel);
   });
 });

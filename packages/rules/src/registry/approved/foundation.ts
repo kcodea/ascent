@@ -6043,4 +6043,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The player tries to buy with no Gold and hears the deny buzz: the spectator hears nothing, not a buy.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx', 'packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
+  {
+    id: 'R-LOBBY-SCOUT-01',
+    title: "A seat's scout card shows its shop tier, Gilded units and build as of the round you are in",
+    statement:
+      "The lobby rail's hover / pinned scout card for an opponent seat reads the board that seat brings THIS round: "
+      + "the same read the imminent foe's card already showed. Shop tier, Gilded units, Build (the dominant tribe), "
+      + 'quests and runes all come from it, for recorded player seats, generated seats, Practice bots and tutorial seats. '
+      + 'Never the board recorded at the last settle (a round behind, and never written at all for the seat that fought '
+      + "you). A fallen seat shows the board it fell with. Versus and its spectators keep their own rule: the opponent's "
+      + 'state as of the last fought round. A recorded seat this client cannot resolve to its real run keeps the recorded '
+      + "read rather than showing a generated stand-in's board.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-15, with a screenshot of the LazerLemon (Xerox) scout card showing SHOP TIER 2', quote: 'shop tier here is incorrect please fix this' },
+      { kind: 'fix-pr', ref: "PR fix/seat-hover-shop-tier (2026-10-15): seatScoutIntel reads the seat's board for the current round; LobbyPanel uses it for every opponent card" },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts seatScoutIntel / boardIntel; packages/ui/src/LobbyPanel.tsx (rail rows)' },
+    ],
+    currentBehaviour: "Conforms from 2026-10-15. Before, every non-foe card printed seat.intel from settle: the previous round's tier, or older for the seat you last fought.",
+    example: 'Round 4 shop: a seat that fought you in round 3 and has since reached tier 4 used to show Shop Tier 2 (its round-2 read); it now shows 4, the same number its card shows when it becomes your foe.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/scoutIntel.test.ts', 'packages/sim/src/lobby/snapshotSeats.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
 ];

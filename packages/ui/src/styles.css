@@ -13563,6 +13563,35 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlefoot .titleversion { position: static; font-size: 12px; color: rgba(236, 220, 178, 0.5); }
 @media (prefers-reduced-motion: reduce) { .titlenews { animation: none; } .titlenews, .titlenews:hover, .titlenews:active { transform: none; } }
 
+/* PATCH NOTES IN THE MENU SYSTEM (UI pass 2, 2026-10-16). It was the one light surface in the game: a cream sheet
+   with orange pills, reading the app's parchment tokens. It now wears the menu pages' navy + bronze panel, the
+   selected tab is the lit plate with gold letters (the WS-3 rule; never a gold fill), and the full-screen
+   backdrop-filter blur is gone (a plain dim; no full-screen backdrop-filter on the menus). */
+.pnov { background: rgba(4, 8, 18, 0.72); backdrop-filter: none; }
+.pnpanel { width: min(820px, calc(92 * var(--vw, 1vw))); color: #f4eee2;
+  border: 1.5px solid rgba(196, 160, 92, 0.6); border-radius: 16px;
+  background: linear-gradient(180deg, rgba(14, 23, 44, 0.98), rgba(8, 14, 28, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 26px 60px -18px rgba(0, 0, 0, 0.85); }
+.pnhead { padding: 20px 24px 12px; }
+.pntitle { font-size: 30px; color: var(--ui-title, #f1d48a); letter-spacing: 0.04em; }
+.pnclose { color: rgba(236, 220, 178, 0.75); }
+.pnclose:hover { color: #fff; background: rgba(255, 255, 255, 0.08); }
+.pnbar { padding: 0 24px 14px; border-bottom-color: rgba(196, 160, 92, 0.22); }
+.pntabs, .pntoggle { background: rgba(0, 0, 0, 0.35); border-color: rgba(196, 160, 92, 0.35); }
+.pntab, .pntoggle-btn { color: rgba(236, 220, 178, 0.66); }
+.pntab:hover, .pntoggle-btn:hover { color: #f4eee2; }
+.pntab.on, .pntoggle-btn.on { color: var(--ui-title, #f1d48a); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title, #f1d48a) 45%, transparent); }
+.pntab:focus-visible { outline-color: rgba(230, 200, 130, 0.95); }
+.pnscroll { padding: 6px 24px 24px; }
+.pnpatch { border-bottom-color: rgba(196, 160, 92, 0.14); }
+.pndate { font-size: 19px; color: #fff; }
+.pnlabel { color: #f6dfa2; background: rgba(0, 0, 0, 0.3); border-color: rgba(232, 200, 119, 0.5); }
+.pnempty { color: rgba(255, 255, 255, 0.6); }
+.pnlist > li { font-size: 15px; line-height: 1.45; color: rgba(244, 238, 226, 0.92); }
+.pnsublist li { font-size: 14px; color: rgba(244, 238, 226, 0.66); }
+.pnsublist li::marker { color: rgba(196, 160, 92, 0.7); }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

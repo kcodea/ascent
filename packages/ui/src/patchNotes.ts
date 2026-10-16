@@ -78,6 +78,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Tamby still copies any Whisper cast on it, whatever its tier.',
         ],
       },
+      { category: 'Balance', text: 'Rune of the Conduit now works in combat too. Rubies cast during a fight bounce one more time, and you see the bounce happen. A permanent Ruby, like the ones Boulderdash casts, bounces permanently, so the minion it bounces to keeps it after the fight.' },
       { category: 'Systems', text: "Watching a live game, the next opponent's hover card could show a Shop Tier, build and runes that player never had. It now shows what they really had, like every other player on the rail." },
       { category: 'Systems', text: 'The lobby hover card now says "gilded made" instead of "gilded units". The number counts every Gilded unit that player made this game.' },
       { category: 'Systems', text: "Watching a live game, the lobby rail now matches the player's. Their next opponent and every hover card show exactly what the player sees." },

@@ -8065,6 +8065,9 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     // rides in (`true` in old snapshots = 1), and simulate's `improveRepsFor` turns it into 1 + copies.
     runeMastery: s.runeMastery ? runeStacksOf(s, 'rune_mastery') : undefined,
     runeSpellstone: s.runeSpellstone, // Rune of the Spellstone: combat Rubies also count as spell casts
+    // Rune of the Conduit (owner 2026-10-16: "rune of the conduit should work in combat"): the COPY COUNT rides in
+    // (repeat family), so a combat Ruby cast bounces once more per copy, exactly like the Shop half.
+    runeConduit: s.runeConduit ? runeStacksOf(s, 'rune_conduit') : undefined,
     runeFullMeasure: s.runeFullMeasure || undefined, // Rune of Full Measure: a combat-fired Baby Gastrid pays Attack too (R-REALTIME-03)
     // ── 2026-08-20 rune batch ──
     runeReturningPack: f?.runeReturningPack || undefined,       // every N Beasts summoned → a random Beast next shop

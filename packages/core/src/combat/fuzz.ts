@@ -146,6 +146,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ runeCrucible: 2 }),
   () => ({ runeUndertow: 2 }),
   () => ({ runeMastery: 1 }),
+  () => ({ runeConduit: 1 }), // Rune of the Conduit: copy count (owner 2026-10-16, cross-phase)
   () => ({ runeHeldStrength: { attack: 2, health: 2, copies: 1 } }),
   () => ({ flagCopies: { runeAftershocks: 2, runeSavagery: 2, runeFury: 2 } }),
 ];

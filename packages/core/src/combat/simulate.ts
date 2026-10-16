@@ -1939,6 +1939,7 @@ export function simulate(
     floodedVaultFor: (side) => !!modsFor(side).runeFloodedVault,
     // Rune of Ruptured Rubies (owner 2026-09-25): each combat Ruby hops this many times after landing (see `playRubyOn`).
     rubyRuptureBouncesFor: (side) => (modsFor(side).runeRupturedRubies ? RUPTURED_RUBY_BOUNCES * flagCopiesOf(side, 'runeRupturedRubies') : 0),
+    rubyConduitBouncesFor: (side) => Math.max(0, modsFor(side).runeConduit ?? 0), // Rune of the Conduit (copy count)
     battleRefractionRepsFor: (side) => {
       // Rune of Battle Refraction: each living Prismcaster repeats a combat Ruby once (golden twice) — the
       // shop-side `rubyExtraCast` convention, read live so a Prismcaster that died stops paying.

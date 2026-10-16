@@ -13391,6 +13391,55 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lb-rows > .lb-lazy:nth-child(n+7), .cv2-list > .cv2-lazy:nth-child(n+7) { animation-delay: 0.18s; }
 @media (prefers-reduced-motion: reduce) { .lb-rows > .lb-lazy, .cv2-list > .cv2-lazy { animation: none; } .msb-ind { transition: none !important; } }
 
+/* PERFORMANCE TRENDS WITH DEPTH (careerTrends.tsx, 2026-10-16). Static SVG; the gold is the series, the green / gold /
+   red are the placement bands (always paired with a shape); grid and bands stay recessive; text wears text colours. */
+.cv2-trends .ct-mmr-head { display: flex; align-items: baseline; justify-content: space-between; margin-top: 4px; }
+.ct-mmr { position: relative; }
+.ct-mmr svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ct-band { fill: rgba(255, 255, 255, 0.018); }
+.ct-band.alt { fill: rgba(255, 255, 255, 0.05); }
+.ct-band-l { font-family: var(--font-ui); font-weight: 800; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; fill: rgba(255, 246, 228, 0.6); }
+.ct-grid { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.ct-area { stroke: none; }
+.ct-glow { fill: none; stroke: #e8c877; stroke-width: 6; stroke-opacity: 0.16; stroke-linejoin: round; stroke-linecap: round; }
+.ct-line { fill: none; stroke: #e8c877; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ct-last { fill: #ffe9ad; stroke: #0d1628; stroke-width: 2; }
+.ct-peak circle { fill: #0d1628; stroke: #ffe9ad; stroke-width: 1.5; }
+.ct-peak text { font-family: var(--font-ui); font-weight: 800; font-size: 11px; fill: rgba(255, 246, 228, 0.8); }
+.ct-date { font-family: var(--font-ui); font-weight: 700; font-size: 11px; fill: rgba(255, 255, 255, 0.5); }
+.ct-cross { stroke: rgba(255, 246, 228, 0.45); stroke-width: 1; stroke-dasharray: 2 3; }
+.ct-hot { fill: #e8c877; stroke: #0d1628; stroke-width: 2; }
+.ct-tip { position: absolute; z-index: 5; transform: translate(-50%, calc(-100% - 12px)); pointer-events: none; display: flex; flex-direction: column; gap: 2px; white-space: nowrap;
+  padding: 8px 12px; border-radius: 10px; font-family: var(--font-ui); font-size: 13px; font-weight: 700; color: #f4eee2;
+  background: rgba(8, 14, 28, 0.96); border: 1.5px solid rgba(196, 160, 92, 0.6); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.8); }
+.ct-tip b { font-size: 15px; font-weight: 900; color: #fff; }
+.ct-tip .good { color: #7fe8ac; } .ct-tip .bad { color: #ff9a9a; } .ct-tip .dim { color: rgba(255, 255, 255, 0.55); font-size: 12px; }
+.ct-empty { padding: 26px 8px; text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.45); }
+.ct-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.ct-small { display: flex; flex-direction: column; gap: 4px; padding: 8px 8px 6px; border-radius: 10px; background: rgba(0, 0, 0, 0.22); min-width: 0; }
+.ct-small-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; }
+.ct-small-t { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.72); }
+.ct-small-v { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: #fff; font-variant-numeric: tabular-nums; }
+.ct-small svg { display: block; width: 100%; height: auto; }
+.ct-small-d { min-height: 15px; }
+.ct-delta { font-family: var(--font-ui); font-weight: 800; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ct-delta.good { color: #7fe8ac; } .ct-delta.bad { color: #ff9a9a; } .ct-delta.neutral { color: rgba(255, 255, 255, 0.5); font-weight: 700; }
+.ct-ref { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; stroke-dasharray: 3 3; }
+.ct-roll { fill: none; stroke: #f4eee2; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.ct-sarea { fill: rgba(85, 201, 138, 0.16); stroke: none; }
+.ct-pt.won { fill: #e8b84e; }
+.ct-pt.top4 { fill: #55c98a; }
+.ct-pt.lost { fill: none; stroke: #e0646a; stroke-width: 1.5; }
+.ct-pt.faint { fill: rgba(232, 200, 119, 0.35); }
+.ct-bar { fill: rgba(232, 200, 119, 0.55); }
+.ct-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+.ct-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ct-key { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.ct-key.won { background: #e8b84e; border-radius: 1px; transform: rotate(45deg); }
+.ct-key.top4 { background: #55c98a; }
+.ct-key.lost { border: 1.5px solid #e0646a; }
+.ct-key.roll { width: 14px; height: 2px; border-radius: 1px; background: #f4eee2; }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

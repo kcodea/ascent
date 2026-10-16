@@ -8,6 +8,7 @@ import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
 import { GameCard } from './GameCard';
+import { TrendsBody } from './careerTrends';
 import { avatarSrc } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
 import { RuneEmblem } from './RuneEmblem';
@@ -32,8 +33,8 @@ import { achievementsVisible, useProgression } from './progression/progressionSt
 import { rankScalar, scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
-  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, mmrAxisOf, ordinalOf, outcomeOf, playedOnText, polylineOf, runLengthText,
-  trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendSeries, type TrendWindow,
+  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, runLengthText,
+  trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendWindow,
 } from './careerData';
 import { rectToStage, stageHost, stageViewport } from './stage';
 
@@ -160,49 +161,6 @@ function StatTile({ label, value, icon }: { label: string; value: string; icon?:
   );
 }
 
-const CHART_W = 300, CHART_H = 110, CHART_PAD = 10;
-
-/** One trend: a static inline-SVG polyline (no library, nothing animated) with the series' headline (the window
- *  average; for MMR the latest rating) and the axis extremes labelled. `invert` puts `yMin` at the top
- *  (placement: 1st reads high). */
-function TrendChart({ title, series, yMin, yMax, invert, unit, empty }: {
-  title: string; series: TrendSeries; yMin: number; yMax: number; invert?: boolean; unit?: string; empty: string;
-}) {
-  const pts = polylineOf(series.points, { w: CHART_W, h: CHART_H, pad: CHART_PAD, yMin, yMax, invert });
-  const one = series.points.length === 1 ? pts.split(',').map(Number) : null;
-  const avgText = series.avg === null ? '—' : `${series.avg}${unit ?? ''}`;
-  const n = series.points.length;
-  // The MMR line's closing "now" point (the live rating) is not a run: the footer counts runs only.
-  const runCount = series.points.filter((p) => !p.now).length;
-  return (
-    <div className="cv2-trend">
-      <div className="cv2-trend-head">
-        <span className="cv2-trend-title">{title}</span>
-        <span className="cv2-trend-avg">{avgText}</span>
-      </div>
-      <div className="cv2-chart">
-        <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} preserveAspectRatio="none" role="img" aria-label={`${title} over the window`}>
-          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_PAD} y2={CHART_PAD} />
-          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H / 2} y2={CHART_H / 2} />
-          <line className="cv2-grid" x1={CHART_PAD} x2={CHART_W - CHART_PAD} y1={CHART_H - CHART_PAD} y2={CHART_H - CHART_PAD} />
-          {n > 1 && <polyline className="cv2-line" points={pts} />}
-          {one && <line className="cv2-line cv2-dot" x1={one[0]} y1={one[1]} x2={one[0]} y2={one[1]} />}
-        </svg>
-        <span className="cv2-axis top">{invert ? yMin : yMax}{unit}</span>
-        <span className="cv2-axis bottom">{invert ? yMax : yMin}{unit}</span>
-        {n === 0 && <span className="cv2-chart-empty">{empty}</span>}
-      </div>
-      <div className="cv2-trend-foot">{runCount} run{runCount === 1 ? '' : 's'}</div>
-    </div>
-  );
-}
-
-/** The APM axis top: the series' max rounded up to the next 10, never below 10 (so an empty / tiny series
- *  still draws a sensible box). */
-function apmAxisMax(series: TrendSeries): number {
-  const top = series.points.reduce((m, p) => Math.max(m, p.y), 0);
-  return Math.max(10, Math.ceil((top + 5) / 10) * 10);
-}
 
 /** Which match row a Recent-Games click meant: the same-hero run nearest in time to the game's `createdAt`
  *  (run_history and run_telemetry stamp the same end time within seconds). -1 = no focus / no match. */
@@ -595,6 +553,8 @@ export function Career() {
   // scalar when a rank exists, else the bare live rating; while a viewed player's rank is in flight, none yet.
   const liveMmr = rank ? rankScalar(rank) : rankPending ? null : mmr;
   const trends = useMemo(() => trendSeries(runs ?? [], window_, Date.now(), liveMmr), [runs, window_, liveMmr]);
+  // The clock is read once per data / window change, on purpose (a stable `nowMs` keeps the charts' memos stable).
+  const trendNow = useMemo(() => Date.now(), [runs, window_]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
   // ACCOUNT LEVEL (2026-09-27): your own mirror, or the viewed player's public row. Null until the feature is on.
@@ -856,10 +816,9 @@ export function Career() {
             {/* MMR FIRST (owner ask 2026-09-22): the crest above prints "N MMR" and, with a rated run in the window,
                 this headline is that same number — crest → number → line — before the three rates that explain it.
                 Raw ratings on a division-snapped axis (`mmrAxisOf`); nothing here animates. */}
-            <TrendChart title="MMR" series={trends.mmr} {...mmrAxisOf(trends.mmr)} empty="No rated runs in this window" />
-            <TrendChart title="Avg Placement" series={trends.placement} yMin={1} yMax={8} invert empty="No placements in this window" />
-            <TrendChart title="Win Rate" series={trends.winRate} yMin={0} yMax={100} unit="%" empty="No placed runs in this window" />
-            <TrendChart title="Avg APM" series={trends.apm} yMin={0} yMax={apmAxisMax(trends.apm)} empty="No replays with a clock in this window" />
+            {/* WITH DEPTH (owner 2026-10-16, careerTrends.tsx): one big MMR chart over the medal bands, then placement,
+                top 4 rate, APM and games as small multiples with rolling averages and the change vs the period before. */}
+            <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} />
           </div>
         </aside>
       </div>

@@ -75,7 +75,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Play is now the only gold button on the menus, so it is easy to find. Other buttons and tabs use the same plates as the rest of the game.',
           'Finished games use a new game card on Career and Recent Games: your placement once, big and coloured, then the hero, the final board, runes, and one quiet line with the date, length, rounds, rating change and strength.',
           'Recent Games has a summary of the latest games (average placement, top 4 rate, wins, most played hero, top tribe) and hero filters.',
-          'Career puts your rank and MMR up front. MMR keeps the big trend chart and the other trends are small lines.',
+          'Career trends show more: MMR over the rank bands with your peak and a tooltip for every game, then placement, top 4 rate, APM and games played, each with the last 10 games as a line and the change from the period before.',
           'The Leaderboard puts the top three on a podium. Your own row stays pinned to the bottom of the screen, and if you are not in the top 10 your rank is pinned there instead.',
           'The Leaderboard podium is cleaner: placement on the portrait, name with title under it, rank and MMR on one line. Click a card to open that Career.',
           "The Leaderboard and Career show each player's chosen profile picture instead of their most played hero, when they have chosen one.",

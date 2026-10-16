@@ -184,6 +184,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     // all the new ones that i added"; measured 1443 with them).
     // → 1452: Set 3 Dragon + Whisper art 2026-10-15 (+8: Bait Brood, Drake Pup, Gardener, Hum, Immune Iggy, Woozy, Bait,
     //   Well of Dragons; owner: "wire art for whispers and set 3 dragons that ive added").
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1452);
+    // → 1457: Set 3 Dragon + Whisper art 2026-10-16 (+5: Hatcher, Whispwarder, Seed, Clutch, Warding Call; owner: "wire the
+    //   art for set 3 dragons/whispers etc missing art"). The Gatherer and Pickles2 re-wires overwrite existing slots (+0).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1457);
   });
 });

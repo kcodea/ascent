@@ -4,6 +4,7 @@ export * from './seats';
 export * from './snapshotSeats';
 export * from './lobby';
 export * from './runLobby';
+export * from './railView';
 export * from './fightLedger';
 export * from './tutorialSeats';
 export * from './practiceBots';

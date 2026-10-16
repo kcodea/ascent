@@ -67,6 +67,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'Tamby still copies any Whisper cast on it, whatever its tier.',
         ],
       },
+      { category: 'Systems', text: "Watching a live game, the next opponent's hover card could show a Shop Tier, build and runes that player never had. It now shows what they really had, like every other player on the rail." },
+      { category: 'Systems', text: 'The lobby hover card now says "gilded made" instead of "gilded units". The number counts every Gilded unit that player made this game.' },
     ],
   },
   {

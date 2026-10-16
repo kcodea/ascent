@@ -13088,6 +13088,55 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-trends .cv2-trend + .cv2-trend .cv2-axis { display: none; }
 .cv2-trends .cv2-trend + .cv2-trend .cv2-chart-empty { inset: 0; font-size: 12px; }
 .cv2-trends .cv2-trend + .cv2-trend .cv2-trend-foot { display: none; }
-/* Menu boards: a four-glyph stat (1.5k, 209k) tightens inside its badge rather than overrunning the next card. */
-/* The `scale` property (static, never animated) composes with the transform a milestone badge already puts on its digits, and holds whatever font-size the tier applies. */
-.lb-team .badge > .value[data-long], .cv2-team .badge > .value[data-long] { scale: 0.74; letter-spacing: -0.03em; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-5 THE LEADERBOARD PODIUM (UI refinement, 2026-10-16) — the top three stand as large cards across the top in
+   2nd · 1st · 3rd order (1st raised and wider), the rest form the table beneath. They are the SAME `.lb-trow`
+   rows with the same cells, re-laid as cards, so nothing about a row's behaviour changes. No code-drawn dais: the
+   standing is the cards' offsets, the medallions (1st keeps the crown: gold plus its own shape) and the rims.
+   YOUR row pins itself to the foot of the view while it is scrolled below it (`position: sticky`, no JS), and a
+   player off the board gets the same pinned strip with their own standing (`.lb-mepin`). Static styling only;
+   hover is the rows' existing one-shot border transition.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.lb-podium { display: grid; grid-template-columns: 1fr 1.18fr 1fr; align-items: end; gap: 22px; margin: 6px 0 12px; }
+.lb-podium .lb-trow { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 16px 18px 16px; }
+.lb-podium .lb-trow:nth-child(1) { order: 2; padding-top: 26px; padding-bottom: 20px; border-color: rgba(255, 215, 120, 0.85);
+  background: linear-gradient(180deg, rgba(64, 46, 16, 0.78), rgba(12, 19, 36, 0.92) 55%); }
+.lb-podium .lb-trow:nth-child(2) { order: 1; border-color: rgba(205, 215, 230, 0.6); }
+.lb-podium .lb-trow:nth-child(3) { order: 3; border-color: rgba(214, 150, 96, 0.6); }
+.lb-podium .lb-c-player { flex-direction: column; gap: 10px; }
+.lb-podium .lb-who { align-items: center; }
+.lb-podium .lb-handle { justify-content: center; flex-wrap: wrap; white-space: normal; font-size: 26px; }
+.lb-podium .lb-trow-btn .lb-heroframe .hero, .lb-podium .lb-heroframe .hero { width: 112px; height: 112px; }
+.lb-podium .lb-trow:nth-child(1) .lb-heroframe .hero { width: 136px; height: 136px; }
+.lb-podium .lb-trow-btn .lb-medal { width: 56px; height: 56px; font-size: 26px; }
+.lb-podium .lb-trow:nth-child(1) .lb-medal { width: 68px; height: 68px; font-size: 32px; }
+.lb-podium .lb-c-rating, .lb-podium .lb-c-mmr, .lb-podium .lb-c-games { justify-content: center; align-items: center; }
+.lb-podium .lb-c-mmr, .lb-podium .lb-c-games { flex-direction: row; align-items: baseline; gap: 8px; }
+.lb-podium .lb-c-games { display: none; } /* the podium reads rank + MMR; games played stays in the table and on the Career */
+.lb-podium .lb-c-act { justify-content: center; margin-top: 4px; }
+/* Own row: highlighted (existing `.me`), and pinned to the foot of the scroller while it sits below the view. */
+.lb-table > .lb-trow-btn.me { position: sticky; bottom: 10px; z-index: 3; }
+/* Off the board: your standing, pinned the same way. */
+.lb-mepin { position: sticky; bottom: 10px; z-index: 3; display: grid; grid-template-columns: auto minmax(0, 1fr) 240px auto auto; align-items: center; column-gap: 22px;
+  margin-top: 6px; padding: 12px 24px; border-radius: 14px; color: #f4eee2; border: 2px solid var(--acc);
+  background: linear-gradient(90deg, rgba(60, 34, 12, 0.92), rgba(13, 21, 40, 0.96)); box-shadow: 0 10px 26px -10px rgba(0, 0, 0, 0.8); }
+.lb-mepin-you { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--acc); }
+.lb-mepin-name { font-family: var(--font-ui); font-weight: 900; font-size: 22px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb-mepin-mmr { display: flex; align-items: baseline; gap: 8px; }
+.lb-mepin-note { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
+/* WS-5 on the HALL OF CHAMPIONS: the top three warbands wear the podium (a gold / silver / bronze rim and a warm
+   wash for 1st; the medallion keeps the crown), the record is the row's headline like a match verdict, and the
+   final teams are drawn at full tile size so the row's middle is filled rather than half empty. */
+.lb-hall .lb-row[data-place='1'] { border-color: rgba(255, 215, 120, 0.85); background: linear-gradient(90deg, rgba(64, 46, 16, 0.78), rgba(12, 19, 36, 0.9) 45%); }
+.lb-hall .lb-row[data-place='2'] { border-color: rgba(205, 215, 230, 0.6); }
+.lb-hall .lb-row[data-place='3'] { border-color: rgba(214, 150, 96, 0.6); }
+.lb-hall .lb-row[data-place] .lb-medal { width: 52px; height: 52px; font-size: 24px; }
+.lb-hall .lb-hallrecord { font-size: 44px; line-height: 1; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+.lb-hall .lb-team, .rg-page .lb-team { --tile-s: 1; }
+/* PERF (WS-5 bonus, 2026-10-16): a menu board's cards keep their keyword FX (wisps, rings, ward glass) still until
+   you point at that row; ten banners of seven looping cards were ~226 running animations and a 4 ms idle frame on
+   the Hall, and every hover sweep repainted them. The row you hover plays (the `.is-far` pause, made local). */
+.lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
+.cv2-row:not(:hover) .cv2-team *, .cv2-row:not(:hover) .cv2-team *::before, .cv2-row:not(:hover) .cv2-team *::after { animation-play-state: paused; }
+.lb-thead.lb-thead-idle { display: none; }

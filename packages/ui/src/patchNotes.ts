@@ -71,6 +71,8 @@ export const PATCH_NOTES: PatchNote[] = [
           'Play is now the gold button on every menu, so it is easy to find.',
           'Career and Recent Games lead with the result. Length, rounds and strength sit on one quiet line under it.',
           'Career puts your rank and MMR up front. MMR keeps the big trend chart and the other trends are small lines.',
+          'The Leaderboard puts the top three on a podium. Your own row stays pinned to the bottom of the screen, and if you are not in the top 10 your rank is pinned there instead.',
+          'The Hall of Champions marks its top three and shows each warband larger.',
         ],
       },
       { category: 'Systems', text: 'The Leaderboard and Recent Games now show every player in the portrait frame they have equipped, not just you.', details: ['Leaderboard rows show each player their equipped frame and hero skin.', 'Recent Games shows the frame and skin each player had in that game.', 'Turning off Show opponent cosmetics puts the default ring back on other players.'] },

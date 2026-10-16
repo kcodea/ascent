@@ -126,7 +126,7 @@ export function Leaderboard() {
               // outside it pause their card FX.
               return (
                 <LazyRow key={r.key} eager={i < 4} className="lb-lazy">{() => (
-                <div className="lb-row">
+                <div className="lb-row" data-place={i < 3 ? i + 1 : undefined}>
                   <div className="lb-row-rank"><LbMedallion rank={i + 1} /></div>
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.heroId} frameId={frameIdOf(opponentSkins(showOppCosmetics, (r.board as BoardSnapshot | null)?.cosmetics))} />

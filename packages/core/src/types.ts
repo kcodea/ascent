@@ -2635,6 +2635,10 @@ export interface QuestCombatMods {
    *  the recruit engine mirrors it off `RunState.runeMastery`). Carries the COPY COUNT since the 2026-08-27
    *  duplicate rulings; `true` in older snapshots reads as 1 (= the classic double). */
   runeMastery?: number | boolean;
+  /** Rune of the Conduit: "Your Rubies all bounce an additional time." Carries the COPY COUNT (repeat family,
+   *  owner 2026-08-27 — the recruit half reads `runeStacksOf(state, 'rune_conduit')`); every Ruby CAST in combat on
+   *  this side hops to one extra random other living friendly minion per copy (owner 2026-10-16: cross-phase). */
+  runeConduit?: number;
   /** Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats. */
   oldPack?: boolean;
   /** Rune of Held Strength (owner rework 2026-08-27): Start of Combat, this side's left and right-most
@@ -4162,6 +4166,8 @@ export interface CombatContext {
   rubiesPermanentFor?(side: Side): boolean;
   /** Rune of Ruptured Rubies: how many times each combat Ruby on this side bounces after landing (0 = none). */
   rubyRuptureBouncesFor?(side: Side): number;
+  /** Rune of the Conduit: how many extra bounces each combat Ruby CAST on this side makes (0 = none). */
+  rubyConduitBouncesFor?(side: Side): number;
   /** Rune of Living Growth — this side's accrued Growth improvement (added to combat Growth casts). */
   growthBonusFor?(side: Side): number;
   /** Set 3 WHISPERS: this side's LIVE per-Whisper improvement (seeded from `CombatSideState.whisperImprove`, raised by

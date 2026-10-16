@@ -26,6 +26,7 @@ const EXTRA_COMBAT_FLAG_TO_ID: Record<string, string> = {
   runeDrakeSkull: 'rune_drake_skull', // shoutEdgeBuff (tribe) — a combat Shout fire's edge buff
   twinSunOath: 'q_twin_sun_oath',      // shoutEdgeBuff — a combat Shout fire's edge buff
   runeChoir: 'rune_choir', // shoutRepeat — a combat-triggered Shout's standing extra (R-SHOUT-TRIGGER-01)
+  runeConduit: 'rune_conduit', // runeConduit (no combatFlag) — a combat Ruby's extra bounce (owner 2026-10-16)
 };
 
 const FLAG_TO_ID: Record<string, string> = (() => {

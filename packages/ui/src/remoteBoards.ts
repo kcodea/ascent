@@ -1728,7 +1728,7 @@ export async function fetchCareerTotals(): Promise<{ runs: number; favoriteHero:
 
 /** Newest rows fetched WITH their full `entry` (final board included) — the match-history banners (25, owner
  *  2026-09-20). Each detailed row is a few KB (the board snapshot), so this stays a small multiple of the page. */
-export const CAREER_DETAIL_ROWS = 25;
+export const CAREER_DETAIL_ROWS = 50; // owner 2026-10-16: 50 games (was 25); trends read the light rows, up to 1000
 
 /** The light `run_history` select — every scalar the trends + left-column tiles need, projected out of the
  *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is

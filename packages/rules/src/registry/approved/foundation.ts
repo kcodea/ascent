@@ -6065,4 +6065,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Round 4 shop: a seat that fought you in round 3 and has since reached tier 4 used to show Shop Tier 2 (its round-2 read); it now shows 4, the same number its card shows when it becomes your foe.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/scoutIntel.test.ts', 'packages/sim/src/lobby/snapshotSeats.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
+  {
+    id: 'R-LOBBY-RAIL-01',
+    title: 'Every number on the lobby rail matches what the table actually did, for every seat, every round',
+    statement:
+      'Everything the lobby rail prints about the table comes from one pure read (`lobbyRailView` + `railSeatIntel`): the '
+      + 'round, the max damage, "N left", the row order (standing seats by Resolve + Armor, ties in seat order; fallen seats '
+      + "by placement), each row's Resolve, Armor and placement, the next-opponent and ghost marks, and each scout card. A "
+      + "scout card's round history (Round / Vs / Outcome / Dmg) is the seat's own side of each fight: the outcome from its "
+      + 'side, Dmg = the hit it took (Armor and Resolve together, capped by the round) or, on a win, the hit it dealt. '
+      + 'Every row reads its scout intel by the same rule: a recorded seat this client cannot load (a live-game watcher '
+      + "whose pool lacks the game's recordings) shows its recorded read on EVERY row, the next opponent included, never a "
+      + "generated stand-in's board. A row never prints negative health.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, after R-LOBBY-SCOUT-01', quote: 'can you have an agent look at the lobby rail info and make sure that it is accurate? the tier pill being wrong has me wondering if the rest of it is wrong too' },
+      { kind: 'fix-pr', ref: "PR fix/lobby-rail-accuracy (2026-10-16): lobbyRailView / railSeatIntel; the next opponent's card follows the stand-in rule; rows clamp health at 0; the full-table harness" },
+      { kind: 'code', ref: 'packages/sim/src/lobby/railView.ts; packages/ui/src/LobbyPanel.tsx' },
+    ],
+    currentBehaviour: "Conforms from 2026-10-16. Audited field by field: the table's numbers were already right. Two gaps fixed: a watcher's next-opponent card could print a generated stand-in's board, and the wipeout guard's revived winner could print negative Resolve.",
+    example: "Watching a live game whose recordings your pool does not hold, the watched player's next opponent used to show a Shop Tier and runes that player never had; it now shows the same recorded read its row shows the rest of the round.",
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/railAccuracy.test.ts'], lastVerifiedAt: '2026-10-16' },
+  },
 ];

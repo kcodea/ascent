@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
-  boardIntel, getHero, lastRoundDamage, playerOpponent, roundLossCap, seatResults, seatScoutIntel, snapshotBoard,
+  boardIntel, getHero, lastRoundDamage, lobbyRailView, playerOpponent, railSeatIntel, roundLossCap, seatResults, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
@@ -316,12 +316,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   }, [capNow, runKey]);
 
   if (!lobby) return null;
-  const next = playerOpponent(lobby);
-  const foe = next?.seat ?? null;
-  // The foe's board is already prepared by `playerOpponent`, so reading it here is free — and it means the
-  // imminent opponent has CURRENT intel even on round 1, before any settle has recorded any.
-  const foeIntel: SeatIntel | undefined = next ? boardIntel(next.board, lobby.round) : undefined;
-  const living = lobby.seats.filter((s) => s.alive);
   const maxHp = lobby.rules.startingResolve + lobby.rules.startingArmor;
   // YOUR OWN row reads the RUN's health, not the seat's. The seat is only re-synced when the table settles (at
   // `resolveCombat`), while the run takes your hit the moment combat ends — so between those two the seat is
@@ -333,24 +327,25 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // VERSUS (owner 2026-10-14): the run's Resolve is not the score there. Every seat's health is its HEARTS, which the
   // two-seat display lobby carries on the seats (`versusLobby`), so every row reads its seat.
   const versus = useGame((st) => st.run.mode === 'versus');
-  const hpOf = (seat: { id: string; resolve: number; armor: number }): { resolve: number; armor: number } =>
-    seat.id === 's0' && !versus ? { resolve: myResolve, armor: myArmor } : { resolve: seat.resolve, armor: seat.armor };
-  // VERSUS: a ONE-ROW rail, the opponent and their hearts (owner 2026-10-14). Your own hearts sit under your hero.
-  const shownSeats = versus ? lobby.seats.filter((s) => s.id !== 's0') : lobby.seats;
+  // EVERY NUMBER THE RAIL PRINTS comes from ONE pure read, `lobbyRailView` (R-LOBBY-RAIL-01): the round, the max
+  // damage, "N left", the row order (living by Resolve + Armor, ties in seat order; the fallen by placement), each
+  // row's health and placement, and the next-opponent / ghost marks. `railAccuracy.test.ts` plays real lobbies and
+  // checks every field against what each round actually did. Your own row reads the RUN, which takes your hit the
+  // moment the fight settles (owner report 2026-08-25), except in VERSUS, whose seats carry the hearts. VERSUS shows a
+  // ONE-ROW rail, the opponent and their hearts (owner 2026-10-14); your own hearts sit under your hero.
+  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versus ? { hideSelf: true } : { self: { resolve: myResolve, armor: myArmor } }) });
+  const next = rail.opponent;
+  const foe = next?.seat ?? null;
+  // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
+  // CURRENT intel even on round 1. Every card reads the round you are IN, by one rule (`railSeatIntel`).
+  const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
+  const rows = rail.rows;
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
-  const railRows = versus ? (showGuides ? 8 : 3) : shownSeats.length;
-  // Living seats first, strongest to weakest; the fallen keep their placement order underneath.
-  const rows = [...shownSeats].sort((a, b) => {
-    if (a.alive !== b.alive) return a.alive ? -1 : 1;
-    // Rank on the LIVE numbers too (see `hpOf`), so your row doesn't sit at a stale rank through the
-    // post-combat screen and then jump when the table settles.
-    if (a.alive) { const A = hpOf(a), B = hpOf(b); return (B.resolve + B.armor) - (A.resolve + A.armor); }
-    return (a.placement ?? 99) - (b.placement ?? 99);
-  });
+  const railRows = versus ? (showGuides ? 8 : 3) : rows.length;
 
   // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
-  const cap = roundLossCap(lobby.rules, lobby.round);
+  const cap = rail.lossCap;
   const capTip = maxDamageTip(cap);
 
   return (
@@ -363,7 +358,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         moves nothing. */}
     {/* VERSUS draws its Round plate on the opponent's block (versus/VersusFoe.tsx); the Guides view keeps this header. */}
     {!(versus && !showGuides) && <div className={`lobbyrailhead${railMods}`}>
-      <span className="lobbyround">{showGuides ? 'Guides' : `Round ${lobby.round}`}</span>
+      <span className="lobbyround">{showGuides ? 'Guides' : `Round ${rail.round}`}</span>
       {versus && showGuides && (
         <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
           <span aria-hidden="true">✕</span>
@@ -427,7 +422,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
     {!(versus && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versus ? '' : `${living.length} left`}</span>
+        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versus ? '' : `${rail.left} left`}</span>
       </div>
 
       {showGuides ? (
@@ -436,18 +431,19 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         </div>
       ) : (
       <div className={`lobbyseats${swap ? ' lobbyview-in' : ''}`} key="seats">
-        {rows.map((seat) => {
-          const isYou = seat.id === 's0';
-          const isFoe = foe?.id === seat.id;
+        {rows.map((row) => {
+          const seat = lobby.seats.find((s) => s.id === row.id)!;
+          const isYou = row.you;
+          const isFoe = row.next;
           // A GHOST pairing: this round's foe is a fallen seat's board (`playerOpponent`'s `ghost`), marked in teal.
-          const isGhost = isFoe && !!next?.ghost;
-          const live = hpOf(seat);
+          const isGhost = row.ghost;
+          const live = row;
           const hp = live.resolve + live.armor;
           // The scout card reads the seat's board for the round you are IN (`seatScoutIntel`, R-LOBBY-SCOUT-01), the
           // same round the foe's card reads, never the settle-recorded `seat.intel` (a round behind, and never written
           // for the seat you fought). Read only for a hovered / pinned card, so the rail pays nothing otherwise.
           const scoutOpen = !staged && !isYou && (hovered?.id === seat.id || pinned?.id === seat.id);
-          const intel = !scoutOpen ? undefined : isFoe ? foeIntel : seatScoutIntel(lobby, seat);
+          const intel = !scoutOpen ? undefined : isFoe ? foeIntel : railSeatIntel(lobby, seat, next);
           return (
             <div
               key={seat.id}
@@ -481,16 +477,16 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               <span className="lobbynameline">
                 <span className="lobbyname">{seat.label}</span>
               </span>
-              {seat.alive ? (
+              {row.alive ? (
                 <span className="lobbyhp">
                   {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}
                   <Icon name="heartPill" />{live.resolve}
                   {live.armor > 0 && <span className="lobbyarmor"><Icon name="shield" />{live.armor}</span>}
                 </span>
               ) : (
-                <span className="lobbyplace">{seat.placement ? `#${seat.placement}` : 'out'}</span>
+                <span className="lobbyplace">{row.placement ? `#${row.placement}` : 'out'}</span>
               )}
-              {seat.alive && (
+              {row.alive && (
                 <span className="lobbybar">
                   <span style={{ width: `${Math.max(0, Math.min(100, (hp / maxHp) * 100))}%` }} />
                 </span>

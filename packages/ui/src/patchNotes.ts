@@ -78,7 +78,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Career puts your rank and MMR up front. MMR keeps the big trend chart and the other trends are small lines.',
           'The Leaderboard puts the top three on a podium. Your own row stays pinned to the bottom of the screen, and if you are not in the top 10 your rank is pinned there instead.',
           'The Leaderboard podium is cleaner: placement on the portrait, name with title under it, rank and MMR on one line. Click a card to open that Career.',
-          'The Leaderboard and Career show each player's chosen profile picture instead of their most played hero, when they have chosen one.',
+          "The Leaderboard and Career show each player's chosen profile picture instead of their most played hero, when they have chosen one.",
           'The Collection shows items you do not own plainly, dimmed instead of blurred, with how to get each one on its tile.',
           'Each Collection category shows a progress bar, and every rarity has its own gem shape as well as its colour.',
         ],

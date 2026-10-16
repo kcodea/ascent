@@ -13214,7 +13214,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-sub, .gc-sub > * { font-family: var(--font-ui); font-weight: 700; font-size: 14px; color: rgba(255, 255, 255, 0.62); }
 .gc-record, .gc-record > * { font-family: var(--font-ui); font-weight: 800; font-size: 14px; font-variant-numeric: tabular-nums; color: rgba(255, 255, 255, 0.72); }
 .gc-board { grid-area: board; min-width: 0; container-type: inline-size; }
-.gc-board .lb-team { --tile-s: 0.74; padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: 0; }
+/* The strip gives every portrait a slot wide enough for ITS OWN two stat badges (they sit on the bottom corners and
+   overhang the card): a 26px gap between tiles, so neighbouring badges never chain into one row of circles. */
+.gc-board .lb-team { --tile-s: 0.78; gap: 26px; padding-top: calc(var(--tile-cw) * var(--tile-s) * 0.23 + 2px); padding-bottom: 8px; padding-left: 10px; }
+.gc-board .cv2-team { --tile-gap: 26px; padding-left: 10px; padding-bottom: 10px; }
 .gc-board .cv2-row-team { gap: 0; }
 .gc-side { grid-area: side; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 10px; }
 .gc-runes { display: flex; gap: 6px; }
@@ -13243,7 +13246,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
 /* LARGE (the split layout's detail): the board takes the full width under the header. */
 .gc.rg-large .gc-body { grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 14px; padding: 18px 24px 16px 26px; }
-.gc.rg-large .gc-board .lb-team { --tile-s: 1; justify-content: center; }
+.gc.rg-large .gc-board .lb-team { --tile-s: 0.98; gap: 30px; justify-content: center; }
 .gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
 .gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
 .gc.rg-large .gc-place { font-size: 54px; }

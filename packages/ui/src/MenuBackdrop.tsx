@@ -44,8 +44,11 @@ let lastSrc: string | null = null;
 
 export function MenuBackdrop({ screen }: { screen: MenuScreen }) {
   const plate = MENU_BACKDROPS[screen];
-  // Frozen at mount: the plate that was showing before this one, when it differs.
-  const [prev] = useState(() => (lastSrc && lastSrc !== plate.src ? lastSrc : null));
+  // Frozen at mount: the plate that was showing before this one, when it differs. Only a SCENE -> DATA change
+  // crossfades (the sharp hall blurs away under a page, the old plate opaque underneath the whole time). Coming BACK to
+  // the sharp hall cuts straight to it: fading the sharp plate in over the blurred one read as a dark, blurry flash
+  // on Career -> Play (owner 2026-10-16), and the sharp plate is already decoded behind the boot gate.
+  const [prev] = useState(() => (lastSrc && lastSrc !== plate.src && plate.veil === 'data' ? lastSrc : null));
   useEffect(() => { lastSrc = plate.src; }, [plate.src]);
   return (
     <div className="mbd" data-screen={screen} aria-hidden="true">

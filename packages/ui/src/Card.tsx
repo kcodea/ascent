@@ -5,7 +5,7 @@ import { damageMeterOf, type Keyword, type RiseTint, type Tribe } from '@game/co
 import { CARD_INDEX } from '@game/content';
 import { bindingFor } from './choreo/bindings';
 import type { StepProgress } from './cardText';
-import { formatStat } from './formatStat';
+import { formatStat, statFit } from './formatStat';
 import {
   beginEditCardArt, cardArtVars, cardArtVersion, editingCardArt, isPickingCardArt, subscribeCardArt,
 } from './cardArtConfig';
@@ -664,6 +664,10 @@ export const Card = memo(function Card({
   // allowed to print a negative stat.
   const shownAttack = held ? Math.max(0, card.attack - held.attack) : card.attack;
   const shownHealth = held ? Math.max(0, card.health - held.health) : card.health;
+  // The printed badge numbers (abbreviated from 100k) and their shrink-to-fit bucket (`statFit`): a 4+ glyph value
+  // steps its font down so it stays inside the badge's disc instead of spilling over it (owner report 2026-10-16).
+  const atkText = formatStat(shownAttack);
+  const hpText = formatStat(shownHealth);
   // Milestone tier of each SETTLED stat (0 = below the first threshold → no frame; 1..5 → a frame disc). Drives
   // the badge frame art AND the data-milestone attribute below.
   const atkMs = tierOf('attack', card.attack);
@@ -1302,14 +1306,14 @@ export const Card = memo(function Card({
               {atkMs >= 1 && <span className="mstint" aria-hidden="true" />}
               {atkMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('atk', atkMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
-              <span className="value">{formatStat(shownAttack)}</span>
+              <span className="value" data-fit={statFit(atkText)}>{atkText}</span>
             </span>
             <span ref={hpPopRef} data-milestone={hpMs} className={`badge hp${statCls(shownHealth, card.baseHealth, card.floorHealth)}`}>
               {hpMs >= 1 && <span className="msglow" aria-hidden="true" />}
               {hpMs >= 1 && <span className="mstint" aria-hidden="true" />}
               {hpMs >= 1 && <FadeImg className="msframe" src={msFrameSrc('hp', hpMs)} alt="" aria-hidden="true" />}
               <span className="plate" aria-hidden="true" />
-              <span className="value">{formatStat(shownHealth)}</span>
+              <span className="value" data-fit={statFit(hpText)}>{hpText}</span>
             </span>
             {/* mechanic medallion — the card's primary mechanic glyph, eclipsing the arch's base centre. Rendered
                 ONLY when a mechanic resolves: no icon → no gem at all (owner ask 2026-09-22), never an empty circle.

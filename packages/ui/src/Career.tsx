@@ -515,7 +515,6 @@ function HeroTile({ h }: { h: HeroCareer }) {
 
 export function Career() {
   const show = useGame((s) => s.showCareer);
-  const close = useGame((s) => s.closeCareer);
   const playerName = useGame((s) => s.playerName);
   const profile = useGame((s) => s.profile);
   const careerOf = useGame((s) => s.careerOf); // null = your own career
@@ -648,7 +647,6 @@ export function Career() {
 
   if (!show) return null;
 
-  const back = (): void => { sfx.pulse(); close(); };
   const shownName = viewing ? (viewing.author || tempHandle(viewing.userId)) : (playerName || tempHandle(myId));
 
   // Watch a listed run back: the join already resolved the telemetry row id, so this is the same one-row
@@ -901,9 +899,9 @@ export function Career() {
 
   return (
     <SidebarHost className="lbpage cv2-page">
-      {/* Back + the main menu live in the left sidebar (owner ask 2026-09-21). Back keeps this page's own
-          close, so a Career opened from the Leaderboard still returns there. */}
-      <MenuSidebar current="career" onBack={back} />
+      {/* The main menu lives in the left sidebar (owner ask 2026-09-21); since the WS-2 regroup its ASCENT mark
+          goes home and the rail itself replaces Back (a Career opened from the Leaderboard: the Leaderboard plaque). */}
+      <MenuSidebar current="career" />
       <div className="lbtopbar">
         {/* THE NAME HEADER (owner ask 2026-09-28: "the player's name and title should be at the top of the career
             page and more obvious ... dont push everything down much at all"): a small "Career" kicker, then the

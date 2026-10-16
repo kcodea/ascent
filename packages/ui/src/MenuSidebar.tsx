@@ -1,11 +1,9 @@
 /**
  * THE MENU SIDEBAR (owner ask 2026-09-21) — a ~240px column pinned to the left edge of every ladder page
  * (Career, Leaderboard, Hall of Champions, Recent Games) and of the title's mode picker + Learn hub, so the
- * player can jump between them without returning to the title. Back sits top-left (each host keeps its own
- * Back semantics: a page closes itself, so a Career opened from the Leaderboard still returns there; the
- * mode picker backs out to the main menu, the Learn hub to the picker), and the menu plaques stack
- * vertically centred in the remaining height: Play · Career · Leaderboard · Hall of Champions · Recent
- * Games · Collection (once crates are live, 2026-09-28) · Settings. Since 2026-09-21 the TITLE folds the four ladder pages into one SOCIAL plaque (which
+ * player can jump between them without returning to the title. Since the WS-2 regroup (2026-10-16) the top of
+ * the column is the ASCENT mark, which goes home to the main menu (it replaced the Back pill), then Play, then
+ * the PROGRESS and COMMUNITY groups, with Settings at the foot (see `MenuSidebar` below). Since 2026-09-21 the TITLE folds the four ladder pages into one SOCIAL plaque (which
  * opens Career through `openCareer()`, NOT `goTo`, so it carries no hop stamp and the page fades in whole);
  * this sidebar is where the four are reached from, so it keeps them listed one by one. The current
  * screen's plaque wears the title's blue (`.active`) and `aria-current="page"`.
@@ -19,9 +17,8 @@
  * plaque whose `::after` is the sheen), no `lb-` / `cv2-` classes, no `.lbtitle`, and no `scrollIntoView`.
  * No `cursor` on the plaques — the global `button` rule paints the gauntlet (CLAUDE.md).
  *
- * SOUND: the plaques pulse here; Back does NOT — the host's `onBack` owns the click sound along with the
- * close (every page's `back` already pulses; a second pulse from the sidebar doubled the clip — review
- * 2026-09-21).
+ * SOUND: every control here pulses once (the old Back left its sound to the host's close; Home is the
+ * sidebar's own, so it pulses itself — exactly once).
  *
  * THE HOP FADE: every host wears a page-level `fadein`. A sidebar hop unmounts the source host and mounts the
  * destination in one store write, so that fade re-faded the sidebar itself and showed the title through it.
@@ -36,6 +33,7 @@ import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
 import { navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
+import { TITLE_LOGO_SRC } from './AscentLogo';
 import { withAbandonWarning } from './rank/ratedRun';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { MenuBackdrop } from './MenuBackdrop';
@@ -63,7 +61,18 @@ export type SidebarCurrent = Exclude<MenuDest, 'menu'>;
 
 interface Item { dest: SidebarCurrent; label: string; icon: ReactNode }
 
-export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBack: () => void }) {
+/**
+ * THE RAIL, REGROUPED (UI refinement WS-2, 2026-10-16). Top to bottom:
+ *   - the ASCENT mark: HOME, back to the main menu (it replaces the Back pill; every page Back used to reach is
+ *     on the rail itself, so a separate Back was a second way to the same places);
+ *   - PLAY, the one primary action: larger, and the gold-filled plaque (the gold rule: Play is the only bright
+ *     filled gold on a menu screen; navigation stays navy with a bronze rim);
+ *   - PROGRESS: Career, Collection;
+ *   - COMMUNITY: Leaderboard, Hall of Champions, Recent Games, Live Games;
+ *   - Settings, pinned to the foot.
+ * Every destination is still one click from every page (Valorant 5.08 hid modes behind Play and had to revert).
+ */
+export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   const goTo = useGame((s) => s.goTo);
   const openSettings = useGame((s) => s.openSettings);
   const savedRun = useGame((s) => s.savedRun);
@@ -72,49 +81,66 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const newRewards = useHasNewRewards();
 
-  const items: Item[] = [
-    { dest: 'modes', label: txt.play, icon: <Crest /> },
+  const progress: Item[] = [
     { dest: 'career', label: txt.career, icon: <IconHelm /> },
+    ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <IconChest /> }] : []),
+  ];
+  const community: Item[] = [
     { dest: 'rankings', label: txt.leaderboard, icon: <IconTrophy /> },
     { dest: 'hall', label: txt.champions, icon: <Icon name="crown" /> },
     { dest: 'recent', label: 'Recent Games', icon: <Icon name="clock" /> },
     { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
-    ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <IconChest /> }] : []),
   ];
+
+  const plaque = (it: Item, extra = ''): JSX.Element => {
+    const active = it.dest === current;
+    const fresh = it.dest === 'collection' && newRewards;
+    return (
+      <button
+        key={it.dest}
+        className={`sbbtn${extra}${active ? ' active' : ''}${fresh ? ' hasnew' : ''}`}
+        aria-current={active ? 'page' : undefined}
+        onClick={() => { sfx.pulse(); goTo(it.dest); }}
+      >
+        <span className="mbicon">{it.icon}</span>
+        <span className="mblabel">{it.label}</span>
+        {fresh && <NewPill />}
+      </button>
+    );
+  };
+
+  const play = plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play');
 
   // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
     <>
     <MenuBackdrop screen={current} />
     <aside className="msb" aria-label="Menu">
-      <button className="lbback pressable msb-back" onClick={onBack}>← Back</button>
+      {/* HOME: the brand mark, back to the main menu. The tip rides the button (no sheen on it, so no ::after
+          clash); no native title. */}
+      <button className="msb-home" onClick={() => { sfx.pulse(); goTo('menu'); }} aria-label="Main menu" data-tip="Main menu">
+        <img className="msb-mark" src={TITLE_LOGO_SRC} alt="" draggable={false} decoding="sync" />
+        <span className="msb-word">{txt.wordmark}</span>
+      </button>
       <nav className="msb-nav" aria-label="Main menu">
-        {items.map((it) => {
-          const active = it.dest === current;
-          const fresh = it.dest === 'collection' && newRewards;
-          const btn = (
-            <button
-              key={it.dest}
-              className={`sbbtn${active ? ' active' : ''}${fresh ? ' hasnew' : ''}`}
-              aria-current={active ? 'page' : undefined}
-              onClick={() => { sfx.pulse(); goTo(it.dest); }}
-            >
-              <span className="mbicon">{it.icon}</span>
-              <span className="mblabel">{it.label}</span>
-              {fresh && <NewPill />}
-            </button>
-          );
-          // Play with a run saved: the same warning the title's Play carries, as a styled bubble on a WRAPPER
-          // (the plaque's own ::after is its sheen). Attribute text, not visible textContent.
-          return it.dest === 'modes' && savedRun
-            ? <div key={it.dest} className="msb-item" data-tip={withAbandonWarning('New run. Replaces your saved run.', savedRun)}>{btn}</div>
-            : btn;
-        })}
-        <button className="sbbtn" onClick={() => { sfx.pulse(); openSettings(); }}>
-          <span className="mbicon"><Icon name="gear" /></span>
-          <span className="mblabel">{txt.settings}</span>
-        </button>
+        {/* Play with a run saved: the same warning the title's Play carries, as a styled bubble on a WRAPPER
+            (the plaque's own ::after is its sheen). Attribute text, not visible textContent. */}
+        {savedRun
+          ? <div className="msb-item" data-tip={withAbandonWarning('New run. Replaces your saved run.', savedRun)}>{play}</div>
+          : play}
+        <div className="msb-group" role="group" aria-label="Progress">
+          <div className="msb-gh" aria-hidden="true">Progress</div>
+          {progress.map((it) => plaque(it))}
+        </div>
+        <div className="msb-group" role="group" aria-label="Community">
+          <div className="msb-gh" aria-hidden="true">Community</div>
+          {community.map((it) => plaque(it))}
+        </div>
       </nav>
+      <button className="sbbtn msb-settings" onClick={() => { sfx.pulse(); openSettings(); }}>
+        <span className="mbicon"><Icon name="gear" /></span>
+        <span className="mblabel">{txt.settings}</span>
+      </button>
     </aside>
     </>
   );

@@ -3,8 +3,8 @@ import { TunerPanel } from './TunerPanel';
 import type { TunerControl, TunerSpec } from './tunerSchema';
 
 /**
- * DEV-only Play-Screen Tuner — live Scale / Width / Height / X / Y for each mode card (Play, Learn, Practice) on
- * the MODE picker. Values drive `--mp-*` custom properties on `:root`, persist to localStorage, and apply at
+ * DEV-only Play-Screen Tuner — live pan + zoom of the art inside each mode tile on the MODE picker (the tiles
+ * themselves are a fixed grid since the WS-2 redesign, 2026-10-16). Values drive `--mp-*` custom properties on `:root`, persist to localStorage, and apply at
  * boot — all dev-gated, so production always runs the shipped layout. Mounted straight into the picker (dev
  * only), so it floats over the cards it edits with no DevMenu round-trip.
  *
@@ -23,7 +23,7 @@ const controls: TunerControl<string>[] = MODEPICK_VARS.map((v) => ({
 export const SPEC: TunerSpec<ModePickConfig> = {
   id: 'modepick',            // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Play Mode Screen Tuner',
-  note: 'dev · card scale + position',
+  note: 'dev · tile art pan + zoom',
   read: getModePick,
   write: setModePickValue,
   reset: resetModePick,

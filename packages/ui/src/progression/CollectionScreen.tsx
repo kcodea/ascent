@@ -85,7 +85,6 @@ export function CollectionScreen(): JSX.Element | null {
 const EMPTY: readonly string[] = [];
 
 export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): JSX.Element {
-  const close = useGame((s) => s.closeCollection);
   const mirror = useProgression((s) => s.mirror);
   const crateList = useProgression((s) => s.crateList);
   const cratesOn = useProgression(cratesVisible);
@@ -246,7 +245,6 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     sfx.pulse(); setCategory(c); setPicked(null); setDefaultShown(null); setHover(null); setError(null);
     setSeenFor((prev) => ({ ...prev, ...readSeen() })); // the tab you are leaving has been seen
   };
-  const back = (): void => { sfx.pulse(); close(); };
   const lp = levelProgress(me?.accountXp ?? 0);
   const name = playerName || tempHandle(userId);
   const live = categoryLive(category);
@@ -265,7 +263,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
-      <MenuSidebar current="collection" onBack={back} />
+      <MenuSidebar current="collection" />
       <div className="lbtopbar colls-top">
         <div className="lbtitle">
           <IconChest />

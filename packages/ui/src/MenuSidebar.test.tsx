@@ -2,11 +2,12 @@
 /**
  * THE MENU SIDEBAR (owner ask 2026-09-21) — jsdom renders of the four ladder pages (backend disabled, so each
  * paints its designed "unavailable" state; the sidebar is the subject) plus the store's `goTo`. Pins: the
- * sidebar renders inside every page's `.lbpage` with Back first and the eight plaques in the title's order;
+ * sidebar renders inside every page's `.lbpage` with the ASCENT mark (Home) first and the eight plaques in the
+ * regrouped order (Play; Progress: Career, Collection; Community: the four ladder pages; Settings at the foot);
  * the CURRENT page's plaque is the blue `.active` one and `aria-current="page"`; a plaque hop goes through
  * `goTo`, which closes EVERY page flag before opening the destination (the pages are z-470 siblings that
- * stack in DOM order, so a hop that only opened a flag would leave the current page painted on top); Back
- * keeps the page's own close (a Career over the Leaderboard backs out to the Leaderboard); Settings opens the
+ * stack in DOM order, so a hop that only opened a flag would leave the current page painted on top); Home (which replaced Back in the WS-2 regroup, 2026-10-16) goes to the main menu with
+ * every page closed and pulses once; Settings opens the
  * store's modal flag; Play opens the mode picker view; `openTitle` lands on the main menu. What must NOT be
  * there: any `title=` attribute (the owner banned native tooltips — Career.test asserts none page-wide), any
  * `scrollIntoView` call from the sidebar, and any `lb-` / `cv2-` class on it.
@@ -30,7 +31,7 @@ import { sfx } from './sfx';
 import { useGame } from './store';
 
 // Collection (2026-09-28) shows once crates are live, and always in DEV builds, which is what this test runs as.
-const LABELS = ['Play', 'Career', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Live Games', 'Collection', 'Settings'];
+const LABELS = ['Play', 'Career', 'Collection', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Live Games', 'Settings'];
 const PAGES_CLOSED = { showRankings: false, showLeaderboard: false, showRecentGames: false, showCareer: false, careerOf: null } as const;
 const flagsOf = () => {
   const s = useGame.getState();
@@ -58,20 +59,24 @@ describe('the sidebar on each ladder page', () => {
     ['Recent Games', () => <RecentGames />, { showRecentGames: true }, 'Recent Games'],
   ];
   for (const [name, render, open, active] of cases) {
-    it(`${name}: renders inside .lbpage with Back first, the eight plaques in the title's order, and its own plaque current`, () => {
+    it(`${name}: renders inside .lbpage with Home first, the eight plaques in the rail's order, and its own plaque current`, () => {
       useGame.setState(open);
       ui = mount(render());
       const page = ui.container.querySelector('.lbpage');
       expect(page).not.toBeNull();
       const sb = page!.querySelector('.msb');
       expect(sb, 'the sidebar lives inside the page shell').not.toBeNull();
-      expect(sb!.firstElementChild?.classList.contains('lbback')).toBe(true);
+      expect(sb!.firstElementChild?.classList.contains('msb-home')).toBe(true);
+      // The groups are labelled for assistive tech; Play leads, Settings sits at the foot, outside the nav.
+      expect([...sb!.querySelectorAll('.msb-group')].map((g) => g.getAttribute('aria-label'))).toEqual(['Progress', 'Community']);
+      expect(sb!.querySelector('.msb-nav .sbbtn')?.classList.contains('sb-play')).toBe(true);
+      expect(sb!.lastElementChild?.classList.contains('msb-settings')).toBe(true);
       expect(labels(sb!)).toEqual(LABELS);
       expect(current(sb!)).toBe(active);
       expect(sb!.querySelectorAll('.sbbtn.active')).toHaveLength(1);
       expect(sb!.querySelector('.sbbtn.active')?.getAttribute('aria-current')).toBe('page');
-      // The old top-bar Back is gone — Back lives in the sidebar only; the page title still leads the top bar.
-      expect(page!.querySelectorAll('.lbback')).toHaveLength(1);
+      // No Back pill anywhere (the rail reaches every page it used to); the page title still leads the top bar.
+      expect(page!.querySelectorAll('.lbback')).toHaveLength(0);
       expect(page!.querySelector('.lbtopbar')?.firstElementChild?.classList.contains('lbtitle')).toBe(true);
       // Nothing native, nothing borrowed from the pages' pinned classes, and no scroll-into-view of its own.
       expect(sb!.querySelector('[title]')).toBeNull();
@@ -122,18 +127,26 @@ describe('navigation', () => {
     expect(flagsOf()).toEqual(PAGES_CLOSED);
   });
 
-  it('Back keeps the page\'s own close: a Career opened over the Leaderboard backs out to the Leaderboard', () => {
+  it('Home (the ASCENT mark) goes to the main menu with every page closed, even a Career stacked over the Leaderboard', () => {
+    useGame.setState({ titleView: 'modes', showRankings: true, showCareer: true, careerOf: { userId: 'u-x', author: 'Mika', rating: 700, gamesPlayed: 3 } });
+    ui = mount(<Career />);
+    click(ui.container.querySelector('.msb .msb-home'));
+    expect(flagsOf()).toEqual(PAGES_CLOSED);
+    expect(useGame.getState().titleView).toBe('menu');
+  });
+
+  it('the Leaderboard is still one click from a Career opened over it (the rail replaces Back)', () => {
     useGame.setState({ showRankings: true, showCareer: true, careerOf: { userId: 'u-x', author: 'Mika', rating: 700, gamesPlayed: 3 } });
     ui = mount(<Career />);
-    click(ui.container.querySelector('.msb .lbback'));
+    click([...ui.container.querySelectorAll('.sbbtn')].find((b) => b.textContent?.trim() === 'Leaderboard'));
     expect(flagsOf()).toEqual({ ...PAGES_CLOSED, showRankings: true });
   });
 
-  it("Back pulses ONCE: the host's close owns the click sound, the sidebar adds none (review 2026-09-21)", () => {
+  it('Home pulses ONCE (it is the sidebar\'s own control now)', () => {
     const pulse = vi.spyOn(sfx, 'pulse').mockImplementation(() => {});
     useGame.setState({ showRankings: true });
     ui = mount(<Rankings />);
-    click(ui.container.querySelector('.msb .lbback'));
+    click(ui.container.querySelector('.msb .msb-home'));
     expect(pulse).toHaveBeenCalledTimes(1);
     expect(flagsOf()).toEqual(PAGES_CLOSED);
   });

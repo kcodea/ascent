@@ -54,7 +54,6 @@ export const loadRecentPractice = (): Promise<PracticeGameRow[]> => fetchPractic
 
 export function RecentGames(): JSX.Element | null {
   const show = useGame((s) => s.showRecentGames);
-  const close = useGame((s) => s.closeRecentGames);
   const openCareer = useGame((s) => s.openCareer);
   const myId = useGame((s) => s.account.userId);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins);
@@ -74,7 +73,6 @@ export function RecentGames(): JSX.Element | null {
   }, [show]);
 
   if (!show) return null;
-  const back = (): void => { sfx.pulse(); close(); };
   const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); };
   const practice = tab === 'practice';
   const shown: Array<RecentGameRow | PracticeGameRow> | null = practice ? practiceRows : rows;
@@ -120,7 +118,7 @@ export function RecentGames(): JSX.Element | null {
 
   return (
     <SidebarHost className="lbpage lb-ladder rg-page">
-      <MenuSidebar current="recent" onBack={back} />
+      <MenuSidebar current="recent" />
       <div className="lbtopbar">
         <div className="lbtitle">
           <Icon name="clock" />

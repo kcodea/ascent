@@ -50,6 +50,11 @@
   --ink: #2a2017; --ink2: #6c5d48; --ink3: #9c8b71;
   --acc: #f0902e; --acc-dk: #c46f17; --threat: #e5446b; --threat-dk: #b32c50; --shadow: rgba(90, 66, 30, 0.16);
   --gold: #c8922e; --gold-lt: #e6b45a; /* HUD plaque trim (matches the shopbutton frame) */
+  /* THE GOLD RULE (UI refinement 2026-10-16): Play is the ONE bright filled-gold control on a menu screen (the
+     title's primary plaque, the rail's Play, the mode picker's Play). Navigation, frames and headers stay navy with
+     a muted bronze rim; Legendary and 1st place keep gold but always with their own shape or icon. */
+  --cta-face: linear-gradient(180deg, #ffe9ad 0%, #f3c96a 36%, #dba446 68%, #bb8532 100%);
+  --cta-edge: #7d5619; --cta-ink: #2a1a06; --cta-depth: #5f3f12;
   /* Tier palette — one source of truth for the card tier badges + the SHOP TIER label. */
   --tier-1: #74809a; --tier-2: #1f9d6b; --tier-3: #2b82d4; --tier-4: #7b54c8; --tier-5: #ef8a25; --tier-6: #e0395f;
   /* Tier 7 — Summit rift only. Rift-purple, deliberately outside the 1-6 ramp so it reads as "beyond the ladder". */
@@ -6373,18 +6378,19 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .avatarpick-close { position: relative; --pr-edge: 3px; --pr-edge-c: rgba(0, 0, 0, 0.45); }
 
 /* Active (Play) — the brighter blue call-to-action from the mockup. */
-.menubtn.active { background: linear-gradient(180deg, #3f7fc4, #245a97); border-color: rgba(150, 200, 245, 0.9); color: #fff;
+.menubtn.active { background: var(--cta-face); border-color: var(--cta-edge); color: var(--cta-ink);
   /* Thickness in its OWN darkened hue (the rule every primary control in the game follows), plus a neutral
      contact shadow. This replaces a soft blue bloom: a glow says "look at me", an edge says "push me", and
      for the one control the player is meant to hit, the second is the right sentence.
      `.menubtn.active` is later in the file than `.menubtn:active` and ties it on specificity, so the press
      state below MUST be re-stated at `.menubtn.active:active` or the primary button never compresses. */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 0 0 1px rgba(120, 175, 255, 0.35),
-              0 4px 0 #173f6b, 0 9px 18px -9px rgba(0, 0, 0, 0.6); }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(120, 70, 10, 0.25),
+              0 4px 0 var(--cta-depth), 0 9px 18px -9px rgba(0, 0, 0, 0.6); }
 .menubtn.active:active, .menubtn.active:hover:active {
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(120, 175, 255, 0.3),
-              0 1px 0 #173f6b, 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
-.menubtn.active .mbicon { color: #fff; }
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -2px 0 rgba(120, 70, 10, 0.25),
+              0 1px 0 var(--cta-depth), 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
+.menubtn.active:hover { border-color: var(--cta-edge); }
+.menubtn.active .mbicon, .menubtn.active:hover .mbicon { color: var(--cta-ink); }
 .menubtn.active .mblabel { font-weight: 900; }
 .menubtn.disabled { opacity: 0.62; }
 .menubtn.disabled:hover { transform: none; filter: none; border-color: rgba(196, 160, 92, 0.6); cursor: url('/cursors/gauntlet_default.svg') 6 2, not-allowed; }
@@ -7306,13 +7312,28 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
 /* The picker SCROLLS as a whole on a short viewport (`.modepick { overflow-y: auto }`), so its sidebar is fixed
    to the viewport rather than absolute in the scroller — it would scroll away with the cards otherwise. */
 .modepick.sb-host .msb { position: fixed; }
-/* Back top-left: the page's .lbback pill, unchanged. */
-.msb .msb-back { align-self: flex-start; }
+/* HOME (WS-2, 2026-10-16): the ASCENT mark at the top of the column, back to the main menu. It fills the space that
+   used to sit empty above the plaques and replaces the Back pill. Hover lifts the mark (transform, one-shot). */
+.msb-home { display: flex; align-items: center; gap: 10px; align-self: stretch; padding: 4px 6px 10px; margin: 0 0 2px;
+  background: none; border: none; border-bottom: 1px solid rgba(196, 160, 92, 0.28); border-radius: 0; color: #f6efe2; }
+.msb-mark { width: 46px; height: 46px; object-fit: contain; flex: none; filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+  transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.msb-word { font-family: var(--title-font, var(--font-title)); font-weight: 700; font-size: 27px; letter-spacing: 0.1em; line-height: 1;
+  text-shadow: 0 2px 3px rgba(0, 0, 0, 0.6); }
+.msb-home:hover .msb-mark { transform: translateY(-2px) scale(1.04); }
+.msb-home:active .msb-mark { transform: scale(0.96); transition-duration: 0.05s; }
+.msb-home:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
+/* The two groups: a quiet bronze caption (12px floor, the WS-4 label minimum) over each group's plaques. */
+.msb-group { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.msb-gh { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(222, 196, 140, 0.72); padding: 0 4px; }
+/* Settings sits at the foot of the column, apart from the destinations. */
+.msb-settings { flex: none; }
 /* The main menu, vertically centred in the height left under Back. `safe` so a stack taller than the column
    (a short window) aligns to the top under Back instead of overflowing both ends into it; NOT a scroll
    container — that would clip the plaques' shadows and the Play bubble beside the column — the plaques compact
    on a short viewport instead (below). */
-.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center; gap: 10px; }
+.msb-nav { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: safe center; gap: 8px; }
 .msb-item, .tn-item { display: block; }
 /* The compact plaque — the title's `.menubtn` language (navy plaque, gold rim, 4px hard edge, lamp-catch sheen,
    press compresses) sized for the column: 15px label, a 28px icon cell, full sidebar width minus the gutters.
@@ -7320,7 +7341,7 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    No `cursor` — the global button rule paints the gauntlet. Long labels (HALL OF CHAMPIONS) wrap to two
    lines; the min-height is that two-line plaque's height (2 × 16.5 + 20 padding + 3 border) so every plaque is
    the same height and the stack stays even. */
-.sbbtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; padding: 10px 12px; border-radius: 9px; text-align: left;
+.sbbtn { position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 12px; border-radius: 9px; text-align: left;
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
   color: #e7d9b5; transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
@@ -7352,6 +7373,16 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 0 0 1px rgba(120, 175, 255, 0.3), 0 1px 0 #173f6b, 0 3px 8px -6px rgba(0, 0, 0, 0.6); }
 .sbbtn.active .mbicon, .sbbtn.active:hover .mbicon { color: #fff; }
 .sbbtn.active .mblabel { font-weight: 900; }
+/* PLAY on the rail (WS-2): the primary plaque, larger, and the gold face (the gold rule). On the mode picker it is
+   the current page, so it wears the blue current-page plaque instead and the picker's own Play keeps the gold. */
+.sbbtn.sb-play { min-height: 64px; margin-bottom: 4px; }
+.sbbtn.sb-play .mblabel { font-size: 20px; letter-spacing: 0.14em; font-weight: 900; }
+.sbbtn.sb-play .mbicon .crest { font-size: 26px; }
+.sbbtn.sb-play:not(.active) { background: var(--cta-face); border-color: var(--cta-edge); color: var(--cta-ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 4px 0 var(--cta-depth), 0 9px 18px -9px rgba(0, 0, 0, 0.7); }
+.sbbtn.sb-play:not(.active):hover { border-color: var(--cta-edge); filter: brightness(1.06); }
+.sbbtn.sb-play:not(.active):active, .sbbtn.sb-play:not(.active):hover:active {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 0 var(--cta-depth), 0 3px 8px -6px rgba(0, 0, 0, 0.75); }
 @media (prefers-reduced-motion: reduce) {
   .sbbtn:hover::after { animation: none; }
   .sbbtn { transition: filter 0.1s ease, border-color 0.1s ease; }
@@ -8487,52 +8518,63 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .mcframe[data-mode='soon'] { background: radial-gradient(120% 100% at 50% 0%, #2a2f3a 0%, #191d24 60%, #10131a 100%); }
 .mcframe[data-mode='gauntlet'] { background: radial-gradient(120% 100% at 50% 0%, #63221e 0%, #331210 60%, #200a0a 100%); }
 
-/* WIDE mode card — a 21:9 banner (PlayMode2 / LearnMode art is 1916×821). The frame keeps the same gold border
-   and eclipsing name pill; only its footprint changes. `mpbox` stacks two `.mprow`s (Play; then Learn+Practice),
-   so a wide card sits naturally on its own line beside nothing or beside the square Practice tile. */
-/* PLAY-SCREEN TUNER hooks — Scale / Width / Height / X / Y live on the `.modecard` (the BUTTON itself), so its
-   HIT AREA and `:hover` move with the visual. (Putting the transform on the inner frame moved the art but left
-   the clickable box behind, so hovering one card selected another.) The frame fills the card; the art pan/zoom
-   stays on the frame's own art layer. Fallbacks = the shipped layout, so production (vars unset) matches. */
-.modecard[data-mp] { width: auto; padding: 0; }
-.modecard[data-mp='play'] {
-  width: var(--mp-play-w, 660px); height: var(--mp-play-h, 284px);
-  transform: translate(var(--mp-play-x, -160px), var(--mp-play-y, 18px)) scale(var(--mp-play-s, 0.84));
-}
-.modecard[data-mp='learn'] {
-  width: var(--mp-learn-w, 880px); height: var(--mp-learn-h, 128px);
-  transform: translate(var(--mp-learn-x, 177px), var(--mp-learn-y, 255px)) scale(var(--mp-learn-s, 1));
-}
-.modecard[data-mp='practice'] {
-  width: var(--mp-practice-w, 306px); height: var(--mp-practice-h, 284px);
-  transform: translate(var(--mp-practice-x, -160px), var(--mp-practice-y, -266px)) scale(var(--mp-practice-s, 0.84));
-}
-/* GAUNTLET — a third row under Learn, same 880×128 banner footprint. Alone in its row it lays out centred, one
-   row below Learn's layout box; the fallbacks lift it to sit ~44px under Learn's visual edge, lined up with it. */
-.modecard[data-mp='gauntlet'] {
-  width: var(--mp-gauntlet-w, 880px); height: var(--mp-gauntlet-h, 128px);
-  transform: translate(var(--mp-gauntlet-x, 6px), var(--mp-gauntlet-y, -203px)) scale(var(--mp-gauntlet-s, 1));
-}
-.modecard[data-mp='versus'] {
-  width: var(--mp-versus-w, 880px); height: var(--mp-versus-h, 128px);
-  transform: translate(var(--mp-versus-x, 6px), var(--mp-versus-y, 16px)) scale(var(--mp-versus-s, 1));
-}
-/* The frame fills the (sized) card; no per-frame transform now (that's on the card). */
-.mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; }
-
-/* ART CLIP — the card art now lives in an overflow-clipped wrapper so it can be panned / zoomed INSIDE the
-   frame (via the tuner's Art X / Y / Scale) without spilling past the rounded edge. */
+/* ── THE MODE PICKER GRID (UI refinement WS-2, 2026-10-16) — one fixed grid over the painted hall: PLAY (the ranked
+   lobby) is the large 21:9 tile with the gold call to action; Practice and Versus stack beside it; Gauntlet and
+   Learn share the row below. Sizes are 1080p stage px inside `.mpbox` (which zooms with the stage). The tiles never
+   move, so the "Last played" tag (`.mclast`) marks the habit instead. Hover = a 4px lift + a glow ring whose
+   OPACITY fades (the ring's shadow is static, the `kwglow` pattern); nothing loops. The art pan/zoom vars are the
+   dev Play Mode Screen tuner's (modePickConfig.ts); fallbacks are neutral. ── */
+.mpgrid { display: grid; grid-template-columns: 940px 432px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 62px; }
+.mc-hero { grid-area: hero; }
+.mpside { grid-area: side; display: flex; flex-direction: column; gap: 46px; }
+.mprow2 { grid-area: row; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+.modecard[data-mp] { width: auto; padding: 0; position: relative; transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1); }
+.modecard.mc-hero { height: 403px; }
+.mpside > .modecard { flex: 1 1 0; min-height: 0; }
+.mprow2 > .modecard { height: 170px; }
+.modecard[data-mp]:hover { transform: translateY(-4px); }
+.mcframe[data-mp] { width: 100%; height: 100%; aspect-ratio: auto; margin-bottom: 0; transform: none; border-width: 2px;
+  border-color: rgba(214, 178, 108, 0.85); box-shadow: inset 0 0 0 2px rgba(0, 0, 0, 0.35), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.mcframe[data-mp='play'] { border-width: 3px; border-color: var(--gold-lt); }
+/* The hover ring: a static shadow on a pseudo whose opacity fades in. */
+.mcframe[data-mp]::after { content: ''; position: absolute; inset: -4px; border-radius: 31px; pointer-events: none; z-index: 1;
+  box-shadow: 0 0 0 2px rgba(255, 226, 160, 0.9), 0 0 26px 2px rgba(255, 196, 96, 0.4); opacity: 0; transition: opacity 0.16s ease-out; }
+.modecard[data-mp]:hover .mcframe::after, .modecard[data-mp]:focus-visible .mcframe::after { opacity: 1; }
+/* The description is always on show along the bottom over a STATIC dark gradient (no hover-gated blur). */
+.mcframe[data-mp] .mcdesc { inset: auto 0 0 0; height: auto; display: block; padding: 34px 22px 16px; border-radius: 0 0 25px 25px;
+  font-family: var(--font-ui); font-size: 17px; font-weight: 700; line-height: 1.25; text-align: left; color: rgba(255, 246, 228, 0.94);
+  background: linear-gradient(180deg, rgba(4, 8, 18, 0) 0%, rgba(4, 8, 18, 0.72) 48%, rgba(4, 8, 18, 0.88) 100%);
+  opacity: 1; -webkit-backdrop-filter: none; backdrop-filter: none; transition: none; }
+.modecard[data-mp]:hover .mcdesc { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.mcframe[data-mp='play'] .mcdesc { padding: 60px 28px 54px; font-size: 21px; text-align: center; }
+.mcframe[data-mp] .mcname { font-size: 23px; padding: 3px 22px; }
+/* PLAY's call to action: the one gold-filled control, eclipsing the bottom edge (the name pill's eclipse, on the
+   other edge, so the eye reads it as the button). Not a `.hudpill-name`, so the Gem look leaves it gold. */
+.mcframe[data-mp] .mcname.mc-cta { top: auto; bottom: 0; transform: translate(-50%, 50%); display: inline-flex; align-items: center; gap: 12px;
+  font-size: 36px; font-weight: 900; letter-spacing: 0.16em; text-transform: uppercase; padding: 8px 54px 8px 44px;
+  background: var(--cta-face); color: var(--cta-ink); border: 2px solid var(--cta-edge); text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
+.mcframe[data-mp] .mcname.mc-cta .crest { font-size: 34px; }
+.modecard.mc-hero:active .mc-cta { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 var(--cta-depth), 0 6px 12px -8px rgba(0, 0, 0, 0.8); }
+/* "Last played": a small plate in the top-right corner, the UI theme's own plate (no new chrome). */
+.mclast { position: absolute; top: 14px; right: 14px; z-index: 3; padding: 4px 12px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  border: 1.5px solid transparent; background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+/* The art inside each tile, pannable from the dev tuner. Versus's square art keeps its focal height. */
 .mcart-clip { position: absolute; inset: 0; border-radius: 25px; overflow: hidden; }
 .mcart-clip .mcframe-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
 .mcframe[data-mp='play'] .mcframe-art { transform: translate(var(--mp-play-artx, 0px), var(--mp-play-arty, 0px)) scale(var(--mp-play-arts, 1)); }
-.mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 3px)) scale(var(--mp-learn-arts, 1.02)); }
-.mcframe[data-mp='practice'] .mcframe-art { transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
+.mcframe[data-mp='learn'] .mcframe-art { transform: translate(var(--mp-learn-artx, 0px), var(--mp-learn-arty, 0px)) scale(var(--mp-learn-arts, 1)); }
+.mcframe[data-mp='practice'] .mcframe-art { object-position: 50% 22%; transform: translate(var(--mp-practice-artx, 0px), var(--mp-practice-arty, 0px)) scale(var(--mp-practice-arts, 1)); }
 .mcframe[data-mp='gauntlet'] .mcframe-art { transform: translate(var(--mp-gauntlet-artx, 0px), var(--mp-gauntlet-arty, 0px)) scale(var(--mp-gauntlet-arts, 1)); }
-.mcframe[data-mp='versus'] .mcframe-art { object-position: 50% var(--mp-versus-focus, 30%); transform: translate(var(--mp-versus-artx, 0px), var(--mp-versus-arty, 0px)) scale(var(--mp-versus-arts, 1)); }
-.mcframe[data-mp='versus'] .mcemblem { width: 84px; height: 84px; }
-/* The banner is only 128px tall, so the fallback emblem shrinks to fit inside it. */
-.mcframe[data-mp='gauntlet'] .mcemblem { width: 84px; height: 84px; }
+.mcframe[data-mp='versus'] .mcframe-art { object-position: 50% var(--mp-versus-focus, 40%); transform: translate(var(--mp-versus-artx, 0px), var(--mp-versus-arty, 0px)) scale(var(--mp-versus-arts, 1)); }
+.mcframe[data-mp] .mcemblem { width: 84px; height: 84px; }
 .mcframe[data-mode='gauntlet'] .mcemblem svg { color: #f0c9b8; }
+@media (prefers-reduced-motion: reduce) {
+  .modecard[data-mp], .mcframe[data-mp]::after { transition: none; }
+  .modecard[data-mp]:hover { transform: none; }
+}
 
 /* ── GAUNTLET STAGE SELECT (`gauntlet/StageSelect.tsx`) — ten framed slots, five to a row, in the mode-card
    idiom (gold border, dark tint, cream name). No per-slot `cursor` — the global button rule paints the game
@@ -8591,7 +8633,14 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 }
 
 /* MODE title — scale + nudge from the tuner (fallbacks = shipped: no-op). */
-.mptitle { transform: translate(var(--mp-title-x, 0px), var(--mp-title-y, -30px)) scale(var(--mp-title-s, 1.23)); }
+/* The picker's heading row (WS-2): a quiet left-aligned title, with a crumb back to the picker on its sub-views. */
+.mphead { align-self: stretch; display: flex; align-items: baseline; gap: 12px; margin: 0 0 40px; }
+.mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; color: #f6efe2;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.75); }
+.mpcrumb { font-family: var(--font-ui); font-weight: 800; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(222, 196, 140, 0.85); background: none; border: none; padding: 0; text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
+.mpcrumb:hover { color: #ffe2a0; }
+.mpsep { font-family: var(--font-ui); font-size: 22px; color: rgba(222, 196, 140, 0.5); }
 
 /* DevMenu-hosted tuners float via useDraggablePanel (z 600+), above the mode picker (z 400) — no extra z hook
    needed. The Play Mode Screen tuner lives in the Dev tuning menu now, not an inline pill. */
@@ -11884,11 +11933,11 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
    `title=`) is the same stack with the same problem, so it shares these rules; so does the Continue row's
    discard button (`.clearrun`), whose hover `filter` + `transform` make it a stacking context, so a bubble
    BELOW it painted under the Play plaque — to the right there is nothing to hide behind. */
-.msb .msb-item[data-tip]::after, .titlenav .tn-item[data-tip]::after, .continuerow .clearrun[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
-.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after,
+.msb .msb-item[data-tip]::after, .msb .msb-home[data-tip]::after, .titlenav .tn-item[data-tip]::after, .continuerow .clearrun[data-tip]::after { left: calc(100% + 12px); top: 50%; transform: translateY(-50%) translateX(-4px); }
+.msb .msb-item[data-tip]:hover::after, .msb .msb-item[data-tip]:focus-visible::after, .msb .msb-home[data-tip]:hover::after, .msb .msb-home[data-tip]:focus-visible::after, .msb .msb-home[data-tip].tt-on::after,
 .titlenav .tn-item[data-tip]:hover::after, .titlenav .tn-item[data-tip]:focus-visible::after,
 .continuerow .clearrun[data-tip]:hover::after, .continuerow .clearrun[data-tip]:focus-visible::after, .msb .msb-item[data-tip].tt-on::after, .titlenav .tn-item[data-tip].tt-on::after, .continuerow .clearrun[data-tip].tt-on::after { transform: translateY(-50%) translateX(0); }
-.msb .msb-item[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); }
+.msb .msb-item[data-tip]::before, .msb .msb-home[data-tip]::before, .titlenav .tn-item[data-tip]::before, .continuerow .clearrun[data-tip]::before { left: calc(100% + 7px); top: 50%; transform: translateY(-50%) rotate(45deg); }
 
 
 /* ══ SHOP → COMBAT → SHOP (owner ask 2026-08-25) ═════════════════════════════════════════════════════════

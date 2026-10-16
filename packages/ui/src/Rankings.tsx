@@ -77,7 +77,6 @@ export const loadRankings = async (): Promise<RankedRow[]> => {
 
 export function Rankings() {
   const show = useGame((s) => s.showRankings);
-  const close = useGame((s) => s.closeRankings);
   const myId = useGame((s) => s.account.userId);
   const showOppCosmetics = useGame((s) => s.showOpponentSkins); // other players' titles ride the same switch
   const openCareer = useGame((s) => s.openCareer);
@@ -100,11 +99,10 @@ export function Rankings() {
   // Medal ranks on the table → the rating cell is the crest + bar, and the MMR number gets its own column.
   const ranked = !!rows?.some((r) => rankOfRow(r));
 
-  const back = (): void => { sfx.pulse(); close(); };
 
   return (
     <SidebarHost className="lbpage rankpage lb-ladder">
-      <MenuSidebar current="rankings" onBack={back} />
+      <MenuSidebar current="rankings" />
       <div className="lbtopbar">
         <div className="lbtitle">
           <Icon name="crown" />

@@ -98,7 +98,7 @@ const settle = async (): Promise<void> => { await act(async () => { await Promis
 const clean = (): void => { expect(document.body.textContent).not.toMatch(/[—–]/); expect(document.querySelector('[title]')).toBeNull(); };
 
 describe('the Collection screen: routing', () => {
-  it('the store flag (title plaque, sidebar, Career card) mounts it; Back closes it and returns to the Career', () => {
+  it('the store flag (title plaque, sidebar, Career card) mounts it; the rail\'s Career plaque returns to the Career', () => {
     useProgression.setState({ capability: 'on', cratesCapability: 'on', crateList, mirror: { userId: 'u-1', ...profile() } });
     ui = mount(<CollectionScreen />);
     expect($('.colls-page')).toBeNull();
@@ -108,7 +108,7 @@ describe('the Collection screen: routing', () => {
     act(() => { useGame.getState().goTo('career'); });
     expect($('.colls-page')).toBeNull();
     act(() => { useGame.getState().openCareer(); useGame.getState().openCollection(); });
-    act(() => $('.msb-back')!.click());
+    act(() => ([...document.querySelectorAll<HTMLButtonElement>('.msb .sbbtn')].find((b) => b.textContent?.trim() === 'Career'))!.click());
     expect(useGame.getState().showCollection).toBe(false);
     expect(useGame.getState().showCareer).toBe(true);
   });

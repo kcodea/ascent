@@ -8801,8 +8801,11 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    rank/rankedEntry.ts mirrors `rc-out`'s 160ms). */
 .rankedconfirm-ov { position: fixed; inset: 0; z-index: 401; display: grid; place-items: center; padding: 24px; }
 .rankedconfirm-veil {
-  position: absolute; inset: 0; background: rgba(3, 7, 16, 0.6);
-  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  /* The PRE-BLURRED hall (UI refinement WS-7, 2026-10-16; owner-approved swap): the same plate the mode picker sits
+     on, baked blurred + darkened (scripts/build-menu-backdrop.mjs), under a navy tint. It replaced a live full-screen
+     backdrop blur, which re-blurred the whole stage every frame of the fade; now only its OPACITY animates. */
+  position: absolute; inset: 0;
+  background: linear-gradient(rgba(3, 7, 16, 0.45), rgba(3, 7, 16, 0.45)), url('/backdrops/hall-dim.webp') center / cover no-repeat;
   animation: rc-veil 0.26s ease-out both;
 }
 .rankedconfirm-ov .rankedconfirm { transform-origin: 50% 50%; animation: rc-pop 0.44s cubic-bezier(0.22, 1, 0.36, 1) both; }
@@ -11226,7 +11229,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
 }
 /* Tuner-positioned cards carry a big translate/scale of their own — a press transform would drop it and make the
    card LEAP to its flex slot. So they get a brightness-only press (no transform, no jump). */
-.modecard[data-mp]:active { filter: brightness(0.92); transition-duration: 0.07s; }
+.modecard[data-mp]:active, .modecard[data-mp]:hover:active { transform: translateY(-1px) scale(0.975); filter: brightness(0.94); transition-duration: 0.06s; }
 
 /* (The Compendium's keyword chip + glossary row press states live in compendium.css.) */
 
@@ -13202,3 +13205,32 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   border: 32px solid transparent; border-image: url('/frames/compendium-frame.webp') 270 stretch; }
 /* LIST panels stay as they are (navy + thin bronze rim). INSET panels: a darker well with no rim. */
 .cv2-trend { border-top-color: rgba(255, 255, 255, 0.06); }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-7 MOTION (UI refinement, 2026-10-16) — one-shot, transform + opacity only, under 400 ms, nothing loops.
+   Enter = decelerate cubic-bezier(0,0,0.2,1). Mode tiles and Leaderboard rows arrive with a short stagger
+   (30-40 ms a step, capped ~300 ms); the podium cards rise; the player strip settles in first. Press is on
+   pointerdown (`:active`): tiles compress to 0.975, the menu plaques already do. Reduced motion: none of it.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+@keyframes menu-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.mp-home .pstrip { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) both; }
+.mp-home .mpgrid .mc-hero { animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) 0.04s both; }
+.mp-home .mpgrid .mpside > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.08s both; }
+.mp-home .mpgrid .mpside > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.12s both; }
+.mp-home .mpgrid .mprow2 > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.16s both; }
+.mp-home .mpgrid .mprow2 > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.2s both; }
+.lb-podium .lb-trow { animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) both; }
+.lb-podium .lb-trow:nth-child(1) { animation-delay: 0.04s; }
+.lb-podium .lb-trow:nth-child(3) { animation-delay: 0.08s; }
+.lb-table > .lb-trow-btn { animation: menu-rise 0.22s cubic-bezier(0, 0, 0.2, 1) both; }
+.lb-table > .lb-trow-btn:nth-of-type(2) { animation-delay: 0.1s; }
+.lb-table > .lb-trow-btn:nth-of-type(3) { animation-delay: 0.13s; }
+.lb-table > .lb-trow-btn:nth-of-type(4) { animation-delay: 0.16s; }
+.lb-table > .lb-trow-btn:nth-of-type(5) { animation-delay: 0.19s; }
+.lb-table > .lb-trow-btn:nth-of-type(6) { animation-delay: 0.22s; }
+.lb-table > .lb-trow-btn:nth-of-type(n+7) { animation-delay: 0.25s; }
+/* A hop between pages re-mounts these, so they never animate while you are just looking: one entrance per open. */
+@media (prefers-reduced-motion: reduce) {
+  .mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-podium .lb-trow, .lb-table > .lb-trow-btn { animation: none; }
+  .modecard[data-mp]:active, .modecard[data-mp]:hover:active { transform: none; }
+}

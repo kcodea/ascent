@@ -230,12 +230,12 @@ body { background: #160f08; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
    ::-webkit-scrollbar) forces the OS arrow cursor — the browser ignores `cursor` on it — which breaks the
    game's custom gauntlet cursor. Hiding it keeps the cursor consistent everywhere; content still scrolls. */
-.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix, .rg-split-list, .colls-gridwrap {
+.book-grid, .book-rail, .avatarpick-scroll, .lbscroll, .heroselect, .fr-body, .inspect-buffs, .sfxmix, .colls-gridwrap {
   scrollbar-width: none; -ms-overflow-style: none;
 }
 .book-grid::-webkit-scrollbar, .book-rail::-webkit-scrollbar, .avatarpick-scroll::-webkit-scrollbar,
 .lbscroll::-webkit-scrollbar, .heroselect::-webkit-scrollbar, .fr-body::-webkit-scrollbar,
-.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar, .rg-split-list::-webkit-scrollbar, .colls-gridwrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.inspect-buffs::-webkit-scrollbar, .sfxmix::-webkit-scrollbar, .colls-gridwrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 /* The hero frame is no longer clickable (the power fires from its button only) — don't show the action cursor on it.
    A disabled power button keeps the game's custom default cursor (not the bare OS arrow), like the other ctl buttons. */
 .heropowerbtn:disabled { cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
@@ -13236,9 +13236,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-runes .cv2-runes, .gc-runes .rg-runes { display: flex; gap: 6px; }
 /* Runes on the card are emblems only; the name and text are in each emblem's hover tip. */
 .gc-runes .cv2-rune-name { display: none; }
-.gc:not(.rg-large) .gc-runes .lb-rune-name { display: none; }
+.gc .gc-runes .lb-rune-name { display: none; }
 .gc-runes .lb-runes { display: flex; gap: 6px; }
-.gc:not(.rg-large) .gc-runes .lb-rune { padding: 0; background: none; border: none; }
+.gc .gc-runes .lb-rune { padding: 0; background: none; border: none; }
 /* The card's runes sit at its right edge: their tips open leftward from the emblem, never past the page. */
 .gc-runes .runtrophy-tip { left: auto; right: 0; }
 /* Safety net only: no menu scroller ever scrolls sideways. */
@@ -13261,59 +13261,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc-meta .cv2-ppills { gap: 8px; }
 .gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
 /* LARGE (the split layout's detail): the board takes the full width under the header. */
-.gc.rg-large .gc-body { grid-template-columns: 96px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 10px; padding: 16px 24px 14px 26px; }
-.gc.rg-large .gc-board .lb-team.lb-team { justify-content: center; padding-left: 0; }
-.gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
-.gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
-.gc.rg-large .gc-place { font-size: 54px; }
-.gc.rg-large .gc-side { flex-direction: row-reverse; align-items: center; }
 
 /* RECENT GAMES (2026-10-16 redesign): summary strip, hero filter chips, then the layout under trial. */
-.rg-page .lbscroll { gap: 14px; }
-.rg-summary { display: flex; align-items: center; gap: 30px; padding: 14px 24px; border-radius: 14px; flex: none;
-  background: linear-gradient(180deg, rgba(13, 22, 40, 0.86), rgba(9, 15, 29, 0.92)); border: 1.5px solid rgba(196, 160, 92, 0.36); box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.75); }
-.rg-sum-stat { display: flex; flex-direction: column; gap: 3px; }
-.rg-sum-v { font-family: var(--font-ui); font-weight: 900; font-size: 30px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
-.rg-sum-v.sm { font-size: 20px; }
-.rg-sum-v.won { color: #ffd76a; }
-.rg-sum-l { font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.52); }
-.rg-sum-hero { flex-direction: row; align-items: center; gap: 10px; }
-.rg-sum-hero .lb-heroframe .hero { width: 46px; height: 46px; padding: 2px; }
-.rg-sum-txt { display: flex; flex-direction: column; gap: 3px; }
-.rg-sum-spark { margin-left: auto; display: flex; flex-direction: column; gap: 4px; width: 280px; }
-.rg-sum-spark svg { width: 100%; height: 54px; display: block; }
-.rg-spark { fill: none; stroke: #e8c877; stroke-width: 2; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
-.rg-spark-mid { stroke: rgba(255, 255, 255, 0.14); stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
-.rg-filters { display: flex; flex-wrap: wrap; gap: 8px; flex: none; }
-.rg-chip { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; padding: 7px 14px; border-radius: 999px; color: rgba(255, 246, 228, 0.78);
-  background: rgba(0, 0, 0, 0.32); border: 1.5px solid rgba(196, 160, 92, 0.32); }
-.rg-chip:hover { color: #fff; border-color: rgba(232, 200, 119, 0.7); }
-.rg-chip.on { color: var(--ui-title); border-color: transparent; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
-.rg-layouts { margin-left: auto; margin-right: 12px; }
-.rg-list.lb-rows { gap: 10px; }
-.rg-split { display: grid; grid-template-columns: 440px minmax(0, 1fr); gap: 18px; min-height: 0; align-items: start; }
-.rg-split-list { display: flex; flex-direction: column; gap: 6px; max-height: 760px; overflow-y: auto; padding: 4px 6px 4px 2px; }
-.rg-item { --band: rgba(255, 255, 255, 0.25); position: relative; display: grid; grid-template-columns: 64px 54px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 12px 6px 14px; text-align: left;
-  border-radius: 10px; border: 1.5px solid rgba(196, 160, 92, 0.22); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 14%, transparent), rgba(9, 15, 29, 0.88) 140px); color: #f4eee2;
-  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
-.rg-item::before { content: ''; position: absolute; left: -1.5px; top: -1.5px; bottom: -1.5px; width: 5px; border-radius: 10px 0 0 10px; background: var(--band); }
-.rg-item:hover { transform: translateX(3px); border-color: rgba(232, 200, 119, 0.55); }
-.rg-item.on { border-color: rgba(255, 217, 138, 0.85); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 22%, transparent), rgba(20, 31, 54, 0.95) 160px); }
-.rg-item .gc-place { display: flex; align-items: center; gap: 4px; font-family: var(--font-ui); font-weight: 900; font-size: 24px; }
-.rg-item .gc-place.won { color: #ffd76a; }
-.rg-item .gc-place.top4 { color: #7fe8ac; }
-.rg-item .gc-place.lost { color: #ff9a9a; }
-.rg-item .gc-crown svg { width: 16px; height: 16px; }
-.rg-item .lb-heroframe .hero { width: 48px; height: 48px; padding: 2px; }
-.rg-item-who { display: flex; flex-direction: column; min-width: 0; }
-.rg-item-name { font-family: var(--font-ui); font-weight: 900; font-size: 16px; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rg-item-sub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.58); }
-.rg-item-when { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
-.rg-split-detail { min-width: 0; }
-.rg-detail-in { animation: menu-rise 0.2s cubic-bezier(0, 0, 0.2, 1) both; }
 @media (prefers-reduced-motion: reduce) {
-  .gc, .rg-item, .gc.lb-row-btn:hover, .gc.cv2-row:hover, .rg-item:hover { transition: none; transform: none; }
-  .rg-detail-in { animation: none; }
+  .gc, .gc.lb-row-btn:hover, .gc.cv2-row:hover { transition: none; transform: none; }
 }
 
 
@@ -13477,6 +13428,61 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 
 /* Reduced motion: the Mode screen's content still arrives with a short fade on every visit (no rise, no stagger). */
 @media (prefers-reduced-motion: reduce) { .modepick.mp-home > .mpbox { animation: fadein 0.12s ease both; } }
+
+/* RECENT GAMES POLISH (owner 2026-10-16: "this looks bad, can you fix this"). Sized for the 1080p stage: the summary is
+   a hero panel (big numbers, the most-played hero at a real size, a placement chart with a 1st-8th axis and band marks),
+   then ONE filter bar (feed + heroes), then the game cards as single bands: placement | hero, meta and actions stacked |
+   the board, vertically centred and as wide as the row allows (cards up to 150px, badge slots kept: 40px between). */
+.lbpage.rg-page .lbscroll.lbscroll { max-width: 2200px; gap: 14px; }
+.rg-summary { display: grid; grid-template-columns: auto auto minmax(0, 1fr); align-items: center; gap: 40px; flex: none; padding: 20px 28px; border-radius: 16px;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.88), rgba(9, 15, 29, 0.93)); border: 1.5px solid rgba(196, 160, 92, 0.4); box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.8); }
+.rg-sum-stats { display: grid; grid-template-columns: repeat(4, auto); gap: 8px 34px; }
+.rg-sum-stat { display: flex; flex-direction: column; gap: 4px; }
+.rg-sum-v { font-family: var(--font-ui); font-weight: 900; font-size: 46px; line-height: 1; color: #fff; font-variant-numeric: tabular-nums; }
+.rg-sum-v.won { color: #ffd76a; }
+.rg-sum-l { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 246, 228, 0.62); }
+.rg-sum-hero { display: flex; align-items: center; gap: 16px; padding-left: 34px; border-left: 1px solid rgba(196, 160, 92, 0.25); }
+.rg-sum-hero .lb-heroframe .hero { width: 84px; height: 84px; padding: 3px; }
+.rg-sum-txt { display: flex; flex-direction: column; gap: 4px; }
+.rg-sum-name { font-family: var(--font-ui); font-weight: 900; font-size: 26px; line-height: 1.05; color: #fff; }
+.rg-sum-sub { font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 246, 228, 0.7); }
+.rg-sum-chart { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding-left: 34px; border-left: 1px solid rgba(196, 160, 92, 0.25); }
+.rg-sum-chart svg { display: block; width: 100%; height: 124px; }
+.rg-ax { font-family: var(--font-ui); font-weight: 800; font-size: 13px; fill: rgba(255, 246, 228, 0.6); }
+.rg-spark { fill: none; stroke: rgba(255, 246, 228, 0.45); stroke-width: 1.5; stroke-linejoin: round; }
+.rg-spark-mid { stroke: rgba(255, 255, 255, 0.18); stroke-width: 1; stroke-dasharray: 4 4; }
+.rg-pt.won { fill: #e8b84e; }
+.rg-pt.top4 { fill: #55c98a; }
+.rg-pt.lost { fill: #0d1628; stroke: #e0646a; stroke-width: 2; }
+.rg-filterbar { display: flex; align-items: center; justify-content: flex-start; align-self: stretch; flex-wrap: wrap; gap: 12px 18px; flex: none; }
+.rg-filterbar .rg-tabs { margin: 0; }
+.rg-filterbar .rg-tabs .cv2-tab { font-size: 15px; padding: 9px 18px; }
+.rg-filterbar .rg-tabs .cv2-tab svg { width: 18px; height: 18px; }
+.rg-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.rg-chip { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.02em; padding: 9px 18px; border-radius: 999px; color: rgba(255, 246, 228, 0.82);
+  background: rgba(0, 0, 0, 0.34); border: 1.5px solid rgba(196, 160, 92, 0.34); }
+.rg-chip:hover { color: #fff; border-color: rgba(232, 200, 119, 0.75); }
+.rg-chip.on { color: var(--ui-title); border-color: transparent; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.rg-list.lb-rows { gap: 12px; }
+/* The game card on Recent Games: one band. */
+.rg-page .gc .gc-body { grid-template-columns: 104px 300px minmax(0, 1fr); grid-template-areas: 'place hero board' 'place meta board' 'place side board';
+  align-items: center; align-content: center; row-gap: 10px; column-gap: 24px; padding: 14px 22px; }
+.rg-page .gc .gc-place { font-size: 48px; }
+.rg-page .gc .gc-hero { align-self: end; }
+.rg-page .gc .gc-hero .lb-heroframe .hero { width: 84px; height: 84px; }
+.rg-page .gc .gc-title, .rg-page .gc .gc-title > * { font-size: 22px; }
+.rg-page .gc .gc-sub, .rg-page .gc .gc-sub > *, .rg-page .gc .gc-record, .rg-page .gc .gc-record > * { font-size: 15px; }
+.rg-page .gc .gc-meta { align-self: center; padding-top: 0; border-top: none; }
+.rg-page .gc .gc-meta .lb-facts { display: grid; grid-template-columns: auto auto; justify-content: start; gap: 4px 20px; }
+.rg-page .gc .gc-meta .lb-fact + .lb-fact { margin-left: 0; padding-left: 0; border-left: none; }
+.rg-page .gc .gc-meta .lb-fact-l { font-size: 12px; }
+.rg-page .gc .gc-meta .lb-fact-v, .rg-page .gc .gc-meta .lb-when { font-size: 15px; font-weight: 700; color: rgba(255, 246, 228, 0.9); }
+.rg-page .gc .gc-side { align-self: start; flex-direction: row; align-items: center; justify-content: flex-start; gap: 12px; }
+.rg-page .gc .gc-actions .lb-btn { font-size: 14px; padding: 9px 16px; }
+.rg-page .gc .gc-board { align-self: center; }
+.rg-page .gc .gc-board .lb-team.lb-team { --tile-s: 1; --tile-cw: min(150px, calc((100cqw - 6 * 40px - 24px) / 7)); gap: 40px; justify-content: space-evenly;
+  padding: calc(var(--tile-cw) * 0.23 + 4px) 12px 30px; }
+.rg-page .gc .gc-board .lb-team-none { font-size: 15px; }
 
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the

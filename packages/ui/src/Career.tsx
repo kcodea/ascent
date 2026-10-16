@@ -47,7 +47,7 @@ import { rectToStage, stageHost, stageViewport } from './stage';
  *          plate, and five stat tiles — 1st Place Wins · Top 4 Finish · Losses · Avg Placement · Favorite Tribe
  *          (Losses = bottom-4 finishes, the count of match losses; owner ask 2026-09-21).
  *  CENTRE  three tabs in the column header (MATCH HISTORY | HEROES | PRACTICE, the choice persisted per browser):
- *          Match History — the account's last 25 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
+ *          Match History — the account's last 50 runs FROM THE SERVER (`fetchMyRuns`; never local-only runs),
  *          each a TALL BANNER that reads top to bottom (owner 2026-09-20: "chunky and fully readable"):
  *            head   hero portrait + name + the MATCH result (WIN / LOSS — by placement, see below; the fight
  *                   record only as a small caption) ‖ the outcome block (VICTORY / placement, date · length · Gold)
@@ -102,8 +102,9 @@ function saveTab(t: CenterTab): void {
 }
 /** Banners mounted with the page; the rest mount as they near the viewport (`lazyRows.tsx`). Two fill the view. */
 const EAGER_ROWS = 3;
-/** Banners in Match History — the newest 25 server runs (owner 2026-09-20; was 10). Matches `CAREER_DETAIL_ROWS`. */
-const MATCH_ROWS = 25;
+/** Banners in Match History (and the Practice tab): the newest 50 server runs (owner 2026-10-16 "career to 50 too"; was 25,
+ *  and 10 before 2026-09-20). Matches `CAREER_DETAIL_ROWS`, the rows fetched WITH their boards. */
+const MATCH_ROWS = 50;
 
 /**
  * SKINS on a Career page (2026-09-28). Whose page it is decides the toggle: YOUR page shows your skins as recorded

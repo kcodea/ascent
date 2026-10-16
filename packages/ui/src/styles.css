@@ -13234,3 +13234,18 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   .mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-podium .lb-trow, .lb-table > .lb-trow-btn { animation: none; }
   .modecard[data-mp]:active, .modecard[data-mp]:hover:active { transform: none; }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   REMAINING META SCREENS (UI refinement, 2026-10-16).
+   - Every ladder page's empty / loading / unavailable state (Live Games with nobody playing, a Leaderboard before
+     the backend answers) sits centred on the stage in a list panel, like the Career's "No runs yet" card, instead
+     of a small line of text near the top of an empty page.
+   - The title's primary plaque (Play, or Continue with a run saved) is the largest control on the screen.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.lbscroll > .lb-state { margin: auto; min-width: 460px; max-width: 640px; padding: 40px 48px; border-radius: 16px; gap: 16px;
+  background: linear-gradient(180deg, rgba(13, 22, 40, 0.86), rgba(9, 15, 29, 0.92)); border: 2px solid rgba(196, 160, 92, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.12), 0 14px 34px -14px rgba(0, 0, 0, 0.8); color: rgba(255, 246, 228, 0.86); line-height: 1.35; }
+.lbscroll > .lb-state svg { width: 46px; height: 46px; padding: 12px; box-sizing: content-box; border-radius: 50%; background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 1.5px rgba(196, 160, 92, 0.45); }
+.titlenav .menubtn.active { padding: 22px 24px; }
+.titlenav .menubtn.active .mblabel { font-size: 30px; letter-spacing: 0.16em; }
+.titlenav .menubtn.active .mbicon .crest { font-size: 32px; }

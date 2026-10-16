@@ -71,6 +71,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Click the ASCENT logo at the top of the side menu to return to the main menu. It replaces the Back button.',
           'Menus move more smoothly: tiles and rows ease in, mode tiles press down when clicked, and hover sounds no longer pile up when you sweep the mouse.',
           'The ranked confirmation now dims the screen with a softened view of the hall, which is smoother on slower machines.',
+          'Empty pages (Live Games with nobody playing, for example) show a clear message in the middle of the screen, and the Versus room list sits in its own panel.',
           'Play is now the only gold button on the menus, so it is easy to find. Other buttons and tabs use the same plates as the rest of the game.',
           'Career and Recent Games lead with the result. Length, rounds and strength sit on one quiet line under it.',
           'Career puts your rank and MMR up front. MMR keeps the big trend chart and the other trends are small lines.',

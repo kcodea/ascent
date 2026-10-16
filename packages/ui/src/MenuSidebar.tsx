@@ -38,6 +38,7 @@ import { navClockNow, useGame, type MenuDest } from './store';
 import { getTitleText } from './titleTextConfig';
 import { withAbandonWarning } from './rank/ratedRun';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
+import { MenuBackdrop } from './MenuBackdrop';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
  *  the same event turn (a few ms); a title-plaque open or a row click carries no fresh stamp. */
@@ -81,7 +82,10 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
     ...(collectionOn ? [{ dest: 'collection' as const, label: 'Collection', icon: <IconChest /> }] : []),
   ];
 
+  // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
+    <>
+    <MenuBackdrop screen={current} />
     <aside className="msb" aria-label="Menu">
       <button className="lbback pressable msb-back" onClick={onBack}>← Back</button>
       <nav className="msb-nav" aria-label="Main menu">
@@ -112,5 +116,6 @@ export function MenuSidebar({ current, onBack }: { current: SidebarCurrent; onBa
         </button>
       </nav>
     </aside>
+    </>
   );
 }

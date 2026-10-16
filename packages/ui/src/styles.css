@@ -7297,7 +7297,9 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    panels. STATIC — no animation; the plaques' hover/press are one-shot transitions (transform/filter). ── */
 .lbpage, .modepick.sb-host { --sb-w: 240px; padding-left: var(--sb-w); }
 .msb { position: absolute; left: 0; top: 0; bottom: 0; width: var(--sb-w); z-index: 5; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 22px;
-  background: linear-gradient(180deg, #1f4380 0%, #14305c 40%, #0c1d3d 72%, #070f22 100%);
+  /* Translucent since the painted backdrop (WS-1): the plate glows through the column. Static alpha, never a
+     backdrop-filter. */
+  background: linear-gradient(180deg, rgba(20, 44, 88, 0.84) 0%, rgba(13, 30, 62, 0.86) 40%, rgba(8, 18, 40, 0.9) 72%, rgba(5, 11, 26, 0.93) 100%);
   border-right: 2px solid rgba(196, 160, 92, 0.55);
   box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 72px rgba(70, 130, 220, 0.16), 12px 0 32px -14px rgba(0, 0, 0, 0.8);
   cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
@@ -7366,7 +7368,31 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    and skips its own fade; only the content beside the sidebar fades in, so the column reads as one persistent
    surface. Opacity-only, one-shot. */
 .lbpage.hop, .modepick.hop { animation: none; }
-.lbpage.hop > :not(.msb), .modepick.hop > :not(.msb) { animation: fadein 0.2s ease; }
+.lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd) { animation: fadein 0.2s ease; }
+
+/* ── MENU BACKDROP (UI refinement WS-1, 2026-10-16; `MenuBackdrop.tsx`) — the painted plate behind every sidebar
+   host. It sits at z -1 INSIDE the host's stacking context (both hosts are fixed + z-indexed), so it paints over the
+   host's navy radial (kept as the fallback while the plate decodes) and under every in-flow child. The picker
+   scrolls as a whole, so there the layer is fixed like its sidebar. A sidebar hop does NOT re-fade it (the `.hop`
+   rule above skips `.mbd`): the plate stays put and only the page content fades, unless the plate itself changed,
+   in which case the new one crossfades in over the old (`.mbd-in`, one-shot opacity). The veils are STATIC
+   gradients: never animate them (a full-screen gradient repaint per frame). ── */
+.mbd { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.modepick .mbd { position: fixed; }
+.mbd-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; -webkit-user-drag: none; }
+.mbd-img.mbd-in { animation: fadein 0.26s cubic-bezier(0, 0, 0.2, 1); }
+.mbd-veil { position: absolute; inset: 0; }
+/* SCENE (the mode picker): the painting stays bright in the middle; the edges and the floor fall into shadow so the
+   tiles read, and the left edge darkens under the sidebar. */
+.mbd-veil[data-veil='scene'] {
+  background:
+    linear-gradient(90deg, rgba(4, 9, 20, 0.7) 0%, rgba(4, 9, 20, 0.18) 22%, rgba(4, 9, 20, 0) 40%),
+    linear-gradient(180deg, rgba(4, 9, 20, 0.35) 0%, rgba(4, 9, 20, 0) 22%, rgba(4, 9, 20, 0) 55%, rgba(4, 9, 20, 0.6) 100%),
+    radial-gradient(ellipse 80% 75% at 55% 45%, rgba(4, 9, 20, 0) 55%, rgba(4, 9, 20, 0.55) 100%); }
+/* DATA (Career, Leaderboard, ...): the plate is already blurred and darkened; a soft vignette keeps the eye in. */
+.mbd-veil[data-veil='data'] {
+  background: radial-gradient(ellipse 75% 70% at 55% 50%, rgba(4, 9, 20, 0) 45%, rgba(4, 9, 20, 0.5) 100%); }
+@media (prefers-reduced-motion: reduce) { .mbd-img.mbd-in { animation: none; } }
 
 /* DEV-only Balance Report panel — reuses the .lbpage shell; adds a controls row + progress bar + dense tables. */
 .balpage { position: fixed; inset: 0; z-index: 480; display: flex; flex-direction: column; background: linear-gradient(rgba(6, 11, 22, 0.9), rgba(6, 11, 22, 0.95)); animation: fadein 0.2s ease; font-family: var(--font-ui); }

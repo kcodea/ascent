@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
+      {
+        category: 'Systems',
+        text: 'The menus have a new look. They now sit in a painted great hall.',
+        details: [
+          'The Play screen shows the great hall behind the modes.',
+          'Career, the Leaderboard, the Hall of Champions, Recent Games, Live Games and the Collection show a softer, darker view of the same hall.',
+        ],
+      },
       { category: 'Systems', text: 'The Leaderboard and Recent Games now show every player in the portrait frame they have equipped, not just you.', details: ['Leaderboard rows show each player their equipped frame and hero skin.', 'Recent Games shows the frame and skin each player had in that game.', 'Turning off Show opponent cosmetics puts the default ring back on other players.'] },
       {
         category: 'Balance',

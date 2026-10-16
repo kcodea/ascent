@@ -83,17 +83,10 @@ const ART_PENDING = new Set<string>([
   // Owner Set 3 batch (2026-10-13): Indy, the Golden Monkey and Amplification Agnus shipped with no art yet.
   'n3_indy', 'n3_goldenmonkey', 'n3_agnus',
   // SET 4: NONE LEFT (owner 2026-10-13: the eight minions and the two Whispers, Tome + Runebind, are arted).
-  // SET 3 DRAGONS (owner batch 2026-10-14): Whaloo, Falx, Queen Morro and Shush are arted; Falx's Whisper Ripple has
-  // no master named yet.
-  'w3_ripple',
-  // SET 3 DRAGON BATCH 2 (owner 2026-10-15): authored ahead of their art, except Gatherer, Gravus and Well Watcher (arted
-  // the same day): the other Dragons, the Drake Pup token and the two Whispers (Well of Dragons, Seed).
-  // Arted 2026-10-15 ("wire art for whispers and set 3 dragons that ive added"): Woozy, Immune Iggy, Hum, Gardener, the Drake
-  // Pup and Well of Dragons. Still without art: Matriarch and Seed.
-  'd3_matriarch', 'w3_seed',
-  // ...and the owner additions on #2097 (2026-10-15): Bait Brood, Hatcher, Whispwarder and their three Whispers.
-  // Bait Brood and Bait were arted 2026-10-15.
-  'd3_hatcher', 'd3_whispwarder', 'w3_clutch', 'w3_wardingcall',
+  // SET 3 DRAGONS (owner batches 2026-10-14 / 10-15 / 10-16): every Dragon and Whisper is arted except Matriarch.
+  // (Ripple was arted in #2087; Hatcher, Whispwarder, Seed, Clutch and Warding Call on 2026-10-16: "wire the art for
+  // set 3 dragons/whispers etc missing art".)
+  'd3_matriarch',
 ]);
 
 describe('art coverage for live cards', () => {

@@ -167,7 +167,7 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
         ))}
       </svg>
       {h && (
-        <div className="ct-tip" style={{ left: `${(h.x / MW) * 100}%`, top: `${(h.y / MH) * 100}%` }} role="tooltip">
+        <div className="atip ct-pos" style={{ left: `${(h.x / MW) * 100}%`, top: `${(h.y / MH) * 100}%` }} role="tooltip">
           <b>{h.p.mmr} MMR</b>
           {h.p.delta !== null && h.p.delta !== 0 && <span className={h.p.delta > 0 ? 'good' : 'bad'}>{h.p.delta > 0 ? `+${h.p.delta}` : h.p.delta}</span>}
           <span>{'now' in h.p && h.p.now ? 'Your rating now' : `${h.p.place !== null ? ordinalOf(h.p.place) : 'No placement'}${h.p.heroId ? `, ${getHero(h.p.heroId).name}` : ''}`}</span>

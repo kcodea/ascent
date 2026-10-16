@@ -290,7 +290,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         ) : (
           <div className="escnote">Not signed in. Sign in from the main menu to keep your progress across devices.</div>
         )}
-        <button className="escclose pressable" onPointerDown={onClose}>Resume</button>
+        {/* Over the menus there is nothing to resume, and the gold fill belongs to Play alone there (UI pass 2,
+            2026-10-16): the close is a quiet "Done" on the Gem plate. In a game it stays the gold Resume. */}
+        <button className={`escclose pressable${onTitle ? ' quiet' : ''}`} onPointerDown={onClose}>{onTitle ? 'Done' : 'Resume'}</button>
       </div>
     </div>
   );

@@ -13592,6 +13592,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .pnsublist li { font-size: 14px; color: rgba(244, 238, 226, 0.66); }
 .pnsublist li::marker { color: rgba(196, 160, 92, 0.7); }
 
+/* SETTINGS OVER THE MENUS: the close is "Done" on the Gem plate, not the gold Resume (the gold rule, UI pass 2). */
+.escclose.quiet { width: 36%; padding: 13px 12px; font-size: 18px; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  border: 1.5px solid transparent; background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  --pr-edge: 3px; --pr-edge-c: #0a1220; --pr-inset: var(--ui-bevel); }
+.escclose.quiet:hover { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

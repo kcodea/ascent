@@ -186,6 +186,8 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     //   Well of Dragons; owner: "wire art for whispers and set 3 dragons that ive added").
     // → 1457: Set 3 Dragon + Whisper art 2026-10-16 (+5: Hatcher, Whispwarder, Seed, Clutch, Warding Call; owner: "wire the
     //   art for set 3 dragons/whispers etc missing art"). The Gatherer and Pickles2 re-wires overwrite existing slots (+0).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1457);
+    // → 1458: Set 3 Dragon re-wire 2026-10-16 (+1: Matriarch, the last Dragon without art; owner: "re-wire the set 3 dragon
+    //   art"). The other re-wired Dragons overwrite existing slots (+0).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1458);
   });
 });

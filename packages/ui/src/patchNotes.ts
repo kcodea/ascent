@@ -69,7 +69,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'The Play screen shows who you are across the top: portrait, name, title, rank, MMR and level. Click it to open your Career.',
           'The side menu is regrouped: Play first, then Progress (Career, Collection) and Community (Leaderboard, Hall of Champions, Recent Games, Live Games). Settings sits at the bottom.',
           'Click the ASCENT logo at the top of the side menu to return to the main menu. It replaces the Back button.',
-          'Play is now the gold button on every menu, so it is easy to find.',
+          'Play is now the only gold button on the menus, so it is easy to find. Other buttons and tabs use the same plates as the rest of the game.',
           'Career and Recent Games lead with the result. Length, rounds and strength sit on one quiet line under it.',
           'Career puts your rank and MMR up front. MMR keeps the big trend chart and the other trends are small lines.',
           'The Leaderboard puts the top three on a podium. Your own row stays pinned to the bottom of the screen, and if you are not in the top 10 your rank is pinned there instead.',

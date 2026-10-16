@@ -13169,3 +13169,36 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .pstrip-crates { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.04em; color: #f6dfa2; padding: 4px 12px; border-radius: 999px; border: 1px solid rgba(232, 200, 119, 0.5); background: rgba(0, 0, 0, 0.3); }
 .pstrip-go { margin-left: auto; font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(222, 196, 140, 0.8); }
 @media (prefers-reduced-motion: reduce) { .pstrip, .pstrip:hover, .pstrip:active { transform: none; transition: border-color 0.1s ease; } }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   WS-3 COLOUR DISCIPLINE + THREE PANEL STYLES (UI refinement, 2026-10-16). THE GOLD RULE: Play is the one bright
+   filled-gold control on a menu screen (--cta-*). Every other button on the menu pages (Career page, Watch, Sign in,
+   Collection, crate Open, ...) wears the UI theme's own Gem plate (the Compendium / ranked-confirm buttons,
+   --ui-plate + --ui-edge), and a SELECTED tab or segment is the lit plate with gold LETTERS, never a gold fill.
+   Win / loss keep green / red; 1st place keeps gold with its crown medallion (a shape, not colour alone).
+   PANELS: HERO (the richest: the Compendium's painted frame, on the rank card and the Career's hero column),
+   LIST (rows: plain navy, a thin bronze rim), INSET (stats: a darker well, no rim). Static styling only.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.lb-btn, .cv2-btn, .crate-btn {
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  border: 1.5px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  --pr-edge-c: #0a1220;
+}
+.lb-btn:hover:not(:disabled), .cv2-btn:hover:not(:disabled), .crate-btn:hover:not(:disabled), .crate-btn:focus-visible {
+  color: #fff; border-color: transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.lb-btn-ghost { color: var(--ui-text); background: rgba(0, 0, 0, 0.3) padding-box; border: 1.5px solid rgba(196, 160, 92, 0.55); box-shadow: none; }
+.lb-btn-ghost:hover:not(:disabled) { background: rgba(0, 0, 0, 0.42) padding-box; border-color: rgba(232, 200, 119, 0.85); }
+/* Selected tabs and segments: the lit plate, gold letters. */
+.cv2-tab.on, .lb-seg-btn.on, .cv2-seg-btn.on {
+  color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
+  background: var(--ui-sheen), var(--ui-hover-plate);
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title) 45%, transparent); }
+/* HERO panels: the rank card and the Career's hero column wear the Compendium's painted frame. */
+.cv2-panel.cv2-ranked, .cv2-panel.cv2-left { position: relative; border-color: transparent; box-shadow: 0 14px 34px -14px rgba(0, 0, 0, 0.8); }
+.cv2-panel.cv2-ranked::after, .cv2-panel.cv2-left::after { content: ''; position: absolute; inset: -6px; pointer-events: none; z-index: 2;
+  border: 32px solid transparent; border-image: url('/frames/compendium-frame.webp') 270 stretch; }
+/* LIST panels stay as they are (navy + thin bronze rim). INSET panels: a darker well with no rim. */
+.cv2-trend { border-top-color: rgba(255, 255, 255, 0.06); }

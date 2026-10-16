@@ -6087,5 +6087,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: "Conforms from 2026-10-16. Audited field by field: the table's numbers were already right. Two gaps fixed: a watcher's next-opponent card could print a generated stand-in's board, and the wipeout guard's revived winner could print negative Resolve.",
     example: "Watching a live game whose recordings your pool does not hold, the watched player's next opponent used to show a Shop Tier and runes that player never had; it now shows the same recorded read its row shows the rest of the round.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/railAccuracy.test.ts'], lastVerifiedAt: '2026-10-16' },
+  },  {
+    id: 'R-LOBBY-RAIL-02',
+    title: 'Lobby rail: four owner-confirmed behaviours (ghost history, Practice hits, Gilded made, end-of-shop scouting)',
+    statement:
+      "(1) A fallen seat's round history KEEPS the fights its ghost board fought after it fell, from the ghost's side. "
+      + '(2) In Practice with unlimited health, your row still floats the hit and your history lists it, though your health '
+      + "never moves. (3) The scout card's Gilded number is Gilded units MADE this game (triples), not Gilded units on the "
+      + "board now; the label reads 'gilded made'. (4) Every opponent's scout card shows the board that seat brings THIS "
+      + "round, i.e. its end-of-shop state, before the round's fights.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, ruling 1 (fallen seat history lists its ghost fights, e.g. Ravenz out R11 showing R13-R15)', quote: 'no keep' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, ruling 2 (Practice unlimited health: float and history show the hit)', quote: 'show hit' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16, ruling 3 (what the Gilded number counts)', quote: 'gilded made this game' },
+      { kind: 'owner-chat', ref: "Kevin via the coordinator, 2026-10-16, ruling 4 (scout cards show each opponent's end-of-shop board)", quote: 'yes' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts seatResults / seatScoutIntel / boardIntel (triples); packages/ui/src/LobbyPanel.tsx (scout card labels)' },
+    ],
+    currentBehaviour: 'Conforms (owner-confirmed 2026-10-16). Only change: the Gilded stat label "gilded units" became "gilded made".',
+    example: 'Ravenz falls in round 11; its card still lists "R13 vs You LOST" from its ghost. A seat that tripled twice and sold one Gilded unit shows "gilded made 2".',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/railAccuracy.test.ts'], lastVerifiedAt: '2026-10-16' },
   },
 ];

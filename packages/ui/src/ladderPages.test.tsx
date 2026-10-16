@@ -49,10 +49,10 @@ const lobbyDisplay = vi.hoisted(() => ({ show: false }));
 vi.mock('./lobbyStrengthDisplay', () => ({ get SHOW_LOBBY_STRENGTH() { return lobbyDisplay.show; } }));
 vi.mock('./replay/replayPlayer', () => ({ startReplay: (...a: unknown[]) => startReplay(...a) }));
 // The leaderboard's ONE loadout read (owner 2026-10-12: "the portrait skins should show here").
-const fetchHeroSkinLoadouts = vi.fn<(ids: readonly string[]) => Promise<Map<string, unknown>>>();
+const fetchPortraitLoadouts = vi.fn<(ids: readonly string[]) => Promise<Map<string, unknown>>>();
 vi.mock('./progression/progressionRemote', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./progression/progressionRemote')>()),
-  fetchHeroSkinLoadouts: (ids: readonly string[]) => fetchHeroSkinLoadouts(ids),
+  fetchPortraitLoadouts: (ids: readonly string[]) => fetchPortraitLoadouts(ids),
 }));
 
 import { Rankings } from './Rankings';
@@ -124,7 +124,7 @@ beforeEach(() => {
   clearSocialCache(); // the ladder lists are cached across opens (socialCache.ts); every case starts cold
   remote = true;
   fetchTopPlayers.mockReset().mockResolvedValue(PLAYERS);
-  fetchHeroSkinLoadouts.mockReset().mockResolvedValue(new Map());
+  fetchPortraitLoadouts.mockReset().mockResolvedValue(new Map());
   fetchLatestReplayForUser.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchHallRecords.mockReset().mockResolvedValue(RECORDS);
   fetchHallHistory.mockReset().mockResolvedValue(HISTORY);
@@ -357,13 +357,13 @@ describe('Rankings — portrait skins and the rank crest ring (owner 2026-10-12)
   });
 
   it('the portrait is the player’s equipped skin for that hero, read once for the shown players, through the opponent switch', async () => {
-    fetchHeroSkinLoadouts.mockResolvedValue(new Map([['u-top', { heroSkinByHeroId: { brackus: 'skin_brackus_2' } }]]));
+    fetchPortraitLoadouts.mockResolvedValue(new Map([['u-top', { heroSkinByHeroId: { brackus: 'skin_brackus_2' } }]]));
     useGame.setState({ showRankings: true, showOpponentSkins: true });
     ui = mount(<Rankings />);
     await flush();
     await flush();
-    expect(fetchHeroSkinLoadouts).toHaveBeenCalledTimes(1);
-    expect(fetchHeroSkinLoadouts.mock.calls[0]![0]).toEqual(['u-top', 'me-1', 'u-three']);
+    expect(fetchPortraitLoadouts).toHaveBeenCalledTimes(1);
+    expect(fetchPortraitLoadouts.mock.calls[0]![0]).toEqual(['u-top', 'me-1', 'u-three']);
     expect(portraitSrc()[0]).toContain('skin_brackus_2');
     expect(portraitSrc()[1]).not.toContain('skin_');
     ui.unmount();
@@ -374,6 +374,34 @@ describe('Rankings — portrait skins and the rank crest ring (owner 2026-10-12)
     await flush();
     await flush();
     expect(portraitSrc()[0]).not.toContain('skin_');
+  });
+});
+
+describe('Rankings — every player wears their equipped portrait frame (owner 2026-10-16, R-PROG-FRAMES-LIST-01)', () => {
+  // Owner 2026-10-16: "the player frames they have equipped arent showing here and they should".
+  const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.lb-trow-btn .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
+
+  it('the loadout read asks for the hero skin AND the portrait frame, and another player’s row wears their frame', async () => {
+    fetchPortraitLoadouts.mockResolvedValue(new Map([
+      ['u-top', { portraitFrame: 'frame_fire' }],
+      ['u-three', { heroSkinByHeroId: { brackus: 'skin_brackus_2' }, portraitFrame: 'frame_gold' }],
+    ]));
+    useGame.setState({ showRankings: true, showOpponentSkins: true });
+    ui = mount(<Rankings />);
+    await flush();
+    await flush();
+    // Row 2 is YOUR row ('me-1'): your live frame (none equipped in this fixture), never another player's.
+    expect(frames()).toEqual(['frame_fire', null, 'frame_gold']);
+    expect(ui.container.querySelectorAll('.lb-trow-btn .lb-heroframe.pf-on')).toHaveLength(2);
+  });
+
+  it('"Show opponent cosmetics" off puts the default ring back on other players’ rows', async () => {
+    fetchPortraitLoadouts.mockResolvedValue(new Map([['u-top', { portraitFrame: 'frame_fire' }]]));
+    useGame.setState({ showRankings: true, showOpponentSkins: false });
+    ui = mount(<Rankings />);
+    await flush();
+    await flush();
+    expect(frames()).toEqual([null, null, null]);
   });
 });
 
@@ -555,6 +583,34 @@ describe('RecentGames — the recording banners', () => {
     expect(of.userId).toBe('u-top');
     expect(of.rating).toBe(46);
     expect(of.rank).toEqual(rank);
+  });
+});
+
+describe('RecentGames — the portrait wears the frame + skin recorded with the game (owner 2026-10-16, R-PROG-FRAMES-LIST-01)', () => {
+  const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.lb-row .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
+  const portraitSrc = (): string[] => [...ui.container.querySelectorAll('.lb-row .lb-heroframe .heroimg')].map((n) => n.getAttribute('src') ?? '');
+  const withCosmetics = (): RecentGameRow[] => [
+    game({ board: { ...board(7), cosmetics: { portraitFrame: 'frame_fire', heroSkinByHeroId: { brackus: 'skin_brackus_2' } } } as BoardSnapshot }),
+    game({ userId: 'me-1', author: 'Kev', heroId: 'sable', rowId: 90, board: { ...board(5, 'sable'), cosmetics: { portraitFrame: 'frame_gold' } } as BoardSnapshot }),
+    GAMES[2]!,
+  ];
+
+  it('another player’s game shows their recorded frame and skin; yours shows yours; a board-less row the default ring', async () => {
+    fetchRecentGames.mockResolvedValue(withCosmetics());
+    useGame.setState({ showRecentGames: true, showOpponentSkins: true });
+    ui = mount(<RecentGames />);
+    await flush();
+    expect(frames()).toEqual(['frame_fire', 'frame_gold', null]);
+    expect(portraitSrc()[0]).toContain('skin_brackus_2');
+  });
+
+  it('"Show opponent cosmetics" off strips other players’ frame + skin but never your own', async () => {
+    fetchRecentGames.mockResolvedValue(withCosmetics());
+    useGame.setState({ showRecentGames: true, showOpponentSkins: false });
+    ui = mount(<RecentGames />);
+    await flush();
+    expect(frames()).toEqual([null, 'frame_gold', null]);
+    expect(portraitSrc()[0]).not.toContain('skin_');
   });
 });
 

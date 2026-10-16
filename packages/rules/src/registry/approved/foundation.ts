@@ -6129,4 +6129,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ravenz falls in round 11; its card still lists "R13 vs You LOST" from its ghost. A seat that tripled twice and sold one Gilded unit shows "gilded made 2".',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/lobby/railAccuracy.test.ts'], lastVerifiedAt: '2026-10-16' },
   },
+  {
+    id: 'R-PROG-FRAMES-LIST-01',
+    title: "Every list of players shows each player's equipped portrait frame, not only yours",
+    statement:
+      "Every surface that draws another player's hero portrait wears THAT player's portrait frame cosmetic (and hero skin), "
+      + 'through Show opponent cosmetics: the Leaderboard (their live loadout, read in the same one loadout read as the '
+      + 'skins), Recent Games (the frame recorded with the game), the Hall of Champions, Live Games, Match details, the '
+      + 'lobby rail, the Versus opponent block and the spectator plates. Your own row wears your frame regardless of the '
+      + 'switch. The RANK crest ring is a separate, rank-based frame and is never replaced by the cosmetic.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (Leaderboard screenshot: only the YOU row had a frame)', quote: 'the player frames they have equipped arent showing here and they should' },
+      { kind: 'fix-pr', ref: "fix/player-list-frames (2026-10-16): fetchPortraitLoadouts reads hero_skin + portrait_frame; Rankings and RecentGames pass each row's frameId" },
+    ],
+    currentBehaviour: "Conforms as of 2026-10-16. Before, the Leaderboard read only the hero_skin slot and passed no frame, so every other player showed the default gold ring; Recent Games showed neither the recorded frame nor the recorded skin.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
 ];

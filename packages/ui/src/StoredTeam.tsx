@@ -4,8 +4,6 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { Card, type CardView } from './Card';
 import { storedCardView } from './storedBoardView';
 import { MinionSkins } from './skins/skins';
-import { formatStatCompact } from './formatStat';
-import { StatFormatContext } from './statFormatContext';
 
 const BOARD_SLOTS = 7;
 
@@ -30,7 +28,6 @@ export function StoredTeam({ minions, skins, label = 'Final team', compact, view
   const views = given ? given.slice(0, BOARD_SLOTS) : built;
   return (
     <MinionSkins snapshot={skins}>
-      <StatFormatContext.Provider value={formatStatCompact}>
       <div className="cv2-team" aria-label={label}>
         {Array.from({ length: BOARD_SLOTS }, (_, i) => {
           const v = views[i];
@@ -39,7 +36,6 @@ export function StoredTeam({ minions, skins, label = 'Final team', compact, view
             : <div className="cv2-tile empty" key={i} aria-hidden="true" />;
         })}
       </div>
-      </StatFormatContext.Provider>
     </MinionSkins>
   );
 }

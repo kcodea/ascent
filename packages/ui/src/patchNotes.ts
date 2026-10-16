@@ -71,7 +71,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Play is now the gold button on every menu, so it is easy to find.',
           'Career and Recent Games lead with the result. Length, rounds and strength sit on one quiet line under it.',
           'Career puts your rank and MMR up front. MMR keeps the big trend chart and the other trends are small lines.',
-          'Big stat numbers on stored boards are shortened (1.5k, 209k) so they no longer spill onto the next card.',
         ],
       },
       { category: 'Systems', text: 'The Leaderboard and Recent Games now show every player in the portrait frame they have equipped, not just you.', details: ['Leaderboard rows show each player their equipped frame and hero skin.', 'Recent Games shows the frame and skin each player had in that game.', 'Turning off Show opponent cosmetics puts the default ring back on other players.'] },

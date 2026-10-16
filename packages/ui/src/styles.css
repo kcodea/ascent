@@ -13440,6 +13440,50 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .ct-key.lost { border: 1.5px solid #e0646a; }
 .ct-key.roll { width: 14px; height: 2px; border-radius: 1px; background: #f4eee2; }
 
+/* PRACTICE SETUP (UI refinement 2026-10-16; owner: "make sure to improve this view too"). On the great hall like the
+   other mode screens, with the "Modes /" crumb; Sandbox and God Mode are two selectable art tiles (the selected one
+   lit and badged); the options sit in one panel in two columns at a readable size; the selected segment is the lit
+   plate with gold letters (navigation look), and START is the one bright gold action. Static styling. */
+.mp-practice { place-items: center; padding: 40px 0 56px; }
+.mp-practice .pomodes-box { width: 1240px; min-width: 0; max-width: calc(100% - 80px); align-items: stretch; gap: 0; }
+.mp-practice .mphead { margin: 0 0 24px; }
+.mp-practice .mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; }
+.mp-practice .pomodes { grid-template-columns: 1fr 1fr; gap: 26px; margin: 0; }
+.mp-practice .pomode { display: block; }
+.mp-practice .pomode-select { position: relative; display: grid; grid-template-columns: 200px 1fr; align-items: stretch; width: 100%; min-width: 0; height: 150px; padding: 0; overflow: hidden; text-align: left;
+  border-radius: 18px; border: 2px solid rgba(214, 178, 108, 0.45); background: linear-gradient(90deg, rgba(13, 22, 40, 0.9), rgba(9, 15, 29, 0.94)); color: #f4eee2;
+  box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.85); transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
+.mp-practice .pomode-select:hover { transform: translateY(-3px); border-color: rgba(232, 200, 119, 0.8); }
+.mp-practice .pomode-select.on { border-color: #ffd98a; background: linear-gradient(90deg, rgba(40, 52, 88, 0.95), rgba(14, 24, 46, 0.95)); box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.35), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.mp-practice .pomode:not(.on) .pomode-select { opacity: 0.78; }
+.mp-practice .pomode-art { position: relative; display: block; overflow: hidden; }
+.mp-practice .pomode-art img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mp-practice .pomode-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent 55%, rgba(13, 22, 40, 0.92)); }
+.mp-practice .pomode-body { display: flex; flex-direction: column; justify-content: center; gap: 6px; padding: 14px 22px 14px 8px; }
+.mp-practice .pomode-title { margin: 0; font-size: 26px; letter-spacing: 0.04em; color: #fff; }
+.mp-practice .pomode-text { text-transform: none; letter-spacing: 0; max-width: none; font-family: var(--font-ui); font-weight: 600; font-size: 15px; line-height: 1.4; color: rgba(255, 246, 228, 0.8); }
+.mp-practice .pomode-state { position: absolute; top: 12px; right: 14px; padding: 3px 12px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(255, 246, 228, 0.6); border: 1.5px solid rgba(196, 160, 92, 0.4); background: rgba(0, 0, 0, 0.3); }
+.mp-practice .pomode-select.on .pomode-state { color: var(--ui-title); border-color: transparent; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.mp-practice .popanel { margin-top: 22px; padding: 18px 26px; border-radius: 16px; background: linear-gradient(180deg, rgba(13, 22, 40, 0.88), rgba(9, 15, 29, 0.93));
+  border: 1.5px solid rgba(196, 160, 92, 0.38); box-shadow: 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
+.mp-practice .posandbox { display: grid; grid-template-columns: 1fr 1fr; column-gap: 40px; padding: 0; border: none; background: none; }
+.mp-practice .posandbox.off { display: none; }
+.mp-practice .posandbox .porow { grid-template-columns: 1fr; gap: 10px; padding: 14px 0; border-top: 1px solid rgba(255, 255, 255, 0.07); }
+.mp-practice .posandbox .porow:nth-child(-n+2) { border-top: none; }
+.mp-practice .posandbox .porow:last-child { grid-column: 1 / -1; }
+.mp-practice .polabel { font-size: 18px; }
+.mp-practice .pohint { font-size: 14px; font-weight: 600; color: rgba(255, 246, 228, 0.66); }
+.mp-practice .poseg-btn { font-size: 15px; padding: 9px 16px; }
+.mp-practice .poseg-btn.on, .mp-practice .poseg-btn.on:hover { color: var(--ui-title); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: var(--ui-bevel), inset 0 0 0 1px color-mix(in srgb, var(--ui-title) 45%, transparent); }
+.mp-practice .pogod { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 28px; padding: 6px 0; }
+.mp-practice .pogod-item { text-align: left; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.24); }
+.mp-practice .pogod-t { font-family: var(--font-ui); font-weight: 900; font-size: 18px; color: #fff; }
+.mp-practice .pogod-x { font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: 1.35; color: rgba(255, 246, 228, 0.7); }
+.mp-practice .postart { margin-top: 26px; align-self: center; font-size: 26px; letter-spacing: 0.16em; padding: 14px 84px; border-radius: 14px; background: var(--cta-face); color: var(--cta-ink); border: 2px solid var(--cta-edge);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
+@media (prefers-reduced-motion: reduce) { .mp-practice .pomode-select, .mp-practice .pomode-select:hover { transition: none; transform: none; } }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

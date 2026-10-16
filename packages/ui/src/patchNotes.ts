@@ -66,6 +66,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Career, the Leaderboard, the Hall of Champions, Recent Games, Live Games and the Collection show a softer, darker view of the same hall.',
           'The Play screen is rebuilt. Play is the big tile with a gold Play button. Practice, Versus, Gauntlet and Learn sit beside and below it.',
           'Every mode shows its description all the time, and the mode you played last is tagged.',
+          'The Practice setup is rebuilt: Sandbox and God Mode are two picture tiles, the options sit in one clear panel, and God Mode lists what it gives you.',
           'The Play screen shows who you are across the top: portrait, name, title, rank, MMR and level. Click it to open your Career.',
           'The side menu is regrouped: Play first, then Progress (Career, Collection) and Community (Leaderboard, Hall of Champions, Recent Games, Live Games). Settings sits at the bottom.',
           'Click the ASCENT logo at the top of the side menu to return to the main menu. It replaces the Back button.',

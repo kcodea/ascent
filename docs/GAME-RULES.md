@@ -2087,8 +2087,9 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
 - **Whisper tiers** (owner 2026-10-16, R-WHISPER-TIER-01). Every Whisper has the tier of the Whisper minion that owns
   it (derived from data: Tome 1, Seed 1, Runebind 2, Bait 2, Clutch 4, Ripple 5, Well of Dragons 5, Warding Call 5;
   the lowest if several minions own one, Tier 1 if none does). A Whisper minion granting its **own** Whisper is never
-  gated: a Tier 5 Dragon on a Tier 4 board still grants it. **Every other way of getting a Whisper** (Jar of Secrets,
-  Woozy's Avenge, Tamby's copy, and any spell, Equipment, Echo, Shout, rune or hero) only gives Whispers of tier <= your
+  gated: a Tier 5 Dragon on a Tier 4 board still grants it. **Tamby's copy is exempt too** (owner 2026-10-16: it copies
+  a Whisper cast on it even above your tier). **Every other way of getting a Whisper** (Jar of Secrets, Woozy's
+  Avenge, and any spell, Equipment, Echo, Shout, rune or hero) only gives Whispers of tier <= your
   current shop tier, in every phase. A random roll draws (seeded) from those Whispers whose owning minion is in the
   run's set. Spells and Equipment give a Whisper no tier of their own.
 

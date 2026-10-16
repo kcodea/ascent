@@ -168,13 +168,19 @@ describe('R-WHISPER-TIER-01: a Whisper minion granting its OWN Whisper is never 
     expect(jar.has('w3_clutch'), 'Tier 4 Whispers still roll at Tier 4').toBe(true);
   });
 
-  it('Tamby\'s copy is a gated source: a Tier 5 Warding Call cast on Tamby at Tier 4 hands back no copy (Tier 5 does)', () => {
-    for (const [tier, copies] of [[4, 0], [5, 1]] as const) {
+  it('Tamby is EXEMPT (owner on #2111): a Tier 5 Warding Call cast on Tamby at Tier 4 is still copied', () => {
+    for (const [tier, copies] of [[4, 1], [5, 1]] as const) {
       let s = run(tier, { board: [bc('t', 'd4_tamby')] });
       // Warding Call (Tier 5, owned by Whispwarder): Ripple would need a Shout target, and Tamby has none.
       s = { ...s, hand: [{ uid: 'r', cardId: 'w3_wardingcall', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] } as RunState;
       s = act(s, { type: 'play', uid: 'r', targetUid: 't' } as Action);
       expect(whispersIn(s).filter((id) => id === 'w3_wardingcall'), `tier ${tier}`).toHaveLength(copies);
     }
+  });
+
+  it('Tamby is EXEMPT in combat too: a Runebind (Tier 2) Whaloo casts on Tamby at Tier 1 is still copied', () => {
+    const r = simulate([m('d4_tamby', { health: 5000 }), m('d3_whaloo', { attack: 0, health: 5000 })], wall(), makeRng(3), CARD_INDEX, combatSide({ tier: 1 }), combatSide({ tier: 6 }));
+    expect(tierOf('w4_runebind')).toBe(2);
+    expect(r.playerHandGrants ?? []).toContain('w4_runebind');
   });
 });

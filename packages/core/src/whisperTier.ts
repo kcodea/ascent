@@ -9,8 +9,9 @@ import type { CardDef } from './types';
  *  - A Whisper's tier is the tier of the Whisper MINION that owns it (the card carrying its `grantWhisper` marker).
  *    Derived here from data, never hand-typed: content stamps it onto the Whisper's def when it builds the index. A
  *    Whisper with several owners takes the LOWEST; a Whisper with no owner is Tier 1.
- *  - An owner granting its OWN Whisper is never gated. EVERY other way of getting a Whisper (a random roll from a spell,
- *    Equipment, rune or hero; a minion's Avenge / Echo / Shout; a copy) is gated to Whispers of tier <= the player's
+ *  - An owner granting its OWN Whisper is never gated, and neither is Tamby's copy (owner 2026-10-16: "tamby should
+ *    always copy a whisper cast on it, even above tier"). EVERY other way of getting a Whisper (a random roll from a spell,
+ *    Equipment, rune or hero; a minion's Avenge / Echo / Shout) is gated to Whispers of tier <= the player's
  *    current shop tier, in every phase. Spells and Equipment have no Whisper tier of their own: they are gated SOURCES.
  *
  * Pure and shared, so the Shop (`mintRandomWhispers`) and combat (`grantRandomWhispers`) cannot drift.

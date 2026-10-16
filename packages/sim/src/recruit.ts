@@ -2970,7 +2970,8 @@ export function mintHandSpells(state: RunState, cardId: string, count: number): 
  * TIER GATE (owner 2026-10-16, R-WHISPER-TIER-01): every source but the Whisper's OWN minion is gated to Whispers of
  * tier <= the player's shop tier ("the t5 whisper minion still grants its whisper. it's just that from sources like
  * echo/avenge/spell/equipment should abide by player tier"). Gated is the DEFAULT, so a new source cannot forget it;
- * only the owner's grant (`grantWhisperFrom` / the `grantWhisper` Start of Turn) passes `owner = true`.
+ * only the owner's grant (`grantWhisperFrom` / the `grantWhisper` Start of Turn) and Tamby's copy ("tamby should always
+ * copy a whisper cast on it, even above tier") pass `owner = true` (= ungated).
  */
 export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number, owner = false): void {
   const def = CARD_INDEX[cardId];
@@ -4958,14 +4959,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
 
   /** Tamby: when a WHISPER is cast on this, get a copy of it (x golden copies), once per turn. The copy is that same
    *  Whisper at the same multiplier, so it vanishes at End of Turn like any Whisper. A re-cast landing on this again
-   *  cannot pay twice: the once-per-turn latch is set before the copy is minted. A copy is NOT the Whisper's own minion
-   *  granting it, so it is tier-gated (R-WHISPER-TIER-01): a Whisper above your shop tier hands back nothing. */
+   *  cannot pay twice: the once-per-turn latch is set before the copy is minted. EXEMPT from the Whisper tier gate
+   *  (owner 2026-10-16, R-WHISPER-TIER-01: "tamby should always copy a whisper cast on it, even above tier"). */
   whisperCastOnThisCopy: (ctx, self, params, payload) => {
     const def = (payload as { spellDef?: CardDef } | undefined)?.spellDef;
     if (!def?.whisper || self.whisperCopiedThisTurn) return;
     if (!ctx.state.board.includes(self)) return;
     self.whisperCopiedThisTurn = true;
-    mintWhisper(ctx.state, def.id, num(params.count, 1) * gold(self), currentWhisperMult());
+    mintWhisper(ctx.state, def.id, num(params.count, 1) * gold(self), currentWhisperMult(), undefined, true); // ungated: Tamby
   },
 
   /** RIPPLE (Falx's Whisper, owner 2026-10-14): "Trigger a minion's Shout." The target's Shout fires through the shared

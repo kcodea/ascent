@@ -64,7 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Jar of Secrets, Woozy and every other way to get a Whisper only give Whispers of your current tier or lower.',
           'A Whisper Dragon on your board always gives its own Whisper, even above your tier.',
-          'Tamby only copies a Whisper of your tier or lower.',
+          'Tamby still copies any Whisper cast on it, whatever its tier.',
         ],
       },
     ],

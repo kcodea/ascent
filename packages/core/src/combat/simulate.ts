@@ -24,7 +24,7 @@ import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, 
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
-import { rollableWhisperIds, whisperAllowedAtTier } from '../whisperTier'; // R-WHISPER-TIER-01
+import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
 import { addedSecondTribe, instantiate, seedEchoCount, type CardIndex } from './minion';
@@ -1693,9 +1693,9 @@ export function simulate(
       return map[whisperId]!;
     },
     grantWhisperToHand: (whisperId, side, mult, sourceUid) => {
-      // TIER GATE (owner 2026-10-16, R-WHISPER-TIER-01): no combat path is a Whisper's OWN minion granting it (that is a
-      // Shop Start of Turn), so every combat Whisper (Woozy's Avenge, Tamby's copy) is gated to the side's shop tier.
-      if (!whisperAllowedAtTier(cards[whisperId], ctx.tierFor(side))) return;
+      // UNGATED on purpose (R-WHISPER-TIER-01): its callers are Tamby's copy (exempt: "tamby should always copy a whisper
+      // cast on it, even above tier") and `grantRandomWhispers`, whose pool is already tier-gated. A NEW gated combat
+      // source must check `whisperAllowedAtTier` itself.
       const idx = handGrants[side].length;
       ctx.grantToHand(whisperId, side, sourceUid);
       if (mult > 1 && handGrants[side].length > idx) (shoutCarry[side].handWhisperMults ??= []).push({ idx, mult });

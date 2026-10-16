@@ -12,6 +12,8 @@ import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerB
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbLabel, LbRunes, LbTeam } from './LadderBits';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
+import { heroPortrait, opponentSkins } from './skins/skins';
+import { frameIdOf } from './portraitFrame/PortraitFrame';
 
 /**
  * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 20 finished games across ALL players,
@@ -54,6 +56,8 @@ export function RecentGames(): JSX.Element | null {
   const show = useGame((s) => s.showRecentGames);
   const close = useGame((s) => s.closeRecentGames);
   const openCareer = useGame((s) => s.openCareer);
+  const myId = useGame((s) => s.account.userId);
+  const showOppCosmetics = useGame((s) => s.showOpponentSkins);
   const [tab, setTab] = useState<RecentGamesTab>('ranked');
   // Each tab's list is cached across opens (socialCache.ts): it reads the first time the tab is shown, a revisit paints
   // the last list at once and refreshes behind it when stale, and switching back and forth never flashes a spinner.
@@ -158,10 +162,15 @@ export function RecentGames(): JSX.Element | null {
               const when = playedAtText(r.createdAt);
               const length = runLengthText(r.durationMs, r.lengthOverCap);
               const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
+              // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16: "the player frames they
+              // have equipped arent showing here and they should"): your own game always, everyone else's through
+              // "Show opponent cosmetics". No recorded cosmetics = the hero's own art in the default ring.
+              const mine = !!myId && r.userId === myId;
+              const skins = mine ? (r.board?.cosmetics ?? null) : opponentSkins(showOppCosmetics, r.board?.cosmetics);
               const inner = (
                 <>
                   <div className="lb-row-hero">
-                    <LbHeroFrame heroId={r.heroId} />
+                    <LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />
                     <div className="lb-row-name">{r.author || 'Unnamed player'}</div>
                     <div className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</div>
                     <div className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</div>

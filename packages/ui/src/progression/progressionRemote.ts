@@ -265,13 +265,15 @@ async function fetchLoadoutRows(userId: string): Promise<Array<{ slot: string; t
 }
 
 /**
- * THE LEADERBOARD'S PORTRAITS (owner 2026-10-12: "the portrait skins should show here"): the equipped HERO SKINS of
- * several players at once, from the same public `cosmetic_loadouts` table the Career page reads (`fetchLoadoutRows`),
+ * THE LEADERBOARD'S PORTRAITS (owner 2026-10-12: "the portrait skins should show here"): the equipped HERO SKINS and
+ * PORTRAIT FRAME of several players at once (owner 2026-10-16: "the player frames they have equipped arent showing
+ * here and they should"), from the same public `cosmetic_loadouts` table the Career page reads (`fetchLoadoutRows`),
  * in ONE paged read (`.in('user_id', …)`, `fetchAllRows`), folded per player through the same `loadoutFromRows`. Only
- * the `hero_skin` slot is read: a row prints one portrait, never a minion. A player with no hero skin is absent from
- * the map (default art). An empty map on any failure (default art everywhere, never a throw).
+ * the `hero_skin` and `portrait_frame` slots are read: a row prints one portrait in one ring, never a minion. A player
+ * with neither is absent from the map (default art, default ring). An empty map on any failure (never a throw).
  */
-export async function fetchHeroSkinLoadouts(userIds: readonly string[]): Promise<Map<string, RunCosmeticSnapshot>> {
+export const PORTRAIT_LOADOUT_SLOTS = ['hero_skin', 'portrait_frame'] as const;
+export async function fetchPortraitLoadouts(userIds: readonly string[]): Promise<Map<string, RunCosmeticSnapshot>> {
   const out = new Map<string, RunCosmeticSnapshot>();
   const ids = [...new Set(userIds.filter((u) => typeof u === 'string' && u.length > 0))];
   const c = supabaseClient();
@@ -279,8 +281,8 @@ export async function fetchHeroSkinLoadouts(userIds: readonly string[]): Promise
   try {
     const res = await Promise.race([
       fetchAllRows<{ user_id?: unknown; slot?: unknown; target_id?: unknown; cosmetic_id?: unknown }>((from, to) =>
-        c.from('cosmetic_loadouts').select('user_id, slot, target_id, cosmetic_id').in('user_id', ids).eq('slot', 'hero_skin')
-          .order('user_id', { ascending: true }).order('target_id', { ascending: true }).range(from, to)),
+        c.from('cosmetic_loadouts').select('user_id, slot, target_id, cosmetic_id').in('user_id', ids).in('slot', [...PORTRAIT_LOADOUT_SLOTS])
+          .order('user_id', { ascending: true }).order('slot', { ascending: true }).order('target_id', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
     if (!res || res.error || !res.data) return out;
@@ -293,7 +295,7 @@ export async function fetchHeroSkinLoadouts(userIds: readonly string[]): Promise
     }
     for (const [u, rows] of byUser) {
       const snap = loadoutFromRows(rows);
-      if (snap.heroSkinByHeroId) out.set(u, snap);
+      if (snap.heroSkinByHeroId || snap.portraitFrame) out.set(u, snap);
     }
     return out;
   } catch {

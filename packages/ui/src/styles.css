@@ -151,11 +151,6 @@
      Compendium / Career / Leaderboard tiles — and at any resolution. On the board at scale 1 the px value is
      reproduced exactly, so the tuner numbers stay meaningful. */
   --ccw-ref: 184.09px;
-  /* The BOARD card's compact width, frozen at :root (a descendant that redeclares --ccw — the hand, a Discover row,
-     a Career tile — still inherits THIS value). The milestone stat-badge frame is authored in px at the board card,
-     so `.badge` scales it by --ccw / --ccw-board: exactly 1 on the shop/board/combat cards (no change there), and
-     proportional to the card everywhere else (owner report 2026-10-16, R-BADGE-FIT-01). */
-  --ccw-board: var(--ccw);
   /* the compact card's arched silhouette — shared by the frame, the card box, and keyword overlays. */
   --arch-radius: 48% 48% 20% 20% / 35% 35% 14% 14%;
   /* a scaled "px" for the chrome (HUD / tavern controls / status tray / timer): 1.34px at the reference, × --scale
@@ -2248,17 +2243,16 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .plate { position: absolute; inset: 0; border-radius: 16px; border: 3px solid var(--card); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
 .atk > .plate { background: var(--atk); } .hp > .plate { background: var(--hpc); }
 .badge > .value { position: relative; font-family: var(--font-ui); font-weight: 800; font-size: calc(30px * var(--sv-fit, 1)); color: #fff; }
-/* SHRINK-TO-FIT (owner report 2026-10-16, R-BADGE-FIT-01): every badge number is sized for three glyphs; a longer
-   one (`1000`, `10000`, `104k`, `999.9k`) steps down by its glyph count (`statFit` in formatStat.ts stamps
-   `data-fit`) so it stays inside the disc instead of spilling onto the frame, the portrait and the other badge. */
-.badge > .value[data-fit='4'] { --sv-fit: 0.72; }
-.badge > .value[data-fit='5'] { --sv-fit: 0.58; }
-.badge > .value[data-fit='6'] { --sv-fit: 0.52; }
-.badge > .value[data-fit='7'] { --sv-fit: 0.46; }
-/* Milestone art scale: 1 on a board-sized card, proportional on every smaller/larger one (see --ccw-board). Every
-   px of the frame, glow, tint and framed number below multiplies by it, so a Career / Recent Games / Match details
-   tile shows the same badge as the board, only smaller, instead of a board-sized frame on a tile-sized card. */
-.badge { --ms-k: calc(var(--ccw) / var(--ccw-board, var(--ccw))); }
+/* SHRINK-TO-FIT, 4+ glyphs only (owner reports 2026-10-16, R-BADGE-FIT-01): the badge number is sized for three
+   glyphs; a longer one (`1000`, `10000`, `104k`, `103.7k`) steps down by its glyph count (`statFit` in
+   formatStat.ts stamps `data-fit`) so it stays about as wide as a 3-digit number. Up to three glyphs keeps the
+   authored size. The steps are GENTLE on purpose: #2119 also scaled the badge with the card and shrank the numbers
+   on the Career / Recent Games strips to an unreadable smudge, so the frame stays its authored px everywhere (as
+   before #2119) and a 6-7 glyph number may spill a little past the disc rather than shrink below readable. */
+.badge > .value[data-fit='4'] { --sv-fit: 0.8; }
+.badge > .value[data-fit='5'] { --sv-fit: 0.7; }
+.badge > .value[data-fit='6'] { --sv-fit: 0.66; }
+.badge > .value[data-fit='7'] { --sv-fit: 0.58; }
 /* stats above base read green, below base read red */
 .atk.up > .plate, .hp.up > .plate { background: #1aa86f; }
 .atk.down > .plate, .hp.down > .plate { background: #d23b2b; }
@@ -2278,9 +2272,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .msframe {
   position: absolute;
   left: 50%; top: 50%;
-  width: calc(60px * var(--msf-scale, 1) * var(--ms-k, 1));
+  width: calc(60px * var(--msf-scale, 1));
   height: auto;
-  transform: translate(-50%, -50%) translate(calc(var(--msf-dx, -0.5px) * var(--ms-k, 1)), calc(var(--msf-dy, 3px) * var(--ms-k, 1)));
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -0.5px), var(--msf-dy, 3px));
   pointer-events: none;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }
@@ -2314,13 +2308,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .msglow {
   position: absolute;
   left: 50%; top: 50%;
-  width: calc(60px * var(--msf-scale, 1) * var(--msglow-frac, 0.95) * var(--ms-k, 1));
+  width: calc(60px * var(--msf-scale, 1) * var(--msglow-frac, 0.95));
   aspect-ratio: 1;
-  transform: translate(-50%, -50%) translate(calc(var(--msf-dx, -0.5px) * var(--ms-k, 1)), calc(var(--msf-dy, 3px) * var(--ms-k, 1)));
+  transform: translate(-50%, -50%) translate(var(--msf-dx, -0.5px), var(--msf-dy, 3px));
   border-radius: 50%;
   pointer-events: none;
   background: var(--ms-glow, #c9d3e0);
-  filter: blur(calc(var(--msglow-blur, 9px) * var(--ms-k, 1)));
+  filter: blur(var(--msglow-blur, 9px));
   opacity: var(--msglow-opacity, 0.75);
 }
 /* Tiers 1–3 (plain silver / dagger / gold) wear NO glow — only pink/blue/crystal glow (owner ask 2026-09-16).
@@ -2336,9 +2330,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .mstint {
   position: absolute;
   left: 50%; top: 50%;
-  width: calc(60px * var(--msf-scale, 1) * var(--mstint-frac, 0.66) * var(--ms-k, 1));
+  width: calc(60px * var(--msf-scale, 1) * var(--mstint-frac, 0.66));
   aspect-ratio: 1;
-  transform: translate(-50%, -50%) translate(calc(var(--mstint-dx, -1.5px) * var(--ms-k, 1)), calc(var(--mstint-dy, -0.5px) * var(--ms-k, 1)));
+  transform: translate(-50%, -50%) translate(var(--mstint-dx, -1.5px), var(--mstint-dy, -0.5px));
   border-radius: 50%;
   pointer-events: none;
   opacity: var(--mstint-opacity, 1);
@@ -2350,10 +2344,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge:not([data-milestone='0']) > .value {
   position: absolute;
   left: 50%; top: 50%;
-  transform: translate(-50%, -50%) translate(calc(var(--msnum-dx, -0.5px) * var(--ms-k, 1)), calc(var(--msnum-dy, 0px) * var(--ms-k, 1)));
+  transform: translate(-50%, -50%) translate(var(--msnum-dx, -0.5px), var(--msnum-dy, 0px));
   text-align: center;
   white-space: nowrap;
-  font-size: calc(var(--msnum-size, 33px) * var(--ms-k, 1) * var(--sv-fit, 1));
+  font-size: calc(var(--msnum-size, 33px) * var(--sv-fit, 1));
   color: var(--msnum-color, #fff);
   -webkit-text-stroke: var(--msnum-stroke-w, 0px) var(--msnum-stroke-color, #000);
   /* STATIC drop shadow behind the digit (tuner-driven) — a static text-shadow is fine under the 60fps rule;
@@ -2632,12 +2626,11 @@ img.tierbadge.tierstars,
   box-shadow: 0 0 0 calc(var(--ccw) * 0.014) #9c6f24, 0 calc(var(--ccw) * 0.021) calc(var(--ccw) * 0.05) rgba(0, 0, 0, 0.4);
 }
 .card.compact .badge > .value { font-size: calc(var(--ccw) * 0.15 * var(--sv-fit, 1)); }
-/* But a FRAMED (milestone) badge keeps its tuner-driven number size even on a compact card — the frame art is
-   tuner px too (calc(60px * --msf-scale)), so the digit must match it, not switch to the compact card-width size.
-   Both scale together by --ms-k (1 on the board) and the digit by its shrink-to-fit --sv-fit. Higher specificity than
-   the rule above, so --msnum-size wins (owner report 2026-09-16: the tuner's Number size wasn't reaching in-game
-   cards; owner report 2026-10-16: a fixed-px frame + 4-glyph number overflowed the small Career tiles). */
-.card.compact .badge:not([data-milestone='0']) > .value { font-size: calc(var(--msnum-size, 33px) * var(--ms-k, 1) * var(--sv-fit, 1)); }
+/* But a FRAMED (milestone) badge keeps its tuner-driven fixed number size even on a compact card — the frame
+   art is fixed-px (calc(60px * --msf-scale)) too, so the digit must match it, not switch to the compact
+   card-width-responsive size. Higher specificity than the rule above, so --msnum-size wins (owner report
+   2026-09-16: the tuner's Number size wasn't reaching in-game cards). */
+.card.compact .badge:not([data-milestone='0']) > .value { font-size: calc(var(--msnum-size, 33px) * var(--sv-fit, 1)); }
 .card.compact .atk { left: calc(var(--ccw) * -0.02); }
 .card.compact .hp { right: calc(var(--ccw) * -0.02); }
 /* mechanic medallion — eclipses the arch's bottom-centre, between the attack/health badges.

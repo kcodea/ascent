@@ -13283,7 +13283,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc .cv2-lobby, .gc .rg-lobby { margin: 0 20px 14px 22px; }
 /* LARGE (the split layout's detail): the board takes the full width under the header. */
 .gc.rg-large .gc-body { grid-template-areas: 'place hero side' 'board board board' 'meta meta meta'; row-gap: 14px; padding: 18px 24px 16px 26px; }
-.gc.rg-large .gc-board .lb-team { --tile-s: 0.82; justify-content: center; }
+.gc.rg-large .gc-board .lb-team { --tile-s: 0.78; justify-content: center; padding-left: 0; }
 .gc.rg-large .gc-hero .lb-heroframe .hero { width: 96px; height: 96px; }
 .gc.rg-large .gc-title, .gc.rg-large .gc-title > * { font-size: 26px; }
 .gc.rg-large .gc-place { font-size: 54px; }

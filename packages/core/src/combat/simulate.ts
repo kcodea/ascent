@@ -24,6 +24,7 @@ import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, 
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
+import { rollableWhisperIds, whisperAllowedAtTier } from '../whisperTier'; // R-WHISPER-TIER-01
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
 import { addedSecondTribe, instantiate, seedEchoCount, type CardIndex } from './minion';
@@ -100,18 +101,6 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
     || out.alesLastTurn > 0 || !!out.lastSpellCastId || out.rememberedSpellIds.length > 0 || pair(out.spellEscalation)
     || out.growthBonus > 0 || pair(out.rubyBonus) || !!out.whisperImprove;
   return any ? out : undefined;
-}
-
-/** Every WHISPER in a card index, in index order (content appends the Whispers in declaration order, so this matches
- *  `WHISPER_IDS`): the pool a combat "get a random Whisper" draws from (Woozy). Memoized per index. */
-const WHISPER_IDS_BY_INDEX = new WeakMap<object, readonly string[]>();
-function whisperIdsOf(cards: CardIndex): readonly string[] {
-  let ids = WHISPER_IDS_BY_INDEX.get(cards);
-  if (!ids) {
-    ids = Object.values(cards).filter((c) => c.whisper).map((c) => c.id); // WHISPER-POOL-GLOBAL: Whispers belong to no set (Gift class), so the global index IS their pool
-    WHISPER_IDS_BY_INDEX.set(cards, ids);
-  }
-  return ids;
 }
 
 export function simulate(
@@ -1704,12 +1693,19 @@ export function simulate(
       return map[whisperId]!;
     },
     grantWhisperToHand: (whisperId, side, mult, sourceUid) => {
+      // TIER GATE (owner 2026-10-16, R-WHISPER-TIER-01): no combat path is a Whisper's OWN minion granting it (that is a
+      // Shop Start of Turn), so every combat Whisper (Woozy's Avenge, Tamby's copy) is gated to the side's shop tier.
+      if (!whisperAllowedAtTier(cards[whisperId], ctx.tierFor(side))) return;
       const idx = handGrants[side].length;
       ctx.grantToHand(whisperId, side, sourceUid);
       if (mult > 1 && handGrants[side].length > idx) (shoutCarry[side].handWhisperMults ??= []).push({ idx, mult });
     },
     grantRandomWhispers: (count, side, mult, sourceUid) => {
-      const ids = whisperIdsOf(cards);
+      // The gated pool (R-WHISPER-TIER-01): Whispers of tier <= this side's shop tier whose owning Dragon is in the side's
+      // pinned set (`poolIds`; none = unrestricted), the same helper the Shop's Jar of Secrets reads.
+      const poolIds = stateOf(side).poolIds;
+      const inSet = poolIds && poolIds.length > 0 ? new Set(poolIds) : undefined;
+      const ids = rollableWhisperIds(cards, ctx.tierFor(side), inSet ? (id) => inSet.has(id) : undefined);
       if (ids.length === 0 || count <= 0) return;
       const draw = grantRngFor(side);
       for (let i = 0; i < count; i++) ctx.grantWhisperToHand?.(ids[draw.int(ids.length)]!, side, mult, sourceUid);

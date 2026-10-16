@@ -2084,6 +2084,13 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
 - **Whisper reactors.** Tamby: "When you cast a Whisper on this, get a copy of it. (Once per turn)" (Gilded: 2
   copies). Whisp: "When you cast a Whisper on a Dragon, also cast it on this." (Gilded: twice). Whisp's cast is a
   full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again.
+- **Whisper tiers** (owner 2026-10-16, R-WHISPER-TIER-01). Every Whisper has the tier of the Whisper minion that owns
+  it (derived from data: Tome 1, Seed 1, Runebind 2, Bait 2, Clutch 4, Ripple 5, Well of Dragons 5, Warding Call 5;
+  the lowest if several minions own one, Tier 1 if none does). A Whisper minion granting its **own** Whisper is never
+  gated: a Tier 5 Dragon on a Tier 4 board still grants it. **Every other way of getting a Whisper** (Jar of Secrets,
+  Woozy's Avenge, Tamby's copy, and any spell, Equipment, Echo, Shout, rune or hero) only gives Whispers of tier <= your
+  current shop tier, in every phase. A random roll draws (seeded) from those Whispers whose owning minion is in the
+  run's set. Spells and Equipment give a Whisper no tier of their own.
 
 ### Set 3 Dragons: Whaloo, Falx, Queen Morro, Shush (owner 2026-10-14; R-WHISPER-03..07, R-SPELL-MORRO-01)
 
@@ -2100,7 +2107,7 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   more, each a real counted cast. Added to Runebloom Matriarch and the Ancient of War; live (a dead Morro stops). Shop
   casts are untouched.
 - **Shush** (T4 5/4): "**Equip Jar of Secrets (2):** Get **3** random **Whispers**." "(2)" is the Gold cost (the Equip
-  convention). The draws come from every Whisper (Tome, Runebind, Ripple, and any future one) and follow every Whisper
+  convention). The draws come from the Whispers of your tier and below (Whisper tiers, above) and follow every Whisper
   rule. A Gilded Shush's Jar gets 3 Gilded Whispers.
 - **Gilded Whispers:** a Whisper from a Gilded source doubles its effect (and Runebind's improve) on every surface.
 - **Buffs panel:** a Whisper's grant is its own row under the Whisper's name (name, count and amount; no expiry note, owner 2026-10-15).
@@ -2120,7 +2127,7 @@ cards. New Dragons:
   target. A Gilded Well Watcher's Well opens two Discovers.
 - **Matriarch** (T6 4/12): "When you cast a spell, give your minions **+3 Health**." Every spell: Shop spells, Gifts,
   Whispers, Rubies, in the Shop (permanent) and in combat (a combat buff). Gilded: +6.
-- **Woozy** (T3 5/3): "**Avenge (3):** Get **2** random **Whispers**." Drawn from every Whisper. Gained in combat, they
+- **Woozy** (T3 5/3): "**Avenge (3):** Get **2** random **Whispers**." Drawn from the Whispers of your tier and below. Gained in combat, they
   arrive in the next Shop's hand and follow every Whisper rule there (they fade at that turn's End of Turn if unused).
   Gilded: 2 Gilded Whispers.
 - **Immune Iggy** (T5 7/2): "Immune while attacking. **(Twice per combat)**" Its first 2 swings each combat take no

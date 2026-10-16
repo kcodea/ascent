@@ -100,9 +100,8 @@ describe('set separation — combat random picks respect the run’s set', () =>
         // `allow.has(c.id)` is `poolCards`' OWN body — the one place that legitimately filters the global
         // index, since narrowing it is the entire job.
         .filter(([l]) => !/allow\.has\(/.test(l))
-        // The Whisper pool (Woozy, Set 3 2026-10-15): Whispers are Gift-class and belong to NO set, so the global index
-        // is their whole pool (content's `WHISPER_IDS` is the same list). Tagged at the one line that reads it.
-        .filter(([l]) => !/WHISPER-POOL-GLOBAL/.test(l))
+        // (The Woozy Whisper pool used to read the global index here; since R-WHISPER-TIER-01 it goes through
+        // `rollableWhisperIds`, narrowed to the side's `poolIds` by each Whisper's owning Dragon.)
         .filter(([l]) => /allCards\(\)\s*\.filter\(/.test(l) || /Object\.values\(cards\)\.filter\(/.test(l));
       expect(offenders.map(([l, n]) => `${f.split('/').pop()}:${n} ${l.trim().slice(0, 70)}`),
         'a random draw is filtering the GLOBAL index — use ctx.poolCards(side)').toEqual([]);

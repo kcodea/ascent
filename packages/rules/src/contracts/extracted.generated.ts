@@ -42837,12 +42837,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "whisperBuffTarget.keyword"
       ]
     },
-    "tier": 1,
+    "tier": 2,
     "tribes": [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:2"
     ],
     "triggers": [
       {
@@ -42885,12 +42885,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "whisperGetTribeOfTier.tribe"
       ]
     },
-    "tier": 1,
+    "tier": 4,
     "tribes": [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -42923,12 +42923,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "low"
     },
-    "tier": 1,
+    "tier": 5,
     "tribes": [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -43003,12 +43003,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "whisperGrantKeyword.keyword"
       ]
     },
-    "tier": 1,
+    "tier": 5,
     "tribes": [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -43044,12 +43044,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "whisperDiscoverTribe.tribe"
       ]
     },
-    "tier": 1,
+    "tier": 5,
     "tribes": [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:5"
     ],
     "triggers": [
       {
@@ -43082,12 +43082,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "high"
     },
-    "tier": 1,
+    "tier": 2,
     "tribes": [
       "neutral"
     ],
     "tags": [
-      "tier:1"
+      "tier:2"
     ],
     "triggers": [
       {

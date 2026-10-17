@@ -13070,6 +13070,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    you point at that row; ten banners of seven looping cards were ~226 running animations and a 4 ms idle frame on
    the Hall, and every hover sweep repainted them. The row you hover plays (the `.is-far` pause, made local). */
 .lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
+/* The Reborn wisps and dome stay still on a menu board even when the card is pointed at (measured 2026-10-16 on Recent
+   Games: their keyframes run on the main thread, ~46k style invalidations and most of the hover cost over a 3 s sweep).
+   In a game they play as always; this is the menu boards only. */
+.gc .cv2-team .wisp, .gc .cv2-team .reborn-dome { animation-play-state: paused !important; }
 /* Every game card (Career AND Recent Games, which share the StoredTeam board since layout B, 2026-10-16). */
 .gc:not(:hover) .cv2-team *, .gc:not(:hover) .cv2-team *::before, .gc:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
 /* `!important` like `.is-far`'s: the card FX rules set the `animation` SHORTHAND, which resets play-state to running and

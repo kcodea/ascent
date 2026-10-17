@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
+      { category: 'Systems', text: 'The Versus room has a new arena, and spectators show as cards too.', details: ['Spectators sit in a fan of small cards along the bottom. Hover one to see it full size.', 'Win and loss counts only include games against other players.', 'The Attack and Health on the room cards are bigger.'] },
       {
         category: 'Systems',
         text: 'Spectating: you now see the player minimize the Runeforge, and you can hover runes yourself.',

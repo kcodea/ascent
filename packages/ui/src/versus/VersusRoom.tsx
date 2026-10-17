@@ -1,16 +1,16 @@
 /**
- * VERSUS — the ROOM, laid onto the painted arena (owner 2026-10-14: `versuspng.jpg`, wired by name).
+ * VERSUS — the ROOM, on the painted arena (owner 2026-10-16: `versuspng2.jpg`, the empty colosseum: blue banners left,
+ * red right, the gate in the centre, an empty stone floor, and NO baked-in UI).
  *
- * The painting supplies every prop: the BLUE frame (Player 1, left) and the RED frame (Player 2, right) with their
- * empty name banners, the VS emblem, and the SPECTATORS bench with eight empty seats. This component only places
- * live content INTO those painted shapes: each seated player as a real game card in front of their frame (owner
- * 2026-10-16, VersusPlayerCard), HOST / the seat on its ribbon,
- * the gate state under each frame, spectator portraits in the bench slots (+N past eight), and the room controls
- * on the game's Gem plate. Nothing here draws a frame, a bench or an emblem (no code-drawn props).
+ * Everything on it is the game's own pieces: each seated player is a real game card (VersusPlayerCard, blue side left,
+ * red side right) with HOST / the seat on the Gem-plate pill under it, an Open seat is the same card dimmed with Take
+ * seat over it, the VS mark between them, the status line, and the spectators as a hand-style fan of small player cards
+ * along the bottom (hover lifts one to full size, transform only). The room controls are on the Gem plate. Nothing here
+ * draws a frame, a bench or an emblem (no code-drawn props); the VS mark is display-font text until it has art.
  *
  * Geometry: the arena box keeps the painting's aspect (2560x1086) at the stage's full height and is centred, so the
- * sides crop on a 16:9 stage and every overlay is a percentage of the PAINTING, landing on its element at any
- * stage scale. Static image, no looping paint; the gauntlet cursor comes from the global button rule.
+ * sides crop on a 16:9 stage and every overlay is a percentage of the PAINTING, landing in the same place at any stage
+ * scale. Static image + a static vignette, no looping paint; the gauntlet cursor comes from the global button rule.
  */
 import { useEffect, useState, type CSSProperties } from 'react';
 import { VERSUS_HEARTS, VERSUS_SPECTATOR_CAP } from '@game/sim';
@@ -23,15 +23,12 @@ import { VersusMatchStats } from './VersusMatchStats';
 import { setVersusBotDisconnected, startVersusBot, stopVersusBot, useVersusBot } from './versusBot';
 import { versusTestToolsEnabled } from './versusFlag';
 import { resumeSpectating } from './spectate';
-import { MemberRing } from './MemberRing';
-import { VersusPlayerCard } from './VersusPlayerCard';
-import { useSeatData, type SeatServerData } from './versusSeatCard';
+import { VersusEmptySeatCard, VersusPlayerCard } from './VersusPlayerCard';
+import { MAX_RECORD_IDS, useSeatData, type SeatServerData } from './versusSeatCard';
 import { leaveRoom, myRole, setVersusStatsOpen, startGame, takeSeat, useVersus, versusRemainingMs, type VersusState } from './versusStore';
 import type { VersusMember } from './versusRemote';
 import './versus.css';
 
-/** Bench slots painted in the arena (left edges, % of the painting's width). */
-const BENCH_LEFT = [25.6, 31.6, 37.7, 43.85, 50.0, 56.15, 62.65, 68.9];
 
 function useCountdown(iso: string | null | undefined): number {
   const [s, setS] = useState(() => displaySeconds(versusRemainingMs(iso)));
@@ -52,32 +49,48 @@ function Seat({ side, m, room, match, server }: { side: 'p1' | 'p2'; m: VersusMe
   const isHost = !!m && m.userId === room.host_user_id;
   return (
     <>
-      {/* A seated player is a REAL card (owner 2026-10-16), standing in front of their painted frame; the frame's gem
-          and ribbon stay visible around it, so the side keeps its blue / red identity. An open seat keeps the painted
-          frame and its Take seat button. */}
-      {m
-        ? <div className={`vspcard vspcard-${side}`}><VersusPlayerCard m={m} server={server} /></div>
-        : (
-          <div className={`vsframe vsframe-${side}`}>
-            {open && (
-              <span className="vsseatbtns">
-                <button className="vsplate vstake" onClick={() => { sfx.pulse(); void takeSeat(side); }}>Take seat</button>
-                {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */}
-                {versusTestToolsEnabled() && botStatus === 'off' && (
-                  <button className="vsplate vstake" onClick={() => { sfx.pulse(); void startVersusBot(room.id); }}>Add bot</button>
-                )}
-              </span>
+      {/* A seated player is a REAL card (owner 2026-10-16); an open seat is the same card, dimmed, with Take seat. */}
+      <div className={`vspcard vspcard-${side}`}>
+        {m ? <VersusPlayerCard m={m} server={server} /> : <VersusEmptySeatCard />}
+        {!m && open && (
+          <span className="vsseatbtns">
+            <button className="vsplate vstake" onClick={() => { sfx.pulse(); void takeSeat(side); }}>Take seat</button>
+            {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */}
+            {versusTestToolsEnabled() && botStatus === 'off' && (
+              <button className="vsplate vstake" onClick={() => { sfx.pulse(); void startVersusBot(room.id); }}>Add bot</button>
             )}
-          </div>
+          </span>
         )}
-      {/* The painted ribbon under the card: HOST on the host's seat (the name is on the card now), the seat otherwise. */}
-      <div className={`vsbanner vsbanner-${side}`}>
-        <span className={`vsbanner-name${isHost ? ' vsbanner-host' : ''}`}>{!m ? 'Open seat' : isHost ? 'Host' : side === 'p1' ? 'Player 1' : 'Player 2'}</span>
+      </div>
+      {/* The seat's pill under the card, in the side's colour: HOST on the host's seat, the seat otherwise. */}
+      <div className={`vsseatlabel vsseatlabel-${side}`}>
+        <span className={`vsstatus vsseatpill vsseatpill-${side}${isHost ? ' vsseatpill-host' : ''}`}>{!m ? 'Open seat' : isHost ? 'Host' : side === 'p1' ? 'Player 1' : 'Player 2'}</span>
       </div>
       <div className={`vsgatebox vsgatebox-${side}`}>
         {running && m && <span className="vsgatestate">{side === 'p1' ? match!.p1_hearts : match!.p2_hearts} / {VERSUS_HEARTS} hearts</span>}
       </div>
     </>
+  );
+}
+
+/**
+ * THE STANDS as a hand of cards (owner 2026-10-16: "spectators should show as cards in hand so you can mouse over to
+ * view their cards too"): each spectator is a small player card, fanned and overlapped like the hand (`.row.hand .card`:
+ * a tilt per position about a point below the row, so the row arcs), tighter the more there are, up to the 20 seats.
+ * Hovering one lifts it upright to full size (one transform; nothing is measured). Memoised per member.
+ */
+function SpectatorFan({ spectators, data }: { spectators: readonly VersusMember[]; data: ReadonlyMap<string, SeatServerData> }) {
+  const n = spectators.length;
+  return (
+    <div className="vsbench" style={{ '--n': n } as CSSProperties}>
+      <span className="vsstatus vsbench-label">Spectators</span>
+      {n === 0 && <span className="vsbench-empty">No one is watching yet.</span>}
+      {spectators.map((m, i) => (
+        <div key={m.userId} className="vsbcard" style={{ '--i': i, '--off': i - (n - 1) / 2 } as CSSProperties}>
+          <VersusPlayerCard m={m} server={data.get(m.userId)} bench />
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -94,7 +107,9 @@ export function VersusRoom() {
   // hook, so it runs before the no-room return.)
   const p1 = room?.members.find((x) => x.role === 'p1') ?? null;
   const p2 = room?.members.find((x) => x.role === 'p2') ?? null;
-  const seatIds = [p1?.userId, p2?.userId].filter((x): x is string => !!x);
+  // ONE batched read for every card in the room: both seats and every spectator (at most 22 ids, R-NET-01).
+  const seatIds = [p1?.userId, p2?.userId, ...(room?.members.filter((x) => x.role === 'spectator').map((x) => x.userId) ?? [])]
+    .filter((x): x is string => !!x).slice(0, MAX_RECORD_IDS);
   const seatData = useSeatData(seatIds, `${seatIds.join(',')}|${room?.status === 'open' ? 'open' : 'busy'}|${room?.current_match_id ?? ''}|${lastMatch?.matchId ?? ''}`);
   if (!room) return null;
   const me = currentUserId();
@@ -105,8 +120,6 @@ export function VersusRoom() {
   const open = room.status === 'open';
   const running = room.status === 'in_game' && !!match && match.phase !== 'complete';
   const isPlayer = role === 'p1' || role === 'p2';
-  const overflow = spectators.length > BENCH_LEFT.length;
-  const shown = overflow ? spectators.slice(0, BENCH_LEFT.length - 1) : spectators;
 
   let status: string | null = null;
   // THE GATE (owner 2026-10-14): each player's own entry gate (the ranked doors and crystal) plays over this room; a
@@ -121,6 +134,11 @@ export function VersusRoom() {
       <div className="vsarena-ext" aria-hidden="true" />
       <div className="vsarena">
         <img className="vsarena-art" src={arenaArt} alt="" draggable={false} decoding="sync" />
+        {/* Readability on the bright arena: a static vignette (gradients only, no blur, no animation). */}
+        <div className="vsvignette" aria-hidden="true" />
+        {/* The VS mark between the two cards. The old VS emblem was baked into the old painting; until it has its own
+            art this is the game's display font with a static glow. */}
+        <div className="vsmark" aria-hidden="true">VS</div>
         <Seat side="p1" m={p1} room={room} match={match} server={p1 ? seatData.get(p1.userId) : undefined} />
         <Seat side="p2" m={p2} room={room} match={match} server={p2 ? seatData.get(p2.userId) : undefined} />
 
@@ -135,18 +153,7 @@ export function VersusRoom() {
           )}
         </div>
 
-        {shown.map((m, i) => (
-          <div key={m.userId} className="vsbenchslot" style={{ left: `${BENCH_LEFT[i]}%` }}>
-            {/* The spectator's face as everywhere else: their avatar (or initial) in the portrait ring, in their frame. */}
-            <MemberRing name={m.displayName} profile={m.profile} className="vsbench-ring" />
-            <span className="vsbench-name">{m.displayName}</span>
-          </div>
-        ))}
-        {overflow && (
-          <div className="vsbenchslot vsbenchmore" style={{ left: `${BENCH_LEFT[BENCH_LEFT.length - 1]}%` }}>
-            +{spectators.length - shown.length}
-          </div>
-        )}
+        <SpectatorFan spectators={spectators} data={seatData} />
       </div>
 
       <div className="vsroomtop">

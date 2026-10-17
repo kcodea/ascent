@@ -872,7 +872,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   profile and a non-anonymous sign-in); an abandoned match counts as neither, and an unknown record prints "-". The numbers re-read when a
   match ends and the players are back in the room. "Show opponent cosmetics" off shows the other player's card on the
   standard plate (and their favourite hero without its skin); their picture, title and record always show. HOST is
-  on the host's ribbon under the card. Counts come from `versus_records` (supabase/migrations/2026-10-16-versus-records.sql).
+  on the host's pill under the card. Counts come from `versus_records` (supabase/migrations/2026-10-16-versus-records.sql).
+  Spectators are the same cards, small, fanned like a hand along the bottom; hovering one lifts it to full size
+  (R-VERSUS-STANDS-01). An open seat is the card dimmed, with Take seat.
 - **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
   the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
   the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same

@@ -11,7 +11,8 @@ import { playerRunsFrom, resetLobbyDrivers, runKeyOf, setWatchedSeatRuns, type R
 import { useGame } from '../store';
 import { installSpectateIo, liveSync, receiveSpectate, receiveSpectatorCursor, refreshSpectatorSeats, SPECTATE_KEY_EVENT, useSpectate } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT, SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
-import { myWatcherIdentity, setWatchers } from '../versus/watchers';
+import { myWatcherIdentity, othersInStands, setWatchers } from '../versus/watchers';
+import { supabaseClient } from '../remoteBoards';
 import { currentUserId } from '../identity';
 import { installSpectatorEmotes, onUnknownSpectatorEmote, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from '../versus/spectatorEmotes';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
@@ -46,6 +47,11 @@ let session: {
   polls: number;
 } | null = null;
 
+/** The auth session's user id (the id `lobby_live_watch_as` wrote my row under), or null. Never throws. */
+async function mySessionId(): Promise<string | null> {
+  try { return (await supabaseClient()?.auth.getSession())?.data.session?.user.id ?? null; } catch { return null; }
+}
+
 /** Re-read the other watchers every few polls (they join and leave), and at most this often on an unknown emote. */
 const FELLOWS_EVERY_POLLS = 3;
 const FELLOWS_ASK_MS = 3000;
@@ -61,8 +67,12 @@ async function readFellows(s: NonNullable<typeof session>): Promise<void> {
   try {
     const rows = await remote.watchers(s.gameId);
     if (session !== s) return;
-    const me = currentUserId();
-    setWatchers((rows ?? []).filter((r) => r.user_id !== me).slice(0, 20).map((r) => ({ id: r.user_id, name: r.display_name ?? '', profile: r.profile ?? null })));
+    // ME, by every id that is me here: the identity AND the auth session the watch call ran under (the row is keyed
+    // by that one), so my own row is never drawn again among the others (R-SPECTATE-HUD-02).
+    const authId = await mySessionId();
+    if (session !== s) return;
+    const all = (rows ?? []).map((r) => ({ id: r.user_id, name: r.display_name ?? '', profile: r.profile ?? null }));
+    setWatchers(othersInStands(all, [currentUserId(), authId]).slice(0, 20));
   } catch {
     // An older server (only the player may read its watchers): the row shows only me.
   }

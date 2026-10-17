@@ -29,10 +29,24 @@ export function stableOrder(prev: readonly Watcher[], next: readonly Watcher[]):
   return next.map((w, i) => ({ w, k: at.has(w.id) ? at.get(w.id)! : prev.length + i })).sort((a, b) => a.k - b.k).map((x) => x.w);
 }
 
+/** One entry per account (owner 2026-10-16: "shows 2 of me for some reason"; R-SPECTATE-HUD-02): the same user id twice
+ *  (two tabs, two sessions, a read racing a re-read) is one chip; the first one wins. Pure. */
+export function uniqueWatchers(list: readonly Watcher[]): Watcher[] {
+  const seen = new Set<string>();
+  return list.filter((w) => (seen.has(w.id) ? false : (seen.add(w.id), true)));
+}
+
+/** The stands WITHOUT me: a spectator's own row already draws me first, so I never appear again among the others.
+ *  `me` is every id that is me on this client (the identity, and the auth session's id). Pure. */
+export function othersInStands(list: readonly Watcher[], me: Iterable<string | null | undefined>): Watcher[] {
+  const mine = new Set([...me].filter((x): x is string => !!x));
+  return uniqueWatchers(list).filter((w) => !mine.has(w.id));
+}
+
 /** Replace the list (a no-op when nothing about it changed: no re-render). */
 export function setWatchers(list: readonly Watcher[]): void {
   const cur = useWatchers.getState().list;
-  const next = stableOrder(cur, list);
+  const next = stableOrder(cur, uniqueWatchers(list));
   if (keyOf(next) === keyOf(cur)) return;
   useWatchers.setState({ list: next });
 }

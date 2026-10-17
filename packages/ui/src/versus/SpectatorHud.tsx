@@ -25,7 +25,7 @@ import { toStage } from '../stage';
 import { useGame } from '../store';
 import { MemberRing } from './MemberRing';
 import { StandsPlates } from './WatchersBadge';
-import { myWatcherIdentity, useWatchers } from './watchers';
+import { myWatcherIdentity, othersInStands, useWatchers } from './watchers';
 import './versus.css';
 
 /** The top-left plate's anchor key when I have no account id yet (a test, or signed out). */
@@ -38,12 +38,15 @@ export const SpectatorSelf = memo(function SpectatorSelf({ onLeave }: { onLeave:
   // Re-read when my name or picture changes.
   const me = useMemo(() => myWatcherIdentity(), [playerName, avatar]);
   const myId = currentUserId() ?? SELF_WATCHER_FALLBACK;
-  const fellows = useWatchers((s) => s.list);
+  const stands = useWatchers((s) => s.list);
+  // Never me twice: my plate is drawn first, so the others are the stands without me (R-SPECTATE-HUD-02).
+  const fellows = useMemo(() => othersInStands(stands, [myId]), [stands, myId]);
   const name = me.name || 'You';
   const openMenu = (e: React.MouseEvent<HTMLButtonElement>): void => {
     e.preventDefault();
     const r = e.currentTarget.querySelector('.portring')?.getBoundingClientRect() ?? e.currentTarget.getBoundingClientRect();
-    openEmoteMenu({ x: toStage(r.left + r.width / 2), y: toStage(r.bottom) }, { spectator: true, below: true });
+    // Below the plate when it fits (it sits at the top of the screen), flipped above only if not, never off the stage.
+    openEmoteMenu({ x: toStage(r.left + r.width / 2), y: toStage(r.bottom) }, { spectator: true, below: true, anchor: { top: toStage(r.top), bottom: toStage(r.bottom) } });
   };
   return (
     <div className="vsspec vsself" role="group" aria-label="You are spectating">

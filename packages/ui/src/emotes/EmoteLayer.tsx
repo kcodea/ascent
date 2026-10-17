@@ -1,9 +1,9 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { cosmeticOf } from '@game/progression';
 import { emoteReplayDelays, playerOpponent, seatEmoteSchedule, type EmotePhase, type RunLobby } from '@game/sim';
 import { useGame } from '../store';
-import { stageHost } from '../stage';
+import { stageHost, stageViewport } from '../stage';
 import { sfx } from '../sfx';
 import { emoteSrc } from './emoteArt';
 import { clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
@@ -11,7 +11,7 @@ import { useEmoteSlots } from './emoteLoadout';
 import { EmptyEmoteSlot } from './EmptyEmoteSlot';
 import {
   EMOTE_COOLDOWN_MS, PLAYER_SEAT, closeEmoteMenu, emoteCooldownRemaining, emoteNow, emotePhaseClock, markEmotePhase, onEmotePhase,
-  phaseOfRun, sayEmote, useEmoteUi,
+  phaseOfRun, placeEmoteMenu, sayEmote, useEmoteUi,
 } from './emoteRuntime';
 import { deliverEmote, subscribeEmotes } from './emoteTransport';
 import { resetHeldEmotes } from './emoteRecording';
@@ -94,9 +94,18 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
 });
 
 /** The right-click menu: your four emotes, and the cooldown while it runs. Portaled to the stage host. */
-function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean } }): JSX.Element {
+function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean; anchor?: { top: number; bottom: number } } }): JSX.Element {
   const slots = useEmoteSlots();
   const ref = useRef<HTMLDivElement>(null);
+  // A PLACED menu (a spectator's, off their top-left plate): measured once on open (its own layout size, stage px),
+  // then put below the plate when it fits, else above, inside the stage (R-SPECTATE-HUD-02). Hidden for that one
+  // pre-paint pass so it never flashes in the wrong place. The player's own menu keeps its fixed CSS offset.
+  const [placed, setPlaced] = useState<{ left: number; top: number; side: 'below' | 'above' } | null>(null);
+  useLayoutEffect(() => {
+    if (!at.anchor || !ref.current) return;
+    const el = ref.current;
+    setPlaced(placeEmoteMenu({ x: at.x, top: at.anchor.top, bottom: at.anchor.bottom }, { w: el.offsetWidth, h: el.offsetHeight }, stageViewport(), at.below ? 'below' : 'above'));
+  }, [at]);
   const [left, setLeft] = useState(() => emoteCooldownRemaining());
   // The bar's start point, fixed for this menu: the animation then runs on its own (no per-tick restyle).
   const [left0] = useState(left);
@@ -126,10 +135,13 @@ function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean } }): J
   return createPortal(
     <div
       ref={ref}
-      className={`atip emote-menu${at.below ? ' below' : ''}${cooling ? ' cooling' : ''}`}
+      className={`atip emote-menu${at.anchor ? ` placed ${placed?.side ?? ''}` : at.below ? ' below' : ''}${cooling ? ' cooling' : ''}`}
       role="menu"
       aria-label="Emotes"
-      style={{ left: `${at.x}px`, top: `${at.y}px` }}
+      style={at.anchor
+        ? { left: `${placed?.left ?? at.x}px`, top: `${placed?.top ?? at.y}px`, visibility: placed ? undefined : 'hidden' }
+        : { left: `${at.x}px`, top: `${at.y}px` }}
+      data-side={placed?.side}
       onContextMenu={(e) => { e.preventDefault(); }}
     >
       <b className="atip-title">Emotes</b>

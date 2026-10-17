@@ -56,6 +56,19 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-17',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Spectating: you no longer show twice at the top left, and your emote wheel opens below your portrait.',
+        details: [
+          'The top left shows you once, then the other spectators. Two tabs on one account show as one spectator.',
+          'Your emote wheel opens below your portrait, or above it when there is no room, and always stays on screen.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-16',
     changes: [
       { category: 'Systems', text: 'The Versus room has a new arena, and spectators show as cards too.', details: ['Spectators sit in a fan of small cards along the bottom. Hover one to see it full size.', 'Win and loss counts only include games against other players.', 'The Attack and Health on the room cards are bigger.'] },

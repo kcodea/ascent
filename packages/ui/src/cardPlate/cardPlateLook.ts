@@ -62,7 +62,7 @@ export interface CardPlateLook {
 const PLATE_DIR = `${import.meta.env.BASE_URL}frames/plates/`;
 
 /** The shared interiors a layered plate can sit on (`frames/plates/interiors/<name>.webp`). Brown is the default. */
-export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack'] as const;
+export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack', 'darkbrown', 'grey'] as const;
 export type PlateInterior = (typeof PLATE_INTERIORS)[number];
 export const DEFAULT_PLATE_INTERIOR: PlateInterior = 'brown';
 
@@ -129,6 +129,20 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // Owner 2026-10-15: "nudge the plate to the right ... ignore the true centering for now".
   // Owner 2026-10-15: "blossoms interior needs to nudge down too" (fit measured like the others).
   plate_blossom: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.011, interiorSy: 1.011, interiorY: 0.0103 }, // owner-tuned: 0.04 too far, then 0.02, 0.015, 0.01, each a little too far
+  // Owner 2026-10-16 batch. Every interior here is dark, so no text darkening (like the other dark-interior plates).
+  // Dark Arcane: Galaxy's template and opening, on the Dark interior (same seat and fit).
+  plate_dark_arcane: GALAXY_SEAT,
+  // Simple Glass: the Simple template (pointed bottom) on the new Grey interior. The glass is see-through on its left
+  // edge, so its fit counted alpha > 60 as frame (`--fit-alpha 60`); the opening is centred like Simple Black's.
+  plate_simple_glass: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.004, interiorSx: 1.21, interiorSy: 1.122, interiorY: 0.03, darken: false },
+  // Stonevines: the standard template with vines spilling over the edge, on the Grey interior; opening 0.5px left.
+  plate_stonevines: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.005, interiorSx: 1.047, interiorSy: 1.026, interiorY: -0.0066, darken: false },
+  // The four STANDARD colours: the standard plate's shape recoloured, on the new Dark Brown interior; openings 1px left
+  // of centre like Galaxy's.
+  plate_standard_black: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009, darken: false },
+  plate_standard_blue: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009, darken: false },
+  plate_standard_pink: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009, darken: false },
+  plate_standard_teal: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.03, interiorY: -0.0028, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

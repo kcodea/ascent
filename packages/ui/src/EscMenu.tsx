@@ -29,6 +29,7 @@ import { endReplay } from './replay/replayPlayer';
 import { forfeitMatch } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
 import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
+import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -87,6 +88,8 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const setCombatRampUp = useGame((s) => s.setCombatRampUp);
   // SKINS (owner 2026-09-28): an OPPONENT-only display switch. Your own equipped skins always show.
   const showOpponentSkins = useGame((s) => s.showOpponentSkins);
+  // SPECTATOR EMOTES (owner 2026-10-16, R-SPECTATE-EMOTE-01): on by default; off hides every spectator's emote.
+  const spectatorEmotesOn = useSpectatorEmotePrefs((s) => s.on);
   const setShowOpponentSkins = useGame((s) => s.setShowOpponentSkins);
   const fpsCap = useGame((s) => s.fpsCap);
   const setFpsCap = useGame((s) => s.setFpsCap);
@@ -234,6 +237,12 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           note="Off shows other players in their default art and hero attack. Your own cosmetics always show."
           on={showOpponentSkins}
           onToggle={() => { setShowOpponentSkins(!showOpponentSkins); sfx.pulse(); }}
+        />
+        <ToggleRow
+          label="Spectator emotes"
+          note="Off hides the emotes of people watching your game. Right-click a spectator in the top left to mute just them."
+          on={spectatorEmotesOn}
+          onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }}
         />
         <div className="escsec">Performance</div>
         {/* EFFECTS FRAME CAP (owner ask 2026-09-04; a dropdown named "Max Frame Rate" since 2026-10-08). Caps the Pixi

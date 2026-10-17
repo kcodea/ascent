@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus: emotes now show in the shop too, not only in combat.',
+        details: [
+          "Your opponent's emotes pop beside their portrait on the right during the shop, as they do in combat.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Seven more Legendary Card Plates to find in crates.',
         details: [
           'New Card Plates: Dark Arcane, Simple Glass, Stonevines, Standard Black, Standard Blue, Standard Pink and Standard Teal (all Legendary).',

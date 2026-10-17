@@ -70,6 +70,13 @@ export function placementFor(seat: string): BubblePlacement | null {
     const r = face?.getBoundingClientRect();
     // The tail lands on the face's left edge, low, so the bubble sits beside the row rather than over the rows above.
     if (r && r.width) return { x: toStage(r.left + r.width * 0.08), y: toStage(r.top + r.height * 0.85), width: WIDTH.rail, flip: true };
+    // VERSUS has no rail in the shop (owner bug 2026-10-16: "emotes arent showing in the recruit phase of versus"; the
+    // opponent's emote looked for a rail row that is never drawn and was dropped). The opponent's block stands where
+    // the rail would (`VersusFoe`, its face carries the seat id), so the bubble opens to the left of that portrait,
+    // exactly as beside the combat foe.
+    const disc = SEAT_ID.test(seat) ? document.querySelector(`.vsfoe-face[data-seat="${seat}"] .vsfoe-disc`) : null;
+    const d = disc?.getBoundingClientRect();
+    if (d && d.width) return { x: toStage(d.left + d.width * 0.12), y: toStage(d.top + d.height * 0.32), width: WIDTH.foe, flip: true };
     return null;
   }
   // Combat: only the foe has a face on screen.

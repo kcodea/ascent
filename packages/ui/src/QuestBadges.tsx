@@ -15,6 +15,8 @@ import { heldSotRuneProcs, sotRunKey, useSotRuneReleased } from './sotRuneHold';
 import { arrivalClasses } from './runeArrival';
 import { getRuneLockInConfig } from './runeLockInConfig';
 import { useGame, type CombatQuestDelta } from './store';
+import { liveRuneText } from './runeText';
+import { usePlayerRuneLive } from './useRuneLive';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
 import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars at load
@@ -89,6 +91,8 @@ function writeRuneChainsBroken(runKey: string): void {
 export function QuestBadges() {
   const run = useGame((s) => s.run);
   const triggered = useGame((s) => s.combatTriggeredQuests); // ids pulsing this replay beat
+  // A self-improving rune prints its CURRENT value, ticking mid-fight (R-RUNE-LIVE-TEXT-01).
+  const runeLive = usePlayerRuneLive();
   const completedNow = useGame((s) => s.combatCompletedQuests);
   const runeArrival = useGame((s) => s.runeArrival); // the rune the lock-in ceremony is handing over
   // The pop's shape is the ceremony's to own — it is the last beat of that sequence, tuned against it in the
@@ -224,7 +228,7 @@ export function QuestBadges() {
             ); })()}
             <div className="questbadge-tip" role="tooltip">
               <b>{rune.name}</b>
-              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+              <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, runeLive)) }} />
               {/* Rune badges never showed LIVE reward text — only quests did — so a rune whose payout depends
                   on run state could only ever restate its rule. Rune of Recollection is the case that made it
                   visible: "a copy of the first spell you cast this turn" names no card until you've cast one. */}

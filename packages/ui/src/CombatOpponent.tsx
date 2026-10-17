@@ -1,4 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react';
+import { liveRuneText } from './runeText';
+import { useEnemyRuneLive } from './useRuneLive';
 import { runeAccentTribe } from './RuneCard';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
@@ -89,6 +91,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // opponent ring (null = today's gold CSS border). Read before the early return.
   const frame = usePortraitFrame('opp', gauntletNo !== null ? null : frameIdOf(opponentSkins(showOppSkins, seatCosmetics(shown?.seat, shown?.board))));
 
+  // The foe's self-improving runes print their CURRENT value, ticking with its own triggers mid-fight
+  // (R-RUNE-LIVE-TEXT-01). Read before the early return (hooks).
+  const runeLive = useEnemyRuneLive(shown?.board.snapshot);
   if (phase === 'hidden' || !shown?.seat) return null;
   const next = shown;
   const seat = shown.seat;
@@ -200,7 +205,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
                 </div>
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>
-                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, runeLive)) }} />
                   <span className="questbadge-tip-state">Rune · active</span>
                 </div>
               </div>

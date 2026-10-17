@@ -6,7 +6,7 @@ import gsap from 'gsap';
 import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type RiseTint, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { whisperCombatBuffLabel } from './buffExpiry';
-import { triggerCounts } from './choreo/triggerCounts';
+import { runeProgress, runeProgressKey, triggerCounts } from './choreo/triggerCounts';
 import { getSpellPowerFxConfig, floatSpellPowerNumber } from './spellPowerFxConfig';
 import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig';
 import { fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
@@ -51,7 +51,7 @@ import { canPlayDefs, playDef } from './fx/playDef';
 import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
-import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource } from '@game/sim';
+import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, type RuneCombatProgress } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
@@ -903,6 +903,10 @@ export interface CombatReplay {
   questDelta: CombatQuestDelta;
   /** Badge id → times its combat effect has fired so far this fight; each bump pulses the node once. */
   triggeredQuests: Record<string, number>;
+  /** Each side's rune triggers (by flag) + friendly deaths replayed so far (R-RUNE-LIVE-TEXT-01); null before the
+   *  first beat. */
+  playerRuneProgress: RuneCombatProgress | null;
+  enemyRuneProgress: RuneCombatProgress | null;
   /** Quest ids that COMPLETED mid-replay — QuestBadges renders + lights these before the quest formally settles. */
   completedQuests: string[];
   skip: () => void;
@@ -3607,6 +3611,23 @@ export function useCombatReplay(
     [events, processedEnd, beatIdxIsStale],
   );
 
+  // Each side's RUNE PROGRESS so far this fight (R-RUNE-LIVE-TEXT-01): its rune triggers (by flag) and its friendly
+  // deaths, up to the replayed step, so a self-improving rune's text ticks in real time on both sides. Each is keyed on
+  // its CONTENT, so the store (and the badges reading it) only re-render on a beat where a rune actually moved, never
+  // on every beat of the fight (performance.md: keep per-beat props referentially stable).
+  const playerRuneRaw = useMemo(
+    () => runeProgress(events, processedEnd, beatIdxIsStale, 'player', combat?.playerQuestEvents),
+    [combat, events, processedEnd, beatIdxIsStale],
+  );
+  const enemyRuneRaw = useMemo(
+    () => runeProgress(events, processedEnd, beatIdxIsStale, 'enemy', combat?.enemyCarry?.questEvents),
+    [combat, events, processedEnd, beatIdxIsStale],
+  );
+  const playerRuneKey = runeProgressKey(playerRuneRaw);
+  const enemyRuneKey = runeProgressKey(enemyRuneRaw);
+  const playerRuneProgress = useMemo(() => playerRuneRaw, [playerRuneKey]);
+  const enemyRuneProgress = useMemo(() => enemyRuneRaw, [enemyRuneKey]);
+
   // Quests that COMPLETED mid-combat so far this fight (player side): each `questComplete` event's questId, up to
   // the replayed beat. The quest node doesn't exist in the badge row yet (it only settles as `completed` after
   // the replay), so the QuestBadges row renders + pulses these live off this set — the reward "lights up" the
@@ -3733,7 +3754,7 @@ export function useCombatReplay(
     watcherPulseUids: watcherPulse,
     framePulseUids: framePulse,
     done, beatIdx, result: combat ? combat.result : null, shaking, critShaking,
-    beatCount: beats.length, replayEvents: events, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
+    beatCount: beats.length, replayEvents: events, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, playerRuneProgress, enemyRuneProgress, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
     // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the

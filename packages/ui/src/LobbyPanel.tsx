@@ -11,6 +11,7 @@ import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
 import { resolvePortraitFrame } from './portraitFrame/portraitFrameConfig';
+import { liveRuneText } from './runeText';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
@@ -674,7 +675,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
             {rune && (
               <div className="questbadge-tip" role="tooltip">
                 <b>{rune.name}</b>
-                <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, intel?.runeLive)) }} />
                 <span className="questbadge-tip-state">Rune · active</span>
               </div>
             )}

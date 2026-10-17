@@ -5,7 +5,7 @@
  */
 import type { BoardMinion, CombatResult, MinionSnapshot } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { VERSUS_HEARTS, type VersusSeat } from '@game/sim';
+import { VERSUS_HEARTS, runeCarryOf, runeLiveStateOfCarries, type RuneLiveState, type VersusSeat } from '@game/sim';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 
 export interface VersusRecordRound {
@@ -21,6 +21,10 @@ export interface VersusRecordRound {
   /** Each player's runes as of that round's lock (the recorded scouts; empty on a round recorded before scouts). */
   myRunes: string[];
   foeRunes: string[];
+  /** The grown value of each player's self-improving runes going INTO this round (R-RUNE-LIVE-TEXT-01), folded from
+   *  the fights before it, so the rune hover prints the number it really had. Optional: an older record. */
+  myRuneLive?: RuneLiveState;
+  foeRuneLive?: RuneLiveState;
   /** The fight's starting snapshots (`CombatResult.initial`, stored whole on the round row): what the right-click
    *  inspect reads (live text inputs, keywords, gilded, the buff breakdown). Optional: a record built before this. */
   mineSnap?: MinionSnapshot[];
@@ -68,8 +72,9 @@ export function buildVersusMatchRecord(
     endReason: match.end_reason,
     myHearts: seat === 'p1' ? match.p1_hearts : match.p2_hearts,
     foeHearts: other === 'p1' ? match.p1_hearts : match.p2_hearts,
-    rounds: rows.map((r) => {
+    rounds: rows.map((r, i) => {
       const mine = (seat === 'p1' ? r.p1_result : r.p2_result) as CombatResult;
+      const before = rows.slice(0, i).map((p) => (seat === 'p1' ? p.p1_result : p.p2_result) as CombatResult | null);
       return {
         round: r.round,
         result: mine.result,
@@ -79,6 +84,8 @@ export function buildVersusMatchRecord(
         foe: boardOf(mine.initial?.enemy),
         myRunes: [...((seat === 'p1' ? r.p1_scout : r.p2_scout)?.runes ?? [])],
         foeRunes: [...((other === 'p1' ? r.p1_scout : r.p2_scout)?.runes ?? [])],
+        myRuneLive: runeLiveStateOfCarries(before.map((b) => runeCarryOf(b, 'player'))),
+        foeRuneLive: runeLiveStateOfCarries(before.map((b) => runeCarryOf(b, 'enemy'))),
         mineSnap: [...(mine.initial?.player ?? [])],
         foeSnap: [...(mine.initial?.enemy ?? [])],
         myTier: (seat === 'p1' ? r.p1_scout : r.p2_scout)?.tier,

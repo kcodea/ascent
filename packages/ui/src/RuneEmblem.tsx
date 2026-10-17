@@ -1,14 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
+import type { RuneLiveState } from '@game/sim';
+import { liveRuneText } from './runeText';
 import { mdBold } from './Card';
 import { runeArt } from './art';
 import { Icon } from './Icon';
 import { rectToStage, stageHost, stageViewport } from './stage';
 
 /** One rune the run picked: its emblem (the real rune art) + name; hovering floats the rune's text in a
- *  styled panel (portalled + fixed, so the scrolling list never clips it — never a native tooltip). */
-export function RuneEmblem({ runeId }: { runeId: string }) {
+ *  styled panel (portalled + fixed, so the scrolling list never clips it — never a native tooltip). `live` is the
+ *  run's grown value of its self-improving runes, so the text prints the FINAL number (R-RUNE-LIVE-TEXT-01). */
+export function RuneEmblem({ runeId, live }: { runeId: string; live?: RuneLiveState }) {
   const rune = RUNE_INDEX[runeId];
   const [tip, setTip] = useState<{ left: number; top: number; above: boolean } | null>(null);
   const timer = useRef<number | null>(null);
@@ -41,7 +44,7 @@ export function RuneEmblem({ runeId }: { runeId: string }) {
       {tip && createPortal(
         <div className={`cv2-rune-tip${tip.above ? ' above' : ''}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
           <div className="cv2-rune-tip-name">{rune.name}<span className="cv2-rune-tip-kind">{rune.epic ? 'Epic Rune' : 'Rune'}</span></div>
-          <div className="cv2-rune-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+          <div className="cv2-rune-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, live)) }} />
         </div>,
         stageHost(),
       )}

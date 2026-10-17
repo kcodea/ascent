@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { getHero } from '@game/sim';
-import type { BoardSnapshot } from '@game/sim';
+import type { BoardSnapshot, RuneLiveState } from '@game/sim';
+import { liveRuneText } from './runeText';
 import { RUNE_INDEX } from '@game/content';
 import { Card, mdBold } from './Card';
 import { storedCardView } from './storedBoardView';
@@ -81,7 +82,7 @@ export function LbMedallion({ rank }: { rank: number }) {
 
 /** The run's runes as emblems + names (the same art the Runeforge shows), each with the game's floating
  *  tooltip carrying the rune's text. Unknown ids (a rune this build doesn't ship) are skipped. */
-export function LbRunes({ runes, empty }: { runes: readonly string[]; empty?: string }) {
+export function LbRunes({ runes, empty, live }: { runes: readonly string[]; empty?: string; /** The run's final value of its self-improving runes (R-RUNE-LIVE-TEXT-01). */ live?: RuneLiveState }) {
   const defs = runes.map((id) => RUNE_INDEX[id]).filter((r): r is NonNullable<typeof r> => !!r);
   if (defs.length === 0) return empty ? <div className="lb-runes-none">{empty}</div> : null;
   return (
@@ -96,7 +97,7 @@ export function LbRunes({ runes, empty }: { runes: readonly string[]; empty?: st
             <span className="lb-rune-name">{rune.name}</span>
             <div className="runtrophy-tip lb-rune-tip" role="tooltip">
               <b>{rune.name}</b>
-              <span className="runtrophy-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+              <span className="runtrophy-tip-body" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, live)) }} />
               <span className="runtrophy-tip-kind">Rune</span>
             </div>
           </div>

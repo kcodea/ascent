@@ -1242,6 +1242,7 @@ export function Recruit() {
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   const setCombatQuestDelta = useGame((s) => s.setCombatQuestDelta);
   const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
+  const setCombatRuneProgress = useGame((s) => s.setCombatRuneProgress);
   const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   // Tutorial always plays combat at 1× — a first-time player should watch each effect at its authored pace,
@@ -3023,6 +3024,12 @@ export function Recruit() {
   useEffect(() => {
     setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : {});
   }, [inCombat, run.combatSettled, replay.triggeredQuests, setCombatTriggeredQuests]);
+  // Each side's rune progress (R-RUNE-LIVE-TEXT-01), so self-improving rune text ticks mid-fight. The player's clears at
+  // settle, which writes the fight's growth into the run (both at once would double count). The foe's stays through
+  // the settled end screen: an opponent has no run to carry its growth back into.
+  useEffect(() => {
+    setCombatRuneProgress(inCombat && !run.combatSettled ? replay.playerRuneProgress : null, inCombat ? replay.enemyRuneProgress : null);
+  }, [inCombat, run.combatSettled, replay.playerRuneProgress, replay.enemyRuneProgress, setCombatRuneProgress]);
   // Quests that COMPLETE mid-replay — surface them to QuestBadges so their node appears + lights up live (before
   // the quest formally settles as completed). Empty out of combat.
   useEffect(() => {

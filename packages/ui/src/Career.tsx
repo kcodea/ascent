@@ -2,7 +2,7 @@ import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRe
 import { LazyRow, LazyRowsProvider } from './lazyRows';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
-import { getHero, strengthText } from '@game/sim';
+import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
@@ -232,6 +232,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const watchable = run.replayRowId !== null;
   const hasBoard = !!run.board && run.board.minions.length > 0;
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
+  const runeLive = runeLiveStateOfSnapshot(run.board); // the run's FINAL value of its self-improving runes (R-RUNE-LIVE-TEXT-01)
   const fights = run.wins + run.losses + run.draws;
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
@@ -251,7 +252,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
       ) : undefined}
       board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
       runes={runes.length > 0
-        ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} live={runeLive} key={`${id}#${i}`} />)}</div>
         : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
       actions={<>
         <button
@@ -307,6 +308,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const when = playedOnText(atMs);
   const hasBoard = !!game.board && game.board.minions.length > 0;
   const runes = game.runes.filter((id) => RUNE_INDEX[id]);
+  const runeLive = runeLiveStateOfSnapshot(game.board); // the game's FINAL value of its self-improving runes (R-RUNE-LIVE-TEXT-01)
   const rec = game.record;
   const fights = rec ? rec.wins + rec.losses + rec.draws : 0;
   const heroName = game.heroId ? getHero(game.heroId).name : '—';
@@ -327,7 +329,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
       ) : undefined}
       board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
       runes={runes.length > 0
-        ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} live={runeLive} key={`${id}#${i}`} />)}</div>
         : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
       actions={<>
         {game.hasReplay && (

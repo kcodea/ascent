@@ -3,6 +3,7 @@ import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progressi
 import type { BoardSnapshot } from '../snapshot';
 import { driverFor, type LobbySeatState, type RunLobby } from './runLobby';
 import type { PreparedBoard } from './types';
+import { parseRuneLiveState, runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 
 /**
  * MATCH DETAILS (owner ask 2026-09-28; a player's Discord request: "i placed 6th but wanted to see what everyone
@@ -48,6 +49,9 @@ export interface MatchBoard {
    *  the board snapshot (`BoardSnapshot.runes`), capped. Absent = none owned, or a record from before runes rode it
    *  (2026-09-28); authored practice bots own none. */
   runes?: string[];
+  /** The grown value of its self-improving runes at that moment (R-RUNE-LIVE-TEXT-01), so the rune hover prints the
+   *  run's FINAL number. Absent on a record from before 2026-10-16, which then prints the base. */
+  runeLive?: RuneLiveState;
 }
 
 export interface MatchSeat {
@@ -106,7 +110,7 @@ export interface MatchDetailsInput {
   /** Your placement as the end screen shows it. */
   placement: number;
   /** Your board at the end (the end-state board the Career and the leaderboard show). */
-  selfBoard: Pick<BoardSnapshot, 'minions' | 'tier' | 'runes'> | null;
+  selfBoard: Pick<BoardSnapshot, 'minions' | 'tier' | 'runes' | 'wildHuntGrown' | 'questMods'> | null;
   selfCosmetics?: RunCosmeticSnapshot | null;
   titleId?: string | null;
   /** Your own run's ledger key (ranked only; see `MatchSeat.runKey`). */
@@ -154,10 +158,14 @@ function runesOf(v: unknown): string[] {
   return Array.isArray(v) ? v.filter((id): id is string => typeof id === 'string' && ID_RE.test(id)).slice(0, RUNE_CAP) : [];
 }
 
-function boardOf(minions: readonly BoardMinion[], tier: number, round: number, keepText: boolean, runes?: readonly string[]): MatchBoard {
+function boardOf(minions: readonly BoardMinion[], tier: number, round: number, keepText: boolean, runes?: readonly string[], snap?: Pick<BoardSnapshot, 'wildHuntGrown' | 'questMods'> | null): MatchBoard {
   const out: MatchBoard = { round, tier, minions: minions.slice(0, BOARD_CAP).map((m) => compactMinion(m, keepText)) };
   const r = runesOf(runes);
   if (r.length) out.runes = r;
+  if (r.length && snap) {
+    const live = runeLiveStateOfSnapshot(snap);
+    if (Object.keys(live).length) out.runeLive = live;
+  }
   return out;
 }
 
@@ -229,7 +237,7 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
       if (seat.eliminatedRound !== undefined) out.eliminatedRound = seat.eliminatedRound;
       if (!seat.alive) { out.health = 0; out.armor = 0; }
       if (isSelf) {
-        if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText, input.selfBoard.runes);
+        if (input.selfBoard) out.board = boardOf(input.selfBoard.minions, input.selfBoard.tier, endRound, keepText, input.selfBoard.runes, input.selfBoard);
         const c = parseCosmeticSnapshot(input.selfCosmetics);
         if (c) out.cosmetics = c;
         const st = pctOf(input.selfStrength?.value);
@@ -239,7 +247,7 @@ export function buildMatchDetails(lobby: RunLobby, input: MatchDetailsInput): Ma
       } else {
         const round = seatBoardRound(seat, endRound);
         const b = fieldedBoard(lobby, seat, round);
-        if (b) out.board = boardOf(b.minions, b.tier, round, keepText, b.snapshot?.runes);
+        if (b) out.board = boardOf(b.minions, b.tier, round, keepText, b.snapshot?.runes, b.snapshot);
         const c = parseCosmeticSnapshot(seat.cosmetics ?? b?.snapshot?.cosmetics);
         if (c) out.cosmetics = c;
         // The run's pool strength, frozen here (a recorded seat's boards all carry it, stamped at pool load).
@@ -303,6 +311,8 @@ function parseBoard(v: unknown): MatchBoard | null {
   const out: MatchBoard = { round: num(o.round) ?? 0, tier: num(o.tier) ?? 1, minions };
   const runes = runesOf(o.runes);
   if (runes.length) out.runes = runes;
+  const live = runes.length ? parseRuneLiveState(o.runeLive) : undefined;
+  if (live) out.runeLive = live;
   return out;
 }
 

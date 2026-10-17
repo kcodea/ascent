@@ -2154,4 +2154,31 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-16',
     },
   },
+  {
+    id: 'R-RUNE-LIVE-TEXT-01',
+    title: 'A self-improving rune prints its CURRENT value on every surface, ticking mid-fight; the growth is permanent',
+    statement:
+      'A rune whose text improves ITSELF prints the number it will produce right now, in place of the authored base, '
+      + 'wherever its text shows: the rack badge and the hero-slot rune in the Shop, the same badge in combat (advancing '
+      + 'with each trigger the replay has shown, so Rune of the Wild Hunt reads +2 more after every Beast attack), the '
+      + 'Runeforge offer, the foe\'s badge (its snapshot value, advanced by its own triggers), the scout card, a spectated '
+      + 'seat, and the stored records (match details, Career, Recent Games, the leaderboard, Versus match stats) at the '
+      + 'value the run had. The base reads only when nothing has grown (or on a record older than the value). Wild Hunt\'s '
+      + 'combat growth carries back to the run at settle ("improve this by 2 permanently") and the next fight resumes from '
+      + 'it. Covered: Wild Hunt, Packcraft, Beastial Swarm, Seasoned Ledger, Compounding Wages, the Wheel, the Baller.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-16 (Rune of the Wild Hunt tooltip screenshot)', quote: 'this rune should show the current value in real time' },
+      { kind: 'code', ref: 'packages/sim/src/runeLiveState.ts (the value); packages/ui/src/runeText.ts liveRuneText (the text); packages/ui/src/choreo/triggerCounts.ts runeProgress (the mid-fight fold)' },
+    ],
+    contentIds: ['rune_wild_hunt', 'rune_packcraft', 'rune_beastial_swarm', 'rune_seasoned_ledger', 'rune_compounding_wages', 'rune_wheel', 'rune_baller'],
+    cardText: 'When a **Beast** attacks, give it **+2 Attack** and improve this by **2** permanently.',
+    currentBehaviour: 'Conforms as of 2026-10-16. Before, every rune surface printed the authored `rune.text`, so a grown Wild Hunt still read +2 Attack (only a few runes had a separate tally pill, and none rewrote the text).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/runeLiveState.test.ts', 'packages/ui/src/runeLiveText.test.tsx'],
+      lastVerifiedAt: '2026-10-16',
+    },
+  },
 ];

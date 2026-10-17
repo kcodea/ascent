@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MinionSnapshot } from '@game/core';
 import { createPortal } from 'react-dom';
-import { getHero } from '@game/sim';
+import { getHero, type RuneLiveState } from '@game/sim';
 import { Icon } from '../Icon';
 import { SeatPortrait, SeatRunes } from '../matchDetails/MatchScoreboard';
 import { internSnapshot, opponentSkins, useSkinEpoch } from '../skins/skins';
@@ -76,9 +76,9 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
               <section className="vsms-round">
                 <div className="mds-board-caption">Round {shown.round} · {RESULT_WORD[shown.result]}</div>
                 <VsSide name={record.foeName} heroId={record.foeHero} skins={foeSkins} self={false} hearts={shown.foeHearts}
-                  minions={shown.foe} snaps={shown.foeSnap} tier={shown.foeTier} runes={shown.foeRunes} label={`${record.foeName}'s board`} />
+                  minions={shown.foe} snaps={shown.foeSnap} tier={shown.foeTier} runes={shown.foeRunes} runeLive={shown.foeRuneLive} label={`${record.foeName}'s board`} />
                 <VsSide name={record.myName} heroId={record.myHero} skins={mySkins} self hearts={shown.myHearts}
-                  minions={shown.mine} snaps={shown.mineSnap} tier={shown.myTier} runes={shown.myRunes} label="Your board" />
+                  minions={shown.mine} snaps={shown.mineSnap} tier={shown.myTier} runes={shown.myRunes} runeLive={shown.myRuneLive} label="Your board" />
               </section>
             )}
           </>
@@ -90,10 +90,10 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
 }
 
 /** One player's row for the picked round: portrait, name + hero, hearts, then their board and runes. */
-function VsSide({ name, heroId, skins, self, hearts, minions, snaps, tier, runes, label }: {
+function VsSide({ name, heroId, skins, self, hearts, minions, snaps, tier, runes, runeLive, label }: {
   name: string; heroId: string | null; skins: ReturnType<typeof internSnapshot>; self: boolean; hearts: number;
   minions: VersusMatchRecord['rounds'][number]['mine']; snaps: readonly MinionSnapshot[] | undefined; tier: number | undefined;
-  runes: readonly string[]; label: string;
+  runes: readonly string[]; runeLive?: RuneLiveState; label: string;
 }) {
   // The fight's snapshot views (live text, keywords, gilded, the buff breakdown) when the round carries them; an
   // older record falls back to the plain stored board (the card without a breakdown).
@@ -106,7 +106,7 @@ function VsSide({ name, heroId, skins, self, hearts, minions, snaps, tier, runes
         <span className="mds-hp-v vsms-hearts"><Icon name="heartPill" />{hearts}</span>
       </div>
       <div className="mds-team"><StoredTeam minions={minions} views={views} skins={skins} label={label} compact /></div>
-      <SeatRunes runes={runes} />
+      <SeatRunes runes={runes} live={runeLive} />
     </div>
   );
 }

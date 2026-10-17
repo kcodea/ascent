@@ -13,9 +13,10 @@ import { useEffect, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
 import { standardTurnSeconds, turnClock } from '../turnClock';
-import { displaySeconds } from './versusClock';
+import { displaySeconds, shopClockAt } from './versusClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
-import { lockTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, type VersusState } from './versusStore';
+import { expireVersusShop, lockTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, versusShopRemainingMs, type VersusState } from './versusStore';
+import { useSpectate } from './spectate';
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
 import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurn } from './versusTurn';
@@ -56,7 +57,7 @@ function useSecondsUntil(ms: number | undefined, on: boolean): number {
  * Recruit's Versus seam. `endTurn` is Recruit's stable End Turn; `endCombat` its End Combat (the fight's exit).
  * `readyNote` is the End Turn / End Combat gem's pill; `gemLocked` says the gem is spent while this player waits.
  */
-export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean } {
+export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; clockQuiet: boolean } {
   const versus = run.mode === 'versus';
   const endTurnWave = useVersus((s) => s.endTurnWave);
   const match = useVersus((s) => s.match);
@@ -85,6 +86,25 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   const deadline = match?.shop_deadline ?? null;
   const pausedAt = match?.paused_at ?? null;
   const live = versus && match?.phase === 'shop' && match.round === run.wave && !!deadline;
+  // QUIET AFTER END TURN (owner 2026-10-16, R-VERSUS-TIMER-FX-01): the player on screen ended the turn early and waits
+  // on the other one, so the clock's sounds stop and the charge glyph fades, as a lobby End Turn does. The clock face
+  // keeps counting (it is the round's). "On screen" = my own seat, or the seat a spectator is watching; the other
+  // player still shopping hears the clock as normal. A lock AT 0:00 is not early: the 0:00 cues and the glyph's
+  // completion play out over it.
+  const spectating = useSpectate((s) => (s.active ? s.seat : null));
+  const viewLocked = useVersus((s) => {
+    const m = s.match;
+    if (!versus || !m || m.phase !== 'shop' || m.round !== run.wave) return false;
+    const seat = mySeat(m) ?? spectating;
+    return !!seat && (s.lockedRound === m.round || !!m[`${seat}_locked`]);
+  });
+  const [clockQuiet, setClockQuiet] = useState(false);
+  const quietRef = useRef(false);
+  useEffect(() => {
+    const q = viewLocked && turnClock.get() > 0;
+    quietRef.current = q;
+    setClockQuiet(q);
+  }, [viewLocked, run.wave]);
   useEffect(() => {
     if (!versus || run.phase !== 'recruit') return undefined;
     if (!live) {
@@ -97,12 +117,16 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     // marks the clock running (or frozen while paused) and plays the lobby's ticks at the lobby's seconds. Observed
     // just past each whole-second edge, so a tick lands on its second. A spectator mirrors the watched player's clock
     // through this same hook, so it hears and sees the same; the announcer speaks to the player only.
+    // THE 0:00 LOCK (R-VERSUS-CLOCK-LOCK-01): the face and the lock read ONE time-left value (`versusShopRemainingMs`,
+    // which never runs ahead of the server), shown as ceil(ms / 1000) and locked only at ms <= 0, so the lock lands as
+    // the clock reads 0:00, never while it still reads 0:01.
     const end = Date.parse(deadline!);
     const key = `${match!.id}|shop|${match!.round}`;
     let id = 0;
     const update = (): void => {
-      const remaining = pausedAt ? end - Date.parse(pausedAt) : (versusRemainingMs(deadline) ?? 0);
-      driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, announceWave: useGame.getState().replaying ? null : run.wave });
+      const remaining = pausedAt ? end - Date.parse(pausedAt) : (versusShopRemainingMs(deadline) ?? 0);
+      driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, quiet: quietRef.current, announceWave: useGame.getState().replaying ? null : run.wave });
+      if (!pausedAt && shopClockAt(remaining).locked) expireVersusShop();
       if (!pausedAt && remaining > 0) id = window.setTimeout(update, nextObserveMs(remaining));
     };
     update();
@@ -117,6 +141,7 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     },
     readyNote: versus ? versusTurnNote(turn, secondsLeft) : null,
     gemLocked: versus && versusTurnLocksGem(turn),
+    clockQuiet: versus && clockQuiet,
   };
 }
 

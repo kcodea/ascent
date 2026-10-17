@@ -75,6 +75,7 @@ export function playVersusClockCue(cue: VersusClockCue): void {
  *  - `remainingMs`: the server deadline less the synced server now (or, while paused, less `paused_at`).
  *  - `moving`: false while the match is paused (the clock and its cues freeze; the glyph holds and its build fades).
  *  - `explode`: the shop's 0:00 explosion (the shop locks); Hero Select's clock has no shop to lock.
+ *  - `quiet`: the player on screen ended the turn early; the clock keeps running, its cues stay silent.
  *  - `announceWave`: the round, for the announcer's clock reading (the shop only, the player only), or null.
  */
 export function driveVersusClock(o: {
@@ -82,6 +83,8 @@ export function driveVersusClock(o: {
   remainingMs: number;
   moving: boolean;
   explode: boolean;
+  /** The player on screen ended the turn early: the clock still runs, its cues stay silent (as after a lobby End Turn). */
+  quiet?: boolean;
   announceWave: number | null;
   now?: number;
 }): VersusClockCue | null {
@@ -89,6 +92,7 @@ export function driveVersusClock(o: {
   const second = turnClock.get();
   const r = versusClockCues(lastSeen, o.key, second, o.moving, o.explode);
   lastSeen = r.seen;
+  if (o.quiet) return null;
   if (r.stepped && o.announceWave != null) observeTurnClock(second, o.announceWave);
   if (r.cue) playVersusClockCue(r.cue);
   return r.cue;

@@ -148,6 +148,17 @@ export function useTurnTimeUp(): boolean {
   );
 }
 
+/**
+ * ONE STEP OF THE LOBBY SHOP CLOCK (R-VERSUS-CLOCK-LOCK-01, owner 2026-10-16: "make sure that everything locks actually
+ * like after 0, make sure it doesnt lock early"). The lobby clock is whole seconds counted down one full period at a
+ * time, so the face IS ceil(time left): it reads 0:01 for the whole last second. The lock (`shopClockExpired`) fires
+ * on the step that lands on 0 and on no other, so it can never come while the clock still reads 0:01.
+ */
+export function shopClockStep(cur: number): { next: number; expire: boolean } {
+  const next = Math.max(0, cur - 1);
+  return { next, expire: cur > 0 && next === 0 };
+}
+
 /** Base round timer, before the per-wave ramp (owner 2026-07-16). */
 export const TURN_BASE_SECONDS = 18;
 /** The end-of-turn charge glyph's window. Every turn's clock starts ABOVE it (see `standardTurnSeconds`). */

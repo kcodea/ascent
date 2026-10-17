@@ -27,7 +27,7 @@ import { createDeferredWriter } from '../idleWork';
 import { beginRunProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, tempHandle, useGame } from '../store';
-import { ServerClock } from './versusClock';
+import { ServerClock, shopClockAt } from './versusClock';
 import { installVersusEmotes, receiveVersusEmote, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
@@ -159,6 +159,15 @@ export function myRole(room: VersusRoom | null = get().room): VersusRole | null 
 
 export const versusServerNow = (): number => clock.now();
 export const versusRemainingMs = (iso: string | null | undefined): number | null => clock.remainingMs(iso);
+/**
+ * Time left on a SHOP deadline for the clock face and the 0:00 lock (R-VERSUS-CLOCK-LOCK-01): the synced estimate plus
+ * the estimate's own uncertainty, so this client's 0:00 never comes before the server's. The display and the lock both
+ * read this one value (`shopClockAt`).
+ */
+export const versusShopRemainingMs = (iso: string | null | undefined): number | null => {
+  const r = clock.remainingMs(iso);
+  return r == null ? null : r + clock.uncertaintyMs();
+};
 
 // ── the browser ────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -407,12 +416,15 @@ function onTick(): void {
     session.lastFinalize = Date.now();
     void versusRemote.finalize(match.id, match.round, match.content_revision).then(() => refreshMatch(match.id)).catch(() => undefined);
   }
-  // My shared deadline: lock a beat before the server's, so my own final side (not an older candidate) is used.
+  // My shared deadline, the fallback for a screen that is not driving the clock (`useVersusRecruit` locks on the
+  // exact edge). It locks AT 0:00, never before (R-VERSUS-CLOCK-LOCK-01: it used to lock 400 ms early on a 500 ms tick,
+  // so the shop held while the clock still read 0:01, the owner's "locking a second early"). The server accepts a final
+  // side for 250 ms past its deadline, so a lock sent at 0:00 still lands as my own final side.
   const seat = mySeat(match);
   const run = useGame.getState().run;
   if (seat && match.phase === 'shop' && !match.paused_at && run.mode === 'versus' && run.wave === match.round && get().lockedRound !== match.round
-    && (versusRemainingMs(match.shop_deadline) ?? 1e9) <= 400) {
-    void lockTurn();
+    && shopClockAt(versusShopRemainingMs(match.shop_deadline)).locked) {
+    expireVersusShop();
   }
 }
 
@@ -759,6 +771,18 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
  * its random-legal answer (ruling 7); the checkpoint is that answered run (the reconnect restore point).
  * Irreversible on the server. The live run is untouched until the fight is in.
  */
+/**
+ * The shop clock reached 0:00 (R-VERSUS-CLOCK-LOCK-01, the lobby's R-TIMER-LOCK-01): the engine lock lands first (Shop
+ * actions and hero powers refused, exactly as in a lobby), then my turn locks with the board as it stands at 0:00.
+ * Idempotent: the reducer ignores a second expiry and `lockTurn` a second lock.
+ */
+export function expireVersusShop(): void {
+  const g = useGame.getState();
+  if (g.run.mode !== 'versus' || g.run.phase !== 'recruit' || g.replaying) return;
+  if (!g.run.shopClockExpired) g.dispatch({ type: 'shopClockExpired' });
+  void lockTurn();
+}
+
 export async function lockTurn(): Promise<void> {
   const match = get().match;
   const seat = mySeat(match);

@@ -20,7 +20,8 @@ const root = join(__dirname, '../../../..');
 const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-10-13-versus.sql'), 'utf8')
   + readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-shop-start.sql'), 'utf8')
   + readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-scout.sql'), 'utf8')
-  + readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-ready-pause.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-ready-pause.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-16-versus-clock-grace.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -159,5 +160,44 @@ describe('the Versus test bot', () => {
     bot.disconnected = false;
     for (let i = 0; i < 20; i++) { await bot.step(); clock += 500; }
     expect((await rows<any>('select paused_seat from public.versus_matches'))[0]?.paused_seat).toBeNull();
+  }, 120_000);
+
+  it('R-VERSUS-CLOCK-LOCK-01: a final side sent at 0:00 lands inside the 250 ms grace; the round closes only after it', async () => {
+    await db.exec('delete from public.versus_matches; delete from public.versus_rooms;');
+    const room = await as<any>(DUMMY, `select public.versus_create_room('Grace test', 'Dummy', '{}', 'set2', $1, 1)`, [contentRevision()]);
+    await as(BOT, `select public.versus_join_room($1, 'player', 'Test Bot', '{}', $2, 1)`, [room.id, contentRevision()]);
+    const now = () => clock;
+    const bot = new VersusBotDriver(apiFor(BOT), room.id, { userId: BOT, now, seed: 5, maxActions: 0, beatMs: 3000 });
+    const dummy = new VersusBotDriver(apiFor(DUMMY), room.id, { userId: DUMMY, now, seed: 6, maxActions: 0, beatMs: 3000 });
+    await as(DUMMY, 'select public.versus_start_game($1)', [room.id]);
+    // Play until round 1's shop clock starts, then stop the drivers (neither has locked yet).
+    const clockStarted = async (): Promise<boolean> => !!(await rows<any>('select shop_deadline from public.versus_matches'))[0]?.shop_deadline;
+    for (let i = 0; i < 400; i++) {
+      await bot.step(); if (await clockStarted()) break;
+      await dummy.step(); if (await clockStarted()) break;
+      clock += 500;
+    }
+    const m = (await rows<any>('select * from public.versus_matches'))[0];
+    expect(m.phase).toBe('shop');
+    expect(m.p1_locked || m.p2_locked).toBe(false);
+    const deadline = new Date(m.shop_deadline).getTime(); // PGlite hands back a Date (Date.parse would drop its ms)
+    const side = JSON.stringify({ test: true });
+    const submit = (user: string) => as(user, 'select public.versus_submit($1, $2, 99, $3::jsonb, true, null, null)', [m.id, m.round, side]);
+    // Both players stay present across the jump to the deadline (a 12 s silence would pause the match instead).
+    const beat = async (): Promise<void> => { await as(BOT, 'select public.versus_heartbeat($1)', [room.id]); await as(DUMMY, 'select public.versus_heartbeat($1)', [room.id]); };
+    for (let t = clock; t < deadline; t += 5_000) { clock = t; await beat(); }
+    // 100 ms past the deadline (the client locked at 0:00; the request took 100 ms): accepted as this seat's own lock.
+    clock = deadline + 100;
+    await beat();
+    await expect(submit(BOT)).resolves.toBeTruthy();
+    // A reconcile inside the grace does not close the round under a lock still in flight.
+    await as(DUMMY, 'select public.versus_reconcile($1)', [m.id]);
+    expect((await rows<any>('select phase, paused_at from public.versus_matches'))[0]).toMatchObject({ phase: 'shop', paused_at: null });
+    // Exactly at the end of the grace: too late.
+    clock = deadline + 250;
+    await expect(submit(DUMMY)).rejects.toThrow(/deadline_passed/);
+    // Past the grace, a reconcile closes the round (the late seat's newest candidate stands in).
+    await as(BOT, 'select public.versus_reconcile($1)', [m.id]);
+    expect((await rows<any>('select phase from public.versus_matches'))[0].phase).not.toBe('shop');
   }, 120_000);
 });

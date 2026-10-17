@@ -988,16 +988,21 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'spectator switching seats) plays nothing for the second it lands on, and a long jump or a clock pushed back up '
       + 'plays nothing. During the 30 s disconnect pause and the returning player\'s 3-2-1 (paused_at is set through both) '
       + 'the clock, the cues, the glyph and its build sound are frozen; the resume continues from the frozen second without '
-      + 'replaying it. A spectator mirrors the watched player\'s clock through the same path, so it hears and sees the same.',
+      + 'replaying it. A spectator mirrors the watched player\'s clock through the same path, so it hears and sees the same. '
+      + 'QUIET AFTER END TURN (owner 2026-10-16): once the player on screen has ended the turn early and waits, the clock '
+      + 'face keeps counting but its sounds stop and the glyph fades, as after a lobby End Turn; the other player, still '
+      + 'shopping, hears it as normal, and a spectator follows the seat it watches. A lock AT 0:00 is not early: the 0:00 '
+      + 'cues and the glyph completion play out.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (Versus timer silent)', quote: 'the versus timer does not play sound effects at all and the glyph animation doesnt play either, the 20s glyph' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (follow-up ruling, relayed by the coordinator)', quote: 'Clock goes quiet after End Turn: yes.' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusClockFx.ts (versusClockCues / driveVersusClock); packages/ui/src/turnClock.ts (follow); packages/ui/src/versus/VersusHud.tsx useVersusRecruit; packages/ui/src/versus/VersusHeroTimer.tsx' },
     ],
     currentBehaviour: 'Conforms (2026-10-16). Before, Versus skipped the local countdown loop that plays the cues and only wrote '
       + 'the displayed seconds, so every clock sound was silent and the clock read as held, freezing the charge glyph.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusClockFx.test.ts'], lastVerifiedAt: '2026-10-16' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusClockFx.test.ts', 'packages/ui/src/versus/versusClockLock.test.ts'], lastVerifiedAt: '2026-10-16' },
   },
   {
     id: 'R-CONSUME-ALL-01',

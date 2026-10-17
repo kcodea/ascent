@@ -125,7 +125,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'Click a game in the list, or use the Up and Down keys, to see its final board, runes, Replay and details.',
           'Under the open game is its lobby: every player with a small view of their board. Click one to show their full board in place of yours, and Back to yours to return.',
-          'Recent Games shows the lobby for ranked games too.',
+          'Recent Games shows the lobby for ranked games too, and lists the last 100 games.',
           'The final board is bigger, and the runes show with their names.',
           'Career and Recent Games now fit on one screen. Only the game list scrolls.',
           'Hover the MMR chart on your Career to see the final board of that game.',

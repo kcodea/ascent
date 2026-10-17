@@ -22,7 +22,7 @@ import { heroPortrait, opponentSkins } from './skins/skins';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 
 /**
- * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 50 finished games across ALL players (20 until 2026-10-16),
+ * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 100 finished games across ALL players (20, then 50, on 2026-10-16),
  * each as a chunky banner in the Career page's match-banner language: the circular hero frame + hero name +
  * player handle, the final board as 7 real card tiles, the run's runes as emblems + names, and the outcome
  * block — VICTORY / placement, date + time, the W–L record, the run length, a "Partial recording" caption
@@ -41,9 +41,9 @@ import { frameIdOf } from './portraitFrame/PortraitFrame';
  * Career on its default view (practice runs are not in the Career's match history, so there is no run to focus).
  * Each tab fetches when it is first shown and keeps its rows while the page stays open.
  */
-/** How many games the feed lists (owner 2026-10-16: "allow up to 50 games for recent games played"). A plain
+/** How many games the feed lists (owner 2026-10-16: "allow up to 50 games", then "can recent games show last 100 games"). A plain
  *  PostgREST `.limit`, well under the 1000-row cap (R-NET-01); no RPC caps it. */
-const FEED_ROWS = 50;
+const FEED_ROWS = 100;
 
 export type RecentGamesTab = 'ranked' | 'practice';
 
@@ -129,9 +129,11 @@ function Summary({ rows, practice }: { rows: readonly FeedRow[]; practice: boole
           {line && <polyline className="rg-spark" points={line} />}
           {s.places.map((p, i) => {
             const band = bandOf(p);
+            // Marks thin out as the feed grows (100 games since 2026-10-16), so the line stays readable.
+            const d = n > 60 ? 2.6 : 4;
             return band === 'won'
-              ? <rect key={i} className="rg-pt won" x={x(i) - 4} y={y(p) - 4} width="8" height="8" transform={`rotate(45 ${x(i)} ${y(p)})`} />
-              : <circle key={i} className={`rg-pt ${band}`} cx={x(i)} cy={y(p)} r={n > 30 ? 3 : band === 'top4' ? 4 : 3.5} />;
+              ? <rect key={i} className="rg-pt won" x={x(i) - d} y={y(p) - d} width={d * 2} height={d * 2} transform={`rotate(45 ${x(i)} ${y(p)})`} />
+              : <circle key={i} className={`rg-pt ${band}`} cx={x(i)} cy={y(p)} r={n > 60 ? 2.2 : n > 30 ? 3 : band === 'top4' ? 4 : 3.5} />;
           })}
         </svg>
       </div>

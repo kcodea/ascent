@@ -181,7 +181,9 @@ export function playerRunsFrom(
   const byRun = new Map<string, BoardSnapshot[]>();
   for (const s of pool) {
     if ((s.origin ?? 'house') === 'synthetic') continue;
-    if (!s.minions?.length) continue;
+    // An EMPTY board stays: it is that run's real round (uploaded since 2026-10-17, R-LOBBY-08), and dropping it made
+    // a run that started on an empty board look like it started a wave later.
+    if (!Array.isArray(s.minions)) continue;
     if (setId && (s.setId ?? 'set1') !== setId) continue; // legacy boards predate sets → they are set 1
     const key = runKeyOf(s);
     const list = byRun.get(key);
@@ -195,6 +197,7 @@ export function playerRunsFrom(
     for (const s of snaps) if (!byWave.has(s.wave)) byWave.set(s.wave, s);
     const ordered = [...byWave.values()].sort((a, b) => a.wave - b.wave);
     if (ordered.length < minWaves) continue;
+    if (!ordered.some((x) => x.minions.length > 0)) continue; // nothing on board in any round: no seat to field
     // Incomplete (early waves cut off by the per-wave pull) or implausible material never takes a seat
     // (R-LOBBY-07; see `runCoversItsRounds` / `maxPlausibleTier` above).
     if (!runCoversItsRounds(ordered) || !runTiersPlausible(ordered)) continue;

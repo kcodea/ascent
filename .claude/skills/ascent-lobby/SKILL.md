@@ -31,7 +31,8 @@ behaviour from a legacy symbol.**
   seats; read old values through `normalizePracticeRank`). Practice is **always unrated**
   regardless of these (rating/upload gates key on `mode === 'lobby'`). There is no standalone `bots` RunMode —
   bots live inside Practice.
-- `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15`, `maxRounds: 60`. The
+- `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15` (only for seats with no hero;
+  a seat that plays a hero starts on its hero's Armor via `seatStartingArmor`, R-LOBBY-SEAT-ARMOR-01), `maxRounds: 60`. The
   round cap is a **stalemate backstop**, not a course length.
 - **Resolve each paired encounter ONCE** and apply both `playerDamage` and `enemyDamage` from that single
   result. The RULES are symmetric (R-SYMMETRY-01, 2026-10-13: both sides read, grow, show and carry back the same
@@ -66,8 +67,12 @@ behaviour from a legacy symbol.**
   (`pool_runs_sample` RPC, one row per run with every board; `opponentPool/poolFetch.ts`), checked complete
   (`isWholeRun`), registered all-or-nothing (`registerOpponentRuns`), cached as whole runs (cache v2). Never add a
   path that fetches or caches boards per wave, per page or with any row limit that can cut a run. A recorded seat
-  serves its OWN wave-N board (`boardAt`: one missing wave may borrow the previous one, a run starting at wave 2
-  lends it to round 1, nothing further ahead); a later board appears only past the run's end (repeatFinal).
+  serves its OWN wave-N board (`boardAt`: one missing wave may borrow the previous one; a round before the recording
+  begins is an EMPTY tier-1 board, never a later round's); a later board appears only past the run's end (repeatFinal).
+  EVERY round is uploaded, empty boards included (2026-10-17): an empty board is a wave of its run in the SQL
+  (`pool_runs`, `pool_runs_sample`), `isWholeRun`, `registerOpponentRuns` and `playerRunsFrom`, but `pickOpponent`
+  (per-wave opponents), the god-board sample and the strength scorer skip it. Never re-add an empty-board filter on
+  a run path.
   Seat selection caps one player at `MAX_SEATS_PER_PLAYER` (4) seats, without weighting the shuffle. The player's
   OWN runs are seated like anyone else's under that same cap (owner 2026-09-30); nothing excludes them (the client
   sends `p_exclude_user: null`, and `excludeOwnerId` is gone).

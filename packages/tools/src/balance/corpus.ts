@@ -56,7 +56,7 @@ export const corpusDigest = (boards: readonly BoardSnapshot[]): string => digest
 export function eligibleBoard(b: unknown, setId: SetId, patchPrefix?: string): b is BoardSnapshot {
   if (!b || typeof b !== 'object') return false;
   const s = b as Partial<BoardSnapshot>;
-  if (!Array.isArray(s.minions) || s.minions.length === 0) return false;
+  if (!Array.isArray(s.minions)) return false; // an EMPTY board is a real round of its run (R-LOBBY-08, 2026-10-17); keep it
   if ((s.origin ?? 'house') === 'synthetic') return false;
   if ((s.setId ?? 'set1') !== setId) return false;
   if (typeof s.wave !== 'number' || typeof s.heroId !== 'string' || typeof s.seed !== 'number') return false;

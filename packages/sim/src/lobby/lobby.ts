@@ -2,12 +2,15 @@ import { makeRng, simulate, type Rng } from '@game/core';
 import { seatCombatSide } from '../boardSide';
 import { CARD_INDEX } from '@game/content';
 import { roundLossCap } from '../reducer';
+import { HERO_INDEX } from '../heroes';
 import type { LobbyRules, LobbySeat, LobbyState, SeatDriver } from './types';
 
 export const DEFAULT_LOBBY_RULES: LobbyRules = {
   seatCount: 8,
   startingResolve: 30,
   startingArmor: 15,
+  // Seats that play a hero start on THAT hero's Armor (owner 2026-10-17, R-LOBBY-SEAT-ARMOR-01); see `seatStartingArmor`.
+  seatArmor: 'hero',
   // `repeatFinal` by default: a recorded run is finite and the lobby is not, and eliminating a seat the moment
   // its recording ends would make lobby length depend on how long its owner survived rather than on play.
   exhaustion: 'repeatFinal',
@@ -17,6 +20,27 @@ export const DEFAULT_LOBBY_RULES: LobbyRules = {
   // the table is now MEANT to be other players' runs, and it still degrades on its own: an empty pool seats
   // zero snapshots and every seat is generated, exactly as before.
 };
+
+/**
+ * The Armor a lobby seat STARTS on (owner 2026-10-17, R-LOBBY-SEAT-ARMOR-01: "use the hero's own armor instead of
+ * 15"). A seat that plays a hero (a recorded player run, a hybrid / generated seat, a live bot) starts on that hero's
+ * own `armor`, the same number a live player of the hero starts with (Brackus 11, Disco Dan 14). Health is untouched
+ * (`startingResolve`). The flat `startingArmor` stays for a seat that plays NO hero (an `authored` seat: Practice
+ * bots, tutorial and Gauntlet rivals wear a hero portrait only) and for a lobby whose rules are not 'hero' (one
+ * created before the ruling, or a caller that pins the Armor). The player seat is overwritten from its run.
+ */
+export function seatStartingArmor(seat: { kind: string; heroId: string }, rules: Pick<LobbyRules, 'startingArmor' | 'seatArmor'>): number {
+  if (rules.seatArmor !== 'hero' || seat.kind === 'authored') return rules.startingArmor;
+  return HERO_INDEX[seat.heroId]?.armor ?? rules.startingArmor;
+}
+
+/** The merged rules for a new lobby: a caller that pins `startingArmor` (and says nothing of `seatArmor`) gets that
+ *  flat Armor on every seat, as before the 2026-10-17 ruling. */
+export function lobbyRulesOf(rules: Partial<LobbyRules>): LobbyRules {
+  const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
+  if (rules.startingArmor !== undefined && rules.seatArmor === undefined) r.seatArmor = 'flat';
+  return r;
+}
 
 export function createLobby(seed: number, drivers: readonly SeatDriver[], rules: Partial<LobbyRules> = {}): LobbyState {
   const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };

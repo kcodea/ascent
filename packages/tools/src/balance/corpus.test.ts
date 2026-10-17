@@ -19,7 +19,7 @@ const ROWS = [
   ...Array.from({ length: 6 }, (_, w) => ({ wave: w + 1, patch: '0.1.0+abcd1234', snapshot: snap('Ada', 'warden', 11, w + 1) })),
   ...Array.from({ length: 5 }, (_, w) => ({ wave: w + 1, patch: '0.1.0+ffff0000', snapshot: snap('Baz', 'soren', 22, w + 1, { patch: undefined }) })), // patch only on the row
   { wave: 3, patch: '0.1.0+abcd1234', snapshot: snap('Bot', 'drakko', 33, 3, { origin: 'synthetic' }) },   // synthetic: out
-  { wave: 3, patch: '0.1.0+abcd1234', snapshot: snap('Ada', 'warden', 11, 3, { minions: [] }) },          // empty: out
+  { wave: 7, patch: '0.1.0+abcd1234', snapshot: snap('Ada', 'warden', 11, 7, { minions: [] }) },          // empty: KEPT (a real round, R-LOBBY-08 2026-10-17)
   { wave: 3, patch: '0.1.0+abcd1234', snapshot: snap('Old', 'warden', 44, 3, { setId: 'set1' }) },        // wrong set: out
   { wave: 2, patch: '0.1.0+abcd1234', snapshot: snap('Ada', 'warden', 11, 2) },                          // duplicate upload: collapses
 ];
@@ -46,9 +46,10 @@ describe('fetchCorpusBoards', () => {
     expect(rows).toBe(ROWS.length);
     expect(calls.map((c) => c.range)).toEqual(['0-4', '5-9', '10-14', '15-19']); // a full third page → one more (empty) ask
     expect(calls[0]!.url).toContain('/rest/v1/boards?select=wave,patch,snapshot,created_at&snapshot->>setId=eq.set2');
-    // 6 Ada + 5 Baz + the duplicate Ada wave 2 (de-duplicated later, in buildCorpus) — synthetic / empty / set1 out.
-    expect(boards).toHaveLength(12);
-    expect(boards.every((b) => b.setId === 'set2' && b.origin !== 'synthetic' && b.minions.length > 0)).toBe(true);
+    // 7 Ada (her empty wave 7 included) + 5 Baz + the duplicate Ada wave 2 (de-duplicated later, in buildCorpus) — synthetic / set1 out.
+    expect(boards).toHaveLength(13);
+    expect(boards.every((b) => b.setId === 'set2' && b.origin !== 'synthetic')).toBe(true);
+    expect(boards.filter((b) => b.minions.length === 0).map((b) => `${b.author}@${b.wave}`)).toEqual(['Ada@7']);
     // The row's patch column fills a snapshot that lacks one.
     expect(boards.find((b) => b.author === 'Baz')!.patch).toBe('0.1.0+ffff0000');
   });
@@ -63,6 +64,7 @@ describe('fetchCorpusBoards', () => {
     expect(eligibleBoard(snap('a', 'warden', 1, 1, { origin: 'synthetic' }), 'set2')).toBe(false);
     expect(eligibleBoard(snap('a', 'warden', 1, 1, { setId: undefined }), 'set2')).toBe(false); // legacy = set1
     expect(eligibleBoard(snap('a', 'warden', 1, 1, { setId: undefined }), 'set1')).toBe(true);
+    expect(eligibleBoard(snap('a', 'warden', 1, 1, { minions: [] }), 'set2')).toBe(true); // an empty round is a real round
     expect(eligibleBoard(null, 'set2')).toBe(false);
   });
 });
@@ -78,10 +80,10 @@ describe('buildCorpus + the file', () => {
     expect(file.schemaVersion).toBe(1);
     expect(file.name).toBe('test-corpus');
     expect(file.setId).toBe('set2');
-    expect(file.boards).toHaveLength(11); // the duplicate Ada wave-2 upload collapsed
+    expect(file.boards).toHaveLength(12); // the duplicate Ada wave-2 upload collapsed
     expect(file.runs).toBe(2);
     expect(file.authors).toBe(2);
-    expect(file.patches).toEqual({ '0.1.0+abcd1234': 6, '0.1.0+ffff0000': 5 });
+    expect(file.patches).toEqual({ '0.1.0+abcd1234': 7, '0.1.0+ffff0000': 5 });
     expect(file.digest).toBe(corpusDigest(file.boards));
   });
 
@@ -99,7 +101,7 @@ describe('buildCorpus + the file', () => {
     expect(() => registerCorpus({ name: 'test-corpus', digest: 'nope' }, root)).toThrow(/digest/);
     expect(() => registerCorpus({ name: 'missing', digest: file.digest }, root)).toThrow(/no corpus/);
     const reg = registerCorpus({ name: 'test-corpus', digest: file.digest }, root);
-    expect(reg.registered).toBe(11);
+    expect(reg.registered).toBe(12);
     expect(reg.runs).toBeGreaterThanOrEqual(2);
     expect(reg.authors).toBeGreaterThanOrEqual(2);
     // Idempotent: a second registration adds nothing.

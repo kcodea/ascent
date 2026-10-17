@@ -650,9 +650,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'random sample of the eligible runs of the set and build version (every run equally likely, however old; no '
       + 'recency, no weighting) and returns each with ALL of its boards, one row per run. A run that arrives '
       + 'incomplete, or holds a board this build cannot serve, is refused whole, and the local cache stores whole '
-      + 'runs only. A recorded seat serves the OWN board of that run for the round: a single missing wave (an empty '
-      + 'board is not uploaded) serves the previous board, and a run starting at wave 2 serves that board in round 1; '
-      + 'nothing further ahead, ever. Past the end of the run the lobby serves its final board (the stale-final-board '
+      + 'runs only. EVERY round is uploaded, an EMPTY board included (since 2026-10-17), and an empty board is a wave of '
+      + 'its run (server `pool_runs` + sample, client registration and whole-run check); it is never a per-wave opponent, '
+      + 'and a run with no minions in any round takes no seat. A recorded seat serves the OWN board of that run for the '
+      + 'round: a single missing wave (a recording from before 2026-10-17, which skipped empty boards) serves the '
+      + 'previous board, and a round BEFORE the recording begins serves an EMPTY board at tier 1 (a Disco Dan whose old '
+      + 'recording starts at wave 2 fields nothing in round 1, as in his real game); never the board of a later round. Past '
+      + 'the end of the run the lobby serves its final board (the stale-final-board '
       + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
       + 'most 4 seats (a run over the cap is passed over for the next), and that cap is the only limit on the '
       + 'player\'s OWN runs: they sit at their own table like anyone else\'s, at most 4 of the 7 seats. A player is '
@@ -685,23 +689,77 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Owner ruling 2026-09-30, relayed verbatim by the coordinator (own runs at your own table)',
         quote: 'this is a problem - you should face your own boards too. you should also be able to occupy up to 4 of your own snapshots. please fix this',
       },
-      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER; no own-run exclusion since 2026-09-30)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report 2026-10-17 (round-1 recorded Disco Dan at Shop tier 2, build 38252d08f)',
+        quote: 'i just faced this board on round 1 - how is that possible that he is shop tier 2? i feel like somethings wrong with our snapshots again',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling 2026-10-17, relayed verbatim by the coordinator (upload empty boards)',
+        quote: 'empty boards are never uploaded is a problem. this has to be fixed',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner bar 2026-10-17, relayed verbatim by the coordinator (serving integrity)',
+        quote: 'we need to make sure snapshots are served on the right turns, this is a core mechanic of our game... we need the game serving integrity to be literally perfect',
+      },
+      { kind: 'code', ref: 'supabase/migrations/2026-09-29-pool-whole-runs.sql (pool_runs + pool_runs_sample) + 2026-10-17-pool-empty-boards.sql (empty rounds kept); packages/ui/src/boardLibrary.ts storeBoards (uploads every round); packages/ui/src/opponentPool/poolFetch.ts + poolLoader.ts (isWholeRun, cache v2); packages/sim/src/opponents.ts registerOpponentRuns + pickOpponent; packages/sim/src/lobby/snapshotSeats.ts playerRunsFrom; packages/sim/src/lobby/seats.ts boardAt; packages/sim/src/lobby/runLobby.ts createRunLobby (MAX_SEATS_PER_PLAYER; no own-run exclusion since 2026-09-30)' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-29. Before it the client pulled the newest 120 boards of each wave and glued them '
       + 'into runs; early waves hold more rows than late ones, so on the live pool 30 of 150 runs arrived cut '
       + '(and 1 not at all) and a seat served a wave-10 board on round 5. R-LOBBY-07 (seat eligibility) stays as '
       + 'defence in depth. 2026-09-30: the own-run exclusion of 2026-09-29 was removed (the client sends '
-      + 'p_exclude_user null; the SQL parameter stays, defaulting to null).',
+      + 'p_exclude_user null; the SQL parameter stays, defaulting to null). 2026-10-17: empty boards were never uploaded, '
+      + 'so every recorded Disco Dan (turn 1 is a pure Setlist, nothing on board) started at wave 2, and the old forward '
+      + 'tolerance served his wave-2 board (Shop tier 2, his Tier 2 pick played) in round 1: 60 of 298 eligible Set 2 '
+      + 'runs started at wave 2. Fixed both ways: every round is uploaded now, and a round before the recording is empty.',
     enforcement: {
       kind: 'scenario',
       refs: [
         'packages/sim/src/lobby/poolRuns.db.test.ts',
+        'packages/sim/src/lobby/poolEmptyBoards.db.test.ts',
         'packages/sim/src/lobby/poolWholeRuns.test.ts',
+        'packages/sim/src/lobby/emptyRoundBoards.test.ts',
+        'packages/sim/src/lobby/servingIntegrity.test.ts',
+        'packages/ui/src/boardLibrary.test.ts',
         'packages/ui/src/opponentPool/poolFetch.test.ts',
         'packages/ui/src/opponentPool/poolLoader.test.ts',
       ],
-      lastVerifiedAt: '2026-09-29',
+      lastVerifiedAt: '2026-10-17',
+    },
+  },
+  {
+    id: 'R-LOBBY-SEAT-ARMOR-01',
+    title: "A lobby seat that plays a hero starts on that hero's own Armor",
+    statement:
+      "Every lobby seat starts on the lobby's Resolve (30). Its ARMOR is its hero's own starting Armor, the same number "
+      + "a live player of that hero starts with: a recorded player run, a generated (hybrid) seat and a live bot all "
+      + "start on their hero's `armor` (a recorded Brackus on 11, a recorded Disco Dan on 14), and the player seat is "
+      + "its own run. A seat that plays NO hero keeps the flat `startingArmor` 15: Practice bots, tutorial and Gauntlet "
+      + "rivals (their hero is a portrait only). A lobby created before this ruling keeps the Armor its seats were dealt, "
+      + "and a caller that pins `startingArmor` (tests, tools, Versus) gets that flat value on every seat. The rest of the "
+      + "stale-final-board ruling stands: past its last recorded wave a seat keeps serving its final board verbatim. The "
+      + "rail's health bar is full at the seat's own Resolve + Armor.",
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ruling 2026-10-17, relayed verbatim by the coordinator (seat Armor)',
+        quote: "use the hero's own armor instead of 15",
+      },
+      { kind: 'owner-chat', ref: 'lobby-stale-final-boards ruling, 2026-09-17 (recorded seats keep serving their final board past their own end)', quote: 'nah keep it as is' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/lobby.ts seatStartingArmor + lobbyRulesOf + DEFAULT_LOBBY_RULES.seatArmor; packages/sim/src/lobby/runLobby.ts createRunLobby; packages/ui/src/LobbyPanel.tsx (per-seat bar max)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-17. Before, every recorded and hybrid seat started on a flat 15 Armor whatever its hero '
+      + '(a recorded Brackus had 4 more than a live Brackus, a recorded Robin 11 more).',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/seatArmor.test.ts', 'packages/sim/src/lobby/servingIntegrity.test.ts', 'packages/sim/src/balance/pinnedLobby.test.ts'],
+      lastVerifiedAt: '2026-10-17',
     },
   },
   {

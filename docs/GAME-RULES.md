@@ -60,8 +60,12 @@ medal + division — see *Ranked ladder* below).
   the eligible runs of its set and build version (150 runs; every run equally likely, however old), each run with
   ALL of its boards, or not at all: the server picks runs (`pool_runs_sample`), a run that arrives incomplete is
   refused whole, and the local cache stores whole runs. **A recorded seat's board for round N is that run's own
-  wave-N board.** The only tolerances are for boards a real game never uploads (an empty board): a single missing
-  wave serves the run's previous board, and a run that starts at wave 2 serves that board in round 1. A later
+  wave-N board.** Every round is uploaded, an EMPTY board included (owner 2026-10-17: *"empty boards are never
+  uploaded is a problem. this has to be fixed"*); an empty round is part of its run, never a per-wave opponent, and
+  a run with nothing on board in any round takes no seat. Recordings from before then skipped empty boards, so the
+  only tolerances are for them: a single missing wave serves the run's previous board, and a round BEFORE the
+  recording begins serves an empty board at tier 1 (a recorded Disco Dan, whose turn 1 is a pure Setlist, fields
+  nothing in round 1, as in his real game; until 2026-10-17 he brought his round-2 board, at Shop tier 2). A later
   board never appears, except past the run's end, where the stale-final-board rule applies (the run keeps its
   final board, with its own Armor). Until 2026-09-29 the pool was pulled as the newest boards per wave, which cut
   older runs down to their late waves and served a wave-10 board on round 5.
@@ -149,7 +153,10 @@ medal + division — see *Ranked ladder* below).
 - Each round, surviving seats are **paired**. **One authoritative `simulate()` resolves each encounter and
   supplies BOTH sides' damage** — combat is not symmetric, so a fight must never be re-run with the sides
   swapped to get the "other" result.
-- **Armor absorbs damage before Resolve** (`startingArmor: 15`, `startingResolve: 30`). A seat whose total
+- **Armor absorbs damage before Resolve**. Every seat starts on `startingResolve: 30`; a seat that plays a hero
+  (recorded, generated, bot, the player) starts on THAT hero's own Armor, the same as a live player of the hero
+  (owner 2026-10-17: *"use the hero's own armor instead of 15"*, R-LOBBY-SEAT-ARMOR-01). Seats that play no hero
+  (Practice bots, tutorial and Gauntlet rivals) keep the flat `startingArmor: 15`. A seat whose total
   reaches 0 is eliminated and receives a placement.
 - The lobby ends when **one seat remains**. `maxRounds: 60` is a **deterministic stalemate backstop**, not a
   course length or a player-facing target.

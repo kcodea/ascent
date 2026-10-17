@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
-import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { peekSocial, putSocial, useSocial } from './socialCache';
@@ -119,7 +118,7 @@ export function Rankings() {
     // rank rides along (when the backend carries one) so the Seasonal Ranked card there paints the
     // SAME crest + bar this row shows, at once, instead of a bare rating number (owner 2026-09-21).
     const openTheirs = (): void => {
-      sfx.pulse();
+      // Silent (owner 2026-10-16: Leaderboard row clicks make no blip).
       openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) });
     };
     // A div[role=button], not a <button> — the row nests its action buttons and a button can't nest a button.

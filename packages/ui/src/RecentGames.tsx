@@ -301,7 +301,7 @@ export function RecentGames(): JSX.Element | null {
   }, []);
 
   if (!show) return null;
-  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); setHeroFilter(null); setPicked(null); };
+  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; setTab(t); setHeroFilter(null); setPicked(null); };
   // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16): your own game always, everyone
   // else's through "Show opponent cosmetics". No recorded cosmetics = the hero's own art in the default ring.
   const skinsOf = (r: FeedRow): { mine: boolean; skins: RunCosmeticSnapshot | null } => {
@@ -373,9 +373,9 @@ export function RecentGames(): JSX.Element | null {
           </div>
           {heroChips.length > 0 && (
             <div className="rg-filters" role="group" aria-label="Filter by hero">
-              <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { sfx.pulse(); setHeroFilter(null); setPicked(null); }}>All heroes</button>
+              <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { setHeroFilter(null); setPicked(null); }}>All heroes</button>
               {heroChips.map((id) => (
-                <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { sfx.pulse(); setHeroFilter(id); setPicked(null); }}>{getHero(id).name}</button>
+                <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { setHeroFilter(id); setPicked(null); }}>{getHero(id).name}</button>
               ))}
             </div>
           )}

@@ -14,7 +14,6 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { bandOf, placeText } from './GameCard';
-import { sfx } from './sfx';
 
 export interface GameListItem {
   key: string;
@@ -52,7 +51,7 @@ export function GameSplit({ items, selected, onPick, detail, label, className = 
     e.preventDefault();
     const i = items.findIndex((it) => it.key === selected);
     const next = items[Math.max(0, Math.min(items.length - 1, (i < 0 ? 0 : i) + (e.key === 'ArrowDown' ? 1 : -1)))];
-    if (next && next.key !== selected) { sfx.tick(); onPick(next.key); }
+    if (next && next.key !== selected) onPick(next.key); // silent: selection (owner 2026-10-16)
   };
   return (
     <div className={`gsplit ${className}`.trim()}>
@@ -64,7 +63,7 @@ export function GameSplit({ items, selected, onPick, detail, label, className = 
             <button
               type="button" role="option" aria-selected={on} key={it.key} tabIndex={-1} aria-label={it.label}
               className={`gs-item gc-${band}${on ? ' on' : ''}`}
-              onClick={() => { if (!on) { sfx.tick(); onPick(it.key); } }}
+              onClick={() => { if (!on) onPick(it.key); }}
             >
               <span className={`gs-place ${band}`}>
                 {band === 'won' && <span className="gs-crown" aria-hidden><Icon name="crown" /></span>}

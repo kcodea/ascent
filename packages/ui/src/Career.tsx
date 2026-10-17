@@ -599,7 +599,7 @@ export function Career() {
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
   const heroName = heroId ? getHero(heroId).name : '—';
   const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
-  const pickTab = (t: CenterTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); saveTab(t); };
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; setTab(t); saveTab(t); };
 
   let body: JSX.Element;
   if (!remoteEnabled()) {
@@ -813,7 +813,7 @@ export function Career() {
                     key={d}
                     className={`cv2-seg-btn${window_ === d ? ' on' : ''}`}
                     aria-pressed={window_ === d}
-                    onClick={() => { if (window_ !== d) { sfx.pulse(); setWindow(d); } }}
+                    onClick={() => { if (window_ !== d) setWindow(d); }}
                   >
                     {trendWindowLabel(d)}
                   </button>

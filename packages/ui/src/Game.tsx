@@ -116,8 +116,12 @@ function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined)
  * buttons, so they never match SEL in the first place.
  */
 const MENU_SFX_SEL = 'button, [role="button"], .disc-slot';
-const MENU_SFX_SKIP = '[data-nohoversfx], .devmenu, .desk, .heropowerbtn, .frzwrap, .tvbwrap, .rfbwrap, '
-  + '.riftbtn, .etbwrap, .combatsummary, .combathud-skip, .combatspeed, .forge-reroll';
+const MENU_SFX_SKIP = '[data-nohoversfx], [data-quiet], .devmenu, .desk, .heropowerbtn, .frzwrap, .tvbwrap, .rfbwrap, '
+  + '.riftbtn, .etbwrap, .combatsummary, .combathud-skip, .combatspeed, .forge-reroll, '
+  // SELECTION IS SILENT on the menus (owner 2026-10-16: "remove the blip sound effect from clicking around in menus -
+  // like clicking between games, or between opponents"): picking a game, a lobby seat, a tab, a hero filter, a trend
+  // range, a Leaderboard row. Real actions (Play, a mode, Replay, confirms, crates) keep their sounds.
+  + '.gs-item, .gs-list, .lp-tile, .lp-back, .cv2-tab, .rg-chip, .cv2-seg-btn, .lb-seg-btn, .ct-seg button, .lb-trow-btn, .lb-podium, .colls-tab, .colls-chip';
 
 export function Game() {
   const phase = useGame((s) => s.run.phase);

@@ -18,7 +18,6 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { RUNE_INDEX } from '@game/content';
 import { Icon } from '../Icon';
 import { artFor } from '../art';
-import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { StoredTeam } from '../StoredTeam';
 import { RuneEmblem } from '../RuneEmblem';
@@ -61,7 +60,8 @@ export function seatSkinsOf(seat: MatchSeat, own: boolean, showOpponents: boolea
 export function useLobbySeat(details: MatchDetails | null | undefined): { seat: MatchSeat | null; pick: (id: string | null) => void } {
   const [id, setId] = useState<string | null>(null);
   const seat = details && id ? details.seats.find((s) => s.id === id && !s.self) ?? null : null;
-  const pick = useCallback((next: string | null) => { setId((cur) => { if (cur !== next) sfx.tick(); return next; }); }, []);
+  // Silent: picking a seat is selection, not an action (owner 2026-10-16: "remove the blip sound effect").
+  const pick = useCallback((next: string | null) => { setId(next); }, []);
   return { seat, pick };
 }
 

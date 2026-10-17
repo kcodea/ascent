@@ -1,12 +1,12 @@
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GameSplit, type GameListItem } from './GameSplit';
+import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
-import type { BoardSnapshot, MatchDetails } from '@game/sim';
+import type { BoardSnapshot } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
-import { MatchScoreboard } from './matchDetails/MatchScoreboard';
 import { GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
 import { avatarSrc } from './art';
@@ -190,17 +190,6 @@ function PageState({ icon, title, body, action, busy, className }: {
   );
 }
 
-/** The lobby standings under the selected game (GameSplit's detail panel): the SAME scoreboard the end screen's Match
- *  details dialog shows. An older match (no recorded details) says so plainly. */
-function LobbyPanel({ match, id }: { match: MatchDetails | null | undefined; id: string }) {
-  const { own } = useContext(CareerSkinContext);
-  return (
-    <section className="cv2-lobby" id={id} aria-label="Players in this lobby">
-      {match ? <MatchScoreboard details={match} own={own} /> : <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>}
-    </section>
-  );
-}
-
 /** One match banner. Memoised (perf 2026-10-09): a trend-window click or a Watch press re-renders the page, never the
  *  25 banners' 175 cards; `onWatch` is the page's stable callback and gets the run back. */
 const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch }: {
@@ -214,7 +203,9 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const hasBoard = !!run.board && run.board.minions.length > 0;
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
   const fights = run.wins + run.losses + run.draws;
-  const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
+  // THE LOBBY PICKER (owner 2026-10-16): whose board the big board shows; yours by default.
+  const { own } = useContext(CareerSkinContext);
+  const lp = useLobbyParts(run.match, own, <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>);
   // THE GAME CARD (GameCard.tsx, 2026-10-16): the placement once, the hero + record, the board strip, runes and actions
   // at the side, and one quiet meta line. The match WIN / LOSS (top 4 or not) is the card's band colour now.
   return (
@@ -229,8 +220,10 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
       record={fights > 0 ? (
         <span className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>{recordText(run)}</span>
       ) : undefined}
-      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
-      runes={runes.length > 0
+      lobby={lp.lobby}
+      boardKey={lp.boardKey}
+      board={lp.seat ? <SeatBoard seat={lp.seat} own={own} /> : <div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
+      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : runes.length > 0
         ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
         : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
       actions={<>
@@ -262,7 +255,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
           <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
         )}
       </div>}
-      extra={<LobbyPanel match={run.match} id={lobbyId} />}
+      extra={lp.extra}
     />
   );
 });
@@ -290,7 +283,8 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const fights = rec ? rec.wins + rec.losses + rec.draws : 0;
   const heroName = game.heroId ? getHero(game.heroId).name : '—';
   const cfg = game.practice;
-  const lobbyId = `cv2-lobby-p${game.rowId ?? game.createdAt ?? 'x'}`;
+  const { own } = useContext(CareerSkinContext);
+  const lp = useLobbyParts(game.match, own, <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>);
   return (
     <GameCard
       place={game.placement}
@@ -303,8 +297,10 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
       record={rec && fights > 0 ? (
         <span className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>{recordText(rec)}</span>
       ) : undefined}
-      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
-      runes={runes.length > 0
+      lobby={lp.lobby}
+      boardKey={lp.boardKey}
+      board={lp.seat ? <SeatBoard seat={lp.seat} own={own} /> : <div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
+      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : runes.length > 0
         ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
         : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
       actions={<>
@@ -326,7 +322,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
         <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '-'}</span></span>
         {cfg && <span className="cv2-meta cv2-ppills" aria-label="Practice options"><span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span><span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span></span>}
       </div>}
-      extra={<LobbyPanel match={game.match} id={lobbyId} />}
+      extra={lp.extra}
     />
   );
 }

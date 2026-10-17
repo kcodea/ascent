@@ -11,7 +11,7 @@ import { useGame } from './store';
 import { useSocial } from './socialCache';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { StoredTeam } from './StoredTeam';
-import { MatchScoreboard } from './matchDetails/MatchScoreboard';
+import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbRunes } from './LadderBits';
@@ -156,6 +156,8 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
   const length = runLengthText(r.durationMs, r.lengthOverCap);
   const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
   const match = 'match' in r ? r.match : undefined;
+  // THE LOBBY PICKER: shown when this game recorded its lobby (practice games today; ranked once its standings load).
+  const lp = useLobbyParts(match, mine);
   return (
     <GameCard
       as="div"
@@ -168,10 +170,12 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
       title={<span className="lb-row-name">{r.author || 'Unnamed player'}</span>}
       subtitle={<span className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</span>}
       record={<span className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</span>}
-      board={r.board && r.board.minions.length > 0
+      lobby={lp.lobby}
+      boardKey={lp.boardKey}
+      board={lp.seat ? <SeatBoard seat={lp.seat} own={mine} /> : r.board && r.board.minions.length > 0
         ? <StoredTeam minions={r.board.minions} skins={skins} />
         : <div className="lb-team-none">{r.hasReplay ? 'No board recorded' : 'No board recorded for this game'}</div>}
-      runes={<LbRunes runes={r.runes} empty="No runes taken" />}
+      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : <LbRunes runes={r.runes} empty="No runes taken" />}
       actions={<>
         {(!practice || watchable) && (
           <button
@@ -202,7 +206,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
         {r.boardStrength != null && <span className="lb-fact gtip" data-tip={GAME_STRENGTH_TIP}><span className="lb-fact-l">{GAME_STRENGTH_LABEL}</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
         {r.partial && <span className="lb-fact lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</span>}
       </div>}
-      extra={match ? <section className="rg-lobby" aria-label="Players in this lobby"><MatchScoreboard details={match} own={mine} /></section> : undefined}
+      extra={lp.extra}
     />
   );
 });

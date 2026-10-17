@@ -360,13 +360,24 @@ describe('the Career match card', () => {
     await flush();
   });
 
-  it('the selected game shows its lobby under the card (layout B, owner 2026-10-16): eight seats, each opening its board', () => {
-    expect(ui!.container.querySelectorAll('.cv2-lobbybtn')).toHaveLength(0); // no chevron: the detail panel has room
-    const panel = ui!.container.querySelector('.gs-detail .cv2-row .cv2-lobby')!;
-    expect(panel.querySelectorAll('.mds-row')).toHaveLength(8);
-    click(panel.querySelector('.mds-row[data-seat="s3"]'));
-    expect(panel.querySelector('.mds-board-caption')?.textContent).toBe('Their board when you were knocked out, round 11');
-    expect(ui!.container.querySelectorAll('.cv2-lobby')).toHaveLength(1); // only the selected game's lobby mounts
+  it('the lobby of the open game picks WHOSE board the big board shows (owner 2026-10-16): yours by default, a seat chip swaps it, Back returns', () => {
+    expect(ui!.container.querySelectorAll('.cv2-lobbybtn')).toHaveLength(0);
+    const chips = [...ui!.container.querySelectorAll('.gs-detail .lp-chip')];
+    expect(chips).toHaveLength(8);
+    // Real places: the record's own seat reads its finish; a seat with no final place reads "Still in".
+    expect(chips.every((c) => /^(\d+(st|nd|rd|th)|Still in)$/.test(c.querySelector('.lp-chip-place')?.textContent ?? ''))).toBe(true);
+    expect(ui!.container.querySelector('.lp-chip.on')?.classList.contains('self')).toBe(true);
+    expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
+    // The seat that knocked you out wears the sword.
+    expect(ui!.container.querySelector(`.lp-chip[data-seat="${LOSS.knockedOutBy}"] .lp-ko`)).not.toBeNull();
+    // Every chip's hover tip is the game's bubble, never a native title.
+    expect(chips.every((c) => c.getAttribute('data-tip') && !c.getAttribute('title'))).toBe(true);
+    click(ui!.container.querySelector('.lp-chip[data-seat="s3"]'));
+    expect(ui!.container.querySelector('.lp-chip[data-seat="s3"]')?.classList.contains('on')).toBe(true);
+    expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toMatch(/'s board/);
+    expect(ui!.container.querySelector('.gc-board .cv2-team')?.getAttribute('aria-label')).toMatch(/'s board$/);
+    click(ui!.container.querySelector('.lp-back'));
+    expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
   });
 
   it('an older match with no recorded details says so', () => {

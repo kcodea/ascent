@@ -35,7 +35,7 @@ export function bandOf(place: number | null): GameBand {
 }
 
 export function GameCard({
-  place, label, resultClass = '', className = '', hero, title, subtitle, record, board, runes, actions, meta, extra, as = 'article', rootProps,
+  place, label, resultClass = '', className = '', hero, title, subtitle, record, board, boardKey, lobby, runes, actions, meta, extra, as = 'article', rootProps,
 }: {
   place: number | null;
   /** What the placement means, for assistive tech ("Victory", "2nd place"). */
@@ -46,6 +46,10 @@ export function GameCard({
   className?: string;
   hero: ReactNode; title: ReactNode; subtitle?: ReactNode; record?: ReactNode;
   board: ReactNode; runes?: ReactNode; actions?: ReactNode; meta: ReactNode;
+  /** Whose board the board slot shows (a new key crossfades it in: the lobby picker swapping seats). */
+  boardKey?: string;
+  /** Above the board: the lobby picker (who is in this game, and whose board is showing). */
+  lobby?: ReactNode;
   /** Below the card's body: an expanded drill-down (the lobby scoreboard). */
   extra?: ReactNode;
   as?: 'article' | 'div';
@@ -71,7 +75,8 @@ export function GameCard({
         <div className="gc-side">
           {actions && <div className="gc-actions">{actions}</div>}
         </div>
-        <div className="gc-board">{board}</div>
+        {lobby && <div className="gc-lobby">{lobby}</div>}
+        <div className="gc-board"><div className="gc-board-in" key={boardKey ?? 'own'}>{board}</div></div>
         {/* The runes are their own row under the board, icon + name (owner 2026-10-16: "the minions + runes can be much
             larger and contain the rune names as well"). */}
         {runes && <div className="gc-runes">{runes}</div>}

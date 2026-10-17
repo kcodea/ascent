@@ -13701,6 +13701,53 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-left .cv2-tiles .cv2-stat-v { font-size: 22px; }
 .cv2-left .cv2-tiles .cv2-stat-l { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   THE LOBBY PICKER (matchDetails/LobbyPicker.tsx, owner 2026-10-16: the old standings were "not obvious how to view
+   it and ugly"). The open game card's board shows ONE seat's board, yours by default; the lobby is the chooser.
+   Option 1 = a strip of seat chips above the board; option 2 = a 4 x 2 table of seat tiles with mini boards under the
+   card. A swap crossfades the board (opacity, one-shot). Hover lifts a chip 2px (transform, one-shot).
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.gc.gc-detail .gc-body { grid-template-rows: auto auto minmax(0, 1fr) auto auto; grid-template-areas: 'place hero side' 'lobby lobby lobby' 'board board board' 'runes runes runes' 'meta meta meta'; }
+.gc-lobby { grid-area: lobby; display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-top: 4px; }
+.gc-board-in { animation: lp-swap 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+@keyframes lp-swap { from { opacity: 0; } to { opacity: 1; } }
+/* Two rows of four: names keep their room (eight across truncated them at the Career's width). */
+.lp-chips { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.lp-chip, .lp-tile { --band: rgba(255, 255, 255, 0.35); position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; padding: 6px 10px 6px 6px; text-align: left; color: #f4eee2;
+  border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.3); background: linear-gradient(180deg, rgba(20, 31, 54, 0.9), rgba(10, 17, 32, 0.92));
+  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
+.lp-chip:hover, .lp-tile:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.75); }
+.lp-chip:active, .lp-tile:active { transform: translateY(0); transition-duration: 0.05s; }
+.lp-chip.on, .lp-tile.on { border-color: rgba(255, 217, 138, 0.95); background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.35), 0 8px 18px -10px rgba(0, 0, 0, 0.8); }
+.lp-won { --band: #ffd76a; } .lp-top4 { --band: #7fe8ac; } .lp-lost { --band: #ff9a9a; } .lp-in { --band: #9ccaf5; }
+.lp-chip-portrait { flex: none; display: grid; place-items: center; }
+.lp-chip-portrait .mds-portrait, .lp-chip-portrait .cv2-heroframe { --ring: 42px; }
+.lp-chip-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.lp-chip-place { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.04em; color: var(--band); white-space: nowrap; }
+.lp-chip-name { font-family: var(--font-ui); font-weight: 800; font-size: 14px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-chip.self .lp-chip-name, .lp-tile.self .lp-chip-name { color: #9ccaf5; }
+.lp-ko { position: absolute; top: -7px; right: -6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+  background: #b4423a; border: 1.5px solid #ffb3a8; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
+.lp-ko svg { width: 12px; height: 12px; }
+.lp-showing { display: flex; align-items: center; gap: 12px; min-height: 36px; padding: 0 2px; }
+.lp-showing-l { font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
+.lp-showing-v { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lp-hint { margin-left: auto; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.5); }
+.lp-back { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 7px 14px; }
+/* Option 2: the tiles. */
+.lp-tilewrap { display: flex; flex-direction: column; gap: 10px; margin: 0 22px 18px 18px; padding-top: 14px; border-top: 1px solid rgba(196, 160, 92, 0.2); }
+.lp-tiles-l { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; color: rgba(232, 200, 119, 0.85); }
+.lp-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.lp-tile { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 10px 10px; }
+.lp-tile-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.lp-mini { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.lp-mini-m { aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.14); }
+.lp-mini-m.golden { border-color: #e8b84e; }
+.lp-mini-m.empty { border-style: dashed; background: none; }
+.lp-mini-m img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.lp-tile-out { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.6); }
+@media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-chip, .lp-tile, .lp-chip:hover, .lp-tile:hover { transform: none; transition: border-color 0.1s ease; } }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

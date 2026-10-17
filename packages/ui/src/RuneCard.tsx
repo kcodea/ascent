@@ -10,6 +10,8 @@ import { withImpStats } from './cardText';
 import { KeywordDefs } from './KeywordDefs';
 import { detectCardKeywords } from './detectCardKeywords';
 import { useGame } from './store';
+import { liveRuneText } from './runeText';
+import { usePlayerRuneLive } from './useRuneLive';
 import { rectToStage, stageHost, stageViewport } from './stage';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 
@@ -85,6 +87,9 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
   // Live "(X/Y)" for the imp-summoning runes (Brood / Broodpit / Finality): base 1/1 + the run's Imp Aura.
   // Plain parens (wrap=false) — rune text renders through `mdBold`, which doesn't process the green {{…}} marker.
   const impAura = useGame((s) => s.run?.impBuff);
+  // A self-improving rune the run already grew (a second copy, a re-offer) prints its CURRENT value, never the base
+  // (R-RUNE-LIVE-TEXT-01). An unowned rune has no live state and reads exactly as printed.
+  const runeLive = usePlayerRuneLive();
   const rewardCards = previewIdsOf(rune).map((x) => cardViewOf(x.id, x.golden)).filter((v): v is CardView => v !== null);
   // The glossary pills a rune's text raises (Amplified, Equip, Rebirth, …) — the same `KeywordDefs` column a card
   // hover shows, so a term is explained wherever it is printed (owner ask 2026-09-18). Runes carry no badges.
@@ -169,7 +174,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
               {RUNE_DUP_UNIQUE.has(rune.id) ? 'Does not stack' : 'Copy refunds'}
             </div>
           )}
-          <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(withImpStats(rune.id, rune.text, impAura, false)) }} />
+          <div className="runecard-txt" dangerouslySetInnerHTML={{ __html: mdBold(withImpStats(rune.id, liveRuneText(rune.id, rune.text, runeLive), impAura, false)) }} />
         </div>
       </div>
       {!affordable && <div className="runecard-lock">Not enough Gold</div>}

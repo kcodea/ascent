@@ -96,6 +96,7 @@ import { perfMonitor } from './perfMonitor';
 import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, seatExclusionsFor, STRENGTH_RUN_END_WAIT_MS } from './boardStrength';
 import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
+import type { RuneCombatProgress } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
 import { pushProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
@@ -402,6 +403,13 @@ interface GameStore {
    *  one-shot pulse on the matching node each time the count bumps (keyed by the count), then it goes dormant. */
   combatTriggeredQuests: Record<string, number>;
   setCombatTriggeredQuests: (counts: Record<string, number>) => void;
+  /** Each side's RUNE PROGRESS replayed so far (R-RUNE-LIVE-TEXT-01): its rune triggers (by flag) + friendly deaths,
+   *  so a self-improving rune's text ticks mid-fight. The player's clears at SETTLE (that is when the fight's growth is
+   *  written back to the run, so adding both would double count); the foe's holds until combat is left (a foe has no
+   *  run to carry it back into). Null out of combat. */
+  combatPlayerRuneProgress: RuneCombatProgress | null;
+  combatEnemyRuneProgress: RuneCombatProgress | null;
+  setCombatRuneProgress: (player: RuneCombatProgress | null, enemy: RuneCombatProgress | null) => void;
   /** Quest ids that COMPLETED mid-combat so far in the current replay — QuestBadges renders + pulses these live
    *  (their node hasn't settled as `completed` yet). Cleared out of combat. */
   combatCompletedQuests: string[];
@@ -2262,6 +2270,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
   combatBuffs: null,
   combatQuestDelta: null,
   combatTriggeredQuests: {},
+  combatPlayerRuneProgress: null,
+  combatEnemyRuneProgress: null,
   combatCompletedQuests: [],
   sellTick: 0,
   inspect: null,
@@ -2542,6 +2552,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   setCombatBuffs: (b) => set({ combatBuffs: b }),
   setCombatQuestDelta: (d) => set({ combatQuestDelta: d }),
   setCombatTriggeredQuests: (ids) => set({ combatTriggeredQuests: ids }),
+  setCombatRuneProgress: (player, enemy) => set({ combatPlayerRuneProgress: player, combatEnemyRuneProgress: enemy }),
   setCombatCompletedQuests: (ids) => set({ combatCompletedQuests: ids }),
   inspectCard: (view) => {
     sfx.inspect();

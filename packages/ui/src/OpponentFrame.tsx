@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { runeAccentTribe } from './RuneCard';
-import { getHero, nextOpponent, dominantTribe, THREATS } from '@game/sim';
+import { getHero, nextOpponent, dominantTribe, THREATS, runeLiveStateOfSnapshot } from '@game/sim';
+import { liveRuneText } from './runeText';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins } from './skins/skins';
@@ -63,6 +64,8 @@ export function OpponentFrame() {
   // know the opponent's state at capture). Filtered to ids this build still knows.
   const oppRunes = (snap.runes ?? []).filter((id) => RUNE_INDEX[id]);
   const oppQuests = (snap.quests ?? []).filter((id) => QUEST_INDEX[id]);
+  // A self-improving rune prints the value it had grown to at capture (R-RUNE-LIVE-TEXT-01).
+  const runeLive = runeLiveStateOfSnapshot(snap);
   const name = snap.author ?? 'Next Foe';
   // (The provenance hover tip — "by <author>" — was retired with the rest of the frame's tooltips,
   //  owner note 2026-07-16.)
@@ -115,7 +118,7 @@ export function OpponentFrame() {
                   : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}
                 <div className="questbadge-tip" role="tooltip">
                   <b>{rune.name}</b>
-                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(rune.text) }} />
+                  <span className="questbadge-tip-reward" dangerouslySetInnerHTML={{ __html: mdBold(liveRuneText(rune.id, rune.text, runeLive)) }} />
                   <span className="questbadge-tip-state">Rune · active</span>
                 </div>
               </div>

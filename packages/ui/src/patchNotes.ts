@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Runes that improve themselves now show their current value.',
+        details: [
+          'Rune of the Wild Hunt shows the Attack it gives right now, and the number goes up during combat each time a Beast attacks.',
+          'The same fix covers Packcraft, Beastial Swarm, the Seasoned Ledger, Compounding Wages, the Wheel and the Baller.',
+          'You see the current value in the Shop, in combat, in the Runeforge, on an opponent, when spectating, and in match details, Career and Recent Games.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Seven more Legendary Card Plates to find in crates.',
         details: [
           'New Card Plates: Dark Arcane, Simple Glass, Stonevines, Standard Black, Standard Blue, Standard Pink and Standard Teal (all Legendary).',

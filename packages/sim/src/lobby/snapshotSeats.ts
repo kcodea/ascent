@@ -76,7 +76,8 @@ function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | un
  * WAVE-10 board: a friend faced a tier-6 board of 7 Beasts on round 5 (owner report 2026-09-29).
  *
  * So a run is seated only when its recording starts by wave `MAX_FIRST_WAVE` and never skips more than
- * `MAX_MISSING_WAVES` wave in a row (a lone missing wave is normal: empty boards are not uploaded). A run that
+ * `MAX_MISSING_WAVES` wave in a row (a lone missing wave is normal in an old recording: empty boards were not uploaded
+ * before 2026-10-17, and `boardAt` serves that round EMPTY). A run that
  * fails either is incomplete material, not a player's build order, and is left out. Measured on the live pool
  * 2026-09-29: complete runs start at wave 1 or 2 (140 of 146) and never miss more than one wave in a row; the
  * runs this drops are the ones the per-wave pull cut in half (plus six that start at waves 3 to 5, which would

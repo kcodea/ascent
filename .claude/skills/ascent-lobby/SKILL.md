@@ -67,8 +67,9 @@ behaviour from a legacy symbol.**
   (`pool_runs_sample` RPC, one row per run with every board; `opponentPool/poolFetch.ts`), checked complete
   (`isWholeRun`), registered all-or-nothing (`registerOpponentRuns`), cached as whole runs (cache v2). Never add a
   path that fetches or caches boards per wave, per page or with any row limit that can cut a run. A recorded seat
-  serves its OWN wave-N board (`boardAt`: one missing wave may borrow the previous one; a round before the recording
-  begins is an EMPTY tier-1 board, never a later round's); a later board appears only past the run's end (repeatFinal).
+  serves EXACTLY its round-N board: the round number is the truth (`boardAt`: a hole in an old recording is an EMPTY
+  board in the previous round's state via `emptyRoundOf`, never its minions; a round before the recording begins is an
+  EMPTY tier-1 board; never a later round's); a later board appears only past the run's end (repeatFinal).
   EVERY round is uploaded, empty boards included (2026-10-17): an empty board is a wave of its run in the SQL
   (`pool_runs`, `pool_runs_sample`), `isWholeRun`, `registerOpponentRuns` and `playerRunsFrom`, but `pickOpponent`
   (per-wave opponents), the god-board sample and the strength scorer skip it. Never re-add an empty-board filter on

@@ -652,10 +652,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'incomplete, or holds a board this build cannot serve, is refused whole, and the local cache stores whole '
       + 'runs only. EVERY round is uploaded, an EMPTY board included (since 2026-10-17), and an empty board is a wave of '
       + 'its run (server `pool_runs` + sample, client registration and whole-run check); it is never a per-wave opponent, '
-      + 'and a run with no minions in any round takes no seat. A recorded seat serves the OWN board of that run for the '
-      + 'round: a single missing wave (a recording from before 2026-10-17, which skipped empty boards) serves the '
-      + 'previous board, and a round BEFORE the recording begins serves an EMPTY board at tier 1 (a Disco Dan whose old '
-      + 'recording starts at wave 2 fields nothing in round 1, as in his real game); never the board of a later round. Past '
+      + 'and a run with no minions in any round takes no seat. THE ROUND NUMBER IS THE TRUTH: a recorded seat in lobby '
+      + "round N serves exactly that run's round-N board, an empty one included (a player who sold off the whole board "
+      + 'on round 3 fields nothing on round 3). A round MISSING inside an older recording (before 2026-10-17 empty boards '
+      + "were skipped, so a hole was an empty round) serves an EMPTY board in the previous recorded round's state (its "
+      + "tier, runes, quests and scalers), never that round's minions; a round BEFORE the recording begins serves an "
+      + 'EMPTY board at tier 1 (a Disco Dan whose old recording starts at wave 2 fields nothing in round 1, as in his '
+      + 'real game); never the board of a later round. Past '
       + 'the end of the run the lobby serves its final board (the stale-final-board '
       + 'rule). Seat selection stays a uniform shuffle, with two filters that do not weight it: one player holds at '
       + 'most 4 seats (a run over the cap is passed over for the next), and that cap is the only limit on the '
@@ -701,6 +704,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       },
       {
         kind: 'owner-chat',
+        ref: 'Owner ruling 2026-10-17, relayed verbatim by the coordinator (the round number is the truth)',
+        quote: 'this includes like... round 3 as well if someone sells off their board right? ANY empty board should never skip. our ROUND # is our truth in serving snapshots',
+      },
+      {
+        kind: 'owner-chat',
         ref: 'Owner bar 2026-10-17, relayed verbatim by the coordinator (serving integrity)',
         quote: 'we need to make sure snapshots are served on the right turns, this is a core mechanic of our game... we need the game serving integrity to be literally perfect',
       },
@@ -714,7 +722,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'p_exclude_user null; the SQL parameter stays, defaulting to null). 2026-10-17: empty boards were never uploaded, '
       + 'so every recorded Disco Dan (turn 1 is a pure Setlist, nothing on board) started at wave 2, and the old forward '
       + 'tolerance served his wave-2 board (Shop tier 2, his Tier 2 pick played) in round 1: 60 of 298 eligible Set 2 '
-      + 'runs started at wave 2. Fixed both ways: every round is uploaded now, and a round before the recording is empty.',
+      + "runs started at wave 2, and a one-round hole served the previous round's minions. Fixed both ways: every round "
+      + 'is uploaded now, and a round the recording lacks (before it, or a hole inside it) is served empty.',
     enforcement: {
       kind: 'scenario',
       refs: [

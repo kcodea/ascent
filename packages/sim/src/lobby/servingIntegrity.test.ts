@@ -4,6 +4,7 @@ import { activeSet } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { OPPONENT_POOL, registerOpponentRuns } from '../opponents';
 import { HERO_INDEX, playableHeroes } from '../heroes';
+import { emptyRoundOf } from './seats';
 import {
   createRunLobby, driverFor, lobbyOpponentBoard, resetLobbyDrivers, seatScoutIntel, settleRunLobbyRound,
   type RunLobby,
@@ -21,7 +22,9 @@ import {
  *  - the recorded wave-N board, the same snapshot (minions, tier, runes, quests, scalers), never another round's;
  *  - an EMPTY recorded round (new recordings, since 2026-10-17) serves that empty board;
  *  - a round BEFORE an old recording begins (its empty round 1 was never uploaded) serves an empty tier-1 board;
- *  - a single missing wave in an old recording serves the previous wave's board (never the next);
+ *  - a round MISSING inside an old recording was EMPTY (old uploads skipped empty boards): an empty board in the
+ *    previous round's state, never its minions (owner 2026-10-17: "ANY empty board should never skip. our ROUND # is our
+ *    truth in serving snapshots"); a player who sold off the whole board on round 3 fields nothing on round 3;
  *  - past the run's final round: its FINAL board, verbatim (the stale-final-board ruling, "keep it as is").
  *
  * Health and Armor are the LOBBY's, not the recording's: every recorded seat starts on 30 Resolve + its hero's Armor, and
@@ -51,20 +54,22 @@ const SHAPES: Shape[] = [
   { name: 'Whole', waves: range(1, 12) },
   { name: 'EmptyFirst', waves: range(1, 12), empty: [1] }, // a Disco Dan recorded since the fix
   { name: 'OldFromTwo', waves: range(2, 12) }, // a Disco Dan recorded before it: wave 1 never uploaded
-  { name: 'EmptyMiddle', waves: range(1, 12), empty: [5] }, // sold everything one turn
-  { name: 'OldGap', waves: [1, 2, 3, 4, 6, 7, 8, 9, 10] }, // an old recording missing its empty wave 5
+  { name: 'SoldOffAtThree', waves: range(1, 12), empty: [3] }, // sold the whole board on round 3 (recorded since the fix)
+  { name: 'OldGap', waves: [1, 2, 3, 4, 6, 7, 8, 9, 10] }, // an old recording: round 5 was empty, so never uploaded
   { name: 'EarlyOut', waves: range(1, 4) }, // knocked out in its own round 4
   { name: 'MidOut', waves: range(1, 7) }, // knocked out in its own round 7
 ];
 
-/** What the run really fielded in this lobby round, by the rules above. */
-function expectedFor(run: number, round: number): { wave: number | null; empty: boolean } {
+/** What the run really fielded in this lobby round, by the rules above. `hole` = a round an old recording skipped: it
+ *  was EMPTY, served in the previous recorded round's state (`wave`) with no minions. */
+function expectedFor(run: number, round: number): { wave: number | null; empty: boolean; hole?: boolean } {
   const shape = SHAPES[run]!;
   const last = Math.max(...shape.waves);
   if (round > last) return { wave: last, empty: shape.empty?.includes(last) ?? false }; // the final board
-  const at = [...shape.waves].filter((w) => w <= round).sort((a, b) => b - a)[0];
-  if (at === undefined) return { wave: null, empty: true }; // before the recording: empty tier 1
-  return { wave: at, empty: shape.empty?.includes(at) ?? false };
+  if (shape.waves.includes(round)) return { wave: round, empty: shape.empty?.includes(round) ?? false }; // ROUND # is the truth
+  const prev = [...shape.waves].filter((w) => w < round).sort((a, b) => b - a)[0];
+  if (prev === undefined) return { wave: null, empty: true }; // before the recording: empty tier 1
+  return { wave: prev, empty: true, hole: true };
 }
 
 const draw = { result: 'draw', playerDamage: 0, enemyDamage: 0, events: [], initial: undefined } as unknown as CombatResult;
@@ -87,6 +92,8 @@ describe('every recorded seat serves its own round, every round', () => {
 
     let checked = 0;
     let pastFinal = 0;
+    let holes = 0;
+    let soldOff = 0;
     for (let round = 1; round <= LAST_ROUND && !lobby.finished; round++) {
       expect(lobby.round).toBe(round);
       for (const seat of lobby.seats) {
@@ -101,6 +108,13 @@ describe('every recorded seat serves its own round, every round', () => {
           expect(served!.minions, where).toEqual([]);
           expect(served!.tier, where).toBe(1);
           expect(served!.snapshot, where).toBeUndefined();
+        } else if (want.hole) {
+          // Never the previous round's minions: an empty board in that round's state (tier, runes, scalers).
+          const prev = boardOf(run, SHAPES[run]!, want.wave);
+          expect(served!.minions, where).toEqual([]);
+          expect(served!.tier, where).toBe(prev.tier);
+          expect(served!.snapshot, where).toEqual(emptyRoundOf(prev));
+          holes++;
         } else {
           const rec = boardOf(run, SHAPES[run]!, want.wave);
           expect(served!.snapshot, where).toEqual(rec); // the whole recorded round: tier, runes, triples, scalers
@@ -108,6 +122,8 @@ describe('every recorded seat serves its own round, every round', () => {
           expect(served!.minions, where).toEqual(rec.minions);
           expect(served!.minions.length === 0, where).toBe(want.empty);
           if (round > Math.max(...SHAPES[run]!.waves)) pastFinal++;
+          if (SHAPES[run]!.name === 'SoldOffAtThree' && round === 3) { expect(served!.minions, where).toEqual([]); soldOff++; }
+          if (round <= Math.max(...SHAPES[run]!.waves)) expect(served!.snapshot!.wave, where).toBe(round); // the round number is the truth
         }
         // The scout card reads the same board.
         expect(seatScoutIntel(lobby, seat)?.tier, where).toBe(served!.tier);
@@ -140,5 +156,7 @@ describe('every recorded seat serves its own round, every round', () => {
     }
     expect(checked).toBeGreaterThan(40); // the loop really walked the rounds
     expect(pastFinal).toBeGreaterThan(0); // and some seat outlived its own run
+    expect(holes).toBeGreaterThan(0); // the old recording's empty round 5 was served
+    expect(soldOff).toBe(1); // the sold-off round 3 was served empty
   });
 });

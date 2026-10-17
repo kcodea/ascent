@@ -31,8 +31,11 @@ The 15 vs 7 Armor was fine: every rival seat starts on the lobby's `startingArmo
 - **Per-board readers still skip them:** `pickOpponent` (per-wave opponents) now filters empties explicitly; the
   god-board sample, the strength scorer, the production bots' scout / fight-score pools, the Career per-round log and
   `boardOf` (Recent Games / Hall final board) already did.
-- **`boardAt` never reaches forward.** A round before the recording begins is an empty tier-1 board. Old recordings that
-  start at wave 2 stay eligible and now field an empty round 1, as in their real game (owner accepted the trade-off).
+- **`boardAt`: the round number is the truth** (owner: "ANY empty board should never skip. our ROUND # is our truth in
+  serving snapshots"). Round N serves exactly the recording's round-N board. A hole inside an old recording was an empty
+  round: `emptyRoundOf` serves the previous round's state (tier, runes, quests, scalers; its wave kept so one-shot banks
+  stay spent; its ledger id dropped) with no minions. A round before the recording begins is an empty tier-1 board. Old
+  recordings that start at wave 2 stay eligible and now field an empty round 1, as in their real game.
 - **SQL:** `supabase/migrations/2026-10-17-pool-empty-boards.sql` (also appended to `schema.sql`) replaces
   `pool_runs_upsert_from` (empty boards count as waves; `has_minions` gates eligibility) and `pool_runs_sample` (returns
   empty boards with the run), then runs `pool_runs_rebuild()`. No existing row changes (no empty boards exist yet).

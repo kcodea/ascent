@@ -26,13 +26,13 @@ const manifest = (extra: Partial<ExperimentManifest> = {}): ExperimentManifest =
 });
 
 // ── the fixture corpus (`fixtures/pinnedCorpus.ts`, shared with the tools-side funnel test) ─────────────────
-/** The board a recording fields for `round` — the shipped `boardAt` + exhaustion (repeat final) rule. */
+/** The board a recording fields for `round` — the shipped round-exact rule (R-LOBBY-08: the round's own board; a round
+ *  the recording lacks is EMPTY) + exhaustion (repeat final). */
 function expectedBoard(heroId: string, round: number): string[] {
   const snaps = FIXTURE.filter((s) => s.heroId === heroId).sort((a, b) => a.wave - b.wave);
   const exact = snaps.find((s) => s.wave === round);
-  const earlier = snaps.filter((s) => s.wave < round).pop();
-  const snap = round > WAVES ? snaps[snaps.length - 1]! : (exact ?? earlier ?? snaps[0]!);
-  return snap.minions.map((m) => m.cardId);
+  const snap = round > WAVES ? snaps[snaps.length - 1]! : exact;
+  return snap ? snap.minions.map((m) => m.cardId) : [];
 }
 
 beforeAll(() => { registerOpponents(SHUFFLED); });

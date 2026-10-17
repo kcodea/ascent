@@ -62,10 +62,13 @@ medal + division — see *Ranked ladder* below).
   refused whole, and the local cache stores whole runs. **A recorded seat's board for round N is that run's own
   wave-N board.** Every round is uploaded, an EMPTY board included (owner 2026-10-17: *"empty boards are never
   uploaded is a problem. this has to be fixed"*); an empty round is part of its run, never a per-wave opponent, and
-  a run with nothing on board in any round takes no seat. Recordings from before then skipped empty boards, so the
-  only tolerances are for them: a single missing wave serves the run's previous board, and a round BEFORE the
-  recording begins serves an empty board at tier 1 (a recorded Disco Dan, whose turn 1 is a pure Setlist, fields
-  nothing in round 1, as in his real game; until 2026-10-17 he brought his round-2 board, at Shop tier 2). A later
+  a run with nothing on board in any round takes no seat. **The round number is the truth** (owner 2026-10-17:
+  *"ANY empty board should never skip. our ROUND # is our truth in serving snapshots"*): a player who sold off the
+  whole board on round 3 fields nothing on round 3. Recordings from before then skipped empty boards, so a round
+  they lack WAS empty: a hole inside the recording serves an empty board in the previous recorded round's state
+  (tier, runes, quests), never that round's minions, and a round BEFORE the recording begins serves an empty board
+  at tier 1 (a recorded Disco Dan, whose turn 1 is a pure Setlist, fields nothing in round 1, as in his real game;
+  until 2026-10-17 he brought his round-2 board, at Shop tier 2). A later
   board never appears, except past the run's end, where the stale-final-board rule applies (the run keeps its
   final board, with its own Armor). Until 2026-09-29 the pool was pulled as the newest boards per wave, which cut
   older runs down to their late waves and served a wave-10 board on round 5.

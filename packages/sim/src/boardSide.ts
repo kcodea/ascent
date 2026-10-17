@@ -8,8 +8,8 @@ import type { BoardSnapshot } from './snapshot';
  *
  * A next-combat spell was cast for the fight of the round it was captured at — `snap.wave`. A board re-served in a
  * LATER round is no longer that fight: a recorded seat past its last wave serving its final board (the
- * lobby-stale-final-boards ruling, 2026-09-17), a seat whose recording skipped a wave (`boardAt` serves the last
- * earlier board), a ghost (an eliminated seat's board from the round it died). None of those may cast its banks
+ * lobby-stale-final-boards ruling, 2026-09-17), a seat whose old recording skipped a wave (`boardAt` serves an EMPTY
+ * board in the last earlier round's state, keeping that round's wave), a ghost (an eliminated seat's board from the round it died). None of those may cast its banks
  * again. `fightRound` undefined = the caller has no round to compare (a pool board in a non-lobby mode, a tool):
  * the banks apply, exactly as before this ruling.
  */

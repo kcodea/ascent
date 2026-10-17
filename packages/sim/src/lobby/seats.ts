@@ -38,36 +38,49 @@ function policyStep(policy: SeatPolicy, run: RunState, ctrl: { c: BotControllerS
  */
 
 /**
- * THE ROUND-EXACT RULE (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying snapshots from the player's game?").
- * A recorded seat's board for round N is ITS OWN wave-N board. Since 2026-10-17 every round is uploaded, an EMPTY
- * board included, so a recording made from then on has every wave. One tolerance remains for the recordings made
- * before that, which skipped empty boards (it is the same bound seat eligibility enforces, `runCoversItsRounds`):
+ * THE ROUND-EXACT RULE (owner 2026-09-29, R-LOBBY-08: "isnt it just replaying snapshots from the player's game?";
+ * 2026-10-17: "ANY empty board should never skip. our ROUND # is our truth in serving snapshots"). A recorded seat in
+ * lobby round N serves EXACTLY that run's round-N board, never another round's minions:
  *
- *  - a missing wave serves the run's board from at most `MAX_MISSING_WAVES` wave EARLIER.
+ *  - the recorded wave-N board when there is one. Since 2026-10-17 every round is uploaded, an EMPTY board included
+ *    (Disco Dan's turn 1, a player who sold off the whole board on round 3), so a new recording has every round;
+ *  - a round MISSING inside an older recording (uploads before 2026-10-17 skipped empty boards, so a hole means that
+ *    round's board WAS empty) serves an EMPTY board in the state the run had: the previous recorded round's tier,
+ *    runes, quests and run-level scalers, with no minions (`emptyRoundOf`). The previous round's MINIONS are never
+ *    carried forward, and a later round is never pulled back;
+ *  - a round BEFORE the recording begins: null here, which the driver serves as an empty tier-1 board.
  *
- * It NEVER reaches FORWARD (owner 2026-10-17, R-LOBBY-08: "i just faced this board on round 1 - how is that possible
- * that he is shop tier 2?"). Until then a run whose recording started at wave 2 (its wave-1 board was empty, so it was
- * never uploaded) served its WAVE-2 board in round 1: every recorded Disco Dan, whose turn 1 is a pure Setlist with
- * nothing on board, arrived on round 1 at Shop tier 2 with his Tier 2 pick already played. A round before the
- * recording begins now gets an EMPTY board at tier 1 (null here), exactly what that player really fielded.
- * Past the run's END the driver returns null and the lobby's `repeatFinal` policy serves the final board with
- * the seat's own Armor (owner ruling, "stale final board"), which is the only place a later board may appear.
+ * Until 2026-10-17 a hole served the previous round's board, and a run starting at wave 2 served its WAVE-2 board in
+ * round 1 (owner report: "i just faced this board on round 1 - how is that possible that he is shop tier 2?": every
+ * recorded Disco Dan arrived at Shop tier 2 with his Tier 2 pick already played).
+ * Past the run's END the driver returns null and the lobby's `repeatFinal` policy serves the final board verbatim
+ * (owner ruling, "stale final board"), which is the only place another round's board may appear.
  */
-/** Seat ELIGIBILITY only (`runCoversItsRounds`): a run whose recording starts later than this wave is incomplete
- *  material. A run starting at wave 2 is still seated (its wave-1 board was empty and, before 2026-10-17, never
- *  uploaded); `boardAt` serves it an empty round 1. */
+/** Seat ELIGIBILITY only (`runCoversItsRounds`): a run whose recording starts later than this wave, or has a longer
+ *  hole than `MAX_MISSING_WAVES`, is incomplete material (cut by an old per-wave pull), not empty rounds. A run that
+ *  starts at wave 2 or has a one-round hole is seated, and those rounds are served EMPTY (see above). */
 export const MAX_FIRST_WAVE = 2;
 export const MAX_MISSING_WAVES = 1;
 
+/** The EMPTY board a run fielded in a round its old recording skipped: the previous recorded round's state (tier,
+ *  runes, quests, scalers) with nothing on board. It keeps that round's `wave`, so its one-shot next-combat banks stay
+ *  spent (`snapshotBanksLive`), and drops its fight-ledger `id` (the round's real board was a different, empty one). */
+export function emptyRoundOf(prev: BoardSnapshot): BoardSnapshot {
+  const { id: _id, ...rest } = prev;
+  void _id;
+  return { ...rest, minions: [], power: 0, tribes: [] };
+}
+
 /** Board-for-round lookup shared by the recorded drivers (see the round-exact rule above). Null = nothing recorded
- *  at or before this round: the caller fields an empty tier-1 board, never a later round's. */
+ *  at or before this round: the caller fields an empty tier-1 board. */
 export function boardAt(snaps: readonly BoardSnapshot[], round: number): BoardSnapshot | null {
   let earlier: BoardSnapshot | null = null;
   for (const s of snaps) {
     if (s.wave === round) return s;
     if (s.wave < round && (!earlier || s.wave > earlier.wave)) earlier = s;
   }
-  return earlier; // within MAX_MISSING_WAVES for an eligible run; never a later round
+  // A hole inside the recording was an empty round: its state, none of the previous round's minions.
+  return earlier ? emptyRoundOf(earlier) : null;
 }
 
 const toPrepared = (snap: BoardSnapshot): PreparedBoard => ({

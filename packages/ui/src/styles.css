@@ -13070,7 +13070,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    you point at that row; ten banners of seven looping cards were ~226 running animations and a 4 ms idle frame on
    the Hall, and every hover sweep repainted them. The row you hover plays (the `.is-far` pause, made local). */
 .lb-row:not(:hover) .lb-team *, .lb-row:not(:hover) .lb-team *::before, .lb-row:not(:hover) .lb-team *::after,
-.cv2-row:not(:hover) .cv2-team *, .cv2-row:not(:hover) .cv2-team *::before, .cv2-row:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
+/* Every game card (Career AND Recent Games, which share the StoredTeam board since layout B, 2026-10-16). */
+.gc:not(:hover) .cv2-team *, .gc:not(:hover) .cv2-team *::before, .gc:not(:hover) .cv2-team *::after { animation-play-state: paused !important; }
 /* `!important` like `.is-far`'s: the card FX rules set the `animation` SHORTHAND, which resets play-state to running and
    out-ranks a plain declaration here (measured 2026-10-16: wisp / fl-ring / ex-shard / wardglass kept animating, a
    239-element style recalc every frame on Recent Games, ~0.9 s of style per 2 s idle). */
@@ -13593,11 +13594,12 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   min-height: 66px; padding: 6px 14px 6px 16px; text-align: left; color: #f4eee2;
   border-radius: 10px; border: 1.5px solid rgba(196, 160, 92, 0.2);
   background: linear-gradient(90deg, color-mix(in srgb, var(--band) 14%, transparent), rgba(9, 15, 29, 0.88) 130px);
-  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
+  transition: border-color 0.12s ease; }
 .gs-item.gc-won { --band: #e8b84e; } .gs-item.gc-top4 { --band: #55c98a; } .gs-item.gc-lost { --band: #d9666a; }
 .gs-item::before { content: ''; position: absolute; left: -1.5px; top: -1.5px; bottom: -1.5px; width: 5px; border-radius: 10px 0 0 10px; background: var(--band); }
-.gs-item:hover { transform: translateX(3px); border-color: rgba(232, 200, 119, 0.5); }
-.gs-item:active { transform: translateX(1px); transition-duration: 0.05s; }
+/* Hover is a static highlight, no slide: measured 2026-10-16, the translate on a 50-row scroller cost layout on every
+   pass of the pointer (layout 18 ms vs 4 ms per hover sweep, frames over budget 31 vs 19). */
+.gs-item:hover { border-color: rgba(232, 200, 119, 0.5); }
 .gs-item.on { border-color: rgba(255, 217, 138, 0.85); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 24%, transparent), rgba(22, 34, 58, 0.96) 150px); }
 .gs-place { display: flex; align-items: center; gap: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
 .gs-place.won { color: #ffd76a; } .gs-place.top4 { color: #7fe8ac; } .gs-place.lost { color: #ff9a9a; } .gs-place.none { color: rgba(255, 255, 255, 0.4); }
@@ -13661,7 +13663,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-list > .gsplit { flex: 1; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; }
 .cv2-split .gs-item { grid-template-columns: 50px 48px minmax(0, 1fr) auto; gap: 8px; padding: 6px 10px 6px 14px; min-height: 60px; }
 .cv2-split .gs-place { font-size: 19px; }
-@media (prefers-reduced-motion: reduce) { .gs-item, .gs-item:hover, .gs-item:active { transform: none; transition: border-color 0.1s ease; } .gs-in { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .gs-in { animation: none; } }
 
 /* CAREER, TWO COLUMNS UNDER A STATS STRIP (UI pass 2, 2026-10-16). With the game split in the centre, three columns left
    the detail card too narrow for a seven-card board and the lobby standings. The Career Stats column becomes one strip

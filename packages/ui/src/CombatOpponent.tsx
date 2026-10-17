@@ -1,6 +1,7 @@
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { liveRuneText } from './runeText';
 import { useEnemyRuneLive } from './useRuneLive';
+import { badgePulsesFromProgress } from './choreo/triggerCounts';
 import { runeAccentTribe } from './RuneCard';
 import { createPortal } from 'react-dom';
 import { useGame } from './store';
@@ -94,6 +95,11 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // The foe's self-improving runes print their CURRENT value, ticking with its own triggers mid-fight
   // (R-RUNE-LIVE-TEXT-01). Read before the early return (hooks).
   const runeLive = useEnemyRuneLive(shown?.board.snapshot);
+  // The foe's rune badges BOUNCE the moment one of its runes fires, exactly as the player's do (R-RUNE-COMBAT-FLASH-01,
+  // R-SYMMETRY-01). Folded from the foe's rune progress, which the store only re-publishes on a beat where one of its
+  // runes actually moved, so this re-renders per rune fire, never per beat.
+  const foeProgress = useGame((s) => s.combatEnemyRuneProgress);
+  const foePulses = useMemo(() => badgePulsesFromProgress(foeProgress), [foeProgress]);
   if (phase === 'hidden' || !shown?.seat) return null;
   const next = shown;
   const seat = shown.seat;
@@ -112,7 +118,9 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   // DEV ONLY (owner ask 2026-08-31): `window.__oppRunes = ['rune_x', …]` forces the foe's runes so the rune-slot
   // backgrounds can be tuned with real runes overlaid. Set it in the console, then hit the ⚔️ tuner's Test (or
   // start a fight) to re-render. Stripped from production.
-  const forced = import.meta.env.DEV && typeof window !== 'undefined'
+  // Also on a PERF BENCH build (`VITE_PERF_BENCH=1`, perfBench.ts), so a prod-bundle measurement can put runes on the
+  // foe (the R-RUNE-COMBAT-FLASH-01 stress fight). Player builds set neither, and the static check drops it.
+  const forced = (import.meta.env.DEV || import.meta.env.VITE_PERF_BENCH === '1') && typeof window !== 'undefined'
     ? (window as unknown as { __oppRunes?: string[] }).__oppRunes
     : undefined;
   const runes = (forced ?? next?.board.snapshot?.runes ?? []).filter((id) => RUNE_INDEX[id]);
@@ -198,7 +206,10 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             const rart = runeArt(rune.id);
             return (
               <div className={`questbadge runebadge combatopp-rune${rune.epic ? ' runebadge-epic' : ''}`} data-tribe={runeAccentTribe(rune)} style={{ '--rt': `var(--t-${runeAccentTribe(rune)})` } as React.CSSProperties} key={`${id}#${i}`} data-source-id={id}>
-                <div className="questbadge-inner">
+                {/* Keyed on the fire count, like the player's badge: each fire remounts it and RESTARTS the one-shot
+                    bounce (never stacks a second one), and the glow ring rides inside in lockstep. */}
+                <div className="questbadge-inner" key={foePulses[id] ?? 0} data-pulse={foePulses[id] ?? 0}>
+                  {(foePulses[id] ?? 0) > 0 && <span className="questbadge-pulse" aria-hidden />}
                   {rart
                     ? <img decoding="sync" className="questbadge-art" src={rart} alt="" aria-hidden />
                     : <span className="questbadge-emblem" aria-hidden><Icon name="engrave" /></span>}

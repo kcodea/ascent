@@ -7,7 +7,8 @@
  *              shape; top 4 green; 5th-8th red) over a matching band down the card's left edge.
  *   HERO       the portrait in its recorded frame, the hero's name, the player's name (feed) and the fight record.
  *   BOARD      the final board as a compact strip of the real `Card` (stars, Gilded and stat badges are the Card's own).
- *   SIDE       runes as small emblems with their hover tips, then the actions (Replay, Lobby) as secondary plates.
+ *   SIDE       the actions (Replay, Career) as secondary plates.
+ *   RUNES      a row under the board: each rune's emblem and name, with its hover tip.
  *   META       one quiet dotted line under it all: date · length · rounds · rating change · strength.
  *
  * The card is LAYOUT ONLY: every slot is a node the host renders, so each page keeps its own data rules (skins
@@ -67,11 +68,13 @@ export function GameCard({
             {record && <div className="gc-record">{record}</div>}
           </div>
         </div>
-        <div className="gc-board">{board}</div>
         <div className="gc-side">
-          {runes && <div className="gc-runes">{runes}</div>}
           {actions && <div className="gc-actions">{actions}</div>}
         </div>
+        <div className="gc-board">{board}</div>
+        {/* The runes are their own row under the board, icon + name (owner 2026-10-16: "the minions + runes can be much
+            larger and contain the rune names as well"). */}
+        {runes && <div className="gc-runes">{runes}</div>}
         <div className="gc-meta">{meta}</div>
       </div>
       {extra}

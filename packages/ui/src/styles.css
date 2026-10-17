@@ -13618,42 +13618,55 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gs-detail::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .gs-in { animation: menu-rise 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
 
-/* THE DETAIL CARD (`.gc-detail`, owner 2026-10-16: "fix the card pill/sizing. this is off"). One grid, nothing outside the
-   card's edge: placement | hero | runes + actions on the head row (runes INLINE beside the buttons at one size), the board
-   strip CENTRED across the full width under it, the meta line under that, then the lobby standings. */
-.gc.gc-detail { transform: none; }
+/* THE DETAIL CARD (`.gc-detail`; owner 2026-10-16: "fix the card pill/sizing", then "the minions + runes can be much
+   larger and contain the rune names as well with all this space now"). One grid, nothing past the card's edge, and it
+   takes the panel's height: the head row (placement | hero | Replay / Career), then the BIG board, then the runes row
+   (emblem + name, hover tip), then the meta line. The board's card width is DERIVED from the card's own width (7 cards
+   + 6 gaps), capped at 170px; the gap keeps the #2120 badge slot (card width + ~40px pitch, ~30% reserved below). */
+.gs-in { min-height: 100%; display: flex; flex-direction: column; }
+.gc.gc-detail { transform: none; flex: 1 0 auto; display: flex; flex-direction: column; }
 .gc.gc-detail:hover { transform: none; border-color: rgba(196, 160, 92, 0.28); }
-.gc.gc-detail .gc-body { grid-template-columns: 92px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta';
-  align-items: center; column-gap: 18px; row-gap: 6px; padding: 14px 20px 14px 18px; }
-.gc.gc-detail .gc-place { grid-row: 1; font-size: 42px; padding-right: 12px; align-self: center; }
-.gc.gc-detail .gc-hero .lb-heroframe .hero { width: 72px; height: 72px; }
-.gc.gc-detail .gc-hero .cv2-heroframe.small { --ring: 72px; }
-.gc.gc-detail .gc-title, .gc.gc-detail .gc-title > * { font-size: 22px; }
+.gc.gc-detail .gc-body { flex: 1 0 auto; grid-template-columns: 92px minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: 'place hero side' 'board board board' 'runes runes runes' 'meta meta meta';
+  align-items: center; column-gap: 18px; row-gap: 12px; padding: 16px 22px 16px 18px; }
+.gc.gc-detail .gc-place { grid-row: 1; font-size: 44px; padding-right: 12px; align-self: center; }
+.gc.gc-detail .gc-hero .lb-heroframe .hero { width: 76px; height: 76px; }
+.gc.gc-detail .gc-hero .cv2-heroframe.small { --ring: 76px; }
+.gc.gc-detail .gc-title, .gc.gc-detail .gc-title > * { font-size: 24px; }
+.gc.gc-detail .gc-sub, .gc.gc-detail .gc-sub > *, .gc.gc-detail .gc-record, .gc.gc-detail .gc-record > * { font-size: 15px; }
 .gc.gc-detail .gc-side { flex-direction: row; align-items: center; justify-content: flex-end; gap: 12px; align-self: center; }
-.gc.gc-detail .gc-runes, .gc.gc-detail .gc-runes .cv2-runes, .gc.gc-detail .gc-runes .lb-runes { gap: 6px; align-items: center; }
-.gc.gc-detail .gc-runes .runeemblem, .gc.gc-detail .gc-runes .rune-emblem, .gc.gc-detail .gc-runes .lb-rune-emblem { --rune-size: 34px; width: 34px; height: 34px; }
-.gc.gc-detail .gc-runes img, .gc.gc-detail .gc-runes svg { max-width: 34px; max-height: 34px; }
 .gc.gc-detail .gc-actions { gap: 8px; }
-.gc.gc-detail .gc-actions .lb-btn, .gc.gc-detail .gc-actions .cv2-btn { font-size: 14px; padding: 9px 16px; }
-/* The board: seven slots across the card's full width, centred, badges with room (the #2120 slot minimums). */
-.gc.gc-detail .gc-board { align-self: stretch; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 4px; }
-.gc.gc-detail .gc-board .cv2-team.cv2-team { --tile-gap: 30px; --tw: min(108px, calc((100cqw - 6 * 30px - 24px) / 7)); flex-wrap: nowrap; justify-content: center;
-  padding: calc(var(--tw) * 0.28) 12px 30px; }
-.gc.gc-detail .gc-board .lb-team-none, .gc.gc-detail .gc-board .cv2-row-none { padding: 22px 0; text-align: center; font-size: 15px; }
-.gc.gc-detail .gc-meta { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 10px; }
-.gc.gc-detail .gc-meta .cv2-row-meta, .gc.gc-detail .gc-meta .lb-facts { flex-wrap: wrap; row-gap: 6px; }
+.gc.gc-detail .gc-actions .lb-btn, .gc.gc-detail .gc-actions .cv2-btn { font-size: 14px; padding: 10px 18px; }
+/* The board: seven slots across the full width, as large as the width allows (up to 170px). */
+.gc.gc-detail .gc-board { align-self: center; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 6px; }
+.gc.gc-detail .gc-board .cv2-team.cv2-team { --tile-gap: 42px; --tw: min(170px, calc((100cqw - 6 * 42px - 28px) / 7)); flex-wrap: nowrap; justify-content: center;
+  padding: calc(var(--tw) * 0.3) 14px calc(var(--tw) * 0.3 + 6px); }
+.gc.gc-detail .gc-board .lb-team-none, .gc.gc-detail .gc-board .cv2-row-none { padding: 36px 0; text-align: center; font-size: 16px; }
+/* The runes: a row of pills, each the rune's emblem and its name; the hover tip carries the text. */
+.gc.gc-detail .gc-runes { grid-area: runes; display: flex; justify-content: center; min-width: 0; }
+.gc.gc-detail .gc-runes .cv2-runes, .gc.gc-detail .gc-runes .lb-runes { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.gc.gc-detail .gc-runes .cv2-rune, .gc.gc-detail .gc-runes .lb-rune { display: inline-flex; align-items: center; gap: 12px; padding: 5px 20px 5px 5px; border-radius: 999px;
+  background: rgba(0, 0, 0, 0.34); border: 1px solid rgba(196, 160, 92, 0.38); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+.gc.gc-detail .gc-runes .cv2-rune.epic, .gc.gc-detail .gc-runes .lb-rune.epic { border-color: rgba(176, 120, 230, 0.6); }
+.gc.gc-detail .gc-runes .cv2-rune:hover, .gc.gc-detail .gc-runes .lb-rune:hover { border-color: rgba(232, 200, 119, 0.8); }
+.gc.gc-detail .gc-runes .cv2-rune-disc, .gc.gc-detail .gc-runes .lb-rune-em { width: 46px; height: 46px; }
+.gc.gc-detail .gc-runes .cv2-rune-name, .gc.gc-detail .gc-runes .lb-rune-name { display: block; font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #fff; white-space: nowrap; }
+.gc.gc-detail .gc-runes .cv2-norunes, .gc.gc-detail .gc-runes .lb-runes-none { font-size: 14px; color: rgba(255, 255, 255, 0.5); }
+.gc.gc-detail .gc-runes .runtrophy-tip { left: 50%; right: auto; transform: translateX(-50%); }
+.gc.gc-detail .gc-meta { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 12px; }
+.gc.gc-detail .gc-meta .cv2-row-meta, .gc.gc-detail .gc-meta .lb-facts { flex-wrap: wrap; row-gap: 6px; justify-content: center; }
 .gc.gc-detail .cv2-lobby, .gc.gc-detail .rg-lobby { margin: 0 18px 16px 18px; padding-top: 12px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
 /* The standings in ONE column inside the detail card: two columns at this width squeezed the Winner tag into the next row. */
 .gc.gc-detail .mds-list { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; }
 .gc.gc-detail .cv2-lobby .mds-team .cv2-team { --tw: min(96px, calc((100cqw - 6 * 26px) / 7)); }
 
 /* Recent Games' detail card keeps the shared one-line meta (the old list card's two-column fact grid stays off). */
-.rg-page .gc.gc-detail .gc-meta { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 10px; }
-.rg-page .gc.gc-detail .gc-meta .lb-facts { display: flex; flex-wrap: wrap; row-gap: 6px; }
+.rg-page .gc.gc-detail .gc-meta { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 12px; }
+.rg-page .gc.gc-detail .gc-meta .lb-facts { display: flex; flex-wrap: wrap; row-gap: 6px; justify-content: center; }
 .rg-page .gc.gc-detail .gc-meta .lb-fact + .lb-fact { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
 .rg-page .gc.gc-detail .gc-meta .lb-fact-v, .rg-page .gc.gc-detail .gc-meta .lb-when { font-size: 14px; }
-.rg-page .gc.gc-detail .gc-place { font-size: 42px; }
-.rg-page .gc.gc-detail .gc-hero .lb-heroframe .hero { width: 72px; height: 72px; }
+.rg-page .gc.gc-detail .gc-place { font-size: 44px; }
+.rg-page .gc.gc-detail .gc-hero .lb-heroframe .hero { width: 76px; height: 76px; }
 .gc-detail .lb-go { margin-left: 4px; font-size: 16px; line-height: 1; }
 /* Recent Games: the split fills the page under the summary and filter bar. */
 .rg-page .lbscroll:has(> .gsplit) { display: flex; flex-direction: column; overflow: hidden; }

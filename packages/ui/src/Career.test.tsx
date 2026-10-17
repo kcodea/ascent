@@ -191,11 +191,11 @@ describe('Match History', () => {
     expect(across('.cv2-row-fights')).toEqual(['9–4', '5–5–2', '2–5']);
     expect(rows.map((r) => r.querySelector('.cv2-row-fights')?.getAttribute('aria-label'))).toEqual(['Fights: 9 won, 4 lost', 'Fights: 5 won, 5 lost, 2 drawn', 'Fights: 2 won, 5 lost']);
     expect(ui.container.querySelector('.cv2-row-record')).toBeNull();
-    // Reading order inside a GAME CARD (GameCard.tsx, 2026-10-16): placement → hero → board → side (runes, actions),
-    // then the meta line.
+    // Reading order inside a GAME CARD (GameCard.tsx, 2026-10-16): placement → hero → actions on the head row, then the
+    // board, the runes row (emblem + name) and the meta line.
     for (const r of rows) {
       const kids = [...r.querySelector('.gc-body')!.children].map((c) => c.className.split(' ')[0]);
-      expect(kids).toEqual(['gc-place', 'gc-hero', 'gc-board', 'gc-side', 'gc-meta']);
+      expect(kids).toEqual(['gc-place', 'gc-hero', 'gc-side', 'gc-board', r.querySelector('.gc-runes') ? 'gc-runes' : 'gc-meta', 'gc-meta'].slice(0, r.querySelector('.gc-runes') ? 6 : 5));
       expect(r.querySelector('.gc-hero .cv2-heroframe.small .hero .f')).not.toBeNull();
       expect(r.querySelector('.gc-place.cv2-verdict')).not.toBeNull();
       expect(r.querySelector('.cv2-row-team .cv2-row-label'), 'no "Final Team" label over the tiles (owner 2026-09-20)').toBeNull();

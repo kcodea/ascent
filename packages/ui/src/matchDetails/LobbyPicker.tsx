@@ -113,7 +113,7 @@ export const MiniBoard = memo(function MiniBoard({ minions, className = '' }: { 
         const art = m ? artFor(m.cardId) : undefined;
         return (
           <span key={i} className={`lp-mini-m${m ? '' : ' empty'}${m?.golden ? ' golden' : ''}`}>
-            {art && <img decoding="async" src={art} alt="" draggable={false} />}
+            {art && <img decoding="sync" src={art} alt="" draggable={false} />}
             {m?.golden && <span className="lp-mini-star">★</span>}
           </span>
         );

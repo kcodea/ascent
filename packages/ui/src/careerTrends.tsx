@@ -17,10 +17,15 @@
  * ONCE when the pointer enters (no per-frame layout reads) and moves with a transform. Season starts are not marked:
  * a run row carries no season id, so a reset cannot be told from a bad streak without guessing.
  */
-import { useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
 import type { BoardMinion } from '@game/core';
-import { MiniBoard } from './matchDetails/LobbyPicker';
+import type { RunCosmeticSnapshot } from '@game/progression';
+import { createPortal } from 'react-dom';
+import { StoredTeam } from './StoredTeam';
+import { rectToStage, stageHost, stageViewport } from './stage';
+import { opponentSkins } from './skins/skins';
+import { useGame } from './store';
 import { apmOf, isMatchWin, ordinalOf, playedOnText, type CareerRun, type TrendWindow } from './careerData';
 import { medalOf, POINTS_PER_DIVISION } from './rank/types';
 
@@ -28,13 +33,13 @@ const ROLL = 10;
 const DAY = 86_400_000;
 
 interface RunPoint { atMs: number; place: number | null; mmr: number | null; delta: number | null; heroId: string; apm: number | null;
-  /** The run's final board (the stored array, a stable reference), for the MMR tip's mini board. */
-  minions?: readonly BoardMinion[] }
+  /** The run's final board (the stored array, a stable reference) and its recorded skins, for the MMR tip's board. */
+  minions?: readonly BoardMinion[]; cosmetics?: RunCosmeticSnapshot | null }
 
 /** Runs inside the window (oldest first), plus the previous window of the same length for the deltas. Pure. */
 export function trendRuns(runs: readonly CareerRun[], window_: TrendWindow, nowMs: number): { cur: RunPoint[]; prev: RunPoint[] | null } {
   const toPoint = (r: CareerRun): RunPoint => ({
-    atMs: r.atMs, place: r.placement, mmr: r.ratingAfter === null ? null : Math.round(r.ratingAfter), delta: r.ratingDelta, heroId: r.heroId, apm: apmOf(r), ...(r.board && r.board.minions.length > 0 ? { minions: r.board.minions } : {}),
+    atMs: r.atMs, place: r.placement, mmr: r.ratingAfter === null ? null : Math.round(r.ratingAfter), delta: r.ratingDelta, heroId: r.heroId, apm: apmOf(r), ...(r.board && r.board.minions.length > 0 ? { minions: r.board.minions, cosmetics: r.board.cosmetics ?? null } : {}),
   });
   const dated = runs.filter((r) => Number.isFinite(r.atMs) && r.atMs <= nowMs + 60_000).slice().sort((a, b) => a.atMs - b.atMs);
   if (window_ === 'all') return { cur: dated.map(toPoint), prev: null };
@@ -85,7 +90,18 @@ function Delta({ v, better, unit = '', digits = 1 }: { v: number | null; better:
 
 const MW = 284, MH = 140, ML = 6, MR = 70, MT = 14, MB = 20;
 
-function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number | null; nowMs: number }) {
+/** The hovered run's final board in the MMR tip: the real cards (frame, stars, Attack / Health badges) at ~68px, the
+ *  game card's strip renderer. Memoised on the stored minions array, so moving the crosshair to another point swaps
+ *  this one node and nothing else re-renders; the cards' keyword animations stay paused (styles: .ct-board). */
+const TipBoard = memo(function TipBoard({ minions, skins }: { minions: readonly BoardMinion[]; skins: RunCosmeticSnapshot | null }) {
+  return <div className="ct-board"><StoredTeam minions={minions} skins={skins} label="Final board" compact /></div>;
+});
+
+/** Tip footprint in stage px (the board makes it wide); the tip is clamped to the stage with this. */
+const TIP_W = 780, TIP_H_BOARD = 260, TIP_H_TEXT = 104;
+
+function MmrChart({ pts, live, nowMs, own }: { pts: readonly RunPoint[]; live: number | null; nowMs: number; own: boolean }) {
+  const showOpp = useGame((s) => s.showOpponentSkins);
   // The line ENDS on the live rating the crest prints (owner 2026-10-03): a closing "now" point when the last stamped
   // run disagrees. It is not a run, and its tooltip says so.
   const rated = useMemo(() => {
@@ -123,7 +139,18 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
 
   const wrap = useRef<HTMLDivElement>(null);
   const rect = useRef<{ left: number; width: number } | null>(null);
+  // The chart's rect in STAGE px, read once per hover (never per move): where the floating tip is seated from.
+  const stageRect = useRef<{ left: number; top: number; width: number; height: number } | null>(null);
   const [hover, setHover] = useState<number | null>(null);
+  // The board follows the crosshair only once it RESTS on a point (~90 ms): sweeping across the chart swaps the text
+  // line per point but never re-renders seven real cards per point (measured 2026-10-16: 52 frames over budget on a
+  // fast sweep when the board followed every point).
+  const [rested, setRested] = useState<number | null>(null);
+  useEffect(() => {
+    if (hover === null) { setRested(null); return undefined; }
+    const t = window.setTimeout(() => setRested(hover), 90);
+    return () => window.clearTimeout(t);
+  }, [hover]);
   if (!geo || geo.xy.length === 0) return <div className="ct-empty">No rated runs in this window</div>;
   const line = geo.xy.map((q) => `${q.x.toFixed(1)},${q.y.toFixed(1)}`).join(' ');
   const area = `${geo.xy[0]!.x.toFixed(1)},${(MH - MB).toFixed(1)} ${line} ${geo.xy[geo.xy.length - 1]!.x.toFixed(1)},${(MH - MB).toFixed(1)}`;
@@ -131,7 +158,7 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
   const dates = geo.xy.length > 2 ? [geo.xy[0]!, geo.xy[Math.floor(geo.xy.length / 2)]!, last] : [geo.xy[0]!, last];
   const h = hover === null ? null : geo.xy[hover] ?? null;
   const onMove = (e: React.PointerEvent): void => {
-    if (!rect.current && wrap.current) { const r = wrap.current.getBoundingClientRect(); rect.current = { left: r.left, width: r.width }; }
+    if (!rect.current && wrap.current) { const r = wrap.current.getBoundingClientRect(); rect.current = { left: r.left, width: r.width }; stageRect.current = rectToStage(r); }
     const r = rect.current; if (!r) return;
     const x = ((e.clientX - r.left) / r.width) * MW;
     let best = 0;
@@ -139,7 +166,7 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
     if (best !== hover) setHover(best);
   };
   return (
-    <div className="ct-mmr" ref={wrap} onPointerEnter={() => { rect.current = null; }} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
+    <div className="ct-mmr" ref={wrap} onPointerEnter={() => { rect.current = null; stageRect.current = null; }} onPointerMove={onMove} onPointerLeave={() => setHover(null)}>
       <svg viewBox={`0 0 ${MW} ${MH}`} role="img" aria-label={`MMR after each rated run, latest ${last.p.mmr}`}>
         <defs>
           <linearGradient id="ct-mmr-fill" x1="0" x2="0" y1="0" y2="1">
@@ -170,20 +197,32 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
           <text key={i} className="ct-date" x={q.x} y={MH - 6} textAnchor={i === 0 ? 'start' : i === dates.length - 1 ? 'end' : 'middle'}>{playedOnText(q.p.atMs).replace(/, \d{4}$/, '')}</text>
         ))}
       </svg>
-      {h && (
-        // Seated so it never leaves the panel (owner 2026-10-16): below the point when the point is high, and pinned to
-        // the near edge when the point is near a side.
-        <div
-          className={`atip ct-pos${h.y < MH * 0.5 ? ' below' : ''}${h.x < MW * 0.3 ? ' left' : h.x > MW * 0.7 ? ' right' : ''}`}
-          style={{ left: `${(h.x / MW) * 100}%`, top: `${(h.y / MH) * 100}%` }} role="tooltip"
-        >
-          <b>{h.p.mmr} MMR</b>
-          {h.p.delta !== null && h.p.delta !== 0 && <span className={h.p.delta > 0 ? 'good' : 'bad'}>{h.p.delta > 0 ? `+${h.p.delta}` : h.p.delta}</span>}
-          <span>{'now' in h.p && h.p.now ? 'Your rating now' : `${h.p.place !== null ? ordinalOf(h.p.place) : 'No placement'}${h.p.heroId ? `, ${getHero(h.p.heroId).name}` : ''}`}</span>
-          <span className="dim">{playedOnText(h.p.atMs)}</span>
-          {h.p.minions && <MiniBoard minions={h.p.minions} className="ct-mini" />}
-        </div>
-      )}
+      {h && stageRect.current && (() => {
+        // A FLOATING tip over everything (owner 2026-10-16: "show the full minion w/ stats"): portalled into the stage,
+        // seated above the point (below when there is no room), clamped inside the stage on every side.
+        const sr = stageRect.current;
+        const vp = stageViewport();
+        const ax = sr.left + (h.x / MW) * sr.width;
+        const ay = sr.top + (h.y / MH) * sr.height;
+        const board = !!h.p.minions && h.p.minions.length > 0;
+        const showBoard = board && rested === hover;
+        const w = board ? TIP_W : 220;
+        const th = board ? TIP_H_BOARD : TIP_H_TEXT;
+        const left = Math.max(8, Math.min(vp.w - w - 8, ax - w / 2));
+        const top = ay - th - 14 >= 8 ? ay - th - 14 : Math.min(vp.h - th - 8, ay + 14);
+        return createPortal(
+          <div className={`atip ct-pos ct-float${board ? ' ct-wide' : ''}`} style={{ left, top, width: w }} role="tooltip">
+            <div className="ct-tip-text">
+              <b>{h.p.mmr} MMR</b>
+              {h.p.delta !== null && h.p.delta !== 0 && <span className={h.p.delta > 0 ? 'good' : 'bad'}>{h.p.delta > 0 ? `+${h.p.delta}` : h.p.delta}</span>}
+              <span>{'now' in h.p && h.p.now ? 'Your rating now' : `${h.p.place !== null ? ordinalOf(h.p.place) : 'No placement'}${h.p.heroId ? `, ${getHero(h.p.heroId).name}` : ''}`}</span>
+              <span className="dim">{playedOnText(h.p.atMs)}</span>
+            </div>
+            {showBoard && <TipBoard minions={h.p.minions!} skins={own ? h.p.cosmetics ?? null : opponentSkins(showOpp, h.p.cosmetics ?? undefined)} />}
+          </div>,
+          stageHost(),
+        );
+      })()}
     </div>
   );
 }
@@ -209,7 +248,7 @@ const syOf = (lo: number, hi: number, invert = false) => (v: number): number => 
 };
 const poly = (ys: readonly number[], y: (v: number) => number): string => ys.map((v, i) => `${sx(i, ys.length).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
 
-export function TrendsBody({ runs, window_, nowMs, live }: { runs: readonly CareerRun[]; window_: TrendWindow; nowMs: number; live: number | null }) {
+export function TrendsBody({ runs, window_, nowMs, live, own = true }: { runs: readonly CareerRun[]; window_: TrendWindow; nowMs: number; live: number | null; own?: boolean }) {
   const { cur, prev } = useMemo(() => trendRuns(runs, window_, nowMs), [runs, window_, nowMs]);
   const f = useMemo(() => trendFigures(cur, prev), [cur, prev]);
   const placed = cur.filter((p) => p.place !== null) as Array<RunPoint & { place: number }>;
@@ -223,7 +262,7 @@ export function TrendsBody({ runs, window_, nowMs, live }: { runs: readonly Care
   return (
     <>
       <div className="ct-mmr-head"><span className="cv2-trend-title">MMR</span><span className="cv2-trend-avg">{live ?? (cur.filter((p) => p.mmr !== null).pop()?.mmr ?? '-')}</span></div>
-      <MmrChart pts={cur} live={live} nowMs={nowMs} />
+      <MmrChart pts={cur} live={live} nowMs={nowMs} own={own} />
       <div className="ct-grid2">
         <Small name="Placement" value={f.place === null ? '-' : f.place.toFixed(1)} delta={<Delta v={f.placeD} better="down" />}>
           <line className="ct-ref" x1={SP} x2={SW - SP} y1={py(4.5)} y2={py(4.5)} />

@@ -13602,7 +13602,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   min-height: 66px; padding: 6px 14px 6px 16px; text-align: left; color: #f4eee2;
   border-radius: 10px; border: 1.5px solid rgba(196, 160, 92, 0.2);
   background: linear-gradient(90deg, color-mix(in srgb, var(--band) 14%, transparent), rgba(9, 15, 29, 0.88) 130px);
-  transition: border-color 0.12s ease; }
+}
 .gs-item.gc-won { --band: #e8b84e; } .gs-item.gc-top4 { --band: #55c98a; } .gs-item.gc-lost { --band: #d9666a; }
 .gs-item::before { content: ''; position: absolute; left: -1.5px; top: -1.5px; bottom: -1.5px; width: 5px; border-radius: 10px 0 0 10px; background: var(--band); }
 /* Hover is a static highlight, no slide: measured 2026-10-16, the translate on a 50-row scroller cost layout on every
@@ -13633,7 +13633,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    + 6 gaps), capped at 170px; the gap keeps the #2120 badge slot (card width + ~40px pitch, ~30% reserved below). */
 .gs-in { min-height: 100%; display: flex; flex-direction: column; }
 .gc.gc-detail { transform: none; flex: 1 0 auto; display: flex; flex-direction: column; }
-.gc.gc-detail:hover { transform: none; border-color: rgba(196, 160, 92, 0.28); }
+/* The open game is not a button: no hover change and no transition (a border transition repainted the whole card on
+   every pass of the pointer, measured 2026-10-16). */
+.gc.gc-detail, .gc.gc-detail:hover { transition: none; transform: none; border-color: rgba(196, 160, 92, 0.28); }
 .gc.gc-detail .gc-body { flex: 1 0 auto; grid-template-columns: 92px minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-areas: 'place hero side' 'board board board' 'runes runes runes' 'meta meta meta';
   align-items: center; column-gap: 18px; row-gap: 12px; padding: 16px 22px 16px 18px; }
@@ -13743,14 +13745,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc.gc-detail .gc-runes .cv2-rune-name, .gc.gc-detail .gc-runes .lb-rune-name { font-size: 16px; }
 .gc.gc-detail .gc-meta { padding-top: 8px; }
 .lp-showing { min-height: 32px; }
-/* The MMR tip: a mini board under the text; flips below a high point, pins to the near side at the edges. */
-.ct-pos.below { transform: translate(-50%, 14px); }
-.ct-pos.left { transform: translate(-14px, calc(-100% - 12px)); }
-.ct-pos.right { transform: translate(calc(-100% + 14px), calc(-100% - 12px)); }
-.ct-pos.below.left { transform: translate(-14px, 14px); }
-.ct-pos.below.right { transform: translate(calc(-100% + 14px), 14px); }
-.ct-mini { width: 196px; margin-top: 4px; }
-.ct-mini .lp-mini-m { max-width: 26px; }
+/* The FLOATING MMR tip (owner 2026-10-16: "show the full minion w/ stats"): portalled into the stage and seated by
+   careerTrends.tsx in stage px (no transform), above everything. Its board is the game card's strip at ~70px cards,
+   keyword animations paused (a tooltip never runs FX). */
+.atip.ct-float { position: absolute; transform: none; z-index: 900; white-space: normal; max-width: none; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
+.ct-tip-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.ct-board { container-type: inline-size; width: 100%; }
+.ct-board .cv2-team { --tile-gap: 38px; --tw: calc((100cqw - 6 * 38px - 8px) / 7); flex-wrap: nowrap; justify-content: center; padding: calc(var(--tw) * 0.28) 4px calc(var(--tw) * 0.32); }
+.ct-board *, .ct-board *::before, .ct-board *::after { animation-play-state: paused !important; }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
    THE LOBBY PICKER (matchDetails/LobbyPicker.tsx; owner 2026-10-16: the old standings were "not obvious how to view it
@@ -13774,7 +13776,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile { --band: #9ccaf5; position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 7px 9px 8px; text-align: left; color: #f4eee2;
   container-type: inline-size; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.3);
   background: linear-gradient(180deg, rgba(20, 31, 54, 0.92), rgba(10, 17, 32, 0.94));
-  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
+  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1); } /* border changes are instant: a transitioned border repaints each frame */
 .lp-won { --band: #ffd76a; } .lp-top4 { --band: #7fe8ac; } .lp-lost { --band: #ff9a9a; } .lp-in { --band: #9ccaf5; }
 .lp-tile:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.8); }
 .lp-tile:active { transform: translateY(0); transition-duration: 0.05s; }

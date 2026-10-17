@@ -825,7 +825,7 @@ export function Career() {
                 Raw ratings on a division-snapped axis (`mmrAxisOf`); nothing here animates. */}
             {/* WITH DEPTH (owner 2026-10-16, careerTrends.tsx): one big MMR chart over the medal bands, then placement,
                 top 4 rate, APM and games as small multiples with rolling averages and the change vs the period before. */}
-            <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} />
+            <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={!viewing} />
           </div>
         </aside>
       </div>

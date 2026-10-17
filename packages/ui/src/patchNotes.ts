@@ -108,7 +108,6 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The main menu is cleaner. Play is the big button, and your name, rank and level sit in one card at the top right.',
         details: [
-          'The newest patch note shows in the bottom right corner. Click it to read all the patch notes.',
           'Report a Problem and the build number moved to the bottom left corner.',
           'Click your portrait to change it and your name to rename yourself, as before.',
         ],

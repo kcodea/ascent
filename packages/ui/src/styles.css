@@ -13539,29 +13539,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlenav .menubtn.active .mbicon .crest { font-size: 34px; }
 .titlenav .continuerow .menubtn.active .mbnote { font-size: 14px; }
 
-/* WHAT'S NEW, bottom right, above the Compendium + help corner. */
-.titlenews { zoom: var(--ui-zoom); position: absolute; right: 44px; bottom: 96px; z-index: 2; width: 440px; display: flex; flex-direction: column; gap: 8px;
-  padding: 16px 20px 14px; border-radius: 14px; text-align: left; color: #f4eee2;
-  border: 1.5px solid rgba(196, 160, 92, 0.5); background: linear-gradient(180deg, rgba(10, 18, 36, 0.86), rgba(8, 14, 28, 0.9));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px -14px rgba(0, 0, 0, 0.85);
-  animation: menu-rise 0.3s cubic-bezier(0, 0, 0.2, 1) 0.2s both; transition: transform 0.16s cubic-bezier(0, 0, 0.2, 1), border-color 0.14s ease; }
-.titlenews:hover { transform: translateY(-2px); border-color: rgba(230, 200, 130, 0.9); }
-.titlenews:active { transform: translateY(1px); transition-duration: 0.05s; }
-.titlenews:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 3px; }
-.titlenews-kicker { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
-.titlenews-kicker svg { width: 16px; height: 16px; }
-.titlenews-date { margin-left: auto; font-weight: 700; font-size: 13px; letter-spacing: 0.04em; text-transform: none; color: rgba(255, 255, 255, 0.6); }
-.titlenews-text { font-family: var(--font-ui); font-weight: 600; font-size: 16px; line-height: 1.4; color: #f4eee2;
-  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.titlenews-go { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(222, 196, 140, 0.85); }
-.titlenews:hover .titlenews-go { color: #f6dfa2; }
-
 /* The corner footer: links then the build stamp, bottom left. */
 .titlefoot { zoom: var(--ui-zoom); position: absolute; left: 36px; bottom: 18px; z-index: 2; display: flex; align-items: center; gap: 18px; }
 .titlefoot .titlesecondary { padding-left: 0; }
 .titlefoot .titlesecondary button { font-size: 13px; }
 .titlefoot .titleversion { position: static; font-size: 12px; color: rgba(236, 220, 178, 0.5); }
-@media (prefers-reduced-motion: reduce) { .titlenews { animation: none; } .titlenews, .titlenews:hover, .titlenews:active { transform: none; } }
 
 /* PATCH NOTES IN THE MENU SYSTEM (UI pass 2, 2026-10-16). It was the one light surface in the game: a cream sheet
    with orange pills, reading the app's parchment tokens. It now wears the menu pages' navy + bronze panel, the

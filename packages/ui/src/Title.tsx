@@ -37,8 +37,6 @@ import { levelProgress } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { mirrorFor } from './progression/progressionStore';
 import { scalarCaption } from './rank/rankFormat';
-import { PATCH_NOTES } from './patchNotes';
-import { prettyDate } from './PatchNotesOverlay';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -382,6 +380,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'crate' : 'crates'}`}>{sealedCrates} sealed</span>}
             </button>
           )}
+          <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">
+            <span className="mbicon"><Icon name="clock" /></span>
+            <span className="mblabel">Patch Notes</span>
+          </button>
           {/* DEV-ONLY: the Scene Builder is a dev sandbox stripped from the player build (the prod menu is Play ·
               Social · Patch Notes · Settings). */}
           {import.meta.env.DEV && (
@@ -548,15 +550,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       )}
 
-      {/* WHAT'S NEW (UI pass 2, 2026-10-16): the newest patch's first headline, bottom right; the card opens the full
-          Patch Notes (the plaque it replaces). Read from PATCH_NOTES, so it is always the latest entry. */}
-      {PATCH_NOTES[0] && (
-        <button type="button" className="titlenews" onClick={() => { sfx.pulse(); openPatchNotes(); }} aria-label="What's new. Open the patch notes">
-          <span className="titlenews-kicker"><Icon name="clock" />What's new<span className="titlenews-date">{prettyDate(PATCH_NOTES[0].date)}</span></span>
-          <span className="titlenews-text">{PATCH_NOTES[0].changes[0]?.text}</span>
-          <span className="titlenews-go">All patch notes ›</span>
-        </button>
-      )}
       {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
           Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
       <div className="titlefoot">

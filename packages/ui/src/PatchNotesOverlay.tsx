@@ -45,7 +45,7 @@ export function notesForTab(tab: PatchCategory, notes: PatchNote[] = PATCH_NOTES
 }
 
 /** A readable date: "August 24, 2026" from "2026-08-24" (no timezone math — split the ISO string). */
-export function prettyDate(iso: string): string {
+function prettyDate(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   if (!y || !m || !d || !MONTHS[m - 1]) return iso;

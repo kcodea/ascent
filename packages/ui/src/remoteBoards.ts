@@ -24,6 +24,7 @@ import { createPoolLoader, STARTUP_LOAD, type PoolLoader } from './opponentPool/
 import { idbPoolCache } from './opponentPool/poolCache';
 import { fetchPoolRuns, type PoolApi, type PoolFetchSession } from './opponentPool/poolFetch';
 import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHistoryRowLike, type TelemetryProbeRow } from './careerData';
+import { telemetryGameRankOf } from './gameRankData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
 import { careerTotalsOf } from './runHistory';
@@ -865,6 +866,10 @@ export interface RecentGameRow {
   /** BOARD STRENGTH (R-LOBBY-09): the run's strength percentile, frozen when it ended
    *  (`replay->v2->result->>boardStrength`). Null when it was not scored; the row then prints nothing. */
   boardStrength?: number | null;
+  /** THE RANK THE GAME WAS PLAYED AT (R-GAME-RANK-01): the division the player held when the rated lobby started
+   *  (`derived->rankAtStart->divisionIndex`, R-TELEMETRY-RANK-01, uploads from 2026-10-06). Null on older rows, on
+   *  unrated rows and on the plainer fallback selects: the row then shows no rank. */
+  rank?: number | null;
 }
 
 // ── Replay v2 (spectate — docs/replay-v2-handoff.md Phase C) ───────────────────────────────────────────────
@@ -936,6 +941,7 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
     wave,
     lobbyStrength: parseLobbyStrength(r.lobby_strength),
     boardStrength: parseBoardStrength(r.board_strength),
+    rank: telemetryGameRankOf(r.rank_at_start),
   };
 }
 
@@ -945,9 +951,9 @@ export function asRecentGameRow(r: Record<string, unknown>): RecentGameRow {
  *  `picked_runes` / `replay` need their migrations. A backend that rejects a select falls to the next,
  *  plainer rung, costing only what that rung reads (run length → banner facts → Watch). Exported for tests. */
 const RECENT_BASE = 'id, user_id, author, hero_id, wins, placement, created_at';
-const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength, board_strength:replay->v2->result->>boardStrength, active_ms:replay->v2->>activeMs';
+const RECENT_FACTS = 'picked_runes, replay_v2_version:replay->v2->version, final_board:replay->v2->result->finalBoard, record:replay->v2->result->record, partial:replay->v2->>partial, first_wave:replay->v2->>firstRecordedWave, final_wave:derived->>finalWave, lobby_strength:replay->v2->result->lobbyStrength, board_strength:replay->v2->result->>boardStrength, active_ms:replay->v2->>activeMs, rank_at_start:derived->rankAtStart';
 /** The richest rung over the precomputed `tp_*` columns (REPLAY FACTS): the same facts, no replay opened. */
-export const RECENT_GAMES_FAST_SELECT = `${RECENT_BASE}, picked_runes, replay_v2_version:tp_v2_version, final_board:tp_final_board, record:tp_record, partial:tp_partial, first_wave:tp_first_wave, final_wave:derived->>finalWave, lobby_strength:tp_lobby_strength, board_strength:tp_board_strength, active_ms:tp_active_ms, first_t:tp_first_t, last_t:tp_last_t`;
+export const RECENT_GAMES_FAST_SELECT = `${RECENT_BASE}, picked_runes, replay_v2_version:tp_v2_version, final_board:tp_final_board, record:tp_record, partial:tp_partial, first_wave:tp_first_wave, final_wave:derived->>finalWave, lobby_strength:tp_lobby_strength, board_strength:tp_board_strength, active_ms:tp_active_ms, first_t:tp_first_t, last_t:tp_last_t, rank_at_start:derived->rankAtStart`;
 export const RECENT_GAMES_SELECTS: readonly string[] = [
   `${RECENT_BASE}, ${RECENT_FACTS}, first_t:replay->v2->frames->0->>tMs, last_t:replay->v2->frames->-1->>tMs`,
   `${RECENT_BASE}, ${RECENT_FACTS}`,
@@ -1787,7 +1793,7 @@ export const CAREER_DETAIL_ROWS = 50; // owner 2026-10-16: 50 games (was 25); tr
  *  `entry` jsonb server-side so a 100-row pull stays a few KB instead of shipping 100 boards. `rating_after` is
  *  the MMR after settle that `settle_rank` stamps onto the row (the MMR trend); a row the stamp never reached
  *  simply projects NULL for it — a JSON path to a missing key is never an error. */
-const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength, board_strength:entry->>boardStrength, active_ms:entry->>activeMs';
+const CAREER_LIGHT_SELECT = 'id, created_at, hero_id, wave, wins, placement, mode, losses:entry->>losses, draws:entry->>draws, apt:entry->>apt, seed:entry->>seed, gold_spent:entry->>goldSpent, rating_delta:entry->>ratingDelta, rating_after:entry->>ratingAfter, at:entry->>at, dominant_tribe:entry->>dominantTribe, lobby_strength:entry->lobbyStrength, board_strength:entry->>boardStrength, active_ms:entry->>activeMs, rank_before:entry->rank->before';
 
 /** The light `run_telemetry` probe: the row id (the Watch handle), the seed (the join), the v2 stamp (the
  *  watchability gate) and the first/last frame clocks (the run length). PostgREST resolves `frames->-1` as

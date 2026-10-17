@@ -682,6 +682,31 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/telemetryRankAtStart.test.ts', 'packages/ui/src/balanceFetch.test.ts', 'packages/tools/src/newcomer/newcomerRate.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
   {
+    id: 'R-GAME-RANK-01',
+    title: 'Every finished ranked game shows the rank it was played at, from a stored division, never a guessed one',
+    statement:
+      'The shared game views (Recent Games and the Career Match History: the list rows and the selected game card) show '
+      + 'the medal division the player held when a RATED game was played: the medal crest plus "Platinum III" beside the '
+      + 'record in the card header, and a mini crest plus a short label ("Plat III") in its list row. It comes only from a '
+      + 'stored division: a Career row reads the position settle_rank settled the game from (run_history entry.rank.before, '
+      + 'stamped by the server since medals, 2026-09-20); a Recent Games row (any player) reads the rank pinned when the '
+      + 'lobby started (run_telemetry derived.rankAtStart, R-TELEMETRY-RANK-01, uploads from 2026-10-06). It is never '
+      + 'derived from a bare rating (100 x division + points is ambiguous at the promotion gate). A row without a stored '
+      + 'division (an older game, a stamp that missed, a medal-only stamp) shows no rank, and Practice, Versus and unrated '
+      + 'tables never show one.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-17 (screenshot of Recent Games, list + detail)', quote: 'i want to show the rank that the game was in in this page, so it should say Plat 3 or w/e' },
+      { kind: 'code', ref: 'packages/ui/src/gameRankData.ts (careerGameRankOf, telemetryGameRankOf, shortRankLabel); packages/ui/src/gameRank.tsx (GameRank); packages/ui/src/GameSplit.tsx (GameListItem.rank); packages/ui/src/GameCard.tsx (rank slot); packages/ui/src/careerData.ts CareerRun.rank; packages/ui/src/remoteBoards.ts (CAREER_LIGHT_SELECT rank_before, RECENT_GAMES selects rank_at_start, RecentGameRow.rank); Career.tsx + RecentGames.tsx' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-17. No backend change: both sources already existed. On the live feed 98 of the newest 100 '
+      + 'Recent Games rows carried a division; a Career row shows one wherever the server stamped entry.rank. Lobby seats '
+      + 'of other players carry no rank in the recorded match details, so the lobby tiles show none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/gameRank.test.tsx'], lastVerifiedAt: '2026-10-17' },
+  },
+  {
     id: 'R-NEXTCOMBAT-01',
     title: 'A next-combat spell spends on the round it was cast for, and only that round',
     statement:

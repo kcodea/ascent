@@ -79,6 +79,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Recent Games and your Career now show the rank each ranked game was played at.',
+        details: [
+          'The selected game shows its rank crest and name, like Platinum III, next to the record.',
+          'Each game in the list shows a small crest and a short name, like Plat III.',
+          'Practice and Versus games are unranked, so they show no rank. Some older games have no rank recorded.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Spectating: you no longer show twice at the top left, and your emote wheel opens below your portrait.',
         details: [
           'The top left shows you once, then the other spectators. Two tabs on one account show as one spectator.',

@@ -4,7 +4,7 @@
  * Recent Games and by the Career's Match History and Practice tabs:
  *
  *   LEFT    a compact game list: placement (band colour, the crown on a 1st), the hero portrait, a title + sub line,
- *           and at the right the rating change and when it was played. Light rows: no boards, so 50 of them mount at
+ *           and at the right the rank it was played at (ranked only, R-GAME-RANK-01), the rating change and when. Light rows: no boards, so 50 of them mount at
  *           once with no lazy rows.
  *   RIGHT   the selected game in full: the shared GameCard in its `gc-detail` layout (board, runes, Replay, meta) with
  *           the lobby standings under it. Only this one game's board is ever mounted.
@@ -14,6 +14,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from './Icon';
 import { bandOf, placeText } from './GameCard';
+import { GameRank } from './gameRank';
 
 export interface GameListItem {
   key: string;
@@ -26,6 +27,9 @@ export interface GameListItem {
   when?: string;
   /** The rating change the game settled (ranked only); nothing when null or 0. */
   delta?: number | null;
+  /** The division the game was played at (0 = Bronze I ... 17 = Ascendant III; R-GAME-RANK-01). Null / absent = an
+   *  unranked game or one recorded before the rank was stored: the row shows no rank. */
+  rank?: number | null;
   /** The whole row, for assistive tech. */
   label: string;
 }
@@ -75,6 +79,7 @@ export function GameSplit({ items, selected, onPick, detail, label, className = 
                 {it.sub && <span className="gs-sub">{it.sub}</span>}
               </span>
               <span className="gs-end">
+                {it.rank != null && <GameRank divisionIndex={it.rank} compact />}
                 {it.delta != null && it.delta !== 0 && <span className={`gs-delta ${it.delta > 0 ? 'up' : 'down'}`}>{it.delta > 0 ? `+${it.delta}` : it.delta}</span>}
                 {it.when && <span className="gs-when">{it.when}</span>}
               </span>

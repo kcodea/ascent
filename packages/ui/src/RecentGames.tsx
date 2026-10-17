@@ -11,6 +11,8 @@ import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
 import { useSocial } from './socialCache';
 import { GameSplit, type GameListItem } from './GameSplit';
+import { GameRank } from './gameRank';
+import { rankLabel } from './rank/types';
 import { StoredTeam } from './StoredTeam';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchRecentMatch, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
@@ -184,6 +186,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
       title={<span className="lb-row-name">{r.author || 'Unnamed player'}</span>}
       subtitle={<span className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</span>}
       record={<span className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</span>}
+      rank={!practice && 'rank' in r && r.rank != null ? <GameRank divisionIndex={r.rank} /> : undefined}
       lobby={lp.lobby}
       boardKey={lp.boardKey}
       board={lp.seat ? <SeatBoard seat={lp.seat} own={mine} /> : r.board && r.board.minions.length > 0
@@ -333,9 +336,11 @@ export function RecentGames(): JSX.Element | null {
     const items: GameListItem[] = keyed.map(({ r, key }) => {
       const { mine, skins } = skinsOf(r);
       const heroName = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+      // The rank the game was played at (R-GAME-RANK-01): ranked rows only; Practice is unranked.
+      const rank = !practice && 'rank' in r ? r.rank ?? null : null;
       return {
-        key, place: r.placement, title: r.author || 'Unnamed player', sub: heroName, when: playedAtText(r.createdAt) || undefined,
-        label: `${placeText(r.placement)}, ${r.author || 'Unnamed player'}, ${heroName}`,
+        key, place: r.placement, title: r.author || 'Unnamed player', sub: heroName, when: playedAtText(r.createdAt) || undefined, rank,
+        label: `${placeText(r.placement)}, ${r.author || 'Unnamed player'}, ${heroName}${rank != null ? `, played at ${rankLabel(rank)}` : ''}`,
         portrait: <LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />,
       };
     });

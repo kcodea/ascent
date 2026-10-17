@@ -1,6 +1,7 @@
 import type { Tribe } from '@game/core';
 import { parseBoardStrength, parseLobbyStrength, parseMatchDetails, type BoardSnapshot, type LobbyStrength, type MatchDetails, type ReplayV2 } from '@game/sim';
 import { lengthText, matchLength, matchLengthMs, type MatchLength } from './activePlayClock';
+import { careerGameRankOf } from './gameRankData';
 
 /**
  * CAREER PAGE DATA (owner rebuild 2026-09-19) — the pure half of the Career page: the run row model the page
@@ -79,6 +80,10 @@ export interface CareerRun {
   /** MATCH DETAILS (2026-09-28): the lobby at the moment this run ended (`entry.match`), only on detailed rows.
    *  Null on light rows and on every run recorded before it existed ("Details weren't recorded for this match"). */
   match?: MatchDetails | null;
+  /** THE RANK THE GAME WAS PLAYED AT (R-GAME-RANK-01): the division `settle_rank` settled it from
+   *  (`entry.rank.before.divisionIndex`, 0 = Bronze I ... 17 = Ascendant III). Null on an unranked run and on a row the
+   *  server's stamp never reached: the page then shows no rank. */
+  rank?: number | null;
 }
 
 /** The subset of a `run_history` row the page reads — either the full `entry` (detailed) or the JSON-path
@@ -102,6 +107,8 @@ export interface RunHistoryRowLike {
   board_strength?: unknown;
   /** `active_ms:entry->>activeMs` (text) — the run's active play ms (R-MATCH-LENGTH-01). */
   active_ms?: unknown;
+  /** `rank_before:entry->rank->before` (`->`, the JSON object) — the position the game settled from (R-GAME-RANK-01). */
+  rank_before?: unknown;
 }
 
 /** One `run_telemetry` row as the LIGHT probe projects it — scalars only, never the replay payload. */
@@ -178,6 +185,7 @@ export function careerRunOf(row: RunHistoryRowLike): CareerRun {
     lobbyStrength: parseLobbyStrength(e.lobbyStrength) ?? parseLobbyStrength(row.lobby_strength),
     boardStrength: parseBoardStrength(e.boardStrength) ?? parseBoardStrength(row.board_strength),
     match: parseMatchDetails(e.match),
+    rank: careerGameRankOf((e.rank as { before?: unknown } | undefined)?.before ?? row.rank_before, str(e.mode) ?? str(row.mode)),
   };
 }
 

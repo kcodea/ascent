@@ -5,7 +5,8 @@
  *
  *   PLACEMENT  the single dominant element, said ONCE: a big ordinal coloured by band (1st gold with the crown, its own
  *              shape; top 4 green; 5th-8th red) over a matching band down the card's left edge.
- *   HERO       the portrait in its recorded frame, the hero's name, the player's name (feed) and the fight record.
+ *   HERO       the portrait in its recorded frame, the hero's name, the player's name (feed), the fight record and
+ *              the rank the game was played at (R-GAME-RANK-01; ranked games only).
  *   BOARD      the final board as a compact strip of the real `Card` (stars, Gilded and stat badges are the Card's own).
  *   SIDE       the actions (Replay, Career) as secondary plates.
  *   RUNES      a row under the board: each rune's emblem and name, with its hover tip.
@@ -35,7 +36,7 @@ export function bandOf(place: number | null): GameBand {
 }
 
 export function GameCard({
-  place, label, resultClass = '', className = '', hero, title, subtitle, record, board, boardKey, lobby, runes, actions, meta, extra, as = 'article', rootProps,
+  place, label, resultClass = '', className = '', hero, title, subtitle, record, rank, board, boardKey, lobby, runes, actions, meta, extra, as = 'article', rootProps,
 }: {
   place: number | null;
   /** What the placement means, for assistive tech ("Victory", "2nd place"). */
@@ -45,6 +46,8 @@ export function GameCard({
   /** Extra classes on the card itself (a host's own hooks, e.g. `focus`). */
   className?: string;
   hero: ReactNode; title: ReactNode; subtitle?: ReactNode; record?: ReactNode;
+  /** The rank the game was played at (`GameRank`, R-GAME-RANK-01): beside the record; nothing on an unranked game. */
+  rank?: ReactNode;
   board: ReactNode; runes?: ReactNode; actions?: ReactNode; meta: ReactNode;
   /** Whose board the board slot shows (a new key crossfades it in: the lobby picker swapping seats). */
   boardKey?: string;
@@ -69,7 +72,7 @@ export function GameCard({
           <div className="gc-heroid">
             <div className="gc-title">{title}</div>
             {subtitle && <div className="gc-sub">{subtitle}</div>}
-            {record && <div className="gc-record">{record}</div>}
+            {(record || rank) && <div className="gc-record">{record}{rank}</div>}
           </div>
         </div>
         <div className="gc-side">

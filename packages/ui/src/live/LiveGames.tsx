@@ -29,6 +29,7 @@ export function liveStatusText(r: Pick<LiveGameRow, 'round' | 'phase' | 'placeme
 
 export function LiveGames(): JSX.Element | null {
   const show = useGame((s) => s.showLiveGames);
+  const goTo = useGame((s) => s.goTo);
   const showOpp = useGame((s) => s.showOpponentSkins);
   const error = useLiveWatch((s) => s.error);
   const [page, setPage] = useState(0);
@@ -77,7 +78,13 @@ export function LiveGames(): JSX.Element | null {
         ) : rows === null ? (
           <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>{failed ? 'Live games are not available right now.' : 'Finding live games…'}</div></div>
         ) : rows.length === 0 ? (
-          <div className="lbempty lb-state"><Icon name="sword" /><div>{page > 0 ? 'No more live games.' : 'No ranked games are being played right now.'}</div></div>
+          <div className="lbempty lb-state">
+            <Icon name="sword" />
+            <div>{page > 0 ? 'No more live games.' : 'No ranked games are being played right now.'}</div>
+            {/* Not a dead end (2026-10-16 audit): the finished games are one press away. */}
+            {page === 0 && <div className="lb-state-sub">Check back soon, or watch a finished game.</div>}
+            {page === 0 && <button type="button" className="lb-btn pressable lv-torecent" onClick={() => { sfx.pulse(); goTo('recent'); }}><Icon name="clock" />Recent Games</button>}
+          </div>
         ) : (
           <div className="lb-rows lv-list">
             {rows.map((r) => {

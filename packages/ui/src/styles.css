@@ -13800,6 +13800,40 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile .lp-chip-place { font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-tile, .lp-tile:hover, .lp-tile:active { transform: none; transition: border-color 0.1s ease; } }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   AUDIT PASS 2 (UI pass 2, 2026-10-16): one page header size, the account panel in the menu system, a text floor,
+   the Heroes cards' numbers, the Gauntlet's one "coming soon" line, and the Live Games empty state's way out.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+/* PAGE HEADERS: every menu page's title at one size (Collection, Leaderboard, Recent Games and Live Games read 26px
+   beside the Career's 34px name); the subtitle at the 14px floor. */
+.lbtitle .esch { font-size: 32px; }
+.lbtitle svg { width: 32px; height: 32px; }
+.lbsub { font-size: 14px; margin-top: 2px; }
+/* THE ACCOUNT PANEL: wider, the menu type scale, the Gem plate on its buttons (it was a pale blue off the palette),
+   and no full-screen backdrop-filter (a plain dim; the rule for every menu overlay). */
+.acctpanel, .avatarpick { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(4, 8, 18, 0.74); }
+.acctpanel-box { width: min(520px, calc(92 * var(--vw, 1vw))); }
+.acctpanel-title { font-size: 22px; }
+.acctpanel-lead { font-size: 19px; }
+.acctpanel-note, .acctpanel-warn, .acctpanel-error { font-size: 14px; }
+.acctpanel-input { font-size: 17px; padding: 12px 14px; }
+.acctpanel-btn { font-size: 15px; padding: 12px 18px; color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); border: 1.5px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: var(--ui-bevel), 0 3px 10px -3px rgba(0, 0, 0, 0.7); }
+.acctpanel-btn.primary { color: var(--ui-title); background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.acctpanel-btn:hover:not(:disabled) { color: #fff; filter: none; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.acctpanel-btn.ghost { background: rgba(0, 0, 0, 0.3) padding-box; border-color: rgba(196, 160, 92, 0.55); box-shadow: none; }
+/* THE HEROES TAB: each card carries its headline numbers. */
+.cv2-hcard-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.cv2-hcard-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.55); }
+.cv2-hcard-stat b { font-weight: 900; font-size: 18px; letter-spacing: 0; color: #fff; font-variant-numeric: tabular-nums; }
+/* THE GAUNTLET: the coming-soon slots keep their place on the path but drop the repeated pill; one line says it. */
+.gslot[data-state='soon'] .gslot-tag { visibility: hidden; }
+.gstages-soon { margin-top: 16px; text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: 15px; color: rgba(255, 246, 228, 0.66); }
+/* LIVE GAMES, EMPTY: a line and the way to the finished games. */
+.lb-state-sub { font-size: 15px; font-weight: 600; color: rgba(255, 255, 255, 0.6); margin-top: -6px; }
+.lv-torecent { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; padding: 10px 18px; }
+.lb-state .lv-torecent svg { width: 16px; height: 16px; padding: 0; background: none; box-shadow: none; }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

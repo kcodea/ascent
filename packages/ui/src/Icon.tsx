@@ -249,6 +249,9 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   // Locked — a padlock (shackle + body), for a Gauntlet stage whose predecessor is uncleared.
+  // WARN: a triangle with a bang, for "Couldn't reach the server" and other error states (it borrowed the muted
+  // speaker before, 2026-10-16 audit).
+  warn: <path fill="currentColor" fillRule="evenodd" d="M12 2.5L1.5 21h21L12 2.5zM11 9.5h2v6h-2zm0 7.5h2v2h-2z" />,
   lock: (
     <>
       <path fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" d="M7.5 10.5V8a4.5 4.5 0 019 0v2.5" />

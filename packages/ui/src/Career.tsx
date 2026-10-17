@@ -379,6 +379,13 @@ function HeroTile({ h }: { h: HeroCareer }) {
       <HeroFrame heroId={h.heroId} skins={careerLoadout} />
       <div className="cv2-hcard-name">{name}</div>
       <div className="cv2-hcard-games">{games}</div>
+      {/* The headline numbers ON the card (2026-10-16 audit: the tab was five portraits over an empty panel); the
+          hover panel keeps the full record. */}
+      <div className="cv2-hcard-stats" aria-hidden="true">
+        <span className="cv2-hcard-stat"><b>{h.winRate === null ? '-' : `${h.winRate}%`}</b>Top 4</span>
+        <span className="cv2-hcard-stat"><b>{h.avgPlacement === null ? '-' : h.avgPlacement}</b>Avg place</span>
+        <span className="cv2-hcard-stat"><b>{h.firsts}</b>1st</span>
+      </div>
       {tip && createPortal(
         <div id={tipId} className={`cv2-herotip ${tip.side}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
           <div className="cv2-herotip-name">{name}</div>
@@ -596,7 +603,7 @@ export function Career() {
 
   let body: JSX.Element;
   if (!remoteEnabled()) {
-    body = <PageState icon="mute" title="Career unavailable" body="This build has no backend configured, so there is no server record to show." />;
+    body = <PageState icon="warn" title="Career unavailable" body="This build has no backend configured, so there is no server record to show." />;
   } else if (!userId) {
     body = (
       <PageState
@@ -612,7 +619,7 @@ export function Career() {
   } else if (runs === null) {
     body = (
       <PageState
-        icon="mute"
+        icon="warn"
         title="Couldn’t reach the server"
         body="Your career is stored on your account. Check your connection and try again."
         action={{ label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } }}
@@ -687,7 +694,7 @@ export function Career() {
                 </div>
               ) : practiceRows === null ? (
                 <div className="cv2-panel cv2-none">
-                  <div className="cv2-state-ico"><Icon name="mute" /></div>
+                  <div className="cv2-state-ico"><Icon name="warn" /></div>
                   <div className="cv2-state-title">Couldn’t reach the server</div>
                   <div className="cv2-state-body">Check your connection and try again.</div>
                   <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); setPractice(null); setPracticeTick((t) => t + 1); }}>Retry</button>

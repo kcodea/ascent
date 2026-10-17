@@ -397,3 +397,9 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 .app.viewing.spectating:not(.staged) .vsfoe:not(.guides-open) .vsfoe-guides,
 .app.viewing.spectating .combatsummary,
 .app.viewing.spectating .fr-ov :is(button, [role="button"]) { pointer-events: auto; }
+
+/* A SPECTATOR HOVERS RUNES (owner 2026-10-16, R-SPECTATE-RUNEHOVER-01): the Runeforge's offer cards take the
+   spectator's hover (its preview) but never a pick (RuneCard refuses a viewer's press), so they don't lift like a
+   button and wear the gauntlet's default, not its "open" hand. */
+.app.viewing.spectating .runecard { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+.app.viewing.spectating .runecard:is(:hover, :focus-visible) { transform: none; }

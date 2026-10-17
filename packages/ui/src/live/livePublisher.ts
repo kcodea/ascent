@@ -14,7 +14,7 @@ import { createDeferredWriter } from '../idleWork';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, useGame } from '../store';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from '../versus/spectatorView';
-import { combatBeatFor, hasPendingActs, setSpectatorTap, takeActs, takeOdds } from '../versus/spectateTap';
+import { combatBeatFor, hasPendingActs, setSpectatorTap, takeActs, takeOdds, takeOverlay } from '../versus/spectateTap';
 import { SPECTATE_KEY_EVENT } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT } from '../versus/spectateTap';
 import { anonymousWatchers, setWatchers as setWatcherList } from '../versus/watchers';
@@ -134,6 +134,8 @@ const frames = createDeferredWriter<undefined>(() => {
   if (acts.length) msg.acts = acts;
   const od = takeOdds(run, msg.kind === 'key'); // the fight's odds, for the stands' Summary (R-SPECTATE-LOCAL-01)
   if (od) msg.od = od;
+  const ov = takeOverlay(msg.kind === 'key'); // which overlays I minimized (R-SPECTATE-OVERLAY-01)
+  if (ov) msg.ov = ov;
   // The fight rides KEYFRAMES only (a new fight forces one): a delta keeps the watcher's fight object, so its replay
   // is never restarted by the next shop delta mid-fight.
   if (fight && msg.kind === 'key') { msg.fight = fight; l.fightSent = fight; }

@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Spectating: you now see the player minimize the Runeforge, and you can hover runes yourself.',
+        details: [
+          'When the player minimizes the Runeforge, a Discover or a Quest pick, it minimizes on your screen too, and comes back when they return to it.',
+          "Hover any rune to read it: the player's runes, the Runeforge offer and an opponent's runes. You can't pick one.",
+        ],
+      },
       { category: 'Systems', text: 'In a Versus room, each player now shows as a card.', details: ['The card shows your profile picture, your name and your equipped title.', 'Its Attack is your total Versus wins. Its Health is your total Versus losses.', 'It wears the card plate you have equipped.', 'The numbers update when a match ends.'] },
       {
         category: 'Systems',

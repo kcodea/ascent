@@ -250,8 +250,8 @@ import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/
 import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
-import { noteSpectatorBeat, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
-import { notePlayerBeat, tapOdds } from './versus/spectateTap';
+import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { notePlayerBeat, tapOdds, tapOverlay } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
 
@@ -3016,6 +3016,24 @@ export function Recruit() {
   // Each quest offer opens expanded too — reset the minimized flag when the offer changes.
   useEffect(() => { setQuestMin(false); }, [run.questOffer]);
   useEffect(() => { setForgeMin(false); }, [run.runeforgeOffer]);
+  // THE STANDS FOLLOW THE PLAYER'S MINIMIZE (owner 2026-10-16: "when a player minimizes the runeforge, the spectator
+  // doesnt see that"; R-SPECTATE-OVERLAY-01). The player tells the stands which overlays are minimized (a no-op send
+  // with nobody watching); a spectator applies the watched player's state AFTER the resets above, so a new offer that
+  // arrives already minimized stays minimized. Same setters, so the same transitions play. No state from an older
+  // player: nothing changes (all open, as before).
+  const watchedOverlay = useSpectate((s) => (s.active ? s.overlay?.[s.seat] ?? null : null));
+  useEffect(() => {
+    if (spectatorOn) return;
+    tapOverlay({ discover: discoverMin, power: powerMin, quest: questMin, forge: forgeMin });
+  }, [spectatorOn, discoverMin, powerMin, questMin, forgeMin]);
+  useEffect(() => {
+    if (!spectatorOn || !watchedOverlay) return;
+    const min = overlayMinOf(watchedOverlay);
+    setDiscoverMin(min.discover);
+    setPowerMin(min.power);
+    setQuestMin(min.quest);
+    setForgeMin(min.forge);
+  }, [spectatorOn, watchedOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer]);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them

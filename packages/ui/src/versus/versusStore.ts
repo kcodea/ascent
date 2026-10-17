@@ -35,7 +35,7 @@ import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type V
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, useSpectate } from './spectate';
 import { setWatchers, type Watcher } from './watchers';
-import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds } from './spectateTap';
+import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -759,6 +759,8 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   if (acts.length) msg.acts = acts;
   const od = takeOdds(run, msg.kind === 'key'); // my fight's odds, for the stands' Summary (R-SPECTATE-LOCAL-01)
   if (od) msg.od = od;
+  const ov = takeOverlay(msg.kind === 'key'); // which overlays I minimized (R-SPECTATE-OVERLAY-01)
+  if (ov) msg.ov = ov;
   // Where my fight is, on a keyframe sent while it plays: a late joiner seeks to it (R-SPECTATE-JOIN-01). Never on
   // the persisted copy (its beat would be stale by the time someone reads it).
   const cb = msg.kind === 'key' ? combatBeatFor(run) : null;

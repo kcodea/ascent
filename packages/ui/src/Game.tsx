@@ -347,6 +347,8 @@ export function Game() {
       // afford — stays silent, exactly as the thock did.
       const pick = (e.target as Element | null)?.closest?.('[data-pick-sfx]') ?? null;
       if (pick) {
+        // A viewer (a replay, a spectator hovering the watched player's forge) never picks, so it never hears a pick.
+        if (pick.closest('.app.viewing')) return;
         if (!(pick as HTMLButtonElement).disabled && !pick.classList.contains('disabled')) sfx.pickPress();
         return;
       }

@@ -127,7 +127,33 @@ export function tapEndTurn(eot: Pick<EotRecord, 'batch' | 'lassoFx'> | null): vo
 
 /** Tags waiting for the next publish (the publisher sends them even when nothing visible changed). The fight's odds
  *  arriving count too. */
-export const hasPendingActs = (): boolean => acts.length > 0 || oddsDirty;
+export const hasPendingActs = (): boolean => acts.length > 0 || oddsDirty || overlayDirty;
+
+// ── the shop overlays' minimize state ──────────────────────────────────────────────────────────────────────
+
+/** WHICH SHOP OVERLAYS THE PLAYER HAS MINIMIZED (owner 2026-10-16: "when a player minimizes the runeforge, the spectator
+ *  doesnt see that"; R-SPECTATE-OVERLAY-01). The Discover, the hero-power Discover, the Quest pick and the Runeforge
+ *  each have a Peek / minimize toggle that is the player's LOCAL state (Recruit), so it never reached the stands.
+ *  A set flag = minimized; an absent flag = open. Kept even with nobody watching (a joiner's keyframe carries it);
+ *  sent once on a change and on every keyframe. An older client sends nothing: the stands show the overlay open. */
+export interface WireOverlay { d?: 1; p?: 1; q?: 1; f?: 1 }
+let overlayWire: WireOverlay = {};
+let overlayDirty = false;
+/** The player's overlays changed (Recruit, on any toggle or a new offer resetting one). */
+export function tapOverlay(min: { discover: boolean; power: boolean; quest: boolean; forge: boolean }): void {
+  const next: WireOverlay = { ...(min.discover ? { d: 1 } : {}), ...(min.power ? { p: 1 } : {}), ...(min.quest ? { q: 1 } : {}), ...(min.forge ? { f: 1 } : {}) };
+  if (JSON.stringify(next) === JSON.stringify(overlayWire)) return;
+  overlayWire = next;
+  if (!watching) return;
+  overlayDirty = true;
+  wake?.();
+}
+/** The overlay state for the next spectator message: once after a change, and on every keyframe. */
+export function takeOverlay(keyframe: boolean): WireOverlay | null {
+  const fresh = overlayDirty;
+  overlayDirty = false;
+  return fresh || keyframe ? overlayWire : null;
+}
 
 // ── the fight's odds ───────────────────────────────────────────────────────────────────────────────────────
 
@@ -253,6 +279,7 @@ export function setSpectatorTap(on: boolean, mySeat: VersusSeat | null, sender: 
     acts = [];
     odds = null;
     oddsDirty = false;
+    overlayDirty = false;
     hidden = false;
     lastDragKey = '';
     overEl = null;

@@ -6137,6 +6137,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-16' },
   },
   {
+    id: 'R-SPECTATE-OVERLAY-01',
+    title: 'A spectator sees the player minimize and restore the Runeforge, the Discovers and the Quest pick',
+    statement:
+      'The Peek / minimize toggles of the shop overlays (the Discover, the hero-power Discover, the Quest pick and the Runeforge, whose toggle reads Inspect the board) are the player own screen state, so they never reached the stands. '
+      + 'The player now sends which of them are minimized on the spectate channel (ov), once on a change and on every keyframe (a joiner gets it too), and the spectator minimizes and restores with them, through the same toggles and transitions. '
+      + 'It is applied after an offer resets its own toggle, so a fresh offer that the player already minimized stays minimized. '
+      + 'An older player sends no state, and the spectator shows the overlay open as before. The spectator own toggles stay inert. '
+      + 'Choose One, the Farseer scout report and the Ancients offer have no minimize; the hero-power and Battlecry target aim already follows the player (R-SPECTATE-AIM-01); the spectator own panels (rail, guides, Summary) stay local (R-SPECTATE-LOCAL-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectating fixes)', quote: 'when a player minimizes the runeforge, the spectator doesnt see that. can you fix this' },
+    ],
+    currentBehaviour: 'Fixed on 2026-10-16.',
+    example: 'The player presses Inspect the board on an Epic Runeforge: the spectator sees the forge fold down to the Return to the Runeforge bar, and come back when the player returns.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-SPECTATE-RUNEHOVER-01',
+    title: 'A spectator can hover any rune themselves and read it, without picking it',
+    statement:
+      'On the watch screen a spectator hovers any rune with their own mouse (the watched player rune badges, the Runeforge offer cards while it is open, an opponent runes on the scout card or in combat) and sees the same hover preview the player gets, with the live values. '
+      + 'While their own mouse is on a rune, the player mirrored hover is lifted on their screen; when it leaves, the player hover comes back. Only real pointer events count. '
+      + 'Nothing is sent to the player. A forge rune cannot be picked by a spectator (the press does nothing and plays no pick sound), does not lift like a button, and shows the gauntlet cursor.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectating fixes)', quote: 'also, let spectators mouse over the runes themselves' },
+    ],
+    currentBehaviour: 'New on 2026-10-16. Before, the forge offer cards were inert for spectators (every button on the watch screen was).',
+    example: 'A spectator hovers Rune of Structure in the forge the player is browsing and reads its Attachment and Shop spell notes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
     id: 'R-SPECTATE-AV-04',
     title: 'A spectator never hears a sound for an action the game refused',
     statement:

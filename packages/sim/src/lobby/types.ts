@@ -103,7 +103,14 @@ export type ExhaustionPolicy =
 export interface LobbyRules {
   seatCount: number;
   startingResolve: number;
+  /** The flat starting Armor: the seats that play NO hero (Practice bots, tutorial and Gauntlet rivals, whose hero is
+   *  a portrait only), and EVERY seat when `seatArmor` is not 'hero'. */
   startingArmor: number;
+  /** 'hero' (owner 2026-10-17: "use the hero's own armor instead of 15"): a seat that PLAYS a hero (recorded,
+   *  hybrid, bot) starts on that hero's own Armor, exactly what a live player of the hero starts with. Absent /
+   *  'flat' = `startingArmor` for every seat: lobbies created before the ruling, and a caller that pins
+   *  `startingArmor` explicitly (tests, Versus). Read ONLY through `seatStartingArmor`. */
+  seatArmor?: 'hero' | 'flat';
   exhaustion: ExhaustionPolicy;
   /** Hard stop, so a prototype can never hang. */
   maxRounds: number;

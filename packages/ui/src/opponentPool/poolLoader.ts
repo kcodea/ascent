@@ -143,16 +143,18 @@ const withTimeout = <T>(p: Promise<T>, ms: number, ctl: AbortController): Promis
 const runKeyOfSnap = (s: BoardSnapshot): string => `${s.author ?? 'anon'}|${s.heroId}|${s.seed}`;
 
 /**
- * Is this run complete, as delivered? Every board belongs to the run (same key), has minions, and when the
- * server said how many distinct waves the run has, all of them arrived. A run that fails is refused whole:
- * it never reaches registration, so a seat can never be built from a fragment.
+ * Is this run complete, as delivered? Every board belongs to the run (same key) and is well-formed, at least one has
+ * minions, and when the server said how many distinct waves the run has, all of them arrived. An EMPTY board is a
+ * real round (uploaded since 2026-10-17, R-LOBBY-08: Disco Dan's turn 1), not a defect. A run that fails is refused
+ * whole: it never reaches registration, so a seat can never be built from a fragment.
  */
 export function isWholeRun(run: PoolRun): boolean {
   if (!run.snaps.length) return false;
   for (const s of run.snaps) {
-    if (!s || !Array.isArray(s.minions) || s.minions.length === 0 || typeof s.wave !== 'number') return false;
+    if (!s || !Array.isArray(s.minions) || typeof s.wave !== 'number') return false;
     if (runKeyOfSnap(s) !== run.key) return false;
   }
+  if (!run.snaps.some((s) => s.minions.length > 0)) return false;
   if (typeof run.waves === 'number' && new Set(run.snaps.map((s) => s.wave)).size !== run.waves) return false;
   return true;
 }

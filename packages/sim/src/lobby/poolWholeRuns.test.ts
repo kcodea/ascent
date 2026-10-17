@@ -26,16 +26,24 @@ const run = (author: string, heroId: string, seed: number, last: number, ownerId
 afterEach(() => { OPPONENT_POOL.length = 0; });
 
 describe('the round-exact rule', () => {
-  it('serves the exact wave, a single missing wave from one earlier, and wave 2 on round 1', () => {
+  it('serves the exact wave; a missing wave is EMPTY (never the previous minions); never reaches forward (round 1 of a run that starts at wave 2 is empty)', () => {
     const snaps = [2, 3, 5, 6].map((w) => snap('A', 'x', 1, w));
     expect(boardAt(snaps, 3)!.wave).toBe(3);
-    expect(boardAt(snaps, 4)!.wave).toBe(3); // wave 4 was empty (not uploaded)
-    expect(boardAt(snaps, 1)!.wave).toBe(2); // the wave-1 board was empty
-    expect(MAX_FIRST_WAVE - 1).toBe(1);
+    // Wave 4 was empty (not uploaded before 2026-10-17): owner 2026-10-17, "ANY empty board should never skip. our ROUND #
+    // is our truth in serving snapshots". Empty, in wave 3's state; never wave 3's minions.
+    expect(boardAt(snaps, 4)!.minions).toEqual([]);
+    expect(boardAt(snaps, 4)!.tier).toBe(snaps[1]!.tier);
+    // Owner 2026-10-17 (R-LOBBY-08): "i just faced this board on round 1 - how is that possible that he is shop tier 2?"
+    // The wave-1 board was empty: round 1 serves NOTHING recorded (an empty tier-1 board), never the wave-2 board.
+    expect(boardAt(snaps, 1)).toBeNull();
+    const r1 = recordedSeat('A', snaps).prepare(1)!;
+    expect(r1.minions).toEqual([]);
+    expect(r1.tier).toBe(1);
+    expect(MAX_FIRST_WAVE).toBe(2); // eligibility still seats a run that starts at wave 2
     expect(MAX_MISSING_WAVES).toBe(1);
   });
 
-  it('never serves a board from further ahead than the one tolerated wave, over random recordings', () => {
+  it('never serves a board from a later round, over random recordings', () => {
     const rng = makeRng(5);
     for (let t = 0; t < 500; t++) {
       const waves = Array.from({ length: 17 }, (_, i) => i + 1).filter(() => rng.next() < 0.6);
@@ -47,9 +55,10 @@ describe('the round-exact rule', () => {
         if (round > seat.lastWave) { expect(b).toBeNull(); continue; } // past the end: the lobby's repeatFinal
         expect(b, `round ${round}`).not.toBeNull();
         const w = b!.snapshot?.wave;
-        if (w === undefined) { expect(b!.minions.length).toBe(0); expect(waves[0]! - round).toBeGreaterThan(MAX_FIRST_WAVE - 1); continue; }
-        if (w > round) expect(w - round, `round ${round} served wave ${w} of [${waves.join(',')}]`).toBeLessThanOrEqual(MAX_FIRST_WAVE - 1);
-        if (w > round) expect(round < waves[0]!).toBe(true); // "ahead" only before the recording begins
+        if (w === undefined) { expect(b!.minions.length).toBe(0); expect(b!.tier).toBe(1); expect(round < waves[0]!).toBe(true); continue; }
+        expect(w, `round ${round} served wave ${w} of [${waves.join(',')}]`).toBeLessThanOrEqual(round);
+        if (w < round) expect(b!.minions, `round ${round}: a skipped round is empty`).toEqual([]); // never carried forward
+        else expect(b!.minions.length).toBeGreaterThan(0);
       }
     }
   });

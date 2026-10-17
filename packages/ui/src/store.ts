@@ -1791,7 +1791,9 @@ function commitResolvedAction(
         // It replaces the 2026-08 Start-of-Combat merge (`socBoard`), which showed the board from BEFORE the
         // final combat's gains landed. Falls back to the highest-wave captured pool board only if the end-state
         // board is empty (shouldn't happen for a real finish).
-        const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (!best || b.wave > best.wave ? b : best), null);
+        // Over the boards WITH minions: an empty round is uploaded too since 2026-10-17 (R-LOBBY-08), and it is never a
+        // final warband to show.
+        const highestFresh = fresh.reduce<BoardSnapshot | null>((best, b) => (b.minions.length > 0 && (!best || b.wave > best.wave) ? b : best), null);
         // `resolveCombat` settles the last combat before `advanceCombat` flips the phase, so `next.board` is
         // already the settled board here. Pinned in DEV: a second terminal writer that skipped the settle would
         // silently regress the recorded board to the pre-combat one.

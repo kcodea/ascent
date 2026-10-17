@@ -18,7 +18,7 @@ import { MAX_SEATS_PER_PLAYER, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, ru
 import { OPPONENT_POOL } from '../opponents';
 import { handleKeyOf, uniqueHandleFor, adjectiveHandle } from './handles';
 import type { LobbyEncounter, LobbyRules, PreparedBoard, SeatDriver } from './types';
-import { DEFAULT_LOBBY_RULES } from './lobby';
+import { lobbyRulesOf, seatStartingArmor } from './lobby';
 import { authoredSeat, type AuthoredOmen } from './tutorialSeats';
 import { bandSteps, practiceStrengthBand, runInStrengthBand, type StrengthBand } from './strengthBands';
 
@@ -392,7 +392,7 @@ export interface LobbySeatOptions {
 }
 
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
-  const r: LobbyRules = { ...DEFAULT_LOBBY_RULES, ...rules };
+  const r: LobbyRules = lobbyRulesOf(rules);
   // `playableHeroes` (not the raw roster): a `practiceOnly` hero is off PLAY mode, and a rival seat in a rated
   // lobby is play mode — a hero the owner has pulled for rework should not be driving boards that feed the
   // ladder. Practice keeps them. Already-recorded snapshots that carry such a heroId still replay; this only
@@ -400,7 +400,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   const heroes = playableHeroes().filter((h) => h.id !== playerHeroId);
   const seats: LobbySeatState[] = [{
     id: 's0', label: 'You', heroId: playerHeroId, kind: 'player', seed,
-    resolve: r.startingResolve, armor: r.startingArmor, alive: true,
+    resolve: r.startingResolve, armor: seatStartingArmor({ kind: 'player', heroId: playerHeroId }, r), alive: true,
   }];
   // Every seat must be able to FIELD A BOARD, or it silently sits rounds out and the table quietly shrinks —
   // measured at round 1, where a quarter of the fights never happened. Today's balance bot cannot play some
@@ -489,7 +489,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
         runKey: run.key,
         seed: seed * 1000 + picked + 1,
         resolve: r.startingResolve,
-        armor: r.startingArmor,
+        armor: seatStartingArmor({ kind: 'snapshot', heroId: run.heroId }, r), // the hero's own Armor (owner 2026-10-17)
         alive: true,
         ...(run.cosmetics ? { cosmetics: run.cosmetics } : {}),
       };
@@ -514,7 +514,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
       kind: 'hybrid',
       seed: seed * 1000 + picked + 1,
       resolve: r.startingResolve,
-      armor: r.startingArmor,
+      armor: seatStartingArmor({ kind: 'hybrid', heroId: hero.id }, r), // the hero's own Armor (owner 2026-10-17)
       alive: true,
     };
     if (!canPlay(seat)) continue; // this hero can't be driven — try the next

@@ -63,7 +63,9 @@ export function pickOpponent(
   setId: SetId = 'set1',
 ): BoardSnapshot | null {
   void power; // no longer weights the pick — kept so the call signature (and the recruit preview) stays stable
-  pool = pool.filter((s) => (s.setId ?? 'set1') === setId); // legacy boards predate sets → they are set 1
+  // An EMPTY board is a real round of a recorded run (uploaded since 2026-10-17, R-LOBBY-08) and a lobby seat
+  // serves it as that run's round, but it is never a per-wave OPPONENT: there is nothing to fight.
+  pool = pool.filter((s) => (s.setId ?? 'set1') === setId && s.minions.length > 0); // legacy boards predate sets → they are set 1
   if (pool.length === 0) return null;
   // 1) Same WAVE (same development stage); widen to the closest available wave if none match exactly.
   const closestByWave = (set: BoardSnapshot[]): BoardSnapshot[] => {
@@ -234,8 +236,10 @@ export interface RunRegistration {
  * late ones, so an older run kept its late boards and lost its early ones, and a lobby seat served a wave-10
  * board on round 5. Each element of `runs` is ONE run's complete recording (the server returns runs, not boards).
  * A run is all or nothing: if any of its boards references a card this build no longer has (the check
- * `registerOpponents` applies board by board) or has no minions, the WHOLE run is refused, because dropping one
- * board would punch a hole the seat would have to paper over. Duplicate waves (a re-upload) keep the first.
+ * `registerOpponents` applies board by board) or is malformed, the WHOLE run is refused, because dropping one
+ * board would punch a hole the seat would have to paper over. An EMPTY board is not malformed: it is a round the
+ * player really played with nothing on board (Disco Dan's turn 1), uploaded since 2026-10-17 (R-LOBBY-08), and the
+ * run keeps it; a run with no minions in ANY board is refused. Duplicate waves (a re-upload) keep the first.
  * Idempotent like `registerOpponents`.
  */
 export function registerOpponentRuns(runs: ReadonlyArray<readonly BoardSnapshot[]>): RunRegistration {
@@ -243,7 +247,7 @@ export function registerOpponentRuns(runs: ReadonlyArray<readonly BoardSnapshot[
   const whole: BoardSnapshot[] = [];
   for (const run of runs) {
     if (!run.length) continue;
-    if (!run.every((s) => !!s && Array.isArray(s.minions) && s.minions.length > 0 && isServableBoard(s))) { out.dropped++; continue; }
+    if (!run.every((s) => !!s && Array.isArray(s.minions) && isServableBoard(s)) || !run.some((s) => s.minions.length > 0)) { out.dropped++; continue; }
     const byWave = new Map<number, BoardSnapshot>();
     for (const s of run) if (!byWave.has(s.wave)) byWave.set(s.wave, s);
     out.runs++;

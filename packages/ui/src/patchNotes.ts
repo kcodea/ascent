@@ -60,6 +60,24 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Recorded opponents now bring the right board in round 1.',
+        details: [
+          'A recorded player who had nothing on board in a round now fields an empty board that round, in any round.',
+          'If they sold off their whole board on round 3, you face an empty board on round 3, not their round 2 board.',
+          'Before, round 1 could show their round 2 board instead. A Disco Dan could arrive at Shop tier 2 on round 1.',
+          'Every round you play is now recorded, empty boards included.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: "Opponents now start with their own hero's Armor, not a flat 15.",
+        details: [
+          'A recorded or generated opponent starts with the same Armor as a player of that hero. A Brackus starts on 11.',
+          'Health is still 30 for everyone. Practice bots and tutorial opponents keep 15 Armor.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The menus now show when a Versus room is open.',
         details: [
           'The Versus tile on the Mode screen glows and says how many rooms are open.',

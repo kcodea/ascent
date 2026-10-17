@@ -26,13 +26,13 @@ const manifest = (extra: Partial<ExperimentManifest> = {}): ExperimentManifest =
 });
 
 // ── the fixture corpus (`fixtures/pinnedCorpus.ts`, shared with the tools-side funnel test) ─────────────────
-/** The board a recording fields for `round` — the shipped `boardAt` + exhaustion (repeat final) rule. */
+/** The board a recording fields for `round` — the shipped round-exact rule (R-LOBBY-08: the round's own board; a round
+ *  the recording lacks is EMPTY) + exhaustion (repeat final). */
 function expectedBoard(heroId: string, round: number): string[] {
   const snaps = FIXTURE.filter((s) => s.heroId === heroId).sort((a, b) => a.wave - b.wave);
   const exact = snaps.find((s) => s.wave === round);
-  const earlier = snaps.filter((s) => s.wave < round).pop();
-  const snap = round > WAVES ? snaps[snaps.length - 1]! : (exact ?? earlier ?? snaps[0]!);
-  return snap.minions.map((m) => m.cardId);
+  const snap = round > WAVES ? snaps[snaps.length - 1]! : exact;
+  return snap ? snap.minions.map((m) => m.cardId) : [];
 }
 
 beforeAll(() => { registerOpponents(SHUFFLED); });
@@ -110,10 +110,11 @@ describe('the pinned lobby', () => {
     for (const r of rec.rounds) (bySeat.get(r.seatId) ?? bySeat.set(r.seatId, []).get(r.seatId)!).push(r);
     for (const [seatId, rounds] of bySeat) {
       rounds.sort((a, b) => a.round - b.round);
-      // The pilot's seat is seeded from its RUN (the hero's own pools, `createLobbyRun`); a recording's from the
-      // lobby rules.
+      // The pilot's seat is seeded from its RUN (the hero's own pools, `createLobbyRun`); a recording's Health from the
+      // lobby rules and its Armor from ITS hero (R-LOBBY-SEAT-ARMOR-01, owner 2026-10-17).
       const hero = HERO_INDEX[pilot.heroId]!;
-      let health = seatId === 's0' ? hero.resolve : 30, armor = seatId === 's0' ? hero.armor : 15;
+      const seatHero = HERO_INDEX[rec.seats.find((s) => s.seatId === seatId)!.heroId]!;
+      let health = seatId === 's0' ? hero.resolve : 30, armor = seatId === 's0' ? hero.armor : seatHero.armor;
       for (const r of rounds) {
         // The pilot's own run can raise its pools during the shop (Mend etc.); the greedy pilot on this fixture does
         // not, and recorded seats never do — so the carry is exact.
@@ -203,7 +204,7 @@ describe('the pinned lobby is the client’s table (B10 fairness tripwires)', ()
     expect(client.seats.map((s) => [s.id, s.kind, s.heroId, s.runKey ?? null, s.resolve, s.armor]))
       .toEqual(rec.seats.map((s) => [s.seatId, s.seatId === 's0' ? 'player' : 'snapshot', s.heroId, s.recording?.key ?? null,
         s.seatId === 's0' ? HERO_INDEX[hero]!.resolve : DEFAULT_LOBBY_RULES.startingResolve,
-        s.seatId === 's0' ? HERO_INDEX[hero]!.armor : DEFAULT_LOBBY_RULES.startingArmor]));
+        HERO_INDEX[s.heroId]!.armor])); // every seat on its own hero's Armor (R-LOBBY-SEAT-ARMOR-01)
   });
 
   it('charges every fought encounter by ONE formula: the loser takes min(cap, winner tier + survivors), the winner 0 — pilot and recordings alike', () => {

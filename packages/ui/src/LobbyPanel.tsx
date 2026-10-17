@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   boardIntel, getHero, lastRoundDamage, lobbyRailView, playerOpponent, railSeatIntel, roundLossCap, seatResults, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
+  seatStartingArmor,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeat, roundDamageFloats, whenCurtainDown } from './lobbyDamageFx';
@@ -323,7 +324,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   }, [capNow, runKey]);
 
   if (!lobby) return null;
-  const maxHp = lobby.rules.startingResolve + lobby.rules.startingArmor;
+  // A full bar is the seat's OWN start: Resolve + its hero's Armor (R-LOBBY-SEAT-ARMOR-01, owner 2026-10-17).
+  const maxHpOf = (seat: { kind: string; heroId: string }): number => lobby.rules.startingResolve + seatStartingArmor(seat, lobby.rules);
   // YOUR OWN row reads the RUN's health, not the seat's. The seat is only re-synced when the table settles (at
   // `resolveCombat`), while the run takes your hit the moment combat ends — so between those two the seat is
   // stale and the rail would disagree with the HUD for the whole post-combat screen (owner report 2026-08-25).
@@ -446,6 +448,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           const isGhost = row.ghost;
           const live = row;
           const hp = live.resolve + live.armor;
+          const maxHp = Math.max(1, maxHpOf(seat));
           // The scout card reads the seat's board for the round you are IN (`seatScoutIntel`, R-LOBBY-SCOUT-01), the
           // same round the foe's card reads, never the settle-recorded `seat.intel` (a round behind, and never written
           // for the seat you fought). Read only for a hovered / pinned card, so the rail pays nothing otherwise.

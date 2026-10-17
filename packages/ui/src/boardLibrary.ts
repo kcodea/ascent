@@ -14,9 +14,10 @@ const KEY = 'ascent.boards';
 const CAP = 300; // keep the most recent N captured boards (≈ 15–30 runs); FIFO so the pool stays fresh
 const EXPORT_FORMAT = 1;
 
-/** A stable identity for a board, so re-imports / duplicate captures collapse to one. */
+/** A stable identity for a board, so re-imports / duplicate captures collapse to one. The run's seed is part of it:
+ *  two runs' EMPTY round-1 boards on one hero (every Disco Dan's turn 1) are different rounds, not one board. */
 const signature = (s: BoardSnapshot): string =>
-  `${s.wave}|${s.heroId}|${s.minions.map((m) => `${m.cardId}:${m.attack}/${m.health}:${(m.keywords ?? []).slice().sort().join('')}${m.golden ? 'g' : ''}`).sort().join(',')}`;
+  `${s.wave}|${s.heroId}|${s.seed ?? ''}|${s.minions.map((m) => `${m.cardId}:${m.attack}/${m.health}:${(m.keywords ?? []).slice().sort().join('')}${m.golden ? 'g' : ''}`).sort().join(',')}`;
 
 const dedupe = (boards: BoardSnapshot[]): BoardSnapshot[] => {
   const seen = new Set<string>();
@@ -47,11 +48,14 @@ export function loadStoredBoards(): BoardSnapshot[] {
  *  `setId` is the set the RUN was played under, not the live one — a run finishing after a set flip captured
  *  boards made of its own set's cards, and that is what makes them servable later. */
 function storeBoards(snapshots: readonly BoardSnapshot[], setId: BoardSnapshot['setId'], author?: string): BoardSnapshot[] {
-  // Only keep boards with minions — an empty board (power 0) is never a useful opponent.
+  // EVERY round is kept, an EMPTY board included (owner 2026-10-17, R-LOBBY-08: "empty boards are never uploaded is a
+  // problem. this has to be fixed"). Dropping them made a run whose round 1 was empty (every Disco Dan: turn 1 is a
+  // pure Setlist) look like it started at round 2, and a lobby seat then served its round-2 board in round 1. An
+  // empty board is never a per-wave opponent (`pickOpponent` skips it); a lobby seat serves it as that run's round.
   const capturedAt = new Date().toISOString().slice(0, 10);
   const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`; // the build these boards were captured under (for pruning old patches)
   const fresh = snapshots
-    .filter((s) => s.minions.length > 0)
+    .filter((s) => Array.isArray(s.minions))
     // Stamp a stable id per captured board — the key the fight-result ledger attributes wins/losses to once
     // this board is served as someone's opponent. crypto.randomUUID is fine here (UI layer, not the
     // Math.random-banned sim). Each wave's board is its own trackable entity.

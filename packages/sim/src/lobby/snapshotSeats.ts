@@ -76,7 +76,8 @@ function runCosmetics(snaps: readonly BoardSnapshot[]): RunCosmeticSnapshot | un
  * WAVE-10 board: a friend faced a tier-6 board of 7 Beasts on round 5 (owner report 2026-09-29).
  *
  * So a run is seated only when its recording starts by wave `MAX_FIRST_WAVE` and never skips more than
- * `MAX_MISSING_WAVES` wave in a row (a lone missing wave is normal: empty boards are not uploaded). A run that
+ * `MAX_MISSING_WAVES` wave in a row (a lone missing wave is normal in an old recording: empty boards were not uploaded
+ * before 2026-10-17, and `boardAt` serves that round EMPTY). A run that
  * fails either is incomplete material, not a player's build order, and is left out. Measured on the live pool
  * 2026-09-29: complete runs start at wave 1 or 2 (140 of 146) and never miss more than one wave in a row; the
  * runs this drops are the ones the per-wave pull cut in half (plus six that start at waves 3 to 5, which would
@@ -181,7 +182,9 @@ export function playerRunsFrom(
   const byRun = new Map<string, BoardSnapshot[]>();
   for (const s of pool) {
     if ((s.origin ?? 'house') === 'synthetic') continue;
-    if (!s.minions?.length) continue;
+    // An EMPTY board stays: it is that run's real round (uploaded since 2026-10-17, R-LOBBY-08), and dropping it made
+    // a run that started on an empty board look like it started a wave later.
+    if (!Array.isArray(s.minions)) continue;
     if (setId && (s.setId ?? 'set1') !== setId) continue; // legacy boards predate sets → they are set 1
     const key = runKeyOf(s);
     const list = byRun.get(key);
@@ -195,6 +198,7 @@ export function playerRunsFrom(
     for (const s of snaps) if (!byWave.has(s.wave)) byWave.set(s.wave, s);
     const ordered = [...byWave.values()].sort((a, b) => a.wave - b.wave);
     if (ordered.length < minWaves) continue;
+    if (!ordered.some((x) => x.minions.length > 0)) continue; // nothing on board in any round: no seat to field
     // Incomplete (early waves cut off by the per-wave pull) or implausible material never takes a seat
     // (R-LOBBY-07; see `runCoversItsRounds` / `maxPlausibleTier` above).
     if (!runCoversItsRounds(ordered) || !runTiersPlausible(ordered)) continue;

@@ -75,13 +75,20 @@ describe('whole runs only', () => {
     expect(d.registered.some((r) => r[0]!.author === 'Cut')).toBe(false);
   });
 
-  it('a board from another run, or an empty board, makes the delivery not whole', () => {
+  it('a board from another run makes the delivery not whole; an EMPTY board is a real round and keeps it whole', () => {
     const mixed = runOf('A', heroes[0]!, 1, 5);
     mixed.snaps[2] = board('B', heroes[0]!, 1, 3);
     expect(isWholeRun(mixed)).toBe(false);
+    // R-LOBBY-08 (owner 2026-10-17): "empty boards are never uploaded is a problem. this has to be fixed".
     const empty = runOf('A', heroes[0]!, 1, 5);
-    empty.snaps[1] = { ...empty.snaps[1]!, minions: [] };
-    expect(isWholeRun(empty)).toBe(false);
+    empty.snaps[0] = { ...empty.snaps[0]!, minions: [] }; // Disco Dan's turn 1
+    expect(isWholeRun(empty)).toBe(true);
+    const allEmpty = runOf('A', heroes[0]!, 1, 5);
+    allEmpty.snaps = allEmpty.snaps.map((s) => ({ ...s, minions: [] }));
+    expect(isWholeRun(allEmpty)).toBe(false); // nothing on board in any round: no seat to field
+    const broken = runOf('A', heroes[0]!, 1, 5);
+    broken.snaps[1] = { ...broken.snaps[1]!, minions: undefined as never };
+    expect(isWholeRun(broken)).toBe(false);
   });
 
   it('with the real registration, one unservable board refuses its whole run', async () => {

@@ -74,7 +74,7 @@ export async function fetchLivePool(): Promise<LivePool> {
     const chunk = seeds.slice(i, i + 40);
     const rows = await getAll<BoardRow>(`boards?select=id,author,hero_id,seed,wave,origin,snapshot&seed=in.(${chunk.join(',')})&order=id.asc`);
     for (const b of rows) {
-      if (!b.snapshot || !Array.isArray(b.snapshot.minions) || b.snapshot.minions.length === 0) continue;
+      if (!b.snapshot || !Array.isArray(b.snapshot.minions)) continue; // an EMPTY board is a real round (R-LOBBY-08, 2026-10-17)
       if ((b.origin ?? 'self') === 'synthetic') continue;
       const run = runs.get(`${b.author ?? 'anon'}|${b.hero_id}|${b.seed}`);
       if (!run) continue;

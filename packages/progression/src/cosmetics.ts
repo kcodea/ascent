@@ -676,6 +676,27 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_standard_teal', 'Standard Teal', 'rare', 'Standard Teal.png'), // owner 2026-10-17: Rare
   // Owner 2026-10-16: "add chrome from the folder with the grey interior" (Legendary by the folder rule).
   cardPlate('plate_chrome', 'Chrome', 'legendary', 'Chrome.png'),
+  // Owner 2026-10-17: "ive added a lot of new card frames to the folder". No interior or rarity named, so the defaults:
+  // Legendary (the folder rule) on the Brown interior.
+  // Owner 2026-10-17: "Spirit Carving" (the art is "Ascendant Carving.png"; names can't use ranked medal words).
+  cardPlate('plate_spirit_carving', 'Spirit Carving', 'legendary', 'Ascendant Carving.png'),
+  cardPlate('plate_iridescent', 'Iridescent', 'legendary', 'Iridescent.png'),
+  cardPlate('plate_mystic_obsidian', 'Mystic Obsidian', 'legendary', 'Mystic Obsidian.png'),
+  cardPlate('plate_porcelain', 'Porcelain', 'legendary', 'Porcelain.png'),
+  cardPlate('plate_smooth_iridescent', 'Smooth Iridescent', 'legendary', 'Smooth Iridescent.png'),
+  // Owner 2026-10-17: "ive added another round of frames and interiors. match them based on the names". Legendary by the
+  // folder rule. Silver Magic ships as Verdant Magic (no medal words in names); "Ascendant Rank" is held back as a
+  // future ranked reward (owner 2026-10-17), not a crate plate.
+  cardPlate('plate_battletorn', 'Battletorn', 'legendary', 'Battletorn.png'),
+  cardPlate('plate_ethereal', 'Ethereal', 'legendary', 'Ethereal.png'),
+  cardPlate('plate_phoenix', 'Phoenix', 'legendary', 'Phoenix.png'),
+  cardPlate('plate_round_magic', 'Round Magic', 'legendary', 'Round Magic.png'),
+  cardPlate('plate_verdant_magic', 'Verdant Magic', 'legendary', 'Silver Magic.png'),
+  cardPlate('plate_phoenix_plate', 'Phoenix Plate', 'legendary', 'Phoenix Plate.png'),
+  // Owner 2026-10-17: "added more - add dark back to each" (the Dark interior). Gold Etched ships as Gilt Etched (no medal
+  // words in names).
+  cardPlate('plate_emerald', 'Emerald', 'legendary', 'Emerald.png'),
+  cardPlate('plate_gilt_etched', 'Gilt Etched', 'legendary', 'Gold Etched.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

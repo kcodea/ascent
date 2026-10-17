@@ -143,6 +143,8 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_standard_blue: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009, darken: false },
   plate_standard_pink: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009, darken: false },
   plate_standard_teal: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.03, interiorY: -0.0028, darken: false },
+  // Owner 2026-10-16: Chrome on the Grey interior. Standard template, opening centred (seated like Magma), no darkening.
+  plate_chrome: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.004, interiorSx: 1.055, interiorSy: 1.029, interiorY: -0.0037, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

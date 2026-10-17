@@ -117,9 +117,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Eight more Legendary Card Plates to find in crates.',
+        text: 'Eight more Card Plates to find in crates.',
         details: [
-          'New Card Plates: Dark Arcane, Simple Glass, Stonevines, Standard Black, Standard Blue, Standard Pink, Standard Teal and Chrome (all Legendary).',
+          'New Card Plates: Simple Glass (Ancient); Dark Arcane (Epic); Stonevines and Chrome (Legendary); Standard Black, Standard Blue, Standard Pink and Standard Teal (Rare).',
+          'Hand Drawn, Blue Hand Drawn and Green Hand Drawn are now Epic.',
         ],
       },
       {

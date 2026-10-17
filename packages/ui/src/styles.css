@@ -13706,6 +13706,49 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-left .cv2-tiles .cv2-stat-l { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   CAREER + RECENT GAMES IN ONE FRAME (owner 2026-10-16: "i want the career setup to not have any scrolling to it").
+   The page never scrolls: the game list scrolls inside itself; the strip, the open game and the right column are sized
+   to fit the 1080 stage (and the 768 one, which is the same stage scaled). The MMR tip seats itself inside the panel.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.cv2-panel.cv2-left { padding: 8px 18px; gap: 18px; }
+.cv2-left .portring, .cv2-left .cv2-heroframe { --ring: 60px; }
+.cv2-left .cv2-favline .cv2-heroname { font-size: 18px; }
+.cv2-left .cv2-acctlevel { gap: 4px; padding: 6px 12px; width: 250px; }
+.cv2-left .cv2-acctlevel-badge { font-size: 18px; min-width: 52px; padding: 3px 8px; }
+.cv2-left .cv2-tiles .cv2-stat { padding: 6px 10px; }
+.cv2-left .cv2-tiles .cv2-stat-ico { width: 30px; height: 30px; }
+.cv2-left .cv2-tiles .cv2-stat-v { font-size: 20px; }
+.cv2-cols { row-gap: 10px; }
+.cv2-right { overflow: hidden; }
+/* Clear of the painted frame (it is drawn 32px into the panel, above the content). */
+.cv2-ranked { margin-bottom: 10px; padding: 18px 30px 26px; }
+.cv2-ranked .rankcrest-big { --ring: 96px; }
+.cv2-ranked .rankbar-stack { gap: 6px; }
+.cv2-ranked .rankbar-caption { font-size: 24px; }
+.cv2-trends { gap: 6px; padding-top: 10px; padding-bottom: 12px; }
+.ct-grid2 { gap: 8px; margin-top: 6px; }
+.ct-small { padding: 6px 8px 4px; }
+.ct-small svg { max-height: 46px; }
+.ct-small-d { min-height: 0; }
+/* The detail fits without scrolling; it still CAN scroll if a game's content is unusually tall, never the page. */
+.gc.gc-detail .gc-body { row-gap: 8px; padding: 12px 20px 12px 16px; }
+.gc.gc-detail .gc-place { font-size: 40px; }
+.gc.gc-detail .gc-hero .lb-heroframe .hero { width: 64px; height: 64px; }
+.gc.gc-detail .gc-hero .cv2-heroframe.small { --ring: 64px; }
+.gc.gc-detail .gc-runes .cv2-rune-disc, .gc.gc-detail .gc-runes .lb-rune-em { width: 40px; height: 40px; }
+.gc.gc-detail .gc-runes .cv2-rune-name, .gc.gc-detail .gc-runes .lb-rune-name { font-size: 16px; }
+.gc.gc-detail .gc-meta { padding-top: 8px; }
+.lp-showing { min-height: 32px; }
+/* The MMR tip: a mini board under the text; flips below a high point, pins to the near side at the edges. */
+.ct-pos.below { transform: translate(-50%, 14px); }
+.ct-pos.left { transform: translate(-14px, calc(-100% - 12px)); }
+.ct-pos.right { transform: translate(calc(-100% + 14px), calc(-100% - 12px)); }
+.ct-pos.below.left { transform: translate(-14px, 14px); }
+.ct-pos.below.right { transform: translate(calc(-100% + 14px), 14px); }
+.ct-mini { width: 196px; margin-top: 4px; }
+.ct-mini .lp-mini-m { max-width: 26px; }
+
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
    THE LOBBY PICKER (matchDetails/LobbyPicker.tsx; owner 2026-10-16: the old standings were "not obvious how to view it
    and ugly", then "i like option 2"). The open game card's big board shows ONE seat's board, yours by default; the
    lobby is a 4 x 2 table of seat tiles under the card. A tile reads as a button: it lifts 2px on hover, its rim lights
@@ -13721,10 +13764,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-showing-v { font-family: var(--font-ui); font-weight: 800; font-size: 17px; color: #fff; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .lp-hint { margin-left: auto; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.55); white-space: nowrap; }
 .lp-back { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; font-size: 14px; padding: 7px 14px; }
-.lp-tilewrap { display: flex; flex-direction: column; gap: 10px; margin: 0 22px 18px 18px; padding-top: 14px; border-top: 1px solid rgba(196, 160, 92, 0.2); }
+.lp-tilewrap { display: flex; flex-direction: column; gap: 8px; margin: 0 22px 14px 18px; padding-top: 10px; border-top: 1px solid rgba(196, 160, 92, 0.2); }
 .lp-tiles-l { font-family: var(--font-ui); font-weight: 900; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(232, 200, 119, 0.85); }
-.lp-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.lp-tile { --band: #9ccaf5; position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; padding: 9px 10px 9px; text-align: left; color: #f4eee2;
+.lp-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.lp-tile { --band: #9ccaf5; position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 7px 9px 8px; text-align: left; color: #f4eee2;
   container-type: inline-size; border-radius: 12px; border: 1.5px solid rgba(196, 160, 92, 0.3);
   background: linear-gradient(180deg, rgba(20, 31, 54, 0.92), rgba(10, 17, 32, 0.94));
   transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
@@ -13735,27 +13778,26 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lp-tile.on { border-color: rgba(255, 217, 138, 0.95); background: var(--ui-sheen), var(--ui-hover-plate); box-shadow: 0 0 0 1px rgba(255, 217, 138, 0.35), 0 10px 22px -12px rgba(0, 0, 0, 0.85); }
 .lp-tile-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .lp-chip-portrait { flex: none; display: grid; place-items: center; }
-.lp-chip-portrait .mds-portrait, .lp-chip-portrait .cv2-heroframe { --ring: 46px; }
+.lp-chip-portrait .mds-portrait, .lp-chip-portrait .cv2-heroframe { --ring: 36px; }
 .lp-chip-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .lp-chip-place { font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.03em; color: var(--band); white-space: nowrap; }
 .lp-chip-name { font-family: var(--font-ui); font-weight: 800; font-size: 15px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lp-tile.self .lp-chip-name { color: #9ccaf5; }
-.lp-ko { position: absolute; top: 8px; right: 8px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff;
+.lp-ko { position: absolute; top: -7px; right: -6px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff;
   background: #b4423a; border: 1.5px solid #ffb3a8; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
 .lp-ko svg { width: 12px; height: 12px; }
-/* The mini board: seven portraits in one row when the tile is wide, two rows (4 + 3) when it is narrow, so a portrait
-   never drops under ~36px. Minion art only, no badges; a Gilded minion keeps its gold rim. */
-.lp-mini { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; justify-items: center; }
-@container (max-width: 270px) { .lp-mini { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-.lp-mini-m { width: 100%; max-width: 48px; aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.2); }
+/* The mini board: seven portraits in ONE row (the tile stays ~80px tall so the whole Career fits one frame, owner
+   2026-10-16). Minion art only, no badges; a Gilded minion wears a gold rim and a small star. */
+.lp-mini { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; justify-items: center; }
+.lp-mini-m { position: relative; width: 100%; max-width: 40px; aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.2); }
+.lp-mini-star { position: absolute; right: 1px; bottom: 0; font-size: 10px; line-height: 1; color: #ffd76a; text-shadow: 0 1px 2px #000; }
 .lp-mini-m.golden { border-color: #e8b84e; }
 .lp-mini-m.empty { border-style: dashed; border-color: rgba(255, 255, 255, 0.12); background: none; }
 .lp-mini-m img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.lp-tile-out { display: flex; align-items: center; gap: 8px; font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.62); }
-/* The "this is a button" cue: appears on hover / focus, and the picked tile says it is the one showing. */
-.lp-tile-out::after { content: 'View board ›'; margin-left: auto; font-weight: 800; font-size: 12px; letter-spacing: 0.04em; color: #f6dfa2; opacity: 0; transition: opacity 0.12s ease; }
-.lp-tile:hover .lp-tile-out::after, .lp-tile:focus-visible .lp-tile-out::after { opacity: 1; }
-.lp-tile.on .lp-tile-out::after { content: 'Showing'; opacity: 1; color: var(--ui-title); }
+.lp-tile-out { margin-left: 6px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0; color: rgba(255, 255, 255, 0.6); white-space: nowrap; }
+.lp-tile.on .lp-tile-out { color: var(--ui-title); }
+.lp-tile .lp-chip-name { font-size: 14px; }
+.lp-tile .lp-chip-place { font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .gc-board-in { animation: none; } .lp-tile, .lp-tile:hover, .lp-tile:active { transform: none; transition: border-color 0.1s ease; } }
 
 /* ============================================================================================================

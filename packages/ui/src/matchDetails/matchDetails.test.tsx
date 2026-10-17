@@ -365,7 +365,7 @@ describe('the Career match card', () => {
     const chips = [...ui!.container.querySelectorAll('.gs-detail .lp-tile')];
     expect(chips).toHaveLength(8);
     // Real places: the record's own seat reads its finish; a seat with no final place reads "Still in".
-    expect(chips.every((c) => /^(\d+(st|nd|rd|th)|Still in)$/.test(c.querySelector('.lp-chip-place')?.textContent ?? ''))).toBe(true);
+    expect(chips.every((c) => /^(\d+(st|nd|rd|th)|Still in)/.test(c.querySelector('.lp-chip-place')?.firstChild?.textContent ?? ''))).toBe(true);
     expect(ui!.container.querySelector('.lp-tile.on')?.classList.contains('self')).toBe(true);
     expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
     // The seat that knocked you out wears the sword.

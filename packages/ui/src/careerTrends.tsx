@@ -19,18 +19,22 @@
  */
 import { useMemo, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
+import type { BoardMinion } from '@game/core';
+import { MiniBoard } from './matchDetails/LobbyPicker';
 import { apmOf, isMatchWin, ordinalOf, playedOnText, type CareerRun, type TrendWindow } from './careerData';
 import { medalOf, POINTS_PER_DIVISION } from './rank/types';
 
 const ROLL = 10;
 const DAY = 86_400_000;
 
-interface RunPoint { atMs: number; place: number | null; mmr: number | null; delta: number | null; heroId: string; apm: number | null }
+interface RunPoint { atMs: number; place: number | null; mmr: number | null; delta: number | null; heroId: string; apm: number | null;
+  /** The run's final board (the stored array, a stable reference), for the MMR tip's mini board. */
+  minions?: readonly BoardMinion[] }
 
 /** Runs inside the window (oldest first), plus the previous window of the same length for the deltas. Pure. */
 export function trendRuns(runs: readonly CareerRun[], window_: TrendWindow, nowMs: number): { cur: RunPoint[]; prev: RunPoint[] | null } {
   const toPoint = (r: CareerRun): RunPoint => ({
-    atMs: r.atMs, place: r.placement, mmr: r.ratingAfter === null ? null : Math.round(r.ratingAfter), delta: r.ratingDelta, heroId: r.heroId, apm: apmOf(r),
+    atMs: r.atMs, place: r.placement, mmr: r.ratingAfter === null ? null : Math.round(r.ratingAfter), delta: r.ratingDelta, heroId: r.heroId, apm: apmOf(r), ...(r.board && r.board.minions.length > 0 ? { minions: r.board.minions } : {}),
   });
   const dated = runs.filter((r) => Number.isFinite(r.atMs) && r.atMs <= nowMs + 60_000).slice().sort((a, b) => a.atMs - b.atMs);
   if (window_ === 'all') return { cur: dated.map(toPoint), prev: null };
@@ -79,7 +83,7 @@ function Delta({ v, better, unit = '', digits = 1 }: { v: number | null; better:
 
 // ── The MMR chart ──────────────────────────────────────────────────────────────────────────────────────────────
 
-const MW = 284, MH = 176, ML = 6, MR = 70, MT = 16, MB = 22;
+const MW = 284, MH = 140, ML = 6, MR = 70, MT = 14, MB = 20;
 
 function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number | null; nowMs: number }) {
   // The line ENDS on the live rating the crest prints (owner 2026-10-03): a closing "now" point when the last stamped
@@ -167,11 +171,17 @@ function MmrChart({ pts, live, nowMs }: { pts: readonly RunPoint[]; live: number
         ))}
       </svg>
       {h && (
-        <div className="atip ct-pos" style={{ left: `${(h.x / MW) * 100}%`, top: `${(h.y / MH) * 100}%` }} role="tooltip">
+        // Seated so it never leaves the panel (owner 2026-10-16): below the point when the point is high, and pinned to
+        // the near edge when the point is near a side.
+        <div
+          className={`atip ct-pos${h.y < MH * 0.5 ? ' below' : ''}${h.x < MW * 0.3 ? ' left' : h.x > MW * 0.7 ? ' right' : ''}`}
+          style={{ left: `${(h.x / MW) * 100}%`, top: `${(h.y / MH) * 100}%` }} role="tooltip"
+        >
           <b>{h.p.mmr} MMR</b>
           {h.p.delta !== null && h.p.delta !== 0 && <span className={h.p.delta > 0 ? 'good' : 'bad'}>{h.p.delta > 0 ? `+${h.p.delta}` : h.p.delta}</span>}
           <span>{'now' in h.p && h.p.now ? 'Your rating now' : `${h.p.place !== null ? ordinalOf(h.p.place) : 'No placement'}${h.p.heroId ? `, ${getHero(h.p.heroId).name}` : ''}`}</span>
           <span className="dim">{playedOnText(h.p.atMs)}</span>
+          {h.p.minions && <MiniBoard minions={h.p.minions} className="ct-mini" />}
         </div>
       )}
     </div>

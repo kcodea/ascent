@@ -13,6 +13,7 @@
  */
 import { memo, useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { MatchDetails, MatchSeat } from '@game/sim';
+import type { BoardMinion } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { RUNE_INDEX } from '@game/content';
 import { Icon } from '../Icon';
@@ -101,6 +102,26 @@ export function ShowingLine({ seat, details, onBack }: { seat: MatchSeat | null;
 
 interface PickerProps { details: MatchDetails; selectedId: string | null; onPick: (id: string | null) => void; own: boolean }
 
+/** A board as seven small portraits: minion art only, no stat badges, a Gilded minion in a gold rim with a star.
+ *  Shared by the lobby tiles and the Career MMR chart's hover tip. Memoised on the minions array (a stored board's
+ *  array is a stable reference), so a hover that moves a tooltip never rebuilds it. */
+export const MiniBoard = memo(function MiniBoard({ minions, className = '' }: { minions: readonly BoardMinion[]; className?: string }) {
+  return (
+    <span className={`lp-mini ${className}`.trim()} aria-hidden="true">
+      {Array.from({ length: 7 }, (_, i) => {
+        const m = minions[i];
+        const art = m ? artFor(m.cardId) : undefined;
+        return (
+          <span key={i} className={`lp-mini-m${m ? '' : ' empty'}${m?.golden ? ' golden' : ''}`}>
+            {art && <img decoding="async" src={art} alt="" draggable={false} />}
+            {m?.golden && <span className="lp-mini-star">★</span>}
+          </span>
+        );
+      })}
+    </span>
+  );
+});
+
 /** The lobby: a 4 x 2 table of seat tiles with mini boards. */
 export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick, own }: PickerProps) {
   const showOpp = useGame((s) => s.showOpponentSkins);
@@ -126,19 +147,12 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
             <span className="lp-tile-head">
               <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self} /></span>
               <span className="lp-chip-txt">
-                <span className="lp-chip-place">{seatPlace(seat, details)}</span>
+                <span className="lp-chip-place">{seatPlace(seat, details)}<span className="lp-tile-out">{seatOut(seat, details).replace('Out in round ', 'Out R')}</span></span>
                 <span className="lp-chip-name">{seat.self ? 'You' : seat.name}</span>
               </span>
               {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
             </span>
-            <span className="lp-mini" aria-hidden="true">
-              {Array.from({ length: 7 }, (_, i) => {
-                const m = minions[i];
-                const art = m ? artFor(m.cardId) : undefined;
-                return <span key={i} className={`lp-mini-m${m ? '' : ' empty'}${m?.golden ? ' golden' : ''}`}>{art && <img decoding="async" src={art} alt="" draggable={false} />}</span>;
-              })}
-            </span>
-            <span className="lp-tile-out">{seatOut(seat, details)}</span>
+            <MiniBoard minions={minions} />
           </button>
         );
       })}

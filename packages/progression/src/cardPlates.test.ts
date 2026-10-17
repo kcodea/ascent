@@ -20,7 +20,7 @@ describe('the card plate catalog', () => {
     expect(COSMETIC_CATEGORY_DEFS.card_plate).toEqual({ id: 'card_plate', label: 'Card Plates', weight: 10, enabled: true, target: 'global' });
   });
 
-  it('twenty-seven crate plates, Legendary unless the owner says otherwise (Simple Black, Simple White, Simple Glass and Mooncloud are Ancient; Moonstone, Bamboo, the Smooth and Hand Drawn plates and Dark Arcane Epic; the Standard colours Rare), each art key its own id, each naming its master', () => {
+  it('thirty-eight crate plates, Legendary unless the owner says otherwise (Simple Black, Simple White, Simple Glass and Mooncloud are Ancient; Moonstone, Bamboo, the Smooth and Hand Drawn plates and Dark Arcane Epic; the Standard colours Rare), each art key its own id, each naming its master', () => {
     expect(PLATES.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.art, c.assets.master, c.target])).toEqual([
       ['plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'crate', 'plate_aquarium_rocks', 'Aquarium Rocks.png', undefined],
       ['plate_amethyst', 'Amethyst', 'legendary', 'crate', 'plate_amethyst', 'Amethyst.png', undefined],
@@ -49,6 +49,17 @@ describe('the card plate catalog', () => {
       ['plate_standard_pink', 'Standard Pink', 'rare', 'crate', 'plate_standard_pink', 'Standard Pink.png', undefined],
       ['plate_standard_teal', 'Standard Teal', 'rare', 'crate', 'plate_standard_teal', 'Standard Teal.png', undefined],
       ['plate_chrome', 'Chrome', 'legendary', 'crate', 'plate_chrome', 'Chrome.png', undefined],
+      ['plate_spirit_carving', 'Spirit Carving', 'legendary', 'crate', 'plate_spirit_carving', 'Ascendant Carving.png', undefined],
+      ['plate_iridescent', 'Iridescent', 'legendary', 'crate', 'plate_iridescent', 'Iridescent.png', undefined],
+      ['plate_mystic_obsidian', 'Mystic Obsidian', 'legendary', 'crate', 'plate_mystic_obsidian', 'Mystic Obsidian.png', undefined],
+      ['plate_porcelain', 'Porcelain', 'legendary', 'crate', 'plate_porcelain', 'Porcelain.png', undefined],
+      ['plate_smooth_iridescent', 'Smooth Iridescent', 'legendary', 'crate', 'plate_smooth_iridescent', 'Smooth Iridescent.png', undefined],
+      ['plate_battletorn', 'Battletorn', 'legendary', 'crate', 'plate_battletorn', 'Battletorn.png', undefined],
+      ['plate_ethereal', 'Ethereal', 'legendary', 'crate', 'plate_ethereal', 'Ethereal.png', undefined],
+      ['plate_phoenix', 'Phoenix', 'legendary', 'crate', 'plate_phoenix', 'Phoenix.png', undefined],
+      ['plate_round_magic', 'Round Magic', 'legendary', 'crate', 'plate_round_magic', 'Round Magic.png', undefined],
+      ['plate_verdant_magic', 'Verdant Magic', 'legendary', 'crate', 'plate_verdant_magic', 'Silver Magic.png', undefined],
+      ['plate_phoenix_plate', 'Phoenix Plate', 'legendary', 'crate', 'plate_phoenix_plate', 'Phoenix Plate.png', undefined],
     ]);
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).toContain('plate_aquarium_rocks');
     expect(eligibleCrateCosmetics(['plate_aquarium_rocks']).map((c) => c.id)).not.toContain('plate_aquarium_rocks');

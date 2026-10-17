@@ -62,7 +62,7 @@ export interface CardPlateLook {
 const PLATE_DIR = `${import.meta.env.BASE_URL}frames/plates/`;
 
 /** The shared interiors a layered plate can sit on (`frames/plates/interiors/<name>.webp`). Brown is the default. */
-export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack', 'darkbrown', 'grey'] as const;
+export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack', 'darkbrown', 'grey', 'mystic', 'roundmagic', 'silvermagic', 'wartorn'] as const;
 export type PlateInterior = (typeof PLATE_INTERIORS)[number];
 export const DEFAULT_PLATE_INTERIOR: PlateInterior = 'brown';
 
@@ -146,6 +146,30 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_standard_teal: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.03, interiorY: -0.0028, darken: false },
   // Owner 2026-10-16: Chrome on the Grey interior. Standard template, opening centred (seated like Magma), no darkening.
   plate_chrome: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.004, interiorSx: 1.055, interiorSy: 1.029, interiorY: -0.0037, darken: false },
+  // Owner 2026-10-17 batch on the default Brown interior, keeping the standard darkening (like Topaz and Blossom). Each
+  // frameX seats the opening where the owner tuned Blossom's, measured from the frame BODY (runs of 12+ opaque px), so the
+  // wisps and vines that cross Spirit Carving's, Mystic Obsidian's and Porcelain's openings do not skew it. Spirit
+  // Carving's opening sits 5px left of centre, hence its larger nudge and stretch.
+  plate_spirit_carving: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.014, interiorSx: 1.076, interiorSy: 1.021, interiorY: -0.0047 },
+  plate_iridescent: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.006, interiorSx: 1.051, interiorSy: 1.031, interiorY: 0 },
+  // Owner 2026-10-17 (second round): Mystic Obsidian moves onto the new Mystic interior (matched by name); dark, so no
+  // darkening. That interior is shorter for its width than Brown, so the fit stretches it taller and lowers it.
+  plate_mystic_obsidian: { ...AQUARIUM_ROCKS, layered: true, interior: 'mystic', frameX: 0.004, interiorSx: 1.021, interiorSy: 1.154, interiorY: 0.0994, darken: false },
+  plate_porcelain: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.065, interiorSy: 1.033, interiorY: 0.0075 },
+  plate_smooth_iridescent: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.04, interiorSy: 1.038, interiorY: 0.0159 },
+  // Owner 2026-10-17, second round: interiors matched by name (Battletorn on Wartorn, Round Magic on Brown Round Magic,
+  // Silver Magic, shipped as Verdant Magic, on Silver Magic); the owner picked Mystic for Ethereal and Dark Brown for
+  // Phoenix. Battletorn and Ethereal were drawn on bigger canvases, so they were scaled onto the template first (opening
+  // matched to Galaxy's, bottom-aligned, the spill past the edge cropped, like Mooncloud). Only Round Magic's interior is
+  // light enough to keep the darkening.
+  plate_battletorn: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.006, interiorSx: 1.073, interiorSy: 1.134, interiorY: 0.1172, darken: false },
+  plate_ethereal: { ...AQUARIUM_ROCKS, layered: true, interior: 'mystic', frameX: 0.007, interiorSx: 1.021, interiorSy: 1.132, interiorY: 0.1172, darken: false },
+  plate_phoenix: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.004, interiorSx: 1.044, interiorSy: 1.012, interiorY: -0.0112, darken: false },
+  plate_round_magic: { ...AQUARIUM_ROCKS, layered: true, interior: 'roundmagic', frameX: 0.005, interiorSx: 1.018, interiorSy: 1.066, interiorY: 0.0609 },
+  plate_verdant_magic: { ...AQUARIUM_ROCKS, layered: true, interior: 'silvermagic', frameX: 0.006, interiorSx: 1.059, interiorSy: 1.089, interiorY: 0.0806, darken: false },
+  // Phoenix Plate: a shield with wings and its own painted middle, so a SINGLE-IMAGE plate (owner 2026-10-17: "Try it as
+  // one image"), fitted inside the standard plate's outline and bottom-aligned. Its middle is already dark: no darkening.
+  plate_phoenix_plate: { ...AQUARIUM_ROCKS, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

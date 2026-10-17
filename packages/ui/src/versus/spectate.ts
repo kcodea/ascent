@@ -31,8 +31,8 @@ import type { DragDecision, Zone } from '../dragDecision';
 import { NO_DRAG_DECISION } from '../dragDecision';
 import { dragStore } from '../dragStore';
 import { decodePoint } from './cursorSpace';
-import { setSpectatorHover } from './spectatorHover';
-import type { CursorSample, SpectatorAct, WireDecision, WireOdds } from './spectateTap';
+import { setSpectatorHover, watchLocalHover } from './spectatorHover';
+import type { CursorSample, SpectatorAct, WireDecision, WireOdds, WireOverlay } from './spectateTap';
 import { applySpectatorMessage, newReceiver, type CombatBeat, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 
@@ -54,6 +54,8 @@ export interface SpectateState {
   seek?: { wave: number; beat: number; n: number } | null;
   /** Each watched player's own odds for the fight they are in (`spectateTap.tapOdds`): the Summary's numbers. */
   odds?: Partial<Record<VersusSeat, WireOdds>>;
+  /** Each watched player's minimized shop overlays (`spectateTap.tapOverlay`); absent = an older player: all open. */
+  overlay?: Partial<Record<VersusSeat, WireOverlay>>;
 }
 
 export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null, seek: null }));
@@ -153,7 +155,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     last = null;
     resumeAt = null;
     rounds = allRounds;
-    useSpectate.setState({ odds: {} });
+    useSpectate.setState({ odds: {}, overlay: {} });
     void fetchKeyframes();
   }
   if (useSpectate.getState().optedOut === match.id) return;
@@ -175,7 +177,7 @@ export function liveSync(gameId: string | null): void {
     last = null;
     resumeAt = null;
     rounds = {};
-    useSpectate.setState({ seat: 'p1', optedOut: null, odds: {} });
+    useSpectate.setState({ seat: 'p1', optedOut: null, odds: {}, overlay: {} });
     void fetchKeyframes();
   }
   schedule();
@@ -199,6 +201,21 @@ export function parseWireOdds(v: unknown): WireOdds | null {
   };
 }
 
+const overlayKey = (o: WireOverlay | undefined): string => (o ? `${o.d ?? 0}${o.p ?? 0}${o.q ?? 0}${o.f ?? 0}` : '');
+/** A player's minimized overlays as they travel (`ov`), validated; null when absent or malformed. Pure. */
+export function parseWireOverlay(v: unknown): WireOverlay | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const out: WireOverlay = {};
+  for (const k of ['d', 'p', 'q', 'f'] as const) if (o[k] === 1) out[k] = 1;
+  return out;
+}
+
+/** The overlays a watched player's state minimizes (the spectator's screen applies exactly these). Pure. */
+export function overlayMinOf(o: WireOverlay): { discover: boolean; power: boolean; quest: boolean; forge: boolean } {
+  return { discover: o.d === 1, power: o.p === 1, quest: o.q === 1, forge: o.f === 1 };
+}
+
 /** A broadcast frame from a player. */
 export function receiveSpectate(payload: unknown): void {
   const msg = payload as SpectatorMessage;
@@ -214,6 +231,9 @@ export function receiveSpectate(payload: unknown): void {
   // The player's own odds for this fight (their probe's result): the stands' Summary shows exactly these.
   const od = parseWireOdds(msg.od);
   if (od) { const cur = useSpectate.getState().odds ?? {}; if (cur[msg.seat]?.w !== od.w || cur[msg.seat]?.o.win !== od.o.win) useSpectate.setState({ odds: { ...cur, [msg.seat]: od } }); }
+  // Which shop overlays the player has minimized: the stands minimize and restore with them (R-SPECTATE-OVERLAY-01).
+  const ov = parseWireOverlay(msg.ov);
+  if (ov) { const cur = useSpectate.getState().overlay ?? {}; if (overlayKey(cur[msg.seat]) !== overlayKey(ov)) useSpectate.setState({ overlay: { ...cur, [msg.seat]: ov } }); }
   // Where the watched player's fight is (a broadcast keyframe while it plays): catch the screen up to it.
   if (msg.cb && msg.seat === useSpectate.getState().seat) syncFightBeat(msg.cb);
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
@@ -556,6 +576,7 @@ function enter(view: VersusSpectatorView): void {
   for (const k of SNAPSHOT_KEYS) snap[k] = s[k];
   snapshot = snap as typeof snapshot;
   useSpectate.setState({ active: true });
+  watchLocalHover(true); // the spectator's own rune hover (R-SPECTATE-RUNEHOVER-01)
   unsubDone = useGame.subscribe((st, prev) => { if (st.combatReplayDone !== prev.combatReplayDone) onReplayDone(st.combatReplayDone); });
   useGame.setState({ replaying: true, showTitle: false, heroChoices: null, inspect: null, heroArmed: false, equipArmed: false });
 }
@@ -675,6 +696,7 @@ export function stopSpectating(): void {
   leaving = 'no';
   if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
   useSpectate.setState({ active: false });
+  watchLocalHover(false);
   // Back where the spectator came from: the Versus room (its title view), whatever the snapshot says, or the live
   // games list for a ranked lobby game (`Io.returnTo`).
   if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus', ...(io?.returnTo?.() ?? {}) });
@@ -686,7 +708,7 @@ export function resetSpectate(): void {
   matchId = null;
   rx = { p1: newReceiver(), p2: newReceiver() };
   rounds = {};
-  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {} });
+  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {} });
 }
 
 /**

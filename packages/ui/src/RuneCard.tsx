@@ -134,7 +134,8 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       data-tribe={accent}
       data-spec={`runecard:${rune.id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
       style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
-      onClick={affordable ? (e) => { onBuy(e.currentTarget); } : undefined}
+      // A viewer (a replay, or a spectator hovering the watched player's forge, R-SPECTATE-RUNEHOVER-01) reads, never picks.
+      onClick={affordable ? (e) => { if (useGame.getState().replaying) return; onBuy(e.currentTarget); } : undefined}
       disabled={!affordable}
       data-pick-sfx={pickSfx || undefined}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}

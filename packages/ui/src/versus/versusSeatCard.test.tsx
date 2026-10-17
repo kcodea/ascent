@@ -213,9 +213,9 @@ describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', 
       expect(fan[0]!.querySelector('.badge.atk .value')?.textContent).toBe('12');
       expect(backend.rpcCalls).toBe(1); // seats + spectators in one read, no N+1
       expect(backend.lastArgs).toEqual({ p_users: ['me', 's1', 's2', 's3'] });
-      // An open seat is the dimmed placeholder card with Take seat.
+      // An open seat is the dimmed placeholder card with Join (R-VERSUS-DRAG-SEAT-01: Join / Spectate are the buttons).
       expect(document.querySelector('.vspcard-p2 .vspcard-empty .card.plated')).not.toBeNull();
-      expect(document.querySelector('.vspcard-p2 .vstake')?.textContent).toBe('Take seat');
+      expect(document.querySelector('.vspcard-p2 .vstake')?.textContent).toBe('Join');
     } finally { ui.unmount(); useVersus.setState({ room: null, screen: 'browser' } as never); }
   });
 

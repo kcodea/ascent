@@ -874,7 +874,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   standard plate (and their favourite hero without its skin); their picture, title and record always show. HOST is
   on the host's pill under the card. Counts come from `versus_records` (supabase/migrations/2026-10-16-versus-records.sql).
   Spectators are the same cards, small, fanned like a hand along the bottom; hovering one lifts it to full size
-  (R-VERSUS-STANDS-01). An open seat is the card dimmed, with Take seat.
+  (R-VERSUS-STANDS-01). An open seat is the card dimmed, with Join.
+- **Changing seats by drag** (owner 2026-10-17, R-VERSUS-DRAG-SEAT-01). While the room is Open you can drag your OWN
+  card (nobody else's) like a shop card: from the spectator hand onto an empty player seat to take it, and from your
+  seat UP into the shop's sell zone (or down onto the hand) to go back to the stands. A taken seat refuses the card
+  (the deny buzz, it springs back). The buttons do the same: **Join** on an empty seat, **Spectate** under the room.
+  Both go through the same seat request; the move shows at once and goes back with a short message if the server
+  refuses (someone took the seat first). Every client sees a member's card move between the hand and the seats.
+  Moving to the stands keeps the host the host. The spectator hand rests low, like the in-game hand.
 - **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
   the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
   the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same

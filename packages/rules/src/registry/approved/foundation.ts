@@ -6333,4 +6333,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Four spectators: four small cards fanned under the Spectators label; hovering Claudebot2 lifts its card to full size showing 57 / 61 and Lantern Bearer.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatCard.test.tsx', 'packages/ui/src/versus/versusRoomGeometry.test.ts'], lastVerifiedAt: '2026-10-16' },
   },
+  {
+    id: 'R-VERSUS-DRAG-SEAT-01',
+    title: 'In an open Versus room you drag your own card to a seat to take it, and up to the stands to spectate',
+    statement:
+      'While a Versus room is open, your OWN room card drags like a shop card (the shop\'s floating drag card, grab-shrink, '
+      + 'closed-gauntlet cursor, play glow and sounds); no one else\'s card does, and nothing drags in a sealed or running '
+      + 'room. Dropping it on an EMPTY player seat takes that seat (the landing sound); a seat someone holds refuses it '
+      + '(the deny sound, the card springs back like an invalid shop drop); empty air just springs it back. A seated card '
+      + 'dragged UP into the shop\'s sell zone (or down onto the spectator hand) goes back to the stands (the sell sound); '
+      + 'onto the other empty seat it switches seats. The Join button (on an empty seat) and Spectate button stay as the '
+      + 'keyboard and touch path. Every path is the existing versus_take_seat request, applied OPTIMISTICALLY: the card '
+      + 'moves the instant you drop or press, and if the server refuses (someone took the seat first) it moves back and '
+      + 'the reason shows for a few seconds. Every client animates a member\'s move between the hand and the seats '
+      + '(transform / opacity only, one rect read per seat change). Moving to the stands keeps the host the host (the '
+      + 'existing rule). The spectator hand rests low with its plates running off the bottom, like the in-game hand.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin, 2026-10-17', quote: "for spectator in versus etc, the player should drag their card to a slot to take it, and drag their card from a slot up to 'sell it' to go to the spectate. optionally, have a join button and spectate button, but make it smooth and lower the spectator hand so it looks more like the in game location." },
+      { kind: 'code', ref: 'packages/ui/src/versus/seatDrag.ts; packages/ui/src/versus/useSeatDrag.tsx; packages/ui/src/versus/versusStore.ts (takeSeat, seatMove); packages/ui/src/versus/VersusRoom.tsx; packages/ui/src/versus/versus.css (.vsbench, THE SEAT DRAG)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-17 (feat/versus-drag-seats). Before, seats changed only through the Take seat and Move to the stands buttons, which waited on the server.',
+    example: 'Claudebot2 drags their card from the hand onto the empty blue seat: it lands at once and every client sees it fly up from the hand. Claudebot1 tries the same seat a moment later: the card springs back with the deny buzz.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/seatDrag.test.tsx', 'packages/ui/src/versus/versusSeatCard.test.tsx'], lastVerifiedAt: '2026-10-17' },
+  },
 ];

@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RunCosmeticSnapshot } from '@game/progression';
+import type { MatchDetails } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
@@ -12,7 +13,7 @@ import { useSocial } from './socialCache';
 import { GameSplit, type GameListItem } from './GameSplit';
 import { StoredTeam } from './StoredTeam';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
-import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
+import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchRecentMatch, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import { LbHeroFrame, LbRunes } from './LadderBits';
 import { GameCard, bandOf, placeText } from './GameCard';
@@ -155,7 +156,18 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
   const when = playedAtText(r.createdAt);
   const length = runLengthText(r.durationMs, r.lengthOverCap);
   const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
-  const match = 'match' in r ? r.match : undefined;
+  // A practice row carries its lobby; a ranked row's standings live on the player's career row, loaded on demand when
+  // the game opens (fetchRecentMatch: two one-row reads, cached). Until they land, or when none were recorded, the
+  // card simply has no lobby section.
+  const [fetched, setFetched] = useState<MatchDetails | null>(null);
+  const practiceRow = 'match' in r;
+  useEffect(() => {
+    if (practiceRow) return undefined;
+    let live = true;
+    void fetchRecentMatch(r.rowId, r.userId).then((m) => { if (live) setFetched(m); });
+    return () => { live = false; };
+  }, [practiceRow, r.rowId, r.userId]);
+  const match = 'match' in r ? r.match : fetched;
   // THE LOBBY PICKER: shown when this game recorded its lobby (practice games today; ranked once its standings load).
   const lp = useLobbyParts(match, mine);
   return (

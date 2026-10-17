@@ -1034,6 +1034,41 @@ export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2
   }
 }
 
+// ── Recent Games lobby standings (owner 2026-10-16: "yes" to loading ranked standings) ─────────────────────────
+// A ranked Recent Games row comes from `run_telemetry`, which carries no MatchDetails; the standings ride the same
+// run's CAREER row (`run_history.entry.match`). The two are joined by the run's SEED (see Career Watch below):
+// the telemetry row's `replay->>seed`, then the history row of that player with that `entry->>seed`. Both reads are
+// ONE row (`limit(1)`, R-NET-01) and project only what is needed (the seed; the match). `run_history` reads are
+// already public to every signed-in session (schema.sql 2026-08-04 "read run_history": a Career is public), so no
+// new policy or RPC is involved. Cached per telemetry row for the session, misses included (a row with no record
+// asks once). Best-effort + time-boxed; null = no lobby section.
+const recentMatchCache = new Map<number, Promise<MatchDetails | null>>();
+export function fetchRecentMatch(rowId: number | null | undefined, userId: string | null | undefined): Promise<MatchDetails | null> {
+  if (rowId == null || !userId) return Promise.resolve(null);
+  const hit = recentMatchCache.get(rowId);
+  if (hit) return hit;
+  const p = (async (): Promise<MatchDetails | null> => {
+    const c = client();
+    if (!c) return null;
+    try {
+      const timeout = <T,>(): Promise<T | null> => new Promise((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+      const tel = await Promise.race([Promise.resolve(c.from('run_telemetry').select('seed:replay->>seed').eq('id', rowId).limit(1)), timeout<never>()]);
+      const seed = (tel?.data?.[0] as { seed?: unknown } | undefined)?.seed;
+      if (tel?.error || seed == null || seed === '') return null;
+      const hist = await Promise.race([
+        Promise.resolve(c.from('run_history').select('match:entry->match').eq('user_id', userId).eq('entry->>seed', String(seed)).order('id', { ascending: false }).limit(1)),
+        timeout<never>(),
+      ]);
+      if (!hist || hist.error || !hist.data?.length) return null;
+      return parseMatchDetails((hist.data[0] as { match?: unknown }).match) ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  recentMatchCache.set(rowId, p);
+  return p;
+}
+
 // ── Career Watch (owner ask 2026-08-19): map a match-history row to ITS uploaded replay by SEED ────────────
 // run_history and run_telemetry are separate rows written from the same run-end flow with no shared id — but
 // both carry the run's SEED (`RunHistoryEntry.seed`; `replay.seed` at the top of the telemetry jsonb, echoed

@@ -26,6 +26,7 @@ const fetchReplayPayload = vi.fn<(id: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(id: string) => Promise<PlayerRow | null>>();
 const fetchPracticeGames = vi.fn<() => Promise<PracticeGameRow[]>>();
 const fetchPracticeReplay = vi.fn<(id: number) => Promise<unknown>>();
+const fetchRecentMatch = vi.fn<(rowId: number | null | undefined, userId: string | null | undefined) => Promise<unknown>>();
 const startReplay = vi.fn();
 let remote = true;
 
@@ -42,6 +43,7 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchPlayerById: (id: string) => fetchPlayerById(id),
   fetchPracticeGames: () => fetchPracticeGames(),
   fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
+  fetchRecentMatch: (rowId: number | null | undefined, userId: string | null | undefined) => fetchRecentMatch(rowId, userId),
 }));
 // The LOBBY STRENGTH readout is hidden behind one switch (owner 2026-09-30); a getter-backed mock lets a test
 // flip it on and prove the readout still renders when the switch comes back.
@@ -133,6 +135,7 @@ beforeEach(() => {
   fetchReplayPayload.mockReset().mockResolvedValue({ version: 2, seed: 1, frames: [{}] });
   fetchPlayerById.mockReset().mockResolvedValue(null);
   fetchPracticeGames.mockReset().mockResolvedValue(PRACTICE);
+  fetchRecentMatch.mockReset().mockResolvedValue(null);
   fetchPracticeReplay.mockReset().mockResolvedValue({ version: 2, seed: 9, frames: [{}] });
   startReplay.mockReset();
   // jsdom has no scrollIntoView — the own-row scroll must call it exactly once when the list lands.
@@ -523,6 +526,20 @@ describe('RecentGames — layout B: the game list + the selected game in full (o
     pick(2);
     expect(text('.gs-detail .lb-row-record')).toEqual(['3 wins']); // no record → the scalar wins column
     expect(text('.gs-detail .lb-fact-v')).toEqual(['—']);
+  });
+
+  it('a ranked game loads its lobby on demand (the player\u2019s career row, by seed); none recorded = no lobby section at all', async () => {
+    expect(fetchRecentMatch).toHaveBeenCalledWith(91, 'u-top');
+    expect(ui.container.querySelector('.lp-tilewrap')).toBeNull(); // nothing came back: no section, no gap
+    const seats = Array.from({ length: 8 }, (_, j) => ({ id: `s${j}`, name: j === 0 ? 'Nadja' : `P${j}`, heroId: 'brackus', ...(j === 0 ? { self: true } : {}), placement: j + 1, health: 0, armor: 0, board: { round: 9, tier: 4, minions: board(3).minions } }));
+    fetchRecentMatch.mockResolvedValue({ v: 1, endRound: 12, placement: 1, eliminated: false, seats });
+    ui.unmount();
+    clearSocialCache();
+    ui = mount(<RecentGames />);
+    await flush();
+    await flush();
+    expect(ui.container.querySelectorAll('.gs-detail .lp-tile')).toHaveLength(8);
+    expect(ui.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
   });
 
   it('Up / Down on the list move the selection', () => {

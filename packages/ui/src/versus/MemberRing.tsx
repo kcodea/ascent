@@ -11,17 +11,20 @@ import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from '../portrait
 import { heroPortrait, opponentSkins } from '../skins/skins';
 import { useGame } from '../store';
 
-export function MemberRing({ name, profile, heroId, className = '' }: {
+export function MemberRing({ name, profile, heroId, className = '', self = false }: {
   name: string;
   /** The member's room profile (`avatar`, `cosmetics`). */
   profile: Record<string, unknown> | null | undefined;
   /** Show this hero (in their skin) instead of their avatar. */
   heroId?: string | null;
   className?: string;
+  /** It is MY face (a spectator's own chip): my live frame, never hidden by "Show opponent cosmetics". */
+  self?: boolean;
 }): JSX.Element {
   const showOpp = useGame((s) => s.showOpponentSkins);
-  const cos: RunCosmeticSnapshot | null = opponentSkins(showOpp, parseCosmeticSnapshot(profile?.cosmetics) ?? null);
-  const frame = usePortraitFrame('opp', frameIdOf(cos));
+  const parsed = parseCosmeticSnapshot(profile?.cosmetics) ?? null;
+  const cos: RunCosmeticSnapshot | null = self ? parsed : opponentSkins(showOpp, parsed);
+  const frame = usePortraitFrame(self ? 'self' : 'opp', self ? undefined : frameIdOf(cos));
   const art = heroId ? heroPortrait(heroId, cos) : avatarSrc(typeof profile?.avatar === 'string' ? profile.avatar : null);
   return (
     <span className={`portring vsring ${className}${pfClass(frame)}`} style={frame?.hostStyle} aria-hidden="true">

@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { createPortal } from 'react-dom';
-import { getHero, type MatchDetails, type MatchSeat } from '@game/sim';
+import { getHero, type MatchDetails, type MatchSeat, type RuneLiveState } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from '../Icon';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from '../portraitFrame/PortraitFrame';
@@ -140,13 +140,13 @@ const SeatRow = memo(function SeatRow({ seat, place, status, selected, killer, h
 /** The selected seat's rune choices at that moment (owner 2026-09-28: "runes are added to the view so you can see
  *  their rune choices"), in the Career banner's emblem + name style (hover = the rune's text). Unknown ids (a rune
  *  this build does not ship) are skipped; none (or an older record) reads "No runes". */
-export function SeatRunes({ runes }: { runes: readonly string[] | undefined }) {
+export function SeatRunes({ runes, live }: { runes: readonly string[] | undefined; live?: RuneLiveState }) {
   const known = (runes ?? []).filter((id) => RUNE_INDEX[id]);
   return (
     <div className="mds-runes">
       <span className="cv2-row-label">Runes</span>
       {known.length > 0
-        ? <div className="cv2-runes" aria-label="Runes this player owned">{known.map((id, i) => <RuneEmblem runeId={id} key={`${id}#${i}`} />)}</div>
+        ? <div className="cv2-runes" aria-label="Runes this player owned">{known.map((id, i) => <RuneEmblem runeId={id} live={live} key={`${id}#${i}`} />)}</div>
         : <span className="mds-norunes">No runes</span>}
     </div>
   );
@@ -246,7 +246,7 @@ export function MatchScoreboard({ details, own }: { details: MatchDetails; own: 
             </span>
             {selected.board && <span className="mds-board-tier">Tier {selected.board.tier}</span>}
             <span className="mds-board-caption">{boardCaption(selected, details)}</span>
-            <SeatRunes runes={selected.board?.runes} />
+            <SeatRunes runes={selected.board?.runes} live={selected.board?.runeLive} />
           </header>
           <div className="mds-team">
             {selected.board && selected.board.minions.length > 0

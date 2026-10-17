@@ -18,6 +18,8 @@ import { heroPortrait, useRunSkins } from './skins/skins';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
+import { liveRuneText } from './runeText';
+import { usePlayerRuneLive } from './useRuneLive';
 import { gatherRunBuffs } from './runBuffs';
 import { questObjectiveText, questProgressText, questRewardText, questRewardLiveText, questRewardLiveOf } from './questText';
 import { runeTally } from './runeTally';
@@ -183,6 +185,8 @@ export function StatusBar() {
   const combatRallyFires = useGame((s) => s.combatQuestDelta?.rallyFires);
   // DARAH × WAR, LIVE (R-REALTIME-01): Swap charges its Pummel gained so far this fight. Undefined outside a fight.
   const combatSwapCharges = useGame((s) => s.combatQuestDelta?.swapCharges);
+  // The hero-slot rune (Runesmith / Guardian forge) prints its CURRENT value like a rack rune (R-RUNE-LIVE-TEXT-01).
+  const runeLive = usePlayerRuneLive();
   const heroPowerLive = useMemo(() => ({ attacks: combatAttacks, summons: combatSummons, friendlyDamage, clearanceStacks, friendlyDeaths: combatFriendlyDeaths, freeRefreshes: combatFreeRefreshes, rallyFires: combatRallyFires, swapCharges: combatSwapCharges }), [combatAttacks, combatSummons, friendlyDamage, clearanceStacks, combatFriendlyDeaths, combatFreeRefreshes, combatRallyFires, combatSwapCharges]);
   // While spectating a replay, the hero panel belongs to the RECORDED player, so show their name — not the
   // local account's. Falls back to your own name for normal play (replaySession is null outside playback).
@@ -459,7 +463,7 @@ export function StatusBar() {
     ? (grantQuest?.completed
       ? questRewardText(grantQuestDef.reward, { completed: true })
       : questObjectiveText(grantQuestDef.objective))
-    : grantRuneDef ? grantRuneDef.text
+    : grantRuneDef ? liveRuneText(grantRuneDef.id, grantRuneDef.text, runeLive)
     : heroPowerText(run, 0, heroPowerLive);
   // …and the REWARD, on its own line beneath. The objective alone says what to do but not what you get — the
   // half that decides whether the quest is worth steering the run toward (owner ask 2026-08-22). Only while

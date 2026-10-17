@@ -11,6 +11,7 @@ import { HEROES, playableHeroes } from '../heroes';
 import { roundLossCap } from '../reducer';
 import { createRun, type RunState, type PracticeConfig } from '../state';
 import { normalizePracticeTribes } from '../practiceTribes';
+import { runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
 import { MAX_SEATS_PER_PLAYER, MIN_RUN_WAVES, playerRunByKey, playerRunsFrom, runOwnerOf, snapshotSeat, type PlayerRun } from './snapshotSeats';
@@ -123,6 +124,9 @@ export interface SeatIntel {
   quests?: string[];
   /** OWNED rune ids on that board's run. Same contract as `quests`. */
   runes?: string[];
+  /** The grown value of its self-improving runes at capture (Wild Hunt, Packcraft, Beastial Swarm), so the scout
+   *  card's rune text prints the CURRENT number, never the base (R-RUNE-LIVE-TEXT-01). Omitted when none. */
+  runeLive?: RuneLiveState;
 }
 
 export interface RunLobby {
@@ -768,11 +772,13 @@ export function boardIntel(board: PreparedBoard, round: number): SeatIntel {
   // modifiers in combat) — surfacing them costs nothing but the passthrough.
   const quests = board.snapshot?.quests ?? [];
   const runes = board.snapshot?.runes ?? [];
+  const runeLive = runes.length ? runeLiveStateOfSnapshot(board.snapshot) : {};
   return {
     tier: board.tier, triples: board.snapshot?.triples ?? 0, topTribe, round,
     ...(topTribe ? { topTribeCount: best } : {}),
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
+    ...(Object.keys(runeLive).length ? { runeLive } : {}),
   };
 }
 

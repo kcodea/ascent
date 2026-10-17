@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import type { MatchDetails } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { getHero, strengthText } from '@game/sim';
+import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP } from './matchDetails/matchDetailsText';
 import { Icon } from './Icon';
@@ -189,7 +189,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
       board={lp.seat ? <SeatBoard seat={lp.seat} own={mine} /> : r.board && r.board.minions.length > 0
         ? <StoredTeam minions={r.board.minions} skins={skins} />
         : <div className="lb-team-none">{r.hasReplay ? 'No board recorded' : 'No board recorded for this game'}</div>}
-      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : <LbRunes runes={r.runes} empty="No runes taken" />}
+      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : <LbRunes runes={r.runes} live={runeLiveStateOfSnapshot(r.board)} empty="No runes taken" />}
       actions={<>
         {(!practice || watchable) && (
           <button

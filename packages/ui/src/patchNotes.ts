@@ -58,6 +58,36 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
+      { category: 'Systems', text: 'Versus: the clock now plays its sounds and the 20 second glyph charges on the board, just like a lobby game. Hero Select ticks too. Both stop during a pause and pick up where they left off.' },
+      {
+        category: 'Systems',
+        text: 'Spectators can emote to the player, and the spectating screen has a new layout.',
+        details: [
+          'While spectating, click your own portrait at the top left to open your emotes. They use the same cooldown as in a game.',
+          "The player sees your emote pop from your portrait in their Spectating list at the top left. Other spectators see it too.",
+          'Right-click a spectator at the top left to mute their emotes. Turn all spectator emotes off in the Esc menu.',
+          'The top left now shows you as a spectator. The player you watch moves to the bottom right. In Versus you pick which player to watch there.',
+          'Spectators can flip the lobby rail, read their own guides and pin a seat card.',
+          'Spectators can open the fight Summary to see the same win and loss odds as the player.',
+          'Fixed the cursor changing when you hover the portrait or rank while spectating.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Versus: emotes now show in the shop too, not only in combat.',
+        details: [
+          "Your opponent's emotes pop beside their portrait on the right during the shop, as they do in combat.",
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Runes that improve themselves now show their current value.',
+        details: [
+          'Rune of the Wild Hunt shows the Attack it gives right now, and the number goes up during combat each time a Beast attacks.',
+          'The same fix covers Packcraft, Beastial Swarm, the Seasoned Ledger, Compounding Wages, the Wheel and the Baller.',
+          'You see the current value in the Shop, in combat, in the Runeforge, on an opponent, when spectating, and in match details, Career and Recent Games.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'Seven more Legendary Card Plates to find in crates.',

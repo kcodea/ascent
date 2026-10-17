@@ -933,6 +933,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   shop and combat: each spectator's portrait in their frame, their name (or "Spectator") and "Spectating", up to
   three, then "+N" (hover it for the names). It stays while they watch and goes when they leave. The same applies to
   a ranked game watched from Live Games.
+- **Spectators can emote** (owner 2026-10-16; R-SPECTATE-EMOTE-01). A spectator opens their own emotes from their
+  plate at the top left of the watch screen: their equipped emotes, the same 20 s cooldown. The player sees the emote
+  pop from that spectator's plate in their "Spectating" list; other spectators of the game see it too. A player can
+  right-click a spectator to mute them, or turn "Spectator emotes" off in the Esc menu (on by default).
+- **The spectator's screen** (owner 2026-10-16; R-SPECTATE-HUD-01, R-SPECTATE-LOCAL-01). Top left: the spectator
+  themselves ("Spectating"), the other spectators, Leave. Bottom right: who is being watched (Versus: the two players
+  to switch between; a live game: the player's name and rank). The spectator can use their own lobby rail (flip to
+  Guides, read their guides, pin a seat card) and open the fight Summary with the player's own odds. None of it
+  reaches the player.
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 

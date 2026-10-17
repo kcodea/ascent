@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { peekSocial, putSocial, useSocial } from './socialCache';
 import { LazyRow, LazyRowsProvider } from './lazyRows';
-import { getHero, rankLabel, type BoardSnapshot } from '@game/sim';
+import { getHero, rankLabel, runeLiveStateOfSnapshot, type BoardSnapshot } from '@game/sim';
 import { Icon } from './Icon';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
@@ -141,7 +141,7 @@ export function Leaderboard() {
                     <LbLabel>Final team</LbLabel>
                     <LbTeam board={board} empty="No warband stored for this run" />
                     <LbLabel>Runes</LbLabel>
-                    <LbRunes runes={r.board?.runes ?? []} empty="No runes taken" />
+                    <LbRunes runes={r.board?.runes ?? []} live={runeLiveStateOfSnapshot(r.board)} empty="No runes taken" />
                   </div>
                   {/* The record block: everything the run has fought, then its own game. */}
                   <div className="lb-row-outcome">

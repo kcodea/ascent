@@ -251,7 +251,7 @@ import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 import { noteSpectatorBeat, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
-import { notePlayerBeat } from './versus/spectateTap';
+import { notePlayerBeat, tapOdds } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
 
@@ -1242,6 +1242,7 @@ export function Recruit() {
   const setCombatEnemyDeaths = useGame((s) => s.setCombatEnemyDeaths);
   const setCombatQuestDelta = useGame((s) => s.setCombatQuestDelta);
   const setCombatTriggeredQuests = useGame((s) => s.setCombatTriggeredQuests);
+  const setCombatRuneProgress = useGame((s) => s.setCombatRuneProgress);
   const setCombatCompletedQuests = useGame((s) => s.setCombatCompletedQuests);
   const setCombatBuffs = useGame((s) => s.setCombatBuffs);
   // Tutorial always plays combat at 1× — a first-time player should watch each effect at its authored pace,
@@ -2470,11 +2471,18 @@ export function Recruit() {
   // combat is mounted. Keyed on the lastCombat OBJECT (a new fight is a new object), and it also covers a
   // resumed mid-combat run (oddsInput is serialized with the save). Legacy saves with baked odds short-cut.
   const [combatOdds, setCombatOdds] = useState<CombatOdds | null>(null);
+  // A SPECTATOR (owner 2026-10-16: "allow spectators to view the combat summary in combat so they can see the chance to
+  // win/lose etc."; R-SPECTATE-LOCAL-01): the odds are the PLAYER's own, computed once on their client and carried on the
+  // spectate channel (`spectateTap.tapOdds`), so the numbers are the same and the watch screen runs no probe at all (its
+  // synthetic run has no seed to run it with, and it must never hitch the replay).
+  const spectatorOn = useSpectate((s) => s.active);
+  const watchedOdds = useSpectate((s) => (s.active ? s.odds?.[s.seat] ?? null : null));
   // The run's own loss cap (the Gauntlet has its own table), so the odds cap each sim as the real fight would.
   const oddsLossCap = runLossCap(run);
   useEffect(() => {
     const lc = run.lastCombat;
     setCombatOdds(lc?.odds ?? null); // legacy pre-deferral saves carry odds inline
+    if (spectatorOn) return; // the stands show the player's own odds (above), never a probe of their own
     if (!lc?.oddsInput || lc.odds) return;
     const input = lc.oddsInput;
     let cancelled = false;
@@ -2506,6 +2514,7 @@ export function Recruit() {
         setCombatOdds(odds);
         // REPLAY V2 (2026-09-19): the number the player is about to see is the number the replay prints.
         useGame.getState().stampReplayOdds(odds);
+        tapOdds(run.wave, odds); // the stands' Summary shows these exact numbers (a no-op with nobody watching)
         return;
       }
       schedule();
@@ -2521,7 +2530,8 @@ export function Recruit() {
       if (idleId && typeof cancelIdleCallback === 'function') cancelIdleCallback(idleId);
       if (timerId) window.clearTimeout(timerId);
     };
-  }, [run.lastCombat, run.seed, run.wave, oddsLossCap]);
+  }, [run.lastCombat, run.seed, run.wave, oddsLossCap, spectatorOn]);
+  const shownOdds = spectatorOn ? (watchedOdds && watchedOdds.w === run.wave ? watchedOdds.o : null) : combatOdds;
   const [discoverMin, setDiscoverMin] = useState(false); // B2: the Discover overlay is minimized (inspect the board)
   const [powerMin, setPowerMin] = useState(false); // the hero-power Discover's Peek (same toggle, same contract)
   const [questMin, setQuestMin] = useState(false); // the Quest overlay is minimized (inspect the shop rolled behind it)
@@ -3023,6 +3033,12 @@ export function Recruit() {
   useEffect(() => {
     setCombatTriggeredQuests(inCombat && !run.combatSettled ? replay.triggeredQuests : {});
   }, [inCombat, run.combatSettled, replay.triggeredQuests, setCombatTriggeredQuests]);
+  // Each side's rune progress (R-RUNE-LIVE-TEXT-01), so self-improving rune text ticks mid-fight. The player's clears at
+  // settle, which writes the fight's growth into the run (both at once would double count). The foe's stays through
+  // the settled end screen: an opponent has no run to carry its growth back into.
+  useEffect(() => {
+    setCombatRuneProgress(inCombat && !run.combatSettled ? replay.playerRuneProgress : null, inCombat ? replay.enemyRuneProgress : null);
+  }, [inCombat, run.combatSettled, replay.playerRuneProgress, replay.enemyRuneProgress, setCombatRuneProgress]);
   // Quests that COMPLETE mid-replay — surface them to QuestBadges so their node appears + lights up live (before
   // the quest formally settles as completed). Empty out of combat.
   useEffect(() => {
@@ -8019,7 +8035,7 @@ export function Recruit() {
         inCombat && replay.done ? ` done ${replay.result}` : ''
       }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
         skipFade === 'out' ? ' combatfrozen' : ''
-      }${viewing ? ' viewing' : ''}`}
+      }${viewing ? ' viewing' : ''}${spectatorOn ? ' spectating' : ''}`}
       onPointerDown={onBoardPointerDown}
     >
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
@@ -8353,10 +8369,10 @@ export function Recruit() {
 
       <PerfProfiler id="render:recruit:overlays">
       <CombatLogOverlay
-        showLog={showLog} result={replay.result} combatOdds={combatOdds} lastCombat={run.lastCombat}
+        showLog={showLog} result={replay.result} combatOdds={shownOdds} lastCombat={run.lastCombat}
         lobby={run.lobby} board={run.board} wave={run.wave} mode={run.mode} gauntletStage={run.gauntletStage}
         procs={replay.procs} fullLog={replay.fullLog}
-        onWatchReplay={run.combatSettled ? watchReplay : undefined} onClose={closeLog}
+        onWatchReplay={run.combatSettled && !spectatorOn ? watchReplay : undefined} onClose={closeLog}
       />
 
       <ChooseOneOverlay overlaysHeld={overlaysHeld} run={run} spellBonus={spellBonus} spellBonusH={spellBonusH} dispatch={dispatch} captureCoalesce={captureCoalesce} />

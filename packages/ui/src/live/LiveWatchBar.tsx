@@ -1,15 +1,14 @@
 /**
- * LIVE GAMES: the watch screen's chrome (2026-10-15). The Versus spectator bar's look (`.vsspec`) for ONE player: their
- * portrait ring in their frame and skin, name and rank, the live cursor, and Leave. While waiting for the first frame
+ * LIVE GAMES: the watch screen's chrome (2026-10-15; re-laid out 2026-10-16, R-SPECTATE-HUD-01). The Versus spectator
+ * HUD for ONE player: me as a spectator top left (my plate and emotes, the stands, Leave), the watched player's name
+ * and rank compact bottom right, the live cursor. While waiting for the first frame
  * a short "Joining" panel; when the game ends, their placement in the end screen's numeral, then back to the list.
  * All existing pieces: `MemberRing`, the name pill, `RankCrest`, `.vsplate`, `.vspanel`, `.endplace-num`.
  */
-import { rankLabel } from '@game/sim';
 import { sfx } from '../sfx';
-import { RankCrest } from '../rank/RankBar';
 import { placementText } from '../rank/rankFormat';
-import { MemberRing } from '../versus/MemberRing';
 import { SpectatorCursor } from '../versus/SpectatorCursor';
+import { SpectatorSelf, WatchedPanel } from '../versus/SpectatorHud';
 import { useSpectate } from '../versus/spectate';
 import { leaveLiveGame, useLiveWatch } from './liveWatch';
 import '../versus/versus.css';
@@ -23,19 +22,9 @@ export function LiveWatchBar(): JSX.Element | null {
   return (
     <>
       <SpectatorCursor />
-      <div className="vsspec lvbar" role="group" aria-label={`Watching ${game.display_name}`}>
-        <span className="vsspec-label">Watching</span>
-        <div className="vsspec-seats">
-          <span className="vsspec-seat on">
-            <MemberRing name={game.display_name} heroId={game.hero_id} profile={{ cosmetics: game.cosmetics }} className="vsspec-ring" />
-            <span className="vsspec-info">
-              <span className="vsspec-name hudpill-name">{game.display_name}</span>
-              <span className="vsspec-hp hudpill-hp"><RankCrest divisionIndex={game.division_index} size="mini" />{rankLabel({ divisionIndex: game.division_index, points: game.rank_points })}</span>
-            </span>
-          </span>
-        </div>
-        <button type="button" className="vsplate vsspec-leave" onClick={() => { sfx.pulse(); leaveLiveGame(true); }}>Leave</button>
-      </div>
+      {/* Me, as a spectator, top left; the one player I watch, compact, bottom right (R-SPECTATE-HUD-01). */}
+      <SpectatorSelf onLeave={leaveToList} />
+      <WatchedPanel single={{ name: game.display_name, divisionIndex: game.division_index, rankPoints: game.rank_points }} />
       {ended && (
         <div className="vsveil lvend" role="dialog" aria-label="The game has ended">
           <div className="vspanel">
@@ -47,6 +36,8 @@ export function LiveWatchBar(): JSX.Element | null {
     </>
   );
 }
+
+const leaveToList = (): void => leaveLiveGame(true);
 
 /** Waiting for the watched player's first frame (the list is closed, the screen not open yet). */
 export function LiveJoining(): JSX.Element | null {

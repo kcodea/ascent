@@ -47,7 +47,7 @@ afterEach(() => {
   setEmoteFoe(null);
   setEmoteTransport(null);
   act(() => { useGame.setState({ capturedBoards: [], combatStaged: false }); });
-  document.body.querySelectorAll('.statusbar, .lobbyseat, .combatopp').forEach((n) => n.remove());
+  document.body.querySelectorAll('.statusbar, .lobbyseat, .combatopp, .vsfoe-face').forEach((n) => n.remove());
 });
 
 const lobbyRun = (phase: RunState['phase'] = 'recruit', mode: RunState['mode'] = 'lobby'): RunState => ({ ...createLobbyRun(4242, 'warden'), phase, mode });
@@ -227,6 +227,23 @@ describe('the bubble sits by its speaker', () => {
     setEmoteFoe('s3');
     expect(showEmoteBubble('s3', A)).toBe(true);
     expect(showEmoteBubble('s4', A)).toBe(false);
+  });
+
+  it('VERSUS shop (no rail): the opponent emote opens beside their block portrait, mirrored (R-EMOTE-VERSUS-SHOP-01)', () => {
+    // The Versus shop draws the opponent's block (VersusFoe) where the rail would stand; there is no `.lobbyseat` row.
+    place('<div class="vsfoe-face" data-seat="s1"><div class="combatopp-portrait vsfoe-disc"></div></div>', '.vsfoe-face[data-seat="s1"] .vsfoe-disc', { left: 1600, top: 380, width: 160, height: 160 });
+    expect(showEmoteBubble('s1', A)).toBe(true);
+    const el = document.body.querySelector<HTMLElement>('.emote-bubble[data-seat="s1"]')!;
+    expect(el.className).toMatch(/\bflip\b/);
+    expect(Number.parseFloat(el.style.left)).toBeLessThan(1600); // it opens to the LEFT of the face
+    // your own bubble in the same shop still rises from your portrait
+    place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 800, width: 200, height: 200 });
+    expect(showEmoteBubble('s0', B)).toBe(true);
+    // and in combat the same seat shows beside the combat foe portrait, as before
+    place('<div class="combatopp"><div class="combatopp-body"></div></div>', '.combatopp-body', { left: 1500, top: 120, width: 180, height: 180 });
+    act(() => { useGame.setState({ combatStaged: true }); });
+    setEmoteFoe('s1');
+    expect(showEmoteBubble('s1', C)).toBe(true);
   });
 
   it('an unknown emote id (a newer client\'s) shows nothing', () => {

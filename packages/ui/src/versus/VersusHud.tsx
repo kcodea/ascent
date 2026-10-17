@@ -14,6 +14,7 @@ import type { RunState } from '@game/sim';
 import { useGame } from '../store';
 import { standardTurnSeconds, turnClock } from '../turnClock';
 import { displaySeconds } from './versusClock';
+import { driveVersusClock, nextObserveMs } from './versusClockFx';
 import { lockTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, type VersusState } from './versusStore';
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
@@ -92,12 +93,21 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
       if (match?.round !== run.wave || !deadline) turnClock.set(standardTurnSeconds(run.wave));
       return undefined;
     }
+    // The clock's cues and the 20 s charge glyph ride this same deadline (R-VERSUS-TIMER-FX-01): `driveVersusClock`
+    // marks the clock running (or frozen while paused) and plays the lobby's ticks at the lobby's seconds. Observed
+    // just past each whole-second edge, so a tick lands on its second. A spectator mirrors the watched player's clock
+    // through this same hook, so it hears and sees the same; the announcer speaks to the player only.
     const end = Date.parse(deadline!);
-    const update = (): void => turnClock.set(displaySeconds(pausedAt ? end - Date.parse(pausedAt) : versusRemainingMs(deadline)));
+    const key = `${match!.id}|shop|${match!.round}`;
+    let id = 0;
+    const update = (): void => {
+      const remaining = pausedAt ? end - Date.parse(pausedAt) : (versusRemainingMs(deadline) ?? 0);
+      driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, announceWave: useGame.getState().replaying ? null : run.wave });
+      if (!pausedAt && remaining > 0) id = window.setTimeout(update, nextObserveMs(remaining));
+    };
     update();
-    const id = window.setInterval(update, 250);
-    return () => window.clearInterval(id);
-  }, [versus, live, deadline, pausedAt, run.phase, run.wave, match?.round]);
+    return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
+  }, [versus, live, deadline, pausedAt, run.phase, run.wave, match?.round, match?.id]);
   return {
     intercept: () => {
       if (!versus) return false;

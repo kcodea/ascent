@@ -3,7 +3,8 @@
  *
  * The painting supplies every prop: the BLUE frame (Player 1, left) and the RED frame (Player 2, right) with their
  * empty name banners, the VS emblem, and the SPECTATORS bench with eight empty seats. This component only places
- * live content INTO those painted shapes: each player's portrait inside their frame and their name in its banner,
+ * live content INTO those painted shapes: each seated player as a real game card in front of their frame (owner
+ * 2026-10-16, VersusPlayerCard), HOST / the seat on its ribbon,
  * the gate state under each frame, spectator portraits in the bench slots (+N past eight), and the room controls
  * on the game's Gem plate. Nothing here draws a frame, a bench or an emblem (no code-drawn props).
  *
@@ -13,18 +14,18 @@
  */
 import { useEffect, useState, type CSSProperties } from 'react';
 import { VERSUS_HEARTS, VERSUS_SPECTATOR_CAP } from '@game/sim';
-import { avatarSrc } from '../art';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import arenaArt from '../art/versus/arena.webp';
-import seatMask from '../art/versus/seat-mask.webp';
 import { displaySeconds } from './versusClock';
 import { VersusMatchStats } from './VersusMatchStats';
 import { setVersusBotDisconnected, startVersusBot, stopVersusBot, useVersusBot } from './versusBot';
 import { versusTestToolsEnabled } from './versusFlag';
 import { resumeSpectating } from './spectate';
 import { MemberRing } from './MemberRing';
+import { VersusPlayerCard } from './VersusPlayerCard';
+import { useSeatData, type SeatServerData } from './versusSeatCard';
 import { leaveRoom, myRole, setVersusStatsOpen, startGame, takeSeat, useVersus, versusRemainingMs, type VersusState } from './versusStore';
 import type { VersusMember } from './versusRemote';
 import './versus.css';
@@ -44,35 +45,34 @@ function useCountdown(iso: string | null | undefined): number {
   return s;
 }
 
-/** A member's portrait (their profile avatar), or their initial when they have none. */
-function Portrait({ m, className }: { m: VersusMember; className: string }) {
-  const src = avatarSrc(typeof m.profile?.avatar === 'string' ? m.profile.avatar : null);
-  return src
-    ? <img className={className} src={src} alt="" draggable={false} decoding="sync" />
-    : <span className={`${className} vsinitial`} aria-hidden="true">{(m.displayName.trim()[0] ?? '?').toUpperCase()}</span>;
-}
-
-function Seat({ side, m, room, match }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match'] }) {
+function Seat({ side, m, room, match, server }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; server: SeatServerData | undefined }) {
   const botStatus = useVersusBot((s) => s.status);
   const open = room.status === 'open';
   const running = room.status === 'in_game' && match && match.phase !== 'complete';
+  const isHost = !!m && m.userId === room.host_user_id;
   return (
     <>
-      <div className={`vsframe vsframe-${side}`}>
-        {m && <Portrait m={m} className="vsframe-art" />}
-        {!m && open && (
-          <span className="vsseatbtns">
-            <button className="vsplate vstake" onClick={() => { sfx.pulse(); void takeSeat(side); }}>Take seat</button>
-            {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */}
-            {versusTestToolsEnabled() && botStatus === 'off' && (
-              <button className="vsplate vstake" onClick={() => { sfx.pulse(); void startVersusBot(room.id); }}>Add bot</button>
+      {/* A seated player is a REAL card (owner 2026-10-16), standing in front of their painted frame; the frame's gem
+          and ribbon stay visible around it, so the side keeps its blue / red identity. An open seat keeps the painted
+          frame and its Take seat button. */}
+      {m
+        ? <div className={`vspcard vspcard-${side}`}><VersusPlayerCard m={m} server={server} /></div>
+        : (
+          <div className={`vsframe vsframe-${side}`}>
+            {open && (
+              <span className="vsseatbtns">
+                <button className="vsplate vstake" onClick={() => { sfx.pulse(); void takeSeat(side); }}>Take seat</button>
+                {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */}
+                {versusTestToolsEnabled() && botStatus === 'off' && (
+                  <button className="vsplate vstake" onClick={() => { sfx.pulse(); void startVersusBot(room.id); }}>Add bot</button>
+                )}
+              </span>
             )}
-          </span>
+          </div>
         )}
-      </div>
+      {/* The painted ribbon under the card: HOST on the host's seat (the name is on the card now), the seat otherwise. */}
       <div className={`vsbanner vsbanner-${side}`}>
-        <span className="vsbanner-name">{m ? m.displayName : 'Open seat'}</span>
-        {m?.userId === room.host_user_id && <span className="vshost">Host</span>}
+        <span className={`vsbanner-name${isHost ? ' vsbanner-host' : ''}`}>{!m ? 'Open seat' : isHost ? 'Host' : side === 'p1' ? 'Player 1' : 'Player 2'}</span>
       </div>
       <div className={`vsgatebox vsgatebox-${side}`}>
         {running && m && <span className="vsgatestate">{side === 'p1' ? match!.p1_hearts : match!.p2_hearts} / {VERSUS_HEARTS} hearts</span>}
@@ -90,6 +90,12 @@ export function VersusRoom() {
   const bot = useVersusBot();
   const lastMatch = useVersus((s) => s.lastMatch);
   const statsOpen = useVersus((s) => s.statsOpen);
+  // The seat cards' numbers: re-read when a player sits or leaves, and when a match ends and the room reopens. (A
+  // hook, so it runs before the no-room return.)
+  const p1 = room?.members.find((x) => x.role === 'p1') ?? null;
+  const p2 = room?.members.find((x) => x.role === 'p2') ?? null;
+  const seatIds = [p1?.userId, p2?.userId].filter((x): x is string => !!x);
+  const seatData = useSeatData(seatIds, `${seatIds.join(',')}|${room?.status === 'open' ? 'open' : 'busy'}|${room?.current_match_id ?? ''}|${lastMatch?.matchId ?? ''}`);
   if (!room) return null;
   const me = currentUserId();
   const role = myRole(room);
@@ -111,12 +117,12 @@ export function VersusRoom() {
   else if (running && match!.phase !== 'hero_select' && !isPlayer) status = `Round ${match!.round} is live.`;
 
   return (
-    <div className="vsroomstage" role="dialog" aria-label={`Versus room ${room.name}`} style={{ '--vs-seat-mask': `url(${seatMask})`, '--vs-arena': `url(${arenaArt})` } as CSSProperties}>
+    <div className="vsroomstage" role="dialog" aria-label={`Versus room ${room.name}`} style={{ '--vs-arena': `url(${arenaArt})` } as CSSProperties}>
       <div className="vsarena-ext" aria-hidden="true" />
       <div className="vsarena">
         <img className="vsarena-art" src={arenaArt} alt="" draggable={false} decoding="sync" />
-        <Seat side="p1" m={seat('p1')} room={room} match={match} />
-        <Seat side="p2" m={seat('p2')} room={room} match={match} />
+        <Seat side="p1" m={p1} room={room} match={match} server={p1 ? seatData.get(p1.userId) : undefined} />
+        <Seat side="p2" m={p2} room={room} match={match} server={p2 ? seatData.get(p2.userId) : undefined} />
 
         <div className="vscenter">
           {open && host && (

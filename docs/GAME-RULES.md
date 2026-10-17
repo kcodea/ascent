@@ -856,7 +856,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
 
 ---
 
-## Versus (real-time 1v1, owner rulings 2026-10-13; R-VERSUS-HEARTS-01, R-VERSUS-RANK-01, R-VERSUS-TIMEOUT-01, R-VERSUS-PAUSE-01, R-VERSUS-POOL-01, R-VERSUS-LOBBY-UI-01)
+## Versus (real-time 1v1, owner rulings 2026-10-13; R-VERSUS-HEARTS-01, R-VERSUS-RANK-01, R-VERSUS-TIMEOUT-01, R-VERSUS-PAUSE-01, R-VERSUS-POOL-01, R-VERSUS-LOBBY-UI-01, R-VERSUS-PLAYER-CARD-01)
 
 > Built on `feat/versus-phase0`; the mode's door on the mode picker stays behind `versusEnabled()` until the
 > Versus migration (`supabase/migrations/2026-10-13-versus.sql`) and the `versus-resolve` finalize deploy are live.
@@ -865,6 +865,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   anyone may join the stands (up to 20 spectators, always on, the host cannot turn it off). While a room is Open,
   members swap freely between an empty player seat and the stands. A room outlives its matches: when a match ends
   everyone is back in the same room. There is no separate rematch room.
+- **Player cards** (owner 2026-10-16, R-VERSUS-PLAYER-CARD-01). Each seated player shows in the room as a real game
+  card in their equipped Card Plate: their profile picture as the art (else their favourite hero, else the default
+  hero), their name on the name line, their equipped title as the card text, their total Versus **wins** as the
+  Attack and total Versus **losses** as the Health. An abandoned match counts as neither. The numbers re-read when a
+  match ends and the players are back in the room. "Show opponent cosmetics" off shows the other player's card on the
+  standard plate (and their favourite hero without its skin); their picture, title and record always show. HOST is
+  on the host's ribbon under the card. Counts come from `versus_records` (supabase/migrations/2026-10-16-versus-records.sql).
 - **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
   the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
   the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same

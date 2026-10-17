@@ -360,20 +360,20 @@ describe('the Career match card', () => {
     await flush();
   });
 
-  it('the lobby of the open game picks WHOSE board the big board shows (owner 2026-10-16): yours by default, a seat chip swaps it, Back returns', () => {
+  it('the lobby of the open game picks WHOSE board the big board shows (owner 2026-10-16): yours by default, a seat tile swaps it, Back returns', () => {
     expect(ui!.container.querySelectorAll('.cv2-lobbybtn')).toHaveLength(0);
-    const chips = [...ui!.container.querySelectorAll('.gs-detail .lp-chip')];
+    const chips = [...ui!.container.querySelectorAll('.gs-detail .lp-tile')];
     expect(chips).toHaveLength(8);
     // Real places: the record's own seat reads its finish; a seat with no final place reads "Still in".
     expect(chips.every((c) => /^(\d+(st|nd|rd|th)|Still in)$/.test(c.querySelector('.lp-chip-place')?.textContent ?? ''))).toBe(true);
-    expect(ui!.container.querySelector('.lp-chip.on')?.classList.contains('self')).toBe(true);
+    expect(ui!.container.querySelector('.lp-tile.on')?.classList.contains('self')).toBe(true);
     expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toBe('Your board');
     // The seat that knocked you out wears the sword.
-    expect(ui!.container.querySelector(`.lp-chip[data-seat="${LOSS.knockedOutBy}"] .lp-ko`)).not.toBeNull();
+    expect(ui!.container.querySelector(`.lp-tile[data-seat="${LOSS.knockedOutBy}"] .lp-ko`)).not.toBeNull();
     // Every chip's hover tip is the game's bubble, never a native title.
     expect(chips.every((c) => c.getAttribute('data-tip') && !c.getAttribute('title'))).toBe(true);
-    click(ui!.container.querySelector('.lp-chip[data-seat="s3"]'));
-    expect(ui!.container.querySelector('.lp-chip[data-seat="s3"]')?.classList.contains('on')).toBe(true);
+    click(ui!.container.querySelector('.lp-tile[data-seat="s3"]'));
+    expect(ui!.container.querySelector('.lp-tile[data-seat="s3"]')?.classList.contains('on')).toBe(true);
     expect(ui!.container.querySelector('.lp-showing-v')?.textContent).toMatch(/'s board/);
     expect(ui!.container.querySelector('.gc-board .cv2-team')?.getAttribute('aria-label')).toMatch(/'s board$/);
     click(ui!.container.querySelector('.lp-back'));

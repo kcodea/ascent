@@ -1,14 +1,11 @@
 /**
  * THE LOBBY PICKER (owner 2026-10-16 on the old standings: "it is not obvious how to view it and is ugly. please
- * iterate on this"). The open game's lobby, as a chooser for WHOSE board the game card's big board shows. The default
- * is your own board; picking a seat swaps that seat's board in (a quick crossfade), a "Showing" line says whose it is
- * and when, and "Back to yours" returns. Two choosers were built for the owner to pick from:
- *
- *   chips   (option 1) one strip of eight seat chips (portrait + frame, place, name) above the board. Hover lifts the
- *           chip; its tip carries strength, the round they went out and health. The seat that knocked you out wears a
- *           small sword.
- *   tiles   (option 2) a 4 x 2 table of seat tiles under the card, each with a mini board (minion art only, no
- *           badges) and the round they went out.
+ * iterate on this"; the owner picked the tile table, "i like option 2"). The open game's lobby, as a chooser for WHOSE
+ * board the game card's big board shows. The default is your own board; picking a seat tile swaps that seat's board in
+ * (a quick crossfade), a "Showing" line above the board says whose it is and when, and "Back to yours" returns. The
+ * tiles are a 4 x 2 table under the card: portrait + frame, the place, the name, a mini board (minion art, no badges)
+ * and the round they went out, the seat that knocked you out marked with a sword. Picking a tile below the fold brings
+ * the big board back into view.
  *
  * A pure renderer over the recorded `MatchDetails` (the same data the end screen's Match details dialog reads); it
  * never computes an outcome. Skins follow the scoreboard's rule (your seat as recorded, others through "Show opponent
@@ -27,13 +24,6 @@ import { RuneEmblem } from '../RuneEmblem';
 import { opponentSkins } from '../skins/skins';
 import { SeatPortrait } from './MatchScoreboard';
 import { GAME_STRENGTH_LABEL, ordinalOf } from './matchDetailsText';
-
-export type LobbyView = 'chips' | 'tiles';
-const VIEW_KEY = 'ascent.lobbyView';
-/** Which chooser shows (the owner picks; a per-browser dev switch until then). */
-export function lobbyView(): LobbyView {
-  try { return localStorage.getItem(VIEW_KEY) === 'tiles' ? 'tiles' : 'chips'; } catch { return 'chips'; }
-}
 
 /** The seat's place as a real place: "1st" ... "8th", or "Still in" for a seat standing when your game ended whose
  *  final place is not known. Your own seat reads your finish. */
@@ -104,42 +94,14 @@ export function ShowingLine({ seat, details, onBack }: { seat: MatchSeat | null;
       <span className="lp-showing-l">Showing</span>
       <span className="lp-showing-v">{what}</span>
       {seat && <button type="button" className="cv2-btn lp-back pressable" onClick={onBack}><span aria-hidden="true">‹</span>Back to yours</button>}
-      {!seat && <span className="lp-hint">Pick a player to see their board</span>}
+      {!seat && <span className="lp-hint">Pick a player in the lobby below to see their board</span>}
     </div>
   );
 }
 
 interface PickerProps { details: MatchDetails; selectedId: string | null; onPick: (id: string | null) => void; own: boolean }
 
-/** OPTION 1: the strip of eight seat chips. */
-export const LobbyChips = memo(function LobbyChips({ details, selectedId, onPick, own }: PickerProps) {
-  const showOpp = useGame((s) => s.showOpponentSkins);
-  return (
-    <div className="lp-chips" role="group" aria-label="Players in this lobby. Pick one to see their board">
-      {details.seats.map((seat) => {
-        const on = seat.self ? selectedId === null : selectedId === seat.id;
-        return (
-          <button
-            type="button" key={seat.id} data-seat={seat.id} aria-pressed={on}
-            className={`lp-chip gtip lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self ? ' self' : ''}`}
-            data-tip={seatTip(seat, details)}
-            aria-label={`${seatPlace(seat, details)}, ${seat.self ? 'you' : seat.name}. ${seatTip(seat, details)}`}
-            onClick={() => onPick(seat.self ? null : seat.id)}
-          >
-            <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self} /></span>
-            <span className="lp-chip-txt">
-              <span className="lp-chip-place">{seatPlace(seat, details)}</span>
-              <span className="lp-chip-name">{seat.self ? 'You' : seat.name}</span>
-            </span>
-            {seat.id === details.knockedOutBy && <span className="lp-ko" aria-hidden="true"><Icon name="sword" /></span>}
-          </button>
-        );
-      })}
-    </div>
-  );
-});
-
-/** OPTION 2: the 4 x 2 table of seat tiles with mini boards. */
+/** The lobby: a 4 x 2 table of seat tiles with mini boards. */
 export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick, own }: PickerProps) {
   const showOpp = useGame((s) => s.showOpponentSkins);
   return (
@@ -150,9 +112,16 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
         return (
           <button
             type="button" key={seat.id} data-seat={seat.id} aria-pressed={on}
-            className={`lp-tile lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self ? ' self' : ''}`}
+            className={`lp-tile gtip lp-${bandOfPlace(seat, details)}${on ? ' on' : ''}${seat.self ? ' self' : ''}`}
+            data-tip={seatTip(seat, details)}
             aria-label={`${seatPlace(seat, details)}, ${seat.self ? 'you' : seat.name}. ${seatTip(seat, details)}`}
-            onClick={() => onPick(seat.self ? null : seat.id)}
+            onClick={(e) => {
+              onPick(seat.self ? null : seat.id);
+              // The board is above the lobby: bring it into view when the pick happens below the fold (nothing moves
+              // when it is already on screen).
+              const head = e.currentTarget.closest('.gc')?.querySelector<HTMLElement>('.gc-lobby');
+              if (head && typeof head.scrollIntoView === 'function') head.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }}
           >
             <span className="lp-tile-head">
               <span className="lp-chip-portrait"><SeatPortrait heroId={seat.heroId} skins={seatSkinsOf(seat, own, showOpp)} self={!!seat.self} /></span>
@@ -178,22 +147,19 @@ export const LobbyTiles = memo(function LobbyTiles({ details, selectedId, onPick
 });
 
 /** Everything a game card host needs from the lobby: the picked seat (null = yours), the node above the board (the
- *  chips + the Showing line, or the Showing line alone with the tiles), the node under the card (the tiles), and the
+ *  Showing line), the node under the card (the lobby tiles), and the
  *  board key that crossfades a swap. No recorded details: `none` (when given) sits where the picker would. */
 export function useLobbyParts(details: MatchDetails | null | undefined, own: boolean, none?: ReactNode): {
   seat: MatchSeat | null; lobby: ReactNode; extra: ReactNode; boardKey: string | undefined;
 } {
   const { seat, pick } = useLobbySeat(details);
-  const view = lobbyView();
   if (!details) return { seat: null, lobby: none ?? null, extra: null, boardKey: undefined };
   const sel = seat?.id ?? null;
   const showing = <ShowingLine seat={seat} details={details} onBack={() => pick(null)} />;
   return {
     seat,
     boardKey: seat?.id,
-    lobby: view === 'chips' ? <><LobbyChips details={details} selectedId={sel} onPick={pick} own={own} />{showing}</> : showing,
-    extra: view === 'tiles'
-      ? <section className="lp-tilewrap" aria-label="Players in this lobby"><span className="lp-tiles-l">The lobby. Pick a player to see their board.</span><LobbyTiles details={details} selectedId={sel} onPick={pick} own={own} /></section>
-      : null,
+    lobby: showing,
+    extra: <section className="lp-tilewrap" aria-label="Players in this lobby"><span className="lp-tiles-l">The lobby</span><LobbyTiles details={details} selectedId={sel} onPick={pick} own={own} /></section>,
   };
 }

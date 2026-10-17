@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The menus now show when a Versus room is open.',
+        details: [
+          'The Versus tile on the Mode screen glows and says how many rooms are open.',
+          'Play on the main menu and in the side menu gets a small badge with the count. Hover it to read it.',
+          'Your own room is not counted.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Versus room: drag your card onto an empty seat to play, or drag it up to go back to watching.',
         details: [
           'Your own card drags just like a shop card. Drop it on an empty seat to take it. A taken seat sends it back.',

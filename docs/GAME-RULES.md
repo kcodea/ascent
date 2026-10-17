@@ -882,6 +882,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   Both go through the same seat request; the move shows at once and goes back with a short message if the server
   refuses (someone took the seat first). Every client sees a member's card move between the hand and the seats.
   Moving to the stands keeps the host the host. The spectator hand rests low, like the in-game hand.
+- **Open rooms on the menus** (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01). While a room is Open that the player could
+  join (a member seen in the last 2 minutes, the player's version, not the player's own room), the Mode screen's Versus
+  tile glows with "N open" and Play (title and side menu) carries a count badge; the hover reads "N Versus rooms open".
+  Nothing shows at 0 or offline. One count call (`versus_open_rooms`, supabase/migrations/2026-10-17-versus-open-rooms.sql)
+  every 45 s, shared with the Live Games count, only while a menu is on screen.
 - **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
   the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
   the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same

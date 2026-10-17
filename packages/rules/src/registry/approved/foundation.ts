@@ -6036,6 +6036,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
   {
+    id: 'R-EMOTE-VERSUS-SHOP-01',
+    title: 'Versus emotes show in the shop as well as in combat, beside the opponent block',
+    statement:
+      'In Versus an emote shows in BOTH phases, for the player who said it and for the opponent. The bubble of the sender rises '
+      + 'from their own portrait (bottom left) in shop and combat alike. The bubble of the opponent opens to the left of the '
+      + 'portrait on the opponent block in the shop (VersusFoe: Versus draws no rail, so there is no rail row to anchor to) and '
+      + 'beside the combat foe portrait in combat. Before the fix the shop looked only for a rail row and dropped the '
+      + 'emote of the opponent.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: 'emotes arent showing in the recruit phase of versus, fix that' },
+    ],
+    currentBehaviour: 'Fixed on 2026-10-16.',
+    example: 'In a Versus shop the opponent says an emote: it pops beside their portrait on the right, as it does in combat.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/emotes/emotes.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
     id: 'R-SPECTATE-WATCHERS-01',
     title: 'A player sees who is spectating them, top left',
     statement:

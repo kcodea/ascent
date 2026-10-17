@@ -38,6 +38,8 @@ import { withAbandonWarning } from './rank/ratedRun';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { MenuBackdrop } from './MenuBackdrop';
 import { useLiveCount, useWindowFocused } from './live/liveCount';
+import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
+import { VsOpenBadge } from './versus/VsOpenBadge';
 import { HALL_VISIBLE } from './hallFlag';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
@@ -111,6 +113,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   const newRewards = useHasNewRewards();
   const liveCount = useLiveCount();
   const focused = useWindowFocused();
+  // VERSUS ROOMS OPEN (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01): Play carries the title's small badge + bubble.
+  const vsOpen = useVersusOpenRooms();
 
   const progress: Item[] = [
     { dest: 'career', label: txt.career, icon: <IconHelm /> },
@@ -124,7 +128,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
     { dest: 'live', label: 'Live Games', icon: <Icon name="sword" /> },
   ];
 
-  const plaque = (it: Item, extra = ''): JSX.Element => {
+  const plaque = (it: Item, extra = '', badge: ReactNode = null): JSX.Element => {
     const active = it.dest === current;
     const fresh = it.dest === 'collection' && newRewards;
     // LIVE (owner 2026-10-16): the Live Games plaque breathes while ranked games are being played, with the count.
@@ -139,12 +143,16 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         <span className="mbicon">{it.icon}</span>
         <span className="mblabel">{it.label}</span>
         {fresh && <NewPill />}
+        {badge}
         {live && <span className="sb-livechip" aria-label={`${liveCount} live ${liveCount === 1 ? 'game' : 'games'}`}>{liveCount} live</span>}
       </button>
     );
   };
 
-  const play = plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play');
+  const play = plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null);
+  const playWarn = savedRun ? withAbandonWarning('New run. Replaces your saved run.', savedRun) : null;
+  const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
+  const playTip = playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
 
   // The screen's painted backdrop rides along with the sidebar, so every host gets it (MenuBackdrop.tsx).
   return (
@@ -159,10 +167,10 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
       </button>
       <nav className="msb-nav" aria-label="Main menu" ref={navRef}>
         <span className="msb-ind" ref={indRef} aria-hidden="true" />
-        {/* Play with a run saved: the same warning the title's Play carries, as a styled bubble on a WRAPPER
+        {/* Play with a run saved and/or Versus rooms open: the same bubble the title's Play carries, on a WRAPPER
             (the plaque's own ::after is its sheen). Attribute text, not visible textContent. */}
-        {savedRun
-          ? <div className="msb-item" data-tip={withAbandonWarning('New run. Replaces your saved run.', savedRun)}>{play}</div>
+        {playTip
+          ? <div className="msb-item" data-tip={playTip}>{play}</div>
           : play}
         <div className="msb-group" role="group" aria-label="Progress">
           <div className="msb-gh" aria-hidden="true">Progress</div>

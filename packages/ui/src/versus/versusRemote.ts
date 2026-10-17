@@ -185,6 +185,10 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   return {
 
   listRooms: () => rpc<VersusRoomSummary[]>('versus_list_rooms'),
+  /** How many rooms I could join right now (open, fresh, my version, not mine): two integers, no rows
+   *  (2026-10-17-versus-open-rooms.sql, R-VERSUS-OPEN-ROOMS-01). The menus' "2 open" indicator. */
+  openRooms: (contentRevision: string) =>
+    rpc<{ open: number; seatOpen: number }>('versus_open_rooms', { p_protocol: VERSUS_PROTOCOL, p_content: contentRevision }),
   createRoom: (name: string, me: VersusIdentity) =>
     rpc<VersusRoom>('versus_create_room', { p_name: name, p_display: me.displayName, p_profile: me.profile, p_set_id: me.setId, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL }),
   joinRoom: (roomId: string, as: 'player' | 'spectator', me: VersusIdentity) =>

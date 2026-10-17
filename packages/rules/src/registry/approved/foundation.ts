@@ -896,6 +896,30 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-03',
     },
   },
+  // ── Versus rooms open: the menus say when someone is waiting (owner 2026-10-17) ─────────────────────────────────────
+  {
+    id: 'R-VERSUS-OPEN-ROOMS-01',
+    title: 'The menus show when a Versus room is open: a glowing "N open" Versus tile and a badge on Play',
+    statement:
+      'While at least one Versus room is open that the player could join (status open, not sealed or in a game; a member '
+      + 'seen in the last 2 minutes, the same freshness rule the room browser prunes by; the protocol and content revision '
+      + 'of the player; and NOT a room the player is in), the Versus tile on the Mode screen breathes with an "N open" chip, '
+      + 'and Play on the title and in the side menu carries a small count badge. Each says "N Versus rooms open" in the data-tip '
+      + 'bubble (never a native title). Nothing shows at 0, offline, with no backend, before the migration runs, or when '
+      + 'Versus is not public. The count is one bounded call (versus_open_rooms: two integers, no rows, R-NET-01) on the '
+      + 'shared menu poller with the Live Games count: one timer, every 45 s, only while a menu is on screen and the tab is '
+      + 'visible, never while a game is on screen or a Versus match of the player is being played. The glow animates '
+      + 'only the opacity of a ::before with a static shadow, paused while the window is unfocused, still under reduced motion.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-17', quote: 'can we add a way to show if a lobby is up in versus mode so players know to look' },
+      { kind: 'code', ref: 'packages/ui/src/menuPoll.ts; packages/ui/src/versus/versusOpenRooms.ts; packages/ui/src/versus/VsOpenBadge.tsx; packages/ui/src/Title.tsx; packages/ui/src/MenuSidebar.tsx; supabase/migrations/2026-10-17-versus-open-rooms.sql' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-17 (feat/versus-open-rooms-indicator), once 2026-10-17-versus-open-rooms.sql is applied. Before, a waiting room was visible only inside the Versus room browser.',
+    example: 'Two strangers are each waiting in an open room and the player is in neither: the Versus tile glows with "2 open", Play shows a 2 badge, and hovering either reads "2 Versus rooms open". The player creates a room of their own: it is not counted.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusOpenRooms.test.tsx', 'packages/ui/src/versus/versusOpenRooms.db.test.ts'], lastVerifiedAt: '2026-10-17' },
+  },
   // ── The leaderboard's games played is the full total, never a 50-row window (owner 2026-10-12) ─────────────────────
   {
     id: 'R-LADDER-GAMES-01',

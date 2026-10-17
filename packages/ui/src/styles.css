@@ -13903,6 +13903,33 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   color: #fff; background: #b4423a; border: 1px solid #ffb3a8; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .sbbtn.sb-live::before { animation: none; opacity: 0.6; } }
 
+/* VERSUS ROOMS OPEN (owner 2026-10-17: "can we add a way to show if a lobby is up in versus mode so players know to
+   look"; R-VERSUS-OPEN-ROOMS-01). The Live Games glow's recipe on three surfaces: the Mode screen's Versus tile breathes
+   with an "N open" chip; the title's Play and the side menu's Play carry a small count badge (Play stays the gold CTA,
+   so the badge is a small dark disc, not a second glow). Every glow is a ::before with a STATIC shadow whose OPACITY
+   breathes (kwglow; compositor only, never an animated box-shadow / filter), paused while the window is unfocused
+   (.paused), still and half lit under reduced motion. The words ride the game's data-tip bubble. */
+.modecard.vs-open .mcframe[data-mp] { border-color: rgba(255, 150, 112, 0.9); }
+.modecard.vs-open .mcframe[data-mp]::before { content: ''; position: absolute; inset: -5px; border-radius: 32px; pointer-events: none; z-index: 1;
+  box-shadow: 0 0 0 2px rgba(255, 150, 112, 0.85), 0 0 30px 6px rgba(255, 112, 80, 0.55);
+  opacity: 0.25; animation: kwglow 2.2s ease-in-out infinite; will-change: opacity; }
+.modecard.vs-open.paused .mcframe[data-mp]::before { animation-play-state: paused; }
+.vs-openchip { position: absolute; top: 14px; left: 14px; z-index: 3; padding: 3px 11px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.05em; line-height: 1.2; white-space: nowrap;
+  color: #fff; background: #b4423a; border: 1px solid #ffb3a8; box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.7); }
+.vs-badge { position: relative; z-index: 1; flex: none; margin-left: auto; display: grid; place-items: center;
+  min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 900; font-size: 13px; line-height: 1; letter-spacing: 0;
+  color: #fff; background: #b4423a; border: 1.5px solid #ffcfc4; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+.vs-badge::before { content: ''; position: absolute; inset: -3px; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 2px rgba(255, 150, 112, 0.7), 0 0 10px 2px rgba(255, 112, 80, 0.75);
+  opacity: 0; animation: kwglow 2.2s ease-in-out infinite; will-change: opacity; }
+.vs-badge.paused::before { animation-play-state: paused; }
+@media (prefers-reduced-motion: reduce) {
+  .modecard.vs-open .mcframe[data-mp]::before { animation: none; opacity: 0.6; }
+  .vs-badge::before { animation: none; opacity: 0.5; }
+}
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

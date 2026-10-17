@@ -31,6 +31,9 @@ import { VersusTitle } from './versus/VersusTitle';
 import { VersusRoom } from './versus/VersusRoom';
 import { openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
 import { versusEnabled } from './versus/versusFlag';
+import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
+import { VsOpenBadge } from './versus/VsOpenBadge';
+import { useWindowFocused } from './live/liveCount';
 import { readLastMode, rememberMode, type ModeKey } from './lastMode';
 import { PlayerStrip } from './PlayerStrip';
 import { levelProgress } from '@game/progression';
@@ -115,6 +118,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   useEffect(() => { applyTitleVars(); applyTitleVeilVars(); applyTitleAccountVars(); }, []);
   // VERSUS: a player who left a RUNNING match (reload, crash, new tab) is taken straight back into it.
   useEffect(() => { if (versusEnabled()) void resumeVersusMatch(); }, []);
+  // VERSUS ROOMS OPEN (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01): a small badge on Play and a glow + "2 open" chip on the
+  // Versus tile while someone is waiting in a room I could join. The count is the shared menu poll (0 hides it all),
+  // which asks nothing while the title is hidden (menuPoll.ts menuOnScreen).
+  const vsOpen = useVersusOpenRooms();
+  const focused = useWindowFocused();
+  const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
@@ -210,15 +219,22 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setTitleView('modes'); }}>
       <span className="mbicon"><Crest /></span>
       <span className="mblabel">{txt.play}</span>
+      {vsTip && <VsOpenBadge n={vsOpen} paused={!focused} />}
     </button>
   );
+  // Play's bubble: the saved-run warning and/or the open rooms, on the WRAPPER (the plaque's ::after is its sheen).
+  const playWarn = savedRun ? withAbandonWarning('New run. Replaces your saved run.', savedRun) : null;
+  const playTip = playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
 
   // The mode you last launched from the picker (read per render: the title stays mounted across runs).
   const lastMode = titleView !== 'menu' ? readLastMode() : null;
   // A secondary mode tile: the art clipped to the frame, the name pill on the top edge (the hero-card idiom),
   // the description always on show along the bottom, and the "Last played" tag when it applies.
-  const modeTile = (mode: string, mp: ModeKey, name: string, desc: string, onClick: () => void, emblem: ReactNode): JSX.Element => (
-    <button className="modecard mc-tile" data-mp={mp} onClick={onClick}>
+  const modeTile = (mode: string, mp: ModeKey, name: string, desc: string, onClick: () => void, emblem: ReactNode): JSX.Element => {
+    // The Versus tile breathes (the Live Games plaque's kwglow recipe) with an "N open" chip while rooms are open.
+    const vsLit = mp === 'versus' && vsTip !== null;
+    return (
+    <button className={`modecard mc-tile${vsLit ? ` vs-open${focused ? '' : ' paused'}` : ''}`} data-mp={mp} onClick={onClick} data-tip={vsLit ? vsTip : undefined}>
       <div className="mcframe" data-mode={mode} data-mp={mp}>
         <div className="mcname hudpill-name">{name}</div>
         {modeArt(mode)
@@ -226,9 +242,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           : <span className="mcemblem">{emblem}</span>}
         <div className="mcdesc">{desc}</div>
         {lastMode === mp && <span className="mclast">Last played</span>}
+        {vsLit && <span className="vs-openchip" aria-label={vsTip ?? undefined}>{vsOpen} open</span>}
       </div>
     </button>
-  );
+    );
+  };
   // A picker sub-view's heading: a crumb back to the picker, then the view's name (the rail's Play goes there too).
   const subHead = (name: string): JSX.Element => (
     <div className="mphead">
@@ -350,7 +368,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           )}
-          {savedRun ? <div className="tn-item" data-tip={withAbandonWarning('New run. Replaces your saved run.', savedRun)}>{playPlaque}</div> : playPlaque}
+          {playTip ? <div className="tn-item" data-tip={playTip}>{playPlaque}</div> : playPlaque}
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
               tutorial the first time they hit Play. */}

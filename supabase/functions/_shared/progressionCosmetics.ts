@@ -696,6 +696,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_round_magic', 'Round Magic', 'legendary', 'Round Magic.png'),
   cardPlate('plate_verdant_magic', 'Verdant Magic', 'legendary', 'Silver Magic.png'),
   cardPlate('plate_phoenix_plate', 'Phoenix Plate', 'legendary', 'Phoenix Plate.png'),
+  // Owner 2026-10-17: "added more - add dark back to each" (the Dark interior). Gold Etched ships as Gilt Etched (no medal
+  // words in names).
+  cardPlate('plate_emerald', 'Emerald', 'legendary', 'Emerald.png'),
+  cardPlate('plate_gilt_etched', 'Gilt Etched', 'legendary', 'Gold Etched.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

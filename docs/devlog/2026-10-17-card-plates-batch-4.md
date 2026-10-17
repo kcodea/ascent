@@ -1,4 +1,4 @@
-# 2026-10-17 — Eleven more card plates and four new interiors
+# 2026-10-17 — Thirteen more card plates and four new interiors
 
 Owner (2026-10-17): *"ive added a lot of new card frames to the folder."* Five frames were new in
 `Reference Art/Card Backplates` (no new interiors). No interior or rarity was named, so they take the standing defaults:
@@ -54,6 +54,17 @@ have about matching with interiors"*.
   It is a single-image plate fitted inside the standard plate's outline, bottom-aligned, no darkening. Its middle narrows
   toward the bottom, so the last lines of rules text sit over the gold flourishes: check it in game.
 - "Standard Empty - Ignore.png" ignored, as named.
+
+## Third round (same day)
+
+Owner: *"added more - add dark back to each and merge"*. Emerald and Gold Etched on the Dark interior, no darkening.
+Gold Etched ships as **Gilt Etched** (no medal words in names; my pick, owner may rename). Both were drawn slightly off the
+template (944x1510, 1005x1565) and were scaled onto it like Battletorn.
+
+| Plate | Interior | frameX | Sx | Sy | Y |
+|---|---|---|---|---|---|
+| Emerald | dark | 0.006 | 1.054 | 1.036 | -0.0159 |
+| Gilt Etched | dark | 0.005 | 1.06 | 1.011 | 0.0103 |
 
 ## Not checked
 

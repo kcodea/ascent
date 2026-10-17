@@ -170,6 +170,10 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // Phoenix Plate: a shield with wings and its own painted middle, so a SINGLE-IMAGE plate (owner 2026-10-17: "Try it as
   // one image"), fitted inside the standard plate's outline and bottom-aligned. Its middle is already dark: no darkening.
   plate_phoenix_plate: { ...AQUARIUM_ROCKS, darken: false },
+  // Owner 2026-10-17: "add dark back to each": Emerald and Gilt Etched on the Dark interior, no darkening. Both were drawn
+  // slightly off the template (944x1510, 1005x1565), so they were scaled onto it first like Battletorn.
+  plate_emerald: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.054, interiorSy: 1.036, interiorY: -0.0159, darken: false },
+  plate_gilt_etched: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.06, interiorSy: 1.011, interiorY: 0.0103, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

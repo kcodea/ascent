@@ -34,7 +34,6 @@ import { versusEnabled } from './versus/versusFlag';
 import { readLastMode, rememberMode, type ModeKey } from './lastMode';
 import { PlayerStrip } from './PlayerStrip';
 import { levelProgress } from '@game/progression';
-import { TitleBadge } from './titles/TitleBadge';
 import { mirrorFor } from './progression/progressionStore';
 import { scalarCaption } from './rank/rankFormat';
 
@@ -257,25 +256,29 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       <div className="titleaccount ta-card">
         {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
         <GuestSignInButton />
-        <button
-          className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
-          onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
-          // No hover tip for a guest: it pops out LEFT, right over the Sign in! button beside it; the button and the
-          // click prompt already say it.
-          data-tip={account.anonymous ? undefined : 'Change your avatar'}
-          aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
-        >
-          <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
-            <div className="hero">
-              <div className="f">
-                {avatarSrc(playerAvatar)
-                  ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
-                  : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+        <div className="ta-portrait">
+          <button
+            className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
+            onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
+            // No hover tip for a guest: it pops out LEFT, right over the Sign in! button beside it; the button and the
+            // click prompt already say it.
+            data-tip={account.anonymous ? undefined : 'Change your avatar'}
+            aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
+          >
+            <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
+              <div className="hero">
+                <div className="f">
+                  {avatarSrc(playerAvatar)
+                    ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
+                    : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+                </div>
+                <PortraitFrame frame={avatarFrame} />
               </div>
-              <PortraitFrame frame={avatarFrame} />
             </div>
-          </div>
-        </button>
+          </button>
+          {/* The account level rides the ring (the games-do-it-this-way badge); the XP bar is on Career. */}
+          {level && <span className="acctxp-level ta-lv" aria-label={`Level ${level.level}`}><span className="acctxp-level-l">Lv</span>{level.level}</span>}
+        </div>
         <div className="ta-info">
         <div className="titlename-seat">
           {editing ? (
@@ -303,27 +306,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             </button>
           )}
         </div>
-        {mirror?.equippedTitleId && <TitleBadge id={mirror.equippedTitleId} className="ta-title" />}
-        {(rank || level) && (
-          <div className="ta-stats">
-            {rank && (
-              <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}`}>
-                <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
-                <span className="titlerank-txt">
-                  <span className="titlerank-label">{rankLabel(rank)}</span>
-                  <span className="titlerank-mmr">{scalarCaption(rank)} MMR</span>
-                </span>
-              </div>
-            )}
-            {level && (
-              <div className="ta-level">
-                <span className="acctxp-level" aria-label={`Level ${level.level}`}><span className="acctxp-level-l">Lv</span>{level.level}</span>
-                <span className="ta-xp">
-                  <span className="acctxp-track" aria-hidden><span className="acctxp-fill" style={{ transform: `scaleX(${level.fraction})` }} /></span>
-                  <span className="ta-xp-num">{level.xpIntoLevel} / {level.xpForNextLevel} XP</span>
-                </span>
-              </div>
-            )}
+        {/* ONE secondary line (owner 2026-10-16: "a lot of info in it, kinda small and jumbled"): the crest and division,
+            the MMR small after it. The equipped title and XP bar live on the Career page. */}
+        {rank && (
+          <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}, ${scalarCaption(rank)} MMR`}>
+            <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
+            <span className="titlerank-label">{rankLabel(rank)}</span>
+            <span className="titlerank-mmr">{scalarCaption(rank)} MMR</span>
           </div>
         )}
         </div>

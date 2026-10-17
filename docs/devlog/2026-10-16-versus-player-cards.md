@@ -13,9 +13,13 @@ attack pill, their versus losses as their health pill. it should use the equippe
 - `VersusRoom.tsx` / `versus.css`: a seated player is a card in front of their painted frame (plate from 4% to 57% of
   the painting, so the ribbon shows under it); the ribbon reads HOST / Player 1 / Player 2; an open seat is unchanged
   (painted frame + Take seat). The seat-portrait mask (`art/versus/seat-mask.webp`) had no other user and is removed.
-- `supabase/migrations/2026-10-16-versus-records.sql`: `versus_records(uuid[])`, security invoker, at most two ids,
-  returns only `{ userId, wins, losses }`. Until it is applied the client counts `versus_matches` itself (two
-  `head: true` counts per player), so the numbers are right either way.
+- `supabase/migrations/2026-10-16-versus-records.sql`: `versus_records(uuid[])`, security definer (it reads
+  `auth.users.is_anonymous`), at most 22 ids, returns only `{ userId, wins, losses }`. A match counts only when BOTH
+  seats are real accounts (a `profiles` row and a non-anonymous auth user): the first cut counted every match and
+  showed the owner 4-25, of which 25 were against anonymous dev/test accounts. No client fallback count (it cannot see
+  `auth.users`): until the RPC is live the badges print "-".
+- The room card's Attack / Health badges are scaled x1.45 as a whole (`scale`, on `.vspcard-hold` only), owner:
+  "the attack badges should be larger".
 
 ## Judgement calls
 

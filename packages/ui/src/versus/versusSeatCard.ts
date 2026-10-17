@@ -10,8 +10,8 @@
  *    falling back the way the Leaderboard does: their favourite hero in their hero skin; a player with neither (a new
  *    account) wears the default hero's portrait (`DEFAULT_HERO_ID`), never an empty art window.
  *  - NAME: their display name. TEXT: their equipped title (none = no text).
- *  - ATTACK = their total Versus WINS, HEALTH = their total Versus LOSSES (`versus_records`, one bounded RPC for both
- *    seats; before that migration is applied, the same counts read straight off `versus_matches`).
+ *  - ATTACK = their total Versus WINS, HEALTH = their total Versus LOSSES, counting only matches where BOTH seats are
+ *    real (non-anonymous) accounts (`versus_records`, one bounded RPC for every card in the room). Unknown = "-".
  *  - PLATE: their equipped `card_plate`, from the cosmetic snapshot their room profile carries (the one the opponent's
  *    combat skins already ride).
  *  - Another player's SKIN and PLATE show through "Show opponent cosmetics" (the owner's ask: "Respect 'Show opponent
@@ -125,32 +125,17 @@ export function parseVersusRecords(data: unknown): Map<string, VersusRecord> {
   return out;
 }
 
-const UUID = /^[0-9a-f-]{36}$/i;
+/** Most ids one read answers: the two seats plus up to twenty spectators (VERSUS_SPECTATOR_CAP), in ONE call. */
+export const MAX_RECORD_IDS = 22;
 
-/** Wins + losses for up to two players: the `versus_records` RPC, else the same counts off `versus_matches`. */
+/** Wins + losses against real players (`versus_records`). No fallback count: until the RPC is live the record is
+ *  unknown and the card prints "-" (a client count cannot tell anonymous / test accounts apart). */
 async function fetchRecords(ids: readonly string[]): Promise<Map<string, VersusRecord>> {
   const c = supabaseClient();
   if (!c || ids.length === 0) return new Map();
-  // rows: versus_records is a scalar RPC (`returns jsonb`): an array of at most two objects, one per user id.
+  // rows: versus_records is a scalar RPC (`returns jsonb`): an array of at most 22 objects, one per user id.
   const rpc = await Promise.race([Promise.resolve(c.rpc('versus_records', { p_users: ids })), timeout(READ_TIMEOUT_MS, null)]);
-  if (rpc && !rpc.error) return parseVersusRecords(rpc.data);
-  // Not deployed yet (or failed): count the rows directly. `versus_matches` is readable by every signed-in player.
-  const out = new Map<string, VersusRecord>();
-  await Promise.all(ids.filter((id) => UUID.test(id)).map(async (id) => {
-    const count = async (filter: string): Promise<number | null> => {
-      const res = await Promise.race([
-        Promise.resolve(c.from('versus_matches').select('id', { count: 'exact', head: true }).eq('phase', 'complete').or(filter)),
-        timeout(READ_TIMEOUT_MS, null),
-      ]);
-      return res && !res.error && typeof res.count === 'number' ? res.count : null;
-    };
-    const [wins, losses] = await Promise.all([
-      count(`and(p1_user.eq.${id},winner_seat.eq.p1),and(p2_user.eq.${id},winner_seat.eq.p2)`),
-      count(`and(p1_user.eq.${id},winner_seat.eq.p2),and(p2_user.eq.${id},winner_seat.eq.p1)`),
-    ]);
-    if (wins !== null && losses !== null) out.set(id, { wins, losses });
-  }));
-  return out;
+  return rpc && !rpc.error ? parseVersusRecords(rpc.data) : new Map();
 }
 
 /** Live avatar, title and favourite hero from `profiles` (a server without a column reads without it). */
@@ -159,7 +144,7 @@ async function fetchProfiles(ids: readonly string[]): Promise<Map<string, Omit<S
   const c = supabaseClient();
   if (!c || ids.length === 0) return out;
   const read = (cols: string) => Promise.race([
-    Promise.resolve(c.from('profiles').select(cols).in('user_id', [...ids]).limit(2)),
+    Promise.resolve(c.from('profiles').select(cols).in('user_id', [...ids]).limit(MAX_RECORD_IDS)),
     timeout(READ_TIMEOUT_MS, null),
   ]);
   try {
@@ -183,9 +168,9 @@ const seatCache = new Map<string, SeatServerData>();
 /** For tests: forget every cached seat. */
 export function resetSeatCacheForTests(): void { seatCache.clear(); }
 
-/** Read both seats once. Exported for the test (`fetchRecords` / `fetchProfiles` go through `supabaseClient`). */
+/** Read the seats (and spectators) once, in one batch. Exported for the test (`fetchRecords` / `fetchProfiles` go through `supabaseClient`). */
 export async function fetchSeatData(ids: readonly string[]): Promise<Map<string, SeatServerData>> {
-  const wanted = [...new Set(ids.filter((u) => typeof u === 'string' && u.length > 0))].slice(0, 2);
+  const wanted = [...new Set(ids.filter((u) => typeof u === 'string' && u.length > 0))].slice(0, MAX_RECORD_IDS);
   const [records, profiles] = await Promise.all([fetchRecords(wanted).catch(() => new Map<string, VersusRecord>()), fetchProfiles(wanted)]);
   for (const id of wanted) {
     const prev = seatCache.get(id) ?? {};

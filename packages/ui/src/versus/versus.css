@@ -72,6 +72,16 @@
   --plate-k: var(--vspcard-k);
   position: relative; display: grid; place-items: center;
 }
+/* THE ROOM CARD'S BADGES (owner 2026-10-16: "the attack badges should be larger"): the room card's Attack / Health
+   badges scale up as a whole (plate or milestone frame AND number together), on this card only, so a 2-3 digit win
+   count reads at the room's size. `scale` (not transform) so the badge's own one-shot pop transform still composes.
+   The global in-game badge sizes are untouched. Static. */
+.vspcard-hold .card .badge { scale: var(--vspcard-badge, 1.45); }
+.vspcard-hold .card .badge.atk { transform-origin: 30% 70%; }
+.vspcard-hold .card .badge.hp { transform-origin: 70% 70%; }
+/* Record not known yet (the read is pending or `versus_records` is not deployed): a dash, never a made-up 0. */
+.vspcard-norec .badge > .value { color: transparent; }
+.vspcard-norec .badge > .value::after { content: '-'; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
 /* A player has no tribe: the plate's bottom tribe line ("Neutral") is not printed on a player card. */
 .vspcard-hold .plate-tribe, .vspcard-hold .dtribe { display: none; }
 /* Gate state + hearts, under each frame's banner tails. */

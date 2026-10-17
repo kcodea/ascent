@@ -32,8 +32,8 @@ export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server }: { 
   const view = useMemo(() => playerCardView(src), [src]);
   const plate = cardPlateLookOf(src.cosmetics);
   return (
-    <div className="vspcard-hold" onClickCapture={swallow} onContextMenuCapture={swallow} data-versus-card={m.userId}
-      aria-label={`${src.name}: ${view.attack} Versus wins, ${view.health} losses`} role="img">
+    <div className={`vspcard-hold${src.record ? '' : ' vspcard-norec'}`} onClickCapture={swallow} onContextMenuCapture={swallow} data-versus-card={m.userId}
+      aria-label={src.record ? `${src.name}: ${view.attack} Versus wins, ${view.health} losses` : `${src.name}: Versus record loading`} role="img">
       <CardPlateContext.Provider value={plate}>
         <Card card={view} forceFull suppressPop plated />
       </CardPlateContext.Provider>

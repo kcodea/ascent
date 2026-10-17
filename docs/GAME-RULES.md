@@ -868,7 +868,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
 - **Player cards** (owner 2026-10-16, R-VERSUS-PLAYER-CARD-01). Each seated player shows in the room as a real game
   card in their equipped Card Plate: their profile picture as the art (else their favourite hero, else the default
   hero), their name on the name line, their equipped title as the card text, their total Versus **wins** as the
-  Attack and total Versus **losses** as the Health. An abandoned match counts as neither. The numbers re-read when a
+  Attack and total Versus **losses** as the Health, counting only matches where BOTH seats are real accounts (a
+  profile and a non-anonymous sign-in); an abandoned match counts as neither, and an unknown record prints "-". The numbers re-read when a
   match ends and the players are back in the room. "Show opponent cosmetics" off shows the other player's card on the
   standard plate (and their favourite hero without its skin); their picture, title and record always show. HOST is
   on the host's ribbon under the card. Counts come from `versus_records` (supabase/migrations/2026-10-16-versus-records.sql).

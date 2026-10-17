@@ -125,6 +125,17 @@ describe('the seat is the REAL Card, in the equipped plate', () => {
     } finally { ui.unmount(); }
   });
 
+  it('an unknown record (RPC not live yet) prints a dash, never a made-up 0', () => {
+    setIdentity({ userId: 'me' } as never);
+    const ui = mount(<VersusPlayerCard m={member({})} server={undefined} />);
+    try {
+      expect(document.querySelector('.vspcard-hold.vspcard-norec')).not.toBeNull();
+      expect(document.querySelector('.vspcard-hold')?.getAttribute('aria-label')).toContain('loading');
+    } finally { ui.unmount(); }
+    const ui2 = render({});
+    try { expect(document.querySelector('.vspcard-hold.vspcard-norec')).toBeNull(); } finally { ui2.unmount(); }
+  });
+
   it('a click or right-click never opens Inspect', () => {
     setIdentity({ userId: 'me' } as never);
     const ui = render({});
@@ -143,13 +154,16 @@ describe('the numbers: one bounded read, refreshed when the room moves', () => {
     expect(parseVersusRecords(null).size).toBe(0);
   });
 
-  it('reads at most the two seats, and keeps the last good numbers when a read fails', async () => {
+  it('reads every card in one batch (deduped, at most 22 ids), and keeps the last good numbers when a read fails', async () => {
     backend.records = [{ userId: 'a', wins: 5, losses: 1 }];
     backend.profiles = [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID, avatar: AVATAR }];
     const first = await fetchSeatData(['a', 'a', 'b', 'c']);
-    expect([...first.keys()]).toEqual(['a', 'b']);
+    expect([...first.keys()]).toEqual(['a', 'b', 'c']);
+    expect(backend.rpcCalls).toBe(1);
+    const many = await fetchSeatData(Array.from({ length: 30 }, (_, i) => `u${i}`));
+    expect(many.size).toBe(22);
     expect(first.get('a')).toEqual({ record: { wins: 5, losses: 1 }, favoriteHero: 'indy', titleId: TITLE_ID, avatar: AVATAR });
-    backend.rpcError = { code: 'PGRST202', message: 'no function' }; // and the fallback count reads fail too (no count)
+    backend.rpcError = { code: 'PGRST202', message: 'no function' }; // not deployed: no client-side count
     const second = await fetchSeatData(['a']);
     expect(second.get('a')?.record).toEqual({ wins: 5, losses: 1 });
   });

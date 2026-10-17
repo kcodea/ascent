@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-16',
     changes: [
       { category: 'Systems', text: 'In a Versus room, each player now shows as a card.', details: ['The card shows your profile picture, your name and your equipped title.', 'Its Attack is your total Versus wins. Its Health is your total Versus losses.', 'It wears the card plate you have equipped.', 'The numbers update when a match ends.'] },
+      {
+        category: 'Systems',
+        text: 'The Shop clock locks exactly at 0:00, never while it still shows 0:01. Versus now locks the Shop and hero powers at 0:00 like a lobby game.',
+        details: [
+          'Versus could lock your turn a moment early while the clock still read 0:01. It now locks only at 0:00.',
+          'A turn you lock at 0:00 still counts as your own board, even with a little lag.',
+          'In Versus, once you end your turn early the clock keeps counting but goes quiet, and the 20 second glyph fades.',
+        ],
+      },
       { category: 'Systems', text: 'Versus: the clock now plays its sounds and the 20 second glyph charges on the board, just like a lobby game. Hero Select ticks too. Both stop during a pause and pick up where they left off.' },
       {
         category: 'Systems',

@@ -233,7 +233,7 @@ import { gateBlocks as tutorialGateBlocks, notifyGateNudge as notifyTutorialGate
 import { Unit } from './Unit';
 import { computeFrame, useCombatReplay } from './useCombatReplay';
 import { endCombatReady } from './endCombatGate';
-import { CHARGE_SECONDS, chargeElapsed, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
+import { CHARGE_SECONDS, chargeElapsed, shopClockStep, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
@@ -544,7 +544,7 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
  *  (it missed the Ancients offer, the Good Luck intro, the wipe and the Gold Fuse wait), and nothing paused the sound
  *  at all. While the clock is held mid-turn the fill, the pulse, the motes AND the charge-build sound all stop; on
  *  resume they continue from exactly where the clock is, so the build still peaks as the clock hits 0. */
-const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, covered }: { inCombat: boolean; window: number; covered: boolean }) {
+const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, covered, quiet = false }: { inCombat: boolean; window: number; covered: boolean; /** Versus: the player on screen ended the turn early (the shop stays up, the glyph fades as after a lobby End Turn). */ quiet?: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
   const running = useTurnClockRunning();
   const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
@@ -558,7 +558,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   // swell at players sitting on the title (owner-reported). Unlit-when-covered kills the sound (via the fade
   // path's stopTurnCharge), the invisible paint, and the motes rAF. Mid-run POPUPS (Discover / quest / forge)
   // are NOT covered — the board stays visible behind them, so the glyph stays lit and merely pauses.
-  const lit = preview != null || (!inCombat && !covered && seconds <= chargeWindow);
+  const lit = preview != null || (!inCombat && !covered && !quiet && seconds <= chargeWindow);
   // Held = the clock has time left but is not moving (a decision, the Esc menu, the intro, the wipe, ...). A clock at
   // 0 is FINISHED, not held: the completion flash, the motes' gather and the build's tail all play out over it.
   const held = lit && preview == null && !running && seconds > 0;
@@ -5056,8 +5056,10 @@ export function Recruit() {
     const tick = (): void => {
       const cur = turnClock.get();
       if (cur <= 0) { turnClock.halt(); return; } // at 0 the timer just stops — actions lock (except End Turn); no auto-combat
-      const next = cur - 1;
-      if (next === 0) {
+      // ONE STEP OF THE CLOCK (R-VERSUS-CLOCK-LOCK-01): the lock lands on the very step that shows 0:00, never on the one
+      // that shows 0:01, so the last displayed second is a whole second of play (`shopClockStep`).
+      const { next, expire } = shopClockStep(cur);
+      if (expire) {
         sfx.turnExplode(); // timer hits 0 — shop locks; syncs with the charge glyph's completion flash
         // …and the ENGINE locks with it (owner 2026-09-30, R-TIMER-LOCK-01: "make sure hero powers cant be used after
         // timer ends"). A real action, like Thymepiece's expiry, so the reducer refuses the Shop's player actions
@@ -8109,6 +8111,7 @@ export function Recruit() {
         inCombat={inCombat}
         window={Math.min(CHARGE_SECONDS, turnSeconds)}
         covered={!!(heroSelecting || overlayOpen)}
+        quiet={versusGate.clockQuiet}
       />
       {/* UNDER-CARD FX canvas — the host for `slot: 'under'` effect defs. Position in this child list is
           load-bearing (above `.boardbg`, below every zone); see `FxUnderSlot` for why it can't live beside

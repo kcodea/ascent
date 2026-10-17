@@ -49,6 +49,33 @@ export const ACTIONS_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopClock.test.ts', 'packages/ui/src/shopClockLock.test.tsx'], lastVerifiedAt: '2026-09-30' },
   },
   {
+    id: 'R-VERSUS-CLOCK-LOCK-01',
+    title: 'The Shop locks exactly at 0:00, never before: the clock face and the lock read one time-left value (lobby and Versus)',
+    statement:
+      'ONE RULE for every timed Shop clock: the number shown and the lock come from the same time-left value. The '
+      + 'clock shows ceil(ms / 1000) and the Shop locks (R-TIMER-LOCK-01) only once ms <= 0, so it reads 0:01 for the '
+      + 'whole last second, every Shop action and hero power goes through while any time is left (1 ms included), and '
+      + 'the lock lands as it reads 0:00. LOBBY: the clock steps whole seconds one full period apart and locks on the '
+      + 'step that lands on 0 (`shopClockStep`); a hold resumes only the remainder of the second. VERSUS: the same '
+      + 'lock applies (the client dispatches `shopClockExpired` at 0:00, then locks the turn with the board as it '
+      + 'stands); the time left is the synced server clock plus its own uncertainty (half the best round trip), so a '
+      + 'client never reaches 0:00 before the server deadline. The server deadline is authoritative: it accepts a '
+      + 'locked side up to 250 ms past the deadline (`versus__shop_grace`), so a lock sent at 0:00 still counts as the '
+      + 'player\'s own, rejects anything later (`deadline_passed`, the newest candidate stands in), and closes the round '
+      + 'only after the grace. An action completed before 0:00 counts; a drag still in the air at 0:00 that would buy, '
+      + 'play or sell is refused and the card goes back, while arranging still lands.',
+    domain: 'actions',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (Versus clock lock)', quote: 'make sure that everything locks actually like after 0, make sure it doesnt lock early. felt like it was locking a second early sometimes' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusClock.ts (shopClockAt, ServerClock.uncertaintyMs); packages/ui/src/versus/versusStore.ts (versusShopRemainingMs, expireVersusShop, onTick); packages/ui/src/versus/VersusHud.tsx useVersusRecruit; packages/ui/src/turnClock.ts shopClockStep; packages/ui/src/Recruit.tsx countdown tick; supabase/migrations/2026-10-16-versus-clock-grace.sql' },
+    ],
+    currentBehaviour: 'Conforms (2026-10-16). Before, Versus never applied the 0:00 engine lock, and its client locked the turn '
+      + '400 ms BEFORE the deadline on a 500 ms tick, so the shop held while the clock still read 0:01 (the "second '
+      + 'early"). The lobby clock already locked on the 0:00 step; it now shares the named rule.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusClockLock.test.ts', 'packages/ui/src/versus/versusBot.db.test.ts'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
     id: 'R-TRANSFORM-01',
     title: 'Strange Revision: transform a minion into a random minion of the tier above it, keeping its current stats',
     statement:

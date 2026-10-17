@@ -896,8 +896,17 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per
   Fuse), counted down from one server deadline that nothing pauses locally. End Turn locks the round (irreversible);
   a player who locks early waits, and never shortens the other's turn. While a player waits on the other (locked
   early, back from the fight early, or past the Good Luck intro first) their board stays as it is, takes no input,
-  and the End Turn gem's pill reads "Players ready 1/2" (then 2/2). At zero the turn is locked for the player;
-  any open decision gets a random legal pick seeded by match, round and seat. Pre-emptive Assault (every
+  and the End Turn gem's pill reads "Players ready 1/2" (then 2/2); the clock keeps counting but goes quiet for them
+  (no ticks, the 20 s glyph fades), as after a lobby End Turn. At zero the turn is locked for the player;
+  any open decision gets a random legal pick seeded by match, round and seat. **The 0:00 lock** (owner 2026-10-16,
+  R-VERSUS-CLOCK-LOCK-01, in the lobby too): the clock face and the lock read one time-left value, shown as
+  ceil(ms / 1000) and locked only at ms <= 0, so the clock reads 0:01 for the whole last second and every Shop
+  action and hero power goes through until it reads 0:00 (R-TIMER-LOCK-01 then refuses them). Versus measures
+  that value on the synced clock plus its own uncertainty, so a client never locks before the server's deadline;
+  the server accepts a locked side for 250 ms past its deadline, so a lock sent at 0:00 still counts as the
+  player's own, and closes the round only after that grace. An action finished before 0:00 counts; a drag still
+  in the air at 0:00 that would buy, play or sell is refused and the card goes back (arranging still lands).
+  Pre-emptive Assault (every
   attack-first card) is not in Versus.
 - **One fight per round.** The server resolves the two locked boards once (Player 1 takes the first position on odd
   rounds, Player 2 on even ones) and both players watch that fight from their own side. The next shop opens the

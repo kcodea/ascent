@@ -6171,6 +6171,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx'], lastVerifiedAt: '2026-10-16' },
   },
   {
+    id: 'R-SPECTATE-HUD-02',
+    title: 'A spectator sees themselves once, and their emote wheel opens downward inside the screen',
+    statement:
+      'The spectator top-left row draws their own plate once: the other spectators listed after it never include any id that is them (their identity id and the auth session id the watch call ran under), and one account is one chip however many times the watcher rows or room members list it (two tabs, a re-read racing). This holds in Versus and Live Games, and for the player Spectating list too. '
+      + 'Only one spectator HUD is ever drawn: the live-game bar stands down on a Versus watch screen. '
+      + 'The spectator emote wheel is placed against the real space: below their plate when it fits (the plate sits at the top of the screen), above only when there is more room there, and always clamped inside the stage. The player own wheel (above their portrait, bottom left) is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator HUD)', quote: 'shows 2 of me for some reason' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator HUD)', quote: 'the emote wheel is above instead of below i think' },
+    ],
+    currentBehaviour: 'Fixed on 2026-10-16.',
+    example: 'Orangez watches a live game with two tabs open: the top left shows Orangez once, then the other spectators, then Leave; the emote wheel opens under the plate.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHudDupe.test.tsx'], lastVerifiedAt: '2026-10-17' },
+  },
+  {
     id: 'R-SPECTATE-AV-04',
     title: 'A spectator never hears a sound for an action the game refused',
     statement:

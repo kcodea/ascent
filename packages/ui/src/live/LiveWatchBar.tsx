@@ -6,6 +6,7 @@
  * All existing pieces: `MemberRing`, the name pill, `RankCrest`, `.vsplate`, `.vspanel`, `.endplace-num`.
  */
 import { sfx } from '../sfx';
+import { useGame } from '../store';
 import { placementText } from '../rank/rankFormat';
 import { SpectatorCursor } from '../versus/SpectatorCursor';
 import { SpectatorSelf, WatchedPanel } from '../versus/SpectatorHud';
@@ -18,7 +19,10 @@ export function LiveWatchBar(): JSX.Element | null {
   const game = useLiveWatch((s) => s.game);
   const ended = useLiveWatch((s) => s.ended);
   const active = useSpectate((s) => s.active);
-  if (!game || !active) return null;
+  // ONE spectator HUD at a time (R-SPECTATE-HUD-02): a Versus watch screen draws its own (SpectatorBar), so a live-game
+  // session still lingering behind it never stacks a second "me" chip, cursor and watched panel on top.
+  const versusScreen = useGame((s) => s.run.mode === 'versus');
+  if (!game || !active || versusScreen) return null;
   return (
     <>
       <SpectatorCursor />

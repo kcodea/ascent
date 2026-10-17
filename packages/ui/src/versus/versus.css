@@ -113,7 +113,7 @@
   --vsb-k: 0.72;
   --vsb-ccw: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vsb-k) * 0.752 * 0.85);
   --vsb-bw: calc(var(--vsb-ccw) * 1.5);
-  --vsb-fanw: calc(var(--gh, 100vh) * 2560 / 1086 * 0.44);
+  --vsb-fanw: calc(var(--gh, var(--lvh, 100%)) * 2560 / 1086 * 0.44);
   --vsb-step: min(calc(var(--vsb-bw) * 0.96), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1)));
   --vsb-tilt: min(3.5deg, calc(40deg / max(var(--n), 1)));
   --vsb-arc: calc(var(--vsb-ccw) * 0.02);

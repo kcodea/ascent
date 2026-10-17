@@ -62,6 +62,13 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
       if (error) fail(error);
       return (data as LiveGameRow[]) ?? [];
     },
+    /** How many ranked games are in progress (the side menu's Live Games glow): a head-only count, no rows (R-NET-01).
+     *  A finished game (phase `end`) is left out; stale rows are filtered by the read policy. */
+    async count(): Promise<number> {
+      const { count, error } = await db().from('lobby_live_games').select('game_id', { count: 'exact', head: true }).neq('phase', 'end');
+      if (error) fail(error);
+      return count ?? 0;
+    },
     /** One game's listing row (the watch screen's identity and end state), or null when it is gone. */
     async game(gameId: string): Promise<LiveGameRow | null> {
       const { data, error } = await db().from('lobby_live_games')

@@ -13875,6 +13875,19 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .ct-roll.gold { stroke: #e8c877; }
 @media (prefers-reduced-motion: reduce) { .ct-focus { animation: none; } .ct-small, .ct-small:hover { transform: none; transition: none; } }
 
+/* LIVE GAMES, LIVE (owner 2026-10-16: "can we have the live games button glowing if there are any live games?"). The
+   kwglow recipe: a ::before with a STATIC inner ember glow whose OPACITY breathes (compositor only; never an animated
+   box-shadow or filter). The plaque clips its overflow, so the glow sits inside its rim. Paused while the window is
+   unfocused (.paused); a still, half-lit glow under reduced motion. The count rides as a small chip. */
+.sbbtn.sb-live { border-color: rgba(255, 138, 101, 0.75); }
+.sbbtn.sb-live::before { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  box-shadow: inset 0 0 16px 2px rgba(255, 112, 80, 0.75), inset 0 0 0 1px rgba(255, 170, 140, 0.55);
+  opacity: 0.25; animation: kwglow 2.2s ease-in-out infinite; will-change: opacity; }
+.sbbtn.sb-live.paused::before { animation-play-state: paused; }
+.sb-livechip { margin-left: auto; flex: none; padding: 2px 8px; border-radius: 999px; font-family: var(--font-ui); font-weight: 900; font-size: 12px; letter-spacing: 0.04em;
+  color: #fff; background: #b4423a; border: 1px solid #ffb3a8; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .sbbtn.sb-live::before { animation: none; opacity: 0.6; } }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

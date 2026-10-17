@@ -24,6 +24,9 @@ vi.mock('./replay/replayPlayer', () => ({ startReplay: vi.fn() }));
 // These pins cover the full rail WITH the Hall of Champions; its hidden state (hallFlag.ts, owner 2026-10-16) is
 // pinned in hallHidden.test.tsx.
 vi.mock('./hallFlag', () => ({ HALL_VISIBLE: true }));
+// LIVE GAMES glow (owner 2026-10-16): the shared count is mocked; a test sets it.
+const live = vi.hoisted(() => ({ n: 0 }));
+vi.mock('./live/liveCount', () => ({ useLiveCount: () => live.n, useWindowFocused: () => true }));
 
 import { Career } from './Career';
 import { Rankings } from './Rankings';
@@ -215,5 +218,23 @@ describe('navigation', () => {
     expect(wrap!.querySelector('.sbbtn')?.textContent?.trim()).toBe('Play');
     expect(ui.container.querySelector('[title]')).toBeNull();
     expect(ui.container.querySelector('.msb')?.textContent).not.toMatch(/saved run/i);
+  });
+});
+
+describe('the Live Games plaque (owner 2026-10-16: "glowing if there are any live games")', () => {
+  it('glows with a count chip while ranked games are live, and is plain when none are', async () => {
+    const { useGame } = await import('./store');
+    live.n = 3;
+    act(() => { useGame.setState({ showRankings: true }); });
+    let m = mount(<Rankings />);
+    const plaque = (): HTMLElement => [...m.container.querySelectorAll<HTMLElement>('.sbbtn')].find((b) => /Live Games/.test(b.textContent ?? ''))!;
+    expect(plaque().classList.contains('sb-live')).toBe(true);
+    expect(plaque().querySelector('.sb-livechip')?.textContent).toBe('3 live');
+    m.unmount();
+    live.n = 0;
+    m = mount(<Rankings />);
+    expect(plaque().classList.contains('sb-live')).toBe(false);
+    expect(plaque().querySelector('.sb-livechip')).toBeNull();
+    m.unmount();
   });
 });

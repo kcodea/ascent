@@ -13347,7 +13347,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    other mode screens, with the "Modes /" crumb; Sandbox and God Mode are two selectable art tiles (the selected one
    lit and badged); the options sit in one panel in two columns at a readable size; the selected segment is the lit
    plate with gold letters (navigation look), and START is the one bright gold action. Static styling. */
-.mp-practice { place-items: center; padding: 40px 0 56px; }
+/* The two mode tiles never move (owner 2026-10-16: "lock those in place so they don't move"): the screen is TOP-aligned
+   (it was centred, so the shorter God Mode panel pulled everything 117px down), and the options panel keeps the taller
+   Sandbox height in both states, so Start stays put too. */
+.mp-practice { place-items: start center; padding: 150px 0 56px; }
+.mp-practice .popanel { min-height: 440px; align-content: start; }
 .mp-practice .pomodes-box { width: 1240px; min-width: 0; max-width: calc(100% - 80px); align-items: stretch; gap: 0; }
 .mp-practice .mphead { margin: 0 0 24px; }
 .mp-practice .mphead .mptitle { margin: 0; font-size: 34px; letter-spacing: 0.08em; text-transform: uppercase; }

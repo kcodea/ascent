@@ -154,6 +154,26 @@ function recordingFor(seed: number, heroId?: string): BoardSnapshot[] {
 }
 
 /**
+ * A GENERATED seat's recording as it was when the game was saved (R-LOBBY-SERVE-01, owner 2026-10-17: "we need the
+ * game serving integrity to be literally perfect"). A generated recording is a pure function of `(seed, heroId)` AND
+ * of the code that plays it, so a saved game resumed after a deploy would regenerate different boards for the same
+ * seat. The save stores each built recording (`builtRecording`) and the resume primes it back (`primeRecording`), so
+ * the seat keeps fielding the boards it fielded before. Priming never overwrites a recording built this session.
+ */
+export function builtRecording(seed: number, heroId: string): BoardSnapshot[] | null {
+  return RECORDINGS.get(`${seed}|${heroId}`) ?? null;
+}
+export function primeRecording(seed: number, heroId: string, snaps: readonly BoardSnapshot[]): void {
+  const key = `${seed}|${heroId}`;
+  if (RECORDINGS.has(key) || !snaps.length) return;
+  if (RECORDINGS.size >= RECORDING_CAP) {
+    const oldest = RECORDINGS.keys().next().value;
+    if (oldest !== undefined) RECORDINGS.delete(oldest);
+  }
+  RECORDINGS.set(key, [...snaps].sort((a, b) => a.wave - b.wave));
+}
+
+/**
  * Does this seat's recording field at least one board? Answered from the memoized full recording when it already
  * exists, else from a one-board prefix autoplay (the prefix is identical to the full recording's first board).
  */

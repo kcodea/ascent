@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, registerOpponentRuns, resetLobbyDrivers, playerRunsFrom, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -1147,6 +1147,7 @@ function writeSave(run: RunState, actions: Action[], boards: BoardSnapshot[] = [
     const activeMs = activePlay.read(activeNow());
     localStorage.setItem(SAVE_KEY, JSON.stringify({ run: serialize(run), actions, ...(boards.length ? { boards } : {}), ...(telemetry ? { telemetry } : {}), ...(derive ? { derive } : {}), ...(turnRemaining != null ? { turnRemaining } : {}), ...(announced ? { announced } : {}), ...(activeMs != null ? { activeMs } : {}) }));
   } catch { return; }
+  persistSeatRecordings(run); // R-LOBBY-SERVE-01: the seats' boards travel with the save (written only when they grow)
   // CROSS-DEVICE SAVES: the local write above always comes first (offline play is unchanged). The cloud copy
   // follows at the start of each shop phase (a new run opens on one too); Save & Quit / tab hide push it from
   // `flushSave`. Fire-and-forget: the upload is async and never blocks this frame.
@@ -1162,34 +1163,63 @@ function clearSave(): void {
 // ── CROSS-DEVICE SAVES (owner ask 2026-09-30, R-PERSIST-CLOUD-01..03; see cloudSave.ts) ─────────────────────
 /** Set while this device's copy is known to be stale (the run moved to another device): nothing is saved. */
 let cloudMovedLock = false;
-/** The recordings behind a saved lobby's SNAPSHOT seats. A seat keeps only a `runKey` resolved against this
- *  session's pool, and another device's pool is a different random sample, so a run adopted from the cloud
- *  brings the boards with it (stored beside the save, registered at boot / adoption). */
+/** The recordings behind a saved lobby's seats (R-LOBBY-SERVE-01, owner 2026-10-17: "we need the game serving
+ *  integrity to be literally perfect"). A seat keeps only a `runKey` (recorded) or a seed + hero (generated), and a
+ *  new session's pool is a different random sample and may run different code, so EVERY lobby save stores the boards
+ *  themselves beside the save (`lobbySeatRecordings`): each recorded seat's whole run and each generated seat's built
+ *  recording. Boot restores them before any driver is built (`registerSavedSeatRuns`), and a cloud copy carries them
+ *  to another device. Written only when the bundle grows (a lobby's seats never change), never on every autosave. */
 const SEAT_RUNS_KEY = 'ascent.save.seatruns';
-let seatRunsMemo: { runKey: string; runs: BoardSnapshot[][] } | null = null;
-function seatRunsFor(run: RunState | null): BoardSnapshot[][] | undefined {
+let seatRunsMemo: { runKey: string; rec: LobbySeatRecordings; size: string } | null = null;
+const seatRecSize = (r: LobbySeatRecordings): string => `${r.runs.length}:${r.hybrids.length}`;
+function readStoredSeatRuns(key: string): LobbySeatRecordings | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem(SEAT_RUNS_KEY) ?? 'null') as { runKey?: string; runs?: unknown; hybrids?: unknown } | null;
+    if (stored?.runKey !== key) return null;
+    return parseLobbySeatRecordings({ runs: stored.runs, hybrids: stored.hybrids });
+  } catch { return null; }
+}
+/** The bundle for `run`'s lobby: what this session holds now, merged over what the slot already stored (a seat this
+ *  session cannot resolve keeps its stored recording). Cheap after the first call: the pool pass only reruns while a
+ *  recorded seat is still missing from the bundle. */
+function seatRecordingsFor(run: RunState | null): LobbySeatRecordings | undefined {
   const lobby = run?.lobby;
   if (!run || !lobby) return undefined;
   const key = runKeyOf(run);
-  if (seatRunsMemo?.runKey === key) return seatRunsMemo.runs;
-  let runs: BoardSnapshot[][] = [];
-  try {
-    const stored = JSON.parse(localStorage.getItem(SEAT_RUNS_KEY) ?? 'null') as { runKey?: string; runs?: BoardSnapshot[][] } | null;
-    if (stored?.runKey === key && Array.isArray(stored.runs)) runs = stored.runs;
-  } catch { /* fall through to the pool */ }
-  if (runs.length === 0) {
-    const wanted = new Set(lobby.seats.filter((st) => st.kind === 'snapshot' && st.runKey).map((st) => st.runKey!));
-    if (wanted.size > 0) runs = playerRunsFrom(OPPONENT_POOL, undefined, lobby.setId).filter((r) => wanted.has(r.key)).map((r) => r.snaps);
+  const want = new Set(lobby.seats.filter((st) => st.kind === 'snapshot' && st.runKey).map((st) => st.runKey!));
+  const prev = seatRunsMemo?.runKey === key ? seatRunsMemo.rec : readStoredSeatRuns(key);
+  // Runs, merged by run key: the stored ones first (they are what this game has been fielding), then any this
+  // session's pool adds. The pool pass only reruns while a recorded seat is still missing.
+  const byKey = new Map<string, BoardSnapshot[]>();
+  for (const r of prev?.runs ?? []) if (want.has(runKeyOfRun(r))) byKey.set(runKeyOfRun(r), r);
+  if (byKey.size < want.size) for (const r of lobbySeatRuns(lobby)) if (!byKey.has(runKeyOfRun(r))) byKey.set(runKeyOfRun(r), r);
+  // Generated recordings, merged by seed + hero: a stored one wins (the boards this game already fielded).
+  const byHybrid = new Map<string, LobbySeatRecordings['hybrids'][number]>();
+  for (const h of [...(prev?.hybrids ?? []), ...lobbyHybridRecordings(lobby, new Set(byKey.keys()))]) {
+    if (!byHybrid.has(`${h.seed}|${h.heroId}`)) byHybrid.set(`${h.seed}|${h.heroId}`, h);
   }
-  seatRunsMemo = { runKey: key, runs };
-  return runs;
+  const rec: LobbySeatRecordings = { v: 1, runs: [...byKey.values()], hybrids: [...byHybrid.values()] };
+  seatRunsMemo = { runKey: key, rec, size: seatRunsMemo?.runKey === key ? seatRunsMemo.size : '' };
+  return rec;
 }
-/** Boot: a save adopted from another device registers its snapshot seats' recordings before any driver is built. */
-function registerSavedSeatRuns(run: RunState): void {
+function seatRunsFor(run: RunState | null): BoardSnapshot[][] | undefined { return seatRecordingsFor(run)?.runs; }
+/** Persist the bundle beside the save when it has grown since the last write (a lobby's seats never change, so this
+ *  writes a few times per game: the first save, then as the opening shop phase builds the generated recordings). */
+function persistSeatRecordings(run: RunState): void {
+  const rec = seatRecordingsFor(run);
+  if (!rec || !seatRunsMemo) return;
+  const size = seatRecSize(rec);
+  if (seatRunsMemo.size === size) return;
   try {
-    const stored = JSON.parse(localStorage.getItem(SEAT_RUNS_KEY) ?? 'null') as { runKey?: string; runs?: BoardSnapshot[][] } | null;
-    if (stored?.runKey === runKeyOf(run) && Array.isArray(stored.runs) && stored.runs.length) registerOpponentRuns(stored.runs);
-  } catch { /* the seats fall back deterministically, as they always have */ }
+    localStorage.setItem(SEAT_RUNS_KEY, JSON.stringify({ runKey: seatRunsMemo.runKey, runs: rec.runs, hybrids: rec.hybrids }));
+    seatRunsMemo.size = size;
+  } catch { /* storage full: a resume then resolves seats from the pool, and any stand-in is reported */ }
+}
+/** Boot: a saved lobby's seat recordings go back BEFORE any driver is built, so its seats resolve whatever the new
+ *  session's pool sample holds (R-LOBBY-SERVE-01; before 2026-10-17 only a run adopted from another device did). */
+function registerSavedSeatRuns(run: RunState): void {
+  const rec = readStoredSeatRuns(runKeyOf(run));
+  if (rec) restoreLobbySeatRecordings(rec);
 }
 /** Signed in with a REAL account (guests stay local-only: their account lives on one device). */
 function cloudUserId(): string | null {
@@ -1201,6 +1231,7 @@ const cloudSave = createCloudSave({
   userId: cloudUserId,
   readLocal: () => { try { return localStorage.getItem(SAVE_KEY); } catch { return null; } },
   seatRuns: () => seatRunsFor(useGame.getState().savedRun),
+  seatHybrids: () => seatRecordingsFor(useGame.getState().savedRun)?.hybrids,
   onMoved: (current) => onCloudMoved(current),
 });
 /** Tests: the live sync service. */
@@ -1478,6 +1509,37 @@ async function hydrateReplayDraft(run: RunState): Promise<void> {
   } finally {
     replayDraftReady = true;
   }
+}
+
+/** How long a Continue waits for the opponent pool when a save's own seat recordings cannot resolve a seat. */
+const RESUME_POOL_WAIT_MS = 8000;
+
+/**
+ * RESUME A LOBBY'S SEATS FROM THE BOARDS IT WAS PLAYING (R-LOBBY-SERVE-01, owner 2026-10-17: "we need the game serving
+ * integrity to be literally perfect"). The save's own seat recordings were restored at boot, so normally every seat
+ * resolves and the drivers are warmed at once. A save from before 2026-10-17 carries none: its recorded seats can only
+ * resolve from this session's pool, so their drivers are NOT built until the pool has loaded (bounded), and a seat
+ * still unresolved after that is a stand-in, reported rather than silent (`lobbyStandIns`, run telemetry `standIns`).
+ */
+function resumeLobbySeats(run: RunState): void {
+  const lobby = run.lobby;
+  if (!lobby) return;
+  if (lobbyStandIns(lobby).length === 0) { warmLobbyDrivers(run); return; }
+  const loader = opponentPoolLoader();
+  const wait = loader
+    ? Promise.race([loader.ensure().then(() => undefined), new Promise<void>((r) => setTimeout(r, RESUME_POOL_WAIT_MS))])
+    : Promise.resolve();
+  void wait.then(() => {
+    const live = useGame.getState().run;
+    if (live.seed !== run.seed || !live.lobby) return; // the player has moved on to another game
+    const lb = live.lobby;
+    resetLobbyDrivers(lb.seats.filter((st) => st.kind === 'snapshot')); // drop any stand-in built while waiting
+    const missing = lobbyStandIns(lb);
+    if (missing.length && import.meta.env.DEV) {
+      console.warn('[lobby] recorded seats served by a stand-in (their runs are in neither the save nor the pool):', missing.map((st) => `${st.label} ${st.runKey}`));
+    }
+    warmLobbyDrivers(live);
+  });
 }
 
 /**
@@ -2203,7 +2265,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // A resumed lobby run has an EMPTY driver cache (drivers are closures, rebuilt from seed rather than saved),
     // so every seat has to be rebuilt and re-advanced to the round the lobby is on. Do it while the player is
     // looking at the shop, not when the round resolves.
-    warmLobbyDrivers(get().run);
+    resumeLobbySeats(get().run);
     set({ showTitle: false, heroChoices: null, avatarPickerOpen: false });
     // CROSS-DEVICE SAVES (R-PERSIST-CLOUD-02): continuing CLAIMS the run for this device, so a copy still open
     // on another device can no longer save over it. Never blocks: offline, the next upload settles it.
@@ -3304,14 +3366,16 @@ export function adoptCloudRun(row: CloudRow): boolean {
   if (previous && runKeyOf(previous) !== row.runKey) settleAbandonedRun(previous);
   try {
     localStorage.setItem(SAVE_KEY, row.payload.save);
-    if (row.payload.seatRuns?.length) localStorage.setItem(SEAT_RUNS_KEY, JSON.stringify({ runKey: row.runKey, runs: row.payload.seatRuns }));
+    if (row.payload.seatRuns?.length || row.payload.seatHybrids?.length) localStorage.setItem(SEAT_RUNS_KEY, JSON.stringify({ runKey: row.runKey, runs: row.payload.seatRuns ?? [], hybrids: row.payload.seatHybrids ?? [] }));
     else localStorage.removeItem(SEAT_RUNS_KEY);
   } catch { /* storage full: the store still resumes it this session */ }
   cloudSave.adopted(row);
-  seatRunsMemo = row.payload.seatRuns?.length ? { runKey: row.runKey, runs: row.payload.seatRuns } : null;
+  const adoptedSeats = parseLobbySeatRecordings({ runs: row.payload.seatRuns ?? [], hybrids: row.payload.seatHybrids ?? [] });
+  seatRunsMemo = adoptedSeats && (adoptedSeats.runs.length || adoptedSeats.hybrids.length)
+    ? { runKey: row.runKey, rec: adoptedSeats, size: seatRecSize(adoptedSeats) } : null;
   // The snapshot seats resolve against the pool: register the recordings, and evict any driver this session
   // already built for those seats (it would be a fallback bot, or an older copy advanced to another round).
-  if (row.payload.seatRuns?.length) registerOpponentRuns(row.payload.seatRuns);
+  if (adoptedSeats) restoreLobbySeatRecordings(adoptedSeats);
   if (save.run.lobby) resetLobbyDrivers(save.run.lobby.seats);
   dropBoardFx();
   const run = save.run;

@@ -6449,4 +6449,71 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Claudebot2 drags their card from the hand onto the empty blue seat: it lands at once and every client sees it fly up from the hand. Claudebot1 tries the same seat a moment later: the card springs back with the deny buzz.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/seatDrag.test.tsx', 'packages/ui/src/versus/versusSeatCard.test.tsx'], lastVerifiedAt: '2026-10-17' },
   },
+  {
+    id: 'R-LOBBY-SERVE-01',
+    title: 'A resumed lobby serves every seat exactly the boards it was serving, whatever the new session\'s pool holds',
+    statement:
+      'A lobby seat stores only how to FIND its boards: a recorded seat its run key, a generated seat its seed and hero. '
+      + 'Every lobby save therefore stores the boards themselves beside the save (`ascent.save.seatruns`, and the cloud '
+      + 'copy\'s `seatRuns` + `seatHybrids`): each recorded seat\'s whole run, and each generated seat\'s recording once it '
+      + 'is built. Boot restores them BEFORE any seat driver is built (`restoreLobbySeatRecordings`), so a Continue in a '
+      + 'new session serves every recorded seat its own run and every generated seat the recording it was fielding, even '
+      + 'when the new pool sample lacks the run or the client now runs different code. A save from before 2026-10-17 '
+      + 'carries no recordings: its recorded seats wait for the pool (up to 8 seconds) before their drivers are built. A '
+      + 'recorded seat that still cannot be resolved is served by a generated stand-in, and that is never silent: it is '
+      + 'listed by `lobbyStandIns` and counted in the run telemetry\'s `standIns`.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, relayed by the coordinator, 2026-10-17 (snapshot serving audit)', quote: 'we need the game serving integrity to be literally perfect' },
+      { kind: 'owner-chat', ref: 'Owner decision on the audit findings, relayed by the coordinator, 2026-10-17', quote: '4,5,6,7 arent problems right now. fix 1, 2, and 3' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/savedSeats.ts (lobbySeatRecordings, restoreLobbySeatRecordings); packages/sim/src/lobby/seats.ts (builtRecording, primeRecording); packages/sim/src/lobby/runLobby.ts (lobbyStandIns, telemetry standIns); packages/ui/src/store.ts (persistSeatRecordings, registerSavedSeatRuns, resumeLobbySeats)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-17 (fix/snapshot-resume-spellstone). Before, the seat recordings travelled only with a '
+      + 'cloud copy adopted from another device. A same-device Continue resolved recorded seats against the new session\'s '
+      + 'random pool sample (150 of 301 eligible runs), so a seated run was often missing and a generated stand-in took '
+      + 'the seat under the real player\'s name, and generated seats were re-recorded by the current code.',
+    example:
+      'A lobby seats Orangez\'s Drakko run (seed 932453328). Save & Quit, then Continue the next day in a session whose '
+      + 'pool sample lacks that run: round 3 serves dw_orin 2/2 and dw_brunni 3/2, the run\'s own board. Before, it served '
+      + 'k_beggy, d2_cinderchef and dm_leech, a generated stand-in.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/lobby/savedSeats.test.ts', 'packages/ui/src/resumeSeatIntegrity.test.ts'],
+      lastVerifiedAt: '2026-10-17',
+    },
+  },
+  {
+    id: 'R-SNAPSHOT-RUBY-01',
+    title: 'A served board mints its combat Rubies at the strength its owner\'s own fight used, Rune of the Spellstone included',
+    statement:
+      'A recorded board\'s combat Rubies are minted at EXACTLY the Ruby strength its owner\'s own fight used: the run\'s Ruby '
+      + 'bonus plus, with Rune of the Spellstone, the run\'s spell power (`rubyStatBonus`). The snapshot stores that '
+      + 'folded value as `rubyPower` beside the raw `rubyBonus` (which the "Ruby power" readout keeps showing). A board '
+      + 'captured before 2026-10-17 has no `rubyPower`; it is recomputed on read from what it stored (the Spellstone flag '
+      + 'in its mods plus its spell power), with no stored data edited. Every combat-side and per-minion field is held to '
+      + 'the same parity by an exhaustive test: each field is either carried (staged non-default and required to survive '
+      + 'capture and serve unchanged) or excluded with a stated reason, and a new field fails the typecheck until it is '
+      + 'classified.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, relayed by the coordinator, 2026-10-17 (snapshot serving audit)', quote: 'we need the game serving integrity to be literally perfect' },
+      { kind: 'owner-chat', ref: 'Owner decision on the audit findings, relayed by the coordinator, 2026-10-17', quote: '4,5,6,7 arent problems right now. fix 1, 2, and 3' },
+      { kind: 'code', ref: 'packages/sim/src/snapshot.ts (snapshotBoard rubyPower); packages/sim/src/boardSide.ts (snapshotRubyPower, sideFromSnapshot)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-17 (fix/snapshot-resume-spellstone). Before, `snapshotBoard` stored the raw Ruby bonus, so a '
+      + 'served Spellstone board minted its Rubies without the spell power. Three runs in the live pool (14 boards) own '
+      + 'the rune; they are served correctly through the recompute-on-read.',
+    example:
+      'A run with a +4/+4 Ruby bonus, +3/+3 spell power and Rune of the Spellstone mints +7/+7 Rubies in its own fight. '
+      + 'Served as an opponent it now mints +7/+7 too, not +4/+4.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/snapshotParity.test.ts', 'packages/sim/src/snapshotFidelity.test.ts'],
+      lastVerifiedAt: '2026-10-17',
+    },
+  },
 ];

@@ -63,6 +63,11 @@ behaviour from a legacy symbol.**
   the entry owed).
 - Lobby state is serializable; runtime seat drivers are reconstructed from serializable metadata.
 - Missing snapshot data degrades deterministically — fill the seat, never shrink the table.
+- **A save carries its seats' boards** (R-LOBBY-SERVE-01, 2026-10-17): `lobbySeatRecordings` (each recorded seat's run,
+  each generated seat's built recording) is written beside every lobby save (`ascent.save.seatruns`, the cloud copy's
+  `seatRuns` + `seatHybrids`) and restored at boot BEFORE any driver is built (`restoreLobbySeatRecordings`). A seat
+  served by a stand-in must be visible (`lobbyStandIns`, telemetry `standIns`); a new door that resumes a lobby must
+  restore the recordings first.
 - **The shared pool is WHOLE RUNS** (R-LOBBY-08, 2026-09-29): fetched as a uniform random sample of eligible runs
   (`pool_runs_sample` RPC, one row per run with every board; `opponentPool/poolFetch.ts`), checked complete
   (`isWholeRun`), registered all-or-nothing (`registerOpponentRuns`), cached as whole runs (cache v2). Never add a

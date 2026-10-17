@@ -78,6 +78,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Continuing a saved game now always brings back the same opponents. A recorded player could be swapped for a stand-in before.',
+        details: [
+          'Your save now keeps every opponent\'s boards, so a Continue on a new day serves each one exactly the boards they had.',
+          'Generated opponents also keep the boards they were playing, even after a game update.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Opponents with Rune of the Spellstone now play their Rubies at full strength, spell power included.',
+      },
+      {
+        category: 'Systems',
         text: 'The menus now show when a Versus room is open.',
         details: [
           'The Versus tile on the Mode screen glows and says how many rooms are open.',

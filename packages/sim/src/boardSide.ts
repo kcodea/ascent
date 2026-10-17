@@ -18,6 +18,24 @@ export function snapshotBanksLive(snap: Pick<BoardSnapshot, 'wave'>, fightRound:
 }
 
 /**
+ * The Ruby strength a served board's combat Rubies are minted at: EXACTLY what its owner's own fight used
+ * (R-SNAPSHOT-RUBY-01, owner 2026-10-17: "we need the game serving integrity to be literally perfect").
+ *
+ * The owner's fight reads `rubyStatBonus`, which with Rune of the Spellstone adds the run's spell power to the raw
+ * `rubyBonus`. Captures since 2026-10-17 store that folded value as `rubyPower`. Older captures stored only the raw
+ * value, so a served Spellstone board minted its Rubies without the spell power (+4/+4 where the owner had +7/+7).
+ * Those are recomputed here on read, from the fields they DID store: the Spellstone flag rides their `questMods`
+ * and their `spellPower` is the owner's at capture. (The one thing an old capture cannot say is a pending Starpath
+ * Vendor one-shot, which `rubyStatBonus` leaves out of a Ruby; it is rare and the recompute counts it.)
+ */
+export function snapshotRubyPower(snap: Pick<BoardSnapshot, 'rubyPower' | 'rubyBonus' | 'spellPower' | 'questMods'>): { attack: number; health: number } {
+  if (snap.rubyPower) return { ...snap.rubyPower };
+  const raw = snap.rubyBonus ?? { attack: 0, health: 0 };
+  if (!snap.questMods?.runeSpellstone) return { attack: raw.attack, health: raw.health };
+  return { attack: raw.attack + (snap.spellPower?.attack ?? 0), health: raw.health + (snap.spellPower?.health ?? 0) };
+}
+
+/**
  * Build a combat side from a captured board's RUN-LEVEL scalers.
  *
  * Grim / Taragosa / Pack Leader / Runescale / Watcher and friends fight at the value the board's OWNER had, not
@@ -63,7 +81,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     // because the board's +16/+16 rubyBonus never travelled). `snapshotFidelity.test.ts` now diffs this
     // builder against the reducer's own player-side context, so a scaler added there without a snapshot
     // field + a line here fails a test instead of silently weakening every served board.
-    rubyBonus: snap.rubyBonus ?? { attack: 0, health: 0 }, // enemy Ruby strength (Gemstorm / Geode / Conduit)
+    rubyBonus: snapshotRubyPower(snap), // enemy Ruby strength (Gemstorm / Geode / Conduit), Spellstone-folded like the owner's own fight (R-SNAPSHOT-RUBY-01)
     wildHuntGrown: snap.wildHuntGrown ?? 0, // enemy Rune of the Wild Hunt resumes where it grew to
     cardsBoughtThisTurn: snap.cardsBoughtThisTurn ?? 0, // enemy Frenzied Excavator
     cardBuffs: snap.cardBuffs ?? {}, // enemy run-wide card-type buffs (sizes mid-fight tokens)

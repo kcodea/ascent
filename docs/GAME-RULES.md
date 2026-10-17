@@ -145,6 +145,13 @@ medal + division — see *Ranked ladder* below).
     rows print **"Game strength N"** (the run's strength; renamed from "Board strength" for display, owner 2026-09-30, with a hover tip that says later rounds count more), and Match details shows your per-round board percentiles
     and each opponent seat's run strength. A game that was not scored (the
     pool's strength data unavailable, or older games) shows nothing.
+- **A saved game keeps its opponents** (owner 2026-10-17, R-LOBBY-SERVE-01: *"we need the game serving integrity to be
+  literally perfect"*). Every lobby save stores each recorded seat's whole run and each generated seat's recording
+  beside the save, and a Continue restores them before any seat is built. So a resumed game serves every seat exactly
+  the boards it was serving, whatever the new session's pool sample holds and whatever code the client now runs. A
+  recorded seat that still cannot be resolved (a save from before this) is served by a generated stand-in, and that is
+  counted in the run telemetry (`standIns`), never silent. A served board also mints its combat Rubies at its owner's
+  own strength, Rune of the Spellstone's spell power included (R-SNAPSHOT-RUBY-01).
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)

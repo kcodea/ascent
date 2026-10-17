@@ -215,6 +215,9 @@ export interface LobbyPoolTelemetry {
   unrated: boolean;
   seats: { recorded: number; hybrid: number; bot: number; authored: number };
   allGenerated: boolean;
+  /** Recorded seats this client could NOT resolve to their run, so a generated stand-in fielded their boards
+   *  (`lobbyStandIns`, R-LOBBY-SERVE-01). Should always be 0; absent on rows from before 2026-10-17. */
+  standIns?: number;
 }
 
 /** Every opponent seat is generated (hybrid / bot), none a recorded player run. Authored (tutorial) tables
@@ -271,6 +274,7 @@ export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
     poolFetchWidenings: lobby.poolAtStart?.fetchWidenings ?? null,
     seats,
     allGenerated: lobbyAllGenerated(lobby),
+    standIns: lobbyStandIns(lobby).length,
   };
 }
 
@@ -336,6 +340,20 @@ export function setWatchedSeatRuns(boards: readonly BoardSnapshot[] | null): str
 }
 /** Is this run held for a watched game (`setWatchedSeatRuns`)? */
 export const hasWatchedSeatRun = (key: string): boolean => WATCHED_RUNS.has(key);
+
+/**
+ * RECORDED SEATS THAT WOULD BE SERVED BY A STAND-IN (R-LOBBY-SERVE-01, owner 2026-10-17: "we need the game serving
+ * integrity to be literally perfect"). A `snapshot` seat stores only its run key; when neither a watched game's
+ * recordings nor this session's pool holds that run, `driverFor` seats a generated stand-in under the player's name.
+ * That must never be silent: the store saves every lobby's seat recordings with the game so a resume can always
+ * resolve them, waits for the pool on an older save, and reports any seat still listed here (telemetry `standIns`).
+ */
+export function lobbyStandIns(lobby: Pick<RunLobby, 'seats' | 'setId'>): LobbySeatState[] {
+  const want = lobby.seats.filter((s) => s.kind === 'snapshot' && !!s.runKey && !WATCHED_RUNS.has(s.runKey));
+  if (!want.length) return [];
+  const held = new Set(playerRunsFrom(undefined, undefined, lobby.setId).map((r) => r.key));
+  return want.filter((s) => !held.has(s.runKey!));
+}
 
 export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | null {
   if (seat.kind === 'player') return null; // the live run supplies the player's board

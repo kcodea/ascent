@@ -2181,4 +2181,32 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-16',
     },
   },
+  {
+    id: 'R-RUNE-COMBAT-FLASH-01',
+    title: "Every rune's badge bounces the moment its effect fires in combat, Basic and Epic, on both sides, coalescing rapid repeats",
+    statement:
+      'When a rune\'s combat effect fires (a `questTrigger` the engine logs on the step it happens), that rune\'s badge '
+      + 'bounces on the replay beat that shows it: the player\'s rack badge and the foe\'s badge beside its portrait alike. '
+      + 'This holds for every rune whose flag the engine logs, Epic as well as Basic (the flag to badge map scans both '
+      + 'lists, and a flag two runes share pulses both), and for the runes whose live payout used to log nothing (the '
+      + 'Grim Toast and Soul Furnace live Aura buffs, the Zoo\'s scaled Beardsley grant). A rune that only grants a '
+      + 'minion an ability (Aggressive Golems) is shown by that minion, and a Shop-only or passive rune has no combat fire. '
+      + 'The bounce is one-shot and compositor-only (transform and opacity): a new fire restarts it rather than stacking, '
+      + 'and the badge burst books at most one queued behind the one playing, so a rune that fires on every attack never '
+      + 'piles up animations. The marker events change no combat result.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-16 (found while fixing #2128: Epic runes never bounce or flash in combat)', quote: 'look into this' },
+      { kind: 'code', ref: 'packages/content/src/questFlags.ts badgeIdsForCombatFlag; packages/ui/src/choreo/triggerCounts.ts (triggerCounts, badgePulsesFromProgress); packages/ui/src/CombatOpponent.tsx; packages/ui/src/runeTriggerFx.ts bookBurst' },
+    ],
+    contentIds: ['rune_wild_hunt', 'rune_grim_toast', 'rune_soul_furnace', 'rune_zoo', 'rune_overflow', 'rune_crowded_crypt'],
+    cardText: 'When a **Beast** attacks, give it **+2 Attack** and improve this by **2** permanently.',
+    currentBehaviour: 'Conforms as of 2026-10-16. Before, the flag to badge map read only the Basic rune list, so 54 Epic runes (the Wild Hunt among them) never bounced in combat, and the foe\'s rune badges had no pulse at all.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/choreo/runeCombatFlash.test.ts', 'packages/core/src/combat/set3RuneDesignT1.test.ts', 'packages/core/src/combat/set3RuneDesignT4.test.ts', 'packages/sim/src/beastBatchAug12.test.ts'],
+      lastVerifiedAt: '2026-10-16',
+    },
+  },
 ];

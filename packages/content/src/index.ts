@@ -259,7 +259,7 @@ export { RUNES, EPIC_RUNES, ARCHIVED_RUNES, RUNE_INDEX, RUNE_DUP_SWEETENER, RUNE
 export { cardRevisions, contentRevision, cardRevision, revisionOf } from './revisions';
 export * from './gauntlet';
 export { runeSynergies, type SynergyTag } from './runeSynergy';
-export { badgeIdForCombatFlag } from './questFlags';
+export { badgeIdForCombatFlag, badgeIdsForCombatFlag } from './questFlags';
 export { NEUTRAL } from './cards/set1/neutral';
 export { BEASTS } from './cards/set1/beasts';
 export { DRAGONS } from './cards/set1/dragons';

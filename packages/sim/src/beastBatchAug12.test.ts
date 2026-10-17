@@ -68,6 +68,17 @@ describe('Rune of the Zoo — Beardsley scales with the combat-summon count', ()
     expect(buffs, 'ordinal 2 × step 1 → +4').toContain(4);
   });
 
+  it('R-RUNE-COMBAT-FLASH-01: each SCALED grant pulses the Zoo badge on its step; the 1st (x1) and no-rune fights do not', () => {
+    const r = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)], { runeZoo: true });
+    const pulses = r.events.filter((e) => e.type === 'questTrigger' && e.flag === 'runeZoo');
+    expect(pulses).toHaveLength(1); // ordinal 2 only: the 1st summon's x1 is no extra trigger
+    const b = uidOf(r, 'b2_beardsley');
+    const scaled = (r.events.filter((e) => e.type === 'buff') as { source: string; attack: number; step?: number }[]).find((e) => e.source === b && e.attack === 4)!;
+    expect(pulses[0]!.step).toBe(scaled.step);
+    const off = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)]);
+    expect(off.events.some((e) => e.type === 'questTrigger' && e.flag === 'runeZoo')).toBe(false);
+  });
+
   it('without the rune, the grant just climbs by the improve: +1, +2 (no ordinal scaling)', () => {
     const r = sim([bm('b2_beardsley', 'B', 5, 9999), bm('pack', 'P', 2, 1)]);
     const buffs = beardsleyBuffs(r, uidOf(r, 'b2_beardsley'));

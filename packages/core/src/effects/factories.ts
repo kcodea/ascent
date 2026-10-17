@@ -4867,7 +4867,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     if (tribe && minion.tribe !== tribe && minion.tribe2 !== tribe && !(!!minion.universalTribe || !!ctx.getCard(minion.cardId)?.universalTribe)) return;
     // Rune of the Zoo scales the grant by the running combat-summon ordinal (1× on the 1st summon, 2× on the
     // 2nd, …). Off the rune it returns 1. Stacks across Beardsleys (each fires) and composes with golden (`mul`).
-    const g = mul(self) * (ctx.zooReps?.(self.side) ?? 1);
+    const zoo = ctx.zooReps?.(self.side) ?? 1;
+    const g = mul(self) * zoo;
     // Escalating variant (Beardsley 2026-08-18): +`improve` per stat every `every` tribe summons this combat,
     // tracked on a per-instance counter. Absent `improve` → the plain flat grant, unchanged.
     const improve = num(params.improve, 0);
@@ -4877,6 +4878,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const step = improve > 0 ? (every <= 1 ? (self.summonBonus ?? 0) : Math.floor((self.summonBonus ?? 0) / every)) : 0;
     const a = (num(params.attack, 6) + improve * step) * g;
     const h = (num(params.health, 6) + improve * step) * g;
+    // R-RUNE-COMBAT-FLASH-01: the Zoo's extra triggers are the rune firing, so its badge pulses (a marker event only).
+    if (zoo > 1 && (a > 0 || h > 0)) ctx.log({ type: 'questTrigger', flag: 'runeZoo', side: self.side });
     if (a > 0 || h > 0) ctx.buff(minion, a, h, self.uid);
     if (improve > 0) self.summonBonus = (self.summonBonus ?? 0) + 1; // count this Beast toward the next step
   },

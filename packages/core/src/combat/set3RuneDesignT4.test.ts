@@ -99,6 +99,15 @@ describe('Rune of the Grim Toast — combat', () => {
     expect(triggers(r.events, 'runeWake')).toHaveLength(1);
     expect(buffsOn(r.events, uid(r, 1)).filter((b) => b.source === 'Rune of the Grim Toast').map((b) => [b.attack, b.health])).toEqual([[1, 0]]);
   });
+  it('R-RUNE-COMBAT-FLASH-01: the live rise pulses the rune badge on the SAME step as the Dwarf buff; no Dwarf, no pulse', () => {
+    const r = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('d', DWARF.id, 2, 400)], [foe('f', 5, 900)], { runeGrimToast: true, runeWake: true });
+    const pulses = triggers(r.events, 'runeGrimToast');
+    expect(pulses).toHaveLength(1);
+    const buff = buffsOn(r.events, uid(r, 1)).find((b) => b.source === 'Rune of the Grim Toast')!;
+    expect(pulses[0]!.step).toBe(buff.step);
+    const none = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('w', NEUTRAL.id, 2, 400)], [foe('f', 5, 900)], { runeGrimToast: true, runeWake: true });
+    expect(triggers(none.events, 'runeGrimToast'), 'nobody to buff: the rune did nothing').toHaveLength(0);
+  });
 });
 
 describe('Rune of the Gem Star — combat', () => {

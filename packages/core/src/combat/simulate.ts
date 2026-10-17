@@ -5653,6 +5653,8 @@ export function simulate(
     if (delta <= 0) return;
     furnaceHp[side] += delta;
     ua.health += delta;
+    // R-RUNE-COMBAT-FLASH-01: the rune paid out right now, so its badge pulses on this beat. A marker event only.
+    fireTrigger('runeSoulFurnace', side);
     for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Rune of the Soul Furnace');
     grimToastLive(side, 0, delta);
   }
@@ -5749,7 +5751,11 @@ export function simulate(
    *  bodies inherit it through `applyAuras`). */
   function grimToastLive(side: Side, attack: number, health: number): void {
     if ((attack <= 0 && health <= 0) || !modsFor(side).runeGrimToast) return;
-    for (const m of living(side)) if (grimToastDwarf(m)) ctx.buff(m, attack, health, 'Rune of the Grim Toast');
+    const dwarves = living(side).filter(grimToastDwarf);
+    if (dwarves.length === 0) return;
+    // R-RUNE-COMBAT-FLASH-01: the rune buffed someone right now, so its badge pulses on this beat. A marker event only.
+    fireTrigger('runeGrimToast', side);
+    for (const m of dwarves) ctx.buff(m, attack, health, 'Rune of the Grim Toast');
   }
   /** A combat Ruby cast landed `per` Rubies (`attack`/`health` in total) on `target`. The Keepsake Gem lands the same on
    *  the left-most hand minion (a hand buff, permanent, per copy; an empty hand = nothing). The Gem Star gives the

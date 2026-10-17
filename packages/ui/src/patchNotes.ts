@@ -61,6 +61,14 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'The Versus room has a new arena, and spectators show as cards too.', details: ['Spectators sit in a fan of small cards along the bottom. Hover one to see it full size.', 'Win and loss counts only include games against other players.', 'The Attack and Health on the room cards are bigger.'] },
       {
         category: 'Systems',
+        text: 'Every rune now flashes in combat the moment it triggers.',
+        details: [
+          'Epic runes like Rune of the Wild Hunt used to trigger without their badge moving. Now every rune bounces right when it fires.',
+          "Your opponent's rune badges flash too.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Spectating: you now see the player minimize the Runeforge, and you can hover runes yourself.',
         details: [
           'When the player minimizes the Runeforge, a Discover or a Quest pick, it minimizes on your screen too, and comes back when they return to it.',

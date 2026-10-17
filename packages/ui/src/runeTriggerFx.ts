@@ -45,6 +45,29 @@ const REPEAT_STAGGER_MS = 300;
  *  is being fed to `pulse`, and this keeps that bug a missing burst rather than a frame-long particle storm. */
 const MAX_REPEAT_BURSTS = 4;
 
+/**
+ * How far ahead of NOW a badge may have a burst booked. One stagger: the burst playing plus ONE queued behind it.
+ *
+ * COALESCING (R-RUNE-COMBAT-FLASH-01, 2026-10-16). Epic runes such as the Wild Hunt fire on EVERY attack or summon, so
+ * across a fight a badge can be bumped beat after beat. Booking a burst per fire queued them without limit (each a
+ * 900 ms particle def), stacking a dozen overlapping bursts on one badge. A fire that would start further out than
+ * this is dropped instead: the badge is already mid-flash, and the queued burst already says "it fired again". Two
+ * fires in one commit (two Void Cubs) still read as two; a run of rapid fires caps at one burst per stagger.
+ */
+const MAX_BOOKED_AHEAD_MS = REPEAT_STAGGER_MS;
+
+/**
+ * PURE: book one burst on a badge. Returns the delay (ms from `now`) to start it at, or null when it is coalesced
+ * into the burst(s) already booked. `nextFree` holds, per badge key, the earliest time its next burst may start; it is
+ * advanced in place.
+ */
+export function bookBurst(nextFree: Map<string, number>, key: string, now: number): number | null {
+  const start = Math.max(now, nextFree.get(key) ?? 0);
+  if (start - now > MAX_BOOKED_AHEAD_MS) return null; // already flashing with one queued: coalesce
+  nextFree.set(key, start + REPEAT_STAGGER_MS);
+  return start - now;
+}
+
 /** One rune badge as the hook sees it: where it sits in `ownedRunes`, and its current pulse count. */
 export interface RuneSlotPulse {
   /** Index in `ownedRunes` — the slot, which is what makes a duplicated rune two independent badges. */
@@ -140,6 +163,8 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
   // many re-renders as it takes to reach a frame.
   const pending = useRef<{ id: string; occurrence: number; index: number; epic: boolean }[]>([]);
   const raf = useRef(0);
+  // Per badge, the earliest time its next burst may start (`bookBurst`), so rapid fires coalesce instead of stacking.
+  const nextFree = useRef<Map<string, number>>(new Map());
   useEffect(() => {
     const fired = bumpedSlots(slots, prev.current);
     captureSlots(slots, prev.current);
@@ -168,12 +193,12 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
       pending.current = [];
       const camera = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
       // Repeats on one badge are STAGGERED — two bursts fired on the same frame land exactly on top of each
-      // other and read as one. `REPEAT_STAGGER_MS` apart, they read as two.
-      const perBadge = new Map<string, number>();
+      // other and read as one. `REPEAT_STAGGER_MS` apart, they read as two. Booked against the badge's own clock, so
+      // a fire arriving while it is still flashing (a frequent Epic rune, beat after beat) coalesces (`bookBurst`).
+      const now = performance.now();
       for (const q of queue) {
-        const key = `${q.id}#${q.occurrence}`;
-        const nth = perBadge.get(key) ?? 0;
-        perBadge.set(key, nth + 1);
+        const delay = bookBurst(nextFree.current, `${q.id}#${q.occurrence}`, now);
+        if (delay === null) continue;
         const binding = q.epic ? epicBinding : commonBinding;
         const fire = (): void => {
           if (!binding) return; // this class of rune is unbound — nothing to play
@@ -181,8 +206,8 @@ export function useRuneTriggerFx(slots: readonly RuneSlotPulse[]): void {
           if (!at) return; // badge left the DOM (rune sold, screen changed) before it could play
           playDef(binding.def, { source: at, camera }, { index: q.index });
         };
-        if (nth === 0) fire();
-        else setTimeout(fire, nth * REPEAT_STAGGER_MS);
+        if (delay === 0) fire();
+        else setTimeout(fire, delay);
       }
     });
   }, [slots]);

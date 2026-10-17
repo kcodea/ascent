@@ -113,4 +113,14 @@ describe('Rune of the Soul Furnace — combat', () => {
     const r = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('w', WALL.id, 0, 500)], [foe('f', 5, 900)], { runeWake: true, flagCopies: { runeWake: 2 } }, { undeadAtk: 9 });
     expect(buffsOn(r.events, uid(r, 1)).some((b) => b.attack === 0 && b.health > 0)).toBe(false);
   });
+  it('R-RUNE-COMBAT-FLASH-01: the live re-derive pulses the rune badge on the SAME step as its Health buff; no change, no pulse', () => {
+    const seeded = { undeadAtk: 9, undeadHp: soulFurnaceHealth(9, 1) };
+    const quiet = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('w', WALL.id, 0, 500)], [foe('f', 5, 900)], { runeWake: true, runeSoulFurnace: true }, seeded);
+    expect(triggers(quiet.events, 'runeSoulFurnace'), 'ceil(10/2) = 5: the term did not move').toHaveLength(0);
+    const r = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('w', WALL.id, 0, 500)], [foe('f', 5, 900)], { runeWake: true, runeSoulFurnace: true, flagCopies: { runeWake: 2 } }, seeded);
+    const pulses = triggers(r.events, 'runeSoulFurnace');
+    expect(pulses).toHaveLength(1);
+    const buff = buffsOn(r.events, uid(r, 1)).find((b) => b.source === 'Rune of the Soul Furnace')!;
+    expect(pulses[0]!.step).toBe(buff.step);
+  });
 });

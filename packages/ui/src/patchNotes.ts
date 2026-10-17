@@ -151,6 +151,32 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: "Watching a live game, the next opponent's hover card could show a Shop Tier, build and runes that player never had. It now shows what they really had, like every other player on the rail." },
       { category: 'Systems', text: 'The lobby hover card now says "gilded made" instead of "gilded units". The number counts every Gilded unit that player made this game.' },
       { category: 'Systems', text: "Watching a live game, the lobby rail now matches the player's. Their next opponent and every hover card show exactly what the player sees." },
+      {
+        category: 'Systems',
+        text: 'The main menu is cleaner. Play is the big button, and your name, rank and level sit in one card at the top right.',
+        details: [
+          'Report a Problem and the build number moved to the bottom left corner.',
+          'Click your portrait to change it and your name to rename yourself, as before.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Recent Games and your Career match history are now a list of games with the selected game shown in full beside it.',
+        details: [
+          'Click a game in the list, or use the Up and Down keys, to see its final board, runes, Replay and details.',
+          'Under the open game is its lobby: every player with a small view of their board. Click one to show their full board in place of yours, and Back to yours to return.',
+          'Recent Games shows the lobby for ranked games too, and lists the last 100 games.',
+          'The final board is bigger, and the runes show with their names.',
+          'Career and Recent Games now fit on one screen. Only the game list scrolls.',
+          'Hover the MMR chart on your Career to see the final board of that game.',
+          'The Practice setup no longer shifts when you switch between Sandbox and God Mode.',
+          'The Practice setup has the side menu, like the other mode screens.',
+          'The Live Games button glows and shows a count while ranked games are being played.',
+          'Click any chart in Performance Trends on your Career to see it large.',
+          'Career shows the profile picture each player chose, bigger.',
+          'Clicking between games, players, tabs and filters in the menus no longer makes a sound.',
+        ],
+      },
     ],
   },
   {

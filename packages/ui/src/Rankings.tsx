@@ -2,7 +2,6 @@ import { useEffect, useRef } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
-import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, displayHandle } from './store';
 import { peekSocial, putSocial, useSocial } from './socialCache';
@@ -119,7 +118,7 @@ export function Rankings() {
     // rank rides along (when the backend carries one) so the Seasonal Ranked card there paints the
     // SAME crest + bar this row shows, at once, instead of a bare rating number (owner 2026-09-21).
     const openTheirs = (): void => {
-      sfx.pulse();
+      // Silent (owner 2026-10-16: Leaderboard row clicks make no blip).
       openCareer({ userId: r.userId, author: r.author, rating: r.rating, gamesPlayed: r.gamesPlayed, favoriteHero: r.favoriteHero, ...(r.rank ? { rank: r.rank } : {}), ...(r.avatar ? { avatar: r.avatar } : {}) });
     };
     // A div[role=button], not a <button> — the row nests its action buttons and a button can't nest a button.
@@ -156,7 +155,7 @@ export function Rankings() {
               ? <span className="lb-unranked">Unranked</span> // the MMR column beside it carries the number
               : <><span className="lb-rating">{r.rating}</span><span className="lb-unit">MMR</span></>}
         </span>
-        {ranked && <span className="lb-c-mmr"><span className="lb-num lb-mmr">{r.rating}</span><span className="lb-unit">rating</span></span>}
+        {ranked && <span className="lb-c-mmr"><span className="lb-num lb-mmr">{r.rating}</span><span className="lb-unit">MMR</span></span>}
         <span className="lb-c-games"><span className="lb-num">{r.gamesPlayed}</span><span className="lb-unit">played</span></span>
         {/* No buttons (owner 2026-10-16: "the big CAREER PAGE + WATCH buttons on every row are heavy"): the whole row opens
             the Career. Watch-live waits on live rows carrying a user id (they carry only a display name today, and
@@ -192,7 +191,7 @@ export function Rankings() {
           <Icon name="crown" />
           <div>
             <div className="esch disp">Leaderboard</div>
-            <div className="lbsub">Top {RANKED_ROWS} players by rating</div>
+            <div className="lbsub">Top {RANKED_ROWS} players by MMR</div>
           </div>
         </div>
       </div>
@@ -215,7 +214,7 @@ export function Rankings() {
             <div className={`lb-trow lb-thead${rest.length === 0 ? ' lb-thead-idle' : ''}`} role="row">
               <span className="lb-c-rank">#</span>
               <span className="lb-c-player">Player</span>
-              <span className="lb-c-rating">{ranked ? 'Rank' : 'Rating'}</span>
+              <span className="lb-c-rating">{ranked ? 'Rank' : 'MMR'}</span>
               {ranked && <span className="lb-c-mmr">MMR</span>}
               <span className="lb-c-games">Games</span>
               <span className="lb-c-act" />

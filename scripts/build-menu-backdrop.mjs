@@ -9,6 +9,8 @@
 //                    a source a little under 1920 wide does not read soft on the 1080p stage.
 //   <name>-dim.webp  the pre-blurred, pre-darkened plate for data screens (Career, Leaderboard, ...), 960x540:
 //                    it is a blur, so half resolution loses nothing and saves most of the bytes.
+//   <name>-soft.webp a SLIGHTLY blurred plate for a scene that carries tiles (the Mode screen; owner 2026-10-16: "add
+//                    a slight blur to the background play image"): a ~3px blur at 1920x1080, not darkened.
 // Re-run it with the same <name> to replace a backdrop; the layer picks the files up by name.
 import sharp from 'sharp';
 import { mkdirSync, statSync } from 'node:fs';
@@ -44,4 +46,13 @@ await sharp(tinted)
   .webp({ quality: 90, effort: 6 }) // high quality: a blurred plate bands easily when the stage scales it 2x
   .toFile(dim);
 
-for (const f of [crisp, dim]) console.log(`${f}  ${Math.round(statSync(f).size / 1024)} KB`);
+// Soft: the crisp plate with a light blur (radius in stage px), full colour and full size (a 3px blur still shows
+// detail, so it keeps the 1080p resolution).
+const soft = join(OUT, `${name}-soft.webp`);
+await sharp(src)
+  .resize(1920, 1080, { fit: 'cover', position: 'centre', kernel: 'lanczos3' })
+  .blur(3)
+  .webp({ quality: 84, effort: 6 })
+  .toFile(soft);
+
+for (const f of [crisp, dim, soft]) console.log(`${f}  ${Math.round(statSync(f).size / 1024)} KB`);

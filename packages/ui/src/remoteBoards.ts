@@ -1034,6 +1034,41 @@ export async function fetchLatestReplayForUser(userId: string): Promise<ReplayV2
   }
 }
 
+// ── Recent Games lobby standings (owner 2026-10-16: "yes" to loading ranked standings) ─────────────────────────
+// A ranked Recent Games row comes from `run_telemetry`, which carries no MatchDetails; the standings ride the same
+// run's CAREER row (`run_history.entry.match`). The two are joined by the run's SEED (see Career Watch below):
+// the telemetry row's `replay->>seed`, then the history row of that player with that `entry->>seed`. Both reads are
+// ONE row (`limit(1)`, R-NET-01) and project only what is needed (the seed; the match). `run_history` reads are
+// already public to every signed-in session (schema.sql 2026-08-04 "read run_history": a Career is public), so no
+// new policy or RPC is involved. Cached per telemetry row for the session, misses included (a row with no record
+// asks once). Best-effort + time-boxed; null = no lobby section.
+const recentMatchCache = new Map<number, Promise<MatchDetails | null>>();
+export function fetchRecentMatch(rowId: number | null | undefined, userId: string | null | undefined): Promise<MatchDetails | null> {
+  if (rowId == null || !userId) return Promise.resolve(null);
+  const hit = recentMatchCache.get(rowId);
+  if (hit) return hit;
+  const p = (async (): Promise<MatchDetails | null> => {
+    const c = client();
+    if (!c) return null;
+    try {
+      const timeout = <T,>(): Promise<T | null> => new Promise((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
+      const tel = await Promise.race([Promise.resolve(c.from('run_telemetry').select('seed:replay->>seed').eq('id', rowId).limit(1)), timeout<never>()]);
+      const seed = (tel?.data?.[0] as { seed?: unknown } | undefined)?.seed;
+      if (tel?.error || seed == null || seed === '') return null;
+      const hist = await Promise.race([
+        Promise.resolve(c.from('run_history').select('match:entry->match').eq('user_id', userId).eq('entry->>seed', String(seed)).order('id', { ascending: false }).limit(1)),
+        timeout<never>(),
+      ]);
+      if (!hist || hist.error || !hist.data?.length) return null;
+      return parseMatchDetails((hist.data[0] as { match?: unknown }).match) ?? null;
+    } catch {
+      return null;
+    }
+  })();
+  recentMatchCache.set(rowId, p);
+  return p;
+}
+
 // ── Career Watch (owner ask 2026-08-19): map a match-history row to ITS uploaded replay by SEED ────────────
 // run_history and run_telemetry are separate rows written from the same run-end flow with no shared id — but
 // both carry the run's SEED (`RunHistoryEntry.seed`; `replay.seed` at the top of the telemetry jsonb, echoed
@@ -1147,6 +1182,24 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
  * Career show it to everyone. Its own best-effort UPDATE, never part of the run-end profile sync: a backend without
  * the column rejects only this write, and nothing else waits on it.
  */
+/** BACKFILL (owner 2026-10-16: other players saw a favourite hero, not the picture they chose). A pick made before
+ *  the `profiles.avatar` column existed lives only in this browser's `ascent.avatar`; once per session, if the
+ *  server's column is still null, write the local choice up so every viewer sees it. One one-row read (R-NET-01) and
+ *  at most one update; never overwrites a server value. */
+let avatarBackfilled = false;
+export async function backfillProfileAvatar(local: string | null): Promise<void> {
+  if (avatarBackfilled || !local) return;
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return;
+  avatarBackfilled = true;
+  try {
+    const { data, error } = await c.from('profiles').select('avatar').eq('user_id', userId).limit(1);
+    if (error || !data?.length) return; // no column yet, or no row yet (the next run's profile upsert makes one)
+    if ((data[0] as { avatar?: unknown }).avatar == null) await c.from('profiles').update({ avatar: local }).eq('user_id', userId);
+  } catch { /* best-effort */ }
+}
+
 export async function pushProfileAvatar(avatar: string | null): Promise<void> {
   const c = client();
   const userId = currentUserId();

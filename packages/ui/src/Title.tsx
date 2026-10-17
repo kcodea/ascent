@@ -33,6 +33,9 @@ import { openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
 import { versusEnabled } from './versus/versusFlag';
 import { readLastMode, rememberMode, type ModeKey } from './lastMode';
 import { PlayerStrip } from './PlayerStrip';
+import { levelProgress } from '@game/progression';
+import { mirrorFor } from './progression/progressionStore';
+import { scalarCaption } from './rank/rankFormat';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -98,6 +101,10 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const clearRun = useGame((s) => s.clearRun);
   // The account corner's rank badge (owner 2026-09-21) — the crest + division under the name plate.
   const rank = useCurrentRank();
+  // THE IDENTITY CARD (UI pass 2, 2026-10-16): level + equipped title, read the way the Mode screen's PlayerStrip does.
+  const progressionOn = useProgression((s) => s.capability === 'on');
+  const mirror = useProgression((s) => mirrorFor(account.userId, s.mirror));
+  const level = progressionOn && mirror ? levelProgress(mirror.accountXp) : null;
 
   // FRONT-PAGE COPY (dev Title Text tuner). Re-render on change so edits land live behind the panel; with no
   // override this returns the shipped defaults, so production is byte-identical to the hard-coded strings.
@@ -246,32 +253,37 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           current RANK in a badge beneath. Sign in / Sign out live in Settings now. Sizes + offsets are the
           👤 Title Account dev tuner's `--ta-*` vars (see titleAccountConfig.ts). No `data-tip` on `.portring`
           itself — its ::after IS the ring; the tip rides the wrapping button. */}
-      <div className="titleaccount">
+      <div className="titleaccount ta-card">
         {/* GUEST SIGN-IN (owner 2026-09-29): a slow-blinking "Sign in!" left of the portrait, guests only. */}
         <GuestSignInButton />
-        <button
-          className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
-          onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
-          // No hover tip for a guest: it pops out LEFT, right over the Sign in! button beside it; the button and the
-          // click prompt already say it.
-          data-tip={account.anonymous ? undefined : 'Change your avatar'}
-          aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
-        >
-          <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
-            <div className="hero">
-              <div className="f">
-                {avatarSrc(playerAvatar)
-                  ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
-                  : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+        <div className="ta-portrait">
+          <button
+            className={`titleportrait${avatarSrc(playerAvatar) ? '' : ' noart'}`}
+            onClick={() => { if (account.anonymous) { sfx.pulse(); setPortraitGate(true); } else openAvatarPicker(); }}
+            // No hover tip for a guest: it pops out LEFT, right over the Sign in! button beside it; the button and the
+            // click prompt already say it.
+            data-tip={account.anonymous ? undefined : 'Change your avatar'}
+            aria-label={account.anonymous ? 'Sign in to change your portrait' : 'Change your avatar'}
+          >
+            <div className={`portring${pfClass(avatarFrame)}`} style={avatarFrame?.hostStyle}>
+              <div className="hero">
+                <div className="f">
+                  {avatarSrc(playerAvatar)
+                    ? <img decoding="sync" className="heroimg" src={avatarSrc(playerAvatar)} alt="" draggable={false} />
+                    : <span className="titleportrait-ph">{(effectiveName.trim()[0] ?? '').toUpperCase() || '☺'}</span>}
+                </div>
+                <PortraitFrame frame={avatarFrame} />
               </div>
-              <PortraitFrame frame={avatarFrame} />
             </div>
-          </div>
-        </button>
+          </button>
+          {/* The account level rides the ring (the games-do-it-this-way badge); the XP bar is on Career. */}
+          {level && <span className="acctxp-level ta-lv" aria-label={`Level ${level.level}`}><span className="acctxp-level-l">Lv</span>{level.level}</span>}
+        </div>
+        <div className="ta-info">
         <div className="titlename-seat">
           {editing ? (
             <input
-              className="acctinput titlename-input hudpill-name"
+              className="acctinput titlename-input"
               autoFocus
               maxLength={24}
               value={draft}
@@ -283,7 +295,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             />
           ) : (
             <button
-              className="titlename hudpill-name"
+              className="titlename"
               onClick={beginEdit}
               data-tip={unnamed ? 'This is a temporary name. Click to make it your own.' : 'Click to change your name'}
             >
@@ -294,12 +306,16 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             </button>
           )}
         </div>
+        {/* ONE secondary line (owner 2026-10-16: "a lot of info in it, kinda small and jumbled"): the crest and division,
+            the MMR small after it. The equipped title and XP bar live on the Career page. */}
         {rank && (
-          <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}`}>
+          <div className="titlerank" aria-label={`Rank ${rankLabel(rank)}, ${scalarCaption(rank)} MMR`}>
             <RankCrest divisionIndex={rank.divisionIndex} size="mini" hideDivision />
             <span className="titlerank-label">{rankLabel(rank)}</span>
+            <span className="titlerank-mmr">{scalarCaption(rank)} MMR</span>
           </div>
         )}
+        </div>
       </div>
 
       <PortraitSignInGate open={portraitGate} onClose={closePortraitGate} />
@@ -378,30 +394,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           </button>
         </nav>
 
-        {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
-            Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
-        <div className="titlesecondary">
-          {/* BUG REPORTER from the MAIN MENU (owner ask 2026-08-27): the same reporter as in-game Ctrl+B —
-              no run needed; the description is the payload. Routes through the store's one open authority. */}
-          <button onClick={() => { sfx.pulse(); openBugReport(); }} data-tip="Spotted a problem? Describe it here, no run needed (Ctrl+B).">Report a Problem</button>
-          {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
-              itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
-          {import.meta.env.DEV && (
-            <>
-              <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); openBalance(); }} data-tip="Balance Report. Real player offer, pick and win rates.">Balance Report</button>
-            </>
-          )}
-          {/* REPLAY VIEWER (v2): watch back the last run finished this session (frames aren't persisted, so
-              the offer only appears once a run has ended since launch). The full spectate entry points —
-              recent matches + leaderboard Watch — are Phase C. */}
-          {lastReplay && (
-            <>
-              <span className="tsdot">·</span>
-              <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} data-tip="Watch back your last finished game">Rewatch Last Game</button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* MODE PICKER (redesigned for UI refinement WS-2, 2026-10-16; owner: "our play mode screen seems bad").
@@ -547,9 +539,37 @@ export function Title({ onSettings }: { onSettings: () => void }) {
         </div>
       )}
 
-      {/* Version + the exact commit the bundle was built from (`*` = built on a dirty tree, so NOT that commit).
-          This is how a player and `git log` agree on which build is running — read it off the exe. */}
-      <div className="titleversion" aria-description={`built ${__BUILD_DATE__}`}>v{__APP_VERSION__} · {__BUILD_SHA__}{__BUILD_DIRTY__ ? '*' : ''}</div>
+      {/* The corner footer: the reporter and the other small links, then the build stamp. Bottom left, clear of the
+          Compendium + help buttons in the bottom-right corner (they overlapped the stamp before). */}
+      <div className="titlefoot">
+        {/* Secondary links under the plaques: the reporter, the DEV balance report and the last replay. The
+            Compendium link left here on 2026-09-21 (owner: "not important" on the title); it is still Tab. */}
+        <div className="titlesecondary">
+          {/* BUG REPORTER from the MAIN MENU (owner ask 2026-08-27): the same reporter as in-game Ctrl+B —
+              no run needed; the description is the payload. Routes through the store's one open authority. */}
+          <button onClick={() => { sfx.pulse(); openBugReport(); }} data-tip="Spotted a problem? Describe it here, no run needed (Ctrl+B).">Report a Problem</button>
+          {/* DEV-ONLY (owner 2026-08-24): the Balance Report is a dev/telemetry view, stripped from the exe +
+              itch prod builds. The dot rides inside the guard so prod never shows a dangling separator. */}
+          {import.meta.env.DEV && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); openBalance(); }} data-tip="Balance Report. Real player offer, pick and win rates.">Balance Report</button>
+            </>
+          )}
+          {/* REPLAY VIEWER (v2): watch back the last run finished this session (frames aren't persisted, so
+              the offer only appears once a run has ended since launch). The full spectate entry points —
+              recent matches + leaderboard Watch — are Phase C. */}
+          {lastReplay && (
+            <>
+              <span className="tsdot">·</span>
+              <button onClick={() => { sfx.pulse(); startReplay(lastReplay); }} data-tip="Watch back your last finished game">Rewatch Last Game</button>
+            </>
+          )}
+        </div>
+        {/* Version + the exact commit the bundle was built from (`*` = built on a dirty tree, so NOT that commit).
+            This is how a player and `git log` agree on which build is running — read it off the exe. */}
+        <div className="titleversion" aria-description={`built ${__BUILD_DATE__}`}>v{__APP_VERSION__} · {__BUILD_SHA__}{__BUILD_DIRTY__ ? '*' : ''}</div>
+      </div>
     </div>
   );
 }

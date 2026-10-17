@@ -50,7 +50,7 @@ describe('the guest "Sign in!" button (owner 2026-09-29)', () => {
     expect(btn!.hasAttribute('title')).toBe(false);
     const corner = $('.titleaccount')!;
     const kids = [...corner.children];
-    expect(kids.indexOf(btn!.closest('.guestsignin-seat')!)).toBeLessThan(kids.indexOf($('.titleportrait')!));
+    expect(kids.indexOf(btn!.closest('.guestsignin-seat')!)).toBeLessThan(kids.indexOf($('.titleportrait')!.closest('.ta-portrait')!));
   });
 
   it('clicking it opens the account panel', () => {

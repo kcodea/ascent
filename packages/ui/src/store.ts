@@ -98,7 +98,7 @@ import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, typ
 import { withRecordedEmotes } from '@game/sim';
 import type { RuneCombatProgress } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
-import { pushProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { pushProfileAvatar, backfillProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
@@ -2875,16 +2875,19 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // Every ladder page closes first — the same set `startReplay` clears — so the destination is what paints.
     // The hop stamp lets the destination skip its entry fade (the sidebar it shares with the source stays put).
     const navHopAt = dest === 'menu' ? get().navHopAt : navClockNow();
+    // The Practice setup wears the sidebar too (owner 2026-10-16: "add it"): a hop from there closes the setup and
+    // brings the title back underneath, the way its Modes crumb does.
+    const off = get().practiceSetupOpen ? { practiceSetupOpen: false, showTitle: true } : {};
     switch (dest) {
-      case 'menu': set({ ...PAGES_CLOSED, titleView: 'menu' }); break;
-      case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes', navHopAt }); break;
-      case 'career': set({ ...PAGES_CLOSED, showCareer: true, navHopAt }); break;
-      case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
+      case 'menu': set({ ...PAGES_CLOSED, ...off, titleView: 'menu' }); break;
+      case 'modes': set({ ...PAGES_CLOSED, ...off, titleView: 'modes', navHopAt }); break;
+      case 'career': set({ ...PAGES_CLOSED, ...off, showCareer: true, navHopAt }); break;
+      case 'rankings': set({ ...PAGES_CLOSED, ...off, showRankings: true, navHopAt }); break;
       // Hidden Hall (hallFlag.ts): a request for it lands on the player Leaderboard.
-      case 'hall': set({ ...PAGES_CLOSED, ...(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }), navHopAt }); break;
-      case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
-      case 'live': set({ ...PAGES_CLOSED, showLiveGames: true, navHopAt }); break;
-      case 'collection': set({ ...PAGES_CLOSED, showCollection: true, navHopAt }); break;
+      case 'hall': set({ ...PAGES_CLOSED, ...off, ...(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }), navHopAt }); break;
+      case 'recent': set({ ...PAGES_CLOSED, ...off, showRecentGames: true, navHopAt }); break;
+      case 'live': set({ ...PAGES_CLOSED, ...off, showLiveGames: true, navHopAt }); break;
+      case 'collection': set({ ...PAGES_CLOSED, ...off, showCollection: true, navHopAt }); break;
     }
   },
   navHopAt: -1e9,
@@ -3110,6 +3113,8 @@ export function syncProfileFromServer(_name: string): void {
   // kept so callers (and the rename path) read unchanged, and because C2's handle model will want it back.
   // MEDAL RANK (2026-09-20): the read is the whole `RankedProfile` (division / points / highest / revision),
   // not a bare number; `profile.rating` re-derives as the scalar so the numeric surfaces keep working.
+  // The chosen profile picture reaches the server once (a pick from before the column existed was local only).
+  void backfillProfileAvatar(useGame.getState().playerAvatar);
   void fetchRankedProfile().then((server) => {
     // The reconciliation is PURE MATH in @game/sim (`resolveServerRank`), which owns the three-way ruling:
     // couldn't-ask keeps the local mirror silently, an answered "no row" resets to a fresh profile (so a

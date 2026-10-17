@@ -37,6 +37,7 @@ import { TITLE_LOGO_SRC } from './AscentLogo';
 import { withAbandonWarning } from './rank/ratedRun';
 import { NewPill, useHasNewRewards } from './progression/NewRewardsPopup';
 import { MenuBackdrop } from './MenuBackdrop';
+import { useLiveCount, useWindowFocused } from './live/liveCount';
 import { HALL_VISIBLE } from './hallFlag';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
@@ -108,6 +109,8 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   // The Collection plaque shows once crates are live (always in DEV, so the screen and its tuner are reachable).
   const collectionOn = useProgression(cratesVisible) || import.meta.env.DEV;
   const newRewards = useHasNewRewards();
+  const liveCount = useLiveCount();
+  const focused = useWindowFocused();
 
   const progress: Item[] = [
     { dest: 'career', label: txt.career, icon: <IconHelm /> },
@@ -124,16 +127,19 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   const plaque = (it: Item, extra = ''): JSX.Element => {
     const active = it.dest === current;
     const fresh = it.dest === 'collection' && newRewards;
+    // LIVE (owner 2026-10-16): the Live Games plaque breathes while ranked games are being played, with the count.
+    const live = it.dest === 'live' && liveCount > 0;
     return (
       <button
         key={it.dest}
-        className={`sbbtn${extra}${active ? ' active' : ''}${fresh ? ' hasnew' : ''}`}
+        className={`sbbtn${extra}${active ? ' active' : ''}${fresh ? ' hasnew' : ''}${live ? ` sb-live${focused ? '' : ' paused'}` : ''}`}
         aria-current={active ? 'page' : undefined}
         onClick={() => { sfx.pulse(); goTo(it.dest); }}
       >
         <span className="mbicon">{it.icon}</span>
         <span className="mblabel">{it.label}</span>
         {fresh && <NewPill />}
+        {live && <span className="sb-livechip" aria-label={`${liveCount} live ${liveCount === 1 ? 'game' : 'games'}`}>{liveCount} live</span>}
       </button>
     );
   };

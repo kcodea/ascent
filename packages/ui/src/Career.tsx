@@ -1,13 +1,13 @@
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { LazyRow, LazyRowsProvider } from './lazyRows';
+import { GameSplit, type GameListItem } from './GameSplit';
+import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
-import type { BoardSnapshot, MatchDetails } from '@game/sim';
+import type { BoardSnapshot } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
-import { MatchScoreboard } from './matchDetails/MatchScoreboard';
-import { GameCard } from './GameCard';
+import { GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
 import { avatarSrc } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
@@ -25,7 +25,7 @@ import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplay
 import { startReplay } from './replay/replayPlayer';
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankBar } from './rank/RankBar';
-import { cosmeticOf, isMasterTitle, titleName } from '@game/progression';
+import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab } from './progression/AchievementsTab';
@@ -100,8 +100,6 @@ function loadTab(): CenterTab {
 function saveTab(t: CenterTab): void {
   try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
 }
-/** Banners mounted with the page; the rest mount as they near the viewport (`lazyRows.tsx`). Two fill the view. */
-const EAGER_ROWS = 3;
 /** Banners in Match History (and the Practice tab): the newest 50 server runs (owner 2026-10-16 "career to 50 too"; was 25,
  *  and 10 before 2026-09-20). Matches `CAREER_DETAIL_ROWS`, the rows fetched WITH their boards. */
 const MATCH_ROWS = 50;
@@ -192,34 +190,6 @@ function PageState({ icon, title, body, action, busy, className }: {
   );
 }
 
-/** MATCH DETAILS on a match card (owner ask 2026-09-28: "add a down arrow/expand button to make a match larger and
- *  be able to see the players in the lobby"): the chevron button that grows the card. */
-function LobbyToggle({ open, onToggle, id }: { open: boolean; onToggle: () => void; id: string }) {
-  return (
-    <button
-      type="button"
-      className="cv2-lobbybtn pressable"
-      aria-expanded={open}
-      aria-controls={id}
-      aria-label={open ? 'Hide the players in this lobby' : 'Show the players in this lobby'}
-      onClick={() => { sfx.tick(); onToggle(); }}
-    >
-      Lobby<Icon name="chevron" />
-    </button>
-  );
-}
-
-/** The expanded half of a match card: the SAME scoreboard the end screen's Match details dialog shows, mounted only
- *  while open. An older match (no recorded details) says so plainly. */
-function LobbyPanel({ match, id }: { match: MatchDetails | null | undefined; id: string }) {
-  const { own } = useContext(CareerSkinContext);
-  return (
-    <section className="cv2-lobby" id={id} aria-label="Players in this lobby">
-      {match ? <MatchScoreboard details={match} own={own} /> : <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>}
-    </section>
-  );
-}
-
 /** One match banner. Memoised (perf 2026-10-09): a trend-window click or a Watch press re-renders the page, never the
  *  25 banners' 175 cards; `onWatch` is the page's stable callback and gets the run back. */
 const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch }: {
@@ -234,8 +204,9 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
   const runeLive = runeLiveStateOfSnapshot(run.board); // the run's FINAL value of its self-improving runes (R-RUNE-LIVE-TEXT-01)
   const fights = run.wins + run.losses + run.draws;
-  const [lobbyOpen, setLobbyOpen] = useState(false);
-  const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
+  // THE LOBBY PICKER (owner 2026-10-16): whose board the big board shows; yours by default.
+  const { own } = useContext(CareerSkinContext);
+  const lp = useLobbyParts(run.match, own, <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>);
   // THE GAME CARD (GameCard.tsx, 2026-10-16): the placement once, the hero + record, the board strip, runes and actions
   // at the side, and one quiet meta line. The match WIN / LOSS (top 4 or not) is the card's band colour now.
   return (
@@ -243,15 +214,17 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
       place={run.placement}
       label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
       resultClass={`cv2-verdict ${o.cls}`}
-      className={`cv2-row gc-stack ${o.cls}${focus ? ' focus' : ''}`}
+      className={`cv2-row gc-detail ${o.cls}${focus ? ' focus' : ''}`}
       rootProps={{ 'aria-label': `${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}` }}
       hero={<HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />}
       title={<span className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '-'}</span>}
       record={fights > 0 ? (
         <span className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>{recordText(run)}</span>
       ) : undefined}
-      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
-      runes={runes.length > 0
+      lobby={lp.lobby}
+      boardKey={lp.boardKey}
+      board={lp.seat ? <SeatBoard seat={lp.seat} own={own} /> : <div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
+      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : runes.length > 0
         ? <div className="cv2-runes" aria-label="Runes picked this run">{runes.map((id, i) => <RuneEmblem runeId={id} live={runeLive} key={`${id}#${i}`} />)}</div>
         : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
       actions={<>
@@ -264,7 +237,6 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
         >
           <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
         </button>
-        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
       </>}
       meta={<div className="cv2-row-meta">
         <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
@@ -284,7 +256,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
           <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
         )}
       </div>}
-      extra={lobbyOpen ? <LobbyPanel match={run.match} id={lobbyId} /> : undefined}
+      extra={lp.extra}
     />
   );
 });
@@ -313,22 +285,24 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const fights = rec ? rec.wins + rec.losses + rec.draws : 0;
   const heroName = game.heroId ? getHero(game.heroId).name : '—';
   const cfg = game.practice;
-  const [lobbyOpen, setLobbyOpen] = useState(false);
-  const lobbyId = `cv2-lobby-p${game.rowId ?? game.createdAt ?? 'x'}`;
+  const { own } = useContext(CareerSkinContext);
+  const lp = useLobbyParts(game.match, own, <div className="cv2-lobby-none">{NO_DETAILS_TEXT}</div>);
   return (
     <GameCard
       place={game.placement}
       label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
       resultClass={`cv2-verdict ${o.cls}`}
-      className={`cv2-row cv2-prow gc-stack ${o.cls}`}
+      className={`cv2-row cv2-prow gc-detail ${o.cls}`}
       rootProps={{ 'aria-label': `Practice, ${heroName}: ${o.label}` }}
       hero={<HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />}
       title={<span className="cv2-row-heroname">{heroName}</span>}
       record={rec && fights > 0 ? (
         <span className="cv2-row-fights" aria-label={`Fights: ${rec.wins} won, ${rec.losses} lost${rec.draws ? `, ${rec.draws} drawn` : ''}`}>{recordText(rec)}</span>
       ) : undefined}
-      board={<div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
-      runes={runes.length > 0
+      lobby={lp.lobby}
+      boardKey={lp.boardKey}
+      board={lp.seat ? <SeatBoard seat={lp.seat} own={own} /> : <div className="cv2-row-team">{hasBoard ? <FinalTeam board={game.board!} /> : <div className="cv2-row-none">No final team recorded for this game.</div>}</div>}
+      runes={lp.seat ? <SeatRuneRow seat={lp.seat} /> : runes.length > 0
         ? <div className="cv2-runes" aria-label="Runes picked this game">{runes.map((id, i) => <RuneEmblem runeId={id} live={runeLive} key={`${id}#${i}`} />)}</div>
         : <div className="cv2-row-none cv2-norunes">No runes recorded</div>}
       actions={<>
@@ -343,7 +317,6 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
             <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
           </button>
         )}
-        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
       </>}
       meta={<div className="cv2-row-meta">
         <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
@@ -351,7 +324,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
         <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '-'}</span></span>
         {cfg && <span className="cv2-meta cv2-ppills" aria-label="Practice options"><span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span><span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span></span>}
       </div>}
-      extra={lobbyOpen ? <LobbyPanel match={game.match} id={lobbyId} /> : undefined}
+      extra={lp.extra}
     />
   );
 }
@@ -408,6 +381,13 @@ function HeroTile({ h }: { h: HeroCareer }) {
       <HeroFrame heroId={h.heroId} skins={careerLoadout} />
       <div className="cv2-hcard-name">{name}</div>
       <div className="cv2-hcard-games">{games}</div>
+      {/* The headline numbers ON the card (2026-10-16 audit: the tab was five portraits over an empty panel); the
+          hover panel keeps the full record. */}
+      <div className="cv2-hcard-stats" aria-hidden="true">
+        <span className="cv2-hcard-stat"><b>{h.winRate === null ? '-' : `${h.winRate}%`}</b>Top 4</span>
+        <span className="cv2-hcard-stat"><b>{h.avgPlacement === null ? '-' : h.avgPlacement}</b>Avg</span>
+        <span className="cv2-hcard-stat"><b>{h.firsts}</b>1st</span>
+      </div>
       {tip && createPortal(
         <div id={tipId} className={`cv2-herotip ${tip.side}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
           <div className="cv2-herotip-name">{name}</div>
@@ -516,14 +496,16 @@ export function Career() {
   // the profile's rank columns are read ONCE by user id — one request, remembered per user id while the page
   // is open — so the Seasonal Ranked card paints the same crest + bar your own page shows, not a bare number.
   // `null` = asked, no rank (a pre-migration backend / no row) → the bare MMR stays.
-  const [viewedRank, setViewedRank] = useState<{ userId: string; rank: RankedProfile | null } | null>(null);
+  // The same one read also brings the player's CHOSEN profile picture when the entry point did not carry it (owner
+  // 2026-10-16: "i really want the player's selected portrait to be here").
+  const [viewedRank, setViewedRank] = useState<{ userId: string; rank: RankedProfile | null; avatar?: string | null } | null>(null);
   useEffect(() => {
     if (!show) { setViewedRank(null); return; }
-    if (!viewing || viewing.rank || !remoteEnabled()) return;
+    if (!viewing || (viewing.rank && viewing.avatar) || !remoteEnabled()) return;
     if (viewedRank?.userId === viewing.userId) return;
     let live = true;
     const who = viewing.userId;
-    void fetchPlayerById(who).then((row) => { if (live) setViewedRank({ userId: who, rank: row?.rank ?? null }); });
+    void fetchPlayerById(who).then((row) => { if (live) setViewedRank({ userId: who, rank: row?.rank ?? null, avatar: row?.avatar ?? null }); });
     return () => { live = false; };
   }, [show, viewing, viewedRank]);
 
@@ -572,8 +554,11 @@ export function Career() {
   // (perf 2026-10-09) so the context value is stable and the memoised banners below skip unrelated re-renders.
   const pageLoadout = accountProgression?.loadout ?? null;
   const careerSkins = useMemo(() => ({ own: !viewing, loadout: pageLoadout }), [viewing, pageLoadout]);
-  // The scroller element the lazy banners observe (a callback ref, so the provider sees it once it exists).
-  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  // The game open in each tab's detail panel (GameSplit). Null = the focused run (a Recent Games open) or the newest;
+  // a different player's page starts over.
+  const [pickedRun, setPickedRun] = useState<string | null>(null);
+  const [pickedPractice, setPickedPractice] = useState<string | null>(null);
+  useEffect(() => { setPickedRun(null); setPickedPractice(null); }, [viewing?.userId, viewing?.focus]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
   const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
   const onWatchRun = useCallback((run: CareerRun) => watchRunRef.current(run), []);
@@ -618,11 +603,11 @@ export function Career() {
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
   const heroName = heroId ? getHero(heroId).name : '—';
   const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
-  const pickTab = (t: CenterTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); saveTab(t); };
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; setTab(t); saveTab(t); };
 
   let body: JSX.Element;
   if (!remoteEnabled()) {
-    body = <PageState icon="mute" title="Career unavailable" body="This build has no backend configured, so there is no server record to show." />;
+    body = <PageState icon="warn" title="Career unavailable" body="This build has no backend configured, so there is no server record to show." />;
   } else if (!userId) {
     body = (
       <PageState
@@ -638,7 +623,7 @@ export function Career() {
   } else if (runs === null) {
     body = (
       <PageState
-        icon="mute"
+        icon="warn"
         title="Couldn’t reach the server"
         body="Your career is stored on your account. Check your connection and try again."
         action={{ label: 'Retry', onClick: () => { sfx.pulse(); setFetchTick((t) => t + 1); } }}
@@ -654,8 +639,17 @@ export function Career() {
           <div className="cv2-panel cv2-left">
             {/* THE PLAYER'S PORTRAIT (owner 2026-10-16): their chosen profile picture, the favourite hero as a small
                 line under it (it was the portrait before; owner 2026-09-28 asked for it to be clearly labelled). */}
-            <ProfilePortrait avatar={viewing ? viewing.avatar : playerAvatar} heroId={heroId} loadout={accountProgression?.loadout} />
-            <div className="cv2-favline"><span className="cv2-favlabel">Favorite hero</span><span className="cv2-heroname">{heroName}</span></div>
+            {/* WHO THIS IS (owner 2026-10-16: "the player's selected portrait ... a bit bigger so it's more obvious"): the
+                chosen profile picture in its frame (the favourite hero only when none was chosen), the account level on
+                the ring, the name, and the favourite hero as a small line. */}
+            <div className="cv2-idport">
+              <ProfilePortrait avatar={viewing ? (viewing.avatar ?? (viewedRank?.userId === viewing.userId ? viewedRank.avatar : null)) : playerAvatar} heroId={heroId} loadout={accountProgression?.loadout} />
+              {accountProgression && <span className="acctxp-level cv2-idlv" aria-label={`Level ${levelProgress(accountProgression.accountXp).level}`}><span className="acctxp-level-l">Lv</span>{levelProgress(accountProgression.accountXp).level}</span>}
+            </div>
+            <div className="cv2-favline">
+              <span className="cv2-idname">{shownName}</span>
+              <span className="cv2-idfav"><span className="cv2-favlabel">Favorite hero</span> <span className="cv2-heroname">{heroName}</span></span>
+            </div>
             {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
                 not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
             {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}
@@ -704,7 +698,7 @@ export function Career() {
               <AchievementsTab userId={userId} own={!viewing} ownerName={shownName} />
             </div>
           ) : tab === 'practice' ? (
-            <div className="cv2-list cv2-practicelist" role="tabpanel" ref={setListEl}>
+            <div className="cv2-list cv2-practicelist" role="tabpanel">
               {practiceRows === undefined ? (
                 <div className="cv2-panel cv2-none" role="status" aria-busy="true">
                   <div className="cv2-state-ico spin"><Icon name="refresh" /></div>
@@ -713,7 +707,7 @@ export function Career() {
                 </div>
               ) : practiceRows === null ? (
                 <div className="cv2-panel cv2-none">
-                  <div className="cv2-state-ico"><Icon name="mute" /></div>
+                  <div className="cv2-state-ico"><Icon name="warn" /></div>
                   <div className="cv2-state-title">Couldn’t reach the server</div>
                   <div className="cv2-state-body">Check your connection and try again.</div>
                   <button type="button" className="cv2-btn pressable" onClick={() => { sfx.pulse(); setPractice(null); setPracticeTick((t) => t + 1); }}>Retry</button>
@@ -724,22 +718,33 @@ export function Career() {
                   <div className="cv2-state-title">No practice games yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.'}</div>
                 </div>
-              ) : (
-                <LazyRowsProvider list={listEl}>
-                  {practiceRows.map((g, i) => (
-                    <LazyRow key={g.rowId ?? `${g.createdAt ?? ''}-${i}`} eager={i < EAGER_ROWS} className="cv2-lazy">
-                      {() => (
-                        <PracticeRow
-                          game={g}
-                          busy={watchingPractice !== null && watchingPractice === g.rowId}
-                          unplayable={noPracticeReplay !== null && noPracticeReplay === g.rowId}
-                          onWatch={() => watchPractice(g)}
-                        />
-                      )}
-                    </LazyRow>
-                  ))}
-                </LazyRowsProvider>
-              )}
+              ) : (() => {
+                // LAYOUT B (owner 2026-10-16): the compact list + the selected practice game in full (GameSplit.tsx).
+                const keyed = practiceRows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
+                const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
+                const items: GameListItem[] = keyed.map(({ g, key }) => {
+                  const name = g.heroId ? getHero(g.heroId).name : '-';
+                  const rec = g.record && g.record.wins + g.record.losses + g.record.draws > 0 ? recordText(g.record) : undefined;
+                  return {
+                    key, place: g.placement, title: name, sub: rec, when: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || undefined,
+                    label: `${placeText(g.placement)}, ${name}`,
+                    portrait: <HeroFrame heroId={g.heroId} small skins={g.board?.cosmetics} />,
+                  };
+                });
+                return (
+                  <GameSplit
+                    className="cv2-split" items={items} selected={sel.key} onPick={setPickedPractice} label="Practice games"
+                    detail={(
+                      <PracticeRow
+                        game={sel.g}
+                        busy={watchingPractice !== null && watchingPractice === sel.g.rowId}
+                        unplayable={noPracticeReplay !== null && noPracticeReplay === sel.g.rowId}
+                        onWatch={() => watchPractice(sel.g)}
+                      />
+                    )}
+                  />
+                );
+              })()}
             </div>
           ) : tab === 'heroes' ? (
             <div className="cv2-list cv2-herolist" role="tabpanel">
@@ -756,30 +761,42 @@ export function Career() {
               )}
             </div>
           ) : (
-            <div className="cv2-list" role="tabpanel" ref={setListEl}>
+            <div className="cv2-list" role="tabpanel">
               {matchRows.length === 0 ? (
                 <div className="cv2-panel cv2-none">
                   <div className="cv2-state-ico"><Icon name="sword" /></div>
                   <div className="cv2-state-title">No runs yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.'}</div>
                 </div>
-              ) : (
-                <LazyRowsProvider list={listEl}>
-                  {matchRows.map((run, i) => (
-                    <LazyRow key={run.id ?? i} eager={i < EAGER_ROWS || i === focusIndex} className="cv2-lazy">
-                      {() => (
-                        <MatchRow
-                          run={run}
-                          focus={i === focusIndex}
-                          busy={watching !== null && watching === run.id}
-                          unplayable={noReplay !== null && noReplay === run.id}
-                          onWatch={onWatchRun}
-                        />
-                      )}
-                    </LazyRow>
-                  ))}
-                </LazyRowsProvider>
-              )}
+              ) : (() => {
+                // LAYOUT B (owner 2026-10-16: "maybe even do something like that for career"): the compact list + the
+                // selected run in full (GameSplit.tsx, shared with Recent Games). A Recent Games open lands on its run.
+                const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
+                const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusIndex >= 0 ? focusIndex : 0]!;
+                const items: GameListItem[] = keyed.map(({ run, key }) => {
+                  const name = run.heroId ? getHero(run.heroId).name : '-';
+                  const fights = run.wins + run.losses + run.draws;
+                  return {
+                    key, place: run.placement, title: name, sub: fights > 0 ? recordText(run) : undefined, when: playedOnText(run.atMs) || undefined,
+                    delta: run.ratingDelta ?? null, label: `${placeText(run.placement)}, ${name}`,
+                    portrait: <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />,
+                  };
+                });
+                return (
+                  <GameSplit
+                    className="cv2-split" items={items} selected={sel.key} onPick={setPickedRun} label="Match history"
+                    detail={(
+                      <MatchRow
+                        run={sel.run}
+                        focus={sel.i === focusIndex}
+                        busy={watching !== null && watching === sel.run.id}
+                        unplayable={noReplay !== null && noReplay === sel.run.id}
+                        onWatch={onWatchRun}
+                      />
+                    )}
+                  />
+                );
+              })()}
             </div>
           )}
         </section>
@@ -809,7 +826,7 @@ export function Career() {
                     key={d}
                     className={`cv2-seg-btn${window_ === d ? ' on' : ''}`}
                     aria-pressed={window_ === d}
-                    onClick={() => { if (window_ !== d) { sfx.pulse(); setWindow(d); } }}
+                    onClick={() => { if (window_ !== d) setWindow(d); }}
                   >
                     {trendWindowLabel(d)}
                   </button>
@@ -821,7 +838,7 @@ export function Career() {
                 Raw ratings on a division-snapped axis (`mmrAxisOf`); nothing here animates. */}
             {/* WITH DEPTH (owner 2026-10-16, careerTrends.tsx): one big MMR chart over the medal bands, then placement,
                 top 4 rate, APM and games as small multiples with rolling averages and the change vs the period before. */}
-            <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} />
+            <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={!viewing} />
           </div>
         </aside>
       </div>

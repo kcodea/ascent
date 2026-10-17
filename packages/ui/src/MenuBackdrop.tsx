@@ -4,7 +4,7 @@
  * Champions, Recent Games, Live Games and Collection. `MenuSidebar` mounts it, so every host gets it for free.
  *
  * EACH SCREEN PICKS ITS OWN PLATE from `MENU_BACKDROPS`. Today they all show the great hall (owner art 2026-10-16):
- * crisp on the mode picker, the pre-blurred + pre-darkened copy on the data screens, so panels and rows sit on a
+ * slightly softened on the mode picker (`hall-soft.webp`), the pre-blurred + pre-darkened copy on the data screens, so panels and rows sit on a
  * calm ground. When a screen's own painting lands, run `node scripts/build-menu-backdrop.mjs <art> <name>` and point
  * that screen's entry at `<name>.webp` (a scene) or `<name>-dim.webp` (a data screen). Nothing else changes.
  *
@@ -24,12 +24,14 @@ export interface BackdropPlate { src: string; veil: BackdropVeil }
 
 // Public art carries BASE_URL (itch serves the game from a CDN sub-path; see publicAssetPaths.test.ts).
 const BASE = import.meta.env.BASE_URL;
-const HALL: BackdropPlate = { src: `${BASE}backdrops/hall.webp`, veil: 'scene' };
+// The Mode screen's hall carries a SLIGHT pre-baked blur so its tiles pop (owner 2026-10-16: "add a slight blur to the
+// background play image"); `hall.webp` (crisp) stays built for a screen that wants the painting sharp.
+const HALL_SOFT: BackdropPlate = { src: `${BASE}backdrops/hall-soft.webp`, veil: 'scene' };
 const HALL_DIM: BackdropPlate = { src: `${BASE}backdrops/hall-dim.webp`, veil: 'data' };
 
 /** Which plate each screen paints. Swap an entry when that screen's own art arrives. */
 export const MENU_BACKDROPS: Record<MenuScreen, BackdropPlate> = {
-  modes: HALL,
+  modes: HALL_SOFT,
   career: HALL_DIM,
   rankings: HALL_DIM,
   hall: HALL_DIM,

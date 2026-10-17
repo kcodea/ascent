@@ -91,6 +91,14 @@ export function StageSelect() {
           );
         })}
       </div>
+      {/* ONE note for the stages still to come (2026-10-16 audit): seven identical "Coming soon" pills read as clutter, so
+          the pill hides on those slots (styles) and this line says it once. */}
+      {(() => {
+        const soon = slots.filter((x) => x.state === 'soon').map((x) => x.n);
+        if (soon.length === 0) return null;
+        const first = soon[0]!, last = soon[soon.length - 1]!;
+        return <div className="gstages-soon">{soon.length === 1 ? `Stage ${first} is coming soon.` : `Stages ${first} to ${last} are coming soon.`}</div>;
+      })()}
     </>
   );
 }

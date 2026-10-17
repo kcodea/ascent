@@ -650,9 +650,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_galaxy', 'Galaxy', 'legendary', 'Galaxy.png'),
   // Owner 2026-10-15: "i added more frames to the folder, can you add them all in with the dark interior".
   cardPlate('plate_crackling_gemstone', 'Crackling Gemstone', 'legendary', 'Crackling Gemstone.png'),
-  cardPlate('plate_hand_drawn', 'Hand Drawn', 'legendary', 'Hand Drawn.png'),
-  cardPlate('plate_blue_hand_drawn', 'Blue Hand Drawn', 'legendary', 'Blue Hand Drawn.png'),
-  cardPlate('plate_green_hand_drawn', 'Green Hand Drawn', 'legendary', 'Green Hand Drawn.png'),
+  cardPlate('plate_hand_drawn', 'Hand Drawn', 'epic', 'Hand Drawn.png'), // owner 2026-10-17: Epic
+  cardPlate('plate_blue_hand_drawn', 'Blue Hand Drawn', 'epic', 'Blue Hand Drawn.png'), // owner 2026-10-17: Epic
+  cardPlate('plate_green_hand_drawn', 'Green Hand Drawn', 'epic', 'Green Hand Drawn.png'), // owner 2026-10-17: Epic
   // Owner 2026-10-15: "the simpleblack and simplewhite should go on top of the new simpleblack interior"; Topaz came in
   // the same drop with no interior named, so it takes the default (Brown).
   // Owner 2026-10-15: "make simple black and simple white Ascendant tier rewards" -> "i meant ancient rarity".
@@ -668,15 +668,15 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // Blossom". Legendary by the folder rule.
   cardPlate('plate_blossom', 'Blossom', 'legendary', 'Test Blossom Frame.png'),
   // Owner 2026-10-16: "i added a bunch of new frames to the folder" (Legendary by the folder rule). Interiors by the
-  // owner's pick of the suggested pairing: Dark Arcane on Dark, Simple Glass and Stonevines on the new Grey, the four
-  // Standard colours on the new Dark Brown.
-  cardPlate('plate_dark_arcane', 'Dark Arcane', 'legendary', 'Dark Arcane.png'),
-  cardPlate('plate_simple_glass', 'Simple Glass', 'legendary', 'Simpleglass.png'),
+  // owner's pick of the suggested pairing: Dark Arcane on Dark, Stonevines on the new Grey, the four Standard colours on
+  // the new Dark Brown. Simple Glass started on Grey; owner 2026-10-17: "the glass frame needs the simpleblack interior".
+  cardPlate('plate_dark_arcane', 'Dark Arcane', 'epic', 'Dark Arcane.png'), // owner 2026-10-17: Epic
+  cardPlate('plate_simple_glass', 'Simple Glass', 'ancient', 'Simpleglass.png'), // owner 2026-10-17: Ancient
   cardPlate('plate_stonevines', 'Stonevines', 'legendary', 'Stonevines.png'),
-  cardPlate('plate_standard_black', 'Standard Black', 'legendary', 'Standard Black.png'),
-  cardPlate('plate_standard_blue', 'Standard Blue', 'legendary', 'Standard Blue.png'),
-  cardPlate('plate_standard_pink', 'Standard Pink', 'legendary', 'Standard Pink.png'),
-  cardPlate('plate_standard_teal', 'Standard Teal', 'legendary', 'Standard Teal.png'),
+  cardPlate('plate_standard_black', 'Standard Black', 'rare', 'Standard Black.png'), // owner 2026-10-17: Rare
+  cardPlate('plate_standard_blue', 'Standard Blue', 'rare', 'Standard Blue.png'), // owner 2026-10-17: Rare
+  cardPlate('plate_standard_pink', 'Standard Pink', 'rare', 'Standard Pink.png'), // owner 2026-10-17: Rare
+  cardPlate('plate_standard_teal', 'Standard Teal', 'rare', 'Standard Teal.png'), // owner 2026-10-17: Rare
   // Owner 2026-10-16: "add chrome from the folder with the grey interior" (Legendary by the folder rule).
   cardPlate('plate_chrome', 'Chrome', 'legendary', 'Chrome.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.

@@ -132,9 +132,10 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // Owner 2026-10-16 batch. Every interior here is dark, so no text darkening (like the other dark-interior plates).
   // Dark Arcane: Galaxy's template and opening, on the Dark interior (same seat and fit).
   plate_dark_arcane: GALAXY_SEAT,
-  // Simple Glass: the Simple template (pointed bottom) on the new Grey interior. The glass is see-through on its left
+  // Simple Glass: the Simple template (pointed bottom), like Simple Black. The glass is see-through on its left
   // edge, so its fit counted alpha > 60 as frame (`--fit-alpha 60`); the opening is centred like Simple Black's.
-  plate_simple_glass: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.004, interiorSx: 1.21, interiorSy: 1.122, interiorY: 0.03, darken: false },
+  // Owner 2026-10-17: "the glass frame needs the simpleblack interior" (was Grey); refit on that interior's shape.
+  plate_simple_glass: { ...AQUARIUM_ROCKS, layered: true, interior: 'simpleblack', frameX: 0.004, interiorSx: 1.171, interiorSy: 1.159, interiorY: 0.0919, darken: false },
   // Stonevines: the standard template with vines spilling over the edge, on the Grey interior; opening 0.5px left.
   plate_stonevines: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.005, interiorSx: 1.047, interiorSy: 1.026, interiorY: -0.0066, darken: false },
   // The four STANDARD colours: the standard plate's shape recoloured, on the new Dark Brown interior; openings 1px left

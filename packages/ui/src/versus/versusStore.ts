@@ -76,12 +76,15 @@ export interface VersusState {
    *  re-roll the server cannot take (no migration yet, or it refused): the control hides for that match. */
   rerollPending: boolean;
   rerollOffFor: string | null;
+  /** MY SEAT MOVE IN FLIGHT (R-VERSUS-DRAG-SEAT-01): the role I asked the server for and have not heard back on. The
+   *  room shows it at once (`roomWithSeatMove`); a refusal clears it and the card goes back. */
+  seatMove: { role: VersusRole } | null;
 }
 
 export const useVersus = create<VersusState>(() => ({
   screen: 'browser', rooms: [], loading: false, error: null, room: null, match: null, priv: null, heroOffer: null,
   rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, offsetMs: 0, lastMatch: null, statsOpen: false, pickedFor: null, runReady: false,
-  rerollPending: false, rerollOffFor: null,
+  rerollPending: false, rerollOffFor: null, seatMove: null,
 }));
 
 const clock = new ServerClock();
@@ -203,13 +206,39 @@ export async function joinRoom(roomId: string, as: 'player' | 'spectator'): Prom
   }
 }
 
-export async function takeSeat(role: VersusRole): Promise<void> {
-  const room = get().room;
-  if (!room) return;
+/** A short room message that clears itself (the seat-move refusal), unless something newer replaced it. */
+let flashTimer = 0;
+function flashError(msg: string): void {
+  set({ error: msg });
+  if (typeof window === 'undefined') return;
+  window.clearTimeout(flashTimer);
+  flashTimer = window.setTimeout(() => { if (get().error === msg) set({ error: null }); }, 3200);
+}
+
+/**
+ * Take a seat, or move to the stands (`spectator`), through the existing `versus_take_seat` RPC. OPTIMISTIC
+ * (R-VERSUS-DRAG-SEAT-01): the move shows at once (`seatMove`), so a dragged card lands in its seat on the drop and a
+ * Join / Spectate press moves the card the same frame; if the server refuses (someone took the seat first), the move
+ * is dropped, the card animates back and the reason shows for a moment. One move at a time. Resolves true on success.
+ */
+export async function takeSeat(role: VersusRole): Promise<boolean> {
+  const st = get();
+  const room = st.room;
+  if (!room || st.seatMove) return false;
+  const me = currentUserId();
+  if (myRole(room) === role) return true;
+  // A seat I can already see is taken: refuse here (the server would), no round trip.
+  if (role !== 'spectator' && room.members.some((m) => m.role === role && m.userId !== me)) { flashError(ERROR_TEXT.seat_taken!); return false; }
+  set({ seatMove: { role }, error: null });
   try {
-    set({ room: await versusRemote.takeSeat(room.id, role), error: null });
+    const next = await versusRemote.takeSeat(room.id, role);
+    set({ room: next, seatMove: null, error: null });
+    return true;
   } catch (e) {
-    set({ error: errorText(e) });
+    set({ seatMove: null });
+    flashError(errorText(e));
+    void refreshRoom();
+    return false;
   }
 }
 
@@ -239,7 +268,7 @@ export async function pressGate(): Promise<void> {
 export async function leaveRoom(): Promise<void> {
   const room = get().room;
   stopSession();
-  set({ room: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, statsOpen: false, screen: 'browser' });
+  set({ room: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, statsOpen: false, seatMove: null, screen: 'browser' });
   if (useGame.getState().run.mode === 'versus') useGame.getState().leaveVersusRun();
   if (room) {
     try { await versusRemote.leaveRoom(room.id); } catch { /* the server prunes a silent member anyway */ }
@@ -265,7 +294,7 @@ let session: {
 
 function enterRoom(room: VersusRoom): void {
   stopSession();
-  set({ room, screen: 'room', error: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
+  set({ room, screen: 'room', error: null, seatMove: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
   session = { roomId: room.id, matchId: null, channel: null, beat: 0, tick: 0, wake: null, lastFinalize: 0, candidateSeq: 0, publisher: null, unsubRun: null, unsubGates: useVersus.subscribe(driveGates) };
   installSpectateIo({
     latestFrames: (id) => versusRemote.latestFrames(id),

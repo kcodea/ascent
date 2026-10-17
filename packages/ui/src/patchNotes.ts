@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus room: drag your card onto an empty seat to play, or drag it up to go back to watching.',
+        details: [
+          'Your own card drags just like a shop card. Drop it on an empty seat to take it. A taken seat sends it back.',
+          'Drag your seat card up, like selling a minion, to move to the spectators.',
+          'The Join and Spectate buttons still work. Your card moves the moment you choose, and everyone sees it move.',
+          'The spectator cards now sit lower, like your hand in a game.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Spectating: you no longer show twice at the top left, and your emote wheel opens below your portrait.',
         details: [
           'The top left shows you once, then the other spectators. Two tabs on one account show as one spectator.',

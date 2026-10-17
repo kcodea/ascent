@@ -12,7 +12,7 @@
  * sides crop on a 16:9 stage and every overlay is a percentage of the PAINTING, landing in the same place at any stage
  * scale. Static image + a static vignette, no looping paint; the gauntlet cursor comes from the global button rule.
  */
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { VERSUS_HEARTS, VERSUS_SPECTATOR_CAP } from '@game/sim';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
@@ -26,6 +26,8 @@ import { resumeSpectating } from './spectate';
 import { VersusEmptySeatCard, VersusPlayerCard } from './VersusPlayerCard';
 import { MAX_RECORD_IDS, useSeatData, type SeatServerData } from './versusSeatCard';
 import { leaveRoom, myRole, setVersusStatsOpen, startGame, takeSeat, useVersus, versusRemainingMs, type VersusState } from './versusStore';
+import { canDragSeatCard, roomWithSeatMove } from './seatDrag';
+import { beginSeatDrag, endSeatDrag, SeatDragGhost, useSeatDragStore, useSeatFlip, type SeatDragState } from './useSeatDrag';
 import type { VersusMember } from './versusRemote';
 import './versus.css';
 
@@ -42,19 +44,30 @@ function useCountdown(iso: string | null | undefined): number {
   return s;
 }
 
-function Seat({ side, m, room, match, server }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; server: SeatServerData | undefined }) {
+/** The drag classes a room card's wrapper wears (R-VERSUS-DRAG-SEAT-01): `vsdraggable` = my own card in an open room
+ *  (press and drag it), `vsdragsrc` = the card the ghost was lifted from (hidden while it flies). */
+function dragClass(m: VersusMember | null, room: NonNullable<VersusState['room']>, me: string | null, drag: SeatDragState | null): string {
+  if (!m) return '';
+  return `${canDragSeatCard(room, me, m.userId) ? ' vsdraggable' : ''}${drag?.userId === m.userId ? ' vsdragsrc' : ''}`;
+}
+
+function Seat({ side, m, room, match, server, me, drag, arena }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; server: SeatServerData | undefined; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
   const botStatus = useVersusBot((s) => s.status);
   const open = room.status === 'open';
   const running = room.status === 'in_game' && match && match.phase !== 'complete';
   const isHost = !!m && m.userId === room.host_user_id;
+  // The drop-target state while a card is dragged over this seat: open = lit, taken = no light (the drop is refused).
+  const over = drag && !drag.snap && drag.zone === side ? (drag.valid ? ' vsseat-over' : ' vsseat-bad') : '';
   return (
     <>
-      {/* A seated player is a REAL card (owner 2026-10-16); an open seat is the same card, dimmed, with Take seat. */}
-      <div className={`vspcard vspcard-${side}`}>
+      {/* A seated player is a REAL card (owner 2026-10-16); an open seat is the same card, dimmed, with Join. MY card
+          drags (R-VERSUS-DRAG-SEAT-01): onto the other open seat to switch, or up to the stands. */}
+      <div className={`vspcard vspcard-${side}${over}${dragClass(m, room, me, drag)}`} data-seat={side}
+        onPointerDown={m && canDragSeatCard(room, me, m.userId) ? (e) => beginSeatDrag(e, m.userId, arena.current) : undefined}>
         {m ? <VersusPlayerCard m={m} server={server} /> : <VersusEmptySeatCard />}
         {!m && open && (
           <span className="vsseatbtns">
-            <button className="vsplate vstake" onClick={() => { sfx.pulse(); void takeSeat(side); }}>Take seat</button>
+            <button className="vsplate vstake" onClick={() => { sfx.pulse(); void takeSeat(side); }}>Join</button>
             {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. */}
             {versusTestToolsEnabled() && botStatus === 'off' && (
               <button className="vsplate vstake" onClick={() => { sfx.pulse(); void startVersusBot(room.id); }}>Add bot</button>
@@ -79,14 +92,15 @@ function Seat({ side, m, room, match, server }: { side: 'p1' | 'p2'; m: VersusMe
  * a tilt per position about a point below the row, so the row arcs), tighter the more there are, up to the 20 seats.
  * Hovering one lifts it upright to full size (one transform; nothing is measured). Memoised per member.
  */
-function SpectatorFan({ spectators, data }: { spectators: readonly VersusMember[]; data: ReadonlyMap<string, SeatServerData> }) {
+function SpectatorFan({ spectators, data, room, me, drag, arena }: { spectators: readonly VersusMember[]; data: ReadonlyMap<string, SeatServerData>; room: NonNullable<VersusState['room']>; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
   const n = spectators.length;
   return (
     <div className="vsbench" style={{ '--n': n } as CSSProperties}>
       <span className="vsstatus vsbench-label">Spectators</span>
       {n === 0 && <span className="vsbench-empty">No one is watching yet.</span>}
       {spectators.map((m, i) => (
-        <div key={m.userId} className="vsbcard" style={{ '--i': i, '--off': i - (n - 1) / 2 } as CSSProperties}>
+        <div key={m.userId} className={`vsbcard${dragClass(m, room, me, drag)}`} style={{ '--i': i, '--off': i - (n - 1) / 2 } as CSSProperties}
+          onPointerDown={canDragSeatCard(room, me, m.userId) ? (e) => beginSeatDrag(e, m.userId, arena.current) : undefined}>
           <VersusPlayerCard m={m} server={data.get(m.userId)} bench />
         </div>
       ))}
@@ -95,7 +109,15 @@ function SpectatorFan({ spectators, data }: { spectators: readonly VersusMember[
 }
 
 export function VersusRoom() {
-  const room = useVersus((s) => s.room);
+  const serverRoom = useVersus((s) => s.room);
+  const seatMove = useVersus((s) => s.seatMove);
+  const me = currentUserId();
+  // THE ROOM AS SHOWN (R-VERSUS-DRAG-SEAT-01): the server's room with my seat move applied the moment I make it.
+  const room = useMemo(() => roomWithSeatMove(serverRoom, seatMove, me), [serverRoom, seatMove, me]);
+  const drag = useSeatDragStore((s) => s.drag);
+  const arenaRef = useRef<HTMLDivElement>(null);
+  useSeatFlip(arenaRef, room?.members.map((x) => `${x.userId}:${x.role}`).join(',') ?? '');
+  useEffect(() => () => endSeatDrag(), []);
   const match = useVersus((s) => s.match);
   const error = useVersus((s) => s.error);
   const setTitleView = useGame((s) => s.setTitleView);
@@ -111,11 +133,9 @@ export function VersusRoom() {
   const seatIds = [p1?.userId, p2?.userId, ...(room?.members.filter((x) => x.role === 'spectator').map((x) => x.userId) ?? [])]
     .filter((x): x is string => !!x).slice(0, MAX_RECORD_IDS);
   const seatData = useSeatData(seatIds, `${seatIds.join(',')}|${room?.status === 'open' ? 'open' : 'busy'}|${room?.current_match_id ?? ''}|${lastMatch?.matchId ?? ''}`);
-  if (!room) return null;
-  const me = currentUserId();
+  if (!room || !serverRoom) return null;
   const role = myRole(room);
   const host = room.host_user_id === me;
-  const seat = (r: 'p1' | 'p2'): VersusMember | null => room.members.find((x) => x.role === r) ?? null;
   const spectators = room.members.filter((x) => x.role === 'spectator');
   const open = room.status === 'open';
   const running = room.status === 'in_game' && !!match && match.phase !== 'complete';
@@ -132,19 +152,19 @@ export function VersusRoom() {
   return (
     <div className="vsroomstage" role="dialog" aria-label={`Versus room ${room.name}`} style={{ '--vs-arena': `url(${arenaArt})` } as CSSProperties}>
       <div className="vsarena-ext" aria-hidden="true" />
-      <div className="vsarena">
+      <div className="vsarena" ref={arenaRef}>
         <img className="vsarena-art" src={arenaArt} alt="" draggable={false} decoding="sync" />
         {/* Readability on the bright arena: a static vignette (gradients only, no blur, no animation). */}
         <div className="vsvignette" aria-hidden="true" />
         {/* The VS mark between the two cards. The old VS emblem was baked into the old painting; until it has its own
             art this is the game's display font with a static glow. */}
         <div className="vsmark" aria-hidden="true">VS</div>
-        <Seat side="p1" m={p1} room={room} match={match} server={p1 ? seatData.get(p1.userId) : undefined} />
-        <Seat side="p2" m={p2} room={room} match={match} server={p2 ? seatData.get(p2.userId) : undefined} />
+        <Seat side="p1" m={p1} room={room} match={match} server={p1 ? seatData.get(p1.userId) : undefined} me={me} drag={drag} arena={arenaRef} />
+        <Seat side="p2" m={p2} room={room} match={match} server={p2 ? seatData.get(p2.userId) : undefined} me={me} drag={drag} arena={arenaRef} />
 
         <div className="vscenter">
           {open && host && (
-            <button className="vsplate vsstartbtn" disabled={!seat('p1') || !seat('p2')} onClick={() => { sfx.pulse(); void startGame(); }}>Start game</button>
+            <button className="vsplate vsstartbtn" disabled={!serverRoom.members.some((x) => x.role === 'p1') || !serverRoom.members.some((x) => x.role === 'p2')} onClick={() => { sfx.pulse(); void startGame(); }}>Start game</button>
           )}
           {status && <div className="vsstatus">{status}</div>}
           {/* VERSUS PHASE 2: a spectator who stepped back to the room watches again from here. */}
@@ -153,7 +173,7 @@ export function VersusRoom() {
           )}
         </div>
 
-        <SpectatorFan spectators={spectators} data={seatData} />
+        <SpectatorFan spectators={spectators} data={seatData} room={room} me={me} drag={drag} arena={arenaRef} />
       </div>
 
       <div className="vsroomtop">
@@ -163,7 +183,7 @@ export function VersusRoom() {
         <span className="vsroomwatch">{spectators.length > 0 ? `${spectators.length} / ${VERSUS_SPECTATOR_CAP} watching` : 'No one watching'}</span>
       </div>
       <div className="vsroomctl">
-        {open && isPlayer && <button className="vsplate" onClick={() => { sfx.pulse(); void takeSeat('spectator'); }}>Move to the stands</button>}
+        {open && isPlayer && <button className="vsplate" onClick={() => { sfx.pulse(); void takeSeat('spectator'); }}>Spectate</button>}
         {lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
         <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</button>
         {bot.status === 'playing' && bot.roomId === room.id && (
@@ -174,6 +194,12 @@ export function VersusRoom() {
         )}
         {bot.status === 'error' && <span className="vsgatestate">Bot: {bot.error}</span>}
       </div>
+
+      {/* THE SELL ZONE (the shop's own overlay): a seated card dragged up here goes back to the stands. */}
+      {drag && !drag.snap && drag.sellTop !== null && (
+        <div className={`sellzone vssellzone${drag.zone === 'stands' ? ' on' : ''}`} style={{ height: drag.sellTop }} aria-hidden="true" />
+      )}
+      <SeatDragGhost room={room} data={seatData} />
 
       {statsOpen && lastMatch && <VersusMatchStats record={lastMatch} onClose={() => setVersusStatsOpen(false)} />}
       {error && <div className="vserror vsroomerror" role="alert">{error}</div>}

@@ -749,12 +749,13 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   it. Every GILDED card wears the painted gold gilded plate, with no text darkening and no colour filter, whatever plate
   its owner wears. A Whisper keeps its own plate.
 - **Card plates (2026-10-14; oracle R-PROG-PLATE-01..05).** A cosmetic plate that replaces the standard plate behind
-  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Nineteen,
+  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Twenty-six,
   all from crates. **Ancient:** Mooncloud, Simple Black, Simple White. **Epic:** Moonstone, Bamboo, Smooth Aqua, Smooth
   Blue, Smooth Red. **Legendary:** Aquarium Rocks, Amethyst, Beach, Magma, Galaxy, Crackling Gemstone, Hand Drawn, Blue
-  Hand Drawn, Green Hand Drawn, Topaz, Blossom. New plates come from the owner's Card Backplates folder and are
-  Legendary unless the owner says otherwise. Most are LAYERED: an interior (Brown by default; Dark, Magma, Water and
-  Simple Black too), then the text darkening, then the frame on top, so a frame's effects are never darkened. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
+  Hand Drawn, Green Hand Drawn, Topaz, Blossom, Dark Arcane, Simple Glass, Stonevines, Standard Black, Standard Blue,
+  Standard Pink, Standard Teal. New plates come from the owner's Card Backplates folder and are
+  Legendary unless the owner says otherwise. Most are LAYERED: an interior (Brown by default; Dark, Dark Brown, Grey, Magma,
+  Water and Simple Black too), then the text darkening, then the frame on top, so a frame's effects are never darkened. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
   plate" takes it off; hovering an owned plate floats a card wearing it). A worn plate replaces EVERY standard plate,
   whatever the card's tribe (the tribe name still prints along the bottom), and brings its own rules-text darkening
   (its own shape, opacity, blend and seat), or none. **Gilded cards never change**: they always wear the gilded plate.

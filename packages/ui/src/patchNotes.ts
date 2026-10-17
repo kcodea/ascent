@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Seven more Legendary Card Plates to find in crates.',
+        details: [
+          'New Card Plates: Dark Arcane, Simple Glass, Stonevines, Standard Black, Standard Blue, Standard Pink and Standard Teal (all Legendary).',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'The menus have a new look. They sit in a painted great hall, with clearer layouts on every screen.',
         details: [
           'The Play screen is rebuilt over the great hall. Play is the big tile with the gold Play button, and Practice, Versus, Gauntlet and Learn sit beside and below it.',

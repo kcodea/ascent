@@ -8,6 +8,7 @@
  *                                                                   (rebuild the Collection image only)
  *   npm run plates:build -- --interior-src "C:/.../Blue Interior.png" --interior blue   (add a shared interior)
  *   npm run plates:build -- --id plate_beach --interior water --fit   (measure interiorSx / interiorSy / interiorY)
+ *   npm run plates:build -- --id plate_simple_glass --interior grey --fit --fit-alpha 60   (a see-through frame)
  *
  * Writes into apps/web/public/frames/plates/:
  *   <id>-frame.webp    the frame layer, 800x1244 (the standard plate body)
@@ -73,7 +74,9 @@ if (args.id) {
 
   if (args.fit) {
     const f = await sharp(frameFile).ensureAlpha().raw().toBuffer();
-    const opaque = (x, y) => f[(y * W + x) * 4 + 3] > 200;
+    // --fit-alpha: the opacity that counts as frame (default 200); lower it for a see-through frame (Simple Glass, 60).
+    const fitAlpha = Number(args['fit-alpha'] ?? 200);
+    const opaque = (x, y) => f[(y * W + x) * 4 + 3] > fitAlpha;
     // 1) WIDTH: the stretch that tucks the interior's silhouette TUCK px under the opening on both sides, over the
     //    middle 60% of the plate's height.
     const ib0 = await sharp(interiorFile).resize({ width: iw0 }).ensureAlpha().raw().toBuffer();

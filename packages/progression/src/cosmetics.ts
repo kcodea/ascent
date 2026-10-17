@@ -664,6 +664,16 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // Owner 2026-10-15: the first LAYERED plate (built as "Test Blossom"), then "rename the existing Test blossom in game to
   // Blossom". Legendary by the folder rule.
   cardPlate('plate_blossom', 'Blossom', 'legendary', 'Test Blossom Frame.png'),
+  // Owner 2026-10-16: "i added a bunch of new frames to the folder" (Legendary by the folder rule). Interiors by the
+  // owner's pick of the suggested pairing: Dark Arcane on Dark, Simple Glass and Stonevines on the new Grey, the four
+  // Standard colours on the new Dark Brown.
+  cardPlate('plate_dark_arcane', 'Dark Arcane', 'legendary', 'Dark Arcane.png'),
+  cardPlate('plate_simple_glass', 'Simple Glass', 'legendary', 'Simpleglass.png'),
+  cardPlate('plate_stonevines', 'Stonevines', 'legendary', 'Stonevines.png'),
+  cardPlate('plate_standard_black', 'Standard Black', 'legendary', 'Standard Black.png'),
+  cardPlate('plate_standard_blue', 'Standard Blue', 'legendary', 'Standard Blue.png'),
+  cardPlate('plate_standard_pink', 'Standard Pink', 'legendary', 'Standard Pink.png'),
+  cardPlate('plate_standard_teal', 'Standard Teal', 'legendary', 'Standard Teal.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

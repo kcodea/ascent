@@ -13855,6 +13855,26 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-ranked .rankcrest-big { --ring: 82px; }
 .cv2-ranked .rankbar-caption { font-size: 22px; }
 
+/* PERFORMANCE TRENDS, FOCUS (owner 2026-10-16: "let the player click each graph to 'focus' it"). The small charts are
+   buttons: they lift 2px and light their rim on hover ("Click to focus" in the game's tip), and their chart fills the
+   box. A swap crossfades the big chart in (opacity, one-shot). */
+.ct-small { appearance: none; width: 100%; text-align: left; color: inherit; font: inherit; border: 1.5px solid rgba(196, 160, 92, 0.18);
+  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1); }
+.ct-small:hover { transform: translateY(-2px); border-color: rgba(232, 200, 119, 0.7); }
+.ct-small:active { transform: translateY(0); transition-duration: 0.05s; }
+.ct-small:focus-visible { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
+.ct-small svg { width: 100%; height: 40px; max-height: none; }
+.ct-focus { animation: ct-swap 0.2s cubic-bezier(0, 0, 0.2, 1) both; }
+@keyframes ct-swap { from { opacity: 0; } to { opacity: 1; } }
+.ct-mmr-head { gap: 10px; }
+.ct-focus-d { margin-left: auto; margin-right: 10px; }
+.ct-mmr-head .cv2-trend-avg { order: 3; }
+.ct-pband.top4 { fill: rgba(85, 201, 138, 0.08); }
+.ct-pband.lost { fill: rgba(217, 102, 106, 0.08); }
+.ct-barlabel { font-family: var(--font-ui); font-weight: 800; font-size: 9px; fill: rgba(255, 246, 228, 0.75); }
+.ct-roll.gold { stroke: #e8c877; }
+@media (prefers-reduced-motion: reduce) { .ct-focus { animation: none; } .ct-small, .ct-small:hover { transform: none; transition: none; } }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

@@ -2864,16 +2864,19 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // Every ladder page closes first — the same set `startReplay` clears — so the destination is what paints.
     // The hop stamp lets the destination skip its entry fade (the sidebar it shares with the source stays put).
     const navHopAt = dest === 'menu' ? get().navHopAt : navClockNow();
+    // The Practice setup wears the sidebar too (owner 2026-10-16: "add it"): a hop from there closes the setup and
+    // brings the title back underneath, the way its Modes crumb does.
+    const off = get().practiceSetupOpen ? { practiceSetupOpen: false, showTitle: true } : {};
     switch (dest) {
-      case 'menu': set({ ...PAGES_CLOSED, titleView: 'menu' }); break;
-      case 'modes': set({ ...PAGES_CLOSED, titleView: 'modes', navHopAt }); break;
-      case 'career': set({ ...PAGES_CLOSED, showCareer: true, navHopAt }); break;
-      case 'rankings': set({ ...PAGES_CLOSED, showRankings: true, navHopAt }); break;
+      case 'menu': set({ ...PAGES_CLOSED, ...off, titleView: 'menu' }); break;
+      case 'modes': set({ ...PAGES_CLOSED, ...off, titleView: 'modes', navHopAt }); break;
+      case 'career': set({ ...PAGES_CLOSED, ...off, showCareer: true, navHopAt }); break;
+      case 'rankings': set({ ...PAGES_CLOSED, ...off, showRankings: true, navHopAt }); break;
       // Hidden Hall (hallFlag.ts): a request for it lands on the player Leaderboard.
-      case 'hall': set({ ...PAGES_CLOSED, ...(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }), navHopAt }); break;
-      case 'recent': set({ ...PAGES_CLOSED, showRecentGames: true, navHopAt }); break;
-      case 'live': set({ ...PAGES_CLOSED, showLiveGames: true, navHopAt }); break;
-      case 'collection': set({ ...PAGES_CLOSED, showCollection: true, navHopAt }); break;
+      case 'hall': set({ ...PAGES_CLOSED, ...off, ...(HALL_VISIBLE ? { showLeaderboard: true } : { showRankings: true }), navHopAt }); break;
+      case 'recent': set({ ...PAGES_CLOSED, ...off, showRecentGames: true, navHopAt }); break;
+      case 'live': set({ ...PAGES_CLOSED, ...off, showLiveGames: true, navHopAt }); break;
+      case 'collection': set({ ...PAGES_CLOSED, ...off, showCollection: true, navHopAt }); break;
     }
   },
   navHopAt: -1e9,

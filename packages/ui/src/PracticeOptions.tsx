@@ -1,7 +1,7 @@
 import { useGame } from './store';
 import { modeArt } from './art';
 import { FadeImg } from './FadeImg';
-import { MenuBackdrop } from './MenuBackdrop';
+import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { sfx } from './sfx';
 import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
 
@@ -129,8 +129,9 @@ export function PracticeOptions() {
   const back = (): void => { sfx.pulse(); cancel(); setTitleView('modes'); };
 
   return (
-    <div className="modepick practiceopts mp-practice" role="dialog" aria-label="Practice options">
-      <MenuBackdrop screen="modes" />
+    // The side menu, like the Gauntlet and Learn views beside it (owner 2026-10-16: "add it"); it mounts the backdrop.
+    <SidebarHost className="modepick sb-host practiceopts mp-practice" role="dialog" aria-label="Practice options">
+      <MenuSidebar current="modes" />
       <div className="mpbox pobox pomodes-box">
         <div className="mphead">
           <button className="mpcrumb" onPointerDown={back}>Modes</button>
@@ -200,6 +201,6 @@ export function PracticeOptions() {
         {/* START: the one bright gold action on this screen (the gold rule). */}
         <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>
       </div>
-    </div>
+    </SidebarHost>
   );
 }

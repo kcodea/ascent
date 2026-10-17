@@ -343,6 +343,20 @@ describe('the right column', () => {
   // PERFORMANCE TRENDS WITH DEPTH (careerTrends.tsx, owner 2026-10-16): one big MMR chart, then four small multiples
   // (placement per game + rolling average, top 4 rate, APM, games), each with its window figure.
   const smallV = (): string[] => text('.ct-small-v');
+  it('any chart can be focused (owner 2026-10-16): clicking a small one swaps it into the big slot and MMR drops into the grid; the choice is remembered', () => {
+    try { localStorage.removeItem('ascent.career.trendFocus'); } catch { /* jsdom */ }
+    ui.unmount(); ui = mount(<Career />);
+    const small = (name: string) => [...ui.container.querySelectorAll<HTMLButtonElement>('.ct-small')].find((b) => b.querySelector('.ct-small-t')?.textContent === name)!;
+    expect(small('Placement').getAttribute('data-tip')).toBe('Click to focus');
+    expect(small('Placement').getAttribute('title')).toBeNull();
+    act(() => { small('Placement').click(); });
+    expect(text('.ct-mmr-head .cv2-trend-title')).toEqual(['Placement']);
+    expect(text('.ct-small-t')).toEqual(['MMR', 'Top 4 rate', 'APM', 'Games']);
+    expect(ui.container.querySelector('.ct-mmr svg')?.getAttribute('aria-label')).toMatch(/Placement of each game/);
+    expect(localStorage.getItem('ascent.career.trendFocus')).toBe('place');
+    act(() => { small('MMR').click(); });
+    expect(text('.ct-small-t')).toEqual(['Placement', 'Top 4 rate', 'APM', 'Games']);
+  });
   it('Performance Trends: the MMR chart first, then Placement / Top 4 rate / APM / Games, 30 days by default, the 7 / 30 / 90 / All time toggle re-scopes them', () => {
     expect(text('.ct-small-t')).toEqual(['Placement', 'Top 4 rate', 'APM', 'Games']);
     expect(ui.container.querySelectorAll('.ct-mmr svg')).toHaveLength(1);

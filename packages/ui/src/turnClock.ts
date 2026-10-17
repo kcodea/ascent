@@ -72,6 +72,29 @@ export const turnClock = {
     carry = null;
     setRunning(false);
   },
+  /**
+   * AN EXTERNALLY OWNED CLOCK (Versus: the server deadline, R-VERSUS-TIMER-FX-01). The local countdown loop never
+   * runs there, so nothing called `startSecond` / `hold` and the clock read as HELD all turn: the charge glyph froze
+   * unlit-looking and its build sound never started. `follow` sets the seconds AND the running state from the time
+   * left, anchoring the sub-second position to it, so everything that reads `running` + `secondProgress` (the glyph's
+   * fill, its motes, the charge-build sound) behaves exactly as in a lobby. `moving` false = paused: frozen in place.
+   */
+  follow: (remainingMs: number, now: number, moving: boolean): void => {
+    const s = Math.max(0, Math.ceil(remainingMs / 1000));
+    const frac = s > 0 ? Math.max(0, Math.min(0.999, (s * 1000 - remainingMs) / 1000)) : 0;
+    let changed = false;
+    if (s !== seconds) { seconds = s; changed = true; }
+    secondMs = 1000;
+    const run = moving && s > 0;
+    if (run) {
+      carry = null;
+      secondStartedAt = now - frac * 1000;
+    } else {
+      carry = s > 0 ? { at: s, frac } : null;
+    }
+    if (run !== running) { running = run; changed = true; }
+    if (changed) emit();
+  },
   /** How far (0..1) the clock is through its current second: live while running, frozen while held. */
   secondProgress: (now: number): number => {
     if (running) return Math.max(0, Math.min(1, (now - secondStartedAt) / secondMs));

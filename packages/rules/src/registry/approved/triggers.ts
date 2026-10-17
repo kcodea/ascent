@@ -977,6 +977,29 @@ export const TRIGGERS_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/chargeGlyphHold.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {
+    id: 'R-VERSUS-TIMER-FX-01',
+    title: 'A Versus clock plays the lobby clock\'s sounds and the 20 s charge glyph, off the server deadline, frozen by a pause',
+    statement:
+      'The Versus Shop clock behaves exactly like a lobby Shop clock, driven by the match\'s server deadline on the synced '
+      + 'clock: the warm-up on 10 to 6, the FIVE to ONE ticks, the explosion at 0:00 and the announcer\'s clock reading fire '
+      + 'at the same seconds, and the 20 s charge glyph lights, fills and plays its build sound as the deadline runs down. '
+      + 'Hero Select\'s Versus clock plays the same ticks (no explosion: there is no Shop to lock; no glyph: the board is '
+      + 'covered). Each cue fires once per second it marks: a first sight of a running clock (a mount, a reconnect, a '
+      + 'spectator switching seats) plays nothing for the second it lands on, and a long jump or a clock pushed back up '
+      + 'plays nothing. During the 30 s disconnect pause and the returning player\'s 3-2-1 (paused_at is set through both) '
+      + 'the clock, the cues, the glyph and its build sound are frozen; the resume continues from the frozen second without '
+      + 'replaying it. A spectator mirrors the watched player\'s clock through the same path, so it hears and sees the same.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-16 (Versus timer silent)', quote: 'the versus timer does not play sound effects at all and the glyph animation doesnt play either, the 20s glyph' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusClockFx.ts (versusClockCues / driveVersusClock); packages/ui/src/turnClock.ts (follow); packages/ui/src/versus/VersusHud.tsx useVersusRecruit; packages/ui/src/versus/VersusHeroTimer.tsx' },
+    ],
+    currentBehaviour: 'Conforms (2026-10-16). Before, Versus skipped the local countdown loop that plays the cues and only wrote '
+      + 'the displayed seconds, so every clock sound was silent and the clock read as held, freezing the charge glyph.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusClockFx.test.ts'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
     id: 'R-CONSUME-ALL-01',
     title: 'Hydraskus: EVERY friendly Demon consumes a Shop minion at End of Turn, left to right, one beat per bite',
     statement:

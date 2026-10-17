@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
+      { category: 'Systems', text: 'Versus: the clock now plays its sounds and the 20 second glyph charges on the board, just like a lobby game. Hero Select ticks too. Both stop during a pause and pick up where they left off.' },
       {
         category: 'Systems',
         text: 'Seven more Legendary Card Plates to find in crates.',

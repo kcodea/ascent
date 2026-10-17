@@ -22,8 +22,10 @@ export const PLAYER_SEAT = 's0';
 
 /** The menu: closed, or open anchored at a stage point (the portrait's top-centre). `lastUsedAt` drives the cooldown. */
 export interface EmoteUiState {
-  /** `below`: the menu opens under its anchor (a spectator's own chip, top left) instead of above it. */
-  menu: { x: number; y: number; below?: boolean } | null;
+  /** `below`: the menu prefers to open under its anchor (a spectator's own chip, top left). `anchor`: the anchor's top and
+   *  bottom (stage px), so the menu is PLACED against the real space (`placeEmoteMenu`): under it when it fits, else
+   *  above, always inside the stage. Without `anchor` (the player's own portrait) the menu opens above, as it always has. */
+  menu: { x: number; y: number; below?: boolean; anchor?: { top: number; bottom: number } } | null;
   lastUsedAt: number | null;
 }
 export const useEmoteUi = create<EmoteUiState>(() => ({ menu: null, lastUsedAt: null }));
@@ -77,15 +79,42 @@ export function canEmoteNow(): boolean {
   return !s.replaySession && !s.replaying && !!phaseOfRun(s.run) && clock.phase !== null; // a replay or a Versus spectator never emotes
 }
 
-export function openEmoteMenu(at: { x: number; y: number }, opts: { spectator?: boolean; below?: boolean } = {}): void {
+export function openEmoteMenu(at: { x: number; y: number }, opts: { spectator?: boolean; below?: boolean; anchor?: { top: number; bottom: number } } = {}): void {
   // A spectator's menu opens from their own chip only, never from the watched player's portrait.
   if (spectatorSink && !opts.spectator) return;
   if (!spectatorSink && opts.spectator) return;
   if (!canEmoteNow()) return;
-  useEmoteUi.setState({ menu: opts.below ? { ...at, below: true } : at });
+  useEmoteUi.setState({ menu: { ...at, ...(opts.below ? { below: true } : {}), ...(opts.anchor ? { anchor: opts.anchor } : {}) } });
 }
 export function closeEmoteMenu(): void {
   if (useEmoteUi.getState().menu) useEmoteUi.setState({ menu: null });
+}
+
+/**
+ * WHERE A PLACED MENU GOES (owner 2026-10-16: "the emote wheel is above instead of below i think"; R-SPECTATE-HUD-02).
+ * A spectator's menu hangs off their own plate at the TOP of the screen, so it opens BELOW the plate whenever it fits,
+ * flips above only when there is more room there, and is always clamped inside the stage (`margin` from every edge).
+ * Pure: stage px in, the menu's top-left out.
+ */
+export function placeEmoteMenu(
+  anchor: { x: number; top: number; bottom: number },
+  size: { w: number; h: number },
+  vp: { w: number; h: number },
+  prefer: 'below' | 'above' = 'below',
+  gap = 14,
+  margin = 8,
+): { left: number; top: number; side: 'below' | 'above' } {
+  const roomBelow = vp.h - margin - (anchor.bottom + gap);
+  const roomAbove = anchor.top - gap - margin;
+  const fitsBelow = roomBelow >= size.h;
+  const fitsAbove = roomAbove >= size.h;
+  const side: 'below' | 'above' = prefer === 'below'
+    ? (fitsBelow || (!fitsAbove && roomBelow >= roomAbove) ? 'below' : 'above')
+    : (fitsAbove || (!fitsBelow && roomAbove >= roomBelow) ? 'above' : 'below');
+  const rawTop = side === 'below' ? anchor.bottom + gap : anchor.top - gap - size.h;
+  const top = Math.max(margin, Math.min(rawTop, vp.h - margin - size.h));
+  const left = Math.max(margin, Math.min(anchor.x - size.w * 0.12, vp.w - margin - size.w));
+  return { left: Math.round(left), top: Math.round(top), side };
 }
 
 /** Ms of cooldown left (0 = ready). */

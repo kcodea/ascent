@@ -34,7 +34,7 @@ import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, useSpectate } from './spectate';
-import { setWatchers, type Watcher } from './watchers';
+import { othersInStands, setWatchers, uniqueWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
@@ -96,7 +96,9 @@ export function versusWatchersOf(room: VersusRoom | null, seated: boolean, me?: 
   if (!room) return [];
   const spectators = room.members.filter((m) => m.role === 'spectator');
   if (!seated && !(me && spectators.some((m) => m.userId === me))) return [];
-  return spectators.filter((m) => seated || m.userId !== me).map((m) => ({ id: m.userId, name: m.displayName, profile: m.profile ?? null }));
+  const list = spectators.map((m) => ({ id: m.userId, name: m.displayName, profile: m.profile ?? null }));
+  // Seated: everyone in the stands (deduped). Spectating: the others, never me (R-SPECTATE-HUD-02).
+  return seated ? uniqueWatchers(list) : othersInStands(list, [me]);
 }
 useVersus.subscribe((st, prev) => {
   if (st.room === prev.room && st.match === prev.match) return;

@@ -21,6 +21,9 @@
 }
 /* A spectator's menu opens UNDER their own chip (top left of the screen), so it never runs off the top. */
 .emote-menu.below { transform: translate(-12%, 14px); }
+/* A PLACED menu (placeEmoteMenu): its left/top are already the final box, below or above its anchor and clamped
+   inside the stage, so no offset transform. */
+.emote-menu.placed { transform: none; }
 .emote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 /* A pick is the bubble art on a quiet well; it lifts a touch on hover (transform only). The global rule paints the
    gauntlet cursor on buttons, so none is set here. */

@@ -13579,6 +13579,113 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
   --pr-edge: 3px; --pr-edge-c: #0a1220; --pr-inset: var(--ui-bevel); }
 .escclose.quiet:hover { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
 
+/* ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+   THE GAME SPLIT (GameSplit.tsx, UI pass 2, 2026-10-16; owner: layout B "was pretty slick", "maybe even do something
+   like that for career"). Recent Games and the Career's Match History / Practice tabs: a compact list on the left, the
+   selected game in full on the right. Both columns scroll on their own inside the page, so the header, filters and
+   the Career's side columns never move. Hover and press are one-shot transforms; nothing loops.
+   ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+.gsplit { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 16px; min-height: 0; align-items: stretch; }
+.gs-list { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; overflow-x: hidden; padding: 2px 6px 12px 2px; scrollbar-width: none; outline: none; }
+.gs-list::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.gs-list:focus-visible .gs-item.on { outline: 2px solid rgba(230, 200, 130, 0.95); outline-offset: 2px; }
+.gs-item { --band: rgba(255, 255, 255, 0.25); position: relative; flex: none; display: grid; grid-template-columns: 58px 52px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 66px; padding: 6px 14px 6px 16px; text-align: left; color: #f4eee2;
+  border-radius: 10px; border: 1.5px solid rgba(196, 160, 92, 0.2);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--band) 14%, transparent), rgba(9, 15, 29, 0.88) 130px);
+  transition: transform 0.14s cubic-bezier(0, 0, 0.2, 1), border-color 0.12s ease; }
+.gs-item.gc-won { --band: #e8b84e; } .gs-item.gc-top4 { --band: #55c98a; } .gs-item.gc-lost { --band: #d9666a; }
+.gs-item::before { content: ''; position: absolute; left: -1.5px; top: -1.5px; bottom: -1.5px; width: 5px; border-radius: 10px 0 0 10px; background: var(--band); }
+.gs-item:hover { transform: translateX(3px); border-color: rgba(232, 200, 119, 0.5); }
+.gs-item:active { transform: translateX(1px); transition-duration: 0.05s; }
+.gs-item.on { border-color: rgba(255, 217, 138, 0.85); background: linear-gradient(90deg, color-mix(in srgb, var(--band) 24%, transparent), rgba(22, 34, 58, 0.96) 150px); }
+.gs-place { display: flex; align-items: center; gap: 3px; font-family: var(--font-ui); font-weight: 900; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; }
+.gs-place.won { color: #ffd76a; } .gs-place.top4 { color: #7fe8ac; } .gs-place.lost { color: #ff9a9a; } .gs-place.none { color: rgba(255, 255, 255, 0.4); }
+.gs-crown svg { width: 15px; height: 15px; display: block; }
+.gs-portrait { display: grid; place-items: center; }
+.gs-portrait .lb-heroframe .hero { width: 48px; height: 48px; padding: 2px; }
+.gs-portrait .cv2-heroframe, .gs-portrait .cv2-heroframe.small { --ring: 48px; }
+.gs-who { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gs-title { font-family: var(--font-ui); font-weight: 900; font-size: 16px; line-height: 1.15; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gs-sub { font-family: var(--font-ui); font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gs-end { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.gs-delta { font-family: var(--font-ui); font-weight: 900; font-size: 14px; font-variant-numeric: tabular-nums; }
+.gs-delta.up { color: #7fe8ac; } .gs-delta.down { color: #ff9a9a; }
+.gs-when { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
+.gs-detail { min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding: 2px 2px 12px; }
+.gs-detail::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.gs-in { animation: menu-rise 0.18s cubic-bezier(0, 0, 0.2, 1) both; }
+
+/* THE DETAIL CARD (`.gc-detail`, owner 2026-10-16: "fix the card pill/sizing. this is off"). One grid, nothing outside the
+   card's edge: placement | hero | runes + actions on the head row (runes INLINE beside the buttons at one size), the board
+   strip CENTRED across the full width under it, the meta line under that, then the lobby standings. */
+.gc.gc-detail { transform: none; }
+.gc.gc-detail:hover { transform: none; border-color: rgba(196, 160, 92, 0.28); }
+.gc.gc-detail .gc-body { grid-template-columns: 92px minmax(0, 1fr) auto; grid-template-areas: 'place hero side' 'board board board' 'meta meta meta';
+  align-items: center; column-gap: 18px; row-gap: 6px; padding: 14px 20px 14px 18px; }
+.gc.gc-detail .gc-place { grid-row: 1; font-size: 42px; padding-right: 12px; align-self: center; }
+.gc.gc-detail .gc-hero .lb-heroframe .hero { width: 72px; height: 72px; }
+.gc.gc-detail .gc-hero .cv2-heroframe.small { --ring: 72px; }
+.gc.gc-detail .gc-title, .gc.gc-detail .gc-title > * { font-size: 22px; }
+.gc.gc-detail .gc-side { flex-direction: row; align-items: center; justify-content: flex-end; gap: 12px; align-self: center; }
+.gc.gc-detail .gc-runes, .gc.gc-detail .gc-runes .cv2-runes, .gc.gc-detail .gc-runes .lb-runes { gap: 6px; align-items: center; }
+.gc.gc-detail .gc-runes .runeemblem, .gc.gc-detail .gc-runes .rune-emblem, .gc.gc-detail .gc-runes .lb-rune-emblem { --rune-size: 34px; width: 34px; height: 34px; }
+.gc.gc-detail .gc-runes img, .gc.gc-detail .gc-runes svg { max-width: 34px; max-height: 34px; }
+.gc.gc-detail .gc-actions { gap: 8px; }
+.gc.gc-detail .gc-actions .lb-btn, .gc.gc-detail .gc-actions .cv2-btn { font-size: 14px; padding: 9px 16px; }
+/* The board: seven slots across the card's full width, centred, badges with room (the #2120 slot minimums). */
+.gc.gc-detail .gc-board { align-self: stretch; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 4px; }
+.gc.gc-detail .gc-board .cv2-team.cv2-team { --tile-gap: 30px; --tw: min(108px, calc((100cqw - 6 * 30px - 24px) / 7)); flex-wrap: nowrap; justify-content: center;
+  padding: calc(var(--tw) * 0.28) 12px 30px; }
+.gc.gc-detail .gc-board .lb-team-none, .gc.gc-detail .gc-board .cv2-row-none { padding: 22px 0; text-align: center; font-size: 15px; }
+.gc.gc-detail .gc-meta { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 10px; }
+.gc.gc-detail .gc-meta .cv2-row-meta, .gc.gc-detail .gc-meta .lb-facts { flex-wrap: wrap; row-gap: 6px; }
+.gc.gc-detail .cv2-lobby, .gc.gc-detail .rg-lobby { margin: 0 18px 16px 18px; padding-top: 12px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
+/* The standings in ONE column inside the detail card: two columns at this width squeezed the Winner tag into the next row. */
+.gc.gc-detail .mds-list { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-auto-flow: row; }
+.gc.gc-detail .cv2-lobby .mds-team .cv2-team { --tw: min(96px, calc((100cqw - 6 * 26px) / 7)); }
+
+/* Recent Games' detail card keeps the shared one-line meta (the old list card's two-column fact grid stays off). */
+.rg-page .gc.gc-detail .gc-meta { border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 10px; }
+.rg-page .gc.gc-detail .gc-meta .lb-facts { display: flex; flex-wrap: wrap; row-gap: 6px; }
+.rg-page .gc.gc-detail .gc-meta .lb-fact + .lb-fact { margin-left: 12px; padding-left: 12px; border-left: 1px solid rgba(255, 255, 255, 0.16); }
+.rg-page .gc.gc-detail .gc-meta .lb-fact-v, .rg-page .gc.gc-detail .gc-meta .lb-when { font-size: 14px; }
+.rg-page .gc.gc-detail .gc-place { font-size: 42px; }
+.rg-page .gc.gc-detail .gc-hero .lb-heroframe .hero { width: 72px; height: 72px; }
+.gc-detail .lb-go { margin-left: 4px; font-size: 16px; line-height: 1; }
+/* Recent Games: the split fills the page under the summary and filter bar. */
+.rg-page .lbscroll:has(> .gsplit) { display: flex; flex-direction: column; overflow: hidden; }
+.rg-page .lbscroll > .gsplit { flex: 1; }
+/* Career: the split fills the centre column (which no longer scrolls itself; its two halves do). */
+.cv2-list:has(> .gsplit) { overflow: hidden; display: flex; flex-direction: column; }
+.cv2-list > .gsplit { flex: 1; grid-template-columns: 300px minmax(0, 1fr); gap: 12px; }
+.cv2-split .gs-item { grid-template-columns: 50px 48px minmax(0, 1fr) auto; gap: 8px; padding: 6px 10px 6px 14px; min-height: 60px; }
+.cv2-split .gs-place { font-size: 19px; }
+@media (prefers-reduced-motion: reduce) { .gs-item, .gs-item:hover, .gs-item:active { transform: none; transition: border-color 0.1s ease; } .gs-in { animation: none; } }
+
+/* CAREER, TWO COLUMNS UNDER A STATS STRIP (UI pass 2, 2026-10-16). With the game split in the centre, three columns left
+   the detail card too narrow for a seven-card board and the lobby standings. The Career Stats column becomes one strip
+   across the top (portrait, favourite hero, account level, the five stats in a row); Match History and Seasonal Ranked
+   share the row under it. Same markup, laid out by the grid. */
+.cv2-cols { grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: auto minmax(0, 1fr); grid-template-areas: 'left left' 'center right'; row-gap: 14px; }
+.cv2-cols > .cv2-leftcol { grid-area: left; max-height: none; }
+.cv2-cols > .cv2-center { grid-area: center; }
+.cv2-cols > .cv2-right { grid-area: right; }
+.cv2-leftcol > .cv2-colhead { display: none; }
+.cv2-panel.cv2-left { flex-direction: row; align-items: center; gap: 22px; padding: 12px 22px; text-align: left; overflow: visible; max-height: none; }
+.cv2-panel.cv2-left::after { display: none; }
+.cv2-panel.cv2-left { border-color: rgba(196, 160, 92, 0.5); }
+.cv2-left .portring, .cv2-left .cv2-heroframe { --ring: 88px; }
+.cv2-left .cv2-favline { flex-direction: column; align-items: flex-start; gap: 2px; margin: 0; flex: none; }
+.cv2-left .cv2-favline .cv2-favlabel, .cv2-left .cv2-favline .cv2-heroname { display: block; margin: 0; line-height: 1.2; }
+.cv2-left .cv2-favline .cv2-heroname { font-size: 20px; color: #fff; }
+.cv2-left .cv2-acctlevel { margin-top: 0; flex: none; width: 270px; align-self: center; }
+.cv2-left .cv2-tiles { flex-direction: row; margin-top: 0; flex: 1; gap: 10px; align-self: center; }
+.cv2-left .cv2-tiles .cv2-stat { flex: 1; min-width: 0; padding: 8px 12px; grid-template-columns: 34px minmax(0, 1fr); column-gap: 10px; }
+.cv2-left .cv2-tiles .cv2-stat-ico { width: 34px; height: 34px; }
+.cv2-left .cv2-tiles .cv2-stat-v { font-size: 22px; }
+.cv2-left .cv2-tiles .cv2-stat-l { font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the
    Portrait frames tuner and painted by `<PortraitFrame>`. The baked default is "current", which renders none of

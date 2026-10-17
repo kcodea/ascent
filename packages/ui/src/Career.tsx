@@ -1,5 +1,5 @@
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { LazyRow, LazyRowsProvider } from './lazyRows';
+import { GameSplit, type GameListItem } from './GameSplit';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, strengthText } from '@game/sim';
@@ -7,7 +7,7 @@ import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
 import type { BoardSnapshot, MatchDetails } from '@game/sim';
 import { StoredTeam } from './StoredTeam';
 import { MatchScoreboard } from './matchDetails/MatchScoreboard';
-import { GameCard } from './GameCard';
+import { GameCard, placeText } from './GameCard';
 import { TrendsBody } from './careerTrends';
 import { avatarSrc } from './art';
 import { GAME_STRENGTH_LABEL, GAME_STRENGTH_TIP, NO_DETAILS_TEXT } from './matchDetails/matchDetailsText';
@@ -100,8 +100,6 @@ function loadTab(): CenterTab {
 function saveTab(t: CenterTab): void {
   try { localStorage.setItem(TAB_KEY, t); } catch { /* storage unavailable — the choice just doesn't persist */ }
 }
-/** Banners mounted with the page; the rest mount as they near the viewport (`lazyRows.tsx`). Two fill the view. */
-const EAGER_ROWS = 3;
 /** Banners in Match History (and the Practice tab): the newest 50 server runs (owner 2026-10-16 "career to 50 too"; was 25,
  *  and 10 before 2026-09-20). Matches `CAREER_DETAIL_ROWS`, the rows fetched WITH their boards. */
 const MATCH_ROWS = 50;
@@ -192,25 +190,8 @@ function PageState({ icon, title, body, action, busy, className }: {
   );
 }
 
-/** MATCH DETAILS on a match card (owner ask 2026-09-28: "add a down arrow/expand button to make a match larger and
- *  be able to see the players in the lobby"): the chevron button that grows the card. */
-function LobbyToggle({ open, onToggle, id }: { open: boolean; onToggle: () => void; id: string }) {
-  return (
-    <button
-      type="button"
-      className="cv2-lobbybtn pressable"
-      aria-expanded={open}
-      aria-controls={id}
-      aria-label={open ? 'Hide the players in this lobby' : 'Show the players in this lobby'}
-      onClick={() => { sfx.tick(); onToggle(); }}
-    >
-      Lobby<Icon name="chevron" />
-    </button>
-  );
-}
-
-/** The expanded half of a match card: the SAME scoreboard the end screen's Match details dialog shows, mounted only
- *  while open. An older match (no recorded details) says so plainly. */
+/** The lobby standings under the selected game (GameSplit's detail panel): the SAME scoreboard the end screen's Match
+ *  details dialog shows. An older match (no recorded details) says so plainly. */
 function LobbyPanel({ match, id }: { match: MatchDetails | null | undefined; id: string }) {
   const { own } = useContext(CareerSkinContext);
   return (
@@ -233,7 +214,6 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
   const hasBoard = !!run.board && run.board.minions.length > 0;
   const runes = run.runes.filter((id) => RUNE_INDEX[id]);
   const fights = run.wins + run.losses + run.draws;
-  const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-r${run.id ?? run.seed ?? 'x'}`;
   // THE GAME CARD (GameCard.tsx, 2026-10-16): the placement once, the hero + record, the board strip, runes and actions
   // at the side, and one quiet meta line. The match WIN / LOSS (top 4 or not) is the card's band colour now.
@@ -242,7 +222,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
       place={run.placement}
       label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
       resultClass={`cv2-verdict ${o.cls}`}
-      className={`cv2-row gc-stack ${o.cls}${focus ? ' focus' : ''}`}
+      className={`cv2-row gc-detail ${o.cls}${focus ? ' focus' : ''}`}
       rootProps={{ 'aria-label': `${run.heroId ? getHero(run.heroId).name : 'Run'}: ${o.label}` }}
       hero={<HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />}
       title={<span className="cv2-row-heroname">{run.heroId ? getHero(run.heroId).name : '-'}</span>}
@@ -263,7 +243,6 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
         >
           <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
         </button>
-        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
       </>}
       meta={<div className="cv2-row-meta">
         <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
@@ -283,7 +262,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
           <span className="cv2-meta gtip" data-tip={GAME_STRENGTH_TIP}><span className="cv2-meta-l">{GAME_STRENGTH_LABEL}</span><span className="cv2-meta-v cv2-row-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${run.boardStrength} out of 100`}>{run.boardStrength}</span></span>
         )}
       </div>}
-      extra={lobbyOpen ? <LobbyPanel match={run.match} id={lobbyId} /> : undefined}
+      extra={<LobbyPanel match={run.match} id={lobbyId} />}
     />
   );
 });
@@ -311,14 +290,13 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   const fights = rec ? rec.wins + rec.losses + rec.draws : 0;
   const heroName = game.heroId ? getHero(game.heroId).name : '—';
   const cfg = game.practice;
-  const [lobbyOpen, setLobbyOpen] = useState(false);
   const lobbyId = `cv2-lobby-p${game.rowId ?? game.createdAt ?? 'x'}`;
   return (
     <GameCard
       place={game.placement}
       label={result.cls === 'none' ? 'No placement recorded' : `${o.label === 'VICTORY' ? 'Victory' : o.label.toLowerCase()}, match ${result.label.toLowerCase()}`}
       resultClass={`cv2-verdict ${o.cls}`}
-      className={`cv2-row cv2-prow gc-stack ${o.cls}`}
+      className={`cv2-row cv2-prow gc-detail ${o.cls}`}
       rootProps={{ 'aria-label': `Practice, ${heroName}: ${o.label}` }}
       hero={<HeroFrame heroId={game.heroId} small skins={game.board?.cosmetics} />}
       title={<span className="cv2-row-heroname">{heroName}</span>}
@@ -341,7 +319,6 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
             <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : 'Replay'}
           </button>
         )}
-        <LobbyToggle open={lobbyOpen} onToggle={() => setLobbyOpen((o) => !o)} id={lobbyId} />
       </>}
       meta={<div className="cv2-row-meta">
         <span className="cv2-meta"><span className="cv2-meta-l">Played</span><span className="cv2-meta-v cv2-row-when">{when || '-'}</span></span>
@@ -349,7 +326,7 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
         <span className="cv2-meta"><span className="cv2-meta-l">Rounds</span><span className="cv2-meta-v cv2-row-rounds">{game.wave ?? '-'}</span></span>
         {cfg && <span className="cv2-meta cv2-ppills" aria-label="Practice options"><span className={`cv2-ppill${cfg.opponents === 'bots' ? ' bots' : ''}`}><Icon name={cfg.opponents === 'bots' ? 'gear' : 'taunt'} />{practiceOpponentsPill(cfg)}</span><span className="cv2-ppill"><Icon name="heart" />{practiceHealthPill(cfg)}</span></span>}
       </div>}
-      extra={lobbyOpen ? <LobbyPanel match={game.match} id={lobbyId} /> : undefined}
+      extra={<LobbyPanel match={game.match} id={lobbyId} />}
     />
   );
 }
@@ -570,8 +547,11 @@ export function Career() {
   // (perf 2026-10-09) so the context value is stable and the memoised banners below skip unrelated re-renders.
   const pageLoadout = accountProgression?.loadout ?? null;
   const careerSkins = useMemo(() => ({ own: !viewing, loadout: pageLoadout }), [viewing, pageLoadout]);
-  // The scroller element the lazy banners observe (a callback ref, so the provider sees it once it exists).
-  const [listEl, setListEl] = useState<HTMLDivElement | null>(null);
+  // The game open in each tab's detail panel (GameSplit). Null = the focused run (a Recent Games open) or the newest;
+  // a different player's page starts over.
+  const [pickedRun, setPickedRun] = useState<string | null>(null);
+  const [pickedPractice, setPickedPractice] = useState<string | null>(null);
+  useEffect(() => { setPickedRun(null); setPickedPractice(null); }, [viewing?.userId, viewing?.focus]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
   const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
   const onWatchRun = useCallback((run: CareerRun) => watchRunRef.current(run), []);
@@ -702,7 +682,7 @@ export function Career() {
               <AchievementsTab userId={userId} own={!viewing} ownerName={shownName} />
             </div>
           ) : tab === 'practice' ? (
-            <div className="cv2-list cv2-practicelist" role="tabpanel" ref={setListEl}>
+            <div className="cv2-list cv2-practicelist" role="tabpanel">
               {practiceRows === undefined ? (
                 <div className="cv2-panel cv2-none" role="status" aria-busy="true">
                   <div className="cv2-state-ico spin"><Icon name="refresh" /></div>
@@ -722,22 +702,33 @@ export function Career() {
                   <div className="cv2-state-title">No practice games yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a practice game yet.` : 'Finish a practice game to see it here.'}</div>
                 </div>
-              ) : (
-                <LazyRowsProvider list={listEl}>
-                  {practiceRows.map((g, i) => (
-                    <LazyRow key={g.rowId ?? `${g.createdAt ?? ''}-${i}`} eager={i < EAGER_ROWS} className="cv2-lazy">
-                      {() => (
-                        <PracticeRow
-                          game={g}
-                          busy={watchingPractice !== null && watchingPractice === g.rowId}
-                          unplayable={noPracticeReplay !== null && noPracticeReplay === g.rowId}
-                          onWatch={() => watchPractice(g)}
-                        />
-                      )}
-                    </LazyRow>
-                  ))}
-                </LazyRowsProvider>
-              )}
+              ) : (() => {
+                // LAYOUT B (owner 2026-10-16): the compact list + the selected practice game in full (GameSplit.tsx).
+                const keyed = practiceRows.map((g, i) => ({ g, key: `p${g.rowId ?? `${g.createdAt ?? ''}-${i}`}` }));
+                const sel = keyed.find((k) => k.key === pickedPractice) ?? keyed[0]!;
+                const items: GameListItem[] = keyed.map(({ g, key }) => {
+                  const name = g.heroId ? getHero(g.heroId).name : '-';
+                  const rec = g.record && g.record.wins + g.record.losses + g.record.draws > 0 ? recordText(g.record) : undefined;
+                  return {
+                    key, place: g.placement, title: name, sub: rec, when: playedOnText(g.createdAt ? Date.parse(g.createdAt) : NaN) || undefined,
+                    label: `${placeText(g.placement)}, ${name}`,
+                    portrait: <HeroFrame heroId={g.heroId} small skins={g.board?.cosmetics} />,
+                  };
+                });
+                return (
+                  <GameSplit
+                    className="cv2-split" items={items} selected={sel.key} onPick={setPickedPractice} label="Practice games"
+                    detail={(
+                      <PracticeRow
+                        game={sel.g}
+                        busy={watchingPractice !== null && watchingPractice === sel.g.rowId}
+                        unplayable={noPracticeReplay !== null && noPracticeReplay === sel.g.rowId}
+                        onWatch={() => watchPractice(sel.g)}
+                      />
+                    )}
+                  />
+                );
+              })()}
             </div>
           ) : tab === 'heroes' ? (
             <div className="cv2-list cv2-herolist" role="tabpanel">
@@ -754,30 +745,42 @@ export function Career() {
               )}
             </div>
           ) : (
-            <div className="cv2-list" role="tabpanel" ref={setListEl}>
+            <div className="cv2-list" role="tabpanel">
               {matchRows.length === 0 ? (
                 <div className="cv2-panel cv2-none">
                   <div className="cv2-state-ico"><Icon name="sword" /></div>
                   <div className="cv2-state-title">No runs yet</div>
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Finish a lobby run and it will appear here, final team and all.'}</div>
                 </div>
-              ) : (
-                <LazyRowsProvider list={listEl}>
-                  {matchRows.map((run, i) => (
-                    <LazyRow key={run.id ?? i} eager={i < EAGER_ROWS || i === focusIndex} className="cv2-lazy">
-                      {() => (
-                        <MatchRow
-                          run={run}
-                          focus={i === focusIndex}
-                          busy={watching !== null && watching === run.id}
-                          unplayable={noReplay !== null && noReplay === run.id}
-                          onWatch={onWatchRun}
-                        />
-                      )}
-                    </LazyRow>
-                  ))}
-                </LazyRowsProvider>
-              )}
+              ) : (() => {
+                // LAYOUT B (owner 2026-10-16: "maybe even do something like that for career"): the compact list + the
+                // selected run in full (GameSplit.tsx, shared with Recent Games). A Recent Games open lands on its run.
+                const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
+                const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusIndex >= 0 ? focusIndex : 0]!;
+                const items: GameListItem[] = keyed.map(({ run, key }) => {
+                  const name = run.heroId ? getHero(run.heroId).name : '-';
+                  const fights = run.wins + run.losses + run.draws;
+                  return {
+                    key, place: run.placement, title: name, sub: fights > 0 ? recordText(run) : undefined, when: playedOnText(run.atMs) || undefined,
+                    delta: run.ratingDelta ?? null, label: `${placeText(run.placement)}, ${name}`,
+                    portrait: <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />,
+                  };
+                });
+                return (
+                  <GameSplit
+                    className="cv2-split" items={items} selected={sel.key} onPick={setPickedRun} label="Match history"
+                    detail={(
+                      <MatchRow
+                        run={sel.run}
+                        focus={sel.i === focusIndex}
+                        busy={watching !== null && watching === sel.run.id}
+                        unplayable={noReplay !== null && noReplay === sel.run.id}
+                        onWatch={onWatchRun}
+                      />
+                    )}
+                  />
+                );
+              })()}
             </div>
           )}
         </section>

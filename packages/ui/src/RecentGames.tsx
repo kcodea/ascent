@@ -9,10 +9,12 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame } from './store';
 import { useSocial } from './socialCache';
-import { LazyRow, LazyRowsProvider } from './lazyRows';
+import { GameSplit, type GameListItem } from './GameSplit';
+import { StoredTeam } from './StoredTeam';
+import { MatchScoreboard } from './matchDetails/MatchScoreboard';
 import { fetchPracticeGames, fetchPracticeReplay, fetchRecentGames, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow, type RecentGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
-import { LbHeroFrame, LbRunes, LbTeam } from './LadderBits';
+import { LbHeroFrame, LbRunes } from './LadderBits';
 import { GameCard, bandOf, placeText } from './GameCard';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
 import { heroPortrait, opponentSkins } from './skins/skins';
@@ -41,8 +43,6 @@ import { frameIdOf } from './portraitFrame/PortraitFrame';
 /** How many games the feed lists (owner 2026-10-16: "allow up to 50 games for recent games played"). A plain
  *  PostgREST `.limit`, well under the 1000-row cap (R-NET-01); no RPC caps it. */
 const FEED_ROWS = 50;
-/** Banners mounted with the page; the rest mount as they near the view (`lazyRows.tsx`). */
-const EAGER_ROWS = 4;
 
 export type RecentGamesTab = 'ranked' | 'practice';
 
@@ -144,7 +144,9 @@ interface CardProps {
   onOpen: (r: FeedRow, key: string) => void; onWatch: (e: React.MouseEvent, r: FeedRow, key: string) => void;
 }
 
-/** One game as the shared GameCard. Memoised: a Watch press or a filter click never re-renders the other cards. */
+/** The selected game as the shared GameCard in its detail layout (GameSplit's right panel; owner 2026-10-16, layout B).
+ *  The same card the Career's Match History shows: board strip (`StoredTeam`), runes inline with the actions, one
+ *  meta line, and the lobby standings under it when the game recorded them. */
 const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy, unplayable, opening, onOpen, onWatch }: CardProps) {
   const cfg = 'practice' in r ? r.practice : null;
   const hero = r.heroId ? getHero(r.heroId) : null;
@@ -153,39 +155,42 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
   const when = playedAtText(r.createdAt);
   const length = runLengthText(r.durationMs, r.lengthOverCap);
   const record = r.record ? recordText(r.record) : `${r.wins} ${r.wins === 1 ? 'win' : 'wins'}`;
-  // A banner with a known player opens their Career; a pre-accounts row (no user_id) is a plain banner.
-  const clickable = !!r.userId;
+  const match = 'match' in r ? r.match : undefined;
   return (
     <GameCard
       as="div"
       place={r.placement}
       label={o.label === 'VICTORY' ? 'Victory' : `${o.label.toLowerCase()} place`}
       resultClass={`lb-verdict ${o.cls}`}
-      className={`lb-row rg-card${clickable ? ' lb-row-btn' : ''}${r.partial ? ' partial' : ''}`}
-      rootProps={clickable ? {
-        role: 'button', tabIndex: 0,
-        onClick: () => onOpen(r, rowKey),
-        onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') onOpen(r, rowKey); },
-        'aria-disabled': opening,
-        'aria-label': `View ${r.author || 'this player'}'s Career`,
-      } : undefined}
+      className={`lb-row rg-card gc-detail${r.partial ? ' partial' : ''}`}
+      rootProps={{ 'aria-label': `${r.author || 'Unnamed player'}, ${hero?.name ?? 'Unknown hero'}: ${o.label}` }}
       hero={<LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />}
       title={<span className="lb-row-name">{r.author || 'Unnamed player'}</span>}
       subtitle={<span className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</span>}
       record={<span className={`lb-row-record ${r.record ? (r.record.wins >= r.record.losses ? 'won' : 'lost') : 'none'}`}>{record}</span>}
-      board={<LbTeam board={r.board} empty={r.hasReplay ? 'No board recorded' : 'No board recorded for this game'} />}
+      board={r.board && r.board.minions.length > 0
+        ? <StoredTeam minions={r.board.minions} skins={skins} />
+        : <div className="lb-team-none">{r.hasReplay ? 'No board recorded' : 'No board recorded for this game'}</div>}
       runes={<LbRunes runes={r.runes} empty="No runes taken" />}
-      actions={(!practice || watchable) ? (
-        <button
-          type="button"
-          className="lb-btn lb-watch pressable"
-          onClick={(e) => onWatch(e, r, rowKey)}
-          disabled={!watchable || busy || unplayable}
-          aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
-        >
-          <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Replay' : 'No replay'}
-        </button>
-      ) : undefined}
+      actions={<>
+        {(!practice || watchable) && (
+          <button
+            type="button"
+            className="lb-btn lb-watch pressable"
+            onClick={(e) => onWatch(e, r, rowKey)}
+            disabled={!watchable || busy || unplayable}
+            aria-label={watchable ? `Watch ${r.author || 'this player'}'s game` : 'No replay stored for this game'}
+          >
+            <Icon name="eye" />{busy ? 'Loading…' : unplayable ? 'No replay' : watchable ? 'Replay' : 'No replay'}
+          </button>
+        )}
+        {/* The player's Career (the whole banner did this in the old list layout). */}
+        {r.userId && (
+          <button type="button" className="lb-btn lb-career pressable" onClick={() => onOpen(r, rowKey)} disabled={opening} aria-label={`View ${r.author || 'this player'}'s Career`}>
+            Career<span className="lb-go" aria-hidden="true">›</span>
+          </button>
+        )}
+      </>}
       meta={<div className="lb-facts">
         {when && <span className="lb-fact lb-fact-when"><span className="lb-when">{when}</span></span>}
         <span className="lb-fact"><span className="lb-fact-l">Length</span><span className="lb-fact-v">{length}</span></span>
@@ -197,6 +202,7 @@ const FeedCard = memo(function FeedCard({ r, rowKey, practice, mine, skins, busy
         {r.boardStrength != null && <span className="lb-fact gtip" data-tip={GAME_STRENGTH_TIP}><span className="lb-fact-l">{GAME_STRENGTH_LABEL}</span><span className="lb-fact-v lb-fact-bstrength" aria-label={`${GAME_STRENGTH_LABEL} ${r.boardStrength} out of 100`}>{r.boardStrength}</span></span>}
         {r.partial && <span className="lb-fact lb-partial"><Icon name="clock" />{partialText(r.firstRecordedWave)}</span>}
       </div>}
+      extra={match ? <section className="rg-lobby" aria-label="Players in this lobby"><MatchScoreboard details={match} own={mine} /></section> : undefined}
     />
   );
 });
@@ -211,15 +217,15 @@ export function RecentGames(): JSX.Element | null {
   // the last list at once and refreshes behind it when stale, and switching back and forth never flashes a spinner.
   const rows = useSocial<RecentGameRow[]>(show && tab === 'ranked' ? RECENT_RANKED_KEY : null, loadRecentRanked) ?? null;
   const practiceRows = useSocial<PracticeGameRow[]>(show && tab === 'practice' ? RECENT_PRACTICE_KEY : null, loadRecentPractice) ?? null;
-  const [listEl, setListEl] = useState<HTMLDivElement | null>(null); // the list the lazy banners observe
   const [opening, setOpening] = useState<string | null>(null); // row key currently being opened
   const [watching, setWatching] = useState<string | null>(null); // row key whose replay payload is loading
   const [noReplay, setNoReplay] = useState<string | null>(null); // row key whose payload came back unplayable
   const [heroFilter, setHeroFilter] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(null); // the game open in the detail panel (null = the newest)
 
   // Every open starts on RANKED (reset on close, so a reopen never reads the practice feed for a frame first).
   useEffect(() => {
-    if (!show) { setTab('ranked'); setHeroFilter(null); }
+    if (!show) { setTab('ranked'); setHeroFilter(null); setPicked(null); }
   }, [show]);
 
   const practice = tab === 'practice';
@@ -279,7 +285,7 @@ export function RecentGames(): JSX.Element | null {
   }, []);
 
   if (!show) return null;
-  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); setHeroFilter(null); };
+  const pickTab = (t: RecentGamesTab): void => { if (t === tab) return; sfx.pulse(); setTab(t); setHeroFilter(null); setPicked(null); };
   // The skin + portrait frame RECORDED with the game's final board (owner 2026-10-16): your own game always, everyone
   // else's through "Show opponent cosmetics". No recorded cosmetics = the hero's own art in the default ring.
   const skinsOf = (r: FeedRow): { mine: boolean; skins: RunCosmeticSnapshot | null } => {
@@ -303,17 +309,25 @@ export function RecentGames(): JSX.Element | null {
       : <div className="lbempty lb-state"><Icon name="clock" /><div>No recordings yet. Finish a run to seed the feed.</div></div>;
   } else {
     const keyed = shown.map((r, i) => ({ r, key: keyOf(r, i) }));
+    const sel = keyed.find((k) => k.key === picked) ?? keyed[0];
+    // LAYOUT B (owner 2026-10-16): the compact list + the one selected game in full (GameSplit.tsx). Only the selected
+    // game's board mounts, so the 50 light rows need no lazy mounting.
+    const items: GameListItem[] = keyed.map(({ r, key }) => {
+      const { mine, skins } = skinsOf(r);
+      const heroName = r.heroId ? getHero(r.heroId).name : 'Unknown hero';
+      return {
+        key, place: r.placement, title: r.author || 'Unnamed player', sub: heroName, when: playedAtText(r.createdAt) || undefined,
+        label: `${placeText(r.placement)}, ${r.author || 'Unnamed player'}, ${heroName}`,
+        portrait: <LbHeroFrame heroId={r.heroId} side={mine ? 'self' : 'opp'} art={heroPortrait(r.heroId, skins)} frameId={frameIdOf(skins)} />,
+      };
+    });
     body = (
-      <>
-        <div className={`lb-rows rg-list${practice ? ' rg-practice' : ''}`} ref={setListEl}>
-          <LazyRowsProvider list={listEl}>
-            {keyed.map(({ r, key }, i) => (
-              // LAZY (perf 2026-10-09, lazyRows.tsx): each card is seven real cards; only those near the view mount.
-              <LazyRow key={key} eager={i < EAGER_ROWS} className="lb-lazy">{() => card(r, key)}</LazyRow>
-            ))}
-          </LazyRowsProvider>
-        </div>
-      </>
+      <GameSplit
+        className={`rg-split${practice ? ' rg-practice' : ''}`}
+        items={items} selected={sel?.key ?? null} onPick={setPicked}
+        label={practice ? 'Latest practice games' : 'Latest games'}
+        detail={sel ? card(sel.r, sel.key) : null}
+      />
     );
   }
 
@@ -343,9 +357,9 @@ export function RecentGames(): JSX.Element | null {
           </div>
           {heroChips.length > 0 && (
             <div className="rg-filters" role="group" aria-label="Filter by hero">
-              <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { sfx.pulse(); setHeroFilter(null); }}>All heroes</button>
+              <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { sfx.pulse(); setHeroFilter(null); setPicked(null); }}>All heroes</button>
               {heroChips.map((id) => (
-                <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { sfx.pulse(); setHeroFilter(id); }}>{getHero(id).name}</button>
+                <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { sfx.pulse(); setHeroFilter(id); setPicked(null); }}>{getHero(id).name}</button>
               ))}
             </div>
           )}

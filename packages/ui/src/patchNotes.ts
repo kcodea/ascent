@@ -112,6 +112,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Click your portrait to change it and your name to rename yourself, as before.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Recent Games and your Career match history are now a list of games with the selected game shown in full beside it.',
+        details: [
+          'Click a game in the list, or use the Up and Down keys, to see its final board, runes, Replay and details.',
+          'On your Career the lobby standings show under the open game, with every player and their final board.',
+          'Your Career stats now sit in one strip across the top, so the open game has room for the whole board.',
+        ],
+      },
     ],
   },
   {

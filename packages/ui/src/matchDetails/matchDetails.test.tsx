@@ -360,25 +360,17 @@ describe('the Career match card', () => {
     await flush();
   });
 
-  it('a chevron grows the card to show the lobby, and collapses it again', () => {
-    const toggles = [...ui!.container.querySelectorAll('.cv2-lobbybtn')];
-    expect(toggles).toHaveLength(2);
-    expect(toggles[0]!.getAttribute('aria-expanded')).toBe('false');
-    expect(ui!.container.querySelector('.cv2-lobby')).toBeNull(); // nothing mounted while collapsed
-    click(toggles[0]);
-    expect(toggles[0]!.getAttribute('aria-expanded')).toBe('true');
-    const panel = ui!.container.querySelector('.cv2-row .cv2-lobby')!;
-    expect(panel.id).toBe(toggles[0]!.getAttribute('aria-controls'));
+  it('the selected game shows its lobby under the card (layout B, owner 2026-10-16): eight seats, each opening its board', () => {
+    expect(ui!.container.querySelectorAll('.cv2-lobbybtn')).toHaveLength(0); // no chevron: the detail panel has room
+    const panel = ui!.container.querySelector('.gs-detail .cv2-row .cv2-lobby')!;
     expect(panel.querySelectorAll('.mds-row')).toHaveLength(8);
     click(panel.querySelector('.mds-row[data-seat="s3"]'));
     expect(panel.querySelector('.mds-board-caption')?.textContent).toBe('Their board when you were knocked out, round 11');
-    click(toggles[0]);
-    expect(ui!.container.querySelector('.cv2-lobby')).toBeNull();
+    expect(ui!.container.querySelectorAll('.cv2-lobby')).toHaveLength(1); // only the selected game's lobby mounts
   });
 
   it('an older match with no recorded details says so', () => {
-    const toggles = [...ui!.container.querySelectorAll('.cv2-lobbybtn')];
-    click(toggles[1]);
+    click(ui!.container.querySelectorAll('.gs-item')[1]!);
     expect(ui!.container.querySelector('.cv2-lobby-none')?.textContent).toBe(NO_DETAILS_TEXT);
   });
 });

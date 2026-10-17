@@ -485,74 +485,97 @@ describe('Leaderboard — the Hall of Champions banners', () => {
 
 /* ─────────────────────────────────────────── Recent Games ─────────────────────────────────────────── */
 
-describe('RecentGames — the recording banners', () => {
+describe('RecentGames — layout B: the game list + the selected game in full (owner 2026-10-16)', () => {
   beforeEach(async () => {
     useGame.setState({ showRecentGames: true });
     ui = mount(<RecentGames />);
     await flush();
   });
+  const pick = (i: number): void => click(ui.container.querySelectorAll('.gs-item')[i]!);
+  const detail = (): Element => ui.container.querySelector('.gs-detail .lb-row')!;
 
-  it('three banners: hero frame + player + hero + record · final team tiles · runes as emblems + names · outcome', () => {
-    const rows = [...ui.container.querySelectorAll('.lb-row')];
-    expect(rows).toHaveLength(3);
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
-    expect(text('.lb-row-record')).toEqual(['9–4', '4–5–1', '3 wins']); // no record → the scalar wins column
-    expect(rows[0]!.querySelectorAll('.lb-tile .card')).toHaveLength(7);
-    expect(text('.lb-rune-name').slice(0, 2)).toEqual(['Rune of Spellslinging', 'Happy Birthday']);
-    expect(rows[0]!.querySelectorAll('.lb-rune-em img, .lb-rune-em svg')).toHaveLength(2);
-    expect(rows[1]!.querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
-    expect(text('.lb-verdict')).toEqual(['1st', '5th', '2nd']);
-    expect([...ui.container.querySelectorAll('.lb-verdict')].map((v) => v.className)).toEqual(['gc-place won lb-verdict won', 'gc-place lost lb-verdict lost', 'gc-place top4 lb-verdict top4']);
-    // length · rounds · board strength (only on the scored row) per row; row 3 has no rounds. The lobby strength is
-    // HIDDEN for now (owner 2026-09-30).
-    expect(text('.lb-fact-v')).toEqual(['18 min', '15', '72', '7 min', '11', '—']);
-    expect(text('.lb-fact-lobby')).toEqual([]);
-    // BOARD STRENGTH (R-LOBBY-09): only the scored game shows it.
-    expect(text('.lb-fact-bstrength')).toEqual(['72']);
-    // Labelled "Game strength" with the game's hover bubble (owner 2026-09-30), never a native title.
+  it('one compact row per game (placement, portrait, player, hero, when), and the newest game open in full: hero + record · 7 board cards · runes · outcome', () => {
+    expect(text('.gs-item .gs-title')).toEqual(['Nadja', 'Kev', 'Robin']);
+    expect(text('.gs-item .gs-place')).toEqual(['1st', '5th', '2nd']);
+    expect([...ui.container.querySelectorAll('.gs-item')].map((n) => n.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
+    // Only the selected game mounts its card (and its board).
+    expect(ui.container.querySelectorAll('.gs-detail .lb-row')).toHaveLength(1);
+    expect(text('.gs-detail .lb-row-name')).toEqual(['Nadja']);
+    expect(text('.gs-detail .lb-row-record')).toEqual(['9–4']);
+    expect(detail().querySelectorAll('.cv2-tile .card')).toHaveLength(7);
+    expect(text('.gs-detail .lb-rune-name').slice(0, 2)).toEqual(['Rune of Spellslinging', 'Happy Birthday']);
+    expect(detail().querySelectorAll('.lb-rune-em img, .lb-rune-em svg')).toHaveLength(2);
+    expect(detail().querySelector('.lb-verdict')?.className).toBe('gc-place won lb-verdict won');
+    // length · rounds · board strength (only on the scored game). The lobby strength is HIDDEN for now (owner 2026-09-30).
+    expect(text('.gs-detail .lb-fact-v')).toEqual(['18 min', '15', '72']);
+    expect(text('.gs-detail .lb-fact-lobby')).toEqual([]);
     const fact = ui.container.querySelector('.lb-fact-bstrength')!.parentElement!;
     expect(fact.querySelector('.lb-fact-l')?.textContent).toBe('Game strength');
     expect(fact.getAttribute('data-tip')).toMatch(/Later rounds count more\.$/);
     expect(fact.getAttribute('title')).toBeNull();
+    // Another game: its own facts, its own (empty) runes, one card still.
+    pick(1);
+    expect(ui.container.querySelectorAll('.gs-detail .lb-row')).toHaveLength(1);
+    expect(text('.gs-detail .lb-row-record')).toEqual(['4–5–1']);
+    expect(detail().querySelector('.lb-runes-none')?.textContent).toBe('No runes taken');
+    expect(text('.gs-detail .lb-fact-v')).toEqual(['7 min', '11']);
+    expect(text('.gs-detail .lb-verdict')).toEqual(['5th']);
+    pick(2);
+    expect(text('.gs-detail .lb-row-record')).toEqual(['3 wins']); // no record → the scalar wins column
+    expect(text('.gs-detail .lb-fact-v')).toEqual(['—']);
   });
 
-  it('with SHOW_LOBBY_STRENGTH on, the Lobby % returns, only on a row that carries the stamp', async () => {
+  it('Up / Down on the list move the selection', () => {
+    const list = ui.container.querySelector('.gs-list')!;
+    act(() => { list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); });
+    expect(text('.gs-detail .lb-row-name')).toEqual(['Kev']);
+    act(() => { list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })); });
+    expect(text('.gs-detail .lb-row-name')).toEqual(['Nadja']);
+  });
+
+  it('with SHOW_LOBBY_STRENGTH on, the Lobby % returns, only on a game that carries the stamp', async () => {
     lobbyDisplay.show = true;
     try {
       ui.unmount();
       ui = mount(<RecentGames />);
       await flush();
-      expect(text('.lb-fact-v')).toEqual(['18 min', '15', '74%', '72', '7 min', '11', '—']);
+      expect(text('.gs-detail .lb-fact-v')).toEqual(['18 min', '15', '74%', '72']);
       expect(text('.lb-fact-lobby')).toEqual(['74%']);
+      pick(1);
+      expect(text('.lb-fact-lobby')).toEqual([]);
     } finally { lobbyDisplay.show = false; }
   });
 
-  it('labels the partial recording, and the board-less row gets the empty plate', () => {
-    const rows = [...ui.container.querySelectorAll('.lb-row')];
-    expect(rows[1]!.classList.contains('partial')).toBe(true);
-    expect(rows[1]!.querySelector('.lb-partial')?.textContent).toBe('Partial recording · from round 5');
-    expect(rows[0]!.querySelector('.lb-partial')).toBeNull();
-    expect(rows[2]!.querySelector('.lb-team-none')?.textContent).toBe('No board recorded for this game');
-    expect(rows[2]!.querySelectorAll('.lb-tile')).toHaveLength(0);
+  it('labels the partial recording, and the board-less game gets the empty plate', () => {
+    expect(detail().querySelector('.lb-partial')).toBeNull();
+    pick(1);
+    expect(detail().classList.contains('partial')).toBe(true);
+    expect(detail().querySelector('.lb-partial')?.textContent).toBe('Partial recording · from round 5');
+    pick(2);
+    expect(detail().querySelector('.lb-team-none')?.textContent).toBe('No board recorded for this game');
+    expect(detail().querySelectorAll('.cv2-tile')).toHaveLength(0);
   });
 
-  it('ONE Watch Replay button per banner — live only with a replay; a click fetches that row’s payload and starts the viewer', async () => {
-    const btns = [...ui.container.querySelectorAll('.lb-watch')] as HTMLButtonElement[];
-    expect(btns).toHaveLength(3);
-    expect(btns.map((b) => b.disabled)).toEqual([false, false, true]);
-    expect(btns.map((b) => b.textContent)).toEqual(['Replay', 'Replay', 'No replay']);
+  it('ONE Replay button on the open game, live only with a replay; a click fetches that game’s payload and starts the viewer', async () => {
+    pick(2);
+    let btns = [...ui.container.querySelectorAll('.lb-watch')] as HTMLButtonElement[];
+    expect(btns).toHaveLength(1);
+    expect([btns[0]!.disabled, btns[0]!.textContent]).toEqual([true, 'No replay']);
+    pick(0);
+    btns = [...ui.container.querySelectorAll('.lb-watch')] as HTMLButtonElement[];
+    expect([btns[0]!.disabled, btns[0]!.textContent]).toEqual([false, 'Replay']);
     click(btns[0]!);
     await flush();
     expect(fetchReplayPayload).toHaveBeenCalledWith(91);
     expect(startReplay).toHaveBeenCalledTimes(1);
-    expect(useGame.getState().showCareer).toBe(false); // the click never bubbled to the banner
+    expect(useGame.getState().showCareer).toBe(false);
   });
 
-  it('a banner with a known player is a button that opens their Career; a pre-accounts row is inert', async () => {
-    const rows = [...ui.container.querySelectorAll('.lb-row')];
-    expect(rows[0]!.getAttribute('role')).toBe('button');
-    expect(rows[2]!.getAttribute('role')).toBeNull();
-    click(rows[0]!);
+  it('a game with a known player has a Career button that opens their Career; a pre-accounts game has none', async () => {
+    pick(2);
+    expect(ui.container.querySelector('.lb-career')).toBeNull();
+    pick(0);
+    click(ui.container.querySelector('.lb-career'));
     await flush();
     expect(useGame.getState().showCareer).toBe(true);
     expect(useGame.getState().careerOf?.userId).toBe('u-top');
@@ -562,7 +585,7 @@ describe('RecentGames — the recording banners', () => {
   it('the profile fetch that opens a Career hands its medal rank over too', async () => {
     const rank = { seasonId: 3, rulesVersion: 1, revision: 2, position: { divisionIndex: 0, points: 46, demotionReady: false }, highest: { divisionIndex: 0, points: 46, demotionReady: false } };
     fetchPlayerById.mockResolvedValue({ userId: 'u-top', author: 'Nadja', rating: 46, gamesPlayed: 46, favoriteHero: 'brackus', rank });
-    click(ui.container.querySelector('.lb-row'));
+    click(ui.container.querySelector('.lb-career'));
     await flush();
     expect(fetchPlayerById).toHaveBeenCalledWith('u-top');
     const of = useGame.getState().careerOf!;
@@ -573,15 +596,15 @@ describe('RecentGames — the recording banners', () => {
 });
 
 describe('RecentGames — the portrait wears the frame + skin recorded with the game (owner 2026-10-16, R-PROG-FRAMES-LIST-01)', () => {
-  const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.lb-row .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
-  const portraitSrc = (): string[] => [...ui.container.querySelectorAll('.lb-row .lb-heroframe .heroimg')].map((n) => n.getAttribute('src') ?? '');
+  const frames = (): Array<string | null> => [...ui.container.querySelectorAll('.gs-item .lb-heroframe')].map((n) => n.querySelector('.pframe-box')?.getAttribute('data-frame') ?? null);
+  const portraitSrc = (): string[] => [...ui.container.querySelectorAll('.gs-item .lb-heroframe .heroimg')].map((n) => n.getAttribute('src') ?? '');
   const withCosmetics = (): RecentGameRow[] => [
     game({ board: { ...board(7), cosmetics: { portraitFrame: 'frame_fire', heroSkinByHeroId: { brackus: 'skin_brackus_2' } } } as BoardSnapshot }),
     game({ userId: 'me-1', author: 'Kev', heroId: 'sable', rowId: 90, board: { ...board(5, 'sable'), cosmetics: { portraitFrame: 'frame_gold' } } as BoardSnapshot }),
     GAMES[2]!,
   ];
 
-  it('another player’s game shows their recorded frame and skin; yours shows yours; a board-less row the default ring', async () => {
+  it('another player’s game shows their recorded frame and skin; yours shows yours; a board-less game the default ring', async () => {
     fetchRecentGames.mockResolvedValue(withCosmetics());
     useGame.setState({ showRecentGames: true, showOpponentSkins: true });
     ui = mount(<RecentGames />);
@@ -608,48 +631,54 @@ describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
   });
   const tabs = (): HTMLButtonElement[] => [...ui.container.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
   const selected = (): string => (ui.container.querySelector('[role="tab"][aria-selected="true"]')?.textContent ?? '').trim();
+  const pick = (i: number): void => click(ui.container.querySelectorAll('.gs-item')[i]!);
 
   it('opens on Ranked (the feed as before) and does not read practice games until the tab is picked', () => {
     expect(ui.container.querySelector('[role="tablist"]')?.classList.contains('cv2-tabs')).toBe(true); // the Career tab style
     expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Ranked', 'Practice']);
     expect(selected()).toBe('Ranked');
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
+    expect(text('.gs-item .gs-title')).toEqual(['Nadja', 'Kev', 'Robin']);
     expect(fetchPracticeGames).not.toHaveBeenCalled();
   });
 
-  it('Practice lists the latest practice games: the same banner, the practice options as facts, and no Watch', async () => {
+  it('Practice lists the latest practice games: the same card, the practice options as facts, and no Watch', async () => {
     click(tabs()[1]!);
     await flush();
     expect(selected()).toBe('Practice');
     expect(fetchPracticeGames).toHaveBeenCalledTimes(1);
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev']);
-    expect(text('.lb-verdict')).toEqual(['3rd', '6th']);
-    expect(text('.lb-row-record')).toEqual(['9–4', '3–6']);
-    expect(text('.lb-fact-l')).toEqual(['Length', 'Rounds', 'Opponents', 'Health', 'Length', 'Rounds', 'Opponents', 'Health']);
-    expect(text('.lb-fact-v')).toEqual(['18 min', '15', 'Bots Lv 5', 'Unlimited', '18 min', '9', 'Players', 'Normal']);
+    expect(text('.gs-item .gs-title')).toEqual(['Nadja', 'Kev']);
+    expect(text('.gs-item .gs-place')).toEqual(['3rd', '6th']);
+    expect(text('.gs-detail .lb-row-record')).toEqual(['9–4']);
+    expect(text('.gs-detail .lb-fact-l')).toEqual(['Length', 'Rounds', 'Opponents', 'Health']);
+    expect(text('.gs-detail .lb-fact-v')).toEqual(['18 min', '15', 'Bots Lv 5', 'Unlimited']);
+    pick(1);
+    expect(text('.gs-detail .lb-row-record')).toEqual(['3–6']);
+    expect(text('.gs-detail .lb-fact-v')).toEqual(['18 min', '9', 'Players', 'Normal']);
     expect(ui.container.querySelectorAll('.lb-watch')).toHaveLength(0);
     expect(ui.container.querySelector('.lbsub')?.textContent).toContain('practice games');
   });
 
-  it('a practice row WITH a replay (owner 2026-09-27) offers Watch, reading the practice table by id; rows without one still show none', async () => {
+  it('a practice game WITH a replay (owner 2026-09-27) offers Watch, reading the practice table by id; games without one show none', async () => {
     fetchPracticeGames.mockResolvedValue([{ ...PRACTICE[0]!, hasReplay: true }, PRACTICE[1]!]);
     click(tabs()[1]!);
     await flush();
+    pick(1);
+    expect(ui.container.querySelector('.lb-watch')).toBeNull();
+    pick(0);
     const watches = [...ui.container.querySelectorAll('.lb-watch')];
     expect(watches).toHaveLength(1);
-    expect(ui.container.querySelectorAll('.lb-row')[1]!.querySelector('.lb-watch')).toBeNull();
     click(watches[0]!);
     await flush();
     expect(fetchPracticeReplay).toHaveBeenCalledWith(5);
     expect(fetchReplayPayload).not.toHaveBeenCalled();
     expect(startReplay).toHaveBeenCalledTimes(1);
-    expect(useGame.getState().showCareer).toBeFalsy(); // the Watch click never bubbles to the banner
+    expect(useGame.getState().showCareer).toBeFalsy();
   });
 
-  it('a practice banner opens the player’s Career without focusing a run (practice is not in their match history)', async () => {
+  it('a practice game’s Career button opens the player’s Career without focusing a run (practice is not in their match history)', async () => {
     click(tabs()[1]!);
     await flush();
-    click(ui.container.querySelector('.lb-row'));
+    click(ui.container.querySelector('.lb-career'));
     await flush();
     expect(useGame.getState().showCareer).toBe(true);
     expect(useGame.getState().careerOf?.userId).toBe('u-top');
@@ -662,10 +691,10 @@ describe('RecentGames — the Practice tab (owner ask 2026-09-24)', () => {
     click(tabs()[0]!);
     await flush();
     expect(selected()).toBe('Ranked');
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev', 'Robin']);
+    expect(text('.gs-item .gs-title')).toEqual(['Nadja', 'Kev', 'Robin']);
     click(tabs()[1]!);
     await flush();
-    expect(text('.lb-row-name')).toEqual(['Nadja', 'Kev']);
+    expect(text('.gs-item .gs-title')).toEqual(['Nadja', 'Kev']);
     expect(fetchRecentGames).toHaveBeenCalledTimes(1);
     expect(fetchPracticeGames).toHaveBeenCalledTimes(1);
   });
@@ -680,7 +709,7 @@ describe('RecentGames — designed states', () => {
     click(ui.container.querySelectorAll('[role="tab"]')[1]!);
     await flush();
     expect(ui.container.querySelector('.lb-state')?.textContent).toContain('No practice games yet');
-    expect(ui.container.querySelectorAll('.lb-row')).toHaveLength(0);
+    expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(0);
   });
 
   it('empty: "No recordings yet"', async () => {

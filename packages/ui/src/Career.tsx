@@ -25,7 +25,7 @@ import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplay
 import { startReplay } from './replay/replayPlayer';
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankBar } from './rank/RankBar';
-import { cosmeticOf, isMasterTitle, titleName } from '@game/progression';
+import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
 import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab } from './progression/AchievementsTab';
@@ -494,14 +494,16 @@ export function Career() {
   // the profile's rank columns are read ONCE by user id — one request, remembered per user id while the page
   // is open — so the Seasonal Ranked card paints the same crest + bar your own page shows, not a bare number.
   // `null` = asked, no rank (a pre-migration backend / no row) → the bare MMR stays.
-  const [viewedRank, setViewedRank] = useState<{ userId: string; rank: RankedProfile | null } | null>(null);
+  // The same one read also brings the player's CHOSEN profile picture when the entry point did not carry it (owner
+  // 2026-10-16: "i really want the player's selected portrait to be here").
+  const [viewedRank, setViewedRank] = useState<{ userId: string; rank: RankedProfile | null; avatar?: string | null } | null>(null);
   useEffect(() => {
     if (!show) { setViewedRank(null); return; }
-    if (!viewing || viewing.rank || !remoteEnabled()) return;
+    if (!viewing || (viewing.rank && viewing.avatar) || !remoteEnabled()) return;
     if (viewedRank?.userId === viewing.userId) return;
     let live = true;
     const who = viewing.userId;
-    void fetchPlayerById(who).then((row) => { if (live) setViewedRank({ userId: who, rank: row?.rank ?? null }); });
+    void fetchPlayerById(who).then((row) => { if (live) setViewedRank({ userId: who, rank: row?.rank ?? null, avatar: row?.avatar ?? null }); });
     return () => { live = false; };
   }, [show, viewing, viewedRank]);
 
@@ -635,8 +637,17 @@ export function Career() {
           <div className="cv2-panel cv2-left">
             {/* THE PLAYER'S PORTRAIT (owner 2026-10-16): their chosen profile picture, the favourite hero as a small
                 line under it (it was the portrait before; owner 2026-09-28 asked for it to be clearly labelled). */}
-            <ProfilePortrait avatar={viewing ? viewing.avatar : playerAvatar} heroId={heroId} loadout={accountProgression?.loadout} />
-            <div className="cv2-favline"><span className="cv2-favlabel">Favorite hero</span><span className="cv2-heroname">{heroName}</span></div>
+            {/* WHO THIS IS (owner 2026-10-16: "the player's selected portrait ... a bit bigger so it's more obvious"): the
+                chosen profile picture in its frame (the favourite hero only when none was chosen), the account level on
+                the ring, the name, and the favourite hero as a small line. */}
+            <div className="cv2-idport">
+              <ProfilePortrait avatar={viewing ? (viewing.avatar ?? (viewedRank?.userId === viewing.userId ? viewedRank.avatar : null)) : playerAvatar} heroId={heroId} loadout={accountProgression?.loadout} />
+              {accountProgression && <span className="acctxp-level cv2-idlv" aria-label={`Level ${levelProgress(accountProgression.accountXp).level}`}><span className="acctxp-level-l">Lv</span>{levelProgress(accountProgression.accountXp).level}</span>}
+            </div>
+            <div className="cv2-favline">
+              <span className="cv2-idname">{shownName}</span>
+              <span className="cv2-idfav"><span className="cv2-favlabel">Favorite hero</span> <span className="cv2-heroname">{heroName}</span></span>
+            </div>
             {/* ACCOUNT LEVEL (owner ask 2026-09-28: "move the account level to under the character portrait so it's
                 not on top of ranked"): under the portrait block, above the stat tiles; Seasonal Ranked leads the right. */}
             {accountProgression && <AccountLevelCard profile={accountProgression} own={!viewing} />}

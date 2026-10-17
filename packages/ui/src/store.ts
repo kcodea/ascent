@@ -97,7 +97,7 @@ import { boardStrengthScorer, lobbyBandFor, pendingPracticeRank, poolBandFor, se
 import { normalizePracticeRank, practiceStrengthBand, runStrengthFromScores, type LobbySeatOptions, type StrengthScore } from '@game/sim';
 import { withRecordedEmotes } from '@game/sim';
 import { takeShopEmotes } from './emotes/emoteRecording';
-import { pushProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
+import { pushProfileAvatar, backfillProfileAvatar, fetchRankedProfile, remoteEnabled, setPoolBandFallback, setPoolBandProvider, strengthHistogram, runStrengthHistogram, refreshStrengthHistogram, fetchAndRegisterBoardRecords, fetchAndRegisterPool, opponentPoolLoader, recordLobbyFights, fetchLobbyStrength, refreshOpponentPoolAndRecords, supabaseAuthProvider, uploadBoards, uploadPlayerProfile, uploadRunHistory, uploadRunTelemetry, uploadVictory, uploadPracticeGame, fetchCareerTotals, claimHandle, flushUploadQueue, supabaseClient } from './remoteBoards';
 import { practiceGameOf } from './practiceGames';
 import { initIdentity, currentIdentity, currentUserId as currentProgressionUserId } from './identity';
 import { createCloudSave, deviceId, noteLocalClear, noteLocalSave, runKeyOf, type CloudRow, type CloudRowMeta } from './cloudSave';
@@ -3099,6 +3099,8 @@ export function syncProfileFromServer(_name: string): void {
   // kept so callers (and the rename path) read unchanged, and because C2's handle model will want it back.
   // MEDAL RANK (2026-09-20): the read is the whole `RankedProfile` (division / points / highest / revision),
   // not a bare number; `profile.rating` re-derives as the scalar so the numeric surfaces keep working.
+  // The chosen profile picture reaches the server once (a pick from before the column existed was local only).
+  void backfillProfileAvatar(useGame.getState().playerAvatar);
   void fetchRankedProfile().then((server) => {
     // The reconciliation is PURE MATH in @game/sim (`resolveServerRank`), which owns the three-way ruling:
     // couldn't-ask keeps the local mirror silently, an answered "no row" resets to a fresh profile (so a

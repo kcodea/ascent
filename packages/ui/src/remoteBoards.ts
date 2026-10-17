@@ -1182,6 +1182,24 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
  * Career show it to everyone. Its own best-effort UPDATE, never part of the run-end profile sync: a backend without
  * the column rejects only this write, and nothing else waits on it.
  */
+/** BACKFILL (owner 2026-10-16: other players saw a favourite hero, not the picture they chose). A pick made before
+ *  the `profiles.avatar` column existed lives only in this browser's `ascent.avatar`; once per session, if the
+ *  server's column is still null, write the local choice up so every viewer sees it. One one-row read (R-NET-01) and
+ *  at most one update; never overwrites a server value. */
+let avatarBackfilled = false;
+export async function backfillProfileAvatar(local: string | null): Promise<void> {
+  if (avatarBackfilled || !local) return;
+  const c = client();
+  const userId = currentUserId();
+  if (!c || !userId) return;
+  avatarBackfilled = true;
+  try {
+    const { data, error } = await c.from('profiles').select('avatar').eq('user_id', userId).limit(1);
+    if (error || !data?.length) return; // no column yet, or no row yet (the next run's profile upsert makes one)
+    if ((data[0] as { avatar?: unknown }).avatar == null) await c.from('profiles').update({ avatar: local }).eq('user_id', userId);
+  } catch { /* best-effort */ }
+}
+
 export async function pushProfileAvatar(avatar: string | null): Promise<void> {
   const c = client();
   const userId = currentUserId();

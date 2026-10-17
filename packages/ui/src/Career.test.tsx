@@ -496,7 +496,7 @@ describe('states', () => {
     ui.unmount();
     // "46 MMR" on the server is Bronze I 46 (rating = 100 × division + points; owner report 2026-09-21).
     const rank = { ...useGame.getState().profile.rank, position: { divisionIndex: 0, points: 46 }, highest: { divisionIndex: 0, points: 46 } };
-    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank }, careerCache: null });
+    useGame.setState({ careerOf: { userId: 'them-7', author: 'LazerLemon', rating: 46, gamesPlayed: 9, rank, avatar: 'av_knight' }, careerCache: null }); // rank AND avatar rode in: nothing left to read
     ui = mount(<Career />);
     await flush();
     const card = ui.container.querySelector('.cv2-ranked')!;

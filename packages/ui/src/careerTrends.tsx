@@ -88,7 +88,7 @@ function Delta({ v, better, unit = '', digits = 1 }: { v: number | null; better:
 
 // ── The MMR chart ──────────────────────────────────────────────────────────────────────────────────────────────
 
-const MW = 284, MH = 140, ML = 6, MR = 70, MT = 14, MB = 20;
+const MW = 284, MH = 128, ML = 6, MR = 70, MT = 14, MB = 20;
 
 /** The hovered run's final board in the MMR tip: the real cards (frame, stars, Attack / Health badges) at ~68px, the
  *  game card's strip renderer. Memoised on the stored minions array, so moving the crosshair to another point swaps

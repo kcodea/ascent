@@ -13734,7 +13734,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-trends { gap: 6px; padding-top: 10px; padding-bottom: 12px; }
 .ct-grid2 { gap: 8px; margin-top: 6px; }
 .ct-small { padding: 6px 8px 4px; }
-.ct-small svg { max-height: 46px; }
+.ct-small svg { max-height: 38px; }
 .ct-small-d { min-height: 0; }
 /* The detail fits without scrolling; it still CAN scroll if a game's content is unusually tall, never the page. */
 .gc.gc-detail .gc-body { row-gap: 8px; padding: 12px 20px 12px 16px; }
@@ -13839,6 +13839,21 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lb-state-sub { font-size: 15px; font-weight: 600; color: rgba(255, 255, 255, 0.6); margin-top: -6px; }
 .lv-torecent { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; padding: 10px 18px; }
 .lb-state .lv-torecent svg { width: 16px; height: 16px; padding: 0; background: none; box-shadow: none; }
+
+/* THE CAREER IDENTITY SLOT (owner 2026-10-16: "the player's selected portrait ... a bit bigger so it's more obvious"):
+   the chosen picture in its frame at 104px with the account level on the ring, the name big beside it, the favourite
+   hero as a small line. The strip grows ~40px, paid for by a tighter rank card so the page still fits one frame. */
+.cv2-left .cv2-idport { position: relative; flex: none; }
+.cv2-left .cv2-idport .portring, .cv2-left .cv2-idport .cv2-heroframe { --ring: 104px; }
+.cv2-idlv { position: absolute; left: 50%; bottom: -8px; z-index: 4; transform: translateX(-50%); pointer-events: none; box-shadow: 0 0 0 2px rgba(8, 15, 32, 0.95); }
+.cv2-left .cv2-favline { gap: 4px; min-width: 0; }
+.cv2-idname { font-family: var(--font-ui); font-weight: 900; font-size: 28px; line-height: 1.2; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+.cv2-idfav { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.cv2-left .cv2-idfav .cv2-heroname { font-size: 15px; color: rgba(255, 246, 228, 0.85); }
+.cv2-panel.cv2-left { padding: 10px 20px 12px; }
+.cv2-ranked { padding: 14px 30px 22px; }
+.cv2-ranked .rankcrest-big { --ring: 82px; }
+.cv2-ranked .rankbar-caption { font-size: 22px; }
 
 /* ============================================================================================================
    HERO PORTRAIT FRAMES (dev tuner 2026-09-29, `portraitFrame/`). One ring image per portrait, chosen by the

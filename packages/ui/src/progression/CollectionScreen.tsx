@@ -550,7 +550,8 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {plate && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Standard plate</b></div>}
         {emote && <div className="colls-fact"><span>For</span><b>Your hero. Right-click your portrait in a game to say it</b></div>}
         {emote && emotePosition >= 0 && <div className="colls-fact"><span>In your menu</span><b>Slot {emotePosition + 1}</b></div>}
-        <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>
+        {/* Owned: where it came from. Missing: the hint under the facts already says how to get it (it repeated it). */}
+        {owned && <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>}
         {masteryText(item) && <div className="colls-fact"><span>Mastery</span><b>{masteryText(item)}</b></div>}
       </div>
       {item.category === 'title' && (

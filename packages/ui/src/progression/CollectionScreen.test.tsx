@@ -240,7 +240,8 @@ describe('the Collection screen: the detail panel', () => {
     expect(tile('Kingbreaker').getAttribute('aria-pressed')).toBe('true');
     expect(text('.colls-plate-name')).toBe('Kingbreaker');
     expect(text('.colls-plate-rar')).toBe('Epic');
-    expect($$('.colls-fact b').map((b) => b.textContent)).toEqual(['Not owned', 'Found in crates.']);
+    // Missing: the hint says how to get it, once (the How to get fact only shows on an owned item, 2026-10-16).
+    expect($$('.colls-fact b').map((b) => b.textContent)).toEqual(['Not owned']);
     expect(text('.colls-hint')).toBe('Open crates to find it.');
     expect(button('Equip')).toBeUndefined();
   });

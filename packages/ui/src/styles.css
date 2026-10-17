@@ -13637,6 +13637,16 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gs-delta { font-family: var(--font-ui); font-weight: 900; font-size: 14px; font-variant-numeric: tabular-nums; }
 .gs-delta.up { color: #7fe8ac; } .gs-delta.down { color: #ff9a9a; }
 .gs-when { font-family: var(--font-ui); font-weight: 700; font-size: 12px; color: rgba(255, 255, 255, 0.5); white-space: nowrap; }
+/* THE RANK A GAME WAS PLAYED AT (R-GAME-RANK-01, owner 2026-10-17): the medal crest (its ring, no plate; the numeral is
+   in the text) and the division's name. Beside the record in the detail header; a mini crest + "Plat III" at the top
+   of a list row's right column. Static: no animation, no hover. */
+.gamerank { display: inline-flex; align-items: center; gap: 6px; flex: none; white-space: nowrap; vertical-align: middle; }
+.gamerank .rankcrest { --ring: 30px; flex: none; }
+.gamerank-l { font-family: var(--font-ui); font-weight: 900; color: #f2e2b8; letter-spacing: 0.01em; }
+.gamerank.compact { gap: 4px; }
+.gamerank.compact .rankcrest { --ring: 22px; }
+.gamerank.compact .gamerank-l { font-size: 12px; color: rgba(242, 226, 184, 0.85); }
+.gc-record { display: flex; align-items: center; flex-wrap: wrap; column-gap: 12px; row-gap: 2px; }
 .gs-detail { min-width: 0; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-width: none; padding: 2px 2px 12px; }
 .gs-detail::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .gs-in { animation: menu-rise 0.18s cubic-bezier(0, 0, 0.2, 1) both; }

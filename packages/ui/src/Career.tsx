@@ -1,5 +1,6 @@
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { GameSplit, type GameListItem } from './GameSplit';
+import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
 import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
@@ -30,7 +31,7 @@ import { TitleBadge } from './titles/TitleBadge';
 import { AccountLevelCard, useCareerProgression } from './progression/AccountLevel';
 import { AchievementsTab } from './progression/AchievementsTab';
 import { achievementsVisible, useProgression } from './progression/progressionStore';
-import { rankScalar, scalarCaption } from './rank/rankFormat';
+import { rankLabel, rankScalar, scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
   TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, runLengthText,
@@ -221,6 +222,7 @@ const MatchRow = memo(function MatchRow({ run, focus, busy, unplayable, onWatch 
       record={fights > 0 ? (
         <span className="cv2-row-fights" aria-label={`Fights: ${run.wins} won, ${run.losses} lost${run.draws ? `, ${run.draws} drawn` : ''}`}>{recordText(run)}</span>
       ) : undefined}
+      rank={run.rank != null ? <GameRank divisionIndex={run.rank} /> : undefined}
       lobby={lp.lobby}
       boardKey={lp.boardKey}
       board={lp.seat ? <SeatBoard seat={lp.seat} own={own} /> : <div className="cv2-row-team">{hasBoard ? <FinalTeam board={run.board!} /> : <div className="cv2-row-none">No final team recorded for this run.</div>}</div>}
@@ -778,7 +780,8 @@ export function Career() {
                   const fights = run.wins + run.losses + run.draws;
                   return {
                     key, place: run.placement, title: name, sub: fights > 0 ? recordText(run) : undefined, when: playedOnText(run.atMs) || undefined,
-                    delta: run.ratingDelta ?? null, label: `${placeText(run.placement)}, ${name}`,
+                    delta: run.ratingDelta ?? null, rank: run.rank,
+                    label: `${placeText(run.placement)}, ${name}${run.rank != null ? `, played at ${rankLabel(run.rank)}` : ''}`,
                     portrait: <HeroFrame heroId={run.heroId} small skins={run.board?.cosmetics} />,
                   };
                 });

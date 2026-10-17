@@ -90,11 +90,11 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('the card plate slot', () => {
-  it('the sync switches the category on (global) and adds the nineteen plates as targetless crate items at their rarity', async () => {
+  it('the sync switches the category on (global) and adds the twenty-six plates as targetless crate items at their rarity', async () => {
     const cat = await one<{ enabled: boolean; target: string }>("select enabled, target from public.cosmetic_categories where category = 'card_plate'");
     expect(cat).toEqual({ enabled: true, target: 'global' });
     const rows = (await db.query("select cosmetic_id, rarity, acquisition_source, target_type from public.cosmetic_catalog where category = 'card_plate' and active order by cosmetic_id")).rows;
-    expect(rows).toEqual(['plate_amethyst', 'plate_aquarium_rocks', 'plate_bamboo', 'plate_beach', 'plate_blossom', 'plate_blue_hand_drawn', 'plate_crackling_gemstone', 'plate_galaxy', 'plate_green_hand_drawn', 'plate_hand_drawn', 'plate_magma', 'plate_mooncloud', 'plate_moonstone', 'plate_simple_black', 'plate_simple_white', 'plate_smooth_aqua', 'plate_smooth_blue', 'plate_smooth_red', 'plate_topaz']
+    expect(rows).toEqual(['plate_amethyst', 'plate_aquarium_rocks', 'plate_bamboo', 'plate_beach', 'plate_blossom', 'plate_blue_hand_drawn', 'plate_crackling_gemstone', 'plate_dark_arcane', 'plate_galaxy', 'plate_green_hand_drawn', 'plate_hand_drawn', 'plate_magma', 'plate_mooncloud', 'plate_moonstone', 'plate_simple_black', 'plate_simple_glass', 'plate_simple_white', 'plate_smooth_aqua', 'plate_smooth_blue', 'plate_smooth_red', 'plate_standard_black', 'plate_standard_blue', 'plate_standard_pink', 'plate_standard_teal', 'plate_stonevines', 'plate_topaz']
       .map((cosmetic_id) => ({ cosmetic_id, rarity: ['plate_simple_black','plate_simple_white','plate_mooncloud'].includes(cosmetic_id) ? 'ancient' : ['plate_moonstone','plate_bamboo','plate_smooth_aqua','plate_smooth_blue','plate_smooth_red'].includes(cosmetic_id) ? 'epic' : 'legendary', acquisition_source: 'crate', target_type: null })));
   });
 

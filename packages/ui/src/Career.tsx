@@ -383,7 +383,7 @@ function HeroTile({ h }: { h: HeroCareer }) {
           hover panel keeps the full record. */}
       <div className="cv2-hcard-stats" aria-hidden="true">
         <span className="cv2-hcard-stat"><b>{h.winRate === null ? '-' : `${h.winRate}%`}</b>Top 4</span>
-        <span className="cv2-hcard-stat"><b>{h.avgPlacement === null ? '-' : h.avgPlacement}</b>Avg place</span>
+        <span className="cv2-hcard-stat"><b>{h.avgPlacement === null ? '-' : h.avgPlacement}</b>Avg</span>
         <span className="cv2-hcard-stat"><b>{h.firsts}</b>1st</span>
       </div>
       {tip && createPortal(

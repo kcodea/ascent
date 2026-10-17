@@ -94,7 +94,7 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
 });
 
 /** The right-click menu: your four emotes, and the cooldown while it runs. Portaled to the stage host. */
-function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
+function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean } }): JSX.Element {
   const slots = useEmoteSlots();
   const ref = useRef<HTMLDivElement>(null);
   const [left, setLeft] = useState(() => emoteCooldownRemaining());
@@ -126,7 +126,7 @@ function EmoteMenu({ at }: { at: { x: number; y: number } }): JSX.Element {
   return createPortal(
     <div
       ref={ref}
-      className={`atip emote-menu${cooling ? ' cooling' : ''}`}
+      className={`atip emote-menu${at.below ? ' below' : ''}${cooling ? ' cooling' : ''}`}
       role="menu"
       aria-label="Emotes"
       style={{ left: `${at.x}px`, top: `${at.y}px` }}

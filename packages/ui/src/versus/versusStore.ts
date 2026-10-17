@@ -29,12 +29,13 @@ import { currentUserId } from '../identity';
 import { currentRunCosmetics, tempHandle, useGame } from '../store';
 import { ServerClock } from './versusClock';
 import { installVersusEmotes, receiveVersusEmote, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
+import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
-import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync } from './spectate';
+import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, useSpectate } from './spectate';
 import { setWatchers, type Watcher } from './watchers';
-import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs } from './spectateTap';
+import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
@@ -87,15 +88,19 @@ const clock = new ServerClock();
 const set = (p: Partial<VersusState>): void => useVersus.setState(p);
 const get = (): VersusState => useVersus.getState();
 
-/** THE PLAYER'S STANDS (R-SPECTATE-WATCHERS-01): while I hold a seat, the room's spectators feed the top-left indicator
- *  (`WatchersBadge`). From the member rows; `setWatchers` is a no-op unless someone joined or left. */
-export function versusWatchersOf(room: VersusRoom | null, seated: boolean): Watcher[] {
-  if (!room || !seated) return [];
-  return room.members.filter((m) => m.role === 'spectator').map((m) => ({ id: m.userId, name: m.displayName, profile: m.profile ?? null }));
+/** THE STANDS (R-SPECTATE-WATCHERS-01): while I hold a seat, the room's spectators feed the top-left indicator
+ *  (`WatchersBadge`). While I SPECTATE (`me`, my user id, a spectator in the room), the OTHER spectators feed my own
+ *  top-left row (`SpectatorHud`), so a fellow spectator's emote pops from their chip (R-SPECTATE-EMOTE-01). From the
+ *  member rows; `setWatchers` is a no-op unless someone joined or left. */
+export function versusWatchersOf(room: VersusRoom | null, seated: boolean, me?: string | null): Watcher[] {
+  if (!room) return [];
+  const spectators = room.members.filter((m) => m.role === 'spectator');
+  if (!seated && !(me && spectators.some((m) => m.userId === me))) return [];
+  return spectators.filter((m) => seated || m.userId !== me).map((m) => ({ id: m.userId, name: m.displayName, profile: m.profile ?? null }));
 }
 useVersus.subscribe((st, prev) => {
   if (st.room === prev.room && st.match === prev.match) return;
-  setWatchers(versusWatchersOf(st.room, !!st.room && !!mySeat(st.match)));
+  setWatchers(versusWatchersOf(st.room, !!st.room && !!mySeat(st.match), currentUserId()));
 });
 
 /** Human copy for the SQL error codes a player can actually hit (no em dashes, short sentences). */
@@ -274,6 +279,7 @@ function stopSession(): void {
   session.unsubGates();
   if (entryGate) { entryGate.cancelled = true; cancelRankedGate(); entryGate = null; }
   uninstallVersusEmotes();
+  uninstallSpectatorEmotes();
   installVersusHandlers(null);
   installSpectateIo(null);
   resetSpectate();
@@ -292,6 +298,8 @@ function subscribe(matchId: string | null): void {
     scheduleRefresh(what);
   }, (event, payload) => {
     if (event === VERSUS_EMOTE_EVENT) receiveVersusEmote(payload);
+    // A spectator's emote: the players and the other spectators show it from that spectator's chip (R-SPECTATE-EMOTE-01).
+    else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
     else if (event === 'spectate') { if (!mySeat()) receiveSpectate(payload); }
     else if (event === SPECTATE_CURSOR_EVENT) { if (!mySeat()) receiveSpectatorCursor(payload); }
     // A spectator lost its place: the next deferred publish sends a keyframe (coalesced, never per spectator).
@@ -300,7 +308,19 @@ function subscribe(matchId: string | null): void {
   // A channel swap mid-match keeps the emote transport on the live channel.
   const seat = mySeat();
   if (seat && useGame.getState().run.mode === 'versus') installVersusEmotes(seat, session.channel.send);
+  // A spectator ON THE WATCH SCREEN emotes on the same channel, as themselves (R-SPECTATE-EMOTE-01); a player never
+  // does. A channel swap re-installs it on the live channel.
+  syncSpectatorEmotes();
 }
+
+/** Spectator emotes are on exactly while I watch a Versus match with no seat (never for a seated player, whose own
+ *  portrait menu must stay theirs). Re-checked on a channel swap and whenever the watch screen opens or closes. */
+function syncSpectatorEmotes(): void {
+  const me = currentUserId();
+  if (session?.channel && me && !mySeat() && useSpectate.getState().active) installSpectatorEmotes(me, session.channel.send);
+  else if (session) uninstallSpectatorEmotes();
+}
+useSpectate.subscribe((s, prev) => { if (s.active !== prev.active && session) syncSpectatorEmotes(); });
 
 function patchMemberSeen(row: Record<string, unknown>): boolean {
   const room = get().room;
@@ -665,7 +685,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
   if (!session) return;
   session.unsubRun?.();
   session.publisher = newPublisher(seat);
-  if (session.channel) installVersusEmotes(seat, session.channel.send);
+  if (session.channel) { uninstallSpectatorEmotes(); installVersusEmotes(seat, session.channel.send); }
   installVersusHandlers({
     fightFor: (wave) => {
       const r = get().rounds[wave];
@@ -725,6 +745,8 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   msg.m = matchId; // the stands drop anything from another match
   const acts = takeActs();
   if (acts.length) msg.acts = acts;
+  const od = takeOdds(run, msg.kind === 'key'); // my fight's odds, for the stands' Summary (R-SPECTATE-LOCAL-01)
+  if (od) msg.od = od;
   // Where my fight is, on a keyframe sent while it plays: a late joiner seeks to it (R-SPECTATE-JOIN-01). Never on
   // the persisted copy (its beat would be stale by the time someone reads it).
   const cb = msg.kind === 'key' ? combatBeatFor(run) : null;
@@ -807,6 +829,7 @@ export function returnToRoom(): void {
   lobbyKey = '';
   goodLuckIntro.end();
   uninstallVersusEmotes();
+  uninstallSpectatorEmotes();
   installVersusHandlers(null);
   session?.unsubRun?.();
   if (session) session.unsubRun = null;

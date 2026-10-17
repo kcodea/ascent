@@ -16,6 +16,7 @@ import { Icon } from './Icon';
 import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
+import { useSpectate } from './versus/spectate';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { VersusFoe } from './versus/VersusFoe';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
@@ -144,7 +145,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const myGuides = guideUserId === guideSnap.uid ? myGuidesAll : NO_GUIDES;
   const bookmarkedGuides = guideUserId === guideSnap.uid ? bookmarkedAll : NO_GUIDES;
   const guideCount = guides.length + myGuides.length + bookmarkedGuides.length;
-  const canEditInRail = useCallback((g: Guide) => guidesLive && canEditGuide(g, guideUserId, guideTeam), [guidesLive, guideUserId, guideTeam]);
+  // A SPECTATOR reads their own guides on the watch screen (owner 2026-10-16: "as a spectator, can you make it so they can
+  // view their guides that they have / interact/flip the lobby rail"; R-SPECTATE-LOCAL-01), read only: no Edit (it
+  // would leave the watch screen for the Compendium). Every rail interaction is this component's own state, so nothing
+  // a spectator does here reaches the watched game, and nothing the player broadcasts moves it.
+  const spectating = useSpectate((s) => s.active);
+  const canEditInRail = useCallback((g: Guide) => !spectating && guidesLive && canEditGuide(g, guideUserId, guideTeam), [spectating, guidesLive, guideUserId, guideTeam]);
   const [view, setView] = useState<RailView>(() => (railViewMemo.run === runKey ? railViewMemo.view : 'opponents'));
   const [mode, setModeState] = useState<GuidesMode>(readGuidesMode);
   // The swap animation, set only by a toggle (never on mount): the rail widens into the FULL Guides view and narrows

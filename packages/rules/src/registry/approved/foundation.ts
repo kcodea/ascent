@@ -6068,6 +6068,75 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-15' },
   },
   {
+    id: 'R-SPECTATE-EMOTE-01',
+    title: 'A spectator can emote to the player; it pops from their chip in the top-left stands',
+    statement:
+      "A spectator (Versus or a live ranked game) says an emote with the same menu, their own equipped emotes and the same 20 s cooldown as a player. "
+      + "It opens from their own plate at the top left of the watch screen (click or right-click), never from the watched player portrait. "
+      + "It travels on the existing spectate broadcast channel as { e: emoteId, from: userId }, with no timestamp. "
+      + "The player sees it pop from that spectator chip in their Spectating indicator; every other spectator of the same game sees it pop from that spectator chip in their own top-left stands row; the speaker sees it at once from their own plate. "
+      + "The receiver is the guard, on its own clock: a sender not in its stands (the watcher rows) is held up to 3 s for their row and otherwise dropped; a second emote from one sender inside the cooldown (less 2 s for jitter) is dropped; at most 3 spectator bubbles show in any 3 s; nothing shows while Spectator emotes is off (Esc menu, on by default) or from a spectator muted by right-clicking their chip. "
+      + "Supabase public broadcast cannot rate-limit one sender server side, so there is no server limit on this channel. "
+      + 'The bubble animates transform and opacity only; the indicator re-renders only when the stands or a mute change.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator emotes + HUD)', quote: 'add a feature that allows spectators to emote to players and they can see in the top left where the spectators are.' },
+    ],
+    currentBehaviour: 'New on 2026-10-16. A live spectator sees fellow spectators once 2026-10-16-lobby-live-fellow-watchers.sql is applied (until then only the player sees their emotes).',
+    example: 'Claudebot2 watches Claudebot1 and says Zen Brian: it pops beside the Claudebot2 chip at the top left of the Claudebot1 screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-SPECTATE-HUD-01',
+    title: 'The spectator sees themselves top left; the watched player and the switcher sit bottom right',
+    statement:
+      'On the watch screen the TOP LEFT shows the spectator as a spectator: their portrait ring in their own frame, their name and a Spectating pill (the plate the player sees for them), then the other spectators, then Leave. '
+      + 'The BOTTOM RIGHT, above the corner Settings, book and rules buttons, shows who is being watched: in Versus the two seat buttons (portrait, name, hearts, the 1 and 2 keys) to switch players; in a live ranked game one compact name and rank plate, with no second portrait (that player hero is already bottom left). '
+      + 'Built from existing pieces only (MemberRing, the name and heart pills, RankCrest, the Gem plate). It does not collide with the Versus Guides plate, the Summary pill or the corner buttons in shop or combat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator emotes + HUD)', quote: 'maybe in the top left it shows me as a spectator, and if there are multiple players to spectate, that can be in the bottom right instead' },
+    ],
+    currentBehaviour: 'New on 2026-10-16.',
+    example: 'A Versus spectator sees their own portrait and Spectating top left, and the two players to pick from bottom right.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-SPECTATE-CURSOR-02',
+    title: 'The spectator HUD and the Spectating indicator never swap the OS cursor in',
+    statement:
+      'No element of the spectator HUD, the live watch bar or the player Spectating indicator sets a bare keyword cursor. Buttons take the global gauntlet rule; everything else inherits the body gauntlet. '
+      + 'The live watch bar had cursor: default on the watched player plate, which showed the Windows arrow over the portrait and rank.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator emotes + HUD)', quote: 'mousing over the rank/player portrait in the top left breaks the cursor, fix that.' },
+    ],
+    currentBehaviour: 'Fixed on 2026-10-16.',
+    example: 'Hovering the watched player rank plate keeps the gauntlet cursor.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-SPECTATE-LOCAL-01',
+    title: 'A spectator can use their own guides, the lobby rail and the fight Summary, locally and read only',
+    statement:
+      'The watch screen stays render-only for the watched game, but the spectator own panels take presses: the lobby rail (flip to Guides and back, open and fold their guides, hover and pin a seat scout card), the Versus Guides plate and drawer, the Compendium, and the fight Summary pill and recap. '
+      + 'All of it is the spectator local state: nothing is sent to the player, and the player broadcast never moves it (a rail seat is not a cursor or hover anchor). Guides are read only for a spectator (no Edit). '
+      + 'The Summary shows the same odds the player sees for that fight: the player probe result rides the spectate channel (od, once and on every keyframe while that fight is on) and the spectator runs no probe of its own. It opens when the fight on screen is done, as for the player, without Watch replay. '
+      + 'The rail stays inert while slid away in combat, as for a player.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator emotes + HUD)', quote: 'as a spectator, can you make it so they can view their guides that they have / interact/flip the lobby rail' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectator emotes + HUD)', quote: 'allow spectators to view the combat summary in combat so they can see the chance to win/lose etc.' },
+    ],
+    currentBehaviour: 'New on 2026-10-16. Before, every button on the watch screen was inert, the rail tab and Summary included.',
+    example: 'A spectator flips the rail to Guides and reads one, then opens the Summary after the fight: 61% win, the same as on the player screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
     id: 'R-SPECTATE-AV-04',
     title: 'A spectator never hears a sound for an action the game refused',
     statement:

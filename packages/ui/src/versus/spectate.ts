@@ -32,7 +32,7 @@ import { NO_DRAG_DECISION } from '../dragDecision';
 import { dragStore } from '../dragStore';
 import { decodePoint } from './cursorSpace';
 import { setSpectatorHover } from './spectatorHover';
-import type { CursorSample, SpectatorAct, WireDecision } from './spectateTap';
+import type { CursorSample, SpectatorAct, WireDecision, WireOdds } from './spectateTap';
 import { applySpectatorMessage, newReceiver, type CombatBeat, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 
@@ -52,6 +52,8 @@ export interface SpectateState {
   /** Seek the fight on screen to the watched player's beat (a late joiner catching up, R-SPECTATE-JOIN-01); `n`
    *  bumps per request, so the same beat can be asked twice. Recruit performs it. */
   seek?: { wave: number; beat: number; n: number } | null;
+  /** Each watched player's own odds for the fight they are in (`spectateTap.tapOdds`): the Summary's numbers. */
+  odds?: Partial<Record<VersusSeat, WireOdds>>;
 }
 
 export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null, seek: null }));
@@ -151,6 +153,7 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     last = null;
     resumeAt = null;
     rounds = allRounds;
+    useSpectate.setState({ odds: {} });
     void fetchKeyframes();
   }
   if (useSpectate.getState().optedOut === match.id) return;
@@ -172,10 +175,28 @@ export function liveSync(gameId: string | null): void {
     last = null;
     resumeAt = null;
     rounds = {};
-    useSpectate.setState({ seat: 'p1', optedOut: null });
+    useSpectate.setState({ seat: 'p1', optedOut: null, odds: {} });
     void fetchKeyframes();
   }
   schedule();
+}
+
+const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+/** A player's odds as they travel (`od`), validated; null when malformed. Pure. */
+export function parseWireOdds(v: unknown): WireOdds | null {
+  const p = v as { w?: unknown; o?: Record<string, unknown> } | null;
+  const o = p?.o;
+  if (!p || !finite(p.w) || !o || typeof o !== 'object') return null;
+  if (![o.win, o.draw, o.lose, o.avgLossDamage].every(finite)) return null;
+  const range = Array.isArray(o.lossDamageRange) && o.lossDamageRange.length === 2 && o.lossDamageRange.every(finite) ? (o.lossDamageRange as [number, number]) : undefined;
+  return {
+    w: p.w,
+    o: {
+      win: o.win as number, draw: o.draw as number, lose: o.lose as number, avgLossDamage: o.avgLossDamage as number,
+      ...(range ? { lossDamageRange: range } : {}),
+      ...(finite(o.avgWinDamage) ? { avgWinDamage: o.avgWinDamage } : {}),
+    },
+  };
 }
 
 /** A broadcast frame from a player. */
@@ -190,6 +211,9 @@ export function receiveSpectate(payload: unknown): void {
   // The SAME fight arriving again (a later keyframe) keeps the object on screen, so the arena never restarts its replay.
   if (msg.fight && next.view) next = { ...next, view: { ...next.view, lastCombat: sameFight(rx[msg.seat].view, msg.fight) } };
   rx[msg.seat] = next;
+  // The player's own odds for this fight (their probe's result): the stands' Summary shows exactly these.
+  const od = parseWireOdds(msg.od);
+  if (od) { const cur = useSpectate.getState().odds ?? {}; if (cur[msg.seat]?.w !== od.w || cur[msg.seat]?.o.win !== od.o.win) useSpectate.setState({ odds: { ...cur, [msg.seat]: od } }); }
   // Where the watched player's fight is (a broadcast keyframe while it plays): catch the screen up to it.
   if (msg.cb && msg.seat === useSpectate.getState().seat) syncFightBeat(msg.cb);
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
@@ -662,7 +686,7 @@ export function resetSpectate(): void {
   matchId = null;
   rx = { p1: newReceiver(), p2: newReceiver() };
   rounds = {};
-  useSpectate.setState({ seat: 'p1', optedOut: null, name: null });
+  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {} });
 }
 
 /**

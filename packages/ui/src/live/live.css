@@ -12,7 +12,7 @@
 .lv-pager { display: flex; justify-content: center; gap: 12px; padding: 14px 0 8px; }
 .lv-error { margin: 0 18px 8px; padding: 8px 14px; border-radius: 10px; background: rgba(120, 30, 40, 0.5); border: 1px solid rgba(255, 140, 140, 0.4); color: #ffd7d7; font-family: var(--font-ui); font-weight: 700; }
 /* The watch bar: the Versus spectator bar (`.vsspec`), one player. */
-.lvbar .vsspec-seat { opacity: 1; cursor: default; }
+/* (No cursor rule: a bare `cursor: default` here swapped the OS arrow in over the portrait, owner 2026-10-16.) */
 /* The end: the player's placement in the end screen's numeral, on the game's dark gold-rimmed panel. */
 .lvend .endplace-num { font-size: calc(120 * var(--u)); }
 .lvend-sub { margin-top: calc(6 * var(--u)); font-family: var(--font-ui); font-weight: 700; font-size: calc(18 * var(--u)); color: rgba(255, 255, 255, 0.75); }

@@ -27,7 +27,7 @@ const FADE_MS = 420;
 export const EMOTE_BUBBLE_MS = POP_MS + HOLD_MS + FADE_MS;
 
 /** Bubble widths in stage px: your own, a rail seat, the combat foe. */
-const WIDTH = { self: 300, rail: 200, foe: 230 } as const;
+const WIDTH = { self: 300, rail: 200, foe: 230, watch: 190 } as const;
 /** The highest a bubble's top edge may sit (stage px). */
 const MIN_TOP = 8;
 
@@ -57,6 +57,18 @@ export function setEmoteFoe(seatId: string | null): void { currentFoe = seatId; 
 /** Where a seat's bubble goes right now, or null when its face is not on screen. One rect read. */
 export function placementFor(seat: string): BubblePlacement | null {
   if (typeof document === 'undefined') return null;
+  // A SPECTATOR (`w:<their id>`, R-SPECTATE-EMOTE-01): their chip in the top-left stands (the player's "Spectating"
+  // indicator, or a spectator's own row), or the "+N" chip when theirs is folded into it. The chips sit top LEFT, so
+  // the bubble opens up and to the right, art as painted (clamped under the stage's top edge).
+  if (seat.startsWith('w:')) {
+    const id = seat.slice(2);
+    if (!WATCHER_ID.test(id)) return null;
+    // The tail lands on the chip's lower-right end (past the name), so the bubble rises beside the plate, not over it.
+    const el = document.querySelector(`[data-watcher="${id}"]`) ?? document.querySelector('.vsspec .vswatch-more');
+    const r = el?.getBoundingClientRect();
+    if (!r || !r.width) return null;
+    return { x: toStage(r.right - 4), y: toStage(r.bottom), width: WIDTH.watch, flip: false };
+  }
   if (seat === PLAYER_SEAT) {
     const el = document.querySelector('.statusbar .hero .f');
     const r = el?.getBoundingClientRect();
@@ -92,6 +104,8 @@ export function placementFor(seat: string): BubblePlacement | null {
 const live = new Map<string, HTMLElement>();
 /** A lobby seat id ("s0".."s7"): the only shape that is ever put into a selector. */
 const SEAT_ID = /^[A-Za-z0-9_-]{1,32}$/;
+/** A watcher id (a user id, or an anonymous `anon:N`): the only shape put into a `data-watcher` selector. */
+const WATCHER_ID = /^[A-Za-z0-9_-]{1,64}$|^anon:[0-9]{1,3}$/;
 
 /** Show `emoteId` beside `seat`. Returns whether a bubble went up (false: unknown / retired emote, no art, no face). */
 export function showEmoteBubble(seat: string, emoteId: string): boolean {

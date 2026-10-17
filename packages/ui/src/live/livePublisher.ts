@@ -14,10 +14,11 @@ import { createDeferredWriter } from '../idleWork';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, useGame } from '../store';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from '../versus/spectatorView';
-import { combatBeatFor, hasPendingActs, setSpectatorTap, takeActs } from '../versus/spectateTap';
+import { combatBeatFor, hasPendingActs, setSpectatorTap, takeActs, takeOdds } from '../versus/spectateTap';
 import { SPECTATE_KEY_EVENT } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT } from '../versus/spectateTap';
 import { anonymousWatchers, setWatchers as setWatcherList } from '../versus/watchers';
+import { receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT } from '../versus/spectatorEmotes';
 import { liveRemote, type LiveRemote } from './liveRemote';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
@@ -66,7 +67,10 @@ function beat(): void {
  *  watcher asks it for a keyframe, and a game not yet publishing answers with an immediate heartbeat (throttled), whose
  *  watcher count starts publishing. */
 const ASK_THROTTLE_MS = 2000;
-function onBroadcast(l: Live, event: string): void {
+function onBroadcast(l: Live, event: string, payload?: unknown): void {
+  // A watcher's emote: it pops from their chip in my "Spectating" indicator (R-SPECTATE-EMOTE-01). Only a watcher in my
+  // stands (the watcher rows) can emote; the receiver throttles it on its own clock.
+  if (event === SPECTATOR_EMOTE_EVENT) { receiveSpectatorEmote(payload); return; }
   // A watcher LEAVING: an immediate heartbeat recounts the stands (the "Spectating" indicator drops them now).
   if (event === SPECTATE_BYE_EVENT) { beat(); return; }
   if (event !== SPECTATE_KEY_EVENT) return;
@@ -95,7 +99,7 @@ function setWatchers(l: Live, n: number): void {
   l.watchers = n;
   if (n !== was) readWatchers(l, n);
   if (n > 0 && !l.pub) {
-    if (!l.channel) l.channel = remote.channel(l.gameId, (event) => onBroadcast(l, event));
+    if (!l.channel) l.channel = remote.channel(l.gameId, (event, payload) => onBroadcast(l, event, payload));
     l.pub = newPublisher('p1');
     l.keyWanted = true;
     setSpectatorTap(true, 'p1', l.channel.send, () => frames.schedule(undefined));
@@ -128,6 +132,8 @@ const frames = createDeferredWriter<undefined>(() => {
   msg.m = l.gameId;
   const acts = takeActs();
   if (acts.length) msg.acts = acts;
+  const od = takeOdds(run, msg.kind === 'key'); // the fight's odds, for the stands' Summary (R-SPECTATE-LOCAL-01)
+  if (od) msg.od = od;
   // The fight rides KEYFRAMES only (a new fight forces one): a delta keeps the watcher's fight object, so its replay
   // is never restarted by the next shop delta mid-fight.
   if (fight && msg.kind === 'key') { msg.fight = fight; l.fightSent = fight; }
@@ -142,7 +148,7 @@ function start(run: RunState): void {
   const l: Live = { gameId, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, askedAt: 0 };
   live = l;
   l.timer = window.setInterval(beat, LIVE_HEARTBEAT_MS);
-  l.channel = remote.channel(gameId, (event) => onBroadcast(l, event)); // listening only, until someone watches
+  l.channel = remote.channel(gameId, (event, payload) => onBroadcast(l, event, payload)); // listening only, until someone watches
   // the first beat is the round / phase key change in the subscriber (one registration, not two)
 }
 

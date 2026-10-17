@@ -22,7 +22,8 @@ export const PLAYER_SEAT = 's0';
 
 /** The menu: closed, or open anchored at a stage point (the portrait's top-centre). `lastUsedAt` drives the cooldown. */
 export interface EmoteUiState {
-  menu: { x: number; y: number } | null;
+  /** `below`: the menu opens under its anchor (a spectator's own chip, top left) instead of above it. */
+  menu: { x: number; y: number; below?: boolean } | null;
   lastUsedAt: number | null;
 }
 export const useEmoteUi = create<EmoteUiState>(() => ({ menu: null, lastUsedAt: null }));
@@ -54,17 +55,34 @@ export function phaseOfRun(run: { phase: string }): EmotePhase | null {
   return run.phase === 'recruit' ? 'shop' : run.phase === 'combat' ? 'combat' : null;
 }
 
+// ── A spectator's emotes ────────────────────────────────────────────────────────────────────────────────
+
+/** While I am SPECTATING, an emote I say goes here (`versus/spectatorEmotes.ts`) instead of into a seat: it travels
+ *  on the spectate channel and pops from my own chip. Null = I am a player (or watching nothing). */
+let spectatorSink: ((emoteId: string) => boolean) | null = null;
+export function setSpectatorEmoteSink(fn: ((emoteId: string) => boolean) | null): void {
+  if (spectatorSink === fn) return;
+  spectatorSink = fn;
+  closeEmoteMenu();
+}
+/** Am I emoting as a spectator right now? */
+export const spectatorEmoting = (): boolean => spectatorSink !== null;
+
 // ── The menu ────────────────────────────────────────────────────────────────────────────────────────────────
 
 /** Whether this client may emote at all right now (a run on screen in a shop turn or a combat, not a replay). */
 export function canEmoteNow(): boolean {
+  if (spectatorSink) return true; // a spectator emotes through the spectate channel, in shop and combat alike
   const s = useGame.getState();
   return !s.replaySession && !s.replaying && !!phaseOfRun(s.run) && clock.phase !== null; // a replay or a Versus spectator never emotes
 }
 
-export function openEmoteMenu(at: { x: number; y: number }): void {
+export function openEmoteMenu(at: { x: number; y: number }, opts: { spectator?: boolean; below?: boolean } = {}): void {
+  // A spectator's menu opens from their own chip only, never from the watched player's portrait.
+  if (spectatorSink && !opts.spectator) return;
+  if (!spectatorSink && opts.spectator) return;
   if (!canEmoteNow()) return;
-  useEmoteUi.setState({ menu: at });
+  useEmoteUi.setState({ menu: opts.below ? { ...at, below: true } : at });
 }
 export function closeEmoteMenu(): void {
   if (useEmoteUi.getState().menu) useEmoteUi.setState({ menu: null });
@@ -79,6 +97,12 @@ export const emoteCooldownRemaining = (now: number = emoteNow()): number => emot
 export function sayEmote(emoteId: string, now: number = emoteNow()): boolean {
   if (!emoteOf(emoteId) || !canEmoteNow()) return false;
   if (emoteCooldownLeft(useEmoteUi.getState().lastUsedAt, now) > 0) return false;
+  if (spectatorSink) {
+    // A spectator: the same cooldown, nothing recorded (a spectator has no board), out on the spectate channel.
+    if (!spectatorSink(emoteId)) return false;
+    useEmoteUi.setState({ lastUsedAt: now, menu: null });
+    return true;
+  }
   const run = useGame.getState().run;
   const phase = clock.phase!;
   const message: EmoteMessage = { emoteId, seat: PLAYER_SEAT, phase, offsetMs: Math.max(0, now - clock.startedAt), round: run.wave };
@@ -101,6 +125,7 @@ function recordOwnEmote(m: EmoteMessage, run: { mode?: string; sandbox?: unknown
 /** Tests: reset the cooldown, the menu and the clock. */
 export function resetEmotesForTests(): void {
   useEmoteUi.setState({ menu: null, lastUsedAt: null });
+  spectatorSink = null;
   clock = { phase: null, round: 0, startedAt: 0 };
 }
 

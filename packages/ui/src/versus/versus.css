@@ -356,3 +356,32 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
   border: 2px solid rgba(196, 160, 92, 0.4); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.12), 0 14px 34px -14px rgba(0, 0, 0, 0.8); }
 .vsrooms { min-height: 320px; }
 .vsrooms:has(> .vsempty:only-child) { display: grid; place-items: center; }
+
+/* THE SPECTATOR'S OWN HUD (SpectatorHud.tsx, owner 2026-10-16, R-SPECTATE-HUD-01). TOP LEFT (`.vsspec.vsself`, the
+   `.vsspec` anchor): me as a spectator, the same plate the player sees for me, then the rest of the stands, then Leave.
+   BOTTOM RIGHT (`.vswatchpanel`): who I watch, the Versus switcher or one compact name + rank plate, sitting ABOVE the
+   corner's Settings / book / rules buttons and the version line. Static paint; no cursor rule (buttons take the global
+   gauntlet, everything else inherits the body's). */
+.vsself .vsself-seat { opacity: 1; }
+.vsself .vsself-seat .vsspec-ring { --ring: calc(54 * var(--u)); }
+.vsself .vswatch-seat:not(.vsself-seat) .vsspec-ring { --ring: calc(44 * var(--u)); }
+.vsself .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(11 * var(--u)); letter-spacing: 0.04em; }
+.vswatchpanel { left: auto; top: auto; right: calc(var(--bar-x, 0px) + 20 * var(--u));
+  bottom: calc(var(--bar-y, 0px) + 16px + 40 * var(--u) + 30px); }
+.vswatchpanel-one .vsspec-info { align-items: flex-end; }
+/* A spectator's plate takes a right-click (mute their emotes) and a hover (the tip), on either screen. A muted one sits
+   back and reads "Muted". */
+.vswatch .vswatch-seat, .vsself .vswatch-seat { pointer-events: auto; }
+.vswatch-seat.muted { opacity: 0.55; }
+
+/* A SPECTATOR'S OWN LOCAL PANELS (owner 2026-10-16, R-SPECTATE-LOCAL-01): the watch screen is `.app.viewing` (every
+   button inert, so nothing the spectator presses reaches the watched game), but these are the SPECTATOR's own and
+   change nothing of the player's: their HUD, the lobby rail (flip to Guides, read and fold their guides, pin a seat's
+   scout card), Versus's Guides plate, and the fight's Summary pill + recap. While the rail is slid away (`.staged`) it
+   stays inert as for a player; the Versus Guides plate stays inert while its drawer is open, as for a player. */
+.app.viewing.spectating :is(.vsspec) :is(button, [role="button"]),
+.app.viewing.spectating:not(.staged) :is(.lobbyrail, .lobbyrailhead) :is(button, [role="button"]),
+.app.viewing.spectating:not(.staged) .lobbyrailtab,
+.app.viewing.spectating:not(.staged) .vsfoe:not(.guides-open) .vsfoe-guides,
+.app.viewing.spectating .combatsummary,
+.app.viewing.spectating .fr-ov :is(button, [role="button"]) { pointer-events: auto; }

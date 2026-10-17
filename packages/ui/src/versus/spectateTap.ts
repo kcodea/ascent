@@ -15,7 +15,7 @@
  *  - THE FIGHT'S BEAT: the beat the player's fight is on (`notePlayerBeat`) rides every spectator keyframe while in
  *    combat (`cb`), so a spectator who joins or comes back mid-fight seeks to it (R-SPECTATE-JOIN-01).
  */
-import type { Action, DragPath, EotRecord, VersusSeat } from '@game/sim';
+import type { Action, CombatOdds, DragPath, EotRecord, VersusSeat } from '@game/sim';
 import { liveAim } from '../aimState';
 import { dragStore } from '../dragStore';
 import { DRAG_CAUSES, takeDragTrace } from '../replay/dragTrace';
@@ -125,8 +125,33 @@ export function tapEndTurn(eot: Pick<EotRecord, 'batch' | 'lassoFx'> | null): vo
   wake?.();
 }
 
-/** Tags waiting for the next publish (the publisher sends them even when nothing visible changed). */
-export const hasPendingActs = (): boolean => acts.length > 0;
+/** Tags waiting for the next publish (the publisher sends them even when nothing visible changed). The fight's odds
+ *  arriving count too. */
+export const hasPendingActs = (): boolean => acts.length > 0 || oddsDirty;
+
+// ── the fight's odds ───────────────────────────────────────────────────────────────────────────────────────
+
+/** THE FIGHT'S ODDS for the stands (owner 2026-10-16: "allow spectators to view the combat summary in combat so they can
+ *  see the chance to win/lose etc."; R-SPECTATE-LOCAL-01). The player's deferred probe computes them once (Recruit); the
+ *  result rides the next spectator message (`od`) and every keyframe while that fight is on, so the spectator's Summary
+ *  shows the player's exact numbers without running a probe of its own. A few numbers, once per fight. */
+export interface WireOdds { w: number; o: CombatOdds }
+let odds: WireOdds | null = null;
+let oddsDirty = false;
+/** The player's probe finished for the fight of `wave`. A no-op with nobody watching (nothing kept, nothing sent). */
+export function tapOdds(wave: number, o: CombatOdds): void {
+  if (!watching) return;
+  odds = { w: wave, o };
+  oddsDirty = true;
+  wake?.();
+}
+/** The odds for the next spectator message: new ones once, and on every keyframe while the run is in that fight. */
+export function takeOdds(run: { phase: string; wave: number }, keyframe: boolean): WireOdds | null {
+  const fresh = oddsDirty;
+  oddsDirty = false;
+  if (!odds || run.phase !== 'combat' || odds.w !== run.wave) return null;
+  return fresh || keyframe ? odds : null;
+}
 
 /** Take the tags gathered since the last spectator message. */
 export function takeActs(): SpectatorAct[] {
@@ -226,6 +251,8 @@ export function setSpectatorTap(on: boolean, mySeat: VersusSeat | null, sender: 
     if (timer != null) window.clearInterval(timer);
     timer = null;
     acts = [];
+    odds = null;
+    oddsDirty = false;
     hidden = false;
     lastDragKey = '';
     overEl = null;

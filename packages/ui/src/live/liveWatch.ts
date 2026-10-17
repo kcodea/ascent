@@ -11,7 +11,9 @@ import { playerRunsFrom, resetLobbyDrivers, runKeyOf, setWatchedSeatRuns, type R
 import { useGame } from '../store';
 import { installSpectateIo, liveSync, receiveSpectate, receiveSpectatorCursor, refreshSpectatorSeats, SPECTATE_KEY_EVENT, useSpectate } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT, SPECTATE_CURSOR_EVENT } from '../versus/spectateTap';
-import { myWatcherIdentity } from '../versus/watchers';
+import { myWatcherIdentity, setWatchers } from '../versus/watchers';
+import { currentUserId } from '../identity';
+import { installSpectatorEmotes, onUnknownSpectatorEmote, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from '../versus/spectatorEmotes';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
 
 export interface LiveWatchState {
@@ -39,7 +41,32 @@ let session: {
   seatsUnsub: (() => void) | null;
   /** The watched game's seats, so leaving evicts the drivers built from its recordings. */
   seats: RunLobby['seats'] | null;
+  /** When the other watchers were last read (`readFellows`), and how many polls since. */
+  fellowsAt: number;
+  polls: number;
 } | null = null;
+
+/** Re-read the other watchers every few polls (they join and leave), and at most this often on an unknown emote. */
+const FELLOWS_EVERY_POLLS = 3;
+const FELLOWS_ASK_MS = 3000;
+
+/**
+ * THE OTHER PEOPLE IN THE STANDS (R-SPECTATE-EMOTE-01): my top-left row lists them, and a fellow spectator's emote pops
+ * from their chip. Read from the watcher rows (`lobby_live_watchers`, which a current watcher of the game may read once
+ * `2026-10-16-lobby-live-fellow-watchers.sql` is applied); without it the read is refused and the row shows only me
+ * (the player still sees every spectator's emote). Never from a broadcast.
+ */
+async function readFellows(s: NonNullable<typeof session>): Promise<void> {
+  s.fellowsAt = Date.now();
+  try {
+    const rows = await remote.watchers(s.gameId);
+    if (session !== s) return;
+    const me = currentUserId();
+    setWatchers((rows ?? []).filter((r) => r.user_id !== me).slice(0, 20).map((r) => ({ id: r.user_id, name: r.display_name ?? '', profile: r.profile ?? null })));
+  } catch {
+    // An older server (only the player may read its watchers): the row shows only me.
+  }
+}
 
 /** The watched game's recorded-seat run keys this client cannot drive from its own pool. Pure; exported for tests. */
 export function missingSeatRunKeys(lobby: Pick<RunLobby, 'seats' | 'setId'>): string[] {
@@ -105,7 +132,7 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
     useLiveWatch.setState({ error: errorText(e) });
     return false;
   }
-  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, endTimer: null, seatsUnsub: null, seats: null };
+  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, endTimer: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0 };
   session = s;
   installSpectateIo({
     latestFrames: async (id) => { const f = await remote.latestFrame(id); return f ? [{ seat: 'p1' as const, frame: f }] : []; },
@@ -119,13 +146,20 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
     if (session !== s) return;
     if (event === 'spectate') { receiveSpectate(payload); if (useSpectate.getState().active) useLiveWatch.setState({ joining: false }); }
     else if (event === SPECTATE_CURSOR_EVENT) receiveSpectatorCursor(payload);
+    // A fellow spectator's emote pops from their chip in my top-left row (R-SPECTATE-EMOTE-01).
+    else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
   });
+  // My own emotes go out on this channel, as me; a sender I do not know yet re-reads the stands (throttled).
+  const me = currentUserId();
+  if (me) installSpectatorEmotes(me, s.channel.send);
+  onUnknownSpectatorEmote(() => { if (Date.now() - s.fellowsAt > FELLOWS_ASK_MS) void readFellows(s); });
   useSpectate.setState({ name: row.display_name });
   useLiveWatch.setState({ game: row, joining: true });
   liveSync(gameId);
   s.channel.send(SPECTATE_KEY_EVENT, {}); // a keyframe now, if the player is already publishing
   s.poll = window.setInterval(() => void follow(s), LIVE_WATCH_POLL_MS);
   watchSeatRecordings(s);
+  void readFellows(s);
   return true;
 }
 
@@ -133,6 +167,7 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
 async function follow(s: NonNullable<typeof session>): Promise<void> {
   if (session !== s) return;
   if (useSpectate.getState().active) useLiveWatch.setState({ joining: false });
+  if (++s.polls % FELLOWS_EVERY_POLLS === 0) void readFellows(s);
   try {
     const me = myWatcherIdentity();
     const row = await remote.watchAs(s.gameId, me.name, me.profile);
@@ -164,6 +199,8 @@ export function leaveLiveGame(back = true): void {
   // Tell the player at once (their indicator drops me on its next heartbeat, asked for now instead of in 15 s).
   s.channel?.send(SPECTATE_BYE_EVENT, {});
   s.channel?.close();
+  uninstallSpectatorEmotes();
+  setWatchers([]);
   void remote.unwatch(s.gameId).catch(() => undefined);
   liveSync(null); // stops the watch screen (restoring through `returnTo`)
   installSpectateIo(null);

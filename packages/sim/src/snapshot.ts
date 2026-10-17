@@ -17,7 +17,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES } from './heroes';
 import { createRun, type Action, type RunState, type ShopCard, type RunMode } from './state';
 import { reduce, playerCombatSideState } from './reducer';
-import { handCardLocked, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
+import { handCardLocked, rubyStatBonus, spellAttackBonus, spellHealthBonus, tribesPlayedThisTurn } from './recruit';
 import type { ThreatId } from './threats';
 import type { RecordedEmote } from './emotes';
 
@@ -155,6 +155,12 @@ export interface BoardSnapshot {
    *  Without it a served Rune of Gemstorm / Geode Guardian / Candle Conduit plays bare 1/1 Rubies — the
    *  owner-reported hole (2026-08-06: "the gems were +16/+16 and the rune only buffed +2/+2"). */
   rubyBonus?: { attack: number; health: number };
+  /** The Ruby strength the owner's OWN fight used (`rubyStatBonus`): `rubyBonus` plus, with Rune of the Spellstone, the
+   *  run's spell power (R-SNAPSHOT-RUBY-01, 2026-10-17). `rubyBonus` stays the raw run value (the "Ruby power" readout
+   *  shows it); THIS is what a served board's combat Rubies are minted at. Stored only with the Spellstone (without it
+   *  the two are equal). Absent with the Spellstone = an older capture: the served side
+   *  then recomputes it from `rubyBonus` + `spellPower` when the board's mods carry the Spellstone (`snapshotRubyPower`). */
+  rubyPower?: { attack: number; health: number };
   /** CONDUCTOR's run-wide snowball N at capture — so a served board's mid-fight Shout re-fire pays the
    *  OWNER's accumulated +(2N)/+(3N), and its card text in combat reads that value too. */
   conductorBuff?: number;
@@ -415,6 +421,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
   const hasQmods = Object.keys(qmods).length > 0;
   const pendingQuests = own.pendingQuests ?? [];
   const spellhide = own.spellhide ?? [];
+  const rubyPower = rubyStatBonus(s); // what `playerCombatSideState` hands the owner's own fight (Spellstone folds spell power in)
   return {
     v: 1,
     wave: s.wave,
@@ -452,6 +459,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(quests.length ? { quests } : {}),
     ...(runes.length ? { runes } : {}),
     ...(s.rubyBonus?.attack || s.rubyBonus?.health ? { rubyBonus: { attack: s.rubyBonus.attack, health: s.rubyBonus.health } } : {}),
+    ...(s.runeSpellstone ? { rubyPower } : {}), // R-SNAPSHOT-RUBY-01: with the Spellstone the owner's fight reads the folded value (without it, rubyBonus already is)
     ...(s.runeWildHuntGrown ? { wildHuntGrown: s.runeWildHuntGrown } : {}),
     ...(s.cardsBoughtThisTurn ? { cardsBoughtThisTurn: s.cardsBoughtThisTurn } : {}),
     ...(Object.keys(s.cardBuffs ?? {}).length ? { cardBuffs: { ...s.cardBuffs } } : {}),

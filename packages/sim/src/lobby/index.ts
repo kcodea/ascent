@@ -12,3 +12,4 @@ export * from './matchDetails';
 export * from './gauntlet';
 export * from './boardStrength';
 export * from './strengthBands';
+export * from './savedSeats';

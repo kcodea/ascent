@@ -21,12 +21,17 @@
  * FEATURE-DETECTED: until the owner runs the SQL every call answers `absent`, the module switches itself off for
  * the session and nothing else changes.
  */
-import type { BoardSnapshot } from '@game/sim';
+import type { BoardSnapshot, LobbySeatRecordings } from '@game/sim';
 
 /** What travels to the server: the local save string byte-for-byte, plus the recordings behind the lobby's
  *  snapshot seats (a seat stores only a `runKey`, resolved against THIS session's pool; another device's pool
  *  is a different random sample, so without the boards those seats would fall back to bots). */
-export interface CloudPayload { v: 1; save: string; seatRuns?: BoardSnapshot[][] }
+export interface CloudPayload {
+  v: 1; save: string; seatRuns?: BoardSnapshot[][];
+  /** The lobby's GENERATED seats' recordings (R-LOBBY-SERVE-01), so a run adopted on a device running other code
+   *  still fields the boards those seats fielded. Absent on copies from before 2026-10-17. */
+  seatHybrids?: LobbySeatRecordings['hybrids'];
+}
 export interface CloudRowMeta { runKey: string; revision: number; deviceId: string; updatedAt: string }
 export interface CloudRow extends CloudRowMeta { payload: CloudPayload }
 
@@ -133,6 +138,8 @@ export interface CloudSaveDeps {
   readLocal(): string | null;
   /** The seat recordings for the local save's run (cached per run by the caller). */
   seatRuns(): BoardSnapshot[][] | undefined;
+  /** The generated seats' recordings for the same run (R-LOBBY-SERVE-01). Optional: absent = none sent. */
+  seatHybrids?(): LobbySeatRecordings['hybrids'] | undefined;
   /** The server refused this device's write/claim: the run moved to another device (or ended there). */
   onMoved(current: CloudRowMeta | null): void;
   /** Retry scheduling (injectable for tests). */
@@ -198,7 +205,7 @@ export function createCloudSave(deps: CloudSaveDeps): CloudSave {
       const savedAt = lease.savedAt;
       const res = await deps.api.put({
         runKey: lease.runKey, expected: lease.revision, deviceId: deviceId(),
-        payload: { v: 1, save: raw, ...(deps.seatRuns() ? { seatRuns: deps.seatRuns() } : {}) },
+        payload: { v: 1, save: raw, ...(deps.seatRuns() ? { seatRuns: deps.seatRuns() } : {}), ...(deps.seatHybrids?.()?.length ? { seatHybrids: deps.seatHybrids() } : {}) },
       });
       if (res.status === 'absent') { disabled = true; return; }
       if (res.status === 'unavailable') { scheduleRetry(); return; }

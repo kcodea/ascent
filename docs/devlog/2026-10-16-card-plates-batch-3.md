@@ -22,6 +22,7 @@ picked it.
   | Stonevines | Grey | 0.005 | 1.047 | 1.026 | -0.0066 |
   | Standard Black / Blue / Pink | Dark Brown | 0.006 | 1.051 | 1.027 | 0.0009 |
   | Standard Teal | Dark Brown | 0.006 | 1.051 | 1.03 | -0.0028 |
+  | Chrome (added later the same day: "add chrome from the folder with the grey interior") | Grey | 0.004 | 1.055 | 1.029 | -0.0037 |
 
 - **`--fit-alpha`** on `npm run plates:build`: the fit counts alpha > 200 as frame, but Simple Glass is see-through on
   its left edge, so the scan ran straight through it. `--fit-alpha 60` measured its opening (centred, like Simple

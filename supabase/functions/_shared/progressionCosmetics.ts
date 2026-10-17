@@ -677,6 +677,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_standard_blue', 'Standard Blue', 'legendary', 'Standard Blue.png'),
   cardPlate('plate_standard_pink', 'Standard Pink', 'legendary', 'Standard Pink.png'),
   cardPlate('plate_standard_teal', 'Standard Teal', 'legendary', 'Standard Teal.png'),
+  // Owner 2026-10-16: "add chrome from the folder with the grey interior" (Legendary by the folder rule).
+  cardPlate('plate_chrome', 'Chrome', 'legendary', 'Chrome.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

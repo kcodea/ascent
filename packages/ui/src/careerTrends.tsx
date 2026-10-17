@@ -361,7 +361,7 @@ function BigChart({ geo, own, kind }: { geo: BigGeo | null; own: boolean; kind: 
         const top = ay - th - 14 >= 8 ? ay - th - 14 : Math.min(vp.h - th - 8, ay + 14);
         return createPortal(
           <div className={`atip ct-pos ct-float${board ? ' ct-wide' : ''}`} style={{ left, top, width: w }} role="tooltip">
-            <div className="ct-tip-text">
+            <div className="ct-headline">
               {h.head}
               <span className="dim">{playedOnText(h.p.atMs)}</span>
             </div>

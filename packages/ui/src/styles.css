@@ -13749,7 +13749,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    careerTrends.tsx in stage px (no transform), above everything. Its board is the game card's strip at ~70px cards,
    keyword animations paused (a tooltip never runs FX). */
 .atip.ct-float { position: absolute; transform: none; z-index: 900; white-space: normal; max-width: none; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; }
-.ct-tip-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.ct-headline { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .ct-board { container-type: inline-size; width: 100%; }
 .ct-board .cv2-team { --tile-gap: 38px; --tw: calc((100cqw - 6 * 38px - 8px) / 7); flex-wrap: nowrap; justify-content: center; padding: calc(var(--tw) * 0.28) 4px calc(var(--tw) * 0.32); }
 .ct-board *, .ct-board *::before, .ct-board *::after { animation-play-state: paused !important; }

@@ -1,24 +1,25 @@
 /**
- * A Versus room seat as a REAL game card (owner 2026-10-16: "make the players actually show as cards"). The game's own
- * `Card`, plated like a hand card, in the seat holder's equipped CARD PLATE (`CardPlateContext`, the same context every
- * skin scope provides): their portrait as the art, their name on the name line, their title as the text, Versus wins in
- * the Attack badge and losses in the Health badge (the normal badges, milestone frames and big-number fit included).
- * What it says is built in `versusSeatCard.ts`. Static: no animation of its own, no hover popup, and it never opens
- * Inspect (a click or right-click on it does nothing).
+ * A Versus room member as a REAL game card (owner 2026-10-16: "make the players actually show as cards"; spectators
+ * too: "spectators should show as cards in hand so you can mouse over to view their cards too"). The game's own `Card`,
+ * plated like a hand card, in the member's equipped CARD PLATE (`CardPlateContext`, the same context every skin scope
+ * provides): their portrait as the art, their name on the name line, their title as the text, Versus wins in the Attack
+ * badge and losses in the Health badge (the normal badges, milestone frames and big-number fit included). What it says
+ * is built in `versusSeatCard.ts`. Static: no animation of its own, no hover popup, and it never opens Inspect (a click
+ * or right-click on it does nothing). `bench` = the small spectator size (its hover lift lives in versus.css).
  */
 import { memo, useMemo, type SyntheticEvent } from 'react';
-import { Card } from '../Card';
+import { Card, type CardView } from '../Card';
 import { CardPlateContext, cardPlateLookOf } from '../cardPlate/cardPlateLook';
 import { currentUserId } from '../identity';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
 import { useLiveLoadout } from '../skins/skins';
 import { useGame } from '../store';
-import { playerCardView, seatCardSource, type SeatServerData } from './versusSeatCard';
+import { PLAYER_CARD_ID, playerCardView, seatCardSource, type SeatServerData } from './versusSeatCard';
 import type { VersusMember } from './versusRemote';
 
 const swallow = (e: SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); };
 
-export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server }: { m: VersusMember; server: SeatServerData | undefined }) {
+export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, bench = false }: { m: VersusMember; server: SeatServerData | undefined; bench?: boolean }) {
   const own = m.userId === currentUserId();
   const showOpp = useGame((s) => s.showOpponentSkins);
   const myAvatar = useGame((s) => s.playerAvatar);
@@ -32,10 +33,22 @@ export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server }: { 
   const view = useMemo(() => playerCardView(src), [src]);
   const plate = cardPlateLookOf(src.cosmetics);
   return (
-    <div className="vspcard-hold" onClickCapture={swallow} onContextMenuCapture={swallow} data-versus-card={m.userId}
-      aria-label={`${src.name}: ${view.attack} Versus wins, ${view.health} losses`} role="img">
+    <div className={`vspcard-hold${bench ? ' vspcard-bench' : ''}${src.record ? '' : ' vspcard-norec'}`} onClickCapture={swallow} onContextMenuCapture={swallow} data-versus-card={m.userId}
+      aria-label={src.record ? `${src.name}: ${view.attack} Versus wins, ${view.health} losses` : `${src.name}: Versus record loading`} role="img">
       <CardPlateContext.Provider value={plate}>
         <Card card={view} forceFull suppressPop plated />
+      </CardPlateContext.Provider>
+    </div>
+  );
+});
+
+/** The OPEN SEAT placeholder: the same plated card, on the standard plate, dimmed, with no art and no badges. */
+const EMPTY_VIEW: CardView = { name: 'Open seat', cardId: PLAYER_CARD_ID, tribe: 'neutral', attack: 0, health: 0, keywords: [], text: 'Waiting for a player' };
+export const VersusEmptySeatCard = memo(function VersusEmptySeatCard() {
+  return (
+    <div className="vspcard-hold vspcard-empty" onClickCapture={swallow} onContextMenuCapture={swallow} aria-hidden="true">
+      <CardPlateContext.Provider value={null}>
+        <Card card={EMPTY_VIEW} forceFull suppressPop plated />
       </CardPlateContext.Provider>
     </div>
   );

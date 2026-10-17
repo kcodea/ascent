@@ -19,6 +19,7 @@ const backend = vi.hoisted(() => ({
   rpcError: null as null | { code: string; message: string },
   profiles: [] as unknown[],
   rpcCalls: 0,
+  lastArgs: null as unknown,
 }));
 vi.mock('../remoteBoards', async (orig) => {
   const real = await orig<typeof import('../remoteBoards')>();
@@ -32,7 +33,7 @@ vi.mock('../remoteBoards', async (orig) => {
   return {
     ...real,
     supabaseClient: () => ({
-      rpc: (_fn: string, _args: unknown) => { backend.rpcCalls++; return Promise.resolve(backend.rpcError ? { data: null, error: backend.rpcError } : { data: backend.records, error: null }); },
+      rpc: (_fn: string, args: unknown) => { backend.rpcCalls++; backend.lastArgs = args; return Promise.resolve(backend.rpcError ? { data: null, error: backend.rpcError } : { data: backend.records, error: null }); },
       from: () => query(),
     }),
   };
@@ -125,6 +126,17 @@ describe('the seat is the REAL Card, in the equipped plate', () => {
     } finally { ui.unmount(); }
   });
 
+  it('an unknown record (RPC not live yet) prints a dash, never a made-up 0', () => {
+    setIdentity({ userId: 'me' } as never);
+    const ui = mount(<VersusPlayerCard m={member({})} server={undefined} />);
+    try {
+      expect(document.querySelector('.vspcard-hold.vspcard-norec')).not.toBeNull();
+      expect(document.querySelector('.vspcard-hold')?.getAttribute('aria-label')).toContain('loading');
+    } finally { ui.unmount(); }
+    const ui2 = render({});
+    try { expect(document.querySelector('.vspcard-hold.vspcard-norec')).toBeNull(); } finally { ui2.unmount(); }
+  });
+
   it('a click or right-click never opens Inspect', () => {
     setIdentity({ userId: 'me' } as never);
     const ui = render({});
@@ -143,13 +155,16 @@ describe('the numbers: one bounded read, refreshed when the room moves', () => {
     expect(parseVersusRecords(null).size).toBe(0);
   });
 
-  it('reads at most the two seats, and keeps the last good numbers when a read fails', async () => {
+  it('reads every card in one batch (deduped, at most 22 ids), and keeps the last good numbers when a read fails', async () => {
     backend.records = [{ userId: 'a', wins: 5, losses: 1 }];
     backend.profiles = [{ user_id: 'a', favorite_hero: 'indy', equipped_title_id: TITLE_ID, avatar: AVATAR }];
     const first = await fetchSeatData(['a', 'a', 'b', 'c']);
-    expect([...first.keys()]).toEqual(['a', 'b']);
+    expect([...first.keys()]).toEqual(['a', 'b', 'c']);
+    expect(backend.rpcCalls).toBe(1);
+    const many = await fetchSeatData(Array.from({ length: 30 }, (_, i) => `u${i}`));
+    expect(many.size).toBe(22);
     expect(first.get('a')).toEqual({ record: { wins: 5, losses: 1 }, favoriteHero: 'indy', titleId: TITLE_ID, avatar: AVATAR });
-    backend.rpcError = { code: 'PGRST202', message: 'no function' }; // and the fallback count reads fail too (no count)
+    backend.rpcError = { code: 'PGRST202', message: 'no function' }; // not deployed: no client-side count
     const second = await fetchSeatData(['a']);
     expect(second.get('a')?.record).toEqual({ wins: 5, losses: 1 });
   });
@@ -174,5 +189,44 @@ describe('the numbers: one bounded read, refreshed when the room moves', () => {
       expect(document.querySelector('.probe')?.textContent).toBe('1-1');
       expect(backend.rpcCalls).toBe(2);
     } finally { ui.unmount(); }
+  });
+});
+
+describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', () => {
+  it('every spectator is a small real player card in the fan, read in ONE batched call with the seats', async () => {
+    const { VersusRoom } = await import('./VersusRoom');
+    const { useVersus } = await import('./versusStore');
+    setIdentity({ userId: 'me' } as never);
+    backend.records = [{ userId: 'me', wins: 2, losses: 2 }, { userId: 's1', wins: 12, losses: 4 }];
+    const spec = (id: string) => ({ userId: id, role: 'spectator' as const, displayName: id, profile: {}, lastSeenAt: '' });
+    useVersus.setState({ screen: 'room', match: null, room: { id: 'r', name: 'Room', host_user_id: 'me', status: 'open', members: [
+      { userId: 'me', role: 'p1', displayName: 'LEMON', profile: {}, lastSeenAt: '' }, spec('s1'), spec('s2'), spec('s3'),
+    ] } as never });
+    const ui = mount(<VersusRoom />);
+    try {
+      await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
+      const fan = document.querySelectorAll('.vsbench .vsbcard');
+      expect(fan).toHaveLength(3);
+      expect((document.querySelector('.vsbench') as HTMLElement).style.getPropertyValue('--n')).toBe('3');
+      expect([...fan].map((f) => (f as HTMLElement).style.getPropertyValue('--off'))).toEqual(['-1', '0', '1']);
+      expect(document.querySelectorAll('.vsbench .vspcard-hold.vspcard-bench .card.plated')).toHaveLength(3);
+      expect(fan[0]!.querySelector('.badge.atk .value')?.textContent).toBe('12');
+      expect(backend.rpcCalls).toBe(1); // seats + spectators in one read, no N+1
+      expect(backend.lastArgs).toEqual({ p_users: ['me', 's1', 's2', 's3'] });
+      // An open seat is the dimmed placeholder card with Take seat.
+      expect(document.querySelector('.vspcard-p2 .vspcard-empty .card.plated')).not.toBeNull();
+      expect(document.querySelector('.vspcard-p2 .vstake')?.textContent).toBe('Take seat');
+    } finally { ui.unmount(); useVersus.setState({ room: null, screen: 'browser' } as never); }
+  });
+
+  it('the fan and its hover are transform-only, with no looping animation in the room', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
+    const hover = /\.vsbcard:hover\s*\{([^}]*)\}/.exec(css)![1]!;
+    expect(hover).toMatch(/transform:/);
+    expect(hover).not.toMatch(/filter|box-shadow|width|height|top|left/);
+    const room = css.slice(css.indexOf('.vsvignette'), css.indexOf('/* Controls on the game'));
+    expect(room).not.toMatch(/animation\s*:/);
   });
 });

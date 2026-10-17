@@ -44,52 +44,91 @@
 .vsarena-art { position: absolute; inset: 0; width: 100%; height: 100%; display: block; user-select: none; pointer-events: none;
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 1.5%, #000 98.5%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 2%, #000 98%, transparent 100%);
   -webkit-mask-composite: source-in; mask-image: linear-gradient(to right, transparent 0, #000 1.5%, #000 98.5%, transparent 100%), linear-gradient(to bottom, transparent 0, #000 2%, #000 98%, transparent 100%); mask-composite: intersect; }
-/* The two painted frames' inner panels (arched tops). */
-.vsframe { position: absolute; top: 17.68%; height: 37.57%; display: grid; place-items: center; }
-/* (An open seat's Take seat sits in the painted window; a seated player is a card, `.vspcard` below.) */
-.vsframe-p1 { left: 28.98%; width: 12.73%; }
-.vsframe-p2 { left: 58.40%; width: 12.70%; }
-.vsinitial { display: grid; place-items: center; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(110 * var(--u)); color: #f3e6c8; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); }
-/* The painted name banners. */
-.vsbanner { position: absolute; top: 58.9%; height: 5.6%; width: 9.4%; display: flex; align-items: center; justify-content: center; gap: calc(6 * var(--u)); pointer-events: none; }
-.vsbanner-p1 { left: 30.65%; }
-.vsbanner-p2 { left: 60.2%; }
-.vsbanner-name { max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(24 * var(--u)); color: #f7ecd2; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.8), 0 0 6px rgba(0, 0, 0, 0.5); }
-/* HOST on the host's ribbon (owner 2026-10-16: the name moved onto the player card), in the game's gold. */
-.vsbanner-host { color: var(--gold-lt, #e6b45a); text-transform: uppercase; letter-spacing: 0.08em; }
-/* THE PLAYER CARDS (owner 2026-10-16: "make the players actually show as cards"). The real plated `Card`, centred on
-   its painted frame and standing in front of it, its plate running from near the top of the painting (4%) down to the
-   top of the painted ribbon (57%), so the ribbon (the side's blue / red, HOST) stays visible under it. The box is % of
-   the painting like every overlay, sized so the PLATE lands there: the plate hangs about 9% of the painting below the
-   card body it is centred on. The card sizes off the stage's own card unit (--ch-base) at the Discover row's lever,
-   x1.78, and `--plate-k` moves with it (the plate's px lift, see `.disc-cards`). Static: no animation, no looping paint. */
-.vspcard { position: absolute; top: 0%; height: 43%; width: 18%; display: grid; place-items: center; pointer-events: auto; }
-.vspcard-p1 { left: 26.35%; }
-.vspcard-p2 { left: 55.75%; }
+/* Readability on the bright arena (owner 2026-10-16: versuspng2): a static vignette, gradients only (no blur, no
+   animation), darkening the sky band under the header and the floor under the stands. */
+.vsvignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse 70% 62% at 50% 44%, transparent 55%, rgba(12, 7, 4, 0.5) 100%),
+    linear-gradient(to bottom, rgba(10, 8, 14, 0.5) 0, transparent 13%, transparent 64%, rgba(14, 8, 4, 0.62) 100%); }
+/* THE PLAYER CARDS (owner 2026-10-16: "make the players actually show as cards"). The real plated `Card`, blue side
+   left, red side right, standing over the floor, its plate from about 8% to 61% of the painting. The box is % of the
+   painting like every overlay, sized so the PLATE lands there (the plate hangs about 9% of the painting below the card
+   body it is centred on). The card sizes off the stage's own card unit (--ch-base) at the Discover row's lever, x1.78,
+   and `--plate-k` moves with it (the plate's px lift, see `.disc-cards`). Static: no animation, no looping paint. */
+.vspcard { position: absolute; top: 4%; height: 43%; width: 18%; display: grid; place-items: center; pointer-events: auto; }
+.vspcard-p1 { left: 23%; }
+.vspcard-p2 { left: 59%; }
 .vspcard-hold {
   --vspcard-k: 1.78;
   --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vspcard-k)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85);
   --plate-k: var(--vspcard-k);
   position: relative; display: grid; place-items: center;
 }
+/* THE ROOM CARD'S BADGES (owner 2026-10-16: "the attack badges should be larger"): the room card's Attack / Health
+   badges scale up as a whole (plate or milestone frame AND number together), on this card only, so a 2-3 digit win
+   count reads at the room's size. `scale` (not transform) so the badge's own one-shot pop transform still composes.
+   The global in-game badge sizes are untouched. Static. */
+.vspcard-hold .card .badge { scale: var(--vspcard-badge, 1.45); }
+.vspcard-hold .card .badge.atk { transform-origin: 30% 70%; }
+.vspcard-hold .card .badge.hp { transform-origin: 70% 70%; }
+/* Record not known yet (the read is pending or `versus_records` is not deployed): a dash, never a made-up 0. */
+.vspcard-norec .badge > .value { color: transparent; }
+.vspcard-norec .badge > .value::after { content: '-'; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; }
 /* A player has no tribe: the plate's bottom tribe line ("Neutral") is not printed on a player card. */
 .vspcard-hold .plate-tribe, .vspcard-hold .dtribe { display: none; }
-/* Gate state + hearts, under each frame's banner tails. */
-.vsgatebox { position: absolute; top: 70.5%; width: 14%; display: flex; justify-content: center; }
-.vsgatebox-p1 { left: 28.6%; }
-.vsgatebox-p2 { left: 57.8%; }
+/* AN OPEN SEAT: the same card on the standard plate, dimmed, its art window empty and no badges; Take seat over it. */
+.vspcard-empty { opacity: 0.62; }
+.vspcard-empty .badge, .vspcard-empty .art > * { visibility: hidden; }
+.vspcard > .vsseatbtns { position: absolute; left: 50%; top: 58%; translate: -50% 0; }
+/* The seat's pill under the card, in its side's colour (the Gem plate with a blue / red edge); HOST in gold. */
+.vsseatlabel { position: absolute; top: 62.5%; width: 18%; display: flex; justify-content: center; pointer-events: none; }
+.vsseatlabel-p1 { left: 23%; }
+.vsseatlabel-p2 { left: 59%; }
+.vsstatus.vsseatpill { min-width: calc(150 * var(--u)); font-size: calc(20 * var(--u)); font-weight: 800; border-width: 2px; }
+.vsseatpill-p1 { background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, linear-gradient(180deg, #7fb0ff, #2d5bb8) border-box; }
+.vsseatpill-p2 { background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, linear-gradient(180deg, #ff8f86, #b3302b) border-box; }
+.vsseatpill-host { color: var(--gold-lt, #e6b45a); text-transform: uppercase; letter-spacing: 0.08em; }
+/* Gate state + hearts, under each seat's pill. */
+.vsgatebox { position: absolute; top: 69%; width: 18%; display: flex; justify-content: center; }
+.vsgatebox-p1 { left: 23%; }
+.vsgatebox-p2 { left: 59%; }
 /* Room labels: the gold-rimmed navy pill of the End Turn gem's tip (uiTheme tokens), never a plain dark box. */
 .vsgatestate, .vsstatus { padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(11 * var(--u)); border: 1px solid transparent;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: var(--ui-bevel);
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-family: var(--font-ui); font-weight: 700; font-size: calc(16 * var(--u)); text-align: center; }
-/* Under the VS emblem. */
-.vscenter { position: absolute; top: 58%; left: 50%; translate: -50% 0; width: 16%; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); }
-/* The painted bench: eight slots. */
-.vsbenchslot { position: absolute; top: 78.2%; width: 5.4%; height: 12.2%; display: grid; place-items: center; overflow: hidden; border-radius: calc(6 * var(--u)); }
-.vsbench-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.vsbench-art.vsinitial { font-size: calc(44 * var(--u)); background: rgba(20, 24, 40, 0.85); }
-.vsbench-name { position: absolute; left: 0; right: 0; bottom: 0; padding: calc(2 * var(--u)); background: rgba(8, 10, 20, 0.78); color: #f3e6c8; font-size: calc(11 * var(--u)); font-weight: 700; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.vsbenchmore { background: rgba(8, 10, 20, 0.78); color: #f3e6c8; font-family: var(--font-title), sans-serif; font-weight: 800; font-size: calc(30 * var(--u)); }
+/* THE VS MARK between the cards. The old VS emblem was baked into the old painting, so until it has its own art this
+   is the game's display font in the gold title gradient with a static glow (no animation). */
+.vsmark { position: absolute; top: 17%; left: 50%; translate: -50% 0; pointer-events: none; user-select: none;
+  font-family: var(--font-title), serif; font-weight: 800; font-size: calc(170 * var(--u)); line-height: 1; letter-spacing: -0.02em;
+  background: linear-gradient(180deg, #fffaf0 0%, #ffe08a 45%, #d99a2b 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 calc(4 * var(--u)) 0 rgba(60, 30, 6, 0.9)) drop-shadow(0 0 calc(22 * var(--u)) rgba(255, 196, 92, 0.55)); }
+/* Under the VS mark. */
+.vscenter { position: absolute; top: 45%; left: 50%; translate: -50% 0; width: 16%; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u)); }
+/* THE STANDS as a hand of cards (owner 2026-10-16: "spectators should show as cards in hand so you can mouse over to
+   view their cards too"). Small player cards (x0.72 of a board card) fanned along the bottom like `.row.hand .card`:
+   each tilts by its offset from the middle and drops by its offset squared, so the row arcs; the step between cards is
+   the smaller of a natural overlap and what fits the stands' width (`--n` cards), so up to 20 always fit. Hover lifts
+   the card upright to full size from its foot: one transform with a short transition (compositor-only), nothing
+   measured. The widths come from the painting's own size (--gh), so the fan keeps its place at any stage scale. */
+.vsbench { position: absolute; top: 70.5%; height: 29%; left: 28%; width: 44%; z-index: 5; pointer-events: none;
+  --vsb-k: 0.72;
+  --vsb-ccw: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vsb-k) * 0.752 * 0.85);
+  --vsb-bw: calc(var(--vsb-ccw) * 1.5);
+  --vsb-fanw: calc(var(--gh, var(--lvh, 100%)) * 2560 / 1086 * 0.44);
+  --vsb-step: min(calc(var(--vsb-bw) * 0.96), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1)));
+  --vsb-tilt: min(3.5deg, calc(40deg / max(var(--n), 1)));
+  --vsb-arc: calc(var(--vsb-ccw) * 0.02);
+  --vsb-zoom: 2.3; }
+.vsstatus.vsbench-label { font-size: calc(18 * var(--u)); padding: calc(6 * var(--u)) calc(22 * var(--u)); }
+.vsbench-label { position: absolute; top: 0; left: 50%; translate: -50% 0; font-family: var(--font-title), serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.vsbench-empty { position: absolute; top: 36%; left: 50%; translate: -50% 0; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: calc(17 * var(--u)); color: rgba(247, 236, 210, 0.8); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+.vsbcard { position: absolute; top: 24%; left: calc(50% + var(--off) * var(--vsb-step)); translate: -50% 0; pointer-events: auto; z-index: calc(10 + var(--i));
+  transform-origin: 50% 100%; transform: translateY(calc(var(--off) * var(--off) * var(--vsb-arc))) rotate(calc(var(--off) * var(--vsb-tilt)));
+  transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1); }
+.vsbcard:hover { z-index: 60; transform: translateY(calc(-2 * var(--vsb-ccw))) scale(var(--vsb-zoom)); }
+.vspcard-bench { --vspcard-k: var(--vsb-k, 0.72); }
+/* A small card keeps the in-game badge size (x1.45 is for the big seat card). */
+.vspcard-bench .card .badge { scale: 1; }
+@media (prefers-reduced-motion: reduce) { .vsbcard { transition: none; } }
 /* Controls on the game's Gem plate (the End Combat pill / hero-select button primitive, uiTheme tokens). */
 .vsplate {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: calc(46 * var(--u)); padding: 0 calc(20 * var(--u));

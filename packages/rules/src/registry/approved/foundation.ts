@@ -6276,20 +6276,44 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'their chosen profile picture (profiles.avatar, else their room profile avatar), falling back to their favourite '
       + 'hero in their hero skin, then the default hero; the name line is their display name; the card text is their '
       + 'equipped title (none = no text); the Attack badge is their total Versus WINS and the Health badge their total '
-      + 'Versus LOSSES (a complete match whose winner_seat is or is not theirs; an abandoned match is neither), in the '
+      + 'Versus LOSSES (a complete match whose winner_seat is or is not theirs, counted ONLY when both seats are real '
+      + 'accounts: a profiles row and a non-anonymous auth user; an abandoned match is neither; unknown prints "-"), in the '
       + 'normal badges with their milestone frames and big-number fit; the plate is their equipped card_plate. Another '
       + "player's plate and skin show only through Show opponent cosmetics (off = the standard plate); their picture, "
       + 'title and record always show. Your own card always shows your live loadout. The record is read through one '
-      + 'bounded read for the two seats (versus_records, at most two ids) and re-read when a player sits or leaves and '
+      + 'bounded read for every card in the room (versus_records, at most 22 ids) and re-read when a player sits or leaves and '
       + 'when a match ends and the room reopens, without a reload. HOST is on the painted ribbon under the host\'s card.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin, 2026-10-16 (Versus room screenshot)', quote: 'for versus - we want to make the players actually show as cards, using their portrait art as the minion art, their equipped title and name in the card text, their versus wins as the attack pill, their versus losses as their health pill. it should use the equipped card plate they have equipped as well' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (25 of 29 counted matches were against anonymous / test accounts)', quote: '4-25 is definitely not correct for my versus wins/losses' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: 'also the attack badges should be larger' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusSeatCard.ts (playerCardView, seatCardSource, useSeatData); packages/ui/src/versus/VersusPlayerCard.tsx; supabase/migrations/2026-10-16-versus-records.sql' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-16 (feat/versus-player-cards). Before, each seat showed the player\'s avatar masked into the painted frame with the name on its ribbon.',
     example: 'LEMON (27 wins, 9 losses, title Rune Reader, Galaxy plate) is a 27 / 9 card named LEMON reading "Rune Reader" on the Galaxy plate; after a loss and back in the room it reads 27 / 10.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatCard.test.tsx', 'packages/ui/src/versus/versusRecords.db.test.ts'], lastVerifiedAt: '2026-10-16' },
+  },
+  {
+    id: 'R-VERSUS-STANDS-01',
+    title: 'Versus room spectators are a hand of player cards; hovering one shows it full size',
+    statement:
+      'In the Versus room every spectator is the same real player card as the seats (R-VERSUS-PLAYER-CARD-01: picture, '
+      + 'name, title, wins / losses, equipped plate), small, fanned and overlapped along the bottom like the hand, tighter '
+      + 'the more there are, so all 20 fit. Hovering one lifts it upright to full size with a transform only (no layout '
+      + 'read, no looping animation). Seats and spectators are read in ONE batched call (at most 22 ids), never one call '
+      + 'per card. No one watching shows the Spectators label and "No one is watching yet." The room is laid on the '
+      + 'empty arena painting (versuspng2) with a static vignette; the VS mark is display-font text until it has art.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: 'spectators should show as cards in hand so you can mouse over to view their cards too' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16', quote: "use versuspng2 for the background now. you'll have to add your own text / vs. here etc now" },
+      { kind: 'code', ref: 'packages/ui/src/versus/VersusRoom.tsx (SpectatorFan, Seat); packages/ui/src/versus/versus.css (.vsbench, .vsbcard, .vsmark, .vsvignette)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-16 (feat/versus-room-v2). Before, spectators were portrait rings in eight painted bench slots with a +N chip.',
+    example: 'Four spectators: four small cards fanned under the Spectators label; hovering Claudebot2 lifts its card to full size showing 57 / 61 and Lantern Bearer.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatCard.test.tsx', 'packages/ui/src/versus/versusRoomGeometry.test.ts'], lastVerifiedAt: '2026-10-16' },
   },
 ];

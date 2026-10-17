@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-16',
     changes: [
+      { category: 'Systems', text: 'The Versus room has a new arena, and spectators show as cards too.', details: ['Spectators sit in a fan of small cards along the bottom. Hover one to see it full size.', 'Win and loss counts only include games against other players.', 'The Attack and Health on the room cards are bigger.'] },
       {
         category: 'Systems',
         text: 'Spectating: you now see the player minimize the Runeforge, and you can hover runes yourself.',
@@ -66,7 +67,7 @@ export const PATCH_NOTES: PatchNote[] = [
           "Hover any rune to read it: the player's runes, the Runeforge offer and an opponent's runes. You can't pick one.",
         ],
       },
-      { category: 'Systems', text: 'In a Versus room, each player now shows as a card.', details: ['The card shows your profile picture, your name and your equipped title.', 'Its Attack is your total Versus wins. Its Health is your total Versus losses.', 'It wears the card plate you have equipped.', 'The numbers update when a match ends.'] },
+      { category: 'Systems', text: 'In a Versus room, each player now shows as a card.', details: ['The card shows your profile picture, your name and your equipped title.', 'Its Attack is your total Versus wins against other players. Its Health is your total Versus losses.', 'It wears the card plate you have equipped.', 'The numbers update when a match ends.'] },
       {
         category: 'Systems',
         text: 'The Shop clock locks exactly at 0:00, never while it still shows 0:01. Versus now locks the Shop and hero powers at 0:00 like a lobby game.',

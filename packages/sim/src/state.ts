@@ -1788,6 +1788,11 @@ export interface RunState {
   runeBaller?: { step: number; sales: number };
   /** Rune of the Embers: every refresh doubles the right-most Shop minion's Health. */
   runeEmbers?: boolean;
+  /** Rune of the Embers, PER-ACTION scratch (owner 2026-10-18: "this rune should happen after all buffs are
+   *  applied"). Each refresh this action pins the uid of the right-most Shop minion it doubles; the doubling itself
+   *  is the LATE (post-buff) phase `resolveRefreshMultipliers`, run once at the `reduce` action boundary after every
+   *  other effect of the action has landed, then cleared. Never survives an action. */
+  embersPending?: string[];
   /** Rune of Refreshments: playing a Demon banks a free Shop refresh. */
   runeRefreshments?: boolean;
   /** Summoning Bulwark: minions-summoned-gain-Taunt banked for the NEXT combat. Cleared at the turn rollover. */

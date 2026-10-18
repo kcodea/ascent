@@ -5,7 +5,7 @@ const bm = (cardId: string, uid: string, attack: number, health: number): BoardM
   ({ cardId, attack, health, sourceUid: uid, keywords: [] });
 import { CARD_INDEX, RUNES, EPIC_RUNES, RUNE_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
-import { applyCardsPlayed, applyCastEffects, applyEndOfTurn, applyShopRefreshed, fireSummonBuffs, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
+import { applyCardsPlayed, applyCastEffects, applyEndOfTurn, applyShopRefreshed, resolveRefreshMultipliers, fireSummonBuffs, makeContext, offerBuyStats, spellCasts, advanceRuneThresholds, fireOnSell, noteSpellCast } from './recruit';
 import { runeTally } from '../../ui/src/runeTally';
 
 /**
@@ -513,7 +513,7 @@ describe('Rune of the Embers', () => {
     const s = armed(true);
     const before = offerBuyStats(s, s.shop[1]!);
     const leftBefore = offerBuyStats(s, s.shop[0]!);
-    applyShopRefreshed(s);
+    applyShopRefreshed(s); resolveRefreshMultipliers(s); // the post-buff phase the reduce boundary runs
     expect(offerBuyStats(s, s.shop[1]!).health, 'the right-most doubled').toBe(before.health * 2);
     expect(offerBuyStats(s, s.shop[1]!).attack, 'Attack is untouched').toBe(before.attack);
     expect(offerBuyStats(s, s.shop[0]!), 'the left offer is untouched').toEqual(leftBefore);
@@ -522,14 +522,14 @@ describe('Rune of the Embers', () => {
   it('it COMPOUNDS across refreshes — each doubling includes the last', () => {
     const s = armed(true);
     const base = offerBuyStats(s, s.shop[1]!).health;
-    applyShopRefreshed(s); applyShopRefreshed(s);
+    applyShopRefreshed(s); applyShopRefreshed(s); resolveRefreshMultipliers(s);
     expect(offerBuyStats(s, s.shop[1]!).health, 'two doublings').toBe(base * 4);
   });
 
   it('unarmed, a refresh changes nothing', () => {
     const s = armed(false);
     const before = offerBuyStats(s, s.shop[1]!);
-    applyShopRefreshed(s);
+    applyShopRefreshed(s); resolveRefreshMultipliers(s); // the post-buff phase the reduce boundary runs
     expect(offerBuyStats(s, s.shop[1]!)).toEqual(before);
   });
 
@@ -539,7 +539,7 @@ describe('Rune of the Embers', () => {
       shop: [{ uid: 's0', cardId: 'alley' }, { uid: 's1', cardId: 'mightofaeon' }],
     } as RunState;
     const spell = offerBuyStats(s, s.shop[1]!);
-    applyShopRefreshed(s);
+    applyShopRefreshed(s); resolveRefreshMultipliers(s); // the post-buff phase the reduce boundary runs
     expect(offerBuyStats(s, s.shop[1]!), 'the spell offer is untouched').toEqual(spell);
     expect(offerBuyStats(s, s.shop[0]!).health, 'the right-most MINION took the doubling instead')
       .toBeGreaterThan(CARD_INDEX['alley']!.health);

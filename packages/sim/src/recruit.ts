@@ -12871,20 +12871,16 @@ export function applyShopRefreshed(state: RunState, opts: { playerRoll?: boolean
   // Nothing is redirected to the next minion: the buff is gated, not moved. Play-time right-most buffs (a
   // Shout, a hero power) are untouched — this is only about refresh re-landing.
   landRightmostSlotBuff(state); // shared with the new-offer stamp's in-place re-land (shop.ts)
-  // RUNE OF THE EMBERS: every refresh DOUBLES the right-most Shop minion's Health. Applied as an offer buff
-  // (`+hp` equal to the body's current Health) rather than a stat rewrite, so the shop card shows where the
-  // number came from and the buy bakes it in through the same path every other slot enchant uses. It runs
-  // AFTER Market Tormentor's slot buff, deliberately: the doubling should include that turn's enchant, which
-  // is the same "the right-most must be the BUFFED body" ordering the Hellrider ruling established.
+  // RUNE OF THE EMBERS — PINNED here, DOUBLED LATE (owner 2026-10-18: "this rune should happen after all buffs
+  // are applied etc, like veinstorm, stat buffs etc etc"). The refresh records WHICH offer it doubles — the
+  // right-most minion now, after Market Tormentor's slot enchant just above — and the doubling itself waits for
+  // `resolveRefreshMultipliers`, the post-buff phase the `reduce` action boundary runs once every other effect of
+  // the action has landed (the left-most enchant below, the refresh watchers, Open Enrollment / Pete, Start of
+  // Turn shop buffs, a spell's cast watchers, Veinstorm, the run-wide shop channels …). So it doubles the FINAL
+  // Health. Multipliers apply after additive buffs.
   if (state.runeEmbers) {
-    // One doubling per copy held (owner 2026-08-27, unique-engine doubling) — each reads the freshly-buffed Health.
-    for (let k = 0; k < runeStacksOf(state, 'rune_embers'); k++) {
-      const i = rightmostShopMinion(state);
-      if (i < 0) break;
-      if (!starformRefreshLand(state.shop[i]!, 'embers')) break; // a Starform doubles once, on its first refresh there
-      const cur = offerBuyStats(state, state.shop[i]!).health;
-      if (cur > 0) { procRuneId(state, 'rune_embers'); addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur); }
-    }
+    const i = rightmostShopMinion(state);
+    if (i >= 0) state.embersPending = [...(state.embersPending ?? []), state.shop[i]!.uid];
   }
   // Rune of the Display Case: re-land the accumulated LEFT-most-slot enchant on the left offer each roll.
   landLeftmostSlotBuff(state);
@@ -12895,6 +12891,40 @@ export function applyShopRefreshed(state: RunState, opts: { playerRoll?: boolean
     for (const eff of def.effects) {
       if (eff.on !== 'shopRefreshed') continue;
       RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, playerRoll: opts.playerRoll === true });
+    }
+  }
+}
+
+/**
+ * THE POST-BUFF PHASE of a refresh — stat MULTIPLIERS on Shop minions, applied after every additive buff the action
+ * landed (owner 2026-10-18). Called once by the `reduce` action boundary; today it holds Rune of the Embers only.
+ *
+ * Each refresh this action pinned its right-most minion (`embersPending`, in order). Each pin still in the Shop is
+ * doubled once per copy of the rune held (owner 2026-08-27, unique-engine doubling), each doubling re-reading the
+ * Health it just made — so a kept offer that sat through two refreshes doubles twice, exactly as before. A pin that
+ * LEFT the Shop before the phase ran (Pete's contraband replaced it in its slot, a create ate it) falls to whatever
+ * is right-most now — but only for the action's LAST refresh: an earlier refresh's row was rolled away by a later
+ * one, so its doubling has nothing left to land on. Applied as an offer buff (`+hp` equal to the body's current
+ * Health), so the shop card names the source and the buy bakes it in through the same fold every slot enchant uses.
+ * A Starform takes it once, on its first refresh there (rule 4). No RNG.
+ */
+export function resolveRefreshMultipliers(state: RunState): void {
+  const pins = state.embersPending;
+  if (!pins) return;
+  state.embersPending = undefined;
+  if (!state.runeEmbers) return;
+  const minionAt = (uid: string): number => state.shop.findIndex((o) => {
+    const d = CARD_INDEX[o.cardId];
+    return o.uid === uid && !!d && !d.spell && !d.ruby;
+  });
+  for (let p = 0; p < pins.length; p++) {
+    let i = minionAt(pins[p]!);
+    if (i < 0 && p === pins.length - 1) i = rightmostShopMinion(state);
+    if (i < 0) continue;
+    for (let k = 0; k < runeStacksOf(state, 'rune_embers'); k++) {
+      if (!starformRefreshLand(state.shop[i]!, 'embers')) break; // a Starform doubles once, on its first refresh there
+      const cur = offerBuyStats(state, state.shop[i]!).health;
+      if (cur > 0) { procRuneId(state, 'rune_embers'); addOfferBuff(state.shop[i]!, 'Rune of the Embers', 0, cur); }
     }
   }
 }

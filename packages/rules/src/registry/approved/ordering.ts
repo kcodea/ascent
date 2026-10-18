@@ -244,4 +244,25 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-14. Before, the dead body left the row on the first beat that was not its own damage (the clash reactions, then the +Health beat), the survivors slid into its slot, and slid back out when it rose.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/eatahRiseRow.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-EMBERS-LATE-01',
+    title: 'Rune of the Embers doubles the FINAL Health: it resolves after every other shop buff of the refresh',
+    statement:
+      'Rune of the Embers ("When you refresh, double the Health of the right-most minion in the Shop") resolves in the '
+      + 'POST-BUFF phase of the refresh. The refresh pins its right-most minion; the doubling runs once at the end of the '
+      + 'action, after every additive shop buff that action landed (Veinstorm Rubies, slot enchants, run-wide and '
+      + 'this-turn Shop buffs, tribe buy-auras, the cast watchers of a Shop spell such as Rune of Infernal Ink, Start of Turn '
+      + 'effects on the turn-start roll, the Pete contraband swap). So the right-most reads 2 x (base + buffs). A pinned offer '
+      + 'replaced in its slot before the phase runs (Pete) passes the doubling to the current right-most; a kept offer '
+      + 'through two refreshes in one action doubles twice. One doubling per copy held; a Starform doubles once (rule 4).',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-18 (Rune of the Embers tooltip screenshot)', quote: 'this rune should happen after all buffs are applied etc, like veinstorm, stat buffs etc etc' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts applyShopRefreshed (pins `embersPending`) + resolveRefreshMultipliers; packages/sim/src/reducer.ts reduce (runs the phase right after reduceCore)' },
+    ],
+    contentIds: ['rune_embers'],
+    currentBehaviour: 'Conforms from 2026-10-18. Before, the doubling ran inside the refresh tail, so a buff that landed later in the same action (Infernal Ink on a Sigil of Kinship cast) added on top of the undoubled Health, and the Pete contraband swap replaced the doubled offer.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/embersAfterShopBuffs.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

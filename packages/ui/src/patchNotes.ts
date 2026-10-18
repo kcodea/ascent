@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-18',
     changes: [
       {
+        category: 'Balance',
+        text: 'Rune of the Embers now doubles Health after every other Shop buff from the same refresh, so the right-most minion ends at double its final Health.',
+        details: [
+          'Buffs that land later in the same move are now inside the doubling, such as Rune of Infernal Ink after a Sigil of Kinship.',
+          'When Pete swaps the right-most minion on a refresh, the new minion gets the doubling. Before, it was lost.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Nine new emotes join the crate pool.',
         details: [

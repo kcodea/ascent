@@ -2012,6 +2012,16 @@ Turn cast) in every phase: +3/+2 on the board, +6/+4 in the hand, doubled when g
 too, and those stats are permanent: a board Goldilox keeps them after the fight, and a hand Goldilox takes them as a
 hand buff (R-HAND-02), shown live during the replay. Only your own casts count.
 
+### Rune of the Embers doubles the final Health of a refresh (owner report 2026-10-18, R-EMBERS-LATE-01)
+
+**Rune of the Embers** (*"When you refresh, double the Health of the right-most minion in the Shop."*) resolves
+LAST. The refresh picks its right-most minion, and the doubling waits until everything else that move did has
+landed: Veinstorm Rubies, slot enchants, run-wide and this-turn Shop buffs, tribe buy-auras, a Shop spell's cast
+watchers (Rune of Infernal Ink after a Sigil of Kinship), Start of Turn effects after the turn-start roll, and Pete's
+contraband. So the minion ends at 2 x (base + buffs). If the picked minion was swapped out in its slot first (Pete),
+the minion now right-most takes the doubling. A buff that lands on a LATER move (casting a spell after the refresh)
+is not doubled: the rune doubles at the refresh, it is not a standing multiplier.
+
 ### Cast multipliers work only on spells cast from hand (owner rule 2026-09-24, R-MULT-06)
 
 Every effect that makes a spell cast more times applies only to a spell **you cast from hand**: Yazzus, Living

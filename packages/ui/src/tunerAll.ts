@@ -86,6 +86,7 @@ import { SPEC as HeroBackstabSpec } from './HeroBackstabTuner';
 import { SPEC as HeroBasketballSpec } from './HeroBasketballTuner';
 import { SPEC as HeroStitchSpec } from './HeroStitchTuner';
 import { SPEC as HeroBulletTimeSpec } from './HeroBulletTimeTuner';
+import { SPEC as HeroIggySpec } from './HeroIggyTuner';
 import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
@@ -186,6 +187,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   HeroBasketballSpec,
   HeroStitchSpec,
   HeroBulletTimeSpec,
+  HeroIggySpec,
   LoadScreenSpec,
   LungeSpec,
   PlateCoalesceSpec,

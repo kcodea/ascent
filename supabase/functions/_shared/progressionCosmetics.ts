@@ -512,6 +512,13 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // TIMEBREAK (placeholder name "Bullet Time" until 2026-10-03): stopped time, the shots hang in the air, then time restarts and they all land (IV: a dome of blades and
   // a 3-2-1). Built at the Ancient rarity.
   heroAttack('attack_bullet_time', 'Timebreak', 'ancient', 'bullettime'),
+  // Owner 2026-10-18: "branch off and make a new attack that resembles or pulls concepts from iggy. it should be a dragon
+  // blast attack that has increasing magnitude, with powerful back blasting/ward effects"; then, of three pitched
+  // concepts (docs/design/attack-dragon-blast-pitch.md), "go with A, legendary rarity, name Iggy Blast". RECOIL WARD:
+  // Immune Iggy's blue breath pours at the target in stages (thin blue, cyan, white-cored) that shove the hero back
+  // against its ward; at the peak the flattened ward springs back, a back-blast bursts behind the hero and a surge races
+  // down the stream (the hit); IV shatters the ward. Legendary, crate like every hero attack.
+  heroAttack('attack_iggy_blast', 'Iggy Blast', 'legendary', 'iggy'),
   // PORTRAIT FRAMES (owner 2026-10-01: "we're adding portrait skins: C:\Game Assets\Ascent Art\Skins\Portraits"). Every
   // one drops from crates at its folder's rarity, the rank-named masters included (owner decision 2026-10-01). The NAMES
   // avoid the ranked medal words (the player-text rule below), so a crate frame never reads as a Ranked reward: the

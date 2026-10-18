@@ -10,7 +10,7 @@
  *  - `data-touch-small`: the stage scale is under `SMALL_STAGE_S` (a phone). The card views (Inspect, Discover, Choose
  *    One, the Runeforge offers, hero select) render enlarged so their text reads.
  *  - `--touch-k`: the HUD enlargement for the chosen size (1 / 1.3 / 1.6).
- *  - `--touch-p`: the menu-page zoom for the chosen size (1 / 1.5 / 1.8): the pages reflow into the narrower box.
+ *  - `--touch-p`: the menu-page zoom for the chosen size (1 / 1.35 / 1.8): the pages reflow into the narrower box.
  *  - `--touch-card` / `--touch-forge` / `--touch-inspect`: the card-view enlargements on a phone (1 elsewhere).
  *  - `--touch-inv-s`: `1 / s`, so a rule can size something in SCREEN px (a 44 px touch target, 16 px input text).
  *
@@ -26,7 +26,7 @@ export const TOUCH_UI_LABEL: Record<TouchUiSize, string> = { normal: 'Normal', l
 /** The HUD enlargement per size (touchUi.css `--touch-k`). */
 export const TOUCH_UI_FACTOR: Record<TouchUiSize, number> = { normal: 1, large: 1.3, larger: 1.6 };
 /** The menu-page zoom per size (touchUi.css `--touch-p`). */
-export const TOUCH_PAGE_ZOOM: Record<TouchUiSize, number> = { normal: 1, large: 1.5, larger: 1.8 };
+export const TOUCH_PAGE_ZOOM: Record<TouchUiSize, number> = { normal: 1, large: 1.35, larger: 1.8 };
 /** The card views on a phone (`data-touch-small`): Discover / Choose One, the Runeforge, Inspect. */
 export const CARD_VIEW_SCALE = { card: 1.7, forge: 1.12, inspect: 1.4 } as const;
 /** localStorage key for the chosen size (absent = the device default). */

@@ -84,7 +84,16 @@ html[data-touch-ui] .modepick.sb-host { --touch-mp-w: calc(100 * var(--vw, 1vw) 
 html[data-touch-ui] .modepick .mpbox { max-width: calc(var(--touch-mp-w) / var(--hs-zoom)); }
 html[data-touch-ui] .modepick .pomodes-box { min-width: min(1180px, calc(var(--touch-mp-w) / var(--hs-zoom))); }
 /* The mode picker's home is one composed spread (the ranked tile + the side tiles): it grows less, so it still fits. */
-html[data-touch-ui] .modepick.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * min(var(--touch-p), 1.15)); }
+html[data-touch-ui][data-touch-small] .modepick.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * min(var(--touch-p), 1.15)); }
+/* Desktop centres the home spread over the whole screen (the narrow sidebar never reaches it); beside the wider touch
+   sidebar it centres in the space right of it instead. */
+html[data-touch-ui] .modepick.mp-home.sb-host { padding-left: calc(var(--sb-w) + var(--safe-l)); }
+/* The bigger corner buttons sit over the bottom-right of these pages: their content keeps clear of that strip. */
+html[data-touch-ui] .modepick.sb-host { padding-bottom: calc(var(--touch-cb) + 40px + var(--safe-b)); }
+html[data-touch-ui]:not([data-touch-small]) .modepick.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745); }
+/* Recent Games' placement sparkline takes its own full-width row instead of a sliver beside the stats. */
+html[data-touch-ui] .rg-summary { grid-template-columns: auto minmax(0, 1fr); row-gap: 14px; }
+html[data-touch-ui] .rg-sum-chart { grid-column: 1 / -1; padding-left: 0; border-left: none; }
 /* Career's stat tiles wrap under the profile instead of squeezing their labels to one letter. */
 html[data-touch-ui] .cv2-panel.cv2-left { flex-wrap: wrap; }
 html[data-touch-ui] .cv2-left .cv2-tiles { flex: 1 1 100%; flex-wrap: wrap; }

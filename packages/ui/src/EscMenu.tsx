@@ -30,7 +30,8 @@ import { forfeitMatch } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
 import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
-import { touchText } from './touchInput';
+import { isTouchDevice, touchText } from './touchInput';
+import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -62,6 +63,9 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
   const primary: 'replay' | 'watch' | 'menu' | 'none' | 'abandon' | 'run' | 'concede' = watching ? 'watch' : replaying ? 'replay' : onTitle ? (onPage ? 'menu' : 'none') : versusPlay ? 'concede' : rankedPick ? 'abandon' : 'run';
   // GOD MODE (owner 2026-10-08): nothing from a God Mode game is saved, so its leave button must not promise a save.
   const godMode = useGame((s) => s.run.godMode === true);
+  // TOUCH UI SIZE (owner 2026-10-18, R-TOUCH-UISCALE-01): a local preference, offered on touch devices only.
+  const touchDevice = isTouchDevice();
+  const [touchSize, setTouchSize] = useState<TouchUiSize>(() => touchUi().size);
   // Audio is owned by sfx.ts (persisted to localStorage); mirror it into local state so the slider +
   // mute button re-render as they change. Dragging the slider previews the level on release.
   const [vol, setVol] = useState(getVolume());
@@ -269,6 +273,21 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
           "Caps combat effects and card motion only. The rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.",
           "Caps combat effects and card motion only. The rest of the game runs at your screen's refresh. Options above your screen's refresh have no effect.",
         )}</div>
+        {touchDevice && (
+          <>
+            <div className="escsec">Display</div>
+            <div className="escvol escselectrow">
+              <span className="evl" id="esc-touchui-label">Touch UI size</span>
+              <SettingSelect
+                labelledBy="esc-touchui-label"
+                value={touchSize}
+                options={TOUCH_UI_SIZES.map((sz) => ({ value: sz, label: TOUCH_UI_LABEL[sz] }))}
+                onChange={(sz) => { if (sz !== touchSize) { setTouchSize(sz); setTouchUiSize(sz); sfx.pulse(); } }}
+              />
+            </div>
+            <div className="escnote">Makes buttons, tabs and text bigger on a phone or tablet.</div>
+          </>
+        )}
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (

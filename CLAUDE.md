@@ -65,6 +65,12 @@ it rects raw). `stageTripwire.test.ts` enforces the mechanical parts. Touch: a t
 breaks immersion (owner 2026-09-24). Use `aria-label` / `aria-description` for screen readers and the game's own
 `.gtip[data-tip]` bubble for hover text; ESLint (`banTitleTooltips`) fails the build on it.
 
+**Touch is a separate, opt-in layer; desktop must stay pixel-identical** (owner 2026-10-18). Touch-only styling lives
+in `packages/ui/src/touchUi.css`, and every selector there starts with `html[data-touch-ui]` (written by `touchUi.ts`
+only for a touch device on a scaled stage; `touchUi.test.ts` fails on an unkeyed rule). Hover rules need no manual
+guard: `apps/web/hoverGuardPlugin.ts` moves them into `@media (hover: hover)` at build time so they never stick after
+a tap. A hover REVEAL a finger must also reach needs a `.tt-on` twin in the same rule (touchInput.ts).
+
 ## Working with the user
 
 **Ask clarifying questions whenever a direction is confusing or you're unsure what's wanted for a

@@ -351,8 +351,12 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <div className="continuerow">
               <button className="menubtn active" onClick={() => { sfx.pulse(); continueRun(); }} data-tip="Resume your run in progress">
                 <span className="mbicon"><Crest /></span>
-                <span className="mblabel">{txt.continueLabel}</span>
-                <span className="mbnote">{titleContinueNote(savedRun.wave)}</span>
+                {/* Label over note (owner 2026-10-18, "continue text is cut off"): side by side, the round line
+                    ran past the gold plaque's right edge. Stacked, it can never clip. */}
+                <span className="mbstack">
+                  <span className="mblabel">{txt.continueLabel}</span>
+                  <span className="mbnote">{titleContinueNote(savedRun.wave)}</span>
+                </span>
               </button>
               <button
                 className={`clearrun${confirmClear ? ' armed' : ''}`}

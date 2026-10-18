@@ -646,4 +646,24 @@ export const TEXT_RULES: GameRule[] = [
     example: 'A minion at 104000 / 209000 on a Recent Games final board shows "104k" and "209k" in two readable crystal badges, the same size as on the board.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/bigStatBadge.test.tsx'], lastVerifiedAt: '2026-10-16' },
   },
+  {
+    id: 'R-TITLE-CONTINUE-01',
+    title: 'The title screen Continue button shows its round line in full, under the label',
+    statement:
+      'When a run is saved, the gold Continue button on the title screen shows the round line of the saved run (the note) '
+      + 'in full and readable. The note sits on its own line UNDER the CONTINUE label, small and muted on the gold, and '
+      + 'wraps rather than clips. The button keeps its seat in the menu column, and the trash (discard run) button stays '
+      + 'beside it, aligned to the right edge of the column.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-18 (screenshot: the gold Continue plaque, the note clipped to "Ra")', quote: 'continue text is cut off' },
+      { kind: 'fix-pr', ref: 'fix/title-continue-clip: packages/ui/src/Title.tsx (.mbstack), packages/ui/src/styles.css (.titlenav .continuerow .menubtn.active)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-18. UI pass 2 (#2133) raised the gold CTA label to 34px, so CONTINUE plus a right-aligned '
+      + 'note no longer fit the row (the menu column minus the trash button) and the overflow: hidden on the plaque clipped the '
+      + 'note. The label and note now stack in `.mbstack`; the Continue label steps down to 30px so it fits the narrower seat.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/titleContinue.test.tsx'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

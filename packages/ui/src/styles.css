@@ -8051,8 +8051,8 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .lazy-row.is-far, .lazy-row.is-far *, .lazy-row.is-far *::before, .lazy-row.is-far *::after { animation-play-state: paused !important; }
 .cv2-lazy { --lazy-h: 425px; }
 .lb-lazy { --lazy-h: 340px; } /* the game card's height (2026-10-16), so lazy placeholders keep the list honest */
-.cv2-list::-webkit-scrollbar, .cv2-right::-webkit-scrollbar, .cv2-left::-webkit-scrollbar { width: 8px; }
-.cv2-list::-webkit-scrollbar-thumb, .cv2-right::-webkit-scrollbar-thumb, .cv2-left::-webkit-scrollbar-thumb { background: rgba(196, 160, 92, 0.35); border-radius: 6px; }
+.cv2-list::-webkit-scrollbar, .cv2-right::-webkit-scrollbar, .cv2-left::-webkit-scrollbar, .rg-more-list::-webkit-scrollbar { width: 8px; }
+.cv2-list::-webkit-scrollbar-thumb, .cv2-right::-webkit-scrollbar-thumb, .cv2-left::-webkit-scrollbar-thumb, .rg-more-list::-webkit-scrollbar-thumb { background: rgba(196, 160, 92, 0.35); border-radius: 6px; }
 .cv2-none { align-items: center; text-align: center; padding: 44px 24px; margin-top: 8px; }
 .cv2-row { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 18px; color: #f4eee2; background: linear-gradient(180deg, rgba(13, 22, 40, 0.84), rgba(9, 15, 29, 0.9)); border: 2px solid rgba(196, 160, 92, 0.34); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.1), 0 8px 22px -12px rgba(0, 0, 0, 0.6); border-radius: 16px; min-width: 0; flex: none; }
 /* The banner's left edge carries the outcome colour, so a scan down the list reads the results at a glance. */
@@ -13498,11 +13498,29 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rg-filterbar .rg-tabs { margin: 0; }
 .rg-filterbar .rg-tabs .cv2-tab { font-size: 15px; padding: 9px 18px; }
 .rg-filterbar .rg-tabs .cv2-tab svg { width: 18px; height: 18px; }
-.rg-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.rg-filters { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 360px; min-width: 0; }
 .rg-chip { font-family: var(--font-ui); font-weight: 800; font-size: 15px; letter-spacing: 0.02em; padding: 9px 18px; border-radius: 999px; color: rgba(255, 246, 228, 0.82);
   background: rgba(0, 0, 0, 0.34); border: 1.5px solid rgba(196, 160, 92, 0.34); }
 .rg-chip:hover { color: #fff; border-color: rgba(232, 200, 119, 0.75); }
 .rg-chip.on { color: var(--ui-title); border-color: transparent; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+/* THE "MORE" HERO DROPDOWN (owner ask 2026-10-18, HeroFilterChips.tsx): a chip with the Esc menu's chevron, opening the
+   Esc menu's dropdown list (`.escselect-list`, a one-shot entry) under it, right-aligned to the row's end. Each option is a
+   small round portrait, the name and the game count. A long list scrolls inside the list with the Career scrollbar. */
+.rg-filterbar { position: relative; z-index: 4; }
+.rg-more { position: relative; display: flex; }
+.rg-more-trigger { display: inline-flex; align-items: center; gap: 8px; padding-right: 14px; }
+.rg-more.open .rg-more-trigger { color: #fff; border-color: rgba(232, 200, 119, 0.75); }
+.rg-more.open .rg-more-trigger.on { color: var(--ui-title); border-color: transparent; }
+.rg-more.open .escchev { transform: rotate(180deg); }
+.escselect-list.rg-more-list { left: auto; right: 0; top: calc(100% + 8px); width: max-content; min-width: 300px; max-height: min(460px, calc(60 * var(--vh, 1vh)));
+  overflow-y: auto; overscroll-behavior: contain; padding: 6px 8px 6px 6px; }
+.rg-more-opt { display: flex; align-items: center; gap: 12px; flex: none; padding: 6px 12px 6px 6px; min-height: 46px; }
+.rg-more-face { flex: none; width: 34px; height: 34px; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.45); box-shadow: 0 0 0 1.5px rgba(196, 160, 92, 0.6); }
+.rg-more-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rg-more-name { flex: 1 1 auto; white-space: nowrap; }
+.rg-more-opt:first-child .rg-more-name { padding-left: 6px; }
+.rg-more-n { flex: none; margin-left: 18px; font-size: 14px; font-weight: 800; color: rgba(232, 200, 119, 0.8); white-space: nowrap; }
+.rg-more-opt.on .rg-more-n { color: rgba(36, 23, 5, 0.75); }
 .rg-list.lb-rows { gap: 12px; }
 /* The game card on Recent Games: one band. */
 .rg-page .gc .gc-body { grid-template-columns: 104px 300px minmax(0, 1fr); grid-template-areas: 'place hero board' 'place meta board' 'place side board';

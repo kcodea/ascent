@@ -22,6 +22,8 @@ import { GameCard, bandOf, placeText } from './GameCard';
 import { outcomeOf, partialText, playedAtText, recordText, runLengthText } from './leaderboardData';
 import { heroPortrait, opponentSkins } from './skins/skins';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
+import { HeroFilterChips } from './HeroFilterChips';
+import { heroFilterCounts } from './heroFilter';
 
 /**
  * Recent Games (owner ask 2026-08-11; polished 2026-09-20) — the last 100 finished games across ALL players (20, then 50, on 2026-10-16),
@@ -253,12 +255,10 @@ export function RecentGames(): JSX.Element | null {
   const all: FeedRow[] | null = practice ? practiceRows : rows;
   const shown = useMemo(() => (all && heroFilter ? all.filter((r) => r.heroId === heroFilter) : all), [all, heroFilter]);
   const keyOf = useCallback((r: FeedRow, i: number): string => `${tab}-${r.rowId ?? r.author ?? '?'}-${r.createdAt ?? ''}-${i}`, [tab]);
-  // The hero chips: the heroes in this feed, most played first (at most eight, plus All).
-  const heroChips = useMemo(() => {
-    const n = new Map<string, number>();
-    for (const r of all ?? []) if (r.heroId) n.set(r.heroId, (n.get(r.heroId) ?? 0) + 1);
-    return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([id]) => id);
-  }, [all]);
+  // The hero filter: every hero in this feed with its game count, most played first (HeroFilterChips shows as many as
+  // fit on one line as chips, the rest behind "More"). Memoised on the feed, so a pick or a hover never recounts.
+  const heroCounts = useMemo(() => heroFilterCounts(all), [all]);
+  const pickHero = useCallback((id: string | null): void => { setHeroFilter(id); setPicked(null); }, []);
 
   // Open the clicked game inside the player's Career, expanded to that run. The Career header wants a
   // rating / games-played that the feed row doesn't carry, so pull the player's profile first (best-effort —
@@ -378,14 +378,7 @@ export function RecentGames(): JSX.Element | null {
               <Icon name="target" />Practice
             </button>
           </div>
-          {heroChips.length > 0 && (
-            <div className="rg-filters" role="group" aria-label="Filter by hero">
-              <button type="button" className={`rg-chip${heroFilter === null ? ' on' : ''}`} aria-pressed={heroFilter === null} onClick={() => { setHeroFilter(null); setPicked(null); }}>All heroes</button>
-              {heroChips.map((id) => (
-                <button type="button" key={id} className={`rg-chip${heroFilter === id ? ' on' : ''}`} aria-pressed={heroFilter === id} onClick={() => { setHeroFilter(id); setPicked(null); }}>{getHero(id).name}</button>
-              ))}
-            </div>
-          )}
+          <HeroFilterChips counts={heroCounts} value={heroFilter} onChange={pickHero} />
         </div>
         {body}
       </div>

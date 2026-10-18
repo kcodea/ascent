@@ -10,7 +10,8 @@ import { validateInventoryBody } from './inventory';
  * EMOTES (owner spec 2026-10-13): "Emotes are a new COSMETIC type in Collections ... Players equip up to 4 in
  * Collections." Reworked 2026-10-15: "remove all emotes as 'given' and put them in various loot tiers between rare and
  * legendary. wire all the new ones that i added", "remove the angry mushy emote", then "all emotes are crate only except
- * give all players the zen brian emote and show the empty emote slots", then "remove the sad wrangler".
+ * give all players the zen brian emote and show the empty emote slots", then "remove the sad wrangler". 2026-10-18: "add
+ * the emote cosmetics i added" (nine more, crate only).
  */
 /** Angry Mushy was a starter until the owner retired it on 2026-10-15. */
 const RETIRED = 'emote_angry_mushy';
@@ -25,7 +26,7 @@ const ABC = [A, B, C];
 afterEach(() => setServerCatalogState(null));
 
 describe('the emote catalog', () => {
-  it('Zen Brian is the one STARTER; eleven CRATE emotes, 4 Rare / 4 Epic / 3 Legendary (EmoteTemplate is not one)', () => {
+  it('Zen Brian is the one STARTER; twenty CRATE emotes, 8 Rare / 7 Epic / 5 Legendary (EmoteTemplate is not one)', () => {
     expect(COSMETIC_CATEGORY_DEFS.emote).toEqual({ id: 'emote', label: 'Emotes', weight: 10, enabled: true, target: 'global' });
     const live = COSMETICS.filter((c) => c.category === 'emote' && c.active);
     expect(live.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.master])).toEqual([
@@ -34,13 +35,22 @@ describe('the emote catalog', () => {
       [B, 'Depressed Hank', 'rare', 'crate', 'DepressedHank.png'],
       ['emote_nervous_voss', 'Nervous Voss', 'rare', 'crate', 'NervousVoss.png'],
       ['emote_tara_sad', 'Tara Sad', 'rare', 'crate', 'TaraSad.png'],
+      ['emote_chronos_mad', 'Chronos Mad', 'rare', 'crate', 'ChronosMad.png'],
+      ['emote_rascal_broke', 'Rascal Broke', 'rare', 'crate', 'RascalBroke.png'],
+      ['emote_skeleton_wave', 'Skeleton Wave', 'rare', 'crate', 'SkeletonWave.png'],
+      ['emote_pup_pup', 'Pup Pup', 'rare', 'crate', 'PupPup.png'],
       [C, 'Flirty Midas', 'epic', 'crate', 'FlirtyMidas.png'],
       ['emote_happy_urchin', 'Happy Urchin', 'epic', 'crate', 'HappyUrchin.png'],
       ['emote_sly_oona', 'Sly Oona', 'epic', 'crate', 'SlyOona.png'],
       ['emote_dead_elder', 'Dead Elder', 'epic', 'crate', 'DeadElder.png'],
+      ['emote_gambler', 'Gambler', 'epic', 'crate', 'GamblerEmote.png'],
+      ['emote_sexy_darah', 'Sexy Darah', 'epic', 'crate', 'SexyDarahEmote.png'],
+      ['emote_angry_deathswarmer', 'Angry Deathswarmer', 'epic', 'crate', 'AngryDeathswarmer.png'],
       ['emote_rich_pimm', 'Rich Pimm', 'legendary', 'crate', 'RichPimm.png'],
       ['emote_baby_rubies', 'Baby Rubies', 'legendary', 'crate', 'BabyRubies.png'],
       ['emote_mad_tormentor', 'Mad Tormentor', 'legendary', 'crate', 'MadTormentor.png'],
+      ['emote_dan_the_man', 'Dan the Man', 'legendary', 'crate', 'DanTheManEmote.png'],
+      ['emote_iggy', 'Iggy', 'legendary', 'crate', 'Iggy.png'],
     ]);
     expect(live.every((c) => c.assets.art === c.id)).toBe(true);
     expect(COSMETICS.filter((c) => c.category === 'emote').some((c) => /template/i.test(c.id) || /template/i.test(String(c.assets.master)))).toBe(false);
@@ -79,7 +89,7 @@ describe('the emote catalog', () => {
 
   it('every live emote but Zen Brian drops from a crate, and only until it is owned', () => {
     const pool = eligibleCrateCosmetics([]).filter((c) => c.category === 'emote').map((c) => c.id);
-    expect(pool).toHaveLength(11);
+    expect(pool).toHaveLength(20);
     expect(pool).toEqual(expect.arrayContaining(ABC));
     expect(pool).not.toContain(Z);
     expect(eligibleCrateCosmetics([A]).map((c) => c.id)).not.toContain(A);
@@ -92,7 +102,7 @@ describe('the emote catalog', () => {
 
   it('the catalog sync sends Zen Brian as a starter and every other live emote as a targetless crate item', () => {
     const items = catalogSyncPayload().items.filter((i) => i.category === 'emote' && i.active);
-    expect(items).toHaveLength(12);
+    expect(items).toHaveLength(21);
     expect(items.find((i) => i.cosmeticId === Z)).toMatchObject({ acquisitionSource: 'starter', targetType: null, targetId: null });
     expect(items.filter((i) => i.cosmeticId !== Z).every((i) => i.acquisitionSource === 'crate' && i.targetType === null && i.targetId === null)).toBe(true);
   });

@@ -608,8 +608,9 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // (EmoteTemplate.png there is the blank template, not an emote). Names come from the filenames. Owner 2026-10-15:
   // "remove all emotes as 'given' and put them in various loot tiers between rare and legendary. wire all the new ones
   // that i added": every emote is a CRATE drop, spread by how expressive each is (a proposal the owner may re-tier: a
-  // one-word change per line), EXCEPT Zen Brian, the one starter (below). 4 Rare / 4 Epic / 3 Legendary in crates
-  // (Sad Wrangler, a Rare, retired 2026-10-15).
+  // one-word change per line), EXCEPT Zen Brian, the one starter (below). 8 Rare / 7 Epic / 5 Legendary in crates
+  // (Sad Wrangler, a Rare, retired 2026-10-15). Owner 2026-10-18: "add the emote cosmetics i added": nine more, crate
+  // only, spread the same way (a proposal; the "Emote" suffix on three filenames is dropped from the names).
   // RETIRED 2026-10-15 (owner: "remove the angry mushy emote"). Kept as an inactive row, never deleted: the id stays known
   // so an equipped slot or an old recorded board naming it degrades quietly (it is not live, so the menu skips that
   // position, a recording of it plays nothing, the Collection hides it). Its in-repo bubble art was removed with it.
@@ -627,15 +628,24 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // bubble art was removed with it (the master stays in the Game Assets folder).
   { ...emote('emote_sad_wrangler', 'Sad Wrangler', 'rare', 'SadWrangler.png'), active: false },
   emote('emote_tara_sad', 'Tara Sad', 'rare', 'TaraSad.png'),
+  emote('emote_chronos_mad', 'Chronos Mad', 'rare', 'ChronosMad.png'), // 2026-10-18
+  emote('emote_rascal_broke', 'Rascal Broke', 'rare', 'RascalBroke.png'), // 2026-10-18
+  emote('emote_skeleton_wave', 'Skeleton Wave', 'rare', 'SkeletonWave.png'), // 2026-10-18
+  emote('emote_pup_pup', 'Pup Pup', 'rare', 'PupPup.png'), // 2026-10-18
   // Epic: a bigger gesture or a little scene.
   emote('emote_flirty_midas', 'Flirty Midas', 'epic', 'FlirtyMidas.png'),
   emote('emote_happy_urchin', 'Happy Urchin', 'epic', 'HappyUrchin.png'),
   emote('emote_sly_oona', 'Sly Oona', 'epic', 'SlyOona.png'),
   emote('emote_dead_elder', 'Dead Elder', 'epic', 'DeadElder.png'),
+  emote('emote_gambler', 'Gambler', 'epic', 'GamblerEmote.png'), // 2026-10-18
+  emote('emote_sexy_darah', 'Sexy Darah', 'epic', 'SexyDarahEmote.png'), // 2026-10-18
+  emote('emote_angry_deathswarmer', 'Angry Deathswarmer', 'epic', 'AngryDeathswarmer.png'), // 2026-10-18
   // Legendary: the busiest, loudest bubbles.
   emote('emote_rich_pimm', 'Rich Pimm', 'legendary', 'RichPimm.png'),
   emote('emote_baby_rubies', 'Baby Rubies', 'legendary', 'BabyRubies.png'),
   emote('emote_mad_tormentor', 'Mad Tormentor', 'legendary', 'MadTormentor.png'),
+  emote('emote_dan_the_man', 'Dan the Man', 'legendary', 'DanTheManEmote.png'), // 2026-10-18
+  emote('emote_iggy', 'Iggy', 'legendary', 'Iggy.png'), // 2026-10-18
   // CARD PLATES (owner 2026-10-14): "This card plate is called Aquarium Rocks"; "aquariam rocks should be a legendary drop".
   cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'epic', 'Aquarium Rocks.png'), // owner 2026-10-17: "change aquarium rocks to epic rarity"
   // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".

@@ -9,7 +9,7 @@ import { parseProgressionProfile } from './rules';
  * THE EMOTE SQL, EXECUTED (owner spec 2026-10-13: "Players equip up to 4 in Collections"; reworked 2026-10-15: "remove
  * all emotes as 'given' and put them in various loot tiers between rare and legendary", then "all emotes are crate only
  * except give all players the zen brian emote"). PGlite runs the progression migrations in order up to
- * 2026-10-13-emotes.sql, syncs the code catalog (the emote category, Zen Brian as the one STARTER, eleven CRATE emotes
+ * 2026-10-13-emotes.sql, syncs the code catalog (the emote category, Zen Brian as the one STARTER, twenty CRATE emotes since 2026-10-18
  * and the retired Angry Mushy and Sad Wrangler) and drives `equip_cosmetic` on the four-position `emote` slot: Zen Brian equips with no
  * ownership row, a crate emote needs one; a position is '0'..'3'; an emote MOVES (it leaves its other position); every
  * older slot still works; a re-run changes nothing; clients can never call it. It also syncs over the #2099 catalog
@@ -105,23 +105,23 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('the emote catalog (2026-10-15: Zen Brian the one starter, crate emotes, Angry Mushy + Sad Wrangler retired)', () => {
-  it('the sync adds the category (global, on), Zen Brian as a starter, eleven live CRATE emotes and the two retired', async () => {
+  it('the sync adds the category (global, on), Zen Brian as a starter, twenty live CRATE emotes and the two retired', async () => {
     expect(await one("select enabled, target from public.cosmetic_categories where category = 'emote'")).toEqual({ enabled: true, target: 'global' });
     const rows = (await db.query<{ cosmetic_id: string; acquisition_source: string; rarity: string; active: boolean }>("select cosmetic_id, acquisition_source, rarity, active from public.cosmetic_catalog where category = 'emote' and target_type is null order by cosmetic_id")).rows;
     expect(rows.find((r) => r.cosmetic_id === RETIRED)).toEqual({ cosmetic_id: RETIRED, acquisition_source: 'starter', rarity: 'common', active: false });
     expect(rows.find((r) => r.cosmetic_id === Z)).toEqual({ cosmetic_id: Z, acquisition_source: 'starter', rarity: 'common', active: true });
     expect(rows.find((r) => r.cosmetic_id === RETIRED_CRATE)).toEqual({ cosmetic_id: RETIRED_CRATE, acquisition_source: 'crate', rarity: 'rare', active: false });
     const crate = rows.filter((r) => r.active && r.cosmetic_id !== Z);
-    expect(crate).toHaveLength(11);
+    expect(crate).toHaveLength(20);
     expect(crate.every((r) => r.acquisition_source === 'crate')).toBe(true);
-    expect(crate.map((r) => r.rarity).sort()).toEqual([...Array(4).fill('epic'), ...Array(3).fill('legendary'), ...Array(4).fill('rare')]);
+    expect(crate.map((r) => r.rarity).sort()).toEqual([...Array(7).fill('epic'), ...Array(5).fill('legendary'), ...Array(8).fill('rare')]);
   });
 
   it('every crate emote is in a fresh player\x27s crate pool; Zen Brian and the retired one never are', async () => {
     const u = await player();
     const pool = (await db.query<{ pool_cosmetic_id: string }>('select pool_cosmetic_id from public.progression_crate_pool($1)', [u])).rows.map((r) => r.pool_cosmetic_id);
-    for (const id of [A, B, 'emote_baby_rubies', 'emote_mad_tormentor']) expect(pool).toContain(id);
-    expect(pool.filter((id) => id.startsWith('emote_'))).toHaveLength(11);
+    for (const id of [A, B, 'emote_baby_rubies', 'emote_mad_tormentor', 'emote_iggy', 'emote_pup_pup']) expect(pool).toContain(id);
+    expect(pool.filter((id) => id.startsWith('emote_'))).toHaveLength(20);
     expect(pool).not.toContain(Z);
     expect(pool).not.toContain(RETIRED);
     expect(pool).not.toContain(RETIRED_CRATE);

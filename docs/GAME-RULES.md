@@ -527,13 +527,14 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
   voice, owned or not.
-- **Emotes (2026-10-13, reworked 2026-10-15; R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your
+- **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18; R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your
   hero says in a game. Right-click YOUR hero portrait (shop or combat) for your emote menu; pick one and it pops up
   beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
   **Zen Brian is everyone's** (the one STARTER emote, guests included). **Every other emote comes from crates**
-  (owner 2026-10-15): Rare **Nervous Jensen**, **Depressed Hank**, **Nervous Voss**, **Tara Sad**;
-  Epic **Flirty Midas**, **Happy Urchin**, **Sly Oona**, **Dead Elder**; Legendary **Rich Pimm**, **Baby Rubies**,
-  **Mad Tormentor**, at the normal crate odds (rarity first, then an equal share). The menu **always shows four slots**:
+  (owner 2026-10-15; nine more 2026-10-18): Rare **Nervous Jensen**, **Depressed Hank**, **Nervous Voss**, **Tara Sad**,
+  **Chronos Mad**, **Rascal Broke**, **Skeleton Wave**, **Pup Pup**; Epic **Flirty Midas**, **Happy Urchin**, **Sly Oona**,
+  **Dead Elder**, **Gambler**, **Sexy Darah**, **Angry Deathswarmer**; Legendary **Rich Pimm**, **Baby Rubies**,
+  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal crate odds (rarity first, then an equal share). The menu **always shows four slots**:
   the emotes you placed, then your other owned emotes in catalog order (a new emote is usable at once), and every slot
   left over is a visibly EMPTY slot (a dashed frame reading "Empty", not clickable; hovering it says "Empty slot. Find
   more emotes in crates."). A fresh account sees Zen Brian and three empty slots. The crate reveal shows a won emote's

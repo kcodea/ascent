@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-17',
     changes: [
+      { category: 'Systems', text: 'The Gauntlet and Learn tiles sit a little lower on the mode screen, and hero power text sits lower under thick portrait frames so it is never covered.' },
       {
         category: 'Systems',
         text: 'Recorded opponents now bring the right board in round 1.',

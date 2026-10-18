@@ -5854,6 +5854,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .herocard.big .hcpw { opacity: 0; transition: opacity 0.28s ease; color: #efe6d4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9); }
 .herocard.big .hcpw b { color: var(--acc); }
 .herocard.big:hover .hcpw { opacity: 1; }
+/* 14px lower (owner 2026-10-17: "can we move the hero description down a bit? its being blocked by thicker portrait
+   frames"): a thick portrait frame pushes the HP pill into the text's first line. The re-roll row below moved down
+   the same 14px (`.hcreroll-slot`), so the longest power text still clears it. */
+.herocard.big .hcbelow > .hcpw { top: 14px; bottom: auto; }
 .herocard.big .hcpw .hclock { display: inline-block; margin-top: 8px; background: rgba(0, 0, 0, 0.35); }
 /* PRACTICE-ONLY note (owner ask 2026-08-23) — a pill on the PORTRAIT's lower band, above the HP pill. It is
    absolutely positioned so it adds no height: the text block below the frame reserves a fixed height, and an
@@ -5873,10 +5877,10 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    Runeforge re-roll's navy Gem plate (gold rim, theme hover) as a round 64px icon button with the shop's refresh glyph.
    It is a SIBLING of the card button (a button cannot nest one), in `.hcslot`'s column under the card. The row under
    the card is RESERVED (`.hcreroll-slot`, fixed height) whether or not the button is there, so spending the re-roll
-   never moves the cards. Its 24px top margin clears the longest hover power text (Soren's runs 27px past `.hcbelow`;
-   measured over every hero 2026-10-15). No `cursor`: the global button rule paints the gauntlet. Once spent, every control unmounts. */
+   never moves the cards. Its 38px top margin clears the longest hover power text (Soren's runs 27px past `.hcbelow`;
+   measured over every hero 2026-10-15; the text sits 14px lower since 2026-10-17, so 24 became 38). No `cursor`: the global button rule paints the gauntlet. Once spent, every control unmounts. */
 .hcslot { position: relative; display: flex; flex-direction: column; align-items: center; }
-.hcreroll-slot { height: 68px; margin-top: 24px; display: flex; align-items: flex-start; justify-content: center; }
+.hcreroll-slot { height: 68px; margin-top: 38px; display: flex; align-items: flex-start; justify-content: center; }
 .hcreroll {
   position: relative; z-index: 6;
   width: 64px; height: 64px; padding: 0; display: grid; place-items: center; border-radius: 50%;
@@ -8560,7 +8564,10 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
    move, so the "Last played" tag (`.mclast`) marks the habit instead. Hover = a 4px lift + a glow ring whose
    OPACITY fades (the ring's shadow is static, the `kwglow` pattern); nothing loops. The art pan/zoom vars are the
    dev Play Mode Screen tuner's (modePickConfig.ts); fallbacks are neutral. ── */
-.mpgrid { display: grid; grid-template-columns: 900px 396px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px; row-gap: 58px; }
+.mpgrid { display: grid; grid-template-columns: 900px 396px; grid-template-areas: 'hero side' 'row row'; column-gap: 28px;
+  /* 80, was 58 (owner 2026-10-17: "nudge gauntlet and learn nodes down a bit"): clears the Play button that hangs below
+     the hero card and the Gauntlet / Learn name tabs. */
+  row-gap: 80px; }
 /* The picker sits centred on the stage, a little below the middle, with room under the bottom row. */
 .modepick.mp-home { place-items: center; padding: 30px 0 56px; }
 .mc-hero { grid-area: hero; }

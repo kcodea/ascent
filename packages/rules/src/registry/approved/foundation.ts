@@ -6516,4 +6516,159 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-17',
     },
   },
+  // ── Mobile touch pass 1 (owner 2026-10-18: Home Screen app on an iPhone, landscape) ─────────────────────────
+  {
+    id: 'R-TOUCH-AIMTAP-01',
+    title: 'On touch, tap the hero power (or Equipment), then tap the minion, and it fires',
+    statement:
+      'A targeted hero power or Equipment can be used with two clean taps: tap the power to arm it, then tap a valid '
+      + 'minion and it fires on it. Tapping anything else cancels it, spending nothing. The release of the press that '
+      + 'armed it never fires or cancels, so a plain tap on the power still just arms it. Press, drag and release onto a '
+      + 'minion still works, and the mouse is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (approving the first mobile touch PR from the read-only mobile audit)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (aimReleaseResolves); packages/ui/src/Recruit.tsx (the hero power aim effect: pressedSinceArm)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, the aim release returned early unless a pointermove '
+      + 'had happened, and a finger tap sends none, so on a phone the power stayed armed after the second tap.',
+    example: 'Quillen on an iPhone: tap Archive, then tap a shop minion. It is archived (1/3) and the power disarms.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-LONGPRESS-01',
+    title: 'On touch, tap and hold is the right-click: Inspect, emotes, muting a spectator, pinning a scout',
+    statement:
+      'A finger held still for about 350 ms (moving less than about 10 px) does what a right-click does on that spot: '
+      + 'the enlarged Inspect view of any card (shop, board, hand, Discover, Choose One), the emote menu on your own '
+      + 'portrait, muting a spectator\x27s emotes, or pinning a lobby seat\x27s scout card. Where there is no right-click '
+      + '(a hero select card, a Runeforge offer) it opens the hover view instead. A short tap keeps its old action. '
+      + 'Moving past the slop cancels the hold and the drag starts as before, and once the hold has fired that finger '
+      + 'cannot start a drag. The browser\x27s own long-press menu is swallowed so nothing fires twice, the release does '
+      + 'not also count as a tap, and iOS shows no text selection or callout. Phones that support it give a short '
+      + 'vibration when it fires.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (approving the first mobile touch PR from the read-only mobile audit)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (createLongPress, installTouchInput, longPressActive); packages/ui/src/Recruit.tsx (dragThreshold); styles.css (.herocard.big.tt-on)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, Inspect on a card whose tap commits (Discover, Choose '
+      + 'One, hero select), the emote menu and spectator muting were right-click only, so unreachable on an iPhone.',
+    example: 'Hold a Discover option: its big view opens with a Pick button. Hold your portrait: the emote menu opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-INSPECTACT-01',
+    title: 'On touch, the Inspect view of a shop card has Buy, and of a Discover or Choose One option has Pick',
+    statement:
+      'When a finger opens the enlarged Inspect view of a shop offer, a Buy button under the card buys it (the same '
+      + 'buy a drag into your half does, still refused without the Gold or a hand slot). Opened on a Discover, Choose '
+      + 'One or quest option, a Pick button takes that option. Your own board, hand and combat cards get no button, and '
+      + 'a replay viewer or spectator never gets one. The mouse Inspect view is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (approving the first mobile touch PR from the read-only mobile audit)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (inspectActionFor, lastTouchTarget); packages/ui/src/Inspect.tsx (the .inspect-act button)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, the Inspect view had no actions.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-AUDIO-01',
+    title: 'Sound unlocks on the first tap on iOS and comes back after an interruption',
+    statement:
+      'The game\x27s audio starts on the first touch, click or key press, including the touchend and click that iOS '
+      + 'requires. It keeps listening for the life of the page, so after iOS interrupts audio (a call, Siri, the app '
+      + 'sent to the background) the next tap brings it back, and returning to the page tries to resume it at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (approving the first mobile touch PR from the read-only mobile audit)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements' },
+      { kind: 'code', ref: 'packages/ui/src/audioUnlock.ts (installAudioUnlock, needsResume); packages/ui/src/sfx.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, the context was warmed on the first pointerdown or '
+      + 'keydown only (iOS does not accept pointerdown) and the listeners were then removed, so nothing resumed an '
+      + 'interrupted context.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audioUnlock.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-SAFEAREA-01',
+    title: 'Nothing sits under the notch, the Dynamic Island or the home indicator, in either landscape rotation',
+    statement:
+      'The 16:9 game area fits inside the device safe area, at its tuned size, so no board, card or HUD element sits '
+      + 'under the notch, the Dynamic Island or the home indicator, with the island on either side. Edge-anchored UI '
+      + '(the corner buttons, the version, the title\x27s account card, menu and footer, the menu sidebar, hero select\x27s '
+      + 'Main Menu button, the Versus room controls, the lobby rail) is inset by that side\x27s safe area. Backgrounds '
+      + 'still reach the physical edges. Off a notched device nothing moves.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (iPhone, Home Screen app, landscape)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements and it\x27s annoying' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (fitStage insets, readSafeInsets, applyStage --safe-*); styles.css (:root --safe-*, --avw/--avh, --gw/--gh, --edge-*)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, the stylesheet added a raw env(safe-area-inset-*) '
+      + 'inside the scaled stage, so the stage transform shrank a 59 px island inset to about 21 px on screen, and the '
+      + 'title, menus and hero select ignored the inset entirely.',
+    example: 'iPhone 15 landscape (59 px island inset): the title footer, the menu sidebar and the gear button all sit clear of the island.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/safeArea.test.ts', 'packages/ui/src/stage.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-FILL-01',
+    title: 'The game fills the whole screen on any aspect: backgrounds bleed to the edges, corner UI moves out',
+    statement:
+      'On a screen wider (or taller) than 16:9, the backgrounds cover the whole screen with no bars, the 16:9 game '
+      + 'area stays centred, and the corner UI moves out to the real screen edges (inset by the safe area) instead of '
+      + 'hugging the 16:9 area. A 16:9 desktop is unchanged at every size. In a Home Screen app on a phone, the stage '
+      + 'always covers the whole screen, even when the browser reports a stale window size after a rotation.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (phone screenshot, title screen, Home Screen app)', quote: 'Make sure it fills the screen too' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (windowSize, installStage settle); styles.css (--surplus-x/y, --edge-*)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-18 (fix/mobile-touch-input) in emulation (iPhone 19.5:9 both rotations, Android 20:9, 4:3 '
+      + 'iPad, 21:9 desktop). The owner\x27s black bar on a real iPhone Home Screen app is not reproducible in desktop '
+      + 'Chrome; the stale-size guard and the re-fit after rotation are the fix for the likely cause, to confirm on device.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/safeArea.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-WORDING-01',
+    title: 'Help, rules and Settings text uses touch words on a phone or tablet',
+    statement:
+      'On a touch device (no hover, a coarse pointer), help, rules and Settings text that names a mouse or keyboard '
+      + 'control says the touch version: "Right-click" becomes "Tap and hold", "Hover" becomes "Tap", "Press Tab" '
+      + 'becomes the book button, and the frame-rate note drops the GPU driver advice. A touchscreen laptop with a mouse '
+      + 'keeps the mouse wording.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (approving the first mobile touch PR from the read-only mobile audit)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (isTouchDevice, touchText, touchWording); CompendiumRules.tsx; rulesWiki aTouch; EscMenu.tsx; WatchersBadge.tsx; CollectionScreen.tsx' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, every device read the mouse wording.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-ROTATE-01',
+    title: 'A tablet can play upright; only a phone is asked to rotate',
+    statement:
+      'Held upright, a phone shows the "Rotate your device" prompt. A tablet (its shorter side at least 700 px) plays '
+      + 'upright too, with the 16:9 game letterboxed top and bottom and the backgrounds filling the rest.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (approving the first mobile touch PR from the read-only mobile audit)', quote: 'I added it to Home Screen and the camera line also lines up with some ui elements' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (isTabletSize, data-tablet); styles.css (.rotate-prompt); Boot.tsx (wording)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, every touch device in portrait was blocked and the prompt said "phone".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/safeArea.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

@@ -32,6 +32,7 @@ import { CARD_PLATE_LOOKS, type CardPlateLook } from '../cardPlate/cardPlateLook
 import { clearLocalEmotes, equipEmoteLocally, useEmoteSlots } from '../emotes/emoteLoadout';
 import '../emotes/emotes.css';
 import './collection.css';
+import { touchText } from '../touchInput';
 
 /**
  * THE COLLECTION SCREEN (owner ask 2026-09-28: "make the collection screen separate"; relaid out the same day:
@@ -548,7 +549,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
         {voice && <div className="colls-fact"><span>For</span><b>The voice calling your games. Only you hear it</b></div>}
         {plate && <div className="colls-fact"><span>For</span><b>Your cards, seen by the players you meet. Gilded cards keep their gold plate</b></div>}
         {plate && showDefault && !equipped && <div className="colls-fact"><span>In use</span><b>Standard plate</b></div>}
-        {emote && <div className="colls-fact"><span>For</span><b>Your hero. Right-click your portrait in a game to say it</b></div>}
+        {emote && <div className="colls-fact"><span>For</span><b>Your hero. {touchText('Right-click', 'Tap and hold')} your portrait in a game to say it</b></div>}
         {emote && emotePosition >= 0 && <div className="colls-fact"><span>In your menu</span><b>Slot {emotePosition + 1}</b></div>}
         {/* Owned: where it came from. Missing: the hint under the facts already says how to get it (it repeated it). */}
         {owned && <div className="colls-fact"><span>How to get</span><b>{acquisitionText(item)}</b></div>}

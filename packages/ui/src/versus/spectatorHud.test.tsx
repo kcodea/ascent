@@ -186,7 +186,8 @@ describe('R-SPECTATE-HUD-01: me top left, the watched player and the switcher bo
     const rule = css.match(/\.vswatchpanel \{([^}]*)\}/)![1]!;
     expect(rule).toMatch(/left: auto/);
     expect(rule).toMatch(/right: calc/);
-    expect(rule).toMatch(/bottom: calc\(var\(--bar-y, 0px\) \+ 16px \+ 40 \* var\(--u\)/);
+    // It rides the corner buttons, which sit on the real screen edge since R-TOUCH-FILL-01 (2026-10-18).
+    expect(rule).toMatch(/bottom: calc\(var\(--edge-b, 0px\) \+ 16px \+ 40 \* var\(--u\)/);
   });
 });
 

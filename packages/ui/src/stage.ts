@@ -31,14 +31,45 @@ export interface StageFit {
   /** The LAYOUT viewport (what `100vw` / `100vh` mean inside the stage), in layout px. >= the design size. */
   lw: number;
   lh: number;
+  /** THE SAFE AREA, per side, in LAYOUT px (the screen inset / s): the notch / Dynamic Island / home indicator. */
+  safe: SafeInsets;
 }
 
-/** Pure fit math: the uniform scale that fits a design-size layout into a `vw` × `vh` window. */
-export function fitStage(vw: number, vh: number): StageFit {
+/** Safe-area insets (`env(safe-area-inset-*)`), per side. */
+export interface SafeInsets { top: number; right: number; bottom: number; left: number }
+export const NO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
+
+/**
+ * Pure fit math: the uniform scale that fits a design-size layout into a `vw` × `vh` window, AFTER taking the safe
+ * area off (owner 2026-10-18, R-TOUCH-SAFEAREA-01: "the camera line also lines up with some ui elements").
+ *
+ * `insets` are SCREEN px (what `env(safe-area-inset-*)` reports). The 16:9 game box must sit clear of them, so the scale
+ * is fitted to the window less the insets (symmetric per axis: the box is centred, so the larger side counts for both),
+ * which keeps the box exactly the tuned 1920 x 1080 layout. The layout viewport still covers the WHOLE window (its
+ * origin stays the window's top-left, so `toStage` is unchanged) and backdrops keep bleeding to the physical edges.
+ * The insets come back in LAYOUT px (`safe`) for the stylesheet's `--safe-*` vars. Before this the stylesheet added raw
+ * `env()` inside the scaled stage, where the transform shrank a 59 px island inset to about 21 px on screen.
+ */
+export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS): StageFit {
   const w = vw > 0 ? vw : DESIGN_W;
   const h = vh > 0 ? vh : DESIGN_H;
-  const s = Math.min(1, w / DESIGN_W, h / DESIGN_H);
-  return { s, lw: w / s, lh: h / s };
+  const ix = Math.max(0, insets.left, insets.right);
+  const iy = Math.max(0, insets.top, insets.bottom);
+  const aw = w - 2 * ix > 0 ? w - 2 * ix : w;
+  const ah = h - 2 * iy > 0 ? h - 2 * iy : h;
+  const s = Math.min(1, aw / DESIGN_W, ah / DESIGN_H);
+  const safe = { top: Math.max(0, insets.top) / s, right: Math.max(0, insets.right) / s, bottom: Math.max(0, insets.bottom) / s, left: Math.max(0, insets.left) / s };
+  return { s, lw: w / s, lh: h / s, safe };
+}
+
+/** The shorter window side from which a touch device counts as a TABLET (it may play portrait, letterboxed). */
+export const TABLET_MIN_SIDE = 700;
+/** Pure: is a `w` x `h` window tablet-sized (its shorter side at least `TABLET_MIN_SIDE`)? */
+export function isTabletSize(w: number, h: number): boolean { return Math.min(w, h) >= TABLET_MIN_SIDE; }
+
+/** The box-clearing margin per axis, layout px: the larger of the two sides (the box is centred). */
+export function safeAxes(f: StageFit): { x: number; y: number } {
+  return { x: Math.max(f.safe.left, f.safe.right), y: Math.max(f.safe.top, f.safe.bottom) };
 }
 
 /** The `data-lv` tokens for a fit: which layout-viewport breakpoints hold (see the `[data-lv~=…]` rules in styles.css). */
@@ -53,7 +84,7 @@ export function layoutBreakpoints(f: StageFit): string[] {
 
 // The identity until `installStage()` / `applyStage()` runs: nothing is scaled before the transform exists, and a
 // test environment (jsdom's 1024x768 window) never installs it, so its helpers stay exact no-ops.
-let fit: StageFit = { s: 1, lw: typeof window === 'undefined' ? DESIGN_W : window.innerWidth, lh: typeof window === 'undefined' ? DESIGN_H : window.innerHeight };
+let fit: StageFit = { s: 1, lw: typeof window === 'undefined' ? DESIGN_W : window.innerWidth, lh: typeof window === 'undefined' ? DESIGN_H : window.innerHeight, safe: NO_INSETS };
 const listeners = new Set<(f: StageFit) => void>();
 
 /** The current stage scale (screen px per layout px). */
@@ -107,14 +138,70 @@ export function stageHost(): HTMLElement {
  * that styles.css uses in place of raw `vw` / `vh`, and the transform on `#stage`. Called on boot and on every
  * resize / orientation change (never per frame).
  */
+/**
+ * The safe-area insets in SCREEN px, read off a hidden probe whose padding is `env(safe-area-inset-*)`. The probe lives
+ * on `<html>`, OUTSIDE the transformed stage. One style read per resize / rotation, never per frame.
+ */
+export function readSafeInsets(): SafeInsets {
+  if (typeof document === 'undefined' || typeof getComputedStyle !== 'function') return NO_INSETS;
+  let probe = document.getElementById('safe-probe');
+  if (!probe) {
+    probe = document.createElement('div');
+    probe.id = 'safe-probe';
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;'
+      + 'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+    document.documentElement.appendChild(probe);
+  }
+  const c = getComputedStyle(probe);
+  const n = (v: string): number => { const x = parseFloat(v); return Number.isFinite(x) && x > 0 ? x : 0; };
+  return { top: n(c.paddingTop), right: n(c.paddingRight), bottom: n(c.paddingBottom), left: n(c.paddingLeft) };
+}
+
+/**
+ * The window size the stage must cover, screen px. `innerWidth` / `innerHeight`, except in an installed Home Screen
+ * app on a PHONE, where the app always IS the whole screen: there iOS can hand back a stale size after a rotation,
+ * and the stage then leaves a bar of bare background down one side (owner report 2026-10-18: "Make sure it fills the
+ * screen too"). So the screen's own size, oriented by the current orientation, wins whenever it is the larger.
+ */
+export function windowSize(): { w: number; h: number } {
+  let w = window.innerWidth;
+  let h = window.innerHeight;
+  try {
+    const nav = navigator as Navigator & { standalone?: boolean };
+    const standalone = nav.standalone === true
+      || (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches);
+    const sc = window.screen;
+    if (standalone && sc && sc.width > 0 && sc.height > 0) {
+      const long = Math.max(sc.width, sc.height);
+      const short = Math.min(sc.width, sc.height);
+      if (short <= 600) { // a phone (an iPad app can be a split-view window smaller than its screen)
+        const type = sc.orientation?.type;
+        const landscape = type ? type.startsWith('landscape') : w >= h;
+        const sw = landscape ? long : short;
+        const sh = landscape ? short : long;
+        if (sw * sh > w * h) { w = sw; h = sh; }
+      }
+    }
+  } catch { /* the plain window size stands */ }
+  return { w, h };
+}
+
 export function applyStage(): StageFit {
   if (typeof window === 'undefined') return fit;
-  const next = fitStage(window.innerWidth, window.innerHeight);
+  const { w, h } = windowSize();
+  const next = fitStage(w, h, readSafeInsets());
   fit = next;
   const de = document.documentElement.style;
+  // The SAFE AREA in layout px (R-TOUCH-SAFEAREA-01): the 16:9 box (`--gw` / `--gh`) and the edge-anchored HUD
+  // (`--edge-*`) read these, so the island and the home indicator never cover UI, in either landscape rotation.
+  de.setProperty('--safe-t', `${next.safe.top}px`); de.setProperty('--safe-r', `${next.safe.right}px`);
+  de.setProperty('--safe-b', `${next.safe.bottom}px`); de.setProperty('--safe-l', `${next.safe.left}px`);
   // Layout-viewport breakpoints for the few stylesheet rules that used to be viewport @media queries (a media
   // query sees the WINDOW, which on a scaled stage is not the size the layout is drawn at).
   document.documentElement.setAttribute('data-lv', layoutBreakpoints(next).join(' '));
+  // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01): the rotate prompt is phones only.
+  document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
   const root = stageHost();
   if (next.s === 1) {
     // Identity: the pre-stage behaviour exactly. Viewport units resolve against the real window.
@@ -143,8 +230,18 @@ export function installStage(): void {
   if (installed || typeof window === 'undefined') return;
   installed = true;
   applyStage();
+  // iOS reports a rotation before its new size (and its new safe-area insets) settle, so a rotation fits again a
+  // beat later. Two timers per rotation, never per frame.
+  let late: number[] = [];
+  const settle = (): void => {
+    applyStage();
+    late.forEach((t) => window.clearTimeout(t));
+    late = [150, 500].map((ms) => window.setTimeout(applyStage, ms));
+  };
   window.addEventListener('resize', applyStage);
-  window.addEventListener('orientationchange', applyStage);
+  window.addEventListener('orientationchange', settle);
+  window.addEventListener('pageshow', settle);
+  window.visualViewport?.addEventListener('resize', applyStage);
 }
 
 /** The 16:9 game box's caps (styles.css `--gw` / `--gh`: 16:9, never past 2560 x 1440 layout px). */
@@ -158,14 +255,17 @@ export interface GameBox { left: number; top: number; w: number; h: number }
  * R-SPECTATE-CURSOR-01).
  */
 export function gameBoxOf(f: StageFit): GameBox {
-  const w = Math.min(f.lw, (f.lh * 16) / 9, GAME_BOX_MAX_W);
-  const h = Math.min(f.lh, (f.lw * 9) / 16, GAME_BOX_MAX_H);
+  const { x, y } = safeAxes(f); // the box clears the safe area (styles.css `--gw` / `--gh`)
+  const aw = f.lw - 2 * x;
+  const ah = f.lh - 2 * y;
+  const w = Math.min(aw, (ah * 16) / 9, GAME_BOX_MAX_W);
+  const h = Math.min(ah, (aw * 9) / 16, GAME_BOX_MAX_H);
   return { left: ((f.lw - w) / 2) * f.s, top: ((f.lh - h) / 2) * f.s, w: w * f.s, h: h * f.s };
 }
 /** The game box for the current window. The fit is refreshed on resize, but jsdom / pre-install reads the window. */
 export function gameBox(): GameBox {
   if (typeof window !== 'undefined' && fit.s === 1 && (fit.lw !== window.innerWidth || fit.lh !== window.innerHeight)) {
-    return gameBoxOf({ s: 1, lw: window.innerWidth || DESIGN_W, lh: window.innerHeight || DESIGN_H });
+    return gameBoxOf({ s: 1, lw: window.innerWidth || DESIGN_W, lh: window.innerHeight || DESIGN_H, safe: NO_INSETS });
   }
   return gameBoxOf(fit);
 }

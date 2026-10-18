@@ -5,6 +5,9 @@ import type { WikiEntry } from './types';
 // packages/ui/src LobbyPanel.tsx, Title.tsx, PracticeOptions.tsx, EscMenu.tsx, Recruit.tsx (drag/cast/timer),
 // Career.tsx, Rankings.tsx, Leaderboard.tsx, RecentGames.tsx, EndScreen.tsx, replay/ReplayOverlay.tsx,
 // touchInput.ts, bug-report/ and store.ts on 2026-09-28.
+/** The touchscreen answer (owner 2026-10-18 mobile pass, R-TOUCH-LONGPRESS-01 / R-TOUCH-AIMTAP-01). */
+const TOUCH_CONTROLS = "Yep. Drag cards with your finger just like a mouse. A quick **tap** works like hovering: it opens tooltips and scout cards, and they stay open until you tap somewhere else. **Tapping a card** opens its big inspect view; tap the backdrop to close it. **Tap and hold** works like a right-click: it opens the big view of any card (Discover and Choose One picks too, with a **Pick** button), the emote menu on your portrait, and a pinned scout card on a lobby seat. To use a targeted hero power, tap the power, then tap the minion.";
+
 export const ENTRIES: readonly WikiEntry[] = [
   // ── Lobby: placements and how a game ends ─────────────────────────────────────────────────────────────
   {
@@ -95,6 +98,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     topic: 'lobby',
     q: 'Can I keep a scout card open?',
     a: "Yep. **Click** (left or right) an opponent's seat to pin their card, so you can hover the rune icons on it for their text. Click a different seat to switch, and click anywhere else or press **Esc** to close it.",
+    aTouch: "Yep. **Tap** an opponent's seat to pin their card, so you can tap the rune icons on it for their text. Tap a different seat to switch, and tap anywhere else to close it.",
     aliases: ['pin', 'keep open', 'lock scout', 'scout card closes'],
     seeAlso: ['scout-a-player'],
   },
@@ -404,7 +408,8 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'touch-controls',
     topic: 'controls',
     q: 'Can I play on a touchscreen?',
-    a: "Yep. Drag cards with your finger just like a mouse. A quick **tap** works like hovering: it opens tooltips and scout cards, and they stay open until you tap somewhere else. **Tapping a card** opens its big inspect view; tap the backdrop to close it.",
+    a: TOUCH_CONTROLS,
+    aTouch: TOUCH_CONTROLS, // already touch wording: never run through the hover / right-click swap
     aliases: ['touch', 'phone', 'tablet', 'mobile', 'tap', 'finger'],
     seeAlso: ['inspect-a-card'],
   },
@@ -422,6 +427,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     topic: 'controls',
     q: "How do I cancel a spell I'm dragging?",
     a: "**Right-click** while you're still dragging it. It goes straight back to your hand, unused. Dropping it back down onto your hand works too.",
+    aTouch: "Drop it back down onto your **hand**. It goes straight back, unused.",
     aliases: ['cancel', 'undo spell', 'put spell back', 'right click'],
     seeAlso: ['cast-a-spell'],
   },

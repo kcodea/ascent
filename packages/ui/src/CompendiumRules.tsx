@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { mdBold } from './Card';
 import { WIKI_BY_ID, WIKI_ENTRIES, WIKI_TOPICS, searchWiki, type WikiEntry, type WikiTopic } from './rulesWiki';
+import { isTouchDevice, touchWording } from './touchInput';
 
 /**
  * The Compendium's RULES panel (spec docs/superpowers/specs/2026-09-28-rules-wiki-design.md): a searchable,
@@ -49,7 +50,7 @@ export function CompendiumRules() {
         </button>
         {isOpen && (
           <div className="wiki-a">
-            <div dangerouslySetInnerHTML={{ __html: mdBold(e.a) }} />
+            <div dangerouslySetInnerHTML={{ __html: mdBold(isTouchDevice() ? (e.aTouch ?? touchWording(e.a)) : e.a) }} />
             {e.seeAlso && e.seeAlso.length > 0 && (
               <div className="wiki-see">
                 <span className="wiki-see-cap">See also</span>

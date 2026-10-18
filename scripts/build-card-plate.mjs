@@ -97,7 +97,9 @@ if (args.id) {
     //    to tuck TUCK px under the opening; stretch by the total and shift by the difference.
     const iw = Math.round(iw0 * fitSx), ox = Math.round((W - iw) / 2);
     const ib = await sharp(interiorFile).resize({ width: iw, height: ih, fit: 'fill' }).ensureAlpha().raw().toBuffer();
-    let down = 0, up = 0;
+    // -Infinity, not 0: an interior that reaches FAR past a low opening is pulled in to the TUCK too, or its top pokes
+    // out above the frame (Blood Omen on Wartorn, 2026-10-17).
+    let down = -Infinity, up = -Infinity;
     for (let x = 200; x <= 600; x += 10) {
       let y = Math.round(H / 2); while (y < H - 1 && !opaque(x, y)) y++; const openB = y;
       y = Math.round(H / 2); while (y > 0 && !opaque(x, y)) y--; const openT = y;

@@ -137,3 +137,29 @@ describe('touchUi.css can never reach a mouse device', () => {
     expect(readFileSync(join(__dirname, 'Game.tsx'), 'utf8')).toContain("import './touchUi.css'");
   });
 });
+
+describe('R-TOUCH-MENU-MEMORY-01: nothing hidden under an open menu holds a layer on a phone', () => {
+  const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+  const rules: { sel: string; body: string }[] = [];
+  postcss.parse(css).walkRules((r) => { for (const sel of r.selectors) rules.push({ sel: sel.trim(), body: r.nodes.map(String).join(';') }); });
+  const find = (part: string) => rules.filter((r) => r.sel.includes(part));
+  it('the three gameplay FX canvases leave the page while the title or a menu page is open', () => {
+    for (const target of ['> #root > .pixifx', '> canvas.pixifx-above', '> div > canvas.pixi-screen']) {
+      const hit = find(target);
+      expect(hit.length, target).toBe(1);
+      expect(hit[0].sel).toContain('#stage:has(> #root > :is(.titlescreen, .lbpage, .modepick))');
+      // !important: Pixi writes an inline display:block on its canvases.
+      expect(hit[0].body).toMatch(/display:\s*none\s*!important/);
+    }
+  });
+  it('never hides the wipe or the ranked gate canvases', () => {
+    for (const r of rules) expect(r.sel).not.toMatch(/wipefx|gatefx/);
+  });
+  it('the title art under a mode page and the mode home under another mode page stop painting', () => {
+    expect(find('.titlescreen:has(> .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
+    expect(find('.modepick.mp-home:has(~ .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
+  });
+  it('the touch sidebar never scrolls sideways', () => {
+    expect(rules.some((r) => r.sel === 'html[data-touch-ui] .msb' && /overflow-x:\s*hidden/.test(r.body))).toBe(true);
+  });
+});

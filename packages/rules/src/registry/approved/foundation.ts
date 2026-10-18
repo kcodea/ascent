@@ -6790,6 +6790,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
   {
+    id: 'R-TOUCH-MENU-MEMORY-01',
+    title: 'On a phone, nothing hidden under an open menu holds a full-screen layer',
+    statement:
+      'With the touch UI on, while the title or a menu page (the mode picker, Practice, Versus, Career, Leaderboard, '
+      + 'Recent Games, Live Games, Collection, hero select) is open, the gameplay effects canvases under it are taken out '
+      + 'of the page, the title art and buttons under an open mode page stop painting, the mode home under another mode '
+      + 'page stops painting, and the menu sidebar scrolls vertically only. Only things already invisible under an opaque '
+      + 'menu change, so nothing looks different, and a mouse device is untouched. Every menu screen stays inside the '
+      + 'phone layer-memory budget of scripts/phone-menu-memory.mjs (iPhone landscape, 3x).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a recent iPhone, opened from the Home Screen icon, on main b4746e35e)', quote: 'it crashes on the menus' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css (the phone memory block); scripts/phone-menu-memory.mjs (npm run perf:phone-menus)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-18 (fix/ios-menu-crash). Before, iOS paints each composited layer at its own size x 3, and '
+      + 'the three always-mounted FX canvases under the menus promoted every opaque menu layer over them to its own '
+      + 'full-screen layer (~87 MB each): estimated 227 to 685 MB per menu screen on main, 203 to 435 MB before the touch UI.',
+    example: 'iPhone landscape 932x430 @3x, Versus: 685 MB estimated layer memory on main, 295 MB after; hero select 491 to 101 MB.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:

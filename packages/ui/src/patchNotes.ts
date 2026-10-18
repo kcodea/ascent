@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-18',
     changes: [
       {
+        category: 'Systems',
+        text: 'Fixed the game closing itself on iPhone while you were on the menus, most often when opened from the Home Screen icon.',
+        details: [
+          'The menus now use far less memory on phones: the effects layers and the title art that sit hidden under a menu page stop drawing until you leave it.',
+          'Nothing looks different. Computers are unchanged.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Rune of the Embers now doubles Health after every other Shop buff from the same refresh, so the right-most minion ends at double its final Health.',
         details: [

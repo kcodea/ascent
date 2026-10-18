@@ -111,3 +111,24 @@ html[data-touch-ui][data-touch-small] .discover-ov.forge-ov:not(.anc-offer) .dis
 html[data-touch-ui][data-touch-small] .discover-ov.forge-ov { scale: var(--touch-forge); transform-origin: 50% 86%; }
 /* The Discover's Peek pill moves to the right edge, mid-height: under the enlarged cards there is no room left. */
 html[data-touch-ui][data-touch-small] .disc-toggle.disc-peek:not(.inspect-act) { top: 50%; left: calc(100% - 10% - var(--safe-r, 0px)); }
+
+/* ── Phone memory: no giant layers under the menus (owner 2026-10-18, R-TOUCH-MENU-MEMORY-01) ─────────────────────
+   "On a recent iPhone, from the Home Screen icon, it crashes on the menus." iOS paints every composited layer at the
+   layer's OWN size times the device pixel ratio (3 on an iPhone), not at the stage's on-screen scale. The stage is
+   laid out at about 2341 x 1080 and scaled to ~0.4, so ONE full-screen layer costs about 87 MB of backing store. Three
+   always-mounted Pixi FX canvases sit UNDER the menus, which forces every opaque menu layer drawn over them (the title,
+   the mode pages, the backdrop, the sidebars) into its own full-screen layer: 600 to 870 MB on a single menu screen.
+
+   Every rule here hides only what is ALREADY invisible: the menus are opaque, so nothing under them can be seen.
+     1. The gameplay FX canvases under an open title / menu page leave the layout (`display: none`; their renderers
+        size to the window, never to the element, so nothing resizes; `!important` beats the inline `display: block`
+        Pixi writes). The wipe and the ranked gate keep theirs.
+     2. The title's own art and buttons under an open mode page stop painting (the bobbing logo is a running animation
+        that promotes everything over it), and so does the mode home under another mode page (Versus, Learn ...).
+     3. The touch sidebar scrolls up and down only: a sideways overflow made it a two-way scroller. */
+html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) > #root > .pixifx,
+html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) > canvas.pixifx-above,
+html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) > div > canvas.pixi-screen { display: none !important; }
+html[data-touch-ui] .titlescreen:has(> .modepick) > :is(.titlemenu, .titleaccount, .titlefoot) { visibility: hidden; }
+html[data-touch-ui] .titlescreen > .modepick.mp-home:has(~ .modepick) { visibility: hidden; }
+html[data-touch-ui] .msb { overflow-x: hidden; }

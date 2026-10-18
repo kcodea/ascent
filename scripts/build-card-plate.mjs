@@ -9,6 +9,8 @@
  *   npm run plates:build -- --interior-src "C:/.../Blue Interior.png" --interior blue   (add a shared interior)
  *   npm run plates:build -- --id plate_beach --interior water --fit   (measure interiorSx / interiorSy / interiorY)
  *   npm run plates:build -- --id plate_simple_glass --interior grey --fit --fit-alpha 60   (a see-through frame)
+ *   npm run plates:build -- --id plate_goop --interior-sx 0.975 --interior-sy 0.977 --interior-y -0.0637 --art-scale 1.08
+ *                                                    (the Collection image of a plate with an `artScale`)
  *
  * Writes into apps/web/public/frames/plates/:
  *   <id>-frame.webp    the frame layer, 800x1244 (the standard plate body)
@@ -80,7 +82,8 @@ if (args.id) {
     // 1) WIDTH: the stretch that tucks the interior's silhouette TUCK px under the opening on both sides, over the
     //    middle 60% of the plate's height.
     const ib0 = await sharp(interiorFile).resize({ width: iw0 }).ensureAlpha().raw().toBuffer();
-    let fitSx = 1;
+    // 0, not 1: a frame smaller than the template (whole art scaled to fit, 2026-10-17) needs a NARROWER interior too.
+    let fitSx = 0;
     for (let fr = 0.2; fr <= 0.8; fr += 0.05) {
       const y = Math.round(it + ih * fr), iy = Math.round(ih * fr);
       let L = W / 2, R = W / 2;
@@ -120,8 +123,16 @@ if (args.id) {
   const iw = Math.round(iw0 * sx), ihs = Math.round(ih * sy);
   const top = Math.round(it + (ih - ihs) / 2 + (ny * W) / 1.5);
   const interiorBuf = await sharp(interiorFile).resize({ width: iw, height: ihs, fit: 'fill' }).png().toBuffer();
-  await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+  const composite = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
     .composite([{ input: interiorBuf, left: Math.round((W - iw) / 2), top }, { input: frameFile, left: 0, top: 0 }])
-    .webp({ quality: 90, alphaQuality: 100 }).toFile(join(OUT, `${id}.webp`));
-  console.log(`wrote ${id}.webp (Collection image; interior ${interior}, sx ${sx}, sy ${sy}, y ${ny})`);
+    .png().toBuffer();
+  // --art-scale: the plate's `artScale` (its art drawn bigger than the box, about its centre). The Collection image shows
+  // it at that size; what spills past the image's edge is cut HERE only (in game the art spills past the plate).
+  const artScale = Number(args['art-scale'] ?? 1);
+  const out = artScale > 1
+    ? sharp(await sharp(composite).resize(Math.round(W * artScale), Math.round(H * artScale)).png().toBuffer())
+      .extract({ left: Math.round((W * artScale - W) / 2), top: Math.round((H * artScale - H) / 2), width: W, height: H })
+    : sharp(composite);
+  await out.webp({ quality: 90, alphaQuality: 100 }).toFile(join(OUT, `${id}.webp`));
+  console.log(`wrote ${id}.webp (Collection image; interior ${interior}, sx ${sx}, sy ${sy}, y ${ny}, art x${artScale})`);
 }

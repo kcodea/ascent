@@ -13646,7 +13646,15 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlenav .menubtn.active .mblabel { font-size: 34px; letter-spacing: 0.16em; }
 .titlenav .menubtn.active .mbicon { width: 42px; height: 42px; }
 .titlenav .menubtn.active .mbicon .crest { font-size: 34px; }
-.titlenav .continuerow .menubtn.active .mbnote { font-size: 14px; }
+/* CONTINUE stacks its round line UNDER the label (owner 2026-10-18, "continue text is cut off"). The row is the
+   menu column minus the trash button, so the big label plus a right-aligned note overflowed the plaque and the
+   note was clipped by its overflow: hidden. Stacked, the note is small muted ink on the gold and wraps rather
+   than clips; the label steps down a size so it fits the narrower seat at every width. */
+.titlenav .continuerow .menubtn.active { padding: 15px 22px; gap: 14px; }
+.titlenav .continuerow .menubtn.active .mbstack { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; flex: 1; }
+.titlenav .continuerow .menubtn.active .mblabel { font-size: 30px; letter-spacing: 0.12em; line-height: 1.05; white-space: nowrap; }
+.titlenav .continuerow .menubtn.active .mbnote { margin-left: 0; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; line-height: 1.15;
+  opacity: 0.72; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 
 /* The corner footer: links then the build stamp, bottom left. */
 .titlefoot { zoom: var(--ui-zoom); position: absolute; left: calc(36px + var(--safe-l) / var(--ui-zoom)); bottom: calc(18px + var(--safe-b) / var(--ui-zoom)); z-index: 2; display: flex; align-items: center; gap: 18px; }

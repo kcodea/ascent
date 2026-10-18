@@ -188,9 +188,9 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
-        text: 'Twenty-one more Card Plates to find in crates.',
+        text: 'Twenty-four more Card Plates to find in crates.',
         details: [
-          'Also new: Spirit Carving, Iridescent, Mystic Obsidian, Porcelain, Smooth Iridescent, Battletorn, Ethereal, Phoenix, Round Magic, Verdant Magic, Phoenix Plate, Emerald and Gilt Etched (Legendary).',
+          'Also new: Spirit Carving, Iridescent, Mystic Obsidian, Porcelain, Smooth Iridescent, Battletorn, Ethereal, Phoenix, Round Magic, Verdant Magic, Phoenix Plate, Emerald, Gilt Etched, Astral Relic, Blood Omen and Honey (Legendary).',
           'New Card Plates: Simple Glass (Ancient); Dark Arcane (Epic); Stonevines and Chrome (Legendary); Standard Black, Standard Blue, Standard Pink and Standard Teal (Rare).',
           'Hand Drawn, Blue Hand Drawn and Green Hand Drawn are now Epic.',
         ],

@@ -174,6 +174,12 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // slightly off the template (944x1510, 1005x1565), so they were scaled onto it first like Battletorn.
   plate_emerald: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.054, interiorSy: 1.036, interiorY: -0.0159, darken: false },
   plate_gilt_etched: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.06, interiorSy: 1.011, interiorY: 0.0103, darken: false },
+  // Owner 2026-10-17 batch: Astral Relic on Dark, Blood Omen on Wartorn, Honey on Brown (keeps the darkening, like the
+  // other Brown plates). All three were drawn off the template and scaled onto it like Battletorn. Blood Omen's opening
+  // starts low, so its fit pulls the interior's top DOWN under the frame (it poked out above the top edge otherwise).
+  plate_astral_relic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.033, interiorSy: 1.01, interiorY: 0.0094, darken: false },
+  plate_blood_omen: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.005, interiorSx: 1.049, interiorSy: 1.056, interiorY: 0.1894, darken: false },
+  plate_honey: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.004, interiorSx: 1.051, interiorSy: 1.031, interiorY: 0.03 },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

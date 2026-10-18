@@ -700,6 +700,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // words in names).
   cardPlate('plate_emerald', 'Emerald', 'legendary', 'Emerald.png'),
   cardPlate('plate_gilt_etched', 'Gilt Etched', 'legendary', 'Gold Etched.png'),
+  // Owner 2026-10-17: "i added more to the folder"; Legendary by the folder rule, interiors by the owner's pick of my
+  // suggestion (Astral Relic on Dark, Blood Omen on Wartorn, Honey on Brown).
+  cardPlate('plate_astral_relic', 'Astral Relic', 'legendary', 'Astral Relic.png'),
+  cardPlate('plate_blood_omen', 'Blood Omen', 'legendary', 'Blood Omen.png'),
+  cardPlate('plate_honey', 'Honey', 'legendary', 'Honey.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

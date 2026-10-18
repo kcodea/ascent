@@ -4,12 +4,13 @@ import { Icon } from './Icon';
 import { pixiFx } from './pixiFx';
 import { playDef } from './fx/playDef';
 import { getRefreshConfig } from './refreshConfig';
+import { publicArt } from './phoneArt';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
 // rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
 // these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
-const F = `${import.meta.env.BASE_URL}frames/`;
+// `publicArt()` (phoneArt.ts) adds it, and on a phone picks the build's smaller copy.
 
 /**
  * The standalone REFRESH button — the blue crystal (frames/refresh_button.webp) pinned TOP-CENTRE of the
@@ -105,7 +106,7 @@ export const RefreshButton = memo(function RefreshButton({
       <span className="rfb-artbox" aria-hidden="true">
         {/* The "Refresh" wordmark is baked into this art (RefreshButton1), so the old floating glass label
             is gone — it would print "Refresh" twice. */}
-        <img decoding="sync" className="rfb-art" src={`${F}refresh_button1.webp`} alt="" draggable={false} />
+        <img decoding="sync" className="rfb-art" src={publicArt(`frames/refresh_button1.webp`)} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the crystal's face, clipped to it; transform-only loop. */}
         <span className="rfb-sheen"><span className="rfb-sheen-bar" /></span>
       </span>

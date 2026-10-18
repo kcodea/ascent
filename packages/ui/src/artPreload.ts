@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { createAssetQueue, type AssetQueue, type Attempt, type Lane } from './assetQueue';
+import { createImageKeep, decodedBytes } from './imageKeep';
+import { LITE_ART, LITE_ART_REASON } from './phoneArt';
 
 /**
  * ART PRELOAD — the image flavour of the asset queue (owner report 2026-09-29: "a lot of pop in when i watch my
@@ -42,7 +44,16 @@ const queue: AssetQueue = createAssetQueue(6, {
     console.warn(`[art] gave up loading ${url} after ${attempts} attempts; showing the placeholder until the network returns`);
   },
 });
-const KEEP = new Map<string, HTMLImageElement>();
+/**
+ * The decoded images the pipe made. Desktop holds every one for the session (no budget). A PHONE (`LITE_ART`, owner
+ * 2026-10-18: "the iPhone crashes a lot") holds a bounded LRU of the most recent ones, so the rest can be dropped by
+ * the browser; see `imageKeep.ts`.
+ */
+export const LITE_KEEP_BYTES = 48 * 1024 * 1024;
+const KEEP = createImageKeep<HTMLImageElement>(LITE_ART ? LITE_KEEP_BYTES : Infinity);
+/** Lanes a phone DECODES in: what is on screen and the title chrome. Every other lane only FETCHES on a phone (warms the
+ *  HTTP cache, decodes nothing, holds nothing), and the <img> that later shows it decodes it then. */
+const LITE_DECODE_LANES: ReadonlySet<Lane> = new Set<Lane>(['now', 'chrome']);
 /** The URL that actually decoded, when it was the cache-busted last try (an on-screen <img> reloads from it). */
 const LOADED_AS = new Map<string, string>();
 /** decode() can stall in a backgrounded / throttled tab, or a request can hang. Treated as a failed try. */
@@ -65,7 +76,7 @@ function decodeImage(url: string, attempt: number, last: boolean): Promise<void>
     img.src = src;
     img.decode().then(() => {
       clearTimeout(timer);
-      KEEP.set(url, img);
+      KEEP.set(url, img, decodedBytes(img.naturalWidth, img.naturalHeight));
       if (src !== url) LOADED_AS.set(url, src);
       resolve();
     }, (err: unknown) => { clearTimeout(timer); reject(err); });
@@ -79,7 +90,20 @@ export function requestArt(url: string | undefined, lane: Lane): void {
   queue.request(url, lane, artTask(url), { retryDelays: ART_RETRY_DELAYS });
 }
 
-const artTask = (url: string) => (_lane: Lane, { attempt, last }: Attempt): Promise<void> => decodeImage(url, attempt, last);
+/** Fetch only (a phone's background lanes): the bytes land in the HTTP cache, no Image is made. REJECTS on a failed
+ *  response so the pipe retries exactly as a failed decode would. */
+function fetchOnly(url: string, attempt: number, last: boolean): Promise<void> {
+  if (typeof fetch !== 'function') return decodeImage(url, attempt, last);
+  const src = last && attempt > 0 ? cacheBust(url, attempt) : url;
+  return fetch(src).then(async (res) => {
+    if (!res.ok) throw new Error(`http ${res.status}`);
+    await res.arrayBuffer(); // read to the end so the cache entry is complete; the buffer is dropped at once
+    if (src !== url) LOADED_AS.set(url, src);
+  });
+}
+
+const artTask = (url: string) => (lane: Lane, { attempt, last }: Attempt): Promise<void> =>
+  (LITE_ART && !LITE_DECODE_LANES.has(lane) ? fetchOnly(url, attempt, last) : decodeImage(url, attempt, last));
 
 /** An on-screen <img> for `url` errored: the pipe fetches it again (backoff + cap) if it thought it was ready. */
 export function reportArtError(url: string | undefined): void {
@@ -202,6 +226,12 @@ export function whenArtReady(urls: readonly string[], onProgress?: (done: number
  *  frame to protect, only throughput), then puts it back. */
 export function setArtConcurrency(n: number): void {
   queue.setConcurrency(n);
+}
+
+/** What the preloader is holding decoded right now (the phone memory pass reads it; `window.__artMem` in Boot). */
+export function artMemoryStats(): { lite: boolean; reason: string | null; kept: number; keptMB: number; evicted: number } {
+  const k = KEEP.stats();
+  return { lite: LITE_ART, reason: LITE_ART_REASON, kept: k.count, keptMB: Math.round(k.bytes / 1048576), evicted: k.evicted };
 }
 
 /** For tests / the perf HUD: queue depth. */

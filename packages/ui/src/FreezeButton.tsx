@@ -1,11 +1,12 @@
 import { memo, useEffect, useRef } from 'react';
 import { onPressCue } from './pressCue';
 import { playDef } from './fx/playDef';
+import { publicArt } from './phoneArt';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image. Vite rewrites CSS `url(/…)` to
 // relative at build time but CANNOT rewrite JS string literals, so each has to prefix the base itself.
-const F = `${import.meta.env.BASE_URL}frames/`;
+// `publicArt()` (phoneArt.ts) adds it, and on a phone picks the build's smaller copy.
 
 /**
  * The standalone FREEZE toggle — pinned to the board's top-centre (position/scale from the ❄️ dev tuner,
@@ -62,10 +63,10 @@ export const FreezeButton = memo(function FreezeButton({
         ? (frozen ? 'Tavern frozen' : 'Tavern not frozen')
         : (frozen ? 'Unfreeze the tavern' : 'Freeze the tavern')}
     >
-      <img decoding="sync" className="frz-base" src={`${F}freeze_base.webp`} alt="" draggable={false} />
+      <img decoding="sync" className="frz-base" src={publicArt(`frames/freeze_base.webp`)} alt="" draggable={false} />
       <span className="frz-gembox" aria-hidden="true">
-        <img decoding="sync" className="frz-gem lit" src={`${F}freeze_gem.webp`} alt="" draggable={false} />
-        <img decoding="sync" className="frz-gem cracked" src={`${F}freeze_gem_cracked.webp`} alt="" draggable={false} />
+        <img decoding="sync" className="frz-gem lit" src={publicArt(`frames/freeze_gem.webp`)} alt="" draggable={false} />
+        <img decoding="sync" className="frz-gem cracked" src={publicArt(`frames/freeze_gem_cracked.webp`)} alt="" draggable={false} />
       </span>
       {/* "Freeze" label pill (owner ask 2026-08-14) — same cream/gold plaque as the Tavern Up tier pill,
           seated near the gem; position/size from the ❄️ tuner via --frz-pill-x/y/s. */}

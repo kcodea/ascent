@@ -23,6 +23,7 @@ import { cubicBezier } from './wipeGeometry';
 import { stageHost } from './stage';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
 import { guardAppRender, watchContextLoss } from './pixiAppSafety';
+import { PIXI_ANTIALIAS } from './phoneArt';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
 
@@ -59,7 +60,7 @@ class WipeFxController {
   private async init(): Promise<void> {
     const app = new Application();
     await app.init({
-      resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+      resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts

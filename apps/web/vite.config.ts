@@ -13,6 +13,7 @@ import { gauntletStagePlugin, STAGES_DIR } from './gauntletStagePlugin';
 import { plateTuningPlugin } from './plateTuningPlugin';
 import { workbenchPlugin } from './workbenchPlugin';
 import { publicArtList } from './publicArt';
+import { phoneArtPlugin } from './phoneArtPlugin';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -45,6 +46,8 @@ export default defineConfig(({ command }) => ({
     __BUILD_DIRTY__: JSON.stringify(buildDirty),
     __BUILD_DATE__: JSON.stringify(buildDate),
     __PUBLIC_ART__: JSON.stringify(publicArt),
+    // No phone copies outside a production build (the dev server serves originals); phoneArtPlugin overrides it there.
+    __PHONE_ART__: 'null',
   },
   // `fxDefsPlugin`, `uiAssetPlugin`, and `beatLabPlugin` are all `apply: 'serve'` — they add write endpoints to
   // the dev server ONLY, and are inert (never instantiated) in a production build. `fxDefsPlugin` = the FX
@@ -63,7 +66,9 @@ export default defineConfig(({ command }) => ({
   // packages/content/src/gauntlet/stages/*.json. That directory is watcher-ignored so a Save does not force a
   // full page reload (which would throw away the sandbox): the running game keeps the BUNDLED stage data until
   // the dev server restarts, while the Stage Builder always reads from disk via GET.
-  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin()],
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin(),
+    // Production only: the downscaled phone copies of the big art + the `__PHONE_ART__` list of them (phoneArtPlugin.ts).
+    phoneArtPlugin({ uiSrc: r('../../packages/ui/src'), publicDir: r('./public'), publicArt, cacheDir: r('../../node_modules/.cache/phone-art') })],
   server: { watch: { ignored: [STAGES_DIR.replaceAll('\\', '/') + '/**'] } },
   resolve: {
     alias: {

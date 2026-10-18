@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { ART_ALIAS } from './artAlias';
+import { phoneAssetUrl } from './phoneArt';
 
 /**
  * Per-card illustrated art. Drop a PNG named by the card id into
@@ -15,13 +16,16 @@ import { ART_ALIAS } from './artAlias';
  */
 type ArtModules = Record<string, string>;
 
-/** Build an id → url map from a glob, preferring the `.webp` build copy when both formats exist. */
+/** Build an id → url map from a glob, preferring the `.webp` build copy when both formats exist. On a phone the URL
+ *  is the build's downscaled copy when one exists (`phoneArt.ts`, owner 2026-10-18); desktop gets the original. */
 function indexArt(modules: ArtModules): Record<string, string> {
   const out: Record<string, string> = {};
+  const from: Record<string, string> = {};
   for (const [path, url] of Object.entries(modules)) {
     const id = path.split('/').pop()?.replace(/\.(png|webp)$/, '') ?? '';
-    if (id && (!out[id] || path.endsWith('.webp'))) out[id] = url;
+    if (id && (!out[id] || path.endsWith('.webp'))) { out[id] = url; from[id] = path; }
   }
+  for (const id of Object.keys(out)) out[id] = phoneAssetUrl(from[id]!, out[id]!);
   return out;
 }
 

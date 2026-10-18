@@ -36,14 +36,9 @@ import compendiumBookArt from './compendium-book.png';
 import rulesQuestionArt from './rules-question.png';
 import settingsArt from './settings-medallion.png';
 import { EscMenu } from './EscMenu';
-import { DevMenu } from './DevMenu';
-import { EditorOverlay } from './uiEditor/EditorOverlay';
 import { setFxScene, type FxScene } from './fx/fxBudget';
 import { installPerfBench } from './perfBench';
 import { ensureDefsReady } from './fx/playDef';
-import { BugScenarioPanel } from './bug-report/BugScenarioPanel';
-import { BalancePanel } from './BalancePanel';
-import { PatchNotes } from './PatchNotesOverlay';
 import { installNoNativeTooltips } from './noNativeTooltips';
 import { BugReportModal } from './bug-report/BugReportModal';
 import { installBugReportHotkey } from './bug-report/bugReportHotkey';
@@ -59,6 +54,17 @@ import { isRealPlayRun } from './perfCaptureScope';
 const SandboxDevPanels = import.meta.env.DEV
   ? lazy(() => import('./stageBuilder/StageBuilder').then((m) => ({ default: m.SandboxDevPanels })))
   : null;
+
+/** DEV-only tools, loaded on demand (mobile load pass, 2026-10-18). They used to be STATIC imports rendered behind
+ *  `import.meta.env.DEV &&`: the JSX folded away in a production build, but the modules (every tuner, the rules
+ *  registry the Rulebook triage reads, the Balance Report) have top-level side effects, so Rollup kept them in the
+ *  player chunk anyway. As `lazy()` behind the same ternary the dynamic import itself is dropped from production. */
+const DevMenu = import.meta.env.DEV ? lazy(() => import('./DevMenu').then((m) => ({ default: m.DevMenu }))) : null;
+const EditorOverlay = import.meta.env.DEV ? lazy(() => import('./uiEditor/EditorOverlay').then((m) => ({ default: m.EditorOverlay }))) : null;
+const BugScenarioPanel = import.meta.env.DEV ? lazy(() => import('./bug-report/BugScenarioPanel').then((m) => ({ default: m.BugScenarioPanel }))) : null;
+const BalancePanel = import.meta.env.DEV ? lazy(() => import('./BalancePanel').then((m) => ({ default: m.BalancePanel }))) : null;
+/** Patch Notes ships to players, but only opens from the title: its ~400 KB of changelog text loads on first open. */
+const PatchNotes = lazy(() => import('./PatchNotesOverlay').then((m) => ({ default: m.PatchNotes })));
 
 /** Seconds of live recording an auto-share needs before it is worth a row. A reload is not a session. */
 const MIN_AUTO_SHARE_SECONDS = 45;
@@ -130,6 +136,7 @@ export function Game() {
   const godMode = useGame((s) => s.run.godMode === true);
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
   const showBook = useGame((s) => s.showBook);
+  const showPatchNotes = useGame((s) => s.showPatchNotes);
   const toggleBook = useGame((s) => s.toggleBook);
   const openRules = useGame((s) => s.openRules);
   // Recruit stays mounted across phases (combat plays out in place), so its closures/refs live for the whole
@@ -550,25 +557,25 @@ export function Game() {
       </div>
       {settingsOpen && <EscMenu onClose={closeSettings} />}
       {/* DEV-only tuning menu — one 🛠️ button opening every live tuner (stripped from production). */}
-      {import.meta.env.DEV && <DevMenu />}
+      {DevMenu && <Suspense fallback={null}><DevMenu /></Suspense>}
       {/* DEV-only in-run UI editor overlay — direct-manipulation move/resize/restyle of live UI, toggled
           from the DevMenu's "UI Edit Mode" action (stripped from production). */}
-      {import.meta.env.DEV && <EditorOverlay />}
+      {EditorOverlay && <Suspense fallback={null}><EditorOverlay /></Suspense>}
       {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). While
           the Stage Builder (Gauntlet authoring) is open, its board canvas + panel take the Scene Builder's place. */}
       {SandboxDevPanels && sandbox && !godMode && <Suspense fallback={null}><SandboxDevPanels /></Suspense>}
       {/* Bug-scenario report side panel (PR 4) — mounts with a loaded scenario. Independent of `sandbox`:
           a content-mismatch load is READ-ONLY (the run is never entered), but its evidence still shows. */}
-      {import.meta.env.DEV && bugScenarioLoaded && <BugScenarioPanel />}
+      {BugScenarioPanel && bugScenarioLoaded && <Suspense fallback={null}><BugScenarioPanel /></Suspense>}
       {/* Frame-health HUD. Ships in production but stays dormant unless opted into (?perf=1 /
           localStorage / the dev menu) — a slowness report is only trustworthy against the prod build. */}
       {perfOn && <PerfHud onClose={() => { setPerfFlag(false); setPerfOn(false); }} />}
       {/* DEV-ONLY (owner 2026-08-24): the Balance Report reads dev/session telemetry and must not ship in the
           exe or itch repacks, which are production `build:web` bundles where `import.meta.env.DEV` is false. */}
-      {import.meta.env.DEV && <BalancePanel />}
+      {BalancePanel && <Suspense fallback={null}><BalancePanel /></Suspense>}
       {/* Patch Notes — opened from the title only (owner ask 2026-08-24). Mounted here beside the other
-          full-screen overlays; its own `showPatchNotes` gate keeps it inert until the title opens it. */}
-      <PatchNotes />
+          full-screen overlays; mounted (and its chunk fetched) only once the title opens it. */}
+      {showPatchNotes && <Suspense fallback={null}><PatchNotes /></Suspense>}
       {/* Bug reporter (Ctrl+B) — self-gates on `bugReportOpen` / `bugReportToast`. Pausing is Recruit's
           `overlayOpen` job, not this component's. */}
       <BugReportModal />

@@ -50,6 +50,7 @@ import { heroBlastPreviewSpeed } from './heroBlastConfig';
 import './heroAttackPreview.css';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender } from '../pixiAppSafety';
+import { PIXI_ANTIALIAS } from '../phoneArt';
 
 /** The styles the sandbox can play, and the runner for each (every runner takes the same options). */
 const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null }) => HeroAttackHandle; speed: () => number }> = {
@@ -115,7 +116,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
       if (!host) return null;
       try {
         const a = new Application();
-        await a.init({ resizeTo: host, backgroundAlpha: 0, antialias: true, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2) * stageScale(), preference: 'webgl' });
+        await a.init({ resizeTo: host, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2) * stageScale(), preference: 'webgl' });
         detachPixiDomEvents(a); // no Pixi DOM events: see pixiNoDomEvents.ts
         guardAppRender(a, 'heroAttackPreview');
         if (gone.current) { destroyPixiApp(a, { children: true, texture: false }); return null; }

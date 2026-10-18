@@ -14,7 +14,7 @@ vi.mock('./artPreload', () => ({
   },
 }));
 
-import { __resetPreloadPlan, poolArtOrder, preloadBootArt, preloadRunArt, splitCardArt, splitPublicArt, splitRuneArt } from './preloadPlan';
+import { __resetPreloadPlan, poolArtOrder, preloadBootArt, preloadRunArt, splitCardArt, splitPublicArt, splitRuneArt, startBackgroundArt } from './preloadPlan';
 import { ART_URL_GROUPS, artFor } from './art';
 
 beforeEach(() => { calls.length = 0; __resetPreloadPlan(); });
@@ -175,5 +175,46 @@ describe('preloadBootArt: the loading gate (owner 2026-09-30: "i think id rather
     const { gated, other } = splitCardArt(new Set<SetId>(liveSets));
     const all = [...Object.values(ART_URL_GROUPS.minion), ...Object.values(ART_URL_GROUPS.spell)];
     expect([...gated, ...other].sort()).toEqual([...all].sort());
+  });
+});
+
+describe('preloadBootArt on a PHONE (owner 2026-10-18: "the iPhone crashes a lot"; phone-only relaxation approved)', () => {
+  const liveSets = (Object.keys(SETS) as SetId[]).filter((id) => SETS[id].enabled);
+  const offSets = (Object.keys(SETS) as SetId[]).filter((id) => !SETS[id].enabled);
+
+  it('gates on the title + menu art only, and queues nothing else until the gate opens', () => {
+    const gate = preloadBootArt([], true);
+    const g = new Set(gate);
+    for (const u of Object.values(ART_URL_GROUPS.mode)) expect(g.has(u), `mode ${u}`).toBe(true);
+    for (const u of Object.values(ART_URL_GROUPS.rank)) expect(g.has(u), `rank ${u}`).toBe(true);
+    for (const u of Object.values(ART_URL_GROUPS.hero)) expect(g.has(u), `hero ${u}`).toBe(false);
+    expect(gate.length).toBeLessThan(100);
+    expect(calls.every((c) => c.lane === 'chrome')).toBe(true);
+  });
+
+  it("streams hero select first, then the shop; never prefetches another set's cards", () => {
+    preloadBootArt([], true);
+    calls.length = 0;
+    startBackgroundArt();
+    const firstEarly = calls.find((c) => c.lane === 'early');
+    expect(firstEarly?.urls).toEqual(Object.values(ART_URL_GROUPS.hero));
+    const queued = new Set(calls.flatMap((c) => c.urls));
+    const liveIds = new Set(liveSets.flatMap((id) => poolFor(id).all.map((c) => c.id)));
+    for (const id of offSets) {
+      for (const c of poolFor(id).all) {
+        const u = artFor(c.id);
+        if (u && !liveIds.has(c.id)) expect(queued.has(u), `${id} ${c.id}`).toBe(false);
+      }
+    }
+    calls.length = 0;
+    startBackgroundArt(); // once only
+    expect(calls).toEqual([]);
+  });
+
+  it('desktop is unchanged: the full plan queues everything up front, so the background start is a no-op', () => {
+    preloadBootArt([], false);
+    calls.length = 0;
+    startBackgroundArt();
+    expect(calls).toEqual([]);
   });
 });

@@ -46,6 +46,7 @@ import { rectToStage, stageHost, stageViewport, toStage } from './stage';
 import { openEmoteMenu } from './emotes/emoteRuntime';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
 import { PortraitFrame, frameIdOf, pfClass, usePortraitFrame } from './portraitFrame/PortraitFrame';
+import { publicArt } from './phoneArt';
 
 
 /** Shrink a pill's TEXT to fit its box (owner note 2026-07-16: no ellipsis — "Lord of the Risen" should
@@ -1204,7 +1205,7 @@ export function StatusBar() {
           <div className="heropanel equipslot leaving" aria-hidden="true">
             <div className="hpwrap">
               {equipLook === 'classic' && (
-                <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                <img decoding="sync" className="equipframe" src={publicArt(`frames/equipment-frame.webp`)}
                      alt="" aria-hidden="true" draggable={false} />
               )}
               <button type="button" className="heropowerbtn" disabled tabIndex={-1}>
@@ -1229,7 +1230,7 @@ export function StatusBar() {
                   CLASSIC ONLY since the housing rebuild (owner ask 2026-10-03): the CSS looks draw their socket from
                   the theme tokens in equipSlot.css (`.hpwrap::before` / `::after`), so they skip the bitmap. */}
               {equipLook === 'classic' && (
-                <img decoding="sync" className="equipframe" src={`${import.meta.env.BASE_URL}frames/equipment-frame.webp`}
+                <img decoding="sync" className="equipframe" src={publicArt(`frames/equipment-frame.webp`)}
                      alt="" aria-hidden="true" draggable={false} />
               )}
               <button

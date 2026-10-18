@@ -12,6 +12,7 @@ import {
 } from './crateFx/crateFxConfig';
 import { createCrateFx, type CrateFx } from './crateFx/crateFxPixi';
 import './crateFx/crateTheatre.css';
+import { publicArt } from '../phoneArt';
 
 /**
  * THE CRATE THEATRE (2026-09-28, owner ask: "build a AAA animation for crate opening, with pixi and everything"):
@@ -36,7 +37,7 @@ import './crateFx/crateTheatre.css';
  */
 
 /** The painted gem the nameplate wears (recoloured per rarity in CSS, a static filter). */
-const GEM_ART = `${import.meta.env.BASE_URL}frames/end_button_gem.webp`;
+const GEM_ART = publicArt(`frames/end_button_gem.webp`);
 
 /** `earnedLevel` null + `source` = a non-level crate (a Gauntlet crate, 2026-09-29); `crateLabel` names both. */
 export interface CrateQueueItem { crateId: string; earnedLevel: number | null; source?: string }

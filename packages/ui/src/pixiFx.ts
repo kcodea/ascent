@@ -1,4 +1,4 @@
-import { Application, Container, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
+import { Application, Container, GCSystem, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import type { RiseTint } from '@game/core';
 import { liveAim } from './aimState';
 import { getSmokeConfig } from './smokeConfig';
@@ -30,6 +30,17 @@ import { driveLayerHeads } from './fx/anchors';
 import type { FxAnchors, FxHeadSink } from './fx/anchors';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
 import { destroyPixiApp, reportFxFault, reviveTicker, watchContextLoss } from './pixiAppSafety';
+import { LITE_ART, PIXI_ANTIALIAS } from './phoneArt';
+
+// PHONES: hand idle GPU textures back sooner (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). Pixi's
+// GCSystem unloads a texture's GPU copy once it has gone unused for `gcMaxUnusedTime` (default 60 s, checked every
+// 30 s); every image texture (the FX art, the hero-attack sheets) is eligible and re-uploads on its next use. A phone
+// keeps 15 s, checked every 10 s. Set on the shared defaults before any Application is created, so every canvas
+// (this overlay, the under/above slots, the hero ceremony, the crate, the gate) inherits it. Desktop is unchanged.
+if (LITE_ART) {
+  GCSystem.defaultOptions.gcMaxUnusedTime = 15000;
+  GCSystem.defaultOptions.gcFrequency = 10000;
+}
 
 /**
  * The FX def the live targeting line plays — the WHOLE authored composition (the lasso plus any custom /
@@ -588,7 +599,7 @@ class FxController {
     const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the main overlay
     const app = new Application();
     await app.init({
-      resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+      resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
@@ -626,7 +637,7 @@ class FxController {
     const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the main overlay
     const app = new Application();
     await app.init({
-      resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+      resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
@@ -894,7 +905,7 @@ class FxController {
     await app.init({
       resizeTo: window,
       backgroundAlpha: 0, // transparent — it's an overlay
-      antialias: true,
+      antialias: PIXI_ANTIALIAS,
       autoDensity: true,
       resolution: res,
       preference: 'webgl',

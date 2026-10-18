@@ -30,6 +30,7 @@ import { forfeitMatch } from './versus/versusStore';
 import { leaveSpectating, useSpectate } from './versus/spectate';
 import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
+import { touchText } from './touchInput';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -240,7 +241,7 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
         />
         <ToggleRow
           label="Spectator emotes"
-          note="Off hides the emotes of people watching your game. Right-click a spectator in the top left to mute just them."
+          note={`Off hides the emotes of people watching your game. ${touchText('Right-click', 'Tap and hold')} a spectator in the top left to mute just them.`} /* R-TOUCH-WORDING-01 */
           on={spectatorEmotesOn}
           onToggle={() => { setSpectatorEmotesOn(!spectatorEmotesOn); sfx.pulse(); }}
         />
@@ -263,7 +264,11 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             onChange={(cap) => { if (fpsCap !== cap) { setFpsCap(cap); sfx.pulse(); } }}
           />
         </div>
-        <div className="escnote">Caps combat effects and card motion only. The rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.</div>
+        {/* A phone or tablet has no GPU driver panel, so the touch wording drops that advice (R-TOUCH-WORDING-01). */}
+        <div className="escnote">{touchText(
+          "Caps combat effects and card motion only. The rest of the game runs at your display's refresh. To cap the whole game, use your GPU driver's per-app frame limit. Options above your display's refresh have no effect.",
+          "Caps combat effects and card motion only. The rest of the game runs at your screen's refresh. Options above your screen's refresh have no effect.",
+        )}</div>
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (

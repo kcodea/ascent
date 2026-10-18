@@ -35,6 +35,9 @@ export interface WikiEntry {
   q: string;
   /** The answer: casual, a few short sentences, `**bold**` allowed. */
   a: string;
+  /** The TOUCH answer, shown instead of `a` on a phone or tablet when `a` names a mouse or keyboard control
+   *  ("Right-click", "Hover", "Press Tab"). Owner 2026-10-18, R-TOUCH-WORDING-01. */
+  aTouch?: string;
   /** Other phrasings / words a player might search for. Never shown. */
   aliases?: string[];
   /** Ids of related entries, shown as "See also" links. */

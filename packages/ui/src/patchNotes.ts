@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-18',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Phones and tablets play better. Tap and hold works like a right-click, the game fills the whole screen, and nothing sits under the camera cutout.',
+        details: [
+          'Tap and hold any card to see it big, including Discover and Choose One picks. From the big view, a Buy or Pick button takes it.',
+          'Tap and hold your portrait for emotes, a spectator to mute them, or a lobby seat to pin their scout card.',
+          'Targeted hero powers and Equipment work with two taps: tap the power, then tap the minion.',
+          'On iPhone, the game stays clear of the notch, the Dynamic Island and the home indicator, with the phone turned either way.',
+          'Backgrounds now fill wide phone and ultrawide screens, and the corner buttons sit at the real screen edges.',
+          'Sound starts on the first tap on iPhone, and comes back after a call or after leaving the app.',
+          'Tablets can play upright. Help text says tap instead of click on touch screens.',
+        ],
+      },
       { category: 'Systems', text: 'Recent Games has a More button next to the hero filters. Open it to filter by any hero in the list, with how many games each one played.' },
     ],
   },

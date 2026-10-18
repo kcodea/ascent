@@ -243,7 +243,7 @@ import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
-import { TAP_SLOP } from './touchInput';
+import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
 import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
 import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
 import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/godPick';
@@ -4333,7 +4333,8 @@ export function Recruit() {
   const startDragSession = (drag: DragState, touch: boolean): void => {
     // A finger always wobbles: below TAP_SLOP a touch stays a TAP (inspect / pick), never a micro-drag. Mouse keeps
     // the DEV-tuned threshold (0 = engage at once). Screen px on purpose: the slop is a physical distance.
-    const dragThreshold = (): number => (touch ? Math.max(TAP_SLOP, getDragFeel().threshold) : getDragFeel().threshold);
+    // A fired LONG-PRESS (Inspect / emotes, R-TOUCH-LONGPRESS-01) owns the rest of that finger: no drag starts under it.
+    const dragThreshold = (): number => (touch ? (longPressActive() ? Infinity : Math.max(TAP_SLOP, getDragFeel().threshold)) : getDragFeel().threshold);
     endSessionRef.current?.(); // never two sessions at once
     const token = ++dragSessionSeq.current;
     dragStore.pos = null;
@@ -4729,6 +4730,9 @@ export function Recruit() {
       return;
     }
     let moved = false;
+    // A press that STARTS after the aim armed (R-TOUCH-AIMTAP-01): the second tap of tap-power-then-tap-minion. A finger
+    // tap sends no pointermove, so `moved` alone left the power armed forever on a phone (owner 2026-10-18 audit).
+    let pressedSinceArm = false;
     // Fortify may buff a tavern offer; Gild / Encore are warband-only (you can't gild or replay an
     // unbought offer), so they only accept warband targets.
     const sel = equipArmed
@@ -4802,7 +4806,8 @@ export function Recruit() {
       if (!raf) raf = requestAnimationFrame(flush);
     });
     const up = (e: PointerEvent): void => perfMonitor.measure('input:pointerup', () => {
-      if (!moved) return; // a plain click — stays armed for a follow-up click
+      // The release of the press that ARMED it (no move, no new press) stays armed for a follow-up tap / click.
+      if (!aimReleaseResolves(moved, pressedSinceArm)) return;
       const target = minionAt(e.clientX, e.clientY);
       if (target && !timeUp) {
         // EQUIPMENT and a hero power share the aim gesture but are different actions — and different usage
@@ -4840,11 +4845,14 @@ export function Recruit() {
       } else if (equipArmed) armEquipment(); // released on nothing — cancels, spending no Gold and no use
       else armHero(); // released without a valid target — snaps back / cancels
     });
+    const press = (e: PointerEvent): void => { if (e.button === 0) pressedSinceArm = true; };
+    window.addEventListener('pointerdown', press, true);
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     return () => {
       if (raf) cancelAnimationFrame(raf);
       rects.dispose();
+      window.removeEventListener('pointerdown', press, true);
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
     };

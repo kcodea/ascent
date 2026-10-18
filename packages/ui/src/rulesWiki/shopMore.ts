@@ -412,6 +412,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     topic: 'basics',
     q: "What's a buff?",
     a: "Any bonus to a minion's Attack or Health (like **+2/+1**, meaning +2 Attack and +1 Health), or a keyword it gains. Buffed numbers change colour on the card, and right-clicking a minion lists every buff and where it came from.",
+    aTouch: "Any bonus to a minion's Attack or Health (like **+2/+1**, meaning +2 Attack and +1 Health), or a keyword it gains. Buffed numbers change colour on the card, and tapping a minion lists every buff and where it came from.",
     aliases: ['buff', 'stats up', '+1/+1', 'green numbers', 'bonus stats'],
     seeAlso: ['are-buffs-permanent', 'inspect-a-card'],
   },

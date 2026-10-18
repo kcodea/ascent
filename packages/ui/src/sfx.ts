@@ -10,6 +10,7 @@
  * (see ./audio/config); this file just builds + tunes the graph from that config.
  */
 
+import { installAudioUnlock, needsResume } from './audioUnlock';
 import {
   DEFAULT_AUDIO_CONFIG,
   mergeConfig,
@@ -198,7 +199,7 @@ function audio(): AudioContext | null {
   try {
     const isNew = !ctx;
     ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-    if (ctx.state === 'suspended') void ctx.resume();
+    if (needsResume(ctx.state)) void ctx.resume().catch(() => { /* no gesture yet: audioUnlock retries on the next */ });
     if (isNew && audioReadyListeners.length) {
       const created = ctx;
       // After this call returns (the graph below is built first), never inside the caller's sound play.
@@ -255,14 +256,10 @@ function audio(): AudioContext | null {
 // not lazily on the first SOUND. Without this, the first real sound (e.g. the first buy) was a silent/synth
 // fallback while the context resumed + samples decoded — so sourced clips only "kicked in" after a later
 // action (a hero power, etc.) happened to warm things up. Now they're ready by the first buy/play.
-if (typeof window !== 'undefined') {
-  const warm = (): void => {
-    audio();
-    window.removeEventListener('pointerdown', warm);
-    window.removeEventListener('keydown', warm);
-  };
-  window.addEventListener('pointerdown', warm);
-  window.addEventListener('keydown', warm);
+// iOS (R-TOUCH-AUDIO-01, audioUnlock.ts): also on touchend / click (the gestures iOS accepts), kept for the page's life,
+// plus a resume on returning to the page and after an iOS interruption.
+if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+  installAudioUnlock(window, document, (create) => (create ? audio() : ctx));
 }
 
 // --- Sampled SFX (mp3 files in ./audio) — decoded into AudioBuffers and played through the same context, so

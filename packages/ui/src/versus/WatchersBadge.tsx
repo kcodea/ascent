@@ -22,6 +22,7 @@ import { useSpectate } from './spectate';
 import { toggleSpectatorMute, useSpectatorEmotePrefs } from './spectatorEmotes';
 import { useWatchers, watcherName, type Watcher } from './watchers';
 import './versus.css';
+import { touchText } from '../touchInput';
 
 /** Plates shown before the "+N" chip. */
 export const WATCHERS_SHOWN = 3;
@@ -33,7 +34,7 @@ export const StandsPlate = memo(function StandsPlate({ w, muted }: { w: Watcher;
     <span
       className={`vsspec-seat on vswatch-seat gtip${muted ? ' muted' : ''}`}
       data-watcher={w.id}
-      data-tip={muted ? `Right-click to unmute ${name}` : `Right-click to mute ${name}'s emotes`}
+      data-tip={muted ? `${touchText('Right-click', 'Tap and hold')} to unmute ${name}` : `${touchText('Right-click', 'Tap and hold')} to mute ${name}'s emotes`}
       aria-label={muted ? `${name}, spectating, emotes muted` : `${name}, spectating`}
       onContextMenu={(e) => { e.preventDefault(); toggleSpectatorMute(w.id); sfx.tick(); }}
     >

@@ -42,10 +42,12 @@ describe('Versus room: painting and overlays share one stage-box coordinate spac
     }
   });
 
-  it('the margins are covered (no letterbox colour bands) and the corner chrome is pinned to the stage box', () => {
+  // The corner chrome moved from the stage box to the real screen edges (inset by the safe area) on 2026-10-18
+  // (owner: 'Make sure it fills the screen too', R-TOUCH-FILL-01). On a 16:9 window the two are the same place.
+  it('the margins are covered (no letterbox colour bands) and the corner chrome is pinned to the screen edges', () => {
     expect(rule('.vsarena-ext')).toMatch(/cover/);
-    expect(rule('.vsroomtop')).toMatch(/var\(--bar-y[\s\S]*var\(--bar-x/);
-    expect(rule('.vsroomctl')).toMatch(/var\(--bar-y[\s\S]*var\(--bar-x/);
+    expect(rule('.vsroomtop')).toMatch(/var\(--edge-t[\s\S]*var\(--edge-l/);
+    expect(rule('.vsroomctl')).toMatch(/var\(--edge-b[\s\S]*var\(--edge-l/);
   });
 
   it('across 1920x1080, 2560x1440, 2560x1080, 1366x768 and 1280x800 a seat keeps its exact place on the painting', () => {

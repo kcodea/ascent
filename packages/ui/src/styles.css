@@ -71,8 +71,27 @@
      it (nothing moves), while a smaller window still shrinks the whole board uniformly to fit (one locked unit,
      no drift). `--scale` (= --gh/1440, clamped) therefore tops out at 1.0, its tuned value. Mirrors the old
      `[data-res="r2560"]` cap, now always-on. Bump both caps together (keep 16:9) to re-pin at a larger size. */
-  --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 16 / 9), 2560px); --gh: min(var(--lvh, 100dvh), calc(var(--lvw, 100vw) * 9 / 16), 1440px);
+  /* THE SAFE AREA (owner 2026-10-18, R-TOUCH-SAFEAREA-01: "the camera line also lines up with some ui elements"). The
+     notch / Dynamic Island / home indicator insets, in LAYOUT px: stage.ts writes them inline (the screen inset / the
+     stage scale), and these `env()` defaults only stand before it runs. Never write a raw `env(safe-area-inset-*)`
+     inside the stage: the stage's transform shrinks it (a 59 px island inset became about 21 px on screen). The 16:9
+     box fits INSIDE the safe area (`--avw` x `--avh`, symmetric per axis because it is centred), so nothing in it can
+     sit under the island in either landscape rotation; backdrops still bleed to the physical edges. */
+  --safe-t: env(safe-area-inset-top, 0px); --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px); --safe-l: env(safe-area-inset-left, 0px);
+  --safe-x: max(var(--safe-l), var(--safe-r)); --safe-y: max(var(--safe-t), var(--safe-b));
+  --avw: calc(var(--lvw, 100vw) - 2 * var(--safe-x)); --avh: calc(var(--lvh, 100dvh) - 2 * var(--safe-y));
+  --gw: min(var(--avw), calc(var(--avh) * 16 / 9), 2560px); --gh: min(var(--avh), calc(var(--avw) * 9 / 16), 1440px);
   --bar-x: calc((var(--lvw, 100vw) - var(--gw)) / 2); --bar-y: calc((var(--lvh, 100dvh) - var(--gh)) / 2);
+  /* THE SCREEN EDGES (owner 2026-10-18: "Make sure it fills the screen too", R-TOUCH-FILL-01). Corner HUD (the gear /
+     book / rules buttons, the version, the title's account card and footer) anchors HERE, not on the 16:9 box: on a
+     window wider (or taller) than 16:9 the aspect surplus is handed back, so the HUD sits at the real screen edge, inset
+     by that side's safe area, and the wide phone gets breathing room around the board instead of empty margin. Margin
+     that comes from a CAP (the 2560 x 1440 pin on a 4K screen, the Esc-menu resolution scaler) is kept, so a 16:9
+     desktop is unchanged at every size. Edge = box edge - aspect surplus - symmetric safe + this side's safe. */
+  --surplus-x: max(0px, calc((var(--avw) - var(--avh) * 16 / 9) / 2)); --surplus-y: max(0px, calc((var(--avh) - var(--avw) * 9 / 16) / 2));
+  --edge-l: calc(max(0px, var(--bar-x) - var(--surplus-x) - var(--safe-x)) + var(--safe-l)); --edge-r: calc(max(0px, var(--bar-x) - var(--surplus-x) - var(--safe-x)) + var(--safe-r));
+  --edge-t: calc(max(0px, var(--bar-y) - var(--surplus-y) - var(--safe-y)) + var(--safe-t)); --edge-b: calc(max(0px, var(--bar-y) - var(--surplus-y) - var(--safe-y)) + var(--safe-b));
   /* The in-game board backdrop — ONE source art, drawn on `.boardbg` (a full-viewport layer behind the 16:9
      stage): scaled to the stage height + centred, so the ornate frame stays locked to the 16:9 UI. The default
      is the FULL board, itself 16:9 (owner promoted it 2026-08-17), so it fills the stage height-for-height. It
@@ -169,9 +188,9 @@
    Each maintains its aspect ratio (the height cap keeps it true) and never exceeds the window. The aspect must
    be the option's EXACT pixel ratio (w/h), not a rounded label like 21:9 — 3440×1440 is really 43/18 (2.389),
    NOT 21/9 (2.333); the rounded value capped the width at 1440·(21/9)=3360 on a true 3440×1440 monitor. */
-:root[data-res="r1920"] { --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100vh) * 1920 / 1080), 1920px); --gh: min(var(--lvh, 100vh), calc(var(--lvw, 100vw) * 1080 / 1920), 1080px); }
-:root[data-res="r2560"] { --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100vh) * 2560 / 1440), 2560px); --gh: min(var(--lvh, 100vh), calc(var(--lvw, 100vw) * 1440 / 2560), 1440px); }
-:root[data-res="r3440"] { --gw: min(var(--lvw, 100vw), calc(var(--lvh, 100vh) * 3440 / 1440), 3440px); --gh: min(var(--lvh, 100vh), calc(var(--lvw, 100vw) * 1440 / 3440), 1440px); }
+:root[data-res="r1920"] { --gw: min(var(--avw), calc(var(--avh) * 1920 / 1080), 1920px); --gh: min(var(--avh), calc(var(--avw) * 1080 / 1920), 1080px); }
+:root[data-res="r2560"] { --gw: min(var(--avw), calc(var(--avh) * 2560 / 1440), 2560px); --gh: min(var(--avh), calc(var(--avw) * 1440 / 2560), 1440px); }
+:root[data-res="r3440"] { --gw: min(var(--avw), calc(var(--avh) * 3440 / 1440), 3440px); --gh: min(var(--avh), calc(var(--avw) * 1440 / 3440), 1440px); }
 /* One board art (augustfullboard, with augustboardcombat as the combat-phase variant) serves every
    resolution — drawn on `.boardbg`, cropped to 16:9 at standard
    aspect and extending into the margins on wider windows. No per-aspect --board swap. */
@@ -197,9 +216,16 @@ html, body { overscroll-behavior: none; touch-action: manipulation; }
 body { font-family: var(--font-body), sans-serif; color: var(--ink); background: var(--bg); overflow: hidden; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 /* No grey tap-flash on a finger tap (the game paints its own press states). */
 body { -webkit-tap-highlight-color: transparent; }
+/* TOUCH (R-TOUCH-LONGPRESS-01): a long-press is the game's right-click, so no iOS image callout ("Save image") or
+   drag ghost on art, and no text selection on game surfaces (body above). Text FIELDS stay selectable: iOS Safari will
+   not edit an input that inherits `-webkit-user-select: none`. */
+img, canvas, svg { -webkit-touch-callout: none; -webkit-user-drag: none; }
+input, textarea, [contenteditable="true"] { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
 /* Landscape-only on phones: a full-screen "rotate your device" overlay, shown ONLY on a touch device held in
    portrait (`pointer: coarse` excludes a desktop window that merely happens to be portrait). The 16:9 board is
-   unusable upright, so we ask the player to rotate rather than maintain a second, portrait layout. */
+   unusable upright on a PHONE, so we ask the player to rotate rather than maintain a second, portrait layout. A TABLET
+   (shorter side >= 700 px, `data-tablet` from stage.ts, owner 2026-10-18, R-TOUCH-ROTATE-01) plays upright too: the stage letterboxes the 16:9
+   board top and bottom, and the backdrops fill the bars. */
 .rotate-prompt { display: none; }
 @media (orientation: portrait) and (pointer: coarse) {
   .rotate-prompt {
@@ -215,6 +241,8 @@ body { -webkit-tap-highlight-color: transparent; }
   .rotate-prompt-s { font-weight: 600; font-size: 15px; color: rgba(240, 232, 218, 0.68); max-width: 300px; line-height: 1.5; }
 }
 @keyframes rotatehint { 0%, 42% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+/* A TABLET plays upright (R-TOUCH-ROTATE-01): stage.ts marks `data-tablet` when the window's shorter side is >= 700 px. */
+:root[data-tablet] .rotate-prompt { display: none; }
 /* Boot loading screen — held up front while all card/hero art fetches + decodes (see Boot.tsx). Uses only
    fixed units (no --u letterbox vars, which Game sets later) so it renders correctly before Game mounts. */
 .bootload { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; background: var(--bg2, #efe5d4); color: var(--ink, #2a2017); }
@@ -225,6 +253,9 @@ body { -webkit-tap-highlight-color: transparent; }
 /* the window behind the stage is a dark frame — it only shows as letterbox bars when the
    resolution scaler shrinks the stage below the window (otherwise the stage covers it). */
 body { background: #160f08; }
+/* The CANVAS behind everything (R-TOUCH-FILL-01): anything the OS paints outside the page (an iOS safe-area margin
+   the viewport did not cover, an overscroll edge) shows the backdrops' own navy, never a black bar. Static paint. */
+html { background: #0a1730; }
 /* gauntlet opens over anything grabbable/clickable */
 .card, .btn, button, .climb, .skip, [role="button"] { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 /* Scroll areas hide the NATIVE scrollbar and scroll by wheel/trackpad. A native scrollbar (even a styled
@@ -3241,6 +3272,9 @@ body.modalup .app { z-index: auto; }
    CARD stays perfectly centred on screen instead of the card+defs row being centred (which shoved the card
    left). Top-anchored to the card, growing DOWNWARD — it may roll past the card's bottom, which is fine. */
 .inspect-card .kwdefs { position: absolute; left: 100%; top: -15%; margin-left: 12px; width: 200px; max-width: none; max-height: none; overflow: visible; }
+/* TOUCH ACTION (owner 2026-10-18, R-TOUCH-INSPECTACT-01): the Discover's gold Peek pill, reused as Inspect's Buy / Pick.
+   Low on the screen, under the enlarged card, above the home indicator. Only rendered for a finger (Inspect.tsx). */
+.disc-toggle.disc-peek.inspect-act { --pk: 2.4; top: auto; bottom: calc(1.5% + var(--safe-b, 0px)); z-index: 501; }
 /* buff breakdown ("Spirit Fire ×2  +6/+6"), shown left of the card when a minion is buffed */
 /* Buffs breakdown beside the inspected card — same dark pill/glass as the detached text drawer. */
 /* MUST stay POSITIONED with a z-index (owner report 2026-07-22: the panel rendered behind the card).
@@ -3560,7 +3594,7 @@ body.modalup .app { z-index: auto; }
    `touch-action: manipulation` let the browser claim that finger move as a pan (pointercancel), so the aim never
    landed. The status bar holds no scrollable content. */
 .statusbar { touch-action: none; }
-.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale) + env(safe-area-inset-bottom)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale) + env(safe-area-inset-left)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
+.statusbar { position: fixed; bottom: calc(50% - 0.389444 * var(--_arth) - var(--board-y, 5px) * var(--scale)); left: calc(50% - 0.391888 * var(--_artw) + var(--board-x, 0px) * var(--scale)); display: flex; flex-direction: column; align-items: stretch; gap: 7px; z-index: 40; pointer-events: none; padding: 7px 10px 9px; }
 /* IN COMBAT THE HERO CLUSTER SITS UNDER THE ARENA (owner report 2026-09-23: "can you fix the z axis of the hero
    power art etc? it is on top of minions and heroes so when they attack they are behind it"). The z40 above is
    the SHOP order: the cluster over the whole `.app` (z1). In combat `.app` dissolves (see the COMBAT Z-ORDER
@@ -5716,7 +5750,7 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
    1px press. `translate` (not `transform`) so the motion composes with anything else on the element. Static
    paint; the hover swaps the plate once, nothing loops. */
 .hsback {
-  position: absolute; top: 24px; left: 30px; z-index: 2; display: inline-flex; align-items: center; gap: 8px;
+  position: absolute; top: calc(24px + var(--safe-t)); left: calc(30px + var(--safe-l)); z-index: 2; display: inline-flex; align-items: center; gap: 8px;
   height: 46px; padding: 0 20px; border-radius: 11px; border: 2px solid transparent; white-space: nowrap;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-ring) 90%, transparent), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
@@ -5859,6 +5893,9 @@ body:has(.heroselect) .statusbar { visibility: hidden; }
 .herocard.big .hcpw { opacity: 0; transition: opacity 0.28s ease; color: #efe6d4; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8), 0 0 2px rgba(0, 0, 0, 0.9); }
 .herocard.big .hcpw b { color: var(--acc); }
 .herocard.big:hover .hcpw { opacity: 1; }
+/* TOUCH (R-TOUCH-LONGPRESS-01): a long-press on a hero card opens the same power face the hover does (a tap picks). */
+.herocard.big.tt-on .hcframe-pow, .herocard.big.tt-on .hcpw { opacity: 1; }
+.herocard.big.tt-on .hcmeta { opacity: 0; }
 /* 14px lower (owner 2026-10-17: "can we move the hero description down a bit? its being blocked by thicker portrait
    frames"): a thick portrait frame pushes the HP pill into the text's first line. The re-roll row below moved down
    the same 14px (`.hcreroll-slot`), so the longest power text still clears it. */
@@ -6096,7 +6133,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
    `--ta-*`); the fallbacks here mirror its DEFAULTS — keep them in sync when baking a tune. The `.titleaccount`
    box IS the ring box (the button is its only in-flow child), so `bottom: 0` / `top: 100%` on the seats mean
    the ring's bottom edge. Hover is a transform only; nothing here loops on a paint property. */
-.titleaccount { zoom: var(--ui-zoom); position: absolute; top: 26px; right: 44px; transform: var(--ta-ring-t, translate(0px, 0px)); }
+.titleaccount { zoom: var(--ui-zoom); position: absolute; top: calc(26px + var(--safe-t) / var(--ui-zoom)); right: calc(44px + var(--safe-r) / var(--ui-zoom)); transform: var(--ta-ring-t, translate(0px, 0px)); }
 .titleportrait { display: block; padding: 0; border: none; background: none; transition: transform 0.12s ease; }
 .titleportrait:hover { transform: scale(1.035); }
 .titleportrait .portring { --ring: var(--ta-ring, 264px); }
@@ -6210,7 +6247,7 @@ body:has(.titlescreen) .version { visibility: hidden; }
 .acctpanel-btn.ghost:hover { border-color: rgba(226, 240, 255, 0.6); }
 
 /* The left menu column. */
-.titlemenu { zoom: var(--ui-zoom); position: absolute; left: clamp(40px, calc(7 * var(--vw, 1vw)), 150px); top: 50%; transform: translateY(-50%);
+.titlemenu { zoom: var(--ui-zoom); position: absolute; left: calc(clamp(40px, calc(7 * var(--vw, 1vw)), 150px) + var(--safe-l) / var(--ui-zoom)); top: 50%; transform: translateY(-50%);
   display: flex; flex-direction: column; align-items: flex-start; gap: 30px; max-width: calc(90 * var(--vw, 1vw)); }
 /* Placement, font, glows + float all driven by the 🏔️ Title Logo dev tuner (`titleConfig.ts` → `--title-*`);
    fallbacks mirror DEFAULTS. FLOAT is a compositor-only transform loop with two modes: SYNCED bobs the whole
@@ -6498,7 +6535,7 @@ svg { width: 18px; height: 18px; }
 /* settings gear (bottom-right corner, opposite the status tray) — opens the Esc menu */
 /* The Settings gear (owner ask 2026-10-08): the Compendium book's plaque (navy fill, gold rim, inner bevel, hard
    bottom edge) carrying the gold tools medallion. Same slot and size as before, so the book/rules offsets hold. */
-.gearbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+.gearbtn { position: fixed; bottom: calc(var(--edge-b) + 16px); right: calc(var(--edge-r) + 16px); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), filter 0.14s ease, border-color 0.14s ease; }
@@ -6508,7 +6545,7 @@ svg { width: 18px; height: 18px; }
 .gearbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
 /* The Compendium book, one gear-width + a 10px gap left of the gear (Game.tsx). Same plate as the gear so the
    pair reads as one cluster; the gold art sits inside. `.gtip` (the global hover bubble) names it. */
-.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--bar-y) + 16px + env(safe-area-inset-bottom)); right: calc(var(--bar-x) + 16px + 40 * var(--u) + 10px + env(safe-area-inset-right)); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
+.bookbtn, .rulesbtn { position: fixed; bottom: calc(var(--edge-b) + 16px); right: calc(var(--edge-r) + 16px + 40 * var(--u) + 10px); width: calc(40 * var(--u)); height: calc(40 * var(--u)); padding: 0; border-radius: calc(9 * var(--u)); display: grid; place-items: center; z-index: 85;
   /* The main-menu plaque look (owner 2026-09-29, matches .menubtn): navy fill, gold rim, inner bevel, a hard bottom edge. */
   border: 1.5px solid rgba(196, 160, 92, 0.6); background: linear-gradient(180deg, rgba(24, 36, 58, 0.92), rgba(13, 22, 39, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 4px 0 #0a1526, 0 9px 18px -9px rgba(0, 0, 0, 0.7);
@@ -6518,12 +6555,12 @@ svg { width: 18px; height: 18px; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(0, 0, 0, 0.35), 0 1px 0 #0a1526, 0 4px 10px -6px rgba(0, 0, 0, 0.7); }
 .bookbtn img, .rulesbtn img { width: calc(30 * var(--u)); height: calc(30 * var(--u)); pointer-events: none; }
 /* Rules (the golden question mark) sits one more slot left of the book: gear · book · rules, right to left. */
-.rulesbtn { right: calc(var(--bar-x) + 16px + 2 * (40 * var(--u) + 10px) + env(safe-area-inset-right)); }
+.rulesbtn { right: calc(var(--edge-r) + 16px + 2 * (40 * var(--u) + 10px)); }
 /* On the HOME SCREEN (owner 2026-09-29) the book and Rules sit above the title layer (z 450) so they show and
    take clicks there too; everywhere else they keep the gear's z 85. */
 body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451; }
 /* Build badge — sits just above the gear (scales with --u so it clears the gear at any resolution box). */
-.version { position: fixed; right: calc(var(--bar-x) + 16px + env(safe-area-inset-right)); bottom: calc(var(--bar-y) + 16px + 40 * var(--u) + 7px + env(safe-area-inset-bottom)); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
+.version { position: fixed; right: calc(var(--edge-r) + 16px); bottom: calc(var(--edge-b) + 16px + 40 * var(--u) + 7px); z-index: 84; pointer-events: none; user-select: none; text-align: right; font-family: var(--font-ui); font-weight: 800; font-size: calc(11 * var(--u)); letter-spacing: 0.03em; color: var(--ink3); opacity: 0.72; }
 .version span { font-weight: 600; opacity: 0.7; }
 /* Esc / settings overlay — above everything incl. game-over, so resolution is changeable anywhere */
 /* THE HOUSE NAVY + GOLD (owner ask 2026-10-08): the Settings panel wears the Career / match-details chrome, a deep
@@ -7336,7 +7373,13 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
    sit in, with the game's gold rim on its right edge + the inset hairline so it reads as one system with the
    panels. STATIC — no animation; the plaques' hover/press are one-shot transitions (transform/filter). ── */
 .lbpage, .modepick.sb-host { --sb-w: 240px; padding-left: var(--sb-w); }
-.msb { position: absolute; left: 0; top: 0; bottom: 0; width: var(--sb-w); z-index: 5; display: flex; flex-direction: column; gap: 14px; padding: 20px 16px 22px;
+/* SAFE AREA (R-TOUCH-SAFEAREA-01): the pages stay full-bleed (their navy and the sidebar's fill reach the physical
+   edges), but their CONTENT clears the island and the home indicator. The sidebar grows by the left inset so its
+   plaques start past the island; the page pads right and bottom by those insets. All 0 off a notched device. */
+.lbpage, .modepick.sb-host { padding-left: calc(var(--sb-w) + var(--safe-l)); padding-right: var(--safe-r); }
+.lbpage { padding-bottom: var(--safe-b); }
+.modepick.sb-host { padding-bottom: calc(24px + var(--safe-b)); }
+.msb { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--sb-w) + var(--safe-l)); z-index: 5; display: flex; flex-direction: column; gap: 14px; padding: calc(20px + var(--safe-t)) 16px calc(22px + var(--safe-b)) calc(16px + var(--safe-l));
   /* Translucent since the painted backdrop (WS-1): the plate glows through the column. Static alpha, never a
      backdrop-filter. */
   background: linear-gradient(180deg, rgba(8, 16, 34, 0.78) 0%, rgba(10, 22, 46, 0.52) 30%, rgba(8, 18, 38, 0.5) 62%, rgba(4, 9, 22, 0.82) 100%);
@@ -10854,7 +10897,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      round header uses the same pair, and the Guides tab keeps the original left edge. */
   --lr-right0: calc((var(--lby-right, 0) - var(--lby-x, -23)) * var(--lu));
   --lr-w0: calc(var(--lby-w, 251) * var(--lu));
-  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px - (var(--lvw, 100vw) - var(--gw)) / 2));
+  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px + var(--edge-r) - var(--bar-x)) /* never under the island (R-TOUCH-SAFEAREA-01) */);
   --lr-w: calc(var(--lr-w0) + var(--lr-right0) - var(--lr-right));
   right: var(--lr-right); top: calc(var(--lby-top, 13.5%) + var(--lby-y, 10) * var(--lu));
   /* Sizes to its rows, capped so a wild row scale can't run off the stage — and SCROLLS rather than clips at
@@ -10896,7 +10939,7 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* The rail's resolved right + width (see `.lobbyrail`): the header spans the widened rail. */
   --lr-right0: calc((var(--lby-right, 0) - var(--lby-x, -23)) * var(--lu));
   --lr-w0: calc(var(--lby-w, 251) * var(--lu));
-  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px - (var(--lvw, 100vw) - var(--gw)) / 2));
+  --lr-right: max(calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)), calc(10px + var(--edge-r) - var(--bar-x)) /* never under the island (R-TOUCH-SAFEAREA-01) */);
   --lr-w: calc(var(--lr-w0) + var(--lr-right0) - var(--lr-right));
   right: var(--lr-right);
   width: var(--lr-w);
@@ -13550,7 +13593,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
    small links + build stamp in the bottom-left corner. The old 264px portrait corner and its tuner offsets are
    overridden here, not removed (the tuner still drives nothing visible). Static styling; hovers are one-shot.
    ════════════════════════════════════════════════════════════════════════════════════════════════════════════ */
-.titleaccount.ta-card { top: 34px; right: 44px; transform: none; display: flex; align-items: center; gap: 22px;
+.titleaccount.ta-card { top: calc(34px + var(--safe-t) / var(--ui-zoom)); right: calc(44px + var(--safe-r) / var(--ui-zoom)); transform: none; display: flex; align-items: center; gap: 22px;
   padding: 14px 30px 14px 14px; border-radius: 20px; border: 1.5px solid rgba(196, 160, 92, 0.5);
   background: linear-gradient(90deg, rgba(8, 15, 32, 0.86), rgba(10, 19, 38, 0.7));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 14px 30px -14px rgba(0, 0, 0, 0.85); }
@@ -13593,7 +13636,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .titlenav .continuerow .menubtn.active .mbnote { font-size: 14px; }
 
 /* The corner footer: links then the build stamp, bottom left. */
-.titlefoot { zoom: var(--ui-zoom); position: absolute; left: 36px; bottom: 18px; z-index: 2; display: flex; align-items: center; gap: 18px; }
+.titlefoot { zoom: var(--ui-zoom); position: absolute; left: calc(36px + var(--safe-l) / var(--ui-zoom)); bottom: calc(18px + var(--safe-b) / var(--ui-zoom)); z-index: 2; display: flex; align-items: center; gap: 18px; }
 .titlefoot .titlesecondary { padding-left: 0; }
 .titlefoot .titlesecondary button { font-size: 13px; }
 .titlefoot .titleversion { position: static; font-size: 12px; color: rgba(236, 220, 178, 0.5); }

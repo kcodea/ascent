@@ -29,8 +29,9 @@ import { SPEC as BASKETBALL } from '../HeroBasketballTuner';
 import { SPEC as STITCH } from '../HeroStitchTuner';
 import { SPEC as FORMATION } from '../DamageFormationTuner';
 
-const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, STITCH, BULLET_TIME, FORMATION };
+const SPECS = { BLAST, QUAKE, ARCANA, BLADES, ENRAGED, POISON, FROST, HOLY, FIRE, UNDEAD, BEAST, BANANA, BLEED, CARDS, STORM, COIN, BOOMERANG, BUBBLE, BACKSTAB, BASKETBALL, STITCH, BULLET_TIME, IGGY, FORMATION };
 import { SPEC as BULLET_TIME } from '../HeroBulletTimeTuner';
+import { SPEC as IGGY } from '../HeroIggyTuner';
 
 describe('the attack tuners', () => {
   for (const [name, spec] of Object.entries(SPECS)) {

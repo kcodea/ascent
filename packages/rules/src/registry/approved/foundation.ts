@@ -4010,6 +4010,33 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroBulletTime/heroBulletTime.test.ts', 'packages/ui/src/heroAttack/knockoutVariant.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/damageFormation.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/knockoutTier.test.ts'], lastVerifiedAt: '2026-10-02' },
   },
   {
+    id: 'R-PROG-ATTACK-36',
+    title: 'Iggy Blast (attack_iggy_blast, Legendary): RECOIL WARD. Immune Iggy rises behind the hero as flame, its blue breath pushes the hero back against its ward in rising stages, and at the peak the ward SLAMS back and a surge carries the blow, which lands ONCE',
+    statement:
+      'attack_iggy_blast ("Iggy Blast", LEGENDARY, crate, account-wide, style iggy): after the shared damage formation '
+      + '(R-PROG-ATTACK-08) a ward goes up round the striking hero, Immune Iggy rises behind it as FLAME (two crimson flame wings '
+      + 'with white-hot leading edges unfurl up off its shoulders and two cyan eyes open above it; never a drawn prop), light and '
+      + 'sparks are pulled INTO its mouth and a riser climbs. Then a layered stream of blue live fire pours at the target in '
+      + 'STAGES on the shared tiers (thresholds 6 / 12 / 20): I a thin blue gust; II then cyan; III and IV up to a white-cored '
+      + 'torrent. Each stage sends a gust front down the stream (a tick on the target), lights one hex ring of the ward, shoves '
+      + 'the hero further back, and flattens the ward harder against the push. At the peak the FX hold for a short hit-stop '
+      + '(tunable, 0 = none), then the ward SLAMS outward behind the hero (a bloom, the ward rim blasted off its back, staggered '
+      + 'shockwaves, a backward cone of fire, ground debris, the wings beating) and a mega-surge races down the stream; its '
+      + 'detonation on the target is the impact. IV (and every knockout, R-PROG-ATTACK-20; no Knockout variant, it is not '
+      + 'Ancient) also shatters the ward into glowing shards and leaves blue fire burning round the target on a scorch. The '
+      + 'consequence lands exactly ONCE, on the surge detonating. Presentation only; reduced motion is fades only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-18 (relayed by the coordinator)', quote: 'make a new attack that resembles or pulls concepts from iggy. it should be a dragon blast attack that has increasing magnitude, with powerful back blasting/ward effects' },
+      { kind: 'owner-chat', ref: 'Owner decision 2026-10-18 (concept A of docs/design/attack-dragon-blast-pitch.md)', quote: 'go with A, legendary rarity, name Iggy Blast' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-18 (5173 review of the first build, relayed by the coordinator)', quote: 'seems pretty uninspired right now' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (attack_iggy_blast); packages/ui/src/heroIggy/ (iggyPlan / iggyCues / iggyPushAt / iggyWardAt / iggyCameraAt, playHeroIggy, HeroIggyScene, heroIggyTextures); packages/ui/src/HeroIggyTuner.tsx' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-18. The ward is a PLACEHOLDER built from existing FX textures until the owner paints the hex ward dome. The item reaches the database on the next deploy of progression-inventory (the catalog sync).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heroIggy/heroIggy.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionHeroAttack.test.tsx', 'packages/ui/src/heroAttack/knockoutTier.test.ts', 'packages/ui/src/heroAttack/stageCamera.test.ts', 'packages/ui/src/heroAttack/attackTunerButtons.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
     id: 'R-PROG-ATTACK-25',
     title: 'A hero attack\x27s camera reaches its FX exactly ONCE: while the view zooms and shakes, the effects stay on the struck portrait',
     statement:

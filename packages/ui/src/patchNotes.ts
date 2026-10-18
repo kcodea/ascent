@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New Legendary hero attack: Iggy Blast. Immune Iggy rises behind your hero and breathes blue fire that pushes back against a ward, until the ward slams back.',
+        details: [
+          'Flame wings and glowing eyes rise behind your hero while it draws in a breath.',
+          'The breath gets stronger in steps as the hit gets bigger, from a thin blue gust to a white hot torrent.',
+          'Each step pushes your hero back against its ward. At the peak the ward slams back and a final surge hits the target.',
+          'The biggest hits and knockouts shatter the ward and leave blue fire burning round the target.',
+          'Found in crates.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones and tablets play better. Tap and hold works like a right-click, the game fills the whole screen, and nothing sits under the camera cutout.',
         details: [
           'Tap and hold any card to see it big, including Discover and Choose One picks. From the big view, a Buy or Pick button takes it.',

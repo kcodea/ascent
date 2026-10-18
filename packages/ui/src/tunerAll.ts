@@ -28,6 +28,7 @@ import { SPEC as BuffDrawerSpec } from './BuffDrawerTuner';
 import { SPEC as BuffFxSpec } from './BuffFxTuner';
 import { SPEC as CardPillsSpec } from './CardPillsTuner';
 import { SPEC as CardPlateSpec } from './CardPlateTuner';
+import { SPEC as CardPlateEditorSpec } from './CardPlateEditorTuner';
 import { SPEC as CardTextSpec } from './CardTextTuner';
 import { SPEC as ChargeGlyphSpec } from './ChargeGlyphTuner';
 import { SPEC as HeroCeremonySpec } from './HeroCeremonyTuner';
@@ -127,6 +128,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   DiceRollSpec,
   CardPillsSpec,
   CardPlateSpec,
+  CardPlateEditorSpec,
   CardTextSpec,
   ChargeGlyphSpec,
   HeroCeremonySpec,

@@ -15,9 +15,10 @@
  * geometry var applies unchanged. Its darkening is the plate's own backbox art plus three numbers, written as inline
  * CSS vars on the card so they beat the shared `:root` values of the Card Text tuner for THIS card only.
  */
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useSyncExternalStore } from 'react';
 import { cardPlateOf, type RunCosmeticSnapshot } from '@game/progression';
 import type { BoxBlend } from '../cardTextConfig';
+import plateTuning from './plate-tuning.json';
 
 export interface CardPlateLook {
   /** The catalog item id (`plate_*`). */
@@ -47,6 +48,9 @@ export interface CardPlateLook {
   frame?: string;
   /** `--plate-frame-x`: a layered plate's frame nudge, x the card width (+ = right). Moves the frame and its glow. */
   frameX?: number;
+  /** `--plate-frame-y`: a plate's frame nudge DOWN (x the card width, + = down). Moves the frame (or a single image),
+   *  its glow and its interior together (the Card Plate Editor, owner 2026-10-18). */
+  frameY?: number;
   /** `--plate-interior-sx`: a layered plate's interior WIDTH stretch, so it tucks under a frame whose opening is wider
    *  than the interior (owner 2026-10-15: gaps between the interior and the frame). 1 = the darkening's box. */
   interiorSx?: number;
@@ -54,6 +58,8 @@ export interface CardPlateLook {
    *  it tucks under the frame's top and bottom too (owner 2026-10-15: "magma's interior needs to nudge down"). */
   interiorSy?: number;
   interiorY?: number;
+  /** `--plate-interior-x`: the interior's own nudge RIGHT of the frame (x the card width), on top of `frameX`. */
+  interiorX?: number;
   /**
    * `--plate-art-s`: draws the plate's ART bigger than the plate box, about its centre (owner 2026-10-17: "phoenix plate
    * needs to be 30% larger", "astral relic is so tiny"). For art drawn smaller than the card, used WHOLE ("let them be
@@ -86,15 +92,15 @@ const INTERIOR_ASPECT: Readonly<Record<PlateInterior, number>> = {
  * widths: the frame box is 1.5 x 1.555 tall, the interior's box starts 5.4463% down it, and is 1.08 x aspect tall; its
  * centre offset `k` from the frame's centre gives the new nudge `s * y + k * (1 - s)`.
  */
-function scaledInterior(s: number, interior: PlateInterior, sx: number, sy: number, y: number) {
+function scaledInterior(s: number, interior: PlateInterior, sx: number, sy: number, x: number, y: number) {
   const frameH = 1.5 * 1.555;
   const k = frameH / 2 - frameH * 0.054463 - (1.08 * INTERIOR_ASPECT[interior]) / 2;
   const r = (n: number) => Math.round(n * 10000) / 10000;
-  return { interiorSx: r(sx * s), interiorSy: r(sy * s), interiorY: r(s * y + k * (1 - s)) };
+  return { interiorSx: r(sx * s), interiorSy: r(sy * s), interiorX: r(s * x), interiorY: r(s * y + k * (1 - s)) };
 }
 
 /** One entry per `card_plate` art key (`assets.art`). Tuned by eye with the owner in game, 2026-10-14. */
-type LookSettings = Pick<CardPlateLook, 'boxA' | 'boxBlend' | 'boxY' | 'frameX' | 'interiorSx' | 'interiorSy' | 'interiorY' | 'artScale'> & {
+type LookSettings = Pick<CardPlateLook, 'boxA' | 'boxBlend' | 'boxY' | 'frameX' | 'frameY' | 'interiorSx' | 'interiorSy' | 'interiorX' | 'interiorY' | 'artScale'> & {
   /** false = no text darkening on this plate (its interior is already dark enough). */
   darken?: boolean;
   /** A layered plate (interior -> darkening -> frame). */
@@ -218,17 +224,36 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */
-export const CARD_PLATE_LOOKS: Readonly<Record<string, CardPlateLook>> = Object.freeze(Object.fromEntries(
-  Object.entries(SETTINGS).map(([id, { layered, interior, darken, ...s }]) => [id, Object.freeze({
+/**
+ * THE CARD PLATE EDITOR's knobs (owner 2026-10-18: "create a tuner that would allow me to select each Card Plate and
+ * individually edit the card plates frame and interior size and positioning"). Per plate, never global.
+ * `artScale` is the FRAME's size; the interior numbers are its fit on the UNSCALED frame (`scaledInterior` follows).
+ */
+export const PLATE_TUNING_KEYS = ['artScale', 'frameX', 'frameY', 'interiorSx', 'interiorSy', 'interiorX', 'interiorY'] as const;
+export type PlateTuningKey = (typeof PLATE_TUNING_KEYS)[number];
+export type PlateTuning = Partial<Record<PlateTuningKey, number>>;
+
+/** What the editor SAVED (`plate-tuning.json`, written by the dev server's /__plates/tuning). It wins over SETTINGS. */
+const SAVED_TUNING = (plateTuning as { plates: Record<string, PlateTuning> }).plates;
+
+function buildLook(id: string, { layered, interior, darken, ...s }: LookSettings): CardPlateLook {
+  return Object.freeze({
     id, backbox: darken === false ? null : `${PLATE_DIR}${id}-backbox.webp`, ...s,
     ...(layered && s.artScale && s.artScale !== 1
-      ? scaledInterior(s.artScale, interior ?? DEFAULT_PLATE_INTERIOR, s.interiorSx ?? 1, s.interiorSy ?? 1, s.interiorY ?? 0)
+      ? scaledInterior(s.artScale, interior ?? DEFAULT_PLATE_INTERIOR, s.interiorSx ?? 1, s.interiorSy ?? 1, s.interiorX ?? 0, s.interiorY ?? 0)
       : {}),
     thumb: `${PLATE_DIR}${id}.webp`,
     ...(layered
       ? { plate: `${PLATE_DIR}interiors/${interior ?? DEFAULT_PLATE_INTERIOR}.webp`, frame: `${PLATE_DIR}${id}-frame.webp` }
       : { plate: `${PLATE_DIR}${id}.webp` }),
-  })]),
+  });
+}
+
+const savedSettings = (id: string): LookSettings => ({ ...SETTINGS[id], ...SAVED_TUNING[id] });
+
+/** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */
+export const CARD_PLATE_LOOKS: Readonly<Record<string, CardPlateLook>> = Object.freeze(Object.fromEntries(
+  Object.keys(SETTINGS).map((id) => [id, buildLook(id, savedSettings(id))]),
 ));
 
 /** The plate this snapshot's owner wears, or null for the standard plates (none equipped, retired, unknown, no art). */
@@ -241,5 +266,58 @@ export function cardPlateLookOf(snapshot: RunCosmeticSnapshot | null | undefined
 /** The nearest `MinionSkins` scope's card plate (null = the standard plates). */
 export const CardPlateContext = createContext<CardPlateLook | null>(null);
 
-/** What `Card` reads: a context read, not a prop, so the memo comparators (Card's and Unit's) are untouched. */
-export const useCardPlateLook = (): CardPlateLook | null => useContext(CardPlateContext);
+// ── The editor's LIVE (unsaved) edits ────────────────────────────────────────────────────────────────────────────
+// Only the dev Card Plate Editor writes these; in a production build nothing ever does, so every lookup below is a
+// miss and `useCardPlateLook` returns the context value untouched.
+let liveTuning: Record<string, PlateTuning> = {};
+let liveLooks: Record<string, CardPlateLook> = {};
+let liveVersion = 0;
+const liveListeners = new Set<() => void>();
+const subscribeLive = (fn: () => void): (() => void) => { liveListeners.add(fn); return () => { liveListeners.delete(fn); }; };
+const readLiveVersion = (): number => liveVersion;
+function bumpLive(): void {
+  liveVersion += 1;
+  for (const fn of liveListeners) fn();
+}
+
+/** The editor's values for a plate right now: shipped settings, then what was saved, then the live edit. */
+export function plateTuningOf(id: string): Required<PlateTuning> {
+  const s = { ...savedSettings(id), ...liveTuning[id] };
+  return {
+    artScale: s.artScale ?? 1, frameX: s.frameX ?? 0, frameY: s.frameY ?? 0,
+    interiorSx: s.interiorSx ?? 1, interiorSy: s.interiorSy ?? 1, interiorX: s.interiorX ?? 0, interiorY: s.interiorY ?? 0,
+  };
+}
+/** Whether a plate is layered (frame over an interior) and which interior; a single-image plate has no interior. */
+export function plateLayeringOf(id: string): { layered: boolean; interior: PlateInterior } {
+  const s = SETTINGS[id];
+  return { layered: !!s?.layered, interior: s?.interior ?? DEFAULT_PLATE_INTERIOR };
+}
+/** Every plate's art key, for the editor's picker. */
+export const PLATE_IDS: readonly string[] = Object.freeze(Object.keys(SETTINGS));
+
+/** DEV: set one live value on one plate (the editor's sliders). Every card wearing that plate repaints. */
+export function setLivePlateTuning(id: string, key: PlateTuningKey, value: number): void {
+  if (!SETTINGS[id]) return;
+  liveTuning = { ...liveTuning, [id]: { ...liveTuning[id], [key]: value } };
+  liveLooks = { ...liveLooks, [id]: buildLook(id, { ...savedSettings(id), ...liveTuning[id] }) };
+  bumpLive();
+}
+/** DEV: drop every unsaved edit (back to what is saved). */
+export function clearLivePlateTuning(): void {
+  liveTuning = {};
+  liveLooks = {};
+  bumpLive();
+}
+/** The look a card wears for a plate id, with any live edit applied. */
+export function livePlateLook(id: string): CardPlateLook | null {
+  return liveLooks[id] ?? CARD_PLATE_LOOKS[id] ?? null;
+}
+
+/** What `Card` reads: a context read, not a prop, so the memo comparators (Card's and Unit's) are untouched. The
+ *  editor's live edit for that plate, when there is one, replaces it (a no-op outside the dev editor). */
+export function useCardPlateLook(): CardPlateLook | null {
+  const look = useContext(CardPlateContext);
+  useSyncExternalStore(subscribeLive, readLiveVersion, readLiveVersion);
+  return look ? liveLooks[look.id] ?? look : look;
+}

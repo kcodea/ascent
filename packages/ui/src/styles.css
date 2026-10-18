@@ -4820,7 +4820,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    art used whole can spill past it uncropped. 1 (absent) everywhere else. A layered plate scales its FRAME instead
    (below); its interior gets pre-scaled numbers. */
 .card.plated .cardplate:not(.plate-interior),
-.card.plated .plateglow:not(.plate-framed) { transform: translateX(-50%) scale(var(--plate-art-s, 1)); }
+.card.plated .plateglow:not(.plate-framed) { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 /* LAYERED PLATES (owner 2026-10-15: "i want the darkening png to sit behind the frame, so there can be effects that
    can encroach over into the brown area without getting darkened over it"). Bottom: the INTERIOR, an interior-only
    image the darkening's width, seated on the FRAME's own box: the plate's top (its px lift x --plate-k) plus 5.4463%
@@ -4836,7 +4836,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   /* It moves WITH the frame (`--plate-frame-x`, it is the frame's backdrop), and stretches and shifts to tuck under
      the frame's opening (`--plate-interior-sx` / `-sy` / `-y`), all set per plate in cardPlateLook.ts and measured with
      `npm run plates:build -- --fit`. */
-  transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-interior-y, 0)))
+  /* `--plate-frame-y` and `--plate-interior-x` (the Card Plate Editor, 2026-10-18): it follows the frame's vertical nudge
+     too, and can shift sideways under the frame on its own. */
+  transform: translateX(-50%)
+    translate(calc(var(--ccw) * (var(--plate-frame-x, 0) + var(--plate-interior-x, 0))), calc(var(--ccw) * (var(--plate-frame-y, 0) + var(--plate-interior-y, 0))))
     scale(var(--plate-interior-sx, 1), var(--plate-interior-sy, 1));
   border-radius: 0;
 }
@@ -4846,16 +4849,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   top: calc(var(--plate-top, -37px) * var(--plate-k, 1) - var(--ccw) * var(--ctx-top, 1.085));
   width: calc(var(--ccw) * var(--plate-scale, 1.5));
   height: calc(var(--ccw) * var(--plate-scale, 1.5) * 1.5550);
-  /* `--plate-frame-x`: the plate's own nudge (x the card width), set inline per plate (cardPlateLook.ts). */
-  transform: translateX(-50%) translateX(calc(var(--ccw) * var(--plate-frame-x, 0))) scale(var(--plate-art-s, 1));
+  /* `--plate-frame-x` / `--plate-frame-y`: the plate's own nudge (x the card width), set inline per plate (cardPlateLook.ts). */
+  transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1));
   pointer-events: none;
   user-select: none;
 }
 /* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
-.card.plated .plateglow.plate-framed { transform: translateX(-50%) translateX(calc(var(--ccw) * var(--plate-frame-x, 0))) scale(var(--plate-art-s, 1)); }
+.card.plated .plateglow.plate-framed { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {
   top: calc(var(--plate-top, -37px) * var(--plate-k, 1) - var(--ccw) * (var(--ctx-top, 1.085) - var(--spell-txt-lift, 0.05)));
 }
+/* THE CARD PLATE EDITOR's preview (dev tuner, 2026-10-18): one plated card with room above and around it for the
+   plate's lift and for art drawn past the plate box. */
+.plate-editor-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 10px; }
+.plate-editor-stage { position: relative; width: var(--cw); height: 420px; padding-top: 90px; box-sizing: content-box; }
+.plate-editor-note { margin: 0; font-size: 12px; line-height: 1.35; color: #e8dcc0; text-align: center; max-width: 300px; }
 .card.plated .cardloan { z-index: 9; } /* the shared rule seats it at z0 with the plate; the marker goes on top */
 /* TRIBE NAME on the plate's bottom gem (tribe-plated cards only — the drawer label is suppressed for them).
    Positioned down the plate by the SAME geometry the plate uses, so it tracks the bottom diamond at any size;

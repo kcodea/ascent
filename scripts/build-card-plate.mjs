@@ -120,11 +120,13 @@ if (args.id) {
   // The Collection image: the interior (stretched by sx / sy, nudged by y, about its own centre, as the CSS does),
   // the frame on top, unshifted (the interior moves with the frame's nudge).
   const sx = Number(args['interior-sx'] ?? 1), sy = Number(args['interior-sy'] ?? 1), ny = Number(args['interior-y'] ?? 0);
+  // --interior-x: the interior's own nudge right of the frame (the Card Plate Editor's `interiorX`, x the card width).
+  const nx = Number(args['interior-x'] ?? 0);
   const iw = Math.round(iw0 * sx), ihs = Math.round(ih * sy);
   const top = Math.round(it + (ih - ihs) / 2 + (ny * W) / 1.5);
   const interiorBuf = await sharp(interiorFile).resize({ width: iw, height: ihs, fit: 'fill' }).png().toBuffer();
   const composite = await sharp({ create: { width: W, height: H, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite([{ input: interiorBuf, left: Math.round((W - iw) / 2), top }, { input: frameFile, left: 0, top: 0 }])
+    .composite([{ input: interiorBuf, left: Math.round((W - iw) / 2 + (nx * W) / 1.5), top }, { input: frameFile, left: 0, top: 0 }])
     .png().toBuffer();
   // --art-scale: the plate's `artScale` (its art drawn bigger than the box, about its centre). The Collection image shows
   // it at that size; what spills past the image's edge is cut HERE only (in game the art spills past the plate).

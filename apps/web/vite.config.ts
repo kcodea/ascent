@@ -10,6 +10,7 @@ import { rulebookPlugin } from './rulebookPlugin';
 import { bugBoardPlugin } from './bugBoardPlugin';
 import { qaScenarioPlugin } from './qaScenarioPlugin';
 import { gauntletStagePlugin, STAGES_DIR } from './gauntletStagePlugin';
+import { plateTuningPlugin } from './plateTuningPlugin';
 import { workbenchPlugin } from './workbenchPlugin';
 import { publicArtList } from './publicArt';
 
@@ -56,11 +57,13 @@ export default defineConfig(({ command }) => ({
   // `workbenchPlugin` (also `apply: 'serve'`) = the QA Workbench's READ-ONLY /__workbench/* endpoints
   // (Doc Bot 2.0 §15): the gitignored findings ledger + sweep artifacts + curated scenario fixtures. It
   // writes nothing — the workbench's one write (accepting a wording recommendation) reuses /__rulebook/decide.
+  // `plateTuningPlugin` (also `apply: 'serve'`) = the Card Plate Editor's POST /__plates/tuning: one plate's frame and
+  // interior numbers into packages/ui/src/cardPlate/plate-tuning.json, then that plate's Collection image rebuilt.
   // `gauntletStagePlugin` (also `apply: 'serve'`) = the Stage Builder's GET/POST /__gauntlet/stage over
   // packages/content/src/gauntlet/stages/*.json. That directory is watcher-ignored so a Save does not force a
   // full page reload (which would throw away the sandbox): the running game keeps the BUNDLED stage data until
   // the dev server restarts, while the Stage Builder always reads from disk via GET.
-  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin()],
+  plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin()],
   server: { watch: { ignored: [STAGES_DIR.replaceAll('\\', '/') + '/**'] } },
   resolve: {
     alias: {

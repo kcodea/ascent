@@ -72,4 +72,4 @@ Desktop (1920x1080, no throttle): gate 1,247 items before and after, 86.5 vs 86.
 - Pre-existing 404s on both builds: `assets/medallions/{rally,shout,echo,sell,watcher}.webp` (a relative medallion
   path resolved against `/assets/`).
 - Cosmetic plate skins (`frames/plates/`) are not in the preload list on any device (the derivation in
-  `apps/web/publicArt.ts` does not see the `PLATE_DIR + ...` shape). Kept as is so the desktop gate is unchanged.
+  `apps/web/publicArt.ts` does not see the `${PLATE_DIR}${id}` template). Kept as is so the desktop gate is unchanged.

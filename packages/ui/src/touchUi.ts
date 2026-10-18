@@ -28,7 +28,7 @@ export const TOUCH_UI_FACTOR: Record<TouchUiSize, number> = { normal: 1, large: 
 /** The menu-page zoom per size (touchUi.css `--touch-p`). */
 export const TOUCH_PAGE_ZOOM: Record<TouchUiSize, number> = { normal: 1, large: 1.5, larger: 1.8 };
 /** The card views on a phone (`data-touch-small`): Discover / Choose One, the Runeforge, Inspect. */
-export const CARD_VIEW_SCALE = { card: 1.6, forge: 1.4, inspect: 1.3 } as const;
+export const CARD_VIEW_SCALE = { card: 1.7, forge: 1.12, inspect: 1.4 } as const;
 /** localStorage key for the chosen size (absent = the device default). */
 export const TOUCH_UI_KEY = 'ascent.touchUiSize';
 /** Below this stage scale the card views render enlarged (`data-touch-small`). */

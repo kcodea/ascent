@@ -6827,7 +6827,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:
       'With the touch UI on, a focused text field (the sign-in email and code, your name, the Versus room name, the '
-      + 'searches) moves to a large bar along the top of the visible screen, above the on-screen keyboard, with 17 px '
+      + 'searches) moves to a large bar along the bottom of the visible screen, right on top of the on-screen keyboard, with 17 px '
       + 'text so the browser never zooms in. The field keeps its own Enter and blur behaviour and goes back on blur.',
     domain: 'foundation',
     status: 'approved',

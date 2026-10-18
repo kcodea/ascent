@@ -27,7 +27,7 @@ html[data-touch-ui] .tkb-lifted {
   border-color: #e8c877 !important;
   line-height: normal !important;
   text-align: left !important;
-  box-shadow: 0 0 0 200vmax rgba(4, 8, 16, 0.6) !important;
+  box-shadow: 0 0 0 calc(3px * var(--touch-inv-s)) rgba(232, 200, 119, 0.25), 0 calc(10px * var(--touch-inv-s)) calc(36px * var(--touch-inv-s)) rgba(0, 0, 0, 0.8) !important;
   outline: none !important;
 }
 
@@ -60,6 +60,10 @@ html[data-touch-ui] .frzwrap .frz-pill { transform: translate(calc(-50% + var(--
 html[data-touch-ui] .tvbwrap .tvb-cost { transform: translate(-50%, -50%) scale(calc(var(--tvb-cost-s, 0.84) * var(--touch-k))); }
 html[data-touch-ui] .rfb-cost { transform: translate(calc(-50% + var(--rfb-cost-x, -66) * var(--u)), calc(-50% + var(--rfb-cost-y, -64) * var(--u))) scale(calc(var(--rfb-cost-s, 0.72) * var(--touch-k))); }
 
+/* Combat's Skip, and hero select's Main Menu (anchored top-left, so it grows from that corner). */
+html[data-touch-ui] .combathud-skip { transform: translate(-50%, -50%) scale(calc(var(--touch-k) * 1.25)); }
+html[data-touch-ui] .hsback { scale: var(--touch-k); transform-origin: 0 0; }
+
 /* ── The menu pages (Career, Leaderboard, Recent Games, Collection, Live Games, Play, Practice, Versus) ────────────
    `--touch-p` zooms the page content (it reflows: a zoomed page lays out in a narrower box, like a tablet), the
    sidebar grows by `--touch-sb` (capped so its plaques still fit the height), and each zoomed box scrolls. */
@@ -89,6 +93,12 @@ html[data-touch-ui] .cv2-left .cv2-tiles .cv2-stat { flex: 1 1 200px; }
 /* ── The card views on a phone (`data-touch-small`): Inspect, Discover, Choose One, the Runeforge ─────────────────
    Enlarged toward ~80% of the screen height so the card text reads; their buttons move to the bottom edge. */
 html[data-touch-ui][data-touch-small] .inspect-card { scale: var(--touch-inspect); translate: 0 calc(-6 * var(--vh, 1vh)); }
-html[data-touch-ui][data-touch-small] .discover-ov .disc-panel { scale: var(--touch-card); }
-html[data-touch-ui][data-touch-small] .discover-ov.forge-ov .disc-panel { scale: var(--touch-forge); }
-html[data-touch-ui][data-touch-small] .disc-toggle { top: auto; bottom: calc(2% + var(--safe-b, 0px)); }
+html[data-touch-ui][data-touch-small] .discover-ov:not(.anc-offer) .disc-panel { scale: var(--touch-card); }
+/* The banner keeps its own size (it is already big): the height goes to the cards, where the text is. */
+html[data-touch-ui][data-touch-small] .discover-ov:not(.anc-offer):not(.forge-ov) .disc-panel .disc-ornate { zoom: calc(1.1 / var(--touch-card)); }
+/* The Runeforge is one painted composition (frame, banner, tablets) that already fills ~80% of the height: it grows as
+   a whole, anchored low so its banner still clears the top and its frame keeps clear of the "Inspect the board" pill. */
+html[data-touch-ui][data-touch-small] .discover-ov.forge-ov:not(.anc-offer) .disc-panel { scale: none; }
+html[data-touch-ui][data-touch-small] .discover-ov.forge-ov { scale: var(--touch-forge); transform-origin: 50% 86%; }
+/* The Discover's Peek pill moves to the right edge, mid-height: under the enlarged cards there is no room left. */
+html[data-touch-ui][data-touch-small] .disc-toggle.disc-peek:not(.inspect-act) { top: 50%; left: calc(100% - 10% - var(--safe-r, 0px)); }

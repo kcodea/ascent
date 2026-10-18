@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * R-TOUCH-KEYBOARD-01 (owner 2026-10-18): on touch, a focused text field is lifted to a big bar along the top of the
- * VISIBLE viewport (above the on-screen keyboard), with a 17 screen-px font so iOS never zooms; on a mouse device, or
+ * R-TOUCH-KEYBOARD-01 (owner 2026-10-18): on touch, a focused text field is lifted to a big bar along the bottom of
+ * the VISIBLE viewport (right on top of the on-screen keyboard), with a 17 screen-px font so iOS never zooms; on a mouse device, or
  * with the touch UI off, nothing happens. Focus never moves, so each field keeps its own Enter / blur handlers.
  */
 import { afterEach, describe, expect, it } from 'vitest';
@@ -20,16 +20,17 @@ describe('which fields lift', () => {
 });
 
 describe('the lifted box', () => {
-  it('sits along the top of the visible viewport, clear of the safe area, LIFT_H tall', () => {
+  it('sits along the bottom of the visible viewport (on top of the keyboard), clear of the safe area, LIFT_H tall', () => {
     const b = liftBox({ left: 0, top: 0, width: 844, height: 200 }, 59, 0, 0);
-    expect(b.top).toBe(12);
+    expect(b.top).toBe(200 - LIFT_H - 12);
+    expect(liftBox({ left: 0, top: 0, width: 844, height: 390 }, 0, 0, 21).top).toBe(390 - LIFT_H - 21);
     expect(b.height).toBe(LIFT_H);
     expect(b.left).toBeGreaterThanOrEqual(59);
     expect(b.left + b.width).toBeLessThanOrEqual(844 - 12);
   });
   it('follows a scrolled visual viewport (the keyboard pushed it), and caps its width on a tablet', () => {
     const b = liftBox({ left: 0, top: 300, width: 1180, height: 400 });
-    expect(b.top).toBe(312);
+    expect(b.top).toBe(300 + 400 - LIFT_H - 12);
     expect(b.width).toBe(LIFT_MAX_W);
     expect(b.left).toBeCloseTo((1180 - LIFT_MAX_W) / 2, 6);
   });

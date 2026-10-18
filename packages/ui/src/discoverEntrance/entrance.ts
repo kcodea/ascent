@@ -1,6 +1,7 @@
 import { canPlayDefs, playDef } from '../fx/playDef';
 import { playTailedClip } from '../sfx';
 import { toStage } from '../stage';
+import { touchUi } from '../touchUi';
 import {
   CUE_CATEGORY, cueSetting, entranceTimeline, flyKeyframes, getDiscoverEntranceConfig, startOffset,
   type DiscoverEntranceConfig, type EntranceCue, type EntranceTimeline,
@@ -95,6 +96,12 @@ export function runEntrance(root: HTMLElement, opts: EntranceOptions = {}): Entr
     return b.width > 0 ? { cx: b.left + b.width / 2, cy: b.top + b.height / 2, bottom: b.bottom, w: b.width } : null;
   });
   const mid = rects[Math.floor((rects.length - 1) / 2)] ?? null;
+  // A screen delta in the cards' own CSS px. The stage scale everywhere (toStage); on the touch UI a phone also
+  // enlarges the whole Discover panel (touchUi.css `--touch-card`), so the row's measured scale is used instead.
+  // Same read pass as the rects above; a mouse device keeps toStage exactly (R-TOUCH-UISCALE-01).
+  const row = slots[0]?.parentElement ?? null;
+  const rowScale = touchUi().on && row && row.offsetWidth > 0 ? row.getBoundingClientRect().width / row.offsetWidth : 0;
+  const toLocal = (v: number): number => (rowScale > 0 ? v / rowScale : toStage(v));
 
   const beats: [number, () => void][] = [];
   const at = (ms: number, fn: () => void): void => { beats.push([ms, fn]); };
@@ -136,7 +143,7 @@ export function runEntrance(root: HTMLElement, opts: EntranceOptions = {}): Entr
       const b = t.cards[i]!;
       const r = rects[i];
       // The fan offset is a screen delta written as a WAAPI translate -> stage px (stage.ts).
-      const from = startOffset(c, i, slots.length, r && mid ? toStage(mid.cx - r.cx) : 0);
+      const from = startOffset(c, i, slots.length, r && mid ? toLocal(mid.cx - r.cx) : 0);
       anim(el, flyKeyframes(c, from, i), { duration: Math.max(1, b.settledAt - b.startAt), delay: b.startAt, fill: 'backwards' }, animations);
 
       // The shimmer: one light band across the card as it arrives (opacity via the band's own static alpha).

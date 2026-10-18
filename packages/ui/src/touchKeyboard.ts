@@ -5,10 +5,12 @@
  * phone that is ~5 px text in a ~12 px box, and iOS zooms the whole page in on any input whose font is under 16 px,
  * then the on-screen keyboard covers the field. On touch (`data-touch-ui` on) a focused text field is LIFTED instead:
  *
- *  - it moves (position: fixed, inline style, restored on blur) to a big bar along the top of the VISIBLE viewport
- *    (`visualViewport`, so it is always above the keyboard, in either rotation, clear of the safe area);
+ *  - it moves (position: fixed, inline style, restored on blur) to a big bar along the BOTTOM of the VISIBLE viewport
+ *    (`visualViewport`), i.e. sitting right on top of the keyboard like a chat composer, in either rotation, clear of
+ *    the safe area. The bottom (not the top) keeps whatever the field drives in view: a search's result list drops
+ *    below its field near the top of the screen, and the panel a sign-in field belongs to stays readable above it;
  *  - its text is 17 SCREEN px (computed font size 17 / scale, so iOS never zooms) in a 52 px tall box;
- *  - the rest of the screen dims behind it (touchUi.css, `.tkb-lifted`).
+ *  - it reads as the focused thing: a gold edge and a deep shadow (touchUi.css, `.tkb-lifted`).
  *
  * Focus never moves, so every field keeps its own handlers exactly (Enter submits, the name editor commits on blur).
  * Repositioning runs on focus and on `visualViewport` resize / scroll only, never per frame.
@@ -34,16 +36,17 @@ export function isTextField(el: Element | null): el is HTMLInputElement | HTMLTe
 }
 
 /**
- * Pure: the lifted field's box in SCREEN px: centred along the top of the visible viewport `vv`, clear of the safe area
- * (`safeL` / `safeR` screen px), `LIFT_H` tall, at most `LIFT_MAX_W` wide.
+ * Pure: the lifted field's box in SCREEN px: centred along the bottom of the visible viewport `vv` (the keyboard's top
+ * edge when it is up), clear of the safe area (`safeL` / `safeR` / `safeB` screen px), `LIFT_H` tall, at most
+ * `LIFT_MAX_W` wide.
  */
-export function liftBox(vv: ViewportBox, safeL = 0, safeR = 0, safeT = 0): ViewportBox {
+export function liftBox(vv: ViewportBox, safeL = 0, safeR = 0, safeB = 0): ViewportBox {
   const left0 = vv.left + Math.max(LIFT_MARGIN, safeL);
   const right0 = vv.left + vv.width - Math.max(LIFT_MARGIN, safeR);
   const avail = Math.max(120, right0 - left0);
   const width = Math.min(LIFT_MAX_W, avail);
   const left = left0 + (avail - width) / 2;
-  return { left, top: vv.top + Math.max(LIFT_MARGIN, safeT), width, height: LIFT_H };
+  return { left, top: vv.top + vv.height - LIFT_H - Math.max(LIFT_MARGIN, safeB), width, height: LIFT_H };
 }
 
 /**
@@ -62,11 +65,11 @@ export function installTouchKeyboard(enabled: () => boolean): () => void {
   let lifted: HTMLInputElement | HTMLTextAreaElement | null = null;
   let savedStyle = '';
 
-  const safe = (): { l: number; r: number; t: number } => {
+  const safe = (): { l: number; r: number; b: number } => {
     const probe = document.getElementById('safe-probe');
-    if (!probe) return { l: 0, r: 0, t: 0 };
+    if (!probe) return { l: 0, r: 0, b: 0 };
     const c = getComputedStyle(probe);
-    return { l: parseFloat(c.paddingLeft) || 0, r: parseFloat(c.paddingRight) || 0, t: parseFloat(c.paddingTop) || 0 };
+    return { l: parseFloat(c.paddingLeft) || 0, r: parseFloat(c.paddingRight) || 0, b: parseFloat(c.paddingBottom) || 0 };
   };
   const place = (): void => {
     const el = lifted;
@@ -76,7 +79,7 @@ export function installTouchKeyboard(enabled: () => boolean): () => void {
       ? { left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height }
       : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
     const sa = safe();
-    const target = liftBox(view, sa.l, sa.r, sa.t);
+    const target = liftBox(view, sa.l, sa.r, sa.b);
     // Where does the fixed element's containing block sit, and at what scale? Two probes (focus / resize only).
     const st = el.style;
     st.left = '0px'; st.top = '0px';

@@ -188,4 +188,25 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13 (Set 4 is disabled; play it in the Scene Builder).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set4.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-IMMUNE-SHIELD-01',
+    title: 'Immune while attacking: a blue-and-gold shield forms at the wind-up of every covered swing and dissipates at the settle (both sides)',
+    statement:
+      'A minion that is Immune while attacking (Immune Iggy, Bounty Bot, Mauron, a Bloodlust swing) wears a blue-and-gold '
+      + 'shield on every swing its immunity covers: it forms as the attacker starts its wind-up, travels with it, sparks '
+      + 'when the counterblow it blocks lands (a defender with no Attack has nothing to deflect), and fades with an outward '
+      + 'shimmer as the attacker settles back into its slot. The engine flags exactly the covered swings (`attack.immune`, '
+      + 'read off the same charge count the clash spends), so once "Twice per combat" is spent the later swings show no '
+      + 'shield. It plays the same for enemy minions and in every view that replays the fight. The printed "first '
+      + '2 attacks each combat" on Bounty Bot counts down live in combat, like Immune Iggy.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-10-18 (immune while attacking FX)', quote: 'make an immune while attacking effect. this would apply to iggy and bounty bot as an example. they should gain a blue/gold shield when they wind up to attack that dissipates when they settle' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (immuneSwing on the attack emit); packages/ui/src/choreo/channels/immuneShield.ts; packages/ui/src/choreo/channels/lunge.ts (onWindupStart / onSettle); packages/ui/src/choreo/engine.ts (immune ctx); packages/ui/src/styles.css (.immshield); packages/ui/src/fx/defs/immune-shield-*.json; packages/ui/src/cardText.ts attackImmuneText' },
+    ],
+    contentIds: ['d3_iggy', 'bountybot', 'mauron'],
+    currentBehaviour: 'Conforms as of 2026-10-18.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/immuneAttackFlag.test.ts', 'packages/ui/src/choreo/immuneShield.test.ts', 'packages/ui/src/dragons1015.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

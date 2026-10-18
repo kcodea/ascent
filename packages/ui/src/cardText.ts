@@ -1598,12 +1598,16 @@ export function attackImmuneText(cardId: string, golden: boolean, attacks: numbe
   const def = CARD_INDEX[cardId];
   if (!def?.attackImmuneTurns || def.attackImmuneAlways) return null;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  // Only a card that prints its cap as "(Twice per combat)" / "(N times per combat)"; one that prints its immunity
-  // another way (Bounty Bot: "first 2 attacks each combat") stays on the rest of the chain.
+  const cap = golden && def.attackImmuneTurnsGilded ? def.attackImmuneTurnsGilded : def.attackImmuneTurns;
+  // BOUNTY BOT prints its cap inline ("Immune while attacking (first **2** attacks each combat)"). In combat that
+  // count goes live too (owner 2026-10-18, the immune-shield pass: the card shows the remaining uses); before its
+  // first swing it stays on the rest of the chain, exactly as before.
+  const inline = /\(first \*\*\d+\*\* attacks each combat\)/.exec(src);
+  if (inline) return attacks ? src.replace(inline[0], `{{(${Math.max(0, cap - attacks)} left this combat)}}`) : null;
+  // Otherwise only a card that prints its cap as "(Twice per combat)" / "(N times per combat)".
   const m = /\*\*\((?:Twice|\d+ times) per combat\)\*\*/.exec(src);
   if (!m) return null;
   if (!attacks) return src;
-  const cap = golden && def.attackImmuneTurnsGilded ? def.attackImmuneTurnsGilded : def.attackImmuneTurns;
   return src.replace(m[0], `{{(${Math.max(0, cap - attacks)} left this combat)}}`);
 }
 

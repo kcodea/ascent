@@ -15,12 +15,15 @@ const card = (cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
 };
 
 describe('Immune Iggy: "(Twice per combat)" counts down live in combat', () => {
-  it('printed before its first swing; N left after each; Gilded counts from 4; Bounty Bot is untouched', () => {
+  it('printed before its first swing; N left after each; Gilded counts from 4; Bounty Bot goes live once it swings', () => {
     expect(attackImmuneText('d3_iggy', false, 0)).toBe(CARD_INDEX['d3_iggy']!.text);
     expect(attackImmuneText('d3_iggy', false, 1)).toContain('{{(1 left this combat)}}');
     expect(attackImmuneText('d3_iggy', false, 5)).toContain('{{(0 left this combat)}}');
     expect(attackImmuneText('d3_iggy', true, 1)).toContain('{{(3 left this combat)}}');
-    expect(attackImmuneText('bountybot', false, 1)).toBeNull();
+    // Bounty Bot prints its cap inline: untouched before its first swing, live once it has swung (2026-10-18).
+    expect(attackImmuneText('bountybot', false, 0)).toBeNull();
+    expect(attackImmuneText('bountybot', false, 1)).toContain('Immune while attacking {{(1 left this combat)}}');
+    expect(attackImmuneText('bountybot', true, 3)).toContain('{{(0 left this combat)}}');
     expect(liveCardText('d3_iggy', { ...bag, attacksMade: 1 }).text).toContain('1 left this combat');
   });
 });

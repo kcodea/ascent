@@ -3232,6 +3232,8 @@ export function useCombatReplay(
             }
             : undefined,
           onImpactAuras: breakWards,
+          // IMMUNE WHILE ATTACKING: the engine flagged this swing as one its immunity covers (a spent charge never is).
+          immune: cur.primary.immune === true,
           onCritImpact: cur.primary.crit ? () => setCritShake((n) => n + 1) : undefined,
           // Flurry (W): the engine fires the wind-slash gust on the EXTRA swing (swing ≥ 1). Check the unit's
           // LIVE keywords (covers Flurry granted mid-combat), then the printed keyword off the card index.

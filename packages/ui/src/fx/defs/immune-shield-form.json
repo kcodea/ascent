@@ -1,0 +1,69 @@
+{
+  "version": 1,
+  "id": "immune-shield-form",
+  "duration": 360,
+  "layers": [
+    {
+      "primitive": "shockwave",
+      "name": "gather-ring",
+      "anchor": "target",
+      "at": 0,
+      "life": 300,
+      "params": {
+        "rings": 1,
+        "speed": 3.4,
+        "thickness": 0.06,
+        "fade": 0.8,
+        "radius": 96,
+        "ease": 0.6,
+        "bands": 3,
+        "alpha": 0.75,
+        "glow": 0.35,
+        "plateau": 0.3,
+        "erode": 0.2,
+        "reverse": true,
+        "palette": [
+          3107839,
+          4892927,
+          16763210,
+          16774352
+        ]
+      }
+    },
+    {
+      "primitive": "burst",
+      "name": "gather-motes",
+      "anchor": "target",
+      "at": 0,
+      "life": 300,
+      "params": {
+        "count": 14,
+        "spread": 1,
+        "speed": 150,
+        "speedVar": 0.3,
+        "drag": 0.9,
+        "gravity": 0,
+        "life": 240,
+        "reverse": true,
+        "emitShape": "ring",
+        "emitRadius": 70,
+        "squashY": 1.3,
+        "shape": "diamond",
+        "size": 6,
+        "sizeVar": 0.4,
+        "coreBias": 0.7,
+        "bands": 3,
+        "plateau": 0.32,
+        "glow": 0.3,
+        "erode": 0.2,
+        "blendMode": "add",
+        "palette": [
+          3107839,
+          4892927,
+          16763210,
+          16774352
+        ]
+      }
+    }
+  ]
+}

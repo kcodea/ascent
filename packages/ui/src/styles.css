@@ -1745,6 +1745,72 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   .card.compact.dscard .wardglass .wg-shard,
   .card.compact.dscard .wardglass .wg-burstring { animation-duration: 1ms; animation-delay: 0ms; }
 }
+/* ============================ IMMUNE SHIELD — "immune while attacking" (owner 2026-10-18) ====================
+   "they should gain a blue/gold shield when they wind up to attack that dissipates when they settle". Mounted on the
+   attacker's card by `choreo/channels/immuneShield.ts` for ONE swing (formed at the wind-up, gone at the settle), so
+   it rides the lunge's transform for free. Distinct from the Ward on purpose: a ROUND dome (the Ward is a hex shell
+   cut to the card), sized just outside the Ward so a Warded Immune attacker shows both, deep-blue energy inside a GOLD
+   double rim, and it never breathes. Every layer's paint is STATIC; the form / hit / fade animate transform + opacity
+   only, all one-shot. `--ims-t` = 1 / combat speed, so the one-shots keep pace with an accelerated replay. */
+.card.compact .immshield {
+  position: absolute; z-index: 5; pointer-events: none; border-radius: 50%;
+  left: 50%; top: 46%;
+  width: calc(var(--ccw, 120px) * 1.7); height: calc(var(--ccw, 120px) * 2.2);
+  transform: translate(-50%, -50%);
+  will-change: transform, opacity;
+}
+/* Seated on the same centre as the Ward shell (see `.wardglass`), ~8% wider and ~5% taller, so it encloses it. */
+.card.compact.stdframe .immshield {
+  top: calc(var(--ccw) * (0.5 - 0.12815 * var(--sh, 1) + var(--dy, 0) + var(--frameY, 0)) + 3px);
+  width: calc(var(--ccw) * 1.481 * var(--sh, 1) * 1.13); height: calc(var(--ccw) * 1.481 * var(--sh, 1) * 1.3475 * 1.05);
+}
+.card.compact.taunt .immshield {
+  top: calc(var(--ccw) * (0.5 - 0.068 * var(--sh, 1)) + 3px);
+  width: calc(var(--ccw) * 1.527 * var(--sh, 1) * 1.13); height: calc(var(--ccw) * 1.527 * var(--sh, 1) * 1.3333 * 1.05);
+}
+.card.compact .immshield .ims-body, .card.compact .immshield .ims-body > i { position: absolute; inset: 0; border-radius: 50%; }
+/* FILL — clear at the core so the art reads, blue energy densening toward the rim. */
+.card.compact .immshield .ims-fill {
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(70, 150, 255, 0.06) 0%, rgba(70, 150, 255, 0.10) 52%,
+    rgba(52, 128, 255, 0.42) 82%, rgba(110, 196, 255, 0.62) 96%, rgba(110, 196, 255, 0) 100%);
+}
+/* INNER — a thin blue band inside the gold, so the rim reads as a forged double edge, not a Ward's single line. */
+.card.compact .immshield .ims-inner {
+  inset: 5px; border: 1.5px solid rgba(150, 214, 255, 0.85);
+  box-shadow: 0 0 6px rgba(90, 170, 255, 0.75), inset 0 0 10px rgba(80, 150, 255, 0.45);
+}
+/* RIM — the gold edge, with its own warm glow in and out. */
+.card.compact .immshield .ims-rim {
+  border: 3px solid rgb(255, 207, 92);
+  box-shadow: 0 0 8px 1px rgba(255, 196, 70, 0.9), inset 0 0 12px rgba(255, 210, 110, 0.55);
+}
+/* SHEEN — the glass highlight, upper-left. */
+.card.compact .immshield .ims-sheen {
+  background: radial-gradient(ellipse 30% 22% at 32% 18%, rgba(255, 252, 236, 0.75) 0%, rgba(255, 252, 236, 0) 100%);
+}
+/* HIT — the deflect flash on the rim, at rest invisible; `.hit` plays it once. */
+.card.compact .immshield .ims-hit {
+  opacity: 0;
+  background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 236, 170, 0) 66%, rgba(255, 226, 140, 0.95) 88%, rgba(255, 255, 245, 1) 95%, rgba(255, 255, 245, 0) 100%);
+}
+.card.compact .immshield.up { animation: imsform calc(240ms * var(--ims-t, 1)) cubic-bezier(0.2, 0.8, 0.3, 1.2) both; }
+@keyframes imsform {
+  0% { transform: translate(-50%, -50%) scale(0.55); opacity: 0; }
+  60% { transform: translate(-50%, -50%) scale(1.05); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+}
+.card.compact .immshield.hit .ims-body { animation: imsflinch calc(200ms * var(--ims-t, 1)) ease-out both; }
+.card.compact .immshield.hit .ims-hit { animation: imsflash calc(220ms * var(--ims-t, 1)) ease-out both; }
+@keyframes imsflinch { 0% { transform: scale(1); } 30% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes imsflash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+.card.compact .immshield.down { animation: imsfade calc(320ms * var(--ims-t, 1)) ease-out both; }
+@keyframes imsfade {
+  0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(1.22); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.compact .immshield.up, .card.compact .immshield.down, .card.compact .immshield.hit .ims-body { animation-duration: 1ms; }
+}
 /* ========================================================================================================== */
 /* Reborn — wispy ethereal AQUA-GREEN aura (tuned on fx/reborn-css-preview.html), replacing the old Pixi wisp.
    A faint ghost DOME + N rising RANDOMIZED wisps, seated on the oval window inside the ellipse-clipped art

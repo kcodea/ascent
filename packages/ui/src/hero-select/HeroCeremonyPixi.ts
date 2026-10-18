@@ -25,6 +25,7 @@ import type { RectSnapshot } from './heroCeremonyMachine';
 import { stageScale } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
+import { PIXI_ANTIALIAS } from '../phoneArt';
 
 // ─── pure math (exported for tests) ───────────────────────────────────────────────────────────────────────
 
@@ -244,7 +245,7 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
     await app.init({
       resizeTo: host,
       backgroundAlpha: 0,
-      antialias: true,
+      antialias: PIXI_ANTIALIAS,
       autoDensity: true,
       resolution: res,
       preference: 'webgl',

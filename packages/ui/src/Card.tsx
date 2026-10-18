@@ -19,6 +19,7 @@ import { epicMedallionSrc, isEpicUnit } from './epicMedallion';
 import { crossedUp, tierOf } from './choreo/statMilestones';
 import { fireStatMilestone } from './fx/statMilestone';
 import { useMilestoneBadgeFx } from './fx/milestoneBadgeFx';
+import { publicArt } from './phoneArt';
 
 /** The badge's scale-pop: how far it swells and over how long. See `useBadgePop`. */
 const BADGE_POP_SCALE = 1.35;
@@ -134,7 +135,7 @@ function CardName({ name }: { name: string }) {
 // and the graceful fallback silently rendered the OLD pre-frame look (owner's mobile itch test). Vite rewrites
 // CSS url(/…) to relative at build, but it can't rewrite JS string literals — these must carry the base
 // themselves (BASE_URL is '/' in dev, './' in the build).
-const TAUNT_FRAME_SRC = `${import.meta.env.BASE_URL}frames/taunt-shield.png`;
+const TAUNT_FRAME_SRC = publicArt(`frames/taunt-shield.png`);
 /* PER-TRIBE TAUNT SHIELDS (owner-authored, 2026-07-26) — the heater equivalent of `TRIBE_OVALS` below, so a
    Taunt minion is themed like its non-Taunt kin instead of falling back to the shared gold shield. Same
    1086×1448 dims and window silhouette as `taunt-shield.png`, so the `--heater` clip + geometry are unchanged. */
@@ -154,7 +155,7 @@ const TRIBE_TAUNTS: Partial<Record<Tribe, { base: string; gold: string }>> = {
 function tauntFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
   const t = tribe && TRIBE_TAUNTS[tribe];
   if (!t) return TAUNT_FRAME_SRC;
-  return `${import.meta.env.BASE_URL}frames/${golden ? t.gold : t.base}`;
+  return publicArt(`frames/${golden ? t.gold : t.base}`);
 }
 const hasTribeTaunt = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_TAUNTS[tribe]);
 let tauntFrameAvailable = true;
@@ -166,7 +167,7 @@ let tauntFrameAvailable = true;
 // to `standard-oval.png` (the original PNG stays on disk, untouched). Same 1059×1427 dims + window as the
 // original, so the "AUTHORED FRAMES" geometry drops in unchanged; rendered SILVER via `--frame-tone:
 // grayscale(...)` on `.stdframe` (Gilded minions still show it gold).
-const STD_FRAME_SRC = `${import.meta.env.BASE_URL}frames/standard-oval-v2.png`;
+const STD_FRAME_SRC = publicArt(`frames/standard-oval-v2.png`);
 let stdFrameAvailable = true;
 /* PER-TRIBE OVAL FRAMES (owner-authored, 2026-07-26). Each tribe has its own coloured oval plus a dedicated
    GILDED variant, all 1059×1427 with the same window as `standard-oval-v2.png`, so the "AUTHORED FRAMES"
@@ -190,19 +191,19 @@ const TRIBE_OVALS: Partial<Record<Tribe, { base: string; gold: string }>> = {
 function stdFrameSrcFor(tribe: Tribe | undefined, golden: boolean): string {
   const t = tribe && TRIBE_OVALS[tribe];
   if (!t) return STD_FRAME_SRC;
-  return `${import.meta.env.BASE_URL}frames/${golden ? t.gold : t.base}`;
+  return publicArt(`frames/${golden ? t.gold : t.base}`);
 }
 const hasTribeOval = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_OVALS[tribe]);
 // New spell frame art (owner-supplied, session 42). Filename-swapped for one-line revert (original untouched).
 // Same 1122×1346 dims + window as the original → geometry unchanged. NOTE: spells carry NO `--frame-tone`
 // (it's a no-op `brightness(1)`), so this renders as-authored — the new art is GOLD w/ purple gems. Add the
 // grayscale tone to `.spellframe` if a silver spell frame is wanted (to match the minion oval).
-const SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/spell-frame-arch.webp`;
+const SPELL_FRAME_SRC = publicArt(`frames/spell-frame-arch.webp`);
 // SET 4 WHISPER arch (owner 2026-10-14: "add this to the whisper spell frames"): the owner's painted blue-violet
 // version of the spell arch, the SAME geometry (705x862 master, window and gems measured identical to
 // spell-frame-arch.webp), so it swaps in with no CSS change. Shipped at 768 px tall. Named outside `spell-*` so the
 // preload plan keeps it off the chrome lane while Set 4 is disabled.
-const WHISPER_SPELL_FRAME_SRC = `${import.meta.env.BASE_URL}frames/whisper-spell-frame.webp`;
+const WHISPER_SPELL_FRAME_SRC = publicArt(`frames/whisper-spell-frame.webp`);
 let spellFrameAvailable = true;
 // HAND CARD BACKPLATE — the ornate stone/gold card body behind a card in hand (and on the dragged copy).
 // Same load pattern as the frames above: BASE_URL-relative (root-absolute 404s on itch's CDN sub-path) with a
@@ -213,36 +214,36 @@ let spellFrameAvailable = true;
    already-tuned per-frame-type anchor (oval / heater / plain) and only the pill chrome is overridden in CSS.
    Falls back to the text pill if the asset 404s, same degrade-gracefully pattern as the frames. */
 const tierStarsSrc = (tier: number): string =>
-  `${import.meta.env.BASE_URL}frames/tier-stars-${tier}.webp`;
+  publicArt(`frames/tier-stars-${tier}.webp`);
 let tierStarsAvailable = true;
 /* TIER PLATE — the steel plaque the stars sit ON. Rendered immediately BEFORE the stars so tree order paints
    it behind them (both are positioned, so tree order is what decides — see the note on `.tierplate`). Gilded
    cards get the gold variant. Shows on every card type: minion oval, spell square and Taunt heater alike. */
 const tierPlateSrc = (golden: boolean): string =>
-  `${import.meta.env.BASE_URL}frames/tierplate${golden ? '-gilded' : ''}.webp`;
+  publicArt(`frames/tierplate${golden ? '-gilded' : ''}.webp`);
 /** The gilded (tripled) corner badge — authored art replacing the old CSS gold-circle + crown glyph (owner ask
  *  2026-09-22). Shown top-left on a golden card. */
-const GILDED_BADGE_SRC = `${import.meta.env.BASE_URL}frames/gilded.webp`;
+const GILDED_BADGE_SRC = publicArt(`frames/gilded.webp`);
 /** The dark shape seated behind the rules-text panel (see `.descbox`). Owner art, a full card-body silhouette. */
-const DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox.webp`;
+const DESC_BOX_SRC = publicArt(`frames/desc-backbox.webp`);
 /** The darkening for the NEW standard plate (owner 2026-10-15: "the standard card needs the new darkening section, as
  *  the old one cuts out space for the socket at the bottom that has been removed"): the card-plate shape, no socket.
  *  The old `desc-backbox` stays for the Whisper plate, which still has its socket. */
-const STANDARD_DESC_BOX_SRC = `${import.meta.env.BASE_URL}frames/desc-backbox-standard.webp`;
+const STANDARD_DESC_BOX_SRC = publicArt(`frames/desc-backbox-standard.webp`);
 /** The gold diamond divider between the card NAME and its rules text (owner art, 2026-10-09). */
-const NAME_DIVIDER_SRC = `${import.meta.env.BASE_URL}frames/name-divider.webp`;
+const NAME_DIVIDER_SRC = publicArt(`frames/name-divider.webp`);
 // NEW STANDARD + GILDED PLATES (owner 2026-10-15: "i want to replace the standard card plate with this", "this can also
 // be the replaced for the gilded card backplate", "the gilded backplate i provided will always be the gilded backplate,
 // even if the standard card has a skin on"). Same 800x1244 body as every plate. The standard one replaces every
 // tribe plate (the tribe name still prints on the bottom); the gilded one is painted gold, so it is NOT hue-filtered.
-const STANDARD_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-standard.webp`;
-const GILDED_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-gilded.webp`;
+const STANDARD_PLATE_SRC = publicArt(`frames/cardplate-standard.webp`);
+const GILDED_PLATE_SRC = publicArt(`frames/cardplate-gilded.webp`);
 // Milestone frame art — the disc a stat badge sits in once it crosses a value tier (see choreo/statMilestones.ts).
 // One per stat (`atk` sword motif / `hp` heart motif) per tier 1..5; tier 0 (below the first threshold) has no
 // frame and keeps the flat plate. BASE_URL-relative like every other public/frames asset (itch serves from a CDN
 // sub-path where a root-absolute '/frames/…' 404s — see the note on TAUNT_FRAME_SRC).
 const msFrameSrc = (stat: 'atk' | 'hp', tier: number): string =>
-  `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
+  publicArt(`frames/milestone-${stat}-${tier}.webp`);
 // The tribes whose name prints on the plate's bottom edge (`.plate-tribe`, no icon) instead of in the text drawer:
 // all ten. Keyed on the PRIMARY tribe (owner 2026-07-25). They used to have their own tribe-gem plates; since
 // 2026-10-15 every tribe wears the one STANDARD plate, and only the label placement stays.
@@ -250,11 +251,11 @@ const TRIBE_PLATED: ReadonlySet<Tribe> = new Set<Tribe>(['beast', 'dragon', 'mec
 // SET 4 WHISPER plate (owner 2026-10-14: "use this as the whisper frame instead"): the owner's painted blue-violet
 // plate, the same body geometry as every cardplate (951x1478 master, aspect matches 800x1244, overlay-checked), so
 // the art window, name, text and spell crystal sit exactly where they do on a Shop spell. Shipped at 768 px tall.
-const WHISPER_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper.webp`;
+const WHISPER_PLATE_SRC = publicArt(`frames/cardplate-whisper.webp`);
 // The GILDED Whisper plate (owner 2026-10-14: "add the whispergilded frame for gilded whispers"): the gold version of
 // the same painted plate (951x1478 master, overlay-checked identical to whisperFrame.png). `cardplate-whisper-*` keeps
 // it off the preload chrome lane ("whisper" is not a live tribe) while Set 4 is disabled.
-const WHISPER_GILDED_PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-whisper-gilded.webp`;
+const WHISPER_GILDED_PLATE_SRC = publicArt(`frames/cardplate-whisper-gilded.webp`);
 const isTribePlated = (tribe: Tribe | undefined): boolean => !!(tribe && TRIBE_PLATED.has(tribe));
 let cardPlateAvailable = true;
 

@@ -1,7 +1,8 @@
 import { SPEC } from './gildedBadgeConfig';
 import { TunerPanel } from './TunerPanel';
+import { publicArt } from './phoneArt';
 
-const GILDED_BADGE_SRC = `${import.meta.env.BASE_URL}frames/gilded.webp`;
+const GILDED_BADGE_SRC = publicArt(`frames/gilded.webp`);
 
 /** Live preview of the gilded badge — the same art the card shows, reading the tuner's `--gcrown-*` vars, so
  *  size/placement track as you drag (the `.medprev` pattern). */

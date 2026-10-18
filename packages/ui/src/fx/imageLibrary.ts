@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 import { Texture } from 'pixi.js';
+import { LITE_ART } from '../phoneArt';
 import { isValidSlug, saveImage, slugify } from './defStore';
 import { commonStem, naturalCompare, planCell, planGrid } from './sheetPack';
 
@@ -213,6 +214,9 @@ let hydrated = false;
 export function initImageLibrary(): void {
   if (hydrated) return;
   hydrated = true; // set BEFORE the decodes so a re-entrant lookup can't loop
+  // A phone decodes each FX image on its first use instead (`getImageTexture` asks for exactly that id): the
+  // sheets are 1024 px squares, 4 MB each decoded, and most sessions never play most of them (owner 2026-10-18).
+  if (LITE_ART) return;
   for (const slug of globIndex().keys()) void ensureImageTexture(imageId(slug));
 }
 

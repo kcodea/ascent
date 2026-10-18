@@ -6671,4 +6671,46 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-18 (fix/mobile-touch-input). Before, every touch device in portrait was blocked and the prompt said "phone".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/safeArea.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
+  // ── Phones get a short loading gate, small art and bounded memory (owner 2026-10-18, phone-only relaxation) ────
+  {
+    id: 'R-PRESENT-34',
+    title: 'On a phone the loading gate covers only the title and menu art; the rest streams in small and is not all held',
+    statement:
+      'On a phone or small touch screen (any iOS device including iPadOS, or a coarse pointer on a screen whose shorter '
+      + 'side is under 600 CSS px), the R-PRESENT-26 rule to load everything before play is RELAXED, by owner approval, '
+      + 'for phones only: the splash waits for the title and menu art, then everything else streams in behind it (hero '
+      + 'select first, then the shop and the early cards of the live set, then the rest; cards of other sets are not '
+      + 'prefetched). A phone loads the downscaled copies the build makes (card art 256 px, heroes and skins 384, card frames '
+      + 'and shop buttons 512, the boards 1920), keeps a bounded set of decoded images rather than all of them, decodes '
+      + 'only the core sound bank up front, and builds reverb on first use. Brief pop-in on a phone is accepted. '
+      + 'Desktop keeps R-PRESENT-26 unchanged: the full gate, original art and no pop-in.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-18 (mobile crash report)',
+        quote: 'the iPhone crashes a lot',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-18 (the ruling, relayed in the task brief)',
+        quote: 'approved relaxing the "load everything, no pop-in" rule ON PHONES/TOUCH ONLY, because the alternative is crashes and an 83 s load',
+      },
+      { kind: 'code', ref: 'packages/ui/src/phoneArt.ts; packages/ui/src/preloadPlan.ts (preloadBootArtLite); packages/ui/src/artPreload.ts; packages/ui/src/imageKeep.ts; apps/web/phoneArtPlugin.ts; packages/ui/src/sfx.ts; packages/ui/src/fx/audioFilters.ts' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-18. Measured in docs/devlog/2026-10-18-phone-load-memory.md (iPhone-landscape emulation, '
+      + '4x CPU, 9 Mbps): time to menu 82.5 s to 6.3 s, renderer memory in the shop 1,180 MB to 444 MB.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/ui/src/phoneArt.test.ts',
+        'packages/ui/src/preloadPlan.test.ts',
+        'packages/ui/src/imageKeep.test.ts',
+        'apps/web/phoneArtPlugin.test.ts',
+      ],
+      lastVerifiedAt: '2026-10-18',
+    },
+  },
 ];

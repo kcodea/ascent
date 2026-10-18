@@ -23,6 +23,7 @@
  */
 import type { FxParamSpec, FxParamSpecs } from './params';
 import { bakeCurveLut, CURVE_PRESETS, type CurvePoint } from './curve';
+import { LITE_ART } from '../phoneArt';
 
 type P = Record<string, unknown>;
 const num = (p: P, k: string, d = 0): number => (typeof p[k] === 'number' ? (p[k] as number) : d);
@@ -282,7 +283,11 @@ const DELAY: AudioFilterSpec = {
  * to silence, so a reused node sounds exactly like a fresh one. Loops and untimed plays never pool.
  */
 const CONVOLVER_RELEASE_PAD_S = 0.5;
-const CONVOLVER_POOL_MAX = 8;
+/** PHONES (mobile memory pass 2026-10-18): one ConvolverNode holds its partitioned impulse plus FFT and accumulation
+ *  buffers, measured at ~70 MB of renderer memory per node for these 1.5-4.2 s tails (the six pre-warmed nodes were
+ *  ~440 MB in mobile-emulated Chrome). A phone keeps at most ONE idle node per impulse and pre-warms none: its first
+ *  reverb'd fire of each impulse builds one (the ~6 ms main-thread cost this pool exists to hide). Desktop unchanged. */
+const CONVOLVER_POOL_MAX = LITE_ART ? 1 : 8;
 const convolverPools = new WeakMap<BaseAudioContext, Map<string, ConvolverNode[]>>();
 const pooledConvolvers = new WeakSet<ConvolverNode>();
 function impulseKeyOf(a: BaseAudioContext, size: number, damping: number): string {
@@ -320,6 +325,7 @@ function releaseConvolver(a: BaseAudioContext, conv: ConvolverNode, feed: AudioN
  * mid-frame. Called once the AudioContext exists (`sound` primitive → `onAudioContextReady`).
  */
 export function prewarmConvolvers(a: BaseAudioContext, specs: ReadonlyArray<{ size: number; damping: number }>, perKey = 2): void {
+  if (LITE_ART) return; // a phone builds each on first use (see CONVOLVER_POOL_MAX)
   const seen = new Set<string>();
   const jobs: Array<() => void> = [];
   for (const sp of specs) {

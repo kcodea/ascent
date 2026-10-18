@@ -25,6 +25,7 @@ import {
 } from './audio/config';
 import { familyOf } from './audio/clipFamily';
 import { requestAssetTask } from './artPreload';
+import { LITE_ART } from './phoneArt';
 import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
@@ -342,7 +343,7 @@ function loadSample(name: string, lane: 'now' | 'audio' = 'now'): void {
     fetch(src)
       .then((r) => r.arrayBuffer())
       .then((ab) => a.decodeAudioData(ab))
-      .then((buf) => { buffers.set(name, buf); loadingSamples.delete(name); })
+      .then((buf) => { keepBuffer(name, buf); loadingSamples.delete(name); })
       .catch(() => { loadingSamples.delete(name); }));
 }
 
@@ -372,8 +373,38 @@ export async function importFxSound(file: File): Promise<{ id: string; label: st
   return { id, label: slug };
 }
 
+/**
+ * PHONES (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). A decoded AudioBuffer is raw float PCM,
+ * about 24x its mp3: the whole ~520-clip bank decodes to roughly 400 MB, which on an iPhone is most of what iOS lets a
+ * tab use. So a phone decodes only the CORE bank up front (the top-level UI / shop / combat clips and the hero-select
+ * ceremony); the per-card, per-hero and FX `sound` clips are FETCHED (warm HTTP cache, nothing decoded) and decode on
+ * their first play, which plays the synth fallback exactly as any not-yet-decoded clip does on desktop. Decoded
+ * non-core clips are then held in an LRU capped at `LITE_AUDIO_BYTES`. Desktop decodes and keeps everything, as before.
+ */
+export const LITE_AUDIO_BYTES = 64 * 1024 * 1024;
+/** Core = decoded up front on a phone, never evicted. Exported for its test. */
+export const isCoreSample = (name: string): boolean => !name.includes('/') || name.startsWith('ceremony/');
+let liteAudioBytes = 0;
+/** Hold a decoded clip. On a phone a non-core clip joins the LRU (oldest dropped past the cap; re-decoded on demand). */
+function keepBuffer(name: string, buf: AudioBuffer): void {
+  buffers.set(name, buf);
+  if (!LITE_ART || isCoreSample(name)) return;
+  liteAudioBytes += buf.length * buf.numberOfChannels * 4;
+  for (const [k, b] of buffers) {
+    if (liteAudioBytes <= LITE_AUDIO_BYTES) break;
+    if (k === name || isCoreSample(k)) continue;
+    buffers.delete(k);
+    liteAudioBytes -= b.length * b.numberOfChannels * 4;
+  }
+}
+
 function prefetchSamples(): void {
-  for (const path of Object.keys(SAMPLE_URLS)) loadSample(sampleName(path), 'audio');
+  for (const path of Object.keys(SAMPLE_URLS)) {
+    const name = sampleName(path);
+    if (!LITE_ART || isCoreSample(name)) { loadSample(name, 'audio'); continue; }
+    const url = SAMPLE_URLS[path]!;
+    requestAssetTask(`sfx-fetch:${name}`, 'audio', () => fetch(url).then((r) => r.arrayBuffer()).then(() => undefined, () => undefined));
+  }
 }
 
 // Variant families: a logical clip (e.g. `smack`) can be backed by N numbered files (`smack1.mp3`…`smackN.mp3`);

@@ -34,6 +34,7 @@ import { stageHost } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateTiming';
+import { PIXI_ANTIALIAS } from '../phoneArt';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -98,7 +99,7 @@ class GateFxController {
   private async init(): Promise<void> {
     const app = new Application();
     await app.init({
-      resizeTo: window, backgroundAlpha: 0, antialias: true, autoDensity: true,
+      resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts

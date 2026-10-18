@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { SPEC } from './milestoneFrameConfig';
 import { TunerPanel } from './TunerPanel';
+import { publicArt } from './phoneArt';
 
 /** The digit shown on each tier's preview badge — the threshold that lights it, so the 4-digit tiers show how
  *  a big number fits the disc. */
 const TIER_NUM: Record<number, string> = { 1: '10', 2: '50', 3: '150', 4: '500', 5: '2000', 6: '5000' };
 const src = (stat: 'atk' | 'hp', tier: number): string =>
-  `${import.meta.env.BASE_URL}frames/milestone-${stat}-${tier}.webp`;
+  publicArt(`frames/milestone-${stat}-${tier}.webp`);
 
 /**
  * A live preview of every milestone tier, rendered with the REAL badge markup (`.badge`/`.msframe`/`.mstint`/

@@ -4,6 +4,7 @@ import { poolOf, type RunState } from '@game/sim';
 import { ART_URL_GROUPS, artFor } from './art';
 import { ART_ALIAS } from './artAlias';
 import { requestArtList } from './artPreload';
+import { LITE_ART, phonePublicUrl } from './phoneArt';
 import type { Lane } from './assetQueue';
 
 /**
@@ -60,7 +61,7 @@ export function splitPublicArt(
     const tribe = TRIBE_FILE.exec(p)?.[1];
     const offTribe = !!(tribes && tribe && tribe !== 'wire' && !tribes.has(tribe));
     const g = offTribe ? -1 : PUBLIC_CHROME_ORDER.findIndex((re) => re.test(p));
-    (g >= 0 ? groups[g]! : rest).push(`${BASE}${p}`);
+    (g >= 0 ? groups[g]! : rest).push(phonePublicUrl(p, BASE));
   }
   return { chrome: groups.flat(), title: groups[0]!, play: groups.slice(1).flat(), rest };
 }
@@ -153,9 +154,15 @@ let bootGate: string[] | null = null;
  * Queue everything, once, in lane order, and return the GATE: every URL Boot must see decoded before the menu opens
  * (deduped, in queue order). `extraSets` = the saved run's set when it is not the live one. Cheap: it only fills
  * the queue (~1,400 Map inserts); a second call returns the same list.
+ *
+ * ON A PHONE (`lite`, owner 2026-10-18: the full gate was an 83 s first load and the decoded art crashed the tab) the
+ * gate is the TITLE + MENU art only, and everything else streams in behind it, in the order a player meets it: hero
+ * select (portraits + powers), then the shop (board, card frames, buttons) with the live set's tier 1-2 cards, then
+ * the rest. Cards that only another set can show are not fetched at all on a phone. Desktop is unchanged.
  */
-export function preloadBootArt(extraSets: readonly SetId[] = []): string[] {
+export function preloadBootArt(extraSets: readonly SetId[] = [], lite: boolean = LITE_ART): string[] {
   if (bootGate) return bootGate;
+  if (lite) return (bootGate = preloadBootArtLite(extraSets));
   const live = (Object.keys(SETS) as SetId[]).filter((id) => SETS[id].enabled);
   const gatedSets = new Set<SetId>([...live, ...extraSets.filter((id) => id in SETS)]);
   const pub = splitPublicArt(__PUBLIC_ART__);
@@ -192,6 +199,54 @@ export function preloadBootArt(extraSets: readonly SetId[] = []): string[] {
   return bootGate;
 }
 
+/** The phone plan (see `preloadBootArt`). Returns the gate: the title chrome only. */
+function preloadBootArtLite(extraSets: readonly SetId[]): string[] {
+  const live = (Object.keys(SETS) as SetId[]).filter((id) => SETS[id].enabled);
+  const gatedSets = new Set<SetId>([...live, ...extraSets.filter((id) => id in SETS)]);
+  const pub = splitPublicArt(__PUBLIC_ART__);
+  const gate: string[] = [];
+  const add = (lane: Lane, urls: readonly string[]): void => { plan(lane, urls); gate.push(...urls); };
+  add('chrome', pub.title);
+  add('chrome', UI_CHROME_ART);
+  add('chrome', vals(ART_URL_GROUPS.rank));
+  add('chrome', vals(ART_URL_GROUPS.mode));
+  // Behind the gate, in the order a player gets to them. Queued only once the gate has opened
+  // (`startBackgroundArt`): on a phone's line every byte spent on them would slow the title down.
+  liteRest = () => streamLiteRest(gatedSets, pub);
+  return [...new Set(gate)];
+}
+
+let liteRest: (() => void) | null = null;
+/** A phone's background stream, queued once the boot gate has opened (Boot.tsx). A no-op on desktop (its plan queued
+ *  everything up front) and on every call after the first. */
+export function startBackgroundArt(): void {
+  const go = liteRest;
+  liteRest = null;
+  go?.();
+}
+
+function streamLiteRest(gatedSets: ReadonlySet<SetId>, pub: ReturnType<typeof splitPublicArt>): void {
+  plan('early', vals(ART_URL_GROUPS.hero));
+  plan('early', vals(ART_URL_GROUPS.power));
+  plan('early', pub.play);
+  const setRest: string[] = [];
+  for (const id of gatedSets) {
+    const { early, rest } = poolArtOrder(poolFor(id).all, 2);
+    plan('early', early);
+    setRest.push(...rest);
+  }
+  plan('set', setRest);
+  plan('set', splitCardArt(gatedSets).gated);
+  plan('set', pub.rest);
+  plan('set', vals(ART_URL_GROUPS.equipment));
+  plan('set', vals(ART_URL_GROUPS.quest));
+  plan('set', splitRuneArt(gatedSets).gated);
+  plan('set', vals(ART_URL_GROUPS.ancient));
+  // Skins and FX images: lowest, they show only when owned / played. Other sets' cards: never prefetched on a phone.
+  plan('idle', vals(ART_URL_GROUPS.skin));
+  plan('idle', EXTRA_ART);
+}
+
 let lastRunKey = '';
 /** The run's pinned pool, up to one tier past the tavern first. Re-plans only when set / tribes / tier move. */
 export function preloadRunArt(run: Pick<RunState, 'setId' | 'tier'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig'>>): void {
@@ -211,5 +266,6 @@ function plan(lane: Lane, urls: readonly string[]): void {
 /** Test hook: forget the once-only guards. */
 export function __resetPreloadPlan(): void {
   bootGate = null;
+  liteRest = null;
   lastRunKey = '';
 }

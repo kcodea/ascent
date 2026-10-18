@@ -20,9 +20,9 @@ import { usePlayerRuneLive } from './useRuneLive';
 import { playDef } from './fx/playDef';
 import { sfx } from './sfx';
 import './runeSheenConfig'; // side-effect: reflects the --rsh-* rune-sheen vars at load
-
-// Public-folder art carries the BASE_URL (itch serves from a CDN sub-path; a root-absolute '/frames/…' 404s).
-const F = `${import.meta.env.BASE_URL}frames/`;
+// Public-folder art carries the BASE_URL (itch serves from a CDN sub-path; a root-absolute '/frames/…' 404s):
+// `publicArt()` adds it, and on a phone picks the build's smaller copy (phoneArt.ts).
+import { publicArt } from './phoneArt';
 
 /** Each tribe's emblem glyph — the fallback when a quest has no art yet (mirrors QuestCard). */
 const TRIBE_ICON: Record<Tribe, string> = { beast: 'paw', dragon: 'flame', mech: 'gear', undead: 'skull', demon: 'eye', neutral: 'star', kobold: 'crown', dwarf: 'anvil', celestial: 'clock', spirit: 'clock' };
@@ -354,14 +354,14 @@ export function QuestBadges() {
           discs still `mix-blend-mode` against the badges behind them. LAST children: absolutely positioned (DOM
           order sets paint order — they ride on top) and keep the badges' `:nth-child` stagger counting from 1. */}
       {runes.length > 0 && [1, 2, 3].map((n) => (
-        <img decoding="sync" key={n} className={`rune-sheen rune-sheen-${n}`} src={`${F}rune-sheen-${n}.webp`} alt="" draggable={false} aria-hidden />
+        <img decoding="sync" key={n} className={`rune-sheen rune-sheen-${n}`} src={publicArt(`frames/rune-sheen-${n}.webp`)} alt="" draggable={false} aria-hidden />
       ))}
       {/* CHAINS on the LOCKED third rune slot (owner ask 2026-08-19): shown once the rune row is up but the 3rd
           slot is empty AND out of reach — most runs only ever get 2 (basic forge turn 6, epic turn 9). It clears
           the instant the slot could be filled (a runeforge-native hero / Rune of the Epic Forge) or actually is
           (a 3rd owned rune, e.g. via Duplication). Placement from the 💠 Rune Sheen tuner (`--rch-*`). */}
       {showChains && (
-        <img decoding="sync" className="rune-chains" src={`${F}rune-chains.webp`} alt="" draggable={false} aria-hidden />
+        <img decoding="sync" className="rune-chains" src={publicArt(`frames/rune-chains.webp`)} alt="" draggable={false} aria-hidden />
       )}
     </div>
   );

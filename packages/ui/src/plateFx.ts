@@ -1,3 +1,4 @@
+import { publicArt } from './phoneArt';
 /**
  * Shared machinery for the two PLATE effects — the dissolve (a card is played) and the coalesce (a card is
  * generated). They are mirror images and must read as one magic system, so they share the wireframe mask,
@@ -9,9 +10,9 @@
  * second module would be duplicating the bug's blast radius.
  */
 
-export const WIRE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-wire.webp`;
+export const WIRE_SRC = publicArt(`frames/cardplate-wire.webp`);
 // The STANDARD plate (2026-10-15): every plate cosmetic shares its body silhouette, so its alpha is the spawn mask.
-export const PLATE_SRC = `${import.meta.env.BASE_URL}frames/cardplate-standard.webp`;
+export const PLATE_SRC = publicArt(`frames/cardplate-standard.webp`);
 
 /** Plate width the effects' px-quantities were dialed against. Speeds/sizes scale by (actual / REF_W) so
  *  both effects hold their proportions at any board scale. */

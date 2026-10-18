@@ -2,12 +2,13 @@ import { memo, useEffect, useRef } from 'react';
 import { onPressCue } from './pressCue';
 import { playDef } from './fx/playDef';
 import { Icon } from './Icon';
+import { publicArt } from './phoneArt';
 
 // Public-folder assets must carry the BASE_URL — itch serves the game from a CDN sub-path, where a
 // root-absolute '/frames/…' 404s and the button renders as a broken image (owner report 2026-07-27). Vite
 // rewrites CSS `url(/…)` to relative at build time but CANNOT rewrite JS string literals, so every one of
 // these has to prefix the base itself ('/' in dev, './' in the build). Same rule as Card.tsx's frame srcs.
-const F = `${import.meta.env.BASE_URL}frames/`;
+// `publicArt()` (phoneArt.ts) adds it, and on a phone picks the build's smaller copy.
 
 // Per-tier pip width as a % of the BASE width — each tier's arc art is a different width (91,177,305,454,564,
 // 629 px over the 795-wide base; tier 7 = tier 6's placeholder), so each renders at its own native scale with
@@ -81,11 +82,11 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
       {/* The orb, seated over the base's baked orb as the effect layer. At MAX tier it DIMS (owner ask
           2026-08-14 — the old "broken orb" swap was dropped). */}
       <span className="tvb-gembox" aria-hidden="true">
-        <img decoding="sync" className="tvb-gem lit" src={`${F}tavernup_gem.webp`} alt="" draggable={false} />
+        <img decoding="sync" className="tvb-gem lit" src={publicArt(`frames/tavernup_gem.webp`)} alt="" draggable={false} />
         {/* Ambient SHEEN — a glare bar sweeping the gem's face, clipped to its circle; transform-only loop. */}
         <span className="tvb-sheen"><span className="tvb-sheen-bar" /></span>
       </span>
-      <img decoding="sync" className="tvb-base" src={`${F}tavernup_base.webp`} alt="" draggable={false} />
+      <img decoding="sync" className="tvb-base" src={publicArt(`frames/tavernup_base.webp`)} alt="" draggable={false} />
       {/* Tier pips — the current tavern tier lit as an arc of segments around the orb. Each tier's art is a
           DIFFERENT width (the arc grows with the tier), exported at the base's scale — so each is sized by its
           OWN native width relative to the base (`PIP_W`; height auto keeps the aspect EXACT, never stretched)
@@ -94,7 +95,7 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
         <img decoding="sync"
           key={n}
           className={`tvb-pips${n === pipTier ? ' on' : ''}`}
-          src={`${F}tavernup_tier${n}.webp`}
+          src={publicArt(`frames/tavernup_tier${n}.webp`)}
           style={{
             width: `calc(${PIP_W[n - 1]}% * var(--tvb-pip-s, 1) * var(--tvb-pip${Math.min(n, 6)}-s, 1))`,
             left: `calc(50% + (var(--tvb-pip-x, 0) + var(--tvb-pip${Math.min(n, 6)}-x, 0)) * var(--u))`,
@@ -107,7 +108,7 @@ export const TavernUpButton = memo(function TavernUpButton({ tier, maxTier, cost
           drop-shadow halo is clipped at its element box (any real blur floods the box and reads SQUARE).
           The gem is a circle, so a stacked BOX-SHADOW on a border-radius:50% span is exact, paints outside
           the element, and can never clip. */}
-      <img decoding="sync" className="tvb-glow" src={`${F}tavernup_gem.webp`} alt="" draggable={false} aria-hidden="true" />
+      <img decoding="sync" className="tvb-glow" src={publicArt(`frames/tavernup_gem.webp`)} alt="" draggable={false} aria-hidden="true" />
       {/* Cost coin — the live upgrade cost (hidden at max tier — the broken gem tells that story — and
           during combat, where the stone is a passive tier indicator). */}
       {!maxed && !combat && (

@@ -2,11 +2,16 @@ import { useEffect, useState, type ReactNode } from 'react';
 import './styles.css'; // ensure the boot loading screen is styled even before <Game/> mounts
 import { createPortal } from 'react-dom';
 import type { SetId } from '@game/content';
-import { preloadBootArt } from './preloadPlan';
-import { setArtConcurrency, whenArtReady } from './artPreload';
+import { preloadBootArt, startBackgroundArt } from './preloadPlan';
+import { artMemoryStats, setArtConcurrency, whenArtReady } from './artPreload';
+import { applyPhoneCssArt, LITE_ART } from './phoneArt';
 import { useGame } from './store';
 
 /**
+ * ON A PHONE the gate is shorter (owner 2026-10-18, approved for phones / touch only: "the iPhone crashes a lot"): the
+ * splash waits for the title + menu art, and everything else streams in behind it (`preloadPlan.ts`, `phoneArt.ts`).
+ * Desktop keeps the full gate described below.
+ *
  * THE LOADING GATE (owner 2026-09-30: "i think id rather load everything. i dont want blurry images, i wanna stop
  * pop in."). The splash stays up until every image a session on the live set can show is fetched AND decoded
  * (`preloadBootArt` returns that list, `whenArtReady` waits on it), and its bar is REAL progress: items decoded /
@@ -82,15 +87,20 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     // Running it again is harmless: `preloadBootArt` queues once and returns the same list, and `whenArtReady`
     // only listens.
     let alive = true;
+    // PHONES (owner 2026-10-18) gate on the title + menu art only and stream the rest (preloadPlan.ts); the board
+    // art switches to its phone copy here, before anything paints it.
+    applyPhoneCssArt();
+    if (typeof window !== 'undefined') (window as unknown as { __artMem?: unknown }).__artMem = artMemoryStats;
     const gate = preloadBootArt(savedRunSets());
     setArtConcurrency(GATE_CONCURRENCY);
     const paint = progressPainter();
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     void whenArtReady(gate, paint).then(() => {
       setArtConcurrency(PLAY_CONCURRENCY);
+      startBackgroundArt(); // a phone's stream behind the short gate (no-op on desktop: everything is already queued)
       if (typeof window !== 'undefined') {
         // Read by the devlog's measuring script (and handy in a bug report): how long the gate held, for how many.
-        (window as unknown as { __artGate?: unknown }).__artGate = { items: gate.length, ms: Math.round(performance.now() - t0) };
+        (window as unknown as { __artGate?: unknown }).__artGate = { items: gate.length, ms: Math.round(performance.now() - t0), lite: LITE_ART };
       }
       if (alive) setReady(true);
     });

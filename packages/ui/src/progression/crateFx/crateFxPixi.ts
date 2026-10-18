@@ -26,6 +26,7 @@ import {
   CHEST, cutKeyholeMask, paintChestBody, paintChestLid, paintCoin, paintGlow, paintPedestal, paintRays, paintRing,
   paintRuneRing, paintSeamBar, paintShards, paintSpark, paintStreak,
 } from './crateTextures';
+import { PIXI_ANTIALIAS } from '../../phoneArt';
 
 export interface CrateFx {
   /** Start Pixi in `host`. Resolves true when it is live, false when it is not (DOM fallback). */
@@ -90,7 +91,7 @@ class CrateFxPixi implements CrateFx {
       await app.init({
         resizeTo: host,
         backgroundAlpha: 0,
-        antialias: true,
+        antialias: PIXI_ANTIALIAS,
         autoDensity: true,
         resolution: res,
         preference: 'webgl',

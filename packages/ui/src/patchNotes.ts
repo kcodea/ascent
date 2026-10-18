@@ -73,6 +73,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'Card Plates that used the light brown middle now use a darker brown one, with no extra shading behind the text.', details: ['Topaz, Blossom, Spirit Carving, Iridescent, Porcelain, Smooth Iridescent, Honey and Goop.'] },
       { category: 'Systems', text: 'Recent Games has a More button next to the hero filters. Open it to filter by any hero in the list, with how many games each one played.' },
+      {
+        category: 'Systems',
+        text: 'Phones load much faster and use far less memory, which should stop the crashes on iPhone.',
+        details: [
+          'On a phone the game opens once the title and menu are ready. The rest loads in the background while you pick a mode and a hero.',
+          'Phones get smaller copies of the card art, frames and boards, sized for the screen.',
+          'Some art can fade in a moment late on a phone the first time you see it. Computers load everything up front, as before.',
+        ],
+      },
     ],
   },
   {

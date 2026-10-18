@@ -390,7 +390,7 @@ export function iggyTravelMs(distance: number, tunedMs: number): number {
  * and `rate` its density, both relative to the tier's own width.
  */
 export const IGGY_STAGE_LOOKS: readonly { heat: number; width: number; rate: number; name: string }[] = Object.freeze([
-  { heat: 0.55, width: 0.55, rate: 0.6, name: 'thin blue' },
+  { heat: 0.55, width: 0.7, rate: 0.7, name: 'thin blue' },
   { heat: 0.8, width: 0.85, rate: 0.9, name: 'cyan' },
   { heat: 1, width: 1.15, rate: 1.2, name: 'white-cored' },
 ]);

@@ -76,7 +76,7 @@ export const MAX_IGGY_SPRITES = 380;
 /** Hard cap on live breath-fire particles (a Tier IV impact peaks near it; the pool never grows past it). */
 export const MAX_IGGY_PARTICLES = 1100;
 /** Hard cap on the wing fire's particles. */
-export const MAX_WING_PARTICLES = 320;
+export const MAX_WING_PARTICLES = 600;
 
 type LayerId = 'ground' | 'under' | 'fx' | 'hot';
 const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [['ground', 'normal'], ['under', 'add'], ['fx', 'add'], ['hot', 'add']];
@@ -104,7 +104,10 @@ interface Stream { outer: FireEmitter; mid: FireEmitter; core: FireEmitter; thro
 
 interface Surge { em: FireEmitter; head: Sprite; halo: Sprite; ring: Sprite }
 
-interface Presence { left: FireEmitter; right: FireEmitter; eyes: Sprite[]; throat: Sprite; x: number; y: number; R: number; dir: Pt; up: number; target: number }
+/** One flame feather of a wing: a line emitter from the shoulder whose tip unfurls out to `tip`. */
+interface Feather { em: FireEmitter; sx: number; sy: number; tx: number; ty: number }
+
+interface Presence { feathers: Feather[]; eyes: Sprite[]; throat: Sprite | null; x: number; y: number; R: number; dir: Pt }
 
 export class HeroIggyScene {
   readonly root = new Container();
@@ -251,27 +254,38 @@ export class HeroIggyScene {
   rise(x: number, y: number, R: number, dir: Pt, durMs: number): void {
     if (this.destroyed || this.presence) return;
     const L = this.look;
-    const perp = { x: -dir.y, y: dir.x };
-    // The wings: a line of flame from each shoulder out to a tip up, out and BACK (away from the target).
-    const wing = (side: 1 | -1): FireEmitter => {
-      const sh = { x: x + perp.x * side * R * 0.55 - dir.x * R * 0.3, y: y + perp.y * side * R * 0.55 - dir.y * R * 0.3 - R * 0.25 };
-      const tip = { x: x + perp.x * side * R * 2.0 - dir.x * R * 1.1, y: y + perp.y * side * R * 2.0 - dir.y * R * 1.1 - R * 1.25 };
-      const em = this.wingFire.emitter({
-        shape: 'line', x: sh.x, y: sh.y, x2: tip.x, y2: tip.y, r: R * 0.22, rate: 300 * L.wings, size: R * 0.42, life: 520, lift: 520,
-        speed: 40, vx: -dir.x * 90, vy: -dir.y * 90, heat: 0.85, turb: 260, tongues: 0.55, body: 0.3, smoke: 0.05, embers: 14, emberSpeed: 180,
-      });
-      em.intensity = 0;
-      return em;
-    };
-    const left = wing(-1), right = wing(1);
+    // THE WINGS: a fan of three flame feathers off each shoulder, swept UP and out (screen up, whichever way the hero
+    // faces), leaning a little away from the target. The top feather burns white-hot along the leading edge (Iggy's
+    // white), the lower two crimson. Each feather's tip UNFURLS out from the shoulder through the inhale.
+    const back = Math.sign(-dir.x) || 1;
+    const feathers: Feather[] = [];
+    if (L.wings > 0) {
+      for (const side of [-1, 1] as const) {
+        const sx = x + side * R * 0.62, sy = y - R * 0.35;
+        const lean = side === back ? 1.15 : 0.9; // the wing on the side away from the target spreads a touch wider
+        const fan: [number, number, number][] = [[2.5, -2.05, 1], [2.75, -1.25, 0.82], [2.35, -0.45, 0.7]];
+        fan.forEach(([ox, oy, heat], i) => {
+          const tx = sx + side * R * ox * lean, ty = sy + R * oy;
+          const em = this.wingFire.emitter({
+            shape: 'line', x: sx, y: sy, x2: sx, y2: sy, r: R * (0.14 + 0.05 * i), rate: (380 - 70 * i) * L.wings, size: R * (0.78 - 0.1 * i),
+            life: 300, lift: 190, speed: 30, vx: side * 40, vy: -30, heat, turb: 220, tongues: 0.45, body: 0.3, smoke: 0.04,
+            embers: i === 0 ? 18 : 6, emberSpeed: 200,
+          });
+          em.intensity = 0;
+          feathers.push({ em, sx, sy, tx, ty });
+        });
+      }
+    }
+    // THE EYES: two slanted cyan slits that open above the hero, each with a white-hot core.
     const eyes: Sprite[] = [];
     if (L.eyes > 0) {
       for (const side of [-1, 1]) {
         const e = this.take('hot', this.tex.glow, this.colors.hot);
         const core = this.take('hot', this.tex.glow, 0xffffff);
         if (e && core) {
-          const ex = x + perp.x * side * R * 0.34 + dir.x * R * 0.1, ey = y + perp.y * side * R * 0.34 - R * 1.38;
+          const ex = x + side * R * 0.42, ey = y - R * 1.55;
           e.position.set(ex, ey); core.position.set(ex, ey);
+          e.rotation = side * 0.32; core.rotation = side * 0.32;
           e.alpha = 0; core.alpha = 0;
           eyes.push(e, core);
         } else { this.give(e); this.give(core); }
@@ -279,11 +293,11 @@ export class HeroIggyScene {
     }
     const throat = this.take('under', this.tex.fire.glow, this.colors.flame);
     if (throat) { throat.alpha = 0; throat.position.set(x + dir.x * R * 0.9, y + dir.y * R * 0.9); }
-    this.presence = { left, right, eyes, throat: throat!, x, y, R, dir, up: 0, target: 1 };
+    this.presence = { feathers, eyes, throat, x, y, R, dir };
     this.inhaling = { x: x + dir.x * R * 0.9, y: y + dir.y * R * 0.9, R, dir, left: durMs, acc: 0 };
     // A wing-unfurl whoosh of crimson off each shoulder.
     for (const side of [-1, 1]) {
-      this.wingFire.burst(x + perp.x * side * R * 0.7, y - R * 0.3, { n: 12 * L.wings, radius: R * 0.25, speed: 420, size: R * 0.4, life: 420, dir: Math.atan2(perp.y * side - 0.8, perp.x * side), spread: 1, drag: 3, heat: 0.9, smoke: 0.05 });
+      this.wingFire.burst(x + side * R * 0.7, y - R * 0.35, { n: 14 * L.wings, radius: R * 0.25, speed: 460, size: R * 0.45, life: 420, dir: Math.atan2(-0.8, side), spread: 1, drag: 3, heat: 0.9, smoke: 0.05 });
     }
   }
 
@@ -293,15 +307,23 @@ export class HeroIggyScene {
     if (!p) return;
     const L = this.look;
     const k = clamp01(u);
-    p.left.intensity = k * (1 + 0.8 * flare); p.right.intensity = k * (1 + 0.8 * flare);
     const R = p.R;
+    // The wings unfurl (an ease-out: they snap open, then settle) and burn hotter on the slam.
+    const open = 1 - (1 - k) * (1 - k) * (1 - k);
+    const beat = 1 + 0.18 * flare;
+    for (const f of p.feathers) {
+      f.em.x2 = f.sx + (f.tx - f.sx) * open * beat; f.em.y2 = f.sy + (f.ty - f.sy) * open * beat;
+      f.em.intensity = Math.min(1, k * 1.6) * (1 + 0.9 * flare);
+    }
     for (let i = 0; i < p.eyes.length; i++) {
       const s = p.eyes[i]!;
       const core = i % 2 === 1;
-      const open = k * k;
+      // They open late in the inhale (a beat after the wings), then blaze on the slam.
+      const lid = clamp01((k - 0.35) / 0.5);
+      const opened = lid * lid * (3 - 2 * lid);
       const blink = 0.9 + 0.1 * Math.sin(this.clock * 0.03 + i);
-      s.scale.set((R * (core ? 0.12 : 0.3) * (1 + 0.6 * flare)) / GLOW_R, (R * (core ? 0.05 : 0.14) * open * (1 + 0.4 * flare)) / GLOW_R);
-      s.alpha = Math.min(1, L.eyes * open * (core ? 1 : 0.85) * blink * (1 + flare));
+      s.scale.set((R * (core ? 0.3 : 0.62) * (1 + 0.5 * flare)) / GLOW_R, (R * (core ? 0.07 : 0.2) * opened * (1 + 0.5 * flare)) / GLOW_R);
+      s.alpha = Math.min(1, L.eyes * opened * (core ? 1 : 0.9) * blink * (1 + flare));
     }
     if (p.throat) {
       p.throat.scale.set((R * (0.8 + 1.4 * k + 1.2 * flare)) / GLOW_R);
@@ -313,8 +335,9 @@ export class HeroIggyScene {
   wingBeat(size: number): void {
     const p = this.presence;
     if (!p) return;
-    for (const em of [p.left, p.right]) {
-      this.wingFire.burst(em.x2, em.y2, { n: 18 * size * this.look.wings, radius: p.R * 0.4, speed: 520, size: p.R * 0.45, life: 480, drag: 2.6, heat: 0.95, tongues: 0.3, smoke: 0.08, embers: 6 });
+    for (let i = 0; i < p.feathers.length; i += 3) {
+      const f = p.feathers[i]!;
+      this.wingFire.burst(f.em.x2, f.em.y2, { n: 20 * size * this.look.wings, radius: p.R * 0.45, speed: 560, size: p.R * 0.5, life: 480, drag: 2.6, heat: 0.95, tongues: 0.3, smoke: 0.08, embers: 8 });
     }
   }
 
@@ -322,10 +345,10 @@ export class HeroIggyScene {
   fadePresence(): void {
     const p = this.presence;
     if (!p) return;
-    this.wingFire.stop(p.left); this.wingFire.stop(p.right);
+    for (const f of p.feathers) this.wingFire.stop(f.em);
     for (const e of p.eyes) this.fxs('hot', this.tex.glow, e.tint as number, e.x, e.y, GLOW_R, { dur: 260, from: (e.scale.x * GLOW_R), to: e.scale.x * GLOW_R * 0.3, a0: e.alpha });
     for (const e of p.eyes) this.give(e);
-    if (p.throat) this.give(p.throat);
+    this.give(p.throat);
     this.presence = null;
     this.inhaling = null;
   }
@@ -336,16 +359,16 @@ export class HeroIggyScene {
     if (!ih) return;
     ih.left -= step;
     if (ih.left <= 0) { this.inhaling = null; return; }
-    ih.acc += (step / 1000) * 70 * this.look.inhale;
+    ih.acc += (step / 1000) * 150 * this.look.inhale;
     while (ih.acc >= 1) {
       ih.acc -= 1;
       // From a wide arc AHEAD of the mouth (and a little round it), so the light streams in from where the breath will go.
       const base = Math.atan2(ih.dir.y, ih.dir.x);
       const a = base + (this.rnd() - 0.5) * Math.PI * 1.5;
-      const d = ih.R * (1.6 + this.rnd() * 1.6);
-      const s = this.take('fx', this.rnd() < 0.5 ? this.tex.spark : this.tex.glow, this.rnd() < 0.35 ? 0xffffff : this.colors.hot);
+      const d = ih.R * (1.8 + this.rnd() * 2.2);
+      const s = this.take('fx', this.tex.spark, this.rnd() < 0.35 ? 0xffffff : this.colors.hot);
       if (!s) break;
-      const size = (this.rnd() < 0.5 ? 0.28 : 0.14) * this.S;
+      const size = (this.rnd() < 0.5 ? 0.55 : 0.3) * this.S;
       s.alpha = 0;
       this.motes.push({ s, fx: ih.x + Math.cos(a) * d, fy: ih.y + Math.sin(a) * d, age: 0, life: 380 + this.rnd() * 260, swirl: (this.rnd() < 0.5 ? -1 : 1) * (0.6 + this.rnd() * 0.8), size });
     }
@@ -622,7 +645,7 @@ export class HeroIggyScene {
     const debris = Math.round(16 * k);
     for (let i = 0; i < debris; i++) {
       const ang = backAng + (this.rnd() - 0.5) * 1.5 - 0.35 * Math.sign(Math.cos(backAng) || 1);
-      const sz = (0.25 + this.rnd() * 0.32) * this.S;
+      const sz = (0.5 + this.rnd() * 0.6) * this.S;
       this.bit('fx', this.tex.spark, mixColor(this.colors.smoke, 0xffffff, 0.45), bx, by + R * 0.4, ang, (560 + this.rnd() * 640) * this.S, 560 + this.rnd() * 300, sz * 1.5, sz, 0.9, 1300 * this.S);
     }
     this.fire.smokePuffs(bx, by, 4, { radius: R * 0.6, size: R * 1.2, life: 1200, rise: 50, alpha: 0.28 });
@@ -633,12 +656,12 @@ export class HeroIggyScene {
       for (let i = 0; i < n; i++) {
         const a = rot + Math.PI + (i / Math.max(1, n - 1) - 0.5) * Math.PI * 1.9 + (this.rnd() - 0.5) * 0.3;
         const sx = cx + Math.cos(a) * R * 0.95, sy = cy + Math.sin(a) * R * 0.95;
-        const len = (0.5 + this.rnd() * 0.55) * this.S;
-        const sp = (420 + this.rnd() * 620) * this.S;
+        const len = (1.2 + this.rnd() * 1.1) * this.S;
+        const sp = (460 + this.rnd() * 680) * this.S;
         const life = 700 + this.rnd() * 400;
         this.bit('fx', this.tex.spark, whiten(this.colors.ward, 0.5), sx, sy, a, sp, life, len * 1.6, len * 1.1, 1, 1000 * this.S, { drag: 1, spin: (this.rnd() - 0.5) * 0.03 });
         // Every other shard carries its own glow.
-        if (i % 2 === 0) this.bit('hot', this.tex.glow, this.colors.ward, sx, sy, a, sp, life, len * 0.5, len * 0.5, 0.55, 1000 * this.S, { drag: 1, spin: 0 });
+        if (i % 2 === 0) this.bit('hot', this.tex.glow, this.colors.ward, sx, sy, a, sp, life, len * 0.45, len * 0.45, 0.6, 1000 * this.S, { drag: 1, spin: 0 });
       }
       this.fxs('fx', this.tex.shock, 0xffffff, cx, cy, RING_R, { dur: 320, from: R, to: R * 1.9, a0: 1 });
       this.dropWard();

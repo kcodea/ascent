@@ -1,3 +1,5 @@
+import { isPhone } from '../deviceClass';
+
 /**
  * The FX BUDGETS — hard ceilings on how much authored-def work may be live at once. Enforced by
  * `fxBudget.ts` at SPAWN time (see there for the trim policy); this module only holds the numbers.
@@ -91,6 +93,27 @@ const DEFAULTS: FxBudgetConfig = {
   maxParticlesShop: 1500,
 };
 
+/**
+ * PHONE BUDGETS (mobile perf pass, 2026-10-18). A phone runs the same def sim + Pixi render on a CPU several times
+ * slower than the desktop the caps above were sized on (the headless iPhone audit is 4x throttled), so the same
+ * 0.66 us per live particle is ~2.6 us there and a 4,000-particle pile-up is a ~10 ms frame of FX alone. Phones
+ * (`deviceClass.ts`) get ceilings at 60% of the desktop ones. Like every cap here they only bite in a pile-up:
+ * the oldest, most-faded plays are trimmed first and a wide fan is THINNED (every play still fires), so an
+ * ordinary moment looks exactly as on desktop. Desktop, laptops and tablets keep `DEFAULTS` untouched.
+ */
+const PHONE_DEFAULTS: FxBudgetConfig = {
+  maxParticles: 2400,
+  maxPerDef: 24,
+  maxFilters: 32,
+  maxParticlesDiscover: 1200,
+  maxParticlesShop: 900,
+};
+
+/** The shipped budgets for this device: `PHONE_DEFAULTS` on a phone, the desktop `DEFAULTS` everywhere else. */
+export function fxBudgetDefaultsFor(phone: boolean): FxBudgetConfig {
+  return { ...(phone ? PHONE_DEFAULTS : DEFAULTS) };
+}
+
 /** Slider bounds for a DEV tuner — [min, max, step] per key. */
 export const FXBUDGET_RANGES: Record<keyof FxBudgetConfig, [number, number, number]> = {
   maxParticles: [500, 20_000, 100],
@@ -101,7 +124,7 @@ export const FXBUDGET_RANGES: Record<keyof FxBudgetConfig, [number, number, numb
 };
 
 /** The shipped values, exported so a tuner can mark which controls have moved away from them. */
-export { DEFAULTS as FXBUDGET_DEFAULTS };
+export { DEFAULTS as FXBUDGET_DEFAULTS, PHONE_DEFAULTS as FXBUDGET_PHONE_DEFAULTS };
 
 const KEY = 'ascent.fxbudget';
 
@@ -116,14 +139,15 @@ function sanitize(partial: Partial<Record<keyof FxBudgetConfig, unknown>>): Part
   return out;
 }
 
-// Dev-only persistence: production always renders the shipped DEFAULTS.
+// Dev-only persistence: production always renders the shipped defaults for this device (phone or not).
+const base = (): FxBudgetConfig => fxBudgetDefaultsFor(isPhone());
 let cfg: FxBudgetConfig = (() => {
-  if (!import.meta.env.DEV) return { ...DEFAULTS };
+  if (!import.meta.env.DEV) return base();
   try {
     const saved: unknown = JSON.parse(localStorage.getItem(KEY) ?? '{}');
-    return { ...DEFAULTS, ...sanitize(saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : {}) };
+    return { ...base(), ...sanitize(saved && typeof saved === 'object' ? (saved as Record<string, unknown>) : {}) };
   } catch {
-    return { ...DEFAULTS };
+    return base();
   }
 })();
 
@@ -137,6 +161,6 @@ export function setFxBudgetValue(key: keyof FxBudgetConfig, value: number): void
   try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch { /* ignore */ }
 }
 export function resetFxBudgetConfig(): void {
-  cfg = { ...DEFAULTS };
+  cfg = base();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }

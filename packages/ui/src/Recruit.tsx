@@ -1,5 +1,6 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
+import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
@@ -2489,14 +2490,17 @@ export function Recruit() {
     // INCREMENTAL (perf pass 2026-09-16): the one-shot probe was a single 7-44 ms synchronous block (bigger
     // boards → longer sims) that the rIC `timeout` dropped mid-frame on a busy replay — a long task at every
     // combat start. `createOddsProbe` runs the SAME per-sim seeds in resumable steps, so we drive it in
-    // slices: each idle callback runs ODDS_SLICE sims, then keeps stepping only while the deadline holds.
+    // slices: each idle callback runs one cost-sized step, then keeps stepping only while the deadline holds.
     // Each slice records under `odds:deferred`, so the monitor shows many small calls, not one long one.
     // The result is byte-identical to `computeCombatOdds` (pinned in odds.test.ts).
-    const ODDS_SLICE = 10;            // sims per step — a step can't be interrupted, so keep it a few ms even late-game
+    // Each uninterruptible step is sized by its measured cost (oddsStepper.ts, mobile perf pass 2026-10-18): a fixed
+    // 10-sim step was a 59 ms long task on a throttled phone late-game, several frame budgets on the 240 Hz desktop.
+    const ODDS_STEP_TARGET_MS = 2;    // aim each step at ~2 ms (one sim minimum, ten maximum)
     const ODDS_YIELD_MS = 4;          // keep stepping only while the idle deadline has more than this left
     const ODDS_SLICE_TIMEOUT_MS = 200; // rIC timeout per callback — a saturated main thread still drains a step every 200 ms
     const ODDS_FALLBACK_MS = 32;      // no rIC: one step every couple of frames
     const probe = createOddsProbe(input, run.seed, run.wave, COMBAT_ODDS_SIMS, oddsLossCap);
+    const stepper = createOddsStepper(probe, () => performance.now(), ODDS_STEP_TARGET_MS);
     const hasRIC = typeof requestIdleCallback === 'function';
     let idleId = 0; let timerId = 0;
     const slice = (deadline?: IdleDeadline): void => {
@@ -2504,8 +2508,8 @@ export function Recruit() {
       const done = perfMonitor.measure('odds:deferred', () => {
         // A timed-out callback (`didTimeout`) has no idle budget — still run one step so a busy replay can't
         // starve the probe forever; otherwise keep stepping while the deadline holds.
-        let finished = probe.step(ODDS_SLICE);
-        while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > ODDS_YIELD_MS) finished = probe.step(ODDS_SLICE);
+        let finished = stepper.step();
+        while (!finished && deadline && !deadline.didTimeout && deadline.timeRemaining() > ODDS_YIELD_MS) finished = stepper.step();
         return finished;
       });
       if (cancelled) return;

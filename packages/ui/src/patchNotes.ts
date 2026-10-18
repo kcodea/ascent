@@ -77,6 +77,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fixed some games showing no particle effects at all. Sparks, smoke and bursts now play in every game.',
+        details: [
+          'In some games the effects layer started before it could draw particles, so hits, deaths and buffs played with no sparks or smoke for the whole game.',
+          'Combat odds are worked out in smaller pieces, so the start of a fight stays smooth on slower devices.',
+          'On phones, very busy moments trim their oldest, faded effects a little sooner to keep the frame rate up.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones and tablets play better. Tap and hold works like a right-click, the game fills the whole screen, and nothing sits under the camera cutout.',
         details: [
           'Tap and hold any card to see it big, including Discover and Choose One picks. From the big view, a Buy or Pick button takes it.',

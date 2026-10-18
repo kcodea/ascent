@@ -54,7 +54,7 @@ function harvestOddsInputs(seed: number, maxWave: number): OddsSample[] {
   return out;
 }
 
-const SLICE = 10; // matches ODDS_SLICE in Recruit.tsx
+const SLICE = 10; // the old fixed step (Recruit.tsx before 2026-10-18); now the adaptive stepper's ceiling (oddsStepper.ts)
 const REPS = 5;
 const seeds = [11, 42, 777, 2026];
 const samples = seeds.flatMap((s) => harvestOddsInputs(s, 14));
@@ -70,20 +70,30 @@ const timeMaxSlice = (input: CombatOddsInput, seed: number, wave: number): numbe
   return worst;
 }));
 
+// The adaptive stepper (packages/ui/src/oddsStepper.ts, 2026-10-18) sizes a step to ~2 ms and never below ONE sim,
+// so its worst step is max(~2 ms, the costliest single sim). This is that floor.
+const timeMaxSingle = (input: CombatOddsInput, seed: number, wave: number): number => median(Array.from({ length: REPS }, () => {
+  const probe = createOddsProbe(input, seed, wave);
+  let worst = 0;
+  while (!probe.done()) { const t = performance.now(); probe.step(1); worst = Math.max(worst, performance.now() - t); }
+  return worst;
+}));
+
 // warm the JIT on the biggest board first so the wave-2 row is not paying for compilation
 { const big = [...samples].sort((a, b) => b.boardSize - a.boardSize)[0]!; for (let i = 0; i < 3; i++) computeCombatOdds(big.input, big.seed, big.wave); }
 
 console.log(`\n=== odds probe: one-shot (${COMBAT_ODDS_SIMS} sims) vs largest ${SLICE}-sim slice — median of ${REPS} ===`);
-console.log('seed   wave  board  one-shot ms  max-slice ms');
-const byWave = new Map<number, { oneShot: number[]; slice: number[] }>();
+console.log('seed   wave  board  one-shot ms  max-slice ms  max 1-sim ms');
+const byWave = new Map<number, { oneShot: number[]; slice: number[]; single: number[] }>();
 for (const { input, seed, wave, boardSize } of samples) {
   const one = timeOneShot(input, seed, wave);
   const sl = timeMaxSlice(input, seed, wave);
-  const w = byWave.get(wave) ?? { oneShot: [], slice: [] };
-  w.oneShot.push(one); w.slice.push(sl); byWave.set(wave, w);
-  console.log(`${String(seed).padEnd(6)} ${String(wave).padEnd(5)} ${String(boardSize).padEnd(6)} ${one.toFixed(2).padStart(11)}  ${sl.toFixed(2).padStart(12)}`);
+  const one1 = timeMaxSingle(input, seed, wave);
+  const w = byWave.get(wave) ?? { oneShot: [], slice: [], single: [] };
+  w.oneShot.push(one); w.slice.push(sl); w.single.push(one1); byWave.set(wave, w);
+  console.log(`${String(seed).padEnd(6)} ${String(wave).padEnd(5)} ${String(boardSize).padEnd(6)} ${one.toFixed(2).padStart(11)}  ${sl.toFixed(2).padStart(12)}  ${one1.toFixed(2).padStart(12)}`);
 }
 console.log(`\nper wave (max across seeds; ${Math.ceil(COMBAT_ODDS_SIMS / SLICE)} slices per probe):`);
 for (const [wave, w] of [...byWave.entries()].sort((a, b) => a[0] - b[0])) {
-  console.log(`  wave ${String(wave).padEnd(3)} one-shot ${Math.max(...w.oneShot).toFixed(2).padStart(7)} ms   max slice ${Math.max(...w.slice).toFixed(2).padStart(6)} ms`);
+  console.log(`  wave ${String(wave).padEnd(3)} one-shot ${Math.max(...w.oneShot).toFixed(2).padStart(7)} ms   max ${SLICE}-sim slice ${Math.max(...w.slice).toFixed(2).padStart(6)} ms   max 1 sim ${Math.max(...w.single).toFixed(2).padStart(5)} ms`);
 }

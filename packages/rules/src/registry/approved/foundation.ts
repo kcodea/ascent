@@ -6716,4 +6716,56 @@ export const FOUNDATION_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-18',
     },
   },
+  // ── Mobile perf pass (2026-10-18): two Pixi FX faults found while profiling ─────────────────────────────────────
+  {
+    id: 'R-FX-SCENE-PIPES-01',
+    title: 'Particle and nine-slice effects always render: every Pixi renderer is created with their pipes',
+    statement:
+      'Every Pixi renderer the game creates can draw a ParticleContainer and a NineSliceSprite: their render pipes are '
+      + 'registered when the entry bundle loads, before any Application exists, never only when the lazily loaded FX '
+      + 'primitives arrive. A particle effect (a burst, an emitter, smoke) therefore shows on the board canvas in every '
+      + 'session, and never throws in the render pass. A renderer found without them is reported as an FX fault.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-10-18 (the mobile perf pass brief, relayed by the coordinator)',
+        quote: 'AAA experience, seamless 1:1 from mobile to desktop',
+      },
+      { kind: 'fix-pr', ref: 'PR perf/mobile-pass (2026-10-18)' },
+      { kind: 'code', ref: 'packages/ui/src/pixiScenePipes.ts (side-effect imports pixi.js/particle-container + pixi.js/sprite-nine-slice; checkScenePipes); packages/ui/src/pixiFx.ts init / initUnder / initAbove' },
+    ],
+    example: 'Prod bench build, headless: in 1 of 3 desktop sessions and 1 to 3 of 3 phone sessions the board renderer was created without the particle pipe. Four death-dissolve plays fired in the shop drew nothing, and the console logged [pixi fault] pixiFx:render threw ... reading updateRenderable over a hundred times a session. With the fix the same plays draw their smoke and the pipe list includes particle and nineSliceSprite at init.',
+    currentBehaviour:
+      'Conforms from 2026-10-18. Before, Rollup left the two pipe registrations in the lazy FX primitives chunk (the '
+      + 'classes are side-effect-free modules), so whether the board renderer could draw particles depended on which of '
+      + 'the overlay init and that chunk finished first.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiScenePipes.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-FX-TICKER-WAKE-IN-TICK-01',
+    title: 'Waking the FX ticker from inside its own frame is not a fault',
+    statement:
+      'An effect that wakes the board FX ticker from inside the ticker own frame (a play retiring on its last frame, '
+      + 'the everyday case) leaves the ticker running exactly as it was: nothing is logged, fx:faults does not move, and '
+      + 'the ticker is not stopped and restarted. Only a ticker that is still started with no frame requested after the '
+      + 'frame has finished is treated as dead and revived (R-PRESENT-32).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-10-18 (the mobile perf pass brief, relayed by the coordinator)',
+        quote: 'AAA experience, seamless 1:1 from mobile to desktop',
+      },
+      { kind: 'fix-pr', ref: 'PR perf/mobile-pass (2026-10-18)' },
+      { kind: 'code', ref: 'packages/ui/src/pixiAppSafety.ts reviveTicker (the dead state is judged in a microtask, after the Pixi _tick has re-requested its frame)' },
+    ],
+    example: 'Prod bench build: every session logged [pixi fault] pixiFx:ticker-stalled with a stack through retire -> unmountLayer -> wake -> reviveTicker inside Ticker.update, several times a session, though the ticker was alive. After the fix no ticker-stalled fault is logged in the same flow.',
+    currentBehaviour:
+      'Conforms from 2026-10-18. Before, Pixi clears _requestId for the length of its own update, so a wake from a '
+      + 'listener read as the dead state: a false fault with a console.error, and a stop/start in the middle of the frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiAppSafety.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

@@ -31,6 +31,8 @@ import type { FxAnchors, FxHeadSink } from './fx/anchors';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
 import { destroyPixiApp, reportFxFault, reviveTicker, watchContextLoss } from './pixiAppSafety';
 import { LITE_ART, PIXI_ANTIALIAS } from './phoneArt';
+// Registers the ParticleContainer / NineSliceSprite render pipes at entry, before any renderer exists (see there).
+import { checkScenePipes } from './pixiScenePipes';
 
 // PHONES: hand idle GPU textures back sooner (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). Pixi's
 // GCSystem unloads a texture's GPU copy once it has gone unused for `gcMaxUnusedTime` (default 60 s, checked every
@@ -604,6 +606,7 @@ class FxController {
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     watchContextLoss(app, 'pixiFx under');
+    checkScenePipes(app, 'pixiFx under');
     const c = app.canvas;
     c.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
     c.style.position = 'absolute'; c.style.top = '0'; c.style.left = '0';
@@ -642,6 +645,7 @@ class FxController {
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     watchContextLoss(app, 'pixiFx above');
+    checkScenePipes(app, 'pixiFx above');
     const c = app.canvas;
     c.className = 'pixifx-above pixi-screen'; // position/z live in styles.css beside every other layer's; pixi-screen: see stage.ts
     c.style.pointerEvents = 'none';
@@ -913,6 +917,7 @@ class FxController {
     });
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     watchContextLoss(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
+    checkScenePipes(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
     // The replay may have remounted before init resolved; only attach if still wanted.
     const canvas = app.canvas;
     canvas.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)

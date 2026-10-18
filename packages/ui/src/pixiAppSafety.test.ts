@@ -85,7 +85,7 @@ describe('a throw can no longer kill a ticker', () => {
     ticker.destroy();
   });
 
-  it('reviveTicker restarts a ticker in the dead state (started, no frame requested)', () => {
+  it('reviveTicker restarts a ticker in the dead state (started, no frame requested)', async () => {
     const ticker = new Ticker();
     ticker.autoStart = false;
     ticker.add(() => {});
@@ -98,9 +98,35 @@ describe('a throw can no longer kill a ticker', () => {
     expect(isTickerStalled(ticker)).toBe(true);
     const err = vi.spyOn(console, 'error').mockImplementation(() => {});
     reviveTicker(ticker, 'test');
+    await Promise.resolve(); // the dead state is judged after the current callback (see reviveTicker)
     expect(isTickerStalled(ticker)).toBe(false);
     expect(ticker.started).toBe(true);
     expect(fxFaultStats().faults).toBe(1);
+    err.mockRestore();
+    raf.mockRestore();
+    ticker.destroy();
+  });
+
+  // R-FX-TICKER-WAKE-IN-TICK-01 (mobile perf pass 2026-10-18): a wake from INSIDE a listener is not a dead ticker.
+  it('reviveTicker called from inside the ticker own update is not a fault and keeps the frame loop', async () => {
+    const ticker = new Ticker();
+    ticker.autoStart = false;
+    let woke = 0;
+    ticker.add(() => { woke++; reviveTicker(ticker, 'test'); });
+    let rafCalls = 0;
+    const raf = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => ++rafCalls);
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    ticker.start();
+    expect(rafCalls).toBe(1);
+    // Run one frame the way the browser would: Pixi's own rAF callback.
+    (ticker as unknown as { _tick: (t: number) => void })._tick(performance.now() + 16);
+    await Promise.resolve();
+    expect(woke).toBe(1);
+    expect(fxFaultStats().faults).toBe(0);
+    expect(err).not.toHaveBeenCalled();
+    expect(ticker.started).toBe(true);
+    expect(isTickerStalled(ticker)).toBe(false);
+    expect(rafCalls).toBe(2); // exactly one next frame, requested by _tick itself
     err.mockRestore();
     raf.mockRestore();
     ticker.destroy();

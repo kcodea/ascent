@@ -797,6 +797,35 @@ method: `docs/devlog/2026-10-11-restyle-pass.md`.
   but not one frame over budget: a roll's long frames are its React commit and the GPU upload of full-size art.
   Card-size art would fix the upload, and it is an owner decision (it changes how art is delivered).
 
+## 3i. Mobile pass, 2026-10-18: a renderer without the particle pipe, and what headless phone numbers mean
+
+Measured on PROD bench builds in headless Chromium with iPhone landscape emulation (844x390 at 3x, touch, 4x CPU
+throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/2026-10-18-mobile-perf-pass.md`.
+
+- **Every Pixi renderer must exist AFTER the scene pipes it draws with are registered.** Pixi v8 registers a scene
+  type's pipe when that type's module evaluates, and a renderer builds its pipe table once, at `init`. Our
+  ParticleContainer and NineSliceSprite users live in the lazy FX primitives chunk, so in a race the board renderer
+  came up without `particle`: every particle effect was invisible for the session and render threw
+  (`reading 'updateRenderable'`). `pixiScenePipes.ts` imports `pixi.js/particle-container` and
+  `pixi.js/sprite-nine-slice` at entry, and `checkScenePipes` reports a renderer that still lacks them. A NEW Pixi
+  scene type used only from a lazy chunk (Text, TilingSprite, ...) must join that module. Referencing the class
+  is not enough: its module is side-effect-free, so Rollup drops an unused reference.
+- **An uninterruptible idle-time step is sized by measured cost, not a fixed count.** The odds probe's 10-sim step
+  was a 59 ms task on the throttled phone late-game (`oddsStepper.ts` now aims each step at ~2 ms).
+- **Open: a drag re-layerizes every frame.** A trace of a moving touch drag shows `Layerize`
+  (`PaintArtifactCompositor::Update`) on every frame (364 of 363, ~5 ms each at 4x throttle), plus a ~10-element
+  restyle of the dragged card. That is the biggest per-frame cost of a drag, and it is not JS. The weighted-drag rAF
+  moves `.dragcard` with `zoom` + `perspective` + a 2D transform on the outer and a 3D tilt on `.dragtilt`; the
+  transform change is evidently not taking Chrome's direct composited-transform update. Skipping unchanged writes
+  did not move the count (the finger moves every frame). Next: try `will-change: transform` on both layers, and
+  test whether `zoom` on the moving element is what forces the full update.
+- **Phone-only budgets go through `deviceClass.ts` (`isPhone`).** Phones get 60% FX particle and filter ceilings
+  (`fxBudgetConfig.ts`); desktop, laptops and tablets keep theirs.
+- **Reading headless phone numbers:** SwiftShader draws everything in software, so multi-second frame gaps with
+  an idle main thread (`GLContextEGL::MakeCurrent` blocked on the GPU thread, DOM raster flushes of 400+ ms) are a
+  software-GPU artifact. Main-thread numbers (busy %, long tasks, script/style time) are reliable; GPU-side frame
+  spikes need a real device (Safari Web Inspector timeline on an iPhone).
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

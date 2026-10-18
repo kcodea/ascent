@@ -2939,7 +2939,7 @@ img.tierbadge.tierstars,
     0 1px 2px rgba(255, 225, 150, 0.55),
     0 0 7px rgba(210, 175, 255, 0.5);
 }
-.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, #f4ecdb); }
+.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, #f4ecdb); -webkit-text-stroke: 4px #000; paint-order: stroke fill; text-shadow: 0 2px 3px #000, 0 3px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85); }   /* same 2px outline + heavy shadow as the plate gem label (owner 2026-10-18) */
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
 
@@ -4844,7 +4844,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: color-mix(in srgb, var(--c) 65%, #f4ecdb);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.75);
+  /* 2px black outline (owner 2026-10-18): a 4px stroke painted UNDER the fill, so exactly 2px shows outside
+     the glyph and none eats into it. Plus a much heavier drop shadow than the old 1px/3px pair. Static, no
+     animation, so the paint cost is one-off. */
+  -webkit-text-stroke: 4px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 2px 3px #000, 0 3px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85);
 }
 .card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
 /* A spell's KIND label (Card.tsx `spellKind`) wears its medallion's colour instead of the tribe tint (owner

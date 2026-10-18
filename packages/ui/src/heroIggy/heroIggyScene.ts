@@ -74,9 +74,9 @@ export interface IggyLook {
 /** Hard cap on the sprites (light, rings, flashes, the ward, shards, sparks) alive at once. */
 export const MAX_IGGY_SPRITES = 380;
 /** Hard cap on live breath-fire particles (a Tier IV impact peaks near it; the pool never grows past it). */
-export const MAX_IGGY_PARTICLES = 1100;
+export const MAX_IGGY_PARTICLES = 900;
 /** Hard cap on the wing fire's particles. */
-export const MAX_WING_PARTICLES = 600;
+export const MAX_WING_PARTICLES = 300;
 
 type LayerId = 'ground' | 'under' | 'fx' | 'hot';
 const LAYERS: readonly [LayerId, 'normal' | 'add'][] = [['ground', 'normal'], ['under', 'add'], ['fx', 'add'], ['hot', 'add']];
@@ -267,7 +267,7 @@ export class HeroIggyScene {
         fan.forEach(([ox, oy, heat], i) => {
           const tx = sx + side * R * ox * lean, ty = sy + R * oy;
           const em = this.wingFire.emitter({
-            shape: 'line', x: sx, y: sy, x2: sx, y2: sy, r: R * (0.14 + 0.05 * i), rate: (380 - 70 * i) * L.wings, size: R * (0.78 - 0.1 * i),
+            shape: 'line', x: sx, y: sy, x2: sx, y2: sy, r: R * (0.14 + 0.05 * i), rate: (200 - 35 * i) * L.wings, size: R * (0.92 - 0.1 * i),
             life: 300, lift: 190, speed: 30, vx: side * 40, vy: -30, heat, turb: 220, tongues: 0.45, body: 0.3, smoke: 0.04,
             embers: i === 0 ? 18 : 6, emberSpeed: 200,
           });
@@ -500,12 +500,12 @@ export class HeroIggyScene {
         tongues: o.tongues, body: o.body, smoke: 0.03, embers: o.embers, emberSpeed: 180, drag: 1.2, sweep: false,
       });
     // OUTER: wide, slower, licking flames curling off the edges. MID: the dense cyan body. CORE: white-hot (top stage).
-    const outer = line({ r: 0.42, rate: 520, size: 0.62, life: 320, heat: 0.45, tongues: 0.6, lift: 160, flowK: 0.25, turb: 520, embers: 8, body: 0.35 });
-    const mid = line({ r: 0.2, rate: 900, size: 0.5, life: 260, heat: 0.6, tongues: 0.3, lift: 80, flowK: 0.4, turb: 300, embers: 10, body: 0.2 });
-    const core = line({ r: 0.06, rate: 700, size: 0.26, life: 180, heat: 1, tongues: 0.05, lift: 20, flowK: 0.6, turb: 120, embers: 0, body: 0 });
+    const outer = line({ r: 0.42, rate: 360, size: 0.72, life: 300, heat: 0.45, tongues: 0.6, lift: 160, flowK: 0.25, turb: 520, embers: 8, body: 0.35 });
+    const mid = line({ r: 0.2, rate: 620, size: 0.58, life: 230, heat: 0.6, tongues: 0.3, lift: 80, flowK: 0.4, turb: 300, embers: 10, body: 0.2 });
+    const core = line({ r: 0.06, rate: 480, size: 0.3, life: 170, heat: 1, tongues: 0.05, lift: 20, flowK: 0.6, turb: 120, embers: 0, body: 0 });
     core.intensity = 0;
     const throat = this.fire.emitter({
-      shape: 'point', x: mouth.x, y: mouth.y, r: R * 0.18 * width, rate: 420 * F, size: R * 0.6 * width,
+      shape: 'point', x: mouth.x, y: mouth.y, r: R * 0.18 * width, rate: 300 * F, size: R * 0.66 * width,
       life: 200, lift: 60, speed: 60, vx: dir.x * flow, vy: dir.y * flow, heat: 0.75, turb: 240, tongues: 0.35, body: 0.2,
       smoke: 0.02, drag: 2.4, sweep: false,
     });
@@ -544,10 +544,10 @@ export class HeroIggyScene {
     st.width = o.width;
     const F = this.look.streamFlame;
     st.outer.heat = Math.max(0.4, o.heat - 0.2); st.mid.heat = o.heat; st.throat.heat = Math.min(1, o.heat + 0.15);
-    st.outer.r = R * 0.42 * o.width; st.outer.size = R * 0.62 * o.width; st.outer.rate = 520 * F * o.rate;
-    st.mid.r = R * 0.2 * o.width; st.mid.size = R * 0.5 * o.width; st.mid.rate = 900 * F * o.rate;
-    st.core.r = R * 0.06 * o.width; st.core.size = R * 0.26 * o.width;
-    st.throat.r = R * 0.18 * o.width; st.throat.size = R * 0.6 * o.width; st.throat.rate = 420 * F * o.rate;
+    st.outer.r = R * 0.42 * o.width; st.outer.size = R * 0.72 * o.width; st.outer.rate = 360 * F * o.rate;
+    st.mid.r = R * 0.2 * o.width; st.mid.size = R * 0.58 * o.width; st.mid.rate = 620 * F * o.rate;
+    st.core.r = R * 0.06 * o.width; st.core.size = R * 0.3 * o.width;
+    st.throat.r = R * 0.18 * o.width; st.throat.size = R * 0.66 * o.width; st.throat.rate = 300 * F * o.rate;
     st.core.intensity = o.top ? 1 : 0;
     st.outer.embers = 8 + 8 * o.level; st.mid.embers = 10 + 10 * o.level;
     if (st.light) st.light.alpha = 0.2 + 0.12 * o.level;
@@ -674,7 +674,7 @@ export class HeroIggyScene {
       if (head && halo && ring) {
         head.position.set(st.mouth.x, st.mouth.y); halo.position.set(st.mouth.x, st.mouth.y); ring.position.set(st.mouth.x, st.mouth.y);
         const em = this.fire.emitter({
-          shape: 'point', x: st.mouth.x, y: st.mouth.y, r: st.R * 0.35, rate: 1300, size: st.R * 0.85 * st.width, life: 300, lift: 60, speed: 80,
+          shape: 'point', x: st.mouth.x, y: st.mouth.y, r: st.R * 0.35, rate: 900, size: st.R * 0.85 * st.width, life: 300, lift: 60, speed: 80,
           heat: 1, turb: 220, tongues: 0.3, body: 0.2, smoke: 0.04, embers: 50, emberSpeed: 360,
         });
         this.surge = { em, head, halo, ring };

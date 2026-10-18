@@ -64,10 +64,20 @@ interface GlobalConfig {
   buoyancy: number;
   smoke: number;
   embers: number;
+  // The inhale (the dragon's presence: flame wings, eyes, light pulled into the mouth)
+  wings: number;
+  eyes: number;
+  inhale: number;
+  // The breath's sparks and debris
+  sparks: number;
   // The rebound
   reboundHoldMs: number;
+  /** The hit-stop: the whole FX freezes for this long at the peak of the push, then the ward SLAMS. 0 = none. */
+  hitStopMs: number;
   backBlast: number;
+  slamSize: number;
   shards: number;
+  scorch: number;
   // Impact
   explodeSize: number;
   flashAlpha: number;
@@ -84,10 +94,14 @@ interface GlobalConfig {
   colorEmber: string;
   colorSmoke: string;
   colorWard: string;
+  colorWing: string;
+  colorWingHot: string;
   colorPlayer: string;
   colorFoe: string;
   // Sound: a clip, a gain and a pitch per cue ('' = silent)
   sfxWardClip: string; sfxWardGain: number; sfxWardRate: number;
+  sfxInhaleClip: string; sfxInhaleGain: number; sfxInhaleRate: number;
+  sfxSlamClip: string; sfxSlamGain: number; sfxSlamRate: number;
   sfxGrowlClip: string; sfxGrowlGain: number; sfxGrowlRate: number;
   sfxBreathClip: string; sfxBreathGain: number; sfxBreathRate: number;
   sfxStageClip: string; sfxStageGain: number; sfxStageRate: number;
@@ -108,10 +122,10 @@ interface GlobalConfig {
 export type HeroIggyConfig = GlobalConfig & Record<TierKey, number>;
 
 export const HERO_IGGY_COLOR_KEYS = [
-  'colorCore', 'colorHot', 'colorFlame', 'colorDeep', 'colorEmber', 'colorSmoke', 'colorWard', 'colorPlayer', 'colorFoe',
+  'colorCore', 'colorHot', 'colorFlame', 'colorDeep', 'colorEmber', 'colorSmoke', 'colorWard', 'colorWing', 'colorWingHot', 'colorPlayer', 'colorFoe',
 ] as const;
 export const HERO_IGGY_CLIP_KEYS = [
-  'sfxWardClip', 'sfxGrowlClip', 'sfxBreathClip', 'sfxStageClip', 'sfxHitClip', 'sfxReboundClip', 'sfxShatterClip',
+  'sfxWardClip', 'sfxInhaleClip', 'sfxSlamClip', 'sfxGrowlClip', 'sfxBreathClip', 'sfxStageClip', 'sfxHitClip', 'sfxReboundClip', 'sfxShatterClip',
   'sfxImpactClip', 'sfxThumpClip', 'sfxBoomClip',
 ] as const;
 type ColorKey = (typeof HERO_IGGY_COLOR_KEYS)[number];
@@ -121,21 +135,21 @@ export type HeroIggyNumKey = Exclude<keyof HeroIggyConfig, HeroIggyStrKey>;
 
 /** Tier I .. IV per suffix: the escalation ladder. */
 const TIER_DEFAULTS: Record<IggyTierSuffix, [number, number, number, number]> = {
-  WindupMs: [420, 480, 560, 640],
+  WindupMs: [560, 640, 740, 860],
   Stages: [1, 2, 3, 3],
-  StageMs: [340, 330, 320, 360],
+  StageMs: [380, 360, 350, 400],
   ReachMs: [190, 180, 170, 160],
-  Width: [0.8, 1, 1.15, 1.35],
+  Width: [0.9, 1.1, 1.3, 1.55],
   Recoil: [10, 14, 18, 24],
   Flatten: [0.16, 0.22, 0.28, 0.34],
   Shatter: [0, 0, 0, 1],
   SurgeMs: [200, 190, 180, 170],
-  Shake: [5, 8, 12, 22],
-  Zoom: [0.02, 0.03, 0.045, 0.07],
+  Shake: [7, 11, 16, 28],
+  Zoom: [0.025, 0.04, 0.055, 0.085],
   Punch: [0.02, 0.028, 0.038, 0.06],
   Burst: [1, 1.15, 1.45, 1.9],
-  Embers: [8, 14, 28, 50],
-  SettleMs: [260, 320, 460, 520],
+  Embers: [10, 18, 34, 60],
+  SettleMs: [300, 360, 520, 820],
   Dim: [0, 0.18, 0.32, 0.5],
 };
 
@@ -174,9 +188,16 @@ export const HERO_IGGY_DEFAULTS: HeroIggyConfig = {
   buoyancy: 0.35,
   smoke: 0.5,
   embers: 1,
-  reboundHoldMs: 90,
+  wings: 1,
+  eyes: 1,
+  inhale: 1,
+  sparks: 1,
+  reboundHoldMs: 60,
+  hitStopMs: 75,
   backBlast: 1,
-  shards: 14,
+  slamSize: 1,
+  shards: 22,
+  scorch: 1,
   explodeSize: 1,
   flashAlpha: 0.85,
   knockPx: 20,
@@ -192,9 +213,14 @@ export const HERO_IGGY_DEFAULTS: HeroIggyConfig = {
   colorEmber: '#0b1a5a',
   colorSmoke: '#1a2233',
   colorWard: '#7fd8ff',
+  // Iggy's own crimson and white: the flame wings and their hot leading edges.
+  colorWing: '#d4142e',
+  colorWingHot: '#ffe9e4',
   colorPlayer: '#5fd0ff',
   colorFoe: '#ff3d5a',
   sfxWardClip: 'fx/blue-impact-hit', sfxWardGain: 0.22, sfxWardRate: 1.35,
+  sfxInhaleClip: 'fx/universfield-cinematic-swoosh-impact-454392', sfxInhaleGain: 0.45, sfxInhaleRate: 0.75,
+  sfxSlamClip: 'crit', sfxSlamGain: 0.45, sfxSlamRate: 0.8,
   sfxGrowlClip: 'fx/dragon-growl', sfxGrowlGain: 0.45, sfxGrowlRate: 1,
   sfxBreathClip: 'cards/sp_dragonflame.effect', sfxBreathGain: 0.5, sfxBreathRate: 1.1,
   sfxStageClip: 'cards/d2_broodfire.effect', sfxStageGain: 0.32, sfxStageRate: 1.15,
@@ -226,9 +252,16 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroIggyStrKey>, [number
   buoyancy: [0, 3, 0.05],
   smoke: [0, 3, 0.05],
   embers: [0, 3, 0.05],
+  wings: [0, 3, 0.05],
+  eyes: [0, 3, 0.05],
+  inhale: [0, 3, 0.05],
+  sparks: [0, 3, 0.05],
   reboundHoldMs: [0, 600, 10],
+  hitStopMs: [0, 200, 5],
   backBlast: [0, 3, 0.05],
+  slamSize: [0.3, 3, 0.05],
   shards: [0, 40, 1],
+  scorch: [0, 2, 0.05],
   explodeSize: [0.3, 3, 0.05],
   flashAlpha: [0, 1, 0.01],
   knockPx: [0, 60, 1],
@@ -237,6 +270,8 @@ const GLOBAL_RANGES: Record<Exclude<keyof GlobalConfig, HeroIggyStrKey>, [number
   zoomOutMs: [60, 1500, 10],
   reducedFadeMs: [60, 1000, 10],
   sfxWardGain: [0, 2, 0.05], sfxWardRate: [0.5, 2, 0.01],
+  sfxInhaleGain: [0, 2, 0.05], sfxInhaleRate: [0.5, 2, 0.01],
+  sfxSlamGain: [0, 2, 0.05], sfxSlamRate: [0.5, 2, 0.01],
   sfxGrowlGain: [0, 2, 0.05], sfxGrowlRate: [0.5, 2, 0.01],
   sfxBreathGain: [0, 2, 0.05], sfxBreathRate: [0.5, 2, 0.01],
   sfxStageGain: [0, 2, 0.05], sfxStageRate: [0.5, 2, 0.01],
@@ -403,7 +438,9 @@ export interface IggyPlan {
   stages: IggyStagePlan[];
   /** Stage-front arrivals BEFORE the impact, sequence ms: the rhythm ticks. */
   hits: number[];
-  /** The flattened ward springs back: the back-blast behind the attacker, the surge leaves the mouth. */
+  /** The push peaks: the HIT-STOP starts here (the FX freeze) and runs to `reboundAt`. */
+  peakAt: number;
+  /** The flattened ward SLAMS back: the back-blast behind the attacker, the mega-surge leaves the mouth. */
   reboundAt: number;
   /** IV: the ward shatters on the rebound. */
   shatter: boolean;
@@ -438,7 +475,7 @@ export function iggyPlan(input: IggyPlanInput, c: HeroIggyConfig = cfg): IggyPla
     const { impactAt } = r;
     return {
       reduced: true, tier, k, total, chargeAt: impactAt, absorbEnd: impactAt, breathAt: impactAt, stages: [], hits: [],
-      reboundAt: impactAt, shatter: false, impactAt, booms: [], endAt: r.endAt, reachMs: 0, surgeMs: 0, width: 0,
+      peakAt: impactAt, reboundAt: impactAt, shatter: false, impactAt, booms: [], endAt: r.endAt, reachMs: 0, surgeMs: 0, width: 0,
       recoilPx: 0, flatten: 0, shakePx: 0, zoom: 0, punch: 0, burst: 0, embers: 0, dim: 0,
     };
   }
@@ -457,7 +494,9 @@ export function iggyPlan(input: IggyPlanInput, c: HeroIggyConfig = cfg): IggyPla
   }
   const lastStage = stages[n - 1]!;
   // The ward holds the last, hardest push for a beat, then springs back.
-  const reboundAt = Math.max(lastStage.hitAt + 40, lastStage.at + T.StageMs * 0.75) + c.reboundHoldMs;
+  const peakAt = Math.max(lastStage.hitAt + 40, lastStage.at + T.StageMs * 0.75) + c.reboundHoldMs;
+  // THE HIT-STOP: a short freeze of the FX at the peak (bigger tiers hold a hair longer), then the slam.
+  const reboundAt = peakAt + Math.round((c.hitStopMs * (0.8 + 0.2 * tier)) / 1.6);
   const impactAt = reboundAt + surgeMs;
   const hits = stages.map((s) => s.hitAt).filter((at) => at < impactAt).sort((a, b) => a - b);
   const shatter = T.Shatter >= 1;
@@ -470,7 +509,7 @@ export function iggyPlan(input: IggyPlanInput, c: HeroIggyConfig = cfg): IggyPla
   const endAt = lastBeat + T.SettleMs;
 
   return {
-    reduced: false, tier, k, total, chargeAt, absorbEnd, breathAt, stages, hits, reboundAt, shatter, impactAt, booms, endAt,
+    reduced: false, tier, k, total, chargeAt, absorbEnd, breathAt, stages, hits, peakAt, reboundAt, shatter, impactAt, booms, endAt,
     reachMs, surgeMs,
     width: Math.max(0.1, T.Width),
     recoilPx: Math.max(0, T.Recoil),
@@ -484,7 +523,7 @@ export function iggyPlan(input: IggyPlanInput, c: HeroIggyConfig = cfg): IggyPla
   };
 }
 
-export type IggyCueKind = 'charge' | 'breath' | 'stage' | 'hit' | 'rebound' | 'impact' | 'boom' | 'end';
+export type IggyCueKind = 'charge' | 'breath' | 'stage' | 'hit' | 'peak' | 'rebound' | 'impact' | 'boom' | 'end';
 export interface IggyCue { at: number; kind: IggyCueKind; i: number }
 
 /** Every beat the runner fires, in time order (ties keep this declaration order, so a hit precedes the impact). */
@@ -494,12 +533,13 @@ export function iggyCues(p: IggyPlan): IggyCue[] {
     out.push({ at: p.chargeAt, kind: 'charge', i: 0 });
     p.stages.forEach((s, i) => out.push({ at: s.at, kind: i === 0 ? 'breath' : 'stage', i }));
     p.stages.forEach((s, i) => { if (s.hitAt < p.impactAt) out.push({ at: s.hitAt, kind: 'hit', i }); });
+    out.push({ at: p.peakAt, kind: 'peak', i: 0 });
     out.push({ at: p.reboundAt, kind: 'rebound', i: 0 });
   }
   out.push({ at: p.impactAt, kind: 'impact', i: 0 });
   p.booms.forEach((at, i) => out.push({ at, kind: 'boom', i }));
   out.push({ at: p.endAt, kind: 'end', i: 0 });
-  const order: Record<IggyCueKind, number> = { charge: 1, breath: 2, stage: 3, hit: 4, rebound: 5, impact: 6, boom: 7, end: 8 };
+  const order: Record<IggyCueKind, number> = { charge: 1, breath: 2, stage: 3, hit: 4, peak: 5, rebound: 6, impact: 7, boom: 8, end: 9 };
   return out.map((q, idx) => ({ q, idx })).sort((a, b) => a.q.at - b.q.at || order[a.q.kind] - order[b.q.kind] || a.idx - b.idx).map((x) => x.q);
 }
 
@@ -528,16 +568,21 @@ export function iggyPushAt(p: IggyPlan, t: number): number {
 }
 
 /** The ward's look at sequence time `t`: up (0..1 shimmering in), its flattening against the push, its glow. Pure. */
-export function iggyWardAt(p: IggyPlan, c: HeroIggyConfig, t: number): { up: number; flatten: number; glow: number; gone: boolean } {
-  if (p.reduced || t < p.chargeAt) return { up: 0, flatten: 0, glow: 0, gone: false };
+export function iggyWardAt(p: IggyPlan, c: HeroIggyConfig, t: number): { up: number; flatten: number; glow: number; gone: boolean; slam: number } {
+  if (p.reduced || t < p.chargeAt) return { up: 0, flatten: 0, glow: 0, gone: false, slam: 0 };
   const up = easeInOutSine((t - p.chargeAt) / Math.max(1, Math.min(320, p.breathAt - p.chargeAt)));
   const push = iggyPushAt(p, t);
+  // THE FLEX: the ward strains harder just before the peak (anticipation), and holds there through the hit-stop.
+  const flexU = clamp((t - (p.peakAt - 140)) / 140, 0, 1);
+  const flex = t < p.reboundAt ? 1 + 0.35 * flexU * flexU : 1;
+  // THE SLAM: after the hit-stop the ward bursts OUTWARD (an overshoot past round) and rings back.
+  const slam = t >= p.reboundAt ? Math.max(0, springAt(t - p.reboundAt, 2.6, 110)) : 0;
   const gone = p.shatter && t >= p.reboundAt;
   // The glow climbs with every stage, flares on the rebound and then calms (the ward stays up on I-III).
   const flare = t >= p.reboundAt ? Math.exp(-(t - p.reboundAt) / 180) : 0;
   const glow = 0.25 + 0.75 * Math.max(0, push) * c.wardGlow + flare;
   const fade = !p.shatter && t > p.impactAt ? 1 - clamp((t - p.impactAt) / 420, 0, 1) : 1;
-  return { up: up * fade, flatten: p.flatten * push, glow: glow * fade, gone };
+  return { up: up * fade, flatten: p.flatten * Math.max(0, push) * flex, glow: glow * fade, gone, slam };
 }
 
 // ─── the stream (pure) ───────────────────────────────────────────────────────────────────────────────────────────
@@ -573,8 +618,10 @@ export function iggySurgeAt(p: IggyPlan, t: number): number {
  * BACKWARD (against the line of fire) on each shift, as the breath shoves the dragon; on the rebound a jolt the other
  * way; on THE impact a punch in and a shake along the stream. IV's shatter adds a sharp ring. Deterministic. Pure.
  */
-export function iggyCameraAt(p: IggyPlan, c: HeroIggyConfig, t: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
+export function iggyCameraAt(p: IggyPlan, c: HeroIggyConfig, t0: number, dir: Pt = { x: 1, y: 0 }): { zoom: number; x: number; y: number } {
   if (p.reduced) return { zoom: 1, x: 0, y: 0 };
+  // The hit-stop: the view holds exactly where it was at the peak.
+  const t = t0 >= p.peakAt && t0 < p.reboundAt ? p.peakAt : t0;
   let z = 0;
   if (t >= p.chargeAt && t < p.impactAt) {
     z += p.zoom * 0.6 * easeInOutSine((t - p.chargeAt) / Math.max(1, p.breathAt - p.chargeAt));
@@ -595,12 +642,13 @@ export function iggyCameraAt(p: IggyPlan, c: HeroIggyConfig, t: number, dir: Pt 
   p.stages.forEach((s) => kick(s.at, p.shakePx * (0.14 + 0.06 * s.level), 50, 14, back));
   p.hits.forEach((at) => kick(at, p.shakePx * 0.18, 40, 17, dir));
   // A steady rumble under the push while the stream pours (stronger at each stage).
-  if (t >= p.breathAt && t < p.reboundAt) {
-    const a = p.shakePx * 0.05 * Math.max(0, iggyPushAt(p, t));
+  if (t >= p.breathAt && t < p.peakAt) {
+    const a = p.shakePx * 0.07 * Math.max(0, iggyPushAt(p, t));
     x += a * Math.sin(t * 0.13);
     y += a * Math.sin(t * 0.17 + 1.1);
   }
-  kick(p.reboundAt, p.shakePx * (p.shatter ? 0.6 : 0.4), 55, 13, dir);
+  // THE SLAM: the hardest jolt before the impact, BACKWARD (the blast goes off behind the hero), scaled by the tier.
+  kick(p.reboundAt, p.shakePx * (p.shatter ? 0.95 : 0.55 + 0.1 * p.tier), 70, 12, { x: -dir.x, y: -dir.y });
   kick(p.impactAt, p.shakePx, Math.max(1, c.shakeMs / 4), 16, dir);
   p.booms.forEach((at, i) => kick(at, p.shakePx * 0.22, 40, 18, i % 2 ? { x: -dir.y, y: dir.x } : dir));
   return { zoom: 1 + Math.max(0, z), x, y };

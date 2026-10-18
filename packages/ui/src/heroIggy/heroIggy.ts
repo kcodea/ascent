@@ -84,10 +84,12 @@ export function playHeroIggy(o: HeroIggyOptions): HeroIggyHandle {
   const scene = textures && !reduced
     ? new HeroIggyScene(textures, {
       core: hexToNum(c.colorCore), hot: hexToNum(c.colorHot), flame: hexToNum(c.colorFlame), deep: hexToNum(c.colorDeep),
-      ember: hexToNum(c.colorEmber), smoke: hexToNum(c.colorSmoke), ward: hexToNum(c.colorWard), side: hexToNum(sideHex),
+      ember: hexToNum(c.colorEmber), smoke: hexToNum(c.colorSmoke), ward: hexToNum(c.colorWard),
+      wing: hexToNum(c.colorWing), wingHot: hexToNum(c.colorWingHot), side: hexToNum(sideHex),
     }, {
       streamFlame: c.streamFlame, streamSpeed: c.streamSpeed, turbulence: c.turbulence, buoyancy: c.buoyancy, smoke: c.smoke,
-      embers: c.embers, wardAlpha: c.wardAlpha, backBlast: c.backBlast, shards: c.shards, explodeSize: c.explodeSize,
+      embers: c.embers, wardAlpha: c.wardAlpha, wings: c.wings, eyes: c.eyes, inhale: c.inhale, sparks: c.sparks,
+      backBlast: c.backBlast, slamSize: c.slamSize, shards: c.shards, scorch: c.scorch, explodeSize: c.explodeSize,
     }, s * px, iggySeed(o.total, dist, o.side))
     : null;
   if (scene && !o.mount) void pixiFx.ensureAboveSlot();
@@ -101,23 +103,30 @@ export function playHeroIggy(o: HeroIggyOptions): HeroIggyHandle {
 
   const cue = voices.cue.bind(voices);
   voices.warm([
-    c.sfxWardClip, c.sfxGrowlClip, c.sfxBreathClip, c.sfxStageClip, c.sfxHitClip, c.sfxReboundClip, c.sfxShatterClip,
+    c.sfxWardClip, c.sfxInhaleClip, c.sfxSlamClip, c.sfxGrowlClip, c.sfxBreathClip, c.sfxStageClip, c.sfxHitClip, c.sfxReboundClip, c.sfxShatterClip,
     c.sfxImpactClip, c.sfxThumpClip, c.sfxBoomClip,
   ]);
   const real = (ms: number): number => ms / speed;
   const n = plan.stages.length;
   const d = o.defender;
+  const vw = local ? (o.host?.clientWidth || 400) : (typeof window !== 'undefined' ? window.innerWidth : 1920);
+  const vh = local ? (o.host?.clientHeight || 300) : (typeof window !== 'undefined' ? window.innerHeight : 1080);
+  const screen = Math.max(vw, vh);
   let wardDropped = false;
+  let presenceGone = false;
 
   const fire = (q: IggyCue | FormationCue): void => {
     if (q.kind === 'form') { nums.fire(fplan.beats[q.i]!); return; }
     switch (q.kind) {
       case 'charge':
-        // The ward shimmers up; the dragon crouches and growls; debris flicks off its base.
+        // THE INHALE: the ward shimmers up, Iggy rises behind the hero as flame (wings, eyes), the hero crouches and
+        // growls, light is pulled into its mouth, and a riser climbs to the first breath.
         cue(c.sfxWardClip, c.sfxWardGain, c.sfxWardRate, { lenMs: 600, fadeMs: 250 });
         cue(c.sfxGrowlClip, c.sfxGrowlGain, c.sfxGrowlRate, { lenMs: 1200, fadeMs: 400, delayMs: real(80) });
+        voices.riser(c.sfxInhaleClip, c.sfxInhaleGain, c.sfxInhaleRate, real(plan.breathAt - plan.chargeAt));
         if (c.sfxDuck < 1) voices.duck(c.sfxDuck);
         scene?.wardUpAt(o.attacker.x, o.attacker.y, wardR, dir);
+        scene?.rise(o.attacker.x, o.attacker.y, aRadius, dir, plan.breathAt - plan.chargeAt);
         scene?.kickDebris(o.attacker.x, o.attacker.y, aRadius, dir, 6 + 2 * plan.tier);
         cam.start();
         break;
@@ -127,14 +136,14 @@ export function playHeroIggy(o: HeroIggyOptions): HeroIggyHandle {
         cue(c.sfxBreathClip, c.sfxBreathGain, c.sfxBreathRate, { lenMs: Math.max(600, real(plan.reboundAt - plan.breathAt + 200)), fadeMs: 350 });
         if (sound) voices.keep(playEmberCrackle('attack', { gain: c.sfxCrackleGain, durMs: real(plan.impactAt - plan.breathAt + 300) }));
         scene?.startStream(stream.mouth, stream.to, aRadius, plan.width * look.width);
-        scene?.shiftStream({ heat: look.heat, width: plan.width * look.width, rate: look.rate, R: aRadius, level: 1 });
+        scene?.shiftStream({ heat: look.heat, width: plan.width * look.width, rate: look.rate, level: 1, top: false, gustMs: plan.reachMs });
         break;
       }
       case 'stage': {
         // The breath SHIFTS UP (cyan, then white-cored): a roar a step higher, the stream widens, the ward flattens.
         const look = stageLook(q.i, n);
         cue(c.sfxStageClip, c.sfxStageGain * (0.8 + 0.15 * q.i), c.sfxStageRate + 0.08 * q.i, { lenMs: 700, fadeMs: 260 });
-        scene?.shiftStream({ heat: look.heat, width: plan.width * look.width, rate: look.rate, R: aRadius, level: q.i + 1 });
+        scene?.shiftStream({ heat: look.heat, width: plan.width * look.width, rate: look.rate, level: q.i + 1, top: q.i >= 2, gustMs: Math.round(plan.reachMs * 0.6) });
         scene?.kickDebris(o.attacker.x, o.attacker.y, aRadius, dir, 3 + q.i * 2);
         break;
       }
@@ -143,11 +152,16 @@ export function playHeroIggy(o: HeroIggyOptions): HeroIggyHandle {
         cue(c.sfxHitClip, c.sfxHitGain, c.sfxHitRate + 0.06 * q.i, { lenMs: 420, fadeMs: 180 });
         scene?.splash(stream.to.x, stream.to.y, radius, dir, q.i + 1);
         break;
+      case 'peak':
+        // THE HIT-STOP: the FX freeze at the peak of the push (the portraits and the view hold too: they read the plan).
+        scene?.freeze(plan.reboundAt - plan.peakAt);
+        break;
       case 'rebound':
-        // THE REBOUND: the flattened ward springs back, the back-blast goes off behind the hero, the surge leaves.
-        cue(c.sfxReboundClip, c.sfxReboundGain * (0.85 + 0.05 * plan.tier), c.sfxReboundRate, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 320 });
+        // THE SLAM: the flattened ward bursts outward, the back-blast goes off behind the hero, the mega-surge leaves.
+        cue(c.sfxReboundClip, c.sfxReboundGain * (0.85 + 0.08 * plan.tier), c.sfxReboundRate, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 320 });
+        cue(c.sfxSlamClip, c.sfxSlamGain * (0.8 + 0.08 * plan.tier), c.sfxSlamRate, { tail: c.sfxTailMix, lenMs: 700, fadeMs: 260 });
         if (plan.shatter) cue(c.sfxShatterClip, c.sfxShatterGain, c.sfxShatterRate, { lenMs: 900, fadeMs: 300 });
-        scene?.rebound({ shatter: plan.shatter, R: wardR, size: 0.8 + 0.25 * plan.tier });
+        scene?.slam({ shatter: plan.shatter, R: wardR, size: 0.8 + 0.25 * plan.tier, screen });
         if (plan.shatter) wardDropped = true;
         break;
       case 'impact':
@@ -155,7 +169,10 @@ export function playHeroIggy(o: HeroIggyOptions): HeroIggyHandle {
         cue(c.sfxImpactClip, c.sfxImpactGain * (0.85 + 0.05 * plan.tier), c.sfxImpactRate, { tail: c.sfxTailMix, lenMs: c.sfxImpactLenMs, fadeMs: 400 });
         cue(c.sfxThumpClip, c.sfxThumpGain, c.sfxThumpRate - 0.03 * (plan.tier - 1), { lenMs: 500, fadeMs: 180 });
         if (plan.tier >= 3) cue(c.sfxHitClip, c.sfxHitGain * 1.6, c.sfxHitRate - 0.4, { tail: c.sfxTailMix, lenMs: 900, fadeMs: 300 });
-        scene?.impact(d.x, d.y, radius, { size: 1 + 0.12 * plan.tier * plan.burst, big: plan.shatter, dir, flashAlpha: c.flashAlpha, embers: plan.embers });
+        scene?.impact(d.x, d.y, radius, {
+          size: 1 + 0.12 * plan.tier * plan.burst, big: plan.shatter, dir, flashAlpha: c.flashAlpha, embers: plan.embers,
+          lingerMs: Math.max(0, plan.endAt - plan.impactAt - 500),
+        });
         seq.land();
         break;
       case 'boom': {
@@ -172,9 +189,16 @@ export function playHeroIggy(o: HeroIggyOptions): HeroIggyHandle {
 
   const paintScene = (t: number): void => {
     if (!scene || plan.reduced) return;
+    // The presence rises through the inhale, flares at the slam, and burns out after it.
+    if (!presenceGone) {
+      const rise = clamp01((t - plan.chargeAt) / Math.max(1, plan.breathAt - plan.chargeAt));
+      const flare = t >= plan.reboundAt ? Math.exp(-(t - plan.reboundAt) / 160) : 0;
+      scene.setPresence(easeInOutSine(rise), flare);
+      if (t > plan.reboundAt + 260) { scene.fadePresence(); presenceGone = true; }
+    }
     if (!wardDropped) {
       const w = iggyWardAt(plan, c, t);
-      scene.setWard(w.up, w.flatten, w.glow);
+      scene.setWard(w.up, w.flatten, w.glow, w.slam);
       // The ward (I-III) calms after the impact and is put away once it has faded.
       if (t > plan.impactAt + 440) { scene.dropWard(); wardDropped = true; }
     }

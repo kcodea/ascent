@@ -34,6 +34,10 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   wardRadius: ['Ward size', '×', 'The ward round the hero, in portrait radii.', 'Ward up + crouch'],
   wardAlpha: ['Ward opacity', 'opacity', 'How visible the ward is.', 'Ward up + crouch'],
   wardGlow: ['Ward glow', '×', 'How much brighter the ward glows as the push builds.', 'Ward up + crouch'],
+  wings: ['Flame wings', '×', 'How much crimson flame burns in the wings that rise behind the hero (0 = none).', 'Inhale'],
+  eyes: ['Eyes', '×', 'How bright the two cyan eyes that open above the hero are (0 = none).', 'Inhale'],
+  inhale: ['Inhale', '×', 'How much light and how many embers are pulled into the mouth before the breath.', 'Inhale'],
+  sparks: ['Sparks', '×', 'How many sparks and how much debris the breath kicks up along its path.', 'Breath'],
   streamFlame: ['Stream flame', '×', 'How dense the breath is (flame particles along the stream).', 'Breath'],
   streamSpeed: ['Stream flow', '×', 'How fast the flame flows down the stream.', 'Breath'],
   turbulence: ['Turbulence', '×', 'How much the breath licks and curls.', 'Breath'],
@@ -41,8 +45,11 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   smoke: ['Smoke', '×', 'How much smoke the breath leaves.', 'Breath'],
   embers: ['Embers', '×', 'How many embers fly off the stream and the blasts.', 'Breath'],
   reboundHoldMs: ['Rebound hold', 'ms', 'How long the ward holds the last, hardest push before it springs back.', 'Rebound'],
+  hitStopMs: ['Hit-stop', 'ms', 'The freeze at the peak of the push before the ward slams (0 = none; the owner ruled out hit-stop on 2026-09-28, so this is the owner\'s call).', 'Rebound'],
+  slamSize: ['Slam size', '×', 'Size of the slam: the bloom, the ward blasted off its back, the shockwaves.', 'Rebound'],
   backBlast: ['Back-blast', '×', 'Size of the shockwave, flame and debris off the back of the ward.', 'Rebound'],
   shards: ['Shards', undefined, 'Tier IV: how many glass shards the ward shatters into.', 'Rebound'],
+  scorch: ['Scorch', '×', 'Tier IV: the lingering blue fire and burnt ground left round the struck hero.', 'Impact'],
   explodeSize: ['Impact size', '×', 'Scale of the surge detonating on the target.', 'Impact'],
   flashAlpha: ['Flash', 'opacity', 'How bright the impact flash is.', 'Impact'],
   knockPx: ['Knockback', 'px', 'How far the struck portrait is knocked back.', 'Camera and portraits'],
@@ -52,6 +59,10 @@ const SPECS: Record<GlobalNumKey, Spec> = {
   reducedFadeMs: ['Reduced motion fade', 'ms', 'With reduced motion on, the numbers and total just fade over this.', 'Camera and portraits'],
   sfxWardGain: ['ward: gain', undefined, 'The shimmer of the ward going up.', 'Sound: ward'],
   sfxWardRate: ['ward: pitch', '×', 'Pitch of the ward.', 'Sound: ward'],
+  sfxInhaleGain: ['inhale: gain', undefined, 'The riser climbing through the inhale to the first breath.', 'Sound: inhale'],
+  sfxInhaleRate: ['inhale: pitch', '×', 'Pitch of the riser.', 'Sound: inhale'],
+  sfxSlamGain: ['slam: gain', undefined, 'The crack of the ward slamming outward (under the rebound).', 'Sound: slam'],
+  sfxSlamRate: ['slam: pitch', '×', 'Pitch of the slam.', 'Sound: slam'],
   sfxGrowlGain: ['growl: gain', undefined, 'The dragon growl in the crouch.', 'Sound: growl'],
   sfxGrowlRate: ['growl: pitch', '×', 'Pitch of the growl.', 'Sound: growl'],
   sfxBreathGain: ['breath: gain', undefined, 'The roar of the breath (held for the whole stream).', 'Sound: breath'],
@@ -98,7 +109,7 @@ const TIER_SPECS: Record<IggyTierSuffix, [string, TunerUnit | undefined, string]
 const TIER_NAMES: Record<TierNum, string> = { 1: 'Tier I', 2: 'Tier II', 3: 'Tier III', 4: 'Tier IV' };
 
 const CLIP_OF: Partial<Record<string, HeroIggyStrKey>> = {
-  'Sound: ward': 'sfxWardClip', 'Sound: growl': 'sfxGrowlClip', 'Sound: breath': 'sfxBreathClip', 'Sound: stage': 'sfxStageClip',
+  'Sound: ward': 'sfxWardClip', 'Sound: inhale': 'sfxInhaleClip', 'Sound: slam': 'sfxSlamClip', 'Sound: growl': 'sfxGrowlClip', 'Sound: breath': 'sfxBreathClip', 'Sound: stage': 'sfxStageClip',
   'Sound: stage hit': 'sfxHitClip', 'Sound: rebound': 'sfxReboundClip', 'Sound: shatter': 'sfxShatterClip',
   'Sound: impact': 'sfxImpactClip', 'Sound: thump': 'sfxThumpClip', 'Sound: aftershock': 'sfxBoomClip',
 };
@@ -112,6 +123,8 @@ const COLORS: [HeroIggyStrKey, string, string][] = [
   ['colorDeep', 'Deep blue', 'The blue the flames cool to at their tips.'],
   ['colorEmber', 'Ember', 'The night blue a dying flame ends on.'],
   ['colorSmoke', 'Smoke', 'The smoke the breath leaves, and the debris.'],
+  ['colorWing', 'Wings', 'The crimson of the flame wings (Immune Iggy).'],
+  ['colorWingHot', 'Wing edge', 'The white-hot leading edge of the wings.'],
   ['colorWard', 'Ward', 'The ward round the hero, its rings and its shards.'],
 ];
 

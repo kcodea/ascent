@@ -49,7 +49,7 @@ have about matching with interiors"*.
   the owner wants it as a future reward for reaching Ascendant rank, not a crate plate. Not built.
 - **Oversized canvases**: Battletorn (1080x1679) and Ethereal (1006x1563) were scaled onto the 946x1471 template with their
   opening matched to Galaxy's and bottom-aligned, cropping what spilled past the edge (Battletorn's banners lose their
-  outer tips, like Mooncloud's clouds).
+  outer tips, like Mooncloud's clouds). *(Undone the same day: the whole art is used now; see 2026-10-17-card-plates-batch-5.md.)*
 - **Phoenix Plate** is a shield with wings and its own painted middle on a 1236x1922 canvas. Owner: "Try it as one image".
   It is a single-image plate fitted inside the standard plate's outline, bottom-aligned, no darkening. Its middle narrows
   toward the bottom, so the last lines of rules text sit over the gold flourishes: check it in game.

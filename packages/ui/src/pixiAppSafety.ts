@@ -95,13 +95,28 @@ export function isTickerStalled(ticker: Ticker): boolean {
   return t.started && t._requestId === null && !!t._head?.next;
 }
 
-/** Start the ticker. If it is in the dead state, stop it first so `start()` really requests a frame again. */
+/**
+ * Start the ticker. If it is in the dead state, stop it first so `start()` really requests a frame again.
+ *
+ * The dead state is decided AFTER the current callback, never inside it (mobile perf pass, 2026-10-18). Pixi's
+ * `_tick` clears `_requestId` before it runs the listeners and requests the next frame only once they have all
+ * returned, so a call from INSIDE a listener (an FX play retiring on its last frame and waking the controller,
+ * the everyday path) looked exactly like the dead state. It was reported as a fault (`[pixi fault] ...
+ * ticker-stalled`, a `console.error` with a stack, several per session), and the ticker was stopped and
+ * restarted in the middle of its own update. A microtask runs once `_tick` has returned: by then a live ticker
+ * has requested its frame, and only a ticker that is really dead (a listener threw) is revived.
+ */
 export function reviveTicker(ticker: Ticker, site: string): void {
-  if (isTickerStalled(ticker)) {
+  if (!isTickerStalled(ticker)) {
+    ticker.start();
+    return;
+  }
+  queueMicrotask(() => {
+    if (!isTickerStalled(ticker)) return;
     reportFxFault(`${site}:ticker-stalled`, new Error('ticker was started but had no frame requested; restarted'));
     ticker.stop();
-  }
-  ticker.start();
+    ticker.start();
+  });
 }
 
 /** Count WebGL context losses on this app's canvas. Pixi restores the context itself, so this only reports. */

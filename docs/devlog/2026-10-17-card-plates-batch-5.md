@@ -1,4 +1,4 @@
-# 2026-10-17 — Astral Relic, Blood Omen and Honey card plates
+# 2026-10-17 — Astral Relic, Blood Omen, Honey and Goop card plates
 
 Owner (2026-10-17): *"i added more to the folder."* Three frames, no interiors. Asked which interiors; the owner took my
 suggestion. All Legendary (the folder rule).
@@ -16,8 +16,9 @@ suggestion. All Legendary (the folder rule).
 | Astral Relic | dark | 0.005 | 1.033 | 1.01 | 0.0094 | no |
 | Blood Omen | wartorn | 0.005 | 1.049 | 1.056 | 0.1894 | no |
 | Honey | brown | 0.004 | 1.051 | 1.031 | 0.03 | yes |
+| Goop ("added one more: goop"; no interior named, so Brown) | brown | 0.005 | 1.051 | 1.041 | -0.0112 | yes |
 
-- All three were drawn off the template (1170x1561, 959x1493, 1005x1566) and scaled onto it, opening matched to Galaxy's
+- All four were drawn off the template (1170x1561, 959x1493, 1005x1566, 1024x1536) and scaled onto it, opening matched to Galaxy's
   and bottom-aligned, like Battletorn.
 - **`plates:build --fit` can now pull an interior IN.** It only ever grew the interior to cover the opening (`down` and
   `up` started at 0), so an interior that reached far past a LOW opening kept its top: Blood Omen's opening starts lower

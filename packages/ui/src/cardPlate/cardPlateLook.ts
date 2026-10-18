@@ -180,6 +180,9 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_astral_relic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.033, interiorSy: 1.01, interiorY: 0.0094, darken: false },
   plate_blood_omen: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.005, interiorSx: 1.049, interiorSy: 1.056, interiorY: 0.1894, darken: false },
   plate_honey: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.004, interiorSx: 1.051, interiorSy: 1.031, interiorY: 0.03 },
+  // Goop (owner 2026-10-17): no interior named, so the default Brown, keeping the darkening. Drawn off the template
+  // (1024x1536) and scaled onto it like Battletorn.
+  plate_goop: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.051, interiorSy: 1.041, interiorY: -0.0112 },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

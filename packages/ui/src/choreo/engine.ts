@@ -9,6 +9,7 @@ import { getLungeConfig, strikeBandFor, strikeEaseFor } from '../lungeConfig';
 import { contactGeometry } from './contactGeometry';
 import { recordLunge } from '../lungeProbe';
 import { toScreen, toStage } from '../stage';
+import { deflectImmuneShield, dropImmuneShield, raiseImmuneShield } from './channels/immuneShield';
 
 export interface AttackCueCtx {
   combatSpeed: number;
@@ -63,6 +64,18 @@ export interface AttackCueCtx {
    *  land ON the hit, the way an ordinary swing's `advance` does, instead of on a timer guessed at the park
    *  (owner 2026-09-01: the parked strike "resolved extremely fast" — its damage committed before it landed). */
   onParkedContact?: () => void;
+  /** IMMUNE WHILE ATTACKING (the engine's `attack.immune` flag, owner 2026-10-18): the blue-and-gold shield forms at
+   *  the wind-up start, deflects the counterblow at contact (when the defender has Attack to hit back with), and
+   *  dissipates as the attacker settles. Absent / false = an ordinary swing (a spent charge never sets it). */
+  immune?: boolean;
+}
+
+/** The Attack the defender's badge SHOWS at contact — its counterblow, which the immune shield deflects. 0 = no
+ *  counter (nothing to spark off the shield). Read once, at the one-shot impact, never per frame. */
+function defenderCounter(defender: Element | null): number {
+  const t = defender?.querySelector?.('.badge.atk')?.textContent ?? '';
+  const n = parseInt(t.replace(/[^0-9-]/g, ''), 10);
+  return Number.isFinite(n) ? n : 0;
 }
 
 /** ms the lunge holds at the top of the wind-up when a Rally fires, so its bright yellow pulse has time to
@@ -176,7 +189,9 @@ export function runAttackExchangeCues(
     approachDeg: geo.approachDeg, leadTilt: geo.leadTilt,
     band: strikeBandFor(geo.travel), ease: strikeEaseFor(geo.travel),
   });
-  return playLunge({
+  const immune = ctx.immune === true;
+  let lungeTl: ReturnType<typeof gsap.timeline> | null = null;
+  const built = playLunge({
     // The layout-frame vector everywhere: the wind-up leans back along it, the blow direction rides it, and
     // the strike target was solved from it — one frame, no mixed-measurement drift.
     attacker, dx: ldx, dy: ldy, speed: ctx.combatSpeed, flurry: hasFlurry,
@@ -187,7 +202,9 @@ export function runAttackExchangeCues(
     holdAfterWindup: ctx.holdAfterWindup === true,
     onWindupHeld: ctx.onWindupHeld,
     onContact: ctx.holdAfterWindup === true ? () => ctx.onParkedContact?.() : () => ctx.advance(),
-    onImpact: impact ? () => { playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave, false, attackBadgeTier(attacker), attacker.getAttribute('data-card')); if (crit) ctx.onCritImpact?.(); } : undefined,
+    onWindupStart: immune ? () => raiseImmuneShield(attacker, ctx.combatSpeed, () => lungeTl) : undefined,
+    onSettle: immune ? () => dropImmuneShield(attacker) : undefined,
+    onImpact: impact ? () => { if (immune && defenderCounter(defender) > 0) deflectImmuneShield(attacker); playContactImpact(defender, ldx, ldy, power, ctx.combatSpeed, liveImpactAt(), spinDeg, crit, hasFlurry, flurrySlash, ctx.execute === true, hasCleave, false, attackBadgeTier(attacker), attacker.getAttribute('data-card')); if (crit) ctx.onCritImpact?.(); } : undefined,
     impactOffsetMs: impact?.offset ?? 0,
     hitStopMs: hasCleave ? getCleaveFxConfig().hitStopMs : 0,
     returnDelayMs: hasCleave ? getCleaveFxConfig().returnDelayMs : 0,
@@ -204,6 +221,8 @@ export function runAttackExchangeCues(
       + (ctx.onWindupBuffs ? cfg.buffLeadMs + cfg.windupSettleMs : 0)
       + Math.max(0, ctx.windupSettleMs ?? 0),
   });
+  lungeTl = built;
+  return built;
 }
 
 /**

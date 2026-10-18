@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Minions that are Immune while attacking now show it. A blue and gold shield forms as they wind up, sparks when the counterattack bounces off, and fades as they settle back into place.',
+        details: [
+          'Plays on Immune Iggy, Bounty Bot and Mauron, for your minions and enemy minions alike.',
+          'Once Immune Iggy or Bounty Bot has used up its immune attacks for the fight, its later attacks show no shield.',
+          'Bounty Bot now counts its immune attacks down live in combat, like Immune Iggy.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Nine new emotes join the crate pool.',
         details: [
           'Rare: Chronos Mad, Rascal Broke, Skeleton Wave and Pup Pup.',

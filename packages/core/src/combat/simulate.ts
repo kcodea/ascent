@@ -4302,7 +4302,11 @@ export function simulate(
       const crit = !!attacker.critChance && attacker.critChance > 0 && rng.next() < attacker.critChance;
       const critMult = crit ? 2 : 1;
       const windupSeq = immediateSummonSeq; // deferred summons stamped from here on belong to THIS swing's wind-up
-      emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}) });
+      // IMMUNE WHILE ATTACKING (owner 2026-10-18: "they should gain a blue/gold shield when they wind up to attack"):
+      // flag the swing the clash below will exempt from retaliation, read off the SAME charge count, so the shield
+      // forms only on a swing the immunity actually covers (a spent "Twice per combat" swing carries no flag).
+      const immuneSwing = (attacker.attackImmuneLeft ?? 0) > 0;
+      emit({ type: 'attack', attacker: attacker.uid, defender: target.uid, swing: s, ...(crit ? { crit: true } : {}), ...(immuneSwing ? { immune: true as const } : {}) });
       bus.emit('onAttack', { minion: attacker, side: attacker.side, target }); // Rally + on-attack effects (target = the enemy being hit this swing)
       // RUNE OF THE SUNPONY (owner 2026-10-07): "When a Beast attacks, give all of your Beasts +1 Attack and this
       // Rune's effect." Sunmane Herald's spreading Rally with the RUNE as the source: the SAME arena body

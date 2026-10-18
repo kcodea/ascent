@@ -73,7 +73,17 @@ export interface LungeCtx {
   /** Fired when a `holdAfterWindup` lunge reaches the pause at the top of the wind-up — the caller advances the
    *  beat here so the spray plays while the attacker holds its pose. */
   onWindupHeld?: () => void;
+  /** Fired at the very START of the wind-up (timeline position 0) — the immune shield forms here (owner 2026-10-18:
+   *  "gain a blue/gold shield when they wind up to attack"). Absent = nothing at the wind-up start. */
+  onWindupStart?: () => void;
+  /** Fired as the attacker SETTLES home — partway into the elastic settle, once the card is visibly back in its
+   *  slot (the immune shield dissipates here: "that dissipates when they settle"). Absent = nothing at settle. */
+  onSettle?: () => void;
 }
+
+/** How far into the elastic settle `onSettle` fires (fraction of `settleDur`): the elastic curve has the card home
+ *  well before its last wobble, so the shield lets go as it lands rather than after the tail has died out. */
+export const SETTLE_CUE_FRACTION = 0.35;
 
 /**
  * The attack lunge motion (choreographer phase 3b) — wind up (lean back + tilt to lead a corner), strike to
@@ -112,6 +122,8 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   const onRallyPulse = once(ctx.onRallyPulse);
   const onWindupBuffs = once(ctx.onWindupBuffs);
   const onWindupHeld = once(ctx.onWindupHeld);
+  const onWindupStart = once(ctx.onWindupStart);
+  const onSettle = once(ctx.onSettle);
   const c = getLungeConfig();
   // The trail's origin is the attacker's LAYOUT centre: the measured rect includes any residual transform
   // (a killed settle / knockback-recover still in flight), and `onUpdate` adds the live GSAP x/y on top —
@@ -158,6 +170,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
       }
     },
   });
+  if (onWindupStart) tl.call(onWindupStart, undefined, 0); // the wind-up's first frame (the immune shield forms)
   tl.to(attacker, { x: -dx * c.windupDepth, y: -dy * c.windupDepth, rotation: leadTilt, scale: c.windupScale, duration: c.windupDur, ease: 'power1.out' }); // wind up, tilt to lead a corner
   if (windupPauseS > 0) {
     if (onRallyPulse) tl.call(onRallyPulse);   // fire the yellow Rally pulse at the top of the wind-up (rally only)…
@@ -189,6 +202,7 @@ export function playLunge(ctx: LungeCtx): ReturnType<typeof gsap.timeline> {
   if (returnS > 0) tl.to({}, { duration: returnS });
   tl.to(attacker, { rotation: -Math.sign(leadTilt) * attackerRebound, duration: 0.06, ease: 'power2.out' })                                                 // rotational rebound off the clack (leadTilt 0 → no lead, no rebound)
     .to(attacker, { x: 0, y: 0, rotation: 0, duration: c.settleDur, ease: 'elastic.out(1, 0.45)' });                                                        // settle
+  if (onSettle) tl.add(onSettle, `-=${c.settleDur * (1 - SETTLE_CUE_FRACTION)}`); // home in its slot → the shield lets go
   // The impact (smack/FX/recoil) fires at contact + its offset — an ABSOLUTE timeline position so a negative
   // offset lands EARLIER than contact (the smack-lead), clamped to ≥ 0 (can't precede the timeline). It rides
   // this (speed-timeScaled) timeline, so the smack stays killed/seekable with the lunge and scales with speed.

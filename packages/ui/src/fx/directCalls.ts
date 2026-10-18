@@ -88,6 +88,11 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'hero-power-spark': ['StatusBar.tsx'],
   'hero-power-target': ['Recruit.tsx'],
   'impact-dust': ['EndTurnButton.tsx', 'RefreshButton.tsx', 'choreo/channels/impact.ts'],
+  // IMMUNE WHILE ATTACKING (owner 2026-10-18): the shield's formation motes, its deflect sparks and its outward
+  // shimmer, fired by literal id from the lunge's wind-up / contact / settle anchors.
+  'immune-shield-deflect': ['choreo/channels/immuneShield.ts'],
+  'immune-shield-dissipate': ['choreo/channels/immuneShield.ts'],
+  'immune-shield-form': ['choreo/channels/immuneShield.ts'],
   'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
   // THE LOBBY KNOCKOUT (owner ask 2026-10-02): a soft smoke veil (and a few motes) over a rail seat's row as the player is knocked out.
   'lobby-knockout': ['lobbyKnockoutFx.ts'],

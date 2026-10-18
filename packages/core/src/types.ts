@@ -3129,7 +3129,11 @@ export type CombatEvent = (
   // presentation marker only: it changes no unit, and the effect it announces follows as ordinary events (a
   // `buff`, a `keyword`, a `summon`, the Weaken `sc`), or arms for later in the fight (Decoy Sigil, Solid Ground).
   | { type: 'bankedCast'; side: Side; spellId: string; count?: number }
-  | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean }
+  // `immune` = this swing is IMMUNE WHILE ATTACKING (Bounty Bot / Immune Iggy's per-combat charges, Mauron's always-on,
+  // a Bloodlust swing): the attacker takes no retaliation from this clash. Stamped at the wind-up from the same
+  // `attackImmuneLeft` the clash reads, so a spent charge never carries the flag. Presentation-only marker (the
+  // immune shield FX, owner 2026-10-18); the immunity itself is the skipped retaliation.
+  | { type: 'attack'; attacker: string; defender: string; swing: number; crit?: boolean; immune?: true }
   | { type: 'dmg'; target: string; amount: number; remainingHp: number; source?: string } // `source` = the uid that dealt this hit (attacker, poisoner, an AoE's caster). Optional: truly sourceless damage omits it. Lets presentation attribute a sourceless-looking damage MOMENT to its actor — e.g. Fel Spikes' Echo volley fires FROM the dying body (source→target FX), the way an `sc` event carries a Start-of-Combat cast's source.
   | { type: 'proccrit'; source: string; mult: number }
   | { type: 'spellcast'; side: Side; count: number } // a Shop Spell resolved mid-fight (Quil/Mammoth/Taragosa/…). `count` = that side's running total. The UI's live counters (Yirin's Attunement, Guel-style tallies) tick off this — carry-backs land at settle, so without it nothing can move in real time. // a chance-to-repeat effect rolled its multiplier (Karwind's 20% double) — the UI floats a crit-style "Nx" above `source`. Presentation only; the repeat itself is already in the buff events.

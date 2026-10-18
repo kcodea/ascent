@@ -245,6 +245,7 @@ import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFo
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
+import { touchBuyLine, touchUi } from './touchUi';
 import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
 import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
 import { godEndTurnNeedsPick, runGodPick, type GodPromptState } from './godMode/godPick';
@@ -4355,7 +4356,9 @@ export function Recruit() {
     // The board's horizontal midline (background divider): the .app's vertical centre, since the board art is
     // cover-centred so its centre split maps there. Buying requires releasing a shop card BELOW this line.
     const appR = document.querySelector('.app')?.getBoundingClientRect();
-    const midlineY = (appR ? appR.top + appR.height / 2 : wbTop) + toScreen(zoneCfg.buyZoneY ?? 0);
+    // TOUCH (owner 2026-10-18, R-TOUCH-BUYZONE-01): a finger drag buys from a line raised toward the shop row, so a
+    // short pull down off the offer is enough. A mouse (and a touch device without the touch UI) keeps the midline.
+    const midlineY = touchBuyLine((appR ? appR.top + appR.height / 2 : wbTop) + toScreen(zoneCfg.buyZoneY ?? 0), appR?.height ?? 0, touch && touchUi().on);
     const zoneRects = [...document.querySelectorAll<HTMLElement>('[data-zone]')].map((el) => ({
       zone: el.getAttribute('data-zone') as Zone,
       r: el.getBoundingClientRect(),

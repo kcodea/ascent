@@ -2,6 +2,7 @@ import './styles.css';
 // The shared tooltip look (owner 2026-10-02) + its DEV size dials. After styles.css so the skin owns the paint.
 import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD pills
 import './tooltips.css';
+import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui] (touch devices only, R-TOUCH-UISCALE-01)
 import './runeCard.css'; // the forge card: rune cards + rune rack badges (owner reference 2026-10-07)
 import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
@@ -95,6 +96,9 @@ import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
+import { installTouchUi, touchUi } from './touchUi';
+import { installTouchSlop } from './touchSlop';
+import { installTouchKeyboard } from './touchKeyboard';
 import { OwnSkins, RunSkins } from './skins/skins';
 import { CloudMovedModal } from './CloudMovedModal';
 import { installLivePublisher } from './live/livePublisher';
@@ -458,6 +462,14 @@ export function Game() {
   // focus) lives in the store's `openBugReport`; the modal's own capture-phase handler claims Esc/Tab while
   // it is open, so the two listeners below never fire underneath it.
   useEffect(() => installBugReportHotkey(), []);
+  // THE TOUCH UI (owner 2026-10-18, R-TOUCH-UISCALE-01): on a touch device with a scaled stage only, never a mouse.
+  // The hit slop is installed BEFORE touchInput so the tap it replays on a control is what touchInput sees.
+  useEffect(() => {
+    const offUi = installTouchUi();
+    const offSlop = installTouchSlop(() => touchUi().on);
+    const offKb = installTouchKeyboard(() => touchUi().on);
+    return () => { offKb(); offSlop(); offUi(); };
+  }, []);
   // TOUCH (owner ask 2026-09-26): a finger tap reaches everything a mouse hover reaches; tap-away closes it.
   useEffect(() => installTouchInput(), []);
 

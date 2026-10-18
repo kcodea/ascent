@@ -95,6 +95,20 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Phones and tablets get a bigger, easier touch UI. Buttons are easier to hit, menus and text are bigger, and card picks show large. Nothing changes with a mouse.',
+        details: [
+          'New Touch UI size setting (Normal, Large, Larger) in Settings on phones and tablets. Phones start on Larger, tablets on Large.',
+          'Every button has a bigger invisible tap area, so a near miss still lands.',
+          'Career, Leaderboard, Recent Games, Collection, Play, Practice, Versus and hero select show bigger and scroll where needed.',
+          'On phones, the big card view, Discover, Choose One and the Runeforge fill most of the screen so their text reads.',
+          'The corner buttons, shop pills and Settings sliders are bigger.',
+          'Dragging a shop card down to buy needs a shorter pull.',
+          'Typing your email, code or name opens a big field above the keyboard, and the page no longer zooms in.',
+          'Buttons no longer stay lit up after you tap them.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones and tablets play better. Tap and hold works like a right-click, the game fills the whole screen, and nothing sits under the camera cutout.',
         details: [
           'Tap and hold any card to see it big, including Discover and Choose One picks. From the big view, a Buy or Pick button takes it.',

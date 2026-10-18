@@ -14,6 +14,7 @@ import { plateTuningPlugin } from './plateTuningPlugin';
 import { workbenchPlugin } from './workbenchPlugin';
 import { publicArtList } from './publicArt';
 import { phoneArtPlugin } from './phoneArtPlugin';
+import { hoverGuardPlugin } from './hoverGuardPlugin';
 
 const r = (p: string) => fileURLToPath(new URL(p, import.meta.url));
 
@@ -69,6 +70,9 @@ export default defineConfig(({ command }) => ({
   plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin(),
     // Production only: the downscaled phone copies of the big art + the `__PHONE_ART__` list of them (phoneArtPlugin.ts).
     phoneArtPlugin({ uiSrc: r('../../packages/ui/src'), publicDir: r('./public'), publicArt, cacheDir: r('../../node_modules/.cache/phone-art') })],
+  // HOVER GUARD (R-TOUCH-HOVERGUARD-01): every hover glow / lift rule is wrapped in `@media (hover: hover)` at build
+  // time so it never sticks after a tap on a phone. A mouse always matches the query, so desktop is unchanged.
+  css: { postcss: { plugins: [hoverGuardPlugin()] } },
   server: { watch: { ignored: [STAGES_DIR.replaceAll('\\', '/') + '/**'] } },
   resolve: {
     alias: {

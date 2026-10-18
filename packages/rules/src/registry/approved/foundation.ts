@@ -6768,4 +6768,90 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'listener read as the dead state: a false fault with a console.error, and a stop/start in the middle of the frame.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiAppSafety.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
+  {
+    id: 'R-TOUCH-UISCALE-01',
+    title: 'Phones and tablets get a bigger, readable touch UI; a mouse device is pixel-identical',
+    statement:
+      'On a touch device (no hover, a coarse pointer) whose screen is smaller than the design size, the game turns on a '
+      + 'touch UI: bigger corner buttons, shop pills and small HUD controls, finger-sized Settings controls, menu pages '
+      + '(Career, Leaderboard, Recent Games, Collection, Live Games, Play, Practice, Versus, hero select) zoomed so they '
+      + 'reflow and scroll, and, on a phone, enlarged Inspect, Discover, Choose One and Runeforge views. A "Touch UI size" '
+      + 'setting (Normal, Large, Larger) shows in Settings on touch devices only, is stored on the device, and defaults to '
+      + 'Larger on a phone and Large on a tablet. A mouse device never gets any of it, at any window size: desktop renders '
+      + 'exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (mobile UI scale ask; desktop must stay pixel-identical)', quote: 'I want to make sure it\x27s a AAA experience, seamless 1:1 from mobile to desktop' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.ts (touchUiApplies, applyTouchUi, the size setting); packages/ui/src/touchUi.css (every rule keyed off html[data-touch-ui]); EscMenu.tsx (Touch UI size)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/mobile-touch-ui-scale). Before, an iPhone in landscape (stage scale ~0.36) showed 13 to 25 px buttons and 3.6 to 9 px text.',
+    example: 'iPhone landscape: Recent Games text goes from ~5 px to ~9 to 10 px and the ? / book / settings buttons from 14 px to ~31 px; the same page at 1920x1080 with a mouse is pixel-identical.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-HITSLOP-01',
+    title: 'Every control has a touch target of at least 44 screen px, on touch only',
+    statement:
+      'With the touch UI on, a finger that lands on nothing interactive goes to the nearest control whose invisible hit '
+      + 'area (its rect grown to at least 44 x 44 screen px) contains the point. Neighbouring hit areas split by distance, '
+      + 'then a button beats an info tip, then the smaller control wins. A finger on a control, a card or the board is '
+      + 'never redirected, a drag or scroll is never redirected, and a mouse is never redirected.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (mobile UI scale ask; desktop must stay pixel-identical)', quote: 'I want to make sure it\x27s a AAA experience, seamless 1:1 from mobile to desktop' },
+      { kind: 'code', ref: 'packages/ui/src/touchSlop.ts (inflate, pickSlopTarget, installTouchSlop); Game.tsx installs it before touchInput' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/mobile-touch-ui-scale). Before, a finger had to land inside the drawn 14 px corner buttons or 13 px Practice options.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchSlop.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-HOVERGUARD-01',
+    title: 'Hover glows and lifts never stick after a tap',
+    statement:
+      'Hover-only looks (glows, lifts, brightening) apply only on a device that can hover, so a phone never leaves a '
+      + 'tapped button glowing. Hover tips keep working on touch through tap = hover. A mouse sees every hover look '
+      + 'exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (mobile UI scale ask; desktop must stay pixel-identical)', quote: 'I want to make sure it\x27s a AAA experience, seamless 1:1 from mobile to desktop' },
+      { kind: 'code', ref: 'apps/web/hoverGuardPlugin.ts (build-time PostCSS: hover rules into @media (hover: hover)); apps/web/vite.config.ts' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/mobile-touch-ui-scale). Before, 432 :hover rules were unguarded and stuck on after a tap.',
+    enforcement: { kind: 'scenario', refs: ['apps/web/hoverGuardPlugin.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-KEYBOARD-01',
+    title: 'Typing on a phone uses a big field above the keyboard',
+    statement:
+      'With the touch UI on, a focused text field (the sign-in email and code, your name, the Versus room name, the '
+      + 'searches) moves to a large bar along the top of the visible screen, above the on-screen keyboard, with 17 px '
+      + 'text so the browser never zooms in. The field keeps its own Enter and blur behaviour and goes back on blur.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (mobile UI scale ask; desktop must stay pixel-identical)', quote: 'I want to make sure it\x27s a AAA experience, seamless 1:1 from mobile to desktop' },
+      { kind: 'code', ref: 'packages/ui/src/touchKeyboard.ts (liftBox, installTouchKeyboard, visualViewport)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/mobile-touch-ui-scale). Before, the sign-in field was ~12 px tall with ~5 px text and iOS zoomed the page on focus.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchKeyboard.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-BUYZONE-01',
+    title: 'A finger drag from the shop buys from a taller drop zone',
+    statement:
+      'On the touch UI, a shop card dragged by a finger buys once it is released below a line raised 6% of the game '
+      + 'area above the board midline, so a short pull down off the offer buys. A mouse keeps the midline exactly. Tapping '
+      + 'the card and pressing Buy on the enlarged view still buys.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (mobile UI scale ask; desktop must stay pixel-identical)', quote: 'I want to make sure it\x27s a AAA experience, seamless 1:1 from mobile to desktop' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.ts (touchBuyLine, TOUCH_BUY_LIFT); Recruit.tsx (midlineY)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/mobile-touch-ui-scale).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

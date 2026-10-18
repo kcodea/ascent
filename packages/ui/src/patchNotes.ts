@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Nine new emotes join the crate pool.',
+        details: [
+          'Rare: Chronos Mad, Rascal Broke, Skeleton Wave and Pup Pup.',
+          'Epic: Gambler, Sexy Darah and Angry Deathswarmer.',
+          'Legendary: Dan the Man and Iggy.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones and tablets play better. Tap and hold works like a right-click, the game fills the whole screen, and nothing sits under the camera cutout.',
         details: [
           'Tap and hold any card to see it big, including Discover and Choose One picks. From the big view, a Buy or Pick button takes it.',

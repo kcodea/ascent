@@ -637,12 +637,12 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   emote('emote_baby_rubies', 'Baby Rubies', 'legendary', 'BabyRubies.png'),
   emote('emote_mad_tormentor', 'Mad Tormentor', 'legendary', 'MadTormentor.png'),
   // CARD PLATES (owner 2026-10-14): "This card plate is called Aquarium Rocks"; "aquariam rocks should be a legendary drop".
-  cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'legendary', 'Aquarium Rocks.png'),
+  cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'epic', 'Aquarium Rocks.png'), // owner 2026-10-17: "change aquarium rocks to epic rarity"
   // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".
   cardPlate('plate_amethyst', 'Amethyst', 'legendary', 'Amethyst.png'), // shares its name with the Amethyst portrait frame (owner 2026-10-15)
   cardPlate('plate_bamboo', 'Bamboo', 'epic', 'Bamboo.png'), // owner 2026-10-15: Epic
-  cardPlate('plate_beach', 'Beach', 'legendary', 'Beach Frame.png'), // layered on the Water interior (2026-10-15)
-  cardPlate('plate_magma', 'Magma', 'legendary', 'Magma Frame.png'), // layered on the Magma interior (2026-10-15)
+  cardPlate('plate_beach', 'Beach', 'epic', 'Beach Frame.png'), // owner 2026-10-17: Epic // layered on the Water interior (2026-10-15)
+  cardPlate('plate_magma', 'Magma', 'epic', 'Magma Frame.png'), // owner 2026-10-17: Epic // layered on the Magma interior (2026-10-15)
   cardPlate('plate_moonstone', 'Moonstone', 'epic', 'Moonstone Frame.png'), // owner 2026-10-15: Epic; // layered on the Dark interior (2026-10-15)
   // Owner 2026-10-15: "create a new plate using the dark interior and mooncloud plate" (Legendary by the folder rule).
   cardPlate('plate_mooncloud', 'Mooncloud', 'ancient', 'Mooncloud.png'), // owner 2026-10-15: Ancient ("make mooncloud ascendant rarity", meaning Ancient)
@@ -672,7 +672,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // the new Dark Brown. Simple Glass started on Grey; owner 2026-10-17: "the glass frame needs the simpleblack interior".
   cardPlate('plate_dark_arcane', 'Dark Arcane', 'epic', 'Dark Arcane.png'), // owner 2026-10-17: Epic
   cardPlate('plate_simple_glass', 'Simple Glass', 'ancient', 'Simpleglass.png'), // owner 2026-10-17: Ancient
-  cardPlate('plate_stonevines', 'Stonevines', 'legendary', 'Stonevines.png'),
+  cardPlate('plate_stonevines', 'Stonevines', 'epic', 'Stonevines.png'), // owner 2026-10-17: Epic
   cardPlate('plate_standard_black', 'Standard Black', 'rare', 'Standard Black.png'), // owner 2026-10-17: Rare
   cardPlate('plate_standard_blue', 'Standard Blue', 'rare', 'Standard Blue.png'), // owner 2026-10-17: Rare
   cardPlate('plate_standard_pink', 'Standard Pink', 'rare', 'Standard Pink.png'), // owner 2026-10-17: Rare
@@ -685,14 +685,14 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_spirit_carving', 'Spirit Carving', 'legendary', 'Ascendant Carving.png'),
   cardPlate('plate_iridescent', 'Iridescent', 'legendary', 'Iridescent.png'),
   cardPlate('plate_mystic_obsidian', 'Mystic Obsidian', 'legendary', 'Mystic Obsidian.png'),
-  cardPlate('plate_porcelain', 'Porcelain', 'legendary', 'Porcelain.png'),
+  cardPlate('plate_porcelain', 'Porcelain', 'epic', 'Porcelain.png'), // owner 2026-10-17: Epic
   cardPlate('plate_smooth_iridescent', 'Smooth Iridescent', 'legendary', 'Smooth Iridescent.png'),
   // Owner 2026-10-17: "ive added another round of frames and interiors. match them based on the names". Legendary by the
   // folder rule. Silver Magic ships as Verdant Magic (no medal words in names); "Ascendant Rank" is held back as a
-  // future ranked reward (owner 2026-10-17), not a crate plate.
+  // future ranked reward (owner 2026-10-17), not a crate plate. Phoenix was removed before it ever shipped (owner
+  // 2026-10-17: "remove the phoenix card").
   cardPlate('plate_battletorn', 'Battletorn', 'legendary', 'Battletorn.png'),
   cardPlate('plate_ethereal', 'Ethereal', 'legendary', 'Ethereal.png'),
-  cardPlate('plate_phoenix', 'Phoenix', 'legendary', 'Phoenix.png'),
   cardPlate('plate_round_magic', 'Round Magic', 'legendary', 'Round Magic.png'),
   cardPlate('plate_verdant_magic', 'Verdant Magic', 'legendary', 'Silver Magic.png'),
   cardPlate('plate_phoenix_plate', 'Phoenix Plate', 'legendary', 'Phoenix Plate.png'),

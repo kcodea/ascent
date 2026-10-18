@@ -54,6 +54,13 @@ export interface CardPlateLook {
    *  it tucks under the frame's top and bottom too (owner 2026-10-15: "magma's interior needs to nudge down"). */
   interiorSy?: number;
   interiorY?: number;
+  /**
+   * `--plate-art-s`: draws the plate's ART bigger than the plate box, about its centre (owner 2026-10-17: "phoenix plate
+   * needs to be 30% larger", "astral relic is so tiny"). For art drawn smaller than the card, used WHOLE ("let them be
+   * uncropped"), so it can spill past the box instead of being cropped. Scales the single image, or a layered plate's
+   * frame and its glow; the interior follows (see `scaledInterior`). Absent = 1.
+   */
+  artScale?: number;
   /** The plate WHOLE, for the Collection (tile + detail panel): the plate itself, or for a layered plate a pre-built
    *  composite of the interior seated in the frame (`<id>.webp`, built at the in-game proportions). */
   thumb: string;
@@ -66,8 +73,28 @@ export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack'
 export type PlateInterior = (typeof PLATE_INTERIORS)[number];
 export const DEFAULT_PLATE_INTERIOR: PlateInterior = 'brown';
 
+/** Each interior image's height / width: it is drawn 1.08 card widths wide, so this sets its height. */
+const INTERIOR_ASPECT: Readonly<Record<PlateInterior, number>> = {
+  brown: 1.7985, dark: 1.8032, magma: 1.8032, water: 1.8031, simpleblack: 1.7254, darkbrown: 1.7985, grey: 1.8032,
+  mystic: 1.6554, roundmagic: 1.7184, silvermagic: 1.7261, wartorn: 1.6276,
+};
+
+/**
+ * A layered plate's interior under a frame drawn `s` times bigger (`artScale`). The frame scales about its own centre
+ * (styles.css `.plate-frame`), so the interior, which `interiorSx` / `-Sy` / `-Y` seat on the UNSCALED frame (measured
+ * by `plates:build --fit`), grows by `s` too and its centre moves `s` times as far from the frame's centre. In card
+ * widths: the frame box is 1.5 x 1.555 tall, the interior's box starts 5.4463% down it, and is 1.08 x aspect tall; its
+ * centre offset `k` from the frame's centre gives the new nudge `s * y + k * (1 - s)`.
+ */
+function scaledInterior(s: number, interior: PlateInterior, sx: number, sy: number, y: number) {
+  const frameH = 1.5 * 1.555;
+  const k = frameH / 2 - frameH * 0.054463 - (1.08 * INTERIOR_ASPECT[interior]) / 2;
+  const r = (n: number) => Math.round(n * 10000) / 10000;
+  return { interiorSx: r(sx * s), interiorSy: r(sy * s), interiorY: r(s * y + k * (1 - s)) };
+}
+
 /** One entry per `card_plate` art key (`assets.art`). Tuned by eye with the owner in game, 2026-10-14. */
-type LookSettings = Pick<CardPlateLook, 'boxA' | 'boxBlend' | 'boxY' | 'frameX' | 'interiorSx' | 'interiorSy' | 'interiorY'> & {
+type LookSettings = Pick<CardPlateLook, 'boxA' | 'boxBlend' | 'boxY' | 'frameX' | 'interiorSx' | 'interiorSy' | 'interiorY' | 'artScale'> & {
   /** false = no text darkening on this plate (its interior is already dark enough). */
   darken?: boolean;
   /** A layered plate (interior -> darkening -> frame). */
@@ -158,37 +185,45 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_porcelain: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.065, interiorSy: 1.033, interiorY: 0.0075 },
   plate_smooth_iridescent: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.04, interiorSy: 1.038, interiorY: 0.0159 },
   // Owner 2026-10-17, second round: interiors matched by name (Battletorn on Wartorn, Round Magic on Brown Round Magic,
-  // Silver Magic, shipped as Verdant Magic, on Silver Magic); the owner picked Mystic for Ethereal and Dark Brown for
-  // Phoenix. Battletorn and Ethereal were drawn on bigger canvases, so they were scaled onto the template first (opening
-  // matched to Galaxy's, bottom-aligned, the spill past the edge cropped, like Mooncloud). Only Round Magic's interior is
-  // light enough to keep the darkening.
-  plate_battletorn: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.006, interiorSx: 1.073, interiorSy: 1.134, interiorY: 0.1172, darken: false },
-  plate_ethereal: { ...AQUARIUM_ROCKS, layered: true, interior: 'mystic', frameX: 0.007, interiorSx: 1.021, interiorSy: 1.132, interiorY: 0.1172, darken: false },
-  plate_phoenix: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.004, interiorSx: 1.044, interiorSy: 1.012, interiorY: -0.0112, darken: false },
-  plate_round_magic: { ...AQUARIUM_ROCKS, layered: true, interior: 'roundmagic', frameX: 0.005, interiorSx: 1.018, interiorSy: 1.066, interiorY: 0.0609 },
+  // Silver Magic, shipped as Verdant Magic, on Silver Magic); the owner picked Mystic for Ethereal. None keeps the
+  // darkening (Round Magic lost it too: owner 2026-10-17, "remove the darkening from round magic").
+  // WHOLE ART (owner 2026-10-17: "please undo the adjustments to the larger cards. let them be uncropped, we can work
+  // through adjusting them as we need"): Battletorn, Ethereal, Emerald, Gilt Etched, Astral Relic, Blood Omen, Honey, Goop
+  // and Phoenix Plate were drawn on bigger canvases. Each frame is now the WHOLE image uniformly scaled to fit the plate
+  // (nothing cropped or stretched), so a frame drawn wider or taller than the card (Astral Relic, Emerald, Goop) sits
+  // with a margin; the interior fits are measured on those (`--fit` may now NARROW an interior, Sx < 1).
+  // ...then drawn BIGGER again (owner 2026-10-17: "phoenix plate needs to be 30% larger", "astral relic is so tiny",
+  // "ethereal also needs to increase in size", "battletorn is also too small", "goop is too small"): `artScale` grows
+  // the art past the plate box, still uncropped. Phoenix Plate takes the owner's 1.3; the others the size at which
+  // their opening matches a standard plate's again (interiorSx about 1.05). The interior numbers stay the fit on the
+  // UNSCALED frame; `scaledInterior` derives the rest.
+  plate_battletorn: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.004, interiorSx: 0.952, interiorSy: 0.973, interiorY: 0.09, darken: false, artScale: 1.1 },
+  plate_ethereal: { ...AQUARIUM_ROCKS, layered: true, interior: 'mystic', frameX: 0.005, interiorSx: 0.941, interiorSy: 1.024, interiorY: 0.0862, darken: false, artScale: 1.12 },
+  plate_round_magic: { ...AQUARIUM_ROCKS, layered: true, interior: 'roundmagic', frameX: 0.005, interiorSx: 1.018, interiorSy: 1.066, interiorY: 0.0609, darken: false }, // owner 2026-10-17: "remove the darkening from round magic"
   plate_verdant_magic: { ...AQUARIUM_ROCKS, layered: true, interior: 'silvermagic', frameX: 0.006, interiorSx: 1.059, interiorSy: 1.089, interiorY: 0.0806, darken: false },
   // Phoenix Plate: a shield with wings and its own painted middle, so a SINGLE-IMAGE plate (owner 2026-10-17: "Try it as
-  // one image"), fitted inside the standard plate's outline and bottom-aligned. Its middle is already dark: no darkening.
-  plate_phoenix_plate: { ...AQUARIUM_ROCKS, darken: false },
-  // Owner 2026-10-17: "add dark back to each": Emerald and Gilt Etched on the Dark interior, no darkening. Both were drawn
-  // slightly off the template (944x1510, 1005x1565), so they were scaled onto it first like Battletorn.
-  plate_emerald: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.054, interiorSy: 1.036, interiorY: -0.0159, darken: false },
-  plate_gilt_etched: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.06, interiorSy: 1.011, interiorY: 0.0103, darken: false },
+  // one image"), the whole art scaled to fit the plate. Its middle is already dark: no darkening.
+  plate_phoenix_plate: { ...AQUARIUM_ROCKS, darken: false, artScale: 1.3 },
+  // Owner 2026-10-17: "add dark back to each": Emerald and Gilt Etched on the Dark interior, no darkening.
+  plate_emerald: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.029, interiorSy: 1.016, interiorY: -0.0169, darken: false },
+  plate_gilt_etched: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.028, interiorSy: 0.975, interiorY: -0.0319, darken: false },
   // Owner 2026-10-17 batch: Astral Relic on Dark, Blood Omen on Wartorn, Honey on Brown (keeps the darkening, like the
-  // other Brown plates). All three were drawn off the template and scaled onto it like Battletorn. Blood Omen's opening
-  // starts low, so its fit pulls the interior's top DOWN under the frame (it poked out above the top edge otherwise).
-  plate_astral_relic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.033, interiorSy: 1.01, interiorY: 0.0094, darken: false },
-  plate_blood_omen: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.005, interiorSx: 1.049, interiorSy: 1.056, interiorY: 0.1894, darken: false },
-  plate_honey: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.004, interiorSx: 1.051, interiorSy: 1.031, interiorY: 0.03 },
-  // Goop (owner 2026-10-17): no interior named, so the default Brown, keeping the darkening. Drawn off the template
-  // (1024x1536) and scaled onto it like Battletorn.
-  plate_goop: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.051, interiorSy: 1.041, interiorY: -0.0112 },
+  // other Brown plates). Blood Omen's opening starts low, so its fit pulls the interior's top DOWN under the frame (it
+  // poked out above the top edge otherwise).
+  plate_astral_relic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 0.881, interiorSy: 0.841, interiorY: -0.0394, darken: false, artScale: 1.19 },
+  plate_blood_omen: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.005, interiorSx: 1.035, interiorSy: 1.079, interiorY: 0.1013, darken: false },
+  plate_honey: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.007, interiorSx: 1.051, interiorSy: 1.011, interiorY: 0.0028 },
+  // Goop (owner 2026-10-17): no interior named, so the default Brown, keeping the darkening.
+  plate_goop: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.006, interiorSx: 0.975, interiorSy: 0.977, interiorY: -0.0637, artScale: 1.08 },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */
 export const CARD_PLATE_LOOKS: Readonly<Record<string, CardPlateLook>> = Object.freeze(Object.fromEntries(
   Object.entries(SETTINGS).map(([id, { layered, interior, darken, ...s }]) => [id, Object.freeze({
     id, backbox: darken === false ? null : `${PLATE_DIR}${id}-backbox.webp`, ...s,
+    ...(layered && s.artScale && s.artScale !== 1
+      ? scaledInterior(s.artScale, interior ?? DEFAULT_PLATE_INTERIOR, s.interiorSx ?? 1, s.interiorSy ?? 1, s.interiorY ?? 0)
+      : {}),
     thumb: `${PLATE_DIR}${id}.webp`,
     ...(layered
       ? { plate: `${PLATE_DIR}interiors/${interior ?? DEFAULT_PLATE_INTERIOR}.webp`, frame: `${PLATE_DIR}${id}-frame.webp` }

@@ -4782,6 +4782,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 .card.plated .cardplate { border-radius: var(--plate-radius, 10px); }
+/* `--plate-art-s` (cardPlateLook.ts `artScale`): a plate whose art is drawn bigger than the box, about its centre, so
+   art used whole can spill past it uncropped. 1 (absent) everywhere else. A layered plate scales its FRAME instead
+   (below); its interior gets pre-scaled numbers. */
+.card.plated .cardplate:not(.plate-interior),
+.card.plated .plateglow:not(.plate-framed) { transform: translateX(-50%) scale(var(--plate-art-s, 1)); }
 /* LAYERED PLATES (owner 2026-10-15: "i want the darkening png to sit behind the frame, so there can be effects that
    can encroach over into the brown area without getting darkened over it"). Bottom: the INTERIOR, an interior-only
    image the darkening's width, seated on the FRAME's own box: the plate's top (its px lift x --plate-k) plus 5.4463%
@@ -4808,12 +4813,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   width: calc(var(--ccw) * var(--plate-scale, 1.5));
   height: calc(var(--ccw) * var(--plate-scale, 1.5) * 1.5550);
   /* `--plate-frame-x`: the plate's own nudge (x the card width), set inline per plate (cardPlateLook.ts). */
-  transform: translateX(-50%) translateX(calc(var(--ccw) * var(--plate-frame-x, 0)));
+  transform: translateX(-50%) translateX(calc(var(--ccw) * var(--plate-frame-x, 0))) scale(var(--plate-art-s, 1));
   pointer-events: none;
   user-select: none;
 }
-/* The hover glow traces the FRAME on a layered plate, so it takes the same nudge. */
-.card.plated .plateglow.plate-framed { transform: translateX(-50%) translateX(calc(var(--ccw) * var(--plate-frame-x, 0))); }
+/* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
+.card.plated .plateglow.plate-framed { transform: translateX(-50%) translateX(calc(var(--ccw) * var(--plate-frame-x, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {
   top: calc(var(--plate-top, -37px) * var(--plate-k, 1) - var(--ccw) * (var(--ctx-top, 1.085) - var(--spell-txt-lift, 0.05)));
 }

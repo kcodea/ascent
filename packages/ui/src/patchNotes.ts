@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-18',
+    changes: [
+      { category: 'Systems', text: 'Recent Games has a More button next to the hero filters. Open it to filter by any hero in the list, with how many games each one played.' },
+    ],
+  },
+  {
     date: '2026-10-17',
     changes: [
       { category: 'Systems', text: 'The Gauntlet and Learn tiles sit a little lower on the mode screen, and hero power text sits lower under thick portrait frames so it is never covered.' },

@@ -1,4 +1,14 @@
 {
   "version": 1,
-  "plates": {}
+  "plates": {
+    "plate_ethereal": {
+      "artScale": 1.14,
+      "frameX": -0.002,
+      "frameY": 0.093,
+      "interiorSx": 0.941,
+      "interiorSy": 1.024,
+      "interiorX": 0,
+      "interiorY": 0.0862
+    }
+  }
 }

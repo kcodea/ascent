@@ -72,14 +72,29 @@ describe('the card plate a card wears', () => {
   });
 
   it('a LAYERED plate paints interior, then darkening, then frame, then the text (owner 2026-10-15)', () => {
-    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_blossom' } as unknown as typeof AQUARIUM });
+    // Magma: a layered plate that keeps a darkening, so all three layers are there to order.
+    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_magma' } as unknown as typeof AQUARIUM });
     const interior = el.querySelector('img.cardplate')!;
-    expect(interior.getAttribute('src')).toContain('frames/plates/interiors/brown.webp'); // the default interior
+    expect(interior.getAttribute('src')).toContain('frames/plates/interiors/magma.webp');
     expect(interior.classList.contains('plate-interior')).toBe(true);
-    expect(el.querySelector('img.plateglow')!.getAttribute('src')).toContain('plate_blossom-frame.webp');
+    expect(el.querySelector('img.plateglow')!.getAttribute('src')).toContain('plate_magma-frame.webp');
     const drawer = [...el.querySelector('.drawer')!.children].map((c) => c.className.split(' ')[0]);
+    expect(drawer.indexOf('descbox')).toBeGreaterThanOrEqual(0);
     expect(drawer.indexOf('descbox')).toBeLessThan(drawer.indexOf('plate-frame'));
     expect(drawer.indexOf('plate-frame')).toBeLessThan(drawer.findIndex((c) => c === 'cn'));
+  });
+
+  it('every plate that sat on Brown wears Dark Brown with no darkening (owner 2026-10-18)', () => {
+    // "replace all cards' brown interior (except the standard card plate) with the dark brown interior and remove
+    // darkening from them"
+    for (const cardPlate of ['plate_topaz', 'plate_blossom', 'plate_spirit_carving', 'plate_iridescent', 'plate_porcelain', 'plate_smooth_iridescent', 'plate_honey', 'plate_goop']) {
+      const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate } as unknown as typeof AQUARIUM });
+      expect(el.querySelector('img.cardplate')!.getAttribute('src'), cardPlate).toContain('frames/plates/interiors/darkbrown.webp');
+      expect(el.querySelector('img.descbox'), cardPlate).toBeNull();
+    }
+    // No plate cosmetic is left on Brown, and the standard plate is untouched.
+    for (const look of Object.values(CARD_PLATE_LOOKS)) expect(look.plate, look.id).not.toContain('interiors/brown.webp');
+    expect(plateOf(render('k_pouchpincher', 'neutral'))).toContain('frames/cardplate-standard.webp');
   });
 
   it('a plate can drop the darkening: Beach, Moonstone, Mooncloud, Galaxy and Amethyst have none (owner 2026-10-15)', () => {

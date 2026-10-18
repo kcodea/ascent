@@ -152,7 +152,11 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_simple_black: { ...AQUARIUM_ROCKS, layered: true, interior: 'simpleblack', frameX: 0.004, interiorSx: 1.143, interiorSy: 1.156, interiorY: 0.0909, darken: false },
   plate_simple_white: { ...AQUARIUM_ROCKS, layered: true, interior: 'simpleblack', frameX: 0.004, interiorSx: 1.147, interiorSy: 1.149, interiorY: 0.0994, darken: false },
   // Topaz: the standard template on the default Brown interior, keeping the standard darkening (like Blossom).
-  plate_topaz: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009 },
+  // Owner 2026-10-18: "replace all cards' brown interior (except the standard card plate) with the dark brown interior and
+  // remove darkening from them": every plate that sat on Brown (Topaz, Blossom, Spirit Carving, Iridescent, Porcelain,
+  // Smooth Iridescent, Honey, Goop) is on Dark Brown with no darkening. Dark Brown has Brown's exact outline, so every
+  // fit holds. Brown is still the DEFAULT for a new plate unless the owner says otherwise.
+  plate_topaz: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.027, interiorY: 0.0009, darken: false },
   // Owner 2026-10-15: the SMOOTH frames on the Dark interior (openings about 2px left of centre, seated like Moonstone).
   plate_smooth_aqua: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.008, interiorSx: 1.055, interiorSy: 1.026, interiorY: -0.0028, darken: false },
   plate_smooth_blue: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.008, interiorSx: 1.065, interiorSy: 1.026, interiorY: -0.0028, darken: false },
@@ -161,7 +165,7 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // under the Blossom frame.
   // Owner 2026-10-15: "nudge the plate to the right ... ignore the true centering for now".
   // Owner 2026-10-15: "blossoms interior needs to nudge down too" (fit measured like the others).
-  plate_blossom: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.011, interiorSy: 1.011, interiorY: 0.0103 }, // owner-tuned: 0.04 too far, then 0.02, 0.015, 0.01, each a little too far
+  plate_blossom: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.005, interiorSx: 1.011, interiorSy: 1.011, interiorY: 0.0103, darken: false }, // owner-tuned: 0.04 too far, then 0.02, 0.015, 0.01, each a little too far
   // Owner 2026-10-16 batch. Every interior here is dark, so no text darkening (like the other dark-interior plates).
   // Dark Arcane: Galaxy's template and opening, on the Dark interior (same seat and fit).
   plate_dark_arcane: GALAXY_SEAT,
@@ -183,13 +187,13 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // frameX seats the opening where the owner tuned Blossom's, measured from the frame BODY (runs of 12+ opaque px), so the
   // wisps and vines that cross Spirit Carving's, Mystic Obsidian's and Porcelain's openings do not skew it. Spirit
   // Carving's opening sits 5px left of centre, hence its larger nudge and stretch.
-  plate_spirit_carving: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.014, interiorSx: 1.076, interiorSy: 1.021, interiorY: -0.0047 },
-  plate_iridescent: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.006, interiorSx: 1.051, interiorSy: 1.031, interiorY: 0 },
+  plate_spirit_carving: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.014, interiorSx: 1.076, interiorSy: 1.021, interiorY: -0.0047, darken: false },
+  plate_iridescent: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.031, interiorY: 0, darken: false },
   // Owner 2026-10-17 (second round): Mystic Obsidian moves onto the new Mystic interior (matched by name); dark, so no
   // darkening. That interior is shorter for its width than Brown, so the fit stretches it taller and lowers it.
   plate_mystic_obsidian: { ...AQUARIUM_ROCKS, layered: true, interior: 'mystic', frameX: 0.004, interiorSx: 1.021, interiorSy: 1.154, interiorY: 0.0994, darken: false },
-  plate_porcelain: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.065, interiorSy: 1.033, interiorY: 0.0075 },
-  plate_smooth_iridescent: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.005, interiorSx: 1.04, interiorSy: 1.038, interiorY: 0.0159 },
+  plate_porcelain: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.005, interiorSx: 1.065, interiorSy: 1.033, interiorY: 0.0075, darken: false },
+  plate_smooth_iridescent: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.005, interiorSx: 1.04, interiorSy: 1.038, interiorY: 0.0159, darken: false },
   // Owner 2026-10-17, second round: interiors matched by name (Battletorn on Wartorn, Round Magic on Brown Round Magic,
   // Silver Magic, shipped as Verdant Magic, on Silver Magic); the owner picked Mystic for Ethereal. None keeps the
   // darkening (Round Magic lost it too: owner 2026-10-17, "remove the darkening from round magic").
@@ -218,9 +222,9 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // poked out above the top edge otherwise).
   plate_astral_relic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 0.881, interiorSy: 0.841, interiorY: -0.0394, darken: false, artScale: 1.19 },
   plate_blood_omen: { ...AQUARIUM_ROCKS, layered: true, interior: 'wartorn', frameX: 0.005, interiorSx: 1.035, interiorSy: 1.079, interiorY: 0.1013, darken: false },
-  plate_honey: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.007, interiorSx: 1.051, interiorSy: 1.011, interiorY: 0.0028 },
+  plate_honey: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.007, interiorSx: 1.051, interiorSy: 1.011, interiorY: 0.0028, darken: false },
   // Goop (owner 2026-10-17): no interior named, so the default Brown, keeping the darkening.
-  plate_goop: { ...AQUARIUM_ROCKS, layered: true, frameX: 0.006, interiorSx: 0.975, interiorSy: 0.977, interiorY: -0.0637, artScale: 1.08 },
+  plate_goop: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 0.975, interiorSy: 0.977, interiorY: -0.0637, artScale: 1.08, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

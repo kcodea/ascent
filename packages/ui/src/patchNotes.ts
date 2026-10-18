@@ -71,6 +71,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Tablets can play upright. Help text says tap instead of click on touch screens.',
         ],
       },
+      { category: 'Systems', text: 'Card Plates that used the light brown middle now use a darker brown one, with no extra shading behind the text.', details: ['Topaz, Blossom, Spirit Carving, Iridescent, Porcelain, Smooth Iridescent, Honey and Goop.'] },
       { category: 'Systems', text: 'Recent Games has a More button next to the hero filters. Open it to filter by any hero in the list, with how many games each one played.' },
     ],
   },

@@ -38,3 +38,12 @@ changes?"*
 
 - In the browser pane: the panel opens, Goop's preview shows its frame and interior, the Up / down slider moved both
   live, and a Save of Goop's own numbers wrote the JSON and rebuilt a byte-identical Collection picture (then reverted).
+
+## Same PR: Brown plates move to Dark Brown
+
+Owner (2026-10-18): *"replace all cards' brown interior (except the standard card plate) with the dark brown interior and
+remove darkening from them"*. Topaz, Blossom, Spirit Carving, Iridescent, Porcelain, Smooth Iridescent, Honey and Goop
+now sit on Dark Brown with `darken: false`; their Collection pictures were rebuilt. Dark Brown has Brown's exact outline
+(same size, identical alpha), so every fit holds. Brown stays the DEFAULT interior for a new plate unless the owner says
+otherwise. `cardPlate.test.tsx` pins it (no plate cosmetic is left on Brown); the paint-order test moved to Magma, the
+one layered plate that still has a darkening to order.

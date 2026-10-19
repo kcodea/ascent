@@ -7,6 +7,7 @@ import { artMemoryStats, setArtConcurrency, whenArtReady } from './artPreload';
 import { applyPhoneCssArt, LITE_ART } from './phoneArt';
 import { useGame } from './store';
 import { crumb } from './crashLog';
+import { bootWarm } from './bootWarm';
 
 /**
  * ON A PHONE the gate is shorter (owner 2026-10-18, approved for phones / touch only: "the iPhone crashes a lot"): the
@@ -127,16 +128,30 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     const inAt = Number(el.dataset.inAt ?? NaN);
     const elapsed = Number.isFinite(inAt) ? performance.now() - inAt : 0;
     const hold = Math.max(0, FADE_IN_MS - elapsed);
+    // THE BOOT WARM-UP (desktop, R-PERF-BOOT-WARM-01): the game is mounted underneath; its GPU layers build and its FX
+    // shaders link while the splash is still opaque, so the title's first frames are smooth (`bootWarm.ts`, capped).
     // Then next frame, so the browser has painted the game underneath before the fade starts.
     let raf = 0;
-    const start = window.setTimeout(() => { raf = requestAnimationFrame(() => el.classList.add('is-out')); }, hold);
+    let start = 0;
+    let t = 0;
+    let alive = true;
     const drop = (): void => el.remove();
-    el.addEventListener('transitionend', drop, { once: true });
-    const t = window.setTimeout(drop, hold + FADE_MS + 250);
+    // Only the splash's OWN opacity fade ends it: the bar fill's transform transition (and the art's fade-in) bubble
+    // `transitionend` up here too, and the warm-up below can outlast them, so an unfiltered listener cut the splash.
+    const onEnd = (e: TransitionEvent): void => { if (e.target === el && e.propertyName === 'opacity' && el.classList.contains('is-out')) drop(); };
+    el.addEventListener('transitionend', onEnd);
+    const t0 = performance.now();
+    void bootWarm().then(() => {
+      if (!alive) return;
+      const wait = Math.max(0, hold - (performance.now() - t0));
+      start = window.setTimeout(() => { raf = requestAnimationFrame(() => el.classList.add('is-out')); }, wait);
+      t = window.setTimeout(drop, wait + FADE_MS + 250);
+    });
     return () => {
+      alive = false;
       window.clearTimeout(start); window.clearTimeout(t);
       if (raf) cancelAnimationFrame(raf);
-      el.removeEventListener('transitionend', drop);
+      el.removeEventListener('transitionend', onEnd);
     };
   }, [ready]);
 

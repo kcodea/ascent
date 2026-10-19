@@ -95,6 +95,11 @@ class WipeFxController {
     for (const fn of queued) fn();
   }
 
+  /** Resolves once a `warm()` in flight has finished (immediately when none is). Never rejects. */
+  ready(): Promise<void> {
+    return this.initing ?? Promise.resolve();
+  }
+
   /** Run `fn` now if the canvas is live, else queue it behind init (first-combat race). */
   private run(fn: () => void): void {
     this.warm();

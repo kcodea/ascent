@@ -2,9 +2,10 @@
  * GATE FX — the smoke and sparks of the ranked gate (owner 2026-10-12: "slam shut with smoke and sparks that emit
  * from the impact"). A tiny Pixi layer of its own, the `wipeFx.ts` pattern: the gate covers every screen in the
  * game (z 700), far above the main FX canvas (z 110), so anything that rides ON the doors needs its own canvas.
- * It exists only around a gate: warmed as the ranked confirmation opens, ticking ONLY while a burst is alive, and
- * TORN DOWN (`release`, through `destroyPixiApp`: the bounded-context rule) once the gate has ended and its last
- * particle has faded. A gate plays once per ranked game, so it never holds a WebGL context between them.
+ * It ticks ONLY while a burst is alive. On phones and iPads (`PHONE_GPU`) it exists only around a gate: warmed as the
+ * ranked confirmation opens and TORN DOWN (`release`, through `destroyPixiApp`: the bounded-context rule) once the
+ * gate has ended and its last particle has faded. On desktop it is warmed behind the boot splash and kept for the
+ * session (R-PERF-PIXI-KEEPALIVE-01), so neither gate of a game pays for a new WebGL context.
  *
  * Two one-shots, both fed the gate's own SCREEN-space seam (measured once by the component, never per frame):
  *  - slam():    the impact. Hot sparks spray sideways off the whole seam and fall, a white-gold flash blooms on
@@ -36,7 +37,7 @@ import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafe
 import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateTiming';
 import { PIXI_ANTIALIAS } from '../phoneArt';
 import { crumb } from '../crashLog';
-import { phonePixiOptions, pixiAllowed } from '../phoneDiag';
+import { PHONE_GPU, phonePixiOptions, pixiAllowed } from '../phoneDiag';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -98,6 +99,11 @@ class GateFxController {
     });
   }
 
+  /** Resolves once a `warm()` in flight has finished (immediately when none is). Never rejects. */
+  ready(): Promise<void> {
+    return this.initing ?? Promise.resolve();
+  }
+
   private async init(): Promise<void> {
     const app = new Application();
     await app.init(phonePixiOptions({
@@ -107,7 +113,7 @@ class GateFxController {
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'gateFx');
     watchContextLoss(app, 'gateFx');
-    crumb('gate fx created'); // every gate (the layer is freed after each one)
+    crumb('gate fx created'); // phones: every gate (the layer is freed after each one); desktop: once a session
     const c = app.canvas;
     c.className = 'gatefx-canvas pixi-screen';
     c.style.visibility = 'hidden';
@@ -152,6 +158,12 @@ class GateFxController {
    */
   release(): void {
     this.ambientAt = null; // a gate that has ended is not waiting on a crystal any more
+    // DESKTOP KEEPS THE LAYER (desktop jank pass 2026-10-18, R-PERF-PIXI-KEEPALIVE-01). Building it is a new WebGL
+    // context, 60-90 ms on the main thread in one go, and a desktop game builds it twice (the ranked entry, then
+    // the end-of-game gate, which used to stall the doors as they began to close). Warmed behind the boot splash
+    // (`bootWarm.ts`) and kept, it costs nothing at either gate. It idles with its ticker stopped and its canvas
+    // hidden, exactly as between two bursts. Phones and iPads (`PHONE_GPU`, the memory path) still free it.
+    if (!PHONE_GPU) return;
     this.releaseWhenIdle = true;
     if (this.app && !this.busy()) this.destroy();
   }

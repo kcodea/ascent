@@ -3504,13 +3504,7 @@ export function warmDiscoverFx(): void {
   discoverFxWarmed = true;
   const run = (): void => {
     if (!discoverFxWarmed || discoverWarmHost) return; // reset before idle came round (a phone left gameplay)
-    // Offscreen and inert: the canvas lives here until the overlay claims it on first open.
-    const host = document.createElement('div');
-    host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none;';
-    host.setAttribute('aria-hidden', 'true');
-    stageHost().appendChild(host);
-    discoverWarmHost = host;
-    void discoverFx.attach(host);
+    void attachDiscoverWarm();
   };
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
   if (typeof ric === 'function') ric(run);
@@ -3518,6 +3512,27 @@ export function warmDiscoverFx(): void {
 }
 let discoverFxWarmed = false;
 let discoverWarmHost: HTMLElement | null = null;
+let discoverWarmDone: Promise<void> | null = null;
+
+/** Offscreen and inert: the canvas lives here until the overlay claims it on first open. Idempotent until reset. */
+function attachDiscoverWarm(): Promise<void> {
+  if (discoverWarmDone) return discoverWarmDone;
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none;';
+  host.setAttribute('aria-hidden', 'true');
+  stageHost().appendChild(host);
+  discoverWarmHost = host;
+  discoverWarmDone = discoverFx.attach(host);
+  return discoverWarmDone;
+}
+
+/** The same warm-up, started NOW rather than on idle (the desktop boot splash runs it, `bootWarm.ts`,
+ *  R-PERF-BOOT-WARM-01). Resolves once the overlay's app is built. A second call returns the first call's promise. */
+export function warmDiscoverFxNow(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  discoverFxWarmed = true;
+  return attachDiscoverWarm();
+}
 
 /** PHONE (R-TOUCH-GPU-MEMORY-01): forget the warm-up once `discoverFx` has been detached on the way back to the menus,
  *  so the next run warms a fresh one. PixiFxLayer is the only caller; desktop never detaches the Discover layer. */
@@ -3525,6 +3540,7 @@ export function resetDiscoverWarm(): void {
   discoverFxWarmed = false;
   discoverWarmHost?.remove();
   discoverWarmHost = null;
+  discoverWarmDone = null;
 }
 
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the SfxMixer dev

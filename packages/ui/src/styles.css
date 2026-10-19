@@ -5480,9 +5480,10 @@ body.choreo-open .pixifx { z-index: 205; }
    steals the panels' clicks; scoped to stage-setter-active, so normal chrome is untouched. */
 body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 /* While a targeter is live (armed hero power / pending targeted Battlecry / a targeted spell drag), the
-   Pixi aim line IS the pointer — hide the OS cursor everywhere. Toggled by Recruit's aim-line effect;
-   removed the moment the aim ends (fired, cancelled, or released). */
-body.aiming, body.aiming * { cursor: none !important; }
+   Pixi aim line IS the pointer and the OS cursor is hidden. NOT by a `body.aiming *` rule any more: toggling a
+   universal rule restyled the whole document twice per aim (11-19 ms each, desktop jank pass 2026-10-18).
+   `aimCursorHide.ts` hides it on the element under the pointer only (R-PERF-AIM-CURSOR-01). `body.aiming` is
+   still toggled as a plain flag (touchInput.ts reads it); keep every stylesheet rule off it. */
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 /* Blaster's Deathrattle: purple blast bolts to every minion. */

@@ -159,6 +159,15 @@ describe('R-TOUCH-MENU-MEMORY-01: nothing hidden under an open menu holds a laye
     expect(find('.titlescreen:has(> .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
     expect(find('.modepick.mp-shell:has(~ .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
   });
+  it('R-PERF-TOUCH-HAS-01: every :has() rule sits inside a media query a mouse never matches', () => {
+    const outside: string[] = [];
+    postcss.parse(css).walkRules((r) => {
+      if (!r.selector.includes(':has(')) return;
+      const media = r.parent && r.parent.type === 'atrule' ? (r.parent as unknown as { name: string; params: string }) : null;
+      if (!media || media.name !== 'media' || !/\(hover:\s*none\)\s*and\s*\(pointer:\s*coarse\)/.test(media.params)) outside.push(r.selector);
+    });
+    expect(outside).toEqual([]);
+  });
   it('the touch sidebar never scrolls sideways', () => {
     expect(rules.some((r) => r.sel === 'html[data-touch-ui] .msb' && /overflow-x:\s*hidden/.test(r.body))).toBe(true);
   });

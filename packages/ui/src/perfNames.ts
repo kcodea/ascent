@@ -60,6 +60,8 @@ const CODE_NAMES: Record<string, string> = {
   'drag:flushMove': 'the drag move handler',
   'odds:deferred': 'the combat-odds probe',
   autosave: 'the autosave',
+  'run:start': 'starting a new game (the lobby and its seats)',
+  'lobby:warm-seat': "building one opponent seat's driver ahead of its round",
   'store:set': 'the store update (Zustand set + subscribers)',
   'commit:actionRing': 'the bug-report action ring (record)',
   'commit:telemetry': 'the balance telemetry record',

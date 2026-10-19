@@ -3347,7 +3347,17 @@ body.modalup .app { z-index: auto; }
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
 /* z-index 500 keeps inspect above even the end-of-run overlay (z 400), so right-clicking a minion in
    the final warband to read its buffs works there too. */
-.inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* The dim + blur live on a `::before` BEHIND the card, not on the overlay itself: a `backdrop-filter` on an ancestor
+   makes it a backdrop root, so a frosted-glass card plate inside (Simple Glass) would blur only the overlay's own
+   tint, never the board (owner 2026-10-19: "the blur effect is not happening when … inspecting"). Same look. */
+.inspect-ov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.inspect-ov::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+/* An opacity fade makes its element a backdrop root too, so for a glass card only the backdrop fades and the card
+   pops on scale alone: the glass is blurred from the first frame instead of switching colour after the fade. */
+.inspect-ov:has(.plate-frosted) { animation: none; }
+.inspect-ov:has(.plate-frosted)::before { animation: fadein 0.14s ease; }
+.inspect-ov .inspect-card:has(.plate-frosted) { animation-name: inspectpop-glass; }
+@keyframes inspectpop-glass { from { transform: scale(1.45) translateY(-15%); } to { transform: scale(1.9) translateY(-15%); } }
 /* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
    panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
 .inspect-card { position: relative; display: flex; align-items: center; gap: 10px; transform: scale(1.9) translateY(-15%); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
@@ -4942,6 +4952,51 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   pointer-events: none;
   user-select: none;
 }
+/* A FROSTED interior (cardPlateLook.ts `frosted`, Simple Glass; owner 2026-10-19: "clear and blurs all imagery behind
+   it", then "i like the lighter grey hover effect more and want to get it closer to that at all times. maybe increase
+   the amount of blur a bit"). The interior <img> keeps its box (so the fit, the fade-in and the Card Plate Editor's
+   sliders all work unchanged) but paints NONE of its pixels: `object-position` throws the image out of its own box.
+   What shows is a blur of what is behind the card under a thin GREY layer (values below), both clipped to the
+   interior's outline by masking the element with that same image. STATIC: nothing here animates (performance north star).
+   It BLURS WHILE DRAGGED too (owner 2026-10-19: "can you have it apply the blur while moving ?"). The drag layer's
+   drop-shadow is a `filter`, which would make it a backdrop root (the blur would see nothing behind the card), so a
+   dragged GLASS card moves that shadow onto its frame instead: same silhouette shadow, and the blur sees the board.
+   Costs a re-blur per frame for that one card while it moves. */
+.card.plated .cardplate.plate-interior.plate-frosted {
+  object-position: -100000px 0;
+  /* Owner 2026-10-19, once the blur showed in every state: "make the grey layer less warm and more dark grey, then
+     reduce its opacity to 15%. reduce the blur by 20px" (from a warm rgba(140, 118, 120, 0.65) over a 40px blur), then
+     "reduce the blur to 13px. increase the grey opacity to 25%", then "reduce the blur to 10px",
+     then "increase grey to 35%", then "reduce blur to 7px". */
+  background: rgba(58, 60, 64, 0.35);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
+}
+.dragcard:has(.plate-frosted) { filter: none; }
+.dragcard:has(.plate-frosted) .plate-frame { filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); }
+/* Same for a HOVERED hand card (owner 2026-10-19: "the blur effect is not happening when hovering"): the hover lift's
+   drop-shadow `filter` would cut the glass off from the board, so a glass card shadows its frame instead. */
+.row.hand .card.plated:has(.plate-frosted):hover { filter: none; }
+.row.hand .card.plated:has(.plate-frosted):hover .plate-frame { filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+/* And the hover reveal / cast preview popups (owner 2026-10-19: "hovering a card in shop, the blur and grey isnt
+   applied"): their white haze is a `filter` on the whole popup, so with a glass card the haze moves onto the frame and
+   each side panel, and the reveal slides in without its opacity fade (a fade is a backdrop root too). */
+.cardref:has(.plate-frosted), .castprev:has(.plate-frosted) { filter: none; }
+.cardref:has(.plate-frosted) .plate-frame, .cardref:has(.plate-frosted) .cardref-inner > :not(.card),
+.castprev:has(.plate-frosted) .plate-frame {
+  filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+}
+.cardref:has(.plate-frosted) { animation-name: cardrefin-glass; }
+@keyframes cardrefin-glass { from { transform: translateX(-10px); } to { transform: translateX(0); } }
+/* No opacity on the glass's way IN either (owner 2026-10-19: "theres a brief mooment that it takes before it loads the
+   blur when hovering"): a glass card's mount pop is motion-only, and the glass skips the art-pending hide (it paints
+   none of the image's pixels, and its mask shows nothing until that image is there anyway), so the blur is on from
+   the first frame instead of after ~0.3 s. A delayed token pop keeps its fade (it must stay invisible while it waits). */
+.card.popin:not(.popdelay):has(.plate-frosted) { animation-name: cardpop-glass; }
+.row.hand .card.popin:not(.popdelay):has(.plate-frosted) { animation-name: handpop-glass; }
+@keyframes cardpop-glass { from { transform: translateY(8px); } to { transform: none; } }
+@keyframes handpop-glass { from { transform: translateY(var(--hand-tuck, 32%)) scale(0.9); } to { transform: translateY(var(--hand-tuck, 32%)) scale(1); } }
+.card.plated .cardplate.plate-interior.plate-frosted.art-pending { opacity: 1 !important; }
 /* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
 .card.plated .plateglow.plate-framed { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {

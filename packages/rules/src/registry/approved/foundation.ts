@@ -6936,4 +6936,40 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-18 (feat/mobile-touch-ui-scale).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
+  // ── A frosted-glass card plate blurs what is behind it in every state (owner 2026-10-19) ─────────────────
+  {
+    id: 'R-PLATE-02',
+    title: 'A frosted-glass Card Plate blurs whatever is behind the card in every state it is shown in',
+    statement:
+      'A Card Plate whose interior is frosted glass (Simple Glass today) shows a soft blur of whatever is actually behind '
+      + 'the card, under its own tint, wherever the card is drawn: at rest in the hand, hovered in the hand, while being '
+      + 'dragged, enlarged in Inspect, and in the hover reveal (hovering a shop or board card). It never shows a flat colour in one of those states and the blur in another, '
+      + 'and it never switches between the two after a short delay.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-19 (Simple Glass frosted interior)', quote: 'heres while dragging. THIS is the effect i want on it at all times' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-10-19', quote: 'the blur effect is not happening when hovering, when in hand, when inspecting' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-10-19', quote: 'the only thing not working still is the hovering a c ard in shop, the blur and grey isnt applied.' },
+      { kind: 'owner-chat', ref: 'Same session, 2026-10-19', quote: 'theres a brief mooment that it takes before it loads the blur when hovering' },
+      { kind: 'fix-pr', ref: 'feat/simple-glass-frosted (PR #2173): packages/ui/src/styles.css (`.dragcard:has(.plate-frosted)`, `.row.hand .card.plated:has(.plate-frosted):hover`, `.inspect-ov::before`, `inspectpop-glass`, `.cardref:has(.plate-frosted)`, `cardrefin-glass`, `cardpop-glass`, `handpop-glass`, `.plate-frosted.art-pending`)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-19 (feat/simple-glass-frosted) for the hand at rest, hand hover, drag, Inspect and the shop '
+      + 'hover reveal, checked '
+      + 'in a browser against a striped backdrop. The blur is a CSS backdrop-filter, which sees nothing past an ancestor '
+      + 'that has a filter, an opacity below 1 or a backdrop-filter of its own. Before the fix the hover lift\x27s '
+      + 'drop-shadow, the drag layer\x27s drop-shadow, the hover reveal\x27s white haze and fade-in, and the Inspect '
+      + 'overlay\x27s own blur and fade-in each cut the glass off, and the card\x27s mount fade (`popin`) plus the '
+      + 'glass\x27s own wait for its plate image hid it for ~0.3 s on every hover; together they cut the glass '
+      + 'off, so it showed only its tint. PARTIAL: the cast preview (a cast spell floating over its caster) has its haze '
+      + 'moved the same way but fades in and out, and its tuner\x27s max opacity can sit below full, so the glass there can '
+      + 'read as the tint alone; Discover and the Collection preview were not checked; the Collection tile is a pre-built '
+      + 'picture and cannot blur.',
+    example:
+      'Equip Simple Glass. Hover a hand card that sits over the board edge: the edge shows through the glass as a soft '
+      + 'blur, the same as when that card is dragged over it. Right-click it: in Inspect the glass shows the dimmed '
+      + 'board blurred, from the first frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-19' },
+  },
 ];

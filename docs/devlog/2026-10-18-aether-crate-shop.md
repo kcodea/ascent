@@ -65,9 +65,27 @@ see Aether but cannot spend it (every spend path shows `CrateSignInGate`).
 
 - **Guest Buy stays enabled.** A guest's Buy button is live whatever their balance (unless sold out) and shows the
   sign-in gate, rather than a disabled "Need N more" that hides why they cannot buy.
-- **Bulk-opening does not focus milestone crates.** The bay's single Open stops before the first milestone crate, so
-  "Open next" never opens one unfocused by accident. "Open all" and the New rewards pop-up open milestone crates
-  unfocused; a player who wants to focus one opens it on its own from the shop.
+- **Milestone crates are never bulk-opened (revised 2026-10-19, final review).** Every milestone crate is opened one at a
+  time through its focus step, from the Collection bay. The single Open (the bay's and the New rewards pop-up's, which
+  now share `openBay`) shows the focus step when the first sealed crate is a milestone crate, and otherwise plays a
+  queue that stops before the first one, so "Open next" never opens one unfocused. **Open all** (the bay's and the
+  pop-up's) opens only the other sealed crates and leaves milestone crates sealed; with only milestone crates sealed it
+  is not offered. (The first ruling let Open all open them unfocused; the review found that spent the player's one
+  chance to focus a free Legendary crate.) With Aether off, nothing changes.
+- **A purchase is never charged twice (2026-10-19, final review).** A Buy whose answer never came (a timeout, a network
+  error, a 5xx such as `aether_config_missing`, an unparseable answer) may have landed. The Crate Shop keeps that
+  attempt's request id, keyed by tier + canonical focus + total, until a definite answer (success, or a 4xx refusal:
+  `isDefiniteBuyFailure` in `progressionStore.ts`), and a retry of the same picks reuses it, so a landed purchase answers
+  `already_opened` and its reveal plays. Changing the picks drops it. After such a failure the store re-reads the balance
+  and the crates, and the shop says "Couldn't confirm that purchase. Try again: you won't be charged twice."
+- **The shop shows each crate's live odds (2026-10-19, final review).** The quote's odds line is this exact crate's:
+  each rarity's share of `tieredCrateChances` over what the crate can still give (floor, focus, what the player owns),
+  so Standard + Card Plates shows no Common and Standard + Announcers reads Legendary 100%. The bay's "next crate" line
+  keeps the tier's published odds (`tierOddsPercent`), since no specific crate exists there yet.
+- **The shop honours the server's kill switch (2026-10-19, final review).** `eligibleForCrate` and
+  `availableFocusCategories` drop anything the server has switched off (`admin_off`, read through
+  `setServerCatalogState`), as the SQL pool always did, so the shop never offers a chip the server answers `bad_focus`
+  to or prices a fee it calls `price_changed`. A switched-off category leaves the chip row.
 - **A Gauntlet stage whose Aether is set to 0 or unreadable falls back to granting a crate**, so a stage can never be
   cleared for nothing.
 - **Roll version.** `CRATE_ROLL_VERSION` stays 4 through the engine tasks and moves to 5 together with the SQL parity
@@ -75,6 +93,10 @@ see Aether but cannot spend it (every spend path shows `CrateSignInGate`).
 - **Wallet reads.** The own-profile fetch reads `aether_wallets`, and a profile that lacks the key carries the previous
   same-account balance forward, so an old-server probe cannot flash the balance to 0.
 - **Floor odds display.** Odds shown per rarity are rounded independently and can sum to 99.9; the UI never claims 100.
+- **Economy reads are defensive in the quote too.** `aether_quote` reads the price and the fee rung through
+  `aether_economy_int` and refuses a fractional or garbled value as `aether_config_missing` (503). A retune must keep
+  the economy's exact shape (see the comment on the `aether_config` seed), or clients fall back to their default prices.
+  The migration ends with `notify pgrst, 'reload schema'`.
 
 ## Runbook (owner-run, in this order)
 

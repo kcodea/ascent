@@ -4943,18 +4943,21 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   user-select: none;
 }
 /* A FROSTED interior (cardPlateLook.ts `frosted`, Simple Glass; owner 2026-10-19: "clear and blurs all imagery behind
-   it", "slightly darkened too to help readability"). The interior <img> keeps its box (so the fit, the fade-in and the
-   Card Plate Editor's sliders all work unchanged) but paints NONE of its pixels: `object-position` throws the image out
-   of its own box. What shows is a blur of what is behind the card plus a dark tint, both clipped to the interior's
-   outline by masking the element with that same image. STATIC: nothing here animates (performance north star). While a
-   card is being dragged the blur is dropped for a deeper flat tint, so a moving card never re-blurs every frame. */
+   it", then "i like the lighter grey hover effect more and want to get it closer to that at all times. maybe increase
+   the amount of blur a bit"). The interior <img> keeps its box (so the fit, the fade-in and the Card Plate Editor's
+   sliders all work unchanged) but paints NONE of its pixels: `object-position` throws the image out of its own box.
+   What shows is a 10px blur of what is behind the card under a FROSTED GREY layer, both clipped to the interior's
+   outline by masking the element with that same image. The grey is strong enough (60%) that the glass reads as the
+   same light grey over the bright board, the hand, or a dimmed Inspect backdrop, with what is behind only colouring
+   it. STATIC: nothing here animates (performance north star). A DRAGGED card drops the blur (a moving card never
+   re-blurs every frame) but keeps the same grey, so the plate does not change colour mid-drag. */
 .card.plated .cardplate.plate-interior.plate-frosted {
   object-position: -100000px 0;
-  background: rgba(8, 11, 18, 0.38);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  background: rgba(138, 144, 156, 0.6);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
 }
-.dragcard .card.plated .cardplate.plate-interior.plate-frosted { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(14, 18, 28, 0.72); }
+.dragcard .card.plated .cardplate.plate-interior.plate-frosted { -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
 .card.plated .plateglow.plate-framed { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {

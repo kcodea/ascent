@@ -100,6 +100,9 @@ describe('the card plate a card wears', () => {
     const rule = css.slice(css.indexOf('.card.plated .cardplate.plate-interior.plate-frosted {'));
     expect(rule.slice(0, rule.indexOf('}'))).toMatch(/backdrop-filter: blur\(\d+px\)[\s\S]*mask: var\(--plate-frost-mask\)/);
     expect(css).toMatch(/\.dragcard \.card\.plated \.cardplate\.plate-interior\.plate-frosted \{[^}]*backdrop-filter: none/);
+    // ...but keeps the SAME grey: a darker drag-only tint read as a different plate (owner 2026-10-19).
+    const drag = css.slice(css.indexOf('.dragcard .card.plated .cardplate.plate-interior.plate-frosted {'));
+    expect(drag.slice(0, drag.indexOf('}'))).not.toMatch(/background/);
   });
 
   it('every plate that sat on Brown wears Dark Brown with no darkening (owner 2026-10-18)', () => {

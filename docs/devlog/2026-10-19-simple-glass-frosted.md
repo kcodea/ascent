@@ -21,3 +21,11 @@ the radius is modest (6px), and a DRAGGED card (`.dragcard`) drops the blur for 
 `filter` anyway, which makes it a backdrop root where the blur would see nothing. Any ancestor with a `filter` or
 `opacity < 1` does the same, so in those states the interior reads as the flat tint. Not profiled on a full hand of
 glass-plated cards; worth a look on a phone.
+
+## Follow-up (same day): one light grey everywhere
+
+Owner, comparing screenshots: hovering showed a light grey, the hand and Inspect looked dark, and dragging darker still.
+The drag was my own deeper flat tint (blur off, `rgba(14, 18, 28, 0.72)`); Inspect is dark because its backdrop is dimmed.
+Owner: *"i like the lighter grey hover effect more and want to get it closer to that at all times. maybe increase the
+amount of blur a bit"*. Now: a frosted grey layer `rgba(138, 144, 156, 0.6)` (strong enough that what is behind only
+colours it), blur 6px to 10px, and the drag state keeps the same grey (only the blur is dropped).

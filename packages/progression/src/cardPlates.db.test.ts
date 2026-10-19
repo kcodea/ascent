@@ -89,13 +89,79 @@ beforeAll(async () => {
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 
+/** Every active plate's rarity (owner's rarity pass, 2026-10-19). */
+const PLATE_RARITY: Record<string, string> = {
+  plate_amethyst: 'rare',
+  plate_aquarium_rocks: 'rare',
+  plate_armored_knight: 'legendary',
+  plate_astral_relic: 'legendary',
+  plate_bamboo: 'rare',
+  plate_battletorn: 'legendary',
+  plate_beach: 'rare',
+  plate_blood_omen: 'legendary',
+  plate_blossom: 'legendary',
+  plate_blue_hand_drawn: 'rare',
+  plate_bordered_land: 'legendary',
+  plate_carved_aetherstone: 'epic',
+  plate_celestial: 'legendary',
+  plate_chrome: 'epic',
+  plate_crackling_gemstone: 'epic',
+  plate_dark_arcane: 'epic',
+  plate_elegant: 'legendary',
+  plate_emerald: 'legendary',
+  plate_ethereal: 'legendary',
+  plate_frozen_aurora: 'ancient',
+  plate_galaxy: 'epic',
+  plate_gilt_etched: 'legendary',
+  plate_goop: 'epic',
+  plate_green_hand_drawn: 'rare',
+  plate_hand_drawn: 'rare',
+  plate_hivemind: 'legendary',
+  plate_honey: 'epic',
+  plate_iridescent: 'epic',
+  plate_ironwood: 'legendary',
+  plate_magma: 'rare',
+  plate_mooncloud: 'ancient',
+  plate_moonstone: 'epic',
+  plate_mystic_obsidian: 'legendary',
+  plate_nano: 'ancient',
+  plate_porcelain: 'epic',
+  plate_round_magic: 'legendary',
+  plate_runic: 'epic',
+  plate_simple_black: 'ancient',
+  plate_simple_glass: 'ancient',
+  plate_simple_white: 'ancient',
+  plate_smooth_aqua: 'rare',
+  plate_smooth_blue: 'rare',
+  plate_smooth_iridescent: 'epic',
+  plate_smooth_red: 'rare',
+  plate_solar: 'legendary',
+  plate_soulwitch: 'legendary',
+  plate_spades: 'legendary',
+  plate_spirit_carving: 'legendary',
+  plate_standard_black: 'rare',
+  plate_standard_blue: 'rare',
+  plate_standard_pink: 'rare',
+  plate_standard_teal: 'rare',
+  plate_static: 'legendary',
+  plate_stonevines: 'epic',
+  plate_the_howl: 'ancient',
+  plate_topaz: 'epic',
+  plate_twisted_ether: 'legendary',
+  plate_verdant: 'legendary',
+  plate_verdant_magic: 'legendary',
+  plate_vintage_oak: 'legendary',
+  plate_volcanic: 'legendary',
+  plate_white_magic: 'epic',
+};
+
 describe('the card plate slot', () => {
   it('the sync switches the category on (global) and adds the sixty-two active plates as targetless crate items at their rarity', async () => {
     const cat = await one<{ enabled: boolean; target: string }>("select enabled, target from public.cosmetic_categories where category = 'card_plate'");
     expect(cat).toEqual({ enabled: true, target: 'global' });
     const rows = (await db.query("select cosmetic_id, rarity, acquisition_source, target_type from public.cosmetic_catalog where category = 'card_plate' and active order by cosmetic_id")).rows;
     expect(rows).toEqual(['plate_amethyst', 'plate_aquarium_rocks', 'plate_armored_knight', 'plate_astral_relic', 'plate_bamboo', 'plate_battletorn', 'plate_beach', 'plate_blood_omen', 'plate_blossom', 'plate_blue_hand_drawn', 'plate_bordered_land', 'plate_carved_aetherstone', 'plate_celestial', 'plate_chrome', 'plate_crackling_gemstone', 'plate_dark_arcane', 'plate_elegant', 'plate_emerald', 'plate_ethereal', 'plate_frozen_aurora', 'plate_galaxy', 'plate_gilt_etched', 'plate_goop', 'plate_green_hand_drawn', 'plate_hand_drawn', 'plate_hivemind', 'plate_honey', 'plate_iridescent', 'plate_ironwood', 'plate_magma', 'plate_mooncloud', 'plate_moonstone', 'plate_mystic_obsidian', 'plate_nano', 'plate_porcelain', 'plate_round_magic', 'plate_runic', 'plate_simple_black', 'plate_simple_glass', 'plate_simple_white', 'plate_smooth_aqua', 'plate_smooth_blue', 'plate_smooth_iridescent', 'plate_smooth_red', 'plate_solar', 'plate_soulwitch', 'plate_spades', 'plate_spirit_carving', 'plate_standard_black', 'plate_standard_blue', 'plate_standard_pink', 'plate_standard_teal', 'plate_static', 'plate_stonevines', 'plate_the_howl', 'plate_topaz', 'plate_twisted_ether', 'plate_verdant', 'plate_verdant_magic', 'plate_vintage_oak', 'plate_volcanic', 'plate_white_magic']
-      .map((cosmetic_id) => ({ cosmetic_id, rarity: ['plate_simple_black','plate_simple_white','plate_mooncloud','plate_simple_glass'].includes(cosmetic_id) ? 'ancient' : ['plate_moonstone','plate_bamboo','plate_aquarium_rocks','plate_stonevines','plate_porcelain','plate_beach','plate_magma','plate_smooth_aqua','plate_smooth_blue','plate_smooth_red','plate_dark_arcane','plate_hand_drawn','plate_blue_hand_drawn','plate_green_hand_drawn'].includes(cosmetic_id) ? 'epic' : ['plate_standard_black','plate_standard_blue','plate_standard_pink','plate_standard_teal'].includes(cosmetic_id) ? 'rare' : 'legendary', acquisition_source: 'crate', target_type: null })));
+      .map((cosmetic_id) => ({ cosmetic_id, rarity: PLATE_RARITY[cosmetic_id], acquisition_source: 'crate', target_type: null })));
   });
 
   it('equips an owned plate with target \'\'; the profile loadout carries it; null goes back to the standard plates', async () => {

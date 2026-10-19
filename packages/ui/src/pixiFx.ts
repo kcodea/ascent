@@ -562,7 +562,7 @@ class FxController {
   private pendingUnderMounts: Container[] = [];
 
   // THE ABOVE-MODAL CANVAS. Same trick as the under canvas, in the other direction: a fixed, full-viewport
-  // canvas at z200 — over the Discover / Choose One overlays (z160), under the wipe (z255). It exists for an
+  // canvas at z200 — over the Discover / Choose One overlays (z160), under the wipe (z3000). It exists for an
   // effect that is ABOUT the modal, which is the one case where "the modal sits above all effects" is the
   // wrong answer (see `FxSlot`).
   //

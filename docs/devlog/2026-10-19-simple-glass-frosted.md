@@ -72,3 +72,16 @@ Then *"reduce the blur to 10px"*: blur 13px to 10px.
 Then *"increase grey to 35%"*: `rgba(58, 60, 64, 0.35)`.
 
 Then *"reduce blur to 7px"*: blur 10px to 7px.
+
+Then *"the only thing not working still is the hovering a c ard in shop, the blur and grey isnt applied"*. The hover
+reveal (`.cardref`) wears its white haze as a `filter` on the whole popup and slides in with an opacity fade, both
+backdrop roots. With a glass card the haze moves onto the frame and the side panels (`.cardref-inner > :not(.card)`),
+and the slide-in is transform-only (`cardrefin-glass`). The cast preview (`.castprev`) gets the same haze move; its
+fades and tunable max opacity still cut the glass off while they run.
+
+Then *"theres a brief mooment that it takes before it loads the blur when hovering"*. Sampled per frame: the reveal's
+card mounts with `.popin` (`cardpop`, an opacity fade, ~0.15 s) and the glass `<img>` itself sat at `art-pending`
+(opacity 0 until its load event, ~0.33 s on the dev server, which re-checks every file). A glass card now pops on motion
+alone (`cardpop-glass` / `handpop-glass`; a delayed token pop keeps its fade so it stays invisible while waiting), and
+the glass ignores `art-pending` (it paints none of the image's pixels; its mask shows nothing until the image is there).
+After: no ancestor below 1 opacity or with a filter from the first sampled frame.

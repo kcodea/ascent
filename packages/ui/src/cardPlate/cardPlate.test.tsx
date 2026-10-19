@@ -114,6 +114,21 @@ describe('the card plate a card wears', () => {
     expect(ov.slice(0, ov.indexOf('}'))).not.toMatch(/backdrop-filter|background/);
     expect(css).toMatch(/\.inspect-ov::before \{[^}]*backdrop-filter: blur\(/);
     expect(css).toMatch(/\.inspect-ov:has\(\.plate-frosted\) \{ animation: none; \}/);
+    // ...and in the shop's hover reveal and the cast preview (owner 2026-10-19: "hovering a card in shop, the blur and grey
+    // isnt applied"): their haze filter moves off the popup, and the reveal slides in without an opacity fade.
+    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\), \.castprev:has\(\.plate-frosted\) \{ filter: none; \}/);
+    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\) \{ animation-name: cardrefin-glass; \}/);
+    const refIn = css.slice(css.indexOf('@keyframes cardrefin-glass'));
+    expect(refIn.slice(0, refIn.indexOf('} }'))).not.toMatch(/opacity/);
+    // No fade on the way in at all (owner 2026-10-19: "theres a brief mooment that it takes before it loads the blur when
+    // hovering"): a glass card's mount pop is motion-only, and the glass ignores the art-pending hide.
+    expect(css).toMatch(/\.card\.popin:not\(\.popdelay\):has\(\.plate-frosted\) \{ animation-name: cardpop-glass; \}/);
+    expect(css).toMatch(/\.row\.hand \.card\.popin:not\(\.popdelay\):has\(\.plate-frosted\) \{ animation-name: handpop-glass; \}/);
+    for (const k of ['cardpop-glass', 'handpop-glass']) {
+      const kf = css.slice(css.indexOf(`@keyframes ${k}`));
+      expect(kf.slice(0, kf.indexOf('} }')), k).not.toMatch(/opacity/);
+    }
+    expect(css).toMatch(/\.plate-frosted\.art-pending \{ opacity: 1 !important; \}/);
     const pop = css.slice(css.indexOf('@keyframes inspectpop-glass'));
     expect(pop.slice(0, pop.indexOf('} }'))).not.toMatch(/opacity/);
   });

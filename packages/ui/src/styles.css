@@ -4978,6 +4978,25 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    drop-shadow `filter` would cut the glass off from the board, so a glass card shadows its frame instead. */
 .row.hand .card.plated:has(.plate-frosted):hover { filter: none; }
 .row.hand .card.plated:has(.plate-frosted):hover .plate-frame { filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+/* And the hover reveal / cast preview popups (owner 2026-10-19: "hovering a card in shop, the blur and grey isnt
+   applied"): their white haze is a `filter` on the whole popup, so with a glass card the haze moves onto the frame and
+   each side panel, and the reveal slides in without its opacity fade (a fade is a backdrop root too). */
+.cardref:has(.plate-frosted), .castprev:has(.plate-frosted) { filter: none; }
+.cardref:has(.plate-frosted) .plate-frame, .cardref:has(.plate-frosted) .cardref-inner > :not(.card),
+.castprev:has(.plate-frosted) .plate-frame {
+  filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+}
+.cardref:has(.plate-frosted) { animation-name: cardrefin-glass; }
+@keyframes cardrefin-glass { from { transform: translateX(-10px); } to { transform: translateX(0); } }
+/* No opacity on the glass's way IN either (owner 2026-10-19: "theres a brief mooment that it takes before it loads the
+   blur when hovering"): a glass card's mount pop is motion-only, and the glass skips the art-pending hide (it paints
+   none of the image's pixels, and its mask shows nothing until that image is there anyway), so the blur is on from
+   the first frame instead of after ~0.3 s. A delayed token pop keeps its fade (it must stay invisible while it waits). */
+.card.popin:not(.popdelay):has(.plate-frosted) { animation-name: cardpop-glass; }
+.row.hand .card.popin:not(.popdelay):has(.plate-frosted) { animation-name: handpop-glass; }
+@keyframes cardpop-glass { from { transform: translateY(8px); } to { transform: none; } }
+@keyframes handpop-glass { from { transform: translateY(var(--hand-tuck, 32%)) scale(0.9); } to { transform: translateY(var(--hand-tuck, 32%)) scale(1); } }
+.card.plated .cardplate.plate-interior.plate-frosted.art-pending { opacity: 1 !important; }
 /* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
 .card.plated .plateglow.plate-framed { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-19',
     changes: [
+      { category: 'Systems', text: 'The Simple Glass Card Plate is now real frosted glass: you see a soft blur of what is behind the card, slightly darkened so the text stays easy to read.' },
       { category: 'Systems', text: 'Nothing flashes over the blue curtain between the Shop and combat any more.', details: ['Effects and pop-ups that used to poke through it (the Rebirth flame, the rune lock-in, tutorial tips, emotes, screen flashes) now stay hidden behind it until the new screen is revealed.', 'The Esc menu and the replay controls still show on top if they are open.'] },
       { category: 'Systems', text: 'Many Card Plates changed rarity, so more of them drop from crates.', details: ['Now Rare: Hand Drawn, Blue Hand Drawn, Green Hand Drawn, Smooth Aqua, Smooth Blue, Smooth Red, Beach, Magma, Bamboo, Aquarium Rocks and Amethyst.', 'Now Epic: Iridescent, Smooth Iridescent, Galaxy, Chrome, Topaz, Crackling Gemstone, Carved Aetherstone, Honey, Goop, White Magic and Runic.', 'Now Ancient: Frozen Aurora, The Howl and Nano.'] },
       { category: 'Systems', text: 'Twenty more Legendary Card Plates to find in crates.', details: ['Celestial, Runic, Verdant, Volcanic, Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl, Vintage Oak.'] },

@@ -84,6 +84,24 @@ describe('the card plate a card wears', () => {
     expect(drawer.indexOf('plate-frame')).toBeLessThan(drawer.findIndex((c) => c === 'cn'));
   });
 
+  it('Simple Glass has a FROSTED interior: a live blur of what is behind, masked to its shape, no pixels of its own (owner 2026-10-19)', () => {
+    // "create a card interior for the blown glass card frame that would actually just be clear and blurs all imagery
+    // behind it"; "slightly darkened too to help readability".
+    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_simple_glass' } as unknown as typeof AQUARIUM });
+    const interior = el.querySelector('img.cardplate')!;
+    expect(interior.classList.contains('plate-frosted')).toBe(true);
+    expect(interior.getAttribute('src')).toContain('frames/plates/interiors/frosted.webp');
+    expect(el.style.getPropertyValue('--plate-frost-mask')).toContain('frames/plates/interiors/frosted.webp');
+    expect(el.querySelector('img.descbox')).toBeNull();
+    // No other plate is frosted.
+    for (const look of Object.values(CARD_PLATE_LOOKS)) expect(!!look.frosted, look.id).toBe(look.id === 'plate_simple_glass');
+    // The stylesheet blurs and tints it, hides the image's own pixels, and drops the blur on a dragged card.
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    const rule = css.slice(css.indexOf('.card.plated .cardplate.plate-interior.plate-frosted {'));
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/backdrop-filter: blur\(\d+px\)[\s\S]*mask: var\(--plate-frost-mask\)/);
+    expect(css).toMatch(/\.dragcard \.card\.plated \.cardplate\.plate-interior\.plate-frosted \{[^}]*backdrop-filter: none/);
+  });
+
   it('every plate that sat on Brown wears Dark Brown with no darkening (owner 2026-10-18)', () => {
     // "replace all cards' brown interior (except the standard card plate) with the dark brown interior and remove
     // darkening from them"

@@ -940,7 +940,7 @@ export const Card = memo(function Card({
         // the card's own entry — the base and the branch are different pictures (owner ask 2026-08-28).
         ...(cardArtVars(card.cardId ? artVariantKey(card.cardId, card.chosenOption) : undefined, card.cardId) ?? {}),
         /* A card plate's own darkening (2026-10-14): inline, so it beats the Card Text tuner's :root values on THIS card. */
-        ...(plateLook ? { '--ctx-box-a': plateLook.boxA, '--ctx-box-blend': plateLook.boxBlend, '--ctx-box-y': plateLook.boxY, ...(plateLook.frameX ? { '--plate-frame-x': plateLook.frameX } : {}), ...(plateLook.frameY ? { '--plate-frame-y': plateLook.frameY } : {}), ...(plateLook.interiorX ? { '--plate-interior-x': plateLook.interiorX } : {}), ...(plateLook.interiorSx ? { '--plate-interior-sx': plateLook.interiorSx } : {}), ...(plateLook.interiorSy ? { '--plate-interior-sy': plateLook.interiorSy } : {}), ...(plateLook.interiorY ? { '--plate-interior-y': plateLook.interiorY } : {}), ...(plateLook.artScale ? { '--plate-art-s': plateLook.artScale } : {}) } : {}),
+        ...(plateLook ? { '--ctx-box-a': plateLook.boxA, '--ctx-box-blend': plateLook.boxBlend, '--ctx-box-y': plateLook.boxY, ...(plateLook.frameX ? { '--plate-frame-x': plateLook.frameX } : {}), ...(plateLook.frameY ? { '--plate-frame-y': plateLook.frameY } : {}), ...(plateLook.interiorX ? { '--plate-interior-x': plateLook.interiorX } : {}), ...(plateLook.interiorSx ? { '--plate-interior-sx': plateLook.interiorSx } : {}), ...(plateLook.interiorSy ? { '--plate-interior-sy': plateLook.interiorSy } : {}), ...(plateLook.interiorY ? { '--plate-interior-y': plateLook.interiorY } : {}), ...(plateLook.artScale ? { '--plate-art-s': plateLook.artScale } : {}), ...(plateLook.frosted ? { '--plate-frost-mask': `url("${plateLook.plate}")` } : {}) } : {}),
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
@@ -1002,7 +1002,7 @@ export const Card = memo(function Card({
               src, so the browser serves it from cache — no second decode. */}
           <img decoding="sync" className={`plateglow${plateLook?.frame ? ' plate-framed' : ''}${plateFade.cls}`} src={plateLook?.frame ?? plateSrc} alt="" aria-hidden="true" draggable={false} />
           <img decoding="sync"
-            className={`cardplate${plateLook?.frame ? ' plate-interior' : ''}${plateFade.cls}`}
+            className={`cardplate${plateLook?.frame ? ' plate-interior' : ''}${plateLook?.frosted ? ' plate-frosted' : ''}${plateFade.cls}`}
             src={plateSrc}
             alt=""
             aria-hidden="true"

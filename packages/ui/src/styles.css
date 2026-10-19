@@ -4942,6 +4942,19 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   pointer-events: none;
   user-select: none;
 }
+/* A FROSTED interior (cardPlateLook.ts `frosted`, Simple Glass; owner 2026-10-19: "clear and blurs all imagery behind
+   it", "slightly darkened too to help readability"). The interior <img> keeps its box (so the fit, the fade-in and the
+   Card Plate Editor's sliders all work unchanged) but paints NONE of its pixels: `object-position` throws the image out
+   of its own box. What shows is a blur of what is behind the card plus a dark tint, both clipped to the interior's
+   outline by masking the element with that same image. STATIC: nothing here animates (performance north star). While a
+   card is being dragged the blur is dropped for a deeper flat tint, so a moving card never re-blurs every frame. */
+.card.plated .cardplate.plate-interior.plate-frosted {
+  object-position: -100000px 0;
+  background: rgba(8, 11, 18, 0.38);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
+}
+.dragcard .card.plated .cardplate.plate-interior.plate-frosted { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(14, 18, 28, 0.72); }
 /* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
 .card.plated .plateglow.plate-framed { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {

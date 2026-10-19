@@ -1,14 +1,149 @@
 {
   "version": 1,
   "plates": {
+    "plate_astral_relic": {
+      "artScale": 1.235,
+      "frameX": 0.004,
+      "frameY": 0.087,
+      "interiorSx": 0.881,
+      "interiorSy": 0.841,
+      "interiorX": 0,
+      "interiorY": -0.0394
+    },
+    "plate_blood_omen": {
+      "artScale": 1.045,
+      "frameX": -0.001,
+      "frameY": 0.045,
+      "interiorSx": 1.035,
+      "interiorSy": 1.079,
+      "interiorX": 0,
+      "interiorY": 0.1013
+    },
+    "plate_blossom": {
+      "artScale": 1.025,
+      "frameX": 0.005,
+      "frameY": 0.034,
+      "interiorSx": 1.011,
+      "interiorSy": 1.011,
+      "interiorX": 0,
+      "interiorY": 0.0103
+    },
+    "plate_emerald": {
+      "artScale": 1.035,
+      "frameX": 0.006,
+      "frameY": 0.026,
+      "interiorSx": 1.029,
+      "interiorSy": 1.016,
+      "interiorX": 0,
+      "interiorY": -0.0169
+    },
     "plate_ethereal": {
-      "artScale": 1.14,
+      "artScale": 1.085,
       "frameX": -0.002,
       "frameY": 0.093,
       "interiorSx": 0.941,
       "interiorSy": 1.024,
       "interiorX": 0,
       "interiorY": 0.0862
+    },
+    "plate_gilt_etched": {
+      "artScale": 1.015,
+      "frameX": 0.006,
+      "frameY": 0.053,
+      "interiorSx": 1.028,
+      "interiorSy": 0.975,
+      "interiorX": 0,
+      "interiorY": -0.0319
+    },
+    "plate_goop": {
+      "artScale": 1.08,
+      "frameX": 0.006,
+      "frameY": 0.106,
+      "interiorSx": 0.975,
+      "interiorSy": 0.977,
+      "interiorX": 0,
+      "interiorY": -0.0637
+    },
+    "plate_honey": {
+      "artScale": 1.045,
+      "frameX": 0.007,
+      "frameY": 0.055,
+      "interiorSx": 1.051,
+      "interiorSy": 1.011,
+      "interiorX": 0,
+      "interiorY": 0.0028
+    },
+    "plate_mooncloud": {
+      "artScale": 1.055,
+      "frameX": 0.005,
+      "frameY": 0.039,
+      "interiorSx": 1.037,
+      "interiorSy": 1.006,
+      "interiorX": 0,
+      "interiorY": 0.0056
+    },
+    "plate_mystic_obsidian": {
+      "artScale": 1.025,
+      "frameX": 0.004,
+      "frameY": 0.017,
+      "interiorSx": 1.021,
+      "interiorSy": 1.154,
+      "interiorX": 0,
+      "interiorY": 0.0994
+    },
+    "plate_porcelain": {
+      "artScale": 1,
+      "frameX": 0.005,
+      "frameY": 0.02,
+      "interiorSx": 1.065,
+      "interiorSy": 1.033,
+      "interiorX": 0,
+      "interiorY": 0.0075
+    },
+    "plate_round_magic": {
+      "artScale": 1.08,
+      "frameX": 0.005,
+      "frameY": 0.015,
+      "interiorSx": 1.018,
+      "interiorSy": 1.066,
+      "interiorX": 0,
+      "interiorY": 0.0609
+    },
+    "plate_smooth_aqua": {
+      "artScale": 1,
+      "frameX": 0.008,
+      "frameY": 0.043,
+      "interiorSx": 1.055,
+      "interiorSy": 1.026,
+      "interiorX": 0,
+      "interiorY": -0.0028
+    },
+    "plate_spirit_carving": {
+      "artScale": 1,
+      "frameX": 0.014,
+      "frameY": 0.026,
+      "interiorSx": 1.076,
+      "interiorSy": 1.021,
+      "interiorX": 0,
+      "interiorY": -0.0047
+    },
+    "plate_stonevines": {
+      "artScale": 1,
+      "frameX": 0.005,
+      "frameY": 0.015,
+      "interiorSx": 1.047,
+      "interiorSy": 1.026,
+      "interiorX": 0,
+      "interiorY": -0.0066
+    },
+    "plate_verdant_magic": {
+      "artScale": 1.035,
+      "frameX": 0.006,
+      "frameY": 0.015,
+      "interiorSx": 1.059,
+      "interiorSy": 1.089,
+      "interiorX": 0,
+      "interiorY": 0.0806
     }
   }
 }

@@ -720,6 +720,11 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_honey', 'Honey', 'legendary', 'Honey.png'),
   // Owner 2026-10-17: "added one more: goop" (Legendary by the folder rule; no interior named, so Brown).
   cardPlate('plate_goop', 'Goop', 'legendary', 'Goop.png'),
+  // Owner 2026-10-19: "added more frames. can you add them with the dark interior?" (Legendary by the folder rule).
+  cardPlate('plate_celestial', 'Celestial', 'legendary', 'Celestial.png'),
+  cardPlate('plate_runic', 'Runic', 'legendary', 'Runic.png'),
+  cardPlate('plate_verdant', 'Verdant', 'legendary', 'Verdant.png'),
+  cardPlate('plate_volcanic', 'Volcanic', 'legendary', 'Volcanic.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

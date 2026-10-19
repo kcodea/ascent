@@ -682,9 +682,9 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
 
   it('wallet chip shows the balance', () => {
     open({ aether: 1200 }, { aether: true });
-    expect(text('[aria-label="Aether balance"]')).toBe('◆ 1200 Aether');
+    expect(text('[aria-label="Aether balance"]')).toBe('1200 Aether');
     act(() => { useProgression.setState({ mirror: { userId: 'u-1', ...profile({ aether: 900, revision: 10 }) } }); });
-    expect(text('[aria-label="Aether balance"]')).toBe('◆ 900 Aether');
+    expect(text('[aria-label="Aether balance"]')).toBe('900 Aether');
     clean();
   });
 
@@ -700,7 +700,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
     expect($('.crth')).not.toBeNull();
     expect(text('.crate-reward-name')).toBe('Hearthkeeper');
     expect(openCrateRemote).not.toHaveBeenCalled(); // the theatre plays the purchase it already has
-    expect(text('[aria-label="Aether balance"]')).toBe('◆ 1100 Aether');
+    expect(text('[aria-label="Aether balance"]')).toBe('1100 Aether');
     act(() => button('Done')!.click());
     expect($('.crth')).toBeNull();
     clean();
@@ -901,7 +901,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
   it("a guest's Buy opens the sign-in gate and never reaches the server", async () => {
     useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
     open({ aether: 0 }, { aether: true });
-    expect(text('[aria-label="Aether balance"]')).toBe('◆ 0 Aether'); // a guest earns and sees Aether
+    expect(text('[aria-label="Aether balance"]')).toBe('0 Aether'); // a guest earns and sees Aether
     act(() => shopBuy().click());
     await settle();
     expect($('.crgate-panel')).not.toBeNull();

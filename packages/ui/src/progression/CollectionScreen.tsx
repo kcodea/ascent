@@ -27,6 +27,7 @@ import { SkinCardPreview } from './SkinCardPreview';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
 import { CrateSignInGate } from './CrateSignInGate';
+import { AetherIcon } from './AetherIcon';
 import { TitleBadge } from '../titles/TitleBadge';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
 import { announcerPackOf } from './announcerPack';
@@ -361,7 +362,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           </div>
           {aetherOn && (
             <div className="colls-meter colls-wallet" role="group" aria-label="Aether balance">
-              <div className="colls-meter-num"><span className="colls-wallet-gem" aria-hidden>◆</span> <b>{balance}</b> Aether</div>
+              <div className="colls-meter-num"><AetherIcon className="colls-wallet-gem" /><b>{balance}</b> Aether</div>
             </div>
           )}
           {me && (

@@ -3,6 +3,7 @@ import { ALPHA_TESTER_TITLE_ID, levelProgress, type ProgressionResult } from '@g
 import { useGame } from '../store';
 import { cratesVisible, markProgressionPresented, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
 import { aetherText, breakdownLines, placeOrdinal, xpText } from './progressionFormat';
+import { AetherIcon } from './AetherIcon';
 import './achievements.css';
 
 /**
@@ -137,7 +138,7 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
         <div className="acctxp-aether" aria-label="Aether earned">
           <div className="acctxp-aether-head">
             <span className="acctxp-aether-eyebrow">Aether</span>
-            <span className="acctxp-aether-total">{aetherText(aether.total)}</span>
+            <span className="acctxp-aether-total"><AetherIcon />{aetherText(aether.total)}</span>
           </div>
           <div className="acctxp-line"><span>Played</span><b>+{aether.base}</b></div>
           {result.placement !== null && aether.placement > 0 && (

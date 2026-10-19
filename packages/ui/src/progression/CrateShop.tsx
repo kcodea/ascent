@@ -49,7 +49,7 @@
  * grid), the quote and the odds are memoized (on the picks, owned, the economy and the catalog state), the chips are
  * `memo`'d with stable props, and nothing reads layout. Static paint only.
  */
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIERS, CRATE_TIER_FLOOR, CRATE_TIER_LABELS, RARITY_LABELS,
   availableFocusCategories, crateLabel, eligibleForCrate, isCategoryLive, quoteCrate, tieredCrateChances, withStarterCosmetics,
@@ -63,6 +63,7 @@ import {
   aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
 import { ownedIds } from './collectionModel';
+import { AetherIcon } from './AetherIcon';
 import './collection.css';
 
 export type CrateShopMode = { kind: 'shop' } | { kind: 'milestone'; crate: CrateRow };
@@ -195,11 +196,11 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   const free = milestone && quote?.total === 0;
   // A guest is never "short": every spend is the sign-in gate (ruling 2026-10-19), so the price shows and Buy stays live.
   const needMore = guest ? 0 : short;
-  const label = busy ? 'Buying…'
+  const label: ReactNode = busy ? 'Buying…'
     : !quote ? 'Sold out'
     : free ? 'Open'
     : needMore > 0 ? `Need ${needMore} more Aether`
-    : `◆ ${quote.total}`;
+    : <><AetherIcon />{quote.total}</>;
   const disabled = busy || held || !quote || needMore > 0;
   const ariaLabel = quote && !busy && !free && needMore === 0
     ? `${milestone ? 'Open' : 'Buy'} ${name} for ${quote.total} Aether${guest ? ' (needs an account)' : ''}`
@@ -264,7 +265,7 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
                 onClick={() => pickTier(t)}
               >
                 <span className="colls-shop-tier-name">{CRATE_TIER_LABELS[t]}</span>
-                <span className="colls-shop-tier-price">◆ {economy.cratePrice[t]}</span>
+                <span className="colls-shop-tier-price"><AetherIcon />{economy.cratePrice[t]}</span>
               </button>
             ))}
           </div>

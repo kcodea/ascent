@@ -35,7 +35,7 @@
 /* The Aether wallet (2026-10-18; shown only while Aether is on): the balance as one chip in the meter row. Static. */
 .colls-wallet { min-width: 0; }
 .colls-wallet .colls-meter-num { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
-.colls-wallet-gem { color: var(--ui-title); font-size: 20px; text-shadow: 0 0 10px color-mix(in srgb, var(--ui-title) 45%, transparent); }
+.colls-wallet-gem.aether-icon { width: 24px; height: 24px; margin-right: 6px; }
 
 /* ── Body: main (tabs, filters, album) | side (crate bay, detail) ───────────────────────────────────────── */
 .colls-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 24px; padding: 4px 30px 26px; }

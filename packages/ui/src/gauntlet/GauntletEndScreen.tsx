@@ -19,6 +19,7 @@ import { gauntletOutcome, type RunState } from '@game/sim';
 import { Card } from '../Card';
 import { liveBoardView } from '../instView';
 import '../progression/collection.css';
+import { AetherIcon } from '../progression/AetherIcon';
 import { aetherVisible, useProgression } from '../progression/progressionStore';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
@@ -59,7 +60,7 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
   if (reward?.stage === stage && firstClear && reward.aether) { // Aether in the crate's slot (a crate answer has none)
     return (
       <div className="gauntletend-reward gauntletend-crate earned aether" role="status">
-        <span className="gauntletend-aether-gem" aria-hidden>◆</span>
+        <AetherIcon className="gauntletend-aether-gem" />
         <div className="gauntletend-crate-body">
           <span className="gauntletend-crate-head">+{reward.aether} Aether</span>
         </div>

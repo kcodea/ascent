@@ -84,20 +84,24 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(refreshEconomy).toHaveBeenCalledTimes(1); // fresh prices on mount
     // Five tiers, each with its label and price, one pressed.
     const tiers = [...document.querySelectorAll<HTMLButtonElement>('.colls-shop-tier')];
-    expect(tiers.map((b) => [...b.children].map((s) => norm(s.textContent)).join(' '))).toEqual(['Standard ◆ 100', 'Rare ◆ 200', 'Epic ◆ 400', 'Legendary ◆ 600', 'Ancient ◆ 900']);
+    expect(tiers.map((b) => [...b.children].map((s) => norm(s.textContent)).join(' '))).toEqual(['Standard 100', 'Rare 200', 'Epic 400', 'Legendary 600', 'Ancient 900']);
     click(tier('Epic'));
     expect(tier('Epic').getAttribute('aria-pressed')).toBe('true');
     expect(tier('Standard').getAttribute('aria-pressed')).toBe('false');
-    expect(norm(buyBtn().textContent)).toBe('◆ 400');
+    expect(norm(buyBtn().textContent)).toBe('400');
+    // The price wears the Aether crystal (owner art 2026-10-19), decorative and hidden from readers.
+    const gem = buyBtn().querySelector<HTMLImageElement>('img.aether-icon');
+    expect(gem?.getAttribute('src')).toMatch(/currency\/aether\.webp$/);
+    expect(gem?.getAttribute('aria-hidden')).toBe('true');
     expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Crate');
     expect(norm($('.colls-shop-odds')?.textContent)).toBe('Epic 64.7% · Legendary 26.5% · Ancient 8.8%');
     expect(norm($('.colls-shop-left')?.textContent)).toMatch(/^\d+ left to find$/);
     click(chip('Card Plates'));
     expect(chip('Card Plates').getAttribute('aria-pressed')).toBe('true');
-    expect(norm(buyBtn().textContent)).toBe('◆ 800');
+    expect(norm(buyBtn().textContent)).toBe('800');
     expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Crate · Card Plates');
     click(chip('Heroes'));
-    expect(norm(buyBtn().textContent)).toBe('◆ 640');
+    expect(norm(buyBtn().textContent)).toBe('640');
     expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Crate · Heroes, Card Plates');
     expect(buyBtn().disabled).toBe(false);
     noDashes();
@@ -112,7 +116,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(titles.getAttribute('aria-description')).toBe('Nothing left to find here');
     click(titles);
     expect(titles.getAttribute('aria-pressed')).toBe('false');
-    expect(norm(buyBtn().textContent)).toBe('◆ 900');
+    expect(norm(buyBtn().textContent)).toBe('900');
   });
 
   it('short balance disables Buy', () => {
@@ -141,7 +145,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     render({ kind: 'shop' }, true);
     click(tier('Epic'));
     expect(buyBtn().disabled).toBe(false);
-    expect(norm(buyBtn().textContent)).toBe('◆ 400');
+    expect(norm(buyBtn().textContent)).toBe('400');
     click(buyBtn());
     await settle();
     expect(onGuest).toHaveBeenCalledTimes(1);
@@ -219,7 +223,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(norm($('.colls-shop-name')?.textContent)).toBe('Level 10 Legendary Crate');
     expect(norm(buyBtn().textContent)).toBe('Open');
     click(chip('Card Plates'));
-    expect(norm(buyBtn().textContent)).toBe('◆ 600');
+    expect(norm(buyBtn().textContent)).toBe('600');
     click(buyBtn());
     await settle();
     expect(buyCrate).not.toHaveBeenCalled();
@@ -304,7 +308,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(norm($('.colls-shop-err')?.textContent)).toBe('Prices just changed. Check the new price.');
     expect(onOpen).not.toHaveBeenCalled();
     // The button comes back for another try at the new price.
-    expect(norm(buyBtn().textContent)).toBe('◆ 400');
+    expect(norm(buyBtn().textContent)).toBe('400');
     expect(buyBtn().disabled).toBe(false);
   });
 

@@ -4966,9 +4966,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   object-position: -100000px 0;
   /* Owner 2026-10-19, once the blur showed in every state: "make the grey layer less warm and more dark grey, then
      reduce its opacity to 15%. reduce the blur by 20px" (from a warm rgba(140, 118, 120, 0.65) over a 40px blur), then
-     "reduce the blur to 13px. increase the grey opacity to 25%". */
+     "reduce the blur to 13px. increase the grey opacity to 25%", then "reduce the blur to 10px". */
   background: rgba(58, 60, 64, 0.25);
-  -webkit-backdrop-filter: blur(13px); backdrop-filter: blur(13px);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
 }
 .dragcard:has(.plate-frosted) { filter: none; }

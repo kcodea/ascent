@@ -111,6 +111,10 @@ Details:
   using one tint. *(Claude's call: change the existing Ancient reward colour `ancientColor`, today cyan `#8af5ff`,
   to read as opal/multichrome as well, so an Ancient reward from any chest matches the Ancient chest. The builder
   may implement "multichrome" as per-particle hue cycling; the existing CSS gem `hue-rotate` may need the same.)*
+  **Superseded at the final review (2026-10-19, owner ruling):** `ancientColor` stays the approved cyan `#8af5ff`
+  (R-PROG-RARITY-01 outranks this call); an Ancient reward's sparks and embers still cycle hue, and only the Ancient
+  chest's layer is opal. Likewise ruled then: the tier burst flash is the tier colour lightened toward white (Ancient
+  white), and late art falls back for the ART only, never the tier's layer or sounds.
 - Tier colours: Rare, Epic and Legendary reuse the existing `rareColor` (`#5aa8ff`), `epicColor` (`#c07bff`) and
   `legendaryColor` (`#ffb938`), which already match the art.
 

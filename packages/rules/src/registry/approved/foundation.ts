@@ -6967,8 +6967,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'can we make standard crates 100 aether instead?' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (progression_tiered_crate_pick, buy_crate, open_crate); packages/progression/src/crateShop.ts (CRATE_TIER_FLOOR, pickTieredCrateReward, tierOddsPercent); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.cratePrice)' },
     ],
-    currentBehaviour: 'PARTIAL: the server accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests); the client gate (CrateSignInGate on every spend path) ships with the Crate Shop UI on feat/aether-shop-ui. Otherwise conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The guest half is CLIENT-SIDE: as of 2026-10-19 (feat/aether-shop-ui) the Crate Shop picker sends a guest\x27s Buy, and a milestone crate\x27s Open (focused or not), to CrateSignInGate (`onGuest`) and never to the store (CrateShop.test.tsx pins it); the server still accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx'], lastVerifiedAt: '2026-10-19' },
   },
   {
     id: 'R-PROG-AETHER-03',

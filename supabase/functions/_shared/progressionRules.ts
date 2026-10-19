@@ -344,7 +344,9 @@ export function titlesUnlockedBetween(levelBefore: number, levelAfter: number): 
 /**
  * The crates an account holds for reaching `level`: one per level, Level 1's being the Welcome Crate granted on
  * enrollment. So an account at Level L has earned exactly L crates, and a settlement from `before` to `after`
- * creates `after - before` (plus the Welcome Crate when it is the account's first settlement).
+ * creates `after - before` (plus the Welcome Crate when it is the account's first settlement). That is the rule
+ * while Aether is OFF; with it on (2026-10-18) a settlement grants only the Welcome Crate and the milestone crates
+ * (`milestoneLevelsThrough` in aether.ts), and `ProgressionResult.aether` is non-null.
  */
 export const cratesEarnedThrough = (level: number): number => Math.max(0, Math.floor(level));
 export const cratesForSettlement = (levelBefore: number, levelAfter: number, enrolling: boolean): number =>
@@ -374,6 +376,13 @@ export interface ProgressionResult {
    *  pre-achievements server: read as none. */
   achievements: string[];
   achievementXp: number;
+  /** AETHER (2026-10-18): what this settlement paid, split as `aetherForSettlement` splits it (the `AetherBreakdown`
+   *  shape of aether.ts, spelled out here so this file keeps its two imports). Null = Aether was off when the game
+   *  settled (the crate-per-level rules applied), or a pre-Aether server. With Aether on, `cratesAwarded` counts the
+   *  Welcome Crate and milestone crates only. */
+  aether: { base: number; placement: number; total: number } | null;
+  /** The account's Aether balance as the server answered (null exactly when `aether` is). */
+  aetherBalance: number | null;
   revisionAfter: number;
   settledAt: string | null;
 }
@@ -389,6 +398,8 @@ export interface ProgressionProfile {
   cosmetics?: string[];
   /** The equipped skins, by target (only LIVE items: the SQL drops a retired one). Absent from a pre-skins server. */
   loadout?: RunCosmeticSnapshot;
+  /** The Aether balance (2026-10-18; 0 for an account that never earned any). Absent from a pre-Aether server. */
+  aether?: number;
 }
 
 const int = (v: unknown): number | null => (typeof v === 'number' && Number.isFinite(v) ? Math.trunc(v) : typeof v === 'string' && /^-?\d+$/.test(v) ? Number(v) : null);
@@ -411,6 +422,17 @@ function parsePoint(v: unknown): { lifetimeXp: number; level: number } | null {
 
 const stringList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []);
 
+const nonNegInt = (v: unknown): number | null => { const n = int(v); return n !== null && n >= 0 ? n : null; };
+
+/** The settlement's Aether breakdown; null when absent or malformed (never a half-trusted amount). */
+function parseAetherEarned(v: unknown): { base: number; placement: number; total: number } | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const base = nonNegInt(o.base); const placement = nonNegInt(o.placement); const total = nonNegInt(o.total);
+  if (base === null || placement === null || total === null) return null;
+  return { base, placement, total };
+}
+
 /** Parse the server's result object; null for anything that is not one (never a fabricated result). */
 export function parseProgressionResult(v: unknown): ProgressionResult | null {
   if (!v || typeof v !== 'object') return null;
@@ -420,6 +442,7 @@ export function parseProgressionResult(v: unknown): ProgressionResult | null {
   if (typeof o.runId !== 'string' || !(PROGRESSION_MODES as readonly string[]).includes(o.mode as string)) return null;
   if (!xp || !before || !after || rulesVersion === null || revisionAfter === null) return null;
   const placement = int(o.placement);
+  const aether = parseAetherEarned(o.aether);
   return {
     runId: o.runId, mode: o.mode as ProgressionMode, rulesVersion,
     placement: placement !== null && isValidPlacement(placement) ? placement : null,
@@ -429,6 +452,8 @@ export function parseProgressionResult(v: unknown): ProgressionResult | null {
     cratesAwarded: Math.max(0, int(o.cratesAwarded) ?? 0), crateIds: stringList(o.crateIds),
     // A pre-achievements server sends neither: read as none.
     achievements: stringList(o.achievements), achievementXp: Math.max(0, int(o.achievementXp) ?? 0),
+    // Aether off, or a pre-Aether server: neither. A balance without its breakdown is dropped too.
+    aether, aetherBalance: aether ? nonNegInt(o.aetherBalance) : null,
     revisionAfter,
     settledAt: typeof o.settledAt === 'string' ? o.settledAt : null,
   };
@@ -446,5 +471,6 @@ export function parseProgressionProfile(v: unknown): ProgressionProfile | null {
     titles: stringList(o.titles),
     ...(Array.isArray(o.cosmetics) ? { cosmetics: stringList(o.cosmetics) } : {}),
     ...(Array.isArray(o.loadout) ? { loadout: loadoutFromRows(o.loadout) } : {}),
+    ...(nonNegInt(o.aether) !== null ? { aether: nonNegInt(o.aether)! } : {}),
   };
 }

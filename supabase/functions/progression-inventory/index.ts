@@ -1,5 +1,5 @@
 /**
- * progression-inventory: open a level crate, equip a title, equip a skin (2026-09-28, account progression crates;
+ * progression-inventory: open a level crate, BUY a crate with Aether (`buy_crate`, 2026-10-18), equip a title, equip a skin (2026-09-28, account progression crates;
  * `equip_cosmetic` added with skins v1 the same day: `{ action: 'equip_cosmetic', slot, targetId, cosmeticId }`,
  * cosmeticId null = Default).
  *

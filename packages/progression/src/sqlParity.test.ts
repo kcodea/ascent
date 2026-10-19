@@ -14,6 +14,7 @@ import {
   ACHIEVEMENTS, ACHIEVEMENT_AGGS, ACHIEVEMENT_MODES, ACHIEVEMENT_TRUSTS, ASCENDANT_DIVISION, BRUTAL_LOBBY_STRENGTH, META_METRIC, SERVER_METRICS, achievementCatalogPayload,
 } from './achievements';
 import { INVENTORY_ERROR_STATUS } from './inventory';
+import { DEFAULT_AETHER_ECONOMY } from './aether';
 
 /**
  * TS ↔ SQL PARITY for the progression writer. There is no Postgres in CI, so (like the medal-rank parity test)
@@ -55,12 +56,15 @@ const placementXp = readFileSync(join(root, 'supabase/migrations/2026-10-03-plac
 // The Versus progression file (2026-10-14, owner "versus can complete achievements and grant XP but no rank progress"):
 // the newest settle_progression and the progression_results.mode check.
 const versusProg = readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-progression.sql'), 'utf8');
+// The Aether file (2026-10-18): the newest settle_progression, record_gauntlet_clear, open_crate (4 args, roll version 5),
+// progression_crate_json / result_json / profile_json, plus the Aether wallet, the Crate Shop and the tiered pick.
+const aether = readFileSync(join(root, 'supabase/migrations/2026-10-18-aether.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -266,8 +270,9 @@ describe('the crates migration (2026-09-28)', () => {
     expect(Object.values(CRATE_RARITY_ODDS).reduce((a, b) => a + b, 0)).toBe(100);
     // the SQL walks the rarities in the TS order
     expect(/v_rarities text\[\] := array\[([^\]]*)\]/.exec(pick)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'))).toEqual([...COSMETIC_RARITIES]);
-    expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
-    expect(CRATE_ROLL_VERSION).toBe(4);
+    // the Ancient file stamped 4 and is still the home of the fixed-odds pick; the Aether file (version 5) is pinned below
+    expect(n(fnBody('open_crate', ancient), 'c_roll_version')).toBe(4);
+    expect(CRATE_ROLL_VERSION).toBe(5);
     // the band walk and the fallback cover every rarity
     expect(pick).toContain(`for v_i in 1..${COSMETIC_RARITIES.length} loop`);
     expect(pick).toContain(`generate_series(1, ${COSMETIC_RARITIES.length})`);
@@ -279,8 +284,8 @@ describe('the crates migration (2026-09-28)', () => {
     expect(fnBody('progression_crate_pool')).not.toMatch(/c_w_|c_odds_/);
     expect(fnBody('progression_crate_pool')).toMatch(/select c\.cosmetic_id, k\.weight/);
     // one draw per opening, through the pick
-    expect(fnBody('open_crate')).toContain('public.progression_crate_pick(p_user, random())');
-    expect(fnBody('open_crate').match(/random\(\)/g)).toHaveLength(1);
+    expect(fnBody('open_crate', ancient)).toContain('public.progression_crate_pick(p_user, random())');
+    expect(fnBody('open_crate', ancient).match(/random\(\)/g)).toHaveLength(1);
   });
 
   /** The rows of one `insert into public.<table> (...) values (...), ... on conflict` seed in the CRATES file (the
@@ -511,9 +516,59 @@ describe('the Ancient rarity migration (2026-10-02): "i added a new rarity -> An
     expect(ancient).not.toMatch(/public\.(boards|pool_runs)\b/);
   });
 
-  it('schema.sql ends with the same pick and open_crate as the newest file', () => {
-    for (const fn of ['progression_crate_pick', 'open_crate']) {
-      expect(fnBody(fn, schema.slice(schema.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
+  it('schema.sql ends with the same pick as the newest file that defines it (the Ancient file; open_crate moved on to the Aether file)', () => {
+    expect(fnBody('progression_crate_pick', schema.slice(schema.lastIndexOf('create or replace function public.progression_crate_pick('))), 'progression_crate_pick').toBe(fnBody('progression_crate_pick'));
+  });
+});
+
+describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the tiered pick', () => {
+  /** The JSON literal in `aether_config`'s FIRST seed, parsed. */
+  const seed = (): unknown => {
+    const at = aether.indexOf('insert into public.aether_config (id, economy) values (1,');
+    const lit = /'(\{[^']*\})'::jsonb/.exec(aether.slice(at))![1]!;
+    return JSON.parse(lit);
+  };
+
+  it('aether_config seed equals DEFAULT_AETHER_ECONOMY (a re-run never overwrites a retuned row)', () => {
+    expect(seed()).toEqual(JSON.parse(JSON.stringify(DEFAULT_AETHER_ECONOMY)));
+    const at = aether.indexOf('insert into public.aether_config (id, economy) values (1,');
+    expect(aether.slice(at, aether.indexOf(';', at))).toMatch(/on conflict \(id\) do nothing$/);
+  });
+
+  it('tiered pick odds constants equal CRATE_RARITY_ODDS, and the pick walks the rarities in the TS order', () => {
+    const pick = fnBody('progression_tiered_crate_pick');
+    expect(COSMETIC_RARITIES.map((r) => n(pick, `c_odds_${r}`))).toEqual(COSMETIC_RARITIES.map((r) => CRATE_RARITY_ODDS[r]));
+    expect(/v_rarities text\[\] := array\[([^\]]*)\]/.exec(pick)![1]!.split(',').map((x) => x.trim().replace(/^'(.*)'$/, '$1'))).toEqual([...COSMETIC_RARITIES]);
+  });
+
+  it('open_crate and buy_crate record roll version CRATE_ROLL_VERSION (5: rarity floor + optional category focus)', () => {
+    expect(CRATE_ROLL_VERSION).toBe(5);
+    expect(n(fnBody('open_crate'), 'c_roll_version')).toBe(CRATE_ROLL_VERSION);
+    // buy_crate writes no roll of its own: it opens its crate THROUGH open_crate (the one place a version is stamped)
+    expect(fnBody('buy_crate')).not.toMatch(/roll_version/);
+    expect(fnBody('buy_crate').match(/public\.open_crate\(p_user, v_crate\.crate_id\)/g)).toHaveLength(2);
+    // one draw per opening / purchase, through the tiered pick
+    expect(fnBody('open_crate')).toContain('public.progression_tiered_crate_pick(p_user, random(),');
+    expect(fnBody('open_crate').match(/random\(\)/g)).toHaveLength(1);
+  });
+
+  it('the Aether file REPLACES the 2-argument open_crate (an overload would leave two callable doors)', () => {
+    expect(aether).toMatch(/drop function if exists public\.open_crate\(uuid, uuid\)/);
+  });
+
+  it('schema.sql carries the Aether migration verbatim, after the last older migration, and ends with the same settle_progression, open_crate, buy_crate and record_gauntlet_clear', () => {
+    const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+    const flat = lf(schema);
+    const body = lf(aether).trim();
+    const at = flat.indexOf(body);
+    expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
+    // it is the LAST thing in the paste file: nothing follows it
+    expect(flat.slice(at).trimEnd()).toBe(body);
+    const tail = flat.slice(at);
+    for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
+      expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
+      // no later migration in schema.sql redefines it
+      expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThanOrEqual(at);
     }
   });
 });

@@ -3,7 +3,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
-  COSMETICS, COSMETIC_RARITIES, CRATE_ROLL_VERSION, catalogHash, catalogSyncPayload, eligibleCrateCosmetics, parseOpenCrateResult,
+  COSMETICS, COSMETIC_RARITIES, catalogHash, catalogSyncPayload, eligibleCrateCosmetics, parseOpenCrateResult,
   pickCrateReward, type CatalogSyncPayload,
 } from './cosmetics';
 
@@ -158,8 +158,8 @@ describe('open_crate under the fixed odds', () => {
     expect(first.status).toBe('opened');
     expect(crateIds).toContain(first.rewardId);
     const row = await one<{ roll_version: number; reward_cosmetic_id: string }>('select roll_version, reward_cosmetic_id from public.loot_crates where crate_id = $1', [c]);
-    expect(row).toEqual({ roll_version: CRATE_ROLL_VERSION, reward_cosmetic_id: first.rewardId });
-    expect(CRATE_ROLL_VERSION).toBe(4);
+    // The literal 4: this file runs the Ancient migration, whose open_crate stamps 4. CRATE_ROLL_VERSION is 5 now (the Aether file).
+    expect(row).toEqual({ roll_version: 4, reward_cosmetic_id: first.rewardId });
     const second = await open(u, c);
     expect(second).toMatchObject({ status: 'already_opened', rewardId: first.rewardId });
   });

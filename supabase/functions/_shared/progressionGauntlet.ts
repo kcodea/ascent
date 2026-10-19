@@ -8,7 +8,9 @@
  * `record_gauntlet_clear` (supabase/migrations/2026-09-29-gauntlet-progress.sql): ONE transaction under the same
  * per-user progression lock settlement and opening take, which records the clear and, on the FIRST clear of that
  * stage only, grants one sealed crate (`earned_level` null, `source = 'gauntlet:<n>'`). A replay answers
- * `already_cleared` with no crate.
+ * `already_cleared` with no crate. AETHER (2026-10-18, 2026-10-18-aether.sql): with the Aether switch on, a first
+ * clear pays `gauntletFirstClear` Aether (once per stage) INSTEAD of the crate, so the answer is `crate: null` with
+ * `aether > 0`; with it off the crate is granted as before and `aether` is 0.
  *
  * TRUST (owner 2026-09-29): the server does not re-simulate the run; it only checks the stage is an integer 1..10.
  * NOT SIGNED IN = no account progress and no crates: an anonymous (guest) session is refused with 403
@@ -27,8 +29,11 @@ export type GauntletClearStatus = 'first_clear' | 'already_cleared';
 
 export interface GauntletClearResult {
   status: GauntletClearStatus;
-  /** The crate a first clear granted; null on a replay. */
+  /** The crate a first clear granted; null on a replay, and null on every clear once Aether is on. */
   crate: CrateRow | null;
+  /** AETHER (2026-10-18): what a first clear paid with Aether on (200 by default, once per stage); 0 when none (a
+   *  replay, the switch off, or a pre-Aether server). */
+  aether: number;
 }
 
 export type GauntletClearValidation = { ok: true; stage: number } | { ok: false; status: number; error: string };
@@ -46,14 +51,20 @@ export const GAUNTLET_ERROR_STATUS: Readonly<Record<string, number>> = Object.fr
   bad_stage: 400,
 });
 
-/** Parse the SQL answer. Null for anything malformed (a first clear always carries its crate). */
+/**
+ * Parse the SQL answer. Null for anything malformed: a first clear always carries its crate (Aether off) or its
+ * Aether (Aether on, `crate: null`), and a crate it names must parse. A missing `aether` key reads as 0.
+ */
 export function parseGauntletClearResult(v: unknown): GauntletClearResult | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
-  if (o.status === 'already_cleared') return { status: 'already_cleared', crate: null };
+  const aether = o.aether === undefined ? 0 : typeof o.aether === 'number' && Number.isInteger(o.aether) && o.aether >= 0 ? o.aether : null;
+  if (aether === null) return null;
+  if (o.status === 'already_cleared') return { status: 'already_cleared', crate: null, aether: 0 };
   if (o.status !== 'first_clear') return null;
+  if (o.crate === null || o.crate === undefined) return aether > 0 ? { status: 'first_clear', crate: null, aether } : null;
   const crate = parseCrate(o.crate);
-  return crate ? { status: 'first_clear', crate } : null;
+  return crate ? { status: 'first_clear', crate, aether } : null;
 }
 
 /**
@@ -84,5 +95,7 @@ export async function handleGauntletClear(userId: string | null, anonymous: bool
     log('record_gauntlet_clear malformed', res.data);
     return { status: 500, body: { error: 'gauntlet_malformed' } };
   }
-  return { status: 200, body: { status: out.status, crate: out.crate } };
+  // `aether` rides along (2026-10-18): a first clear with Aether on answers `crate: null`, and a client that read that with
+  // no `aether` beside it would call the answer malformed (`parseGauntletClearResult`).
+  return { status: 200, body: { status: out.status, crate: out.crate, aether: out.aether } };
 }

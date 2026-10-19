@@ -2305,7 +2305,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.1', quote: 'Level 1 creates one Welcome Crate on progression enrollment.' },
       { kind: 'code', ref: 'settle_progression step 9b + section 14c backfill in supabase/migrations/2026-09-28-progression-crates.sql; cratesForSettlement in packages/progression/src/rules.ts; settlementParity in packages/progression/src/server.ts' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. Live once the owner runs the crates migration.',
+    currentBehaviour: 'Conforms, built 2026-09-28. Live once the owner runs the crates migration. Superseded by R-PROG-AETHER-04 once `aether_enabled` is on (2026-10-18); the Welcome Crate is kept.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/server.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
   {
@@ -6971,5 +6971,93 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'blur, the same as when that card is dragged over it. Right-click it: in Inspect the glass shows the dimmed '
       + 'board blurred, from the first frame.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-19' },
+  },
+  {
+    id: 'R-PROG-AETHER-01',
+    title: 'Aether is earned by playing, never bought: Ranked pays a base plus a placement bonus, Versus pays for the match, Gauntlet pays a first clear, Practice and Tutorial pay nothing',
+    statement:
+      'Aether is a currency an account earns only by playing; it is never sold for real money, and an account starts with 0. '
+      + 'A placed, accepted Ranked game pays 50 Aether win or lose, plus a bonus by final place: 1st 140, 2nd 80, 3rd 45, 4th 35, '
+      + '5th 25, 6th 15, 7th 10, 8th 0. A game with no valid placement pays 0. A completed Versus match pays 25, plus 45 more to '
+      + 'the winner (an abandoned match with no winner pays 25). Practice and Tutorial pay 0, and there is no comeback bonus. '
+      + 'The first clear of each Gauntlet stage pays 200, once per stage; stages cleared before Aether launched pay nothing. '
+      + 'Guests (anonymous accounts) earn and see Aether the same as anyone. Aether pays at most once for any one game or clear, '
+      + 'even if it is submitted again, and the amounts come from one server-held economy, not from the client.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'i want to make a currency instead that you are awarded from playing the game, and then you can buy crates of various types with that currency' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'i want a system in place where you are granted a certain amount of aether when you play a ranked match, no matter the outcome, but then depending on the outcome, you gain an additional amount.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'make first place a 140 bonus and second 80' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'yeah they can earn aether' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (aether_config, aether_apply, settle_progression, record_gauntlet_clear); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY, aetherForSettlement)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/aether.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PROG-AETHER-02',
+    title: 'The Crate Shop sells five crates with a rarity floor each; the odds inside a crate are the standard odds restricted to the floor and above, never below it',
+    statement:
+      'The shop sells five crates, each guaranteeing a minimum rarity: Standard (floor Common) 100 Aether, Rare (floor Rare) 200, '
+      + 'Epic (floor Epic) 400, Legendary (floor Legendary) 600, Ancient (floor Ancient) 900. A crate\x27s reward is drawn with the '
+      + 'standard rarity odds (35/31/22/9/3), but only the rarities at or above the floor stay in the draw and their odds are '
+      + 'renormalized to total 100%. If the drawn rarity has nothing left to give, the fallback moves to the nearest rarity that is '
+      + 'still at or above the floor; it never drops below it. A Standard crate with no focus rolls exactly as the old crates did. '
+      + 'The price shown is the price charged: a purchase names the price the player saw and is refused if the server\x27s price '
+      + 'differs, and a repeated purchase request is charged once. Guests earn Aether but cannot spend it: every spend path asks '
+      + 'them to sign in. Crates already earned and sealed before Aether launched still open as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'i want to go in a slightly different direction where you purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it into one or more of the various categories' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'Epic crates should be about 4x harder to obtain than a standard crate' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'lets do 6x and 9x for leg and ancient' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'can we make standard crates 100 aether instead?' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (progression_tiered_crate_pick, buy_crate, open_crate); packages/progression/src/crateShop.ts (CRATE_TIER_FLOOR, pickTieredCrateReward, tierOddsPercent); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.cratePrice)' },
+    ],
+    currentBehaviour: 'PARTIAL: the server accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests); the client gate (CrateSignInGate on every spend path) ships with the Crate Shop UI on feat/aether-shop-ui. Otherwise conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PROG-AETHER-03',
+    title: 'Focusing a crate costs a share of its price that falls as more categories are ticked; only categories still available count; all available is free; a sold-out focus cannot be bought',
+    statement:
+      'A crate can be focused on one or more cosmetic categories for an extra fee that is a percentage of the crate\x27s price, set by '
+      + 'how many categories are ticked: 1 category 100%, 2 60%, 3 40%, 4 25%, 5 15%, 6 10%, 7 5%, and 8 or more (but not every '
+      + 'available one) 5%. Ticking more categories never costs more, because more categories make the result less precise. Only '
+      + 'categories that still have something this player could receive from that crate (at or above its floor, not already owned) count '
+      + 'as available, both for the fee and for the choice; a category with nothing left cannot be ticked. Ticking every available '
+      + 'category is the same as no focus and costs nothing. A focus with nothing left to give (all ticked categories sold out) '
+      + 'cannot be bought. The fee is added to the crate price in one charge. A focus that is not a list of known categories is refused.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'focusing shouldnt be added cost per extra category, as adding more categories actually sort of removes your odds of getting precisely what you want' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'i want to go in a slightly different direction where you purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it into one or more of the various categories' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (aether_quote, progression_tiered_crate_pool, buy_crate); packages/progression/src/crateShop.ts (focusFeePercent, quoteCrate, availableFocusCategories, normalizeFocus); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.focusFeePercent)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PROG-AETHER-04',
+    title: 'Level 10, 20 and every 10th level grant a free Legendary crate in place of the per-level crates; backdated at launch; focusable at open for the Legendary fee',
+    statement:
+      'Once Aether is on, reaching an Account Level that is a multiple of 10 (10, 20, 30, and so on) grants one free sealed Legendary-floor '
+      + 'crate, and the other levels grant no crate. The Level 1 Welcome Crate is kept. When Aether launches, every multiple of 10 at or '
+      + 'below an account\x27s current level is granted at once (a Level 37 account receives three), once each. A milestone crate '
+      + 'opens unfocused for free, or the player may focus it when opening and pay the Legendary focus fee, the same fee table as '
+      + 'any Legendary crate. Crates earned and sealed before Aether launched stay and open exactly as they did. Aether is earned '
+      + 'only, never granted by levelling.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'leveling up should still grant rewards, but lets change it to levels 10, 20, and every 10th level from there you receive a legendary crate instead.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'this is all correct' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (settle_progression milestone crates, aether_rollout, open_crate focus-at-open); packages/progression/src/aether.ts (milestoneLevelsThrough)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
 ];

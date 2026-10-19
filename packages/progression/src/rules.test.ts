@@ -196,4 +196,23 @@ describe('facts + payload parsing', () => {
       .toEqual({ accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: 'alpha_tester', titles: ['alpha_tester'] });
     expect(parseProgressionProfile({ accountXp: 1 })).toBeNull();
   });
+  it('AETHER (2026-10-18): the result keeps `aether` + `aetherBalance` when present, null when absent; the profile keeps `aether`', () => {
+    const raw = {
+      runId: 'r1', mode: 'ranked', rulesVersion: 1, placement: 1, comeback: false,
+      xp: { base: 100, topFour: 60, firstPlace: 90, comeback: 0, total: 250 },
+      before: { lifetimeXp: 0, level: 1 }, after: { lifetimeXp: 250, level: 2 }, revisionAfter: 1, settledAt: null,
+    };
+    // a pre-Aether server, or Aether off: no breakdown, no balance
+    expect(parseProgressionResult(raw)).toMatchObject({ aether: null, aetherBalance: null });
+    expect(parseProgressionResult({ ...raw, aether: null, aetherBalance: null })).toMatchObject({ aether: null, aetherBalance: null });
+    expect(parseProgressionResult({ ...raw, aether: { base: 50, placement: 140, total: 190 }, aetherBalance: 640 }))
+      .toMatchObject({ aether: { base: 50, placement: 140, total: 190 }, aetherBalance: 640 });
+    // a malformed breakdown is dropped, never half-trusted (the rest of the result still parses)
+    expect(parseProgressionResult({ ...raw, aether: { base: 50, total: 190 }, aetherBalance: -1 })).toMatchObject({ aether: null, aetherBalance: null });
+    expect(parseProgressionResult({ ...raw, aether: { base: -5, placement: 0, total: -5 } })!.aether).toBeNull();
+    const prof = { accountXp: 325, accountLevel: 2, revision: 3, equippedTitleId: null, titles: [] };
+    expect(parseProgressionProfile({ ...prof, aether: 190 })).toEqual({ ...prof, aether: 190 });
+    expect(parseProgressionProfile(prof)).not.toHaveProperty('aether');
+    expect(parseProgressionProfile({ ...prof, aether: -3 })).not.toHaveProperty('aether');
+  });
 });

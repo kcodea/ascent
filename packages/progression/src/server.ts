@@ -25,6 +25,7 @@ import {
   type ProgressionMode, type ProgressionRunFacts,
 } from './rules';
 import { achievementCatalogHash, achievementCatalogPayload, achievementOf, achievementXpOf } from './achievements';
+import { milestoneLevelsThrough } from './aether';
 
 /** A validated request, ready for `settle_progression`. */
 export interface SettleRequest {
@@ -155,10 +156,22 @@ export function settlementParity(result: NonNullable<ReturnType<typeof parseProg
   // Hero titles (2026-09-29) are achievement rewards: a title an achievement completed by THIS settlement grants.
   const owned = new Set([...titlesForLevel(result.after.level), ...result.achievements.map((id) => achievementOf(id)?.rewards.titleId ?? null).filter((t): t is string => !!t)]);
   if (!result.unlockedTitles.every((t) => owned.has(t))) return false;
-  // Crates: one per level gained, plus the Welcome Crate when this settlement enrolled the account.
+  // Crates. AETHER OFF: one per level gained, plus the Welcome Crate when this settlement enrolled the account.
   const gained = result.after.level - result.before.level;
   if (result.crateIds.length !== result.cratesAwarded) return false;
-  if (result.cratesAwarded < gained || result.cratesAwarded > gained + 1) return false;
+  if (result.aether === null) {
+    if (result.cratesAwarded < gained || result.cratesAwarded > gained + 1) return false;
+  } else {
+    // AETHER ON (2026-10-18): no crate per level. A settlement grants the Welcome Crate (when it enrolled the account)
+    // and the milestone crates (every 10th level), so it can never award more than the milestones through the level
+    // reached plus one. A cap only: a floor would be wrong (an account that already holds its milestones gets none), and
+    // the amounts are NOT compared with `DEFAULT_AETHER_ECONOMY` because the live `aether_config` may be retuned; the
+    // breakdown only has to add up, and Practice / Tutorial never pay.
+    const { base, placement, total } = result.aether;
+    if (total !== base + placement) return false;
+    if ((result.mode === 'practice' || result.mode === 'tutorial') && total !== 0) return false;
+    if (result.cratesAwarded > milestoneLevelsThrough(result.after.level).length + 1) return false;
+  }
   return titlesUnlockedBetween(result.before.level, result.after.level).every((t) => result.unlockedTitles.includes(t));
 }
 

@@ -32,6 +32,10 @@
 .colls-lvbadge span { display: block; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
 .colls-level-body { display: grid; gap: 5px; }
 .colls-level-xp { font-weight: 800; font-size: 12px; color: var(--colls-dim); font-variant-numeric: tabular-nums; }
+/* The Aether wallet (2026-10-18; shown only while Aether is on): the balance as one chip in the meter row. Static. */
+.colls-wallet { min-width: 0; }
+.colls-wallet .colls-meter-num { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.colls-wallet-gem { color: var(--ui-title); font-size: 20px; text-shadow: 0 0 10px color-mix(in srgb, var(--ui-title) 45%, transparent); }
 
 /* ── Body: main (tabs, filters, album) | side (crate bay, detail) ───────────────────────────────────────── */
 .colls-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 460px; gap: 24px; padding: 4px 30px 26px; }
@@ -399,13 +403,14 @@
    `.colls-page button`. Static paint only: the one transition is a short transform on hover / press. No cursor rules
    (every control is a <button>, which the global rule gives the gauntlet). */
 .colls-shop { flex: none; gap: 12px; }
+.colls-shop-headrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .colls-shop-head { font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--colls-ink); }
 .colls-shop-step { display: flex; flex-direction: column; gap: 8px; }
 .colls-shop-lbl { font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 14px; color: var(--colls-dim); }
 .colls-shop-opt { font-weight: 600; opacity: 0.8; }
 .colls-shop-tiers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
 .colls-shop-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy) {
+.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy, .colls-shop-back) {
   border: 2px solid transparent; border-radius: 7px;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
@@ -413,12 +418,14 @@
   font-family: var(--font-body), sans-serif; font-weight: 700; letter-spacing: normal; text-transform: none;
   transition: transform 0.1s ease;
 }
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):hover:not(:disabled) {
+.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy, .colls-shop-back):hover:not(:disabled) {
+  /* #fff IS the Gem plate's hover ink: `.rc-btn`, `.hsback` and `.cv2-btn` / `.crate-btn` all hover to it (styles.css); the
+     theme has no hover-text token to use instead. */
   color: #fff; transform: translateY(-1px);
   background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
 }
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy, .colls-shop-back):active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
+.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy, .colls-shop-back):focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
 /* Pressed (the picked tier, a ticked chip): the lit plate with the gold ring, gold letters. */
 .colls-shop :is(.colls-shop-tier, .colls-shop-chip).on, .colls-shop :is(.colls-shop-tier, .colls-shop-chip).on:hover:not(:disabled) {
   color: var(--ui-title);
@@ -432,6 +439,9 @@
 .colls-shop .colls-shop-chip { min-height: 44px; padding: 6px 14px; border-radius: 999px; font-size: 14px; }
 /* Sold out: the chip stays in its place (the row never reflows), dimmed and inert. */
 .colls-shop .colls-shop-chip:disabled { opacity: 0.4; }
+/* Back to the crate bay (milestone mode): a small plate in the head row, held (dimmed) while a purchase runs. */
+.colls-shop .colls-shop-back { min-height: 36px; padding: 4px 16px; font-size: 14px; }
+.colls-shop .colls-shop-back:disabled { opacity: 0.5; }
 .colls-shop-quote { display: grid; gap: 4px; }
 .colls-shop-name { font-family: var(--font-body), sans-serif; font-weight: 800; font-size: 17px; color: var(--colls-ink); }
 .colls-shop-odds, .colls-shop-left { font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 13px; color: var(--colls-dim); font-variant-numeric: tabular-nums; }
@@ -441,4 +451,4 @@
 .colls-shop .colls-shop-buy:disabled { opacity: 0.6; }
 /* "Buying…": held pressed while the purchase runs (static; no bevel lift, no drop shadow). */
 .colls-shop .colls-shop-buy.pressed { opacity: 1; transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring); }
-@media (prefers-reduced-motion: reduce) { .colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):is(:hover, :active) { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy, .colls-shop-back):is(:hover, :active) { transform: none; } }

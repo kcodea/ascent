@@ -1,14 +1,18 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, EMOTE_SLOT_COUNT, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine, isMasterTitle, levelProgress, withStarterCosmetics,
-  type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
+  COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, EMOTE_SLOT_COUNT, RARITY_LABELS, cosmeticOf, crateLabel, crateOddsLine, isMasterTitle, levelProgress,
+  milestoneLevelOfSource, tierOddsPercent, withStarterCosmetics,
+  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type CrateRow,
 } from '@game/progression';
 import { tempHandle, useGame } from '../store';
 import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
-import { cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression } from './progressionStore';
+import {
+  aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
+} from './progressionStore';
+import { CrateShop, type CrateShopMode } from './CrateShop';
 import {
   COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, hasSeenBaseline,
   isEquipped, isNew, loadSeen, masteryText, missingHint, ownedIds, rarityCounts, skinTargetName, type RarityFilter, type ShowFilter,
@@ -72,8 +76,20 @@ import { touchText } from '../touchInput';
  *               unowned one only as the blurred ring ("do not allow preview if you do not own the art"). Equip wears
  *               it account-wide; "Use default frame" puts the default ring back and previews it at once.
  *
+ *   AETHER      (2026-10-18, spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md: "An Aether balance is
+ *               always visible"; "Milestone crates offer the focus step at open") Only while `aetherVisible`; with it off
+ *               the page renders exactly as before. The header carries the wallet chip; the Crate Shop (`CrateShop.tsx`)
+ *               is its own panel under the bay, and a purchase plays straight in the theatre with the answer it already
+ *               has. The bay's Open on a sealed MILESTONE crate swaps the bay for that crate's focus step (the shop in
+ *               milestone mode, with Back) instead of starting the theatre; Open all, and the New rewards pop-up's Open,
+ *               still open everything unfocused through `begin`. With level crates retired, the bay names the next
+ *               milestone level, and its odds are the first sealed crate's (its rarity floor's).
+ *               While a purchase runs (`shopBusy`) nothing here can start a second theatre or take the shop's panel
+ *               away: the focus step's Back and Open, the bay's Open and Open all, and `begin` hold until it answers.
+ *
  * A guest sees a slim save-progress row, and (owner 2026-09-29, a HARD gate) cannot open a crate: every Open goes
- * through `begin`, which shows the sign-in gate (`CrateSignInGate.tsx`) instead. Sealed crates stay in view.
+ * through `begin`, which shows the sign-in gate (`CrateSignInGate.tsx`) instead. Sealed crates stay in view. A guest
+ * sees their Aether too, and every spend in the shop shows the same gate (R-PROG-AETHER-02).
  * Sizes are layout px (the stage scales the page on a small screen); no native tooltips; buttons take the global gauntlet cursor. Tiles are memoized with primitive props; the only
  * loops are the crate's float (transform) and two glows that breathe by OPACITY over a static paint.
  */
@@ -84,11 +100,27 @@ export function CollectionScreen(): JSX.Element | null {
 }
 
 const EMPTY: readonly string[] = [];
+const SHOP_MODE: CrateShopMode = { kind: 'shop' };
+
+/** A sealed crate's rarity floor: its own (shop, milestone), else a milestone's Legendary, else Common (a level or
+ *  Gauntlet crate rolls every rarity at the published odds). */
+const floorOf = (c: CrateRow): CosmeticRarity => c.floor ?? (milestoneLevelOfSource(c.source) !== null ? 'legendary' : 'common');
+
+/** The odds a floor shows in the bay, in the bay's own format ("Common 35%, Rare 31%, ..."): only what it can drop. */
+function floorOddsLine(floor: CosmeticRarity): string {
+  const odds = tierOddsPercent(floor);
+  return COSMETIC_RARITIES.filter((r) => odds[r] > 0).map((r) => `${RARITY_LABELS[r]} ${odds[r]}%`).join(', ');
+}
+
+type OpenFn = (crateId: string) => Promise<CrateOpenOutcome>;
 
 export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): JSX.Element {
   const mirror = useProgression((s) => s.mirror);
   const crateList = useProgression((s) => s.crateList);
   const cratesOn = useProgression(cratesVisible);
+  const aetherOn = useProgression(aetherVisible);
+  const balance = useProgression(aetherBalance);
+  const milestoneEvery = useProgression((s) => s.economy.milestoneEvery);
   const anonymous = useGame((s) => s.account.anonymous);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
   const userId = useGame((s) => s.account.userId);
@@ -126,21 +158,39 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [theatre, setTheatre] = useState<{ queue: CrateQueueItem[]; openAll: boolean } | null>(null);
+  /** The crate theatre. `open` (Aether): where it asks for the reward; a shop purchase passes the answer it already has. */
+  const [theatre, setTheatre] = useState<{ queue: CrateQueueItem[]; openAll: boolean; open?: OpenFn } | null>(null);
   const [gate, setGate] = useState(false);
+  /** The milestone crate whose focus step stands in the bay's place (Aether). */
+  const [focusCrate, setFocusCrate] = useState<CrateRow | null>(null);
+  /** A Crate Shop purchase is in flight. */
+  const [shopBusy, setShopBusy] = useState(false);
   /** The skin whose target was just put back in its default art: its preview shows that default (owner 2026-09-30). */
   const [defaultShown, setDefaultShown] = useState<string | null>(null);
   /** The card-skin preview under the pointer: the card, the art to wear (undefined = default), and the anchor
    *  rect, read ONCE on pointer enter (stage px). */
   const [hover, setHover] = useState<{ cardId: string; art: string | undefined; rect: StageRect; plate?: CardPlateLook | null } | null>(null);
   const closeGate = useCallback(() => setGate(false), []);
+  const openGate = useCallback(() => setGate(true), []);
+  const closeFocus = useCallback(() => setFocusCrate(null), []);
+  /** A shop purchase, already bought and opened: the theatre plays it. */
+  const playBought = useCallback((item: CrateQueueItem, open: OpenFn) => { setTheatre({ queue: [item], openAll: false, open }); }, []);
+  /** A milestone crate's Open: the focus step leaves IN THE SAME UPDATE the theatre starts, so a second click has nothing
+   *  to land on (CrateShop's own once-guard covers a second click in the same frame). */
+  const playMilestone = useCallback((item: CrateQueueItem, open: OpenFn) => { setFocusCrate(null); setTheatre({ queue: [item], openAll: false, open }); }, []);
 
   useEffect(() => { void refreshCrates(); }, []);
 
+  const sealedRows: CrateRow[] = useMemo(() => (crateList ?? []).filter((c) => c.state === 'sealed'), [crateList]);
   const sealed: CrateQueueItem[] = useMemo(
-    () => (crateList ?? []).filter((c) => c.state === 'sealed').map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
-    [crateList],
+    () => sealedRows.map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
+    [sealedRows],
   );
+  // The focus step shows only while its crate is still sealed here (opened elsewhere, or a re-read, and it steps aside).
+  const focusShown = aetherOn && focusCrate && sealedRows.some((c) => c.crateId === focusCrate.crateId) ? focusCrate : null;
+  const firstFloor = sealedRows[0] ? floorOf(sealedRows[0]) : null;
+  // Aether: the first sealed crate's odds; none sealed, the next crate is a milestone Legendary. Off: today's line.
+  const oddsLine = useMemo(() => (aetherOn ? floorOddsLine(firstFloor ?? 'legendary') : crateOddsLine()), [aetherOn, firstFloor]);
 
   const sealedIds = useMemo(() => (crateList ? new Set(sealed.map((c) => c.crateId)) : null), [crateList, sealed]);
   // The Titles album shows each hero title once (its golden master once owned), so both lists read ownership.
@@ -236,10 +286,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
    *  gets the sign-in gate instead (owner 2026-09-29); `anonymous` is read fresh each render, so the first Open
    *  after the account is created goes straight through. */
   const begin = (openAll: boolean): void => {
-    if (!sealed.length) return;
+    if (!sealed.length || shopBusy) return; // a purchase in flight owns the theatre next
     sfx.pulse();
     if (anonymous) { setGate(true); return; }
     setTheatre({ queue: [...sealed], openAll });
+  };
+
+  /** The bay's Open. With Aether on, a sealed MILESTONE crate first shows its focus step in the bay's place; anything
+   *  else (and every guest, who gets the gate) goes through `begin` as before. */
+  const openBay = (): void => {
+    const first = sealedRows[0];
+    if (aetherOn && !anonymous && !shopBusy && first && milestoneLevelOfSource(first.source) !== null) { sfx.pulse(); setFocusCrate(first); return; }
+    begin(false);
   };
 
   const pickCategory = (c: CosmeticCategory): void => {
@@ -247,6 +305,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     setSeenFor((prev) => ({ ...prev, ...readSeen() })); // the tab you are leaving has been seen
   };
   const lp = levelProgress(me?.accountXp ?? 0);
+  // Aether retires the per-level crate: the next one comes at the next milestone level (every `milestoneEvery`th).
+  const nextCrateLevel = aetherOn ? (Math.floor(lp.level / milestoneEvery) + 1) * milestoneEvery : lp.level + 1;
   const name = playerName || tempHandle(userId);
   const live = categoryLive(category);
   /** NEW: owned, not seen yet (on this device or, per the account, on any other), and not the item you are wearing. */
@@ -280,6 +340,11 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
             <div className="colls-meter-lbl">Collected</div>
             <div className="colls-bar" aria-hidden><div className="colls-bar-fill" style={{ transform: `scaleX(${total.total ? total.owned / total.total : 0})` }} /></div>
           </div>
+          {aetherOn && (
+            <div className="colls-meter colls-wallet" role="group" aria-label="Aether balance">
+              <div className="colls-meter-num"><span className="colls-wallet-gem" aria-hidden>◆</span> <b>{balance}</b> Aether</div>
+            </div>
+          )}
           {me && (
             <div className="colls-meter colls-level" role="group" aria-label={`Account Level ${lp.level}`}>
               <span className="colls-lvbadge" aria-hidden><span>Lv</span>{lp.level}</span>
@@ -367,10 +432,18 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         </main>
 
         <aside className="colls-side">
-          <CrateBay
-            cratesOn={cratesOn} loading={crateList === null} sealed={sealed} nextLevel={lp.level + 1} guest={anonymous}
-            onOpen={() => begin(false)} onOpenAll={() => begin(true)}
-          />
+          {focusShown ? (
+            <CrateShop
+              key={focusShown.crateId} mode={{ kind: 'milestone', crate: focusShown }} guest={anonymous} onGuest={openGate} onOpen={playMilestone}
+              onBack={closeFocus} held={shopBusy}
+            />
+          ) : (
+            <CrateBay
+              cratesOn={cratesOn} loading={crateList === null} sealed={sealed} nextLevel={nextCrateLevel} guest={anonymous} oddsLine={oddsLine} busy={shopBusy}
+              onOpen={openBay} onOpenAll={() => begin(true)}
+            />
+          )}
+          {aetherOn && <CrateShop mode={SHOP_MODE} guest={anonymous} onGuest={openGate} onOpen={playBought} onBusy={setShopBusy} />}
           {live && selected && (
             <DetailPanel
               item={selected} owned={owned.has(selected.id)} equipped={worn(selected)} busy={busy} error={error} playerName={name}
@@ -404,6 +477,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           queue={theatre.queue}
           autoOpen
           openAll={theatre.openAll}
+          open={theatre.open}
           reducedMotion={reducedMotion}
           onClose={() => { setTheatre(null); void refreshCrates(); }}
         />
@@ -659,8 +733,13 @@ const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null
 
 // ── The crate bay (always in view) ─────────────────────────────────────────────────────────────────────────
 
-function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, onOpen, onOpenAll }: {
-  cratesOn: boolean; loading: boolean; sealed: CrateQueueItem[]; nextLevel: number; guest: boolean; onOpen: () => void; onOpenAll: () => void;
+function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, oddsLine, busy, onOpen, onOpenAll }: {
+  cratesOn: boolean; loading: boolean; sealed: CrateQueueItem[]; nextLevel: number; guest: boolean;
+  /** The odds line's body (`crateOddsLine()` with Aether off; the first sealed crate's floor odds with it on). */
+  oddsLine: string;
+  /** A Crate Shop purchase is in flight: hold Open / Open all (a second theatre would replace the reveal). */
+  busy: boolean;
+  onOpen: () => void; onOpenAll: () => void;
 }): JSX.Element {
   const n = sealed.length;
   const ready = cratesOn && !loading && n > 0;
@@ -684,13 +763,13 @@ function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, onOpen, onOpenA
             <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel(sealed[0]!)}</div>
             {guest && <div className="colls-bay-guest">Create a free account to open them.</div>}
             <div className="colls-bay-actions">
-              <button type="button" className="cv2-btn pressable colls-open" onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>
-              {n > 1 && <button type="button" className="colls-quiet pressable quiet" onClick={onOpenAll}>Open all ({n})</button>}
+              <button type="button" className="cv2-btn pressable colls-open" disabled={busy} onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>
+              {n > 1 && <button type="button" className="colls-quiet pressable quiet" disabled={busy} onClick={onOpenAll}>Open all ({n})</button>}
             </div>
           </>
         )}
         {/* The published odds (owner 2026-09-29: fixed rarity odds, safe to show players). */}
-        {cratesOn && <div className="colls-bay-odds">Crate odds: {crateOddsLine()}</div>}
+        {cratesOn && <div className="colls-bay-odds">Crate odds: {oddsLine}</div>}
       </div>
     </section>
   );

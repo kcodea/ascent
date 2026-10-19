@@ -336,6 +336,15 @@ export async function refreshEconomy(): Promise<void> {
   if (economy) useProgression.setState({ economy });
 }
 
+/** Re-read this account's own profile (it carries the Aether balance) and adopt it: a Gauntlet clear pays Aether
+ *  without answering a profile. Never throws; an unanswerable read, or an account switch meanwhile, changes nothing. */
+export async function refreshOwnProfile(): Promise<void> {
+  const userId = currentUserId();
+  if (!userId) return;
+  const profile = await fetchOwnProgression().catch(() => undefined);
+  if (profile && currentUserId() === userId) adoptProgressionProfile(userId, profile);
+}
+
 /** Re-read this account's crates. Never throws; an unanswerable read keeps the list as it was. */
 export async function refreshCrates(): Promise<void> {
   if (!currentUserId()) return;

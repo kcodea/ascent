@@ -10,6 +10,8 @@
  * A clear's reward line (`GauntletClearReward`, the default `reward`) never promises a crate the server has not
  * granted: signed in, it shows the crate once `gauntletReward` names THIS stage (that slice is not run-scoped), else
  * "Saving your clear…" while `gauntletSaving` is this stage ("Clear saved…" once the server was unreachable), else nothing (a replay). Signed out it invites a sign-in.
+ * AETHER (2026-10-18): with Aether on a first clear pays Aether instead of a crate (200 by default, once per stage), so
+ * the slot shows "+N Aether", and the sign-in and deferred-save lines promise Aether rather than a crate.
  */
 import type { ReactNode } from 'react';
 import { GAUNTLET_ROUNDS, gauntletStage } from '@game/content';
@@ -17,6 +19,7 @@ import { gauntletOutcome, type RunState } from '@game/sim';
 import { Card } from '../Card';
 import { liveBoardView } from '../instView';
 import '../progression/collection.css';
+import { aetherVisible, useProgression } from '../progression/progressionStore';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { GAUNTLET_STAGE_COUNT, gauntletAccountMode, isStagePlayable, isStageUnlocked } from './gauntletProgress';
@@ -43,16 +46,27 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
   const firstClear = useGame((s) => s.gauntletResult?.firstClear === true);
   const openCollection = useGame((s) => s.openCollection);
   const openAccountPanel = useGame((s) => s.openAccountPanel);
+  const aetherOn = useProgression(aetherVisible);
   useGame((s) => `${s.account.userId ?? ''}:${s.account.anonymous}`); // re-render on sign-in / sign-out
   if (gauntletAccountMode() === 'local') {
     return (
       <div className="gauntletend-reward gauntletend-crate signin">
-        <span className="gauntletend-crate-note">Sign in to earn crates from Gauntlet clears.</span>
+        <span className="gauntletend-crate-note">{aetherOn ? 'Sign in to earn Aether from Gauntlet clears.' : 'Sign in to earn crates from Gauntlet clears.'}</span>
         <button type="button" className="gauntletend-crate-btn crate-btn pressable" onClick={() => { sfx.pulse(); openAccountPanel(); }}>Sign in</button>
       </div>
     );
   }
-  if (reward?.stage === stage && firstClear) { // a late answer from an earlier run of this stage is not THIS clear's crate
+  if (reward?.stage === stage && firstClear && reward.aether) { // Aether in the crate's slot (a crate answer has none)
+    return (
+      <div className="gauntletend-reward gauntletend-crate earned aether" role="status">
+        <span className="gauntletend-aether-gem" aria-hidden>◆</span>
+        <div className="gauntletend-crate-body">
+          <span className="gauntletend-crate-head">+{reward.aether} Aether</span>
+        </div>
+      </div>
+    );
+  }
+  if (reward?.stage === stage && firstClear && reward.crateId) { // a late answer from an earlier run of this stage is not THIS clear's crate
     return (
       <div className="gauntletend-reward gauntletend-crate earned">
         <span className="colls-crate" aria-hidden />
@@ -63,7 +77,7 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
       </div>
     );
   }
-  if (saving === stage && deferred === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Clear saved. Your crate arrives when you're back online.</div>;
+  if (saving === stage && deferred === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Clear saved. Your {aetherOn ? 'Aether arrives' : 'crate arrives'} when you're back online.</div>;
   if (saving === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Saving your clear…</div>;
   return null;
 }

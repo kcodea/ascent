@@ -16,7 +16,7 @@
 import { gauntletStage } from '@game/content';
 import { currentIdentity } from '../identity';
 import { queueNewCrate } from '../progression/newRewards';
-import { refreshCrates } from '../progression/progressionStore';
+import { refreshCrates, refreshOwnProfile } from '../progression/progressionStore';
 import { enqueueGauntletClear, flushGauntletClears, pendingGauntletClears, type PendingGauntletClear } from './gauntletClearQueue';
 import { fetchGauntletProgress, type GauntletSubmitOutcome } from './gauntletRemote';
 
@@ -107,21 +107,29 @@ export async function refreshGauntletAccount(): Promise<void> {
   if (Array.isArray(stages) && accountUserId() === userId) writeStages(ACCOUNT_KEY_PREFIX + userId, stages);
 }
 
-/** What a confirmed FIRST clear hands the store: the crate it granted, for the win screen. */
-export interface GauntletReward { stage: number; crateId: string }
+/**
+ * What a confirmed FIRST clear hands the store, for the win screen: the crate it granted, or (Aether on, 2026-10-18)
+ * the Aether it paid instead (`crateId` null). `aether` is present only when the clear paid some, so a crate answer
+ * keeps its exact pre-Aether shape.
+ */
+export interface GauntletReward { stage: number; crateId: string | null; aether?: number }
 
 /**
  * One clear's server answer. A first clear with a crate queues that crate in New Rewards (idempotent: an answer
- * seen twice queues it once), re-reads the crate list and reports the reward; a replay grants nothing. Any
- * definite answer then re-reads the account's stages.
+ * seen twice queues it once), re-reads the crate list and reports the reward; a first clear that paid Aether reports
+ * the amount and re-reads the profile (the wallet chip's balance). A replay grants nothing. Any definite answer then
+ * re-reads the account's stages.
  */
 export function settleGauntletClear(item: PendingGauntletClear, outcome: GauntletSubmitOutcome, onReward: (r: GauntletReward) => void): Promise<void> {
   if (outcome.status === 'retryable') return Promise.resolve();
-  if (outcome.status === 'confirmed' && outcome.result.status === 'first_clear' && outcome.result.crate) {
-    const crate = outcome.result.crate;
-    queueNewCrate(item.userId, crate);
-    void refreshCrates();
-    onReward({ stage: item.stage, crateId: crate.crateId });
+  if (outcome.status === 'confirmed' && outcome.result.status === 'first_clear') {
+    const { crate, aether } = outcome.result;
+    if (crate) {
+      queueNewCrate(item.userId, crate);
+      void refreshCrates();
+    }
+    if (aether > 0) void refreshOwnProfile();
+    if (crate || aether > 0) onReward({ stage: item.stage, crateId: crate?.crateId ?? null, ...(aether > 0 ? { aether } : {}) });
   }
   return refreshGauntletAccount();
 }

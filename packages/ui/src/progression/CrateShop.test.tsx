@@ -15,7 +15,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import type { BuyCrateResult, CosmeticCategory, CrateRow, CrateTier, ProgressionProfile } from '@game/progression';
+import { eligibleForCrate, type BuyCrateResult, type CosmeticCategory, type CrateRow, type CrateTier, type ProgressionProfile } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { BuyCrateOutcome, CrateOpenOutcome } from './progressionStore';
 
@@ -26,7 +26,8 @@ vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../ident
 vi.mock('./progressionStore', async (orig) => ({
   ...(await orig<typeof import('./progressionStore')>()),
   buyCrate: (tier: CrateTier, focus: CosmeticCategory[] | null, total: number) => buyCrate(tier, focus, total),
-  openCrate: (id: string, focus?: CosmeticCategory[] | null, fee?: number) => openCrate(id, focus, fee),
+  // Forwards exactly the arguments it got, so a test can pin that an unfocused open passes the id ALONE.
+  openCrate: (...args: [string, (CosmeticCategory[] | null)?, number?]) => openCrate(...args),
   refreshEconomy: () => refreshEconomy(),
 }));
 
@@ -53,10 +54,12 @@ const milestoneCrate: CrateRow = { crateId: 'c-m10', earnedLevel: null, state: '
 
 const onGuest = vi.fn();
 const onOpen = vi.fn();
+const onBusy = vi.fn();
 function render(mode: CrateShopMode = { kind: 'shop' }, guest = false): void {
   onGuest.mockReset();
   onOpen.mockReset();
-  ui = mount(<CrateShop mode={mode} guest={guest} onGuest={onGuest} onOpen={onOpen} />);
+  onBusy.mockReset();
+  ui = mount(<CrateShop mode={mode} guest={guest} onGuest={onGuest} onOpen={onOpen} onBusy={onBusy} />);
 }
 
 const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
@@ -133,6 +136,57 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  it('a guest with no Aether still reaches the sign-in gate: Buy stays enabled at the price (ruling 2026-10-19)', async () => {
+    seed(0);
+    render({ kind: 'shop' }, true);
+    click(tier('Epic'));
+    expect(buyBtn().disabled).toBe(false);
+    expect(norm(buyBtn().textContent)).toBe('◆ 400');
+    click(buyBtn());
+    await settle();
+    expect(onGuest).toHaveBeenCalledTimes(1);
+    expect(buyCrate).not.toHaveBeenCalled();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('two clicks inside ONE act buy once (the busy ref, not the re-render, stops the second)', async () => {
+    seed(2000);
+    buyCrate.mockImplementationOnce(() => new Promise<BuyCrateOutcome>(() => {}));
+    render();
+    const b = buyBtn();
+    act(() => { b.click(); b.click(); });
+    expect(buyCrate).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a purchase in flight through onBusy, and clears it after', async () => {
+    seed(2000);
+    let answer!: (o: BuyCrateOutcome) => void;
+    buyCrate.mockImplementationOnce(() => new Promise<BuyCrateOutcome>((r) => { answer = r; }));
+    render();
+    click(buyBtn());
+    expect(onBusy.mock.calls).toEqual([[true]]);
+    await act(async () => { answer({ status: 'error', reason: 'price_changed' }); await Promise.resolve(); });
+    await settle();
+    expect(onBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('a purchase that succeeds after the shop unmounted still hands the theatre its crate (a charged player always gets the reveal)', async () => {
+    seed(2000);
+    let answer!: (o: BuyCrateOutcome) => void;
+    buyCrate.mockImplementationOnce(() => new Promise<BuyCrateOutcome>((r) => { answer = r; }));
+    render();
+    click(tier('Epic'));
+    click(buyBtn());
+    ui!.unmount();
+    ui = null;
+    const result = bought('c-late');
+    await act(async () => { answer({ status: 'ok', result }); await Promise.resolve(); });
+    await settle();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect((onOpen.mock.calls[0]![0] as { crateId: string }).crateId).toBe('c-late');
+    expect(onBusy.mock.calls).toEqual([[true], [false]]);
+  });
+
   it('buy then open', async () => {
     seed(2000);
     let answer!: (o: BuyCrateOutcome) => void;
@@ -175,6 +229,57 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(openCrate).not.toHaveBeenCalled(); // the theatre asks when it plays
     void open('c-m10');
     expect(openCrate).toHaveBeenCalledWith('c-m10', ['card_plate'], 600);
+  });
+
+  it('milestone mode: an unfocused Open asks the server with the crate id ALONE (no focus, no fee)', async () => {
+    seed(2000);
+    render({ kind: 'milestone', crate: milestoneCrate });
+    click(buyBtn());
+    await settle();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    const open = onOpen.mock.calls[0]![1] as (id: string) => Promise<CrateOpenOutcome>;
+    void open('c-m10');
+    expect(openCrate.mock.calls).toHaveLength(1);
+    expect(openCrate.mock.calls[0]).toStrictEqual(['c-m10']);
+  });
+
+  it('milestone mode: two clicks inside ONE act hand the theatre the crate once', async () => {
+    seed(2000);
+    render({ kind: 'milestone', crate: milestoneCrate });
+    const b = buyBtn();
+    act(() => { b.click(); b.click(); });
+    await settle();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect(openCrate).not.toHaveBeenCalled();
+  });
+
+  it('milestone mode: nothing left at Legendary reads Sold out and is disabled', async () => {
+    useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null } });
+    const all = eligibleForCrate([], 'legendary', null).map((c) => c.id);
+    useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: 'on', mirror: { userId: 'u-1', ...profile(2000, { cosmetics: all }) } });
+    render({ kind: 'milestone', crate: milestoneCrate });
+    expect(norm(buyBtn().textContent)).toBe('Sold out');
+    expect(buyBtn().disabled).toBe(true);
+    click(buyBtn());
+    await settle();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('milestone mode: Back is offered when the caller passes one; Back and Open are held while the caller says so', () => {
+    seed(2000);
+    const onBack = vi.fn();
+    ui = mount(<CrateShop mode={{ kind: 'milestone', crate: milestoneCrate }} guest={false} onGuest={onGuest} onOpen={onOpen} onBack={onBack} held />);
+    const back = [...document.querySelectorAll<HTMLButtonElement>('.colls-shop button')].find((x) => norm(x.textContent) === 'Back')!;
+    expect(back.disabled).toBe(true);
+    click(back);
+    expect(onBack).not.toHaveBeenCalled();
+    expect(buyBtn().disabled).toBe(true);
+    click(buyBtn());
+    expect(onOpen).not.toHaveBeenCalled();
+    ui.render(<CrateShop mode={{ kind: 'milestone', crate: milestoneCrate }} guest={false} onGuest={onGuest} onOpen={onOpen} onBack={onBack} held={false} />);
+    click([...document.querySelectorAll<HTMLButtonElement>('.colls-shop button')].find((x) => norm(x.textContent) === 'Back')!);
+    expect(onBack).toHaveBeenCalledTimes(1);
+    noDashes();
   });
 
   it('milestone mode: a guest cannot open it, focused or not', async () => {

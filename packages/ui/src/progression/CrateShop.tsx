@@ -21,7 +21,14 @@
  *
  * GUESTS (owner 2026-10-18, R-PROG-AETHER-02): a guest earns and sees Aether but never spends it. Every spend click
  * (Buy, and a milestone crate's Open, focused or not) calls `onGuest` (the caller shows `CrateSignInGate`) and never
- * reaches the store. The server does not tell guests apart, so this gate IS the rule's client half.
+ * reaches the store. The server does not tell guests apart, so this gate IS the rule's client half. A guest's Buy stays
+ * ENABLED at the price whatever the balance (ruling 2026-10-19): "Need N more Aether" would tell a guest to go earn
+ * Aether they still could not spend, when what they need is an account. Only a sold-out crate disables it.
+ *
+ * ONCE PER CLICK: a fast double click never buys twice (the busy ref, set before the first await) and never hands the
+ * theatre a milestone crate twice (the handed ref; the caller also swaps this panel out in the same update). While a
+ * purchase runs, `onBusy` tells the caller so it can hold every control that would unmount this panel or start a
+ * second theatre over the reveal.
  *
  * TRUST: every number here is a QUOTE for display. The server prices, charges and rolls; the client only names the tier,
  * the focus and the total it showed (a moved price answers `price_changed`, which the store follows with a re-read).
@@ -52,6 +59,13 @@ export interface CrateShopProps {
   onGuest: () => void;
   /** Hand the theatre a one-crate queue whose `open` resolves to the server's answer. */
   onOpen: (item: CrateQueueItem, open: (crateId: string) => Promise<CrateOpenOutcome>) => void;
+  /** A purchase started (true) or ended (false), whether or not this panel is still mounted. */
+  onBusy?: (busy: boolean) => void;
+  /** Milestone mode: the caller's way back to the crate bay, shown as a Back button in the panel's head. */
+  onBack?: () => void;
+  /** The caller's purchase is in flight elsewhere: hold this panel's spend button and Back (an Open here would start a
+   *  theatre the purchase's reveal then replaces). */
+  held?: boolean;
 }
 
 const EMPTY: readonly string[] = [];
@@ -80,7 +94,7 @@ const FocusChip = memo(function FocusChip({ cat, on, soldOut, onToggle }: {
   );
 });
 
-export function CrateShop({ mode, guest, onGuest, onOpen }: CrateShopProps): JSX.Element {
+export function CrateShop({ mode, guest, onGuest, onOpen, onBusy, onBack, held = false }: CrateShopProps): JSX.Element {
   const milestone = mode.kind === 'milestone';
   const economy = useProgression((s) => s.economy);
   const balance = useProgression(aetherBalance);
@@ -96,6 +110,8 @@ export function CrateShop({ mode, guest, onGuest, onOpen }: CrateShopProps): JSX
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
+  /** The milestone crate already handed to the theatre (a second click in the same frame must not hand it again). */
+  const handedRef = useRef<string | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
@@ -134,21 +150,27 @@ export function CrateShop({ mode, guest, onGuest, onOpen }: CrateShopProps): JSX
 
   const short = quote ? Math.max(0, quote.total - balance) : 0;
   const free = milestone && quote?.total === 0;
+  // A guest is never "short": every spend is the sign-in gate (ruling 2026-10-19), so the price shows and Buy stays live.
+  const needMore = guest ? 0 : short;
   const label = busy ? 'Buying…'
     : !quote ? 'Sold out'
     : free ? 'Open'
-    : short > 0 ? `Need ${short} more Aether`
+    : needMore > 0 ? `Need ${needMore} more Aether`
     : `◆ ${quote.total}`;
-  const disabled = busy || !quote || short > 0;
-  const ariaLabel = quote && !busy && !free && short === 0 ? `${milestone ? 'Open' : 'Buy'} ${name} for ${quote.total} Aether` : undefined;
+  const disabled = busy || held || !quote || needMore > 0;
+  const ariaLabel = quote && !busy && !free && needMore === 0
+    ? `${milestone ? 'Open' : 'Buy'} ${name} for ${quote.total} Aether${guest ? ' (needs an account)' : ''}`
+    : undefined;
 
   const spend = async (): Promise<void> => {
-    if (!quote || busyRef.current) return;
+    if (!quote || busyRef.current || held) return;
     // GUESTS NEVER SPEND (R-PROG-AETHER-02): the sign-in gate, never the store.
     if (guest) { onGuest(); return; }
     setError(null);
     if (mode.kind === 'milestone') {
       const crate = mode.crate;
+      if (handedRef.current === crate.crateId) return;
+      handedRef.current = crate.crateId;
       const pick = quote.focus;
       const fee = quote.fee;
       const item: CrateQueueItem = { crateId: crate.crateId, earnedLevel: crate.earnedLevel, ...(crate.source ? { source: crate.source } : {}) };
@@ -157,11 +179,18 @@ export function CrateShop({ mode, guest, onGuest, onOpen }: CrateShopProps): JSX
     }
     busyRef.current = true;
     setBusy(true);
+    onBusy?.(true);
     const out = await buyCrate(quote.tier, quote.focus, quote.total);
     busyRef.current = false;
-    if (!alive.current) return;
-    setBusy(false);
-    if (out.status !== 'ok') { setError(buyErrorCopy(out.reason)); return; }
+    // Always: the caller may outlive this panel, and a busy flag left up would hold its controls for good.
+    onBusy?.(false);
+    if (out.status !== 'ok') {
+      if (alive.current) { setBusy(false); setError(buyErrorCopy(out.reason)); }
+      return;
+    }
+    if (alive.current) setBusy(false);
+    // SUCCESS IGNORES `alive` on purpose: the server has charged the player, so the reveal must play even when this panel
+    // unmounted mid-purchase (the caller's theatre outlives it). Only this panel's own state updates are skipped.
     const result = out.result;
     const item: CrateQueueItem = { crateId: result.crate.crateId, earnedLevel: null, ...(result.crate.source ? { source: result.crate.source } : {}) };
     // Already bought and opened: the theatre plays this answer instead of asking again.
@@ -170,7 +199,12 @@ export function CrateShop({ mode, guest, onGuest, onOpen }: CrateShopProps): JSX
 
   return (
     <section className={`colls-panel colls-shop${milestone ? ' milestone' : ''}`} aria-label={milestone ? 'Open your milestone crate' : 'Crate Shop'}>
-      <div className="colls-shop-head">{milestone ? 'Milestone crate' : 'Crate Shop'}</div>
+      <div className="colls-shop-headrow">
+        <div className="colls-shop-head">{milestone ? 'Milestone crate' : 'Crate Shop'}</div>
+        {milestone && onBack && (
+          <button type="button" className="colls-shop-back" disabled={held} onClick={() => { sfx.pulse(); onBack(); }}>Back</button>
+        )}
+      </div>
       {mode.kind === 'shop' && (
         <div className="colls-shop-step">
           <div className="colls-shop-lbl">Pick a crate</div>

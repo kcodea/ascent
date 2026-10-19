@@ -24,6 +24,7 @@
 import type { FxParamSpec, FxParamSpecs } from './params';
 import { bakeCurveLut, CURVE_PRESETS, type CurvePoint } from './curve';
 import { LITE_ART } from '../phoneArt';
+import { crumbOnce } from '../crashLog';
 
 type P = Record<string, unknown>;
 const num = (p: P, k: string, d = 0): number => (typeof p[k] === 'number' ? (p[k] as number) : d);
@@ -301,6 +302,7 @@ function acquireConvolver(a: BaseAudioContext, size: number, damping: number, ct
   const conv = a.createConvolver();
   conv.normalize = true;
   conv.buffer = reverbImpulse(a, size, damping);
+  if (LITE_ART) crumbOnce('reverb built');
   (conv as ConvolverNode & { __irKey?: string }).__irKey = key;
   return conv;
 }

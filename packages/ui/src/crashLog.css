@@ -1,0 +1,20 @@
+/* The crash log's readout (CrashLogReadout.tsx, R-TOUCH-PLAY-MEMORY-01). Small, top left, above everything. No
+   cursor rule here: the global button rule paints the gauntlet. Static: nothing animates. It lives in the scaled stage
+   (stageHost), so it scales itself back by 1 / --stage-s and reads at full size on a phone. */
+.crashlog {
+  position: fixed; top: 8px; left: 8px; z-index: 2147483000;
+  transform: scale(calc(1 / var(--stage-s, 1))); transform-origin: 0 0;
+  max-width: min(560px, calc(var(--lvw, 100vw) * var(--stage-s, 1) - 32px));
+  max-height: calc(var(--lvh, 100vh) * var(--stage-s, 1) * 0.6); overflow: auto; padding: 8px 10px; border-radius: 8px;
+  background: rgba(12, 14, 20, 0.92); color: #e9e3d2; border: 1px solid rgba(214, 178, 96, 0.6);
+  font: 12px/1.35 system-ui, sans-serif; pointer-events: auto;
+}
+.crashlog-head { display: flex; align-items: center; gap: 10px; font-weight: 700; color: #f2cf7a; }
+.crashlog-head > span { flex: 1; }
+.crashlog-x {
+  min-width: 44px; min-height: 32px; border: 1px solid rgba(214, 178, 96, 0.5); border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06); color: inherit; font: inherit;
+}
+.crashlog-line { margin-top: 4px; opacity: 0.9; }
+.crashlog-steps { margin: 6px 0 0; padding-left: 18px; opacity: 0.85; }
+.crashlog-steps b { color: #f2cf7a; font-weight: 600; }

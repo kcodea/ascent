@@ -14,17 +14,25 @@
  *  - The renderer's resolution folds in the stage scale (`stageScale()`), so a phone never renders ~8x the pixels
  *    it shows (the stage tripwire enforces this).
  *  - Every texture is painted once at mount: nothing is redrawn per frame.
+ *
+ * THE TIER CHESTS (tiered chest openings, 2026-10-19). `setChest(tier)` swaps in the chest the crate's tier was bought
+ * as: its two webps load on first use and are cached for the controller's life (Standard is the art baked at mount).
+ * An opening never waits on them: if a tier's art fails, or is not ready within `CHEST_ART_WAIT_MS`, that opening
+ * plays on the Standard chest and `setChest` says so (it resolves with the tier actually drawn), so the theatre gives
+ * the opening the matching layer. The one-picture override (`setArt`) wins over every tier. `setTierLayer` hands the
+ * scene the tier's effects layer (`CrateScene.setTierLayer`).
  */
 import { Application, Assets, CanvasSource, Container, ImageSource, Texture } from 'pixi.js';
 import { stageScale } from '../../stage';
 import type { CratePreset } from './crateFxConfig';
 import { CrateScene, type ChestTuning, type CrateAnticipation, type CrateSceneTextures } from './crateScene';
-import { CHEST_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
+import { CHEST_ART, CHEST_TIER_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
+import { NO_TIER_LAYER, type ChestTier, type ChestTierPreset, type LayeredTier } from './chestTiers';
 import { detachPixiDomEvents } from '../../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../../pixiAppSafety';
 import {
-  CHEST, cutKeyholeMask, paintChestBody, paintChestLid, paintCoin, paintGlow, paintPedestal, paintRays, paintRing,
-  paintRuneRing, paintSeamBar, paintShards, paintSpark, paintStreak,
+  CHEST, cutKeyholeMask, paintAura, paintBand, paintChestBody, paintChestLid, paintCoin, paintGlow, paintPedestal,
+  paintRays, paintRing, paintRuneRing, paintSeamBar, paintShards, paintSpark, paintStreak, paintWisp,
 } from './crateTextures';
 import { PIXI_ANTIALIAS } from '../../phoneArt';
 import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
@@ -44,6 +52,13 @@ export interface CrateFx {
   chestKind(): 'art' | 'painted' | null;
   /** Called on every heartbeat pulse (`k` = 0..1 intensity), so the theatre can tick a sound on the beat. */
   onPulse(fn: ((k: number) => void) | null): void;
+  /**
+   * Draw the chest of this tier. Resolves with the tier actually drawn: 'standard' when its art fails or is not ready
+   * within `CHEST_ART_WAIT_MS`, before mount, or after destroy. Never rejects.
+   */
+  setChest(tier: ChestTier): Promise<ChestTier>;
+  /** The chest tier's effects layer (`NO_TIER_LAYER` = none). Call before `anticipate`. */
+  setTierLayer(t: ChestTierPreset): void;
   reset(): void;
   anticipate(a: CrateAnticipation): void;
   charge(p: CratePreset): void;
@@ -58,6 +73,14 @@ export interface CrateFx {
 /** The painted fallback chest's texture width (px). */
 const CHEST_TEX_W = 720;
 
+/** How long an opening waits for its tier's chest art before it plays on the Standard chest (ms). */
+export const CHEST_ART_WAIT_MS = 300;
+
+export interface CrateFxOptions {
+  /** Loads one picture (tests inject a failing or hanging one). Default: an `<img>`. */
+  loadImage?: (url: string) => Promise<HTMLImageElement>;
+}
+
 const fromCanvas = (c: HTMLCanvasElement): Texture => new Texture({ source: new CanvasSource({ resource: c }) });
 const fromImage = (img: HTMLImageElement): Texture => new Texture({ source: new ImageSource({ resource: img }) });
 
@@ -71,7 +94,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-class CrateFxPixi implements CrateFx {
+export class CrateFxPixi implements CrateFx {
   private app: Application | null = null;
   private scene: CrateScene | null = null;
   private textures: Texture[] = [];
@@ -82,6 +105,18 @@ class CrateFxPixi implements CrateFx {
   private pendingSize: [number, number, number] | null = null;
   private pulseFn: ((k: number) => void) | null = null;
   private tuning: ChestTuning | null = null;
+  private readonly load: (url: string) => Promise<HTMLImageElement>;
+  /** The chest baked at mount (the owner's Standard art, or the painted fallback). */
+  private standardChest: ChestModel | null = null;
+  /** Each tier's chest, loading or loaded (a failed load is dropped, so a later opening tries again). */
+  private tierChests = new Map<LayeredTier, Promise<ChestModel | null>>();
+  private chestToken = 0;
+  private drawn: ChestTier = 'standard';
+  private tierLayer: ChestTierPreset = NO_TIER_LAYER;
+
+  constructor(opts: CrateFxOptions = {}) {
+    this.load = opts.loadImage ?? loadImage;
+  }
 
   async mount(host: HTMLElement): Promise<boolean> {
     if (this.destroyed) return false;
@@ -122,7 +157,9 @@ class CrateFxPixi implements CrateFx {
       const root = new Container();
       app.stage.addChild(root);
       this.scene = new CrateScene(root, tex, { onPulse: (k) => this.pulseFn?.(k) });
+      this.standardChest = tex.chest;
       if (this.tuning) this.scene.setTuning(this.tuning);
+      if (this.tierLayer !== NO_TIER_LAYER) this.scene.setTierLayer(this.tierLayer);
       this.app = app;
       const [w, h, k] = this.pendingSize ?? [host.clientWidth, host.clientHeight, 1];
       this.scene.layout(w, h, k);
@@ -164,7 +201,71 @@ class CrateFxPixi implements CrateFx {
       ring: keep(fromCanvas(paintRing(512))),
       coin: keep(fromCanvas(paintCoin(64))),
       shards: paintShards(90, 6).map((c) => keep(fromCanvas(c))),
+      // the chest tier layer's (small; a Standard opening never draws them)
+      wisp: keep(fromCanvas(paintWisp(128))),
+      band: keep(fromCanvas(paintBand(256))),
+      aura: keep(fromCanvas(paintAura(256))),
     };
+  }
+
+  /** A tier's chest: its two webps and keyhole mask, made into a model once per controller. */
+  private tierChest(tier: LayeredTier): Promise<ChestModel | null> {
+    let p = this.tierChests.get(tier);
+    if (!p) {
+      p = this.loadTierChest(tier);
+      this.tierChests.set(tier, p);
+      void p.then((m) => { if (!m && this.tierChests.get(tier) === p) this.tierChests.delete(tier); });
+    }
+    return p;
+  }
+
+  private async loadTierChest(tier: LayeredTier): Promise<ChestModel | null> {
+    const art = CHEST_TIER_ART[tier];
+    const imgs = await loadChestImages(import.meta.env.BASE_URL, this.load, art);
+    if (!imgs || this.destroyed) return null;
+    try {
+      const keep = (t: Texture): Texture => { this.textures.push(t); return t; };
+      const mask = cutKeyholeMask(imgs.body, art.bodySrcW, art.keyhole);
+      return artChestModel(keep(fromImage(imgs.body)), keep(fromImage(imgs.lid)), mask ? keep(fromCanvas(mask)) : null, art);
+    } catch (e) {
+      console.warn(`[crateFx] the ${tier} chest could not be built; that opening uses the Standard chest`, e);
+      return null;
+    }
+  }
+
+  async setChest(tier: ChestTier): Promise<ChestTier> {
+    const token = ++this.chestToken;
+    if (this.destroyed || !this.scene || !this.standardChest) return 'standard';
+    // The one-picture override wins over every tier: nothing to load, and the tier's layer still plays round it.
+    if (this.artUrl) return tier;
+    if (tier === 'standard') { this.showChest('standard', this.standardChest); return 'standard'; }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const late = new Promise<null>((res) => { timer = setTimeout(() => res(null), CHEST_ART_WAIT_MS); });
+    const model = await Promise.race([this.tierChest(tier), late]);
+    clearTimeout(timer);
+    if (this.destroyed || !this.scene || !this.standardChest) return 'standard';
+    if (token !== this.chestToken) return this.drawn; // a later call owns the chest now
+    // Too slow or failed: this opening plays on Standard (a slow load still lands in the cache for the next one).
+    if (!model) { this.showChest('standard', this.standardChest); return 'standard'; }
+    this.showChest(tier, model);
+    return tier;
+  }
+
+  private showChest(tier: ChestTier, model: ChestModel): void {
+    this.drawn = tier;
+    this.scene?.setChestModel(model);
+    if (this.app && !this.app.ticker.started) this.app.render();
+  }
+
+  setTierLayer(t: ChestTierPreset): void {
+    this.tierLayer = t;
+    this.scene?.setTierLayer(t);
+  }
+
+  /** Tests only (jsdom has no WebGL): drive a headless scene as if it were mounted, with `standard` as the baked chest. */
+  attachSceneForTests(scene: CrateScene, standard: ChestModel): void {
+    this.scene = scene;
+    this.standardChest = standard;
   }
 
   private tick = (): void => {
@@ -224,6 +325,9 @@ class CrateFxPixi implements CrateFx {
     if (this.destroyed) return;
     this.destroyed = true;
     this.artToken++;
+    this.chestToken++;
+    this.tierChests.clear();
+    this.standardChest = null;
     this.pulseFn = null;
     const app = this.app;
     this.scene?.destroy();

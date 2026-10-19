@@ -24,7 +24,8 @@
  * lid's opaque bottom edge, so the lid sits ON the rim (lidOverlap 3) like Standard's. One exception: Legendary's notch
  * is wider than its spike, so at the rim it shows a sliver of background either side; its attach Y (484) is the
  * owner's assembly instead, 9 px lower, where the lid's trim covers that sliver. Epic's and Ancient's lids have NO
- * notch (a pendant point hangs at the centre instead), so their spike tucks behind the lid until it opens.
+ * notch (a pendant point hangs at the centre instead), so their spike would tuck behind the lid until it opens; the
+ * owner's assembly has the spike's apex IN FRONT, so the scene draws that piece of the body over the lid (`spikeFront`).
  */
 import type { Texture } from 'pixi.js';
 
@@ -52,6 +53,14 @@ export interface ChestArt {
   lidAttachY: number;
   /** The lid's bottom edge overlaps the rim by this much (src px), so no gap shows between them at rest. */
   lidOverlap: number;
+  /**
+   * The SPIKE FRONT (2026-10-19): a chest whose lid has no notch (Epic, Ancient) would hide the lock plate's apex
+   * behind the lid until it opens, but the owner's assembled picture shows the apex IN FRONT of the lid's pendant.
+   * This box (src px, from the body's top down to where the lid's bottom edge sits) is cut from the body and drawn
+   * over the lid while the lid is on. Measured by alpha: the only opaque body pixels above the rim, plus 4 px.
+   * Undefined = the lid's notch already shows the spike (Standard, Rare, Legendary).
+   */
+  spikeFront?: { x0: number; y0: number; x1: number; y1: number };
 }
 
 /** The owner's chest, measured from the cropped masters (see the header). The Standard chest. */
@@ -91,6 +100,7 @@ export const CHEST_TIER_ART: Readonly<Record<'rare' | 'epic' | 'legendary' | 'an
     spikeX: 838,
     keyhole: { x0: 799, y0: 260, x1: 875, y1: 398 },
     lidSrcW: 1628, lidAttachX: 814, lidAttachY: 476, lidOverlap: 3,
+    spikeFront: { x0: 778, y0: 0, x1: 898, y1: 74 },
   },
   legendary: {
     bodyUrl: 'collection/chest_legendary_body.webp', lidUrl: 'collection/chest_legendary_lid.webp',
@@ -107,6 +117,7 @@ export const CHEST_TIER_ART: Readonly<Record<'rare' | 'epic' | 'legendary' | 'an
     spikeX: 839,
     keyhole: { x0: 799, y0: 261, x1: 878, y1: 405 },
     lidSrcW: 1636, lidAttachX: 819, lidAttachY: 484, lidOverlap: 3,
+    spikeFront: { x0: 779, y0: 0, x1: 899, y1: 76 },
   },
 };
 
@@ -138,6 +149,8 @@ export interface ChestModel {
   /** Where the attach point sits in body texture px (on the rim, over the spike, overlapping a touch). */
   lidAtX: number;
   lidAtY: number;
+  /** The spike front's box in body texture px (see `ChestArt.spikeFront`), or null when the chest needs none. */
+  spikeFront: { x0: number; y0: number; x1: number; y1: number } | null;
 }
 
 /** The owner's art as a model (pure: reads only the textures' sizes). `art` = which chest; Standard by default. */
@@ -163,6 +176,9 @@ export function artChestModel(body: Texture, lid: Texture, keyhole: Texture | nu
     lidRel: k / kl,
     lidAtX: A.spikeX * k,
     lidAtY: (A.rimY + A.lidOverlap) * k,
+    spikeFront: A.spikeFront
+      ? { x0: A.spikeFront.x0 * k, y0: A.spikeFront.y0 * k, x1: A.spikeFront.x1 * k, y1: A.spikeFront.y1 * k }
+      : null,
   };
 }
 
@@ -193,18 +209,20 @@ export function paintedChestModel(body: Texture, lid: Texture, W: number, pad: n
     lidRel: 1,
     lidAtX: pad + W / 2,
     lidAtY: pad + W * 0.004,
+    spikeFront: null,
   };
 }
 
 export interface ChestImages<I> { body: I; lid: I }
 
 /**
- * Load the owner's two chest layers. Resolves null when EITHER fails (a 404, a decode error, no DOM), so the caller
- * falls back to the painted chest whole rather than mixing a real body with a painted lid.
+ * Load the owner's two chest layers (`art` = which chest; Standard by default). Resolves null when EITHER fails (a 404,
+ * a decode error, no DOM), so the caller falls back whole (to the painted chest, or a tier to Standard) rather than
+ * mixing a real body with a painted lid.
  */
-export async function loadChestImages<I>(base: string, load: (url: string) => Promise<I>): Promise<ChestImages<I> | null> {
+export async function loadChestImages<I>(base: string, load: (url: string) => Promise<I>, art: ChestArt = CHEST_ART): Promise<ChestImages<I> | null> {
   try {
-    const [body, lid] = await Promise.all([load(`${base}${CHEST_ART.bodyUrl}`), load(`${base}${CHEST_ART.lidUrl}`)]);
+    const [body, lid] = await Promise.all([load(`${base}${art.bodyUrl}`), load(`${base}${art.lidUrl}`)]);
     return body && lid ? { body, lid } : null;
   } catch {
     return null;

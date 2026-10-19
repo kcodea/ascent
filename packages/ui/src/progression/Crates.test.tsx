@@ -47,6 +47,9 @@ function recorder(): CrateFx {
   const rec = (name: string) => (p?: CratePreset | number | object): void => { fxCalls.push(p && typeof p === 'object' && 'rarity' in p ? `${name}:${p.rarity}` : name); };
   return {
     mount: async () => true, resize: () => {}, setSpeed: () => {}, setArt: () => {}, onPulse: () => {}, tune: () => {}, chestKind: () => 'art',
+    // the chest tier: which chest was asked for, and which layer the theatre handed the scene
+    setChest: async (tier) => { fxCalls.push(`setChest:${tier}`); return tier; },
+    setTierLayer: (t) => { fxCalls.push(`setTierLayer:${t.tier}`); },
     reset: rec('reset'), anticipate: rec('anticipate'), charge: rec('charge'), burst: rec('burst'), reveal: rec('reveal'),
     settle: rec('settle'), skipToSettled: rec('skipToSettled'), windDown: rec('windDown'), destroy: rec('destroy'),
   };

@@ -27,13 +27,34 @@
  *  - reveal / settle: the open body stays on the pedestal, glowing, while the nameplate (DOM) rises above it; then
  *    the scene quiets and goes IDLE (the ticker stops).
  *
+ * THE CHEST TIER LAYER (tiered chest openings, 2026-10-19; owner: "increasing amounts of magic and sparks and flair,
+ * with the properly associated colors for each tier", and "we should not stray too far from the original opening
+ * experience for now. only adding some additional flair and effects"). The chest bought (`setTierLayer`, a
+ * `ChestTierPreset`) adds a layer IN ITS COLOUR on top of the reward's beats, which it never replaces:
+ *  - anticipation: a soft aura behind the chest, motes drifting up, wisps curling INTO the keyhole (Epic up), and
+ *    the tier's extra shake and glow on top of the heartbeat's. The layer runs at ~60-75% here ...
+ *  - charge: ... and grows to full; swirl BANDS (Legendary up) orbit the chest and spiral into the keyhole by the
+ *    charge's end ("multichrome/opal bands of swirling energy pulling into the chest, causing it to shake and glow").
+ *  - burst: a white flash, a thin tier ring, sparkles and wisps thrown out, AFTER the reward's own burst so a full
+ *    pool drops the tier's flourish, never the reward's finale ("bursting open with a bright flash of white and
+ *    multichrome sparkles and wisps of energy").
+ *  - reveal / settle: the aura eases down with the settle glow.
+ * Ancient is MULTICHROME: each of its particles (and its aura and bands) cycles hue from a random start, with white
+ * sparkles mixed in; an Ancient REWARD's burst particles cycle the same way from any chest, so it always reads opal.
+ * Tier particles live in their own list (`tierParts`) but share the pool and the one `MAX_PARTICLES` cap. With no
+ * layer (Standard) nothing here runs: no sprite, no particle, no per-frame pass (pinned by "standard adds nothing").
+ * The chest itself swaps per tier (`setChestModel`); Epic's and Ancient's notchless lids get the SPIKE FRONT, a
+ * sliver of the body drawn over the lid while it is on (see `ChestArt.spikeFront`).
+ *
  * Contract: geometry only via `layout(w, h)`; sprites pooled, every list bounded (`MAX_PARTICLES`); textures are
- * the caller's (built once, destroyed by the caller); `update` returns whether anything still moves; `destroy()`
- * leaves the root empty. Math.random is fine here (presentation only).
+ * the caller's (built once, destroyed by the caller; the spike front's frame over the body is the scene's own);
+ * `update` returns whether anything still moves; `destroy()` leaves the root empty. Math.random is fine here
+ * (presentation only).
  */
-import { Container, Sprite, Texture } from 'pixi.js';
+import { Container, Rectangle, Sprite, Texture } from 'pixi.js';
 import type { CratePreset } from './crateFxConfig';
 import type { ChestModel } from './chestModel';
+import { NO_TIER_LAYER, TIER_NUM_DEFAULTS, type ChestTierPreset } from './chestTiers';
 
 export interface CrateSceneTextures {
   /** The chest: the owner's two layers (or the painted fallback) and where its parts are. */
@@ -49,6 +70,10 @@ export interface CrateSceneTextures {
   ring: Texture;
   coin: Texture;
   shards: Texture[];
+  /** The tier layer's pictures (white, tinted at run time): a wisp, a swirl band, the aura. */
+  wisp: Texture;
+  band: Texture;
+  aura: Texture;
 }
 
 /** The chest's tunable fit and motion (the tuner's "Chest" group; see `crateFxConfig.ts`). */
@@ -90,6 +115,25 @@ export function lerpColor(a: number, b: number, t: number): number {
   return (ch(16) << 16) | (ch(8) << 8) | ch(0);
 }
 
+/** A hue (0..1, wrapping) at saturation `s` and value `v` (0..1) as 0xRRGGBB (pure, tested). The multichrome wheel. */
+export function hsvToRgb(h: number, s: number, v: number): number {
+  const hue = Number.isFinite(h) ? ((h % 1) + 1) % 1 : 0;
+  const sat = clamp01(s), val = clamp01(v);
+  const x = hue * 6;
+  const i = Math.floor(x) % 6;
+  const f = x - Math.floor(x);
+  const p = val * (1 - sat), q = val * (1 - sat * f), t = val * (1 - sat * (1 - f));
+  const r = i === 0 || i === 5 ? val : i === 1 ? q : i === 4 ? t : p;
+  const g = i === 1 || i === 2 ? val : i === 0 ? t : i === 3 ? q : p;
+  const b = i === 3 || i === 4 ? val : i === 2 ? t : i === 5 ? q : p;
+  return (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+}
+
+/** Multichrome's saturation: opal is pastel, a sheen over white rather than a rainbow. */
+const OPAL_SAT = 0.5;
+/** An Ancient REWARD's hue cycle when the chest is not Ancient (the shipped Ancient chest's own speed). */
+const REWARD_HUE_SPEED = TIER_NUM_DEFAULTS.ancientHueSpeed;
+
 /** The chest's width for a stage of `w` × `h` (pure): a third of the short side, clamped, times the tuner's size. */
 export function crateSizeFor(w: number, h: number, scale = 1): number {
   const short = Math.max(1, Math.min(w > 0 ? w : 600, h > 0 ? h : 400));
@@ -98,7 +142,8 @@ export function crateSizeFor(w: number, h: number, scale = 1): number {
 
 interface Particle {
   sprite: Sprite;
-  kind: 'mote' | 'pull' | 'spark' | 'streak' | 'ember' | 'shard' | 'coin' | 'rise';
+  /** The reward's kinds, then the tier layer's (wisp, band, sparkle, flare: a wisp thrown out by the burst). */
+  kind: 'mote' | 'pull' | 'spark' | 'streak' | 'ember' | 'shard' | 'coin' | 'rise' | 'wisp' | 'band' | 'sparkle' | 'flare';
   x: number; y: number;
   vx: number; vy: number;
   drag: number;
@@ -108,6 +153,10 @@ interface Particle {
   fromScale: number; toScale: number;
   peakAlpha: number;
   seed: number;
+  /** Multichrome: this particle's start on the hue wheel (0..1), or -1 = keeps its tint. */
+  hue: number;
+  /** A band's angle round its orbit (radians). */
+  ang: number;
 }
 interface Ring { sprite: Sprite; age: number; dur: number; fromR: number; toR: number; peak: number; delay: number; thin: number }
 interface Flash { sprite: Sprite; age: number; dur: number; peak: number; fromScale: number; toScale: number; delay: number; attack: number }
@@ -151,6 +200,27 @@ export class CrateScene {
   private flashes: Flash[] = [];
   private destroyed = false;
   private tune: ChestTuning = { ...DEFAULT_CHEST_TUNING };
+  /** The chest drawn (the caller's model; `setChestModel` swaps it per tier). */
+  private chest: ChestModel;
+  /** The spike front over the lid (Epic, Ancient): created the first time a chest needs it, its frame owned here. */
+  private spike: Sprite | null = null;
+  private spikeTex: Texture | null = null;
+
+  // the chest tier layer (none = Standard: nothing below is created or stepped)
+  private tier: ChestTierPreset = NO_TIER_LAYER;
+  private tierOn = false;
+  private tierAura: Sprite | null = null;
+  private tierParts: Particle[] = [];
+  private tierAuraFrom = 0;
+  private tierAuraTo = 0;
+  private tierMoteAcc = 0;
+  private tierWispAcc = 0;
+  /** The charge's progress for the bands (real time, so they reach the keyhole as the charge ends). */
+  private bandT = 0;
+  /** Seconds of multichrome (advances only while something cycles). */
+  private hueClock = 0;
+  /** The reward is Ancient: its burst particles cycle hue too. */
+  private rewardHue = false;
 
   private w = 0;
   private h = 0;
@@ -204,6 +274,7 @@ export class CrateScene {
     this.root = root;
     this.tex = textures;
     this.opts = opts;
+    this.chest = textures.chest;
     const add = (t: Texture, alpha: number, blend: 'add' | 'normal' = 'add', parent: Container = this.set): Sprite => {
       const s = new Sprite(t);
       s.anchor.set(0.5);
@@ -237,6 +308,7 @@ export class CrateScene {
     this.white = add(Texture.WHITE, 0, 'add', this.overlay);
     this.punch = add(Texture.WHITE, 0, 'add', this.overlay);
     root.addChild(this.cam, this.overlay);
+    this.syncSpike();
     this.layout(800, 500);
     this.reset();
   }
@@ -262,14 +334,14 @@ export class CrateScene {
 
   /** A point on the body texture, in screen (crate-local) px. */
   private at(x: number, y: number): { x: number; y: number } {
-    const M = this.tex.chest;
+    const M = this.chest;
     return { x: this.cx + (x - M.cx) * this.k, y: this.baseY + (y - M.baseY) * this.k };
   }
 
   private place(): void {
     const S = this.size;
     const T = this.tex;
-    const M = T.chest;
+    const M = this.chest;
     const tn = this.tune;
     this.k = S / Math.max(1, M.width);
     const k = this.k;
@@ -338,6 +410,82 @@ export class CrateScene {
     this.pillar.scale.set((rimW * 0.8) / Math.max(1, T.glow.width), (S * 3.4) / Math.max(1, T.glow.width));
     for (const s of [this.white, this.punch]) { s.anchor.set(0); s.position.set(0, 0); s.width = this.w; s.height = this.h; }
     if (this.art) this.fitArt(this.art);
+    // the tier layer's aura, centred on the chest's body; the spike front, on the body's own spike
+    if (this.tierAura) {
+      this.tierAura.position.set(this.cx, this.rimY + (this.baseY - this.rimY) * 0.3);
+      this.tierAura.scale.set((S * 2.4) / Math.max(1, T.aura.width));
+    }
+    if (this.spike && M.spikeFront) {
+      const sp = this.at(Math.floor(M.spikeFront.x0), Math.floor(M.spikeFront.y0));
+      this.spike.scale.set(k);
+      this.spike.position.set(sp.x, sp.y);
+      this.spike.visible = !this.art && !this.lidOff;
+    }
+  }
+
+  /**
+   * The spike front's sprite and its frame over the body texture (only for a chest that has one). Called when the
+   * chest changes; the frame is the scene's own (destroyed without its source, which is the caller's body).
+   */
+  private syncSpike(): void {
+    const M = this.chest;
+    const f = M.spikeFront;
+    const old = this.spikeTex;
+    this.spikeTex = null;
+    if (f) {
+      const fr = M.body.frame;
+      const x = Math.max(0, Math.floor(f.x0)), y = Math.max(0, Math.floor(f.y0));
+      const w = Math.min(fr.width - x, Math.ceil(f.x1) - x), h = Math.min(fr.height - y, Math.ceil(f.y1) - y);
+      if (w > 0 && h > 0) this.spikeTex = new Texture({ source: M.body.source, frame: new Rectangle(fr.x + x, fr.y + y, w, h) });
+    }
+    if (this.spikeTex && !this.spike) {
+      const s = new Sprite(this.spikeTex);
+      s.anchor.set(0);
+      this.crate.addChildAt(s, this.crate.getChildIndex(this.lid) + 1); // over the lid, under the seam light
+      this.spike = s;
+    }
+    if (this.spike) {
+      this.spike.texture = this.spikeTex ?? Texture.EMPTY;
+      this.spike.visible = !!this.spikeTex && !this.art && !this.lidOff;
+    }
+    old?.destroy(false);
+  }
+
+  /** Swap the chest (a tier's art, or back to Standard). Takes effect at once; the lid re-seats unless it is off. */
+  setChestModel(m: ChestModel): void {
+    if (this.destroyed || m === this.chest) return;
+    this.chest = m;
+    this.body.texture = m.body;
+    this.bodyFlash.texture = m.body;
+    this.lid.texture = m.lid;
+    this.keyhole.texture = m.keyhole ?? Texture.EMPTY;
+    this.keyhole.visible = !!m.keyhole && !this.art;
+    this.syncSpike();
+    this.place();
+  }
+
+  /**
+   * The chest tier's layer (`NO_TIER_LAYER` = Standard = none). Set before `anticipate`; safe mid-opening (the next
+   * frame reads it). The aura sprite is made the first time a tier needs it, then kept.
+   */
+  setTierLayer(t: ChestTierPreset): void {
+    if (this.destroyed) return;
+    this.tier = t;
+    this.tierOn = t.tier !== 'standard';
+    if (this.tierOn && !this.tierAura) {
+      const s = new Sprite(this.tex.aura);
+      s.anchor.set(0.5);
+      s.blendMode = 'add';
+      s.alpha = 0;
+      this.cam.addChildAt(s, this.cam.getChildIndex(this.crate)); // behind the chest, over the pedestal
+      this.tierAura = s;
+      this.place();
+    }
+    if (this.tierAura) {
+      this.tierAura.visible = this.tierOn;
+      this.tierAura.tint = t.color;
+      if (!this.tierOn) this.tierAura.alpha = 0;
+    }
   }
 
   /** The one-picture override: a texture replaces the two-layer chest (null = back to the two layers). */
@@ -352,7 +500,8 @@ export class CrateScene {
       this.fitArt(s);
     }
     for (const part of [this.body, this.bodyFlash, this.lid, this.seam, this.seamHalo, this.keyhole, this.keyholeGlow, this.mouth]) part.visible = !texture;
-    if (!texture) this.keyhole.visible = !!this.tex.chest.keyhole;
+    if (!texture) this.keyhole.visible = !!this.chest.keyhole;
+    if (this.spike) this.spike.visible = !texture && !!this.spikeTex && !this.lidOff;
   }
 
   private fitArt(s: Sprite): void {
@@ -367,7 +516,7 @@ export class CrateScene {
   /** The camera shake's current amplitude in px (the burst hit plus the charge's ground shake). */
   get cameraShake(): number { return this.camShake + this.camShakeHold; }
   /** The chest in use ('art' = the owner's two layers, 'painted' = the fallback). */
-  get chestKind(): 'art' | 'painted' { return this.tex.chest.kind; }
+  get chestKind(): 'art' | 'painted' { return this.chest.kind; }
   /** The lid's state, for tests: where it is against its rest, its spin, whether it has come off. */
   get lidState(): { dx: number; dy: number; rotation: number; off: boolean; alpha: number } {
     return { dx: this.lid.position.x - this.lidRest.x, dy: this.lid.position.y - this.lidRest.y, rotation: this.lid.rotation, off: this.lidOff, alpha: this.lid.alpha };
@@ -416,6 +565,9 @@ export class CrateScene {
     for (const s of [this.seamHalo, this.keyholeGlow, this.mouth]) s.tint = NEUTRAL_GLOW;
     // the cores run white-hot: the rarity shows in the halos around them
     for (const s of [this.seam, this.keyhole]) s.tint = lerpColor(NEUTRAL_GLOW, 0xffffff, 0.6);
+    this.rewardHue = false;
+    this.tierMoteAcc = this.tierWispAcc = this.bandT = 0;
+    if (this.tierAura) { this.tierAura.alpha = 0; this.tierAura.tint = this.tier.color; }
     this.place();
   }
 
@@ -440,14 +592,27 @@ export class CrateScene {
     this.zoomTarget = 1 + p.push;
     // A freezing signature (Ancient's "Time stops") holds the end of the charge frozen for `freezeMs`.
     this.setPhase('charge', Math.max(1, p.chargeMs + Math.max(0, p.freezeMs)));
+    // the tier's swirl bands take up their orbits, evenly spaced round the chest
+    if (this.tierOn) {
+      this.bandT = 0;
+      const n = this.tier.bands;
+      for (let i = 0; i < n; i++) {
+        const q = this.spawnTier('band', this.tex.band, this.cx, this.rimY, false, {
+          life: 1e7, fromScale: 0.85 + 0.25 * (i % 2) + Math.random() * 0.08, peakAlpha: 0.95,
+        });
+        if (q) q.ang = (i / Math.max(1, n)) * Math.PI * 2 + Math.random() * 0.3;
+      }
+    }
   }
 
   burst(p: CratePreset): void {
     this.preset = p;
     this.color = p.color;
     this.timeScale = 1;
+    this.rewardHue = p.rarity === 'ancient';
     this.setPhase('burst', Math.max(1, p.burstMs));
     this.detonate(p, 1);
+    if (this.tierOn) this.tierBurst();
     // the light stays up from the hit on, so there is no dark beat between the burst and the plate
     this.aura.tint = p.color;
     this.aura.alpha = 0.9;
@@ -467,6 +632,7 @@ export class CrateScene {
     const side = Math.random() < 0.5 ? -1 : 1;
     this.lidFlying = true;
     this.lidOff = true;
+    if (this.spike) this.spike.visible = false; // the open body shows its own spike
     this.lidV = {
       x: S * tn.lidLaunchX * side * (0.8 + Math.random() * 0.4),
       y: -S * tn.lidLaunchY * (0.9 + Math.random() * 0.2),
@@ -507,24 +673,29 @@ export class CrateScene {
       const a = -Math.PI / 2 + (i / Math.max(1, sparks) - 0.5) * Math.PI * 1.9 + (Math.random() - 0.5) * 0.4;
       const sp = S * (4 + Math.random() * 7);
       const streak = i % 2 === 0;
-      this.spawn(streak ? 'streak' : 'spark', streak ? this.tex.streak : this.tex.spark, bx + (Math.random() - 0.5) * S * 0.6, by, i % 4 === 0 ? 0xffffff : p.color, {
+      const q = this.spawn(streak ? 'streak' : 'spark', streak ? this.tex.streak : this.tex.spark, bx + (Math.random() - 0.5) * S * 0.6, by, i % 4 === 0 ? 0xffffff : p.color, {
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - S * 1.5, drag: 0.03, gravity: S * 5,
         life: 420 + Math.random() * 420, fromScale: streak ? 0.55 + Math.random() * 0.4 : 0.35 + Math.random() * 0.35, toScale: 0.05, peakAlpha: 1,
       });
+      // an Ancient reward reads opal from any chest: its coloured sparks cycle hue (the white ones stay white)
+      if (q && this.rewardHue && i % 4 !== 0) q.hue = Math.random();
     }
     if (weight < 1) { this.shake(p.screenShake * 0.6); this.spawnCoins(p); return; }
     // embers: slow, drifting, falling, flickering
     for (let i = 0; i < p.embers; i++) {
       const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.6;
       const sp = S * (0.8 + Math.random() * 2.2);
-      this.spawn('ember', this.tex.spark, bx + (Math.random() - 0.5) * S * 0.8, by, Math.random() < 0.3 ? 0xffffff : p.color, {
+      const ex = bx + (Math.random() - 0.5) * S * 0.8; // (the random draws keep their order: x, then white)
+      const white = Math.random() < 0.3;
+      const q = this.spawn('ember', this.tex.spark, ex, by, white ? 0xffffff : p.color, {
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.25, gravity: S * 0.5,
         life: 1400 + Math.random() * 1400, fromScale: 0.22 + Math.random() * 0.2, toScale: 0.06, peakAlpha: 0.95,
       });
+      if (q && this.rewardHue && !white) q.hue = Math.random();
     }
     if (!this.art) {
       // shards and splinters burst off the RIM (the body stays whole on the pedestal)
-      const M = this.tex.chest;
+      const M = this.chest;
       const x0 = this.at(M.rimX0, M.rimY).x;
       const x1 = this.at(M.rimX1, M.rimY).x;
       for (let i = 0; i < p.debris; i++) {
@@ -570,9 +741,11 @@ export class CrateScene {
     this.floorGlow.tint = p.color;
     this.moteAcc = 0;
     this.setPhase('reveal', Math.max(1, p.burstMs * 0.7 + p.revealHoldMs));
+    if (this.tierOn && this.tierAura) { this.tierAuraFrom = this.tierAura.alpha; this.tierAuraTo = this.tier.auraGlow * 0.6; }
   }
 
   settle(ms: number): void {
+    if (this.tierOn && this.tierAura) { this.tierAuraFrom = this.tierAura.alpha; this.tierAuraTo = this.tier.auraGlow * 0.3; }
     this.auraFrom = this.aura.alpha;
     this.auraTo = 0.35;
     this.raysFrom = this.backRays.alpha;
@@ -617,6 +790,9 @@ export class CrateScene {
     this.runeRing.alpha = 0.5;
     this.floorGlow.tint = p.color;
     this.floorGlow.alpha = 0.35;
+    this.rewardHue = false;
+    if (this.spike) this.spike.visible = false;
+    if (this.tierOn && this.tierAura) this.tierAura.alpha = this.tier.auraGlow * 0.3;
     this.applyCamera(0);
     this.setPhase('settled', 0);
   }
@@ -647,7 +823,7 @@ export class CrateScene {
   /** Whether anything is still moving (the ticker stops when this is false). */
   hasWork(): boolean {
     if (this.destroyed) return false;
-    return this.particles.length > 0 || this.rings.length > 0 || this.flashes.length > 0 || this.lidFlying
+    return this.particles.length > 0 || this.tierParts.length > 0 || this.rings.length > 0 || this.flashes.length > 0 || this.lidFlying
       || this.camShake > 0.05 || this.camShakeHold > 0.05 || Math.abs(this.zoom - this.zoomTarget) > 0.0005 || Math.abs(this.zoomVel) > 0.001
       || this.white.alpha > 0.01 || this.burstRays.alpha > 0.01 || this.bodyFlash.alpha > 0.01 || this.secondBurstIn >= 0
       || Math.abs(this.lidLift) > 0.1 || Math.abs(this.lidLiftV) > 1
@@ -678,9 +854,10 @@ export class CrateScene {
 
     switch (this.phase) {
       case 'anticipation': {
-        crateShake = this.ant.antShake * (0.35 + 0.65 * easeInQuad(t));
-        seamBase = this.ant.antGlow * (0.3 + 0.3 * easeOutCubic(t));
-        keyBase = this.ant.antGlow * (0.35 + 0.35 * easeOutCubic(t));
+        // the chest tier's extra shake and glow ADD to the heartbeat's (Standard adds 0)
+        crateShake = (this.ant.antShake + this.tier.extraShake) * (0.35 + 0.65 * easeInQuad(t));
+        seamBase = (this.ant.antGlow + this.tier.extraGlow) * (0.3 + 0.3 * easeOutCubic(t));
+        keyBase = (this.ant.antGlow + this.tier.extraGlow) * (0.35 + 0.35 * easeOutCubic(t));
         this.runeRing.alpha = 0.12 + 0.18 * t;
         this.pulse(dt, 0.35 + 0.35 * t);
         this.moteAcc += dt;
@@ -694,10 +871,10 @@ export class CrateScene {
         for (const s of [this.seamHalo, this.keyholeGlow, this.runeRing, this.floorGlow]) s.tint = this.color;
         for (const s of [this.seam, this.keyhole]) s.tint = lerpColor(this.color, 0xffffff, 0.55);
         this.backRays.tint = this.color;
-        crateShake = this.ant.antShake + (p.shake - this.ant.antShake) * easeInQuad(ct);
+        crateShake = this.ant.antShake + (p.shake - this.ant.antShake) * easeInQuad(ct) + this.tier.extraShake;
         this.camShakeHold = p.screenShake * 0.22 * easeInCubic(ct);
-        seamBase = 0.5 + 0.5 * easeInQuad(ct);
-        keyBase = 0.7 + 0.3 * ct;
+        seamBase = 0.5 + 0.5 * easeInQuad(ct) + this.tier.extraGlow;
+        keyBase = 0.7 + 0.3 * ct + this.tier.extraGlow;
         this.runeRing.alpha = 0.3 + 0.6 * ct;
         this.floorGlow.alpha = 0.25 + 0.5 * ct;
         this.backRays.alpha = p.rays * 0.16 * easeInQuad(ct);
@@ -763,6 +940,8 @@ export class CrateScene {
       }
       default: break;
     }
+    if (this.tierOn) this.stepTierLayer(dt, sec);
+    if (this.rewardHue || (this.tierOn && this.tier.multichrome)) this.hueClock += sec;
 
     // the seam and keyhole light: a base level plus the pulse flare (the lid's jump opens the seam further)
     if (this.phase === 'anticipation' || this.phase === 'charge' || this.phase === 'winddown') {
@@ -853,6 +1032,8 @@ export class CrateScene {
     if (!frozen) this.applyCamera(this.age);
 
     this.stepParticles(dt, sec);
+    if (this.rewardHue) this.cycleHues(this.particles);
+    if (this.tierParts.length > 0) this.stepTierParticles(dt, sec);
     this.stepRings(dt);
     this.stepFlashes(dt);
     return this.hasWork();
@@ -959,6 +1140,172 @@ export class CrateScene {
     }
   }
 
+  // ─── the chest tier layer ───────────────────────────────────────────────────────────────────────────────
+
+  /** Multichrome's speed: the Ancient chest's own dial, or (an Ancient reward from another chest) the shipped one. */
+  private hueRate(): number { return this.tierOn && this.tier.multichrome ? this.tier.hueSpeed : REWARD_HUE_SPEED; }
+
+  /** The layer's per-frame work (only while a tier is on): its aura, and the motes and wisps it gives off. */
+  private stepTierLayer(dt: number, sec: number): void {
+    const T = this.tier;
+    const aura = this.tierAura;
+    // the layer's intensity: ~60% at the click, ~75% as the answer lands, full by the charge's end
+    let ramp = 0;
+    if (this.phase === 'anticipation') ramp = 0.6 + 0.15 * easeOutCubic(clamp01(this.age / Math.max(1, this.dur)));
+    else if (this.phase === 'charge') {
+      const freezeMs = this.preset ? Math.max(0, this.preset.freezeMs) : 0;
+      this.bandT = clamp01(this.age / Math.max(1, this.dur - freezeMs));
+      ramp = 0.75 + 0.25 * easeInQuad(this.bandT);
+    }
+    if (ramp > 0) {
+      // the aura breathes with the heartbeat's flare
+      if (aura) aura.alpha = Math.min(1, T.auraGlow * ramp * (1 + this.seamKick * 0.4));
+      this.tierMoteAcc += dt * T.motes * ramp;
+      for (let n = 0; this.tierMoteAcc >= 1000 && n < 8; n++) { this.tierMoteAcc -= 1000; this.spawnTierMote(); }
+      this.tierWispAcc += dt * T.wisps * ramp;
+      for (let n = 0; this.tierWispAcc >= 1000 && n < 8; n++) { this.tierWispAcc -= 1000; this.spawnWisp(); }
+    } else if (aura) {
+      if (this.phase === 'burst') aura.alpha += (T.auraGlow - aura.alpha) * (1 - Math.exp(-dt / 220));
+      else if (this.phase === 'reveal') aura.alpha = this.tierAuraFrom + (this.tierAuraTo - this.tierAuraFrom) * easeOutCubic(clamp01(this.age / 500));
+      else if (this.phase === 'settle') aura.alpha = this.tierAuraFrom + (this.tierAuraTo - this.tierAuraFrom) * easeOutCubic(clamp01(this.age / Math.max(1, this.dur)));
+      else if (this.phase === 'winddown') aura.alpha = Math.max(0, aura.alpha - sec * 3); // dark before the wind-down ends
+    }
+    if (aura && T.multichrome) aura.tint = hsvToRgb(this.hueClock * T.hueSpeed, OPAL_SAT * 0.7, 1);
+  }
+
+  /** Step the tier's particles (their own list, the shared pool and cap). */
+  private stepTierParticles(dt: number, sec: number): void {
+    const S = this.size;
+    const T = this.tier;
+    const tx = this.keyholeAt.x, ty = this.keyholeAt.y;
+    const rate = this.hueRate();
+    const bandW = Math.max(1, this.tex.band.width * 0.42);
+    for (let i = this.tierParts.length - 1; i >= 0; i--) {
+      const q = this.tierParts[i];
+      // a band lives exactly as long as the charge it swirls through
+      if (q.kind === 'band' && (this.phase !== 'charge' || !this.tierOn)) q.life = 0;
+      else q.life -= dt;
+      if (q.life <= 0) { this.release(q.sprite); this.tierParts.splice(i, 1); continue; }
+      const lived = 1 - q.life / q.maxLife;
+      const s = q.sprite;
+      if (q.kind === 'band') {
+        // orbits the chest, tightening and speeding up, its centre sliding onto the keyhole
+        const bt = this.bandT;
+        const pull = easeInQuad(bt);
+        q.ang += Math.PI * 2 * T.bandSpeed * (1 + 2.5 * bt) * sec;
+        s.position.set(this.cx + (tx - this.cx) * pull, this.rimY + (ty - this.rimY) * pull);
+        s.rotation = q.ang;
+        s.scale.set((S * q.fromScale * (1 - 0.94 * easeInCubic(bt))) / bandW);
+        const shown = Math.min(1, (q.maxLife - q.life) / 300);
+        s.alpha = q.peakAlpha * shown * (0.55 + 0.45 * bt) * (bt > 0.9 ? Math.max(0, (1 - bt) / 0.1) : 1);
+      } else {
+        if (q.kind === 'wisp') {
+          // pulled into the keyhole, its sideways start bending the path into a curl
+          const dx = tx - q.x, dy = ty - q.y;
+          const d = Math.max(1, Math.hypot(dx, dy));
+          const acc = S * (2 + 12 * T.wispPull);
+          q.vx += (dx / d) * acc * sec;
+          q.vy += (dy / d) * acc * sec;
+          if (d < S * 0.06) q.life = 0;
+        } else if (q.kind === 'flare') {
+          // thrown out of the burst, curling as it slows
+          const c = Math.cos(q.spin * sec), sn = Math.sin(q.spin * sec);
+          const vx = q.vx * c - q.vy * sn;
+          q.vy = q.vx * sn + q.vy * c;
+          q.vx = vx;
+        }
+        const k = Math.pow(q.drag, sec);
+        q.vx *= k;
+        q.vy = q.vy * k + q.gravity * sec;
+        q.x += q.vx * sec;
+        q.y += q.vy * sec;
+        s.position.set(q.x, q.y);
+        const sc = q.fromScale + (q.toScale - q.fromScale) * lived;
+        if (q.kind === 'wisp' || q.kind === 'flare') {
+          s.rotation = Math.atan2(q.vy, q.vx);
+          s.scale.set(sc * Math.min(2.6, 0.6 + Math.hypot(q.vx, q.vy) / (S * 5)), sc);
+          s.alpha = q.peakAlpha * Math.min(1, lived * 5) * (1 - easeInQuad(lived));
+        } else {
+          s.rotation += q.spin * sec;
+          s.scale.set(sc);
+          s.alpha = q.kind === 'sparkle'
+            ? q.peakAlpha * (1 - easeInQuad(lived)) * (0.6 + 0.4 * Math.sin(q.seed + lived * 34))
+            : q.peakAlpha * Math.sin(Math.PI * lived);
+        }
+      }
+      if (q.hue >= 0) s.tint = hsvToRgb(q.hue + this.hueClock * rate, OPAL_SAT, 1);
+    }
+  }
+
+  /** Multichrome for the reward's own particles (an Ancient reward): only the ones given a hue. */
+  private cycleHues(list: Particle[]): void {
+    const rate = this.hueRate();
+    for (let i = 0; i < list.length; i++) {
+      const q = list[i];
+      if (q.hue >= 0) q.sprite.tint = hsvToRgb(q.hue + this.hueClock * rate, OPAL_SAT, 1);
+    }
+  }
+
+  /** The tier's burst flourish, after the reward's: a white flash, a thin tier ring, sparkles and wisps thrown out. */
+  private tierBurst(): void {
+    const T = this.tier;
+    const S = this.size;
+    const bx = this.rimCx;
+    const by = this.rimY - S * 0.05;
+    const gw = this.tex.glow.width;
+    if (T.burstFlash > 0) this.spawnFlash(bx, by, 0xffffff, Math.min(1, T.burstFlash), (S * 0.4) / gw, (S * 3.6) / gw, 420, 0, 0.08);
+    if (T.burstSparkles > 0) this.spawnRing(bx, by, S * 0.25, S * 2.6, 560, T.multichrome ? 0xffffff : T.color, 0.75, 40);
+    if (this.tierAura) this.tierAura.alpha = Math.min(1, T.auraGlow * 1.4);
+    const whiteEvery = T.multichrome ? 3 : 5;
+    for (let i = 0; i < T.burstSparkles; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 2;
+      const sp = S * (1.5 + Math.random() * 4);
+      this.spawnTier('sparkle', this.tex.spark, bx + (Math.random() - 0.5) * S * 0.5, by, i % whiteEvery === 0, {
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - S, drag: 0.08, gravity: S * 1.2, spin: (Math.random() - 0.5) * 6,
+        life: 700 + Math.random() * 800, fromScale: 0.22 + Math.random() * 0.25, toScale: 0.04, peakAlpha: 1,
+      });
+    }
+    for (let i = 0; i < T.burstWisps; i++) {
+      const a = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.7;
+      const sp = S * (2.2 + Math.random() * 2.6);
+      this.spawnTier('flare', this.tex.wisp, bx + (Math.random() - 0.5) * S * 0.4, by, false, {
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, drag: 0.18, spin: (Math.random() < 0.5 ? -1 : 1) * (2 + Math.random() * 2.5),
+        life: 800 + Math.random() * 600, fromScale: 0.5 + Math.random() * 0.4, toScale: 0.15, peakAlpha: 0.9,
+      });
+    }
+  }
+
+  /** A tier particle: the tier colour, white, or (multichrome) its own place on the hue wheel. */
+  private spawnTier(kind: Particle['kind'], tex: Texture, x: number, y: number, white: boolean,
+    o: { vx?: number; vy?: number; drag?: number; gravity?: number; spin?: number; life: number; fromScale?: number; toScale?: number; peakAlpha?: number }): Particle | null {
+    const hue = !white && this.tier.multichrome ? Math.random() : -1;
+    const tint = white ? 0xffffff : hue >= 0 ? hsvToRgb(hue + this.hueClock * this.hueRate(), OPAL_SAT, 1) : this.tier.color;
+    const q = this.spawn(kind, tex, x, y, tint, o, 'add', this.tierParts);
+    if (q) q.hue = hue;
+    return q;
+  }
+
+  private spawnTierMote(): void {
+    const S = this.size;
+    this.spawnTier('mote', this.tex.spark, this.cx + (Math.random() - 0.5) * S * 1.4, this.baseY - Math.random() * S * 0.5, Math.random() < 0.2, {
+      vx: (Math.random() - 0.5) * S * 0.12, vy: -S * (0.3 + Math.random() * 0.4), life: 1300 + Math.random() * 900,
+      fromScale: 0.14 + Math.random() * 0.14, toScale: 0.05, peakAlpha: 0.85,
+    });
+  }
+
+  private spawnWisp(): void {
+    const S = this.size;
+    const a = Math.random() * Math.PI * 2;
+    const r = S * (1 + Math.random() * 0.6);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const sp = S * (0.9 + Math.random() * 0.6);
+    // a sideways start (tangent to the keyhole) so the pull bends it into a curl
+    this.spawnTier('wisp', this.tex.wisp, this.keyholeAt.x + Math.cos(a) * r, this.keyholeAt.y + Math.sin(a) * r * 0.75, false, {
+      vx: -Math.sin(a) * sp * side, vy: Math.cos(a) * sp * side, drag: 0.4,
+      life: 1600, fromScale: 0.45 + Math.random() * 0.3, toScale: 0.2, peakAlpha: 0.9,
+    });
+  }
+
   // ─── spawning (pooled) ──────────────────────────────────────────────────────────────────────────────────
 
   private acquire(tex: Texture): Sprite | null {
@@ -981,12 +1328,31 @@ export class CrateScene {
     else s.destroy();
   }
 
+  /**
+   * A full pool gives up its oldest TIER particle: the reward's own finale outranks the chest's flourish ("A Rare
+   * chest that rolls a Legendary must still get the Legendary finale"; a Legendary reward alone already peaks near the
+   * cap), and the flourish's burst outranks the tier's ambient motes and wisps. A reward particle is never evicted, so
+   * with no tier layer this never frees anything and the cap behaves exactly as before.
+   */
+  private makeRoom(forReward: boolean): boolean {
+    for (let i = 0; i < this.tierParts.length; i++) {
+      const k = this.tierParts[i].kind;
+      if (forReward || k === 'mote' || k === 'wisp') {
+        this.release(this.tierParts[i].sprite);
+        this.tierParts.splice(i, 1);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** One particle from the pool into `list` (the reward's, or the tier's): null when the shared cap is reached. */
   private spawn(kind: Particle['kind'], tex: Texture, x: number, y: number, tint: number,
     o: { vx?: number; vy?: number; drag?: number; gravity?: number; spin?: number; life: number; fromScale?: number; toScale?: number; peakAlpha?: number },
-    blend: 'add' | 'normal' = 'add'): void {
-    if (this.particles.length >= MAX_PARTICLES) return;
+    blend: 'add' | 'normal' = 'add', list: Particle[] = this.particles): Particle | null {
+    if (this.particles.length + this.tierParts.length >= MAX_PARTICLES && !this.makeRoom(list === this.particles)) return null;
     const s = this.acquire(tex);
-    if (!s) return;
+    if (!s) return null;
     s.tint = tint;
     s.blendMode = blend;
     s.rotation = Math.random() * Math.PI * 2;
@@ -995,11 +1361,13 @@ export class CrateScene {
       vx: o.vx ?? 0, vy: o.vy ?? 0, drag: o.drag ?? 1, gravity: o.gravity ?? 0, spin: o.spin ?? 0,
       life: Math.max(1, o.life), maxLife: Math.max(1, o.life),
       fromScale: o.fromScale ?? 1, toScale: o.toScale ?? 1, peakAlpha: o.peakAlpha ?? 1, seed: Math.random() * 10,
+      hue: -1, ang: 0,
     };
     s.position.set(x, y);
     s.scale.set(q.fromScale);
-    s.alpha = kind === 'mote' || kind === 'rise' || kind === 'pull' ? 0 : q.peakAlpha;
-    this.particles.push(q);
+    s.alpha = kind === 'mote' || kind === 'rise' || kind === 'pull' || kind === 'wisp' || kind === 'band' ? 0 : q.peakAlpha;
+    list.push(q);
+    return q;
   }
 
   private spawnMote(tint: number): void {
@@ -1049,18 +1417,26 @@ export class CrateScene {
 
   private clearFx(): void {
     for (const q of this.particles) this.release(q.sprite);
+    for (const q of this.tierParts) this.release(q.sprite);
     for (const r of this.rings) this.release(r.sprite);
     for (const f of this.flashes) { if (f.sprite === this.punch) this.punch.alpha = 0; else this.release(f.sprite); }
     this.particles.length = 0;
+    this.tierParts.length = 0;
     this.rings.length = 0;
     this.flashes.length = 0;
   }
 
-  /** Live counts, for tests and the perf check. */
-  stats(): { particles: number; rings: number; flashes: number; pooled: number; frontChildren: number; rootChildren: number } {
+  /** Live counts, for tests and the perf check. `particles` counts both lists (they share one cap). */
+  stats(): {
+    particles: number; rings: number; flashes: number; pooled: number; frontChildren: number; rootChildren: number;
+    tier: number; bands: number; sparkles: number; coins: number;
+  } {
+    const count = (list: Particle[], kind: Particle['kind']): number => list.reduce((n, q) => n + (q.kind === kind ? 1 : 0), 0);
     return {
-      particles: this.particles.length, rings: this.rings.length, flashes: this.flashes.length,
+      particles: this.particles.length + this.tierParts.length, rings: this.rings.length, flashes: this.flashes.length,
       pooled: this.pool.length, frontChildren: this.front.children.length, rootChildren: this.root.children.length,
+      tier: this.tierParts.length, bands: count(this.tierParts, 'band'), sparkles: count(this.tierParts, 'sparkle'),
+      coins: count(this.particles, 'coin'),
     };
   }
 
@@ -1071,10 +1447,16 @@ export class CrateScene {
     for (const s of this.pool) s.destroy();
     this.pool.length = 0;
     this.art = null;
+    this.spike = null;
+    this.tierAura = null;
+    // the spike front's frame is ours (its source, the body, is the caller's)
+    const spikeTex = this.spikeTex;
+    this.spikeTex = null;
     // children:true destroys every container and sprite below; textures stay (the caller owns them).
     for (const c of [this.cam, this.overlay]) {
       this.root.removeChild(c);
       c.destroy({ children: true });
     }
+    spikeTex?.destroy(false);
   }
 }

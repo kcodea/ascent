@@ -882,9 +882,9 @@ kept), and a Gauntlet first clear pays Aether instead of a crate.
   - **Versus:** **25** for a completed match, **+45** for the winner (an abandoned match with no winner pays 25).
   - **Practice and Tutorial:** 0. There is no comeback bonus.
   - **Gauntlet:** the first clear of each stage pays **200**, once per stage. Stages you cleared before Aether launched
-    pay nothing.
+    pay nothing. (If the Gauntlet amount is ever misconfigured, the first clear falls back to a crate.)
   - **Guests** earn Aether and see their balance like anyone, but **cannot spend it**: every place that would spend it
-    asks them to sign in.
+    asks them to sign in (the sign-in prompt arrives with the Crate Shop screen).
 - **The five crates.** Each crate guarantees a **rarity floor**: nothing below it can drop.
 
   | Crate | Floor | Price |

@@ -4928,7 +4928,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 /* THE CARD PLATE EDITOR's preview (dev tuner, 2026-10-18): one plated card with room above and around it for the
    plate's lift and for art drawn past the plate box. */
 .plate-editor-preview { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 6px 0 10px; }
-.plate-editor-stage { position: relative; width: var(--cw); height: 420px; padding-top: 90px; box-sizing: content-box; }
+.plate-editor-stage { position: relative; width: var(--cw); height: 588px; padding-top: 126px; box-sizing: content-box; } /* 40% up from 420 / 90 with the card (owner 2026-10-18) */
 .plate-editor-note { margin: 0; font-size: 12px; line-height: 1.35; color: #e8dcc0; text-align: center; max-width: 300px; }
 .card.plated .cardloan { z-index: 9; } /* the shared rule seats it at z0 with the plate; the marker goes on top */
 /* TRIBE NAME on the plate's bottom gem (tribe-plated cards only — the drawer label is suppressed for them).

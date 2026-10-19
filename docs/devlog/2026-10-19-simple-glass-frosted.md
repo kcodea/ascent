@@ -58,3 +58,9 @@ Checked in the browser pane with black/white stripes behind the card, toggling o
 - The `overflow: hidden` on `#root` / `#stage` was a false lead (one test seemed to fix it; a clean retest did not).
 
 Oracle rule: **R-PLATE-02**.
+
+## Follow-up (same day): darker, lighter-touch glass
+
+Owner, happy with the blur everywhere: *"make the grey layer less warm and more dark grey, then reduce its opacity to
+15%. reduce the blur by 20px"*. Layer `rgba(140, 118, 120, 0.65)` to a neutral dark grey `rgba(58, 60, 64, 0.15)`; blur
+40px to 20px.

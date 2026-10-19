@@ -4956,21 +4956,18 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    it", then "i like the lighter grey hover effect more and want to get it closer to that at all times. maybe increase
    the amount of blur a bit"). The interior <img> keeps its box (so the fit, the fade-in and the Card Plate Editor's
    sliders all work unchanged) but paints NONE of its pixels: `object-position` throws the image out of its own box.
-   What shows is a 15px blur of what is behind the card under a light FROSTED GREY layer (24%), both clipped to the
-   interior's outline by masking the element with that same image (owner 2026-10-19: "reduce the opacity of the light
-   grey by 60% and increase the blur by 50%", from 60% / 10px). STATIC: nothing here animates (performance north star).
+   What shows is a blur of what is behind the card under a thin GREY layer (values below), both clipped to the
+   interior's outline by masking the element with that same image. STATIC: nothing here animates (performance north star).
    It BLURS WHILE DRAGGED too (owner 2026-10-19: "can you have it apply the blur while moving ?"). The drag layer's
    drop-shadow is a `filter`, which would make it a backdrop root (the blur would see nothing behind the card), so a
    dragged GLASS card moves that shadow onto its frame instead: same silhouette shadow, and the blur sees the board.
    Costs a re-blur per frame for that one card while it moves. */
 .card.plated .cardplate.plate-interior.plate-frosted {
   object-position: -100000px 0;
-  /* Owner 2026-10-19, after trying blur-only (grey 0, 40px): "heres while dragging. THIS is the effect i want on it at
-     all times". Dragged over the beige board the glass read rgb(140, 118, 120); in the hand it sat over the purple tray
-     and read purple. This warm grey layer at 65% is that dragging colour, so the glass keeps it over any backdrop, with
-     what is behind only tinting it. */
-  background: rgba(140, 118, 120, 0.65);
-  -webkit-backdrop-filter: blur(40px); backdrop-filter: blur(40px);
+  /* Owner 2026-10-19, once the blur showed in every state: "make the grey layer less warm and more dark grey, then
+     reduce its opacity to 15%. reduce the blur by 20px" (from a warm rgba(140, 118, 120, 0.65) over a 40px blur). */
+  background: rgba(58, 60, 64, 0.15);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
   -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
 }
 .dragcard:has(.plate-frosted) { filter: none; }

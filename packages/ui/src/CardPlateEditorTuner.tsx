@@ -74,8 +74,11 @@ async function save(): Promise<void> {
 }
 
 // ── The preview card ─────────────────────────────────────────────────────────────────────────────────────────────
-const SAMPLE_CARD = 'k_pouchpincher'; // the Collection's plate sample card
-const CH = 220;
+// The MINION with the most rules text in Set 2 (owner 2026-10-18: "what card has the most amount of text on it in set
+// 2? i want that to be the card that is previewed", then "lets use impossible todd"): Impossible Todd, 104 characters.
+// (Decoy Sigil, a spell, has 113, but a spell's text sits higher on the card than a minion's.)
+const SAMPLE_CARD = 'dm_todd';
+const CH = 308; // 220 x 1.4 (owner 2026-10-18: "make the preview of the card in the card plate editor roughly 40% larger")
 const CW = Math.round(CH * 0.752);
 const CCW = Math.round(CW * 0.85);
 

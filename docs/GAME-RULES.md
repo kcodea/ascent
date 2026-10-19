@@ -772,7 +772,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   Aqua, Smooth Blue, Smooth Red, Hand Drawn, Blue Hand Drawn, Green Hand Drawn, Dark Arcane, Beach, Magma, Stonevines,
   Porcelain, Aquarium Rocks. **Rare:** Standard Black, Standard Blue, Standard Pink, Standard Teal. **Legendary:**
   Amethyst, Galaxy, Crackling Gemstone, Topaz, Blossom, Chrome, Spirit Carving, Iridescent, Mystic Obsidian, Smooth
-  Iridescent, Battletorn, Ethereal, Round Magic, Verdant Magic, Phoenix Plate, Emerald, Gilt
+  Iridescent, Battletorn, Ethereal, Round Magic, Verdant Magic, Emerald, Gilt
   Etched, Astral Relic, Blood Omen, Honey, Goop. New plates come from the owner's Card Backplates folder and are
   Legendary unless the owner says otherwise. Most are LAYERED: an interior (Brown by default; Dark, Dark Brown, Grey, Magma,
   Water, Simple Black, Mystic, Round Magic, Silver Magic and Wartorn too), then the text darkening, then the frame on top, so a frame's effects are never darkened. Account-wide: equipped in the Collection's Card Plates tab ("Use standard

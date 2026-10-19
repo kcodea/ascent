@@ -646,9 +646,10 @@ function FramePreview({ item, owned, showDefault }: { item: CosmeticDef; owned: 
 
 // ── Card plates (2026-10-14) ───────────────────────────────────────────────────────────────────────────────
 
-/** The card a plate preview floats: Cheap Date, a Tier 1 neutral minion with a line of rules text, so the preview shows
- *  the plate, its darkening and the text on it. */
-const PLATE_SAMPLE_CARD = 'k_pouchpincher';
+/** The card a plate preview floats: Impossible Todd, Set 2's longest-text minion, so the preview shows the plate, its
+ *  darkening and the most rules text a card carries (owner 2026-10-18: "can you use impossible todd for the hover preview
+ *  as well in the collection?"; it was Cheap Date). The Card Plate Editor previews the same card. */
+const PLATE_SAMPLE_CARD = 'dm_todd';
 
 /** A plate item's look (art + darkening), or null for an item this client has no art for. */
 const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null => {

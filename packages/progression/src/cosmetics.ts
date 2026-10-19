@@ -702,7 +702,10 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_ethereal', 'Ethereal', 'legendary', 'Ethereal.png'),
   cardPlate('plate_round_magic', 'Round Magic', 'legendary', 'Round Magic.png'),
   cardPlate('plate_verdant_magic', 'Verdant Magic', 'legendary', 'Silver Magic.png'),
-  cardPlate('plate_phoenix_plate', 'Phoenix Plate', 'legendary', 'Phoenix Plate.png'),
+  // RETIRED 2026-10-18 (owner: "i couldnt make phoenix plate work, so lets remove that card plate for now"). It had reached the
+  // live catalog, so it is an inactive row like Sad Wrangler, never deleted: it never drops again, owners keep it, the
+  // Collection hides it. Its art and look stay in the client for when it comes back.
+  { ...cardPlate('plate_phoenix_plate', 'Phoenix Plate', 'legendary', 'Phoenix Plate.png'), active: false },
   // Owner 2026-10-17: "added more - add dark back to each" (the Dark interior). Gold Etched ships as Gilt Etched (no medal
   // words in names).
   cardPlate('plate_emerald', 'Emerald', 'legendary', 'Emerald.png'),

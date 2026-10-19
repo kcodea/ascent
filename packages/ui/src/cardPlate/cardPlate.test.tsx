@@ -136,7 +136,8 @@ describe('the plate looks', () => {
     for (const c of plates) {
       const look = CARD_PLATE_LOOKS[c.assets.art!];
       expect(look, c.id).toBeTruthy();
-      expect(cardPlateLookOf({ cardPlate: c.id })).toBe(look);
+      // A RETIRED plate (Phoenix Plate, 2026-10-18) keeps its look and files for when it returns, but is never worn.
+      expect(cardPlateLookOf({ cardPlate: c.id }), c.id).toBe(c.active === false ? null : look);
       for (const url of [look!.plate, look!.thumb, ...(look!.backbox ? [look!.backbox] : []), ...(look!.frame ? [look!.frame] : [])]) expect(existsSync(join(pub, url.replace(/^.*?frames\//, 'frames/'))), url).toBe(true);
     }
     expect(cardPlateLookOf(null)).toBeNull();

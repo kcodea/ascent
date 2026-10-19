@@ -36,6 +36,12 @@ vi.mock('@supabase/supabase-js', () => ({
     }),
   }),
 }));
+/** The wallet re-read a paid clear asks for (2026-10-18), spied on; everything else in the store is real. */
+const refreshOwnProfile = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock('../progression/progressionStore', async (orig) => ({
+  ...(await orig<typeof import('../progression/progressionStore')>()),
+  refreshOwnProfile: () => refreshOwnProfile(),
+}));
 vi.mock('../identity', () => ({
   currentUserId: () => userId,
   currentIdentity: () => (userId ? { userId, displayName: 'Kev', anonymous, email: anonymous ? null : 'k@example.com' } : null),
@@ -70,6 +76,7 @@ beforeEach(() => {
   userId = 'u-1';
   anonymous = false;
   invokeImpl = realServer;
+  refreshOwnProfile.mockClear();
 });
 
 describe('which store counts', () => {
@@ -163,6 +170,8 @@ describe('the crate', () => {
     await flushGauntletAccount((r) => rewards.push(r));
     expect(rewards).toEqual([{ stage: 6, crateId: null, aether: 200 }]);
     expect(useNewRewards.getState().unseen.crates).toHaveLength(0);
+    // The answer carries no profile: the wallet chip's balance is re-read once.
+    expect(refreshOwnProfile).toHaveBeenCalledTimes(1);
   });
 
   it('a crate answer keeps its exact old shape (no Aether key) while Aether is 0', async () => {
@@ -170,6 +179,7 @@ describe('the crate', () => {
     recordClear(7);
     await flushGauntletAccount((r) => rewards.push(r));
     expect(rewards).toStrictEqual([{ stage: 7, crateId: 'g-7' }]);
+    expect(refreshOwnProfile).not.toHaveBeenCalled(); // nothing paid, no re-read
   });
 
   it('an offline clear stays queued and still counts as cleared', async () => {

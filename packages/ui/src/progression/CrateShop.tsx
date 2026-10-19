@@ -94,7 +94,9 @@ const FocusChip = memo(function FocusChip({ cat, on, soldOut, onToggle }: {
   );
 });
 
-export function CrateShop({ mode, guest, onGuest, onOpen, onBusy, onBack, held = false }: CrateShopProps): JSX.Element {
+/** Memoized: the Collection re-renders on every pick, tab switch and hover; the shop's props are stable (module-level or
+ *  memoized mode, `useCallback` handlers, the setState `onBusy`), so those renders skip this panel. */
+export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen, onBusy, onBack, held = false }: CrateShopProps): JSX.Element {
   const milestone = mode.kind === 'milestone';
   const economy = useProgression((s) => s.economy);
   const balance = useProgression(aetherBalance);
@@ -243,4 +245,4 @@ export function CrateShop({ mode, guest, onGuest, onOpen, onBusy, onBack, held =
       </button>
     </section>
   );
-}
+});

@@ -188,6 +188,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   );
   // The focus step shows only while its crate is still sealed here (opened elsewhere, or a re-read, and it steps aside).
   const focusShown = aetherOn && focusCrate && sealedRows.some((c) => c.crateId === focusCrate.crateId) ? focusCrate : null;
+  // One mode object per focused crate, so the memoized shop only re-renders when it changes.
+  const focusMode: CrateShopMode | null = useMemo(() => (focusShown ? { kind: 'milestone', crate: focusShown } : null), [focusShown]);
   const firstFloor = sealedRows[0] ? floorOf(sealedRows[0]) : null;
   // Aether: the first sealed crate's odds; none sealed, the next crate is a milestone Legendary. Off: today's line.
   const oddsLine = useMemo(() => (aetherOn ? floorOddsLine(firstFloor ?? 'legendary') : crateOddsLine()), [aetherOn, firstFloor]);
@@ -285,19 +287,24 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   /** EVERY player-facing crate open comes through here (the bay's Open / Open all, the New rewards pop-up). A guest
    *  gets the sign-in gate instead (owner 2026-09-29); `anonymous` is read fresh each render, so the first Open
    *  after the account is created goes straight through. */
-  const begin = (openAll: boolean): void => {
-    if (!sealed.length || shopBusy) return; // a purchase in flight owns the theatre next
+  const begin = (openAll: boolean, queue: CrateQueueItem[] = sealed): void => {
+    if (!queue.length || shopBusy) return; // a purchase in flight owns the theatre next
     sfx.pulse();
     if (anonymous) { setGate(true); return; }
-    setTheatre({ queue: [...sealed], openAll });
+    setTheatre({ queue: [...queue], openAll });
   };
 
-  /** The bay's Open. With Aether on, a sealed MILESTONE crate first shows its focus step in the bay's place; anything
-   *  else (and every guest, who gets the gate) goes through `begin` as before. */
+  /** The bay's single Open. With Aether on, a MILESTONE crate always gets its focus step (spec: "Milestone crates offer
+   *  the focus step at open"): when one is first, it shows in the bay's place; when older crates come first (a pre-Aether
+   *  level crate sorts ahead of a backdated milestone crate, whose level is null), the theatre's queue STOPS before the
+   *  first milestone crate, so its "Open next" can never open one unfocused, and the next Open reaches its focus step.
+   *  The bay keeps its order (Aether off, nothing changes). Open all and the New rewards pop-up still open everything,
+   *  milestone crates included, unfocused (`begin` with the whole list): a free crate opened in bulk. Every guest gets
+   *  the gate through `begin`. */
   const openBay = (): void => {
-    const first = sealedRows[0];
-    if (aetherOn && !anonymous && !shopBusy && first && milestoneLevelOfSource(first.source) !== null) { sfx.pulse(); setFocusCrate(first); return; }
-    begin(false);
+    const at = aetherOn ? sealedRows.findIndex((c) => milestoneLevelOfSource(c.source) !== null) : -1;
+    if (at === 0 && !anonymous && !shopBusy) { sfx.pulse(); setFocusCrate(sealedRows[0]!); return; }
+    begin(false, at > 0 ? sealed.slice(0, at) : sealed);
   };
 
   const pickCategory = (c: CosmeticCategory): void => {
@@ -432,9 +439,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         </main>
 
         <aside className="colls-side">
-          {focusShown ? (
+          {focusShown && focusMode ? (
             <CrateShop
-              key={focusShown.crateId} mode={{ kind: 'milestone', crate: focusShown }} guest={anonymous} onGuest={openGate} onOpen={playMilestone}
+              key={focusShown.crateId} mode={focusMode} guest={anonymous} onGuest={openGate} onOpen={playMilestone}
               onBack={closeFocus} held={shopBusy}
             />
           ) : (

@@ -517,9 +517,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
   answers (anticipation), then plays the answer's rarity: a charge, a burst and the reward rising out of the light.
   It escalates with rarity (Common quick, Rare blue, Epic purple and longer, Legendary gold with god rays and a
-  sting, Ancient the biggest of all in cyan to magenta, "Prismatic Aurora"). **Ancient's own moment, "Time stops"
-  (owner pick 2026-10-02):** at the end of the charge the chest freezes mid-shake, the sound cuts and the scene drains
-  to grey for a beat, then a prismatic crack splits the view at the burst and the colour floods back. A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
+  sting, Ancient the biggest of all in cyan to magenta, "Prismatic Aurora"). Ancient used to have its own "Time stops" moment (the chest froze and the scene drained to grey); the owner switched it off on 2026-10-19, so an Ancient opening flows straight from the charge into the burst. A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
   the chest. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The chest is the owner's treasure chest in
   two layers (body + lid): the lid rattles, light leaks from the seam and the keyhole, the lid blasts off at the burst
   and the open body stays on the pedestal while the reward rises above it (oracle R-PROG-COLLECTION-03).

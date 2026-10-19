@@ -4517,10 +4517,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'accepts it through cosmetic_catalog_rarity_check (2026-10-02-ancient-rarity.sql, which the owner runs BEFORE '
       + 'deploying progression-inventory, whose catalog sync writes the Ancient rows). Its look is the owner\x27s pick, '
       + 'concept 3 "Prismatic Aurora": cyan #8af5ff shading to magenta #ff7ae0 (the .r-ancient tokens; a static aurora '
-      + 'gradient on its gem, chip, title text and tile rim), and its crate reveal is "Time stops" (the rarity\x27s '
-      + 'signature, swappable): the chest freezes mid-shake and the view drains to grey for ancientFreezeMs (650), then a '
-      + 'prismatic crack splits the view at the burst and the colour floods back. The drain and the crack are one-shot; '
-      + 'every loop stays transform or opacity. Ancient items today: the six Ancient frames (Bonds, Death, Fortune, Genesis, '
+      + 'gradient on its gem, chip, title text and tile rim), and its crate reveal plays no signature moment: the "Time stops" '
+      + 'freeze (the chest held mid-shake while the view drained to grey, then a prismatic crack) was switched off by the '
+      + 'owner on 2026-10-19, so an Ancient opening flows straight from the charge into the burst (RARITY_SIGNATURE '
+      + 'ancient = none, ancientFreezeMs 0; the signature stays swappable). Every loop stays transform or opacity. Ancient items today: the six Ancient frames (Bonds, Death, Fortune, Genesis, '
       + 'Time, War) and four moved up from Legendary by the owner: Tee Time Sylus and Edward Colada Hands (minion skins, '
       + 'masters moved to Minion Skins/Ancient/), Consecration and Arcana (hero attacks); and Soul Stitch (attack_soul_stitch, R-PROG-ATTACK-34), the first hero attack BUILT at Ancient (2026-10-02), making eleven at 3 / 11 = 0.273% each; Timebreak (attack_bullet_time, 2026-10-02) made twelve; on 2026-10-03 skins batch 8 and frames batch 7 (R-PROG-SKINS-14, R-PROG-FRAME-04) added six Ancient hero skins (Auctioneer Sweeney, Goth Nadja, Lord Callen, Merrin Sweeney, Nadja Sweeney, Rayse Sweeney) and the Reflective frame, and moved Leg Day Darah and Dance Night Hunch up from Legendary, making twenty-one at 3 / 21 = 0.143% each (each Legendary is 9 / 37 = 0.243%). Ownership is per id '
       + '(player_cosmetics has no rarity), so a player who owns a moved item keeps it; only its shown rarity and future '
@@ -4530,9 +4530,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient rarity)', quote: 'i added a new rarity -> Ancient. can you wire that up so we can have skins that are of ancient rarity? these will be a 3% drop rate' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-02 (the Ancient look: concept 3 picked, relayed by the main session)', quote: 'concept 3, PRISMATIC AURORA' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-19 (previewing the tiered chest openings)', quote: 'the only part i dont like is how everything stops and turns grey for a moment' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETIC_RARITIES, CRATE_RARITY_ODDS, RARITY_LABELS, CRATE_ROLL_VERSION 4); supabase/migrations/2026-10-02-ancient-rarity.sql; packages/ui/src/progression/crateFx/crateFxConfig.ts (RARITY_SIGNATURE, the ancient dials); packages/ui/src/progression/crateFx/crateScene.ts (the freeze); packages/ui/src/progression/crateFx/crateTheatre.css (.sig-timestop); packages/ui/src/styles.css (.r-ancient); packages/ui/src/progression/collectionModel.ts (RARITY_RANK)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory.',
+    currentBehaviour: 'Conforms, built 2026-10-02. Live once the owner runs 2026-10-02-ancient-rarity.sql and then deploys progression-inventory. "Time stops" switched off 2026-10-19 (feat/tiered-chests; crateFx.test.ts + Crates.test.tsx pin the flow with no freeze).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cosmetics.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/progression/src/crateOdds.db.test.ts', 'packages/progression/src/portraitFrames.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/ui/src/progression/crateFx/crateFx.test.ts', 'packages/ui/src/progression/Crates.test.tsx', 'packages/ui/src/progression/CollectionFrames.test.tsx'], lastVerifiedAt: '2026-10-03' },
   },
   {

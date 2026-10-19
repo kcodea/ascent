@@ -47,11 +47,14 @@ export const CRATE_RARITIES: readonly CrateRarity[] = COSMETIC_RARITIES;
  * 'timestop' (Ancient, owner pick 2026-10-02, concept 3 "Prismatic Aurora"): the chest freezes mid-shake and the scene
  * drains to grey for `<rarity>FreezeMs`, then a prismatic crack splits the view and the colour floods back at the burst.
  * SWAPPABLE: a new signature is one id here plus its CSS (`.crth.sig-<id>`) and, if it freezes, a FreezeMs dial.
+ * SWITCHED OFF 2026-10-19 (owner, previewing the tiered chests: "the only part i dont like is how everything stops and
+ * turns grey for a moment"): Ancient plays 'none' and `ancientFreezeMs` defaults to 0, so the charge flows straight into
+ * the burst. 'timestop' and its CSS stay, so restoring it is this one line plus the FreezeMs default.
  */
 export const CRATE_SIGNATURES = ['none', 'timestop'] as const;
 export type CrateSignature = (typeof CRATE_SIGNATURES)[number];
 export const RARITY_SIGNATURE: Readonly<Record<CrateRarity, CrateSignature>> = {
-  common: 'none', rare: 'none', epic: 'none', legendary: 'none', ancient: 'timestop',
+  common: 'none', rare: 'none', epic: 'none', legendary: 'none', ancient: 'none',
 };
 
 /** The per-rarity dials. Each one exists once per rarity in the config, as `<rarity><Suffix>`. */
@@ -312,7 +315,7 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   ancientRays: 1,
   ancientDoubleBurst: 1,
   ancientPitch: 0.82,
-  ancientFreezeMs: 650,
+  ancientFreezeMs: 0, // "Time stops" switched off (owner 2026-10-19); was 650
 
   // Layers (all existing clips): the hum is the End Turn charge build; the pulse a soft trigger tick on every
   // heartbeat; the charge the rune implosion (energy pulled in); the burst the Reborn shatter (a crack, not a

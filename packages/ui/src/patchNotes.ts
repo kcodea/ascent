@@ -67,6 +67,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Ancient chests pull in swirling opal energy and burst with a white flash and multichrome sparkles.',
           'What\'s inside still decides the finale, so a Rare chest can still surprise you.',
           'An Ancient reward\'s sparks now shimmer through the colours, whichever chest it comes from.',
+          'Ancient openings no longer freeze and turn grey before the burst: the charge flows straight into it.',
         ],
       },
       {

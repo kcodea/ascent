@@ -26,7 +26,7 @@ const TIMELINE: Record<CrateRarity, number[]> = {
   epic: [940, 1100, -1, 1316, 2816],
   legendary: [1400, 1700, 1985, 1985, 3785],
   // Ancient (2026-10-02): a 650 ms time stop between the charge (1900) and the burst
-  ancient: [1640, 2550, 2865, 2865, 4915],
+  ancient: [1640, 1900, 2215, 2215, 4265], // 650 ms shorter: "Time stops" switched off (owner 2026-10-19)
 };
 
 describe('the tuner values', () => {
@@ -95,10 +95,11 @@ describe('rarity -> preset', () => {
     expect(p.filter((x) => x.doubleBurst).map((x) => x.rarity)).toEqual(['legendary', 'ancient']);
     expect(p.filter((x) => x.coins > 0).map((x) => x.rarity)).toEqual(['legendary']); // the gold shower stays Legendary's
     expect(p.filter((x) => x.hitchMs > 0).map((x) => x.rarity)).toEqual(['epic', 'legendary', 'ancient']);
-    // Ancient's signature (owner pick 2026-10-02, "Time stops"): the only rarity that freezes
-    expect(p.filter((x) => x.freezeMs > 0).map((x) => [x.rarity, x.signature])).toEqual([['ancient', 'timestop']]);
-    expect(p.filter((x) => x.signature !== 'none').map((x) => x.rarity)).toEqual(['ancient']);
-    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0x8af5ff, colorCss: '#8af5ff', freezeMs: 650 });
+    // Ancient's "Time stops" (owner pick 2026-10-02) is SWITCHED OFF (owner 2026-10-19: "the only part i dont like is how
+    // everything stops and turns grey for a moment"): no rarity freezes or plays a signature by default.
+    expect(p.filter((x) => x.freezeMs > 0)).toEqual([]);
+    expect(p.filter((x) => x.signature !== 'none')).toEqual([]);
+    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0x8af5ff, colorCss: '#8af5ff', freezeMs: 0, signature: 'none' });
   });
 
   it('the preset reads the tuned config', () => {
@@ -268,12 +269,12 @@ describe('the crate scene (headless Pixi)', () => {
     scene.destroy();
   });
 
-  it('Ancient "Time stops" (owner pick 2026-10-02): the end of the charge holds frozen for freezeMs, then the burst picks it up', () => {
+  it('the switched-off "Time stops" still works when restored: the end of the charge holds frozen for freezeMs, then the burst picks it up', () => {
     const root = new Container();
     const scene = new CrateScene(root, TEX);
     scene.layout(1920, 1080);
-    const p = presetFor('ancient', CRATE_FX_DEFAULTS);
-    expect(p.freezeMs).toBeGreaterThan(0);
+    // Off by default since 2026-10-19 (owner); the machinery stays so the moment can come back with one line.
+    const p = { ...presetFor('ancient', CRATE_FX_DEFAULTS), signature: 'timestop' as const, freezeMs: 650 };
     scene.anticipate(ant);
     scene.charge(p);
     run(scene, p.chargeMs + 60); // into the freeze

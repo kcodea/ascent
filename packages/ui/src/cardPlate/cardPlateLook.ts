@@ -232,6 +232,26 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_runic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 0.98, interiorSy: 1.001, interiorY: -0.0103, darken: false, artScale: 1.086 },
   plate_verdant: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 0.987, interiorSy: 0.996, interiorY: -0.0066, darken: false, artScale: 1.075 },
   plate_volcanic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 1.022, interiorSy: 0.999, interiorY: -0.0094, darken: false, artScale: 1.032 },
+  // Owner 2026-10-19, the next drop: warm frames on Dark Brown, cool frames on Dark ("black": the owner picked the Dark
+  // interior), and the last four (Nano, Soulwitch, Spades, The Howl) on Dark too. No darkening. Whole art fitted to the
+  // plate, then `artScale` until the opening matches a standard plate's, like the batch above.
+  plate_armored_knight: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.004, interiorSx: 1.008, interiorSy: 1.006, interiorY: -0.0037, darken: false, artScale: 1.05 },
+  plate_bordered_land: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 0.969, interiorSy: 0.995, interiorY: 0.0075, darken: false, artScale: 1.098 },
+  plate_carved_aetherstone: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.018, interiorSy: 1.016, interiorY: 0.0019, darken: false, artScale: 1.034 },
+  plate_elegant: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.005, interiorSx: 1.015, interiorSy: 1.001, interiorY: -0.0066, darken: false, artScale: 1.047 },
+  plate_frozen_aurora: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 0.976, interiorSy: 0.964, interiorY: 0.0263, darken: false, artScale: 1.081 },
+  plate_hivemind: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.004, interiorSy: 0.973, interiorY: -0.0159, darken: false, artScale: 1.06 },
+  plate_ironwood: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.009, interiorSx: 0.997, interiorSy: 1.014, interiorY: 0.0038, darken: false, artScale: 1.063 },
+  plate_solar: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 0.98, interiorSy: 0.937, interiorY: 0.0169, darken: false, artScale: 1.081 },
+  plate_static: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 0.99, interiorSy: 0.963, interiorY: -0.0122, darken: false, artScale: 1.065 },
+  plate_twisted_ether: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.004, interiorSy: 0.966, interiorY: -0.0206, darken: false, artScale: 1.05 },
+  plate_white_magic: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 1.033, interiorSy: 1.018, interiorY: -0.0056, darken: false, artScale: 1.017 },
+  plate_nano: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 0.973, interiorSy: 0.978, interiorY: -0.0159, darken: false, artScale: 1.093 },
+  plate_soulwitch: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.033, interiorSy: 0.995, interiorY: -0.0225, darken: false, artScale: 1.018 },
+  plate_spades: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 1, interiorSy: 0.995, interiorY: -0.0056, darken: false, artScale: 1.057 },
+  plate_the_howl: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 0.95, interiorSy: 0.965, interiorY: -0.0291, darken: false, artScale: 1.113 },
+  // Owner 2026-10-19: "add it with dark brown interior".
+  plate_vintage_oak: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.007, interiorSx: 1.007, interiorSy: 0.995, interiorY: 0.015, darken: false, artScale: 1.052 },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

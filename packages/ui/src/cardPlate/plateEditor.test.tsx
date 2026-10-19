@@ -29,15 +29,15 @@ const renderWearing = (plate: string | null): HTMLElement => {
 
 describe('the Card Plate Editor', () => {
   it('a live edit moves the chosen plate on a card already on screen, and only that plate', () => {
-    const porcelain = renderWearing('plate_porcelain'); // drawn at 1x, so a nudge reads back as set
-    expect(porcelain.style.getPropertyValue('--plate-frame-y')).toBe('');
-    act(() => setLivePlateTuning('plate_porcelain', 'frameY', 0.05));
-    expect(porcelain.style.getPropertyValue('--plate-frame-y')).toBe('0.05');
-    act(() => setLivePlateTuning('plate_porcelain', 'interiorX', -0.02));
-    expect(porcelain.style.getPropertyValue('--plate-interior-x')).toBe('-0.02');
+    const topaz = renderWearing('plate_topaz'); // drawn at 1x and never saved from the editor, so a nudge reads back as set
+    expect(topaz.style.getPropertyValue('--plate-frame-y')).toBe('');
+    act(() => setLivePlateTuning('plate_topaz', 'frameY', 0.05));
+    expect(topaz.style.getPropertyValue('--plate-frame-y')).toBe('0.05');
+    act(() => setLivePlateTuning('plate_topaz', 'interiorX', -0.02));
+    expect(topaz.style.getPropertyValue('--plate-interior-x')).toBe('-0.02');
     // Another plate, and the shipped looks, are untouched.
     expect(livePlateLook('plate_honey')).toBe(CARD_PLATE_LOOKS.plate_honey);
-    expect(CARD_PLATE_LOOKS.plate_porcelain.frameY).toBeUndefined();
+    expect(CARD_PLATE_LOOKS.plate_topaz.frameY).toBeUndefined();
   });
 
   it('a card with no plate never picks up an edit', () => {

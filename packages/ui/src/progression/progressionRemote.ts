@@ -13,12 +13,16 @@
  *    `equipTitleRemote`). Opening and equipping are interactive and never queued: a failure is shown, not retried.
  *  - THE COLLECTION'S SEEN LIST (2026-10-11): `fetchSeenCosmeticIds` reads which owned items the account has looked
  *    at (`player_cosmetics.seen_at`), `markCosmeticsSeenRemote` marks more (the `mark_cosmetics_seen` function).
+ *  - AETHER + THE CRATE SHOP (2026-10-18): `fetchAetherEnabled` (the third probe, `progression_config.aether_enabled`),
+ *    `fetchAetherEconomy` (the public `aether_config` row: prices, fee table, rewards), and `buyCrateRemote` (the
+ *    `buy_crate` action: the client names a tier, a focus, the total it was shown and a request id; the server prices,
+ *    charges and rolls). `openCrateRemote` also carries a milestone crate's focus + the fee the player was shown.
  *
  * Never throws; every read is time-boxed.
  */
 import {
   COSMETIC_INDEX, parseServerCatalogState, type ServerCatalogState, type EquipSlot, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, parseCrate, parseOpenCrateResult, parseProgressionProfile,
-  parseProgressionResult, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
+  parseProgressionResult, parseAetherEconomy, parseBuyCrateResult, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateRow, type CrateTier, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult,
   type ProgressionRunFacts, factsAsV1, loadoutFromRows, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
@@ -356,11 +360,17 @@ export async function fetchCratesEnabled(): Promise<boolean | undefined> {
 }
 
 const CRATE_COLUMNS = 'crate_id, earned_level, state, reward_cosmetic_id, earned_at, opened_at';
+/** `source` (2026-09-29, the Gauntlet migration) then `floor_rarity` + `focus_categories` (2026-10-18, the Aether migration). */
+const CRATE_COLUMNS_FULL = `${CRATE_COLUMNS}, source, floor_rarity, focus_categories`;
+/** The Gauntlet-era shape, the fallback for a server that has `source` but not the Aether columns yet. */
+const CRATE_COLUMNS_SOURCE = `${CRATE_COLUMNS}, source`;
 
 /**
- * THIS account's crates (owner-only read), oldest level first (a level-less Gauntlet crate after them). `source`
- * (2026-09-29) names a Gauntlet crate's stage; a server from before the Gauntlet migration has no such column, so
- * that one error retries once without it and level crates keep loading. `undefined` = could not ask.
+ * THIS account's crates (owner-only read), oldest level first (a level-less Gauntlet or shop crate after them).
+ * `source` (2026-09-29) names a Gauntlet crate's stage; `floor_rarity` + `focus_categories` (2026-10-18) carry a shop
+ * or milestone crate's floor and focus. A server from before either migration lacks those columns, so a missing-column
+ * error steps down one shape at a time (full -> `source` only -> the base columns) and crates keep loading on an
+ * older server. `undefined` = could not ask.
  */
 export async function fetchOwnCrates(): Promise<CrateRow[] | undefined> {
   const c = supabaseClient();
@@ -371,9 +381,13 @@ export async function fetchOwnCrates(): Promise<CrateRow[] | undefined> {
       fetchAllRows((from, to) => c.from('loot_crates').select(columns).eq('user_id', userId).order('earned_level', { ascending: true }).order('crate_id', { ascending: true }).range(from, to)),
       timeout(READ_TIMEOUT_MS, null),
     ]);
-    let res = await read(`${CRATE_COLUMNS}, source`);
-    const code = res?.error ? String((res.error as { code?: string }).code ?? '') : '';
-    if (code === '42703' || code === 'PGRST204') res = await read(CRATE_COLUMNS);
+    const missingColumn = (r: Awaited<ReturnType<typeof read>>): boolean => {
+      const code = r?.error ? String((r.error as { code?: string }).code ?? '') : '';
+      return code === '42703' || code === 'PGRST204';
+    };
+    let res = await read(CRATE_COLUMNS_FULL);
+    if (missingColumn(res)) res = await read(CRATE_COLUMNS_SOURCE);
+    if (missingColumn(res)) res = await read(CRATE_COLUMNS);
     if (!res || res.error) return undefined;
     return ((res.data as unknown[] | null) ?? []).map(parseCrate).filter((x): x is CrateRow => !!x);
   } catch {
@@ -406,14 +420,93 @@ async function invokeInventory(body: Record<string, unknown>): Promise<{ data: R
   }
 }
 
-/** Open one crate. The server picks the reward; the client only names the crate. */
-export async function openCrateRemote(crateId: string): Promise<InventoryOutcome<OpenCrateResult>> {
-  const r = await invokeInventory({ action: 'open_crate', crateId });
+/**
+ * Open one crate. The server picks the reward; the client only names the crate. A MILESTONE crate (2026-10-18) may be
+ * focused at the opening: `focus` names the categories and `expectedFee` is the Aether fee the player was shown (the
+ * server refuses a stale one, and requires it whenever `focus` is non-null). Omitted, the call is the plain open.
+ */
+export async function openCrateRemote(crateId: string, focus?: CosmeticCategory[] | null, expectedFee?: number): Promise<InventoryOutcome<OpenCrateResult>> {
+  const body: Record<string, unknown> = { action: 'open_crate', crateId };
+  if (focus != null) body.focus = focus;
+  if (expectedFee !== undefined) body.expectedFee = expectedFee;
+  const r = await invokeInventory(body);
   if ('error' in r) return { status: 'error', reason: r.error };
   const value = parseOpenCrateResult(r.data);
   const profile = parseProgressionProfile(r.data.profile);
   if (!value || !profile) return { status: 'error', reason: 'server_outdated' };
   return { status: 'ok', value, profile };
+}
+
+/** What the client sends to BUY a crate. The server prices it; `expectedTotal` is only the price the player was shown. */
+export interface BuyCrateRequest {
+  tier: CrateTier;
+  /** The ticked categories, or null for an unfocused crate. */
+  focus: CosmeticCategory[] | null;
+  /** Crate price + focus fee as the player saw it. A moved price answers `price_changed`, never a silent re-price. */
+  expectedTotal: number;
+  /** One per buy attempt: a replay of the same id is answered `already_opened` and charges nothing twice. */
+  requestId: string;
+}
+
+/**
+ * Buy and open a crate in one call (the `buy_crate` action). Errors come back as the server's code (`price_changed`,
+ * `insufficient_aether`, `sold_out`, `bad_focus`, `focus_not_allowed`, `aether_disabled`, and the retryable
+ * `aether_config_missing`); nothing is retried here, the UI decides.
+ */
+export async function buyCrateRemote(req: BuyCrateRequest): Promise<InventoryOutcome<BuyCrateResult>> {
+  const r = await invokeInventory({ action: 'buy_crate', tier: req.tier, focus: req.focus, expectedTotal: req.expectedTotal, requestId: req.requestId });
+  if ('error' in r) return { status: 'error', reason: r.error };
+  const value = parseBuyCrateResult(r.data);
+  const profile = parseProgressionProfile(r.data.profile);
+  if (!value || !profile) return { status: 'error', reason: 'server_outdated' };
+  return { status: 'ok', value, profile };
+}
+
+// ── Aether (2026-10-18) ──────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * THE AETHER PROBE. `true` = the Aether migration has run and `progression_config.aether_enabled` is on; `false` =
+ * asked, and it is not (no column yet, or switched off); `undefined` = could not ask. Read from the same row as the
+ * crates probe, so crates and the shop can be switched independently.
+ */
+export async function fetchAetherEnabled(): Promise<boolean | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('progression_config').select('aether_enabled').eq('id', 1).limit(1)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res) return undefined;
+    if (res.error) {
+      const code = String((res.error as { code?: string }).code ?? '');
+      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
+    }
+    return (res.data as Array<{ aether_enabled?: unknown }> | null)?.[0]?.aether_enabled === true;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The live Aether economy (`aether_config` row 1, public read): prices, the focus fee table and the rewards, through
+ * `parseAetherEconomy`. `undefined` = could not ask, no row, or a document that does not parse; the caller keeps the
+ * economy it had (the bundled default at first), and the server prices every purchase regardless.
+ */
+export async function fetchAetherEconomy(): Promise<AetherEconomy | undefined> {
+  const c = supabaseClient();
+  if (!c) return undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('aether_config').select('economy').eq('id', 1).limit(1)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return undefined;
+    const row = (res.data as Array<{ economy?: unknown }> | null)?.[0];
+    return parseAetherEconomy(row?.economy) ?? undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Equip an owned title (null takes it off). The server checks ownership. */

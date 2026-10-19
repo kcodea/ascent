@@ -18,6 +18,7 @@ import { ceremonyTiming } from './hero-select/heroCeremonyTiming';
 import { HSC_REPLAY_EVENT } from './hero-select/heroCeremonyTunerConfig';
 import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
 import { VersusHeroTimer } from './versus/VersusHeroTimer';
+import { crumb } from './crashLog';
 import { lockVersusHeroPick, markVersusPickShown, rerollVersusHero, useVersus, useVersusTimeoutHero, versusRerollCandidates } from './versus/versusStore';
 
 /** How long a re-roll's swap plays (the old portrait's dissolve, then the new one's coalesce); matches styles.css. */
@@ -67,6 +68,7 @@ export function HeroSelect() {
   // HeroSelect renders null (but stays MOUNTED) once pickHero clears heroChoices — so the machine must be
   // reset whenever a new offer arrives, or a finished `launching` state would eat every click next run.
   useEffect(() => { dispatch({ type: 'reset' }); }, [choices]);
+  useEffect(() => { crumb('hero select shown', { heroes: choices?.length ?? 0 }); }, [choices]);
   // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby to get here, so Back
   // is an ABANDON that settles as an 8th. One press arms it (the label then names the cost), a second press
   // leaves; pressing anything else, or a new offer, disarms it. Every other mode's Back is free and immediate.

@@ -23,6 +23,7 @@ import { cubicBezier } from './wipeGeometry';
 import { stageHost } from './stage';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
 import { guardAppRender, watchContextLoss } from './pixiAppSafety';
+import { crumbOnce } from './crashLog';
 import { PIXI_ANTIALIAS } from './phoneArt';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
@@ -66,6 +67,7 @@ class WipeFxController {
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'wipeFx');
     watchContextLoss(app, 'wipeFx');
+    crumbOnce('pixi init wipe');
     const c = app.canvas;
     c.className = 'wipefx-canvas pixi-screen';
     c.style.visibility = 'hidden';

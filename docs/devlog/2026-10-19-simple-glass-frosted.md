@@ -36,3 +36,5 @@ Then *"can you have it apply the blur while moving ?"*: the drag layer (`.dragca
 makes it a backdrop root, so a blur inside it sees nothing behind the card. A dragged GLASS card (`.dragcard:has(.plate-frosted)`)
 now drops that filter and puts the same drop-shadow on its `.plate-frame` instead, so the blur stays on while it moves.
 Cost: one re-blur per frame for that card while dragged.
+
+Then *"reduce the opacity of the light grey to 0 for now. i just want to see the blur"* and *"dramatically increase the blur amount"*: grey 0, blur 40px, while the owner judges the blur. Found on the way: Inspect's overlay (`.inspect-ov`) has its own `backdrop-filter: blur(8px)`, which makes it a backdrop root, so inside Inspect the glass can only show the overlay's dark tint (which fades in: the "delayed colour change"), never the board behind it.

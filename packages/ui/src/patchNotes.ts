@@ -58,6 +58,19 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-19',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Crates are now bought with Aether, a new currency you earn from Ranked and Versus games.',
+        details: [
+          'Ranked pays 50 Aether per game, win or lose, plus a placement bonus: 1st +140, 2nd +80, 3rd +45, 4th +35, 5th +25, 6th +15, 7th +10.',
+          'Versus pays 25 Aether per match, and 45 more if you win.',
+          'The first time you clear a Gauntlet stage it pays 200 Aether.',
+          'There are five crates: Standard 100, Rare 200, Epic 400, Legendary 600 and Ancient 900 Aether. Each one guarantees its rarity or better.',
+          'You can focus a crate on the categories you want. The fewer categories you pick, the more it costs, from +100% of the crate price for one category down to +5%. Ticking everything is free.',
+          'Every 10 levels you get a free Legendary crate, and existing players get the ones they have already passed. You can focus it when you open it.',
+          'Sealed crates you already have still open as before.',
+        ],
+      },
       { category: 'Systems', text: 'Twenty more Legendary Card Plates to find in crates.', details: ['Celestial, Runic, Verdant, Volcanic, Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl, Vintage Oak.'] },
     ],
   },

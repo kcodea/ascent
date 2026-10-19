@@ -44,6 +44,7 @@ import { applyProgressionOutcome, resetProgressionForTests, useProgression } fro
 import { CollectionPage } from './CollectionScreen';
 import { resetNewRewardsForTests, useNewRewards } from './newRewards';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
+import { setChestArtLoaderForTests } from './crateFx/chestArt';
 import { CRATE_FX_DEFAULTS, chestTierPresetFor, presetFor } from './crateFx/crateFxConfig';
 import { crateLabel } from '@game/progression';
 import { useGame } from '../store';
@@ -56,10 +57,13 @@ let fxLayers: ChestTierPreset[] = [];
 /** What `setChest` answers (default: the tier asked for, at once) and what `mount` answers (default: live, at once). */
 let chestAnswer: (tier: ChestTier) => Promise<ChestTier> = async (tier) => tier;
 let mountAnswer: () => Promise<boolean> = async () => true;
+/** The first chest each controller's mount was asked to draw (its first frame). */
+let mountTiers: string[] = [];
 function recorder(): CrateFx {
   const rec = (name: string) => (p?: CratePreset | number | object): void => { fxCalls.push(p && typeof p === 'object' && 'rarity' in p ? `${name}:${p.rarity}` : name); };
   return {
-    mount: () => mountAnswer(), resize: () => {}, setSpeed: () => {}, setArt: () => {}, onPulse: () => {}, tune: () => {}, chestKind: () => 'art',
+    mount: (_host, first) => { mountTiers.push(first ?? 'standard'); return mountAnswer(); },
+    resize: () => {}, setSpeed: () => {}, setArt: () => {}, onPulse: () => {}, tune: () => {}, chestKind: () => 'art',
     // the chest tier: which chest was asked for, and which layer the theatre handed the scene
     setChest: (tier) => { fxCalls.push(`setChest:${tier}`); return chestAnswer(tier); },
     setTierLayer: (t) => { fxCalls.push(`setTierLayer:${t.tier}`); fxLayers.push(t); },
@@ -69,7 +73,7 @@ function recorder(): CrateFx {
 }
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); setCrateFxFactoryForTests(null); });
+afterEach(() => { ui?.unmount(); ui = null; vi.useRealTimers(); setCrateFxFactoryForTests(null); setChestArtLoaderForTests(null); });
 beforeEach(() => {
   resetProgressionForTests();
   resetNewRewardsForTests();
@@ -77,6 +81,7 @@ beforeEach(() => {
   equipTitleRemote.mockReset();
   fxCalls = [];
   fxLayers = [];
+  mountTiers = [];
   chestAnswer = async (tier) => tier;
   mountAnswer = async () => true;
   playTailedClip.mockClear();
@@ -548,7 +553,8 @@ describe('the chest tier in the theatre', () => {
     expect(text('.crate-name')).toMatch(/Epic (Crate|Chest)/);
   });
 
-  it('art that is late or fails: the opening starts on the asked tier\x27s layer, then switches to the Standard one it got', async () => {
+  // Owner ruling at the final review (2026-10-19): only the ART falls back. The asked tier's layer and cues always play.
+  it('art that is late or fails: only the art falls back; the asked tier\x27s layer and every one of its cues still play', async () => {
     vi.useFakeTimers();
     liveCrates();
     answerEach();
@@ -557,15 +563,16 @@ describe('the chest tier in the theatre', () => {
     await settle();
     act(() => button('Open')!.click());
     await settle();
-    expect(fxCalls.filter((c) => c.startsWith('setTierLayer'))).toEqual(['setTierLayer:ancient', 'setTierLayer:standard']);
-    expect(cueCategories()).toContain('crateTierShimmer'); // the click feedback had already played
+    expect(fxCalls.filter((c) => c.startsWith('setTierLayer'))).toEqual(['setTierLayer:ancient']); // never switched
+    expect(cueCategories()).toContain('crateTierShimmer');
     advance(20000);
-    // the swirl and the burst follow the layer actually drawn: none on the Standard chest
-    expect(cueCategories()).not.toContain('crateTierSwirl');
-    expect(cueCategories()).not.toContain('crateTierBurst');
+    expect(phase()).toBe('settled');
+    expect(cueCategories()).toEqual(expect.arrayContaining(['crateTierSwirl', 'crateTierBurst']));
+    expect(cueGain('crateTierBurst')).toBeCloseTo(CRATE_FX_DEFAULTS.ancientBurstGain);
+    expect(fxLayers.at(-1)?.tier).toBe('ancient');
   });
 
-  it('a stale chest answer never touches the next opening (the first setChest resolves late, after Open next)', async () => {
+  it('a late chest answer changes nothing in the next opening (the first setChest resolves after Open next)', async () => {
     vi.useFakeTimers();
     liveCrates();
     answerEach();
@@ -606,6 +613,46 @@ describe('the chest tier in the theatre', () => {
     await settle();
     expect(fxCalls.filter((c) => c.startsWith('setChest'))).toEqual(['setChest:legendary']);
     expect(fxCalls.filter((c) => c.startsWith('setTierLayer'))).toEqual(['setTierLayer:legendary']);
+    expect(mountTiers).toEqual(['legendary']); // and the mount itself was asked to draw the Legendary chest first
+  });
+
+  // FINAL REVIEW (2026-10-19): the first frame is the right chest, and the tier art is loaded before the opening needs it.
+  it('the theatre\x27s Pixi mount is asked for the first chest it will show (the sealed one, before any click)', async () => {
+    liveCrates();
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-1', earnedLevel: 2, tier: 'epic' }, { crateId: 'c-2', earnedLevel: 3 }]} reducedMotion={false} onClose={() => {}} />);
+    await settle();
+    expect(mountTiers).toEqual(['epic']);
+    expect(tierClass()).toBe('epic');
+  });
+
+  it('the tier art is preloaded: every tier in the theatre\x27s queue at its mount, and the asked tier again at the click', async () => {
+    vi.useFakeTimers();
+    liveCrates();
+    answerEach();
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-1', earnedLevel: 2, tier: 'rare' }, { crateId: 'c-2', earnedLevel: 3, tier: 'ancient' }, { crateId: 'c-3', earnedLevel: 4 }]} reducedMotion={false} onClose={() => {}} />);
+    await settle();
+    const tiersAsked = (): string[] => [...new Set(urls.map((u) => u.match(/chest_(\w+?)_/)?.[1]).filter(Boolean) as string[])].sort();
+    expect(tiersAsked()).toEqual(['ancient', 'rare']); // the Standard chest is the controller's own bake
+    // the click asks again (a cache hit normally; here the cache is emptied to see it)
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
+    urls.length = 0;
+    act(() => button('Open')!.click());
+    await settle();
+    expect(tiersAsked()).toEqual(['rare']);
+  });
+
+  it('reduced motion preloads no chest art (nothing would ever draw it)', async () => {
+    liveCrates();
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
+    ui = mount(<CrateOpener queue={[{ crateId: 'c-1', earnedLevel: 2, tier: 'legendary' }]} reducedMotion onClose={() => {}} />);
+    await settle();
+    answerEach();
+    act(() => button('Open')!.click());
+    await settle();
+    expect(urls).toEqual([]);
   });
 
   it('Pixi fails: the DOM chest wears the tier class, and the next opening asks Pixi for no chest and no layer', async () => {

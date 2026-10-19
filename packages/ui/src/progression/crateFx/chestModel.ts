@@ -47,7 +47,12 @@ export interface ChestArt {
   spikeX: number;
   /** The keyhole's box (its light mask is cut from the art inside it). */
   keyhole: { x0: number; y0: number; x1: number; y1: number };
-  /** Width of the cropped lid master, and the lid's attach point: the bottom centre of its notch. */
+  /**
+   * Width of the cropped lid master, and the lid's attach point: the lid's centre line over the spike, at the point that
+   * sits on the rim. Standard's is the bottom centre of its notch; a tier's is its centre line at the lid's opaque bottom
+   * edge (Epic's and Ancient's lids have no notch at all), except Legendary's, which sits lower so its trim covers the
+   * notch's sides (see the header).
+   */
   lidSrcW: number;
   lidAttachX: number;
   lidAttachY: number;
@@ -64,7 +69,7 @@ export interface ChestArt {
 }
 
 /** The owner's chest, measured from the cropped masters (see the header). The Standard chest. */
-export const CHEST_ART: ChestArt = {
+export const CHEST_ART: Readonly<ChestArt> = {
   bodyUrl: 'collection/crate_body.webp',
   lidUrl: 'collection/crate_lid.webp',
   /** Width of the cropped body master (the space the body numbers are in). */
@@ -77,7 +82,7 @@ export const CHEST_ART: ChestArt = {
   spikeX: 594,
   /** The keyhole's box (its light mask is cut from the art inside it). */
   keyhole: { x0: 565, y0: 184, x1: 623, y1: 288 },
-  /** Width of the cropped lid master, and the lid's attach point: the bottom centre of its notch. */
+  /** Width of the cropped lid master, and the lid's attach point: here the bottom centre of its notch. */
   lidSrcW: 1158, lidAttachX: 578.5, lidAttachY: 336,
   /** The lid's bottom edge overlaps the rim by this much (src px), so no gap shows between them at rest. */
   lidOverlap: 3,

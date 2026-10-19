@@ -19,6 +19,7 @@ import { StrictMode, act } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BuyCrateResult, CrateRow, OpenCrateResult, ProgressionProfile } from '@game/progression';
+import { crateLabel } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { CrateFx } from './crateFx/crateFxPixi';
 
@@ -49,6 +50,7 @@ import { CollectionPage, CollectionScreen } from './CollectionScreen';
 import { refreshSeenList, resetProgressionForTests, useProgression } from './progressionStore';
 import { queueNewCrate, resetNewRewardsForTests } from './newRewards';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
+import { setChestArtLoaderForTests } from './crateFx/chestArt';
 import { useGame } from '../store';
 
 /** The Pixi layer as a no-op: every method does nothing, `mount` succeeds. A Proxy, so a method the opener's
@@ -58,7 +60,7 @@ const noopFx = (): CrateFx => new Proxy({}, {
 }) as CrateFx;
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); });
+afterEach(() => { ui?.unmount(); ui = null; setCrateFxFactoryForTests(null); setChestArtLoaderForTests(null); });
 beforeEach(() => {
   resetProgressionForTests();
   localStorage.clear();
@@ -84,11 +86,11 @@ const crateList = [
 ];
 /** Seen ids pre-seeded so a test starts without NEW badges unless it wants them, on a device that already knows
  *  what the account has seen (the marker): without it the page shows no badge at all. */
-function open(over: Partial<ProgressionProfile> = {}, opts: { seen?: string[]; crates?: CrateRow[] | null; cratesOn?: 'on' | 'off'; aether?: boolean } = {}): void {
+function open(over: Partial<ProgressionProfile> = {}, opts: { seen?: string[]; crates?: CrateRow[] | null; cratesOn?: 'on' | 'off'; aether?: boolean; motion?: boolean } = {}): void {
   localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(opts.seen ?? ['alpha_tester', 'title_star_chaser']));
   localStorage.setItem('ascent.collection.baseline.u-1', '1');
   useProgression.setState({ capability: 'on', cratesCapability: opts.cratesOn ?? 'on', aetherCapability: opts.aether ? 'on' : 'off', crateList: opts.crates === undefined ? crateList : opts.crates, mirror: { userId: 'u-1', ...profile(over) } });
-  ui = mount(<CollectionPage reducedMotion />);
+  ui = mount(<CollectionPage reducedMotion={!opts.motion} />);
 }
 
 const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
@@ -316,6 +318,28 @@ describe('the Collection screen: the crate bay', () => {
     await settle();
     expect(tierOf()).toBe('legendary');
     expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-e', 'c-l', 'c-m']);
+  });
+
+  // Final review (2026-10-19): a sealed shop chest names its own tier, and the bay preloads every sealed tier's art.
+  it('the bay names a sealed shop chest by its tier, and preloads each sealed tier\x27s chest art', async () => {
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
+    const shop = `shop:${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}`;
+    const rows: CrateRow[] = [
+      { crateId: 'c-s', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: shop, floor: 'epic' },
+      { crateId: 'c-l', earnedLevel: 5, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null },
+      { crateId: 'c-m', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: 'milestone:10' },
+    ];
+    open({}, { crates: rows });
+    await settle();
+    expect(text('.colls-bay-sub')).toBe(`3 ready. Next: ${crateLabel({ earnedLevel: null, source: shop, floor: 'epic' })}`);
+    expect(text('.colls-bay-sub')).toMatch(/Next: Epic Chest$/);
+    expect(urls).toEqual([]); // reduced motion: its opening never draws the art, so none is fetched
+    ui!.unmount();
+    open({}, { crates: rows, motion: true });
+    await settle();
+    const tiers = [...new Set(urls.map((u) => u.match(/chest_(\w+?)_/)?.[1]).filter(Boolean) as string[])].sort();
+    expect(tiers).toEqual(['epic', 'legendary']); // the level crate is Standard: nothing to preload
   });
 
   it('Open all hands the whole queue to the theatre', async () => {

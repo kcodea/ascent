@@ -11,8 +11,9 @@ import {
   chestTierPresetFor, presetFor, sanitizeCrateFxConfig, type CrateFxConfig, type CratePreset, type CrateRarity,
 } from './crateFxConfig';
 import {
-  CrateScene, DEFAULT_CHEST_TUNING, MAX_PARTICLES, crateSizeFor, hsvToRgb, lerpColor, type CrateSceneTextures,
+  CrateScene, DEFAULT_CHEST_TUNING, MAX_PARTICLES, crateSizeFor, hsvToRgb, lerpColor, tierFlashColor, type CrateSceneTextures,
 } from './crateScene';
+import { decodeImage, preloadChestArt, setChestArtLoaderForTests } from './chestArt';
 import { CHEST_ART, CHEST_TIER_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
 import { NO_TIER_LAYER, type ChestTierPreset } from './chestTiers';
 import { CHEST } from './crateTextures';
@@ -686,5 +687,236 @@ describe('the two-layer chest (owner art, 2026-09-28)', () => {
     run(scene, 200);
     expect(Math.abs(scene.lidState.dy)).toBeLessThan(1);
     scene.destroy();
+  });
+});
+
+// ─── the final review's fixes (tiered chest openings, 2026-10-19) ─────────────────────────────────────────────
+
+/** A stand-in picture: only its size (the model and the mask read nothing else headless). */
+const fakeImg = (url: string): HTMLImageElement => {
+  const [w, h] = url.includes('lid') ? [816, 238] : [840, 402];
+  return { width: w, height: h, naturalWidth: w, naturalHeight: h } as unknown as HTMLImageElement;
+};
+const lidOf = (root: Container): Texture | undefined =>
+  (all(root).find((o) => o instanceof Sprite && (o.texture === ART_CHEST.lid || o.texture.width === 816)) as Sprite | undefined)?.texture;
+
+describe('the chest art is preloaded once per page and decoded before the opening needs it', () => {
+  const attached = (fx: CrateFxPixi): CrateScene => {
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    fx.attachSceneForTests(scene, ART_CHEST);
+    return scene;
+  };
+
+  it('a tier preloaded early (the shop, the bay, the click) is never fetched again: every theatre after reuses it', async () => {
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return fakeImg(url); });
+    try {
+      expect(await preloadChestArt('epic')).not.toBeNull();
+      expect(preloadChestArt('epic')).toBe(preloadChestArt('epic')); // one promise per tier
+      expect(urls.filter((u) => u.includes('chest_epic'))).toHaveLength(2);
+      const a = new CrateFxPixi();
+      attached(a);
+      expect(await a.setChest('epic')).toBe('epic');
+      a.destroy();
+      const b = new CrateFxPixi(); // a fresh theatre's controller
+      attached(b);
+      expect(await b.setChest('epic')).toBe('epic');
+      b.destroy();
+      expect(urls).toHaveLength(2);
+    } finally { setChestArtLoaderForTests(null); }
+  });
+
+  it('a failed preload is not kept: the next ask tries again', async () => {
+    let fail = true;
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); if (fail) throw new Error('404'); return fakeImg(url); });
+    try {
+      expect(await preloadChestArt('rare')).toBeNull();
+      fail = false;
+      expect(await preloadChestArt('rare')).not.toBeNull();
+      expect(urls.filter((u) => u.includes('chest_rare'))).toHaveLength(4);
+    } finally { setChestArtLoaderForTests(null); }
+  });
+
+  it('a picture counts as loaded only once it is decoded, so no decode lands mid-opening', async () => {
+    const pending: Array<{ ok: () => void; bad: () => void }> = [];
+    class FakeImage {
+      decoding = ''; src = ''; complete = false; naturalWidth = 0;
+      onload: (() => void) | null = null; onerror: (() => void) | null = null;
+      decode(): Promise<void> {
+        return new Promise<void>((res, rej) => {
+          pending.push({ ok: () => { this.complete = true; this.naturalWidth = 840; res(); }, bad: () => rej(new Error('EncodingError')) });
+        });
+      }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    try {
+      let got: unknown = null;
+      void decodeImage('collection/chest_epic_body.webp').then((i) => { got = i; });
+      await Promise.resolve();
+      expect(got).toBeNull(); // fetched but not decoded yet: not ready
+      pending[0]!.ok();
+      await Promise.resolve(); await Promise.resolve();
+      expect(got).toBeInstanceOf(FakeImage);
+      let failed = false;
+      void decodeImage('collection/missing.webp').catch(() => { failed = true; });
+      pending[1]!.bad();
+      await Promise.resolve(); await Promise.resolve();
+      expect(failed).toBe(true); // a broken picture rejects (the opening falls back to Standard)
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('a tier chest is uploaded to the GPU before it is swapped in', async () => {
+    const fx = new CrateFxPixi({ loadImage: async (url) => fakeImg(url) });
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    const lidsAtUpload: Array<Texture | undefined> = [];
+    const uploaded: TextureSource[] = [];
+    fx.attachSceneForTests(scene, ART_CHEST, { upload: (src) => { uploaded.push(src); lidsAtUpload.push(lidOf(scene.root)); } });
+    expect(await fx.setChest('epic')).toBe('epic');
+    expect(uploaded.length).toBeGreaterThanOrEqual(2); // the body and the lid (the mask too when there is one)
+    expect(lidsAtUpload.every((t) => t === ART_CHEST.lid)).toBe(true); // every upload ran while Standard was still drawn
+    expect(lidOf(scene.root)?.width).toBe(816);
+    fx.destroy();
+  });
+
+  it('mount starts the first chest\x27s art at once, before the renderer (whatever Pixi does next)', async () => {
+    const urls: string[] = [];
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const fx = new CrateFxPixi({ loadImage: async (url) => { urls.push(url); return fakeImg(url); } });
+      expect(await fx.mount({ clientWidth: 0, clientHeight: 0 } as HTMLElement, 'ancient')).toBe(false); // no WebGL here
+      expect(urls.some((u) => u.includes('chest_ancient_body'))).toBe(true);
+      fx.destroy();
+    } finally { quiet.mockRestore(); }
+  });
+});
+
+describe('late chest art never lands mid-finale', () => {
+  it('art that arrives after the burst has started is dropped for that opening; the next one gets it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const fx = new CrateFxPixi({ loadImage: async (url) => { await gate; return fakeImg(url); } });
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    fx.attachSceneForTests(scene, ART_CHEST);
+    const p = presetFor('rare', CRATE_FX_DEFAULTS);
+    fx.anticipate(ant);
+    fx.charge(p);
+    const asked = fx.setChest('legendary');
+    fx.burst(p);
+    release();
+    expect(await asked).toBe('standard');
+    expect(lidOf(scene.root)).toBe(ART_CHEST.lid); // the opening kept the chest it burst
+    fx.reset();
+    expect(await fx.setChest('legendary')).toBe('legendary'); // cached for the next opening
+    fx.destroy();
+  });
+});
+
+describe('a beat asked before Pixi is up plays once it is (the autoOpen path)', () => {
+  it('the anticipation, its tier layer and its heartbeat resume where they would be', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    try {
+      const fx = new CrateFxPixi({ loadImage: () => Promise.reject(new Error('x')) });
+      fx.setTierLayer(chestTierPresetFor('rare', CRATE_FX_DEFAULTS));
+      fx.reset();
+      fx.anticipate(ant); // the click: before the mount
+      now.mockReturnValue(1250);
+      const pulses: number[] = [];
+      const scene = new CrateScene(new Container(), TEX, { onPulse: (k) => pulses.push(k) });
+      scene.layout(1920, 1080);
+      const seen = vi.spyOn(scene, 'anticipate');
+      fx.attachSceneForTests(scene, ART_CHEST); // the mount resolves
+      expect(seen).toHaveBeenCalledTimes(1);
+      expect(seen).toHaveBeenCalledWith(ant, 250); // 250 ms already into the anticipation
+      expect(scene.currentPhase).toBe('anticipation');
+      run(scene, 600);
+      expect(scene.stats().tier).toBeGreaterThan(0); // the Rare motes
+      expect(pulses.length).toBeGreaterThan(0); // the heartbeat ticks
+      fx.destroy();
+    } finally { now.mockRestore(); }
+  });
+
+  it('a reset or a later beat before the mount drops the waiting anticipation; a skip lands settled', () => {
+    const scene = (): CrateScene => { const s = new CrateScene(new Container(), TEX); s.layout(1920, 1080); return s; };
+    const a = new CrateFxPixi();
+    a.anticipate(ant);
+    a.reset(); // a new opening began
+    const sa = scene();
+    a.attachSceneForTests(sa, ART_CHEST);
+    expect(sa.currentPhase).toBe('idle');
+    a.destroy();
+    const b = new CrateFxPixi();
+    b.anticipate(ant);
+    b.charge(presetFor('rare', CRATE_FX_DEFAULTS)); // the opening moved on
+    const sb = scene();
+    b.attachSceneForTests(sb, ART_CHEST);
+    expect(sb.currentPhase).toBe('idle');
+    b.destroy();
+    const c = new CrateFxPixi();
+    c.anticipate(ant);
+    c.skipToSettled(presetFor('epic', CRATE_FX_DEFAULTS));
+    const sc = scene();
+    c.attachSceneForTests(sc, ART_CHEST);
+    expect(sc.currentPhase).toBe('settled');
+    c.destroy();
+  });
+
+  it('anticipate(a, elapsed) starts the ramp part-way (clamped); the default is the click', () => {
+    const s = new CrateScene(new Container(), TEX);
+    s.layout(1920, 1080);
+    s.anticipate(ant, 1e9);
+    expect(s.currentPhase).toBe('anticipation');
+    s.update(16);
+    expect(s.hasWork()).toBe(true);
+    s.destroy();
+  });
+});
+
+describe('the tier burst flash and the charge build (final review rulings, 2026-10-19)', () => {
+  it('Rare, Epic and Legendary flash in their colour lightened toward white; Ancient flashes white', () => {
+    for (const t of ['rare', 'epic', 'legendary'] as const) {
+      const T = chestTierPresetFor(t, CRATE_FX_DEFAULTS);
+      expect(tierFlashColor(T)).toBe(lerpColor(T.color, 0xffffff, 0.3));
+    }
+    expect(tierFlashColor(chestTierPresetFor('ancient', CRATE_FX_DEFAULTS))).toBe(0xffffff);
+    // the Epic chest's flash is drawn in it
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const epic = chestTierPresetFor('epic', CRATE_FX_DEFAULTS);
+    scene.setTierLayer(epic);
+    const p = presetFor('common', CRATE_FX_DEFAULTS);
+    scene.anticipate(ant);
+    scene.charge(p);
+    run(scene, p.chargeMs);
+    scene.burst(p);
+    expect(all(root).some((o) => o instanceof Sprite && o.tint === tierFlashColor(epic))).toBe(true);
+    scene.destroy();
+  });
+
+  it('the tier\x27s extra shake builds through the charge: twice as much added at its end as at its start', () => {
+    /** The chest's shake (px) at `ms` into a Rare-reward charge, read back from the crate's rotation. */
+    const shakeAt = (tier: ChestTierPreset, ms: number): number => {
+      const root = new Container();
+      const scene = new CrateScene(root, TEX);
+      scene.layout(1920, 1080);
+      scene.setTierLayer(tier);
+      scene.anticipate(ant);
+      scene.charge(presetFor('rare', CRATE_FX_DEFAULTS));
+      run(scene, ms);
+      const crate = (all(root).find((o) => o instanceof Sprite && o.texture === ART_CHEST.lid) as Sprite).parent!;
+      const v = (crate.rotation / (0.8 * Math.sin(ms * 0.057))) * Math.max(40, scene.crateSize);
+      scene.destroy();
+      return v;
+    };
+    const legendary = chestTierPresetFor('legendary', CRATE_FX_DEFAULTS);
+    const early = shakeAt(legendary, 96) - shakeAt(NO_TIER_LAYER, 96);
+    const late = shakeAt(legendary, 640) - shakeAt(NO_TIER_LAYER, 640);
+    expect(early).toBeCloseTo(legendary.extraShake, 1);
+    expect(late).toBeGreaterThan(legendary.extraShake * 1.7);
+    expect(late).toBeLessThanOrEqual(legendary.extraShake * 2 + 1e-6);
   });
 });

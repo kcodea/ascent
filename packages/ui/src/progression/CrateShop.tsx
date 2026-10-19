@@ -60,6 +60,7 @@ import { useGame } from '../store';
 import { sfx } from '../sfx';
 import type { CrateQueueItem } from './CrateOpener';
 import { chestTierOf } from './crateFx/chestTiers';
+import { warmChestArt } from './crateFx/chestArt';
 import {
   aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
@@ -147,6 +148,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   useEffect(() => { void refreshEconomy(); }, []);
 
   const floor = CRATE_TIER_FLOOR[milestone ? 'legendary' : tier];
+  // The picked chest's art starts loading now, while the player is still choosing, so its opening never loads it cold.
+  useEffect(() => { warmChestArt(chestTierOf(floor)); }, [floor]);
   // `catalogEpoch` moves when the server retires an item or a category (`applyServerCatalogState` records the state
   // first, then bumps it): `eligibleForCrate` reads that state, so each memo that lists it re-derives the pool. A
   // category the server switched off leaves the chip row entirely (the Collection hides its tab the same way).

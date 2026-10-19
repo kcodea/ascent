@@ -9,7 +9,8 @@ import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
-import { chestTierOf } from './crateFx/chestTiers';
+import { chestFloorOf, chestTierOf } from './crateFx/chestTiers';
+import { warmChestArt } from './crateFx/chestArt';
 import {
   aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
@@ -191,6 +192,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     () => sealedRows.map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source, tier: chestTierOf(floorOf(c)) })),
     [sealedRows],
   );
+  // Every sealed tier's chest art starts loading while the bay is on screen, so no opening loads it cold (none under
+  // reduced motion: its opening never draws the art).
+  useEffect(() => { if (!reducedMotion) for (const t of new Set(sealed.map((c) => c.tier))) warmChestArt(t); }, [sealed, reducedMotion]);
   // Aether: the sealed MILESTONE crates (each opens alone, through its focus step), and what Open all opens: the rest.
   // Aether off: no exceptions, Open all opens everything as before.
   const milestoneIds = useMemo(
@@ -784,7 +788,7 @@ function CrateBay({ cratesOn, loading, sealed, bulk, nextLevel, guest, oddsLine,
           <div className="colls-bay-sub">None right now. Your next chest comes at Level {nextLevel}.</div>
         ) : (
           <>
-            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel(sealed[0]!)}</div>
+            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel({ ...sealed[0]!, floor: chestFloorOf(sealed[0]!.tier) })}</div>
             {guest && <div className="colls-bay-guest">Create a free account to open them.</div>}
             <div className="colls-bay-actions">
               <button type="button" className="cv2-btn pressable colls-open" disabled={busy} onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>

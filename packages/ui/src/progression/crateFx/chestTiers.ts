@@ -27,6 +27,11 @@ export function chestTierOf(floor: CosmeticRarity | null | undefined): ChestTier
   return (LAYERED_TIERS as readonly string[]).includes(floor ?? '') ? (floor as LayeredTier) : 'standard';
 }
 
+/** A tier's floor, for the chest's name (`crateLabel` names a shop chest by its floor). Standard (or none) has none. */
+export function chestFloorOf(tier: ChestTier | null | undefined): CosmeticRarity | null {
+  return !tier || tier === 'standard' ? null : tier;
+}
+
 export const CHEST_TIER_LABEL: Readonly<Record<ChestTier, string>> = {
   standard: 'Standard', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', ancient: 'Ancient',
 };

@@ -32,11 +32,12 @@ vi.mock('./progressionStore', async (orig) => ({
 }));
 
 import { CrateShop, type CrateShopMode } from './CrateShop';
+import { setChestArtLoaderForTests } from './crateFx/chestArt';
 import { applyServerCatalogState, resetProgressionForTests, useProgression } from './progressionStore';
 import { useGame } from '../store';
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; });
+afterEach(() => { ui?.unmount(); ui = null; setChestArtLoaderForTests(null); });
 beforeEach(() => {
   resetProgressionForTests();
   buyCrate.mockClear();
@@ -235,6 +236,23 @@ describe('the Chest Shop picker (owner 2026-10-18: "you purchase a crate of vari
     click(buyBtn());
     await settle();
     expect((onOpen.mock.calls[0]![0] as { tier?: string }).tier).toBe('standard');
+  });
+
+  // Final review (2026-10-19): the chest's art loads while the player is still choosing, never cold at the click.
+  it('picking a tier preloads that chest\x27s art (Standard needs none; a milestone crate preloads the Legendary chest)', () => {
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
+    seed(2000);
+    render();
+    expect(urls).toEqual([]); // Standard is picked: the theatre bakes it itself
+    click(tier('Epic'));
+    expect(urls.filter((u) => u.includes('chest_epic'))).toHaveLength(2);
+    click(tier('Ancient'));
+    expect(urls.filter((u) => u.includes('chest_ancient'))).toHaveLength(2);
+    ui!.unmount();
+    urls.length = 0;
+    render({ kind: 'milestone', crate: milestoneCrate });
+    expect(urls.filter((u) => u.includes('chest_legendary'))).toHaveLength(2);
   });
 
   it('milestone mode', async () => {

@@ -35,9 +35,9 @@
  *    the tier's extra shake and glow on top of the heartbeat's. The layer runs at ~60-75% here ...
  *  - charge: ... and grows to full; swirl BANDS (Legendary up) orbit the chest and spiral into the keyhole by the
  *    charge's end ("multichrome/opal bands of swirling energy pulling into the chest, causing it to shake and glow").
- *  - burst: a white flash, a thin tier ring, sparkles and wisps thrown out, AFTER the reward's own burst so a full
- *    pool drops the tier's flourish, never the reward's finale ("bursting open with a bright flash of white and
- *    multichrome sparkles and wisps of energy").
+ *  - burst: a flash (the tier colour, lightened; Ancient's white), a thin tier ring, sparkles and wisps thrown out,
+ *    AFTER the reward's own burst so a full pool drops the tier's flourish, never the reward's finale ("bursting open
+ *    with a bright flash of white and multichrome sparkles and wisps of energy").
  *  - reveal / settle: the aura eases down with the settle glow.
  * Ancient is MULTICHROME: each of its particles (and its aura and bands) cycles hue from a random start, with white
  * sparkles mixed in; an Ancient REWARD's burst particles cycle the same way from any chest, so it always reads opal.
@@ -127,6 +127,14 @@ export function hsvToRgb(h: number, s: number, v: number): number {
   const g = i === 1 || i === 2 ? val : i === 0 ? t : i === 3 ? q : p;
   const b = i === 3 || i === 4 ? val : i === 2 ? t : i === 5 ? q : p;
   return (Math.round(r * 255) << 16) | (Math.round(g * 255) << 8) | Math.round(b * 255);
+}
+
+/**
+ * The tier burst flash's colour (pure, tested; owner ruling at the final review, 2026-10-19): Rare, Epic and Legendary
+ * flash in their own colour lightened 30% toward white; Ancient (multichrome) flashes white ("a bright flash of white").
+ */
+export function tierFlashColor(t: ChestTierPreset): number {
+  return t.multichrome ? 0xffffff : lerpColor(t.color, 0xffffff, 0.3);
 }
 
 /** Multichrome's saturation: opal is pastel, a sheen over white rather than a rainbow. */
@@ -571,11 +579,16 @@ export class CrateScene {
     this.place();
   }
 
-  anticipate(a: CrateAnticipation): void {
+  /**
+   * The click: the chest starts to breathe. `elapsedMs` starts the ramp part-way (clamped to the anticipation's
+   * length): a scene that comes up after the click (the controller's mount) resumes where the opening already is.
+   */
+  anticipate(a: CrateAnticipation, elapsedMs = 0): void {
     this.ant = a;
     this.pulseEvery = Math.max(120, a.pulseMs);
     this.pulseAcc = this.pulseEvery * 0.6; // the first pulse lands quickly after the click
     this.setPhase('anticipation', Math.max(1, a.antMs));
+    if (elapsedMs > 0) this.age = Math.min(this.dur, elapsedMs);
   }
 
   charge(p: CratePreset): void {
@@ -871,10 +884,13 @@ export class CrateScene {
         for (const s of [this.seamHalo, this.keyholeGlow, this.runeRing, this.floorGlow]) s.tint = this.color;
         for (const s of [this.seam, this.keyhole]) s.tint = lerpColor(this.color, 0xffffff, 0.55);
         this.backRays.tint = this.color;
-        crateShake = this.ant.antShake + (p.shake - this.ant.antShake) * easeInQuad(ct) + this.tier.extraShake;
+        // The tier's extra shake and glow BUILD through the charge like the reward's own: from what the anticipation
+        // ended on (1x) to twice that at the burst, so Legendary and Ancient "build harder" (final review, 2026-10-19).
+        const tierBuild = 1 + easeInQuad(ct);
+        crateShake = this.ant.antShake + (p.shake - this.ant.antShake) * easeInQuad(ct) + this.tier.extraShake * tierBuild;
         this.camShakeHold = p.screenShake * 0.22 * easeInCubic(ct);
-        seamBase = 0.5 + 0.5 * easeInQuad(ct) + this.tier.extraGlow;
-        keyBase = 0.7 + 0.3 * ct + this.tier.extraGlow;
+        seamBase = 0.5 + 0.5 * easeInQuad(ct) + this.tier.extraGlow * tierBuild;
+        keyBase = 0.7 + 0.3 * ct + this.tier.extraGlow * tierBuild;
         this.runeRing.alpha = 0.3 + 0.6 * ct;
         this.floorGlow.alpha = 0.25 + 0.5 * ct;
         this.backRays.alpha = p.rays * 0.16 * easeInQuad(ct);
@@ -1246,14 +1262,14 @@ export class CrateScene {
     }
   }
 
-  /** The tier's burst flourish, after the reward's: a white flash, a thin tier ring, sparkles and wisps thrown out. */
+  /** The tier's burst flourish, after the reward's: a flash (`tierFlashColor`), a thin tier ring, sparkles and wisps. */
   private tierBurst(): void {
     const T = this.tier;
     const S = this.size;
     const bx = this.rimCx;
     const by = this.rimY - S * 0.05;
     const gw = this.tex.glow.width;
-    if (T.burstFlash > 0) this.spawnFlash(bx, by, 0xffffff, Math.min(1, T.burstFlash), (S * 0.4) / gw, (S * 3.6) / gw, 420, 0, 0.08);
+    if (T.burstFlash > 0) this.spawnFlash(bx, by, tierFlashColor(T), Math.min(1, T.burstFlash), (S * 0.4) / gw, (S * 3.6) / gw, 420, 0, 0.08);
     if (T.burstSparkles > 0) this.spawnRing(bx, by, S * 0.25, S * 2.6, 560, T.multichrome ? 0xffffff : T.color, 0.75, 40);
     if (this.tierAura) this.tierAura.alpha = Math.min(1, T.auraGlow * 1.4);
     const whiteEvery = T.multichrome ? 3 : 5;

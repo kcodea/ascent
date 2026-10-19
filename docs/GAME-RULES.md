@@ -767,14 +767,14 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   it. Every GILDED card wears the painted gold gilded plate, with no text darkening and no colour filter, whatever plate
   its owner wears. A Whisper keeps its own plate.
 - **Card plates (2026-10-14; oracle R-PROG-PLATE-01..05).** A cosmetic plate that replaces the standard plate behind
-  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Sixty-one,
+  a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Sixty-two,
   all from crates. **Ancient:** Mooncloud, Simple Black, Simple White, Simple Glass. **Epic:** Moonstone, Bamboo, Smooth
   Aqua, Smooth Blue, Smooth Red, Hand Drawn, Blue Hand Drawn, Green Hand Drawn, Dark Arcane, Beach, Magma, Stonevines,
   Porcelain, Aquarium Rocks. **Rare:** Standard Black, Standard Blue, Standard Pink, Standard Teal. **Legendary:**
   Amethyst, Galaxy, Crackling Gemstone, Topaz, Blossom, Chrome, Spirit Carving, Iridescent, Mystic Obsidian, Smooth
   Iridescent, Battletorn, Ethereal, Round Magic, Verdant Magic, Emerald, Gilt
   Etched, Astral Relic, Blood Omen, Honey, Goop, Celestial, Runic, Verdant, Volcanic,
-  Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl. New plates come from the owner's Card Backplates folder and are
+  Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl, Vintage Oak. New plates come from the owner's Card Backplates folder and are
   Legendary unless the owner says otherwise. Most are LAYERED: an interior (Brown by default; Dark, Dark Brown, Grey, Magma,
   Water, Simple Black, Mystic, Round Magic, Silver Magic and Wartorn too), then the text darkening, then the frame on top, so a frame's effects are never darkened. Account-wide: equipped in the Collection's Card Plates tab ("Use standard
   plate" takes it off; hovering an owned plate floats a card wearing it). A worn plate replaces EVERY standard plate,

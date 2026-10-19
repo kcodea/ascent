@@ -742,6 +742,8 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_soulwitch', 'Soulwitch', 'legendary', 'Soulwitch.png'),
   cardPlate('plate_spades', 'Spades', 'legendary', 'Spades.png'),
   cardPlate('plate_the_howl', 'The Howl', 'legendary', 'The Howl.png'),
+  // Owner 2026-10-19: "i added one more, can you add it with dark brown interior?"
+  cardPlate('plate_vintage_oak', 'Vintage Oak', 'legendary', 'Vintage Oak.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

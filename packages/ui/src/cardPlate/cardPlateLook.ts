@@ -250,6 +250,8 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_soulwitch: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.033, interiorSy: 0.995, interiorY: -0.0225, darken: false, artScale: 1.018 },
   plate_spades: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 1, interiorSy: 0.995, interiorY: -0.0056, darken: false, artScale: 1.057 },
   plate_the_howl: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 0.95, interiorSy: 0.965, interiorY: -0.0291, darken: false, artScale: 1.113 },
+  // Owner 2026-10-19: "add it with dark brown interior".
+  plate_vintage_oak: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.007, interiorSx: 1.007, interiorSy: 0.995, interiorY: 0.015, darken: false, artScale: 1.052 },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

@@ -1,4 +1,4 @@
-# 2026-10-19 — Nineteen more card plates (Dark and Dark Brown)
+# 2026-10-19 — Twenty more card plates (Dark and Dark Brown)
 
 Owner (2026-10-19): *"added more frames. can you add them with the dark interior?"* Four Legendary plates (the folder
 rule) on the Dark interior, no text darkening.
@@ -47,3 +47,6 @@ well"*: Nano, Soulwitch, Spades and The Howl on Dark. All Legendary, no darkenin
 | Soulwitch | dark | 0.005 | 1.033 | 0.995 | -0.0225 | 1.018 |
 | Spades | dark | 0.004 | 1 | 0.995 | -0.0056 | 1.057 |
 | The Howl | dark | 0.006 | 0.95 | 0.965 | -0.0291 | 1.113 |
+
+Then *"i added one more, can you add it with dark brown interior?"*: **Vintage Oak** on Dark Brown (frameX 0.007, Sx 1.007,
+Sy 0.995, Y 0.015, artScale 1.052).

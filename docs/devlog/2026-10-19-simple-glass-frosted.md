@@ -64,3 +64,5 @@ Oracle rule: **R-PLATE-02**.
 Owner, happy with the blur everywhere: *"make the grey layer less warm and more dark grey, then reduce its opacity to
 15%. reduce the blur by 20px"*. Layer `rgba(140, 118, 120, 0.65)` to a neutral dark grey `rgba(58, 60, 64, 0.15)`; blur
 40px to 20px.
+
+Then *"reduce the blur to 13px. increase the grey opacity to 25%"*: `rgba(58, 60, 64, 0.25)` over a 13px blur.

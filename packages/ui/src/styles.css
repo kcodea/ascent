@@ -380,10 +380,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
    gradient covers the ENTIRE scene (cards, lobby rail, hero panels, banners — a BODY portal at z105:
    above the out-of-app fixed panels (.statusbar z40, .combatopp z100, .eotbanner z95) AND above the z110 Pixi FX canvas + every transient float layer (spell sparks z121, fodder ghosts z120,
    damage/death floats z112, flying hand-grants — the occasional straggler from the End-of-Turn beats was
-   popping in over the blue, owner report 2026-08-29, hence z250): everything below the deliberate
-   full-screen overlays (Esc z300, hero select z400, loss numbers z2000 — decisive combats skip the curtain)
-   is covered by construction; nothing of the game
-   rides on top), holds a beat at full blue while the phase's own animations settle underneath, then
+   popping in over the blue, owner report 2026-08-29, hence z250). z250 still left a band of in-game layers
+   ABOVE the blue (the Rebirth pillar z2000, the rune lock-in z640, the tutorial spotlight z600-620, emotes
+   z900, the FX screen flash z99999), which flashed over it (owner 2026-10-19, against the ranked gate that
+   "works perfectly" at z700). So the curtain now sits at z3000, ABOVE EVERY IN-GAME LAYER by construction,
+   the way the gate does: a new layer defaults to under it and nothing has to opt out. Only the dev tools
+   (z4000+) and the boot / rotate screens sit higher; the menus that may open mid-wipe are lifted over it
+   by `body.wipe-up` below. `curtainLadder.test.ts` fails on any new in-game layer at or above z3000),
+   holds a beat at full blue while the phase's own animations settle underneath, then
    collapses off to reveal the finished scene. Same choreography in both directions. clip-path is a paint property,
    but each sweep is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). The duration is supplied at
    runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `450ms` fallback is a safety default.
@@ -395,7 +399,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    empty parked states snap back to the zero circle invisibly (both cover nothing — Recruit's `primeOut`
    guarantees the exit bloom launches from the zero circle, not the parked sliver). `.snap` is unused on
    the curtain and kept only for the fronts. */
-.wipecurtain { position: fixed; inset: 0; z-index: 250; pointer-events: none;
+.wipecurtain { position: fixed; inset: 0; z-index: 3000; pointer-events: none;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   clip-path: ellipse(0px 0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
   /* Hint the clip transition onto the compositor (Chromium composites basic-shape clip-path animations when
@@ -463,7 +467,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    blue. */
 .wipefront { position: fixed; left: var(--wipe-cx, calc(84 * var(--vw, 1vw))); top: var(--wipe-cy, calc(62 * var(--vh, 1vh)));
   width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
-  border-radius: 50%; z-index: 250; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  border-radius: 50%; z-index: 3000; pointer-events: none; opacity: 0; mix-blend-mode: screen;
   /* Round 2 (owner 2026-09-24): a DOUBLE-LAYER edge. Inside the seam the ring's glow rises to the bright line
      (`--wf-line`, which Recruit puts ON the seam), and past it a soft leading HALO fades out over the old screen,
      so the edge reads as light arriving rather than a hard line that could look parked. Every stop comes from the
@@ -484,7 +488,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    original L→R front). Parks at the left edge; `.go` sweeps it L→R (exit reveal), `.rtl` parks it at the
    RIGHT edge and `.rtl.go` brings it home R→L (entry reveal). Same duration + easing as the curtain's
    inset transition so bar and seam can never desync; compositor-only transform, static gradient. */
-.wipebar { position: fixed; top: 0; bottom: 0; left: calc(-15 * var(--vw, 1vw)); width: calc(30 * var(--vw, 1vw)); z-index: 250;
+.wipebar { position: fixed; top: 0; bottom: 0; left: calc(-15 * var(--vw, 1vw)); width: calc(30 * var(--vw, 1vw)); z-index: 3000;
   pointer-events: none; opacity: 0; mix-blend-mode: screen;
   background:
     radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
@@ -496,9 +500,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipebar.rtl.go { transform: translateX(0); }
 .wipebar.sweeping { opacity: 1; }
 .wipebar.snap { transition: none; }
-/* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts) — z255 so its motes/runes ride ON the blue (curtain + fronts
-   are z250) while staying under the deliberate overlays (Esc z300+). Hidden + ticker stopped when idle. */
+/* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts). Hidden + ticker stopped when idle. Its base z255 is for the Ancients
+   awakening, which plays the same motes over its own z105 gate; while the combat curtain is up (`body.wipe-up`)
+   it rises to z3005 so the motes/runes ride ON the z3000 blue. */
 .wipefx-canvas { position: fixed; inset: 0; z-index: 255; pointer-events: none; }
+body.wipe-up .wipefx-canvas { z-index: 3005; }
 /* NOTHING IN THE GAME PAINTS OVER THE CURTAIN (owner 2026-09-24: "sometimes background elements come through the
    wipe or it flickers"). `body.wipe-up` is set by Recruit from the gem's tell until the reveal ends
    (wipeMachine.wipeUp). The hover layers that deliberately sit above every in-game layer (card references and
@@ -506,15 +512,31 @@ canvas.spr { image-rendering: pixelated; display: block; }
    control through the transition; they are hidden while it is up. The z2000 in-game floats (the loss-damage
    tally, its flying tier numbers, the lobby damage float: z2000 so they clear the replay bar) DROP under the
    curtain while it is up, so a tally still flying when End Combat is clicked is swallowed by the bloom instead
-   of floating over the blue (reproduced 2026-09-24 in every lost round). Deliberate full-screen menus (Esc,
-   hero select, dev tools) still sit above it. */
+   of floating over the blue (reproduced 2026-09-24 in every lost round).
+   Since the curtain moved to z3000 (2026-10-19) every in-game layer is under it by construction; the rules here
+   stay as belt and braces. Two more things change while it is up:
+   - The FX `screen` flash (`.fxflash`, z99999 so a flash whitens every menu too) drops under the blue: a flash
+     fired as the wipe starts would otherwise whiten the curtain itself.
+   - The menus a player can open (or already have open, when a Versus opponent's press starts the wipe) and the
+     replay viewer's own controls RISE over it, each at its usual z + 2600 so they keep their order among
+     themselves: Esc, the patch notes and card Inspect (500), the replay's recorded cursor (535), the account
+     panel (540), the replay round rail (555), the bug report and the replay bar (560), the bug toast (570). Dev
+     tools (z4000+) already sit above the curtain. */
 body.wipe-up .cardref, body.wipe-up .castprev-layer { visibility: hidden !important; }
 body.wipe-up .gtip[data-tip]::after { visibility: hidden !important; }
 body.wipe-up .lobbydmg-float { z-index: 240; }
+body.wipe-up .fxflash { z-index: 2990; }
+body.wipe-up .escov, body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
+body.wipe-up .disc-toggle.disc-peek.inspect-act { z-index: 3101; }
+body.wipe-up .replay-cursor { z-index: 3135; }
+body.wipe-up .acctpanel { z-index: 3140; }
+body.wipe-up .roundrail-wrap { z-index: 3155; }
+body.wipe-up .bgrov, body.wipe-up .replaybar { z-index: 3160; }
+body.wipe-up .bgrtoast { z-index: 3170; }
 /* The Screen wipe tuner's ▶ Play (WipePreview, DEV) plays over any screen, menus included; under the dev menu. */
 .wipecurtain.preview, .wipefront.preview, .wipebar.preview { z-index: 9000; }
 /* z200: the ABOVE-MODAL FX canvas (see `FxSlot` in fx/def.ts). Over the Discover / Choose One overlays
-   (z160, which are otherwise deliberately above every board effect) and under the wipe curtain (z255).
+   (z160, which are otherwise deliberately above every board effect) and under the wipe curtain (z3000).
    Only an effect that is ABOUT the modal belongs here. */
 .pixifx-above { position: fixed; inset: 0; z-index: 200; pointer-events: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the
@@ -3325,7 +3347,17 @@ body.modalup .app { z-index: auto; }
 /* right-click inspect: the card floats to centre, enlarged, over a dimmed backdrop */
 /* z-index 500 keeps inspect above even the end-of-run overlay (z 400), so right-clicking a minion in
    the final warband to read its buffs works there too. */
-.inspect-ov { position: fixed; inset: 0; z-index: 500; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+/* The dim + blur live on a `::before` BEHIND the card, not on the overlay itself: a `backdrop-filter` on an ancestor
+   makes it a backdrop root, so a frosted-glass card plate inside (Simple Glass) would blur only the overlay's own
+   tint, never the board (owner 2026-10-19: "the blur effect is not happening when … inspecting"). Same look. */
+.inspect-ov { position: fixed; inset: 0; z-index: 500; display: grid; place-items: center; animation: fadein 0.14s ease; cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.inspect-ov::before { content: ''; position: absolute; inset: 0; z-index: -1; background: rgba(26, 16, 6, 0.6); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+/* An opacity fade makes its element a backdrop root too, so for a glass card only the backdrop fades and the card
+   pops on scale alone: the glass is blurred from the first frame instead of switching colour after the fade. */
+.inspect-ov:has(.plate-frosted) { animation: none; }
+.inspect-ov:has(.plate-frosted)::before { animation: fadein 0.14s ease; }
+.inspect-ov .inspect-card:has(.plate-frosted) { animation-name: inspectpop-glass; }
+@keyframes inspectpop-glass { from { transform: scale(1.45) translateY(-15%); } to { transform: scale(1.9) translateY(-15%); } }
 /* The inspect view scales the whole group (buff breakdown + card) as one unit, so the breakdown
    panel sits cleanly to the LEFT of the enlarged card without transform/layout mismatch. */
 .inspect-card { position: relative; display: flex; align-items: center; gap: 10px; transform: scale(1.9) translateY(-15%); transform-origin: center; animation: inspectpop 0.18s cubic-bezier(0.34, 1.3, 0.64, 1); }
@@ -4920,6 +4952,51 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   pointer-events: none;
   user-select: none;
 }
+/* A FROSTED interior (cardPlateLook.ts `frosted`, Simple Glass; owner 2026-10-19: "clear and blurs all imagery behind
+   it", then "i like the lighter grey hover effect more and want to get it closer to that at all times. maybe increase
+   the amount of blur a bit"). The interior <img> keeps its box (so the fit, the fade-in and the Card Plate Editor's
+   sliders all work unchanged) but paints NONE of its pixels: `object-position` throws the image out of its own box.
+   What shows is a blur of what is behind the card under a thin GREY layer (values below), both clipped to the
+   interior's outline by masking the element with that same image. STATIC: nothing here animates (performance north star).
+   It BLURS WHILE DRAGGED too (owner 2026-10-19: "can you have it apply the blur while moving ?"). The drag layer's
+   drop-shadow is a `filter`, which would make it a backdrop root (the blur would see nothing behind the card), so a
+   dragged GLASS card moves that shadow onto its frame instead: same silhouette shadow, and the blur sees the board.
+   Costs a re-blur per frame for that one card while it moves. */
+.card.plated .cardplate.plate-interior.plate-frosted {
+  object-position: -100000px 0;
+  /* Owner 2026-10-19, once the blur showed in every state: "make the grey layer less warm and more dark grey, then
+     reduce its opacity to 15%. reduce the blur by 20px" (from a warm rgba(140, 118, 120, 0.65) over a 40px blur), then
+     "reduce the blur to 13px. increase the grey opacity to 25%", then "reduce the blur to 10px",
+     then "increase grey to 35%", then "reduce blur to 7px". */
+  background: rgba(58, 60, 64, 0.35);
+  -webkit-backdrop-filter: blur(7px); backdrop-filter: blur(7px);
+  -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
+}
+.dragcard:has(.plate-frosted) { filter: none; }
+.dragcard:has(.plate-frosted) .plate-frame { filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); }
+/* Same for a HOVERED hand card (owner 2026-10-19: "the blur effect is not happening when hovering"): the hover lift's
+   drop-shadow `filter` would cut the glass off from the board, so a glass card shadows its frame instead. */
+.row.hand .card.plated:has(.plate-frosted):hover { filter: none; }
+.row.hand .card.plated:has(.plate-frosted):hover .plate-frame { filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+/* And the hover reveal / cast preview popups (owner 2026-10-19: "hovering a card in shop, the blur and grey isnt
+   applied"): their white haze is a `filter` on the whole popup, so with a glass card the haze moves onto the frame and
+   each side panel, and the reveal slides in without its opacity fade (a fade is a backdrop root too). */
+.cardref:has(.plate-frosted), .castprev:has(.plate-frosted) { filter: none; }
+.cardref:has(.plate-frosted) .plate-frame, .cardref:has(.plate-frosted) .cardref-inner > :not(.card),
+.castprev:has(.plate-frosted) .plate-frame {
+  filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
+}
+.cardref:has(.plate-frosted) { animation-name: cardrefin-glass; }
+@keyframes cardrefin-glass { from { transform: translateX(-10px); } to { transform: translateX(0); } }
+/* No opacity on the glass's way IN either (owner 2026-10-19: "theres a brief mooment that it takes before it loads the
+   blur when hovering"): a glass card's mount pop is motion-only, and the glass skips the art-pending hide (it paints
+   none of the image's pixels, and its mask shows nothing until that image is there anyway), so the blur is on from
+   the first frame instead of after ~0.3 s. A delayed token pop keeps its fade (it must stay invisible while it waits). */
+.card.popin:not(.popdelay):has(.plate-frosted) { animation-name: cardpop-glass; }
+.row.hand .card.popin:not(.popdelay):has(.plate-frosted) { animation-name: handpop-glass; }
+@keyframes cardpop-glass { from { transform: translateY(8px); } to { transform: none; } }
+@keyframes handpop-glass { from { transform: translateY(var(--hand-tuck, 32%)) scale(0.9); } to { transform: translateY(var(--hand-tuck, 32%)) scale(1); } }
+.card.plated .cardplate.plate-interior.plate-frosted.art-pending { opacity: 1 !important; }
 /* The hover glow traces the FRAME on a layered plate, so it takes the same nudge and size. */
 .card.plated .plateglow.plate-framed { transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
 .card.compact.showtext.spellcard .drawer .plate-frame {

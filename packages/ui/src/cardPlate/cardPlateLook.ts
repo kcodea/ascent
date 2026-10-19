@@ -67,6 +67,13 @@ export interface CardPlateLook {
    * frame and its glow; the interior follows (see `scaledInterior`). Absent = 1.
    */
   artScale?: number;
+  /**
+   * A FROSTED-GLASS interior (owner 2026-10-19, Simple Glass: "clear and blurs all imagery behind it", "slightly
+   * darkened too to help readability"). The interior image is then only a SHAPE: the card draws none of its pixels,
+   * masks a live `backdrop-filter` blur plus a dark tint to it (styles.css `.plate-frosted`). Its colours show only in
+   * the Collection picture, which cannot blur what is behind it.
+   */
+  frosted?: boolean;
   /** The plate WHOLE, for the Collection (tile + detail panel): the plate itself, or for a layered plate a pre-built
    *  composite of the interior seated in the frame (`<id>.webp`, built at the in-game proportions). */
   thumb: string;
@@ -75,14 +82,14 @@ export interface CardPlateLook {
 const PLATE_DIR = `${import.meta.env.BASE_URL}frames/plates/`;
 
 /** The shared interiors a layered plate can sit on (`frames/plates/interiors/<name>.webp`). Brown is the default. */
-export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack', 'darkbrown', 'grey', 'mystic', 'roundmagic', 'silvermagic', 'wartorn'] as const;
+export const PLATE_INTERIORS = ['brown', 'dark', 'magma', 'water', 'simpleblack', 'darkbrown', 'grey', 'mystic', 'roundmagic', 'silvermagic', 'wartorn', 'frosted'] as const;
 export type PlateInterior = (typeof PLATE_INTERIORS)[number];
 export const DEFAULT_PLATE_INTERIOR: PlateInterior = 'brown';
 
 /** Each interior image's height / width: it is drawn 1.08 card widths wide, so this sets its height. */
 const INTERIOR_ASPECT: Readonly<Record<PlateInterior, number>> = {
   brown: 1.7985, dark: 1.8032, magma: 1.8032, water: 1.8031, simpleblack: 1.7254, darkbrown: 1.7985, grey: 1.8032,
-  mystic: 1.6554, roundmagic: 1.7184, silvermagic: 1.7261, wartorn: 1.6276,
+  mystic: 1.6554, roundmagic: 1.7184, silvermagic: 1.7261, wartorn: 1.6276, frosted: 1.7254,
 };
 
 /**
@@ -100,7 +107,7 @@ function scaledInterior(s: number, interior: PlateInterior, sx: number, sy: numb
 }
 
 /** One entry per `card_plate` art key (`assets.art`). Tuned by eye with the owner in game, 2026-10-14. */
-type LookSettings = Pick<CardPlateLook, 'boxA' | 'boxBlend' | 'boxY' | 'frameX' | 'frameY' | 'interiorSx' | 'interiorSy' | 'interiorX' | 'interiorY' | 'artScale'> & {
+type LookSettings = Pick<CardPlateLook, 'boxA' | 'boxBlend' | 'boxY' | 'frameX' | 'frameY' | 'interiorSx' | 'interiorSy' | 'interiorX' | 'interiorY' | 'artScale' | 'frosted'> & {
   /** false = no text darkening on this plate (its interior is already dark enough). */
   darken?: boolean;
   /** A layered plate (interior -> darkening -> frame). */
@@ -172,7 +179,9 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   // Simple Glass: the Simple template (pointed bottom), like Simple Black. The glass is see-through on its left
   // edge, so its fit counted alpha > 60 as frame (`--fit-alpha 60`); the opening is centred like Simple Black's.
   // Owner 2026-10-17: "the glass frame needs the simpleblack interior" (was Grey); refit on that interior's shape.
-  plate_simple_glass: { ...AQUARIUM_ROCKS, layered: true, interior: 'simpleblack', frameX: 0.004, interiorSx: 1.171, interiorSy: 1.159, interiorY: 0.0919, darken: false },
+  // Owner 2026-10-19: FROSTED, "clear and blurs all imagery behind it" and "slightly darkened". The `frosted` interior is
+  // Simple Black's exact outline (same size), so its fit holds.
+  plate_simple_glass: { ...AQUARIUM_ROCKS, layered: true, interior: 'frosted', frosted: true, frameX: 0.004, interiorSx: 1.171, interiorSy: 1.159, interiorY: 0.0919, darken: false },
   // Stonevines: the standard template with vines spilling over the edge, on the Grey interior; opening 0.5px left.
   plate_stonevines: { ...AQUARIUM_ROCKS, layered: true, interior: 'grey', frameX: 0.005, interiorSx: 1.047, interiorSy: 1.026, interiorY: -0.0066, darken: false },
   // The four STANDARD colours: the standard plate's shape recoloured, on the new Dark Brown interior; openings 1px left

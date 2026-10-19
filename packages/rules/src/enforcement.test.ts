@@ -83,6 +83,11 @@ const OPEN_PINS: { rule: string; ref: string; why: string }[] = [
     ref: 'packages/ui/src/avengeSummonReadout.test.ts',
     why: "PR #1618 (the Reclaim insert + the combat readout). The one current ref pins the ORDINARY summon path (the #1176 baseline stamp, which is already R-AVWIN-01 ground); neither half R-AVWIN-12 adds is pinned until this file lands.",
   },
+  {
+    rule: 'R-PROG-AETHER-02',
+    ref: 'packages/ui/src/progression/CrateShop.test.tsx',
+    why: "Guests cannot spend Aether: the SQL does not distinguish guests, so the sign-in gate (CrateSignInGate on every spend path) is client-side and ships with the Crate Shop UI on feat/aether-shop-ui. The rule stays PARTIAL until that test pins it.",
+  },
 ];
 
 describe('open pins (a PARTIAL rule cannot quietly stay unpinned)', () => {

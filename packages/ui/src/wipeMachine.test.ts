@@ -78,7 +78,8 @@ describe('the wipe machine', () => {
 describe('nothing in the game paints over the curtain while it is up', () => {
   const curtainZ = Number(/\.wipecurtain \{ position: fixed; inset: 0; z-index: (\d+);/.exec(css)?.[1]);
 
-  it('the curtain sits at z250', () => { expect(curtainZ).toBe(250); });
+  // z3000 since 2026-10-19 (above every in-game layer; curtainLadder.test.ts holds the whole ladder).
+  it('the curtain sits at z3000', () => { expect(curtainZ).toBe(3000); });
 
   it('the z2000 float (lobby damage) drops UNDER the curtain while it is up', () => {
     // (The loss tally and its flying tiers were retired 2026-09-28 for the shared damage formation, whose layer sits at

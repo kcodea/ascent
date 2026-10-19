@@ -646,33 +646,36 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   emote('emote_dan_the_man', 'Dan the Man', 'legendary', 'DanTheManEmote.png'), // 2026-10-18
   emote('emote_iggy', 'Iggy', 'legendary', 'Iggy.png'), // 2026-10-18
   // CARD PLATES (owner 2026-10-14): "This card plate is called Aquarium Rocks"; "aquariam rocks should be a legendary drop".
-  cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'epic', 'Aquarium Rocks.png'), // owner 2026-10-17: "change aquarium rocks to epic rarity"
+  // RARITY PASS (owner 2026-10-19): Rare = the Hand Drawn and Smooth plates, Beach, Magma, Bamboo, Aquarium Rocks,
+  // Amethyst; Epic = Iridescent, Smooth Iridescent, Galaxy, Chrome, Topaz, Crackling Gemstone, Carved Aetherstone, Honey,
+  // Goop, White Magic, Runic; Ancient = Frozen Aurora, The Howl, Nano. Tagged `owner 2026-10-19` on each line.
+  cardPlate('plate_aquarium_rocks', 'Aquarium Rocks', 'rare', 'Aquarium Rocks.png'), // owner 2026-10-19: Rare; owner 2026-10-17: "change aquarium rocks to epic rarity"
   // Owner 2026-10-15: the rest of the Card Backplates folder, "every other one should be a legendary reward".
-  cardPlate('plate_amethyst', 'Amethyst', 'legendary', 'Amethyst.png'), // shares its name with the Amethyst portrait frame (owner 2026-10-15)
-  cardPlate('plate_bamboo', 'Bamboo', 'epic', 'Bamboo.png'), // owner 2026-10-15: Epic
-  cardPlate('plate_beach', 'Beach', 'epic', 'Beach Frame.png'), // owner 2026-10-17: Epic // layered on the Water interior (2026-10-15)
-  cardPlate('plate_magma', 'Magma', 'epic', 'Magma Frame.png'), // owner 2026-10-17: Epic // layered on the Magma interior (2026-10-15)
+  cardPlate('plate_amethyst', 'Amethyst', 'rare', 'Amethyst.png'), // owner 2026-10-19: Rare; shares its name with the Amethyst portrait frame (owner 2026-10-15)
+  cardPlate('plate_bamboo', 'Bamboo', 'rare', 'Bamboo.png'), // owner 2026-10-19: Rare
+  cardPlate('plate_beach', 'Beach', 'rare', 'Beach Frame.png'), // owner 2026-10-19: Rare; layered on the Water interior (2026-10-15)
+  cardPlate('plate_magma', 'Magma', 'rare', 'Magma Frame.png'), // owner 2026-10-19: Rare; layered on the Magma interior (2026-10-15)
   cardPlate('plate_moonstone', 'Moonstone', 'epic', 'Moonstone Frame.png'), // owner 2026-10-15: Epic; // layered on the Dark interior (2026-10-15)
   // Owner 2026-10-15: "create a new plate using the dark interior and mooncloud plate" (Legendary by the folder rule).
   cardPlate('plate_mooncloud', 'Mooncloud', 'ancient', 'Mooncloud.png'), // owner 2026-10-15: Ancient ("make mooncloud ascendant rarity", meaning Ancient)
   // Owner 2026-10-15: "create a new one with dark interior and galaxy frame".
-  cardPlate('plate_galaxy', 'Galaxy', 'legendary', 'Galaxy.png'),
+  cardPlate('plate_galaxy', 'Galaxy', 'epic', 'Galaxy.png'), // owner 2026-10-19: Epic
   // Owner 2026-10-15: "i added more frames to the folder, can you add them all in with the dark interior".
-  cardPlate('plate_crackling_gemstone', 'Crackling Gemstone', 'legendary', 'Crackling Gemstone.png'),
-  cardPlate('plate_hand_drawn', 'Hand Drawn', 'epic', 'Hand Drawn.png'), // owner 2026-10-17: Epic
-  cardPlate('plate_blue_hand_drawn', 'Blue Hand Drawn', 'epic', 'Blue Hand Drawn.png'), // owner 2026-10-17: Epic
-  cardPlate('plate_green_hand_drawn', 'Green Hand Drawn', 'epic', 'Green Hand Drawn.png'), // owner 2026-10-17: Epic
+  cardPlate('plate_crackling_gemstone', 'Crackling Gemstone', 'epic', 'Crackling Gemstone.png'), // owner 2026-10-19: Epic
+  cardPlate('plate_hand_drawn', 'Hand Drawn', 'rare', 'Hand Drawn.png'), // owner 2026-10-19: Rare
+  cardPlate('plate_blue_hand_drawn', 'Blue Hand Drawn', 'rare', 'Blue Hand Drawn.png'), // owner 2026-10-19: Rare
+  cardPlate('plate_green_hand_drawn', 'Green Hand Drawn', 'rare', 'Green Hand Drawn.png'), // owner 2026-10-19: Rare
   // Owner 2026-10-15: "the simpleblack and simplewhite should go on top of the new simpleblack interior"; Topaz came in
   // the same drop with no interior named, so it takes the default (Brown).
   // Owner 2026-10-15: "make simple black and simple white Ascendant tier rewards" -> "i meant ancient rarity".
   cardPlate('plate_simple_black', 'Simple Black', 'ancient', 'Simpleblack Frame.png'),
   cardPlate('plate_simple_white', 'Simple White', 'ancient', 'Simplewhite.png'),
-  cardPlate('plate_topaz', 'Topaz', 'legendary', 'Topaz.png'),
+  cardPlate('plate_topaz', 'Topaz', 'epic', 'Topaz.png'), // owner 2026-10-19: Epic
   // Owner 2026-10-15: "i added three new \"smooth\" frames - pair them with the dark interior"; then "make moonstone,
   // bamboo, and the smooth frames all epic rarity".
-  cardPlate('plate_smooth_aqua', 'Smooth Aqua', 'epic', 'Smooth Aqua.png'),
-  cardPlate('plate_smooth_blue', 'Smooth Blue', 'epic', 'Smooth Blue.png'),
-  cardPlate('plate_smooth_red', 'Smooth Red', 'epic', 'Smooth Red.png'),
+  cardPlate('plate_smooth_aqua', 'Smooth Aqua', 'rare', 'Smooth Aqua.png'), // owner 2026-10-19: Rare
+  cardPlate('plate_smooth_blue', 'Smooth Blue', 'rare', 'Smooth Blue.png'), // owner 2026-10-19: Rare
+  cardPlate('plate_smooth_red', 'Smooth Red', 'rare', 'Smooth Red.png'), // owner 2026-10-19: Rare
   // Owner 2026-10-15: the first LAYERED plate (built as "Test Blossom"), then "rename the existing Test blossom in game to
   // Blossom". Legendary by the folder rule.
   cardPlate('plate_blossom', 'Blossom', 'legendary', 'Test Blossom Frame.png'),
@@ -687,15 +690,15 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_standard_pink', 'Standard Pink', 'rare', 'Standard Pink.png'), // owner 2026-10-17: Rare
   cardPlate('plate_standard_teal', 'Standard Teal', 'rare', 'Standard Teal.png'), // owner 2026-10-17: Rare
   // Owner 2026-10-16: "add chrome from the folder with the grey interior" (Legendary by the folder rule).
-  cardPlate('plate_chrome', 'Chrome', 'legendary', 'Chrome.png'),
+  cardPlate('plate_chrome', 'Chrome', 'epic', 'Chrome.png'), // owner 2026-10-19: Epic
   // Owner 2026-10-17: "ive added a lot of new card frames to the folder". No interior or rarity named, so the defaults:
   // Legendary (the folder rule) on the Brown interior.
   // Owner 2026-10-17: "Spirit Carving" (the art is "Ascendant Carving.png"; names can't use ranked medal words).
   cardPlate('plate_spirit_carving', 'Spirit Carving', 'legendary', 'Ascendant Carving.png'),
-  cardPlate('plate_iridescent', 'Iridescent', 'legendary', 'Iridescent.png'),
+  cardPlate('plate_iridescent', 'Iridescent', 'epic', 'Iridescent.png'), // owner 2026-10-19: Epic
   cardPlate('plate_mystic_obsidian', 'Mystic Obsidian', 'legendary', 'Mystic Obsidian.png'),
   cardPlate('plate_porcelain', 'Porcelain', 'epic', 'Porcelain.png'), // owner 2026-10-17: Epic
-  cardPlate('plate_smooth_iridescent', 'Smooth Iridescent', 'legendary', 'Smooth Iridescent.png'),
+  cardPlate('plate_smooth_iridescent', 'Smooth Iridescent', 'epic', 'Smooth Iridescent.png'), // owner 2026-10-19: Epic
   // Owner 2026-10-17: "ive added another round of frames and interiors. match them based on the names". Legendary by the
   // folder rule. Silver Magic ships as Verdant Magic (no medal words in names); "Ascendant Rank" is held back as a
   // future ranked reward (owner 2026-10-17), not a crate plate. Phoenix was removed before it ever shipped (owner
@@ -716,31 +719,31 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // suggestion (Astral Relic on Dark, Blood Omen on Wartorn, Honey on Brown).
   cardPlate('plate_astral_relic', 'Astral Relic', 'legendary', 'Astral Relic.png'),
   cardPlate('plate_blood_omen', 'Blood Omen', 'legendary', 'Blood Omen.png'),
-  cardPlate('plate_honey', 'Honey', 'legendary', 'Honey.png'),
+  cardPlate('plate_honey', 'Honey', 'epic', 'Honey.png'), // owner 2026-10-19: Epic
   // Owner 2026-10-17: "added one more: goop" (Legendary by the folder rule; no interior named, so Brown).
-  cardPlate('plate_goop', 'Goop', 'legendary', 'Goop.png'),
+  cardPlate('plate_goop', 'Goop', 'epic', 'Goop.png'), // owner 2026-10-19: Epic
   // Owner 2026-10-19: "added more frames. can you add them with the dark interior?" (Legendary by the folder rule).
   cardPlate('plate_celestial', 'Celestial', 'legendary', 'Celestial.png'),
-  cardPlate('plate_runic', 'Runic', 'legendary', 'Runic.png'),
+  cardPlate('plate_runic', 'Runic', 'epic', 'Runic.png'), // owner 2026-10-19: Epic
   cardPlate('plate_verdant', 'Verdant', 'legendary', 'Verdant.png'),
   cardPlate('plate_volcanic', 'Volcanic', 'legendary', 'Volcanic.png'),
   // Owner 2026-10-19: "i added a bunch more use either dark brown interior or black interior", then "i added more - add
   // those with dark interior as well". Legendary by the folder rule.
   cardPlate('plate_armored_knight', 'Armored Knight', 'legendary', 'Armored Knight.png'),
   cardPlate('plate_bordered_land', 'Bordered Land', 'legendary', 'Bordered Land.png'),
-  cardPlate('plate_carved_aetherstone', 'Carved Aetherstone', 'legendary', 'Carved Aetherstone.png'),
+  cardPlate('plate_carved_aetherstone', 'Carved Aetherstone', 'epic', 'Carved Aetherstone.png'), // owner 2026-10-19: Epic
   cardPlate('plate_elegant', 'Elegant', 'legendary', 'Elegant.png'),
-  cardPlate('plate_frozen_aurora', 'Frozen Aurora', 'legendary', 'Frozen Aurora.png'),
+  cardPlate('plate_frozen_aurora', 'Frozen Aurora', 'ancient', 'Frozen Aurora.png'), // owner 2026-10-19: Ancient
   cardPlate('plate_hivemind', 'Hivemind', 'legendary', 'Hivemind.png'),
   cardPlate('plate_ironwood', 'Ironwood', 'legendary', 'Ironwood.png'),
   cardPlate('plate_solar', 'Solar', 'legendary', 'Solar.png'),
   cardPlate('plate_static', 'Static', 'legendary', 'Static.png'),
   cardPlate('plate_twisted_ether', 'Twisted Ether', 'legendary', 'Twisted Ether.png'),
-  cardPlate('plate_white_magic', 'White Magic', 'legendary', 'White Magic.png'),
-  cardPlate('plate_nano', 'Nano', 'legendary', 'Nano.png'),
+  cardPlate('plate_white_magic', 'White Magic', 'epic', 'White Magic.png'), // owner 2026-10-19: Epic
+  cardPlate('plate_nano', 'Nano', 'ancient', 'Nano.png'), // owner 2026-10-19: Ancient
   cardPlate('plate_soulwitch', 'Soulwitch', 'legendary', 'Soulwitch.png'),
   cardPlate('plate_spades', 'Spades', 'legendary', 'Spades.png'),
-  cardPlate('plate_the_howl', 'The Howl', 'legendary', 'The Howl.png'),
+  cardPlate('plate_the_howl', 'The Howl', 'ancient', 'The Howl.png'), // owner 2026-10-19: Ancient
   // Owner 2026-10-19: "i added one more, can you add it with dark brown interior?"
   cardPlate('plate_vintage_oak', 'Vintage Oak', 'legendary', 'Vintage Oak.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.

@@ -84,6 +84,55 @@ describe('the card plate a card wears', () => {
     expect(drawer.indexOf('plate-frame')).toBeLessThan(drawer.findIndex((c) => c === 'cn'));
   });
 
+  it('Simple Glass has a FROSTED interior: a live blur of what is behind, masked to its shape, no pixels of its own (owner 2026-10-19)', () => {
+    // "create a card interior for the blown glass card frame that would actually just be clear and blurs all imagery
+    // behind it"; "slightly darkened too to help readability".
+    const el = render('k_pouchpincher', 'neutral', { snapshot: { cardPlate: 'plate_simple_glass' } as unknown as typeof AQUARIUM });
+    const interior = el.querySelector('img.cardplate')!;
+    expect(interior.classList.contains('plate-frosted')).toBe(true);
+    expect(interior.getAttribute('src')).toContain('frames/plates/interiors/frosted.webp');
+    expect(el.style.getPropertyValue('--plate-frost-mask')).toContain('frames/plates/interiors/frosted.webp');
+    expect(el.querySelector('img.descbox')).toBeNull();
+    // No other plate is frosted.
+    for (const look of Object.values(CARD_PLATE_LOOKS)) expect(!!look.frosted, look.id).toBe(look.id === 'plate_simple_glass');
+    // The stylesheet blurs and tints it and hides the image's own pixels.
+    const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    const rule = css.slice(css.indexOf('.card.plated .cardplate.plate-interior.plate-frosted {'));
+    expect(rule.slice(0, rule.indexOf('}'))).toMatch(/backdrop-filter: blur\(\d+px\)[\s\S]*mask: var\(--plate-frost-mask\)/);
+    // ...and it blurs WHILE DRAGGED too (owner 2026-10-19: "can you have it apply the blur while moving ?"): the drag layer's
+    // drop-shadow filter would block the blur, so a dragged glass card drops it and shadows its frame instead.
+    expect(css).not.toMatch(/\.dragcard[^{]*plate-frosted[^{]*\{[^}]*backdrop-filter: none/);
+    expect(css).toMatch(/\.dragcard:has\(\.plate-frosted\) \{ filter: none; \}/);
+    expect(css).toMatch(/\.dragcard:has\(\.plate-frosted\) \.plate-frame \{ filter: drop-shadow\(/);
+    // ...and while HOVERED in hand, and in INSPECT (owner 2026-10-19: "the blur effect is not happening when hovering,
+    // when in hand, when inspecting"). Any ancestor with a filter, an opacity fade or its own backdrop-filter cuts the
+    // glass off from the board, so: the hover lift's shadow moves onto the frame, and Inspect's dim + blur live on a
+    // ::before behind the card rather than on the overlay, which a glass card's Inspect does not opacity-fade.
+    expect(css).toMatch(/\.row\.hand \.card\.plated:has\(\.plate-frosted\):hover \{ filter: none; \}/);
+    expect(css).toMatch(/\.row\.hand \.card\.plated:has\(\.plate-frosted\):hover \.plate-frame \{ filter: drop-shadow\(/);
+    const ov = css.slice(css.indexOf('.inspect-ov { position: fixed;'));
+    expect(ov.slice(0, ov.indexOf('}'))).not.toMatch(/backdrop-filter|background/);
+    expect(css).toMatch(/\.inspect-ov::before \{[^}]*backdrop-filter: blur\(/);
+    expect(css).toMatch(/\.inspect-ov:has\(\.plate-frosted\) \{ animation: none; \}/);
+    // ...and in the shop's hover reveal and the cast preview (owner 2026-10-19: "hovering a card in shop, the blur and grey
+    // isnt applied"): their haze filter moves off the popup, and the reveal slides in without an opacity fade.
+    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\), \.castprev:has\(\.plate-frosted\) \{ filter: none; \}/);
+    expect(css).toMatch(/\.cardref:has\(\.plate-frosted\) \{ animation-name: cardrefin-glass; \}/);
+    const refIn = css.slice(css.indexOf('@keyframes cardrefin-glass'));
+    expect(refIn.slice(0, refIn.indexOf('} }'))).not.toMatch(/opacity/);
+    // No fade on the way in at all (owner 2026-10-19: "theres a brief mooment that it takes before it loads the blur when
+    // hovering"): a glass card's mount pop is motion-only, and the glass ignores the art-pending hide.
+    expect(css).toMatch(/\.card\.popin:not\(\.popdelay\):has\(\.plate-frosted\) \{ animation-name: cardpop-glass; \}/);
+    expect(css).toMatch(/\.row\.hand \.card\.popin:not\(\.popdelay\):has\(\.plate-frosted\) \{ animation-name: handpop-glass; \}/);
+    for (const k of ['cardpop-glass', 'handpop-glass']) {
+      const kf = css.slice(css.indexOf(`@keyframes ${k}`));
+      expect(kf.slice(0, kf.indexOf('} }')), k).not.toMatch(/opacity/);
+    }
+    expect(css).toMatch(/\.plate-frosted\.art-pending \{ opacity: 1 !important; \}/);
+    const pop = css.slice(css.indexOf('@keyframes inspectpop-glass'));
+    expect(pop.slice(0, pop.indexOf('} }'))).not.toMatch(/opacity/);
+  });
+
   it('every plate that sat on Brown wears Dark Brown with no darkening (owner 2026-10-18)', () => {
     // "replace all cards' brown interior (except the standard card plate) with the dark brown interior and remove
     // darkening from them"

@@ -68,3 +68,5 @@ Owner, happy with the blur everywhere: *"make the grey layer less warm and more 
 Then *"reduce the blur to 13px. increase the grey opacity to 25%"*: `rgba(58, 60, 64, 0.25)` over a 13px blur.
 
 Then *"reduce the blur to 10px"*: blur 13px to 10px.
+
+Then *"increase grey to 35%"*: `rgba(58, 60, 64, 0.35)`.

@@ -8080,12 +8080,13 @@ export function Recruit() {
           more: it snaps in/out while the CURTAIN below fully hides the swap (see the wipe state machine).
           Tree position after `.boardbg` keeps it painting above the shop art, below every zone. */}
       <div className={`boardbg boardbg--combat${combatBgShown ? ' shown' : ''}`} aria-hidden="true" />
-      {/* The CURTAIN + its glowing front: PORTALED TO BODY at z105 — the hero panel (.statusbar z40), the
-          foe portrait (.combatopp, a body portal itself, z42/z100), and the eot banner (z95) all live
-          OUTSIDE `.app` in their own fixed stacking contexts, so an in-app curtain could never cover them
-          (owner report 2026-08-28: both hero panels floated over the blue). z105 beats them all and stays
-          below the Pixi FX canvas (z110), so the streak rides the blue. The curtain's clip-path transition
-          is the sanctioned one-shot kind. */}
+      {/* The CURTAIN + its glowing front: PORTALED TO THE STAGE (`stageHost()`) — the hero panel (.statusbar z40),
+          the foe portrait (.combatopp, a portal itself, z42/z100), and the eot banner (z95) all live OUTSIDE
+          `.app` in their own fixed stacking contexts, so an in-app curtain could never cover them (owner report
+          2026-08-28: both hero panels floated over the blue). At z3000 it sits above EVERY in-game layer, FX
+          canvases and floats included (owner 2026-10-19; see `.wipecurtain` in styles.css and
+          curtainLadder.test.ts); only the wipe FX canvas rides on it. The curtain's clip-path transition is the
+          sanctioned one-shot kind. */}
       {createPortal(<>
       <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,

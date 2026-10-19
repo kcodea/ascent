@@ -141,7 +141,7 @@ describe('the menu (right-click your portrait)', () => {
     expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 2 is empty', 'Slot 3 is empty', 'Slot 4 is empty']);
     expect(empty[0]!.textContent).toBe('Empty');
     expect(empty[0]!.classList.contains('gtip')).toBe(true); // the game's hover bubble, never a native title
-    expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in crates.');
+    expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in chests.');
     expect(document.body.querySelector('.emote-menu .emote-none')).toBeNull(); // no "No emotes yet" line any more
     act(() => { closeEmoteMenu(); });
   });

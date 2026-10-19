@@ -4,15 +4,20 @@
  * motion), and the Pixi scene run headless through a whole opening: the heartbeat pulses, the camera pushes in,
  * the bursts spawn, everything drains, and nothing is left behind after `destroy()`.
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Container, Sprite, Texture, TextureSource } from 'pixi.js';
 import {
   CRATE_FX_DEFAULTS, CRATE_FX_RANGES, CRATE_RARITIES, SPEC, clampCrateFxValue, crateBeats, crateCue, crateRarityOf,
-  presetFor, sanitizeCrateFxConfig, type CrateFxConfig, type CrateRarity,
+  chestTierPresetFor, presetFor, sanitizeCrateFxConfig, type CrateFxConfig, type CratePreset, type CrateRarity,
 } from './crateFxConfig';
-import { CrateScene, DEFAULT_CHEST_TUNING, MAX_PARTICLES, crateSizeFor, lerpColor, type CrateSceneTextures } from './crateScene';
-import { CHEST_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
+import {
+  CrateScene, DEFAULT_CHEST_TUNING, MAX_PARTICLES, crateSizeFor, hsvToRgb, lerpColor, tierFlashColor, type CrateSceneTextures,
+} from './crateScene';
+import { decodeImage, preloadChestArt, setChestArtLoaderForTests } from './chestArt';
+import { CHEST_ART, CHEST_TIER_ART, artChestModel, loadChestImages, paintedChestModel, type ChestModel } from './chestModel';
+import { NO_TIER_LAYER, type ChestTierPreset } from './chestTiers';
 import { CHEST } from './crateTextures';
+import { CHEST_ART_WAIT_MS, CrateFxPixi } from './crateFxPixi';
 
 /** The shipped timeline, ms from the branch: [hitch, burst, second burst, reveal, settled (buttons)]. */
 const TIMELINE: Record<CrateRarity, number[]> = {
@@ -21,7 +26,7 @@ const TIMELINE: Record<CrateRarity, number[]> = {
   epic: [940, 1100, -1, 1316, 2816],
   legendary: [1400, 1700, 1985, 1985, 3785],
   // Ancient (2026-10-02): a 650 ms time stop between the charge (1900) and the burst
-  ancient: [1640, 2550, 2865, 2865, 4915],
+  ancient: [1640, 1900, 2215, 2215, 4265], // 650 ms shorter: "Time stops" switched off (owner 2026-10-19)
 };
 
 describe('the tuner values', () => {
@@ -90,10 +95,11 @@ describe('rarity -> preset', () => {
     expect(p.filter((x) => x.doubleBurst).map((x) => x.rarity)).toEqual(['legendary', 'ancient']);
     expect(p.filter((x) => x.coins > 0).map((x) => x.rarity)).toEqual(['legendary']); // the gold shower stays Legendary's
     expect(p.filter((x) => x.hitchMs > 0).map((x) => x.rarity)).toEqual(['epic', 'legendary', 'ancient']);
-    // Ancient's signature (owner pick 2026-10-02, "Time stops"): the only rarity that freezes
-    expect(p.filter((x) => x.freezeMs > 0).map((x) => [x.rarity, x.signature])).toEqual([['ancient', 'timestop']]);
-    expect(p.filter((x) => x.signature !== 'none').map((x) => x.rarity)).toEqual(['ancient']);
-    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0x8af5ff, colorCss: '#8af5ff', freezeMs: 650 });
+    // Ancient's "Time stops" (owner pick 2026-10-02) is SWITCHED OFF (owner 2026-10-19: "the only part i dont like is how
+    // everything stops and turns grey for a moment"): no rarity freezes or plays a signature by default.
+    expect(p.filter((x) => x.freezeMs > 0)).toEqual([]);
+    expect(p.filter((x) => x.signature !== 'none')).toEqual([]);
+    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0x8af5ff, colorCss: '#8af5ff', freezeMs: 0, signature: 'none' });
   });
 
   it('the preset reads the tuned config', () => {
@@ -156,6 +162,7 @@ const ART_CHEST: ChestModel = artChestModel(sized(840, 457), sized(819, 238), si
 const PAINTED_CHEST: ChestModel = paintedChestModel(sized(749, 403), sized(821, 274), 720, 14.4, CHEST);
 const texFor = (chest: ChestModel): CrateSceneTextures => ({
   chest, seamBar: W, pedestal: W, runeRing: W, rays: W, glow: W, spark: W, streak: W, ring: W, coin: W, shards: [W, W],
+  wisp: W, band: W, aura: W,
 });
 const TEX = texFor(ART_CHEST);
 const ant = {
@@ -262,12 +269,12 @@ describe('the crate scene (headless Pixi)', () => {
     scene.destroy();
   });
 
-  it('Ancient "Time stops" (owner pick 2026-10-02): the end of the charge holds frozen for freezeMs, then the burst picks it up', () => {
+  it('the switched-off "Time stops" still works when restored: the end of the charge holds frozen for freezeMs, then the burst picks it up', () => {
     const root = new Container();
     const scene = new CrateScene(root, TEX);
     scene.layout(1920, 1080);
-    const p = presetFor('ancient', CRATE_FX_DEFAULTS);
-    expect(p.freezeMs).toBeGreaterThan(0);
+    // Off by default since 2026-10-19 (owner); the machinery stays so the moment can come back with one line.
+    const p = { ...presetFor('ancient', CRATE_FX_DEFAULTS), signature: 'timestop' as const, freezeMs: 650 };
     scene.anticipate(ant);
     scene.charge(p);
     run(scene, p.chargeMs + 60); // into the freeze
@@ -317,6 +324,287 @@ describe('the crate scene (headless Pixi)', () => {
     expect(all(root).length).toBe(before);
     expect(visible()).toBe(shown);
     scene.destroy();
+  });
+});
+
+// ─── the tier layer (tiered chest openings, 2026-10-19) ───────────────────────────────────────────────────────
+
+/** A seeded stand-in for Math.random (mulberry32), so a scene run is exactly repeatable. */
+function seeded(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+/** Every drawn property of every display object under `root`, folded into one number (a cheap "pixel" pin). */
+function fingerprint(root: Container): number {
+  let h = 0;
+  const mix = (v: number): void => { h = (Math.imul(h ^ Math.round(v * 1000), 0x01000193) >>> 0); };
+  for (const o of all(root)) {
+    mix(o.visible ? 1 : 0); mix(o.alpha); mix(o.position.x); mix(o.position.y); mix(o.scale.x); mix(o.scale.y); mix(o.rotation);
+    if (o instanceof Sprite) { mix(o.tint); mix(o.blendMode === 'add' ? 1 : 0); }
+  }
+  return h;
+}
+/** A Standard opening at a common reward: anticipate -> charge -> burst, sampled at three checkpoints. */
+function standardRun(prep?: (scene: CrateScene) => void): Array<[number, number, number]> {
+  const rnd = vi.spyOn(Math, 'random').mockImplementation(seeded(7));
+  try {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    prep?.(scene);
+    const p = presetFor('common', CRATE_FX_DEFAULTS);
+    const out: Array<[number, number, number]> = [];
+    const sample = (): void => { out.push([all(root).length, scene.stats().particles, fingerprint(root)]); };
+    scene.anticipate(ant);
+    run(scene, ant.antMs);
+    sample();
+    scene.charge(p);
+    run(scene, p.chargeMs);
+    sample();
+    scene.burst(p);
+    run(scene, 200);
+    sample();
+    scene.destroy();
+    return out;
+  } finally {
+    rnd.mockRestore();
+  }
+}
+
+/**
+ * A Standard opening at a common reward, as the code drew it BEFORE the tier layer existed (snapshotted at c892e3ab9
+ * with the seeded Math.random above): [display objects, live particles, fingerprint] after the anticipation, the
+ * charge and 200 ms into the burst. "Standard stays exactly today's opening" (owner constraint, 2026-10-19).
+ */
+const STANDARD_PIN: Array<[number, number, number]> = [[28, 4, 1416769314], [43, 18, 2252898167], [99, 72, 2843199676]];
+
+/** Run a whole tiered opening (tier layer, then the reward's beats), calling `each` after every frame. */
+function tieredRun(tier: ChestTierPreset, reward: CratePreset, each: (scene: CrateScene, root: Container) => void): void {
+  const root = new Container();
+  const scene = new CrateScene(root, TEX);
+  scene.layout(1920, 1080);
+  scene.setTierLayer(tier);
+  const b = crateBeats(reward, CRATE_FX_DEFAULTS);
+  const step = (ms: number): void => { for (let t = 0; t < ms; t += 16) { scene.update(16); each(scene, root); } };
+  scene.anticipate(ant);
+  step(ant.antMs);
+  scene.charge(reward);
+  step(b.burstAt);
+  scene.burst(reward);
+  each(scene, root);
+  step(b.revealAt - b.burstAt);
+  scene.reveal(reward);
+  step(b.settleAt - b.revealAt);
+  scene.settle(CRATE_FX_DEFAULTS.settleMs);
+  step(CRATE_FX_DEFAULTS.settleMs + 3000);
+  scene.destroy();
+}
+
+describe('the chest tier layer', () => {
+  it('standard adds nothing: a Standard opening draws exactly what it drew before tiers existed', () => {
+    expect(standardRun()).toEqual(STANDARD_PIN);
+    expect(standardRun((s) => s.setTierLayer(NO_TIER_LAYER))).toEqual(STANDARD_PIN);
+    expect(chestTierPresetFor('standard', CRATE_FX_DEFAULTS)).toBe(NO_TIER_LAYER);
+  });
+
+  it('the tier layer composes with the reward finale: a Rare chest rolling a Legendary gets both', () => {
+    // Seeded: a Legendary reward alone peaks at the particle cap, so on some draws the last coins of the shower find the
+    // pool full (with or without a chest tier: by then every tier particle has already given way). That made this test
+    // fail about 1 run in 14 before the final review; the invariant below is what the cap promises.
+    const rnd = vi.spyOn(Math, 'random').mockImplementation(seeded(8));
+    try {
+      const root = new Container();
+      const scene = new CrateScene(root, TEX);
+      scene.layout(1920, 1080);
+      const rare = chestTierPresetFor('rare', CRATE_FX_DEFAULTS);
+      scene.setTierLayer(rare);
+      const p = presetFor('legendary', CRATE_FX_DEFAULTS);
+      const b = crateBeats(p, CRATE_FX_DEFAULTS);
+      scene.anticipate(ant);
+      run(scene, ant.antMs);
+      expect(scene.stats().tier).toBeGreaterThan(0); // the tier's motes drift up from the click
+      scene.charge(p);
+      run(scene, b.burstAt);
+      scene.burst(p);
+      expect(scene.stats().sparkles).toBe(rare.burstSparkles); // the tier's sparkles, on top of the reward's
+      expect(scene.stats().particles).toBeGreaterThan(p.burstSparks + rare.burstSparkles);
+      run(scene, b.burst2At - b.burstAt + 32);
+      // the reward's double burst still fires, with its coin shower; a coin is only ever short once the chest's own
+      // particles have ALL given way to the reward (the tier never costs the reward a coin)
+      const after = scene.stats();
+      expect(after.coins).toBeGreaterThan(p.coins * 0.85);
+      if (after.coins < p.coins) expect(after.tier).toBe(0);
+      scene.destroy();
+      expect(root.children.length).toBe(0);
+    } finally { rnd.mockRestore(); }
+  });
+
+  it('the particle cap holds at an Ancient chest rolling an Ancient reward', () => {
+    const ancient = chestTierPresetFor('ancient', CRATE_FX_DEFAULTS);
+    let peak = 0;
+    let peakFront = 0;
+    tieredRun(ancient, presetFor('ancient', CRATE_FX_DEFAULTS), (scene) => {
+      const s = scene.stats();
+      peak = Math.max(peak, s.particles);
+      peakFront = Math.max(peakFront, s.frontChildren);
+    });
+    expect(peak).toBeGreaterThan(100); // it is a big opening
+    expect(peak).toBeLessThanOrEqual(MAX_PARTICLES);
+    expect(peakFront).toBeLessThanOrEqual(MAX_PARTICLES + 24);
+  });
+
+  it('bands only from Legendary up: an Epic chest swirls none through the charge, a Legendary two', () => {
+    const bandsFor = (tier: 'epic' | 'legendary'): number => {
+      let most = 0;
+      tieredRun(chestTierPresetFor(tier, CRATE_FX_DEFAULTS), presetFor('rare', CRATE_FX_DEFAULTS), (scene) => {
+        most = Math.max(most, scene.stats().bands);
+      });
+      return most;
+    };
+    expect(bandsFor('epic')).toBe(0);
+    expect(bandsFor('legendary')).toBe(2);
+  });
+
+  it('every tier escalates the layer: more live tier particles at the burst, Rare -> Ancient', () => {
+    const at = (tier: 'rare' | 'epic' | 'legendary' | 'ancient'): number => {
+      const rnd = vi.spyOn(Math, 'random').mockImplementation(seeded(3));
+      try {
+        let most = 0;
+        tieredRun(chestTierPresetFor(tier, CRATE_FX_DEFAULTS), presetFor('common', CRATE_FX_DEFAULTS), (scene) => {
+          most = Math.max(most, scene.stats().tier);
+        });
+        return most;
+      } finally { rnd.mockRestore(); }
+    };
+    const counts = (['rare', 'epic', 'legendary', 'ancient'] as const).map(at);
+    for (let i = 1; i < counts.length; i++) expect(counts[i]!, String(counts)).toBeGreaterThan(counts[i - 1]!);
+  });
+
+  it('multichrome (Ancient): the tier particles cycle hue; an Ancient reward from ANY chest cycles too', () => {
+    const tintsOf = (tier: ChestTierPreset, reward: CratePreset): Set<number> => {
+      const seen = new Set<number>();
+      tieredRun(tier, reward, (_scene, root) => {
+        for (const o of all(root)) if (o instanceof Sprite && o.visible && o.alpha > 0 && o.blendMode === 'add') seen.add(o.tint);
+      });
+      return seen;
+    };
+    // a Rare chest is one blue; an Ancient chest paints a whole spectrum
+    const rare = tintsOf(chestTierPresetFor('rare', CRATE_FX_DEFAULTS), presetFor('rare', CRATE_FX_DEFAULTS));
+    const ancient = tintsOf(chestTierPresetFor('ancient', CRATE_FX_DEFAULTS), presetFor('rare', CRATE_FX_DEFAULTS));
+    expect(ancient.size).toBeGreaterThan(rare.size + 40);
+    // an Ancient reward out of a Standard chest still reads opal
+    const plain = tintsOf(NO_TIER_LAYER, presetFor('legendary', CRATE_FX_DEFAULTS));
+    const opal = tintsOf(NO_TIER_LAYER, presetFor('ancient', CRATE_FX_DEFAULTS));
+    expect(opal.size).toBeGreaterThan(plain.size + 40);
+  });
+
+  it('hsvToRgb: the pure colour wheel the multichrome cycles round', () => {
+    expect(hsvToRgb(0, 1, 1)).toBe(0xff0000);
+    expect(hsvToRgb(1 / 3, 1, 1)).toBe(0x00ff00);
+    expect(hsvToRgb(2 / 3, 1, 1)).toBe(0x0000ff);
+    expect(hsvToRgb(0.5, 0, 1)).toBe(0xffffff);
+    expect(hsvToRgb(0.25, 1, 0)).toBe(0x000000);
+    expect(hsvToRgb(1, 1, 1)).toBe(0xff0000); // wraps
+    expect(hsvToRgb(-1 / 3, 1, 1)).toBe(0x0000ff);
+    expect(hsvToRgb(Number.NaN, 1, 1)).toBe(0xff0000);
+    expect(hsvToRgb(2.5, 2, 2)).toBe(0x00ffff); // clamped
+  });
+
+  it('the chest swaps per tier; Epic and Ancient draw the lock spike over the lid until it launches', () => {
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const count = all(root).length;
+    const epic = artChestModel(sized(840, 402), sized(816, 238), null, CHEST_TIER_ART.epic);
+    expect(epic.spikeFront).not.toBeNull();
+    expect(artChestModel(sized(840, 410), sized(823, 236), null, CHEST_TIER_ART.rare).spikeFront).toBeNull();
+    scene.setChestModel(epic);
+    const crate = (all(root).find((o) => o instanceof Sprite && o.texture === epic.lid) as Sprite).parent!;
+    const lidAt = crate.children.findIndex((o) => o instanceof Sprite && o.texture === epic.lid);
+    const spike = crate.children.find((o, i) => i > lidAt && o instanceof Sprite && o.texture.source === epic.body.source) as Sprite;
+    expect(spike).toBeDefined(); // a piece of the BODY, drawn above the lid
+    expect(spike.visible).toBe(true);
+    expect(spike.texture.frame.width).toBeLessThan(epic.body.width * 0.2);
+    expect(all(root).length).toBe(count + 1);
+    const p = presetFor('rare', CRATE_FX_DEFAULTS);
+    scene.anticipate(ant);
+    scene.charge(p);
+    run(scene, p.chargeMs);
+    scene.burst(p);
+    expect(spike.visible).toBe(false); // the lid is gone: the body shows its own spike
+    scene.reset();
+    expect(spike.visible).toBe(true);
+    scene.setChestModel(ART_CHEST); // back to Standard: no spike front
+    expect(spike.visible).toBe(false);
+    expect(all(root).some((o) => o instanceof Sprite && o.texture === ART_CHEST.body)).toBe(true);
+    expect(scene.chestKind).toBe('art');
+    scene.destroy();
+    expect(root.children.length).toBe(0);
+  });
+});
+
+describe('setChest: the tier art loads, or the opening plays on Standard', () => {
+  const headless = (loadImage: (url: string) => Promise<HTMLImageElement>): { fx: CrateFxPixi; scene: CrateScene } => {
+    const fx = new CrateFxPixi({ loadImage });
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    fx.attachSceneForTests(scene, ART_CHEST);
+    return { fx, scene };
+  };
+
+  it('a loader that fails resolves Standard at once, and the Standard chest stays drawn', async () => {
+    const { fx, scene } = headless(() => Promise.reject(new Error('404')));
+    const t0 = performance.now();
+    expect(await fx.setChest('epic')).toBe('standard');
+    expect(performance.now() - t0).toBeLessThan(CHEST_ART_WAIT_MS);
+    expect(scene.chestKind).toBe('art');
+    fx.destroy();
+  });
+
+  it('a loader that never answers resolves Standard after CHEST_ART_WAIT_MS', async () => {
+    vi.useFakeTimers();
+    try {
+      const { fx } = headless(() => new Promise<HTMLImageElement>(() => {}));
+      let got: string | null = null;
+      void fx.setChest('legendary').then((t) => { got = t; });
+      await vi.advanceTimersByTimeAsync(CHEST_ART_WAIT_MS - 1);
+      expect(got).toBeNull();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(got).toBe('standard');
+      fx.destroy();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('a loaded tier swaps the chest (cached for the next opening); Standard swaps back with no load', async () => {
+    const urls: string[] = [];
+    const img = (w: number, h: number): HTMLImageElement => ({ width: w, height: h, naturalWidth: w, naturalHeight: h }) as unknown as HTMLImageElement;
+    const { fx, scene } = headless(async (url) => { urls.push(url); return url.includes('lid') ? img(816, 238) : img(840, 402); });
+    expect(await fx.setChest('epic')).toBe('epic');
+    const lid = all(scene.root).find((o) => o instanceof Sprite && o.texture.width === 816);
+    expect(lid).toBeDefined();
+    expect(urls.filter((u) => u.includes('chest_epic'))).toHaveLength(2);
+    expect(await fx.setChest('standard')).toBe('standard');
+    expect(all(scene.root).some((o) => o instanceof Sprite && o.texture === ART_CHEST.lid)).toBe(true);
+    expect(await fx.setChest('epic')).toBe('epic');
+    expect(urls).toHaveLength(2); // cached
+    fx.destroy();
+  });
+
+  it('safe before mount and after destroy: no throw, Standard', async () => {
+    const early = new CrateFxPixi({ loadImage: () => Promise.reject(new Error('never called')) });
+    expect(await early.setChest('ancient')).toBe('standard');
+    early.setTierLayer(chestTierPresetFor('ancient', CRATE_FX_DEFAULTS));
+    early.destroy();
+    expect(await early.setChest('rare')).toBe('standard');
+    const { fx } = headless(() => Promise.reject(new Error('x')));
+    fx.destroy();
+    expect(await fx.setChest('rare')).toBe('standard');
   });
 });
 
@@ -410,5 +698,236 @@ describe('the two-layer chest (owner art, 2026-09-28)', () => {
     run(scene, 200);
     expect(Math.abs(scene.lidState.dy)).toBeLessThan(1);
     scene.destroy();
+  });
+});
+
+// ─── the final review's fixes (tiered chest openings, 2026-10-19) ─────────────────────────────────────────────
+
+/** A stand-in picture: only its size (the model and the mask read nothing else headless). */
+const fakeImg = (url: string): HTMLImageElement => {
+  const [w, h] = url.includes('lid') ? [816, 238] : [840, 402];
+  return { width: w, height: h, naturalWidth: w, naturalHeight: h } as unknown as HTMLImageElement;
+};
+const lidOf = (root: Container): Texture | undefined =>
+  (all(root).find((o) => o instanceof Sprite && (o.texture === ART_CHEST.lid || o.texture.width === 816)) as Sprite | undefined)?.texture;
+
+describe('the chest art is preloaded once per page and decoded before the opening needs it', () => {
+  const attached = (fx: CrateFxPixi): CrateScene => {
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    fx.attachSceneForTests(scene, ART_CHEST);
+    return scene;
+  };
+
+  it('a tier preloaded early (the shop, the bay, the click) is never fetched again: every theatre after reuses it', async () => {
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return fakeImg(url); });
+    try {
+      expect(await preloadChestArt('epic')).not.toBeNull();
+      expect(preloadChestArt('epic')).toBe(preloadChestArt('epic')); // one promise per tier
+      expect(urls.filter((u) => u.includes('chest_epic'))).toHaveLength(2);
+      const a = new CrateFxPixi();
+      attached(a);
+      expect(await a.setChest('epic')).toBe('epic');
+      a.destroy();
+      const b = new CrateFxPixi(); // a fresh theatre's controller
+      attached(b);
+      expect(await b.setChest('epic')).toBe('epic');
+      b.destroy();
+      expect(urls).toHaveLength(2);
+    } finally { setChestArtLoaderForTests(null); }
+  });
+
+  it('a failed preload is not kept: the next ask tries again', async () => {
+    let fail = true;
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); if (fail) throw new Error('404'); return fakeImg(url); });
+    try {
+      expect(await preloadChestArt('rare')).toBeNull();
+      fail = false;
+      expect(await preloadChestArt('rare')).not.toBeNull();
+      expect(urls.filter((u) => u.includes('chest_rare'))).toHaveLength(4);
+    } finally { setChestArtLoaderForTests(null); }
+  });
+
+  it('a picture counts as loaded only once it is decoded, so no decode lands mid-opening', async () => {
+    const pending: Array<{ ok: () => void; bad: () => void }> = [];
+    class FakeImage {
+      decoding = ''; src = ''; complete = false; naturalWidth = 0;
+      onload: (() => void) | null = null; onerror: (() => void) | null = null;
+      decode(): Promise<void> {
+        return new Promise<void>((res, rej) => {
+          pending.push({ ok: () => { this.complete = true; this.naturalWidth = 840; res(); }, bad: () => rej(new Error('EncodingError')) });
+        });
+      }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    try {
+      let got: unknown = null;
+      void decodeImage('collection/chest_epic_body.webp').then((i) => { got = i; });
+      await Promise.resolve();
+      expect(got).toBeNull(); // fetched but not decoded yet: not ready
+      pending[0]!.ok();
+      await Promise.resolve(); await Promise.resolve();
+      expect(got).toBeInstanceOf(FakeImage);
+      let failed = false;
+      void decodeImage('collection/missing.webp').catch(() => { failed = true; });
+      pending[1]!.bad();
+      await Promise.resolve(); await Promise.resolve();
+      expect(failed).toBe(true); // a broken picture rejects (the opening falls back to Standard)
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('a tier chest is uploaded to the GPU before it is swapped in', async () => {
+    const fx = new CrateFxPixi({ loadImage: async (url) => fakeImg(url) });
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    const lidsAtUpload: Array<Texture | undefined> = [];
+    const uploaded: TextureSource[] = [];
+    fx.attachSceneForTests(scene, ART_CHEST, { upload: (src) => { uploaded.push(src); lidsAtUpload.push(lidOf(scene.root)); } });
+    expect(await fx.setChest('epic')).toBe('epic');
+    expect(uploaded.length).toBeGreaterThanOrEqual(2); // the body and the lid (the mask too when there is one)
+    expect(lidsAtUpload.every((t) => t === ART_CHEST.lid)).toBe(true); // every upload ran while Standard was still drawn
+    expect(lidOf(scene.root)?.width).toBe(816);
+    fx.destroy();
+  });
+
+  it('mount starts the first chest\x27s art at once, before the renderer (whatever Pixi does next)', async () => {
+    const urls: string[] = [];
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      const fx = new CrateFxPixi({ loadImage: async (url) => { urls.push(url); return fakeImg(url); } });
+      expect(await fx.mount({ clientWidth: 0, clientHeight: 0 } as HTMLElement, 'ancient')).toBe(false); // no WebGL here
+      expect(urls.some((u) => u.includes('chest_ancient_body'))).toBe(true);
+      fx.destroy();
+    } finally { quiet.mockRestore(); }
+  });
+});
+
+describe('late chest art never lands mid-finale', () => {
+  it('art that arrives after the burst has started is dropped for that opening; the next one gets it', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const fx = new CrateFxPixi({ loadImage: async (url) => { await gate; return fakeImg(url); } });
+    const scene = new CrateScene(new Container(), TEX);
+    scene.layout(1920, 1080);
+    fx.attachSceneForTests(scene, ART_CHEST);
+    const p = presetFor('rare', CRATE_FX_DEFAULTS);
+    fx.anticipate(ant);
+    fx.charge(p);
+    const asked = fx.setChest('legendary');
+    fx.burst(p);
+    release();
+    expect(await asked).toBe('standard');
+    expect(lidOf(scene.root)).toBe(ART_CHEST.lid); // the opening kept the chest it burst
+    fx.reset();
+    expect(await fx.setChest('legendary')).toBe('legendary'); // cached for the next opening
+    fx.destroy();
+  });
+});
+
+describe('a beat asked before Pixi is up plays once it is (the autoOpen path)', () => {
+  it('the anticipation, its tier layer and its heartbeat resume where they would be', () => {
+    const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
+    try {
+      const fx = new CrateFxPixi({ loadImage: () => Promise.reject(new Error('x')) });
+      fx.setTierLayer(chestTierPresetFor('rare', CRATE_FX_DEFAULTS));
+      fx.reset();
+      fx.anticipate(ant); // the click: before the mount
+      now.mockReturnValue(1250);
+      const pulses: number[] = [];
+      const scene = new CrateScene(new Container(), TEX, { onPulse: (k) => pulses.push(k) });
+      scene.layout(1920, 1080);
+      const seen = vi.spyOn(scene, 'anticipate');
+      fx.attachSceneForTests(scene, ART_CHEST); // the mount resolves
+      expect(seen).toHaveBeenCalledTimes(1);
+      expect(seen).toHaveBeenCalledWith(ant, 250); // 250 ms already into the anticipation
+      expect(scene.currentPhase).toBe('anticipation');
+      run(scene, 600);
+      expect(scene.stats().tier).toBeGreaterThan(0); // the Rare motes
+      expect(pulses.length).toBeGreaterThan(0); // the heartbeat ticks
+      fx.destroy();
+    } finally { now.mockRestore(); }
+  });
+
+  it('a reset or a later beat before the mount drops the waiting anticipation; a skip lands settled', () => {
+    const scene = (): CrateScene => { const s = new CrateScene(new Container(), TEX); s.layout(1920, 1080); return s; };
+    const a = new CrateFxPixi();
+    a.anticipate(ant);
+    a.reset(); // a new opening began
+    const sa = scene();
+    a.attachSceneForTests(sa, ART_CHEST);
+    expect(sa.currentPhase).toBe('idle');
+    a.destroy();
+    const b = new CrateFxPixi();
+    b.anticipate(ant);
+    b.charge(presetFor('rare', CRATE_FX_DEFAULTS)); // the opening moved on
+    const sb = scene();
+    b.attachSceneForTests(sb, ART_CHEST);
+    expect(sb.currentPhase).toBe('idle');
+    b.destroy();
+    const c = new CrateFxPixi();
+    c.anticipate(ant);
+    c.skipToSettled(presetFor('epic', CRATE_FX_DEFAULTS));
+    const sc = scene();
+    c.attachSceneForTests(sc, ART_CHEST);
+    expect(sc.currentPhase).toBe('settled');
+    c.destroy();
+  });
+
+  it('anticipate(a, elapsed) starts the ramp part-way (clamped); the default is the click', () => {
+    const s = new CrateScene(new Container(), TEX);
+    s.layout(1920, 1080);
+    s.anticipate(ant, 1e9);
+    expect(s.currentPhase).toBe('anticipation');
+    s.update(16);
+    expect(s.hasWork()).toBe(true);
+    s.destroy();
+  });
+});
+
+describe('the tier burst flash and the charge build (final review rulings, 2026-10-19)', () => {
+  it('Rare, Epic and Legendary flash in their colour lightened toward white; Ancient flashes white', () => {
+    for (const t of ['rare', 'epic', 'legendary'] as const) {
+      const T = chestTierPresetFor(t, CRATE_FX_DEFAULTS);
+      expect(tierFlashColor(T)).toBe(lerpColor(T.color, 0xffffff, 0.3));
+    }
+    expect(tierFlashColor(chestTierPresetFor('ancient', CRATE_FX_DEFAULTS))).toBe(0xffffff);
+    // the Epic chest's flash is drawn in it
+    const root = new Container();
+    const scene = new CrateScene(root, TEX);
+    scene.layout(1920, 1080);
+    const epic = chestTierPresetFor('epic', CRATE_FX_DEFAULTS);
+    scene.setTierLayer(epic);
+    const p = presetFor('common', CRATE_FX_DEFAULTS);
+    scene.anticipate(ant);
+    scene.charge(p);
+    run(scene, p.chargeMs);
+    scene.burst(p);
+    expect(all(root).some((o) => o instanceof Sprite && o.tint === tierFlashColor(epic))).toBe(true);
+    scene.destroy();
+  });
+
+  it('the tier\x27s extra shake builds through the charge: twice as much added at its end as at its start', () => {
+    /** The chest's shake (px) at `ms` into a Rare-reward charge, read back from the crate's rotation. */
+    const shakeAt = (tier: ChestTierPreset, ms: number): number => {
+      const root = new Container();
+      const scene = new CrateScene(root, TEX);
+      scene.layout(1920, 1080);
+      scene.setTierLayer(tier);
+      scene.anticipate(ant);
+      scene.charge(presetFor('rare', CRATE_FX_DEFAULTS));
+      run(scene, ms);
+      const crate = (all(root).find((o) => o instanceof Sprite && o.texture === ART_CHEST.lid) as Sprite).parent!;
+      const v = (crate.rotation / (0.8 * Math.sin(ms * 0.057))) * Math.max(40, scene.crateSize);
+      scene.destroy();
+      return v;
+    };
+    const legendary = chestTierPresetFor('legendary', CRATE_FX_DEFAULTS);
+    const early = shakeAt(legendary, 96) - shakeAt(NO_TIER_LAYER, 96);
+    const late = shakeAt(legendary, 640) - shakeAt(NO_TIER_LAYER, 640);
+    expect(early).toBeCloseTo(legendary.extraShake, 1);
+    expect(late).toBeGreaterThan(legendary.extraShake * 1.7);
+    expect(late).toBeLessThanOrEqual(legendary.extraShake * 2 + 1e-6);
   });
 });

@@ -9,6 +9,8 @@ import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
+import { chestFloorOf, chestTierOf } from './crateFx/chestTiers';
+import { warmChestArt } from './crateFx/chestArt';
 import {
   aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
@@ -186,9 +188,13 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
   const sealedRows: CrateRow[] = useMemo(() => (crateList ?? []).filter((c) => c.state === 'sealed'), [crateList]);
   const sealed: CrateQueueItem[] = useMemo(
-    () => sealedRows.map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
+    // Each crate opens as its tier's chest (tiered chest openings, 2026-10-19): the bay, Open all and the pop-up all read it.
+    () => sealedRows.map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source, tier: chestTierOf(floorOf(c)) })),
     [sealedRows],
   );
+  // Every sealed tier's chest art starts loading while the bay is on screen, so no opening loads it cold (none under
+  // reduced motion: its opening never draws the art).
+  useEffect(() => { if (!reducedMotion) for (const t of new Set(sealed.map((c) => c.tier))) warmChestArt(t); }, [sealed, reducedMotion]);
   // Aether: the sealed MILESTONE crates (each opens alone, through its focus step), and what Open all opens: the rest.
   // Aether off: no exceptions, Open all opens everything as before.
   const milestoneIds = useMemo(
@@ -427,7 +433,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
               <div className="colls-gridwrap" onScroll={hover ? clearHover : undefined}>
                 {shown.length === 0 ? (
                   <div className="colls-nomatch">
-                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a crate to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : 'Nothing matches these filters.'}</div>
+                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a chest to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : 'Nothing matches these filters.'}</div>
                     <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.pulse(); setShow('all'); setRarity('all'); }}>Show all</button>
                   </div>
                 ) : (
@@ -766,23 +772,23 @@ function CrateBay({ cratesOn, loading, sealed, bulk, nextLevel, guest, oddsLine,
   const n = sealed.length;
   const ready = cratesOn && !loading && n > 0;
   return (
-    <section className={`colls-panel colls-bay${ready ? ' ready' : ''}`} aria-label="Sealed crates">
+    <section className={`colls-panel colls-bay${ready ? ' ready' : ''}`} aria-label="Sealed chests">
       <div className="colls-bay-art" aria-hidden>
         {ready && <span className="colls-hero-glow" />}
         <span className="colls-crate" />
         {ready && <span className="colls-hero-count">{n}</span>}
       </div>
       <div className="colls-bay-body">
-        <div className="colls-bay-head">Sealed crates</div>
+        <div className="colls-bay-head">Sealed chests</div>
         {!cratesOn ? (
-          <div className="colls-bay-sub">Crates are coming soon.</div>
+          <div className="colls-bay-sub">Chests are coming soon.</div>
         ) : loading ? (
           <div className="colls-bay-sub">Loading</div>
         ) : n === 0 ? (
-          <div className="colls-bay-sub">None right now. Your next crate comes at Level {nextLevel}.</div>
+          <div className="colls-bay-sub">None right now. Your next chest comes at Level {nextLevel}.</div>
         ) : (
           <>
-            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel(sealed[0]!)}</div>
+            <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel({ ...sealed[0]!, floor: chestFloorOf(sealed[0]!.tier) })}</div>
             {guest && <div className="colls-bay-guest">Create a free account to open them.</div>}
             <div className="colls-bay-actions">
               <button type="button" className="cv2-btn pressable colls-open" disabled={busy} onClick={onOpen} aria-label={guest ? 'Open (needs an account)' : undefined}>{guest && <LockGlyph />}Open</button>
@@ -791,7 +797,7 @@ function CrateBay({ cratesOn, loading, sealed, bulk, nextLevel, guest, oddsLine,
           </>
         )}
         {/* The published odds (owner 2026-09-29: fixed rarity odds, safe to show players). */}
-        {cratesOn && <div className="colls-bay-odds">Crate odds: {oddsLine}</div>}
+        {cratesOn && <div className="colls-bay-odds">Chest odds: {oddsLine}</div>}
       </div>
     </section>
   );

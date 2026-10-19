@@ -151,7 +151,7 @@ describe('equipping a skin', () => {
     act(() => tab('Heroes').click());
     act(() => tile('Bath Day Warden').click());
     expect(button('Equip')).toBeUndefined();
-    expect(text('.colls-hint')).toBe('Open crates to find it.');
+    expect(text('.colls-hint')).toBe('Open chests to find it.');
   });
 });
 

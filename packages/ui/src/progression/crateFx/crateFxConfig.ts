@@ -2,6 +2,11 @@ import { COSMETIC_RARITIES, type CosmeticRarity } from '@game/progression';
 import type { TunerControl, TunerSpec, TunerUnit } from '../../tunerSchema';
 import type { TailOpts } from '../../audio/tailFade';
 import { clipNames } from '../../sfx';
+import {
+  CHEST_TIERS, CHEST_TIER_LABEL, LAYERED_TIERS, NO_TIER_LAYER, TIER_COLORS, TIER_COLOR_DEFAULTS, TIER_NUM_DEFAULTS,
+  TIER_NUM_RANGES, TIER_NUM_SUFFIXES, TIER_RANGES,
+  type ChestTier, type ChestTierPreset, type TierColorKey, type TierNumKey, type TierSuffix,
+} from './chestTiers';
 
 /**
  * THE CRATE OPENING: its tunable numbers (owner ask 2026-09-28: "make the collection screen separate and build a
@@ -42,11 +47,14 @@ export const CRATE_RARITIES: readonly CrateRarity[] = COSMETIC_RARITIES;
  * 'timestop' (Ancient, owner pick 2026-10-02, concept 3 "Prismatic Aurora"): the chest freezes mid-shake and the scene
  * drains to grey for `<rarity>FreezeMs`, then a prismatic crack splits the view and the colour floods back at the burst.
  * SWAPPABLE: a new signature is one id here plus its CSS (`.crth.sig-<id>`) and, if it freezes, a FreezeMs dial.
+ * SWITCHED OFF 2026-10-19 (owner, previewing the tiered chests: "the only part i dont like is how everything stops and
+ * turns grey for a moment"): Ancient plays 'none' and `ancientFreezeMs` defaults to 0, so the charge flows straight into
+ * the burst. 'timestop' and its CSS stay, so restoring it is this one line plus the FreezeMs default.
  */
 export const CRATE_SIGNATURES = ['none', 'timestop'] as const;
 export type CrateSignature = (typeof CRATE_SIGNATURES)[number];
 export const RARITY_SIGNATURE: Readonly<Record<CrateRarity, CrateSignature>> = {
-  common: 'none', rare: 'none', epic: 'none', legendary: 'none', ancient: 'timestop',
+  common: 'none', rare: 'none', epic: 'none', legendary: 'none', ancient: 'none',
 };
 
 /** The per-rarity dials. Each one exists once per rarity in the config, as `<rarity><Suffix>`. */
@@ -147,6 +155,10 @@ interface CrateFxGlobals {
   sfxCoinGain: number;
   sfxStingClip: string;
   sfxStingGain: number;
+  /** The chest-tier layer's three cues (their volumes are the per-tier `<tier>ShimmerGain` / `SwirlGain` / `BurstGain`). */
+  sfxTierShimmerClip: string;
+  sfxTierSwirlClip: string;
+  sfxTierBurstClip: string;
   reverbMix: number;
   reverbSec: number;
   // ── Art ──
@@ -156,7 +168,8 @@ interface CrateFxGlobals {
   crateArt: string;
 }
 
-export type CrateFxConfig = CrateFxGlobals & { [K in RarityNumKey]: number } & { [K in RarityColorKey]: string };
+export type CrateFxConfig = CrateFxGlobals & { [K in RarityNumKey]: number } & { [K in RarityColorKey]: string }
+  & { [K in TierNumKey]: number } & { [K in TierColorKey]: string };
 
 /** An empty clip = silent. */
 export const NO_CLIP = '';
@@ -281,7 +294,9 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
 
   // ANCIENT (owner 2026-10-02, concept 3 "Prismatic Aurora", the "Time stops" signature): cyan #8af5ff shading to
   // magenta #ff7ae0 (the Pixi light is the cyan; the DOM crack and ribbon carry the gradient). Bigger than Legendary
-  // in every dial, plus the freeze. No coins (the gold shower is Legendary's).
+  // in every dial, plus the freeze. No coins (the gold shower is Legendary's). Its burst sparks and embers shimmer
+  // through the hues (tiered chest openings, 2026-10-19), but the colour stays this cyan (owner ruling at the final
+  // review: the approved R-PROG-RARITY-01 outranks the spec's opal; only the Ancient CHEST's layer is opal).
   ancientColor: '#8af5ff',
   ancientChargeMs: 1900,
   ancientHitchMs: 260,
@@ -300,7 +315,7 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   ancientRays: 1,
   ancientDoubleBurst: 1,
   ancientPitch: 0.82,
-  ancientFreezeMs: 650,
+  ancientFreezeMs: 0, // "Time stops" switched off (owner 2026-10-19); was 650
 
   // Layers (all existing clips): the hum is the End Turn charge build; the pulse a soft trigger tick on every
   // heartbeat; the charge the rune implosion (energy pulled in); the burst the Reborn shatter (a crack, not a
@@ -330,8 +345,18 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   sfxCoinGain: 0.45,
   sfxStingClip: 'triplereward',
   sfxStingGain: 0.7,
+  // The chest-tier layer (tiered chests, 2026-10-19), all imported fx clips: the shimmer is the reveal's own sparkle
+  // slice, the swirl a swish under the wisps pulled in, the burst a cinematic impact under the tier's burst flourish.
+  sfxTierShimmerClip: SPARKLE_CLIP,
+  sfxTierSwirlClip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-27-357164-3',
+  sfxTierBurstClip: 'fx/universfield-cinematic-swoosh-impact-454392',
   reverbMix: 0.18,
   reverbSec: 0.8,
+
+  // The CHEST TIER layer (chestTiers.ts): per tier an aura, motes, wisps, bands, extra shake and glow, a burst
+  // flourish and the three cue volumes. Standard has none. Ancient alone cycles hue.
+  ...TIER_COLOR_DEFAULTS,
+  ...TIER_NUM_DEFAULTS,
 
   crateArt: '',
 };
@@ -413,12 +438,14 @@ export const CRATE_FX_RANGES: Record<NumKey, [number, number, number]> = {
   ...(Object.fromEntries(
     CRATE_RARITIES.flatMap((r) => RARITY_NUM_SUFFIXES.map((s) => [`${r}${s}`, RARITY_RANGES[s]] as const)),
   ) as Record<RarityNumKey, [number, number, number]>),
+  ...(TIER_NUM_RANGES as unknown as Record<TierNumKey, [number, number, number]>),
 };
 
 const STR_KEYS: readonly StrKey[] = [
   'sfxHumClip', 'sfxPulseClip', 'sfxChargeClip', 'sfxBurstClip', 'sfxCrackClip', 'sfxWhooshClip', 'sfxRevealClip',
-  'sfxStampClip', 'sfxCoinClip', 'sfxStingClip', 'crateArt',
+  'sfxStampClip', 'sfxCoinClip', 'sfxStingClip', 'sfxTierShimmerClip', 'sfxTierSwirlClip', 'sfxTierBurstClip', 'crateArt',
   ...CRATE_RARITIES.map((r) => `${r}Color` as RarityColorKey),
+  ...LAYERED_TIERS.map((t) => `${t}TierColor` as TierColorKey),
 ];
 const isStrKey = (k: string): k is StrKey => (STR_KEYS as readonly string[]).includes(k);
 const isColorKey = (k: string): boolean => k.endsWith('Color');
@@ -573,6 +600,40 @@ export function presetFor(rarity: string | null | undefined, c: CrateFxConfig = 
   };
 }
 
+/**
+ * Map a chest tier to its layer (pure; reads the given config). Standard has no layer. Like `presetFor`, a broken
+ * value (NaN, a bad colour) falls back to the shipped default for THAT key only.
+ */
+export function chestTierPresetFor(tier: ChestTier, c: CrateFxConfig = cfg): ChestTierPreset {
+  if (tier === 'standard') return NO_TIER_LAYER;
+  const n = (s: TierSuffix): number => {
+    const v = c[`${tier}${s}` as TierNumKey];
+    return Number.isFinite(v) ? v : CRATE_FX_DEFAULTS[`${tier}${s}` as TierNumKey];
+  };
+  const colorCss = HEX.test(c[`${tier}TierColor`]) ? c[`${tier}TierColor`] : CRATE_FX_DEFAULTS[`${tier}TierColor`];
+  return {
+    tier,
+    color: hexNum(colorCss, TIER_COLORS[tier]),
+    colorCss,
+    multichrome: tier === 'ancient',
+    auraGlow: n('AuraGlow'),
+    motes: Math.round(n('Motes')),
+    wisps: Math.round(n('Wisps')),
+    wispPull: n('WispPull'),
+    bands: Math.round(n('Bands')),
+    bandSpeed: n('BandSpeed'),
+    extraShake: n('ExtraShake'),
+    extraGlow: n('ExtraGlow'),
+    burstFlash: n('BurstFlash'),
+    burstSparkles: Math.round(n('BurstSparkles')),
+    burstWisps: Math.round(n('BurstWisps')),
+    hueSpeed: n('HueSpeed'),
+    shimmerGain: n('ShimmerGain'),
+    swirlGain: n('SwirlGain'),
+    burstGain: n('BurstGain'),
+  };
+}
+
 /** The chest's fit and motion values, as the scene takes them (pure). */
 export function chestTuningOf(c: CrateFxConfig = cfg): {
   lidOffsetX: number; lidOffsetY: number; lidScale: number; lidJump: number; lidLaunchX: number; lidLaunchY: number;
@@ -661,11 +722,13 @@ export function crateBeats(p: CratePreset, c: CrateFxConfig = cfg, opts: { reduc
 
 // ─── sound cues ───────────────────────────────────────────────────────────────────────────────────────────────
 
-export type CrateCue = 'hum' | 'pulse' | 'charge' | 'burst' | 'crack' | 'whoosh' | 'reveal' | 'stamp' | 'coin' | 'sting';
+export type CrateCue = 'hum' | 'pulse' | 'charge' | 'burst' | 'crack' | 'whoosh' | 'reveal' | 'stamp' | 'coin' | 'sting'
+  | 'tierShimmer' | 'tierSwirl' | 'tierBurst';
 /** Each cue's own mixer fader (see audio/config.ts). */
 export const CRATE_CUE_CATEGORY: Record<CrateCue, string> = {
   hum: 'crateHum', pulse: 'cratePulse', charge: 'crateCharge', burst: 'crateBurst', crack: 'crateBurst', whoosh: 'crateWhoosh',
   reveal: 'crateReveal', stamp: 'crateStamp', coin: 'crateCoin', sting: 'crateSting',
+  tierShimmer: 'crateTierShimmer', tierSwirl: 'crateTierSwirl', tierBurst: 'crateTierBurst',
 };
 
 export interface CrateCueSetting { clip: string; gain: number; startMs: number; lenMs: number; tail: TailOpts }
@@ -684,12 +747,36 @@ export function crateCue(c: CrateFxConfig, cue: CrateCue): CrateCueSetting {
     case 'stamp': return { clip: c.sfxStampClip, gain: c.sfxStampGain, startMs: 0, lenMs: 0, tail: tail(250) };
     case 'coin': return { clip: c.sfxCoinClip, gain: c.sfxCoinGain, startMs: 0, lenMs: 0, tail: dry };
     case 'sting': return { clip: c.sfxStingClip, gain: c.sfxStingGain, startMs: 0, lenMs: 0, tail: tail(300) };
+    // The tier cues' gain is 1: the opener scales them by the chest tier's own shimmerGain / swirlGain / burstGain.
+    // The shimmer plays the same slice of its clip as the reveal.
+    case 'tierShimmer': return { clip: c.sfxTierShimmerClip, gain: 1, startMs: c.sfxRevealStartMs, lenMs: c.sfxRevealLenMs, tail: tail(c.sfxRevealFadeMs) };
+    case 'tierSwirl': return { clip: c.sfxTierSwirlClip, gain: 1, startMs: 0, lenMs: 0, tail: tail(250) };
+    case 'tierBurst': return { clip: c.sfxTierBurstClip, gain: 1, startMs: 0, lenMs: 0, tail: tail(250) };
   }
 }
 
 // ─── the tuner ────────────────────────────────────────────────────────────────────────────────────────────────
 
 const RARITY_LABEL: Record<CrateRarity, string> = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary', ancient: 'Ancient' };
+
+/** [label, unit, hint] per chest-tier suffix. */
+const TIER_SPECS: Record<TierSuffix, [string, TunerUnit | undefined, string]> = {
+  AuraGlow: ['Aura', 'opacity', 'A soft glow in the tier colour behind the chest, from the click on. 0 = none.'],
+  Motes: ['Motes per second', undefined, 'Tiny lights drifting off the chest every second while it opens.'],
+  Wisps: ['Wisps per second', undefined, 'Streamers of light pulled into the chest every second, from the click through the charge. 0 = none.'],
+  WispPull: ['Wisp pull', 'opacity', 'How hard the wisps are pulled in: low drifts lazily, high snaps to the chest.'],
+  Bands: ['Light bands', undefined, 'Bands of light circling the chest. 0 = none.'],
+  BandSpeed: ['Band speed (turns per second)', undefined, 'How fast the bands circle, in turns per second.'],
+  ExtraShake: ['Extra chest shake', 'px', 'Added to the chest shake from the click, on top of the reward’s own; it builds through the charge to twice this at the burst.'],
+  ExtraGlow: ['Extra chest glow', 'opacity', 'Added to the light leaking from the chest, on top of the reward’s own; it builds through the charge to twice this at the burst.'],
+  BurstFlash: ['Burst flash', 'opacity', 'An extra flash at the burst, in the tier colour lightened toward white (Ancient flashes white).'],
+  BurstSparkles: ['Burst sparkles', undefined, 'Extra sparkles the burst throws, in the tier colour.'],
+  BurstWisps: ['Burst wisps', undefined, 'Wisps of light the burst flings outward.'],
+  HueSpeed: ['Hue cycle (per second)', undefined, 'The particles cycle through the rainbow from the base colour (Ancient). 0 = a flat colour.'],
+  ShimmerGain: ['Shimmer sound', undefined, 'The sparkle at the click, under the hum while the chest waits. 0 = silent.'],
+  SwirlGain: ['Swirl sound', undefined, 'The swish under the wisps being pulled in. 0 = silent.'],
+  BurstGain: ['Burst sound', undefined, 'The cinematic impact under the burst flourish. 0 = silent.'],
+};
 
 /** [label, unit, hint] per rarity suffix. */
 const RARITY_SPECS: Record<RaritySuffix, [string, TunerUnit | undefined, string]> = {
@@ -767,6 +854,10 @@ const SOUND_GROUPS: [string, StrKey | null, [NumKey, string, TunerUnit | undefin
   ['Sound: stamp', 'sfxStampClip', [['sfxStampGain', 'stamp: gain', undefined, 'The shine as the rarity ribbon stamps.']]],
   ['Sound: coins', 'sfxCoinClip', [['sfxCoinGain', 'coins: gain', undefined, 'Clinks under the coin shower (a few, at random pitches).']]],
   ['Sound: Legendary sting', 'sfxStingClip', [['sfxStingGain', 'sting: gain', undefined, 'The extra sting a Legendary or Ancient reveal plays.']]],
+  // The chest-tier cues: the clip is chosen here, the volume is each tier's own (Shimmer / Swirl / Burst sound dials).
+  ['Sound: chest shimmer', 'sfxTierShimmerClip', []],
+  ['Sound: chest swirl', 'sfxTierSwirlClip', []],
+  ['Sound: chest burst', 'sfxTierBurstClip', []],
   ['Sound: tail', null, [
     ['reverbMix', 'Reverb mix', undefined, 'A light reverb tail under the cues. 0 = dry.'],
     ['reverbSec', 'Reverb length', 's', 'How long that tail rings.'],
@@ -798,10 +889,19 @@ function buildControls(): Ctl[] {
         : { key: `${r}${s}`, label, unit, hint, group, min, max, step });
     }
   }
+  for (const t of LAYERED_TIERS) {
+    const group = `${CHEST_TIER_LABEL[t]} chest`;
+    out.push({ key: `${t}TierColor`, label: 'Colour', hint: `The ${group} colour: its aura, motes, wisps and bands.`, group, kind: 'color', min: 0, max: 0, step: 0 });
+    for (const s of TIER_NUM_SUFFIXES) {
+      const [label, unit, hint] = TIER_SPECS[s];
+      const [min, max, step] = TIER_RANGES[s];
+      out.push({ key: `${t}${s}`, label, unit, hint, group, min, max, step });
+    }
+  }
   const clips = clipOptions();
   for (const [group, clipKey, rows] of SOUND_GROUPS) {
     if (clipKey) {
-      out.push({ key: clipKey, label: `${group.replace('Sound: ', '')}: clip`, hint: 'Which clip this cue plays. (none) = silent.', group, kind: 'select', options: clips, optionLabels: { [NO_CLIP]: '(none)' }, min: 0, max: 0, step: 0 });
+      out.push({ key: clipKey, label: `${group.replace('Sound: ', '')}: clip`, hint: clipKey.startsWith('sfxTier') ? 'Which clip this chest-tier cue plays; each tier sets its own volume in its group. The shimmer plays the reveal sparkle’s slice. (none) = silent.' : 'Which clip this cue plays. (none) = silent.', group, kind: 'select', options: clips, optionLabels: { [NO_CLIP]: '(none)' }, min: 0, max: 0, step: 0 });
     }
     for (const [key, label, unit, hint] of rows) {
       const [min, max, step] = CRATE_FX_RANGES[key];
@@ -816,7 +916,14 @@ function buildControls(): Ctl[] {
 export const CRATE_FX_PLAY_EVENT = 'ascent:cratefx-play';
 export type CrateFxPlayMode = CrateRarity | 'replay' | 'fail' | 'slow' | 'all';
 /** `speed` (optional) sets the preview speed first: lets a capture script drive slow motion without the panel. */
-export interface CrateFxPlayDetail { mode: CrateFxPlayMode; speed?: CrateFxSpeed }
+export interface CrateFxPlayDetail { mode: CrateFxPlayMode; speed?: CrateFxSpeed; chest?: ChestTier }
+
+// ─── the preview chest (DEV only, never saved: which chest the practice crates open) ──────────────────────────
+
+let previewTier: ChestTier = 'standard';
+/** The chest tier the tuner's practice crates open. Always 'standard' in production. */
+export function previewChest(): ChestTier { return import.meta.env.DEV ? previewTier : 'standard'; }
+export function setPreviewChest(t: ChestTier): void { previewTier = t; }
 
 function play(mode: CrateFxPlayMode): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent<CrateFxPlayDetail>(CRATE_FX_PLAY_EVENT, { detail: { mode } }));
@@ -830,11 +937,11 @@ export function crateTotalMs(r: CrateRarity, c: CrateFxConfig = cfg): number {
 
 export const SPEC: TunerSpec<CrateFxConfig> = {
   id: 'cratefx',                    // FROZEN: indexes this panel's dragged position in localStorage
-  title: 'Crate opening',
+  title: 'Chest opening',
   note: () => {
     const c = getCrateFxConfig();
     const t = CRATE_RARITIES.map((r) => `${RARITY_LABEL[r][0]} ${(crateTotalMs(r, c) / 1000).toFixed(1)}`).join(' · ');
-    return `dev · ${crateFxSpeed()}x · ${t} s`;
+    return `dev · ${crateFxSpeed()}x · ${CHEST_TIER_LABEL[previewChest()]} chest · ${t} s`;
   },
   read: getCrateFxConfig,
   write: (key, value) => setCrateFxValue(key, value),
@@ -847,6 +954,13 @@ export const SPEC: TunerSpec<CrateFxConfig> = {
       label: `▶ ${RARITY_LABEL[r]}`,
       hint: `Open a practice crate that always gives a ${RARITY_LABEL[r]} reward. Local only: it never calls the server and spends nothing.`,
       run: () => play(r),
+    })),
+    ...CHEST_TIERS.map((t) => ({
+      label: `Chest: ${CHEST_TIER_LABEL[t]}`,
+      hint: t === 'standard'
+        ? 'Practice crates open a Standard chest: today’s opening, no tier layer. Never saved.'
+        : `Practice crates open a ${CHEST_TIER_LABEL[t]} chest: its art and its tier layer on top of the reward. Never saved.`,
+      run: () => { setPreviewChest(t); },
     })),
     { label: '↻ Replay', hint: 'Play the last rarity again.', run: () => play('replay') },
     { label: '▶ Slow server', hint: 'The anticipation holds for 3 seconds before a Rare lands, as on a slow connection.', run: () => play('slow') },

@@ -254,7 +254,7 @@ A learning playground: all the Gold, no clock, and any card or rune on demand.
   Unlimited health, the game ends when the player leaves (R-GODMODE-05).
 - **What's hidden.** The lobby rail never shows in God Mode, and the "ROUND X" label at the top of a fight is hidden
   too (you choose each fight's round yourself) (R-GODMODE-06).
-- **Nothing is kept.** No save or Continue, no XP, no crate, no Practice upload, no replay. The player's real saved
+- **Nothing is kept.** No save or Continue, no XP, no chest, no Practice upload, no replay. The player's real saved
   game is untouched and is still offered as Continue afterwards (R-GODMODE-01).
 
 Source: `packages/sim/src/godMode.ts`, `packages/sim/src/reducer.ts` (`godPrint`, `godGrantRune`),
@@ -283,12 +283,12 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
 - **Stages:** 1 Demons · 2 Kobolds · 3 Dragons · 4 Dwarves · 5 Beasts; 6–10 are unique stages still to come.
   Clearing a stage unlocks the next.
 - **Progress is saved to your account** when you're signed in, so it follows you to any device.
-- **The first clear of each stage earns a crate** (signed in only). You can replay a cleared stage any time, but
-  clearing it again never earns another crate.
-  (Once Aether is on, the first clear pays **200 Aether** instead of a crate, R-PROG-AETHER-01.)
+- **The first clear of each stage earns a chest** (signed in only). You can replay a cleared stage any time, but
+  clearing it again never earns another chest.
+  (Once Aether is on, the first clear pays **200 Aether** instead of a chest, R-PROG-AETHER-01.)
 - **Not signed in (or playing as a guest)?** You can still play: your progress is saved on this device only, your
-  clears don't earn crates, and the stage select tells you so. Signing in later starts your account's own
-  progress and doesn't grant crates for stages you cleared before signing in.
+  clears don't earn chests, and the stage select tells you so. Signing in later starts your account's own
+  progress and doesn't grant chests for stages you cleared before signing in.
 
 Source: `packages/sim/src/lobby/gauntlet.ts`, `packages/sim/src/lobby/gauntlet.test.ts`; account progress:
 `packages/ui/src/gauntlet/gauntletProgress.ts`, `supabase/migrations/2026-09-29-gauntlet-progress.sql`.
@@ -485,45 +485,43 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Curve.** 250 XP per level from Level 1 to 11, 400 per level to Level 26, 500 per level after, uncapped.
   Lifetime XP is stored; the level is derived from it (versioned), so one game can cross several levels.
 - **Level title.** The title **Alpha Tester**, unlocked by **every** account at Level 2 (a level milestone, never
-  in a crate) and equipped when no title is equipped. Shown in the Collection's New rewards pop-up and on the
+  in a chest) and equipped when no title is equipped. Shown in the Collection's New rewards pop-up and on the
   Career (public).
-- **Level crates (2026-09-28; REPLACED once Aether is on, see "Aether and the Crate Shop" below, R-PROG-AETHER-04).** **Every level grants one sealed crate**; an account's first settled game
-  (enrollment) also grants the Level 1 **Welcome Crate**. So an account at Level L has earned L crates. Earn only:
-  no keys, currency, purchases or rerolls. Accounts enrolled before crates shipped received their Welcome Crate
-  plus one crate per level already reached (a one-time backfill).
+- **Level chests (2026-09-28; REPLACED once Aether is on, see "Aether and the Chest Shop" below, R-PROG-AETHER-04).** **Every level grants one sealed chest**; an account's first settled game
+  (enrollment) also grants the Level 1 **Welcome Chest**. So an account at Level L has earned L chests. Earn only:
+  no keys, currency, purchases or rerolls. Accounts enrolled before chests shipped received their Welcome Chest
+  plus one chest per level already reached (a one-time backfill).
 - **New rewards wait in the Collection (owner 2026-09-28, R-PROG-NEWREWARDS-01).** The end screen shows only the
   placement, the XP gained, the level bar and the level-up moment, plus one line when anything new was earned. The
-  achievements, first-time titles and crates a game awarded are queued per account (localStorage, survives a reload,
+  achievements, first-time titles and chests a game awarded are queued per account (localStorage, survives a reload,
   never shown twice) and shown ONCE as a **New rewards** pop-up the next time the Collection opens (achievements with
-  their XP and a "See all in Career" link, titles, crates with Open / Open all); any way out of it marks them seen.
+  their XP and a "See all in Career" link, titles, chests with Open / Open all); any way out of it marks them seen.
   While rewards wait, every Collection entry point (the title plaque, the side menu, the Career's Account Level card)
   wears an orange **NEW** pill.
 - **Opening.** Optional and never forced (Continue is always available): from the New rewards pop-up or any time
   from the **Collection** (its own screen since 2026-09-28: the title's Collection plaque, the menu
-  sidebar, or the Account Level card on your Career; Open one crate, or Open all). The reward is chosen **when the crate is opened**, on the
+  sidebar, or the Account Level card on your Career; Open one chest, or Open all). The reward is chosen **when the chest is opened**, on the
   server, from the items the player does not own yet. **The rarities (2026-10-02, R-PROG-RARITY-01)** are Common,
   Rare, Epic, Legendary and **Ancient**, rarest last: Ancient ranks above Legendary everywhere (sorting, colour, label,
   filter, roll). **Fixed rarity odds (2026-09-29, R-PROG-CRATE-03; re-set 2026-10-02 when Ancient joined):** one
   server draw first rolls a rarity at **Common 35% / Rare 31% / Epic 22% / Legendary 9% / Ancient 3%** (was
   50 / 30 / 15 / 5), then picks an unowned item
   of that rarity, **every item of the rarity equally likely** (owner 2026-09-29: "yeah equal chance"; category weights
-  stay in the catalog but the roll no longer reads them). The odds never move as items are added, and the Collection's crate
+  stay in the catalog but the roll no longer reads them). The odds never move as items are added, and the Collection's chest
   bay prints them. A rolled rarity with nothing left falls to the **nearest** rarity that has something, ties toward
-  the more common one (Epic empty goes to Rare before Legendary; Ancient empty goes to Legendary). Opened crates
+  the more common one (Epic empty goes to Rare before Legendary; Ancient empty goes to Legendary). Opened chests
   record roll version 4 (3 before Ancient). Moving an item to another rarity never takes it from a player who owns it
   (ownership is per item id). **Never a
-  duplicate.** With nothing left to give, the crate stays **sealed** (`pool_exhausted`) until new items arrive;
+  duplicate.** With nothing left to give, the chest stays **sealed** (`pool_exhausted`) until new items arrive;
   it is never converted into anything. A new title is worn at once only when none is worn.
 - **The opening (presentation, 2026-09-28).** A full-screen opening that starts on the click while the server
   answers (anticipation), then plays the answer's rarity: a charge, a burst and the reward rising out of the light.
   It escalates with rarity (Common quick, Rare blue, Epic purple and longer, Legendary gold with god rays and a
-  sting, Ancient the biggest of all in cyan to magenta, "Prismatic Aurora"). **Ancient's own moment, "Time stops"
-  (owner pick 2026-10-02):** at the end of the charge the chest freezes mid-shake, the sound cuts and the scene drains
-  to grey for a beat, then a prismatic crack splits the view at the burst and the colour floods back. A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
-  the crate. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The crate is the owner's treasure chest in
+  sting, Ancient the biggest of all in cyan to magenta, "Prismatic Aurora"). Ancient used to have its own "Time stops" moment (the chest froze and the scene drained to grey); the owner switched it off on 2026-10-19, so an Ancient opening flows straight from the charge into the burst. A click or a key skips to the reward; reduced motion is a short fade; a failed answer says "Could not open
+  the chest. Try again." Presentation only (oracle R-PROG-COLLECTION-01). The chest is the owner's treasure chest in
   two layers (body + lid): the lid rattles, light leaks from the seam and the keyhole, the lid blasts off at the burst
   and the open body stays on the pedestal while the reward rises above it (oracle R-PROG-COLLECTION-03).
-- **Announcers (2026-10-11, R-PROG-ANNOUNCER-01).** An announcer is an account-wide cosmetic from crates. There are
+- **Announcers (2026-10-11, R-PROG-ANNOUNCER-01).** An announcer is an account-wide cosmetic from chests. There are
   three, all Legendary: **Lemon**, **Underdweller** and **Little Inu**. Wearing one swaps the VOICE that calls your games and nothing else: the same moments speak, as
   often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
@@ -531,16 +529,16 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18; R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your
   hero says in a game. Right-click YOUR hero portrait (shop or combat) for your emote menu; pick one and it pops up
   beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
-  **Zen Brian is everyone's** (the one STARTER emote, guests included). **Every other emote comes from crates**
+  **Zen Brian is everyone's** (the one STARTER emote, guests included). **Every other emote comes from chests**
   (owner 2026-10-15; nine more 2026-10-18): Rare **Nervous Jensen**, **Depressed Hank**, **Nervous Voss**, **Tara Sad**,
   **Chronos Mad**, **Rascal Broke**, **Skeleton Wave**, **Pup Pup**; Epic **Flirty Midas**, **Happy Urchin**, **Sly Oona**,
   **Dead Elder**, **Gambler**, **Sexy Darah**, **Angry Deathswarmer**; Legendary **Rich Pimm**, **Baby Rubies**,
-  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal crate odds (rarity first, then an equal share). The menu **always shows four slots**:
+  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal chest odds (rarity first, then an equal share). The menu **always shows four slots**:
   the emotes you placed, then your other owned emotes in catalog order (a new emote is usable at once), and every slot
   left over is a visibly EMPTY slot (a dashed frame reading "Empty", not clickable; hovering it says "Empty slot. Find
-  more emotes in crates."). A fresh account sees Zen Brian and three empty slots. The crate reveal shows a won emote's
-  bubble. **Angry Mushy**, once a starter, was RETIRED on 2026-10-15: gone from the Collection, the menu and crates,
-  and an old recording of it plays nothing. **Sad Wrangler**, once a Rare crate emote, was RETIRED the same way later
+  more emotes in chests."). A fresh account sees Zen Brian and three empty slots. The chest reveal shows a won emote's
+  bubble. **Angry Mushy**, once a starter, was RETIRED on 2026-10-15: gone from the Collection, the menu and chests,
+  and an old recording of it plays nothing. **Sad Wrangler**, once a Rare chest emote, was RETIRED the same way later
   that day: a player who already owns it keeps it on the account, but it is never shown, placed, dropped or played. The
   Collection shows the same four slots on an emote's page; its Emotes
   tab puts an emote in menu slot 1 to 4 (the one already there swaps places). **In the snapshot lobby** each emote you
@@ -553,11 +551,11 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   `progression-inventory` Edge Function syncs it on its first request per cold start (`sync_cosmetic_catalog`;
   R-PROG-SKINS-05), so a new or retired cosmetic is a code change plus one deploy, never SQL. Shaped
   for every cosmetic category (announcer, hero skin, minion skin, title, hero attack, board, music, portrait frame, emote, card plate). Switched on:
-  **titles** (15 crate titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
-  **hero skins** and **minion skins** (all from crates) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
-  categories are feature-flagged off until their art exists. Crate odds are the fixed rarity odds above, then an equal
+  **titles** (15 chest titles: 7 Common, 5 Rare, 2 Epic, 1 Legendary) and, since the skins shipped the same day,
+  **hero skins** and **minion skins** (all from chests) and **hero attacks** (Arcane Barrage, Tectonic Slam, Arcana, Phantom Blades, Enraged Strike, Venom Volley, Frost Nova, Consecration, then Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage, all Legendary; then the first Epics, Card Shark and Storm Call; then the Rares Pocket Change, Come Back Around, Bubble Trouble and Shadow Step). The other
+  categories are feature-flagged off until their art exists. Chest odds are the fixed rarity odds above, then an equal
   share inside the rarity: on the 2026-09-29 catalog each Common is 6.25% (50 / 8), each Rare 1.76% (30 / 17, since the four Rare hero attacks joined), each Epic
-  1.25% (15 / 12, since Card Shark and Storm Call joined) and each Legendary 0.31% (5 / 16, since Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage joined). A fresh account's first crate is about 45% a skin or hero attack.
+  1.25% (15 / 12, since Card Shark and Storm Call joined) and each Legendary 0.31% (5 / 16, since Inferno, Grave Call, the Stampede, Oona's Banana Cannon and Hemorrhage joined). A fresh account's first chest is about 45% a skin or hero attack.
 - **Skins (2026-09-28; oracle R-PROG-SKINS-01, R-PROG-SKINS-04).** A hero skin replaces one hero's portrait; a
   minion skin replaces one card's art, by stable id. Equipped per target from the Collection's Heroes / Minions
   tabs through the server (`equip_cosmetic`: owned, made for that hero or card, live); **"Use default art"** is
@@ -588,21 +586,21 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   from the flash, squash and knockback, shake, particles and sound. Tuned in the dev hub's Damage Formation tuner; production plays the baked defaults.
 - **Hero attacks (2026-09-28; oracle R-PROG-ATTACK-01..21).** How your hero lands the post-combat blow. **Classic**
   (the lunge) is everyone's default; **Blast** is the first cosmetic, `attack_blast` ("Arcane Barrage", Legendary,
-  from crates; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
+  from chests; animation and tier thresholds owner-approved): after the damage formation, the hero charges, the view pushes in, and bolts (a single
   beam on the biggest hits) carry the blow, escalating by damage tier (I 1-5, II 6-11, III 12-19, IV 20+). **Quake** is the
-  second, `attack_quake` ("Tectonic Slam", Legendary, from crates; R-PROG-ATTACK-05): the same damage formation, then the hero
+  second, `attack_quake` ("Tectonic Slam", Legendary, from chests; R-PROG-ATTACK-05): the same damage formation, then the hero
   stomps. Tiers I-III hurl boulders (one, two, three hot ones) that burst a crown of stone spikes out round the struck hero;
   only Tier IV is an earthquake: a quick fracture races to the target and the ground erupts (a light burst, a shock ring, a
   spray of magma, a pillar, follow-up explosions). Same tiers as Blast. **Arcana** is the third, `attack_arcana` ("Arcana",
-  **Ancient** since 2026-10-02 (was Legendary), from crates; R-PROG-ATTACK-06): the same damage formation, then magic ribbons are lobbed on high arcs from the hero (I one;
+  **Ancient** since 2026-10-02 (was Legendary), from chests; R-PROG-ATTACK-06): the same damage formation, then magic ribbons are lobbed on high arcs from the hero (I one;
   II two on different heights and sides; III a barrage of five that lands in rhythm, the blow landing once on the last; IV the
   ribbons swirl into a vortex over the struck hero, converge and explode outward, the blow landing on the explosion).
-  **Phantom Blades** is the fourth, `attack_blades` ("Phantom Blades", a placeholder name; Legendary, from crates;
+  **Phantom Blades** is the fourth, `attack_blades` ("Phantom Blades", a placeholder name; Legendary, from chests;
   R-PROG-ATTACK-07): the same damage formation, then spectral swords are summoned round the hero, swing round to aim, lock still,
   and are loosed in straight thrusts that stick in the struck hero (I one; II a pair that crosses in an X; III a fan of five
   that hammers in, the blow landing once on the last; IV six blades as ticks, then a greatsword hangs over the hero, locks on
   and impales the target, the blow landing on the greatsword); every stuck blade then shatters (looks only).
-  **Enraged Strike** is the fifth, `attack_enraged` ("Enraged Strike", a placeholder name; Legendary, from crates;
+  **Enraged Strike** is the fifth, `attack_enraged` ("Enraged Strike", a placeholder name; Legendary, from chests;
   R-PROG-ATTACK-11): Classic's own swing, enraged. After the same damage formation the hero coils deeper while a rage aura
   burns round the portrait (live particle fire since 2026-09-29, R-PROG-ATTACK-16) and bursts in a roar, dashes in leaving afterimages and a scorch, and stops at the struck hero's
   rim so every hit reads on contact: a white flash, rings, claw rips and glowing rim cracks. Every hit is a full cycle: a hard
@@ -610,16 +608,16 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   combo of three with a finisher, the blow landing once on the finisher; IV a rampage of five slams that speed up, then the
   hero rears way back and brings an overhead haymaker down on the foe with a flaming crescent, a rage shockwave, molten
   cracks and an ember storm, the blow landing on the haymaker). **Poison Darts** is the sixth, `attack_poison`
-  ("Venom Volley", a placeholder name; Legendary, from crates; R-PROG-ATTACK-12): after the same damage formation the hero
+  ("Venom Volley", a placeholder name; Legendary, from chests; R-PROG-ATTACK-12): after the same damage formation the hero
   flicks small poison darts that thunk into the struck hero and stick at varied angles, with venom splashes and a sickly
   green tint (I one dart; II two in quick succession; III a fan of five, the blow landing once on the last; IV six darts
   stick round the face, glow and swell, are sucked into one point and burst in a toxic cloud, the blow landing on the
-  burst). **Frost Nova** is the seventh, `attack_frost` ("Frost Nova", a placeholder name; Legendary, from crates;
+  burst). **Frost Nova** is the seventh, `attack_frost` ("Frost Nova", a placeholder name; Legendary, from chests;
   R-PROG-ATTACK-13): after the same damage formation, faceted icicles crystallise round the hero's portrait and fire at the
   struck hero, shattering into shards while frost creeps over its edge (I one; II two; III a volley of five, the blow
   landing once on the last; IV four icicles, then a frost nova rolls across the screen from the attacker to the target,
   encases the struck hero in ice and shatters it, the blow landing on the shatter). The ice holds still; the clock never
-  stops. **Consecration** is the eighth, `attack_holy` ("Consecration", a placeholder name; Legendary, from crates;
+  stops. **Consecration** is the eighth, `attack_holy` ("Consecration", a placeholder name; Legendary, from chests;
   R-PROG-ATTACK-14; **Ancient** since 2026-10-02): a gold and white holy attack, drawn flat (no perspective rings or tilted ground). After the same
   damage formation the hero invokes (a halo ring, a sunburst, a beam of light rising off it), then: I a golden rune sigil
   flashes onto the struck hero and a pillar of light drops onto it; II a double smite; III a rain of six light spears
@@ -627,7 +625,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   on the last smite); IV six holy swords fly in one after another from different directions, faster and faster, and
   plant round the centre of the board, the centre implodes, and a flat consecrated blast races across the board to the
   struck hero, tearing radiant cracks, and holy flames erupt round it (the blow landing on the eruption). **Inferno** is the
-  ninth, `attack_fire` ("Inferno", a placeholder name; Legendary, from crates; R-PROG-ATTACK-15): every flame in it is live
+  ninth, `attack_fire` ("Inferno", a placeholder name; Legendary, from chests; R-PROG-ATTACK-15): every flame in it is live
   particle fire (hundreds of small flame puffs and licking tongues that rise, sway and cool from white-hot to red, with
   smoke and embers), never a flame picture. After the same damage formation fire catches round the hero's rim and
   fireballs ignite round the portrait and are hurled with comet tails of flame: I one; II two (the struck hero's rim
@@ -637,7 +635,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   streaks down onto it and detonates: a white-hot flash, shockwaves, a fire nova racing outward, a fireball rolling up into
   a mushroom of smoke, burning debris flung out on arcs, a pillar of fire engulfing the struck hero and a scorch (the blow
   landing on the detonation). **Grave Call** is
-  the tenth, `attack_undead` ("Grave Call", a placeholder name; Legendary, from crates; R-PROG-ATTACK-17): a flat undead
+  the tenth, `attack_undead` ("Grave Call", a placeholder name; Legendary, from chests; R-PROG-ATTACK-17): a flat undead
   attack in spectral green and teal over purple-black. After the same damage formation a grave circle turns under the
   hero and ghost wisps spiral in, then: I a spectral skull pops out of the hero, shrieks, flies at the struck hero
   trailing afterimages and bites it, bursting into wisps and bone; II two skulls; III skeletal hands claw up round the
@@ -645,7 +643,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   landing once, on that bite); IV a grave rift tears open between the heroes, a giant skull maw rises out of it,
   shrieks, lunges and chomps the struck hero (the blow landing on the chomp), and a wave of necrotic mist washes out.
   The maw always stays whole on screen. **The
-  Stampede** is the eleventh, `attack_beast` ("Stampede", a placeholder name; Legendary, from crates; R-PROG-ATTACK-18): a
+  Stampede** is the eleventh, `attack_beast` ("Stampede", a placeholder name; Legendary, from chests; R-PROG-ATTACK-18): a
   beast chomp rush in feral green and amber. After the same damage formation the hero crouches and growls, then spirit
   wolves (heads of feral energy with streaming manes and gleaming fangs) leap from it at the struck hero, and as each
   lands a pair of spectral jaws SNAPS SHUT over the portrait, leaving bite marks: I one wolf; II two, staggered; III a
@@ -653,7 +651,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   last); IV six chomps round the face, then a colossal beast's jaws rise far above and below the struck hero, creep in and
   SLAM shut over the whole portrait (the blow landing on the slam), and the beast roars (shockwave rings and speed lines,
   FX only). **Banana
-  Cannon** is the twelfth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from crates;
+  Cannon** is the twelfth, `attack_banana` ("Oona's Banana Cannon", a placeholder name; Legendary, from chests;
   R-PROG-ATTACK-19), built on King Oona's own card FX: her painted banana (spinning with backspin) is every projectile
   and her painted juice splat every impact, with her juice particles and clips. After the same damage formation a golden
   flourish opens on the hero and it flings bananas on high lobbed arcs: I one; II a double; III a barrage of eight (the
@@ -662,7 +660,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   times, reeling far back between slams, driving it deeper each time (only its end sticks out by the last), a crater and
   cracks spreading, extra bursts of banana juice splats from the fourth slam on (no blood); the sixth slam bursts it into a massive splat and a banana shower, and no dark crater ring is left behind (the
   blow landing there). While it slams, the striking portrait is drawn on top of the banana. **Hemorrhage** is
-  the thirteenth, `attack_bleed` ("Hemorrhage", a placeholder name; Legendary, from crates; R-PROG-ATTACK-21): a stylised
+  the thirteenth, `attack_bleed` ("Hemorrhage", a placeholder name; Legendary, from chests; R-PROG-ATTACK-21): a stylised
   crimson slashing attack, drawn flat. After the same damage formation the hero draws back and swings: each slash
   looses a crimson crescent that turns to its cut and runs through the struck hero's face, a white seam drawing behind it,
   blood spraying along the blade, and the line opening into a gash (I one diagonal gash; II a cross of two; III four
@@ -672,7 +670,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   accelerating into a blur (each zip a tick) and flinging blood that piles up across the whole screen, a beat of held
   tension, and a huge bloody explosion that paints the screen in blood and fades out, the blow landing on the
   explosion; the claw rakes before it sweep wide lines too). **Nothing But Net** is the fourteenth,
-  `attack_basketball` ("Nothing But Net", a placeholder name; Legendary, from crates; R-PROG-ATTACK-33): the striking
+  `attack_basketball` ("Nothing But Net", a placeholder name; Legendary, from chests; R-PROG-ATTACK-33): the striking
   PORTRAIT plays basketball, drawn flat, with a hoop (backboard, rim, net) appearing on the struck hero. A referee's
   whistle opens every tier. I the jumper: a dribble where it stands, a small jump, a high arcing shot with backspin that
   swishes through the net (the blow lands on the swish). II the fadeaway: it dribbles out to mid court with one of three
@@ -694,7 +692,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   net hanging from it) and it always hangs on the struck hero's portrait, in both directions. Every point it visits
   stays on screen and every shot and slam lands on the struck hero's centre; its portrait is restored exactly after (on the end, a skip or leaving the fight). The slow motion is a smooth
   ramp of the whole attack's clock, never a freeze. **Soul Stitch** (2026-10-02; `attack_soul_stitch`; **Ancient**, from
-  crates; R-PROG-ATTACK-34) is the first hero attack built at the Ancient rarity, for the Ancient of Bonds: crystal
+  chests; R-PROG-ATTACK-34) is the first hero attack built at the Ancient rarity, for the Ancient of Bonds: crystal
   needles on violet soul thread STITCH the struck hero to the striker (the thread is drawn along each needle's own flight,
   hangs between the two portraits once it pierces, twangs, goes taut on the pull and snaps). I: one needle pierces the
   face, the thread hangs taut, a tug (the striker leans back, the target is yanked toward it, a bead of light runs down
@@ -709,7 +707,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   lace snaps and the knot bursts (the blow: a gold and violet nova, shockwaves, light streaks, soul ribbons and crystal
   rain, with a short slow-motion dip that eases back, never a freeze) as the portrait is flung home. Every piercing is a
   tick; the blow lands once. Both portraits are restored exactly, transform and z-order, on the end, a skip or leaving
-  the fight. **Timebreak** (2026-10-02; `attack_bullet_time`; **Ancient**, from crates; R-PROG-ATTACK-35), for the
+  the fight. **Timebreak** (2026-10-02; `attack_bullet_time`; **Ancient**, from chests; R-PROG-ATTACK-35), for the
   Ancient of Time: CUTTING THROUGH TIME, cast as magic. Crystal lances of golden light, each with a spinning time rune,
   slice in toward the struck hero, each opening a shimmering rift in the air behind it, and as they reach it time drops into dramatic SLOW MOTION: they keep crawling forward,
   afterimages peeling off them, a rune circle ringing the target turns with its runes orbiting, a gold ripple sweeps the screen, and
@@ -722,12 +720,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   tick; the blow lands once. **Card Shark** and
   **Storm Call** (2026-09-29; R-PROG-ATTACK-26, R-PROG-ATTACK-27) are the first EPIC hero attacks: one idea each, shorter
   than the Legendaries, and THREE looks instead of four (they read the same shared tier and map it: I small, II and III
-  medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from crates): the hero
+  medium, IV big; a knockout plays big). `attack_cards` ("Card Shark", a placeholder name; Epic, from chests): the hero
   deals playing cards with a snap. Small, one Ace of spades flicked spinning into the struck hero, sticking edge first
   with a flash; medium, three Aces thrown thunk thunk thunk (the blow on the third); big, a royal flush dealt face down
   into a hand fanned out in front of the hero, flipped one by one (10, J, Q, K, A), turned gold, then all five fired
   together to burst into card confetti on the struck hero (the blow on the burst). `attack_storm` ("Storm Call", a
-  placeholder name; Epic, from crates): lightning whose jagged shape is redrawn every few frames. Small, a crackling bolt
+  placeholder name; Epic, from chests): lightning whose jagged shape is redrawn every few frames. Small, a crackling bolt
   arcs from the hero into the struck hero with a zap; medium, a forked bolt whose two branches strike one after the other
   (the blow on the second) and leave the portrait jittering with static; big, the hero calls a storm cloud over the
   struck hero that rumbles and drops one thick strike (a flash across the screen, a ring of sparks, static crawling over
@@ -748,15 +746,15 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   yours when you win, the opponent's (from their recorded snapshot) when they win. Recorded per run like skins;
   unknown or retired ids play Classic. Presentation only: the same blow, landed once on the impact beat.
 - **Portrait frames (2026-10-01; oracle R-PROG-FRAME-01..04).** A cosmetic ring that replaces the default ring
-  around a player's hero portrait. 58 frames, all from crates at the rarity of the folder their master sits in
+  around a player's hero portrait. 58 frames, all from chests at the rarity of the folder their master sits in
   (`Skins/Portraits/<Common|Rare|Epic|Legendary|Ancient>/`; the folder IS the rarity, except that a rarity Mike set in batch 4
   wins over the folder, owner 2026-10-02): Common Honey, Ale, Ruby, Steel, Wood, Dark Scale, Burnished, Sterling,
   Gilded, Seaglass; Rare Glass Shard, Paragon, Vine, Magic, Simple Ring, Void, Shard, Prism, Color Doodle, Neon Ring; Epic Aura, Amethyst,
   Frost, Pearlescent, Crimson, Nimbus, Wedding, Multichrome Energy, Blue Energy, Crackling Ruby, Topaz, Jade, Cherry
   Blossom, Cream, Crystal, Disco, Econ, Snare, Cosmic Glass, Blossom, Neonpunk, Solar Flare; Legendary Gilt Scale, Dark Cloud, Venom, Fire, Reaper, Water, Stained
   Glass, Wind, Chromatic Scale; Ancient (2026-10-02) Bonds, Death, Fortune, Genesis, Time, War, Reflective. A rarity
-  change only moves crate odds: an owned frame stays owned. A frame's name is just its name, with
-  no "Frame" or "Portrait" on it (owner 2026-10-01); the names avoid the ranked medal words so a crate frame never reads
+  change only moves chest odds: an owned frame stays owned. A frame's name is just its name, with
+  no "Frame" or "Portrait" on it (owner 2026-10-01); the names avoid the ranked medal words so a chest frame never reads
   as a Ranked reward.
   Account-wide (any hero): equipped in the Collection's Portrait Frames tab ("Use default frame" takes it off; an
   owned frame previews around your avatar, an unowned one never does). Your portrait wears it on every surface (in a
@@ -769,7 +767,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   its owner wears. A Whisper keeps its own plate.
 - **Card plates (2026-10-14; oracle R-PROG-PLATE-01..05).** A cosmetic plate that replaces the standard plate behind
   a player's cards (the carved body a card shows in your hand, the Inspect view, Discover and the Compendium). Sixty-two (rarities as of 2026-10-19),
-  all from crates. **Ancient:** Mooncloud, Simple Black, Simple White, Simple Glass, Frozen Aurora, Nano, The Howl.
+  all from chests. **Ancient:** Mooncloud, Simple Black, Simple White, Simple Glass, Frozen Aurora, Nano, The Howl.
   **Legendary:** Blossom, Spirit Carving, Mystic Obsidian, Battletorn, Ethereal, Round Magic, Verdant Magic, Emerald,
   Gilt Etched, Astral Relic, Blood Omen, Celestial, Verdant, Volcanic, Armored Knight, Bordered Land, Elegant, Hivemind,
   Ironwood, Solar, Static, Twisted Ether, Soulwitch, Spades, Vintage Oak. **Epic:** Moonstone, Galaxy, Crackling
@@ -794,12 +792,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   owner's one-line emergency switch, `admin_off = true` on the item or category (lines in the header of
   `supabase/migrations/2026-09-28-progression-skins.sql`), which the code sync never touches, so no deploy undoes it.
   Effective state: item `active AND NOT admin_off`, category `enabled AND NOT admin_off`. A retired item leaves the
-  crate pool, cannot be equipped, drops out of every loadout, is **hidden** from the Collection (owned or not; the
+  chest pool, cannot be equipped, drops out of every loadout, is **hidden** from the Collection (owned or not; the
   counts move with it) and renders as default art everywhere, including old boards and replays that name it. The
   client reads the server's switches on boot. Ownership and loadout rows are never deleted: restoring puts the item
   back exactly as it was. An unknown id never crashes anything.
 - **Titles.** The Collection lists the titles you own and lets you equip one (or none); the server checks
-  ownership. The equipped title and the owned titles are public (Career); crates are private.
+  ownership. The equipped title and the owned titles are public (Career); chests are private.
 - **Where titles show (2026-09-28, R-PROG-TITLE-02).** The equipped title is recorded with each run (the run's
   cosmetic snapshot, like skins), so history can show the title a player wore in THAT run. Titles show only on
   out-of-game review surfaces, in their rarity colour: the Leaderboard rows (the player's equipped title), the Hall of
@@ -809,7 +807,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **The Collection layout (2026-09-28).** An album: category tabs (Heroes, Minions and Titles live, the rest locked as coming soon; it opens on Titles),
   Show (All / Owned / Missing) and Rarity filters with counts, and every item of the category, owned or not
   (missing ones dimmed, rarity still shown; the equipped one ribboned). Selecting an item shows it large with how
-  it is found, a preview under your name, and Equip / Take off. The crate bay (count, Open, Open all) stays in
+  it is found, a preview under your name, and Equip / Take off. The chest bay (count, Open, Open all) stays in
   view on every tab. Oracle R-PROG-COLLECTION-02.
 - **NEW in the Collection (2026-10-11).** NEW marks an item you own and have not looked at yet. What you have looked
   at is saved on your account, so it is the same on every device: loading the game somewhere new never marks the
@@ -824,7 +822,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   pushed into `achievement_catalog` by `submit-progression` on each cold start; the owner's emergency switch is
   `admin_off` on a catalog row. **Evaluation is part of the settlement**: `settle_progression` checks every live
   achievement against the game it settles, in the same transaction as the match XP; a completion is written once per
-  account and its XP lands on the same ledger row (so it levels the account and earns crates). Each achievement reads
+  account and its XP lands on the same ledger row (so it levels the account and earns chests). Each achievement reads
   one metric: a SERVER metric (the game, placement, accepted comeback, the rank result, the Career-best division,
   streaks, distinct heroes, completions so far) or a RUN metric the run observer counted (facts V2 `metrics`,
   `packages/sim/src/achievementMetrics.ts`; ordinary trust, stored with the ledger row). `max` achievements keep the
@@ -846,7 +844,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   embroidered text**. Victory (1 Ranked 1st) stays XP only; Practice never counts. The master upgrades the title in
   place: it replaces a worn base title the moment it is earned, and the Collection shows one entry per hero title (the
   master once owned). Hero titles are achievement rewards, granted inside `settle_progression` with the completion,
-  and never drop from a crate. The Heroes category is now 165 achievements; the registry 281 and 35,775 XP.
+  and never drop from a chest. The Heroes category is now 165 achievements; the registry 281 and 35,775 XP.
 - **Achievements 150 (2026-10-03, R-ACH-05).** Owner: "add 150 more achievements", themes Tribes & cards, Heroes
   deeper, Combat feats, Long-term grind, and "some of the larger longer term ones should easily be 500+ xp". The
   registry is now **446 achievements, 105,950 XP** (the 150 add 61,375; XP only; the owner-approved re-tune of the
@@ -870,12 +868,12 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
   result. The client queues the request durably and retries; a failure reads "Progress pending".
 
-### Aether and the Crate Shop (owner rulings 2026-10-18; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04)
+### Aether and the Chest Shop (owner rulings 2026-10-18; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04)
 
-**Aether** is a currency you earn by playing and spend on crates. It is **never bought with real money**, and an account
-starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then crates work exactly as above.
-**Once Aether is on, the per-level crate rule above is replaced** by the milestone crates below (the Welcome Crate is
-kept), and a Gauntlet first clear pays Aether instead of a crate.
+**Aether** is a currency you earn by playing and spend on chests. It is **never bought with real money**, and an account
+starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then chests work exactly as above.
+**Once Aether is on, the per-level chest rule above is replaced** by the milestone chests below (the Welcome Chest is
+kept), and a Gauntlet first clear pays Aether instead of a chest.
 
 - **Earning.**
   - **Ranked:** **50 Aether** for every accepted, placed game, win or lose, plus a bonus for how you finished:
@@ -883,12 +881,12 @@ kept), and a Gauntlet first clear pays Aether instead of a crate.
   - **Versus:** **25** for a completed match, **+45** for the winner (an abandoned match with no winner pays 25).
   - **Practice and Tutorial:** 0. There is no comeback bonus.
   - **Gauntlet:** the first clear of each stage pays **200**, once per stage. Stages you cleared before Aether launched
-    pay nothing. (If the Gauntlet amount is ever misconfigured, the first clear falls back to a crate.)
+    pay nothing. (If the Gauntlet amount is ever misconfigured, the first clear falls back to a chest.)
   - **Guests** earn Aether and see their balance like anyone, but **cannot spend it**: every place that would spend it
-    asks them to sign in (the sign-in prompt arrives with the Crate Shop screen).
-- **The five crates.** Each crate guarantees a **rarity floor**: nothing below it can drop.
+    asks them to sign in (the sign-in prompt arrives with the Chest Shop screen).
+- **The five chests.** Each chest guarantees a **rarity floor**: nothing below it can drop.
 
-  | Crate | Floor | Price |
+  | Chest | Floor | Price |
   |---|---|---|
   | Standard | Common | 100 |
   | Rare | Rare | 200 |
@@ -896,42 +894,52 @@ kept), and a Gauntlet first clear pays Aether instead of a crate.
   | Legendary | Legendary | 600 |
   | Ancient | Ancient | 900 |
 
-  Epic is about 4x a Standard crate, Legendary 6x and Ancient 9x. The price you see is the price you pay: if it changed
+  Epic is about 4x a Standard chest, Legendary 6x and Ancient 9x. The price you see is the price you pay: if it changed
   since your screen loaded, the purchase is refused and you see the new price, never a silent re-price. A double-click
   or a retry is charged once.
-- **The odds inside a crate.** The usual odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) are kept, but
-  only the rarities **at or above the floor** stay in the draw, and their odds are scaled up to total 100%. (An Epic crate
+- **Each chest has its own look and opening (2026-10-19, tiered chest openings).** A Rare, Epic, Legendary or Ancient
+  chest opens with its own art, and its colour builds more magic than the one below it: Rare blue, Epic purple,
+  Legendary gold, Ancient opal. Its shake and glow build through the charge, and at the burst Rare, Epic and Legendary
+  flash in their own colour. Ancient pulls swirling opal energy in during the charge and bursts with a white flash and
+  multichrome sparkles. A Standard chest (and a level or Welcome chest) opens exactly as before, except that an Ancient
+  reward's sparks now shimmer through the colours (from any chest; the Ancient reward itself stays cyan to magenta).
+  **What is inside still decides the finale**: the reward's rarity drives the burst, rays and sound as it always did,
+  and the chest's tier only adds to it, so a Rare chest can still produce an Ancient finale. A milestone chest opens as
+  a Legendary chest. If a chest's art is not ready in time, that opening uses the Standard chest's art, but its tier's
+  effects and sounds still play; reduced motion is still a short fade.
+- **The odds inside a chest.** The usual odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) are kept, but
+  only the rarities **at or above the floor** stay in the draw, and their odds are scaled up to total 100%. (An Epic chest
   rolls Epic 22/34, Legendary 9/34, Ancient 3/34.) If the rolled rarity has nothing left you could receive, the draw
-  moves to the nearest rarity that still does, **never below the floor**. A Standard crate with no focus rolls exactly
-  as the older crates did. You still never get a duplicate, and a crate whose floor has nothing left for you cannot be
+  moves to the nearest rarity that still does, **never below the floor**. A Standard chest with no focus rolls exactly
+  as the older chests did. You still never get a duplicate, and a chest whose floor has nothing left for you cannot be
   bought (or, if it was earned, stays sealed and uncharged).
-- **Focus.** For an extra fee you can **focus** a crate on one or more categories (announcers, hero skins, minion skins, titles,
+- **Focus.** For an extra fee you can **focus** a chest on one or more categories (announcers, hero skins, minion skins, titles,
   hero attacks, portrait frames, emotes, card plates): the reward then comes only from those
-  categories. The fee is a share of the crate's price that **falls as you tick more categories**, because ticking more
+  categories. The fee is a share of the chest's price that **falls as you tick more categories**, because ticking more
   makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
 
   | Categories ticked | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 or more |
   |---|---|---|---|---|---|---|---|---|
-  | Fee (% of the crate's price) | 100% | 60% | 40% | 25% | 15% | 10% | 5% | 5% |
+  | Fee (% of the chest's price) | 100% | 60% | 40% | 25% | 15% | 10% | 5% | 5% |
 
-  Only **available** categories count: a category with nothing left that you could receive from that crate (at its floor
+  Only **available** categories count: a category with nothing left that you could receive from that chest (at its floor
   or above, not already owned) cannot be ticked and does not count toward the number ticked. **Ticking
   every available category is no focus at all and costs nothing.** A focus whose categories are all sold out cannot be
-  bought. The crate price and the fee are one charge.
-- **Milestone crates.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Legendary-floor
-  crate**; other levels grant no crate. When Aether launches, every multiple of 10 at or below your level is granted at
-  once, once each (a Level 37 account receives three). A milestone crate opens unfocused for free, or you can **focus it
+  bought. The chest price and the fee are one charge.
+- **Milestone chests.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Legendary-floor
+  chest**; other levels grant no chest. When Aether launches, every multiple of 10 at or below your level is granted at
+  once, once each (a Level 37 account receives three). A milestone chest opens unfocused for free, or you can **focus it
   when you open it** and pay the Legendary focus fee from the table above (60% of 600 for two categories, for example).
-  Milestone crates are opened **one at a time**, each through its focus step: **Open all** opens your other sealed
-  crates and leaves milestone crates sealed for you.
-- **Crates you already hold.** Sealed crates earned before Aether launched are kept and open exactly as before (no
+  Milestone chests are opened **one at a time**, each through its focus step: **Open all** opens your other sealed
+  chests and leaves milestone chests sealed for you.
+- **Chests you already hold.** Sealed chests earned before Aether launched are kept and open exactly as before (no
   floor, no focus, no fee).
 
 Source: `supabase/migrations/2026-10-18-aether.sql` (`aether_config`, `aether_apply`, `buy_crate`, `open_crate`,
 `settle_progression`, `record_gauntlet_clear`, `aether_rollout`), `packages/progression/src/aether.ts`,
 `packages/progression/src/crateShop.ts`.
 
-Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per level),
+Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per level),
 `packages/progression/src/cosmetics.ts` (catalog, weights, the roll), `packages/sim/src/runDerive.ts`
 (`progressionFactsOf`), `supabase/migrations/2026-09-27-account-progression.sql` and
 `supabase/migrations/2026-09-28-progression-crates.sql` (`settle_progression`, `open_crate`, `equip_title`),

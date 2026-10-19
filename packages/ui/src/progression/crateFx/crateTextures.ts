@@ -422,6 +422,80 @@ export function paintSeamBar(L: number): HTMLCanvasElement {
   return c;
 }
 
+// ─── the chest tier layer (tiered chest openings, 2026-10-19) ─────────────────────────────────────────────────
+// Three more pictures, painted once at mount like the rest, white so the tier's colour (or Ancient's cycling hue)
+// tints them. A Standard opening never draws them.
+
+/** A wisp: a tapered tail running into a bright round head at +X (oriented along its flight). Length L. */
+export function paintWisp(L: number): HTMLCanvasElement {
+  const H = Math.max(6, Math.round(L / 5));
+  const { c, g } = canvas(L, H);
+  const hx = L - H * 0.55, r = H * 0.42, cy = H / 2;
+  const along = g.createLinearGradient(0, 0, L, 0);
+  along.addColorStop(0, 'rgba(255,255,255,0)');
+  along.addColorStop(0.55, 'rgba(255,255,255,0.35)');
+  along.addColorStop(0.9, 'rgba(255,255,255,0.95)');
+  along.addColorStop(1, 'rgba(255,255,255,1)');
+  g.fillStyle = along;
+  g.beginPath();
+  g.moveTo(0, cy);
+  g.quadraticCurveTo(hx * 0.6, cy - r * 0.35, hx, cy - r);
+  g.arc(hx, cy, r, -Math.PI / 2, Math.PI / 2);
+  g.quadraticCurveTo(hx * 0.6, cy + r * 0.35, 0, cy);
+  g.closePath();
+  g.fill();
+  // the head's hot core
+  g.globalCompositeOperation = 'lighter';
+  const head = g.createRadialGradient(hx, cy, 0, hx, cy, r);
+  head.addColorStop(0, 'rgba(255,255,255,0.9)');
+  head.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = head;
+  g.fillRect(hx - r, 0, r * 2, H);
+  return c;
+}
+
+/**
+ * A swirl band: an arc of light on a ring of radius D * 0.42 about the texture's centre, its bright head at angle 0
+ * and its tail fading back round the ring. The scene anchors it at the centre and spins it (rotation = the orbit),
+ * so one sprite is one band. Size D x D.
+ */
+export function paintBand(D: number, arc = 1.9): HTMLCanvasElement {
+  const { c, g } = canvas(D, D);
+  const cx = D / 2, r = D * 0.42, n = 40;
+  g.globalCompositeOperation = 'lighter';
+  g.lineCap = 'round';
+  const pass = (width: number, alpha: number): void => {
+    for (let i = 0; i < n; i++) {
+      const u = (i + 1) / n; // 0 at the tail, 1 at the head
+      g.strokeStyle = `rgba(255,255,255,${(alpha * Math.pow(u, 1.6)).toFixed(3)})`;
+      g.lineWidth = Math.max(1, D * width * (0.3 + 0.7 * u));
+      g.beginPath();
+      g.arc(cx, cx, r, -arc + (arc * i) / n, -arc + (arc * (i + 1)) / n);
+      g.stroke();
+    }
+  };
+  // a soft wide glow, then a thin hot core
+  g.filter = `blur(${Math.max(1, Math.round(D / 110))}px)`;
+  pass(0.06, 0.45);
+  g.filter = 'none';
+  pass(0.018, 0.9);
+  return c;
+}
+
+/** The tier aura: a soft halo, brightest in a wide ring (the chest's silhouette sits in its dimmer middle). Size D. */
+export function paintAura(D: number): HTMLCanvasElement {
+  const { c, g } = canvas(D, D);
+  const gr = g.createRadialGradient(D / 2, D / 2, 0, D / 2, D / 2, D / 2);
+  gr.addColorStop(0, 'rgba(255,255,255,0.3)');
+  gr.addColorStop(0.38, 'rgba(255,255,255,0.7)');
+  gr.addColorStop(0.58, 'rgba(255,255,255,0.4)');
+  gr.addColorStop(0.8, 'rgba(255,255,255,0.1)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, D, D);
+  return c;
+}
+
 /**
  * The keyhole's light mask, cut from the owner's body art: white where the keyhole's dark opening is, fading at
  * its edges, clear elsewhere. `img` is the loaded body; `box` is the keyhole's box in the body's `srcW` space.

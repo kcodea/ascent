@@ -881,7 +881,7 @@ export interface CrateRow {
 }
 
 /** A level crate's player-facing name. */
-export const crateName = (earnedLevel: number): string => (earnedLevel <= 1 ? 'Welcome Crate' : `Level ${earnedLevel} Crate`);
+export const crateName = (earnedLevel: number): string => (earnedLevel <= 1 ? 'Welcome Chest' : `Level ${earnedLevel} Chest`);
 
 const GAUNTLET_SOURCE = /^gauntlet:(10|[1-9])$/;
 
@@ -920,10 +920,10 @@ export const crateFloorLabel = (floor: CosmeticRarity): string => (floor === 'co
 export function crateLabel(crate: { earnedLevel: number | null; source?: string | null; floor?: CosmeticRarity | null }): string {
   if (crate.earnedLevel === null) {
     const stage = gauntletStageOfSource(crate.source);
-    if (stage !== null) return `Gauntlet Crate · Stage ${stage}`;
+    if (stage !== null) return `Gauntlet Chest · Stage ${stage}`;
     const milestone = milestoneLevelOfSource(crate.source);
-    if (milestone !== null) return `Level ${milestone} Legendary Crate`;
-    if (isShopSource(crate.source)) return `${crateFloorLabel(crate.floor ?? 'common')} Crate`;
+    if (milestone !== null) return `Level ${milestone} Legendary Chest`;
+    if (isShopSource(crate.source)) return `${crateFloorLabel(crate.floor ?? 'common')} Chest`;
   }
   return crateName(crate.earnedLevel ?? 1);
 }

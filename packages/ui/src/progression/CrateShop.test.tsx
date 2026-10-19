@@ -32,11 +32,12 @@ vi.mock('./progressionStore', async (orig) => ({
 }));
 
 import { CrateShop, type CrateShopMode } from './CrateShop';
+import { setChestArtLoaderForTests } from './crateFx/chestArt';
 import { applyServerCatalogState, resetProgressionForTests, useProgression } from './progressionStore';
 import { useGame } from '../store';
 
 let ui: Mounted | null = null;
-afterEach(() => { ui?.unmount(); ui = null; });
+afterEach(() => { ui?.unmount(); ui = null; setChestArtLoaderForTests(null); });
 beforeEach(() => {
   resetProgressionForTests();
   buyCrate.mockClear();
@@ -77,7 +78,7 @@ const bought = (crateId: string): BuyCrateResult => ({
   quote: { tier: 'epic', floor: 'epic', focus: null, crate: 400, fee: 0, total: 400, remaining: 50 },
 });
 
-describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it")', () => {
+describe('the Chest Shop picker (owner 2026-10-18: "you purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it")', () => {
   it('prices follow the picks', () => {
     seed(2000);
     render();
@@ -93,16 +94,16 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     const gem = buyBtn().querySelector<HTMLImageElement>('img.aether-icon');
     expect(gem?.getAttribute('src')).toMatch(/currency\/aether\.webp$/);
     expect(gem?.getAttribute('aria-hidden')).toBe('true');
-    expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Crate');
+    expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Chest');
     expect(norm($('.colls-shop-odds')?.textContent)).toBe('Epic 64.7% · Legendary 26.5% · Ancient 8.8%');
     expect(norm($('.colls-shop-left')?.textContent)).toMatch(/^\d+ left to find$/);
     click(chip('Card Plates'));
     expect(chip('Card Plates').getAttribute('aria-pressed')).toBe('true');
     expect(norm(buyBtn().textContent)).toBe('800');
-    expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Crate · Card Plates');
+    expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Chest · Card Plates');
     click(chip('Heroes'));
     expect(norm(buyBtn().textContent)).toBe('640');
-    expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Crate · Heroes, Card Plates');
+    expect(norm($('.colls-shop-name')?.textContent)).toBe('Epic Chest · Heroes, Card Plates');
     expect(buyBtn().disabled).toBe(false);
     noDashes();
   });
@@ -211,16 +212,54 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     await settle();
     expect(onOpen).toHaveBeenCalledTimes(1);
     const [item, open] = onOpen.mock.calls[0]! as [{ crateId: string; earnedLevel: number | null; source?: string }, (id: string) => Promise<CrateOpenOutcome>];
-    expect(item).toEqual({ crateId: 'c-new', earnedLevel: null, source: result.crate.source });
+    expect(item).toEqual({ crateId: 'c-new', earnedLevel: null, source: result.crate.source, tier: 'epic' });
     await expect(open('c-new')).resolves.toEqual({ status: 'ok', result });
     expect(openCrate).not.toHaveBeenCalled();
+  });
+
+  // TIERED CHEST OPENINGS (2026-10-19): the bought tier's floor is the chest the theatre opens.
+  it('a bought chest carries its tier: Epic opens the Epic chest, Standard the Standard one', async () => {
+    seed(2000);
+    render();
+    buyCrate.mockResolvedValueOnce({ status: 'ok', result: bought('c-epic') });
+    click(tier('Epic'));
+    click(buyBtn());
+    await settle();
+    expect(buyCrate).toHaveBeenCalledWith('epic', null, expect.any(Number), expect.any(String));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect((onOpen.mock.calls[0]![0] as { tier?: string }).tier).toBe('epic');
+    ui!.unmount();
+    render();
+    const std = bought('c-std');
+    buyCrate.mockResolvedValueOnce({ status: 'ok', result: { ...std, quote: { ...std.quote!, tier: 'standard', floor: 'common' } } });
+    click(tier('Standard'));
+    click(buyBtn());
+    await settle();
+    expect((onOpen.mock.calls[0]![0] as { tier?: string }).tier).toBe('standard');
+  });
+
+  // Final review (2026-10-19): the chest's art loads while the player is still choosing, never cold at the click.
+  it('picking a tier preloads that chest\x27s art (Standard needs none; a milestone crate preloads the Legendary chest)', () => {
+    const urls: string[] = [];
+    setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
+    seed(2000);
+    render();
+    expect(urls).toEqual([]); // Standard is picked: the theatre bakes it itself
+    click(tier('Epic'));
+    expect(urls.filter((u) => u.includes('chest_epic'))).toHaveLength(2);
+    click(tier('Ancient'));
+    expect(urls.filter((u) => u.includes('chest_ancient'))).toHaveLength(2);
+    ui!.unmount();
+    urls.length = 0;
+    render({ kind: 'milestone', crate: milestoneCrate });
+    expect(urls.filter((u) => u.includes('chest_legendary'))).toHaveLength(2);
   });
 
   it('milestone mode', async () => {
     seed(2000);
     render({ kind: 'milestone', crate: milestoneCrate });
     expect($('.colls-shop-tiers')).toBeNull();
-    expect(norm($('.colls-shop-name')?.textContent)).toBe('Level 10 Legendary Crate');
+    expect(norm($('.colls-shop-name')?.textContent)).toBe('Level 10 Legendary Chest');
     expect(norm(buyBtn().textContent)).toBe('Open');
     click(chip('Card Plates'));
     expect(norm(buyBtn().textContent)).toBe('600');
@@ -229,7 +268,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(buyCrate).not.toHaveBeenCalled();
     expect(onOpen).toHaveBeenCalledTimes(1);
     const [item, open] = onOpen.mock.calls[0]! as [{ crateId: string; earnedLevel: number | null; source?: string }, (id: string) => Promise<CrateOpenOutcome>];
-    expect(item).toEqual({ crateId: 'c-m10', earnedLevel: null, source: 'milestone:10' });
+    expect(item).toEqual({ crateId: 'c-m10', earnedLevel: null, source: 'milestone:10', tier: 'legendary' }); // a milestone crate opens the Legendary chest
     expect(openCrate).not.toHaveBeenCalled(); // the theatre asks when it plays
     void open('c-m10');
     expect(openCrate).toHaveBeenCalledWith('c-m10', ['card_plate'], 600);
@@ -317,8 +356,8 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     render();
     const cases: [string, string][] = [
       ['insufficient_aether', 'Not enough Aether.'],
-      ['sold_out', 'Nothing left to find in this crate.'],
-      ['aether_disabled', "Couldn't buy that crate. Try again."],
+      ['sold_out', 'Nothing left to find in this chest.'],
+      ['aether_disabled', "Couldn't buy that chest. Try again."],
     ];
     for (const [reason, copy] of cases) {
       buyCrate.mockResolvedValueOnce({ status: 'error', reason });
@@ -332,7 +371,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
 
 // FINAL REVIEW 2026-10-19: a purchase whose answer never came may have landed. The retry must reuse its request id (a
 // replay answers already_opened with the reward), never mint a second purchase.
-describe('the Crate Shop: never charged twice', () => {
+describe('the Chest Shop: never charged twice', () => {
   const ids = (): (string | undefined)[] => buyCrate.mock.calls.map((c) => c[3]);
 
   it('a timeout then a retry sends the SAME request id, and the replay plays the reveal', async () => {
@@ -405,7 +444,7 @@ describe('the Crate Shop: never charged twice', () => {
     buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'sold_out' });
     click(buyBtn());
     await settle();
-    expect(norm($('.colls-shop-err')?.textContent)).toBe('Nothing left to find in this crate.');
+    expect(norm($('.colls-shop-err')?.textContent)).toBe('Nothing left to find in this chest.');
     buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
     click(buyBtn());
     await settle();
@@ -415,7 +454,7 @@ describe('the Crate Shop: never charged twice', () => {
 });
 
 // The spec: "the live odds for that exact crate". A rarity a crate cannot give shows nowhere; its odds show where they fall.
-describe('the Crate Shop: live odds', () => {
+describe('the Chest Shop: live odds', () => {
   it('Standard + Card Plates shows no Common', () => {
     seed(2000);
     render();
@@ -441,7 +480,7 @@ describe('the Crate Shop: live odds', () => {
 });
 
 // The server's kill switch (admin_off): the catalog epoch moves, and the shop's pool re-derives.
-describe('the Crate Shop: the server catalog switch', () => {
+describe('the Chest Shop: the server catalog switch', () => {
   it('a category the server switches off leaves the chip row and the count; switching it back restores both', () => {
     seed(2000);
     render();

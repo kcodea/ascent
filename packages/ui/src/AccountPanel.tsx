@@ -89,7 +89,7 @@ export function AccountPanel() {
                   the email instead.
                 </p>
                 <p className="acctpanel-warn" role="note">
-                  This email already has an account. Signing in switches to it. Crates and progress earned as a guest
+                  This email already has an account. Signing in switches to it. Chests and progress earned as a guest
                   stay on this guest.
                 </p>
               </>

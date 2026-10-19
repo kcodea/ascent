@@ -106,8 +106,8 @@ describe('StageSelect', () => {
     localStorage.setItem(GAUNTLET_LOCAL_KEY, JSON.stringify([1]));
     m = mount(<StageSelect />);
     expect(slot(1).classList.contains('gtip')).toBe(true);
-    expect(slot(1).dataset.tip).toBe('Already cleared. No crate for replays.');
-    expect(slot(1).getAttribute('aria-description')).toBe('Already cleared. No crate for replays.');
+    expect(slot(1).dataset.tip).toBe('Already cleared. No chest for replays.');
+    expect(slot(1).getAttribute('aria-description')).toBe('Already cleared. No chest for replays.');
     expect(m.container.querySelector('[title]')).toBeNull();
   });
 
@@ -116,7 +116,7 @@ describe('StageSelect', () => {
     const openAccountPanel = vi.fn();
     useGame.setState({ openAccountPanel });
     m = mount(<StageSelect />);
-    expect(banner()?.textContent).toContain("You're not signed in. Progress is saved on this device only, and clears won't grant crates.");
+    expect(banner()?.textContent).toContain("You're not signed in. Progress is saved on this device only, and clears won't grant chests.");
     const btn = banner()!.querySelector('button')!;
     expect(btn.textContent).toBe('Sign in');
     btn.click();

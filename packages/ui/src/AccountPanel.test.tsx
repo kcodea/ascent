@@ -38,7 +38,7 @@ describe('AccountPanel: signing in with an email that already has an account', (
     typeEmail('old@example.com');
     await send();
     expect(document.querySelector('.acctpanel-warn')?.textContent?.replace(/\s+/g, ' ').trim())
-      .toBe('This email already has an account. Signing in switches to it. Crates and progress earned as a guest stay on this guest.');
+      .toBe('This email already has an account. Signing in switches to it. Chests and progress earned as a guest stay on this guest.');
     expect(document.body.textContent).not.toMatch(/nothing is lost/);
     expect(document.body.textContent).not.toMatch(/[—–]/);
   });

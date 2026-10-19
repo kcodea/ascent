@@ -59,6 +59,8 @@ import {
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import type { CrateQueueItem } from './CrateOpener';
+import { chestTierOf } from './crateFx/chestTiers';
+import { warmChestArt } from './crateFx/chestArt';
 import {
   aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
@@ -95,9 +97,9 @@ const CHIP_CATEGORIES: readonly CosmeticCategory[] = COSMETIC_CATEGORIES.filter(
 export function buyErrorCopy(reason: string): string {
   if (reason === 'price_changed') return 'Prices just changed. Check the new price.';
   if (reason === 'insufficient_aether') return 'Not enough Aether.';
-  if (reason === 'sold_out') return 'Nothing left to find in this crate.';
+  if (reason === 'sold_out') return 'Nothing left to find in this chest.';
   if (!isDefiniteBuyFailure(reason)) return "Couldn't confirm that purchase. Try again: you won't be charged twice.";
-  return "Couldn't buy that crate. Try again.";
+  return "Couldn't buy that chest. Try again.";
 }
 
 /** A purchase's identity for the kept request id: the tier, the canonical focus and the total (a moved price is a new
@@ -146,6 +148,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   useEffect(() => { void refreshEconomy(); }, []);
 
   const floor = CRATE_TIER_FLOOR[milestone ? 'legendary' : tier];
+  // The picked chest's art starts loading now, while the player is still choosing, so its opening never loads it cold.
+  useEffect(() => { warmChestArt(chestTierOf(floor)); }, [floor]);
   // `catalogEpoch` moves when the server retires an item or a category (`applyServerCatalogState` records the state
   // first, then bumps it): `eligibleForCrate` reads that state, so each memo that lists it re-derives the pool. A
   // category the server switched off leaves the chip row entirely (the Collection hides its tab the same way).
@@ -190,7 +194,7 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   // The crate's name: a milestone crate keeps its own; a shop crate is its tier, plus the focus while it narrows anything.
   const name = mode.kind === 'milestone'
     ? crateLabel(mode.crate)
-    : `${CRATE_TIER_LABELS[tier]} Crate${quote?.focus ? ` · ${focus.map((c) => COSMETIC_CATEGORY_DEFS[c].label).join(', ')}` : ''}`;
+    : `${CRATE_TIER_LABELS[tier]} Chest${quote?.focus ? ` · ${focus.map((c) => COSMETIC_CATEGORY_DEFS[c].label).join(', ')}` : ''}`;
 
   const short = quote ? Math.max(0, quote.total - balance) : 0;
   const free = milestone && quote?.total === 0;
@@ -217,7 +221,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
       handedRef.current = crate.crateId;
       const pick = quote.focus;
       const fee = quote.fee;
-      const item: CrateQueueItem = { crateId: crate.crateId, earnedLevel: crate.earnedLevel, ...(crate.source ? { source: crate.source } : {}) };
+      // A milestone crate opens the Legendary chest (tiered chest openings, 2026-10-19).
+      const item: CrateQueueItem = { crateId: crate.crateId, earnedLevel: crate.earnedLevel, ...(crate.source ? { source: crate.source } : {}), tier: chestTierOf(CRATE_TIER_FLOOR.legendary) };
       onOpen(item, (id) => (pick ? openCrate(id, pick, fee) : openCrate(id)));
       return;
     }
@@ -242,23 +247,24 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
     // SUCCESS IGNORES `alive` on purpose: the server has charged the player, so the reveal must play even when this panel
     // unmounted mid-purchase (the caller's theatre outlives it). Only this panel's own state updates are skipped.
     const result = out.result;
-    const item: CrateQueueItem = { crateId: result.crate.crateId, earnedLevel: null, ...(result.crate.source ? { source: result.crate.source } : {}) };
+    // The chest it opens as is the tier bought (its floor).
+    const item: CrateQueueItem = { crateId: result.crate.crateId, earnedLevel: null, ...(result.crate.source ? { source: result.crate.source } : {}), tier: chestTierOf(CRATE_TIER_FLOOR[quote.tier]) };
     // Already bought and opened: the theatre plays this answer instead of asking again.
     onOpen(item, () => Promise.resolve({ status: 'ok', result }));
   };
 
   return (
-    <section className={`colls-panel colls-shop${milestone ? ' milestone' : ''}`} aria-label={milestone ? 'Open your milestone crate' : 'Crate Shop'}>
+    <section className={`colls-panel colls-shop${milestone ? ' milestone' : ''}`} aria-label={milestone ? 'Open your milestone chest' : 'Chest Shop'}>
       <div className="colls-shop-headrow">
-        <div className="colls-shop-head">{milestone ? 'Milestone crate' : 'Crate Shop'}</div>
+        <div className="colls-shop-head">{milestone ? 'Milestone chest' : 'Chest Shop'}</div>
         {milestone && onBack && (
           <button type="button" className="colls-shop-back" disabled={held} onClick={() => { sfx.pulse(); onBack(); }}>Back</button>
         )}
       </div>
       {mode.kind === 'shop' && (
         <div className="colls-shop-step">
-          <div className="colls-shop-lbl">Pick a crate</div>
-          <div className="colls-shop-tiers" role="group" aria-label="Crate">
+          <div className="colls-shop-lbl">Pick a chest</div>
+          <div className="colls-shop-tiers" role="group" aria-label="Chest">
             {CRATE_TIERS.map((t) => (
               <button
                 key={t} type="button" className={`colls-shop-tier r-${CRATE_TIER_FLOOR[t]}${tier === t ? ' on' : ''}`} aria-pressed={tier === t}

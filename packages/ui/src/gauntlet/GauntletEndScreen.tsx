@@ -52,7 +52,7 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
   if (gauntletAccountMode() === 'local') {
     return (
       <div className="gauntletend-reward gauntletend-crate signin">
-        <span className="gauntletend-crate-note">{aetherOn ? 'Sign in to earn Aether from Gauntlet clears.' : 'Sign in to earn crates from Gauntlet clears.'}</span>
+        <span className="gauntletend-crate-note">{aetherOn ? 'Sign in to earn Aether from Gauntlet clears.' : 'Sign in to earn chests from Gauntlet clears.'}</span>
         <button type="button" className="gauntletend-crate-btn crate-btn pressable" onClick={() => { sfx.pulse(); openAccountPanel(); }}>Sign in</button>
       </div>
     );
@@ -72,13 +72,13 @@ export function GauntletClearReward({ stage }: { stage: number }): JSX.Element |
       <div className="gauntletend-reward gauntletend-crate earned">
         <span className="colls-crate" aria-hidden />
         <div className="gauntletend-crate-body">
-          <span className="gauntletend-crate-head">You earned a Crate!</span>
+          <span className="gauntletend-crate-head">You earned a Chest!</span>
           <button type="button" className="gauntletend-crate-btn crate-btn pressable" onClick={() => { sfx.pulse(); openCollection(); }}>Open in Collection</button>
         </div>
       </div>
     );
   }
-  if (saving === stage && deferred === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Clear saved. Your {aetherOn ? 'Aether arrives' : 'crate arrives'} when you're back online.</div>;
+  if (saving === stage && deferred === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Clear saved. Your {aetherOn ? 'Aether arrives' : 'chest arrives'} when you're back online.</div>;
   if (saving === stage) return <div className="gauntletend-reward gauntletend-crate-note" role="status">Saving your clear…</div>;
   return null;
 }

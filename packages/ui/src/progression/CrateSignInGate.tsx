@@ -55,18 +55,18 @@ export function CrateSignInGate({ open, onClose }: { open: boolean; onClose: () 
     <div className="nrw-scrim" onPointerDown={notNow}>
       <section className="nrw-panel crgate-panel" role="dialog" aria-modal="true" aria-labelledby="crgate-title" onPointerDown={(e) => e.stopPropagation()}>
         <header className="nrw-head">
-          <span className="nrw-title" id="crgate-title"><Icon name="gift" />{available ? 'Create an account to open crates' : 'Accounts are unavailable'}</span>
+          <span className="nrw-title" id="crgate-title"><Icon name="gift" />{available ? 'Create an account to open chests' : 'Accounts are unavailable'}</span>
         </header>
         {available ? (
           <div className="crgate-body">
-            <p className="crgate-lead">Your crates, level and collection are saved to your account.</p>
+            <p className="crgate-lead">Your chests, level and collection are saved to your account.</p>
             <p className="nrw-note">It is free and takes a minute. You only need an email.</p>
-            <p className="crgate-warn">Already have an account? Signing in switches to it. Crates earned as a guest stay on this guest.</p>
+            <p className="crgate-warn">Already have an account? Signing in switches to it. Chests earned as a guest stay on this guest.</p>
           </div>
         ) : (
           <div className="crgate-body">
-            <p className="crgate-lead">You need an account to open crates, and accounts cannot be reached right now.</p>
-            <p className="nrw-note">Your crates stay sealed. Try again later.</p>
+            <p className="crgate-lead">You need an account to open chests, and accounts cannot be reached right now.</p>
+            <p className="nrw-note">Your chests stay sealed. Try again later.</p>
           </div>
         )}
         <footer className="nrw-foot crgate-foot">

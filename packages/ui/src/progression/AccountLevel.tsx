@@ -57,7 +57,7 @@ export function AccountLevelCard({ profile, own }: { profile: ProgressionProfile
         <button type="button" className={`cv2-btn cv2-btn-sm cv2-acctlevel-coll pressable${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }}>
           Collection
           {newRewards && <NewPill />}
-          {sealed > 0 && <span className="cv2-acctlevel-crates" aria-label={`${sealed} sealed ${sealed === 1 ? 'crate' : 'crates'}`}>{sealed}</span>}
+          {sealed > 0 && <span className="cv2-acctlevel-crates" aria-label={`${sealed} sealed ${sealed === 1 ? 'chest' : 'chests'}`}>{sealed}</span>}
         </button>
       )}
       {own && anonymous && (

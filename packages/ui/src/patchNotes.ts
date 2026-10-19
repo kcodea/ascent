@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'In the Collection, Portrait Frame and Card Plate tiles now show their rarity and name on a dark band, like the minion skins, so they are easy to read.' },
       {
+        category: 'Balance',
+        text: 'Great Pot and Rune of the Shared Table now buff your All-types minions.',
+        details: [
+          'An All-types minion always gets its own buff, like Fatecarver already did.',
+          'Before, it was skipped as if it had no type.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Fixed the game closing itself on iPhone right after pressing Play.',
         details: [

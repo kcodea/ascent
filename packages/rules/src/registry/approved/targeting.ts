@@ -200,4 +200,25 @@ export const TARGETING_RULES: GameRule[] = [
       + 'The combat cast paths were already random and now share the helper (same draw).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/autoTargetRandom.test.ts'], lastVerifiedAt: '2026-10-10' },
   },
+  {
+    id: 'R-ONE-PER-TRIBE-ALL-01',
+    title: 'An All-types minion takes its own slot in every "one minion of each type" spread',
+    statement:
+      'Great Pot, Rune of the Shared Table, Fatecarver and Paragon / Standard Bearer give ONE friendly minion of each type. '
+      + 'An All-types minion (printed All types, or marked All by the Anomaly Reactor) '
+      + 'always gets its own buff, whatever other types are on the board. A dual-type minion fills both its slots and is '
+      + 'never buffed twice; a spell-added type counts; a neutral minion has no type and is skipped.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-18 (Great Pot cast on a board with an All-types minion)', quote: "i used great pot here and it didnt buff my all type - that's a bug" },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts onePerTribeTargets (Great Pot `buffOnePerTribe`, Rune of the Shared Table in noteSpellCast); packages/core/src/effects/arena.ts onSpellCastBuffOnePerTribe (Fatecarver, the convention)' },
+    ],
+    contentIds: ['greatpot', 'rune_shared_table', 'n2_paragon', 'n2_standardbearer'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-18: Great Pot and Rune of the Shared Table read only the printed tribe and second tribe, so an '
+      + 'All-types minion (printed neutral) looked typeless and was skipped. Both now share `onePerTribeTargets`, which '
+      + 'follows the Fatecarver convention.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/onePerTribeAllTypes.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
 ];

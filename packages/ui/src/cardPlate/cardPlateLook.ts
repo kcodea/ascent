@@ -225,6 +225,13 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_honey: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.007, interiorSx: 1.051, interiorSy: 1.011, interiorY: 0.0028, darken: false },
   // Goop (owner 2026-10-17): no interior named, so the default Brown, keeping the darkening.
   plate_goop: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.006, interiorSx: 0.975, interiorSy: 0.977, interiorY: -0.0637, artScale: 1.08, darken: false },
+  // Owner 2026-10-19 batch on the Dark interior ("add them with the dark interior"), no darkening. Drawn a little taller
+  // and narrower than the template, so each is the whole art fitted to the plate, then drawn bigger (`artScale`) until
+  // its opening matches a standard plate's, like Battletorn.
+  plate_celestial: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.008, interiorSy: 1.003, interiorY: -0.0066, darken: false, artScale: 1.042 },
+  plate_runic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 0.98, interiorSy: 1.001, interiorY: -0.0103, darken: false, artScale: 1.086 },
+  plate_verdant: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 0.987, interiorSy: 0.996, interiorY: -0.0066, darken: false, artScale: 1.075 },
+  plate_volcanic: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.007, interiorSx: 1.022, interiorSy: 0.999, interiorY: -0.0094, darken: false, artScale: 1.032 },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

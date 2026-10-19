@@ -20,7 +20,7 @@ describe('the card plate catalog', () => {
     expect(COSMETIC_CATEGORY_DEFS.card_plate).toEqual({ id: 'card_plate', label: 'Card Plates', weight: 10, enabled: true, target: 'global' });
   });
 
-  it('forty-three crate plates, Legendary unless the owner says otherwise (Simple Black, Simple White, Simple Glass and Mooncloud are Ancient; Aquarium Rocks, Moonstone, Bamboo, Beach, Magma, Stonevines, Porcelain, the Smooth and Hand Drawn plates and Dark Arcane Epic; the Standard colours Rare), each art key its own id, each naming its master', () => {
+  it('forty-seven crate plates (Phoenix Plate retired), Legendary unless the owner says otherwise (Simple Black, Simple White, Simple Glass and Mooncloud are Ancient; Aquarium Rocks, Moonstone, Bamboo, Beach, Magma, Stonevines, Porcelain, the Smooth and Hand Drawn plates and Dark Arcane Epic; the Standard colours Rare), each art key its own id, each naming its master', () => {
     expect(PLATES.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.art, c.assets.master, c.target])).toEqual([
       ['plate_aquarium_rocks', 'Aquarium Rocks', 'epic', 'crate', 'plate_aquarium_rocks', 'Aquarium Rocks.png', undefined],
       ['plate_amethyst', 'Amethyst', 'legendary', 'crate', 'plate_amethyst', 'Amethyst.png', undefined],
@@ -65,6 +65,10 @@ describe('the card plate catalog', () => {
       ['plate_blood_omen', 'Blood Omen', 'legendary', 'crate', 'plate_blood_omen', 'Blood Omen.png', undefined],
       ['plate_honey', 'Honey', 'legendary', 'crate', 'plate_honey', 'Honey.png', undefined],
       ['plate_goop', 'Goop', 'legendary', 'crate', 'plate_goop', 'Goop.png', undefined],
+      ['plate_celestial', 'Celestial', 'legendary', 'crate', 'plate_celestial', 'Celestial.png', undefined],
+      ['plate_runic', 'Runic', 'legendary', 'crate', 'plate_runic', 'Runic.png', undefined],
+      ['plate_verdant', 'Verdant', 'legendary', 'crate', 'plate_verdant', 'Verdant.png', undefined],
+      ['plate_volcanic', 'Volcanic', 'legendary', 'crate', 'plate_volcanic', 'Volcanic.png', undefined],
     ]);
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).toContain('plate_aquarium_rocks');
     expect(eligibleCrateCosmetics(['plate_aquarium_rocks']).map((c) => c.id)).not.toContain('plate_aquarium_rocks');

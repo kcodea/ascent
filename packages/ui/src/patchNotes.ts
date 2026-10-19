@@ -56,6 +56,12 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-19',
+    changes: [
+      { category: 'Systems', text: 'Four more Legendary Card Plates to find in crates: Celestial, Runic, Verdant and Volcanic.' },
+    ],
+  },
+  {
     date: '2026-10-18',
     changes: [
       { category: 'Systems', text: 'In the Collection, Portrait Frame and Card Plate tiles now show their rarity and name on a dark band, like the minion skins, so they are easy to read.' },

@@ -6,6 +6,8 @@
 export * from './rules';
 export * from './cosmetics';
 export * from './achievements';
+export * from './aether';
+export * from './crateShop';
 export { validateSubmitBody, handleSubmitProgression, settlementParity, syncAchievementCatalogOnce, resetAchievementSyncForTests, ACHIEVEMENT_SYNC_RETRY_MS, SQL_ERROR_STATUS, type SettleRequest, type RpcCall, type HandlerResponse } from './server';
 export { validateInventoryBody, handleInventory, openParity, syncCatalogOnce, resetCatalogSyncForTests, CATALOG_SYNC_RETRY_MS, INVENTORY_ERROR_STATUS, type InventoryRequest, type CatalogSyncOutcome } from './inventory';
 export { validateGauntletClearBody, handleGauntletClear, parseGauntletClearResult, GAUNTLET_ERROR_STATUS, GAUNTLET_STAGE_COUNT, type GauntletClearResult, type GauntletClearStatus, type GauntletClearValidation } from './gauntlet';

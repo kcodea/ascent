@@ -46,12 +46,17 @@ describe('handleGauntletClear', () => {
     const rpc = rpcReturning({ status: 'first_clear', crate: gauntletCrate(3) });
     const res = await handleGauntletClear(USER, false, { stage: 3, crate: 'give me a legendary' }, rpc);
     expect(rpc).toHaveBeenCalledWith('record_gauntlet_clear', { p_user: USER, p_stage: 3 });
-    expect(res).toEqual({ status: 200, body: { status: 'first_clear', crate: { crateId: CRATE, earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null, source: 'gauntlet:3' } } });
+    expect(res).toEqual({ status: 200, body: { status: 'first_clear', crate: { crateId: CRATE, earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null, source: 'gauntlet:3' }, aether: 0 } });
+  });
+
+  it('an Aether first clear: crate null, the Aether paid passes through (a client reading crate null with no aether would call it malformed)', async () => {
+    const res = await handleGauntletClear(USER, false, { stage: 4 }, rpcReturning({ status: 'first_clear', crate: null, aether: 200 }));
+    expect(res).toEqual({ status: 200, body: { status: 'first_clear', crate: null, aether: 200 } });
   });
 
   it('a replay: already_cleared with no crate is a normal answer', async () => {
     const res = await handleGauntletClear(USER, false, { stage: 2 }, rpcReturning({ status: 'already_cleared', crate: null }));
-    expect(res).toEqual({ status: 200, body: { status: 'already_cleared', crate: null } });
+    expect(res).toEqual({ status: 200, body: { status: 'already_cleared', crate: null, aether: 0 } });
   });
 
   it('a malformed SQL answer is a 500', async () => {

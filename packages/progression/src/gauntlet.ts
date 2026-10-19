@@ -92,5 +92,7 @@ export async function handleGauntletClear(userId: string | null, anonymous: bool
     log('record_gauntlet_clear malformed', res.data);
     return { status: 500, body: { error: 'gauntlet_malformed' } };
   }
-  return { status: 200, body: { status: out.status, crate: out.crate } };
+  // `aether` rides along (2026-10-18): a first clear with Aether on answers `crate: null`, and a client that read that with
+  // no `aether` beside it would call the answer malformed (`parseGauntletClearResult`).
+  return { status: 200, body: { status: out.status, crate: out.crate, aether: out.aether } };
 }

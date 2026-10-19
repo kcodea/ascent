@@ -3,11 +3,18 @@
  * once-per-cold-start CATALOG SYNC (`syncCatalogOnce`, at the end): this function is the one place the database's
  * cosmetic catalog is written from code.
  *
- * Three actions, all for the authenticated caller only, each a single SQL transaction under the same per-user lock
+ * Four actions, all for the authenticated caller only, each a single SQL transaction under the same per-user lock
  * the settlement takes:
  *   { action: 'open_crate', crateId }     → `open_crate`: pick one unowned, eligible item AT OPEN TIME (a rarity
  *                                           at the fixed odds, then an item of it; 2026-09-29), insert ownership,
- *                                           mark the crate opened.
+ *                                           mark the crate opened. A MILESTONE crate may also name `focus` + the
+ *                                           `expectedFee` it showed (2026-10-18); the SQL refuses a focus on any other crate.
+ *   { action: 'buy_crate', tier, focus, expectedTotal, requestId }
+ *                                         → `buy_crate` (2026-10-18, the Crate Shop): spend Aether on a crate of a tier
+ *                                           (its rarity floor), optionally focused on categories, and open it in the same
+ *                                           transaction. The client names the tier, the focus, the price it SHOWED and a
+ *                                           request id (a replay answers `already_opened`, never a second charge); the SQL
+ *                                           re-quotes, refuses a moved price (`price_changed`), charges and rolls.
  *   { action: 'equip_title', titleId }    → `equip_title`: equip a title the caller OWNS (null takes it off).
  *   { action: 'equip_cosmetic', slot, targetId, cosmeticId }
  *                                         → `equip_cosmetic` (2026-09-28, skins): wear a hero or minion skin the
@@ -26,12 +33,15 @@
  * the SQL decides. `npm run progression:shared` generates this file VERBATIM into
  * supabase/functions/_shared/progressionInventory.ts; `sharedArtifact.test.ts` fails CI on drift.
  */
-import { COSMETIC_CATEGORY_DEFS, EMOTE_POSITION_RE, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type EquipSlot, type OpenCrateResult } from './cosmetics';
+import { COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, EMOTE_POSITION_RE, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, catalogHash, catalogSyncPayload, cosmeticOf, parseOpenCrateResult, type CosmeticCategory, type EquipSlot, type OpenCrateResult } from './cosmetics';
+import { CRATE_TIERS, type CrateTier } from './aether';
+import { atOrAbove, parseBuyCrateResult } from './crateShop';
 import { parseProgressionProfile, type ProgressionProfile } from './rules';
 import type { HandlerResponse, RpcCall } from './server';
 
 export type InventoryRequest =
-  | { action: 'open_crate'; crateId: string }
+  | { action: 'open_crate'; crateId: string; focus?: CosmeticCategory[]; expectedFee?: number }
+  | { action: 'buy_crate'; tier: CrateTier; focus: CosmeticCategory[] | null; expectedTotal: number; requestId: string }
   | { action: 'equip_title'; titleId: string | null }
   | { action: 'equip_cosmetic'; slot: EquipSlot; targetId: string; cosmeticId: string | null };
 
@@ -43,12 +53,42 @@ const COSMETIC_ID = /^[a-z0-9_]{1,64}$/;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+/** The most Aether a client may NAME as a price (a sanity bound; the SQL compares it with its own quote). */
+const MAX_NAMED_PRICE = 1_000_000;
+/** A focus names at most this many categories (there are ten; the SQL treats a focus covering all available as none). */
+const MAX_FOCUS = 10;
+
+/** A focus: absent or null = none; otherwise 1..10 DISTINCT known category names. 'bad' for anything else. */
+function parseFocus(v: unknown): CosmeticCategory[] | null | 'bad' {
+  if (v === undefined || v === null) return null;
+  if (!Array.isArray(v) || v.length < 1 || v.length > MAX_FOCUS) return 'bad';
+  if (!v.every((c) => typeof c === 'string' && (COSMETIC_CATEGORIES as readonly string[]).includes(c))) return 'bad';
+  if (new Set(v).size !== v.length) return 'bad';
+  return [...v] as CosmeticCategory[];
+}
+
+const isPrice = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= MAX_NAMED_PRICE;
+
 export function validateInventoryBody(body: unknown): InventoryValidation {
   if (!body || typeof body !== 'object') return { ok: false, status: 400, error: 'bad_json' };
   const b = body as Record<string, unknown>;
   if (b.action === 'open_crate') {
     if (typeof b.crateId !== 'string' || !UUID.test(b.crateId)) return { ok: false, status: 400, error: 'bad_crate_id' };
-    return { ok: true, request: { action: 'open_crate', crateId: b.crateId.toLowerCase() } };
+    const crateId = b.crateId.toLowerCase();
+    // A focus (a milestone crate, 2026-10-18) must come with the fee the client showed, so the SQL can refuse a moved price.
+    const focus = parseFocus(b.focus);
+    if (focus === 'bad') return { ok: false, status: 400, error: 'bad_focus' };
+    if (!focus) return { ok: true, request: { action: 'open_crate', crateId } };
+    if (!isPrice(b.expectedFee)) return { ok: false, status: 400, error: 'bad_price' };
+    return { ok: true, request: { action: 'open_crate', crateId, focus, expectedFee: b.expectedFee } };
+  }
+  if (b.action === 'buy_crate') {
+    if (typeof b.tier !== 'string' || !(CRATE_TIERS as readonly string[]).includes(b.tier)) return { ok: false, status: 400, error: 'bad_tier' };
+    const focus = parseFocus(b.focus);
+    if (focus === 'bad') return { ok: false, status: 400, error: 'bad_focus' };
+    if (!isPrice(b.expectedTotal)) return { ok: false, status: 400, error: 'bad_price' };
+    if (typeof b.requestId !== 'string' || !UUID.test(b.requestId)) return { ok: false, status: 400, error: 'bad_request_id' };
+    return { ok: true, request: { action: 'buy_crate', tier: b.tier as CrateTier, focus, expectedTotal: b.expectedTotal, requestId: b.requestId.toLowerCase() } };
   }
   if (b.action === 'equip_title') {
     if (b.titleId === null) return { ok: true, request: { action: 'equip_title', titleId: null } };
@@ -66,9 +106,22 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
   return { ok: false, status: 400, error: 'bad_action' };
 }
 
-/** `raise exception '<code>'` inside `open_crate` / `equip_title` → HTTP status (4xx permanent, 5xx retry). */
+/** `raise exception '<code>'` inside `open_crate` / `buy_crate` / `equip_title` → HTTP status (4xx permanent, 5xx retry). */
 export const INVENTORY_ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze({
   bad_crate_id: 400,
+  // The Crate Shop (2026-10-18). A moved price, an empty shelf, a broke wallet or a switched-off economy is a definite
+  // 409 (the client refreshes its quote or its balance); a missing price in `aether_config` is the OWNER's config
+  // problem, not the player's: 503, so the client may retry once it is fixed.
+  bad_tier: 400,
+  bad_focus: 400,
+  bad_price: 400,
+  bad_request_id: 400,
+  price_changed: 409,
+  insufficient_aether: 409,
+  sold_out: 409,
+  focus_not_allowed: 409,
+  aether_disabled: 409,
+  aether_config_missing: 503,
   bad_title_id: 400,
   crate_not_found: 404,
   not_owned: 409,
@@ -90,7 +143,12 @@ export function openParity(r: OpenCrateResult): boolean {
   if (r.status === 'pool_exhausted') return r.crate.state === 'sealed' && r.rewardId === null;
   if (r.crate.state !== 'opened' || r.crate.rewardId !== r.rewardId) return false;
   const def = cosmeticOf(r.rewardId);
-  return !!def && def.active && def.acquisition.type === 'crate' && COSMETIC_CATEGORY_DEFS[def.category].enabled;
+  if (!def || !def.active || def.acquisition.type !== 'crate' || !COSMETIC_CATEGORY_DEFS[def.category].enabled) return false;
+  // A tiered / focused crate (2026-10-18): the reward must also respect the floor and the focus the crate was sold with.
+  const { floor, focus } = r.crate;
+  if (floor && !atOrAbove(def.rarity, floor)) return false;
+  if (focus && focus.length > 0 && !focus.includes(def.category)) return false;
+  return true;
 }
 
 export async function handleInventory(userId: string | null, body: unknown, rpc: RpcCall, log: (msg: string, detail?: unknown) => void = () => {}): Promise<HandlerResponse> {
@@ -99,10 +157,12 @@ export async function handleInventory(userId: string | null, body: unknown, rpc:
   if (!v.ok) return { status: v.status, body: { error: v.error } };
   const r = v.request;
   const [fn, args]: [string, Record<string, unknown>] = r.action === 'open_crate'
-    ? ['open_crate', { p_user: userId, p_crate_id: r.crateId }]
-    : r.action === 'equip_title'
-      ? ['equip_title', { p_user: userId, p_title_id: r.titleId }]
-      : ['equip_cosmetic', { p_user: userId, p_slot: r.slot, p_target_id: r.targetId, p_cosmetic_id: r.cosmeticId }];
+    ? ['open_crate', { p_user: userId, p_crate_id: r.crateId, ...(r.focus ? { p_focus: r.focus, p_expected_fee: r.expectedFee } : {}) }]
+    : r.action === 'buy_crate'
+      ? ['buy_crate', { p_user: userId, p_tier: r.tier, p_focus: r.focus, p_expected_total: r.expectedTotal, p_request_id: r.requestId }]
+      : r.action === 'equip_title'
+        ? ['equip_title', { p_user: userId, p_title_id: r.titleId }]
+        : ['equip_cosmetic', { p_user: userId, p_slot: r.slot, p_target_id: r.targetId, p_cosmetic_id: r.cosmeticId }];
   let res: Awaited<ReturnType<RpcCall>>;
   try {
     res = await rpc(fn, args);
@@ -121,10 +181,10 @@ export async function handleInventory(userId: string | null, body: unknown, rpc:
   const profile: ProgressionProfile | null = parseProgressionProfile(out?.profile);
   if (!out || !profile) return { status: 500, body: { error: 'inventory_malformed' } };
   if (r.action === 'equip_title' || r.action === 'equip_cosmetic') return { status: 200, body: { status: 'equipped', profile: out.profile } };
-  const opened = parseOpenCrateResult(out);
+  const opened = r.action === 'buy_crate' ? parseBuyCrateResult(out) : parseOpenCrateResult(out);
   if (!opened) return { status: 500, body: { error: 'inventory_malformed' } };
   const parity = openParity(opened);
-  if (!parity) log('crate parity mismatch', { userId, crateId: r.crateId, sql: out });
+  if (!parity) log('crate parity mismatch', { userId, ...(r.action === 'buy_crate' ? { requestId: r.requestId } : { crateId: r.crateId }), sql: out });
   return { status: 200, body: { ...out, parity } };
 }
 

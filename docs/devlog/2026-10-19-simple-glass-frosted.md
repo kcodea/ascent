@@ -70,3 +70,5 @@ Then *"reduce the blur to 13px. increase the grey opacity to 25%"*: `rgba(58, 60
 Then *"reduce the blur to 10px"*: blur 13px to 10px.
 
 Then *"increase grey to 35%"*: `rgba(58, 60, 64, 0.35)`.
+
+Then *"reduce blur to 7px"*: blur 10px to 7px.

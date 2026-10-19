@@ -98,8 +98,11 @@ describe('the config', () => {
     }
   });
 
-  it('ancient reward colour is opal', () => {
-    expect(CRATE_FX_DEFAULTS.ancientColor).toBe('#f4eeff');
+  // Owner ruling at the final review (2026-10-19): the Ancient REWARD keeps the approved "Prismatic Aurora" cyan
+  // (R-PROG-RARITY-01); only the Ancient CHEST's layer is opal. An Ancient reward's sparks still shimmer through the hues.
+  it('the Ancient reward stays Prismatic Aurora cyan; the Ancient chest tier is the opal one', () => {
+    expect(CRATE_FX_DEFAULTS.ancientColor).toBe('#8af5ff');
+    expect(CRATE_FX_DEFAULTS.ancientTierColor).toBe('#f4eeff');
   });
 });
 

@@ -289,11 +289,12 @@ export const CRATE_FX_DEFAULTS: CrateFxConfig = {
   legendaryPitch: 0.88,
   legendaryFreezeMs: 0,
 
-  // ANCIENT (owner 2026-10-02, concept 3 "Prismatic Aurora", the "Time stops" signature): shading to magenta #ff7ae0
-  // (the Pixi light is the base colour; the DOM crack and ribbon carry the gradient). Bigger than Legendary in every
-  // dial, plus the freeze. No coins (the gold shower is Legendary's). The base was cyan #8af5ff until the tiered
-  // chests (2026-10-19): it is now the opal white #f4eeff, the base the Ancient chest's multichrome layer cycles from.
-  ancientColor: '#f4eeff',
+  // ANCIENT (owner 2026-10-02, concept 3 "Prismatic Aurora", the "Time stops" signature): cyan #8af5ff shading to
+  // magenta #ff7ae0 (the Pixi light is the cyan; the DOM crack and ribbon carry the gradient). Bigger than Legendary
+  // in every dial, plus the freeze. No coins (the gold shower is Legendary's). Its burst sparks and embers shimmer
+  // through the hues (tiered chest openings, 2026-10-19), but the colour stays this cyan (owner ruling at the final
+  // review: the approved R-PROG-RARITY-01 outranks the spec's opal; only the Ancient CHEST's layer is opal).
+  ancientColor: '#8af5ff',
   ancientChargeMs: 1900,
   ancientHitchMs: 260,
   ancientBurstMs: 1050,

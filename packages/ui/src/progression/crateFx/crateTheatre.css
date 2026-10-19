@@ -197,8 +197,8 @@
       a loop), and it snaps straight back at the burst (no transition out), so the colour floods back with the hit.
    2. THE CRACK (burst onward): a prismatic slash across the view that tears open (transform scaleX) and fades (opacity).
       Its gradient is static on the element. One-shot; it never loops.
-   The Ancient ribbon is MULTICHROME (tiered chest openings, 2026-10-19, to match the opal Ancient chest): a static conic
-   sweep through the spectrum under a light top-to-bottom shading. Static: never animated. */
+   The Ancient ribbon carries the cyan to magenta gradient (static). It is the REWARD's colour, so it stays the approved
+   "Prismatic Aurora" (R-PROG-RARITY-01; owner ruling at the tiered chests' final review, 2026-10-19). */
 .crth.sig-timestop .crth-fx { transition: filter var(--cr-freeze, 650ms) cubic-bezier(0.2, 0.8, 0.3, 1); }
 .crth.sig-timestop.ph-freeze .crth-fx { filter: grayscale(1) brightness(0.72) contrast(1.15); }
 .crth.sig-timestop:not(.ph-freeze) .crth-fx { transition: none; }
@@ -212,7 +212,5 @@
   0% { transform: rotate(-14deg) scaleX(0) scaleY(0.4); opacity: 1; }
   28% { transform: rotate(-14deg) scaleX(1) scaleY(1.4); opacity: 1; }
   100% { transform: rotate(-14deg) scaleX(1.08) scaleY(0.2); opacity: 0; } }
-.crth.r-ancient .crth-ribbon > span { background:
-  linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.22) 100%),
-  conic-gradient(from 210deg at 50% 50%, #8af5ff, #c9b8ff, #ff7ae0, #ffd88a, #9dffc8, #8af5ff); }
+.crth.r-ancient .crth-ribbon > span { background: linear-gradient(90deg, #5fd8f0 0%, #8af5ff 30%, #e6b8ff 62%, #ff7ae0 100%); }
 @media (prefers-reduced-motion: reduce) { .crth-crack { display: none; } .crth.sig-timestop .crth-fx { transition: none; filter: none; } }

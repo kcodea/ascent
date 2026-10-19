@@ -33,7 +33,8 @@ import { destroyPixiApp, reportFxFault, reviveTicker, watchContextLoss } from '.
 import { LITE_ART, PIXI_ANTIALIAS } from './phoneArt';
 // Registers the ParticleContainer / NineSliceSprite render pipes at entry, before any renderer exists (see there).
 import { checkScenePipes } from './pixiScenePipes';
-import { crumbOnce } from './crashLog';
+import { crumb } from './crashLog';
+import { phonePixiOptions, pixiAllowed } from './phoneDiag';
 
 // PHONES: hand idle GPU textures back sooner (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). Pixi's
 // GCSystem unloads a texture's GPU copy once it has gone unused for `gcMaxUnusedTime` (default 60 s, checked every
@@ -590,7 +591,7 @@ class FxController {
    * `ensureDefsReady`'s pre-warm calls this ahead of time when any committed def wants the slot.
    */
   ensureUnderSlot(): Promise<void> {
-    if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
+    if (typeof window === 'undefined' || !pixiAllowed()) return Promise.resolve(); // SSR guard; phone `nofx` switch
     if (this.underApp) return Promise.resolve();
     this.underIniting ??= this.initUnder().catch((e) => {
       console.error('[pixiFx] under-card canvas init failed — under-slot effects disabled:', e);
@@ -601,13 +602,13 @@ class FxController {
   private async initUnder(): Promise<void> {
     const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the main overlay
     const app = new Application();
-    await app.init({
+    await app.init(phonePixiOptions({
       resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
-    });
+    })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     watchContextLoss(app, 'pixiFx under');
-    crumbOnce('pixi init under');
+    crumb('pixi init under');
     checkScenePipes(app, 'pixiFx under');
     const c = app.canvas;
     c.classList.add('pixi-screen'); // screen-space renderer, stage-sized box (see stage.ts)
@@ -630,7 +631,7 @@ class FxController {
    *  the first above-slot effect of a session may find no renderer and decline, which is why
    *  `ensureDefsReady` pre-warms it when any committed def wants the slot. */
   ensureAboveSlot(): Promise<void> {
-    if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
+    if (typeof window === 'undefined' || !pixiAllowed()) return Promise.resolve(); // SSR guard; phone `nofx` switch
     if (this.aboveApp) return Promise.resolve();
     this.aboveIniting ??= this.initAbove().catch((e) => {
       console.error('[pixiFx] above-modal canvas init failed — above-slot effects disabled:', e);
@@ -641,13 +642,13 @@ class FxController {
   private async initAbove(): Promise<void> {
     const res = Math.min(window.devicePixelRatio || 1, 2); // same DPR cap as the main overlay
     const app = new Application();
-    await app.init({
+    await app.init(phonePixiOptions({
       resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
-    });
+    })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     watchContextLoss(app, 'pixiFx above');
-    crumbOnce('pixi init above');
+    crumb('pixi init above');
     checkScenePipes(app, 'pixiFx above');
     const c = app.canvas;
     c.className = 'pixifx-above pixi-screen'; // position/z live in styles.css beside every other layer's; pixi-screen: see stage.ts
@@ -890,7 +891,7 @@ class FxController {
   /** Mount the overlay canvas into `parent` (a fixed, full-viewport, pointer-events:none div).
    *  Lazily creates the PixiJS Application on first call and reuses it thereafter. */
   attach(parent: HTMLElement): Promise<void> {
-    if (typeof window === 'undefined') return Promise.resolve(); // SSR guard
+    if (typeof window === 'undefined' || !pixiAllowed()) return Promise.resolve(); // SSR guard; phone `nofx` switch
     if (this.app) {
       parent.appendChild(this.app.canvas); // re-mount the existing canvas (e.g. after a remount)
       return Promise.resolve();
@@ -909,7 +910,7 @@ class FxController {
     // crispness. 2 keeps retina-sharp edges on desktop while ~halving phone fill (owner's mobile-smoothness pass).
     const res = Math.min(window.devicePixelRatio || 1, 2);
     const app = new Application();
-    await app.init({
+    await app.init(phonePixiOptions({
       resizeTo: window,
       backgroundAlpha: 0, // transparent — it's an overlay
       antialias: PIXI_ANTIALIAS,
@@ -917,10 +918,10 @@ class FxController {
       resolution: res,
       preference: 'webgl',
       powerPreference: 'high-performance',
-    });
+    })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     watchContextLoss(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
-    crumbOnce(`pixi init ${this.label || 'main'}`);
+    crumb(`pixi init ${this.label || 'main'}`);
     checkScenePipes(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
     // The replay may have remounted before init resolved; only attach if still wanted.
     const canvas = app.canvas;
@@ -3502,11 +3503,13 @@ export function warmDiscoverFx(): void {
   if (typeof window === 'undefined' || discoverFxWarmed) return;
   discoverFxWarmed = true;
   const run = (): void => {
+    if (!discoverFxWarmed || discoverWarmHost) return; // reset before idle came round (a phone left gameplay)
     // Offscreen and inert: the canvas lives here until the overlay claims it on first open.
     const host = document.createElement('div');
     host.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px;height:1px;pointer-events:none;';
     host.setAttribute('aria-hidden', 'true');
     stageHost().appendChild(host);
+    discoverWarmHost = host;
     void discoverFx.attach(host);
   };
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
@@ -3514,6 +3517,15 @@ export function warmDiscoverFx(): void {
   else window.setTimeout(run, 1200); // after the first shop has settled
 }
 let discoverFxWarmed = false;
+let discoverWarmHost: HTMLElement | null = null;
+
+/** PHONE (R-TOUCH-GPU-MEMORY-01): forget the warm-up once `discoverFx` has been detached on the way back to the menus,
+ *  so the next run warms a fresh one. PixiFxLayer is the only caller; desktop never detaches the Discover layer. */
+export function resetDiscoverWarm(): void {
+  discoverFxWarmed = false;
+  discoverWarmHost?.remove();
+  discoverWarmHost = null;
+}
 
 // DEV: expose for live effect tuning + manual firing from the console (mirrors the SfxMixer dev
 // affordance). Stripped from production by the static env check.

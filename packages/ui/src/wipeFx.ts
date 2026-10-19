@@ -22,9 +22,10 @@ import { Application, Container, Graphics, Sprite, Texture } from 'pixi.js';
 import { cubicBezier } from './wipeGeometry';
 import { stageHost } from './stage';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
-import { guardAppRender, watchContextLoss } from './pixiAppSafety';
-import { crumbOnce } from './crashLog';
+import { destroyPixiApp, guardAppRender, watchContextLoss } from './pixiAppSafety';
+import { crumb } from './crashLog';
 import { PIXI_ANTIALIAS } from './phoneArt';
+import { phonePixiOptions, pixiAllowed } from './phoneDiag';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
 
@@ -52,7 +53,7 @@ class WipeFxController {
 
   /** Kick the async Pixi init early (Recruit calls this on mount) so the very first wipe's FX are ready. */
   warm(): void {
-    if (this.app || this.initing) return;
+    if (this.app || this.initing || !pixiAllowed()) return; // phone `nofx` switch: no canvas, the wipe plays bare
     this.initing = this.init().catch((e) => {
       console.error('[wipeFx] init failed — wipe FX disabled:', e);
     });
@@ -60,14 +61,14 @@ class WipeFxController {
 
   private async init(): Promise<void> {
     const app = new Application();
-    await app.init({
+    await app.init(phonePixiOptions({
       resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
-    });
+    })); // phone: low power, no depth buffer, `res1` switch (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'wipeFx');
     watchContextLoss(app, 'wipeFx');
-    crumbOnce('pixi init wipe');
+    crumb('pixi init wipe');
     const c = app.canvas;
     c.className = 'wipefx-canvas pixi-screen';
     c.style.visibility = 'hidden';
@@ -127,6 +128,23 @@ class WipeFxController {
       this.app.ticker.stop();
       this.app.canvas.style.visibility = 'hidden';
     }
+  }
+
+  /**
+   * Free the canvas and its WebGL context (R-TOUCH-GPU-MEMORY-01: a phone keeps no FX context on the menus;
+   * PixiFxLayer calls this on the way back to them). Waits for an init in flight, and does nothing while a wipe is
+   * still playing. The next `warm()` builds a fresh one.
+   */
+  release(): void {
+    if (this.initing && !this.app) { const p = this.initing; void p.then(() => { if (this.app && this.initing === p) this.release(); }); return; }
+    const app = this.app;
+    if (!app || this.emitters.length || this.particles.length) return;
+    this.app = null;
+    this.initing = null;
+    this.layer = null;
+    this.dotTex = this.sparkTex = null;
+    this.pending.length = 0;
+    destroyPixiApp(app, { children: true, texture: true });
   }
 
   /** Kill everything instantly (a decisive combat snapping the wipe home). */

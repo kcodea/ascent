@@ -6836,6 +6836,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePlayMemory.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
   {
+    id: 'R-TOUCH-GPU-MEMORY-01',
+    title: 'A phone holds no WebGL effect context on the menus, and its menus keep no giant layers',
+    statement:
+      'On a phone (the lite art path), no Pixi effect canvas exists on the title, the mode home or any menu page: the board '
+      + 'effects layer comes up for hero select, its under / above canvases, the Discover layer and the wipe only in a run, '
+      + 'and all of them are destroyed (WebGL context and all) on the way back to the menus. The ranked gate makes its own '
+      + 'layer only while it plays. Every phone Pixi canvas renders at resolution 1.5, low power, no antialias, no depth '
+      + 'buffer. On the menus the stage is shrunk with CSS zoom instead of a transform, endless loops stop, other loops play '
+      + 'once, and finished entrances let go of their layer. Settings has a Phone diagnostics section (phones only) with '
+      + 'switches the crash log records. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a recent iPhone, Home Screen app, landscape, on main 79e57dd59): the on-device crash log', quote: 'Last session crashed after: title view modes' },
+      { kind: 'code', ref: 'packages/ui/src/phoneDiag.ts; PixiFxLayer.tsx; pixiFx.ts; wipeFx.ts; rankedGate/gateFx.ts; stage.ts (setStageMenuZoom); touchUi.css; crashLog.ts; scripts/phone-menu-memory.mjs (npm run perf:phone-menus)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-18 (fix/ios-gpu-crash). Before, a phone kept 6 WebGL contexts alive on every menu (main, under, '
+      + 'above, Discover, wipe and a probe) and the mode home modelled at 252 MB of layers and drawing buffers.',
+    example: 'iPhone landscape 932x430 @3x, prod build, mode home: WebGL contexts 6 before, 0 after; layers + buffers 252 MB before, 31 MB after.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneGpuMemory.test.ts', 'packages/ui/src/phoneFxLayer.test.tsx', 'packages/ui/src/phoneFxLayerDesktop.test.tsx'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:

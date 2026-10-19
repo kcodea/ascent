@@ -15,6 +15,9 @@
  */
 import { useEffect, useState } from 'react';
 import { FadeImg } from './FadeImg';
+import { phonePublicUrl } from './phoneArt';
+import { PHONE_DIAG } from './phoneDiag';
+import { crumb } from './crashLog';
 
 export type MenuScreen = 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection';
 
@@ -24,10 +27,12 @@ export interface BackdropPlate { src: string; veil: BackdropVeil }
 
 // Public art carries BASE_URL (itch serves the game from a CDN sub-path; see publicAssetPaths.test.ts).
 const BASE = import.meta.env.BASE_URL;
+// A phone loads the 1280-wide copy of a plate (phoneArt.ts `phonePublicCap`); desktop gets `${BASE}backdrops/...`.
+const plateSrc = (file: string): string => phonePublicUrl(`backdrops/${file}`, BASE);
 // The Mode screen's hall carries a SLIGHT pre-baked blur so its tiles pop (owner 2026-10-16: "add a slight blur to the
 // background play image"); `hall.webp` (crisp) stays built for a screen that wants the painting sharp.
-const HALL_SOFT: BackdropPlate = { src: `${BASE}backdrops/hall-soft.webp`, veil: 'scene' };
-const HALL_DIM: BackdropPlate = { src: `${BASE}backdrops/hall-dim.webp`, veil: 'data' };
+const HALL_SOFT: BackdropPlate = { src: plateSrc('hall-soft.webp'), veil: 'scene' };
+const HALL_DIM: BackdropPlate = { src: plateSrc('hall-dim.webp'), veil: 'data' };
 
 /** Which plate each screen paints. Swap an entry when that screen's own art arrives. */
 export const MENU_BACKDROPS: Record<MenuScreen, BackdropPlate> = {
@@ -52,10 +57,12 @@ export function MenuBackdrop({ screen }: { screen: MenuScreen }) {
   // on Career -> Play (owner 2026-10-16), and the sharp plate is already decoded behind the boot gate.
   const [prev] = useState(() => (lastSrc && lastSrc !== plate.src && plate.veil === 'data' ? lastSrc : null));
   useEffect(() => { lastSrc = plate.src; }, [plate.src]);
+  // The phone diagnostics `litebd` switch (phoneDiag.ts): no painted plate, only the veil over a flat ground.
+  if (PHONE_DIAG.litebd) return <div className="mbd mbd-lite" data-screen={screen} aria-hidden="true"><div className="mbd-veil" data-veil={plate.veil} /></div>;
   return (
     <div className="mbd" data-screen={screen} aria-hidden="true">
       {prev && <img className="mbd-img" src={prev} alt="" decoding="sync" draggable={false} />}
-      <FadeImg className={`mbd-img${prev ? ' mbd-in' : ''}`} src={plate.src} alt="" draggable={false} />
+      <FadeImg className={`mbd-img${prev ? ' mbd-in' : ''}`} src={plate.src} alt="" draggable={false} onLoad={() => crumb(`backdrop loaded ${screen}`)} />
       <div className="mbd-veil" data-veil={plate.veil} />
     </div>
   );

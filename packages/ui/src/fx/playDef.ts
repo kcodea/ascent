@@ -20,6 +20,7 @@ import { stageScale } from '../stage';
 import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
 import { holdStat, revealStat } from './statHold';
+import { PHONE_GPU } from '../phoneDiag';
 
 /**
  * Play a COMMITTED def once, in the real game, and clean itself up. The runtime half of the workbench →
@@ -444,7 +445,7 @@ function schedulePrewarm(
       window.setTimeout(next, 0);
     };
     window.setTimeout(next, 0);
-    if (slot !== 'over') return;
+    if (slot !== 'over' || PHONE_GPU) return; // a phone brings them up as the run starts (PixiFxLayer)
     // Bring the under / above canvases up ONLY if something committed actually wants them. A page whose defs
     // are all `over` never creates a second GL context — the lazy half of "lazy on first use" — while a page
     // that will need one has it long before the first combat, so no fire is ever dropped waiting on init.

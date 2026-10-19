@@ -27,6 +27,7 @@ import {
   paintRuneRing, paintSeamBar, paintShards, paintSpark, paintStreak,
 } from './crateTextures';
 import { PIXI_ANTIALIAS } from '../../phoneArt';
+import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
 
 export interface CrateFx {
   /** Start Pixi in `host`. Resolves true when it is live, false when it is not (DOM fallback). */
@@ -86,9 +87,10 @@ class CrateFxPixi implements CrateFx {
     if (this.destroyed) return false;
     try {
       // Same DPR cap as the gameplay overlay, times the stage scale: `resizeTo: host` sizes the renderer in LAYOUT px.
+      if (!pixiAllowed()) return false; // phone diagnostics `nofx`: no canvas
       const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
       const app = new Application();
-      await app.init({
+      await app.init(phonePixiOptions({
         resizeTo: host,
         backgroundAlpha: 0,
         antialias: PIXI_ANTIALIAS,
@@ -96,7 +98,7 @@ class CrateFxPixi implements CrateFx {
         resolution: res,
         preference: 'webgl',
         powerPreference: 'high-performance',
-      });
+      }, stageScale())); // phone policy (phoneDiag.ts)
       detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
       guardAppRender(app, 'crateFx');
       watchContextLoss(app, 'crateFx');

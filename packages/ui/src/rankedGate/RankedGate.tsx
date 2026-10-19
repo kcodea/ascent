@@ -7,6 +7,7 @@ import {
   type RankedGatePhase,
 } from './rankedGateTiming';
 import './rankedGate.css';
+import { PHONE_GPU } from '../phoneDiag';
 
 // BASE_URL-relative, NOT root-absolute: itch serves the game from a CDN sub-path, where '/frames/...' 404s
 // (publicAssetPaths.test.ts). The stylesheet's own `url('/frames/...')` is rewritten by Vite at build time.
@@ -306,5 +307,7 @@ export function warmRankedGate(opts: { fx?: boolean } = {}): void {
     img.src = `${import.meta.env.BASE_URL}frames/${art}`;
   }
   sfx.warmGate();
-  if (opts.fx !== false) gateFx.warm();
+  // A PHONE starts the FX layer only as the gate plays (R-TOUCH-GPU-MEMORY-01): no context while the confirmation
+  // waits on the mode home.
+  if (opts.fx !== false && !PHONE_GPU) gateFx.warm();
 }

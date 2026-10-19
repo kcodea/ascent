@@ -32,6 +32,7 @@ import { isWatchingLive, leaveLiveGame } from './live/liveWatch';
 import { setSpectatorEmotesOn, useSpectatorEmotePrefs } from './versus/spectatorEmotes';
 import { isTouchDevice, touchText } from './touchInput';
 import { TOUCH_UI_LABEL, TOUCH_UI_SIZES, setTouchUiSize, touchUi, type TouchUiSize } from './touchUi';
+import { PHONE_DIAG_FLAGS, PHONE_GPU, activeDiagLabel, saveDiagFlags, storedDiagFlags, type PhoneDiagFlags } from './phoneDiag';
 
 export function EscMenu({ onClose }: { onClose: () => void }) {
   const openTitle = useGame((s) => s.openTitle);
@@ -288,6 +289,10 @@ export function EscMenu({ onClose }: { onClose: () => void }) {
             <div className="escnote">Makes buttons, tabs and text bigger on a phone or tablet.</div>
           </>
         )}
+        {/* PHONE DIAGNOSTICS (R-TOUCH-GPU-MEMORY-01): switches for finding what crashes the owner's iPhone, read through
+            the crash log. A Home Screen app takes no query string and keeps its own storage, so they live here. They are
+            read once at launch: a change applies after Reload. Phones only (the LITE_ART path), never desktop. */}
+        {touchDevice && PHONE_GPU && <PhoneDiagnostics />}
         {/* Desktop shell only. The run is saved continuously, so closing the app loses nothing — but it is
             still the one button that ends the session, hence the confirm. */}
         {isDesktop() && (
@@ -357,6 +362,37 @@ function ActionButton({ label, note, primary, danger, onPress }: {
       </button>
       {note && <div className="escnote eschint" id={noteId}>{note}</div>}
     </div>
+  );
+}
+
+/** The Phone diagnostics section: one switch per `PHONE_DIAG_FLAGS` entry, stored for the next launch, and a Reload. */
+function PhoneDiagnostics() {
+  const [flags, setFlags] = useState<PhoneDiagFlags>(() => storedDiagFlags());
+  const now = activeDiagLabel();
+  const next = activeDiagLabel(flags);
+  return (
+    <>
+      <div className="escsec">Phone diagnostics</div>
+      <div className="escnote">For tracking down a crash. Each switch applies after Reload and stays on until you turn it off.</div>
+      {PHONE_DIAG_FLAGS.map((f) => (
+        <ToggleRow
+          key={f.id}
+          label={f.label}
+          note={f.hint}
+          on={!!flags[f.id]}
+          onToggle={() => {
+            const n: PhoneDiagFlags = { ...flags };
+            if (n[f.id]) delete n[f.id]; else n[f.id] = 1;
+            setFlags(n); saveDiagFlags(n); sfx.pulse();
+          }}
+        />
+      ))}
+      <ActionButton
+        label="Reload"
+        note={`On now: ${now || 'none'}. After Reload: ${next || 'none'}.`}
+        onPress={() => { window.location.reload(); }}
+      />
+    </>
   );
 }
 

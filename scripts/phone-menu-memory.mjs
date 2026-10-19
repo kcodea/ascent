@@ -13,7 +13,9 @@
  * (their drawing buffers exist whether or not they are composited). Chrome's layer list stands in for WebKit's, so the
  * absolute numbers are a proxy: compare builds, and keep every screen under budget.
  *
- * Usage:  npm run build:web && npm run perf:phone-menus [-- --dist apps/web/dist --port 4470 --only title,versus]
+ * Usage:  npm run build:web && npm run perf:phone-menus [-- --dist apps/web/dist --port 4470 --only title,versus --flags nofx,res1]
+ * Each screen also prints its live WebGL contexts and their drawing buffers (R-TOUCH-GPU-MEMORY-01): the total is the
+ * layer estimate plus those buffers.
  * Needs a local Chrome (CHROME_PATH to override). Every request off 127.0.0.1 is blocked, so nothing reaches the live
  * backend (no anonymous sign-in, no uploads).
  */
@@ -40,7 +42,31 @@ const SCREENS = {
   title: [], modes: ['PLAY'], practice: ['PLAY', '~Practice'], versus: ['PLAY', '~Versus'], career: ['PLAY', 'CAREER'],
   leaderboard: ['PLAY', 'LEADERBOARD'], recent: ['PLAY', 'RECENT GAMES'], live: ['PLAY', 'LIVE GAMES'],
   collection: ['.bookbtn'], heroselect: ['PLAY', '.modecard.mc-hero'],
+  // The ranked gate, waiting on its crystal (a fresh profile is "new": the tutorial nudge comes first).
+  gate: ['PLAY', '.modecard.mc-hero', '.tutprompt-skip', '.rc-btn-yes'],
+  // Real hero select: through the gate and its crystal (the `heroselect` path above stops at the tutorial nudge).
+  hero: ['PLAY', '.modecard.mc-hero', '.tutprompt-skip', '.rc-btn-yes', '@2500', '.rgate.is-armed .rgate-crystal', '@4000'],
 };
+/** GPU estimate (R-TOUCH-GPU-MEMORY-01): WebGL contexts still alive (made and not lost, in the page or not) and their
+ *  drawing buffers (width x height x 4, x2 for the front and back buffer). Installed before any page script. */
+const GL_PROBE = `(() => {
+  const made = [];
+  const gc = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (t, o) {
+    const c = gc.call(this, t, o);
+    if (c && /webgl/.test(t) && !made.some((m) => m.cv === this)) made.push({ cv: this, gl: c });
+    return c;
+  };
+  window.__gpu = () => {
+    const alive = made.filter((m) => !m.gl.isContextLost());
+    let bytes = 0;
+    for (const m of alive) bytes += m.cv.width * m.cv.height * 4 * 2;
+    return { made: made.length, alive: alive.length, mb: bytes / 1048576,
+      list: alive.map((m) => (m.cv.className || m.cv.parentElement?.className || '?').split(' ')[0] + ' ' + m.cv.width + 'x' + m.cv.height + (m.cv.isConnected ? '' : ' (detached)')) };
+  };
+})();`;
+/** `--flags nofx,res1,...` presets the phone diagnostics (phoneDiag.ts) before the page loads. */
+const FLAGS = arg('flags', '');
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -109,10 +135,12 @@ async function measureScreen(name, clicks, profile) {
     await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: DPR, mobile: true, screenOrientation: { type: 'landscapePrimary', angle: 90 } });
     await c.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
     await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'hover', value: 'none' }, { name: 'pointer', value: 'coarse' }, { name: 'any-hover', value: 'none' }, { name: 'any-pointer', value: 'coarse' }] });
+    await c.send('Page.addScriptToEvaluateOnNewDocument', { source: GL_PROBE + (FLAGS ? `try { localStorage.setItem('ascent.phonediag.v1', ${JSON.stringify(JSON.stringify(Object.fromEntries(FLAGS.split(',').map((f) => [f, 1]))))}); } catch {}` : '') });
     await c.send('Page.navigate', { url: `http://127.0.0.1:${PORT}/` });
     await sleep(9000);
     const nav = [];
     for (const t of clicks) {
+      if (t.startsWith('@')) { await sleep(Number(t.slice(1))); continue; } // `@ms`: wait longer before the next step
       nav.push(await evaluate(c, `(() => { const t = ${JSON.stringify(t)}; let e;
         if (t.startsWith('~')) e = [...document.querySelectorAll('button,[role=button],.modecard')].filter((x) => x.offsetParent).find((x) => (x.innerText || '').trim().startsWith(t.slice(1)));
         else if (/^[.#]/.test(t)) e = document.querySelector(t);
@@ -150,7 +178,12 @@ async function measureScreen(name, clicks, profile) {
         t.el = `${n.localName}${ii >= 0 ? '#' + a[ii + 1] : ''}${ci >= 0 ? '.' + a[ci + 1].trim().split(/\s+/).slice(0, 2).join('.') : ''}`;
       } catch { t.el = '?'; }
     }
-    return { mb: bytes / 1048576, layers: big.length, touch, nav, top: big.slice(0, 3) };
+    // --rects: the on-screen boxes of the main controls (compare a --flags run, e.g. zoom, against a plain one).
+    const rects = args.includes('--rects') ? await evaluate(c, `[...document.querySelectorAll('.menubtn, .modecard, .msb, .gearbtn, .titlelogo')].filter((e) => e.offsetParent).slice(0, 12).map((e) => { const r = e.getBoundingClientRect(); return (e.className.split(' ')[0]) + ' ' + [r.left, r.top, r.width, r.height].map((v) => Math.round(v)).join(','); })`) : [];
+    const gpu = await evaluate(c, 'window.__gpu ? window.__gpu() : null');
+    // --anims: the animations still running on the screen (name, target), the usual reason for a lingering layer.
+    const anims = args.includes('--anims') ? await evaluate(c, `document.getAnimations().filter((a) => a.playState === 'running').map((a) => (a.animationName || a.transitionProperty || '?') + ' @ ' + ((a.effect && a.effect.target && (a.effect.target.className || a.effect.target.tagName)) || '?') + (a.effect && a.effect.pseudoElement ? a.effect.pseudoElement : '')).slice(0, 20)`) : [];
+    return { mb: bytes / 1048576, layers: big.length, touch, nav, top: big.slice(0, 3), gpu, anims, rects };
   } finally { c.close(); await sleep(400); }
 }
 
@@ -167,7 +200,11 @@ try {
     const budget = BUDGET_MB[name] ?? BUDGET_MB.default;
     const bad = r.mb > budget || r.touch == null || r.nav.some((n) => n !== 'ok');
     if (bad) over++;
-    console.log(`${bad ? 'OVER' : ' ok '} ${name.padEnd(12)} ${r.mb.toFixed(0).padStart(5)} MB / ${budget} MB  ${String(r.layers).padStart(3)} layers  touch=${r.touch}  ${r.nav.filter((n) => n !== 'ok').join(' ')}`);
+    const g = r.gpu || { alive: 0, made: 0, mb: 0, list: [] };
+    console.log(`${bad ? 'OVER' : ' ok '} ${name.padEnd(12)} ${r.mb.toFixed(0).padStart(5)} MB / ${budget} MB  ${String(r.layers).padStart(3)} layers  | WebGL ${g.alive} alive of ${g.made} made, ${g.mb.toFixed(0)} MB  | total ${(r.mb + g.mb).toFixed(0)} MB  touch=${r.touch}  ${r.nav.filter((n) => n !== 'ok').join(' ')}`);
+    if (g.list.length) console.log(`        WebGL: ${g.list.join(', ')}`);
+    if (r.anims.length) console.log(`        running: ${r.anims.join(', ')}`);
+    if (r.rects.length) console.log(`        rects: ${r.rects.join(' | ')}`);
     for (const t of r.top) console.log(`        ${t.mb.toFixed(1).padStart(6)} MB  ${t.size.padEnd(10)} ${t.why}  ${t.el}`);
   }
 } finally {

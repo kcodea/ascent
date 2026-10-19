@@ -951,6 +951,26 @@ export function syncRunTribes(state: RunState): void {
   for (const c of state.hand) stampRunTribes(state, c);
 }
 
+/** The "ONE friendly minion of EACH type" spread (Great Pot, Rune of the Shared Table), walked in board order. An
+ *  All-types body (`universalTribe`, or the Anomaly Reactor's `allTribes` mark) always takes its OWN slot, the
+ *  Fatecarver / Paragon convention in `arena.ts`. A dual-tribe body fills both its slots and is never counted
+ *  twice; a spell-added tribe counts. Neutral bodies have no type and are skipped. R-ONE-PER-TRIBE-ALL-01: the
+ *  raw `def.tribe`/`tribe2` read this replaced saw an All-types minion as neutral and skipped it (owner 2026-10-18). */
+export function onePerTribeTargets(board: readonly BoardCard[]): BoardCard[] {
+  const out: BoardCard[] = [];
+  const seen = new Set<string>();
+  for (const c of board) {
+    const def = CARD_INDEX[c.cardId];
+    if (!def) continue;
+    if (def.universalTribe || c.allTribes) { out.push(c); continue; }
+    const tribes = [...new Set([def.tribe, def.tribe2, ...(c.addedTribes ?? [])])].filter((t): t is Tribe => !!t && t !== 'neutral');
+    if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
+    for (const t of tribes) seen.add(t);
+    out.push(c);
+  }
+  return out;
+}
+
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
   if (tribe !== 'neutral' && card.unityTribes) return true; // Rune of Unity: the board's full house counts as every type
   return isTribeNatural(card, tribe);
@@ -3898,15 +3918,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  it shipped flat because its name slips the `spellBuff*` tripwire prefix, now covered as an extra). */
   buffOnePerTribe: (ctx, _self, params) => {
     const a = num(params.attack, 4) + spellAttackBonus(ctx.state), h = num(params.health, 4) + spellHealthBonus(ctx.state);
-    const seen = new Set<string>();
-    for (const c of ctx.state.board) {
-      const def = CARD_INDEX[c.cardId];
-      if (!def) continue;
-      const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-      if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
-      for (const t of tribes) seen.add(t);
-      captureCastBuffFx(ctx.state, () => addBuff(c, 'Great Pot', a, h));
-    }
+    for (const c of onePerTribeTargets(ctx.state.board)) captureCastBuffFx(ctx.state, () => addBuff(c, 'Great Pot', a, h));
   },
 
   /** DEMAND AN ENCORE: your Shouts trigger an extra time this turn (turn-scoped; see `shoutExtraTurn`). */
@@ -13908,15 +13920,8 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     const st = state.runeSharedTable;
     if (st) {
       procRuneId(state, 'rune_shared_table');
-      const seen = new Set<string>();
-      for (const c of state.board) {
-        const def = CARD_INDEX[c.cardId];
-        if (!def) continue;
-        const tribes = [def.tribe, def.tribe2].filter((t): t is Tribe => !!t && t !== 'neutral');
-        if (tribes.length === 0 || tribes.every((t) => seen.has(t))) continue;
-        for (const t of tribes) seen.add(t);
-        addBuff(c, 'Rune of the Shared Table', st.attack, st.health); // accumulated per copy at the dispatcher (owner 2026-08-27)
-      }
+      // accumulated per copy at the dispatcher (owner 2026-08-27)
+      for (const c of onePerTribeTargets(state.board)) addBuff(c, 'Rune of the Shared Table', st.attack, st.health);
     }
   }
   // Mushy: the FIRST spell cast on/after the armed wave copies itself to hand. Fired here so it

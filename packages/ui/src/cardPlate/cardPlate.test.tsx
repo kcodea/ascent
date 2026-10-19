@@ -104,6 +104,18 @@ describe('the card plate a card wears', () => {
     expect(css).not.toMatch(/\.dragcard[^{]*plate-frosted[^{]*\{[^}]*backdrop-filter: none/);
     expect(css).toMatch(/\.dragcard:has\(\.plate-frosted\) \{ filter: none; \}/);
     expect(css).toMatch(/\.dragcard:has\(\.plate-frosted\) \.plate-frame \{ filter: drop-shadow\(/);
+    // ...and while HOVERED in hand, and in INSPECT (owner 2026-10-19: "the blur effect is not happening when hovering,
+    // when in hand, when inspecting"). Any ancestor with a filter, an opacity fade or its own backdrop-filter cuts the
+    // glass off from the board, so: the hover lift's shadow moves onto the frame, and Inspect's dim + blur live on a
+    // ::before behind the card rather than on the overlay, which a glass card's Inspect does not opacity-fade.
+    expect(css).toMatch(/\.row\.hand \.card\.plated:has\(\.plate-frosted\):hover \{ filter: none; \}/);
+    expect(css).toMatch(/\.row\.hand \.card\.plated:has\(\.plate-frosted\):hover \.plate-frame \{ filter: drop-shadow\(/);
+    const ov = css.slice(css.indexOf('.inspect-ov { position: fixed;'));
+    expect(ov.slice(0, ov.indexOf('}'))).not.toMatch(/backdrop-filter|background/);
+    expect(css).toMatch(/\.inspect-ov::before \{[^}]*backdrop-filter: blur\(/);
+    expect(css).toMatch(/\.inspect-ov:has\(\.plate-frosted\) \{ animation: none; \}/);
+    const pop = css.slice(css.indexOf('@keyframes inspectpop-glass'));
+    expect(pop.slice(0, pop.indexOf('} }'))).not.toMatch(/opacity/);
   });
 
   it('every plate that sat on Brown wears Dark Brown with no darkening (owner 2026-10-18)', () => {

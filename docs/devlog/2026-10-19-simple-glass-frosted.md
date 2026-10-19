@@ -39,4 +39,22 @@ Cost: one re-blur per frame for that card while dragged.
 
 Then *"reduce the opacity of the light grey to 0 for now. i just want to see the blur"* and *"dramatically increase the blur amount"*: grey 0, blur 40px, while the owner judges the blur. Found on the way: Inspect's overlay (`.inspect-ov`) has its own `backdrop-filter: blur(8px)`, which makes it a backdrop root, so inside Inspect the glass can only show the overlay's dark tint (which fades in: the "delayed colour change"), never the board behind it.
 
-Then, from a dragging screenshot: *"THIS is the effect i want on it at all times"*. Dragged over the beige board the glass read rgb(140, 118, 120); in the hand it sits over the purple tray and read purple. The layer is now that colour at 65% () with the 40px blur, so it holds the dragging look over any backdrop.
+Then, from a dragging screenshot: *"THIS is the effect i want on it at all times"*. Dragged over the beige board the glass read rgb(140, 118, 120); in the hand it sits over the purple tray and read purple. The layer is now that colour at 65% (`rgba(140, 118, 120, 0.65)`) with the 40px blur, so it holds the dragging look over any backdrop.
+
+## Follow-up (same day): the blur in hand hover and Inspect
+
+Owner: *"the blur effect is not happening when hovering, when in hand, when inspecting"*, and *"why were we able to add
+blur to the card when moving it? but not when it was hovered?"*. A `backdrop-filter` only sees what is painted inside its
+nearest *backdrop root*, and any ancestor with a `filter`, an `opacity` below 1 or a `backdrop-filter` of its own is one.
+Checked in the browser pane with black/white stripes behind the card, toggling one property at a time:
+
+- **Hand hover**: `.row.hand .card:hover` adds `filter: drop-shadow(...)` (the lift shadow). With it the stripes showed
+  sharp through the glass; without it, blurred. A hovered glass card now drops that filter and puts the same shadow on its
+  `.plate-frame`, exactly like the drag fix. At rest in the hand the glass already blurred.
+- **Inspect**: `.inspect-ov` carried the dim and `backdrop-filter: blur(8px)` itself. Both now live on `.inspect-ov::before`
+  (`z-index: -1`, behind the card), which looks the same and stops the overlay being a backdrop root. The overlay's
+  `fadein` and the card's `inspectpop` both fade opacity, which also cut the glass off for their 0.14-0.18 s (the "delayed
+  colour change"), so with a glass card only the `::before` fades and the card pops on scale alone (`inspectpop-glass`).
+- The `overflow: hidden` on `#root` / `#stage` was a false lead (one test seemed to fix it; a clean retest did not).
+
+Oracle rule: **R-PLATE-02**.

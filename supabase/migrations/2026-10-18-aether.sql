@@ -88,7 +88,7 @@ alter table public.aether_ledger enable row level security;
 drop policy if exists "read own aether_ledger" on public.aether_ledger;
 create policy "read own aether_ledger" on public.aether_ledger for select to authenticated using (auth.uid() = user_id);
 
--- ── 5. aether_apply: THE one writer of a balance. Internal (no grant at all). ─────────────────────────────
+-- ── 5. aether_apply: THE one writer of a balance. Internal (revoked from every API role, service role too). ─
 -- Called only from security-definer functions that ALREADY hold the per-user progression lock. A replayed (user,
 -- reason, source) changes nothing and returns the current balance; otherwise the ledger row and the wallet move
 -- together. A result below 0 raises `insufficient_aether` and writes nothing (the caller's transaction rolls back).
@@ -475,16 +475,19 @@ begin
 end;
 $$;
 
--- ── Grants: service role only (aether_apply: nobody; it is called from the security-definer functions) ──────
-revoke all on function public.aether_apply(uuid, int, text, text) from public, anon, authenticated;
+-- ── Grants ───────────────────────────────────────────────────────────────────────────────────────────────
+-- The two WRITERS (`buy_crate`, `open_crate`) are the service role's alone: the Edge Function calls only them. Every
+-- helper is INTERNAL, revoked from the service role too: Supabase's default privileges grant EXECUTE on each new
+-- function in `public` to anon, authenticated AND service_role, so a revoke that leaves service_role out leaves it
+-- callable with the service key (precedent: guide_bookmark_counted in 2026-10-13-guides-community.sql). The writers are
+-- security definer and reach the helpers as the owner. `aether_apply` above all: callable, it would mint Aether.
+-- (The quote is internal too: the client prices from the TS `quoteCrate` and the server re-quotes inside `buy_crate`.)
+revoke all on function public.aether_apply(uuid, int, text, text) from public, anon, authenticated, service_role;
+revoke all on function public.progression_tiered_crate_pool(uuid, text, text[]) from public, anon, authenticated, service_role;
+revoke all on function public.progression_tiered_crate_pick(uuid, double precision, text, text[]) from public, anon, authenticated, service_role;
+revoke all on function public.aether_quote(uuid, text, text[], boolean) from public, anon, authenticated, service_role;
 revoke all on function public.progression_crate_json(public.loot_crates) from public, anon, authenticated;
 grant execute on function public.progression_crate_json(public.loot_crates) to service_role;
-revoke all on function public.progression_tiered_crate_pool(uuid, text, text[]) from public, anon, authenticated;
-grant execute on function public.progression_tiered_crate_pool(uuid, text, text[]) to service_role;
-revoke all on function public.progression_tiered_crate_pick(uuid, double precision, text, text[]) from public, anon, authenticated;
-grant execute on function public.progression_tiered_crate_pick(uuid, double precision, text, text[]) to service_role;
-revoke all on function public.aether_quote(uuid, text, text[], boolean) from public, anon, authenticated;
-grant execute on function public.aether_quote(uuid, text, text[], boolean) to service_role;
 revoke all on function public.open_crate(uuid, uuid, text[], int) from public, anon, authenticated;
 grant execute on function public.open_crate(uuid, uuid, text[], int) to service_role;
 revoke all on function public.buy_crate(uuid, text, text[], int, uuid) from public, anon, authenticated;

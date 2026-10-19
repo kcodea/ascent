@@ -102,6 +102,8 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
  * 2 = FIXED rarity odds first, then an item within that rarity (category weights), 2026-09-29.
  * 3 = FIXED rarity odds first, then an EQUAL chance for every eligible item of that rarity, 2026-09-29.
  * 4 = version 3 with FIVE rarities (Ancient above Legendary) at 35/31/22/9/3, 2026-10-02.
+ * 5 (pending, Task 6) = rarity floor + optional category focus; floor common with no focus is version 4 draw for draw.
+ *   The tiered pick lives in `crateShop.ts`; this constant is bumped together with the SQL parity test, not before.
  */
 export const CRATE_ROLL_VERSION = 4;
 
@@ -871,6 +873,11 @@ export interface CrateRow {
   /** Where a non-level crate came from (2026-09-29): `gauntlet:<stage>` for a first Gauntlet clear. Absent on a
    *  level crate (the SQL sends null; `parseCrate` drops it so level crates keep their exact shape). */
   source?: string;
+  /** The crate's rarity FLOOR (Aether era, 2026-10-18): nothing below it can drop. Absent = Common (every crate before the
+   *  Crate Shop, and an unfocused Standard crate). `parseCrate` drops it when the server sent none or an unknown value. */
+  floor?: CosmeticRarity;
+  /** The categories the crate was focused on at purchase (or at opening, for a milestone crate). Absent = unfocused. */
+  focus?: CosmeticCategory[];
 }
 
 /** A level crate's player-facing name. */
@@ -884,10 +891,40 @@ export function gauntletStageOfSource(source: string | null | undefined): number
   return m ? Number(m[1]) : null;
 }
 
-/** Any crate's player-facing name: a level crate keeps its `crateName`, a Gauntlet crate names its stage. */
-export function crateLabel(crate: { earnedLevel: number | null; source?: string | null }): string {
-  const stage = gauntletStageOfSource(crate.source);
-  if (crate.earnedLevel === null && stage !== null) return `Gauntlet Crate · Stage ${stage}`;
+/** A free Legendary crate for reaching every 10th level (Aether era): `milestone:<level>`, the level a multiple of 10. */
+const MILESTONE_SOURCE = /^milestone:([1-9][0-9]*0)$/;
+
+/** The milestone level a crate `source` names (`milestone:<n>`, n = 10, 20, 30, ...), or null. */
+export function milestoneLevelOfSource(source: string | null | undefined): number | null {
+  const m = typeof source === 'string' ? MILESTONE_SOURCE.exec(source) : null;
+  return m ? Number(m[1]) : null;
+}
+
+/** A Crate Shop purchase: `shop:<request id>`, the id the client sent (a UUID), so a retried buy finds its crate. */
+const SHOP_SOURCE = /^shop:[0-9a-f-]{36}$/;
+
+/** True for a crate bought in the Crate Shop. */
+export const isShopSource = (source: string | null | undefined): boolean => typeof source === 'string' && SHOP_SOURCE.test(source);
+
+/**
+ * The tier name a shop crate shows for its rarity floor: the rarity's own label, except that a Common floor is the
+ * STANDARD crate. `crateShop.ts` builds its `CRATE_TIER_LABELS` from this, so the shop and an owned crate cannot disagree
+ * (and `crateShop.ts` can import this file without a cycle).
+ */
+export const crateFloorLabel = (floor: CosmeticRarity): string => (floor === 'common' ? 'Standard' : RARITY_LABELS[floor]);
+
+/**
+ * Any crate's player-facing name: a level crate keeps its `crateName`, a Gauntlet crate names its stage, a milestone crate
+ * its level, a shop crate its tier (`floor` absent = Common = Standard).
+ */
+export function crateLabel(crate: { earnedLevel: number | null; source?: string | null; floor?: CosmeticRarity | null }): string {
+  if (crate.earnedLevel === null) {
+    const stage = gauntletStageOfSource(crate.source);
+    if (stage !== null) return `Gauntlet Crate · Stage ${stage}`;
+    const milestone = milestoneLevelOfSource(crate.source);
+    if (milestone !== null) return `Level ${milestone} Legendary Crate`;
+    if (isShopSource(crate.source)) return `${crateFloorLabel(crate.floor ?? 'common')} Crate`;
+  }
   return crateName(crate.earnedLevel ?? 1);
 }
 
@@ -913,8 +950,10 @@ export function parseCrate(v: unknown): CrateRow | null {
   const earnedLevel = int(o.earnedLevel ?? o.earned_level);
   const state = o.state;
   const source = str(o.source);
-  // A level crate needs a level >= 1; a crate without one must name a known source (a Gauntlet stage).
-  const levelOk = earnedLevel === null ? gauntletStageOfSource(source) !== null : earnedLevel >= 1;
+  // A level crate needs a level >= 1; a crate without one must name a known source (a Gauntlet stage, a milestone, a shop buy).
+  const levelOk = earnedLevel === null
+    ? gauntletStageOfSource(source) !== null || milestoneLevelOfSource(source) !== null || isShopSource(source)
+    : earnedLevel >= 1;
   if (!crateId || !levelOk || (state !== 'sealed' && state !== 'opened')) return null;
   const row: CrateRow = {
     crateId, earnedLevel, state,
@@ -923,6 +962,14 @@ export function parseCrate(v: unknown): CrateRow | null {
     openedAt: str(o.openedAt ?? o.opened_at),
   };
   if (source) row.source = source;
+  // Aether-era keys: only present when the server sent a valid value, so an old crate keeps its exact shape.
+  const floor = o.floor ?? o.floor_rarity;
+  if (typeof floor === 'string' && (COSMETIC_RARITIES as readonly string[]).includes(floor)) row.floor = floor as CosmeticRarity;
+  const focusRaw = o.focus ?? o.focus_categories;
+  if (Array.isArray(focusRaw)) {
+    const focus = focusRaw.filter((c): c is CosmeticCategory => typeof c === 'string' && (COSMETIC_CATEGORIES as readonly string[]).includes(c));
+    if (focus.length > 0) row.focus = focus;
+  }
   return row;
 }
 

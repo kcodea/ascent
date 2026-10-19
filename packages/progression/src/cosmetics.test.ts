@@ -3,7 +3,10 @@ import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, crateName, crateOddsLine,
   crateRarityFallback, eligibleCrateCosmetics, parseCrate, parseOpenCrateResult, pickCrateReward,
   rollCrateRarity, type CosmeticDef, HERO_TITLE_COSMETICS, HERO_TITLE_NAMES, heroMasterTitleId, heroTitleId, heroTitleInfo, isMasterTitle, titleShelf,
+  crateLabel, isShopSource, milestoneLevelOfSource,
 } from './cosmetics';
+import { CRATE_TIERS } from './aether';
+import { CRATE_TIER_FLOOR, CRATE_TIER_LABELS } from './crateShop';
 import { ACHIEVEMENT_HEROES, ACHIEVEMENT_INDEX } from './achievements';
 import { cratesEarnedThrough, cratesForSettlement, titleName, titlesForLevel } from './rules';
 
@@ -332,6 +335,45 @@ describe('parsing the server shapes', () => {
       .toEqual({ crateId: 'c-2', earnedLevel: 1, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null });
     expect(parseCrate({ ...crate, state: 'cracked' })).toBeNull();
     expect(parseCrate({ ...crate, earnedLevel: 0 })).toBeNull();
+  });
+  it('Aether-era crates: a milestone crate and a shop crate carry a floor and an optional focus', () => {
+    const base = { crateId: 'c-9', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null };
+    const milestone = parseCrate({ ...base, source: 'milestone:20', floor: 'legendary' })!;
+    expect(milestone).toEqual({ ...base, source: 'milestone:20', floor: 'legendary' });
+    expect(crateLabel(milestone)).toBe('Level 20 Legendary Crate');
+    expect(milestoneLevelOfSource('milestone:20')).toBe(20);
+    expect(milestoneLevelOfSource('milestone:100')).toBe(100);
+    expect(milestoneLevelOfSource('milestone:15')).toBeNull();
+    expect(milestoneLevelOfSource('milestone:0')).toBeNull();
+    expect(milestoneLevelOfSource('gauntlet:3')).toBeNull();
+    expect(milestoneLevelOfSource(null)).toBeNull();
+
+    const shopSource = 'shop:123e4567-e89b-12d3-a456-426614174000';
+    const shop = parseCrate({ ...base, source: shopSource, floor: 'epic' })!;
+    expect(shop).toEqual({ ...base, source: shopSource, floor: 'epic' });
+    expect(crateLabel(shop)).toBe('Epic Crate');
+    expect(crateLabel({ earnedLevel: null, source: shopSource, floor: 'common' })).toBe('Standard Crate');
+    expect(crateLabel({ earnedLevel: null, source: shopSource })).toBe('Standard Crate');
+    expect(isShopSource(shopSource)).toBe(true);
+    expect(isShopSource('shop:nope')).toBe(false);
+    expect(isShopSource(null)).toBe(false);
+
+    // snake_case table reads, a focus, and unknown values dropped.
+    expect(parseCrate({ crate_id: 'c-9', earned_level: null, state: 'sealed', source: shopSource, floor_rarity: 'rare', focus_categories: ['card_plate', 'bogus'] }))
+      .toMatchObject({ floor: 'rare', focus: ['card_plate'] });
+    expect(parseCrate({ ...base, source: shopSource, floor: 'mythic', focus: [] })).toEqual({ ...base, source: shopSource });
+
+    expect(parseCrate({ ...base, source: 'milestone:15', floor: 'legendary' })).toBeNull();
+    expect(parseCrate({ ...base, source: 'shop:short' })).toBeNull();
+  });
+  it('an old crate (no floor or focus) keeps its exact shape', () => {
+    const lvl = { crateId: 'c-1', earnedLevel: 3, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null };
+    expect(Object.keys(parseCrate({ ...lvl, floor: null, focus: null, floor_rarity: null, focus_categories: null })!)).toEqual(Object.keys(lvl));
+  });
+  it('the label a shop crate gets for its floor is the label the shop shows for the tier', () => {
+    for (const tier of CRATE_TIERS) {
+      expect(crateLabel({ earnedLevel: null, source: 'shop:123e4567-e89b-12d3-a456-426614174000', floor: CRATE_TIER_FLOOR[tier] })).toBe(`${CRATE_TIER_LABELS[tier]} Crate`);
+    }
   });
   it('an open result: opened / already_opened need a reward; pool_exhausted never has one', () => {
     expect(parseOpenCrateResult({ status: 'opened', crate, rewardId: 'title_ironbeard', sealedRemaining: 2 }))

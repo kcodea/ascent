@@ -6971,6 +6971,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'blur, the same as when that card is dragged over it. Right-click it: in Inspect the glass shows the dimmed '
       + 'board blurred, from the first frame.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/cardPlate/cardPlate.test.tsx'], lastVerifiedAt: '2026-10-19' },
+  },
   {
     id: 'R-PROG-AETHER-01',
     title: 'Aether is earned by playing, never bought: Ranked pays a base plus a placement bonus, Versus pays for the match, Gauntlet pays a first clear, Practice and Tutorial pay nothing',

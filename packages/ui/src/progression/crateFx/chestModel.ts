@@ -12,11 +12,50 @@
  * each cropped to its opaque box plus a few px, then both scaled by the SAME factor (840 / 1187) and saved as
  * webp q92 with full alpha. The numbers below are measured in the CROPPED masters' px (the `src` space); the model
  * converts them to texture px by `texture.width / srcW`, so re-exporting at another size needs no change here.
+ *
+ * THE TIER CHESTS (2026-10-19, tiered chest openings: each paid tier, Rare / Epic / Legendary / Ancient, opens with its
+ * own chest). Built the same way by `scripts/build-chest-art.mjs` from the owner's masters
+ * `C:\Users\micha\Desktop\Reference Art\Chests\<Tier> Chest Bottom.png` / `<Tier> Chest Top.png` (alpha box + 4 px,
+ * body to 840 wide, the lid by the body's factor, webp q92). The script prints the alpha-measured numbers (body box,
+ * baseY, the rim); the spike line, the keyhole box and the lid's attach point were measured from the art and checked on
+ * overlays. The spike line is where the spike's tip and the keyhole's centre agree. The keyhole box frames the dark
+ * opening with ~3 px of metal round it, as Standard's does, so the mask's soft edge isn't clipped. The lid's attach X
+ * is its centre line as the owner's own assembled `<Tier> Chest.png` places it over the spike; its attach Y is the
+ * lid's opaque bottom edge, so the lid sits ON the rim (lidOverlap 3) like Standard's. One exception: Legendary's notch
+ * is wider than its spike, so at the rim it shows a sliver of background either side; its attach Y (484) is the
+ * owner's assembly instead, 9 px lower, where the lid's trim covers that sliver. Epic's and Ancient's lids have NO
+ * notch (a pendant point hangs at the centre instead), so their spike tucks behind the lid until it opens.
  */
 import type { Texture } from 'pixi.js';
 
-/** The owner's chest, measured from the cropped masters (see the header). */
-export const CHEST_ART = {
+/** One chest's art and its anchors, in the cropped masters' px (see the header). */
+export interface ChestArt {
+  bodyUrl: string;
+  lidUrl: string;
+  /** Width of the cropped body master (the space the body numbers are in). */
+  bodySrcW: number;
+  /** The body's opaque left / right edges and its bottom (it stands on the pedestal here). */
+  bodyX0: number;
+  bodyX1: number;
+  baseY: number;
+  /** The top edge of the gold rim: where the lid sits and the seam light runs. */
+  rimY: number;
+  rimX0: number;
+  rimX1: number;
+  /** The lock spike's centre line (it pokes up through the lid's notch). The whole chest centres on it. */
+  spikeX: number;
+  /** The keyhole's box (its light mask is cut from the art inside it). */
+  keyhole: { x0: number; y0: number; x1: number; y1: number };
+  /** Width of the cropped lid master, and the lid's attach point: the bottom centre of its notch. */
+  lidSrcW: number;
+  lidAttachX: number;
+  lidAttachY: number;
+  /** The lid's bottom edge overlaps the rim by this much (src px), so no gap shows between them at rest. */
+  lidOverlap: number;
+}
+
+/** The owner's chest, measured from the cropped masters (see the header). The Standard chest. */
+export const CHEST_ART: ChestArt = {
   bodyUrl: 'collection/crate_body.webp',
   lidUrl: 'collection/crate_lid.webp',
   /** Width of the cropped body master (the space the body numbers are in). */
@@ -33,7 +72,43 @@ export const CHEST_ART = {
   lidSrcW: 1158, lidAttachX: 578.5, lidAttachY: 336,
   /** The lid's bottom edge overlaps the rim by this much (src px), so no gap shows between them at rest. */
   lidOverlap: 3,
-} as const;
+};
+
+/** The four paid tiers' chests (see the header for how each number was measured). */
+export const CHEST_TIER_ART: Readonly<Record<'rare' | 'epic' | 'legendary' | 'ancient', ChestArt>> = {
+  rare: {
+    bodyUrl: 'collection/chest_rare_body.webp', lidUrl: 'collection/chest_rare_lid.webp',
+    bodySrcW: 1677, bodyX0: 6, bodyX1: 1670, baseY: 812,
+    rimY: 57, rimX0: 22, rimX1: 1655,
+    spikeX: 838.5,
+    keyhole: { x0: 801, y0: 261, x1: 876, y1: 400 },
+    lidSrcW: 1643, lidAttachX: 821.5, lidAttachY: 468, lidOverlap: 3,
+  },
+  epic: {
+    bodyUrl: 'collection/chest_epic_body.webp', lidUrl: 'collection/chest_epic_lid.webp',
+    bodySrcW: 1676, bodyX0: 6, bodyX1: 1669, baseY: 796,
+    rimY: 71, rimX0: 23, rimX1: 1654,
+    spikeX: 838,
+    keyhole: { x0: 799, y0: 260, x1: 875, y1: 398 },
+    lidSrcW: 1628, lidAttachX: 814, lidAttachY: 476, lidOverlap: 3,
+  },
+  legendary: {
+    bodyUrl: 'collection/chest_legendary_body.webp', lidUrl: 'collection/chest_legendary_lid.webp',
+    bodySrcW: 1676, bodyX0: 6, bodyX1: 1669, baseY: 779,
+    rimY: 74, rimX0: 18, rimX1: 1658,
+    spikeX: 838,
+    keyhole: { x0: 799, y0: 252, x1: 876, y1: 386 },
+    lidSrcW: 1586, lidAttachX: 793, lidAttachY: 484, lidOverlap: 3,
+  },
+  ancient: {
+    bodyUrl: 'collection/chest_ancient_body.webp', lidUrl: 'collection/chest_ancient_lid.webp',
+    bodySrcW: 1678, bodyX0: 5, bodyX1: 1672, baseY: 793,
+    rimY: 73, rimX0: 20, rimX1: 1659,
+    spikeX: 839,
+    keyhole: { x0: 799, y0: 261, x1: 878, y1: 405 },
+    lidSrcW: 1636, lidAttachX: 819, lidAttachY: 484, lidOverlap: 3,
+  },
+};
 
 export interface ChestModel {
   kind: 'art' | 'painted';
@@ -65,9 +140,9 @@ export interface ChestModel {
   lidAtY: number;
 }
 
-/** The owner's art as a model (pure: reads only the textures' sizes). */
-export function artChestModel(body: Texture, lid: Texture, keyhole: Texture | null): ChestModel {
-  const A = CHEST_ART;
+/** The owner's art as a model (pure: reads only the textures' sizes). `art` = which chest; Standard by default. */
+export function artChestModel(body: Texture, lid: Texture, keyhole: Texture | null, art: ChestArt = CHEST_ART): ChestModel {
+  const A = art;
   const k = body.width / A.bodySrcW;
   const kl = lid.width / A.lidSrcW;
   return {

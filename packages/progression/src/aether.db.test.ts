@@ -44,6 +44,9 @@ const STUB = `
   grant usage on schema public to anon, authenticated, service_role;
   grant usage on schema auth to anon, authenticated, service_role;
   grant execute on function auth.uid() to anon, authenticated;
+  -- Hosted Supabase's default privileges: EXECUTE on every new function in public to all three API roles, so the ACL
+  -- test below proves the migration's revokes, not the stub's silence.
+  alter default privileges in schema public grant execute on functions to anon, authenticated, service_role;
 `;
 // Supabase grants table privileges to the API roles by default; RLS is what stands between them and the rows.
 const API_GRANTS = `grant select, insert, update, delete on all tables in schema public to anon, authenticated;`;
@@ -422,13 +425,14 @@ describe('the wallet, the ledger and the grants', () => {
     }
   });
 
-  it('clients can call none of it; aether_apply is internal even to the service role', async () => {
+  it('clients can call none of it; only the two writers belong to the service role, every helper is internal (even under the Supabase default EXECUTE grants)', async () => {
     const sigs: Array<[string, boolean]> = [
       ['public.buy_crate(uuid, text, text[], integer, uuid)', true],
       ['public.open_crate(uuid, uuid, text[], integer)', true],
-      ['public.aether_quote(uuid, text, text[], boolean)', true],
-      ['public.progression_tiered_crate_pool(uuid, text, text[])', true],
-      ['public.progression_tiered_crate_pick(uuid, double precision, text, text[])', true],
+      ['public.progression_crate_json(public.loot_crates)', true],
+      ['public.aether_quote(uuid, text, text[], boolean)', false],
+      ['public.progression_tiered_crate_pool(uuid, text, text[])', false],
+      ['public.progression_tiered_crate_pick(uuid, double precision, text, text[])', false],
       ['public.aether_apply(uuid, integer, text, text)', false],
     ];
     for (const [sig, svc] of sigs) {

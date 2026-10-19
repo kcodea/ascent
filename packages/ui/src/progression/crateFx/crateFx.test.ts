@@ -93,7 +93,7 @@ describe('rarity -> preset', () => {
     // Ancient's signature (owner pick 2026-10-02, "Time stops"): the only rarity that freezes
     expect(p.filter((x) => x.freezeMs > 0).map((x) => [x.rarity, x.signature])).toEqual([['ancient', 'timestop']]);
     expect(p.filter((x) => x.signature !== 'none').map((x) => x.rarity)).toEqual(['ancient']);
-    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0x8af5ff, colorCss: '#8af5ff', freezeMs: 650 });
+    expect(presetFor('ancient', CRATE_FX_DEFAULTS)).toMatchObject({ color: 0xf4eeff, colorCss: '#f4eeff', freezeMs: 650 });
   });
 
   it('the preset reads the tuned config', () => {

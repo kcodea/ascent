@@ -11,6 +11,7 @@ let userId: string | null = 'u-1';
 const equipCosmeticRemote = vi.fn(async () => ({ status: 'ok' as const, value: null, profile: profile({ revision: 9 }) }));
 const equipTitleRemote = vi.fn(async () => ({ status: 'ok' as const, value: null, profile: profile({ revision: 9 }) }));
 const openCrateRemote = vi.fn(async () => ({ status: 'error' as const, reason: 'nope' }));
+const buyCrateRemote = vi.fn(async () => ({ status: 'error' as const, reason: 'nope' }));
 
 vi.mock('../identity', () => ({ currentUserId: () => userId }));
 vi.mock('../remoteBoards', () => ({ remoteEnabled: () => true }));
@@ -19,6 +20,7 @@ vi.mock('./progressionRemote', async (orig) => ({
   equipCosmeticRemote: (...a: unknown[]) => equipCosmeticRemote(...(a as [])),
   equipTitleRemote: (...a: unknown[]) => equipTitleRemote(...(a as [])),
   openCrateRemote: (...a: unknown[]) => openCrateRemote(...(a as [])),
+  buyCrateRemote: (...a: unknown[]) => buyCrateRemote(...(a as [])),
 }));
 vi.mock('./progressionQueue', () => ({
   enqueuePendingProgression: () => null,
@@ -42,7 +44,7 @@ beforeEach(() => {
   S.resetDevUnlockAllForTests();
   S.resetProgressionForTests();
   userId = 'u-1';
-  equipCosmeticRemote.mockClear(); equipTitleRemote.mockClear(); openCrateRemote.mockClear();
+  equipCosmeticRemote.mockClear(); equipTitleRemote.mockClear(); openCrateRemote.mockClear(); buyCrateRemote.mockClear();
   S.adoptProgressionProfile('u-1', profile());
 });
 afterEach(() => {
@@ -68,6 +70,8 @@ describe('Unlock everything (dev)', () => {
     expect(await S.equipCosmetic('hero_attack', '', null)).toBe(true);
     expect(await S.equipTitle(notOwnedTitle.id)).toBe(true);
     expect(await S.openCrate('c-1')).toEqual({ status: 'error', reason: 'dev_unlock_all' });
+    expect(await S.buyCrate('rare', null, 200)).toEqual({ status: 'error', reason: 'dev_unlock_all' });
+    expect(buyCrateRemote).not.toHaveBeenCalled();
     expect(equipCosmeticRemote).not.toHaveBeenCalled();
     expect(equipTitleRemote).not.toHaveBeenCalled();
     expect(openCrateRemote).not.toHaveBeenCalled();

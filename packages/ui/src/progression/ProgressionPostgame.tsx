@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ALPHA_TESTER_TITLE_ID, levelProgress, type ProgressionResult } from '@game/progression';
 import { useGame } from '../store';
 import { cratesVisible, markProgressionPresented, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
-import { breakdownLines, xpText } from './progressionFormat';
+import { aetherText, breakdownLines, placeOrdinal, xpText } from './progressionFormat';
+import { AetherIcon } from './AetherIcon';
 import './achievements.css';
 
 /**
@@ -111,6 +112,8 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
   const sweeping = phase === 'fill1' || phase === 'fill2';
   const done = phase === 'done';
   const lines = breakdownLines(result);
+  // Null (Aether off) and a zero total (Practice / Tutorial with Aether on) both render nothing.
+  const aether = result.aether && result.aether.total > 0 ? result.aether : null;
   const unlockedAlpha = result.unlockedTitles.includes(ALPHA_TESTER_TITLE_ID);
   const reachedTwo = result.before.level < 2 && result.after.level >= 2;
   const cratesOn = useProgression(cratesVisible);
@@ -131,6 +134,21 @@ function SettledPanel({ result, reduced }: { result: ProgressionResult; reduced:
           <li key={l.key} className={`acctxp-line ${l.key}`}><span>{l.label}</span><b>{xpText(l.xp)}</b></li>
         ))}
       </ul>
+      {aether && (
+        <div className="acctxp-aether" aria-label="Aether earned">
+          <div className="acctxp-aether-head">
+            <span className="acctxp-aether-eyebrow">Aether</span>
+            <span className="acctxp-aether-total"><AetherIcon />{aetherText(aether.total)}</span>
+          </div>
+          <div className="acctxp-line"><span>Played</span><b>+{aether.base}</b></div>
+          {result.placement !== null && aether.placement > 0 && (
+            <div className="acctxp-line">
+              {/* Versus pays the winner, not a lobby place: "Win", never "1st place". */}
+              <span>{result.mode === 'versus' ? 'Win' : `${placeOrdinal(result.placement)} place`}</span><b>+{aether.placement}</b>
+            </div>
+          )}
+        </div>
+      )}
       <div className="acctxp-barrow">
         <span className={`acctxp-level${phase === 'levelup' || (done && crossed && animate) ? ' up' : ''}`} aria-label={`Level ${shown.level}`}>
           <span className="acctxp-level-l">Lv</span>{shown.level}

@@ -36,6 +36,12 @@ vi.mock('@supabase/supabase-js', () => ({
     }),
   }),
 }));
+/** The wallet re-read a paid clear asks for (2026-10-18), spied on; everything else in the store is real. */
+const refreshOwnProfile = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock('../progression/progressionStore', async (orig) => ({
+  ...(await orig<typeof import('../progression/progressionStore')>()),
+  refreshOwnProfile: () => refreshOwnProfile(),
+}));
 vi.mock('../identity', () => ({
   currentUserId: () => userId,
   currentIdentity: () => (userId ? { userId, displayName: 'Kev', anonymous, email: anonymous ? null : 'k@example.com' } : null),
@@ -47,7 +53,7 @@ const {
 const { clearGauntletClearQueue, pendingGauntletClears } = await import('./gauntletClearQueue');
 const { resetNewRewardsForTests, useNewRewards, syncNewRewards } = await import('../progression/newRewards');
 
-type Reward = { stage: number; crateId: string };
+type Reward = { stage: number; crateId: string | null; aether?: number };
 const flushGauntletAccount = (onReward: (r: Reward) => void) => flushWith((item, outcome) => settleGauntletClear(item, outcome, onReward));
 const crate = (stage: number) => ({ crate_id: `g-${stage}`, earned_level: null, state: 'sealed', reward_cosmetic_id: null, earned_at: null, opened_at: null, source: `gauntlet:${stage}` });
 /** A server that grants a crate the first time it hears of each stage, then answers replays. */
@@ -70,6 +76,7 @@ beforeEach(() => {
   userId = 'u-1';
   anonymous = false;
   invokeImpl = realServer;
+  refreshOwnProfile.mockClear();
 });
 
 describe('which store counts', () => {
@@ -131,7 +138,7 @@ describe('which store counts', () => {
 describe('the crate', () => {
   it('the first confirmed clear queues its crate once; a replay grants nothing', async () => {
     syncNewRewards('u-1');
-    const rewards: Array<{ stage: number; crateId: string }> = [];
+    const rewards: Reward[] = [];
     recordClear(1);
     await flushGauntletAccount((r) => rewards.push(r));
     expect(rewards).toEqual([{ stage: 1, crateId: 'g-1' }]);
@@ -153,6 +160,26 @@ describe('the crate', () => {
     recordClear(5);
     await flushGauntletAccount(() => {});
     expect(useNewRewards.getState().unseen.crates).toHaveLength(1);
+  });
+
+  it('AETHER (2026-10-18): a first clear that paid Aether (no crate) reports the Aether for the win screen and queues no crate', async () => {
+    syncNewRewards('u-1');
+    invokeImpl = async () => ({ data: { status: 'first_clear', crate: null, aether: 200 }, error: null });
+    const rewards: Reward[] = [];
+    recordClear(6);
+    await flushGauntletAccount((r) => rewards.push(r));
+    expect(rewards).toEqual([{ stage: 6, crateId: null, aether: 200 }]);
+    expect(useNewRewards.getState().unseen.crates).toHaveLength(0);
+    // The answer carries no profile: the wallet chip's balance is re-read once.
+    expect(refreshOwnProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it('a crate answer keeps its exact old shape (no Aether key) while Aether is 0', async () => {
+    const rewards: Reward[] = [];
+    recordClear(7);
+    await flushGauntletAccount((r) => rewards.push(r));
+    expect(rewards).toStrictEqual([{ stage: 7, crateId: 'g-7' }]);
+    expect(refreshOwnProfile).not.toHaveBeenCalled(); // nothing paid, no re-read
   });
 
   it('an offline clear stays queued and still counts as cleared', async () => {

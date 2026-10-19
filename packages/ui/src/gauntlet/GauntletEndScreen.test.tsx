@@ -21,6 +21,7 @@ import { mount, type Mounted } from '../renderedText.mount';
 import { useGame } from '../store';
 import { GAUNTLET_LOCAL_KEY } from './gauntletProgress';
 import { GauntletEndScreen } from './GauntletEndScreen';
+import { resetProgressionForTests, useProgression } from '../progression/progressionStore';
 
 const minion = { cardId: 'alley', attack: 1, health: 1, cardVersion: 'x' };
 const stage = (number: number, status: 'ready' | 'draft', filledRounds: number): GauntletStage => ({
@@ -52,6 +53,7 @@ const RESET = { gauntletResult: null, gauntletReward: null, gauntletSaving: null
 
 beforeEach(() => {
   localStorage.clear();
+  resetProgressionForTests();
   stages.clear();
   resetIdentityForTests();
   for (const f of [startGauntlet, openTitle, openCollection, openAccountPanel]) f.mockReset();
@@ -190,6 +192,56 @@ describe('GauntletEndScreen', () => {
       expect(m.container.textContent).not.toContain('Crate!');
       button('Sign in')!.click();
       expect(openAccountPanel).toHaveBeenCalledTimes(1);
+    });
+
+    describe('with Aether on (2026-10-18: a first clear pays 200 Aether instead of a crate)', () => {
+      const aetherOn = (): void => { useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: 'on' }); };
+
+      it('first clear with Aether shows +200 Aether', () => {
+        signIn();
+        aetherOn();
+        clearedStage1(true);
+        useGame.setState({ gauntletReward: { stage: 1, crateId: null, aether: 200 } });
+        m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+        expect(rewardBox()?.textContent).toContain('+200 Aether');
+        expect(rewardBox()?.querySelector('.colls-crate')).toBeNull();
+        expect(m.container.textContent).not.toContain('Crate!');
+        expect(button('Open in Collection')).toBeUndefined();
+        expect(m.container.querySelector('[title]')).toBeNull();
+      });
+
+      it('Aether for ANOTHER stage, or on a replay, is never shown for this clear', () => {
+        signIn();
+        aetherOn();
+        clearedStage1(true);
+        useGame.setState({ gauntletReward: { stage: 4, crateId: null, aether: 200 } });
+        m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+        expect(rewardBox()).toBeNull();
+        m.unmount();
+        clearedStage1(false);
+        useGame.setState({ gauntletReward: { stage: 1, crateId: null, aether: 200 } });
+        m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+        expect(rewardBox()).toBeNull();
+      });
+
+      it('signed out: "Sign in to earn Aether from Gauntlet clears."', () => {
+        aetherOn();
+        clearedStage1(true);
+        m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+        expect(rewardBox()?.textContent).toContain('Sign in to earn Aether from Gauntlet clears.');
+        expect(m.container.textContent).not.toContain('earn crates');
+        button('Sign in')!.click();
+        expect(openAccountPanel).toHaveBeenCalledTimes(1);
+      });
+
+      it('a deferred save promises Aether, not a crate', () => {
+        signIn();
+        aetherOn();
+        clearedStage1(true);
+        useGame.setState({ gauntletSaving: 1, gauntletSaveDeferred: 1 });
+        m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
+        expect(rewardBox()?.textContent).toBe("Clear saved. Your Aether arrives when you're back online.");
+      });
     });
 
     it('a defeat shows no reward in any mode', () => {

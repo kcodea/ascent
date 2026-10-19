@@ -23,12 +23,17 @@
  * mirror carries the owned cosmetics and the loadout. `catalogEpoch` moves whenever the SERVER's kill switch is
  * (re)read (`refreshServerCatalog`), so every skin renderer re-resolves; the last answer is cached so an offline
  * client still honours a retire it has already seen.
+ *
+ * AETHER + THE CRATE SHOP (2026-10-18): `aetherCapability` is a third flag (probed right after crates; the shop shows
+ * only while `aetherVisible`), `economy` is the live `aether_config` document (the bundled default until read; the
+ * server prices every purchase regardless), and the balance rides the mirror (`ProgressionProfile.aether`, adopted
+ * with the profile like XP). `buyCrate` is the shop's one purchase call, interactive and never queued.
  */
 import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import { addSeen, adoptAccountSeen, ensureSeenBaseline } from './collectionSeen';
 import {
-  COSMETICS, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
+  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, INVENTORY_ERROR_STATUS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -36,7 +41,7 @@ import {
   enqueuePendingProgression, flushPendingProgressions, installProgressionRetryTriggers, type PendingProgression,
 } from './progressionQueue';
 import {
-  equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
+  buyCrateRemote, equipCosmeticRemote, equipTitleRemote, fetchAchievementsEnabled, fetchAetherEconomy, fetchAetherEnabled, fetchCratesEnabled, fetchOwnCrates, fetchOwnProgression, fetchProgressionEnabled, fetchSeenCosmeticIds, fetchServerCatalogState, markCosmeticsSeenRemote, openCrateRemote, progressionRequestFor,
   type ProgressionSubmitOutcome,
 } from './progressionRemote';
 
@@ -69,6 +74,11 @@ interface ProgressionStore {
   /** ACHIEVEMENTS (2026-09-28): `on` once the owner set `achievements_epoch`. Shows the Career tab and the post-game
    *  "Achievement unlocked" rows, and makes a settlement carry its run metrics (V2 facts). */
   achievementsCapability: ProgressionCapability;
+  /** AETHER (2026-10-18): `on` once the Aether migration has run and `aether_enabled` is on. The Crate Shop, the Aether
+   *  balance chip and the milestone-crate focus show only while this AND crates are on (`aetherVisible`). */
+  aetherCapability: ProgressionCapability;
+  /** The live Aether economy (prices, focus fee table, rewards). The bundled default until the server's row is read. */
+  economy: AetherEconomy;
   /** THE COLLECTION'S SEEN LIST as last answered from outside the page: the ids the ACCOUNT has looked at (read from
    *  the server), or, on a server from before the seen migration, the baseline this device just took. Null until
    *  one of those lands. The Collection lays it over its own snapshot, so the answer shows the moment it arrives. */
@@ -116,6 +126,8 @@ export const useProgression = create<ProgressionStore>(() => ({
   crateList: null,
   catalogEpoch: 0,
   achievementsCapability: 'unknown',
+  aetherCapability: 'unknown',
+  economy: DEFAULT_AETHER_ECONOMY,
   seenKnown: null,
 }));
 
@@ -137,7 +149,10 @@ export function mirrorFor(userId: string | null | undefined, mirror: Progression
 export function adoptProgressionProfile(userId: string, profile: ProgressionProfile): boolean {
   const cur = useProgression.getState().mirror;
   if (cur && cur.userId === userId && profile.revision < cur.revision) return false;
-  const next: ProgressionMirror = { ...profile, userId };
+  // A profile that does not CARRY the balance (a pre-Aether server, an unreadable wallet, a plain reader) must not wipe
+  // it: keep the one this same account already had. A profile that carries `aether` (0 included) always wins.
+  const keepAether = profile.aether === undefined && cur && cur.userId === userId && cur.aether !== undefined ? { aether: cur.aether } : {};
+  const next: ProgressionMirror = { ...profile, ...keepAether, userId };
   saveMirror(next);
   useProgression.setState({ mirror: next });
   return true;
@@ -242,6 +257,10 @@ export function probeProgression(): Promise<void> {
     // The achievements probe: its own switch (the owner flips it after deploying the Edge Function).
     const ach = await fetchAchievementsEnabled();
     if (ach !== undefined) useProgression.setState({ achievementsCapability: ach ? 'on' : 'off' });
+    // The Aether probe: its own switch, read from the same row as crates. Unanswerable keeps what it had.
+    const aether = await fetchAetherEnabled();
+    if (aether !== undefined) useProgression.setState({ aetherCapability: aether ? 'on' : 'off' });
+    if (aether) await refreshEconomy();
     await seenRead;
   };
   const p = run().catch(() => { /* never throws */ }).finally(() => { if (probing === p) probing = null; });
@@ -305,6 +324,27 @@ export const achievementsVisible = (s: Pick<ProgressionStore, 'capability' | 'ac
 /** Crates and the Collection are visible: progression is on AND the crates migration is live. */
 export const cratesVisible = (s: Pick<ProgressionStore, 'capability' | 'cratesCapability'>): boolean => s.capability === 'on' && s.cratesCapability === 'on';
 
+/** The Crate Shop is visible: crates are visible AND the Aether migration is live and switched on. */
+export const aetherVisible = (s: Pick<ProgressionStore, 'capability' | 'cratesCapability' | 'aetherCapability'>): boolean => cratesVisible(s) && s.aetherCapability === 'on';
+
+/** This account's Aether balance (the live account's mirror), 0 when there is none yet or it is another account's. */
+export const aetherBalance = (s: Pick<ProgressionStore, 'mirror'>): number => mirrorFor(currentUserId(), s.mirror)?.aether ?? 0;
+
+/** Re-read the live Aether economy. Never throws; an unanswerable or unparseable read keeps the economy as it was. */
+export async function refreshEconomy(): Promise<void> {
+  const economy = await fetchAetherEconomy().catch(() => undefined);
+  if (economy) useProgression.setState({ economy });
+}
+
+/** Re-read this account's own profile (it carries the Aether balance) and adopt it: a Gauntlet clear pays Aether
+ *  without answering a profile. Never throws; an unanswerable read, or an account switch meanwhile, changes nothing. */
+export async function refreshOwnProfile(): Promise<void> {
+  const userId = currentUserId();
+  if (!userId) return;
+  const profile = await fetchOwnProgression().catch(() => undefined);
+  if (profile && currentUserId() === userId) adoptProgressionProfile(userId, profile);
+}
+
 /** Re-read this account's crates. Never throws; an unanswerable read keeps the list as it was. */
 export async function refreshCrates(): Promise<void> {
   if (!currentUserId()) return;
@@ -323,13 +363,73 @@ function mergeCrate(crate: CrateRow): void {
   useProgression.setState({ crateList: next });
 }
 
-/** Open one crate through the server. The reward (or `pool_exhausted`) comes back; the profile is adopted. */
-export async function openCrate(crateId: string): Promise<CrateOpenOutcome> {
+/**
+ * Open one crate through the server. The reward (or `pool_exhausted`) comes back; the profile is adopted. A MILESTONE
+ * crate may be focused at the opening: pass the ticked `focus` and the `expectedFee` the player was shown.
+ */
+export async function openCrate(crateId: string, focus?: CosmeticCategory[] | null, expectedFee?: number): Promise<CrateOpenOutcome> {
   if (import.meta.env.DEV && devUnlockAllOn()) return { status: 'error', reason: 'dev_unlock_all' };
   const userId = currentUserId();
   if (!userId) return { status: 'error', reason: 'no_session' };
-  const out = await openCrateRemote(crateId).catch((e: unknown) => ({ status: 'error' as const, reason: String((e as Error)?.message ?? e) }));
+  const out = await openCrateRemote(crateId, focus, expectedFee).catch((e: unknown) => ({ status: 'error' as const, reason: String((e as Error)?.message ?? e) }));
   if (out.status !== 'ok') return out;
+  adoptProgressionProfile(userId, out.profile);
+  mergeCrate(out.value.crate);
+  return { status: 'ok', result: out.value };
+}
+
+export type BuyCrateOutcome = { status: 'ok'; result: BuyCrateResult } | { status: 'error'; reason: string };
+
+/** A fresh request id for ONE purchase (its retries reuse it). UI-side randomness (Math.random is banned only in
+ *  core/content/sim); the fallback covers an embedded runtime without `crypto.randomUUID` and is still a valid RFC 4122
+ *  v4 id. */
+export function mintRequestId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  } catch { /* fall through */ }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
+    const r = Math.floor(Math.random() * 16);
+    return (ch === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
+/** Refusals raised on THIS device before anything was sent: the server cannot have charged. */
+const NEVER_SENT: ReadonlySet<string> = new Set(['no_session', 'no_backend', 'dev_unlock_all']);
+
+/**
+ * Is this failed purchase a DEFINITE answer (final review 2026-10-19)? Yes for the server's 4xx refusals
+ * (`INVENTORY_ERROR_STATUS` below 500: bad_*, price_changed, insufficient_aether, sold_out, focus_not_allowed,
+ * aether_disabled, ...) and for a refusal that never left this device: nothing was charged. NO for a timeout, a network
+ * error, a 5xx (`aether_config_missing` included) or an answer that did not parse: the server may have committed the
+ * purchase, so a retry must reuse the SAME request id (a replay answers `already_opened` with the reward, never a
+ * second charge).
+ */
+export function isDefiniteBuyFailure(reason: string): boolean {
+  if (NEVER_SENT.has(reason)) return true;
+  const status = INVENTORY_ERROR_STATUS[reason];
+  return status !== undefined && status < 500;
+}
+
+/**
+ * BUY AND OPEN a crate through the server (the Crate Shop's one purchase call). The client names a tier, a focus, the
+ * total it showed and a request id (a replay of that id never charges twice); the server prices, charges and rolls.
+ * `requestId` is the caller's when it is RETRYING a purchase whose answer never came (`isDefiniteBuyFailure`); absent, a
+ * fresh one is minted. On success the profile (with the new balance) is adopted and the opened crate joins the list.
+ * Every failure comes back as an error outcome and nothing is retried here; a `price_changed` also re-reads the economy
+ * so the shop re-quotes at the new price, and a failure that is NOT definite re-reads the balance and the crates (the
+ * purchase may have landed), so what the player sees is true before they try again.
+ */
+export async function buyCrate(tier: CrateTier, focus: CosmeticCategory[] | null, expectedTotal: number, requestId: string = mintRequestId()): Promise<BuyCrateOutcome> {
+  if (import.meta.env.DEV && devUnlockAllOn()) return { status: 'error', reason: 'dev_unlock_all' };
+  const userId = currentUserId();
+  if (!userId) return { status: 'error', reason: 'no_session' };
+  const out = await buyCrateRemote({ tier, focus, expectedTotal, requestId }).catch((e: unknown) => ({ status: 'error' as const, reason: String((e as Error)?.message ?? e) }));
+  if (out.status !== 'ok') {
+    if (out.reason === 'price_changed') await refreshEconomy();
+    // Not awaited: the shop shows its message now; the wallet and the bay follow when the reads land.
+    if (!isDefiniteBuyFailure(out.reason)) { void refreshOwnProfile(); void refreshCrates(); }
+    return out;
+  }
   adoptProgressionProfile(userId, out.profile);
   mergeCrate(out.value.crate);
   return { status: 'ok', result: out.value };
@@ -500,7 +600,7 @@ export function resetProgressionForTests(): void {
   try { localStorage.removeItem(PRESENTED_KEY); localStorage.removeItem(MIRROR_KEY); } catch { /* ignore */ }
   try { localStorage.removeItem(SERVER_CATALOG_KEY); } catch { /* ignore */ }
   setServerCatalogState(null);
-  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', seenKnown: null });
+  useProgression.setState({ capability: 'unknown', mirror: null, current: null, cratesCapability: 'unknown', crateList: null, catalogEpoch: 0, achievementsCapability: 'unknown', aetherCapability: 'unknown', economy: DEFAULT_AETHER_ECONOMY, seenKnown: null });
   seenAccount = null;
   seenOnServer.clear();
 }

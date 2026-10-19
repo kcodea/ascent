@@ -13004,6 +13004,16 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .acctxp.animated .acctxp-line:nth-child(2) { animation-delay: 0.06s; }
 .acctxp.animated .acctxp-line:nth-child(3) { animation-delay: 0.12s; }
 .acctxp.animated .acctxp-line:nth-child(4) { animation-delay: 0.18s; }
+/* Aether earned (Aether + Crate Shop): same rows as the XP lines. In an animated panel it fades in with the `done`
+   phase; OPACITY ONLY (compositor), one-shot. A static/reduced-motion panel is simply there. */
+/* THE AETHER ICON (owner art 2026-10-19, `progression/AetherIcon.tsx`): the crystal sized to the text it sits in. */
+.aether-icon { display: inline-block; width: 1.25em; height: 1.25em; margin-right: 0.2em; vertical-align: -0.28em; object-fit: contain; pointer-events: none; user-select: none; }
+.acctxp-aether { display: flex; flex-direction: column; gap: 3px; padding-top: 8px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
+.acctxp-aether-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.acctxp-aether-eyebrow { font-weight: 900; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #e8c877; }
+.acctxp-aether-total { font-weight: 900; font-size: 22px; line-height: 1; font-variant-numeric: tabular-nums; color: #9fd4ff; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8); }
+.acctxp.animated .acctxp-aether { opacity: 0; transition: opacity 0.35s ease-out; }
+.acctxp.animated.done .acctxp-aether { opacity: 1; }
 .acctxp-barrow { display: flex; align-items: center; gap: 12px; }
 .acctxp-level, .cv2-acctlevel-badge { display: inline-flex; align-items: baseline; justify-content: center; min-width: 58px; padding: 4px 10px; border-radius: 999px;
   background: linear-gradient(180deg, #f0d089, #c99d4e); border: 1.5px solid #8a6428; color: #1a1206; font-weight: 900; font-size: 20px; line-height: 1.1;
@@ -14251,6 +14261,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gauntletend-crate-body { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .gauntletend-crate-head { font-family: var(--font-ui); font-weight: 900; font-size: 26px; letter-spacing: 0.06em; text-transform: uppercase; color: #ffe08a; }
 .gauntletend-crate-note { font-family: var(--font-ui); font-weight: 700; font-size: 18px; color: rgba(255, 246, 228, 0.86); }
+/* Aether on (2026-10-18): a first clear pays Aether instead of a crate, so the gem stands where the crate art was. Static. */
+.gauntletend-aether-gem.aether-icon { width: 64px; height: 64px; margin-right: 0; vertical-align: middle; }
 .gauntletend-actions { display: flex; align-items: center; justify-content: center; gap: 24px; }
 .gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 .gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }

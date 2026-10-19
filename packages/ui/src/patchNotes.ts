@@ -58,6 +58,21 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-19',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Crates are now bought with Aether, a new currency you earn from Ranked and Versus games.',
+        details: [
+          'Ranked pays 50 Aether per game, win or lose, plus a placement bonus: 1st +140, 2nd +80, 3rd +45, 4th +35, 5th +25, 6th +15, 7th +10.',
+          'Versus pays 25 Aether per match, and 45 more if you win.',
+          'Practice games do not pay Aether.',
+          'The first time you clear a Gauntlet stage it pays 200 Aether. Stages you cleared before this update do not pay Aether.',
+          'There are five crates: Standard 100, Rare 200, Epic 400, Legendary 600 and Ancient 900 Aether. Each one guarantees its rarity or better.',
+          'You can focus a crate on the categories you want. The fewer categories you pick, the more it costs, from +100% of the crate price for one category down to +5%. Ticking everything is free.',
+          'Levels no longer give a crate each. Instead, every 10 levels you get a free Legendary crate, and existing players get the ones they have already passed.',
+          'You choose a free crate\'s focus when you open it on its own. Open all leaves these free crates for you to open one by one.',
+          'Sealed crates you already have still open as before.',
+        ],
+      },
       { category: 'Systems', text: 'The Simple Glass Card Plate is now real frosted glass: a light grey pane that softly blurs whatever is behind the card.' },
       { category: 'Systems', text: 'Nothing flashes over the blue curtain between the Shop and combat any more.', details: ['Effects and pop-ups that used to poke through it (the Rebirth flame, the rune lock-in, tutorial tips, emotes, screen flashes) now stay hidden behind it until the new screen is revealed.', 'The Esc menu and the replay controls still show on top if they are open.'] },
       { category: 'Systems', text: 'Many Card Plates changed rarity, so more of them drop from crates.', details: ['Now Rare: Hand Drawn, Blue Hand Drawn, Green Hand Drawn, Smooth Aqua, Smooth Blue, Smooth Red, Beach, Magma, Bamboo, Aquarium Rocks and Amethyst.', 'Now Epic: Iridescent, Smooth Iridescent, Galaxy, Chrome, Topaz, Crackling Gemstone, Carved Aetherstone, Honey, Goop, White Magic and Runic.', 'Now Ancient: Frozen Aurora, The Howl and Nano.'] },

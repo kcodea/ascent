@@ -29,3 +29,10 @@ The drag was my own deeper flat tint (blur off, `rgba(14, 18, 28, 0.72)`); Inspe
 Owner: *"i like the lighter grey hover effect more and want to get it closer to that at all times. maybe increase the
 amount of blur a bit"*. Now: a frosted grey layer `rgba(138, 144, 156, 0.6)` (strong enough that what is behind only
 colours it), blur 6px to 10px, and the drag state keeps the same grey (only the blur is dropped).
+
+Then *"can you reduce the opacity of the light grey by 60% and increase the blur by 50%"*: grey 0.6 to 0.24, blur 10px to 15px.
+
+Then *"can you have it apply the blur while moving ?"*: the drag layer (`.dragcard`) carries a `filter: drop-shadow`, which
+makes it a backdrop root, so a blur inside it sees nothing behind the card. A dragged GLASS card (`.dragcard:has(.plate-frosted)`)
+now drops that filter and puts the same drop-shadow on its `.plate-frame` instead, so the blur stays on while it moves.
+Cost: one re-blur per frame for that card while dragged.

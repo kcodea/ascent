@@ -95,14 +95,15 @@ describe('the card plate a card wears', () => {
     expect(el.querySelector('img.descbox')).toBeNull();
     // No other plate is frosted.
     for (const look of Object.values(CARD_PLATE_LOOKS)) expect(!!look.frosted, look.id).toBe(look.id === 'plate_simple_glass');
-    // The stylesheet blurs and tints it, hides the image's own pixels, and drops the blur on a dragged card.
+    // The stylesheet blurs and tints it and hides the image's own pixels.
     const css = readFileSync(join(__dirname, '../styles.css'), 'utf8');
     const rule = css.slice(css.indexOf('.card.plated .cardplate.plate-interior.plate-frosted {'));
     expect(rule.slice(0, rule.indexOf('}'))).toMatch(/backdrop-filter: blur\(\d+px\)[\s\S]*mask: var\(--plate-frost-mask\)/);
-    expect(css).toMatch(/\.dragcard \.card\.plated \.cardplate\.plate-interior\.plate-frosted \{[^}]*backdrop-filter: none/);
-    // ...but keeps the SAME grey: a darker drag-only tint read as a different plate (owner 2026-10-19).
-    const drag = css.slice(css.indexOf('.dragcard .card.plated .cardplate.plate-interior.plate-frosted {'));
-    expect(drag.slice(0, drag.indexOf('}'))).not.toMatch(/background/);
+    // ...and it blurs WHILE DRAGGED too (owner 2026-10-19: "can you have it apply the blur while moving ?"): the drag layer's
+    // drop-shadow filter would block the blur, so a dragged glass card drops it and shadows its frame instead.
+    expect(css).not.toMatch(/\.dragcard[^{]*plate-frosted[^{]*\{[^}]*backdrop-filter: none/);
+    expect(css).toMatch(/\.dragcard:has\(\.plate-frosted\) \{ filter: none; \}/);
+    expect(css).toMatch(/\.dragcard:has\(\.plate-frosted\) \.plate-frame \{ filter: drop-shadow\(/);
   });
 
   it('every plate that sat on Brown wears Dark Brown with no darkening (owner 2026-10-18)', () => {

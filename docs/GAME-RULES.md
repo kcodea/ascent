@@ -921,6 +921,8 @@ kept), and a Gauntlet first clear pays Aether instead of a crate.
   crate**; other levels grant no crate. When Aether launches, every multiple of 10 at or below your level is granted at
   once, once each (a Level 37 account receives three). A milestone crate opens unfocused for free, or you can **focus it
   when you open it** and pay the Legendary focus fee from the table above (60% of 600 for two categories, for example).
+  Milestone crates are opened **one at a time**, each through its focus step: **Open all** opens your other sealed
+  crates and leaves milestone crates sealed for you.
 - **Crates you already hold.** Sealed crates earned before Aether launched are kept and open exactly as before (no
   floor, no focus, no fee).
 

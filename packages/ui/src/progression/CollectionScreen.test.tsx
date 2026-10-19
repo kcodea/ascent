@@ -751,37 +751,81 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
     expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
   });
 
-  it('Open all on a milestone crate opens it unfocused (a free crate opened in bulk)', async () => {
+  // RULING 2026-10-19 (revising "a free crate opened in bulk"): every milestone crate is opened one at a time through its
+  // focus step; Open all skips them.
+  it('Open all on [milestone, level] opens only the level crate; the milestone crate stays sealed for its focus step', async () => {
     open({ aether: 1200 }, { aether: true, crates: [milestone, { ...crateList[1]! }] });
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
-    act(() => button('Open all (2)')!.click());
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
+    act(() => button('Open all (1)')!.click());
     await settle();
     expect($('.colls-shop.milestone')).toBeNull();
-    expect(openCrateRemote.mock.calls[0]).toStrictEqual(['c-m10']); // the plain open: no focus, no fee
+    expect($('.crth')).not.toBeNull();
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
+    expect([...document.querySelectorAll<HTMLButtonElement>('.crth button')].some((b) => b.textContent?.startsWith('Open next'))).toBe(false);
   });
 
-  it('the New rewards pop-up\'s Open opens a milestone crate unfocused, never the focus step', async () => {
+  it('Open all on [level, milestone] opens only the level crate', async () => {
+    open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone] });
+    expect(button('Open all (2)')).toBeUndefined();
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
+    act(() => button('Open all (1)')!.click());
+    await settle();
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
+    act(() => button('Done')!.click());
+    // The milestone crate is still sealed, and the next Open is its focus step.
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Crate');
+    act(() => button('Open')!.click());
+    expect($('.colls-shop.milestone')).not.toBeNull();
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
+  });
+
+  it("the New rewards pop-up's Open is the bay's: a milestone crate first gets its focus step", async () => {
     resetNewRewardsForTests();
     queueNewCrate('u-1', milestone);
     open({ aether: 1200 }, { aether: true, crates: [milestone] });
     expect($('.nrw-panel')).not.toBeNull();
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_wanderer', 2, 0), profile: profile({ revision: 10 }) });
     act(() => ($('.nrw-panel .crate-btn') as HTMLButtonElement).click());
     await settle();
-    expect($('.colls-shop.milestone')).toBeNull();
-    expect(openCrateRemote.mock.calls[0]).toStrictEqual(['c-m10']);
-    expect($('.crth')).not.toBeNull();
+    expect($('.nrw-panel')).toBeNull();
+    expect($('.colls-shop.milestone')).not.toBeNull();
+    expect($('.crth')).toBeNull();
+    expect(openCrateRemote).not.toHaveBeenCalled();
     resetNewRewardsForTests();
   });
 
-  it('Open all opens every sealed crate unfocused, milestone crates included, as today', async () => {
-    open({ aether: 1200 }, { aether: true, crates: [milestone, { ...milestone, crateId: 'c-m20', source: 'milestone:20' }] });
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
-    act(() => button('Open all (2)')!.click());
+  it("the New rewards pop-up's Open all skips milestone crates, and is not offered when every crate is one", async () => {
+    resetNewRewardsForTests();
+    const m20: CrateRow = { ...milestone, crateId: 'c-m20', source: 'milestone:20' };
+    queueNewCrate('u-1', milestone);
+    queueNewCrate('u-1', m20);
+    open({ aether: 1200 }, { aether: true, crates: [milestone, m20] });
+    expect($('.nrw-panel')).not.toBeNull();
+    expect([...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].some((b) => b.textContent?.startsWith('Open all'))).toBe(false);
+    act(() => ($('.nrw-panel .crate-btn') as HTMLButtonElement).click());
     await settle();
-    expect($('.colls-shop.milestone')).toBeNull();
-    expect(openCrateRemote).toHaveBeenCalledWith('c-m10');
-    expect($('.crth')).not.toBeNull();
+    expect($('.colls-shop.milestone')).not.toBeNull(); // the single Open: the first milestone crate's focus step
+    expect(openCrateRemote).not.toHaveBeenCalled();
+    ui!.unmount();
+    // A level crate beside a milestone crate: Open all opens the level crate only.
+    resetNewRewardsForTests();
+    queueNewCrate('u-1', milestone);
+    queueNewCrate('u-1', crateList[1]!);
+    open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone] });
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
+    const all = [...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].find((b) => b.textContent === 'Open all (1)')!;
+    act(() => all.click());
+    await settle();
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
+    resetNewRewardsForTests();
+  });
+
+  it('every sealed crate a milestone crate: no Open all; the single Open leads to the focus step', async () => {
+    open({ aether: 1200 }, { aether: true, crates: [milestone, { ...milestone, crateId: 'c-m20', source: 'milestone:20' }] });
+    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 10 Legendary Crate');
+    expect([...document.querySelectorAll<HTMLButtonElement>('.colls-bay button')].some((b) => b.textContent?.startsWith('Open all'))).toBe(false);
+    act(() => button('Open')!.click());
+    expect($('.colls-shop.milestone')).not.toBeNull();
+    expect(openCrateRemote).not.toHaveBeenCalled();
   });
 
   it("the bay names the next milestone level, and its odds are the first sealed crate's", () => {

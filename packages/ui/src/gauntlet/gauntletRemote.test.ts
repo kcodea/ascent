@@ -110,12 +110,16 @@ describe('fetchOwnCrates reads `source`', () => {
     expect(selects[0]!.columns).toContain('source');
     expect(list).toEqual([expect.objectContaining({ crateId: 'g-1', source: 'gauntlet:2' })]);
   });
-  it('before the migration adds the column (42703 / PGRST204) it retries once without it, so level crates still load', async () => {
+  // Since the Aether columns (2026-10-18) the read steps down one shape at a time: full, then `source` only, then the base.
+  it('before the migration adds the column (42703 / PGRST204) it steps down until a shape without it loads, so level crates still load', async () => {
     const level = { ...crate, crate_id: 'l-2', earned_level: 2, source: undefined };
     tableImpl = (_t, cols) => (cols.includes('source') ? { data: null, error: { code: '42703' } } : { data: [level], error: null });
     expect(await fetchOwnCrates()).toEqual([expect.objectContaining({ crateId: 'l-2', earnedLevel: 2 })]);
-    expect(selects).toHaveLength(2);
-    expect(selects[1]!.columns).not.toContain('source');
+    expect(selects).toHaveLength(3);
+    expect(selects[0]!.columns).toContain('floor_rarity');
+    expect(selects[1]!.columns).toContain('source');
+    expect(selects[1]!.columns).not.toContain('floor_rarity');
+    expect(selects[2]!.columns).not.toContain('source');
   });
   it('any other error is still "could not ask" (no retry)', async () => {
     tableImpl = () => ({ data: null, error: { code: '57014' } });

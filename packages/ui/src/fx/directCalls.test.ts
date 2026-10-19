@@ -237,13 +237,15 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
     ]);
   });
 
+  // 30s, not vitest's 5s default: this imports every primitive and every FX def, which takes ~3.3s alone on a dev box and
+  // passed 5s on loaded CI shards (2026-10-18: it failed main twice and blocked every PR's `verify`).
   it('names every def it lists as one that actually exists', async () => {
     await import('./primitives');
     const { listDefs } = await import('./fxDefs');
     const known = new Set(listDefs().map((d) => d.id));
     const missing = directCallDefIds().filter((id) => !known.has(id));
     expect(missing, `code plays defs that do not exist: ${missing.join(', ')}`).toEqual([]);
-  });
+  }, 30_000);
 });
 
 describe('directCallSites', () => {

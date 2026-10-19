@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-18',
     changes: [
+      { category: 'Systems', text: 'In the Collection, Portrait Frame and Card Plate tiles now show their rarity and name on a dark band, like the minion skins, so they are easy to read.' },
       {
         category: 'Systems',
         text: 'Fixed the game closing itself on iPhone right after pressing Play.',

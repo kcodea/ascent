@@ -109,6 +109,41 @@ describe('fetchOwnCrates column step-down', () => {
   });
 });
 
+// THE OWN PROFILE CARRIES THE BALANCE: the profile columns never include `aether`, so the own read adds it from the
+// owner-read wallet table. Anything unreadable leaves the key OUT (the store keeps its balance) and never fails the read.
+describe('fetchOwnProgression reads the wallet', () => {
+  const profRow = { account_xp: 300, account_level: 2, progression_revision: 5, equipped_title_id: null };
+  const serve = (wallet: Res): void => {
+    tableImpl = (table) => (table === 'profiles' ? { data: [profRow], error: null } : table === 'aether_wallets' ? wallet : { data: [], error: null });
+  };
+  it('includes the wallet balance of THIS account', async () => {
+    serve({ data: [{ balance: 340 }], error: null });
+    expect(await R.fetchOwnProgression()).toMatchObject({ accountXp: 300, revision: 5, aether: 340 });
+    expect(reads).toContainEqual({ table: 'aether_wallets', columns: 'balance' });
+  });
+  it('a missing wallet row reads as 0', async () => {
+    serve({ data: [], error: null });
+    expect((await R.fetchOwnProgression())?.aether).toBe(0);
+  });
+  it.each(['42P01', 'PGRST205', '57014', ''])('an unreadable wallet (%s) leaves the key absent and the profile still loads', async (code) => {
+    serve({ data: null, error: { message: 'no table', code } });
+    const p = await R.fetchOwnProgression();
+    expect(p).toMatchObject({ accountXp: 300, revision: 5 });
+    expect(p).not.toHaveProperty('aether');
+  });
+  it('a malformed balance leaves the key absent', async () => {
+    serve({ data: [{ balance: -3 }], error: null });
+    expect(await R.fetchOwnProgression()).not.toHaveProperty('aether');
+  });
+  it("another player's public profile never reads the wallet", async () => {
+    serve({ data: [{ balance: 999 }], error: null });
+    const p = await R.fetchPublicProgression('u-2');
+    expect(p).toMatchObject({ accountXp: 300 });
+    expect(p).not.toHaveProperty('aether');
+    expect(reads.some((r) => r.table === 'aether_wallets')).toBe(false);
+  });
+});
+
 describe('the inventory calls', () => {
   const opened = { status: 'opened', crate: crateJson, rewardId: 'alpha_tester', sealedRemaining: 0, aether: 0, profile: profileJson };
   it('buyCrateRemote sends the tier, focus, total and request id, and parses the quote + balance', async () => {

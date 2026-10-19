@@ -244,13 +244,42 @@ describe('Aether (capability, economy, buyCrate)', () => {
     expect(S.useProgression.getState().economy.version).toBe(2);
   });
   it('an unanswerable aether probe keeps what it had; an unreadable economy keeps the last one', async () => {
-    S.useProgression.setState({ aetherCapability: 'on' });
+    const seeded = { ...DEFAULT_AETHER_ECONOMY, version: 7 };
+    S.useProgression.setState({ aetherCapability: 'on', economy: seeded });
     enabled.mockResolvedValue(true);
     own.mockResolvedValue(profile());
-    aetherEnabled.mockResolvedValue(undefined);
+    aetherEnabled.mockResolvedValue(true);
+    aetherEconomy.mockResolvedValue(undefined); // the economy read fails: the last one stays
+    await S.probeProgression();
+    expect(S.useProgression.getState().economy).toBe(seeded);
+    aetherEnabled.mockResolvedValue(undefined); // the flag read fails: the flag stays
     await S.probeProgression();
     expect(S.useProgression.getState().aetherCapability).toBe('on');
-    expect(S.useProgression.getState().economy).toBe(DEFAULT_AETHER_ECONOMY);
+    expect(S.useProgression.getState().economy).toBe(seeded);
+  });
+  it('adopting a profile WITHOUT the balance never wipes it (the same account keeps its balance)', () => {
+    S.adoptProgressionProfile('u-1', profile({ revision: 4, aether: 340 }));
+    const bare = profile({ revision: 5 });
+    expect('aether' in bare).toBe(false);
+    expect(S.adoptProgressionProfile('u-1', bare)).toBe(true);
+    expect(S.useProgression.getState().mirror).toMatchObject({ revision: 5, aether: 340 });
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(340);
+  });
+  it('an incoming balance of 0 overwrites; another account never inherits a balance', () => {
+    S.adoptProgressionProfile('u-1', profile({ revision: 4, aether: 340 }));
+    S.adoptProgressionProfile('u-1', profile({ revision: 5, aether: 0 }));
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(0);
+    S.adoptProgressionProfile('u-1', profile({ revision: 6, aether: 50 }));
+    S.adoptProgressionProfile('u-2', profile({ revision: 1 }));
+    expect(S.useProgression.getState().mirror?.userId).toBe('u-2');
+    expect(S.useProgression.getState().mirror?.aether).toBeUndefined();
+  });
+  it('a probe whose profile read lacks the balance keeps the balance a saved mirror held', async () => {
+    S.adoptProgressionProfile('u-1', profile({ revision: 4, aether: 340 }));
+    enabled.mockResolvedValue(true);
+    own.mockResolvedValue(profile({ revision: 4 })); // equal revision re-adopts, with no aether key
+    await S.probeProgression();
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(340);
   });
   it('aetherBalance reads the live account mirror, 0 without one', () => {
     expect(S.aetherBalance(S.useProgression.getState())).toBe(0);

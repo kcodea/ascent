@@ -141,7 +141,7 @@ const PROFILE_COLUMNS = 'account_xp, account_level, progression_revision, equipp
 export async function fetchOwnProgression(): Promise<ProgressionProfile | null | undefined> {
   const userId = currentUserId();
   if (!userId) return undefined;
-  return fetchProgressionOf(userId);
+  return fetchProgressionOf(userId, true);
 }
 
 /** Any player's PUBLIC progression (level, XP, equipped title, owned titles), for Career. */
@@ -149,17 +149,19 @@ export async function fetchPublicProgression(userId: string): Promise<Progressio
   return fetchProgressionOf(userId);
 }
 
-async function fetchProgressionOf(userId: string): Promise<ProgressionProfile | null | undefined> {
+async function fetchProgressionOf(userId: string, withWallet = false): Promise<ProgressionProfile | null | undefined> {
   const c = supabaseClient();
   if (!c || !userId) return undefined;
   try {
-    const [prof, owned, loadout] = await Promise.race([
+    const [prof, owned, loadout, wallet] = await Promise.race([
       Promise.all([
         Promise.resolve(c.from('profiles').select(PROFILE_COLUMNS).eq('user_id', userId).limit(1)),
         fetchOwnedCosmeticIds(userId),
         fetchLoadoutRows(userId),
+        // AETHER (2026-10-18): the balance is the OWN profile's only (owner-read by RLS); another player's never asks.
+        withWallet ? fetchOwnAetherBalance(userId) : Promise.resolve(null),
       ]),
-      timeout(READ_TIMEOUT_MS, [null, null, null] as const),
+      timeout(READ_TIMEOUT_MS, [null, null, null, null] as const),
     ]);
     if (!prof || prof.error) return undefined; // pre-migration columns, offline, timeout
     const row = (prof.data as Array<Record<string, unknown>> | null)?.[0];
@@ -170,9 +172,34 @@ async function fetchProgressionOf(userId: string): Promise<ProgressionProfile | 
       // Skins (2026-09-28): every owned id + the loadout rows. Left out when unreadable, so the parser omits them.
       ...(owned ? { cosmetics: owned.all } : {}),
       ...(loadout ? { loadout } : {}),
+      // Left out when unreadable (a pre-Aether server, an error, a timeout): the store then keeps the balance it had.
+      ...(wallet !== null ? { aether: wallet } : {}),
     }) ?? undefined;
   } catch {
     return undefined;
+  }
+}
+
+/**
+ * THIS account's Aether balance (`aether_wallets.balance`, owner-read by RLS). A missing row is 0 (nothing earned yet).
+ * Null = could not read it (the table is not there on a pre-Aether server, any other error, a timeout): the caller leaves
+ * `aether` OUT of the profile, so a failed read never shows as a zero balance and never fails the profile read.
+ */
+async function fetchOwnAetherBalance(userId: string): Promise<number | null> {
+  const c = supabaseClient();
+  if (!c) return null;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(c.from('aether_wallets').select('balance').eq('user_id', userId).limit(1)),
+      timeout(READ_TIMEOUT_MS, null),
+    ]);
+    if (!res || res.error) return null;
+    const row = (res.data as Array<{ balance?: unknown }> | null)?.[0];
+    if (!row) return 0;
+    const n = typeof row.balance === 'number' ? row.balance : typeof row.balance === 'string' && /^\d+$/.test(row.balance) ? Number(row.balance) : null;
+    return n !== null && Number.isInteger(n) && n >= 0 ? n : null;
+  } catch {
+    return null;
   }
 }
 

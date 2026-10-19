@@ -149,7 +149,10 @@ export function mirrorFor(userId: string | null | undefined, mirror: Progression
 export function adoptProgressionProfile(userId: string, profile: ProgressionProfile): boolean {
   const cur = useProgression.getState().mirror;
   if (cur && cur.userId === userId && profile.revision < cur.revision) return false;
-  const next: ProgressionMirror = { ...profile, userId };
+  // A profile that does not CARRY the balance (a pre-Aether server, an unreadable wallet, a plain reader) must not wipe
+  // it: keep the one this same account already had. A profile that carries `aether` (0 included) always wins.
+  const keepAether = profile.aether === undefined && cur && cur.userId === userId && cur.aether !== undefined ? { aether: cur.aether } : {};
+  const next: ProgressionMirror = { ...profile, ...keepAether, userId };
   saveMirror(next);
   useProgression.setState({ mirror: next });
   return true;

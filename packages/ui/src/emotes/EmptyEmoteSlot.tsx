@@ -4,7 +4,7 @@
  * a muted "Empty" and the game's hover bubble pointing at crates. Never clickable. Used by the right-click menu and the
  * Collection's slot row, so both read the same.
  */
-export const EMPTY_EMOTE_TIP = 'Empty slot. Find more emotes in crates.';
+export const EMPTY_EMOTE_TIP = 'Empty slot. Find more emotes in chests.';
 
 export function EmptyEmoteSlot({ position, role }: { position: number; role?: 'menuitem' }): JSX.Element {
   return (

@@ -69,7 +69,7 @@ export function PlayerStrip() {
           </span>
         </span>
       )}
-      {cratesOn && sealed > 0 && <span className="pstrip-crates">{sealed} sealed {sealed === 1 ? 'crate' : 'crates'}</span>}
+      {cratesOn && sealed > 0 && <span className="pstrip-crates">{sealed} sealed {sealed === 1 ? 'chest' : 'chests'}</span>}
       <span className="pstrip-go" aria-hidden="true">Career ›</span>
     </button>
   );

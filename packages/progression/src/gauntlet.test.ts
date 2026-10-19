@@ -117,10 +117,10 @@ describe('crate typing: level crates and Gauntlet crates', () => {
   });
 
   it('names: level crates keep theirs; a Gauntlet crate names its stage', () => {
-    expect(crateName(1)).toBe('Welcome Crate');
-    expect(crateName(5)).toBe('Level 5 Crate');
-    expect(crateLabel({ earnedLevel: 1 })).toBe('Welcome Crate');
-    expect(crateLabel({ earnedLevel: 5, source: null })).toBe('Level 5 Crate');
-    expect(crateLabel({ earnedLevel: null, source: 'gauntlet:4' })).toBe('Gauntlet Crate · Stage 4');
+    expect(crateName(1)).toBe('Welcome Chest');
+    expect(crateName(5)).toBe('Level 5 Chest');
+    expect(crateLabel({ earnedLevel: 1 })).toBe('Welcome Chest');
+    expect(crateLabel({ earnedLevel: 5, source: null })).toBe('Level 5 Chest');
+    expect(crateLabel({ earnedLevel: null, source: 'gauntlet:4' })).toBe('Gauntlet Chest · Stage 4');
   });
 });

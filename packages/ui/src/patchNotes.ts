@@ -60,20 +60,30 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Crates are now bought with Aether, a new currency you earn from Ranked and Versus games.',
+        text: 'Crates are now Chests, and each paid chest has its own look and opening.',
+        details: [
+          'Rare, Epic, Legendary and Ancient chests each have their own art.',
+          'Each one opens with more magic than the last, in its own colour: blue, purple, gold and opal.',
+          'Ancient chests pull in swirling opal energy and burst with a white flash and multichrome sparkles.',
+          'What\'s inside still decides the finale, so a Rare chest can still surprise you.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Chests are now bought with Aether, a new currency you earn from Ranked and Versus games.',
         details: [
           'Ranked pays 50 Aether per game, win or lose, plus a placement bonus: 1st +140, 2nd +80, 3rd +45, 4th +35, 5th +25, 6th +15, 7th +10.',
           'Versus pays 25 Aether per match, and 45 more if you win.',
           'Practice games do not pay Aether.',
           'The first time you clear a Gauntlet stage it pays 200 Aether. Stages you cleared before this update do not pay Aether.',
-          'There are five crates: Standard 100, Rare 200, Epic 400, Legendary 600 and Ancient 900 Aether. Each one guarantees its rarity or better.',
-          'You can focus a crate on the categories you want. The fewer categories you pick, the more it costs, from +100% of the crate price for one category down to +5%. Ticking everything is free.',
-          'Levels no longer give a crate each. Instead, every 10 levels you get a free Legendary crate, and existing players get the ones they have already passed.',
-          'You choose a free crate\'s focus when you open it on its own. Open all leaves these free crates for you to open one by one.',
-          'Sealed crates you already have still open as before.',
+          'There are five chests: Standard 100, Rare 200, Epic 400, Legendary 600 and Ancient 900 Aether. Each one guarantees its rarity or better.',
+          'You can focus a chest on the categories you want. The fewer categories you pick, the more it costs, from +100% of the chest price for one category down to +5%. Ticking everything is free.',
+          'Levels no longer give a chest each. Instead, every 10 levels you get a free Legendary chest, and existing players get the ones they have already passed.',
+          'You choose a free chest\'s focus when you open it on its own. Open all leaves these free chests for you to open one by one.',
+          'Sealed chests you already have still open as before.',
         ],
       },
-      { category: 'Systems', text: 'Twenty more Legendary Card Plates to find in crates.', details: ['Celestial, Runic, Verdant, Volcanic, Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl, Vintage Oak.'] },
+      { category: 'Systems', text: 'Twenty more Legendary Card Plates to find in chests.', details: ['Celestial, Runic, Verdant, Volcanic, Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl, Vintage Oak.'] },
     ],
   },
   {

@@ -25,7 +25,7 @@ import { foePortrait } from './foePortrait';
 /** Stage slots on the screen: one per Gauntlet stage, whether or not each has a file yet. */
 const SLOT_COUNT = GAUNTLET_STAGE_COUNT;
 
-const REPLAY_NOTE = 'Already cleared. No crate for replays.';
+const REPLAY_NOTE = 'Already cleared. No chest for replays.';
 
 const TAG: Record<StageSlotState, string> = {
   available: 'Play', cleared: '✓ Cleared', locked: 'Locked', soon: 'Coming soon', draft: 'Draft',
@@ -50,7 +50,7 @@ export function StageSelect() {
     <>
       {local && (
         <div className="gstage-guest" role="note">
-          <span>You're not signed in. Progress is saved on this device only, and clears won't grant crates.</span>
+          <span>You're not signed in. Progress is saved on this device only, and clears won't grant chests.</span>
           <button type="button" className="gstage-signin crate-btn pressable" onClick={() => { sfx.pulse(); openAccountPanel(); }}>Sign in</button>
         </div>
       )}

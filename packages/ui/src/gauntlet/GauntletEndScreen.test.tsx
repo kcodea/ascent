@@ -131,12 +131,12 @@ describe('GauntletEndScreen', () => {
       useGame.setState({ gauntletResult: { stage: 1, outcome: 'cleared', round: 10, firstClear } });
     };
 
-    it('signed in + the server granted a crate for THIS stage: "You earned a Crate!" and Open in Collection', () => {
+    it('signed in + the server granted a crate for THIS stage: "You earned a Chest!" and Open in Collection', () => {
       signIn();
       clearedStage1(true);
       useGame.setState({ gauntletReward: { stage: 1, crateId: 'g-1' } });
       m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
-      expect(rewardBox()?.textContent).toContain('You earned a Crate!');
+      expect(rewardBox()?.textContent).toContain('You earned a Chest!');
       expect(rewardBox()?.querySelector('.colls-crate')).not.toBeNull();
       button('Open in Collection')!.click();
       expect(openCollection).toHaveBeenCalledTimes(1);
@@ -166,7 +166,7 @@ describe('GauntletEndScreen', () => {
       clearedStage1(true);
       useGame.setState({ gauntletSaving: 1, gauntletSaveDeferred: 1 });
       m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
-      expect(rewardBox()?.textContent).toBe("Clear saved. Your crate arrives when you're back online.");
+      expect(rewardBox()?.textContent).toBe("Clear saved. Your chest arrives when you're back online.");
     });
 
     it('signed in + a stale reward for this stage on a REPLAY (not a first clear) is not shown', () => {
@@ -185,10 +185,10 @@ describe('GauntletEndScreen', () => {
       expect(buttons().map((b) => b.textContent)).toEqual(['Home']);
     });
 
-    it('signed out: "Sign in to earn crates from Gauntlet clears." with a Sign in button, even on a first clear', () => {
+    it('signed out: "Sign in to earn chests from Gauntlet clears." with a Sign in button, even on a first clear', () => {
       clearedStage1(true);
       m = mount(<GauntletEndScreen run={gauntletRun(1, 'cleared')} />);
-      expect(rewardBox()?.textContent).toContain('Sign in to earn crates from Gauntlet clears.');
+      expect(rewardBox()?.textContent).toContain('Sign in to earn chests from Gauntlet clears.');
       expect(m.container.textContent).not.toContain('Crate!');
       button('Sign in')!.click();
       expect(openAccountPanel).toHaveBeenCalledTimes(1);

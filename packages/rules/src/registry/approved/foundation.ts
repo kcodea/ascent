@@ -2277,14 +2277,14 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-CRATE-01',
-    title: 'Every Account Level grants one sealed crate; the first settled game grants the Level 1 Welcome Crate; enrolled accounts were backfilled',
+    title: 'Every Account Level grants one sealed crate; the first settled game grants the Level 1 Welcome Chest; enrolled accounts were backfilled',
     statement:
       'An account earns exactly one sealed crate per Account Level: the settlement that enrolls an account (its first '
-      + 'settled game) creates the Level 1 Welcome Crate, and every settlement creates one crate for each level it newly '
+      + 'settled game) creates the Level 1 Welcome Chest, and every settlement creates one crate for each level it newly '
       + 'reaches (a jump across several levels creates several). So an account at Level L has earned L crates. The ledger row '
       + 'records how many crates the settlement created and their ids, and a duplicate settlement returns the same crates. '
       + 'Crates need no key and are earned even while the crates switch is off (banked). Accounts already enrolled when crates '
-      + 'shipped received their Welcome Crate plus one crate per level already reached, through an idempotent backfill.',
+      + 'shipped received their Welcome Chest plus one crate per level already reached, through an idempotent backfill.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -2292,7 +2292,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-handoff', ref: 'C:/Users/kevin/.codex/visualizations/2026/09/10/01a08bcd-7027-7c60-a951-4c941ed57d4a/ascent-account-progression-achievements-claude-handoff.md §5.1', quote: 'Level 1 creates one Welcome Crate on progression enrollment.' },
       { kind: 'code', ref: 'settle_progression step 9b + section 14c backfill in supabase/migrations/2026-09-28-progression-crates.sql; cratesForSettlement in packages/progression/src/rules.ts; settlementParity in packages/progression/src/server.ts' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. Live once the owner runs the crates migration. Superseded by R-PROG-AETHER-04 once `aether_enabled` is on (2026-10-18); the Welcome Crate is kept.',
+    currentBehaviour: 'Conforms, built 2026-09-28. Live once the owner runs the crates migration. Superseded by R-PROG-AETHER-04 once `aether_enabled` is on (2026-10-18); the Welcome Chest is kept.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/crates.db.test.ts', 'packages/progression/src/server.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-09-28' },
   },
   {
@@ -2501,7 +2501,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-28 (catalog sync ruling)', quote: "yeah let's do option 2 then to make it automated when i add skins" },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (isCosmeticLive / parseServerCatalogState, which reads admin_off); supabase/migrations/2026-09-28-progression-skins.sql (admin_off, the four one-line switches in its header, the effective state in progression_crate_pool / equip_cosmetic / progression_profile_json); packages/ui/src/progression/collectionModel.ts (albumOf)' },
     ],
-    currentBehaviour: 'Conforms, built 2026-09-28. The Crate Shop\x27s client pool (crateShop.ts eligibleForCrate / availableFocusCategories, 2026-10-19 final review) honours the server switches too, as the SQL pool always did: a switched-off item is not counted, and a switched-off category offers no focus chip and is never priced, so the shop never quotes what the server refuses (crateShop.test.ts, CrateShop.test.tsx).',
+    currentBehaviour: 'Conforms, built 2026-09-28. The Chest Shop\x27s client pool (crateShop.ts eligibleForCrate / availableFocusCategories, 2026-10-19 final review) honours the server switches too, as the SQL pool always did: a switched-off item is not counted, and a switched-off category offers no focus chip and is never priced, so the shop never quotes what the server refuses (crateShop.test.ts, CrateShop.test.tsx).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.db.test.ts', 'packages/progression/src/skins.test.ts', 'packages/ui/src/skins/skins.test.tsx', 'packages/ui/src/progression/CollectionSkins.test.tsx', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx'], lastVerifiedAt: '2026-10-19' },
   },
   {
@@ -6948,7 +6948,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-AETHER-02',
-    title: 'The Crate Shop sells five crates with a rarity floor each; the odds inside a crate are the standard odds restricted to the floor and above, never below it',
+    title: 'The Chest Shop sells five crates with a rarity floor each; the odds inside a crate are the standard odds restricted to the floor and above, never below it',
     statement:
       'The shop sells five crates, each guaranteeing a minimum rarity: Standard (floor Common) 100 Aether, Rare (floor Rare) 200, '
       + 'Epic (floor Epic) 400, Legendary (floor Legendary) 600, Ancient (floor Ancient) 900. A crate\x27s reward is drawn with the '
@@ -6967,7 +6967,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'can we make standard crates 100 aether instead?' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (progression_tiered_crate_pick, buy_crate, open_crate); packages/progression/src/crateShop.ts (CRATE_TIER_FLOOR, pickTieredCrateReward, tierOddsPercent); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.cratePrice)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The guest half is CLIENT-SIDE: as of 2026-10-19 (feat/aether-shop-ui) the Crate Shop picker sends a guest\x27s Buy, and a milestone crate\x27s Open (focused or not), to CrateSignInGate (`onGuest`) and never to the store (CrateShop.test.tsx pins it); a guest\x27s Buy stays enabled at the price whatever their balance, so even a guest with 0 Aether reaches the gate (only a sold-out crate disables it). The Collection screen wires `onGuest` to its CrateSignInGate, and a guest\x27s bay Open on a milestone crate is the gate, never the focus step (CollectionScreen.test.tsx pins both). The server still accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests). "Charged once" on the client (2026-10-19, final review): a purchase whose answer never came (a timeout, a network error, a 5xx, an unparseable answer) may have landed, so the Crate Shop keeps its request id for the same tier, focus and total and a retry sends the SAME id (a landed purchase answers already_opened and its reveal plays); a definite answer (success or a 4xx refusal) or a change of picks drops it, and the store re-reads the balance and the crates after such a failure (CrateShop.test.tsx and progressionStore.test.ts pin it).',
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The guest half is CLIENT-SIDE: as of 2026-10-19 (feat/aether-shop-ui) the Chest Shop picker sends a guest\x27s Buy, and a milestone crate\x27s Open (focused or not), to CrateSignInGate (`onGuest`) and never to the store (CrateShop.test.tsx pins it); a guest\x27s Buy stays enabled at the price whatever their balance, so even a guest with 0 Aether reaches the gate (only a sold-out crate disables it). The Collection screen wires `onGuest` to its CrateSignInGate, and a guest\x27s bay Open on a milestone crate is the gate, never the focus step (CollectionScreen.test.tsx pins both). The server still accepts a spend from any signed-in session, guests included (the SQL does not distinguish guests). "Charged once" on the client (2026-10-19, final review): a purchase whose answer never came (a timeout, a network error, a 5xx, an unparseable answer) may have landed, so the Chest Shop keeps its request id for the same tier, focus and total and a retry sends the SAME id (a landed purchase answers already_opened and its reveal plays); a definite answer (success or a 4xx refusal) or a change of picks drops it, and the store re-reads the balance and the crates after such a failure (CrateShop.test.tsx and progressionStore.test.ts pin it).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx', 'packages/ui/src/progression/progressionStore.test.ts'], lastVerifiedAt: '2026-10-19' },
   },
   {
@@ -6996,7 +6996,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Level 10, 20 and every 10th level grant a free Legendary crate in place of the per-level crates; backdated at launch; focusable at open for the Legendary fee',
     statement:
       'Once Aether is on, reaching an Account Level that is a multiple of 10 (10, 20, 30, and so on) grants one free sealed Legendary-floor '
-      + 'crate, and the other levels grant no crate. The Level 1 Welcome Crate is kept. When Aether launches, every multiple of 10 at or '
+      + 'crate, and the other levels grant no crate. The Level 1 Welcome Chest is kept. When Aether launches, every multiple of 10 at or '
       + 'below an account\x27s current level is granted at once (a Level 37 account receives three), once each. A milestone crate '
       + 'opens unfocused for free, or the player may focus it when opening and pay the Legendary focus fee, the same fee table as '
       + 'any Legendary crate. Crates earned and sealed before Aether launched stay and open exactly as they did. Aether is earned '
@@ -7008,7 +7008,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'this is all correct' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (settle_progression milestone crates, aether_rollout, open_crate focus-at-open); packages/progression/src/aether.ts (milestoneLevelsThrough); packages/ui/src/progression/CollectionScreen.tsx (openBay, the milestone-mode CrateShop)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The client half as of 2026-10-19 (feat/aether-shop-ui), with Aether on: every milestone crate is opened one at a time through its focus step; Open all skips them (ruling 2026-10-19, revising the earlier bulk open). The single Open, the bay\x27s and the New rewards pop-up\x27s alike, goes through the bay\x27s own logic. When the milestone crate is the bay\x27s first sealed crate, Open shows its focus step (the Crate Shop in milestone mode: a free unfocused Open, or the Legendary fee once a category is ticked) instead of starting the theatre; when older crates come first (a pre-Aether level crate sorts ahead of a backdated milestone crate), the theatre\x27s queue stops before the first milestone crate, so its "Open next" never opens one unfocused and the next Open reaches the focus step. Open all (the bay\x27s and the pop-up\x27s) opens only the other sealed crates and leaves every milestone crate sealed; with only milestone crates sealed it is not offered, and the single Open leads to the focus step. The bay names the next multiple of 10 as the next crate\x27s level. CollectionScreen.test.tsx pins the focus step, the stop before a milestone crate, Open all skipping milestone crates (bay and pop-up), and the pop-up\x27s Open reaching the focus step.',
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The client half as of 2026-10-19 (feat/aether-shop-ui), with Aether on: every milestone crate is opened one at a time through its focus step; Open all skips them (ruling 2026-10-19, revising the earlier bulk open). The single Open, the bay\x27s and the New rewards pop-up\x27s alike, goes through the bay\x27s own logic. When the milestone crate is the bay\x27s first sealed crate, Open shows its focus step (the Chest Shop in milestone mode: a free unfocused Open, or the Legendary fee once a category is ticked) instead of starting the theatre; when older crates come first (a pre-Aether level crate sorts ahead of a backdated milestone crate), the theatre\x27s queue stops before the first milestone crate, so its "Open next" never opens one unfocused and the next Open reaches the focus step. Open all (the bay\x27s and the pop-up\x27s) opens only the other sealed crates and leaves every milestone crate sealed; with only milestone crates sealed it is not offered, and the single Open leads to the focus step. The bay names the next multiple of 10 as the next crate\x27s level. CollectionScreen.test.tsx pins the focus step, the stop before a milestone crate, Open all skipping milestone crates (bay and pop-up), and the pop-up\x27s Open reaching the focus step.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-10-19' },
   },
 ];

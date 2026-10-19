@@ -247,7 +247,7 @@ describe('the Collection screen: the detail panel', () => {
     expect(text('.colls-plate-rar')).toBe('Epic');
     // Missing: the hint says how to get it, once (the How to get fact only shows on an owned item, 2026-10-16).
     expect($$('.colls-fact b').map((b) => b.textContent)).toEqual(['Not owned']);
-    expect(text('.colls-hint')).toBe('Open crates to find it.');
+    expect(text('.colls-hint')).toBe('Open chests to find it.');
     expect(button('Equip')).toBeUndefined();
   });
 
@@ -282,14 +282,14 @@ describe('the Collection screen: the crate bay', () => {
   it('shows the count and the next crate; Open plays the oldest in the theatre; the bay updates underneath', async () => {
     open();
     expect(text('.colls-hero-count')).toBe('2');
-    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Crate');
+    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Chest');
     expect(button('Open all (2)')).toBeTruthy();
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_hearthkeeper', 2, 1), profile: profile({ titles: ['alpha_tester', 'title_star_chaser', 'title_hearthkeeper'], revision: 10 }) });
     act(() => button('Open')!.click());
     await settle();
     expect(openCrateRemote).toHaveBeenCalledWith('c-2');
     expect(text('.crate-reward-name')).toBe('Hearthkeeper');
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 3 Crate');
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 3 Chest');
     act(() => button('Done')!.click());
     expect($('.crth')).toBeNull();
     expect(tile('Hearthkeeper').className).toMatch(/\bowned\b/);
@@ -329,13 +329,13 @@ describe('the Collection screen: the crate bay', () => {
 
   it('no sealed crates names the next level; crates off and loading say so', () => {
     open({ accountXp: 0 }, { crates: [crateList[0]!] });
-    expect(text('.colls-bay-sub')).toBe('None right now. Your next crate comes at Level 2.');
+    expect(text('.colls-bay-sub')).toBe('None right now. Your next chest comes at Level 2.');
     // the published fixed odds (owner 2026-10-02: Ancient at 3%, so 35/31/22/9/3) show whenever crates are on
-    expect(text('.colls-bay-odds')).toBe('Crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
+    expect(text('.colls-bay-odds')).toBe('Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
     expect(button('Open')).toBeUndefined();
     ui!.unmount();
     open({}, { cratesOn: 'off' });
-    expect(text('.colls-bay-sub')).toBe('Crates are coming soon.');
+    expect(text('.colls-bay-sub')).toBe('Chests are coming soon.');
     expect($('.colls-bay-odds')).toBeNull(); // no odds while crates are off
     expect(tileNames()).toHaveLength(58); // the album still shows
     ui!.unmount();
@@ -447,7 +447,7 @@ describe('the Collection screen: NEW', () => {
     expect($$('.colls-emote-slots button')).toHaveLength(0);
     const empty = $$('.colls-emote-slots .emote-slot-empty');
     expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 3 is empty', 'Slot 4 is empty']);
-    expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in crates.');
+    expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in chests.');
     expect(empty[0]!.hasAttribute('title')).toBe(false);
   });
 
@@ -609,7 +609,7 @@ describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a har
   it('a guest still sees the sealed crates, with a lock on Open and a line saying why', () => {
     guest();
     open();
-    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Crate');
+    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Chest');
     expect(text('.colls-bay-guest')).toBe('Create a free account to open them.');
     expect(button('Open')!.querySelector('.colls-lock')).not.toBeNull();
     expect(button('Open')!.getAttribute('aria-label')).toBe('Open (needs an account)');
@@ -621,10 +621,10 @@ describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a har
     open();
     act(() => button('Open')!.click());
     await settle();
-    expect(gateTitle()).toBe('Create an account to open crates');
-    expect(text('.crgate-lead')).toBe('Your crates, level and collection are saved to your account.');
+    expect(gateTitle()).toBe('Create an account to open chests');
+    expect(text('.crgate-lead')).toBe('Your chests, level and collection are saved to your account.');
     expect(text('.crgate-body .nrw-note')).toBe('It is free and takes a minute. You only need an email.');
-    expect(text('.crgate-warn')).toBe('Already have an account? Signing in switches to it. Crates earned as a guest stay on this guest.');
+    expect(text('.crgate-warn')).toBe('Already have an account? Signing in switches to it. Chests earned as a guest stay on this guest.');
     expect($('.crth')).toBeNull();
     expect(openCrateRemote).not.toHaveBeenCalled();
     clean();
@@ -632,7 +632,7 @@ describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a har
     expect($('.crgate-panel')).toBeNull();
     act(() => button('Open all (2)')!.click());
     await settle();
-    expect(gateTitle()).toBe('Create an account to open crates');
+    expect(gateTitle()).toBe('Create an account to open chests');
     expect($('.crth')).toBeNull();
     expect(openCrateRemote).not.toHaveBeenCalled();
   });
@@ -682,7 +682,7 @@ describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a har
     open();
     act(() => button('Open')!.click());
     expect(gateTitle()).toBe('Accounts are unavailable');
-    expect(text('.crgate-lead')).toBe('You need an account to open crates, and accounts cannot be reached right now.');
+    expect(text('.crgate-lead')).toBe('You need an account to open chests, and accounts cannot be reached right now.');
     expect($('.crgate-foot')!.textContent).toBe('OK');
     act(() => button('OK')!.click());
     expect($('.crgate-panel')).toBeNull();
@@ -692,7 +692,7 @@ describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a har
   });
 });
 
-describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => {
+describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => {
   const milestone: CrateRow = { crateId: 'c-m10', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: 'milestone:10', floor: 'legendary' };
   const shopBuy = (): HTMLButtonElement => $('.colls-shop:not(.milestone) .colls-shop-buy') as HTMLButtonElement;
   const milestoneOpen = (): HTMLButtonElement => $('.colls-shop.milestone .colls-shop-buy') as HTMLButtonElement;
@@ -713,7 +713,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
 
   it('the shop mounts when Aether is on: a purchase plays in the theatre, and the wallet takes the new balance', async () => {
     open({ aether: 1200 }, { aether: true });
-    expect($('.colls-shop[aria-label="Crate Shop"]')).not.toBeNull();
+    expect($('.colls-shop[aria-label="Chest Shop"]')).not.toBeNull();
     expect($('.colls-bay')).not.toBeNull(); // beside the bay, not instead of it
     const result = bought('c-shop', 'title_hearthkeeper');
     buyCrateRemote.mockResolvedValue({ status: 'ok', value: result, profile: profile({ aether: 1100, revision: 10, titles: ['alpha_tester', 'title_star_chaser', 'title_hearthkeeper'] }) });
@@ -731,13 +731,13 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
 
   it("a milestone crate's Open shows the focus step", async () => {
     open({ aether: 1200 }, { aether: true, crates: [milestone] });
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Crate');
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Chest');
     act(() => button('Open')!.click());
     expect($('.colls-shop.milestone')).not.toBeNull();
     expect($('.colls-bay')).toBeNull(); // the bay panel swapped for the focus step
     expect($('.crth')).toBeNull();
     expect(openCrateRemote).not.toHaveBeenCalled();
-    expect(text('.colls-shop.milestone .colls-shop-name')).toBe('Level 10 Legendary Crate');
+    expect(text('.colls-shop.milestone .colls-shop-name')).toBe('Level 10 Legendary Chest');
     // Back puts the bay back.
     act(() => back()!.click());
     expect($('.colls-shop.milestone')).toBeNull();
@@ -757,7 +757,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
   it('a level crate ahead of a milestone crate: the bay\'s Open stops BEFORE the milestone, so "Open next" never opens it unfocused', async () => {
     // fetchOwnCrates sorts by earned_level, nulls last: a pre-Aether sealed level crate comes before a backdated milestone.
     open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone] });
-    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Crate');
+    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Chest');
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_hearthkeeper', 2, 1), profile: profile({ revision: 10 }) });
     act(() => button('Open')!.click());
     await settle();
@@ -768,7 +768,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
     expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
     act(() => button('Done')!.click());
     // The level crate is opened now: the next Open reaches the milestone crate's focus step.
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Crate');
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Chest');
     act(() => button('Open')!.click());
     expect($('.colls-shop.milestone')).not.toBeNull();
     expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
@@ -796,7 +796,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
     expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
     act(() => button('Done')!.click());
     // The milestone crate is still sealed, and the next Open is its focus step.
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Crate');
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Chest');
     act(() => button('Open')!.click());
     expect($('.colls-shop.milestone')).not.toBeNull();
     expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
@@ -844,7 +844,7 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
 
   it('every sealed crate a milestone crate: no Open all; the single Open leads to the focus step', async () => {
     open({ aether: 1200 }, { aether: true, crates: [milestone, { ...milestone, crateId: 'c-m20', source: 'milestone:20' }] });
-    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 10 Legendary Crate');
+    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 10 Legendary Chest');
     expect([...document.querySelectorAll<HTMLButtonElement>('.colls-bay button')].some((b) => b.textContent?.startsWith('Open all'))).toBe(false);
     act(() => button('Open')!.click());
     expect($('.colls-shop.milestone')).not.toBeNull();
@@ -853,29 +853,29 @@ describe('the Collection screen: Aether and the Crate Shop (2026-10-18)', () => 
 
   it("the bay names the next milestone level, and its odds are the first sealed crate's", () => {
     open({ accountXp: 0, aether: 0 }, { aether: true, crates: [crateList[0]!] });
-    expect(text('.colls-bay-sub')).toBe('None right now. Your next crate comes at Level 10.');
-    expect(text('.colls-bay-odds')).toBe('Crate odds: Legendary 75%, Ancient 25%'); // the next crate IS a milestone Legendary
+    expect(text('.colls-bay-sub')).toBe('None right now. Your next chest comes at Level 10.');
+    expect(text('.colls-bay-odds')).toBe('Chest odds: Legendary 75%, Ancient 25%'); // the next crate IS a milestone Legendary
     ui!.unmount();
     open({ aether: 0 }, { aether: true, crates: [milestone] });
-    expect(text('.colls-bay-odds')).toBe('Crate odds: Legendary 75%, Ancient 25%');
+    expect(text('.colls-bay-odds')).toBe('Chest odds: Legendary 75%, Ancient 25%');
     ui!.unmount();
     open({ aether: 0 }, { aether: true }); // old level crates: no floor, so every rarity at the published odds
-    expect(text('.colls-bay-odds')).toBe('Crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
+    expect(text('.colls-bay-odds')).toBe('Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
   });
 
   it("Aether off renders today's bay", async () => {
     open();
     // Verbatim the bay as it rendered before the Crate Shop (captured from 1f31f5feb).
     expect($('.colls-bay')!.outerHTML).toBe(
-      '<section class="colls-panel colls-bay ready" aria-label="Sealed crates"><div class="colls-bay-art" aria-hidden="true"><span class="colls-hero-glow"></span><span class="colls-crate"></span><span class="colls-hero-count">2</span></div><div class="colls-bay-body"><div class="colls-bay-head">Sealed crates</div><div class="colls-bay-sub"><b>2</b> ready. Next: Level 2 Crate</div><div class="colls-bay-actions"><button type="button" class="cv2-btn pressable colls-open">Open</button><button type="button" class="colls-quiet pressable quiet">Open all (2)</button></div><div class="colls-bay-odds">Crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%</div></div></section>',
+      '<section class="colls-panel colls-bay ready" aria-label="Sealed chests"><div class="colls-bay-art" aria-hidden="true"><span class="colls-hero-glow"></span><span class="colls-crate"></span><span class="colls-hero-count">2</span></div><div class="colls-bay-body"><div class="colls-bay-head">Sealed chests</div><div class="colls-bay-sub"><b>2</b> ready. Next: Level 2 Chest</div><div class="colls-bay-actions"><button type="button" class="cv2-btn pressable colls-open">Open</button><button type="button" class="colls-quiet pressable quiet">Open all (2)</button></div><div class="colls-bay-odds">Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%</div></div></section>',
     );
-    expect(text('.colls-bay')).toBe('2Sealed crates2 ready. Next: Level 2 CrateOpenOpen all (2)Crate odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
+    expect(text('.colls-bay')).toBe('2Sealed chests2 ready. Next: Level 2 ChestOpenOpen all (2)Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
     expect($('[aria-label="Aether balance"]')).toBeNull();
     expect($('.colls-shop')).toBeNull();
     ui!.unmount();
     // A milestone crate with Aether off opens straight into the theatre, unfocused; the next crate is the next level.
     open({ accountXp: 0 }, { crates: [crateList[0]!] });
-    expect(text('.colls-bay-sub')).toBe('None right now. Your next crate comes at Level 2.');
+    expect(text('.colls-bay-sub')).toBe('None right now. Your next chest comes at Level 2.');
     ui!.unmount();
     open({}, { crates: [milestone] });
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_hearthkeeper', 2, 0), profile: profile({ revision: 10 }) });

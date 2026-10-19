@@ -113,7 +113,7 @@ export function NewRewardsPopup({ sealedIds, milestoneIds = null, onOpenCrates }
           <div className="nrw-sec nrw-crates">
             <span className="acctxp-crates-icon" aria-hidden />
             <div className="nrw-cratetext">
-              <div className="nrw-kicker">{crates.length === 1 ? 'Crate earned' : `${crates.length} crates earned`}</div>
+              <div className="nrw-kicker">{crates.length === 1 ? 'Chest earned' : `${crates.length} chests earned`}</div>
               <div className="nrw-note">{crates.map((c) => crateLabel(c)).join(', ')}</div>
             </div>
             <div className="nrw-crate-actions">

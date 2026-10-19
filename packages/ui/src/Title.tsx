@@ -391,11 +391,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             <span className="mblabel">Social</span>
           </button>
           {collectionOn && (
-            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : 'Open your crates and wear your titles'}>
+            <button className={`menubtn${newRewards ? ' hasnew' : ''}`} onClick={() => { sfx.pulse(); openCollection(); }} data-tip={newRewards ? 'New rewards are waiting in your Collection' : 'Open your chests and wear your titles'}>
               <span className="mbicon"><IconChest /></span>
               <span className="mblabel">Collection</span>
               {newRewards && <NewPill />}
-              {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'crate' : 'crates'}`}>{sealedCrates} sealed</span>}
+              {sealedCrates > 0 && <span className="mbnote" aria-label={`${sealedCrates} sealed ${sealedCrates === 1 ? 'chest' : 'chests'}`}>{sealedCrates} sealed</span>}
             </button>
           )}
           <button className="menubtn" onClick={() => { sfx.pulse(); openPatchNotes(); }} data-tip="Gameplay changes by date">

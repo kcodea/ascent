@@ -313,7 +313,7 @@ describe('the roll', () => {
 });
 
 describe('crates per level (rules.ts)', () => {
-  it('an account at Level L has earned L crates; a settlement creates one per level gained, plus the Welcome Crate when enrolling', () => {
+  it('an account at Level L has earned L crates; a settlement creates one per level gained, plus the Welcome Chest when enrolling', () => {
     expect(cratesEarnedThrough(1)).toBe(1);
     expect(cratesEarnedThrough(12)).toBe(12);
     expect(cratesForSettlement(1, 1, true)).toBe(1);
@@ -322,8 +322,8 @@ describe('crates per level (rules.ts)', () => {
     expect(cratesForSettlement(3, 7, false)).toBe(4);
   });
   it('crate names', () => {
-    expect(crateName(1)).toBe('Welcome Crate');
-    expect(crateName(7)).toBe('Level 7 Crate');
+    expect(crateName(1)).toBe('Welcome Chest');
+    expect(crateName(7)).toBe('Level 7 Chest');
   });
 });
 
@@ -340,7 +340,7 @@ describe('parsing the server shapes', () => {
     const base = { crateId: 'c-9', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null };
     const milestone = parseCrate({ ...base, source: 'milestone:20', floor: 'legendary' })!;
     expect(milestone).toEqual({ ...base, source: 'milestone:20', floor: 'legendary' });
-    expect(crateLabel(milestone)).toBe('Level 20 Legendary Crate');
+    expect(crateLabel(milestone)).toBe('Level 20 Legendary Chest');
     expect(milestoneLevelOfSource('milestone:20')).toBe(20);
     expect(milestoneLevelOfSource('milestone:100')).toBe(100);
     expect(milestoneLevelOfSource('milestone:15')).toBeNull();
@@ -351,9 +351,9 @@ describe('parsing the server shapes', () => {
     const shopSource = 'shop:123e4567-e89b-12d3-a456-426614174000';
     const shop = parseCrate({ ...base, source: shopSource, floor: 'epic' })!;
     expect(shop).toEqual({ ...base, source: shopSource, floor: 'epic' });
-    expect(crateLabel(shop)).toBe('Epic Crate');
-    expect(crateLabel({ earnedLevel: null, source: shopSource, floor: 'common' })).toBe('Standard Crate');
-    expect(crateLabel({ earnedLevel: null, source: shopSource })).toBe('Standard Crate');
+    expect(crateLabel(shop)).toBe('Epic Chest');
+    expect(crateLabel({ earnedLevel: null, source: shopSource, floor: 'common' })).toBe('Standard Chest');
+    expect(crateLabel({ earnedLevel: null, source: shopSource })).toBe('Standard Chest');
     expect(isShopSource(shopSource)).toBe(true);
     expect(isShopSource('shop:nope')).toBe(false);
     expect(isShopSource(null)).toBe(false);
@@ -372,7 +372,7 @@ describe('parsing the server shapes', () => {
   });
   it('the label a shop crate gets for its floor is the label the shop shows for the tier', () => {
     for (const tier of CRATE_TIERS) {
-      expect(crateLabel({ earnedLevel: null, source: 'shop:123e4567-e89b-12d3-a456-426614174000', floor: CRATE_TIER_FLOOR[tier] })).toBe(`${CRATE_TIER_LABELS[tier]} Crate`);
+      expect(crateLabel({ earnedLevel: null, source: 'shop:123e4567-e89b-12d3-a456-426614174000', floor: CRATE_TIER_FLOOR[tier] })).toBe(`${CRATE_TIER_LABELS[tier]} Chest`);
     }
   });
   it('an open result: opened / already_opened need a reward; pool_exhausted never has one', () => {

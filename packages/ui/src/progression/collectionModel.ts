@@ -123,7 +123,7 @@ export function filterAlbum(items: readonly CosmeticDef[], owned: ReadonlySet<st
 export function acquisitionText(c: CosmeticDef): string {
   // (Titles and skins share the sources; a skin's target is its own line in the detail panel.)
   switch (c.acquisition.type) {
-    case 'crate': return 'Found in crates.';
+    case 'crate': return 'Found in chests.';
     case 'level_milestone': return `Reach Level ${c.acquisition.level}.`;
     case 'achievement': return achievementOf(c.acquisition.id)?.requirement ?? 'Earned from an achievement.';
     case 'event': return 'Earned in an event.';
@@ -134,7 +134,7 @@ export function acquisitionText(c: CosmeticDef): string {
 /** The short "how to get it" line on a missing item. */
 export function missingHint(c: CosmeticDef): string {
   if (c.acquisition.type === 'achievement') return achievementOf(c.acquisition.id)?.requirement ?? 'Not found yet.';
-  return c.acquisition.type === 'level_milestone' ? `Reach Level ${c.acquisition.level} to earn it.` : c.acquisition.type === 'crate' ? 'Open crates to find it.' : 'Not found yet.';
+  return c.acquisition.type === 'level_milestone' ? `Reach Level ${c.acquisition.level} to earn it.` : c.acquisition.type === 'crate' ? 'Open chests to find it.' : 'Not found yet.';
 }
 
 /** A hero title's mastery line for the detail panel (owner 2026-09-29), or null for any other item. */

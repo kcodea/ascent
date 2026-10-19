@@ -135,8 +135,8 @@ describe('crates moved off the end screen (owner 2026-09-28: "can you have the u
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_stormcaller'), profile: profile({ titles: ['alpha_tester', 'title_stormcaller'], revision: 10 }) });
     landAndOpen(result(), ['c-2']);
     expect(text('.nrw-title')).toBe('New rewards');
-    expect(text('.nrw-crates .nrw-kicker')).toBe('Crate earned');
-    expect(text('.nrw-crates .nrw-note')).toBe('Level 2 Crate');
+    expect(text('.nrw-crates .nrw-kicker')).toBe('Chest earned');
+    expect(text('.nrw-crates .nrw-note')).toBe('Level 2 Chest');
     act(() => document.querySelector<HTMLButtonElement>('.nrw-crates .crate-btn')!.click());
     await settle();
     expect($('.nrw-panel')).toBeNull();
@@ -158,9 +158,9 @@ describe('crates moved off the end screen (owner 2026-09-28: "can you have the u
     expect(openCrateRemote).not.toHaveBeenCalled();
   });
 
-  it('several crates: "2 crates earned" with Open all', () => {
+  it('several crates: "2 chests earned" with Open all', () => {
     landAndOpen(result({ cratesAwarded: 2, crateIds: ['c-1', 'c-2'], after: { lifetimeXp: 600, level: 3 } }), ['c-1', 'c-2']);
-    expect(text('.nrw-crates .nrw-kicker')).toBe('2 crates earned');
+    expect(text('.nrw-crates .nrw-kicker')).toBe('2 chests earned');
     expect([...document.querySelectorAll('.nrw-crates button')].map((b) => b.textContent)).toEqual(['Open', 'Open all (2)']);
   });
 
@@ -301,7 +301,7 @@ describe('the crate theatre: flow states', () => {
     expect(fxCalls.at(-1)).toBe('charge:common');
   });
 
-  it('a failure: the anticipation holds, winds down, then "Could not open the crate. Try again."', async () => {
+  it('a failure: the anticipation holds, winds down, then "Could not open the chest. Try again."', async () => {
     vi.useFakeTimers();
     liveCrates();
     openCrateRemote.mockResolvedValue({ status: 'error', reason: 'timeout' });
@@ -313,7 +313,7 @@ describe('the crate theatre: flow states', () => {
     expect(phase()).toBe('anticipation');
     advance(CRATE_FX_DEFAULTS.windDownMs);
     expect(phase()).toBe('error');
-    expect(text('.crate-note')).toBe('Could not open the crate. Try again.');
+    expect(text('.crate-note')).toBe('Could not open the chest. Try again.');
     expect(button('Try again')).toBeTruthy();
   });
 

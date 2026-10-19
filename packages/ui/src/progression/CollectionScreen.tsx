@@ -429,7 +429,7 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
               <div className="colls-gridwrap" onScroll={hover ? clearHover : undefined}>
                 {shown.length === 0 ? (
                   <div className="colls-nomatch">
-                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a crate to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : 'Nothing matches these filters.'}</div>
+                    <div>{show === 'owned' && albumCount.owned === 0 ? 'You have none yet. Open a chest to find one.' : show === 'missing' && albumCount.owned === albumCount.total ? 'You have them all.' : 'Nothing matches these filters.'}</div>
                     <button type="button" className="colls-quiet pressable quiet" onClick={() => { sfx.pulse(); setShow('all'); setRarity('all'); }}>Show all</button>
                   </div>
                 ) : (
@@ -768,20 +768,20 @@ function CrateBay({ cratesOn, loading, sealed, bulk, nextLevel, guest, oddsLine,
   const n = sealed.length;
   const ready = cratesOn && !loading && n > 0;
   return (
-    <section className={`colls-panel colls-bay${ready ? ' ready' : ''}`} aria-label="Sealed crates">
+    <section className={`colls-panel colls-bay${ready ? ' ready' : ''}`} aria-label="Sealed chests">
       <div className="colls-bay-art" aria-hidden>
         {ready && <span className="colls-hero-glow" />}
         <span className="colls-crate" />
         {ready && <span className="colls-hero-count">{n}</span>}
       </div>
       <div className="colls-bay-body">
-        <div className="colls-bay-head">Sealed crates</div>
+        <div className="colls-bay-head">Sealed chests</div>
         {!cratesOn ? (
-          <div className="colls-bay-sub">Crates are coming soon.</div>
+          <div className="colls-bay-sub">Chests are coming soon.</div>
         ) : loading ? (
           <div className="colls-bay-sub">Loading</div>
         ) : n === 0 ? (
-          <div className="colls-bay-sub">None right now. Your next crate comes at Level {nextLevel}.</div>
+          <div className="colls-bay-sub">None right now. Your next chest comes at Level {nextLevel}.</div>
         ) : (
           <>
             <div className="colls-bay-sub"><b>{n}</b> ready. Next: {crateLabel(sealed[0]!)}</div>
@@ -793,7 +793,7 @@ function CrateBay({ cratesOn, loading, sealed, bulk, nextLevel, guest, oddsLine,
           </>
         )}
         {/* The published odds (owner 2026-09-29: fixed rarity odds, safe to show players). */}
-        {cratesOn && <div className="colls-bay-odds">Crate odds: {oddsLine}</div>}
+        {cratesOn && <div className="colls-bay-odds">Chest odds: {oddsLine}</div>}
       </div>
     </section>
   );

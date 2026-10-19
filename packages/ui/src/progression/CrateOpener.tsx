@@ -466,7 +466,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
       style={vars}
       role="dialog"
       aria-modal="true"
-      aria-label="Opening a crate"
+      aria-label="Opening a chest"
       onPointerDown={onPointerDown}
     >
       <div className="crth-scrim" aria-hidden />
@@ -510,11 +510,11 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
           {phase === 'anticipation' && <div className="crate-note" role="status">{slow ? 'Still opening' : 'Opening'}</div>}
           {(phase === 'charge' || phase === 'freeze' || phase === 'burst' || phase === 'reveal') && <div className="crth-skip">Click to skip</div>}
           {phase === 'exhausted' && (
-            <div className="crate-note" role="status">You own every reward for now. This crate stays sealed until new rewards arrive.</div>
+            <div className="crate-note" role="status">You own every reward for now. This chest stays sealed until new rewards arrive.</div>
           )}
           {phase === 'error' && (
             <>
-              <div className="crate-note" role="status">Could not open the crate. Try again.</div>
+              <div className="crate-note" role="status">Could not open the chest. Try again.</div>
               <button type="button" className="crate-btn pressable" onClick={() => { sfx.pulse(); start(shown); }}>Try again</button>
             </>
           )}
@@ -529,7 +529,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
               </ul>
             </div>
           )}
-          {phase === 'settled' && openAll && next && <div className="crth-skip">Next crate coming</div>}
+          {phase === 'settled' && openAll && next && <div className="crth-skip">Next chest coming</div>}
           <div className="crth-btns">
             {next && !openAll && (
               <button type="button" className="crate-btn pressable" onClick={() => { sfx.pulse(); start(next); }}>

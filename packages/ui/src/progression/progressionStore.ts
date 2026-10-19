@@ -33,7 +33,7 @@ import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import { addSeen, adoptAccountSeen, ensureSeenBaseline } from './collectionSeen';
 import {
-  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
+  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, INVENTORY_ERROR_STATUS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -380,9 +380,10 @@ export async function openCrate(crateId: string, focus?: CosmeticCategory[] | nu
 
 export type BuyCrateOutcome = { status: 'ok'; result: BuyCrateResult } | { status: 'error'; reason: string };
 
-/** A fresh request id for ONE buy attempt. UI-side randomness (Math.random is banned only in core/content/sim); the
- *  fallback covers an embedded runtime without `crypto.randomUUID` and is still a valid RFC 4122 v4 id. */
-function mintRequestId(): string {
+/** A fresh request id for ONE purchase (its retries reuse it). UI-side randomness (Math.random is banned only in
+ *  core/content/sim); the fallback covers an embedded runtime without `crypto.randomUUID` and is still a valid RFC 4122
+ *  v4 id. */
+export function mintRequestId(): string {
   try {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   } catch { /* fall through */ }
@@ -392,21 +393,41 @@ function mintRequestId(): string {
   });
 }
 
+/** Refusals raised on THIS device before anything was sent: the server cannot have charged. */
+const NEVER_SENT: ReadonlySet<string> = new Set(['no_session', 'no_backend', 'dev_unlock_all']);
+
+/**
+ * Is this failed purchase a DEFINITE answer (final review 2026-10-19)? Yes for the server's 4xx refusals
+ * (`INVENTORY_ERROR_STATUS` below 500: bad_*, price_changed, insufficient_aether, sold_out, focus_not_allowed,
+ * aether_disabled, ...) and for a refusal that never left this device: nothing was charged. NO for a timeout, a network
+ * error, a 5xx (`aether_config_missing` included) or an answer that did not parse: the server may have committed the
+ * purchase, so a retry must reuse the SAME request id (a replay answers `already_opened` with the reward, never a
+ * second charge).
+ */
+export function isDefiniteBuyFailure(reason: string): boolean {
+  if (NEVER_SENT.has(reason)) return true;
+  const status = INVENTORY_ERROR_STATUS[reason];
+  return status !== undefined && status < 500;
+}
+
 /**
  * BUY AND OPEN a crate through the server (the Crate Shop's one purchase call). The client names a tier, a focus, the
- * total it showed and ONE request id per call (a replay of that id never charges twice); the server prices, charges
- * and rolls. On success the profile (with the new balance) is adopted and the opened crate joins the list. Every
- * failure comes back as an error outcome and nothing is retried here (`aether_config_missing` is retryable, but the UI
- * decides); a `price_changed` also re-reads the economy so the shop re-quotes at the new price.
+ * total it showed and a request id (a replay of that id never charges twice); the server prices, charges and rolls.
+ * `requestId` is the caller's when it is RETRYING a purchase whose answer never came (`isDefiniteBuyFailure`); absent, a
+ * fresh one is minted. On success the profile (with the new balance) is adopted and the opened crate joins the list.
+ * Every failure comes back as an error outcome and nothing is retried here; a `price_changed` also re-reads the economy
+ * so the shop re-quotes at the new price, and a failure that is NOT definite re-reads the balance and the crates (the
+ * purchase may have landed), so what the player sees is true before they try again.
  */
-export async function buyCrate(tier: CrateTier, focus: CosmeticCategory[] | null, expectedTotal: number): Promise<BuyCrateOutcome> {
+export async function buyCrate(tier: CrateTier, focus: CosmeticCategory[] | null, expectedTotal: number, requestId: string = mintRequestId()): Promise<BuyCrateOutcome> {
   if (import.meta.env.DEV && devUnlockAllOn()) return { status: 'error', reason: 'dev_unlock_all' };
   const userId = currentUserId();
   if (!userId) return { status: 'error', reason: 'no_session' };
-  const requestId = mintRequestId();
   const out = await buyCrateRemote({ tier, focus, expectedTotal, requestId }).catch((e: unknown) => ({ status: 'error' as const, reason: String((e as Error)?.message ?? e) }));
   if (out.status !== 'ok') {
     if (out.reason === 'price_changed') await refreshEconomy();
+    // Not awaited: the shop shows its message now; the wallet and the bay follow when the reads land.
+    if (!isDefiniteBuyFailure(out.reason)) { void refreshOwnProfile(); void refreshCrates(); }
     return out;
   }
   adoptProgressionProfile(userId, out.profile);

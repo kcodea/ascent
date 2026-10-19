@@ -18,6 +18,7 @@ const aetherEnabled = vi.fn<() => Promise<boolean | undefined>>(async () => fals
 const aetherEconomy = vi.fn<() => Promise<AetherEconomy | undefined>>(async () => undefined);
 const buyRemote = vi.fn<(req: { tier: string; focus: string[] | null; expectedTotal: number; requestId: string }) => Promise<InventoryOutcome<BuyCrateResult>>>();
 const openRemote = vi.fn<(crateId: string, focus?: string[] | null, expectedFee?: number) => Promise<InventoryOutcome<BuyCrateResult>>>();
+const ownCrates = vi.fn<() => Promise<CrateRow[] | undefined>>(async () => undefined);
 const flush = vi.fn(async () => {});
 const enqueue = vi.fn((req: { runId: string }) => (userId && remote ? { ...req, userId, at: '', attempts: 0 } : null));
 
@@ -33,6 +34,7 @@ vi.mock('./progressionRemote', async (orig) => ({
   buyCrateRemote: (req: Parameters<typeof buyRemote>[0]) => buyRemote(req),
   openCrateRemote: (...a: Parameters<typeof openRemote>) => openRemote(...a),
   fetchOwnProgression: () => own(),
+  fetchOwnCrates: () => ownCrates(),
   fetchSeenCosmeticIds: () => seenIds(),
 }));
 vi.mock('./progressionQueue', () => ({
@@ -57,10 +59,10 @@ const result = (over: Partial<ProgressionResult> = {}): ProgressionResult => ({
 beforeEach(() => {
   S.resetProgressionForTests();
   userId = 'u-1'; remote = true;
-  enabled.mockReset(); own.mockReset(); flush.mockClear(); enqueue.mockClear();
+  enabled.mockReset(); own.mockReset().mockResolvedValue(undefined); flush.mockClear(); enqueue.mockClear();
   seenIds.mockReset().mockResolvedValue(undefined);
   aetherEnabled.mockReset().mockResolvedValue(false); aetherEconomy.mockReset().mockResolvedValue(undefined);
-  buyRemote.mockReset(); openRemote.mockReset();
+  buyRemote.mockReset(); openRemote.mockReset(); ownCrates.mockReset().mockResolvedValue(undefined);
   localStorage.clear();
 });
 
@@ -304,13 +306,52 @@ describe('Aether (capability, economy, buyCrate)', () => {
     expect(out).toEqual({ status: 'error', reason: 'price_changed' });
     expect(aetherEconomy).toHaveBeenCalledTimes(1);
   });
-  it('other errors (aether_config_missing, a throw) come back as error outcomes with no refresh and no retry', async () => {
+  it('other errors (aether_config_missing, a throw) come back as error outcomes with no economy refresh and no retry', async () => {
     buyRemote.mockResolvedValue({ status: 'error', reason: 'aether_config_missing' });
     expect(await S.buyCrate('rare', null, 200)).toEqual({ status: 'error', reason: 'aether_config_missing' });
     buyRemote.mockRejectedValueOnce(new Error('boom'));
     expect(await S.buyCrate('rare', null, 200)).toEqual({ status: 'error', reason: 'boom' });
     expect(buyRemote).toHaveBeenCalledTimes(2);
     expect(aetherEconomy).not.toHaveBeenCalled();
+  });
+  // FINAL REVIEW 2026-10-19: a purchase whose answer never came may have landed. The balance and the crates are re-read
+  // so the player sees the truth; a definite refusal needs no re-read.
+  it('a timeout re-reads the balance AND the crates (the purchase may have landed); a definite refusal does not', async () => {
+    S.adoptProgressionProfile('u-1', profile({ revision: 4, aether: 400 }));
+    own.mockResolvedValue(profile({ revision: 5, aether: 0 }));
+    ownCrates.mockResolvedValue([crate({ crateId: 'c-landed' })]);
+    buyRemote.mockResolvedValue({ status: 'error', reason: 'timeout' });
+    expect(await S.buyCrate('epic', null, 400)).toEqual({ status: 'error', reason: 'timeout' });
+    await Promise.resolve(); await Promise.resolve(); await Promise.resolve();
+    expect(own).toHaveBeenCalledTimes(1);
+    expect(ownCrates).toHaveBeenCalledTimes(1);
+    expect(S.aetherBalance(S.useProgression.getState())).toBe(0);
+    expect(S.useProgression.getState().crateList?.map((c) => c.crateId)).toEqual(['c-landed']);
+    for (const reason of ['network:Failed to fetch', 'http_502', 'aether_config_missing', 'server_outdated']) {
+      buyRemote.mockResolvedValueOnce({ status: 'error', reason });
+      await S.buyCrate('epic', null, 400);
+    }
+    expect(own).toHaveBeenCalledTimes(5);
+    expect(ownCrates).toHaveBeenCalledTimes(5);
+    for (const reason of ['sold_out', 'insufficient_aether', 'bad_focus', 'focus_not_allowed', 'aether_disabled']) {
+      buyRemote.mockResolvedValueOnce({ status: 'error', reason });
+      await S.buyCrate('epic', null, 400);
+    }
+    expect(own).toHaveBeenCalledTimes(5);
+    expect(ownCrates).toHaveBeenCalledTimes(5);
+  });
+  it('isDefiniteBuyFailure: the 4xx refusals and the never-sent ones are definite; a timeout, a network error, a 5xx are not', () => {
+    for (const r of ['bad_tier', 'bad_focus', 'bad_price', 'bad_request_id', 'price_changed', 'insufficient_aether', 'sold_out', 'focus_not_allowed', 'aether_disabled', 'no_session']) {
+      expect(S.isDefiniteBuyFailure(r), r).toBe(true);
+    }
+    for (const r of ['timeout', 'network:x', 'http_500', 'aether_config_missing', 'server_outdated', 'function_error']) expect(S.isDefiniteBuyFailure(r), r).toBe(false);
+  });
+  it('a retry passes its request id through; without one a fresh id is minted', async () => {
+    buyRemote.mockResolvedValue(bought(0));
+    await S.buyCrate('rare', null, 200, 'req-retry');
+    expect(buyRemote.mock.calls[0]![0].requestId).toBe('req-retry');
+    await S.buyCrate('rare', null, 200);
+    expect(buyRemote.mock.calls[1]![0].requestId).not.toBe('req-retry');
   });
   it('no session refuses without calling the server', async () => {
     userId = null;

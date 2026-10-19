@@ -8,7 +8,9 @@
  *           milestone mode, where the floor is fixed at Legendary.
  *   step 2  the FOCUS: one chip per enabled category, in catalog order. A category with nothing left for this player at
  *           this floor is a disabled chip ("Nothing left to find here"); ticking every available one is no focus.
- *   quote   the crate's name, its odds (only the rarities it can drop) and how many items are still left to find, then
+ *   quote   the crate's name, its LIVE odds (this exact crate for this player: its floor, its focus and what they do not
+ *           own yet, so Standard + Card Plates shows no Common; spec "the live odds for that exact crate") and how many
+ *           items are still left to find, then
  *           ONE button: the total, or why it cannot be bought (short balance, sold out). A milestone crate with no focus
  *           is free and just reads Open.
  *
@@ -33,20 +35,33 @@
  * TRUST: every number here is a QUOTE for display. The server prices, charges and rolls; the client only names the tier,
  * the focus and the total it showed (a moved price answers `price_changed`, which the store follows with a re-read).
  *
+ * NEVER CHARGED TWICE (final review 2026-10-19): a purchase whose answer never came (a timeout, a network error, a 5xx)
+ * may have landed on the server. The panel keeps that attempt's request id, keyed by (tier, canonical focus, total), until
+ * a DEFINITE answer (success, or a 4xx refusal: `isDefiniteBuyFailure`), and a retry of the same picks sends the SAME
+ * id: a purchase that did land answers `already_opened` with its reward and the reveal plays; one that did not is bought
+ * now. Changing the picks drops the kept id. The store re-reads the balance and the crates after such a failure.
+ *
+ * THE SERVER'S KILL SWITCH: a category or item the server has switched off is not in the shop's pool
+ * (`eligibleForCrate` reads `setServerCatalogState`), so it offers no chip and is not counted or priced. The store's
+ * `catalogEpoch` moves whenever that state does; every pool memo below lists it so the pool re-derives.
+ *
  * PERFORMANCE (the north star): the state is local (a chip toggle re-renders this panel only, never the Collection
- * grid), the quote and the odds are memoized on (tier, focus, owned, economy), the chips are `memo`'d with stable
- * props, and nothing reads layout. Static paint only.
+ * grid), the quote and the odds are memoized (on the picks, owned, the economy and the catalog state), the chips are
+ * `memo`'d with stable props, and nothing reads layout. Static paint only.
  */
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIERS, CRATE_TIER_FLOOR, CRATE_TIER_LABELS, RARITY_LABELS,
-  availableFocusCategories, crateLabel, quoteCrate, tierOddsPercent, withStarterCosmetics,
+  availableFocusCategories, crateLabel, eligibleForCrate, isCategoryLive, quoteCrate, tieredCrateChances, withStarterCosmetics,
+  type CosmeticRarity,
   type CosmeticCategory, type CrateRow, type CrateTier,
 } from '@game/progression';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import type { CrateQueueItem } from './CrateOpener';
-import { aetherBalance, buyCrate, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome } from './progressionStore';
+import {
+  aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome,
+} from './progressionStore';
 import { ownedIds } from './collectionModel';
 import './collection.css';
 
@@ -70,16 +85,23 @@ export interface CrateShopProps {
 
 const EMPTY: readonly string[] = [];
 
-/** Only the categories that can drop at all (the feature flag), in catalog order: the chip row. */
+/** Only the categories that can drop at all (the feature flag), in catalog order: the chip row (less any the server has
+ *  switched off, filtered per catalog state in the component). */
 const CHIP_CATEGORIES: readonly CosmeticCategory[] = COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled);
 
-/** The server's refusal codes as player-facing sentences. */
+/** The server's refusal codes as player-facing sentences. A failure that is not a definite answer (the purchase may have
+ *  landed) says so, and that a retry is safe (it reuses the request id). */
 export function buyErrorCopy(reason: string): string {
   if (reason === 'price_changed') return 'Prices just changed. Check the new price.';
   if (reason === 'insufficient_aether') return 'Not enough Aether.';
   if (reason === 'sold_out') return 'Nothing left to find in this crate.';
+  if (!isDefiniteBuyFailure(reason)) return "Couldn't confirm that purchase. Try again: you won't be charged twice.";
   return "Couldn't buy that crate. Try again.";
 }
+
+/** A purchase's identity for the kept request id: the tier, the canonical focus and the total (a moved price is a new
+ *  purchase, not a retry). */
+const purchaseKey = (q: { tier: CrateTier; focus: readonly CosmeticCategory[] | null; total: number }): string => `${q.tier}|${q.focus?.join(',') ?? ''}|${q.total}`;
 
 const FocusChip = memo(function FocusChip({ cat, on, soldOut, onToggle }: {
   cat: CosmeticCategory; on: boolean; soldOut: boolean; onToggle: (cat: CosmeticCategory) => void;
@@ -114,6 +136,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   const busyRef = useRef(false);
   /** The milestone crate already handed to the theatre (a second click in the same frame must not hand it again). */
   const handedRef = useRef<string | null>(null);
+  /** The request id of a purchase still waiting for a definite answer, and the picks it was for (see NEVER CHARGED TWICE). */
+  const pendingRef = useRef<{ key: string; id: string } | null>(null);
   const alive = useRef(true);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
@@ -121,7 +145,10 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   useEffect(() => { void refreshEconomy(); }, []);
 
   const floor = CRATE_TIER_FLOOR[milestone ? 'legendary' : tier];
-  // `catalogEpoch` moves when the server retires an item or a category: the pool re-derives.
+  // `catalogEpoch` moves when the server retires an item or a category (`applyServerCatalogState` records the state
+  // first, then bumps it): `eligibleForCrate` reads that state, so each memo that lists it re-derives the pool. A
+  // category the server switched off leaves the chip row entirely (the Collection hides its tab the same way).
+  const chips = useMemo(() => CHIP_CATEGORIES.filter(isCategoryLive), [catalogEpoch]);
   const available = useMemo(() => new Set(availableFocusCategories(owned, floor)), [owned, floor, catalogEpoch]);
   // A tick on a category that sold out at THIS floor (the tier moved) is kept, but not priced and not shown as pressed.
   const focus = useMemo(() => CHIP_CATEGORIES.filter((c) => ticked.has(c) && available.has(c)), [ticked, available]);
@@ -129,10 +156,24 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
     () => quoteCrate({ tier, focus: focus.length ? focus : null, owned, economy, milestone }),
     [tier, focus, owned, economy, milestone, catalogEpoch],
   );
+  // THE LIVE ODDS of this exact crate: each rarity's share of `tieredCrateChances` over what it can still give (its
+  // floor, its canonical focus, what is still unowned), so an empty rarity's odds show where they really fall. Keyed on
+  // the canonical focus as a string so a price move (a new quote object) does not re-derive it.
+  const focusKey = quote?.focus?.join(',') ?? '';
   const oddsLine = useMemo(() => {
-    const odds = tierOddsPercent(floor);
-    return COSMETIC_RARITIES.filter((r) => odds[r] > 0).map((r) => `${RARITY_LABELS[r]} ${odds[r]}%`).join(' · ');
-  }, [floor]);
+    const eligible = eligibleForCrate(owned, floor, focusKey ? (focusKey.split(',') as CosmeticCategory[]) : null);
+    const rarityOf = new Map(eligible.map((c) => [c.id, c.rarity] as const));
+    const share = new Map<CosmeticRarity, number>();
+    for (const [id, p] of tieredCrateChances(eligible, floor)) {
+      const r = rarityOf.get(id)!;
+      share.set(r, (share.get(r) ?? 0) + p);
+    }
+    return COSMETIC_RARITIES.filter((r) => (share.get(r) ?? 0) > 0)
+      .map((r) => `${RARITY_LABELS[r]} ${Math.round(share.get(r)! * 1000) / 10}%`).join(' · ');
+  }, [floor, focusKey, owned, catalogEpoch]);
+  // Changing the picks (or a moved price) drops the request id a failed purchase kept.
+  const key = quote ? purchaseKey(quote) : '';
+  useEffect(() => { if (pendingRef.current && pendingRef.current.key !== key) pendingRef.current = null; }, [key]);
 
   const pickTier = useCallback((t: CrateTier) => { sfx.pulse(); setTier(t); setError(null); }, []);
   const toggle = useCallback((cat: CosmeticCategory) => {
@@ -182,10 +223,16 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
     busyRef.current = true;
     setBusy(true);
     onBusy?.(true);
-    const out = await buyCrate(quote.tier, quote.focus, quote.total);
+    // A retry of the same picks after an answer that never came reuses that attempt's id (NEVER CHARGED TWICE).
+    const pickKey = purchaseKey(quote);
+    const requestId = pendingRef.current?.key === pickKey ? pendingRef.current.id : mintRequestId();
+    pendingRef.current = { key: pickKey, id: requestId };
+    const out = await buyCrate(quote.tier, quote.focus, quote.total, requestId);
     busyRef.current = false;
     // Always: the caller may outlive this panel, and a busy flag left up would hold its controls for good.
     onBusy?.(false);
+    // A definite answer (success, or a 4xx refusal) ends this purchase: the next Buy is a new one.
+    if ((out.status === 'ok' || isDefiniteBuyFailure(out.reason)) && pendingRef.current?.id === requestId) pendingRef.current = null;
     if (out.status !== 'ok') {
       if (alive.current) { setBusy(false); setError(buyErrorCopy(out.reason)); }
       return;
@@ -226,7 +273,7 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
       <div className="colls-shop-step">
         <div className="colls-shop-lbl">Focus it <span className="colls-shop-opt">(optional)</span></div>
         <div className="colls-shop-chips" role="group" aria-label="Focus">
-          {CHIP_CATEGORIES.map((c) => (
+          {chips.map((c) => (
             <FocusChip key={c} cat={c} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} onToggle={toggle} />
           ))}
         </div>

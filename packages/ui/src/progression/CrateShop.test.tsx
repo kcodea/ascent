@@ -19,20 +19,20 @@ import { eligibleForCrate, type BuyCrateResult, type CosmeticCategory, type Crat
 import { mount, type Mounted } from '../renderedText.mount';
 import type { BuyCrateOutcome, CrateOpenOutcome } from './progressionStore';
 
-const buyCrate = vi.fn(async (_tier: CrateTier, _focus: CosmeticCategory[] | null, _total: number): Promise<BuyCrateOutcome> => ({ status: 'error', reason: 'unset' }));
+const buyCrate = vi.fn(async (_tier: CrateTier, _focus: CosmeticCategory[] | null, _total: number, _requestId?: string): Promise<BuyCrateOutcome> => ({ status: 'error', reason: 'unset' }));
 const openCrate = vi.fn(async (_id: string, _focus?: CosmeticCategory[] | null, _fee?: number): Promise<CrateOpenOutcome> => ({ status: 'error', reason: 'unset' }));
 const refreshEconomy = vi.fn(async () => undefined);
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
 vi.mock('./progressionStore', async (orig) => ({
   ...(await orig<typeof import('./progressionStore')>()),
-  buyCrate: (tier: CrateTier, focus: CosmeticCategory[] | null, total: number) => buyCrate(tier, focus, total),
+  buyCrate: (tier: CrateTier, focus: CosmeticCategory[] | null, total: number, requestId?: string) => buyCrate(tier, focus, total, requestId),
   // Forwards exactly the arguments it got, so a test can pin that an unfocused open passes the id ALONE.
   openCrate: (...args: [string, (CosmeticCategory[] | null)?, number?]) => openCrate(...args),
   refreshEconomy: () => refreshEconomy(),
 }));
 
 import { CrateShop, type CrateShopMode } from './CrateShop';
-import { resetProgressionForTests, useProgression } from './progressionStore';
+import { applyServerCatalogState, resetProgressionForTests, useProgression } from './progressionStore';
 import { useGame } from '../store';
 
 let ui: Mounted | null = null;
@@ -195,7 +195,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     click(tier('Epic'));
     click(chip('Card Plates'));
     click(buyBtn());
-    expect(buyCrate).toHaveBeenCalledWith('epic', ['card_plate'], 800);
+    expect(buyCrate).toHaveBeenCalledWith('epic', ['card_plate'], 800, expect.stringMatching(/^[0-9a-f-]{36}$/));
     // The purchase is in flight: the button holds a pressed "Buying" state and the theatre has not opened.
     expect(norm(buyBtn().textContent)).toBe('Buying…');
     expect(buyBtn().getAttribute('aria-busy')).toBe('true');
@@ -323,5 +323,134 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
       expect(norm($('.colls-shop-err')?.textContent)).toBe(copy);
     }
     noDashes();
+  });
+});
+
+// FINAL REVIEW 2026-10-19: a purchase whose answer never came may have landed. The retry must reuse its request id (a
+// replay answers already_opened with the reward), never mint a second purchase.
+describe('the Crate Shop: never charged twice', () => {
+  const ids = (): (string | undefined)[] => buyCrate.mock.calls.map((c) => c[3]);
+
+  it('a timeout then a retry sends the SAME request id, and the replay plays the reveal', async () => {
+    seed(2000);
+    render();
+    click(tier('Epic'));
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    expect(norm($('.colls-shop-err')?.textContent)).toBe("Couldn't confirm that purchase. Try again: you won't be charged twice.");
+    expect(onOpen).not.toHaveBeenCalled();
+    const replay: BuyCrateResult = { ...bought('c-landed'), status: 'already_opened', quote: null };
+    buyCrate.mockResolvedValueOnce({ status: 'ok', result: replay });
+    click(buyBtn());
+    await settle();
+    expect(ids()).toHaveLength(2);
+    expect(ids()[0]).toMatch(/^[0-9a-f-]{36}$/);
+    expect(ids()[1]).toBe(ids()[0]);
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect((onOpen.mock.calls[0]![0] as { crateId: string }).crateId).toBe('c-landed');
+    // Answered: the next purchase is a new one.
+    buyCrate.mockResolvedValueOnce({ status: 'ok', result: bought('c-next') });
+    click(buyBtn());
+    await settle();
+    expect(ids()[2]).not.toBe(ids()[0]);
+    noDashes();
+  });
+
+  it('a network error or a 5xx keeps the id too', async () => {
+    seed(2000);
+    render();
+    for (const reason of ['network:Failed to fetch', 'http_502', 'aether_config_missing']) {
+      buyCrate.mockResolvedValueOnce({ status: 'error', reason });
+      click(buyBtn());
+      await settle();
+      expect(norm($('.colls-shop-err')?.textContent), reason).toBe("Couldn't confirm that purchase. Try again: you won't be charged twice.");
+    }
+    expect(new Set(ids()).size).toBe(1);
+  });
+
+  it('changing the tier between attempts sends a NEW id', async () => {
+    seed(2000);
+    render();
+    click(tier('Epic'));
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    click(tier('Rare'));
+    click(tier('Epic')); // back to the same picks: the change already dropped the kept id
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    expect(ids()).toHaveLength(2);
+    expect(ids()[1]).not.toBe(ids()[0]);
+    // Ticking a chip is a change of picks as well.
+    click(chip('Card Plates'));
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    expect(buyCrate.mock.calls[2]!.slice(0, 3)).toEqual(['epic', ['card_plate'], 800]);
+    expect(ids()[2]).not.toBe(ids()[1]);
+  });
+
+  it('a definite refusal (sold_out) clears the id', async () => {
+    seed(2000);
+    render();
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'sold_out' });
+    click(buyBtn());
+    await settle();
+    expect(norm($('.colls-shop-err')?.textContent)).toBe('Nothing left to find in this crate.');
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    expect(ids()[1]).toBe(ids()[0]);
+    expect(ids()[2]).not.toBe(ids()[1]);
+  });
+});
+
+// The spec: "the live odds for that exact crate". A rarity a crate cannot give shows nowhere; its odds show where they fall.
+describe('the Crate Shop: live odds', () => {
+  it('Standard + Card Plates shows no Common', () => {
+    seed(2000);
+    render();
+    click(chip('Card Plates'));
+    const line = norm($('.colls-shop-odds')?.textContent);
+    expect(line).not.toMatch(/Common/);
+    expect(line.length).toBeGreaterThan(0);
+  });
+
+  it('Standard + Announcers shows only Legendary 100%', () => {
+    seed(2000);
+    render();
+    click(chip('Announcers'));
+    expect(norm($('.colls-shop-odds')?.textContent)).toBe('Legendary 100%');
+  });
+
+  it('an unfocused Epic crate with a fresh collection shows 64.7 / 26.5 / 8.8', () => {
+    seed(2000);
+    render();
+    click(tier('Epic'));
+    expect(norm($('.colls-shop-odds')?.textContent)).toBe('Epic 64.7% · Legendary 26.5% · Ancient 8.8%');
+  });
+});
+
+// The server's kill switch (admin_off): the catalog epoch moves, and the shop's pool re-derives.
+describe('the Crate Shop: the server catalog switch', () => {
+  it('a category the server switches off leaves the chip row and the count; switching it back restores both', () => {
+    seed(2000);
+    render();
+    click(tier('Epic'));
+    const left = (): number => Number(/^(\d+) left/.exec(norm($('.colls-shop-left')?.textContent))![1]);
+    const before = left();
+    const plates = eligibleForCrate([], 'epic', ['card_plate']).length;
+    expect(chip('Card Plates')).toBeDefined();
+    act(() => { applyServerCatalogState({ retiredIds: [], disabledCategories: ['card_plate'] }, false); });
+    expect(chip('Card Plates')).toBeUndefined();
+    expect(left()).toBe(before - plates);
+    act(() => { applyServerCatalogState(null, false); });
+    expect(chip('Card Plates')).toBeDefined();
+    expect(left()).toBe(before);
   });
 });

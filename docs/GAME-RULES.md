@@ -285,6 +285,7 @@ Single-player stages, each a 10-round duel against one hand-built opponent whose
 - **Progress is saved to your account** when you're signed in, so it follows you to any device.
 - **The first clear of each stage earns a crate** (signed in only). You can replay a cleared stage any time, but
   clearing it again never earns another crate.
+  (Once Aether is on, the first clear pays **200 Aether** instead of a crate, R-PROG-AETHER-01.)
 - **Not signed in (or playing as a guest)?** You can still play: your progress is saved on this device only, your
   clears don't earn crates, and the stage select tells you so. Signing in later starts your account's own
   progress and doesn't grant crates for stages you cleared before signing in.
@@ -466,7 +467,7 @@ _shared/lobbyRating.ts`, `supabase/migrations/2026-09-20-medal-rank.sql` (`settl
 
 ---
 
-## Account Level — permanent XP (owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01, R-PROG-CRATE-01, R-PROG-CRATE-02, R-PROG-CRATE-03, R-PROG-CATALOG-01)
+## Account Level — permanent XP (owner decisions 2026-09-27; R-PROG-XP-01, R-PROG-CURVE-01, R-PROG-TITLE-01, R-PROG-CRATE-01, R-PROG-CRATE-02, R-PROG-CRATE-03, R-PROG-CATALOG-01, R-PROG-AETHER-01..04)
 
 Account Level is a **permanent, earn-only** number that grows with every completed game. It never resets and
 never touches the ranked ladder (Ranked answers "how am I doing right now"; Account Level answers "how much have
@@ -486,7 +487,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
 - **Level title.** The title **Alpha Tester**, unlocked by **every** account at Level 2 (a level milestone, never
   in a crate) and equipped when no title is equipped. Shown in the Collection's New rewards pop-up and on the
   Career (public).
-- **Level crates (2026-09-28).** **Every level grants one sealed crate**; an account's first settled game
+- **Level crates (2026-09-28; REPLACED once Aether is on, see "Aether and the Crate Shop" below, R-PROG-AETHER-04).** **Every level grants one sealed crate**; an account's first settled game
   (enrollment) also grants the Level 1 **Welcome Crate**. So an account at Level L has earned L crates. Earn only:
   no keys, currency, purchases or rerolls. Accounts enrolled before crates shipped received their Welcome Crate
   plus one crate per level already reached (a one-time backfill).
@@ -867,6 +868,65 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   pin, and the comeback fact), never an XP number. `settle_progression` reads the placement from the accepted
   rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
   result. The client queues the request durably and retries; a failure reads "Progress pending".
+
+### Aether and the Crate Shop (owner rulings 2026-10-18; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04)
+
+**Aether** is a currency you earn by playing and spend on crates. It is **never bought with real money**, and an account
+starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then crates work exactly as above.
+**Once Aether is on, the per-level crate rule above is replaced** by the milestone crates below (the Welcome Crate is
+kept), and a Gauntlet first clear pays Aether instead of a crate.
+
+- **Earning.**
+  - **Ranked:** **50 Aether** for every accepted, placed game, win or lose, plus a bonus for how you finished:
+    1st **140**, 2nd **80**, 3rd 45, 4th 35, 5th 25, 6th 15, 7th 10, 8th 0. No valid placement pays 0.
+  - **Versus:** **25** for a completed match, **+45** for the winner (an abandoned match with no winner pays 25).
+  - **Practice and Tutorial:** 0. There is no comeback bonus.
+  - **Gauntlet:** the first clear of each stage pays **200**, once per stage. Stages you cleared before Aether launched
+    pay nothing.
+  - **Guests** earn Aether and see their balance like anyone, but **cannot spend it**: every place that would spend it
+    asks them to sign in.
+- **The five crates.** Each crate guarantees a **rarity floor**: nothing below it can drop.
+
+  | Crate | Floor | Price |
+  |---|---|---|
+  | Standard | Common | 100 |
+  | Rare | Rare | 200 |
+  | Epic | Epic | 400 |
+  | Legendary | Legendary | 600 |
+  | Ancient | Ancient | 900 |
+
+  Epic is about 4x a Standard crate, Legendary 6x and Ancient 9x. The price you see is the price you pay: if it changed
+  since your screen loaded, the purchase is refused and you see the new price, never a silent re-price. A double-click
+  or a retry is charged once.
+- **The odds inside a crate.** The usual odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) are kept, but
+  only the rarities **at or above the floor** stay in the draw, and their odds are scaled up to total 100%. (An Epic crate
+  rolls Epic 22/34, Legendary 9/34, Ancient 3/34.) If the rolled rarity has nothing left you could receive, the draw
+  moves to the nearest rarity that still does, **never below the floor**. A Standard crate with no focus rolls exactly
+  as the older crates did. You still never get a duplicate, and a crate whose floor has nothing left for you cannot be
+  bought (or, if it was earned, stays sealed and uncharged).
+- **Focus.** For an extra fee you can **focus** a crate on one or more categories (announcers, hero skins, minion skins, titles,
+  hero attacks, portrait frames, emotes, card plates): the reward then comes only from those
+  categories. The fee is a share of the crate's price that **falls as you tick more categories**, because ticking more
+  makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
+
+  | Categories ticked | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 or more |
+  |---|---|---|---|---|---|---|---|---|
+  | Fee (% of the crate's price) | 100% | 60% | 40% | 25% | 15% | 10% | 5% | 5% |
+
+  Only **available** categories count: a category with nothing left that you could receive from that crate (at its floor
+  or above, not already owned) cannot be ticked and does not count toward the number ticked. **Ticking
+  every available category is no focus at all and costs nothing.** A focus whose categories are all sold out cannot be
+  bought. The crate price and the fee are one charge.
+- **Milestone crates.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Legendary-floor
+  crate**; other levels grant no crate. When Aether launches, every multiple of 10 at or below your level is granted at
+  once, once each (a Level 37 account receives three). A milestone crate opens unfocused for free, or you can **focus it
+  when you open it** and pay the Legendary focus fee from the table above (60% of 600 for two categories, for example).
+- **Crates you already hold.** Sealed crates earned before Aether launched are kept and open exactly as before (no
+  floor, no focus, no fee).
+
+Source: `supabase/migrations/2026-10-18-aether.sql` (`aether_config`, `aether_apply`, `buy_crate`, `open_crate`,
+`settle_progression`, `record_gauntlet_clear`, `aether_rollout`), `packages/progression/src/aether.ts`,
+`packages/progression/src/crateShop.ts`.
 
 Source: `packages/progression/src/rules.ts` (curve, XP, level titles, crates per level),
 `packages/progression/src/cosmetics.ts` (catalog, weights, the roll), `packages/sim/src/runDerive.ts`

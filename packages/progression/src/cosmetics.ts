@@ -99,10 +99,10 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
  * 2 = FIXED rarity odds first, then an item within that rarity (category weights), 2026-09-29.
  * 3 = FIXED rarity odds first, then an EQUAL chance for every eligible item of that rarity, 2026-09-29.
  * 4 = version 3 with FIVE rarities (Ancient above Legendary) at 35/31/22/9/3, 2026-10-02.
- * 5 (pending, Task 6) = rarity floor + optional category focus; floor common with no focus is version 4 draw for draw.
- *   The tiered pick lives in `crateShop.ts`; this constant is bumped together with the SQL parity test, not before.
+ * 5 = rarity floor + optional category focus; floor common with no focus is version 4 draw for draw (2026-10-18, Aether).
+ *   The tiered pick lives in `crateShop.ts`; `open_crate` and `buy_crate` in `2026-10-18-aether.sql` stamp it.
  */
-export const CRATE_ROLL_VERSION = 4;
+export const CRATE_ROLL_VERSION = 5;
 
 // ── The catalog ───────────────────────────────────────────────────────────────────────────────────────────
 

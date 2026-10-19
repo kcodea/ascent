@@ -15,10 +15,10 @@
  * `progression_tiered_crate_pick` (it mirrors `pickTieredCrateReward` exactly); the server decides every roll and price.
  */
 
-import { DEFAULT_AETHER_ECONOMY, type AetherEconomy, type CrateTier } from './aether';
+import { CRATE_TIERS, DEFAULT_AETHER_ECONOMY, type AetherEconomy, type CrateTier } from './aether';
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateFloorLabel, crateRarityFallback, eligibleCrateCosmetics,
-  type CosmeticCategory, type CosmeticDef, type CosmeticRarity,
+  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateFloorLabel, crateRarityFallback, eligibleCrateCosmetics, parseOpenCrateResult,
+  type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type OpenCrateResult,
 } from './cosmetics';
 
 // ── Tiers ───────────────────────────────────────────────────────────────────────────────────────────────────
@@ -181,4 +181,50 @@ export function tieredCrateChances(eligible: readonly CosmeticDef[], floor: Cosm
     }
   }
   return out;
+}
+
+// ── The purchase answer ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * What `buy_crate` answers (2026-10-18): the open result of the crate it just sold and opened (the same JSON keys as
+ * `open_crate`), the Aether balance AFTER the charge, and the quote the server priced it at. A REPLAY of the same
+ * request id answers `already_opened` with `quote: null`: the original charge stands, nothing is charged twice and no
+ * fresh quote exists to give, so the quote is nullable.
+ */
+export interface BuyCrateResult extends OpenCrateResult {
+  /** The balance after the purchase (always present on a purchase; it is optional only on a plain open). */
+  aether: number;
+  quote: CrateQuote | null;
+}
+
+const isCount = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+
+/** Parse the server's quote object; null for anything malformed (never a half-trusted price). */
+function parseCrateQuote(v: unknown): CrateQuote | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const o = v as Record<string, unknown>;
+  const tier = o.tier;
+  if (typeof tier !== 'string' || !(CRATE_TIERS as readonly string[]).includes(tier)) return null;
+  if (typeof o.floor !== 'string' || !(COSMETIC_RARITIES as readonly string[]).includes(o.floor)) return null;
+  let focus: CosmeticCategory[] | null = null;
+  if (o.focus !== null && o.focus !== undefined) {
+    if (!Array.isArray(o.focus) || !o.focus.every((c) => typeof c === 'string' && (COSMETIC_CATEGORIES as readonly string[]).includes(c))) return null;
+    focus = o.focus.length > 0 ? [...(o.focus as CosmeticCategory[])] : null;
+  }
+  if (!isCount(o.crate) || !isCount(o.fee) || !isCount(o.total) || !isCount(o.remaining)) return null;
+  return { tier: tier as CrateTier, floor: o.floor as CosmeticRarity, focus, crate: o.crate, fee: o.fee, total: o.total, remaining: o.remaining };
+}
+
+/**
+ * Parse a `buy_crate` answer. Null when it is not a valid open result, when the balance is missing or not a non-negative
+ * integer, or when a quote is present but malformed. An explicit `quote: null` (a replay) is valid.
+ */
+export function parseBuyCrateResult(v: unknown): BuyCrateResult | null {
+  const opened = parseOpenCrateResult(v);
+  if (!opened || opened.aether === undefined) return null;
+  const rawQuote = (v as Record<string, unknown>).quote;
+  if (rawQuote === undefined) return null;
+  const quote = rawQuote === null ? null : parseCrateQuote(rawQuote);
+  if (rawQuote !== null && !quote) return null;
+  return { ...opened, aether: opened.aether, quote };
 }

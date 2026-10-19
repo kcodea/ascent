@@ -937,6 +937,9 @@ export interface OpenCrateResult {
   rewardId: string | null;
   /** Sealed crates this account still holds after the call. */
   sealedRemaining: number;
+  /** AETHER (2026-10-18): the account's Aether balance after the call, as the server answered. Absent from a pre-Aether
+   *  server, or when the value is not a non-negative integer. A shop purchase always carries it (see `BuyCrateResult`). */
+  aether?: number;
 }
 
 const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
@@ -983,7 +986,10 @@ export function parseOpenCrateResult(v: unknown): OpenCrateResult | null {
   if (!crate || sealedRemaining === null || sealedRemaining < 0) return null;
   const rewardId = str(o.rewardId);
   if (status !== 'pool_exhausted' && !rewardId) return null;
-  return { status, crate, rewardId: status === 'pool_exhausted' ? null : rewardId, sealedRemaining };
+  const out: OpenCrateResult = { status, crate, rewardId: status === 'pool_exhausted' ? null : rewardId, sealedRemaining };
+  const aether = int(o.aether);
+  if (aether !== null && aether >= 0) out.aether = aether;
+  return out;
 }
 
 // ── The kill switch: is an item still part of the game? ───────────────────────────────────────────────────

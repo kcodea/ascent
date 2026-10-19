@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { handleSubmitProgression, resetAchievementSyncForTests, settlementParity, validateSubmitBody, type RpcCall } from './server';
-import { parseProgressionResult } from './rules';
+import { levelOfXp, parseProgressionResult, xpForSettlement } from './rules';
 
 /**
  * The `submit-progression` Edge Function's logic with a MOCKED database (no live Supabase, no Deno): input
@@ -168,5 +168,52 @@ describe('achievements (batch 1, 2026-09-28)', () => {
     expect(settlementParity(parse({ ...base, achievements: ['made.up'], achievementXp: 0, after: { lifetimeXp: 360, level: 2 } }))).toBe(false);
     // a pre-achievements server's result reads as none and still passes
     expect(settlementParity(parse(okResult()))).toBe(true);
+  });
+});
+
+describe('settlementParity with Aether on (2026-10-18)', () => {
+  // With Aether on there is no crate per level: a settlement grants only the Welcome Crate (when it enrolled the account)
+  // and the milestone crates (Level 10, 20, ...), so the crate count is capped by the level reached, never floored.
+  const xpReaching = (level: number): number => { let xp = 0; while (levelOfXp(xp) < level) xp += 5; return xp; };
+  const aetherResult = (over: Record<string, unknown> = {}) => {
+    const total = 160; // ranked, 3rd place: 100 + 60
+    const afterXp = xpReaching(21);
+    const beforeXp = afterXp - total;
+    return parseProgressionResult(okResult({
+      placement: 3,
+      before: { lifetimeXp: beforeXp, level: levelOfXp(beforeXp) }, after: { lifetimeXp: afterXp, level: levelOfXp(afterXp) },
+      unlockedTitles: [], cratesAwarded: 3, crateIds: ['c-1', 'c-2', 'c-3'],
+      aether: { base: 50, placement: 45, total: 95 }, aetherBalance: 95, ...over,
+    }))!;
+  };
+
+  it('holds for a coherent Aether result: 3 crates at Level 21 (milestones 10 and 20, plus the Welcome Crate)', () => {
+    const r = aetherResult();
+    expect(r.after.level).toBe(21);
+    expect(settlementParity(r)).toBe(true);
+  });
+  it('has no per-level crate floor any more', () => {
+    expect(settlementParity(aetherResult({ cratesAwarded: 0, crateIds: [] }))).toBe(true);
+  });
+  it('fails when more crates were awarded than the milestones through the new level plus the Welcome Crate', () => {
+    expect(settlementParity(aetherResult({ cratesAwarded: 5, crateIds: ['a', 'b', 'c', 'd', 'e'] }))).toBe(false);
+  });
+  it('fails when the breakdown does not add up', () => {
+    expect(settlementParity(aetherResult({ aether: { base: 50, placement: 45, total: 100 } }))).toBe(false);
+  });
+  it('Practice and Tutorial pay nothing', () => {
+    const xp = xpForSettlement({ mode: 'practice', placement: 3, comeback: false });
+    const afterXp = xpReaching(21);
+    const practice = {
+      mode: 'practice', runId: 'practice:7', xp, cratesAwarded: 0, crateIds: [],
+      before: { lifetimeXp: afterXp - xp.total, level: levelOfXp(afterXp - xp.total) }, after: { lifetimeXp: afterXp, level: levelOfXp(afterXp) },
+    };
+    expect(settlementParity(aetherResult({ ...practice, aether: { base: 0, placement: 0, total: 0 }, aetherBalance: 0 }))).toBe(true);
+    expect(settlementParity(aetherResult({ ...practice, aether: { base: 50, placement: 0, total: 50 }, aetherBalance: 50 }))).toBe(false);
+  });
+  it('the level-crate rule still binds a result with no Aether (the switch was off)', () => {
+    const afterXp = xpReaching(21);
+    const off = okResult({ before: { lifetimeXp: afterXp - 160, level: levelOfXp(afterXp - 160) }, after: { lifetimeXp: afterXp, level: 21 }, unlockedTitles: [], cratesAwarded: 0, crateIds: [] });
+    expect(settlementParity(parseProgressionResult(off)!)).toBe(false);
   });
 });

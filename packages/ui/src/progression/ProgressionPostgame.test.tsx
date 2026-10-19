@@ -10,6 +10,7 @@ import { act } from 'react';
 import type { ProgressionResult } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 import { ProgressionPostgame } from './ProgressionPostgame';
+import { aetherText, placeOrdinal } from './progressionFormat';
 import { resetProgressionForTests, useProgression, wasProgressionPresented, type CurrentRunProgression } from './progressionStore';
 import { useGame } from '../store';
 
@@ -198,5 +199,53 @@ describe('achievements, titles and crates wait in the Collection (owner 2026-09-
     expect(ui!.container.querySelector('.acctxp-waiting')).toBeNull();
     act(() => { vi.advanceTimersByTime(5000); });
     expect(ui!.container.querySelector('.acctxp-waiting')).not.toBeNull();
+  });
+});
+
+describe('Aether earned (Aether + Crate Shop, Task 8)', () => {
+  const aetherOf = (a: { base: number; placement: number; total: number } | null, over: Partial<ProgressionResult> = {}): Partial<CurrentRunProgression> =>
+    ({ result: result({ aether: a, ...over }) });
+  it('shows Aether earned: the headline, Played, and the placement bonus', () => {
+    setCurrent(aetherOf({ base: 50, placement: 140, total: 190 }));
+    render();
+    expect(text('.acctxp-aether')).toContain('+190 Aether');
+    expect(all('.acctxp-aether .acctxp-line')).toEqual(['Played+50', '1st place+140']);
+    expect(ui!.container.querySelector('[aria-label="Aether earned"]')).not.toBeNull();
+  });
+  it('no Aether block when off', () => {
+    setCurrent(aetherOf(null));
+    render();
+    expect(ui!.container.querySelector('[aria-label="Aether earned"]')).toBeNull();
+    expect(ui!.container.querySelector('.acctxp-aether')).toBeNull();
+  });
+  it('a zero total (Practice / Tutorial with Aether on) renders nothing', () => {
+    setCurrent(aetherOf({ base: 0, placement: 0, total: 0 }, { mode: 'practice', placement: null }), 'on');
+    render();
+    expect(ui!.container.querySelector('.acctxp-aether')).toBeNull();
+  });
+  it('a placement with a zero bonus (8th) shows only Played', () => {
+    setCurrent(aetherOf({ base: 50, placement: 0, total: 50 }, { placement: 8 }));
+    render();
+    expect(text('.acctxp-aether')).toContain('+50 Aether');
+    expect(all('.acctxp-aether .acctxp-line')).toEqual(['Played+50']);
+  });
+  it('Versus labels the bonus "Win", not "1st place"', () => {
+    setCurrent(aetherOf({ base: 25, placement: 45, total: 70 }, { mode: 'versus', placement: 1 }));
+    render();
+    expect(all('.acctxp-aether .acctxp-line')).toEqual(['Played+25', 'Win+45']);
+  });
+  it('no native title tooltips, no em dashes', () => {
+    setCurrent(aetherOf({ base: 50, placement: 80, total: 130 }, { placement: 2 }));
+    render();
+    expect(ui!.container.querySelector('.acctxp-aether [title]')).toBeNull();
+    expect(text('.acctxp-aether')).not.toMatch(/[—–]/);
+    expect(all('.acctxp-aether .acctxp-line')[1]).toBe('2nd place+80');
+  });
+});
+
+describe('Aether format helpers', () => {
+  it('aetherText and placeOrdinal', () => {
+    expect(aetherText(190)).toBe('+190 Aether');
+    expect([1, 2, 3, 4, 5, 6, 7, 8].map(placeOrdinal)).toEqual(['1st', '2nd', '3rd', '4th', '5th', '6th', '7th', '8th']);
   });
 });

@@ -7,6 +7,12 @@ import type { ProgressionResult } from '@game/progression';
 
 export const xpText = (xp: number): string => `+${xp} XP`;
 
+/** "+190 Aether". Plain short phrase, like `xpText`. */
+export const aetherText = (n: number): string => `+${n} Aether`;
+
+/** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4.. -> "4th".. (a lobby is eight seats, so no 11th to 13th case to guard). */
+export const placeOrdinal = (p: number): string => `${p}${p === 1 ? 'st' : p === 2 ? 'nd' : p === 3 ? 'rd' : 'th'}`;
+
 export interface BreakdownLine { key: 'base' | 'topFour' | 'firstPlace' | 'comeback'; label: string; xp: number }
 
 /** The breakdown rows for a settled result, in reading order, zero rows left out. */

@@ -722,6 +722,23 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_runic', 'Runic', 'legendary', 'Runic.png'),
   cardPlate('plate_verdant', 'Verdant', 'legendary', 'Verdant.png'),
   cardPlate('plate_volcanic', 'Volcanic', 'legendary', 'Volcanic.png'),
+  // Owner 2026-10-19: "i added a bunch more use either dark brown interior or black interior", then "i added more - add
+  // those with dark interior as well". Legendary by the folder rule.
+  cardPlate('plate_armored_knight', 'Armored Knight', 'legendary', 'Armored Knight.png'),
+  cardPlate('plate_bordered_land', 'Bordered Land', 'legendary', 'Bordered Land.png'),
+  cardPlate('plate_carved_aetherstone', 'Carved Aetherstone', 'legendary', 'Carved Aetherstone.png'),
+  cardPlate('plate_elegant', 'Elegant', 'legendary', 'Elegant.png'),
+  cardPlate('plate_frozen_aurora', 'Frozen Aurora', 'legendary', 'Frozen Aurora.png'),
+  cardPlate('plate_hivemind', 'Hivemind', 'legendary', 'Hivemind.png'),
+  cardPlate('plate_ironwood', 'Ironwood', 'legendary', 'Ironwood.png'),
+  cardPlate('plate_solar', 'Solar', 'legendary', 'Solar.png'),
+  cardPlate('plate_static', 'Static', 'legendary', 'Static.png'),
+  cardPlate('plate_twisted_ether', 'Twisted Ether', 'legendary', 'Twisted Ether.png'),
+  cardPlate('plate_white_magic', 'White Magic', 'legendary', 'White Magic.png'),
+  cardPlate('plate_nano', 'Nano', 'legendary', 'Nano.png'),
+  cardPlate('plate_soulwitch', 'Soulwitch', 'legendary', 'Soulwitch.png'),
+  cardPlate('plate_spades', 'Spades', 'legendary', 'Spades.png'),
+  cardPlate('plate_the_howl', 'The Howl', 'legendary', 'The Howl.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

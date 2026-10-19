@@ -20,7 +20,7 @@ describe('the card plate catalog', () => {
     expect(COSMETIC_CATEGORY_DEFS.card_plate).toEqual({ id: 'card_plate', label: 'Card Plates', weight: 10, enabled: true, target: 'global' });
   });
 
-  it('forty-seven crate plates (Phoenix Plate retired), Legendary unless the owner says otherwise (Simple Black, Simple White, Simple Glass and Mooncloud are Ancient; Aquarium Rocks, Moonstone, Bamboo, Beach, Magma, Stonevines, Porcelain, the Smooth and Hand Drawn plates and Dark Arcane Epic; the Standard colours Rare), each art key its own id, each naming its master', () => {
+  it('sixty-two crate plates (Phoenix Plate retired), Legendary unless the owner says otherwise (Simple Black, Simple White, Simple Glass and Mooncloud are Ancient; Aquarium Rocks, Moonstone, Bamboo, Beach, Magma, Stonevines, Porcelain, the Smooth and Hand Drawn plates and Dark Arcane Epic; the Standard colours Rare), each art key its own id, each naming its master', () => {
     expect(PLATES.map((c) => [c.id, c.name, c.rarity, c.acquisition.type, c.assets.art, c.assets.master, c.target])).toEqual([
       ['plate_aquarium_rocks', 'Aquarium Rocks', 'epic', 'crate', 'plate_aquarium_rocks', 'Aquarium Rocks.png', undefined],
       ['plate_amethyst', 'Amethyst', 'legendary', 'crate', 'plate_amethyst', 'Amethyst.png', undefined],
@@ -69,6 +69,21 @@ describe('the card plate catalog', () => {
       ['plate_runic', 'Runic', 'legendary', 'crate', 'plate_runic', 'Runic.png', undefined],
       ['plate_verdant', 'Verdant', 'legendary', 'crate', 'plate_verdant', 'Verdant.png', undefined],
       ['plate_volcanic', 'Volcanic', 'legendary', 'crate', 'plate_volcanic', 'Volcanic.png', undefined],
+      ['plate_armored_knight', 'Armored Knight', 'legendary', 'crate', 'plate_armored_knight', 'Armored Knight.png', undefined],
+      ['plate_bordered_land', 'Bordered Land', 'legendary', 'crate', 'plate_bordered_land', 'Bordered Land.png', undefined],
+      ['plate_carved_aetherstone', 'Carved Aetherstone', 'legendary', 'crate', 'plate_carved_aetherstone', 'Carved Aetherstone.png', undefined],
+      ['plate_elegant', 'Elegant', 'legendary', 'crate', 'plate_elegant', 'Elegant.png', undefined],
+      ['plate_frozen_aurora', 'Frozen Aurora', 'legendary', 'crate', 'plate_frozen_aurora', 'Frozen Aurora.png', undefined],
+      ['plate_hivemind', 'Hivemind', 'legendary', 'crate', 'plate_hivemind', 'Hivemind.png', undefined],
+      ['plate_ironwood', 'Ironwood', 'legendary', 'crate', 'plate_ironwood', 'Ironwood.png', undefined],
+      ['plate_solar', 'Solar', 'legendary', 'crate', 'plate_solar', 'Solar.png', undefined],
+      ['plate_static', 'Static', 'legendary', 'crate', 'plate_static', 'Static.png', undefined],
+      ['plate_twisted_ether', 'Twisted Ether', 'legendary', 'crate', 'plate_twisted_ether', 'Twisted Ether.png', undefined],
+      ['plate_white_magic', 'White Magic', 'legendary', 'crate', 'plate_white_magic', 'White Magic.png', undefined],
+      ['plate_nano', 'Nano', 'legendary', 'crate', 'plate_nano', 'Nano.png', undefined],
+      ['plate_soulwitch', 'Soulwitch', 'legendary', 'crate', 'plate_soulwitch', 'Soulwitch.png', undefined],
+      ['plate_spades', 'Spades', 'legendary', 'crate', 'plate_spades', 'Spades.png', undefined],
+      ['plate_the_howl', 'The Howl', 'legendary', 'crate', 'plate_the_howl', 'The Howl.png', undefined],
     ]);
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).toContain('plate_aquarium_rocks');
     expect(eligibleCrateCosmetics(['plate_aquarium_rocks']).map((c) => c.id)).not.toContain('plate_aquarium_rocks');

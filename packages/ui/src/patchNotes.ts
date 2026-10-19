@@ -58,7 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-19',
     changes: [
-      { category: 'Systems', text: 'Four more Legendary Card Plates to find in crates: Celestial, Runic, Verdant and Volcanic.' },
+      { category: 'Systems', text: 'Nineteen more Legendary Card Plates to find in crates.', details: ['Celestial, Runic, Verdant, Volcanic, Armored Knight, Bordered Land, Carved Aetherstone, Elegant, Frozen Aurora, Hivemind, Ironwood, Solar, Static, Twisted Ether, White Magic, Nano, Soulwitch, Spades, The Howl.'] },
     ],
   },
   {

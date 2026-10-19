@@ -413,25 +413,35 @@ describe('the chest tier layer', () => {
   });
 
   it('the tier layer composes with the reward finale: a Rare chest rolling a Legendary gets both', () => {
-    const root = new Container();
-    const scene = new CrateScene(root, TEX);
-    scene.layout(1920, 1080);
-    const rare = chestTierPresetFor('rare', CRATE_FX_DEFAULTS);
-    scene.setTierLayer(rare);
-    const p = presetFor('legendary', CRATE_FX_DEFAULTS);
-    const b = crateBeats(p, CRATE_FX_DEFAULTS);
-    scene.anticipate(ant);
-    run(scene, ant.antMs);
-    expect(scene.stats().tier).toBeGreaterThan(0); // the tier's motes drift up from the click
-    scene.charge(p);
-    run(scene, b.burstAt);
-    scene.burst(p);
-    expect(scene.stats().sparkles).toBe(rare.burstSparkles); // the tier's sparkles, on top of the reward's
-    expect(scene.stats().particles).toBeGreaterThan(p.burstSparks + rare.burstSparkles);
-    run(scene, b.burst2At - b.burstAt + 32);
-    expect(scene.stats().coins).toBe(p.coins); // the reward's double burst still fires, with its coin shower
-    scene.destroy();
-    expect(root.children.length).toBe(0);
+    // Seeded: a Legendary reward alone peaks at the particle cap, so on some draws the last coins of the shower find the
+    // pool full (with or without a chest tier: by then every tier particle has already given way). That made this test
+    // fail about 1 run in 14 before the final review; the invariant below is what the cap promises.
+    const rnd = vi.spyOn(Math, 'random').mockImplementation(seeded(8));
+    try {
+      const root = new Container();
+      const scene = new CrateScene(root, TEX);
+      scene.layout(1920, 1080);
+      const rare = chestTierPresetFor('rare', CRATE_FX_DEFAULTS);
+      scene.setTierLayer(rare);
+      const p = presetFor('legendary', CRATE_FX_DEFAULTS);
+      const b = crateBeats(p, CRATE_FX_DEFAULTS);
+      scene.anticipate(ant);
+      run(scene, ant.antMs);
+      expect(scene.stats().tier).toBeGreaterThan(0); // the tier's motes drift up from the click
+      scene.charge(p);
+      run(scene, b.burstAt);
+      scene.burst(p);
+      expect(scene.stats().sparkles).toBe(rare.burstSparkles); // the tier's sparkles, on top of the reward's
+      expect(scene.stats().particles).toBeGreaterThan(p.burstSparks + rare.burstSparkles);
+      run(scene, b.burst2At - b.burstAt + 32);
+      // the reward's double burst still fires, with its coin shower; a coin is only ever short once the chest's own
+      // particles have ALL given way to the reward (the tier never costs the reward a coin)
+      const after = scene.stats();
+      expect(after.coins).toBeGreaterThan(p.coins * 0.85);
+      if (after.coins < p.coins) expect(after.tier).toBe(0);
+      scene.destroy();
+      expect(root.children.length).toBe(0);
+    } finally { rnd.mockRestore(); }
   });
 
   it('the particle cap holds at an Ancient chest rolling an Ancient reward', () => {

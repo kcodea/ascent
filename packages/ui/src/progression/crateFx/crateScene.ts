@@ -1367,7 +1367,10 @@ export class CrateScene {
     o: { vx?: number; vy?: number; drag?: number; gravity?: number; spin?: number; life: number; fromScale?: number; toScale?: number; peakAlpha?: number },
     blend: 'add' | 'normal' = 'add', list: Particle[] = this.particles): Particle | null {
     if (this.particles.length + this.tierParts.length >= MAX_PARTICLES && !this.makeRoom(list === this.particles)) return null;
-    const s = this.acquire(tex);
+    // The sprite cap (particles plus rings and flashes) can be the one that is full: a tier particle gives way there too,
+    // so the tier's flourish never costs the reward a coin (with no tier layer nothing is freed: today's cap exactly).
+    let s = this.acquire(tex);
+    if (!s && this.makeRoom(list === this.particles)) s = this.acquire(tex);
     if (!s) return null;
     s.tint = tint;
     s.blendMode = blend;

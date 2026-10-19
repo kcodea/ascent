@@ -900,12 +900,14 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
   or a retry is charged once.
 - **Each chest has its own look and opening (2026-10-19, tiered chest openings).** A Rare, Epic, Legendary or Ancient
   chest opens with its own art, and its colour builds more magic than the one below it: Rare blue, Epic purple,
-  Legendary gold, Ancient opal. Ancient pulls swirling opal energy in during the charge and bursts with a white flash
-  and multichrome sparkles. A Standard chest (and a level or Welcome chest) opens exactly as before. **What is inside
-  still decides the finale**: the reward's rarity drives the burst, rays and sound as it always did, and the chest's
-  tier only adds to it, so a Rare chest can still produce an Ancient finale. A milestone chest opens as a Legendary
-  chest. If a chest's art is not ready in time, that opening uses the Standard chest's art; reduced motion is still a
-  short fade.
+  Legendary gold, Ancient opal. Its shake and glow build through the charge, and at the burst Rare, Epic and Legendary
+  flash in their own colour. Ancient pulls swirling opal energy in during the charge and bursts with a white flash and
+  multichrome sparkles. A Standard chest (and a level or Welcome chest) opens exactly as before, except that an Ancient
+  reward's sparks now shimmer through the colours (from any chest; the Ancient reward itself stays cyan to magenta).
+  **What is inside still decides the finale**: the reward's rarity drives the burst, rays and sound as it always did,
+  and the chest's tier only adds to it, so a Rare chest can still produce an Ancient finale. A milestone chest opens as
+  a Legendary chest. If a chest's art is not ready in time, that opening uses the Standard chest's art, but its tier's
+  effects and sounds still play; reduced motion is still a short fade.
 - **The odds inside a chest.** The usual odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) are kept, but
   only the rarities **at or above the floor** stay in the draw, and their odds are scaled up to total 100%. (An Epic chest
   rolls Epic 22/34, Legendary 9/34, Ancient 3/34.) If the rolled rarity has nothing left you could receive, the draw

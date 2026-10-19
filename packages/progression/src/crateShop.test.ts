@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, eligibleCrateCosmetics, pickCrateReward,
+  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateChances, eligibleCrateCosmetics, pickCrateReward, setServerCatalogState,
   type CosmeticDef,
 } from './cosmetics';
 import { CRATE_TIERS, DEFAULT_AETHER_ECONOMY } from './aether';
@@ -186,5 +186,35 @@ describe('quotes', () => {
   it('prices come from the economy passed in', () => {
     const eco = { ...DEFAULT_AETHER_ECONOMY, cratePrice: { ...DEFAULT_AETHER_ECONOMY.cratePrice, epic: 500 } };
     expect(quoteCrate({ tier: 'epic', focus: ['card_plate'], owned: [], economy: eco })).toMatchObject({ crate: 500, fee: 500, total: 1000 });
+  });
+});
+
+describe('the server catalog switch (admin_off)', () => {
+  afterEach(() => setServerCatalogState(null));
+
+  it('a server-retired item and a server-disabled category leave the pool, the chips and the quote', () => {
+    const plates = eligibleForCrate([], 'epic', ['card_plate']);
+    const retired = plates[0]!;
+    const all = availableFocusCategories([], 'epic');
+    const others = all.filter((c) => c !== 'card_plate' && c !== retired.category);
+    const disabled = others[0]!;
+    const rest = all.filter((c) => c !== disabled);
+    expect(rest.length).toBeGreaterThan(1);
+    const before = quoteCrate({ tier: 'epic', focus: ['card_plate'], owned: [] })!;
+
+    setServerCatalogState({ retiredIds: [retired.id], disabledCategories: [disabled] });
+    // The retired item never drops; the count drops with it.
+    expect(eligibleForCrate([], 'epic', null).map((c) => c.id)).not.toContain(retired.id);
+    expect(quoteCrate({ tier: 'epic', focus: ['card_plate'], owned: [] })!.remaining).toBe(before.remaining - 1);
+    // The disabled category offers no chip, contributes nothing, and naming it is refused like the server's bad_focus.
+    expect(availableFocusCategories([], 'epic')).toEqual(rest);
+    expect(eligibleForCrate([], 'epic', null).some((c) => c.category === disabled)).toBe(false);
+    expect(quoteCrate({ tier: 'epic', focus: [disabled], owned: [] })).toBeNull();
+    // Ticking every OTHER category is every available one: no focus, no fee (what the server prices).
+    expect(quoteCrate({ tier: 'epic', focus: rest, owned: [] })).toMatchObject({ focus: null, fee: 0, total: 400 });
+
+    setServerCatalogState(null);
+    expect(availableFocusCategories([], 'epic')).toEqual(all);
+    expect(quoteCrate({ tier: 'epic', focus: ['card_plate'], owned: [] })!.remaining).toBe(before.remaining);
   });
 });

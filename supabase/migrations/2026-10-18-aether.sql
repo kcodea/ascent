@@ -68,6 +68,11 @@ drop policy if exists "read aether_config" on public.aether_config;
 create policy "read aether_config" on public.aether_config for select using (true);
 grant select on public.aether_config to anon, authenticated;
 -- The FIRST seed: exactly JSON.stringify(DEFAULT_AETHER_ECONOMY). A re-run never overwrites a retuned row.
+-- A RETUNE MUST KEEP THIS EXACT SHAPE: 8 `rankedPlacementBonus` entries, 7 `focusFeePercent` rungs, a price for all five
+-- tiers, and every number a non-negative integer. `parseAetherEconomy` rejects anything else WHOLE, and a client that
+-- cannot parse the row silently falls back to its bundled default prices, so it would quote numbers this server no
+-- longer charges (every purchase then answers `price_changed`). The server's own reads (`aether_economy_int`) refuse a
+-- bad value per field: a purchase raises `aether_config_missing`, a settlement pays no Aether for that game.
 insert into public.aether_config (id, economy) values (1,
   '{"version":1,"rankedBase":50,"rankedPlacementBonus":[140,80,45,35,25,15,10,0],"versusComplete":25,"versusWin":45,"gauntletFirstClear":200,"cratePrice":{"standard":100,"rare":200,"epic":400,"legendary":600,"ancient":900},"focusFeePercent":[100,60,40,25,15,10,5],"milestoneEvery":10}'::jsonb)
 on conflict (id) do nothing;
@@ -290,7 +295,6 @@ declare
   v_available text[];
   v_focus     text[];
   v_remaining int;
-  v_ladder    jsonb;
   v_pct       int := 0;
   v_fee       int := 0;
   v_crate     int;
@@ -300,8 +304,10 @@ begin
   v_floor := case v_tier when 'standard' then 'common' else v_tier end;   -- mirror of CRATE_TIER_FLOOR
 
   select economy into v_eco from public.aether_config where id = 1;
-  v_price := (v_eco #>> array['cratePrice', v_tier])::int;
-  if v_price is null or v_price < 0 then raise exception 'aether_config_missing'; end if;
+  -- every economy number through the defensive read (section 11): a missing, fractional or garbled price is a refusal,
+  -- never a cast error and never a guess (final review 2026-10-19)
+  v_price := public.aether_economy_int(v_eco, array['cratePrice', v_tier]);
+  if v_price is null then raise exception 'aether_config_missing'; end if;
 
   -- the categories a player may focus at this floor: those with something still eligible
   select coalesce(array_agg(distinct c.category), '{}') into v_available
@@ -319,9 +325,14 @@ begin
   if v_remaining = 0 then raise exception 'sold_out'; end if;
 
   -- focusFeePercent: 1..7 ticked read the ladder, 8 or more (but fewer than all available) the last rung
+  -- (an unreadable ladder or rung is `aether_config_missing`: a focused crate is never sold at a guessed fee)
   if v_focus is not null then
-    v_ladder := v_eco -> 'focusFeePercent';
-    v_pct := coalesce((v_ladder ->> (least(cardinality(v_focus), jsonb_array_length(v_ladder)) - 1))::int, 0);
+    if jsonb_typeof(v_eco -> 'focusFeePercent') is distinct from 'array' or jsonb_array_length(v_eco -> 'focusFeePercent') = 0 then
+      raise exception 'aether_config_missing';
+    end if;
+    v_pct := public.aether_economy_int(v_eco,
+      array['focusFeePercent', (least(cardinality(v_focus), jsonb_array_length(v_eco -> 'focusFeePercent')) - 1)::text]);
+    if v_pct is null then raise exception 'aether_config_missing'; end if;
     v_fee := (v_price * v_pct) / 100;   -- integer division: Math.floor in the TS
   end if;
   v_crate := case when v_milestone then 0 else v_price end;
@@ -1177,6 +1188,9 @@ revoke all on function public.aether_rollout() from public, anon, authenticated;
 grant execute on function public.aether_rollout() to service_role;
 
 -- ── END OF SECTIONS 11-14. ─────────────────────────────────────────────────────────────────────────────────
+
+-- PostgREST caches the schema: reload it so the new functions and columns are callable at once.
+notify pgrst, 'reload schema';
 
 -- THE OWNER'S LAUNCH RUNBOOK (run once, AFTER this file and the Edge Functions are deployed): backdate the milestone
 -- crates and turn Aether on.

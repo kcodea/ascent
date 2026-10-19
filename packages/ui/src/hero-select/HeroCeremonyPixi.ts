@@ -26,6 +26,7 @@ import { stageScale } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { crumbOnce } from '../crashLog';
+import { phonePixiOptions, pixiAllowed } from '../phoneDiag';
 import { PIXI_ANTIALIAS } from '../phoneArt';
 
 // ─── pure math (exported for tests) ───────────────────────────────────────────────────────────────────────
@@ -241,9 +242,10 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
     // Same DPR cap as the gameplay overlay, times the stage scale: `resizeTo: host` sizes this renderer in LAYOUT px,
     // which on a scaled stage (stage.ts) is up to ~2.8x the screen size per axis, so without the factor a phone
     // rendered ~8x the pixels it shows (measured: ceremony frame 9 ms -> 64 ms at 844x390 under 4x throttle).
+    if (!pixiAllowed()) throw new Error('phone diagnostics: no effect canvases (nofx)');
     const res = Math.min(window.devicePixelRatio || 1, 2) * stageScale();
     const app = new Application();
-    await app.init({
+    await app.init(phonePixiOptions({
       resizeTo: host,
       backgroundAlpha: 0,
       antialias: PIXI_ANTIALIAS,
@@ -251,7 +253,7 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
       resolution: res,
       preference: 'webgl',
       powerPreference: 'high-performance',
-    });
+    }, stageScale())); // phone: 1.5 x stage scale, low power, no depth buffer (phoneDiag.ts)
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'heroCeremony');
     watchContextLoss(app, 'heroCeremony');

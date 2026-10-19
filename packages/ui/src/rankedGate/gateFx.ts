@@ -35,7 +35,8 @@ import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateTiming';
 import { PIXI_ANTIALIAS } from '../phoneArt';
-import { crumbOnce } from '../crashLog';
+import { crumb } from '../crashLog';
+import { phonePixiOptions, pixiAllowed } from '../phoneDiag';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -91,7 +92,7 @@ class GateFxController {
   /** Kick the async Pixi init early (the ranked confirmation calls this as it opens) so the first slam has FX. */
   warm(): void {
     this.releaseWhenIdle = false;
-    if (this.app || this.initing) return;
+    if (this.app || this.initing || !pixiAllowed()) return; // phone `nofx` switch: no canvas, the gate plays bare
     this.initing = this.init().catch((e) => {
       console.error('[gateFx] init failed, gate FX disabled:', e);
     });
@@ -99,14 +100,14 @@ class GateFxController {
 
   private async init(): Promise<void> {
     const app = new Application();
-    await app.init({
+    await app.init(phonePixiOptions({
       resizeTo: window, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true,
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
-    });
+    })); // phone: low power, no depth buffer, `res1` switch (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'gateFx');
     watchContextLoss(app, 'gateFx');
-    crumbOnce('pixi init gate');
+    crumb('gate fx created'); // every gate (the layer is freed after each one)
     const c = app.canvas;
     c.className = 'gatefx-canvas pixi-screen';
     c.style.visibility = 'hidden';

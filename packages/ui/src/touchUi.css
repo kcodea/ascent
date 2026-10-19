@@ -132,3 +132,31 @@ html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) 
 html[data-touch-ui] .titlescreen:has(> .modepick) > :is(.titlemenu, .titleaccount, .titlefoot) { visibility: hidden; }
 html[data-touch-ui] .titlescreen > .modepick.mp-home:has(~ .modepick) { visibility: hidden; }
 html[data-touch-ui] .msb { overflow-x: hidden; }
+
+/* ── Phone GPU memory: no looping layers on the menus (owner 2026-10-18, R-TOUCH-GPU-MEMORY-01) ─────────────────────
+   The crash log said the phone still died within 5 s of the mode home, with audio and images ruled out. A running
+   transform / opacity animation or a `will-change` keeps its element (and, by overlap, what paints over it) a separate
+   composited layer, and iOS pays every layer at its own stage size times 3x3. `data-phone-gpu` is written by
+   phoneDiag.ts on the LITE_ART path only (every iOS device, small touch screens), so desktop never matches.
+     1. The menu loops that never end stop outright (the title logo's bob, the mode tiles' swirls); the two blinking
+        account nudges rest at their reduced-motion opacity.
+     2. Every other loop on a menu page plays ONE cycle and rests (its last keyframe is its first, so it rests as it
+        started). No menu element keeps a `will-change`. The `menu-rise` entrances let go of their layer when done.
+     3. The Phone diagnostics switches (Settings): `noanim` plays every menu animation and transition at zero length
+        (each jumps to its end state), `litebd` paints the menu backdrop flat. */
+html[data-touch-ui][data-phone-gpu] :is(.titlescreen, .lbpage) :is(.titlelogo, .titlelogo .crest, .titleword, .mcswirl, .riftbtn-swirl) { animation: none !important; }
+html[data-touch-ui][data-phone-gpu] :is(.titlescreen, .lbpage) :is(.titlename-nudge, .guestsignin-glow) { animation: none !important; opacity: 0.7; }
+html[data-touch-ui][data-phone-gpu] :is(.titlescreen, .lbpage) *,
+html[data-touch-ui][data-phone-gpu] :is(.titlescreen, .lbpage) *::before,
+html[data-touch-ui][data-phone-gpu] :is(.titlescreen, .lbpage) *::after { animation-iteration-count: 1 !important; will-change: auto !important; }
+/* The menus' `menu-rise` entrances end on the element's own style (opacity 1, no transform) but were filled `both`: a
+   finished, filling transform animation stays a composited layer for as long as the page is up (measured: the mode
+   home's Play tile, 23 MB). Filled `backwards` they look the same and let go of the layer at the end. */
+html[data-touch-ui][data-phone-gpu] :is(.mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-table > .lb-trow-btn, .lb-rows > .lb-lazy, .cv2-list > .cv2-lazy) { animation-fill-mode: backwards !important; }
+html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *,
+html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *::before,
+html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *::after {
+  animation-duration: 0s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important;
+  transition-duration: 0s !important; transition-delay: 0s !important;
+}
+html[data-touch-ui][data-pd-litebd] .mbd-lite { background: #0a1220; }

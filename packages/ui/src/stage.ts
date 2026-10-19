@@ -21,6 +21,8 @@
  * renderer is sized to the window, their CSS box to the stage), so rects go into Pixi unconverted.
  */
 
+import { PHONE_DIAG, PHONE_GPU } from './phoneDiag';
+
 /** The design viewport: the layout never goes smaller than this. The owner's 1080p desktop look. */
 export const DESIGN_W = 1920;
 export const DESIGN_H = 1080;
@@ -208,7 +210,7 @@ export function applyStage(): StageFit {
     de.removeProperty('--lvw'); de.removeProperty('--lvh'); de.removeProperty('--vw'); de.removeProperty('--vh');
     de.removeProperty('--stage-s');
     document.documentElement.removeAttribute('data-stage-scaled');
-    if (root) { root.style.removeProperty('width'); root.style.removeProperty('height'); root.style.removeProperty('transform'); }
+    if (root) { root.style.removeProperty('width'); root.style.removeProperty('height'); root.style.removeProperty('transform'); root.style.removeProperty('zoom'); }
   } else {
     de.setProperty('--lvw', `${next.lw}px`); de.setProperty('--lvh', `${next.lh}px`);
     de.setProperty('--vw', `${next.lw / 100}px`); de.setProperty('--vh', `${next.lh / 100}px`);
@@ -217,11 +219,31 @@ export function applyStage(): StageFit {
     if (root) {
       root.style.width = `${next.lw}px`;
       root.style.height = `${next.lh}px`;
-      root.style.transform = `scale(${next.s})`;
+      // PHONE MENUS (R-TOUCH-GPU-MEMORY-01): shrink with CSS `zoom`, whose layers WebKit lays out at their on-screen
+      // size, instead of a transform, whose layers it pays at their full stage size x 3 x 3. See `setStageMenuZoom`.
+      // Desktop never takes this branch (`PHONE_GPU` is false there).
+      if (stageZoomed()) { root.style.removeProperty('transform'); root.style.zoom = String(next.s); }
+      else { root.style.removeProperty('zoom'); root.style.transform = `scale(${next.s})`; }
     }
   }
   listeners.forEach((l) => l(next));
   return next;
+}
+
+let menuZoom = false;
+/** Pure: does the stage zoom instead of transform? Only on a phone: on its menus by default (unless `nozoom`), or
+ *  everywhere with the `zoom` switch. */
+export function zoomedStage(phone: boolean, onMenus: boolean, flags: { zoom?: 1; nozoom?: 1 }): boolean {
+  if (!phone) return false;
+  return !!flags.zoom || (onMenus && !flags.nozoom);
+}
+function stageZoomed(): boolean { return zoomedStage(PHONE_GPU, menuZoom, PHONE_DIAG); }
+/** Game.tsx: a phone is on the menus (title, mode pages, ladder pages; not hero select, not a run). Re-applies the fit
+ *  only when that changes. A no-op on desktop. */
+export function setStageMenuZoom(on: boolean): void {
+  if (!PHONE_GPU || on === menuZoom) return;
+  menuZoom = on;
+  if (installed) applyStage();
 }
 
 let installed = false;

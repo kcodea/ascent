@@ -46,6 +46,9 @@ export const PHONE_ASSET_CAPS: Readonly<Record<string, number>> = {
  *  goes through `phonePublicUrl` belong here (the build also drops any file a stylesheet names, see the plugin). */
 export function phonePublicCap(rel: string): number | null {
   if (rel === 'augustfullboard.webp' || rel === 'augustboardcombat.webp') return 1920;
+  // The menu backdrop plates (1920 x 1080 masters, drawn behind every menu): about a phone screen's own width
+  // (R-TOUCH-GPU-MEMORY-01). `hall-dim` is already 960 wide and a stylesheet names it.
+  if (rel === 'backdrops/hall-soft.webp' || rel === 'backdrops/hall.webp') return 1280;
   // Card frames, plates, desc boxes, tier stars, the shop buttons. NOT the title logo (drawn huge on the title), the
   // Compendium frame (a border-image sliced in image pixels) or the ranked gate (CSS-painted).
   if (/^frames\/(?!title-logo|compendium-|ranked-gate)/.test(rel)) return 512;

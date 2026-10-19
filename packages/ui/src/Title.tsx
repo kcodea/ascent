@@ -39,7 +39,7 @@ import { PlayerStrip } from './PlayerStrip';
 import { levelProgress } from '@game/progression';
 import { mirrorFor } from './progression/progressionStore';
 import { scalarCaption } from './rank/rankFormat';
-import { crumb } from './crashLog';
+import { crumb, crumbTrail } from './crashLog';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -162,7 +162,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // opens on cached rows (socialPrefetch.ts; fresh answers are not re-read, so coming back here is cheap).
   useEffect(() => (showTitle && !pageOpen ? schedulePrefetchSocial() : undefined), [showTitle, pageOpen]);
   // The crash log's steps (R-TOUCH-PLAY-MEMORY-01): the title, and each title view (the mode home is `modes`).
-  useEffect(() => { if (showTitle) crumb(titleView === 'menu' ? 'title' : `title view ${titleView}`); }, [showTitle, titleView]);
+  // Each view leaves a short trail (painted, +1 / +2.5 / +4 s: crumbTrail), so a crash between heartbeats still names
+  // how far the screen got (R-TOUCH-GPU-MEMORY-01).
+  useEffect(() => (showTitle ? crumbTrail(titleView === 'menu' ? 'title' : `title view ${titleView}`) : undefined), [showTitle, titleView]);
 
   if (!showTitle) return null;
 

@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Another fix for the game closing itself on iPhone on the Play screen.',
+        details: [
+          'On phones, the effect layers are only made when a game needs them, and use less graphics memory.',
+          'On phones, the menus keep fewer animations running in the background.',
+          'Settings on a phone has a new Phone diagnostics section, to help us find any crash that is left.',
+          'Computers are unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed the game closing itself on iPhone right after pressing Play.',
         details: [
           'On phones, sound effects now load one at a time and use about a third of the memory they did.',

@@ -4,7 +4,9 @@
  *
  * When iOS kills the page for memory nothing runs: no error, no `pagehide`. So the page writes a short trail to
  * localStorage as it goes (`crumb`): the step's name, the time since the page loaded, and the memory it can see
- * (decoded audio MB, decoded <img> count + MB, WebGL contexts, the JS heap where the browser reports it). Leaving
+ * (decoded audio MB, decoded <img> count + MB, WebGL contexts, the JS heap where the browser reports it). Since
+ * R-TOUCH-GPU-MEMORY-01 each step also records the WebGL contexts still ALIVE (not lost) with their drawing-buffer MB,
+ * the running animations / will-change / filter counts, and the phone diagnostics switches in force (phoneDiag.ts). Leaving
  * the page normally (`pagehide`, or the page going hidden) marks the session CLEAN. A session found on the next load
  * still unclean ended without that: it crashed, after its last breadcrumb.
  *
@@ -16,6 +18,7 @@
  * standalone phone app on the first load after a crash.
  */
 import { LITE_ART } from './phoneArt';
+import { activeDiagLabel } from './phoneDiag';
 
 export const CRASH_LOG_KEY = 'ascent.crashlog.v1';
 export const CRASH_LOG_SHOW_KEY = 'ascent.crashlog.show';
@@ -31,6 +34,13 @@ export interface Crumb {
   /** decoded <img> count on the page */ i?: number;
   /** decoded <img> MB on the page */ im?: number;
   /** WebGL contexts made / still in the page */ g?: number; gl?: number;
+  /** WebGL contexts still ALIVE (made and not lost, in the page or not) and their drawing buffers, MB (w x h x 4) */
+  ga?: number; gmb?: number;
+  /** GPU-relevant DOM, counted once per step (never in the heartbeat): running animations, `will-change` elements,
+   *  elements with a filter / backdrop-filter, 2D canvases in the page */
+  an?: number; wc?: number; fl?: number; c2?: number;
+  /** the phone diagnostics switches active this session (phoneDiag.ts), `nofx+res1` */ pd?: string;
+  /** the stage was shrunk with CSS zoom at this step (a phone's menus), not a transform */ z?: 1;
   /** JS heap MB (Chrome only) */ h?: number;
   /** step details */ x?: Record<string, string | number>;
 }
@@ -66,7 +76,11 @@ export function describeCrumb(c: Crumb): string {
   const parts = [`${(c.t / 1000).toFixed(1)} s`];
   if (c.a !== undefined) parts.push(`audio ${c.a} MB`);
   if (c.i !== undefined) parts.push(`images ${c.i} (${c.im ?? 0} MB)`);
-  if (c.g !== undefined) parts.push(`WebGL ${c.gl ?? 0} of ${c.g}`);
+  if (c.ga !== undefined) parts.push(`WebGL ${c.ga} alive (${c.gl ?? 0} in page) of ${c.g ?? 0} made, ${c.gmb ?? 0} MB`);
+  else if (c.g !== undefined) parts.push(`WebGL ${c.gl ?? 0} of ${c.g}`);
+  if (c.an !== undefined) parts.push(`anims ${c.an}, will-change ${c.wc ?? 0}, filters ${c.fl ?? 0}, 2D canvases ${c.c2 ?? 0}`);
+  if (c.z) parts.push('stage zoom');
+  if (c.pd) parts.push(`switches ${c.pd}`);
   if (c.h !== undefined) parts.push(`heap ${c.h} MB`);
   if (c.x) for (const [k, v] of Object.entries(c.x)) parts.push(`${k} ${v}`);
   return parts.join(', ');
@@ -80,6 +94,7 @@ const probes: { audio?: Probe } = {};
 export function registerCrashProbe(name: 'audio', p: Probe): void { probes[name] = p; }
 
 const glCanvases: HTMLCanvasElement[] = [];
+const glContexts: WebGLRenderingContext[] = [];
 let store: CrashLogStore | null = null;
 const onceSteps = new Set<string>();
 const round = (n: number): number => Math.round(n * 10) / 10;
@@ -95,7 +110,23 @@ function save(): void {
   if (!store) return;
   try { localStorage.setItem(CRASH_LOG_KEY, JSON.stringify(store)); } catch { /* full or blocked: the log is best-effort */ }
 }
-function measure(s: string, x?: Record<string, string | number>): Crumb {
+/** Count the GPU-relevant DOM (one style read per element, capped). Steps only: never the 5 s heartbeat. */
+function domScan(c: Crumb): void {
+  try {
+    c.an = typeof document.getAnimations === 'function' ? document.getAnimations().filter((a) => a.playState === 'running').length : 0;
+    let wc = 0; let fl = 0; let n = 0;
+    for (const el of Array.from(document.querySelectorAll('#root *'))) {
+      if (++n > 6000) break;
+      const cs = getComputedStyle(el);
+      if (cs.willChange && cs.willChange !== 'auto') wc++;
+      const bf = (cs as unknown as { webkitBackdropFilter?: string }).webkitBackdropFilter;
+      if ((cs.filter && cs.filter !== 'none') || (cs.backdropFilter && cs.backdropFilter !== 'none') || (bf && bf !== 'none')) fl++;
+    }
+    c.wc = wc; c.fl = fl;
+    c.c2 = Array.from(document.querySelectorAll('canvas')).filter((cv) => !glCanvases.includes(cv)).length;
+  } catch { /* no DOM */ }
+}
+function measure(s: string, x?: Record<string, string | number>, scan = true): Crumb {
   const c: Crumb = { s, t: Math.round(typeof performance !== 'undefined' ? performance.now() : 0) };
   try { if (probes.audio) c.a = round(probes.audio()); } catch { /* probe failed */ }
   try {
@@ -105,6 +136,16 @@ function measure(s: string, x?: Record<string, string | number>): Crumb {
   } catch { /* no DOM */ }
   c.g = glCanvases.length;
   c.gl = glCanvases.filter((cv) => cv.isConnected).length;
+  let alive = 0; let px = 0;
+  for (let k = 0; k < glCanvases.length; k++) {
+    try { if (glContexts[k]?.isContextLost()) continue; } catch { continue; }
+    alive++; px += glCanvases[k]!.width * glCanvases[k]!.height;
+  }
+  c.ga = alive; c.gmb = round((px * 4) / 1048576);
+  if (scan) domScan(c);
+  const pd = activeDiagLabel();
+  if (pd) c.pd = pd;
+  try { if (document.getElementById('stage')?.style.zoom) c.z = 1; } catch { /* no DOM */ }
   const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
   if (mem) c.h = round(mem.usedJSHeapSize / 1048576);
   if (x) c.x = x;
@@ -128,6 +169,20 @@ export function crumbOnce(step: string, x?: Record<string, string | number>): vo
   if (!store?.cur || onceSteps.has(step)) return;
   onceSteps.add(step);
   crumb(step, x);
+}
+
+/**
+ * A step plus a short trail after it (R-TOUCH-GPU-MEMORY-01: the owner's phone died within 5 s of the mode home, between
+ * two heartbeats): `<step> painted` two frames later, then `<step> +1 s`, `+2.5 s` and `+4 s`. Returns a cancel for an
+ * unmount. A no-op (and a no-op cancel) unless the log is on.
+ */
+export function crumbTrail(step: string, x?: Record<string, string | number>): () => void {
+  if (!store?.cur) return () => {};
+  crumb(step, x);
+  let raf = 0;
+  if (typeof requestAnimationFrame === 'function') raf = requestAnimationFrame(() => { raf = requestAnimationFrame(() => { raf = 0; crumb(`${step} painted`); }); });
+  const timers = [1000, 2500, 4000].map((ms) => window.setTimeout(() => crumb(`${step} +${ms / 1000} s`), ms));
+  return () => { if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf); timers.forEach((t) => window.clearTimeout(t)); };
 }
 
 /** The crashed sessions on record, newest first. */
@@ -168,7 +223,7 @@ function start(): void {
     const orig = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, opts?: unknown) {
       const ctx = (orig as (this: HTMLCanvasElement, t: string, o?: unknown) => RenderingContext | null).call(this, type, opts);
-      if (ctx && /webgl/.test(type) && !glCanvases.includes(this)) glCanvases.push(this);
+      if (ctx && /webgl/.test(type) && !glCanvases.includes(this)) { glCanvases.push(this); glContexts.push(ctx as WebGLRenderingContext); }
       return ctx;
     } as typeof orig;
   } catch { /* leave getContext alone */ }
@@ -181,7 +236,7 @@ function start(): void {
   });
   setInterval(() => {
     if (!store?.cur || document.visibilityState === 'hidden') return;
-    store.cur.alive = measure('alive');
+    store.cur.alive = measure('alive', undefined, false);
     save();
   }, HEARTBEAT_MS);
 }

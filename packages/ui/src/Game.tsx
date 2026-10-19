@@ -29,6 +29,7 @@ import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { CrashLogReadout } from './CrashLogReadout';
+import { PHONE_GPU } from './phoneDiag';
 import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
 import { StatusBar } from './StatusBar';
@@ -95,7 +96,7 @@ import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
 import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
-import { installStage, onStageChange, stageScale, stageViewport } from './stage';
+import { installStage, onStageChange, setStageMenuZoom, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
 import { installTouchUi, touchUi } from './touchUi';
 import { installTouchSlop } from './touchSlop';
@@ -392,11 +393,16 @@ export function Game() {
   useEffect(() => { preloadRunArt(useGame.getState().run); }, [runArtKey]);
   // …and build the Discover overlay's separate Pixi app on idle, so the first Discover doesn't pay a ~60-108ms
   // WebGL-context stall mid-shop (see `warmDiscoverFx`).
-  useEffect(() => { warmDiscoverFx(); }, []);
+  // A PHONE warms neither here: no FX context lives on its menus (R-TOUCH-GPU-MEMORY-01); PixiFxLayer warms the
+  // Discover layer as hero select opens, and Recruit warms the wipe on mount.
+  useEffect(() => { if (!PHONE_GPU) warmDiscoverFx(); }, []);
+  // A PHONE's menus shrink the stage with CSS zoom, not a transform (stage.ts, R-TOUCH-GPU-MEMORY-01). No-op on desktop.
+  useEffect(() => { setStageMenuZoom(preRun && !heroPicking); }, [preRun, heroPicking]);
   // …and the screen-wipe's Pixi canvas the same way (perf 2026-10-10). Recruit warms it on mount, which put its
   // WebGL context creation (~200-450 ms, `getContext`) in the FIRST SHOP of the session as an unlabelled long task.
   // On idle at the title it is paid before any run; Recruit's own `warm()` then finds it ready (idempotent).
   useEffect(() => {
+    if (PHONE_GPU) return;
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
     if (typeof ric === 'function') ric(() => wipeFx.warm());
     else window.setTimeout(() => wipeFx.warm(), 1500);
@@ -536,7 +542,7 @@ export function Game() {
           warm-up now runs before the title is even in hand, and every later run starts warm. The canvas stays
           inert (no ticker, nothing drawn) until something fires, so this is still outside the 2026-08-30 ruling.
           `heroPicking` is no longer read here. */}
-      <PixiFxLayer />
+      <PixiFxLayer gameplay={!preRun || heroPicking} inRun={!preRun} />
       {!preRun && <StatusBar key={`sb:${runKey}`} />}
       {/* EMOTES (owner 2026-10-13): the right-click menu on your portrait, the bubbles, and the served seats' recorded
           emotes. One per run (keyed like the StatusBar), no per-frame work. */}

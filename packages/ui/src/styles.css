@@ -4955,9 +4955,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    Costs a re-blur per frame for that one card while it moves. */
 .card.plated .cardplate.plate-interior.plate-frosted {
   object-position: -100000px 0;
-  /* Owner 2026-10-19: "reduce the opacity of the light grey to 0 for now. i just want to see the blur", "dramatically
-     increase the blur amount": grey off, blur 15px to 40px while the look is judged. */
-  background: rgba(138, 144, 156, 0);
+  /* Owner 2026-10-19, after trying blur-only (grey 0, 40px): "heres while dragging. THIS is the effect i want on it at
+     all times". Dragged over the beige board the glass read rgb(140, 118, 120); in the hand it sat over the purple tray
+     and read purple. This warm grey layer at 65% is that dragging colour, so the glass keeps it over any backdrop, with
+     what is behind only tinting it. */
+  background: rgba(140, 118, 120, 0.65);
   -webkit-backdrop-filter: blur(40px); backdrop-filter: blur(40px);
   -webkit-mask: var(--plate-frost-mask) center / 100% 100% no-repeat; mask: var(--plate-frost-mask) center / 100% 100% no-repeat;
 }

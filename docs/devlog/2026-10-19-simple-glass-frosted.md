@@ -38,3 +38,5 @@ now drops that filter and puts the same drop-shadow on its `.plate-frame` instea
 Cost: one re-blur per frame for that card while dragged.
 
 Then *"reduce the opacity of the light grey to 0 for now. i just want to see the blur"* and *"dramatically increase the blur amount"*: grey 0, blur 40px, while the owner judges the blur. Found on the way: Inspect's overlay (`.inspect-ov`) has its own `backdrop-filter: blur(8px)`, which makes it a backdrop root, so inside Inspect the glass can only show the overlay's dark tint (which fades in: the "delayed colour change"), never the board behind it.
+
+Then, from a dragging screenshot: *"THIS is the effect i want on it at all times"*. Dragged over the beige board the glass read rgb(140, 118, 120); in the hand it sits over the purple tray and read purple. The layer is now that colour at 65% () with the 40px blur, so it holds the dragging look over any backdrop.

@@ -711,3 +711,116 @@ describe('earning: Gauntlet, the profile balance, the rollout', () => {
     }
   });
 });
+
+// ── Fix round 1: an unreadable economy never blocks a game ───────────────────────────────────────────────────
+
+/** Run `fn` with the economy row changed by `change` (SQL against public.aether_config), then put the default back. */
+async function withEconomy<T>(change: string, fn: () => Promise<T>): Promise<T> {
+  await db.exec(change);
+  try { return await fn(); } finally {
+    await db.query('insert into public.aether_config (id, economy) values (1, $1::jsonb) on conflict (id) do update set economy = excluded.economy',
+      [JSON.stringify(DEFAULT_AETHER_ECONOMY)]);
+  }
+}
+const SET = (path: string, json: string): string => `update public.aether_config set economy = jsonb_set(economy, '${path}', '${json}') where id = 1;`;
+
+describe('fix round 1: an unreadable economy turns Aether off for that game, never blocks it', () => {
+  const cases: Array<[string, string, number]> = [
+    ['the economy row missing', 'delete from public.aether_config;', 1],
+    ['rankedBase a string', SET('{rankedBase}', '"abc"'), 1],
+    ['rankedBase fractional', SET('{rankedBase}', '1.5'), 1],
+    ['rankedBase negative', SET('{rankedBase}', '-50'), 1],
+    ['the placement bonus entry missing (a 7-long ladder, 8th place)', SET('{rankedPlacementBonus}', '[140,80,45,35,25,15,10]'), 8],
+    ['milestoneEvery 0', SET('{milestoneEvery}', '0'), 1],
+    ['milestoneEvery a string', SET('{milestoneEvery}', '"ten"'), 1],
+  ];
+  for (const [label, change, placement] of cases) {
+    it(`ranked: ${label} -> ok, the right XP, the crate per level, aether null, nothing credited`, async () => {
+      const u = await newUser();
+      const out = await withEconomy(change, async () => (await settleRanked(u, placement)).out);
+      expect(out.status).toBe('ok');
+      const r = parseProgressionResult(out.result)!;
+      expect(r.xp).toEqual(xpForSettlement({ mode: 'ranked', placement, comeback: false }));
+      expect(r.aether).toBeNull();
+      expect(r.aetherBalance).toBeNull();
+      // exactly the switch-off crates: one per level from the Welcome Crate up
+      expect((await crates(u)).map((c) => [c.earned_level, c.source])).toEqual(
+        Array.from({ length: r.after.level }, (_, i) => [i + 1, null]));
+      expect(r.cratesAwarded).toBe(r.after.level);
+      expect(await balance(u)).toBe(0);
+      expect(await ledger(u)).toEqual([]);
+    });
+  }
+
+  it('practice settles with a garbled milestoneEvery (it is read for every mode)', async () => {
+    const u = await newUser();
+    const out = await withEconomy(SET('{milestoneEvery}', '"x"'), () => settlePractice(u, 1));
+    expect(out.status).toBe('ok');
+    const r = parseProgressionResult(out.result)!;
+    expect(r.xp).toEqual(xpForSettlement({ mode: 'practice', placement: 1, comeback: false }));
+    expect(r.aether).toBeNull();
+    expect((await crates(u)).map((c) => c.earned_level)).toEqual(Array.from({ length: r.after.level }, (_, i) => i + 1));
+  });
+
+  it('versus: a garbled versusWin turns Aether off for BOTH players (the loser too), XP intact', async () => {
+    const a = await newUser();
+    const b = await newUser();
+    const m = await versusMatch(a, b, 'p1');
+    const [w, l] = await withEconomy(SET('{versusWin}', '"lots"'), async () => [
+      parseProgressionResult((await resettle(a, 'versus', versusRunId(m))).result)!,
+      parseProgressionResult((await resettle(b, 'versus', versusRunId(m))).result)!,
+    ]);
+    expect([w.aether, l.aether]).toEqual([null, null]);
+    expect(w.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 1, comeback: false }));
+    expect(l.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 2, comeback: false }));
+    expect([await balance(a), await balance(b)]).toEqual([0, 0]);
+  });
+
+  it('the economy comes back: the next game pays again', async () => {
+    const u = await newUser();
+    await withEconomy('delete from public.aether_config;', () => settleRanked(u, 1));
+    const r = parseProgressionResult((await settleRanked(u, 1)).out.result)!;
+    expect(r.aether).toEqual({ base: 50, placement: 140, total: 190 });
+    expect(await balance(u)).toBe(190);
+  });
+
+  const gauntletCases: Array<[string, string]> = [
+    ['gauntletFirstClear retuned to 0', SET('{gauntletFirstClear}', '0')],
+    ['gauntletFirstClear a string', SET('{gauntletFirstClear}', '"200"')],
+    ['the economy row missing', 'delete from public.aether_config;'],
+  ];
+  for (const [label, change] of gauntletCases) {
+    it(`gauntlet: ${label} -> the crate, aether 0 (a first clear always gives something)`, async () => {
+      const u = await newUser();
+      const first = await withEconomy(change, async () => (await one<{ j: { status: string; crate: { source: string } | null; aether: number } }>('select public.record_gauntlet_clear($1, 5) as j', [u])).j);
+      expect(first).toMatchObject({ status: 'first_clear', aether: 0, crate: { source: 'gauntlet:5' } });
+      expect(parseGauntletClearResult(first)).toMatchObject({ status: 'first_clear', aether: 0, crate: { source: 'gauntlet:5' } });
+      expect(await one('select crate_granted from public.gauntlet_progress where user_id = $1 and stage = 5', [u])).toEqual({ crate_granted: true });
+      expect(await crateCount(u)).toBe(1);
+      expect(await balance(u)).toBe(0);
+    });
+  }
+
+  it('the rollout refuses an unreadable milestoneEvery (aether_config_invalid) and changes nothing', async () => {
+    await db.exec('update public.progression_config set aether_enabled = false where id = 1;');
+    try {
+      const u = await newUser();
+      await db.query('update public.profiles set account_xp = $2, account_level = 34 where user_id = $1', [u, xpAtLevelStart(34)]);
+      for (const change of [SET('{milestoneEvery}', '"ten"'), SET('{milestoneEvery}', '0'), 'delete from public.aether_config;']) {
+        const err = await withEconomy(change, () => raises('select public.aether_rollout()'));
+        expect(err, change).toMatch(/aether_config_invalid/);
+      }
+      expect(await crates(u)).toEqual([]);
+      expect((await one<{ on: boolean }>('select aether_enabled as on from public.progression_config where id = 1')).on).toBe(false);
+    } finally {
+      await db.exec('update public.progression_config set aether_enabled = true where id = 1;');
+    }
+  });
+
+  it('the defensive read is internal (no API role, not even the service role, can call it)', async () => {
+    const sig = 'public.aether_economy_int(jsonb, text[])';
+    const acl = await one<{ anon: boolean; auth: boolean; svc: boolean }>(
+      `select has_function_privilege('anon', '${sig}', 'execute') as anon, has_function_privilege('authenticated', '${sig}', 'execute') as auth, has_function_privilege('service_role', '${sig}', 'execute') as svc`);
+    expect(acl).toEqual({ anon: false, auth: false, svc: false });
+  });
+});

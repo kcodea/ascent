@@ -547,14 +547,34 @@ $$;
 revoke all on function public.progression_result_json(public.progression_results) from public, anon, authenticated;
 grant execute on function public.progression_result_json(public.progression_results) to service_role;
 
+-- THE DEFENSIVE ECONOMY READ, used by every writer below: the integer at `p_path` in the economy document, or NULL when
+-- it is unreadable (no row, a missing key, not a JSON number, fractional, below 0 or absurdly large), never an error.
+-- `parseAetherEconomy` accepts exactly the same values (non-negative integers). A bad retune must never block a game:
+-- the settlement and the Gauntlet treat NULL as "Aether off for this one" (XP and today's crates intact); only the
+-- hand-run `aether_rollout` refuses it (`aether_config_invalid`). The nested CASE fixes the evaluation order, so a
+-- string is never cast. Internal: revoked from every API role, the service role too (precedent: section 10).
+create or replace function public.aether_economy_int(p_eco jsonb, p_path text[])
+returns int
+language sql
+immutable
+as $$
+  select case when jsonb_typeof(p_eco #> p_path) = 'number' then
+    case when (p_eco #>> p_path)::numeric between 0 and 1000000000 and (p_eco #>> p_path)::numeric = trunc((p_eco #>> p_path)::numeric)
+      then (p_eco #>> p_path)::numeric::int end
+  end;
+$$;
+revoke all on function public.aether_economy_int(jsonb, text[]) from public, anon, authenticated, service_role;
+
 -- ── 12. settle_progression: Aether for Ranked and Versus; milestone crates replace level crates ──────────────
 -- THE FULL 2026-10-14-versus-progression.sql WRITER, RE-CREATED. Every line is byte-for-byte that writer (its comments
 -- included, so `sqlParity.test.ts` reads the same constants out of it) EXCEPT these additions, all gated on
 -- `progression_config.aether_enabled`; with the switch OFF the function behaves exactly as before, crate for crate:
 --  - the `-- aether` declarations (no new constants: every number is the server-owned `aether_config` economy, read
---    once into `v_eco`, cast `::numeric::int` so a JSON number in any spelling reads);
+--    once into `v_eco`, each value through `aether_economy_int`);
 --  - step 7a: the Aether this game pays (mirror of aetherForSettlement), credited through `aether_apply` with reason
---    = the mode and source = the run id, so the ledger's unique key backs the result-ledger dedupe;
+--    = the mode and source = the run id, so the ledger's unique key backs the result-ledger dedupe. An UNREADABLE
+--    economy (the row missing, a value this game needs not a valid integer, `milestoneEvery` below 1) settles THIS game
+--    exactly as with the switch off (today's level crates, `aether` null, XP intact) and never raises;
 --  - step 9b: the Welcome Crate on enrollment (kept, owner 2026-10-18) plus ONE crate per milestone level at or below
 --    the new level (`milestoneLevelsThrough`; every one, not just the newly crossed, so a missing one self-heals), and
 --    no other level crate. The switch-off branch is the unchanged per-level insert;
@@ -779,21 +799,27 @@ begin
   -- packages/progression/src/aether.ts). Only with the switch on. Ranked: the base + the placement bonus, win or lose,
   -- for a VALID placement (none = the ladder never accepted the game: 0). Versus: the completion pay for ANY finished
   -- match (won, lost or abandoned with no winner) + the win bonus at placement 1. Practice and Tutorial: 0; no
-  -- comeback bonus. Credited with reason = the mode, source = the run id. A missing economy row leaves the amount
-  -- null, which aether_apply refuses (`bad_aether_change`): the settlement fails and is retried, never settled unpaid.
+  -- comeback bonus. Credited with reason = the mode, source = the run id, only when the total is above 0. An
+  -- UNREADABLE economy (no row; a value this game needs, or `milestoneEvery`, not a valid integer; `milestoneEvery`
+  -- below 1) turns Aether off FOR THIS SETTLEMENT: today's level crates, `aether` null, the XP untouched. A bad retune
+  -- must never block a game (a raise here would fail every settlement until the config is fixed).
   select aether_enabled into v_aether from public.progression_config where id = 1;
   v_aether := coalesce(v_aether, false);
   if v_aether then
     select economy into v_eco from public.aether_config where id = 1;
-    v_ae_every := (v_eco ->> 'milestoneEvery')::numeric::int;
+    v_ae_every := public.aether_economy_int(v_eco, array['milestoneEvery']);
     if p_mode = 'ranked' and v_placement between 1 and 8 then
-      v_ae_base  := (v_eco ->> 'rankedBase')::numeric::int;
-      v_ae_place := coalesce((v_eco -> 'rankedPlacementBonus' ->> (v_placement - 1))::numeric::int, 0);
+      v_ae_base  := public.aether_economy_int(v_eco, array['rankedBase']);
+      v_ae_place := public.aether_economy_int(v_eco, array['rankedPlacementBonus', (v_placement - 1)::text]);
     elsif p_mode = 'versus' then
-      v_ae_base  := (v_eco ->> 'versusComplete')::numeric::int;
-      v_ae_place := case when v_placement = 1 then (v_eco ->> 'versusWin')::numeric::int else 0 end;
+      v_ae_base  := public.aether_economy_int(v_eco, array['versusComplete']);
+      -- read (and so checked) for both players, paid to the winner only
+      v_ae_place := public.aether_economy_int(v_eco, array['versusWin']);
+      if v_ae_place is not null and v_placement is distinct from 1 then v_ae_place := 0; end if;
     end if;
-    if v_ae_base + v_ae_place is null or v_ae_base + v_ae_place > 0 then
+    if v_ae_every is null or v_ae_every < 1 or v_ae_base is null or v_ae_place is null then
+      v_aether := false; v_ae_base := 0; v_ae_place := 0;
+    elsif v_ae_base + v_ae_place > 0 then
       perform public.aether_apply(p_user, v_ae_base + v_ae_place, p_mode, p_run_id);
     end if;
   end if;
@@ -1017,10 +1043,10 @@ grant execute on function public.settle_progression(uuid, text, text, bigint, bo
 --    NO crate (`crate_granted` stays false, `crate_id` null). Answers {status 'first_clear', crate null, aether}.
 --    Stages cleared before the switch already have their row, so they replay as `already_cleared` and pay nothing
 --    (spec 2026-10-18: stages already cleared before rollout "keep the crate they gave and pay no Aether").
---  - OFF: exactly today's sealed crate, plus `aether: 0`.
+--  - OFF, OR AN UNUSABLE AMOUNT (the economy row missing, `gauntletFirstClear` not a valid integer, or retuned to 0):
+--    exactly today's sealed crate, plus `aether: 0`. A first clear happens once, so it must always give something.
 -- Every answer carries `aether` (0 on a replay). Trust is unchanged: the client's clear is believed (owner 2026-09-29;
--- the Aether is the same accepted risk, spec 2026-10-18). A missing economy row leaves the amount null, which
--- `aether_apply` refuses (`bad_aether_change`): the whole clear rolls back, progress row included, and is retried.
+-- the Aether is the same accepted risk, spec 2026-10-18).
 create or replace function public.record_gauntlet_clear(p_user uuid, p_stage int)
 returns jsonb
 language plpgsql
@@ -1046,11 +1072,13 @@ begin
 
   select aether_enabled into v_aether from public.progression_config where id = 1;
   if coalesce(v_aether, false) then
-    select (economy ->> 'gauntletFirstClear')::numeric::int into v_amount from public.aether_config where id = 1;
-    if v_amount is null or v_amount > 0 then
+    v_amount := public.aether_economy_int((select c.economy from public.aether_config c where c.id = 1), array['gauntletFirstClear']);
+    if v_amount > 0 then
       perform public.aether_apply(p_user, v_amount, 'gauntlet', 'gauntlet:' || p_stage);
+      return jsonb_build_object('status', 'first_clear', 'crate', null, 'aether', v_amount);
     end if;
-    return jsonb_build_object('status', 'first_clear', 'crate', null, 'aether', v_amount);
+    -- unreadable or not above 0: the crate below, exactly as with the switch off (a first clear only happens once, so
+    -- answering "nothing" here would strand the stage with neither a crate nor Aether, forever)
   end if;
 
   insert into public.loot_crates (user_id, earned_level, source, source_id)
@@ -1109,7 +1137,9 @@ grant execute on function public.progression_profile_json(uuid) to service_role;
 -- crate gets its progression revision moved so its mirrors adopt the new crates. Then `aether_enabled = true`.
 -- Returns {accounts: accounts given at least one NEW crate, crates: crates created}. IDEMPOTENT: the one-crate-per-
 -- source index makes a re-run (or a settlement that already granted a milestone) create nothing, so a second run
--- answers {accounts 0, crates 0}. Earned Aether is NOT backdated (accounts start at 0; spec 2026-10-18).
+-- answers {accounts 0, crates 0}. Earned Aether is NOT backdated (accounts start at 0; spec 2026-10-18). Because the
+-- owner runs it by hand, an unreadable `milestoneEvery` (or one below 1) REFUSES (`aether_config_invalid`) and changes
+-- nothing, rather than flipping the switch with no crates granted.
 create or replace function public.aether_rollout()
 returns jsonb
 language plpgsql
@@ -1121,8 +1151,8 @@ declare
   v_crates   int := 0;
   v_accounts int := 0;
 begin
-  select (economy ->> 'milestoneEvery')::numeric::int into v_every from public.aether_config where id = 1;
-  if v_every is null or v_every < 1 then raise exception 'aether_config_missing'; end if;
+  v_every := public.aether_economy_int((select c.economy from public.aether_config c where c.id = 1), array['milestoneEvery']);
+  if v_every is null or v_every < 1 then raise exception 'aether_config_invalid'; end if;
 
   with ins as (
     insert into public.loot_crates (user_id, earned_level, source, source_id, floor_rarity)

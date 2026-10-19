@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateLabel, type OpenCrateResult } from '@game/progression';
+import { COSMETIC_CATEGORY_DEFS, RARITY_LABELS, cosmeticOf, crateLabel, type CosmeticRarity, type OpenCrateResult } from '@game/progression';
 import { playTailedClip, sfx, type SfxHandle } from '../sfx';
 import { stageHost } from '../stage';
 import { skinArtOf } from '../skins/skinArt';
 import { emoteSrc } from '../emotes/emoteArt';
 import { openCrate, type CrateOpenOutcome } from './progressionStore';
 import {
-  CRATE_CUE_CATEGORY, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
+  CRATE_CUE_CATEGORY, chestTierPresetFor, chestTuningOf, crateBeats, crateCue, crateFxSpeed, getCrateFxConfig, presetFor,
   type CrateCue, type CrateFxConfig, type CratePreset,
 } from './crateFx/crateFxConfig';
+import { NO_TIER_LAYER, type ChestTier, type ChestTierPreset } from './crateFx/chestTiers';
 import { createCrateFx, type CrateFx } from './crateFx/crateFxPixi';
 import './crateFx/crateTheatre.css';
 import { publicArt } from '../phoneArt';
@@ -34,13 +35,33 @@ import { publicArt } from '../phoneArt';
  * MOTION: DOM animation is transform/opacity only; the one looping piece (the settled aura's breathing) is the
  * opacity of a pseudo-element with a static shadow (the kwglow pattern). The screen shake is a one-shot WAAPI
  * transform. Buttons take the global gauntlet cursor (no cursor rules). Rendered into `stageHost()`.
+ *
+ * THE CHEST TIER (tiered chest openings, 2026-10-19; spec docs/superpowers/specs/2026-10-19-tiered-chest-openings-design.md):
+ * each queue item carries the TIER it was bought or earned as (its guaranteed floor; none = Standard = today's opening).
+ * The tier is a second axis on top of the reward's: the chest's art, its effects layer (aura, motes, wisps, bands, extra
+ * shake and glow, a burst flourish) and three sound cues (a shimmer at the click, a swirl at the charge, an impact at the
+ * burst, each at the tier's own gain and skipped at 0). The reward still drives every one of today's dials.
+ *   CLICK FEEDBACK STAYS INSTANT: the hum, the anticipation and the shimmer start on the click, with the asked tier's
+ *   layer. The chest swap (`setChest`) runs alongside and lands within its 300 ms; if it answers with another tier (the
+ *   art was late or failed: Standard), the layer switches to the one actually drawn. A swap asked before Pixi is up waits
+ *   for the mount. Every answer is checked against the opening's generation, so a late one never touches the next
+ *   opening (a superseded `setChest` answers with the chest drawn BEFORE it).
+ *   Reduced motion and a failed Pixi layer never call the Pixi tier methods; the theatre still wears `t-<tier>` (the DOM
+ *   chest's static tint) and the nameplate still names the chest.
  */
 
 /** The painted gem the nameplate wears (recoloured per rarity in CSS, a static filter). */
 const GEM_ART = publicArt(`frames/end_button_gem.webp`);
 
 /** `earnedLevel` null + `source` = a non-level crate (a Gauntlet crate, 2026-09-29); `crateLabel` names both. */
-export interface CrateQueueItem { crateId: string; earnedLevel: number | null; source?: string }
+export interface CrateQueueItem {
+  crateId: string; earnedLevel: number | null; source?: string;
+  /** The chest it opens as (its floor, through `chestTierOf`). Absent = 'standard', today's opening. */
+  tier?: ChestTier;
+}
+
+/** A tier's floor, for the nameplate (a shop crate names itself by its floor). Standard has none. */
+const floorOfTier = (t: ChestTier | undefined): CosmeticRarity | null => (!t || t === 'standard' ? null : t);
 
 type Phase = 'sealed' | 'anticipation' | 'charge' | 'freeze' | 'burst' | 'reveal' | 'settled' | 'exhausted' | 'error';
 
@@ -107,10 +128,15 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   const cues = useRef<SfxHandle[]>([]);
   const fx = useRef<CrateFx | null>(null);
   const hostRef = useRef<HTMLDivElement>(null);
-  /** The opening in progress: its answer, whether a skip is waiting for it, when it began. */
-  const flow = useRef<{ outcome: CrateOpenOutcome | null; skip: boolean; began: number; preset: CratePreset | null; phase: Phase }>(
-    { outcome: null, skip: false, began: 0, preset: null, phase: 'sealed' },
+  /** The opening in progress: its answer, whether a skip is waiting for it, when it began, the chest it opens as. */
+  const flow = useRef<{ outcome: CrateOpenOutcome | null; skip: boolean; began: number; preset: CratePreset | null; phase: Phase; tier: ChestTier }>(
+    { outcome: null, skip: false, began: 0, preset: null, phase: 'sealed', tier: 'standard' },
   );
+  /** The tier layer this opening plays (the asked tier's until `setChest` answers with another). Its gains drive the
+   *  tier cues. */
+  const layer = useRef<ChestTierPreset>(NO_TIER_LAYER);
+  /** The controller's mount: pending (null), live (true) or failed (false). A chest swap waits for it. */
+  const fxMount = useRef<{ ctl: CrateFx; ok: Promise<boolean>; done: boolean | null } | null>(null);
   const doneRef = useRef(done);
   doneRef.current = done;
   const queueRef = useRef(queue);
@@ -147,6 +173,33 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
   tickRef.current = tick;
   const stopHum = (): void => { hum.current?.stop(); hum.current = null; };
   const stopAll = (): void => { stopHum(); for (const h of cues.current) h.stop(); cues.current = []; };
+  /** A chest-tier cue at the current layer's gain for it; a gain of 0 is skipped, never played silent. */
+  const tierCue = (name: 'tierShimmer' | 'tierSwirl' | 'tierBurst', gain: number): void => {
+    if (!reduced && gain > 0) cue(name, { gain });
+  };
+
+  /**
+   * Hand the controller this opening's chest and layer. Never awaited: the layer (`layer.current`, the asked tier's) goes
+   * over at once so the aura starts with the click, and the swap lands within `setChest`'s 300 ms. If it answers with
+   * another tier (late or failed art: Standard), the layer switches to the one drawn. A swap asked before Pixi is up
+   * waits for the mount; a failed mount asks for nothing. Every answer is dropped unless it is still this opening's
+   * (`gen`) on this controller: a superseded `setChest` answers with the chest drawn BEFORE it.
+   */
+  const dress = (ctl: CrateFx, g: number, tier: ChestTier): void => {
+    const m = fxMount.current;
+    if (!m || m.ctl !== ctl || m.done === false) return;
+    const current = (): boolean => g === gen.current && live.current && fx.current === ctl;
+    const swap = (): void => {
+      void ctl.setChest(tier).then((drawn) => {
+        if (!current() || drawn === layer.current.tier) return;
+        layer.current = chestTierPresetFor(drawn, getCrateFxConfig());
+        ctl.setTierLayer(layer.current);
+      });
+    };
+    if (m.done) swap();
+    ctl.setTierLayer(layer.current);
+    if (m.done === null) void m.ok.then((ok) => { if (ok && current()) swap(); });
+  };
 
   // ── the Pixi layer: one per theatre, destroyed with it ──
   useEffect(() => {
@@ -159,19 +212,27 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     ctl.tune(chestTuningOf(c));
     ctl.onPulse((k) => tickRef.current(k));
     ctl.resize(host.clientWidth, host.clientHeight, c.crateScale);
-    // A remount mid-opening (React StrictMode mounts every effect twice in dev) gets a fresh controller: bring it
-    // to where the opening already is, so the request that is already in flight lands on a live crate.
-    const f = flow.current;
-    if (f.phase === 'anticipation') ctl.anticipate(anticipation(c));
-    else if (f.preset && f.phase !== 'sealed' && f.phase !== 'error' && f.phase !== 'exhausted') ctl.skipToSettled(f.preset);
     let alive = true;
-    void ctl.mount(host).then((ok) => { if (alive && live.current) setFxState(ok ? 'live' : 'failed'); });
+    const m: { ctl: CrateFx; ok: Promise<boolean>; done: boolean | null } = { ctl, ok: ctl.mount(host), done: null };
+    fxMount.current = m;
+    void m.ok.then((ok) => { m.done = ok; if (alive && live.current) setFxState(ok ? 'live' : 'failed'); });
+    // A remount mid-opening (React StrictMode mounts every effect twice in dev) gets a fresh controller: bring it
+    // to where the opening already is (its chest and layer too), so the request already in flight lands on a live crate.
+    const f = flow.current;
+    const opening = f.phase !== 'sealed' && f.phase !== 'error' && f.phase !== 'exhausted';
+    if (opening) dress(ctl, gen.current, f.tier);
+    if (f.phase === 'anticipation') ctl.anticipate(anticipation(c));
+    else if (f.preset && opening) ctl.skipToSettled(f.preset);
     // Event-driven geometry: the host only changes size when the window does.
     const ro = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
       ctl.resize(host.clientWidth, host.clientHeight, getCrateFxConfig().crateScale);
     });
     ro?.observe(host);
-    return () => { alive = false; ro?.disconnect(); ctl.destroy(); if (fx.current === ctl) fx.current = null; };
+    return () => {
+      alive = false; ro?.disconnect(); ctl.destroy();
+      if (fx.current === ctl) fx.current = null;
+      if (fxMount.current === m) fxMount.current = null;
+    };
   }, [reduced]);
 
   // Unmount: nothing may fire into a dead theatre. (The in-flight request checks `live`, which a StrictMode
@@ -246,6 +307,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     go('charge');
     fx.current?.charge(p);
     cue('charge');
+    tierCue('tierSwirl', layer.current.swirlGain);
     // The hum cuts at the hitch: a beat of near-silence before the hit.
     at(b.hitchAt, () => { if (g === gen.current) stopHum(); });
     // Time stops (Ancient's signature): the chest freezes, the hum is already gone, the theatre drains to grey.
@@ -256,6 +318,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
       fx.current?.burst(p);
       stopHum();
       cue('burst');
+      tierCue('tierBurst', layer.current.burstGain);
       if (big) cue('crack', { rate: 1.05 });
       if (!p.doubleBurst && p.coins > 0) coinClinks();
     });
@@ -299,17 +362,21 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     setSkipped(false);
     setSlow(false);
     pitch.current = 1;
-    flow.current = { outcome: null, skip: false, began: Date.now(), preset: null, phase: 'anticipation' };
+    const tier = item.tier ?? 'standard';
+    flow.current = { outcome: null, skip: false, began: Date.now(), preset: null, phase: 'anticipation', tier };
+    layer.current = chestTierPresetFor(tier, c);
     go('anticipation');
     const ctl = fx.current;
     if (ctl) {
       ctl.setSpeed(crateFxSpeed());
       ctl.setArt(c.crateArt);
       ctl.tune(chestTuningOf(c));
+      dress(ctl, g, tier); // the layer at once; the chest swap alongside, never awaited
       ctl.reset();
       ctl.anticipate(anticipation(c));
     }
     if (!reduced) cue('hum');
+    tierCue('tierShimmer', layer.current.shimmerGain);
     at(c.slowNoteMs * speedK, () => { if (g === gen.current && flow.current.outcome === null) setSlow(true); });
     const hold = reduced ? 0 : (minShakeMs ?? c.anticipationMs) * speedK;
     void openFn(item.crateId)
@@ -385,6 +452,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
     '--cr-freeze': `${Math.round((preset ? preset.freezeMs : 0) / crateFxSpeed())}ms`,
   } as CSSProperties;
   const domCrate = reduced || fxState === 'failed';
+  const tierShown: ChestTier = shown.tier ?? 'standard';
   const summary = openAll && phase === 'settled' && !next && found.length > 1;
 
   const onPointerDown = (e: React.PointerEvent): void => {
@@ -394,7 +462,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
 
   const theatre = (
     <div
-      className={`crate crth ph-${phase}${reduced ? ' reduced' : ''}${skipped ? ' skipped' : ''}${domCrate ? ' domcrate' : ''}${preset ? ` r-${preset.rarity}` : ''}${preset && preset.signature !== 'none' ? ` sig-${preset.signature}` : ''}`}
+      className={`crate crth ph-${phase}${reduced ? ' reduced' : ''}${skipped ? ' skipped' : ''}${domCrate ? ' domcrate' : ''}${preset ? ` r-${preset.rarity}` : ''}${preset && preset.signature !== 'none' ? ` sig-${preset.signature}` : ''} t-${tierShown}`}
       style={vars}
       role="dialog"
       aria-modal="true"
@@ -405,7 +473,7 @@ export function CrateOpener({ queue, autoOpen = false, openAll = false, reducedM
       <div className="crth-box">
         {/* The Pixi canvas covers the whole theatre, so the flash, rings and rays never clip at a box edge. */}
         <div className="crth-fx" ref={hostRef} aria-hidden />
-        <div className="crate-name">{crateLabel(shown)}</div>
+        <div className="crate-name">{crateLabel({ ...shown, floor: floorOfTier(shown.tier) })}</div>
         <div className="crate-stage crth-stage">
           {domCrate && (
             <div className={`crate-box${phase === 'anticipation' || phase === 'charge' ? ' shaking' : ''}${revealed ? ' open' : ''}${reward?.rarity ? ` r-${reward.rarity}` : ''}`} aria-hidden>

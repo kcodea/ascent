@@ -9,6 +9,7 @@ import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
+import { chestTierOf } from './crateFx/chestTiers';
 import {
   aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
@@ -186,7 +187,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
 
   const sealedRows: CrateRow[] = useMemo(() => (crateList ?? []).filter((c) => c.state === 'sealed'), [crateList]);
   const sealed: CrateQueueItem[] = useMemo(
-    () => sealedRows.map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source })),
+    // Each crate opens as its tier's chest (tiered chest openings, 2026-10-19): the bay, Open all and the pop-up all read it.
+    () => sealedRows.map((c) => ({ crateId: c.crateId, earnedLevel: c.earnedLevel, source: c.source, tier: chestTierOf(floorOf(c)) })),
     [sealedRows],
   );
   // Aether: the sealed MILESTONE crates (each opens alone, through its focus step), and what Open all opens: the rest.

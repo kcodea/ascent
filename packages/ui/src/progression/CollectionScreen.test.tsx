@@ -295,6 +295,29 @@ describe('the Collection screen: the crate bay', () => {
     expect(tile('Hearthkeeper').className).toMatch(/\bowned\b/);
   });
 
+  // TIERED CHEST OPENINGS (2026-10-19): every bay crate reaches the theatre with its tier, from `floorOf` (its own floor,
+  // else a milestone's Legendary, else Standard). The class is the observable under reduced motion (no Pixi).
+  it('bay crates carry their tier: a floor of Epic opens Epic, a legacy level crate Standard, a milestone crate Legendary', async () => {
+    const rows: CrateRow[] = [
+      { crateId: 'c-e', earnedLevel: 4, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, floor: 'epic' },
+      { crateId: 'c-l', earnedLevel: 5, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null },
+      { crateId: 'c-m', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: 'milestone:10' },
+    ];
+    open({}, { crates: rows });
+    openCrateRemote.mockImplementation(async (id: string) => ({ status: 'ok', value: opened(id, 'title_wanderer', 2, 0), profile: profile() }));
+    const tierOf = (): string | undefined => $('.crth')?.className.match(/\bt-(\w+)/)?.[1];
+    act(() => button('Open')!.click());
+    await settle();
+    expect(tierOf()).toBe('epic');
+    act(() => ([...document.querySelectorAll<HTMLButtonElement>('.crth button')].find((b) => b.textContent?.startsWith('Open next')))!.click());
+    await settle();
+    expect(tierOf()).toBe('standard');
+    act(() => button('Open next')!.click());
+    await settle();
+    expect(tierOf()).toBe('legendary');
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-e', 'c-l', 'c-m']);
+  });
+
   it('Open all hands the whole queue to the theatre', async () => {
     open();
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile() });

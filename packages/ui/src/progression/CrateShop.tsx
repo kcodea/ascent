@@ -59,6 +59,7 @@ import {
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import type { CrateQueueItem } from './CrateOpener';
+import { chestTierOf } from './crateFx/chestTiers';
 import {
   aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
@@ -217,7 +218,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
       handedRef.current = crate.crateId;
       const pick = quote.focus;
       const fee = quote.fee;
-      const item: CrateQueueItem = { crateId: crate.crateId, earnedLevel: crate.earnedLevel, ...(crate.source ? { source: crate.source } : {}) };
+      // A milestone crate opens the Legendary chest (tiered chest openings, 2026-10-19).
+      const item: CrateQueueItem = { crateId: crate.crateId, earnedLevel: crate.earnedLevel, ...(crate.source ? { source: crate.source } : {}), tier: chestTierOf(CRATE_TIER_FLOOR.legendary) };
       onOpen(item, (id) => (pick ? openCrate(id, pick, fee) : openCrate(id)));
       return;
     }
@@ -242,7 +244,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
     // SUCCESS IGNORES `alive` on purpose: the server has charged the player, so the reveal must play even when this panel
     // unmounted mid-purchase (the caller's theatre outlives it). Only this panel's own state updates are skipped.
     const result = out.result;
-    const item: CrateQueueItem = { crateId: result.crate.crateId, earnedLevel: null, ...(result.crate.source ? { source: result.crate.source } : {}) };
+    // The chest it opens as is the tier bought (its floor).
+    const item: CrateQueueItem = { crateId: result.crate.crateId, earnedLevel: null, ...(result.crate.source ? { source: result.crate.source } : {}), tier: chestTierOf(CRATE_TIER_FLOOR[quote.tier]) };
     // Already bought and opened: the theatre plays this answer instead of asking again.
     onOpen(item, () => Promise.resolve({ status: 'ok', result }));
   };

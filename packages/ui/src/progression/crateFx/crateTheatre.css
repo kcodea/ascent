@@ -32,6 +32,20 @@
 
 /* The DOM crate: reduced motion, or a machine where Pixi cannot start. */
 .crth.domcrate .crate-box { position: absolute; left: 50%; top: 50%; margin: -43px 0 0 -52px; transform-origin: 50% 60%; scale: 2.6; }
+/* THE CHEST TIER on the DOM crate (tiered chest openings, 2026-10-19): the theatre wears `t-<tier>`, and a chest above
+   Standard edges its body and lid in the tier colour with a soft outer glow. STATIC: set once, never animated (the
+   crate's float and shake move transform only). The inset shadows repeat the crate's own (styles.css) so only the glow
+   is added. Standard (`t-standard`) is today's crate, untouched. Ancient is the opal base with a cyan and magenta glow. */
+.crth.t-rare { --cr-tier: #5aa8ff; --cr-tier-glow: color-mix(in srgb, #5aa8ff 60%, transparent); --cr-tier-glow2: color-mix(in srgb, #5aa8ff 25%, transparent); }
+.crth.t-epic { --cr-tier: #c07bff; --cr-tier-glow: color-mix(in srgb, #c07bff 60%, transparent); --cr-tier-glow2: color-mix(in srgb, #c07bff 25%, transparent); }
+.crth.t-legendary { --cr-tier: #ffb938; --cr-tier-glow: color-mix(in srgb, #ffb938 60%, transparent); --cr-tier-glow2: color-mix(in srgb, #ffb938 25%, transparent); }
+.crth.t-ancient { --cr-tier: #f4eeff; --cr-tier-glow: rgba(138, 245, 255, 0.55); --cr-tier-glow2: rgba(255, 122, 224, 0.4); }
+.crth.t-rare .crate-box .crate-body, .crth.t-epic .crate-box .crate-body, .crth.t-legendary .crate-box .crate-body, .crth.t-ancient .crate-box .crate-body {
+  border-color: var(--cr-tier);
+  box-shadow: inset 0 0 0 5px rgba(0, 0, 0, 0.12), inset 0 -8px 0 rgba(0, 0, 0, 0.18), inset 0 2px 0 rgba(255, 220, 160, 0.25), 0 0 6px 1px var(--cr-tier-glow), 0 0 14px 3px var(--cr-tier-glow2); }
+.crth.t-rare .crate-box .crate-lid, .crth.t-epic .crate-box .crate-lid, .crth.t-legendary .crate-box .crate-lid, .crth.t-ancient .crate-box .crate-lid {
+  border-color: var(--cr-tier);
+  box-shadow: inset 0 2px 0 rgba(255, 220, 160, 0.3), inset 0 -4px 0 rgba(0, 0, 0, 0.2), 0 0 6px 1px var(--cr-tier-glow), 0 0 14px 3px var(--cr-tier-glow2); }
 
 /* ── The god-ray backdrop (reveal + settled): a conic fan, faded at the edges, turning slowly. ── */
 .crth-rays { position: absolute; left: 50%; top: var(--cr-plate-y, calc(50% - 226px)); width: 1500px; height: 1500px; margin: -750px 0 0 -750px; border-radius: 50%; pointer-events: none;
@@ -183,7 +197,8 @@
       a loop), and it snaps straight back at the burst (no transition out), so the colour floods back with the hit.
    2. THE CRACK (burst onward): a prismatic slash across the view that tears open (transform scaleX) and fades (opacity).
       Its gradient is static on the element. One-shot; it never loops.
-   The Ancient ribbon carries the cyan to magenta gradient (static). */
+   The Ancient ribbon is MULTICHROME (tiered chest openings, 2026-10-19, to match the opal Ancient chest): a static conic
+   sweep through the spectrum under a light top-to-bottom shading. Static: never animated. */
 .crth.sig-timestop .crth-fx { transition: filter var(--cr-freeze, 650ms) cubic-bezier(0.2, 0.8, 0.3, 1); }
 .crth.sig-timestop.ph-freeze .crth-fx { filter: grayscale(1) brightness(0.72) contrast(1.15); }
 .crth.sig-timestop:not(.ph-freeze) .crth-fx { transition: none; }
@@ -197,5 +212,7 @@
   0% { transform: rotate(-14deg) scaleX(0) scaleY(0.4); opacity: 1; }
   28% { transform: rotate(-14deg) scaleX(1) scaleY(1.4); opacity: 1; }
   100% { transform: rotate(-14deg) scaleX(1.08) scaleY(0.2); opacity: 0; } }
-.crth.r-ancient .crth-ribbon > span { background: linear-gradient(90deg, #5fd8f0 0%, #8af5ff 30%, #e6b8ff 62%, #ff7ae0 100%); }
+.crth.r-ancient .crth-ribbon > span { background:
+  linear-gradient(180deg, rgba(255, 255, 255, 0.32) 0%, rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.22) 100%),
+  conic-gradient(from 210deg at 50% 50%, #8af5ff, #c9b8ff, #ff7ae0, #ffd88a, #9dffc8, #8af5ff); }
 @media (prefers-reduced-motion: reduce) { .crth-crack { display: none; } .crth.sig-timestop .crth-fx { transition: none; filter: none; } }

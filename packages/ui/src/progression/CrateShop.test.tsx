@@ -211,9 +211,30 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     await settle();
     expect(onOpen).toHaveBeenCalledTimes(1);
     const [item, open] = onOpen.mock.calls[0]! as [{ crateId: string; earnedLevel: number | null; source?: string }, (id: string) => Promise<CrateOpenOutcome>];
-    expect(item).toEqual({ crateId: 'c-new', earnedLevel: null, source: result.crate.source });
+    expect(item).toEqual({ crateId: 'c-new', earnedLevel: null, source: result.crate.source, tier: 'epic' });
     await expect(open('c-new')).resolves.toEqual({ status: 'ok', result });
     expect(openCrate).not.toHaveBeenCalled();
+  });
+
+  // TIERED CHEST OPENINGS (2026-10-19): the bought tier's floor is the chest the theatre opens.
+  it('a bought chest carries its tier: Epic opens the Epic chest, Standard the Standard one', async () => {
+    seed(2000);
+    render();
+    buyCrate.mockResolvedValueOnce({ status: 'ok', result: bought('c-epic') });
+    click(tier('Epic'));
+    click(buyBtn());
+    await settle();
+    expect(buyCrate).toHaveBeenCalledWith('epic', null, expect.any(Number), expect.any(String));
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    expect((onOpen.mock.calls[0]![0] as { tier?: string }).tier).toBe('epic');
+    ui!.unmount();
+    render();
+    const std = bought('c-std');
+    buyCrate.mockResolvedValueOnce({ status: 'ok', result: { ...std, quote: { ...std.quote!, tier: 'standard', floor: 'common' } } });
+    click(tier('Standard'));
+    click(buyBtn());
+    await settle();
+    expect((onOpen.mock.calls[0]![0] as { tier?: string }).tier).toBe('standard');
   });
 
   it('milestone mode', async () => {
@@ -229,7 +250,7 @@ describe('the Crate Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(buyCrate).not.toHaveBeenCalled();
     expect(onOpen).toHaveBeenCalledTimes(1);
     const [item, open] = onOpen.mock.calls[0]! as [{ crateId: string; earnedLevel: number | null; source?: string }, (id: string) => Promise<CrateOpenOutcome>];
-    expect(item).toEqual({ crateId: 'c-m10', earnedLevel: null, source: 'milestone:10' });
+    expect(item).toEqual({ crateId: 'c-m10', earnedLevel: null, source: 'milestone:10', tier: 'legendary' }); // a milestone crate opens the Legendary chest
     expect(openCrate).not.toHaveBeenCalled(); // the theatre asks when it plays
     void open('c-m10');
     expect(openCrate).toHaveBeenCalledWith('c-m10', ['card_plate'], 600);

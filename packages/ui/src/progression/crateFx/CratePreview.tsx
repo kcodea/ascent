@@ -2,12 +2,17 @@ import { useEffect, useRef, useState } from 'react';
 import { COSMETICS, type OpenCrateResult } from '@game/progression';
 import { CrateOpener, type CrateQueueItem } from '../CrateOpener';
 import type { CrateOpenOutcome } from '../progressionStore';
-import { CRATE_FX_PLAY_EVENT, CRATE_FX_SPEEDS, CRATE_RARITIES, setCrateFxSpeed, type CrateFxPlayDetail, type CrateFxPlayMode, type CrateRarity } from './crateFxConfig';
+import { CRATE_FX_PLAY_EVENT, CRATE_FX_SPEEDS, CRATE_RARITIES, previewChest, setCrateFxSpeed, type CrateFxPlayDetail, type CrateFxPlayMode, type CrateRarity } from './crateFxConfig';
+import type { ChestTier } from './chestTiers';
 
 /**
  * DEV: the Crate opening tuner's sandbox. Its Play buttons open a PRACTICE crate in the real theatre with a local
  * fake answer: nothing is sent to the server, nothing is spent, and no reward is added to the account. Renders
  * nothing until a Play is pressed; mounted in DEV builds only (Game.tsx).
+ *
+ * THE PREVIEW CHEST (tiered chest openings, 2026-10-19): every practice crate opens as the tuner's chosen chest
+ * (`previewChest()`, or the play event's own `chest`), so "Rare chest, Legendary reward" plays as it would for real.
+ * Open all opens that chest for every crate.
  */
 
 /** A crate title of that rarity from the catalog, for the practice reward; a rarity with no title (Ancient, 2026-10-02)
@@ -31,14 +36,14 @@ export function previewOutcome(crateId: string, earnedLevel: number, rarity: Cra
 
 interface Session { key: number; queue: CrateQueueItem[]; rarities: Record<string, CrateRarity | null>; delayMs: number; openAll: boolean }
 
-function sessionFor(mode: CrateFxPlayMode, key: number, last: CrateRarity): Session {
+function sessionFor(mode: CrateFxPlayMode, key: number, last: CrateRarity, tier: ChestTier = 'standard'): Session {
   if (mode === 'all') {
-    const queue = CRATE_RARITIES.map((r, i) => ({ crateId: `preview-${key}-${i}`, earnedLevel: i + 2 }));
+    const queue = CRATE_RARITIES.map((r, i) => ({ crateId: `preview-${key}-${i}`, earnedLevel: i + 2, tier }));
     return { key, queue, rarities: Object.fromEntries(queue.map((q, i) => [q.crateId, CRATE_RARITIES[i]!])), delayMs: 250, openAll: true };
   }
   const rarity: CrateRarity | null = mode === 'fail' ? null : mode === 'slow' ? 'rare' : mode === 'replay' ? last : mode;
   const crateId = `preview-${key}`;
-  return { key, queue: [{ crateId, earnedLevel: 5 }], rarities: { [crateId]: rarity }, delayMs: mode === 'slow' ? 3000 : mode === 'fail' ? 1400 : 250, openAll: false };
+  return { key, queue: [{ crateId, earnedLevel: 5, tier }], rarities: { [crateId]: rarity }, delayMs: mode === 'slow' ? 3000 : mode === 'fail' ? 1400 : 250, openAll: false };
 }
 
 export function CratePreview(): JSX.Element | null {
@@ -53,7 +58,7 @@ export function CratePreview(): JSX.Element | null {
       if (detail?.speed && (CRATE_FX_SPEEDS as readonly number[]).includes(detail.speed)) setCrateFxSpeed(detail.speed);
       if ((CRATE_RARITIES as readonly string[]).includes(mode)) last.current = mode as CrateRarity;
       n.current += 1;
-      setSession(sessionFor(mode, n.current, last.current));
+      setSession(sessionFor(mode, n.current, last.current, detail?.chest ?? previewChest()));
     };
     window.addEventListener(CRATE_FX_PLAY_EVENT, onPlay);
     return () => window.removeEventListener(CRATE_FX_PLAY_EVENT, onPlay);

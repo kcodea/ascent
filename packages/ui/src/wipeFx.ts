@@ -1,8 +1,8 @@
 /**
  * WIPE FX — the dedicated ABOVE-CURTAIN Pixi layer (owner ask 2026-08-29: "make the wipe feel more magical
- * and ethereal"). The game's main FX canvas sits at z110, deliberately UNDER the curtain (z250) so the blue
+ * and ethereal"). The game's main FX canvas sits at z110, deliberately UNDER the curtain (z3000) so the blue
  * swallows scene FX — which means anything that should ride ON the curtain's seam needs its own canvas.
- * This is that canvas: a tiny second Pixi Application at z255, mounted once, ticking ONLY while a wipe
+ * This is that canvas: a tiny second Pixi Application (z3005 while the combat curtain is up, z255 for the Ancients), mounted once, ticking ONLY while a wipe
  * effect is alive (visibility:hidden + stopped ticker otherwise, so it costs nothing between combats).
  *
  * Four one-shot effects, all driven by the same origin/radius/duration Recruit hands the curtain, so they

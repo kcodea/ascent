@@ -380,10 +380,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
    gradient covers the ENTIRE scene (cards, lobby rail, hero panels, banners — a BODY portal at z105:
    above the out-of-app fixed panels (.statusbar z40, .combatopp z100, .eotbanner z95) AND above the z110 Pixi FX canvas + every transient float layer (spell sparks z121, fodder ghosts z120,
    damage/death floats z112, flying hand-grants — the occasional straggler from the End-of-Turn beats was
-   popping in over the blue, owner report 2026-08-29, hence z250): everything below the deliberate
-   full-screen overlays (Esc z300, hero select z400, loss numbers z2000 — decisive combats skip the curtain)
-   is covered by construction; nothing of the game
-   rides on top), holds a beat at full blue while the phase's own animations settle underneath, then
+   popping in over the blue, owner report 2026-08-29, hence z250). z250 still left a band of in-game layers
+   ABOVE the blue (the Rebirth pillar z2000, the rune lock-in z640, the tutorial spotlight z600-620, emotes
+   z900, the FX screen flash z99999), which flashed over it (owner 2026-10-19, against the ranked gate that
+   "works perfectly" at z700). So the curtain now sits at z3000, ABOVE EVERY IN-GAME LAYER by construction,
+   the way the gate does: a new layer defaults to under it and nothing has to opt out. Only the dev tools
+   (z4000+) and the boot / rotate screens sit higher; the menus that may open mid-wipe are lifted over it
+   by `body.wipe-up` below. `curtainLadder.test.ts` fails on any new in-game layer at or above z3000),
+   holds a beat at full blue while the phase's own animations settle underneath, then
    collapses off to reveal the finished scene. Same choreography in both directions. clip-path is a paint property,
    but each sweep is a sanctioned ONE-SHOT transition (see CLAUDE.md perf rules). The duration is supplied at
    runtime by Recruit's `WIPE_MS` via an inline `--wipe-dur`; the `450ms` fallback is a safety default.
@@ -395,7 +399,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    empty parked states snap back to the zero circle invisibly (both cover nothing — Recruit's `primeOut`
    guarantees the exit bloom launches from the zero circle, not the parked sliver). `.snap` is unused on
    the curtain and kept only for the fronts. */
-.wipecurtain { position: fixed; inset: 0; z-index: 250; pointer-events: none;
+.wipecurtain { position: fixed; inset: 0; z-index: 3000; pointer-events: none;
   background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
   clip-path: ellipse(0px 0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
   /* Hint the clip transition onto the compositor (Chromium composites basic-shape clip-path animations when
@@ -463,7 +467,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    blue. */
 .wipefront { position: fixed; left: var(--wipe-cx, calc(84 * var(--vw, 1vw))); top: var(--wipe-cy, calc(62 * var(--vh, 1vh)));
   width: 1000px; height: 1000px; margin: -500px 0 0 -500px;
-  border-radius: 50%; z-index: 250; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  border-radius: 50%; z-index: 3000; pointer-events: none; opacity: 0; mix-blend-mode: screen;
   /* Round 2 (owner 2026-09-24): a DOUBLE-LAYER edge. Inside the seam the ring's glow rises to the bright line
      (`--wf-line`, which Recruit puts ON the seam), and past it a soft leading HALO fades out over the old screen,
      so the edge reads as light arriving rather than a hard line that could look parked. Every stop comes from the
@@ -484,7 +488,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    original L→R front). Parks at the left edge; `.go` sweeps it L→R (exit reveal), `.rtl` parks it at the
    RIGHT edge and `.rtl.go` brings it home R→L (entry reveal). Same duration + easing as the curtain's
    inset transition so bar and seam can never desync; compositor-only transform, static gradient. */
-.wipebar { position: fixed; top: 0; bottom: 0; left: calc(-15 * var(--vw, 1vw)); width: calc(30 * var(--vw, 1vw)); z-index: 250;
+.wipebar { position: fixed; top: 0; bottom: 0; left: calc(-15 * var(--vw, 1vw)); width: calc(30 * var(--vw, 1vw)); z-index: 3000;
   pointer-events: none; opacity: 0; mix-blend-mode: screen;
   background:
     radial-gradient(60% 50% at 50% 50%, rgba(255, 255, 255, .55), rgba(160, 200, 255, .28) 40%, rgba(90, 130, 255, 0) 70%),
@@ -496,9 +500,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipebar.rtl.go { transform: translateX(0); }
 .wipebar.sweeping { opacity: 1; }
 .wipebar.snap { transition: none; }
-/* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts) — z255 so its motes/runes ride ON the blue (curtain + fronts
-   are z250) while staying under the deliberate overlays (Esc z300+). Hidden + ticker stopped when idle. */
+/* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts). Hidden + ticker stopped when idle. Its base z255 is for the Ancients
+   awakening, which plays the same motes over its own z105 gate; while the combat curtain is up (`body.wipe-up`)
+   it rises to z3005 so the motes/runes ride ON the z3000 blue. */
 .wipefx-canvas { position: fixed; inset: 0; z-index: 255; pointer-events: none; }
+body.wipe-up .wipefx-canvas { z-index: 3005; }
 /* NOTHING IN THE GAME PAINTS OVER THE CURTAIN (owner 2026-09-24: "sometimes background elements come through the
    wipe or it flickers"). `body.wipe-up` is set by Recruit from the gem's tell until the reveal ends
    (wipeMachine.wipeUp). The hover layers that deliberately sit above every in-game layer (card references and
@@ -506,15 +512,31 @@ canvas.spr { image-rendering: pixelated; display: block; }
    control through the transition; they are hidden while it is up. The z2000 in-game floats (the loss-damage
    tally, its flying tier numbers, the lobby damage float: z2000 so they clear the replay bar) DROP under the
    curtain while it is up, so a tally still flying when End Combat is clicked is swallowed by the bloom instead
-   of floating over the blue (reproduced 2026-09-24 in every lost round). Deliberate full-screen menus (Esc,
-   hero select, dev tools) still sit above it. */
+   of floating over the blue (reproduced 2026-09-24 in every lost round).
+   Since the curtain moved to z3000 (2026-10-19) every in-game layer is under it by construction; the rules here
+   stay as belt and braces. Two more things change while it is up:
+   - The FX `screen` flash (`.fxflash`, z99999 so a flash whitens every menu too) drops under the blue: a flash
+     fired as the wipe starts would otherwise whiten the curtain itself.
+   - The menus a player can open (or already have open, when a Versus opponent's press starts the wipe) and the
+     replay viewer's own controls RISE over it, each at its usual z + 2600 so they keep their order among
+     themselves: Esc, the patch notes and card Inspect (500), the replay's recorded cursor (535), the account
+     panel (540), the replay round rail (555), the bug report and the replay bar (560), the bug toast (570). Dev
+     tools (z4000+) already sit above the curtain. */
 body.wipe-up .cardref, body.wipe-up .castprev-layer { visibility: hidden !important; }
 body.wipe-up .gtip[data-tip]::after { visibility: hidden !important; }
 body.wipe-up .lobbydmg-float { z-index: 240; }
+body.wipe-up .fxflash { z-index: 2990; }
+body.wipe-up .escov, body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
+body.wipe-up .disc-toggle.disc-peek.inspect-act { z-index: 3101; }
+body.wipe-up .replay-cursor { z-index: 3135; }
+body.wipe-up .acctpanel { z-index: 3140; }
+body.wipe-up .roundrail-wrap { z-index: 3155; }
+body.wipe-up .bgrov, body.wipe-up .replaybar { z-index: 3160; }
+body.wipe-up .bgrtoast { z-index: 3170; }
 /* The Screen wipe tuner's ▶ Play (WipePreview, DEV) plays over any screen, menus included; under the dev menu. */
 .wipecurtain.preview, .wipefront.preview, .wipebar.preview { z-index: 9000; }
 /* z200: the ABOVE-MODAL FX canvas (see `FxSlot` in fx/def.ts). Over the Discover / Choose One overlays
-   (z160, which are otherwise deliberately above every board effect) and under the wipe curtain (z255).
+   (z160, which are otherwise deliberately above every board effect) and under the wipe curtain (z3000).
    Only an effect that is ABOUT the modal belongs here. */
 .pixifx-above { position: fixed; inset: 0; z-index: 200; pointer-events: none; }
 /* With the omen + row labels gone and the hand tucked under the status bar, let the

@@ -1741,14 +1741,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'paints over it: no damage tally, flying number, damage float, card reference, cast preview or tooltip. '
       + 'Anything still animating when the wipe starts is swallowed by the bloom, and a float that belongs to '
       + 'the new screen (the lobby round-damage floats) waits until that screen is revealed. The board behind the '
-      + 'curtain only swaps during the fully covered hold. Deliberate full-screen menus (Esc, hero select, dev '
-      + 'tools) may still open above it.',
+      + 'curtain only swaps during the fully covered hold. The curtain outranks every in-game layer BY CONSTRUCTION '
+      + '(like the ranked gate), so a layer added later is under it by default rather than having to opt out. Only '
+      + 'deliberate menus a player can have open (Esc, account, bug report, card Inspect), the replay viewer\x27s own '
+      + 'controls and dev tools may sit above it.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Follow-up after playing #1707 on the ultrawide, 2026-09-24', quote: 'also sometimes background elements come through the wipe or it flickers, not sure what\x27s causing it' },
       { kind: 'fix-pr', ref: 'fix/screen-wipe-polish' },
       { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts wipeUp + combatBackdropShown; packages/ui/src/Recruit.tsx (body.wipe-up); packages/ui/src/styles.css body.wipe-up rules; packages/ui/src/lobbyDamageFx.ts whenCurtainDown; packages/ui/src/LobbyPanel.tsx' },
+      { kind: 'owner-chat', ref: 'Owner report on the End Turn curtain, 2026-10-19 (game elements still popping in over it)', quote: 'if i provided PNG\x27s instead, would that improve anything? it seems to work perfectly for the gate animation' },
+      { kind: 'fix-pr', ref: 'fix/combat-curtain-flash' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css .wipecurtain / .wipefront / .wipebar z3000 + the body.wipe-up lifts; packages/ui/src/curtainLadder.test.ts' },
     ],
     currentBehaviour:
       'Conforms as of 2026-09-24. Reproduced in real lobby play (headless Chrome at 3440x1440 and 5120x1440, '
@@ -1760,11 +1765,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'those floats to z240 under the curtain and hides the hover layers (card refs, cast previews, game '
       + 'tooltips), and the lobby float waits for the curtain to lift. Scanner after: 0 records across all four '
       + 'sizes and 5-round runs (before: 5 to 8 per run). The wipe FX canvas also renders its empty stage before '
-      + 'hiding, so a cleared wipe can never flash stale motes on the next one.',
+      + 'hiding, so a cleared wipe can never flash stale motes on the next one. '
+      + 'WIDENED 2026-10-19: the per-layer fixes left the curtain at z250 while the game kept adding layers above it '
+      + '(the Rebirth pillar burst z2000, the rune lock-in ceremony z640, the tutorial spotlight and nudge z600-620, '
+      + 'emote bubbles z900, the FX screen flash z99999), each of which painted over the blue whenever it was alive as '
+      + 'a wipe ran. The ranked gate looked flawless only because it sits at z700, not because of its PNG art. The '
+      + 'curtain, ring and bar now sit at z3000, above every in-game layer; the wipe FX canvas rises to z3005 while it '
+      + 'is up; the screen flash drops under it; Esc, account, bug report, Inspect and the replay controls rise to '
+      + 'their own z + 2600. `curtainLadder.test.ts` fails on any new stylesheet or inline layer at or above the '
+      + 'curtain outside a short list of dev and system layers.',
     enforcement: {
       kind: 'scenario',
-      refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/lobbyDamageFx.test.ts'],
-      lastVerifiedAt: '2026-09-24',
+      refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/lobbyDamageFx.test.ts', 'packages/ui/src/curtainLadder.test.ts'],
+      lastVerifiedAt: '2026-10-19',
     },
   },
   // ── The Good Luck intro's sounds end on a soft tail (owner 2026-09-24) ─────────────────────────────────

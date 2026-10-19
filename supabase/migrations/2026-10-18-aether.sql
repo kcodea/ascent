@@ -2,16 +2,23 @@
 -- AETHER: the earned currency, the wallet + ledger, and the Crate Shop (tiered, focusable crates)  (2026-10-18)
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --
--- Paste into the Supabase SQL Editor and Run, AFTER 2026-10-17-versus-open-rooms.sql (the last file before it; the
--- settlement sections appended to this file replace `settle_progression` from 2026-10-14-versus-progression.sql, so it
--- must come after every file that defines it). THEN deploy the `progression-inventory` Edge Function (it calls
--- `buy_crate` and the focused `open_crate`; before this file runs those calls fail with "function does not exist",
--- so run the SQL FIRST). Idempotent: every table and column is `if not exists`, the config seed is `on conflict do
--- nothing` (a retuned economy is never overwritten), and every function is REPLACED and re-granted, so re-running it is
--- always safe. The same block is appended to schema.sql; keep the two identical. Spec:
+-- Paste into the Supabase SQL Editor and Run, AFTER 2026-10-17-versus-open-rooms.sql (the last file before it). THEN
+-- deploy the `progression-inventory`, `submit-progression` and `gauntlet-clear` Edge Functions (inventory calls
+-- `buy_crate` and the focused `open_crate`; before this file runs those calls fail with "function does not exist", so
+-- run the SQL FIRST). THE LAUNCH is a separate, owner-run step: `select public.aether_rollout();` (commented out at the
+-- very bottom) backdates the milestone crates and flips the switch. Idempotent: every table and column is `if not
+-- exists`, the config seed is `on conflict do nothing` (a retuned economy is never overwritten), every constraint is
+-- dropped and re-added, and every function is REPLACED and re-granted, so re-running it is always safe (it never runs
+-- the rollout). The same block is appended to schema.sql; keep the two identical. Spec:
 -- docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md.
 --
--- WHAT THIS REPLACES. `open_crate` (2026-10-02-ancient-rarity.sql): the 2-argument overload is DROPPED and a
+-- WHAT SECTIONS 11-14 REPLACE, so this file must come after every file that defines them: `settle_progression`
+-- (latest 2026-10-14-versus-progression.sql), `record_gauntlet_clear` (2026-09-29-gauntlet-progress.sql),
+-- `progression_result_json` (2026-09-28-achievements.sql) and `progression_profile_json`
+-- (2026-09-28-progression-skins.sql). IF ANY OF THOSE FILES IS EVER RE-RUN, RUN THIS FILE AGAIN AFTER IT: each would
+-- put back a writer that pays no Aether and grants a crate per level (or a profile without the balance).
+--
+-- WHAT SECTIONS 1-10 REPLACE. `open_crate` (2026-10-02-ancient-rarity.sql): the 2-argument overload is DROPPED and a
 -- 4-argument one with defaults takes its place, so the named 2-argument call an older Edge Function sends
 -- (`p_user`, `p_crate_id`) resolves to it. `loot_crates_transition_guard` + `progression_crate_json`
 -- (2026-09-29-gauntlet-progress.sql). The 2-argument `progression_crate_pick` and `progression_crate_pool` are left
@@ -38,6 +45,10 @@
 --    retried or double-clicked buy return the first result, charged once.
 --  - A MILESTONE crate (`source = 'milestone:<level>'`, floor Legendary) may be focused AT OPEN for the Legendary focus
 --    fee; no other crate takes a focus at open.
+--  - EARNING (sections 11-14, all behind the switch): a Ranked or Versus settlement pays Aether (mirror of
+--    aetherForSettlement) and, instead of a crate per level, grants the Welcome Crate on enrollment plus a free
+--    floor-Legendary milestone crate at every 10th level; a Gauntlet first clear pays 200 Aether instead of its crate;
+--    the result and profile JSON carry the Aether; `aether_rollout()` backdates the milestone crates at launch.
 --
 -- THE TS COPY is packages/progression/src/crateShop.ts (CRATE_TIER_FLOOR, eligibleForCrate, normalizeFocus,
 -- focusFeePercent, quoteCrate, pickTieredCrateReward) and aether.ts (DEFAULT_AETHER_ECONOMY). aether.db.test.ts runs
@@ -496,3 +507,647 @@ grant execute on function public.buy_crate(uuid, text, text[], int, uuid) to ser
 -- ── END OF SECTIONS 1-10 (switch, config, wallet, ledger, aether_apply, crate columns, tiered pool + pick, quote,
 --    open_crate + buy_crate). Sections 11-14 (the settlement's Aether, Gauntlet Aether, milestone crates, the profile
 --    JSON and the rollout) follow below. ──────────────────────────────────────────────────────────────────────────
+
+-- ── 11. progression_results remembers the Aether a settlement paid; the result JSON carries it ────────────
+-- Four columns, written by `settle_progression` below. `aether_on` records whether the switch was ON when the game
+-- settled: OFF (every row before this file, and every row while the switch is off) the result's `aether` is null and the
+-- crate-per-level rules applied; ON it is the breakdown (0/0/0 for Practice and Tutorial) and the crates are the
+-- Welcome Crate and the milestone crates only.
+alter table public.progression_results add column if not exists aether_base      int not null default 0;
+alter table public.progression_results add column if not exists aether_placement int not null default 0;
+alter table public.progression_results add column if not exists aether_total     int not null default 0;
+alter table public.progression_results add column if not exists aether_on        boolean not null default false;
+
+-- MUST match `ProgressionResult` in packages/progression/src/rules.ts key for key. The 2026-09-28-achievements.sql body
+-- plus `aether` (null when the switch was off) and `aetherBalance` (the account's balance as this answer is built; null
+-- exactly when `aether` is). Reading the wallet makes it STABLE (it was IMMUTABLE): a deduped replay shows today's
+-- balance beside today's profile, the same way it already shows today's profile.
+create or replace function public.progression_result_json(r public.progression_results)
+returns jsonb
+language sql
+stable
+as $$
+  select jsonb_build_object(
+    'runId', r.run_id, 'mode', r.mode, 'rulesVersion', r.rules_version,
+    'placement', r.placement, 'comeback', r.comeback,
+    'xp', jsonb_build_object('base', r.base_xp, 'topFour', r.top_four_xp, 'firstPlace', r.first_place_xp, 'comeback', r.comeback_xp, 'total', r.total_xp),
+    'before', jsonb_build_object('lifetimeXp', r.xp_before, 'level', r.level_before),
+    'after',  jsonb_build_object('lifetimeXp', r.xp_after,  'level', r.level_after),
+    'unlockedTitles', to_jsonb(r.unlocked_title_ids),
+    'cratesAwarded', r.crates_awarded,
+    'crateIds', to_jsonb(r.crate_ids),
+    'achievements', to_jsonb(r.achievement_ids),
+    'achievementXp', r.achievement_xp,
+    'aether', case when r.aether_on then jsonb_build_object('base', r.aether_base, 'placement', r.aether_placement, 'total', r.aether_total) end,
+    'aetherBalance', case when r.aether_on then coalesce((select w.balance from public.aether_wallets w where w.user_id = r.user_id), 0) end,
+    'revisionAfter', r.revision_after,
+    'settledAt', r.settled_at
+  );
+$$;
+revoke all on function public.progression_result_json(public.progression_results) from public, anon, authenticated;
+grant execute on function public.progression_result_json(public.progression_results) to service_role;
+
+-- ── 12. settle_progression: Aether for Ranked and Versus; milestone crates replace level crates ──────────────
+-- THE FULL 2026-10-14-versus-progression.sql WRITER, RE-CREATED. Every line is byte-for-byte that writer (its comments
+-- included, so `sqlParity.test.ts` reads the same constants out of it) EXCEPT these additions, all gated on
+-- `progression_config.aether_enabled`; with the switch OFF the function behaves exactly as before, crate for crate:
+--  - the `-- aether` declarations (no new constants: every number is the server-owned `aether_config` economy, read
+--    once into `v_eco`, cast `::numeric::int` so a JSON number in any spelling reads);
+--  - step 7a: the Aether this game pays (mirror of aetherForSettlement), credited through `aether_apply` with reason
+--    = the mode and source = the run id, so the ledger's unique key backs the result-ledger dedupe;
+--  - step 9b: the Welcome Crate on enrollment (kept, owner 2026-10-18) plus ONE crate per milestone level at or below
+--    the new level (`milestoneLevelsThrough`; every one, not just the newly crossed, so a missing one self-heals), and
+--    no other level crate. The switch-off branch is the unchanged per-level insert;
+--  - step 10: the result row writes the four Aether columns.
+-- A MILESTONE CRATE IS ALWAYS FLOOR LEGENDARY: `open_crate` quotes a focus at open at the Legendary fee and rolls the
+-- crate's own floor, so a milestone crate on any other floor would be priced and rolled inconsistently. The constraint
+-- pins it for every writer (this one, `aether_rollout` below, and anything later).
+alter table public.loot_crates drop constraint if exists loot_crates_milestone_is_legendary;
+alter table public.loot_crates add constraint loot_crates_milestone_is_legendary
+  check (source is null or source not like 'milestone:%' or floor_rarity = 'legendary');
+create or replace function public.settle_progression(
+  p_user uuid, p_mode text, p_run_id text, p_source_id bigint default null, p_comeback boolean default false,
+  p_rules_version int default null, p_facts jsonb default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  -- THE RULES (mirror of XP_RULES / CURVE in packages/progression/src/rules.ts — change all copies together)
+  c_rules             constant int := 1;
+  c_curve             constant int := 1;
+  c_complete          constant int := 100;
+  c_top_four          constant int := 60;
+  c_first_place       constant int := 90;
+  c_comeback          constant int := 25;
+  c_comeback_streak   constant int := 4;
+  c_practice_percent  constant int := 60;
+  c_practice_flat     constant int := 60;
+  c_tutorial          constant int := 250;
+  c_tutorial_course   constant text := 'learn-ascent';
+  c_tutorial_version  constant int := 1;
+  c_alpha_title       constant text := 'alpha_tester';
+  c_alpha_level       constant int := 2;
+  c_rate_max          constant int := 30;
+  c_rate_window       constant interval := interval '10 minutes';
+  -- ACHIEVEMENTS (mirror of packages/progression/src/achievements.ts)
+  c_meta_metric       constant text := 'achievementsCompleted';
+  c_brutal_strength   constant int := 70;
+  c_ascendant_div     constant int := 15;
+  c_metric_max        constant bigint := 1000000000;
+  -- HERO TITLES (mirror of heroTitleId / heroMasterTitleId in packages/progression/src/cosmetics.ts)
+  c_hero_title_prefix constant text := 'title_hero_';
+  c_master_suffix     constant text := '_master';
+  -- VERSUS (owner 2026-10-14: "versus can complete achievements and grant XP but no rank progress")
+  c_versus_win        constant int := 60;
+  c_versus_min_rounds constant int := 1;
+
+  prof        public.profiles%rowtype;
+  prev        public.progression_results%rowtype;
+  v_epoch     timestamptz;
+  v_recent    int;
+  v_source_at timestamptz;
+  v_source    text := null;
+  v_placement int := null;
+  v_comeback  boolean := false;
+  v_seed      bigint;
+  v_cfg       jsonb;
+  v_record    jsonb;
+  v_wins      int;
+  v_losses    int;
+  r_top int := 0; r_first int := 0; r_come int := 0; v_ranked_total int;
+  v_base int := 0; v_top int := 0; v_first int := 0; v_come int := 0; v_total int;
+  v_xp0 bigint; v_xp1 bigint; v_l0 int; v_l1 int;
+  v_unlocked  text[] := '{}';
+  v_equipped  text;
+  v_rows      int;
+  v_facts_ver int := null;
+  v_enrolling boolean;
+  v_crate_ids uuid[] := '{}';
+  -- achievements
+  v_ach_epoch  timestamptz;
+  v_promoted   boolean := false;
+  v_div_before int := null;
+  v_demo_game  boolean := false;
+  v_demoted    boolean := false;
+  v_strength   int := null;
+  v_hero       text := null;
+  v_set        text := null;
+  v_run_ok     boolean := false;
+  v_metrics    jsonb := '{}';
+  v_first_streak int := 0;
+  v_top_streak int := 0;
+  v_heroes_played int := 0;
+  v_heroes_won int := 0;
+  v_done_count int := 0;
+  d            public.achievement_catalog%rowtype;
+  v_val        bigint;
+  v_old        bigint;
+  v_done       boolean;
+  v_new        bigint;
+  v_ach_ids    text[] := '{}';
+  v_ach_xp     int := 0;
+  v_hero_title text := null;
+  -- versus
+  v_match      public.versus_matches%rowtype;
+  v_vs_seat    text := null;
+  v_ach_place  int := null;
+  -- aether (2026-10-18): no constants; the numbers are the aether_config economy, read once
+  v_aether     boolean := false;
+  v_eco        jsonb;
+  v_ae_base    int := 0;
+  v_ae_place   int := 0;
+  v_ae_every   int;
+begin
+  -- 1. validate
+  if p_mode is null or p_mode not in ('ranked', 'practice', 'tutorial', 'versus') then raise exception 'bad_mode'; end if;
+  if p_run_id is null or length(p_run_id) < 1 or length(p_run_id) > 128 then raise exception 'bad_run_id'; end if;
+  if p_rules_version is distinct from c_rules then raise exception 'unsupported_rules'; end if;
+
+  -- 2. serialize per user (every progression entry point takes the advisory lock first), then lock the row
+  perform pg_advisory_xact_lock(hashtextextended('progression:' || p_user::text, 0));
+  insert into public.profiles (user_id, rating) values (p_user, 0) on conflict (user_id) do nothing;
+  select * into prof from public.profiles where user_id = p_user for update;
+
+  -- 3. ledger check UNDER the lock: a duplicate returns the ORIGINAL result + today's profile, awards nothing
+  select * into prev from public.progression_results where user_id = p_user and run_id = p_run_id and mode = p_mode;
+  if found then
+    return jsonb_build_object('status', 'deduped', 'result', public.progression_result_json(prev), 'profile', public.progression_profile_json(p_user));
+  end if;
+
+  -- 4. the switch: nothing is awarded before the owner sets the epoch
+  select epoch, achievements_epoch into v_epoch, v_ach_epoch from public.progression_config where id = 1;
+  if v_epoch is null then raise exception 'progression_disabled'; end if;
+
+  -- 5. rate limit (technical only: a refused request is retried later and keeps its XP)
+  select count(*) into v_recent from public.progression_results
+    where user_id = p_user and settled_at >= now() - c_rate_window;
+  if v_recent >= c_rate_max then raise exception 'rate_limited'; end if;
+
+  -- 6. the SOURCE row: the placement comes from here, never from the request
+  if p_mode = 'ranked' then
+    select rr.placement, rr.seed, rr.created_at, rr.promoted, rr.division_before, rr.was_demotion_game, rr.demoted, rr.lobby_strength
+      into v_placement, v_seed, v_source_at, v_promoted, v_div_before, v_demo_game, v_demoted, v_strength
+      from public.rank_results rr where rr.user_id = p_user and rr.run_id = p_run_id;
+    if not found then raise exception 'source_not_found'; end if;
+    if v_source_at < v_epoch then raise exception 'before_epoch'; end if;
+    v_source := p_run_id;
+    v_comeback := coalesce(p_comeback, false);
+    if v_comeback and v_seed is not null then
+      select h.wins, case when (h.entry->>'losses') ~ '^[0-9]+$' then (h.entry->>'losses')::int end
+        into v_wins, v_losses
+        from public.run_history h
+        where h.user_id = p_user and h.mode = 'lobby' and h.entry->>'seed' = v_seed::text
+        order by h.created_at desc limit 1;
+      if found and (coalesce(v_losses, 0) < c_comeback_streak or coalesce(v_wins, 0) < 1) then v_comeback := false; end if;
+    end if;
+  elsif p_mode = 'practice' then
+    if p_source_id is null or p_source_id < 1 then raise exception 'bad_source'; end if;
+    if p_run_id is distinct from ('practice:' || p_source_id::text) then raise exception 'bad_run_id'; end if;
+    select pg.placement, pg.config, pg.record, pg.created_at, pg.hero_id into v_placement, v_cfg, v_record, v_source_at, v_hero
+      from public.practice_games pg where pg.id = p_source_id and pg.user_id = p_user;
+    if not found then raise exception 'source_not_found'; end if;
+    if v_source_at < v_epoch then raise exception 'before_epoch'; end if;
+    v_source := p_source_id::text;
+    -- No meaningful placement: an Unlimited Health game plays to the curtain and is never eliminated (and a row
+    -- with no options recorded is treated the same way). It earns the flat XP, no placement or comeback bonus.
+    if v_cfg is null or coalesce(v_cfg->>'health', 'unlimited') <> 'normal'
+       or v_placement is null or v_placement < 1 or v_placement > 8 then
+      v_placement := null;
+    end if;
+    v_comeback := coalesce(p_comeback, false) and v_placement is not null;
+    if v_comeback and v_record is not null then
+      v_wins := case when (v_record->>'wins') ~ '^[0-9]+$' then (v_record->>'wins')::int end;
+      v_losses := case when (v_record->>'losses') ~ '^[0-9]+$' then (v_record->>'losses')::int end;
+      if coalesce(v_losses, 0) < c_comeback_streak or coalesce(v_wins, 0) < 1 then v_comeback := false; end if;
+    end if;
+  elsif p_mode = 'versus' then
+    -- VERSUS: the source is the server-owned match row. The caller must have held a PLAYER seat, the match must be
+    -- over and must have fought at least one round. Placement = 1 for the winner, 2 for the loser, null when nobody
+    -- won (abandoned). It drives XP only: rank_results, rating and MMR are never read or written here.
+    if p_run_id !~ '^versus:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then raise exception 'bad_run_id'; end if;
+    select * into v_match from public.versus_matches m where m.id = substring(p_run_id from 8)::uuid;
+    if not found then raise exception 'source_not_found'; end if;
+    v_vs_seat := case when v_match.p1_user = p_user then 'p1' when v_match.p2_user = p_user then 'p2' end;
+    if v_vs_seat is null then raise exception 'source_not_found'; end if;
+    if v_match.phase <> 'complete' or v_match.completed_at is null then raise exception 'not_terminal'; end if;
+    if not exists (select 1 from public.versus_rounds vr where vr.match_id = v_match.id and vr.round >= c_versus_min_rounds) then raise exception 'not_terminal'; end if;
+    v_source_at := v_match.completed_at;
+    if v_source_at < v_epoch then raise exception 'before_epoch'; end if;
+    v_source := v_match.id::text;
+    v_placement := case when v_match.winner_seat is null then null when v_match.winner_seat = v_vs_seat then 1 else 2 end;
+    v_comeback := false;
+    v_hero := case when v_vs_seat = 'p1' then v_match.p1_hero else v_match.p2_hero end;
+  else
+    -- tutorial: one claim per account per course version (the ledger check above already caught a repeat)
+    if p_run_id is distinct from (c_tutorial_course || ':v' || c_tutorial_version::text) then raise exception 'bad_run_id'; end if;
+    insert into public.tutorial_progression_claims (user_id, course_id, course_version, xp_awarded)
+      values (p_user, c_tutorial_course, c_tutorial_version, c_tutorial)
+      on conflict (user_id, course_id, course_version) do nothing;
+    v_source := c_tutorial_course || ':' || c_tutorial_version::text;
+  end if;
+
+  -- 7. XP (mirror of xpForSettlement)
+  if p_mode = 'tutorial' then
+    v_base := c_tutorial;
+  elsif p_mode = 'versus' then
+    -- VERSUS: the completion XP, plus the win bonus for the winner (stored in the first-place column).
+    v_base := c_complete;
+    v_first := case when v_placement = 1 then c_versus_win else 0 end;
+  elsif p_mode = 'practice' and v_placement is null then
+    v_base := c_practice_flat;
+  else
+    r_top   := case when v_placement <= 4 then c_top_four else 0 end;
+    r_first := case when v_placement = 1 then c_first_place else 0 end;
+    r_come  := case when v_comeback then c_comeback else 0 end;
+    if p_mode = 'ranked' then
+      v_base := c_complete; v_top := r_top; v_first := r_first; v_come := r_come;
+    else
+      -- Practice: 60% of the equivalent ranked XP, summed then rounded; the remainder lands on the base.
+      v_ranked_total := c_complete + r_top + r_first + r_come;
+      v_top   := (r_top   * c_practice_percent + 50) / 100;
+      v_first := (r_first * c_practice_percent + 50) / 100;
+      v_come  := (r_come  * c_practice_percent + 50) / 100;
+      v_base  := (v_ranked_total * c_practice_percent + 50) / 100 - v_top - v_first - v_come;
+    end if;
+  end if;
+  v_total := v_base + v_top + v_first + v_come;
+
+  -- 7a. AETHER (owner 2026-10-18: Aether replaces level-up crates; mirror of aetherForSettlement in
+  -- packages/progression/src/aether.ts). Only with the switch on. Ranked: the base + the placement bonus, win or lose,
+  -- for a VALID placement (none = the ladder never accepted the game: 0). Versus: the completion pay for ANY finished
+  -- match (won, lost or abandoned with no winner) + the win bonus at placement 1. Practice and Tutorial: 0; no
+  -- comeback bonus. Credited with reason = the mode, source = the run id. A missing economy row leaves the amount
+  -- null, which aether_apply refuses (`bad_aether_change`): the settlement fails and is retried, never settled unpaid.
+  select aether_enabled into v_aether from public.progression_config where id = 1;
+  v_aether := coalesce(v_aether, false);
+  if v_aether then
+    select economy into v_eco from public.aether_config where id = 1;
+    v_ae_every := (v_eco ->> 'milestoneEvery')::numeric::int;
+    if p_mode = 'ranked' and v_placement between 1 and 8 then
+      v_ae_base  := (v_eco ->> 'rankedBase')::numeric::int;
+      v_ae_place := coalesce((v_eco -> 'rankedPlacementBonus' ->> (v_placement - 1))::numeric::int, 0);
+    elsif p_mode = 'versus' then
+      v_ae_base  := (v_eco ->> 'versusComplete')::numeric::int;
+      v_ae_place := case when v_placement = 1 then (v_eco ->> 'versusWin')::numeric::int else 0 end;
+    end if;
+    if v_ae_base + v_ae_place is null or v_ae_base + v_ae_place > 0 then
+      perform public.aether_apply(p_user, v_ae_base + v_ae_place, p_mode, p_run_id);
+    end if;
+  end if;
+
+  if p_facts is not null and jsonb_typeof(p_facts) = 'object' and (p_facts->>'version') ~ '^[0-9]+$' then
+    v_facts_ver := (p_facts->>'version')::int;
+  end if;
+
+  -- 7b. ACHIEVEMENTS (mirror of evaluateAchievements in packages/progression/src/achievements.ts). Only once the
+  -- owner has set the achievements epoch, and only for a game whose source row is not older than it.
+  if v_ach_epoch is not null and coalesce(v_source_at, now()) >= v_ach_epoch then
+    -- The `any` gate: Ranked, or a standard Practice (Normal Health, so a real placement, AND a turn timer).
+    v_run_ok := p_mode = 'ranked' or p_mode = 'versus'
+      or (p_mode = 'practice' and v_placement is not null and coalesce(v_cfg->>'timeMult', '') ~ '^[1-9][0-9]*$');
+    if p_mode = 'ranked' then v_hero := p_facts->>'heroId'; end if;
+    -- VERSUS: a 1v1 "1st" is not a lobby finish, so placement-gated achievements (Top 4, 1st) never count it.
+    v_ach_place := case when p_mode = 'versus' then null else v_placement end;
+    if v_hero is not null and v_hero !~ '^[A-Za-z0-9_.-]{1,64}$' then v_hero := null; end if;
+    v_set := p_facts->>'setId';
+    if v_set is not null and v_set !~ '^[A-Za-z0-9_.-]{1,32}$' then v_set := null; end if;
+
+    -- Distinct heroes: this game counts toward its hero when it is an eligible game.
+    if v_run_ok and v_hero is not null then
+      insert into public.achievement_hero_stats (user_id, hero_id, games, firsts)
+        values (p_user, v_hero, 1, case when p_mode = 'ranked' and v_placement = 1 then 1 else 0 end)
+        on conflict (user_id, hero_id) do update set
+          games = public.achievement_hero_stats.games + 1,
+          firsts = public.achievement_hero_stats.firsts + excluded.firsts,
+          updated_at = now();
+    end if;
+    select count(*) filter (where s.games > 0), count(*) filter (where s.firsts > 0) into v_heroes_played, v_heroes_won
+      from public.achievement_hero_stats s where s.user_id = p_user;
+
+    -- Ranked streaks, over Ranked games since the achievements epoch, ending with this one.
+    if p_mode = 'ranked' then
+      with r as (
+        select rr.placement, row_number() over (order by rr.created_at desc, rr.run_id desc) as rn
+        from public.rank_results rr
+        where rr.user_id = p_user and rr.created_at >= v_ach_epoch and rr.created_at <= v_source_at
+      )
+      select coalesce((select min(rn) from r where placement <> 1) - 1, (select count(*) from r)),
+             coalesce((select min(rn) from r where placement > 4) - 1, (select count(*) from r))
+        into v_first_streak, v_top_streak;
+    end if;
+
+    -- The metrics: the client's run metrics (V2), overwritten by every server metric (a client can never name one).
+    if coalesce(v_facts_ver, 0) >= 2 and jsonb_typeof(p_facts->'metrics') = 'object' then v_metrics := p_facts->'metrics'; end if;
+    v_metrics := v_metrics || jsonb_build_object(
+      'game', 1,
+      'comeback', case when v_comeback then 1 else 0 end,
+      'highestDivision', coalesce(prof.rank_highest_division, 0),
+      'promoted', case when p_mode = 'ranked' and v_promoted then 1 else 0 end,
+      'ascendantFirst', case when p_mode = 'ranked' and v_placement = 1 and coalesce(v_div_before, 0) >= c_ascendant_div then 1 else 0 end,
+      'demotionEscape', case when p_mode = 'ranked' and v_demo_game and not v_demoted and v_placement <= 4 then 1 else 0 end,
+      'brutalFirst', case when p_mode = 'ranked' and v_placement = 1 and coalesce(v_strength, 0) >= c_brutal_strength then 1 else 0 end,
+      'firstStreak', v_first_streak,
+      'topFourStreak', v_top_streak,
+      'heroesPlayed', v_heroes_played,
+      'heroesWon', v_heroes_won,
+      c_meta_metric, 0
+    );
+
+    -- Pass 1: every live, non-prestige, non-meta definition, in id order. Pass 2: the meta family, by target.
+    select count(*) into v_done_count from public.achievement_completions c where c.user_id = p_user;
+    for d in
+      select * from public.achievement_catalog c
+      where c.active and not c.admin_off and c.trust <> 'P'
+      order by (c.metric = c_meta_metric), case when c.metric = c_meta_metric then c.target else 0 end, c.achievement_id collate "C"
+    loop
+      continue when d.mode = 'ranked' and p_mode <> 'ranked';
+      continue when d.mode = 'tutorial' and p_mode <> 'tutorial';
+      continue when d.mode = 'any' and not v_run_ok;
+      continue when d.set_id is not null and v_set is distinct from d.set_id;
+      continue when d.hero_id is not null and v_hero is distinct from d.hero_id;
+      continue when d.placement_max is not null and (v_ach_place is null or v_ach_place > d.placement_max);
+      if d.metric = c_meta_metric then
+        v_val := v_done_count;
+      elsif jsonb_typeof(v_metrics->d.metric) = 'number' then
+        v_val := least(c_metric_max, greatest(0, floor((v_metrics->>d.metric)::numeric)))::bigint;
+      else
+        v_val := 0;
+      end if;
+      continue when v_val <= 0;
+      select ap.progress, ap.completed_at is not null into v_old, v_done
+        from public.achievement_progress ap where ap.user_id = p_user and ap.achievement_id = d.achievement_id;
+      if not found then v_old := 0; v_done := false; end if;
+      continue when v_done;
+      v_new := case when d.agg = 'sum' then v_old + v_val else greatest(v_old, v_val) end;
+      continue when v_new = v_old and v_new < d.target;
+      insert into public.achievement_progress (user_id, achievement_id, definition_version, progress, completed_at, completion_run_id, updated_at)
+        values (p_user, d.achievement_id, d.version, v_new,
+                case when v_new >= d.target then now() end, case when v_new >= d.target then p_run_id end, now())
+        on conflict (user_id, achievement_id) do update set
+          definition_version = excluded.definition_version, progress = excluded.progress,
+          completed_at = excluded.completed_at, completion_run_id = excluded.completion_run_id, updated_at = now();
+      if v_new >= d.target then
+        insert into public.achievement_completions (user_id, achievement_id, run_id, mode, xp_awarded, title_id)
+          values (p_user, d.achievement_id, p_run_id, p_mode, d.xp, d.title_id)
+          on conflict (user_id, achievement_id) do nothing;
+        get diagnostics v_rows = row_count;
+        if v_rows > 0 then
+          v_ach_ids := array_append(v_ach_ids, d.achievement_id);
+          v_ach_xp := v_ach_xp + d.xp;
+          v_done_count := v_done_count + 1;
+          -- 7c. A TITLE reward (hero titles, owner 2026-09-29) is granted in the same transaction. Only a title the
+          -- catalog knows (the ownership FK); the grant is keyed, so a retry or the backfill never doubles it.
+          if d.title_id is not null and exists (select 1 from public.cosmetic_catalog c where c.cosmetic_id = d.title_id and c.category = 'title') then
+            insert into public.player_cosmetics (user_id, cosmetic_id, source, source_id)
+              values (p_user, d.title_id, 'achievement', d.achievement_id)
+              on conflict (user_id, cosmetic_id) do nothing;
+            get diagnostics v_rows = row_count;
+            if v_rows > 0 then
+              v_unlocked := array_append(v_unlocked, d.title_id);
+              if d.title_id like c_hero_title_prefix || '%' then v_hero_title := d.title_id; end if;
+            end if;
+          end if;
+        end if;
+      end if;
+    end loop;
+  end if;
+
+  -- 8. levels (lifetime XP; the level is derived). Achievement XP counts toward the level and its crates.
+  v_xp0 := coalesce(prof.account_xp, 0);
+  v_xp1 := v_xp0 + v_total + v_ach_xp;
+  v_l0 := public.progression_level_of(v_xp0);
+  v_l1 := public.progression_level_of(v_xp1);
+
+  -- 9. titles: Alpha Tester for EVERY account at Level 2 (owner 2026-09-27); equipped when nothing else is
+  if v_l1 >= c_alpha_level then
+    insert into public.player_cosmetics (user_id, cosmetic_id, source, source_id)
+      values (p_user, c_alpha_title, 'level', p_mode || ':' || p_run_id)
+      on conflict (user_id, cosmetic_id) do nothing;
+    get diagnostics v_rows = row_count;
+    if v_rows > 0 then v_unlocked := array_append(v_unlocked, c_alpha_title); end if;
+  end if;
+  v_equipped := prof.equipped_title_id;
+  -- 9a. HERO TITLES (owner 2026-09-29). The master UPGRADES the title in place: a newly earned master replaces its own
+  -- base title when that is the one worn. A new hero title is worn when nothing is (like Alpha Tester).
+  if v_equipped is not null and v_equipped like c_hero_title_prefix || '%' and (v_equipped || c_master_suffix) = any(v_unlocked) then
+    v_equipped := v_equipped || c_master_suffix;
+  end if;
+  if v_equipped is null and v_hero_title is not null then
+    v_equipped := v_hero_title;
+  end if;
+  if v_equipped is null and exists (select 1 from public.player_cosmetics o where o.user_id = p_user and o.cosmetic_id = c_alpha_title) then
+    v_equipped := c_alpha_title;
+  end if;
+
+  -- 9b. crates: one sealed crate per newly reached level; enrollment (the first settlement) also grants the
+  -- Level 1 Welcome Crate. The unique (user, level) key makes this safe against the backfill and any retry.
+  -- AETHER ON (owner 2026-10-18): no crate per level. The Welcome Crate (Level 1, floor Common) on enrollment, as
+  -- before, and one floor-LEGENDARY crate per milestone level at or below the new level (mirror of
+  -- milestoneLevelsThrough), `source = 'milestone:<L>'`, so the one-crate-per-source index makes it once per
+  -- milestone and a missing one self-heals. `v_crate_ids` holds only the rows actually created, Welcome first.
+  -- AETHER OFF: the unchanged per-level insert below the `else` (kept byte-for-byte, hence its indentation).
+  v_enrolling := prof.progression_enrolled_at is null;
+  if v_aether then
+    with ins as (
+      insert into public.loot_crates (user_id, earned_level, source_id)
+        select p_user, 1, p_mode || ':' || p_run_id where v_enrolling
+        on conflict (user_id, earned_level) do nothing
+        returning crate_id
+    )
+    select coalesce(array_agg(ins.crate_id), '{}') into v_crate_ids from ins;
+    if v_ae_every >= 1 then
+      with ins as (
+        insert into public.loot_crates (user_id, earned_level, source, source_id, floor_rarity)
+          select p_user, null, 'milestone:' || g.lvl, p_mode || ':' || p_run_id, 'legendary'
+          from generate_series(v_ae_every, v_l1, v_ae_every) as g(lvl)
+          on conflict (user_id, source) where source is not null do nothing
+          returning crate_id, source
+      )
+      select v_crate_ids || coalesce(array_agg(ins.crate_id order by split_part(ins.source, ':', 2)::int), '{}')
+        into v_crate_ids from ins;
+    end if;
+  else
+  with ins as (
+    insert into public.loot_crates (user_id, earned_level, source_id)
+      select p_user, g.lvl, p_mode || ':' || p_run_id
+      from generate_series(case when v_enrolling then 1 else v_l0 + 1 end, v_l1) as g(lvl)
+      on conflict (user_id, earned_level) do nothing
+      returning crate_id, earned_level
+  )
+  select coalesce(array_agg(ins.crate_id order by ins.earned_level), '{}') into v_crate_ids from ins;
+  end if;
+
+  -- 10. write profile + revision + the immutable result in this same transaction
+  update public.profiles set
+    account_xp = v_xp1, account_level = v_l1,
+    progression_revision = prof.progression_revision + 1,
+    progression_enrolled_at = coalesce(prof.progression_enrolled_at, now()),
+    progression_curve_version = c_curve,
+    equipped_title_id = v_equipped,
+    updated_at = now()
+  where user_id = p_user;
+
+  insert into public.progression_results (
+    user_id, run_id, mode, source_id, rules_version, curve_version, facts_version, facts,
+    placement, comeback, base_xp, top_four_xp, first_place_xp, comeback_xp, achievement_xp, total_xp,
+    xp_before, xp_after, level_before, level_after, revision_before, revision_after,
+    crates_awarded, crate_ids, achievement_ids, unlocked_title_ids,
+    aether_base, aether_placement, aether_total, aether_on
+  ) values (
+    p_user, p_run_id, p_mode, v_source, c_rules, c_curve, v_facts_ver, case when v_facts_ver is null then null else p_facts end,
+    v_placement, v_comeback, v_base, v_top, v_first, v_come, v_ach_xp, v_total,
+    v_xp0, v_xp1, v_l0, v_l1, prof.progression_revision, prof.progression_revision + 1,
+    coalesce(array_length(v_crate_ids, 1), 0), v_crate_ids, v_ach_ids, v_unlocked,
+    v_ae_base, v_ae_place, v_ae_base + v_ae_place, v_aether
+  ) returning * into prev;
+
+  return jsonb_build_object('status', 'ok', 'result', public.progression_result_json(prev), 'profile', public.progression_profile_json(p_user));
+end;
+$$;
+revoke all on function public.settle_progression(uuid, text, text, bigint, boolean, int, jsonb) from public, anon, authenticated;
+grant execute on function public.settle_progression(uuid, text, text, bigint, boolean, int, jsonb) to service_role;
+
+-- ── 13. record_gauntlet_clear: a first clear pays Aether instead of a crate (switch on) ────────────────────
+-- The 2026-09-29-gauntlet-progress.sql transaction (validate → the per-user lock → the keyed progress row, a replay
+-- answering `already_cleared`) with one change: once the progress row is new, the Aether switch decides the reward.
+--  - ON: `gauntletFirstClear` Aether (200), reason 'gauntlet', source 'gauntlet:<stage>' (so once per stage, ever), and
+--    NO crate (`crate_granted` stays false, `crate_id` null). Answers {status 'first_clear', crate null, aether}.
+--    Stages cleared before the switch already have their row, so they replay as `already_cleared` and pay nothing
+--    (spec 2026-10-18: stages already cleared before rollout "keep the crate they gave and pay no Aether").
+--  - OFF: exactly today's sealed crate, plus `aether: 0`.
+-- Every answer carries `aether` (0 on a replay). Trust is unchanged: the client's clear is believed (owner 2026-09-29;
+-- the Aether is the same accepted risk, spec 2026-10-18). A missing economy row leaves the amount null, which
+-- `aether_apply` refuses (`bad_aether_change`): the whole clear rolls back, progress row included, and is retried.
+create or replace function public.record_gauntlet_clear(p_user uuid, p_stage int)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_rows    int;
+  v_crate   public.loot_crates%rowtype;
+  v_aether  boolean;
+  v_amount  int;
+begin
+  if p_user is null then raise exception 'unauthenticated'; end if;
+  if p_stage is null or p_stage < 1 or p_stage > 10 then raise exception 'bad_stage'; end if;
+  perform pg_advisory_xact_lock(hashtextextended('progression:' || p_user::text, 0));
+
+  insert into public.gauntlet_progress (user_id, stage) values (p_user, p_stage)
+    on conflict (user_id, stage) do nothing;
+  get diagnostics v_rows = row_count;
+  if v_rows = 0 then
+    return jsonb_build_object('status', 'already_cleared', 'crate', null, 'aether', 0);
+  end if;
+
+  select aether_enabled into v_aether from public.progression_config where id = 1;
+  if coalesce(v_aether, false) then
+    select (economy ->> 'gauntletFirstClear')::numeric::int into v_amount from public.aether_config where id = 1;
+    if v_amount is null or v_amount > 0 then
+      perform public.aether_apply(p_user, v_amount, 'gauntlet', 'gauntlet:' || p_stage);
+    end if;
+    return jsonb_build_object('status', 'first_clear', 'crate', null, 'aether', v_amount);
+  end if;
+
+  insert into public.loot_crates (user_id, earned_level, source, source_id)
+    values (p_user, null, 'gauntlet:' || p_stage, 'gauntlet:' || p_stage)
+    returning * into v_crate;
+  update public.gauntlet_progress set crate_granted = true, crate_id = v_crate.crate_id
+    where user_id = p_user and stage = p_stage;
+
+  return jsonb_build_object('status', 'first_clear', 'crate', public.progression_crate_json(v_crate), 'aether', 0);
+end;
+$$;
+revoke all on function public.record_gauntlet_clear(uuid, int) from public, anon, authenticated;
+grant execute on function public.record_gauntlet_clear(uuid, int) to service_role;
+
+-- ── 13b. The profile JSON carries the Aether balance ─────────────────────────────────────────────────────
+-- MUST match `ProgressionProfile` in packages/progression/src/rules.ts key for key. The 2026-09-28-progression-skins.sql
+-- body plus `aether`: the wallet balance, 0 for an account that never earned (no wallet row yet). Always present, the
+-- switch on or off (a balance cannot move while it is off, so showing it is harmless; the client decides visibility).
+create or replace function public.progression_profile_json(p_user uuid)
+returns jsonb
+language sql
+stable
+set search_path = public
+as $$
+  select jsonb_build_object(
+    'accountXp', p.account_xp, 'accountLevel', p.account_level, 'revision', p.progression_revision,
+    'equippedTitleId', p.equipped_title_id,
+    'titles', coalesce((
+      select jsonb_agg(o.cosmetic_id order by o.unlocked_at, o.cosmetic_id)
+      from public.player_cosmetics o join public.cosmetic_catalog c on c.cosmetic_id = o.cosmetic_id
+      where o.user_id = p.user_id and c.category = 'title'
+    ), '[]'::jsonb),
+    'cosmetics', coalesce((
+      select jsonb_agg(o.cosmetic_id order by o.unlocked_at, o.cosmetic_id)
+      from public.player_cosmetics o where o.user_id = p.user_id
+    ), '[]'::jsonb),
+    'loadout', coalesce((
+      select jsonb_agg(jsonb_build_object('slot', l.slot, 'targetId', l.target_id, 'cosmeticId', l.cosmetic_id) order by l.slot, l.target_id)
+      from public.cosmetic_loadouts l
+      join public.cosmetic_catalog c on c.cosmetic_id = l.cosmetic_id
+      join public.cosmetic_categories k on k.category = c.category
+      where l.user_id = p.user_id and c.active and not c.admin_off and k.enabled and not k.admin_off
+    ), '[]'::jsonb),
+    'aether', coalesce((select w.balance from public.aether_wallets w where w.user_id = p.user_id), 0)
+  )
+  from public.profiles p where p.user_id = p_user;
+$$;
+revoke all on function public.progression_profile_json(uuid) from public, anon, authenticated;
+grant execute on function public.progression_profile_json(uuid) to service_role;
+
+-- ── 14. aether_rollout: backdate the milestone crates, then flip the switch. Service role only. ─────────────
+-- THE OWNER'S ONE-SHOT (run it once from the SQL Editor when Aether launches; the runbook line is at the very bottom
+-- of this file, commented out). For every profile at or above the first milestone level (Level 10), one free
+-- floor-Legendary, unfocused crate per milestone level at or below its CURRENT level (spec 2026-10-18: "one per multiple
+-- of 10 at or below their current level"), `source = 'milestone:<L>'`; each account given a
+-- crate gets its progression revision moved so its mirrors adopt the new crates. Then `aether_enabled = true`.
+-- Returns {accounts: accounts given at least one NEW crate, crates: crates created}. IDEMPOTENT: the one-crate-per-
+-- source index makes a re-run (or a settlement that already granted a milestone) create nothing, so a second run
+-- answers {accounts 0, crates 0}. Earned Aether is NOT backdated (accounts start at 0; spec 2026-10-18).
+create or replace function public.aether_rollout()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_every    int;
+  v_crates   int := 0;
+  v_accounts int := 0;
+begin
+  select (economy ->> 'milestoneEvery')::numeric::int into v_every from public.aether_config where id = 1;
+  if v_every is null or v_every < 1 then raise exception 'aether_config_missing'; end if;
+
+  with ins as (
+    insert into public.loot_crates (user_id, earned_level, source, source_id, floor_rarity)
+      select p.user_id, null, 'milestone:' || g.lvl, 'aether_rollout', 'legendary'
+      from public.profiles p
+      cross join lateral generate_series(v_every, p.account_level, v_every) as g(lvl)
+      where p.account_level >= v_every
+      on conflict (user_id, source) where source is not null do nothing
+      returning user_id
+  ), touched as (
+    update public.profiles p set progression_revision = p.progression_revision + 1, updated_at = now()
+      where p.user_id in (select distinct ins.user_id from ins)
+      returning p.user_id
+  )
+  select (select count(*) from ins), (select count(*) from touched) into v_crates, v_accounts;
+
+  update public.progression_config set aether_enabled = true where id = 1;
+  return jsonb_build_object('accounts', v_accounts, 'crates', v_crates);
+end;
+$$;
+revoke all on function public.aether_rollout() from public, anon, authenticated;
+grant execute on function public.aether_rollout() to service_role;
+
+-- ── END OF SECTIONS 11-14. ─────────────────────────────────────────────────────────────────────────────────
+
+-- THE OWNER'S LAUNCH RUNBOOK (run once, AFTER this file and the Edge Functions are deployed): backdate the milestone
+-- crates and turn Aether on.
+-- select public.aether_rollout();

@@ -57,11 +57,11 @@ describe('submitGauntletClear', () => {
   it('sends only the stage to `gauntlet-clear`; a first clear comes back with its crate', async () => {
     const out = await submitGauntletClear(2);
     expect(invokes).toEqual([{ fn: 'gauntlet-clear', body: { stage: 2 } }]);
-    expect(out).toEqual({ status: 'confirmed', result: { status: 'first_clear', crate: expect.objectContaining({ crateId: 'g-1', earnedLevel: null, source: 'gauntlet:2' }) } });
+    expect(out).toEqual({ status: 'confirmed', result: { status: 'first_clear', crate: expect.objectContaining({ crateId: 'g-1', earnedLevel: null, source: 'gauntlet:2' }), aether: 0 } });
   });
   it('a replay is confirmed with no crate', async () => {
     invokeImpl = async () => ({ data: { status: 'already_cleared', crate: null }, error: null });
-    expect(await submitGauntletClear(2)).toEqual({ status: 'confirmed', result: { status: 'already_cleared', crate: null } });
+    expect(await submitGauntletClear(2)).toEqual({ status: 'confirmed', result: { status: 'already_cleared', crate: null, aether: 0 } });
   });
   it('definite refusals are rejected: 400 bad_stage, 403 sign_in_required', async () => {
     invokeImpl = async () => httpError(400, 'bad_stage');

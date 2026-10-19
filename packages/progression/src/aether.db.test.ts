@@ -2,9 +2,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULT_AETHER_ECONOMY, type CrateTier } from './aether';
+import { DEFAULT_AETHER_ECONOMY, aetherForSettlement, milestoneLevelsThrough, type CrateTier } from './aether';
 import { atOrAbove, eligibleForCrate, pickTieredCrateReward, quoteCrate } from './crateShop';
 import { COSMETICS, COSMETIC_INDEX, catalogHash, catalogSyncPayload, parseOpenCrateResult, type CosmeticCategory, type CosmeticRarity } from './cosmetics';
+import { levelOfXp, parseProgressionProfile, parseProgressionResult, versusRunId, xpAtLevelStart, xpForSettlement } from './rules';
+import { parseGauntletClearResult } from './gauntlet';
 
 /**
  * THE AETHER WALLET AND THE CRATE SHOP, EXECUTED (owner decisions 2026-10-18; spec
@@ -16,7 +18,11 @@ import { COSMETICS, COSMETIC_INDEX, catalogHash, catalogSyncPayload, parseOpenCr
  *   with `quoteCrate`; `buy_crate` charges, opens and records once per request id, refuses one Aether short, a stale
  *   price, a bad focus and a sold-out tier, and never rolls below the floor; a milestone crate can be focused at open
  *   for the Legendary fee; old crates (floor Common, no focus) open exactly as before, through the 2-argument call; the
- *   switches refuse; the guard keeps floor and price immutable; clients can call none of it. PGlite is one connection,
+ *   switches refuse; the guard keeps floor and price immutable; clients can call none of it. EARNING (sections 11-14):
+ *   a Ranked / Versus settlement pays exactly `aetherForSettlement` once (a replay is deduped), Practice pays nothing,
+ *   milestone Legendary crates replace level crates (self-healing, the Welcome Crate kept), the switch off keeps
+ *   today's crate per level, a Gauntlet first clear pays 200 once and grants no crate, the profile carries the balance,
+ *   and `aether_rollout()` backdates the milestone crates idempotently. PGlite is one connection,
  *   so concurrency is proven the way the other db tests prove it: the per-user advisory lock, the row lock and the
  *   unique keys (ledger (user, reason, source), one crate per source).
  */
@@ -459,5 +465,249 @@ describe('the wallet, the ledger and the grants', () => {
     await db.exec(AETHER);
     expect(await snap()).toEqual(before);
     await db.query('update public.aether_config set economy = $1::jsonb where id = 1', [JSON.stringify(DEFAULT_AETHER_ECONOMY)]);
+  });
+});
+
+// ── Sections 11-14: earning, milestone crates, the profile balance, the rollout ─────────────────────────────
+
+type SettleJson = { status: string; result: Record<string, unknown>; profile: Record<string, unknown> };
+let runSeq = 0;
+let matchSeq = 0;
+async function settleRanked(u: string, placement: number): Promise<{ runId: string; out: SettleJson }> {
+  runSeq++;
+  const runId = `aether-run-${runSeq}`;
+  await db.query('insert into public.rank_results (user_id, run_id, placement, seed) values ($1, $2, $3, 1)', [u, runId, placement]);
+  return { runId, out: (await one<{ j: SettleJson }>("select public.settle_progression($1, 'ranked', $2, null, false, 1, null) as j", [u, runId])).j };
+}
+async function resettle(u: string, mode: string, runId: string, sourceId: number | null = null): Promise<SettleJson> {
+  return (await one<{ j: SettleJson }>('select public.settle_progression($1, $2, $3, $4, false, 1, null) as j', [u, mode, runId, sourceId])).j;
+}
+async function settlePractice(u: string, placement: number): Promise<SettleJson> {
+  const id = (await one<{ id: number }>(
+    'insert into public.practice_games (user_id, hero_id, placement, config) values ($1, $2, $3, $4::jsonb) returning id::int as id',
+    [u, 'warden', placement, JSON.stringify({ health: 'normal', timeMult: '1' })])).id;
+  return resettle(u, 'practice', `practice:${id}`, id);
+}
+/** A completed Versus match between `p1` and `p2` (7 rounds fought); `winner` null = abandoned with no winner. */
+async function versusMatch(p1: string, p2: string, winner: 'p1' | 'p2' | null): Promise<string> {
+  matchSeq++;
+  const id = `33333333-0000-0000-0000-${String(matchSeq).padStart(12, '0')}`;
+  await db.query(
+    `insert into public.versus_matches (id, seed, set_id, content_revision, protocol, phase, round, p1_user, p2_user, p1_name, p2_name, p1_hero, p2_hero, winner_seat, end_reason, completed_at)
+     values ($1, 1, 'set3', 'x', 1, 'complete', 7, $2, $3, 'A', 'B', 'warden', 'indy', $4, $5, now())`,
+    [id, p1, p2, winner, winner ? 'hearts' : 'abandoned']);
+  for (let r = 1; r <= 7; r++) {
+    await db.query(`insert into public.versus_rounds (match_id, round, chair, outcome, heart_lost_by, p1_result, p2_result, digest, p1_hearts, p2_hearts)
+      values ($1, $2, 'p1', 'p1', 'p2', '{}', '{}', 'd', 7, 7)`, [id, r]);
+  }
+  return id;
+}
+type CrateLine = { crate_id: string; earned_level: number | null; source: string | null; floor_rarity: string };
+async function crates(u: string): Promise<CrateLine[]> {
+  return (await db.query<CrateLine>(
+    'select crate_id, earned_level, source, floor_rarity from public.loot_crates where user_id = $1 order by earned_level nulls last, source collate "C"', [u])).rows;
+}
+/** An account seeded just below Level 21 (Ruling R2: one real settlement cannot climb 0 XP to Level 21), not yet enrolled. */
+async function nearLevel21(): Promise<string> {
+  const u = await newUser();
+  const xp = xpAtLevelStart(21) - 50;
+  await db.query('update public.profiles set account_xp = $2, account_level = $3 where user_id = $1', [u, xp, levelOfXp(xp)]);
+  return u;
+}
+async function withAetherOff<T>(fn: () => Promise<T>): Promise<T> {
+  await db.exec('update public.progression_config set aether_enabled = false where id = 1;');
+  try { return await fn(); } finally { await db.exec('update public.progression_config set aether_enabled = true where id = 1;'); }
+}
+
+describe('earning: settlements pay Aether, milestone crates replace level crates', () => {
+  beforeAll(async () => {
+    await db.exec(`update public.progression_config set epoch = now() - interval '2 days' where id = 1;`);
+  });
+
+  it('ranked settlement pays Aether (50 + the placement bonus), once', async () => {
+    const u = await newUser();
+    const { runId, out } = await settleRanked(u, 1);
+    expect(out.status).toBe('ok');
+    const r = parseProgressionResult(out.result)!;
+    expect(r.aether).toEqual({ base: 50, placement: 140, total: 190 });
+    expect(r.aether).toEqual(aetherForSettlement({ mode: 'ranked', placement: 1 }));
+    expect(r.aetherBalance).toBe(190);
+    expect(await balance(u)).toBe(190);
+    expect(parseProgressionProfile(out.profile)!.aether).toBe(190);
+    expect(await ledger(u)).toEqual([{ delta: 190, balance_after: 190, reason: 'ranked', source_id: runId }]);
+    // a replayed settlement is deduped and pays nothing more
+    const again = await resettle(u, 'ranked', runId);
+    expect(again.status).toBe('deduped');
+    expect(parseProgressionResult(again.result)!.aether).toEqual({ base: 50, placement: 140, total: 190 });
+    expect(await balance(u)).toBe(190);
+    expect(await ledger(u)).toHaveLength(1);
+  });
+
+  it('every Ranked placement pays exactly what the TS pays (SQL = aetherForSettlement)', async () => {
+    const u = await newUser();
+    let sum = 0;
+    for (let p = 1; p <= 8; p++) {
+      const r = parseProgressionResult((await settleRanked(u, p)).out.result)!;
+      const ts = aetherForSettlement({ mode: 'ranked', placement: p });
+      expect(r.aether, `placement ${p}`).toEqual(ts);
+      sum += ts.total;
+    }
+    expect(await balance(u)).toBe(sum);
+  });
+
+  it('practice pays nothing (and writes no ledger row)', async () => {
+    const u = await newUser();
+    const out = await settlePractice(u, 1);
+    expect(out.status).toBe('ok');
+    const r = parseProgressionResult(out.result)!;
+    expect(r.aether).toEqual({ base: 0, placement: 0, total: 0 });
+    expect(r.aetherBalance).toBe(0);
+    expect(await ledger(u)).toEqual([]);
+    expect(await balance(u)).toBe(0);
+  });
+
+  it('versus pays 25 + 45: the winner 70, the loser 25, an abandoned match 25; the XP is unchanged', async () => {
+    const a = await newUser();
+    const b = await newUser();
+    const m = await versusMatch(a, b, 'p1');
+    const w = parseProgressionResult((await resettle(a, 'versus', versusRunId(m))).result)!;
+    const l = parseProgressionResult((await resettle(b, 'versus', versusRunId(m))).result)!;
+    expect(w.aether).toEqual({ base: 25, placement: 45, total: 70 });
+    expect(l.aether).toEqual({ base: 25, placement: 0, total: 25 });
+    expect(w.aether).toEqual(aetherForSettlement({ mode: 'versus', placement: 1 }));
+    expect(l.aether).toEqual(aetherForSettlement({ mode: 'versus', placement: 2 }));
+    expect(w.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 1, comeback: false }));
+    expect(await balance(a)).toBe(70);
+    expect(await balance(b)).toBe(25);
+    expect(await ledger(a, 'versus')).toEqual([{ delta: 70, balance_after: 70, reason: 'versus', source_id: versusRunId(m) }]);
+    const abandoned = await versusMatch(a, b, null);
+    expect(parseProgressionResult((await resettle(a, 'versus', versusRunId(abandoned))).result)!.aether).toEqual({ base: 25, placement: 0, total: 25 });
+    expect(await balance(a)).toBe(95);
+  });
+
+  it('milestones replace level crates: the Welcome Crate + milestone:10 + milestone:20, both floor Legendary', async () => {
+    const u = await nearLevel21();
+    const { runId, out } = await settleRanked(u, 1);
+    const r = parseProgressionResult(out.result)!;
+    expect([r.before.level, r.after.level]).toEqual([20, 21]);
+    expect(milestoneLevelsThrough(r.after.level)).toEqual([10, 20]);
+    const rows = await crates(u);
+    expect(rows.map(({ earned_level, source, floor_rarity }) => ({ earned_level, source, floor_rarity }))).toEqual([
+      { earned_level: 1, source: null, floor_rarity: 'common' },
+      { earned_level: null, source: 'milestone:10', floor_rarity: 'legendary' },
+      { earned_level: null, source: 'milestone:20', floor_rarity: 'legendary' },
+    ]);
+    expect(r.cratesAwarded).toBe(3);
+    expect(r.crateIds).toEqual(rows.map((c) => c.crate_id));
+    expect(r.aether).toEqual({ base: 50, placement: 140, total: 190 });
+    // a replay creates nothing more
+    expect((await resettle(u, 'ranked', runId)).status).toBe('deduped');
+    expect(await crates(u)).toHaveLength(3);
+  });
+
+  it('milestone crates self-heal: an enrolled Level 15 account missing milestone:10 gets it on its next settlement (no Welcome Crate)', async () => {
+    const u = await newUser();
+    await db.query('update public.profiles set account_xp = $2, account_level = 15, progression_enrolled_at = now() where user_id = $1', [u, xpAtLevelStart(15)]);
+    const r = parseProgressionResult((await settleRanked(u, 8)).out.result)!;
+    expect(r.after.level).toBe(15);
+    expect((await crates(u)).map((c) => [c.earned_level, c.source, c.floor_rarity])).toEqual([[null, 'milestone:10', 'legendary']]);
+    expect(r.cratesAwarded).toBe(1);
+    // and only once: the next settlement finds it there
+    expect(parseProgressionResult((await settleRanked(u, 8)).out.result)!.cratesAwarded).toBe(0);
+  });
+
+  it('a milestone crate is always floor Legendary (the table refuses anything else)', async () => {
+    const u = await newUser();
+    expect(await raises("insert into public.loot_crates (user_id, earned_level, source, source_id, floor_rarity) values ($1, null, 'milestone:10', 'x', 'common')", [u]))
+      .toMatch(/loot_crates_milestone_is_legendary/);
+  });
+
+  it('aether off keeps the crate per level: 21 level crates, a null result.aether, an empty wallet', async () => {
+    const u = await nearLevel21();
+    const out = await withAetherOff(async () => (await settleRanked(u, 1)).out);
+    const r = parseProgressionResult(out.result)!;
+    expect(r.after.level).toBe(21);
+    expect(r.aether).toBeNull();
+    expect(r.aetherBalance).toBeNull();
+    expect(out.result.aether).toBeNull();
+    const rows = await crates(u);
+    expect(rows.map((c) => c.earned_level)).toEqual(Array.from({ length: 21 }, (_, i) => i + 1));
+    expect(rows.every((c) => c.source === null && c.floor_rarity === 'common')).toBe(true);
+    expect(r.cratesAwarded).toBe(21);
+    expect(await balance(u)).toBe(0);
+    expect(await ledger(u)).toEqual([]);
+  });
+});
+
+describe('earning: Gauntlet, the profile balance, the rollout', () => {
+  it('gauntlet first clear pays 200 once, and grants no crate', async () => {
+    const u = await newUser();
+    const first = (await one<{ j: unknown }>('select public.record_gauntlet_clear($1, 3) as j', [u])).j;
+    expect(first).toEqual({ status: 'first_clear', crate: null, aether: 200 });
+    expect(parseGauntletClearResult(first)).toEqual({ status: 'first_clear', crate: null, aether: 200 });
+    const again = (await one<{ j: unknown }>('select public.record_gauntlet_clear($1, 3) as j', [u])).j;
+    expect(again).toEqual({ status: 'already_cleared', crate: null, aether: 0 });
+    expect(await balance(u)).toBe(200);
+    expect(await ledger(u)).toEqual([{ delta: 200, balance_after: 200, reason: 'gauntlet', source_id: 'gauntlet:3' }]);
+    expect(await crateCount(u)).toBe(0);
+    expect(await one('select crate_granted, crate_id from public.gauntlet_progress where user_id = $1 and stage = 3', [u])).toEqual({ crate_granted: false, crate_id: null });
+  });
+
+  it('gauntlet with Aether off: the crate as before, plus aether 0', async () => {
+    const u = await newUser();
+    const first = await withAetherOff(async () => (await one<{ j: { status: string; crate: { source: string }; aether: number } }>('select public.record_gauntlet_clear($1, 4) as j', [u])).j);
+    expect(first).toMatchObject({ status: 'first_clear', aether: 0, crate: { source: 'gauntlet:4' } });
+    expect(parseGauntletClearResult(first)).toMatchObject({ status: 'first_clear', aether: 0, crate: { source: 'gauntlet:4' } });
+    expect(await crateCount(u)).toBe(1);
+    expect(await balance(u)).toBe(0);
+  });
+
+  it('profile JSON carries the balance (0 with no wallet)', async () => {
+    const u = await newUser();
+    expect((await one<{ a: string }>("select public.progression_profile_json($1)->>'aether' as a", [u])).a).toBe('0');
+    await grant(u, 123);
+    expect((await one<{ a: string }>("select public.progression_profile_json($1)->>'aether' as a", [u])).a).toBe(String(await balance(u)));
+    const p = (await one<{ p: unknown }>('select public.progression_profile_json($1) as p', [u])).p;
+    expect(parseProgressionProfile(p)!.aether).toBe(123);
+  });
+
+  it('rollout backdates milestone crates idempotently, and turns Aether on', async () => {
+    await db.exec('update public.progression_config set aether_enabled = false where id = 1;');
+    try {
+      const u = await newUser();
+      await db.query('update public.profiles set account_xp = $2, account_level = 34 where user_id = $1', [u, xpAtLevelStart(34)]);
+      const low = await newUser();
+      await db.query('update public.profiles set account_xp = $2, account_level = 9 where user_id = $1', [low, xpAtLevelStart(9)]);
+      const rev0 = (await one<{ r: number }>('select progression_revision::int as r from public.profiles where user_id = $1', [u])).r;
+      const first = (await one<{ j: { accounts: number; crates: number } }>('select public.aether_rollout() as j')).j;
+      expect(first.crates).toBeGreaterThanOrEqual(3);
+      expect(first.accounts).toBeGreaterThanOrEqual(1);
+      expect((await crates(u)).map((c) => [c.earned_level, c.source, c.floor_rarity])).toEqual([
+        [null, 'milestone:10', 'legendary'], [null, 'milestone:20', 'legendary'], [null, 'milestone:30', 'legendary'],
+      ]);
+      expect(await crates(low)).toEqual([]);
+      expect((await one<{ on: boolean }>('select aether_enabled as on from public.progression_config where id = 1')).on).toBe(true);
+      expect((await one<{ r: number }>('select progression_revision::int as r from public.profiles where user_id = $1', [u])).r).toBe(rev0 + 1);
+      const second = (await one<{ j: unknown }>('select public.aether_rollout() as j')).j;
+      expect(second).toEqual({ accounts: 0, crates: 0 });
+      expect(await crates(u)).toHaveLength(3);
+    } finally {
+      await db.exec('update public.progression_config set aether_enabled = true where id = 1;');
+    }
+  });
+
+  it('the rollout is the service role alone; settle and the gauntlet writer stay service role; the JSON helpers stay off the client roles', async () => {
+    const sigs: Array<[string, boolean]> = [
+      ['public.aether_rollout()', true],
+      ['public.settle_progression(uuid, text, text, bigint, boolean, integer, jsonb)', true],
+      ['public.record_gauntlet_clear(uuid, integer)', true],
+      ['public.progression_result_json(public.progression_results)', true],
+      ['public.progression_profile_json(uuid)', true],
+    ];
+    for (const [sig, svc] of sigs) {
+      const acl = await one<{ anon: boolean; auth: boolean; svc: boolean }>(
+        `select has_function_privilege('anon', '${sig}', 'execute') as anon, has_function_privilege('authenticated', '${sig}', 'execute') as auth, has_function_privilege('service_role', '${sig}', 'execute') as svc`);
+      expect(acl, sig).toEqual({ anon: false, auth: false, svc });
+    }
   });
 });

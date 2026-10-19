@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { crateLabel, crateName, parseCrate } from './cosmetics';
-import { GAUNTLET_ERROR_STATUS, GAUNTLET_STAGE_COUNT, handleGauntletClear, validateGauntletClearBody } from './gauntlet';
+import { GAUNTLET_ERROR_STATUS, GAUNTLET_STAGE_COUNT, handleGauntletClear, parseGauntletClearResult, validateGauntletClearBody } from './gauntlet';
 import type { RpcCall } from './server';
 
 /**
@@ -71,6 +71,25 @@ describe('handleGauntletClear', () => {
     expect(log).toHaveBeenCalled();
     const throwing: RpcCall = vi.fn(async () => { throw new Error('boom'); });
     expect(await handleGauntletClear(USER, false, { stage: 2 }, throwing)).toEqual({ status: 500, body: { error: 'gauntlet_failed' } });
+  });
+});
+
+describe('parseGauntletClearResult: Aether (2026-10-18)', () => {
+  it('with Aether on, a first clear pays Aether and carries no crate', () => {
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: null, aether: 200 })).toEqual({ status: 'first_clear', crate: null, aether: 200 });
+  });
+  it('a first clear with neither a crate nor Aether is malformed', () => {
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: null, aether: 0 })).toBeNull();
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: null })).toBeNull();
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: null, aether: -200 })).toBeNull();
+    // an unparseable crate is malformed even beside Aether
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: { crateId: CRATE }, aether: 200 })).toBeNull();
+  });
+  it('the switch off (a crate, aether 0) and a pre-Aether server (no aether key) read aether as 0; a replay too', () => {
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: gauntletCrate(2), aether: 0 })).toMatchObject({ status: 'first_clear', aether: 0, crate: { source: 'gauntlet:2' } });
+    expect(parseGauntletClearResult({ status: 'first_clear', crate: gauntletCrate(2) })).toMatchObject({ status: 'first_clear', aether: 0 });
+    expect(parseGauntletClearResult({ status: 'already_cleared', crate: null, aether: 0 })).toEqual({ status: 'already_cleared', crate: null, aether: 0 });
+    expect(parseGauntletClearResult({ status: 'already_cleared', crate: null })).toEqual({ status: 'already_cleared', crate: null, aether: 0 });
   });
 });
 

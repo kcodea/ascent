@@ -35,6 +35,7 @@ import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateTiming';
 import { PIXI_ANTIALIAS } from '../phoneArt';
+import { crumbOnce } from '../crashLog';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -105,6 +106,7 @@ class GateFxController {
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'gateFx');
     watchContextLoss(app, 'gateFx');
+    crumbOnce('pixi init gate');
     const c = app.canvas;
     c.className = 'gatefx-canvas pixi-screen';
     c.style.visibility = 'hidden';

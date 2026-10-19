@@ -6,6 +6,7 @@ import { ART_ALIAS } from './artAlias';
 import { requestArtList } from './artPreload';
 import { LITE_ART, phonePublicUrl } from './phoneArt';
 import type { Lane } from './assetQueue';
+import { crumb } from './crashLog';
 
 /**
  * THE PRELOAD PLAN — which art goes in which lane of the asset queue, and when (art pop-in fix, 2026-09-29; the
@@ -226,6 +227,7 @@ export function startBackgroundArt(): void {
 }
 
 function streamLiteRest(gatedSets: ReadonlySet<SetId>, pub: ReturnType<typeof splitPublicArt>): void {
+  crumb('art stream start');
   plan('early', vals(ART_URL_GROUPS.hero));
   plan('early', vals(ART_URL_GROUPS.power));
   plan('early', pub.play);

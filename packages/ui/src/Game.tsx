@@ -28,6 +28,7 @@ import { Career } from './Career';
 import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
+import { CrashLogReadout } from './CrashLogReadout';
 import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
 import { StatusBar } from './StatusBar';
@@ -653,6 +654,9 @@ export function Game() {
           at the root (a sibling of `.app`) so its focus mask floats above everything without being z-trapped
           by `.app`'s stacking context. */}
       <TutorialController />
+      {/* The phone crash log's readout (R-TOUCH-PLAY-MEMORY-01): renders nothing unless `?crashlog=1` or a crash in a
+          standalone phone app. Counter-scaled so it reads at full size. */}
+      <CrashLogReadout />
       {/* First-launch welcome RETIRED as an auto-popup (owner 2026-08-17): the tutorial nudge now fires when a
           new player first hits Play (see Title's `onPlay` + tutorial prompt), not on load. */}
     </ErrorBoundary>

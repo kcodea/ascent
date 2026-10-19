@@ -6,6 +6,7 @@ import { preloadBootArt, startBackgroundArt } from './preloadPlan';
 import { artMemoryStats, setArtConcurrency, whenArtReady } from './artPreload';
 import { applyPhoneCssArt, LITE_ART } from './phoneArt';
 import { useGame } from './store';
+import { crumb } from './crashLog';
 
 /**
  * ON A PHONE the gate is shorter (owner 2026-10-18, approved for phones / touch only: "the iPhone crashes a lot"): the
@@ -97,6 +98,7 @@ export function Boot({ children }: { children: ReactNode }): React.ReactElement 
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     void whenArtReady(gate, paint).then(() => {
       setArtConcurrency(PLAY_CONCURRENCY);
+      crumb('gate open', { items: gate.length });
       startBackgroundArt(); // a phone's stream behind the short gate (no-op on desktop: everything is already queued)
       if (typeof window !== 'undefined') {
         // Read by the devlog's measuring script (and handy in a bug report): how long the gate held, for how many.

@@ -39,6 +39,7 @@ import { PlayerStrip } from './PlayerStrip';
 import { levelProgress } from '@game/progression';
 import { mirrorFor } from './progression/progressionStore';
 import { scalarCaption } from './rank/rankFormat';
+import { crumb } from './crashLog';
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -160,6 +161,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // SOCIAL PREFETCH (perf 2026-10-09): while the title is up, warm the Social pages' reads on idle time so Social
   // opens on cached rows (socialPrefetch.ts; fresh answers are not re-read, so coming back here is cheap).
   useEffect(() => (showTitle && !pageOpen ? schedulePrefetchSocial() : undefined), [showTitle, pageOpen]);
+  // The crash log's steps (R-TOUCH-PLAY-MEMORY-01): the title, and each title view (the mode home is `modes`).
+  useEffect(() => { if (showTitle) crumb(titleView === 'menu' ? 'title' : `title view ${titleView}`); }, [showTitle, titleView]);
 
   if (!showTitle) return null;
 
@@ -180,6 +183,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // button keeps `onClick` too for the keyboard; the `open` guard makes the second of the two a no-op.
   const confirmRanked = (): void => {
     if (rankedConfirm !== 'open') return;
+    crumb('ranked yes pressed');
     // The in-game End Turn sound (owner 2026-10-13: "add the 'end turn' sound effect we use in game when clicking
     // the end turn and start combat crystal ... that can be the sound that emits when clicking the 'yes continue'
     // button"): `sfx.combatStart`, the cue `faceOmen` plays when the End Turn crystal is pressed. It replaces the
@@ -197,6 +201,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // Play from the mode picker: nudge a new player to the tutorial first; everyone else gets the ranked
   // confirmation, and only its "Yes" starts the lobby.
   const onPlay = () => {
+    crumb('play tile pressed');
     sfx.pulse();
     if (isNewPlayer) setTutorialPrompt(true);
     else openRankedConfirm();
@@ -216,7 +221,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // bubble on a WRAPPER (`.tn-item`, positioned like the sidebar's `.msb-item`): the plaque's own ::after is
   // its sheen, so a tip on the plaque itself is inert by the tooltip rule. No native `title=` on the title.
   const playPlaque = (
-    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { sfx.pulse(); setTitleView('modes'); }}>
+    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { crumb('play pressed'); sfx.pulse(); setTitleView('modes'); }}>
       <span className="mbicon"><Crest /></span>
       <span className="mblabel">{txt.play}</span>
       {vsTip && <VsOpenBadge n={vsOpen} paused={!focused} />}

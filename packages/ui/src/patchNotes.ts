@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Fixed the game closing itself on iPhone right after pressing Play.',
+        details: [
+          'On phones, sound effects now load one at a time and use about a third of the memory they did.',
+          'Card, hero and effect sounds on phones load the first time they play.',
+          'Computers are unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed the game closing itself on iPhone while you were on the menus, most often when opened from the Home Screen icon.',
         details: [
           'The menus now use far less memory on phones: the effects layers and the title art that sit hidden under a menu page stop drawing until you leave it.',

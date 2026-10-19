@@ -46,6 +46,7 @@
     "perf": "tsx packages/tools/src/perf.ts",
     "perf:odds": "tsx packages/tools/src/perf-odds.ts",
     "perf:phone-menus": "node scripts/phone-menu-memory.mjs",
+    "perf:phone-play": "node scripts/phone-play-memory.mjs",
     "pool": "tsx packages/tools/src/build-pool.ts",
     "board:export": "tsx packages/tools/src/board-export.ts",
     "fx:publish": "tsx packages/tools/src/fx-publish.ts",

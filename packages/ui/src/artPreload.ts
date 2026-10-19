@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from '
 import { createAssetQueue, type AssetQueue, type Attempt, type Lane } from './assetQueue';
 import { createImageKeep, decodedBytes } from './imageKeep';
 import { LITE_ART, LITE_ART_REASON } from './phoneArt';
+import { crumbProgress } from './crashLog';
 
 /**
  * ART PRELOAD — the image flavour of the asset queue (owner report 2026-09-29: "a lot of pop in when i watch my
@@ -65,6 +66,13 @@ export function cacheBust(url: string, attempt: number): string {
   return `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}-${Date.now().toString(36)}`;
 }
 
+/** Art items loaded this session: the crash log notes every 100th (R-TOUCH-PLAY-MEMORY-01). */
+let artLoadedCount = 0;
+function artLoaded(): void {
+  artLoadedCount++;
+  if (artLoadedCount % 100 === 0) crumbProgress('art stream', { loaded: artLoadedCount });
+}
+
 /** Fetch + decode, and hold the Image for the session. REJECTS on a failed load or a timeout so the pipe retries. */
 function decodeImage(url: string, attempt: number, last: boolean): Promise<void> {
   if (typeof Image === 'undefined') return Promise.resolve();
@@ -77,6 +85,7 @@ function decodeImage(url: string, attempt: number, last: boolean): Promise<void>
     img.decode().then(() => {
       clearTimeout(timer);
       KEEP.set(url, img, decodedBytes(img.naturalWidth, img.naturalHeight));
+      artLoaded();
       if (src !== url) LOADED_AS.set(url, src);
       resolve();
     }, (err: unknown) => { clearTimeout(timer); reject(err); });
@@ -98,6 +107,7 @@ function fetchOnly(url: string, attempt: number, last: boolean): Promise<void> {
   return fetch(src).then(async (res) => {
     if (!res.ok) throw new Error(`http ${res.status}`);
     await res.arrayBuffer(); // read to the end so the cache entry is complete; the buffer is dropped at once
+    artLoaded();
     if (src !== url) LOADED_AS.set(url, src);
   });
 }

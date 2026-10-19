@@ -6813,6 +6813,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
   {
+    id: 'R-TOUCH-PLAY-MEMORY-01',
+    title: 'On a phone, pressing Play never lands a burst of decoded audio',
+    statement:
+      'On a phone (the lite art path), the first touch (usually Play) creates the audio context but decodes nothing for '
+      + 'a moment; then only the core sound bank decodes, one clip at a time, at 32 kHz and mono. Card, hero and FX '
+      + 'clips are neither fetched nor decoded until their first play, and are held in a 32 MB least-recently-used cache. '
+      + 'The page also writes crash breadcrumbs (step, time, decoded audio, decoded images, WebGL contexts) to '
+      + 'localStorage, and a session that ended without leaving the page cleanly is reported as a crash on the next load '
+      + '(?crashlog=1, or a standalone phone app after a crash). Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a recent iPhone, from the Home Screen icon, on main 480583bb0)', quote: 'pressing PLAY crashes the page' },
+      { kind: 'code', ref: 'packages/ui/src/audio/phoneAudio.ts; packages/ui/src/sfx.ts (phoneDecode, phoneDecodeCtx, monoCopy, prefetchSamples); packages/ui/src/crashLog.ts + CrashLogReadout.tsx; scripts/phone-play-memory.mjs (npm run perf:phone-play)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-18 (fix/ios-play-crash). Before, the first touch decoded the 87-clip core bank at once at the '
+      + 'context rate in stereo (120.5 MB of AudioBuffers within a second of Play in a 96 kHz context, about 60 MB at an '
+      + 'iPhone 48 kHz) and fetched ~430 more clips.',
+    example: 'iPhone landscape 932x430 @3x, prod build: decoded audio 15 s after Play 120.5 MB before, 20.3 MB after; renderer 351 MB before, 245 MB after.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePlayMemory.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:

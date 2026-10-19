@@ -25,6 +25,7 @@ import type { RectSnapshot } from './heroCeremonyMachine';
 import { stageScale } from '../stage';
 import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
+import { crumbOnce } from '../crashLog';
 import { PIXI_ANTIALIAS } from '../phoneArt';
 
 // ─── pure math (exported for tests) ───────────────────────────────────────────────────────────────────────
@@ -254,6 +255,7 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     guardAppRender(app, 'heroCeremony');
     watchContextLoss(app, 'heroCeremony');
+    crumbOnce('pixi init hero ceremony');
     // The ceremony may have unmounted before init resolved; only attach if still wanted (mirrors pixiFx).
     if (this.destroyed) {
       destroyPixiApp(app); // never releases Pixi's shared global pools (pixiAppSafety.ts)

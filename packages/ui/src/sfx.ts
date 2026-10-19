@@ -26,6 +26,8 @@ import {
 import { familyOf } from './audio/clipFamily';
 import { requestAssetTask } from './artPreload';
 import { LITE_ART } from './phoneArt';
+import { audioBufferBytes, downmixToMono, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_AUDIO_RATE, serialQueue } from './audio/phoneAudio';
+import { crumb, crumbOnce, registerCrashProbe } from './crashLog';
 import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
 import { slugify, isValidSlug, saveSound } from './fx/defStore';
@@ -245,7 +247,10 @@ function audio(): AudioContext | null {
       // Decode the mp3 SFX once the context exists (first user gesture), on the NEXT task: queueing ~400 samples
       // inside the gesture cost ~10 ms of the first menu click's frame (perf 2026-10-09). The clip this click plays
       // is unaffected: a play of an unloaded sample asks for it itself.
-      setTimeout(prefetchSamples, 0);
+      // A PHONE waits a moment and then decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01, audio/phoneAudio.ts):
+      // its first touch is usually Play, and the bank must not land in the same second as the mode home.
+      setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0);
+      crumb('audio unlocked', { sampleRate: ctx.sampleRate });
     }
     return ctx;
   } catch {
@@ -342,8 +347,8 @@ function loadSample(name: string, lane: 'now' | 'audio' = 'now'): void {
   requestAssetTask(key, lane, () =>
     fetch(src)
       .then((r) => r.arrayBuffer())
-      .then((ab) => a.decodeAudioData(ab))
-      .then((buf) => { keepBuffer(name, buf); loadingSamples.delete(name); })
+      .then((ab) => (LITE_ART ? phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab)) : a.decodeAudioData(ab)))
+      .then((buf) => { keepBuffer(name, LITE_ART ? monoCopy(a, buf) : buf); loadingSamples.delete(name); })
       .catch(() => { loadingSamples.delete(name); }));
 }
 
@@ -377,11 +382,45 @@ export async function importFxSound(file: File): Promise<{ id: string; label: st
  * PHONES (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). A decoded AudioBuffer is raw float PCM,
  * about 24x its mp3: the whole ~520-clip bank decodes to roughly 400 MB, which on an iPhone is most of what iOS lets a
  * tab use. So a phone decodes only the CORE bank up front (the top-level UI / shop / combat clips and the hero-select
- * ceremony); the per-card, per-hero and FX `sound` clips are FETCHED (warm HTTP cache, nothing decoded) and decode on
- * their first play, which plays the synth fallback exactly as any not-yet-decoded clip does on desktop. Decoded
- * non-core clips are then held in an LRU capped at `LITE_AUDIO_BYTES`. Desktop decodes and keeps everything, as before.
+ * ceremony); the per-card, per-hero and FX `sound` clips load and decode on their first play, which plays the synth
+ * fallback exactly as any not-yet-decoded clip does on desktop. Decoded non-core clips are then held in an LRU capped at
+ * `LITE_AUDIO_BYTES`. Since R-TOUCH-PLAY-MEMORY-01 (pressing Play crashed an iPhone) a phone also waits a moment after
+ * the first touch, decodes one clip at a time, at 32 kHz, and keeps it mono (audio/phoneAudio.ts). Desktop decodes and
+ * keeps everything, as before.
  */
-export const LITE_AUDIO_BYTES = 64 * 1024 * 1024;
+export const LITE_AUDIO_BYTES = 32 * 1024 * 1024;
+/** A phone decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01): no burst of decodes in flight together. */
+const phoneDecode = serialQueue();
+/** A phone decodes at PHONE_AUDIO_RATE (R-TOUCH-PLAY-MEMORY-01): decodeAudioData resamples to its context's rate, so an
+ *  offline context at that rate hands back the smaller buffer straight away. The live context plays it at any rate.
+ *  Falls back to the live context where an OfflineAudioContext cannot be made. */
+let phoneDecoder: BaseAudioContext | null = null;
+function phoneDecodeCtx(a: AudioContext): BaseAudioContext {
+  if (phoneDecoder) return phoneDecoder;
+  try {
+    const OAC = window.OfflineAudioContext || (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+    phoneDecoder = OAC && a.sampleRate > PHONE_AUDIO_RATE ? new OAC(1, 1, PHONE_AUDIO_RATE) : a;
+  } catch { phoneDecoder = a; }
+  return phoneDecoder;
+}
+/** A phone keeps clips mono (R-TOUCH-PLAY-MEMORY-01): half the bytes; the stereo copy is dropped at once. */
+function monoCopy(a: AudioContext, buf: AudioBuffer): AudioBuffer {
+  if (buf.numberOfChannels < 2) return buf;
+  try {
+    const chans: Float32Array[] = [];
+    for (let c = 0; c < buf.numberOfChannels; c++) chans.push(buf.getChannelData(c));
+    const mono = a.createBuffer(1, buf.length, buf.sampleRate);
+    mono.getChannelData(0).set(downmixToMono(chans));
+    return mono;
+  } catch { return buf; }
+}
+/** Every decoded clip held right now, in MB (the crash log's breadcrumbs read it). */
+registerCrashProbe('audio', () => decodedAudioMB());
+export function decodedAudioMB(): number {
+  let b = 0;
+  for (const buf of buffers.values()) b += audioBufferBytes(buf);
+  return b / 1048576;
+}
 /** Core = decoded up front on a phone, never evicted. Exported for its test. */
 export const isCoreSample = (name: string): boolean => !name.includes('/') || name.startsWith('ceremony/');
 let liteAudioBytes = 0;
@@ -389,21 +428,20 @@ let liteAudioBytes = 0;
 function keepBuffer(name: string, buf: AudioBuffer): void {
   buffers.set(name, buf);
   if (!LITE_ART || isCoreSample(name)) return;
-  liteAudioBytes += buf.length * buf.numberOfChannels * 4;
+  liteAudioBytes += audioBufferBytes(buf);
   for (const [k, b] of buffers) {
     if (liteAudioBytes <= LITE_AUDIO_BYTES) break;
     if (k === name || isCoreSample(k)) continue;
     buffers.delete(k);
-    liteAudioBytes -= b.length * b.numberOfChannels * 4;
+    liteAudioBytes -= audioBufferBytes(b);
   }
 }
 
 function prefetchSamples(): void {
+  // A phone prefetches the core bank only; every other clip loads on its first play (R-TOUCH-PLAY-MEMORY-01).
   for (const path of Object.keys(SAMPLE_URLS)) {
     const name = sampleName(path);
-    if (!LITE_ART || isCoreSample(name)) { loadSample(name, 'audio'); continue; }
-    const url = SAMPLE_URLS[path]!;
-    requestAssetTask(`sfx-fetch:${name}`, 'audio', () => fetch(url).then((r) => r.arrayBuffer()).then(() => undefined, () => undefined));
+    if (!LITE_ART || isCoreSample(name)) loadSample(name, 'audio');
   }
 }
 
@@ -545,6 +583,7 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
     send.gain.value = tail.reverbMix;
     const conv = a.createConvolver();
     conv.buffer = reverbImpulse(a, reverbSec, 0.55); // cached per (length, damping, rate): built once
+    if (LITE_ART) crumbOnce('reverb built');
     env.connect(send).connect(conv).connect(out);
     nodes.push(send, conv);
   }

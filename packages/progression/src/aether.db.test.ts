@@ -260,6 +260,32 @@ describe('buy_crate', () => {
     expect((await buy(u, 'epic', null, 400, rid())).status).toBe('opened');
   });
 
+  it('an unreadable price or fee rung is aether_config_missing: never a cast error, a rounded guess or a charge', async () => {
+    const u = await newUser();
+    await grant(u, 5000);
+    // [the economy edit, the tier, the focus] -- a fractional price, a string price, a garbled fee rung, a non-array ladder
+    const cases: Array<[string, string, string[] | null]> = [
+      [`jsonb_set(economy, '{cratePrice,epic}', '400.5')`, 'epic', null],
+      [`jsonb_set(economy, '{cratePrice,epic}', '"lots"')`, 'epic', null],
+      [`jsonb_set(economy, '{focusFeePercent,0}', '"x"')`, 'epic', ['card_plate']],
+      [`jsonb_set(economy, '{focusFeePercent,0}', '99.9')`, 'epic', ['card_plate']],
+      [`jsonb_set(economy, '{focusFeePercent}', '5')`, 'epic', ['card_plate']],
+    ];
+    try {
+      for (const [edit, tier, focus] of cases) {
+        await db.exec(`update public.aether_config set economy = ${edit} where id = 1;`);
+        expect(await raises('select public.aether_quote($1, $2, $3::text[], false)', [u, tier, focus]), edit).toMatch(/aether_config_missing/);
+        expect(await raises('select public.buy_crate($1, $2, $3::text[], $4, $5::uuid)', [u, tier, focus, 800, rid()]), edit).toMatch(/aether_config_missing/);
+        await db.query('update public.aether_config set economy = $1::jsonb where id = 1', [JSON.stringify(DEFAULT_AETHER_ECONOMY)]);
+      }
+      expect(await ledger(u, 'crate_purchase')).toHaveLength(0);
+      expect(await crateCount(u)).toBe(0);
+      expect(await balance(u)).toBe(5000);
+    } finally {
+      await db.query('update public.aether_config set economy = $1::jsonb where id = 1', [JSON.stringify(DEFAULT_AETHER_ECONOMY)]);
+    }
+  });
+
   it('bad focus is refused', async () => {
     const u = await newUser();
     await grant(u, 5000);

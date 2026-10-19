@@ -17,7 +17,8 @@
 
 import { CRATE_TIERS, DEFAULT_AETHER_ECONOMY, type AetherEconomy, type CrateTier } from './aether';
 import {
-  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, CRATE_RARITY_ODDS, crateFloorLabel, crateRarityFallback, eligibleCrateCosmetics, parseOpenCrateResult,
+  COSMETICS, COSMETIC_CATEGORIES, COSMETIC_RARITIES, CRATE_RARITY_ODDS, cosmeticOf, crateFloorLabel, crateRarityFallback, eligibleCrateCosmetics,
+  isCategoryLive, isCosmeticLive, parseOpenCrateResult,
   type CosmeticCategory, type CosmeticDef, type CosmeticRarity, type OpenCrateResult,
 } from './cosmetics';
 
@@ -58,18 +59,29 @@ export function tierOddsPercent(floor: CosmeticRarity): Record<CosmeticRarity, n
 // ── The pool ────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
+ * Has the SERVER switched this item or its category off (`admin_off`, read into `setServerCatalogState`)? The SQL pool
+ * (`progression_tiered_crate_pool`) drops both, so the shop's own pool must too, or the client offers a chip the server
+ * answers `bad_focus` to, prices a fee the server calls `price_changed`, and counts items that can never drop (final
+ * review 2026-10-19). `isCosmeticLive` reads the server's item switch for a catalog id; a def that is not in the bundled
+ * catalog (a test catalog) has no server row to switch, so only its category is checked. In the Edge Function's copy the
+ * server sets are empty, so the server's own pricing is unchanged.
+ */
+const serverAllows = (c: CosmeticDef): boolean => isCategoryLive(c.category) && (cosmeticOf(c.id) === null || isCosmeticLive(c.id));
+
+/**
  * What a crate of this floor (and focus) can still give: the version-4 pool (`eligibleCrateCosmetics`: active,
- * crate-sourced, enabled category, unowned, id-sorted) kept to rarities at or above the floor and, when a focus is named,
- * to those categories. A null or empty focus means no focus.
+ * crate-sourced, enabled category, unowned, id-sorted), minus anything the server has switched off, kept to rarities at
+ * or above the floor and, when a focus is named, to those categories. A null or empty focus means no focus.
  */
 export function eligibleForCrate(
   owned: Iterable<string>, floor: CosmeticRarity, focus: readonly CosmeticCategory[] | null, catalog: readonly CosmeticDef[] = COSMETICS,
 ): CosmeticDef[] {
   const cats = focus && focus.length > 0 ? new Set<CosmeticCategory>(focus) : null;
-  return eligibleCrateCosmetics(owned, catalog).filter((c) => atOrAbove(c.rarity, floor) && (!cats || cats.has(c.category)));
+  return eligibleCrateCosmetics(owned, catalog).filter((c) => serverAllows(c) && atOrAbove(c.rarity, floor) && (!cats || cats.has(c.category)));
 }
 
-/** The categories a player may focus at this floor: those with something still eligible, in `COSMETIC_CATEGORIES` order. */
+/** The categories a player may focus at this floor: those with something still eligible (so never one the server has
+ *  switched off), in `COSMETIC_CATEGORIES` order. */
 export function availableFocusCategories(owned: Iterable<string>, floor: CosmeticRarity, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticCategory[] {
   const have = new Set(eligibleForCrate(owned, floor, null, catalog).map((c) => c.category));
   return COSMETIC_CATEGORIES.filter((c) => have.has(c));

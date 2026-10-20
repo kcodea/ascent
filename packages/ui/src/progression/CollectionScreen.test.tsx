@@ -89,6 +89,8 @@ const crateList = [
 function open(over: Partial<ProgressionProfile> = {}, opts: { seen?: string[]; crates?: CrateRow[] | null; cratesOn?: 'on' | 'off'; aether?: boolean; motion?: boolean } = {}): void {
   localStorage.setItem('ascent.collection.seen.u-1', JSON.stringify(opts.seen ?? ['alpha_tester', 'title_star_chaser']));
   localStorage.setItem('ascent.collection.baseline.u-1', '1');
+  // The one-time "Introducing Aether" announcement has been seen (AetherIntroPopup.test.tsx covers it).
+  localStorage.setItem('ascent.aetherIntro.seen.u-1', '1');
   useProgression.setState({ capability: 'on', cratesCapability: opts.cratesOn ?? 'on', aetherCapability: opts.aether ? 'on' : 'off', crateList: opts.crates === undefined ? crateList : opts.crates, mirror: { userId: 'u-1', ...profile(over) } });
   ui = mount(<CollectionPage reducedMotion={!opts.motion} />);
 }

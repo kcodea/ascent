@@ -868,10 +868,10 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
   result. The client queues the request durably and retries; a failure reads "Progress pending".
 
-### Aether and the Chest Shop (owner rulings 2026-10-18; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04)
+### Aether and the Chest Shop (owner rulings 2026-10-18 and 2026-10-19; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04, R-PROG-AETHER-05)
 
-**Aether** is a currency you earn by playing and spend on chests. It is **never bought with real money**, and an account
-starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then chests work exactly as above.
+**Aether** is a currency you earn by playing and spend on chests. It is **never bought with real money**. Apart from
+the one-time launch gift below, an account starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then chests work exactly as above.
 **Once Aether is on, the per-level chest rule above is replaced** by the milestone chests below (the Welcome Chest is
 kept), and a Gauntlet first clear pays Aether instead of a chest.
 
@@ -934,10 +934,16 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
   chests and leaves milestone chests sealed for you.
 - **Chests you already hold.** Sealed chests earned before Aether launched are kept and open exactly as before (no
   floor, no focus, no fee).
+- **The launch gift (owner 2026-10-19, R-PROG-AETHER-05).** When Aether launches, **every account receives 1,000 Aether,
+  once**; an account created later receives it as soon as it has a profile (its first game). The first time you open the
+  Collection with Aether live, an **"Introducing Aether"** note opens first (the Ranked confirmation's window and pop-in):
+  what Aether is, how you earn it, that it unlocks chests, and that the first 1,000 is on us. It shows once per account
+  on each device; the New Rewards summary waits until it is closed.
 
 Source: `supabase/migrations/2026-10-18-aether.sql` (`aether_config`, `aether_apply`, `buy_crate`, `open_crate`,
-`settle_progression`, `record_gauntlet_clear`, `aether_rollout`), `packages/progression/src/aether.ts`,
-`packages/progression/src/crateShop.ts`.
+`settle_progression`, `record_gauntlet_clear`, `aether_rollout`), `supabase/migrations/2026-10-19-aether-launch-grant.sql`
+(the launch gift), `packages/progression/src/aether.ts`, `packages/progression/src/crateShop.ts`,
+`packages/ui/src/progression/AetherIntroPopup.tsx`.
 
 Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per level),
 `packages/progression/src/cosmetics.ts` (catalog, weights, the roll), `packages/sim/src/runDerive.ts`

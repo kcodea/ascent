@@ -6977,7 +6977,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-AETHER-01',
     title: 'Aether is earned by playing, never bought: Ranked pays a base plus a placement bonus, Versus pays for the match, Gauntlet pays a first clear, Practice and Tutorial pay nothing',
     statement:
-      'Aether is a currency an account earns only by playing; it is never sold for real money, and an account starts with 0. '
+      'Aether is a currency an account earns by playing; it is never sold for real money. Apart from the one-time launch gift of '
+      + 'R-PROG-AETHER-05 (1,000 Aether for every account), an account starts with 0 and playing is the only way to earn more. '
       + 'A placed, accepted Ranked game pays 50 Aether win or lose, plus a bonus by final place: 1st 140, 2nd 80, 3rd 45, 4th 35, '
       + '5th 25, 6th 15, 7th 10, 8th 0. A game with no valid placement pays 0. A completed Versus match pays 25, plus 45 more to '
       + 'the winner (an abandoned match with no winner pays 25). Practice and Tutorial pay 0, and there is no comeback bonus. '
@@ -7060,5 +7061,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). The client half as of 2026-10-19 (feat/aether-shop-ui), with Aether on: every milestone crate is opened one at a time through its focus step; Open all skips them (ruling 2026-10-19, revising the earlier bulk open). The single Open, the bay\x27s and the New rewards pop-up\x27s alike, goes through the bay\x27s own logic. When the milestone crate is the bay\x27s first sealed crate, Open shows its focus step (the Chest Shop in milestone mode: a free unfocused Open, or the Legendary fee once a category is ticked) instead of starting the theatre; when older crates come first (a pre-Aether level crate sorts ahead of a backdated milestone crate), the theatre\x27s queue stops before the first milestone crate, so its "Open next" never opens one unfocused and the next Open reaches the focus step. Open all (the bay\x27s and the pop-up\x27s) opens only the other sealed crates and leaves every milestone crate sealed; with only milestone crates sealed it is not offered, and the single Open leads to the focus step. The bay names the next multiple of 10 as the next crate\x27s level. CollectionScreen.test.tsx pins the focus step, the stop before a milestone crate, Open all skipping milestone crates (bay and pop-up), and the pop-up\x27s Open reaching the focus step.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts', 'packages/ui/src/progression/CrateShop.test.tsx', 'packages/ui/src/progression/CollectionScreen.test.tsx'], lastVerifiedAt: '2026-10-19' },
+  },
+  {
+    id: 'R-PROG-AETHER-05',
+    title: 'Every account receives 1,000 Aether once when Aether launches, and is told so the first time it opens the Collection',
+    statement:
+      'When Aether launches, every account receives a one-time gift of 1,000 Aether, and an account created after the launch '
+      + 'receives the same gift as soon as it has a profile, so every player gets it exactly once, however often the launch is '
+      + 'run. The gift is server-paid and recorded like any other Aether. The first time a player opens the Collection with '
+      + 'Aether live (once their account has loaded), an "Introducing Aether" announcement opens first, in the same window and '
+      + 'with the same pop-in as the Ranked confirmation: what Aether is, how to earn it, that it unlocks chests, and that the '
+      + 'first 1,000 is on the house, signed by the Ascent Team. It shows once per account on each device, and any other '
+      + 'Collection pop-up (New Rewards) waits until it is closed.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-19 (Aether launch announcement)', quote: 'lets give everyone 1,000 Aether as part of the announcement of this change.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-19 (Aether launch announcement)', quote: 'can we have a popup the first time they land on the colleections screen that has the exact pop in effect and style as the play confirmation screen' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-19-aether-launch-grant.sql (aether_launch_grant, the profiles_aether_launch_grant trigger, aether_rollout); packages/progression/src/aether.ts (AETHER_LAUNCH_GRANT); packages/ui/src/progression/AetherIntroPopup.tsx + CollectionScreen.tsx' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-19 (feat/aether-launch-grant), once the owner runs 2026-10-19-aether-launch-grant.sql after the Aether file. aether_rollout pays every profile (one ledger row, reason grant, source aether_launch) and moves its progression revision; a profile created later is paid by an after-insert trigger while aether_enabled is on; running the file after the launch pays the profiles that already exist. An auth account with no profile yet (it never played) is paid when its profile is created, and the announcement waits for that profile. The seen flag is per device (localStorage), so a second device shows the announcement once more. The Continue button label is Claude\x27s wording.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aetherLaunchGrant.db.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/AetherIntroPopup.test.tsx'], lastVerifiedAt: '2026-10-19' },
   },
 ];

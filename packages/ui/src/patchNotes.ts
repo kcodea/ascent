@@ -83,6 +83,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Levels no longer give a chest each. Instead, every 10 levels you get a free Legendary chest, and existing players get the ones they have already passed.',
           'You choose a free chest\'s focus when you open it on its own. Open all leaves these free chests for you to open one by one.',
           'Sealed chests you already have still open as before.',
+          'Every player gets 1,000 Aether on us to celebrate the launch, and new players get it too. The first time you open your Collection, a short note introduces Aether.',
         ],
       },
       { category: 'Systems', text: 'The Simple Glass Card Plate is now real frosted glass: a light grey pane that softly blurs whatever is behind the card.' },

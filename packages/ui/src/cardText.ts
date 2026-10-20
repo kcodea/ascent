@@ -270,11 +270,13 @@ export function hunterText(cardId: string, summonBonus: number, golden: boolean)
 }
 
 /**
- * Vaultkeeper (`tribePlayedGainSelfImproving`, owner rework 2026-10-13): "When you play a Dragon, gain +3/+3. Play 3
- * Dragons or Dwarves to improve this." The gain is base x (1 + floor(tally / every)) x golden, where the tally is
- * this copy's tribe-played count (`spiritTally`). Surface the CURRENT gain (green) in place of the printed one; the
- * countdown to the next step is the N/3 step counter (`stepProgress`), never a fraction in the text. Null until the
- * gain has stepped up (the printed base is accurate until then).
+ * Vaultkeeper (`tribePlayedGainSelfImproving`, owner rework 2026-10-13, run-wide since 2026-10-20): "When you play a
+ * Dragon, gain +3/+3. Improves every 4 Dragons or Dwarves played this game." The gain is base x (1 + floor(tally /
+ * every)) x golden, where the tally is the RUN's Dragon-or-Dwarf play count (`RunState.tribeUnionPlays`, resolved by
+ * `runTallyFor` into the `spiritTally` slot on every surface; a served foe's snapshot stamps it there). Surface the
+ * CURRENT gain (green) in place of the printed one; the countdown to the next step is the N/4 step counter
+ * (`stepProgress`), never a fraction in the text. Null until the gain has stepped up (the printed base is accurate
+ * until then).
  */
 export function vaultkeeperText(cardId: string, golden: boolean, spiritTally: number): string | null {
   const def = CARD_INDEX[cardId];

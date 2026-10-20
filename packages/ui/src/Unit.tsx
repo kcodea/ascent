@@ -2,7 +2,7 @@ import { memo, type CSSProperties } from 'react';
 import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { grantedTriggersOfSnapshot } from './grantedTriggers';
-import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn } from '@game/sim';
+import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn, runTallyFor } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -72,6 +72,10 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
   const runSpellsThisTurn = useGame((s) => s.run.spellsThisTurn);
   const runPlayedThisTurn = useGame((s) => s.run.playedThisTurn);
   const enemyScalers = useGame((s) => s.run.lastCombat?.enemyScalers);
+  // Vaultkeeper: its improve is a RUN-WIDE tally (owner 2026-10-20), so the player's body reads the run's count; a foe
+  // reads the count its snapshot stamped into the body's tally slot. Constant through a fight (nothing is played).
+  const runTally = useGame((s) => (foe ? undefined : runTallyFor(u.cardId, s.run.tribeUnionPlays)));
+  const spiritTallyShown = runTally ?? u.spiritTally;
   // Rune of the Zoo: Beardsley's combat text prints the NEXT summon's live grant. A primitive selector — units
   // only re-render when the summon tally actually moves (a rare board-reflow beat), and only with the rune held.
   const zooSummons = useGame((s) => (s.run.questFlags?.runeZoo ? (s.combatQuestDelta?.summonCombat ?? 0) : undefined));
@@ -135,7 +139,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         rallySpreadAtk: u.rallySpreadAtk, // Sunmane: the rally's live escalating grant
         grantedRallyShout: u.grantedRallyShout, // Auctioneer × War: the granted Rally prints in combat too
         taughtSpellId: u.taughtSpellId, // a Mage-Pup names the spell it was taught
-        spellProgress: u.spellProgress, spiritTally: u.spiritTally, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
+        spellProgress: u.spellProgress, spiritTally: spiritTallyShown, ascendProgress: u.ascendProgress, summonBonus: u.summonBonus,
         overflowBonus: u.overflowBonus, hpGrantBonus: u.hpGrantBonus, eotBonus: u.eotBonus, eotTick: u.eotTick,
         sellBonus: u.sellBonus, attackSeen: u.attackSeen, permaGain: u.permaGain,
         // Squirl Scout's snowball LIVE (R-TEXT-11): a combat Squirl Scout Shout grows it mid-fight, and the replay's
@@ -211,7 +215,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
     buffs: u.buffs, // per-source breakdown (recruit + combat) for the right-click inspect panel
     // Live step counter (Guel 1/4, Crypt Drake 1/2, …) — ticks mid-fight from the unit's per-instance accruals.
     stepProgress: stepProgress(u.cardId, {
-      spellProgress: u.spellProgress, spiritTally: u.spiritTally, summonBonus: u.summonBonus,
+      spellProgress: u.spellProgress, spiritTally: spiritTallyShown, summonBonus: u.summonBonus,
       ascendProgress: u.ascendProgress, attackSeen: u.attackSeen,
       avengeSeen: u.avengeSeen, bleedAttacks: u.bleedAttacks,
       damageDealt: u.damageDealt, // Pummel (Han Gover 40, Goldvein 6): the lifetime damage meter, seeded from the run card and ticking on each landed hit it deals; prints `total mod X`

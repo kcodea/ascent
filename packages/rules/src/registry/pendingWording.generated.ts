@@ -11,17 +11,17 @@ import type { GameRule } from '../schema';
 export const WORDING_PENDING: GameRule[] = [
   {
     "id": "q-word-lg-duration-01",
-    "title": "Wording: run vs game · 8 vs 15",
+    "title": "Wording: run vs game · 8 vs 17",
     "statement": "Run-long effects say \"this run\" / \"for the rest of the run\" — never \"game\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 15. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
-    "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Galas: \"Whisper: Give a friendly minion +1/+1. Improves every 4 spells cast this game.\"",
-    "example": "Galas would be re-worded to the \"this run\" form; mechanics untouched.",
+    "currentBehaviour": "Both spellings are live: \"this run\" in 8 printed texts, \"this game\" in 17. Approving picks \"this run\"; the LG-DURATION-01 guide predicate then watches new text.",
+    "cardText": "\"this run\" — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · \"this game\" — Vaultkeeper: \"When you play a Dragon, gain +3/+3. Improves every 4 Dragons or Dwarves played this game.\"",
+    "example": "Vaultkeeper would be re-worded to the \"this run\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 15)"
+        "ref": "textParse.wording · LG-DURATION-01 (corpus survey: 8 vs 17)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -32,6 +32,7 @@ export const WORDING_PENDING: GameRule[] = [
       ]
     },
     "contentIds": [
+      "d2_herzog",
       "d4_galas",
       "dm_shepherd",
       "gift_premium_stock",

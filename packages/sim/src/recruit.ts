@@ -7,6 +7,7 @@ import { ancientNadjaShopDeath } from './ancients'; // Nadja
 import { ancientBrackusShopDeath } from './ancients'; // Brackus
 import { ancientHeroAvengeShopDeath, ancientDrakkoEotShoutLive, ancientRayseEotRiseLive, ancientRunRayseEotRise, commissionLineOf } from './ancients'; // the 2026-10-09 batch
 import { runSpells } from './spellPool';
+import { runTallyUnions, tribeUnionKey, tribeUnionPlaysOf } from './runTally';
 import { REVELER_IDS, RUNE_INDEX, CARD_INDEX, EQUIPMENT_INDEX, STAR_DESTROYER, equipmentOf, recurringEotOwner, type EquipmentDefinition } from '@game/content';
 import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as grantEquipmentToPlayer, armCalibration, unusedEquipmentCount } from './equipment';
 import { currentCollector } from './activeCollector';
@@ -4794,14 +4795,16 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /**
-   * Vaultkeeper (owner rework 2026-10-13): "When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve
-   * this." The dispatcher has already matched the played body against `tribes` (the types that COUNT), so every call
-   * is one count on this copy's per-instance tally (`spiritTally`, the tribe-played tally Aspect and Festival Keeper
-   * ride, which is also what draws the N/3 step counter). A play that is ALSO a `gainTribe` body pays this copy
-   * +attack/+health x LEVEL first, where LEVEL = 1 + floor(tally BEFORE this play / every): grant, then count (the
-   * Beardsley / Conductor order), so the play that completes a set of 3 still pays the old value and the NEXT Dragon
-   * pays the improved one. Golden doubles the applied gain, base and steps alike. The copy never counts its own
-   * arrival (the dispatcher skips the played card). Shop-only by nature: nothing is played from hand in combat.
+   * Vaultkeeper (owner rework 2026-10-13, tally made RUN-WIDE 2026-10-20): "When you play a Dragon, gain +3/+3.
+   * Improves every 4 Dragons or Dwarves played this game." The improve counts `tribes` plays on the RUN
+   * (`tribeUnionPlays`, bumped by `countTribeUnionPlay` in `playCard` AFTER the watchers fire), never on this copy,
+   * so it ticks while no Vaultkeeper is owned (owner 2026-10-20: "active even when the card is not on board or in
+   * hand or in shop", counted from the start of the game). A play that is a `gainTribe` body (Dragons only, owner
+   * 2026-10-20) pays this copy +attack/+health x LEVEL, where LEVEL = 1 + floor(tally BEFORE this play / every):
+   * grant, then count, so the play that completes a set of 4 still pays the old value and the NEXT Dragon pays the
+   * improved one. Golden doubles the applied gain, base and steps alike. The copy never pays for its own arrival (the
+   * dispatcher skips the played card), but its play DOES count toward the tally (owner 2026-10-20). Shop-only by
+   * nature: nothing is played from hand in combat.
    *
    * RUNE OF THE VAULTKEEPER (owner 2026-10-13: back to its pre-10-10 effect): the same gain ALSO lands on an adjacent
    * Dragon, a seeded pick when both neighbours are Dragons.
@@ -4810,7 +4813,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const played = payload.target;
     if (!played) return;
     const every = Math.max(1, num(params.every, 3));
-    const prior = self.spiritTally ?? 0;
+    const tribes = Array.isArray(params.tribes) ? params.tribes.map(String) : [];
+    const prior = tribeUnionPlaysOf(ctx.state.tribeUnionPlays, tribes);
     const gainTribe = str(params.gainTribe) as Tribe;
     const pdef = CARD_INDEX[played.cardId];
     if (!gainTribe || (pdef && defIsTribe(pdef, gainTribe, ctx.state))) {
@@ -4830,7 +4834,6 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         }
       }
     }
-    self.spiritTally = prior + 1;
   },
 
   /** Forest Colossus: count the `tribe` plays this body witnesses (only those AFTER it was played). */
@@ -14971,6 +14974,22 @@ function pickRandom<T>(state: RunState, pool: T[], count: number): T[] {
 }
 
 /**
+ * The run-wide "X or Y played this game" tallies (`RunState.tribeUnionPlays`, owner 2026-10-20): a minion played from
+ * hand that is ANY of a union's types adds 1 to it, a dual-type or All-types body once. Every union some card reads is
+ * counted from the start of the game, owned or not. Called from `playCard` right after `fireOnTribePlayed`, so a
+ * reader paying on this play reads the tally from BEFORE it.
+ */
+export function countTribeUnionPlay(state: RunState, played: BoardCard): void {
+  const def = CARD_INDEX[played.cardId];
+  if (!def || def.spell) return;
+  for (const tribes of runTallyUnions()) {
+    if (!tribes.some((t) => defIsTribe(def, t as Tribe, state))) continue;
+    const key = tribeUnionKey(tribes);
+    state.tribeUnionPlays = { ...state.tribeUnionPlays, [key]: (state.tribeUnionPlays?.[key] ?? 0) + 1 };
+  }
+}
+
+/**
  * Fire every `onTribePlayed` watcher for a minion just PLAYED from hand — board watchers (Festival Keeper,
  * Aspect, Forest Colossus) AND hand watchers (Slumbering Colossus, tranche 2). The played card
  * itself never witnesses its own arrival: Forest Colossus counts Spirits played AFTER it (owner 2026-09-09).
@@ -16395,6 +16414,7 @@ export function playCard(state: RunState, played: BoardCard): void {
   fire(ctx, 'onSummon', { minion: played });
   fireDemonPlayRunes(state, played); // Rune of the Chipper Sticker / Refreshments: "whenever you play a Demon"
   fireOnTribePlayed(state, played); // set 3 Spirits: "whenever you play a Spirit" — board + hand watchers, never the card itself
+  countTribeUnionPlay(state, played); // Vaultkeeper: the run-wide "Dragons or Dwarves played this game" tally (after the watchers: grant, then count)
   ancientOnPlay(state, played); // ANCIENT OF BONDS × Albus: the other same-parity-tier minions gain (a no-op unless picked)
   // CELESTIAL ORBIT: the card just played FROM HAND wakes its immediate neighbours' Orbit effects (owner
   // ruling 2026-08-03 — from hand only, so a summoned token or a reorder that slides someone next to you

@@ -115,7 +115,7 @@ const richBag = (id: string): LiveTextParams => ({
   goldSpent: 12, /* ≥ Rope Wrangler's per-10-Gold repeat (2026-09-23) */ goldSpentRun: 13, goldPouchValue: 2,
   alesThisTurn: 2, zooSummons: 2, rallySpreadAtk: 5,
   rubyBonus: { attack: 2, health: 2 },
-  spiritTally: 4, /* past Vaultkeeper's every-3 improve step (2026-10-13) */
+  spiritTally: 4, /* past Vaultkeeper's every-4 improve step (2026-10-20) */
   lastSpellName: 'Spirit Fire', rememberedSpellNames: ['Spirit Fire', 'Growth'],
   impBank: { attack: 2, health: 3 }, firstSpellThisTurnName: 'Growth', lastSpellThisTurnName: 'Spirit Fire',
   keeperFirstSpellName: 'Growth',
@@ -256,7 +256,7 @@ const CROSS: CrossExemplar[] = [
   { id: 'sergeant', inst: { hpGrantBonus: 3 } }, //      per-instance Deathrattle accrual
   { id: 'ritualist', inst: { eotBonus: 3 } }, //         per-instance End-of-Turn accrual
   { id: 'b2_groveweaver', inst: { summonBonus: 4 } }, // per-instance summon-buff accrual
-  { id: 'd2_herzog', inst: { spiritTally: 4 } }, //      per-instance tribe-played tally (Vaultkeeper, 2026-10-13)
+  { id: 'd2_herzog', run: { tribeUnionPlays: { 'dragon+dwarf': 4 } } }, // RUN-WIDE Dragon-or-Dwarf tally (Vaultkeeper, 2026-10-20); the snapshot stamps it for a foe
   { id: 'k_alchemist', inst: { summonBonus: 2 } }, //    per-instance improve accrual (Alchemist Brisbane, 2026-10-13)
   { id: 'chefraag', run: { impBuff: { attack: 2, health: 3 } } }, // run-scoped Imp Aura
   { id: 'n2_wanderer', run: { goldSpent: 13 }, foe: false }, // run-lifetime Gold meter — NOT in the snapshot (by design)
@@ -327,7 +327,11 @@ describe('rendered-text reconciliation — combat chain + cross-chain drift', ()
       if (x.foe === false) continue;
       const owner = runFor(x);
       const ownerText = plainOf(liveBoardView(boardCardFor(x), owner).text);
-      const foeText = renderFoeUnit(frameFor(x), owner);
+      // A run-wide tally the snapshot STAMPS onto the served body (Vaultkeeper's `tribeUnionPlays` -> `spiritTally`,
+      // 2026-10-20) reaches the foe through the body, not `enemyScalers`: take that slot from a real capture.
+      const served = snapshotBoard({ ...owner, board: [boardCardFor(x)] } as RunState).minions[0];
+      const frame = served?.spiritTally !== undefined ? { ...frameFor(x), spiritTally: served.spiritTally } : frameFor(x);
+      const foeText = renderFoeUnit(frame, owner);
       if (foeText !== ownerText) drifts.push(`${x.id} (${CARD_INDEX[x.id]!.name}):\n    owner "${ownerText}"\n    foe   "${foeText}"`);
     }
     expect(drifts, `FOE-SIDE DRIFT: the served card prints a different string than its owner saw:\n  ${drifts.join('\n  ')}`).toEqual([]);

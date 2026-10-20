@@ -10,6 +10,7 @@
  * replay re-runs byte-identically — so every round's board is reconstructable headlessly from a few KB,
  * no need to store each board live. `replayRun` turns a replay into the per-wave snapshots.
  */
+import { runTallyFor } from './runTally';
 import { makeRng, type BoardMinion, type CombatOutcome, type CombatResult, type Keyword, type PendingCombatQuest, type QuestCombatMods, type Rng, type Tribe } from '@game/core';
 import type { SetId } from '@game/content';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -292,6 +293,9 @@ function cleanBoard(s: RunState): BoardMinion[] {
     ...(c.ascendProgress ? { ascendProgress: c.ascendProgress } : {}),
     ...(c.spellProgress ? { spellProgress: c.spellProgress } : {}), // Archmagus Guel: on-board spell tally
     ...(c.spiritTally ? { spiritTally: c.spiritTally } : {}), // Set 3 Spirits: Forest Colossus's Spirits-since-played (SoC reads it)
+    // Vaultkeeper: its improve is a RUN-WIDE tally (`tribeUnionPlays`), not a per-copy one, so a served copy carries
+    // its OWNER's count in the tally slot its live text + step counter read (display-only: nothing is played in combat).
+    ...((): { spiritTally?: number } => { const t = runTallyFor(c.cardId, s.tribeUnionPlays); return t ? { spiritTally: t } : {}; })(),
     ...(c.damageDealt ? { damageDealt: c.damageDealt } : {}), // Pummel (Han Gover, Goldvein): the lifetime damage meter, so a served copy pays out from its real total (carry-over ruling 2026-09-21)
     ...(c.soldProgress ? { soldProgress: c.soldProgress } : {}), // Runic Archivist: display-only, so a served copy prints its count
     ...(c.boardFirstSpellId ? { boardFirstSpellId: c.boardFirstSpellId } : {}), // Spell Warden: display-only

@@ -33,7 +33,7 @@ const NOISE: ReadonlySet<string> = new Set([
   'rngCursor', 'uidCounter', 'uidSeq', 'presentation', 'fx', 'beats', 'log', 'shoutsThisTurn', 'firstShoutUid', 'auraFxSeq', 'auraFx',
   'lastShoutFires', 'lastEchoFires', 'lastRallyFires', 'lastEotFires', 'spellsCast', 'spellsThisTurn', 'lastSpellCastId',
   'firstSpellThisTurnId', 'lastSpellThisTurnId', 'goldSpent', 'goldSpentThisTurn', 'spellsCastIds', 'alesCastThisTurn', 'playedThisTurn',
-  'spellsOnThisTurn', 'spellCostOffTurn', 'cardsPlayedTotal', 'attachmentsThisTurn', 'karwindFlash', 'alignSpark', 'minionsPlayedThisTurn',
+  'spellsOnThisTurn', 'spellCostOffTurn', 'cardsPlayedTotal', 'tribeUnionPlays', 'attachmentsThisTurn', 'karwindFlash', 'alignSpark', 'minionsPlayedThisTurn',
   'minionsPlayed', 'questTendrilFx', 'weldFxBaseSeq', 'gainCardFiredUids', 'gainAttackFiredUids', 'equipmentSpellCasts', 'cardBuffs',
 ]);
 

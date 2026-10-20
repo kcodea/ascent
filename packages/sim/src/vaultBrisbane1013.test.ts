@@ -7,7 +7,7 @@ import { applyEndOfTurn, applyGoldSpent, fireRecruitDeathrattlesForTest } from '
 /**
  * THE OWNER'S 2026-10-13 REWORKS, through the real reducer / Gold meter / `simulate` paths:
  *
- *  - Vaultkeeper: "When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve this." (+3/+3 per step)
+ *  - Vaultkeeper: see vaultkeeperRunTally1020.test.ts (reworked again 2026-10-20).
  *  - Rune of the Vaultkeeper: back to "also give their stats to an adjacent Dragon".
  *  - Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this." (+2/+2 per
  *    step; the End of Turn Ruby cast is gone).
@@ -25,91 +25,18 @@ const stats = (c: BoardCard): [number, number] => [c.attack, c.health];
 /** Play hand cards in order; returns the state after the last. */
 const playAll = (s: RunState, ...uids: string[]): RunState => uids.reduce((acc, uid) => act(acc, { type: 'play', uid }), s);
 
-const DRAGON = 'd2_transcendence', DRAGON2 = 'd2_cinderchef', DWARF = 'dw_brakka', DWARF2 = 'dw_edward', BEAST = 'b2_trex';
+const DRAGON = 'd2_transcendence', DRAGON2 = 'd2_cinderchef', BEAST = 'b2_trex';
 const VAULT = CARD_INDEX['d2_herzog']!;
 const base: [number, number] = [VAULT.attack, VAULT.health];
 const plus = (n: number): [number, number] => [base[0] + n, base[1] + n];
 
-describe('Vaultkeeper: "When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve this."', () => {
-  it('a Dragon played pays +3/+3; a Dwarf pays nothing but counts; any other type does neither', () => {
-    let s = run({ board: [body('v', 'd2_herzog')], hand: [body('d1', DRAGON), body('w1', DWARF), body('b1', BEAST)] });
-    s = playAll(s, 'd1');
-    expect(stats(at(s, 'v')), 'a Dragon: +3/+3').toEqual(plus(3));
-    expect(at(s, 'v').spiritTally, 'and one count').toBe(1);
-    s = playAll(s, 'w1');
-    expect(stats(at(s, 'v')), 'a Dwarf: no gain').toEqual(plus(3));
-    expect(at(s, 'v').spiritTally, 'but it counts').toBe(2);
-    s = playAll(s, 'b1');
-    expect(stats(at(s, 'v')), 'a Beast: nothing').toEqual(plus(3));
-    expect(at(s, 'v').spiritTally).toBe(2);
-  });
-
-  it('every 3 Dragons or Dwarves played add +3/+3 to the gain: grant first, then count', () => {
-    let s = run({ board: [body('v', 'd2_herzog')], hand: [body('d1', DRAGON), body('w1', DWARF), body('d2', DRAGON2), body('d3', DRAGON), body('w2', DWARF2), body('w3', DWARF)] });
-    s = playAll(s, 'd1', 'w1');
-    expect(stats(at(s, 'v'))).toEqual(plus(3));
-    s = playAll(s, 'd2');
-    expect(stats(at(s, 'v')), 'the play that completes the 3 still pays the old +3/+3').toEqual(plus(6));
-    expect(at(s, 'v').spiritTally).toBe(3);
-    s = playAll(s, 'd3');
-    expect(stats(at(s, 'v')), 'the next Dragon pays the improved +6/+6').toEqual(plus(12));
-    s = playAll(s, 'w2', 'w3');
-    expect(at(s, 'v').spiritTally, 'two Dwarves finish the second set').toBe(6);
-    expect(stats(at(s, 'v')), 'Dwarves never pay').toEqual(plus(12));
-  });
-
-  it('the third step: +9/+9 after six counted plays', () => {
-    const s0 = run({ board: [body('v', 'd2_herzog', { spiritTally: 6 })], hand: [body('d1', DRAGON)] });
-    expect(stats(at(playAll(s0, 'd1'), 'v'))).toEqual(plus(9));
-  });
-
-  it('Gilded doubles the gain, base and steps alike', () => {
-    let s = run({ board: [body('v', 'd2_herzog', { golden: true })], hand: [body('d1', DRAGON), body('d2', DRAGON2), body('d3', DRAGON), body('d4', DRAGON2)] });
-    s = playAll(s, 'd1');
-    expect(stats(at(s, 'v'))).toEqual(plus(6));
-    s = playAll(s, 'd2', 'd3');
-    expect(stats(at(s, 'v'))).toEqual(plus(18));
-    s = playAll(s, 'd4');
-    expect(stats(at(s, 'v')), '(3 + 3) x 2 = +12/+12').toEqual(plus(30));
-  });
-
-  it('a Dragon/Dwarf dual type is ONE play: it pays (it is a Dragon) and counts once', () => {
-    const s = playAll(run({ board: [body('v', 'd2_herzog')], hand: [body('m', 'dw_brisbane')] }), 'm');
-    expect(stats(at(s, 'v'))).toEqual(plus(3));
-    expect(at(s, 'v').spiritTally).toBe(1);
-  });
-
-  it('its own play never counts, and a Vaultkeeper in hand is asleep', () => {
-    let s = run({ hand: [body('v', 'd2_herzog'), body('v2', 'd2_herzog'), body('d1', DRAGON)] });
-    s = playAll(s, 'v');
-    expect([stats(at(s, 'v')), at(s, 'v').spiritTally ?? 0], 'playing it pays and counts nothing').toEqual([base, 0]);
-    s = playAll(s, 'd1');
-    expect(stats(at(s, 'v'))).toEqual(plus(3));
-    const inHand = s.hand.find((c) => c.uid === 'v2')!;
-    expect([stats(inHand), inHand.spiritTally ?? 0], 'the copy still in hand heard nothing').toEqual([base, 0]);
-  });
-
-  it('two Vaultkeepers each keep their own count; the second sees the first one played as nothing (it was not there)', () => {
-    let s = run({ board: [body('v', 'd2_herzog', { spiritTally: 3 })], hand: [body('v2', 'd2_herzog'), body('d1', DRAGON)] });
-    s = playAll(s, 'v2');
-    expect(stats(at(s, 'v')), 'a Vaultkeeper is a Dragon: the fielded one gains at its level 2').toEqual(plus(6));
-    s = playAll(s, 'd1');
-    expect(stats(at(s, 'v2')), 'the new copy is at level 1').toEqual(plus(3));
-    expect([at(s, 'v').spiritTally, at(s, 'v2').spiritTally]).toEqual([5, 1]);
-  });
-
-  it('the text matches, plain and Gilded', () => {
-    expect([VAULT.text, VAULT.goldenText]).toEqual([
-      'When you play a **Dragon**, gain **+3/+3**. Play **3 Dragons or Dwarves** to improve this.',
-      'When you play a **Dragon**, gain **+6/+6**. Play **3 Dragons or Dwarves** to improve this.',
-    ]);
-    expect([VAULT.tier, VAULT.attack, VAULT.health], 'the body is unchanged').toEqual([6, 6, 10]);
-  });
-});
+// Vaultkeeper's own behaviour moved to `vaultkeeperRunTally1020.test.ts` (owner change 2026-10-20: Dwarf/Dragon, and the
+// improve is a run-wide "4 Dragons or Dwarves played this game" tally). The rune below rides the same gain.
+const tally = (n: number): Partial<RunState> => ({ tribeUnionPlays: { 'dragon+dwarf': n } });
 
 describe('Rune of the Vaultkeeper: "Your Vaultkeepers also give their stats to an adjacent Dragon"', () => {
   it('each gain also lands on an adjacent Dragon, at the same size', () => {
-    const s0 = run({ runeVaultkeeper: true, board: [body('n', DRAGON), body('v', 'd2_herzog', { spiritTally: 3 })], hand: [body('d1', DRAGON2)] } as Partial<RunState>);
+    const s0 = run({ runeVaultkeeper: true, board: [body('n', DRAGON), body('v', 'd2_herzog')], hand: [body('d1', DRAGON2)], ...tally(4) } as Partial<RunState>);
     const before = stats(at(s0, 'n'));
     const s = act(s0, { type: 'play', uid: 'd1', index: 2 } as Action);
     expect(stats(at(s, 'v'))).toEqual(plus(6));

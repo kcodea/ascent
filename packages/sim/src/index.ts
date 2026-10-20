@@ -109,6 +109,7 @@ export {
   calibrationPendingOf, armCalibration, consumeCalibration, equipmentWillAmplify, equipmentPermanentlyAmplified, quickReleaseApplies, unusedEquipmentCount,
   type ReequipCue,
 } from './equipment';
+export { runTallyFor, tribeUnionPlaysOf, tribeUnionKey } from './runTally';
 
 // BALANCE BOT (docs/balance-bot-roadmap.md) — the shared contract + the PURE identity half. Node-only inputs (git,
 // the effect source text) live in `packages/tools/src/balance/identity.ts`; this stays browser-safe.

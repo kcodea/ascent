@@ -7083,4 +7083,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-19 (feat/aether-launch-grant), once the owner runs 2026-10-19-aether-launch-grant.sql after the Aether file. aether_rollout pays every profile (one ledger row, reason grant, source aether_launch) and moves its progression revision; a profile created later is paid by an after-insert trigger while aether_enabled is on; running the file after the launch pays the profiles that already exist. An auth account with no profile yet (it never played) is paid when its profile is created, and the announcement waits for that profile. The seen flag is per device (localStorage), so a second device shows the announcement once more. The Continue button label is Claude\x27s wording.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/aetherLaunchGrant.db.test.ts', 'packages/progression/src/sqlParity.test.ts', 'packages/ui/src/progression/AetherIntroPopup.test.tsx'], lastVerifiedAt: '2026-10-19' },
   },
+  {
+    id: 'R-PRESENT-TUNED-01',
+    title: 'The look tuned in the DEV tuners is the look players get: every tuned default ships in the production build',
+    statement:
+      'Every visual value the owner sets through a DEV tuner and bakes in as a default (medallions, badges, glows, '
+      + 'themes, tribe colours, panels and the rest) is applied in the build players run, exactly as in DEV. A '
+      + 'tuned setting never depends on the DEV tools being present to take effect, so removing or deferring a DEV '
+      + 'tool can never change what a player sees. In particular the mechanic medallion has no CSS backing circle '
+      + 'on any card: only its art shows.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-19, after the 798cff58f web release', quote: 'we need to remove the css medallion circle from all cards. why did that show b ack up?' },
+      { kind: 'fix-pr', ref: 'fix/tuned-defaults-in-prod' },
+      { kind: 'code', ref: 'packages/ui/src/tunedDefaults.ts (imports every self-applying *Config.ts), imported by packages/ui/src/Game.tsx; the cause was #2151 (2026-10-18) making DevMenu a DEV-only lazy import, which also dropped the config modules only the tuner panels imported' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-19 (fix/tuned-defaults-in-prod). From #2151 (2026-10-18) to this fix, 21 config modules (medallion, epic / spell medallion, gilded badge, glow, ward, tribe colour, UI theme, freeze, Tavern Up, lobby panel / rail, replay rail, Runeforge look, scout card, second power, step counter, hero duel / FX, buff drawer, align arc) were loaded only by their DEV tuner, so a production build fell back to the stylesheet defaults; the visible one was the medallion circle (circleOn 0 sets the cgem-nobg root class). tunedDefaults.test.ts fails if a module with a load-time apply is imported only by a tuner panel or tunerAll.ts.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tunedDefaults.test.ts'], lastVerifiedAt: '2026-10-19' },
+  },
 ];

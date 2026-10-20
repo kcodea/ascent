@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-19',
     changes: [
+      { category: 'Systems', text: 'The round backing circle behind the mechanic icon on cards is gone again, along with other small visual touches that had quietly reverted.' },
       {
         category: 'Systems',
         text: 'Crates are now Chests, and each paid chest has its own look and opening.',

@@ -106,6 +106,9 @@ import { CloudMovedModal } from './CloudMovedModal';
 import { installLivePublisher } from './live/livePublisher';
 import { LiveGames } from './live/LiveGames';
 import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
+// The tuned look (R-PRESENT-TUNED-01): every config module that applies its defaults at load, so a production build
+// applies them too now that the DEV menu, their old importer, is DEV-only (the medallion circle came back).
+import './tunedDefaults';
 
 /** The FX budget scene a run state is in (see `fxBudget.ts`): the Discover overlay, else the shop, else none. */
 function fxSceneOf(r: { discover?: unknown; phase?: string } | null | undefined): FxScene | null {

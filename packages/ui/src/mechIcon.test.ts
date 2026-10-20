@@ -64,7 +64,7 @@ describe('resolveMech', () => {
     expect(resolveMech(view('spore'))?.id).toBe('watcher');      // Sporeling: "Deathrattle: ... Triggers each time you play a Battlecry."
     expect(resolveMech(view('sergeant'))?.id).toBe('watcher');   // Sergey: "Echo: ... Improve this whenever Sergey gains Attack."
     expect(resolveMech(view('ashen_heir'))?.id).toBe('watcher'); // Ashen Heir: "Whenever an Imp dies, ..."
-    expect(resolveMech(view('k_alchemist'))?.id).toBe('shout');  // Alchemist Brisbane: its Shout leads the text, ahead of the Echo
+    expect(resolveMech(view('k_alchemist'))?.id).toBe('shout');  // Alchemist Brisbane: its Shout leads the text
   });
   it('no printed minion that has both a Watcher trigger and an Echo resolves to Echo', () => {
     const echo = MECHANICS.find((m) => m.id === 'echo')!, watcher = MECHANICS.find((m) => m.id === 'watcher')!;

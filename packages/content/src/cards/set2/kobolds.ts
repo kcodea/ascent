@@ -18,10 +18,11 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 1,
     keywords: [],
     // Owner balance 2026-10-10: "Shout: Get a random Ruby" (was 2 plain Rubies; the drop to one is confirmed).
-    // Gilded: 2 random Rubies, each drawn separately from all six types.
-    effects: [{ on: 'onPlay', do: 'getRandomRubies', params: { count: 1 } }],
-    text: '**Shout:** Get a random **Ruby**.',
-    goldenText: '**Shout:** Get **2** random **Rubies**.',
+    // Owner balance 2026-10-20: "prospector needs to change to get a ruby as well. they should not be random rubies"
+    // (was a random Ruby). Plain Rubies again (`getRubies`); Gilded gets 2.
+    effects: [{ on: 'onPlay', do: 'getRubies', params: { count: 1 } }],
+    text: '**Shout:** Get a **Ruby**.',
+    goldenText: '**Shout:** Get **2 Rubies**.',
   },
   {
     id: 'k_deepvein',
@@ -114,11 +115,13 @@ export const SET2_KOBOLDS: CardDef[] = [
     chooseOne: [
       { text: 'Give your Rubies **+2/+1**.', goldenText: 'Give your Rubies **+4/+2**.',
         effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 1 } }] },
-      { text: 'Get **4** random **Rubies**.', goldenText: 'Get **8** random **Rubies**.',
-        effects: [{ on: 'onPlay', do: 'getRandomRubies', params: { count: 4 } }] },
+      // Owner balance 2026-10-20: "cave cutter needs to change to 4 rubies. they should not be the random rubies, but
+      // just the standard rubies." Plain Rubies (`battlecryGetRubies`, its pre-10-10 burst primitive); Gilded 8.
+      { text: 'Get **4 Rubies**.', goldenText: 'Get **8 Rubies**.',
+        effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 4 } }] },
     ],
-    text: '**Choose One:** give your Rubies **+2/+1**, or get **4** random **Rubies**.',
-    goldenText: '**Choose One:** give your Rubies **+4/+2**, or get **8** random **Rubies**.',
+    text: '**Choose One:** give your Rubies **+2/+1**, or get **4 Rubies**.',
+    goldenText: '**Choose One:** give your Rubies **+4/+2**, or get **8 Rubies**.',
   },
   {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
@@ -231,8 +234,8 @@ export const SET2_KOBOLDS: CardDef[] = [
     goldenText: '**Echo:** cast **6 Rubies** on each of your **Kobolds**.',
   },
   {
-    // Three triggers that all buff your Rubies: Shout (onPlay), Echo (death) and Rally (its own attack). The Echo's
-    // and the Rally's Ruby-strength gains carry back from combat.
+    // Two triggers that buff your Rubies: Shout (onPlay) and Rally (its own attack); the Echo leg was removed 2026-10-20. The
+    // Rally's Ruby-strength gain carries back from combat.
     id: 'k_alchemist',
     name: 'Alchemist Brisbane',
     tribe: 'kobold',
@@ -244,15 +247,17 @@ export const SET2_KOBOLDS: CardDef[] = [
     // improvement this copy has earned (`improveAttack` / `improveHealth` x its `summonBonus`; owner: "+2/+2 per
     // step"). `goldSpentImproveSelf` earns one improvement per 30 Gold spent while on the board; the meter carries
     // across turns and draws the N/30 step counter. Golden doubles the applied grant. Rally needs the RL keyword.
+    // Owner balance 2026-10-20: "change brisbane to just shout and rally, change spend to 40." The Echo leg is gone
+    // and an improvement now costs 40 Gold. Same day: "change brisbane to 1/1 gem buffs, and improving it means improve
+    // by 1/1" -> +1/+1 base, +1/+1 per improvement (Gilded doubles: +2/+2).
     keywords: ['RL'],
     effects: [
-      { on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 2, improveAttack: 2, improveHealth: 2 } },
-      { on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 2, health: 2, improveAttack: 2, improveHealth: 2 } },
-      { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 2, health: 2, improveAttack: 2, improveHealth: 2 } },
-      { on: 'goldSpent', do: 'goldSpentImproveSelf', params: { every: 30 } },
+      { on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1, improveAttack: 1, improveHealth: 1 } },
+      { on: 'onAttack', do: 'rallyRubyStatGain', params: { attack: 1, health: 1, improveAttack: 1, improveHealth: 1 } },
+      { on: 'goldSpent', do: 'goldSpentImproveSelf', params: { every: 40 } },
     ],
-    text: '**Shout, Echo and Rally:** Your Rubies gain **+2/+2**. Spend **30 Gold** to improve this.',
-    goldenText: '**Shout, Echo and Rally:** Your Rubies gain **+4/+4**. Spend **30 Gold** to improve this.',
+    text: '**Shout and Rally:** Your Rubies gain **+1/+1**. Spend **40 Gold** to improve this.',
+    goldenText: '**Shout and Rally:** Your Rubies gain **+2/+2**. Spend **40 Gold** to improve this.',
   },
   {
     // A cheap Ruby-build enabler: hands you the tribe's shop-wide Ruby spell instead of a body. Same
@@ -345,9 +350,9 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_blazer',
     name: 'Blazer',
     tribe: 'kobold',
-    tier: 3, // owner 2026-09-18: T4 3/8 → T3 2/7
+    tier: 3, // owner 2026-09-18: T4 3/8 → T3 2/7; owner balance 2026-10-20: 2/7 → 2/5
     attack: 2,
-    health: 7,
+    health: 5,
     keywords: ['W', 'RL'],
     effects: [{ on: 'onAttack', do: 'rallyPlayRubiesAll', params: { count: 1 } }],
     text: '**Flurry.** **Rally:** cast a **Ruby** on your minions.',

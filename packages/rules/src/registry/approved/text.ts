@@ -386,7 +386,7 @@ export const TEXT_RULES: GameRule[] = [
     contentIds: ['spore', 'sergeant', 'ashen_heir', 'k_alchemist', 'dm_jumbo'],
     currentBehaviour:
       'Conforms as of 2026-10-15. Printed cards whose badge changed from Echo to the eye: Sporeling, Sergey, Ashen Heir. '
-      + 'Alchemist Brisbane (Shout, Echo and Rally, plus a Gold-spent watch) keeps its Shout.',
+      + 'Alchemist Brisbane (Shout and Rally, plus a Gold-spent watch) keeps its Shout.',
     example:
       'Sergey ("Echo: give your minions +2 Health. Improve this whenever Sergey gains Attack.") shows the eye, not the '
       + 'Echo. Enigma given a Seed\'s Echo keeps its eye.',

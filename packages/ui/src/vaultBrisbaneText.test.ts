@@ -53,15 +53,15 @@ describe('Alchemist Brisbane: the current Ruby grant and the Gold counter', () =
   it('prints its base until an improvement is earned, then the improved grant in green', () => {
     expect(liveCardText('k_alchemist', { ...base, summonBonus: 0 }).text).toBe(B.text);
     expect(liveCardText('k_alchemist', { ...base, summonBonus: 1 }).text)
-      .toBe('**Shout, Echo and Rally:** Your Rubies gain **{{+4/+4}}**. Spend **30 Gold** to improve this.');
-    expect(liveCardText('k_alchemist', { ...base, summonBonus: 3 }).text).toContain('{{+8/+8}}');
+      .toBe('**Shout and Rally:** Your Rubies gain **{{+2/+2}}**. Spend **40 Gold** to improve this.');
+    expect(liveCardText('k_alchemist', { ...base, summonBonus: 3 }).text).toContain('{{+4/+4}}');
   });
   it('Gilded doubles it', () => {
     expect(liveCardText('k_alchemist', { ...base, golden: true, summonBonus: 0 }).goldenText).toBe(B.goldenText);
-    expect(liveCardText('k_alchemist', { ...base, golden: true, summonBonus: 1 }).goldenText).toContain('{{+8/+8}}');
+    expect(liveCardText('k_alchemist', { ...base, golden: true, summonBonus: 1 }).goldenText).toContain('{{+4/+4}}');
   });
   it('the step counter is the Gold meter toward the next improvement (Shop only)', () => {
-    expect(stepProgress('k_alchemist', { goldTick: 12 })).toMatchObject({ current: 12, total: 30 });
+    expect(stepProgress('k_alchemist', { goldTick: 12 })).toMatchObject({ current: 12, total: 40 });
     expect(stepProgress('k_alchemist', {}), 'no Gold meter in combat').toBeNull();
   });
   it('a Ruby-strength card with no improve step keeps its printed text, whatever it has accrued', () => {

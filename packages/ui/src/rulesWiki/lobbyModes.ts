@@ -213,7 +213,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "A single-player challenge of hand-built **stages** that you play one at a time, from the **Gauntlet** button on the main menu. Pick any hero, then try to beat the stage's board. **Clearing a stage unlocks the next one.** Nothing is rated, so it never touches your Rating. Signed in, the **first clear of each stage earns a chest**, or **200 Aether** once Aether has arrived; replaying a cleared stage doesn't. Signed out, your clears are saved on this device only and earn nothing.",
     aliases: ['stages', 'stage select', 'single player', 'solo', 'campaign', 'challenge'],
     seeAlso: ['game-modes', 'crates'],
-    covers: [{ rule: 'R-PROG-AETHER-01', fp: '8aa78721' }],
+    covers: [{ rule: 'R-PROG-AETHER-01', fp: '2865f837' }],
   },
   {
     id: 'practice-mode',
@@ -366,12 +366,12 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'crates',
     topic: 'lobby',
     q: 'What are chests and how do I get them?',
-    a: "Your first game gives a **Welcome Chest**. After that you get **one chest per Account Level**, and the **first time you clear each Gauntlet stage** while signed in earns one too. **Once Aether arrives**, that changes: you get a free **Legendary Chest** at Level **10, 20, 30** and every 10th level after instead of one every level, a first Gauntlet clear pays **Aether**, and you spend Aether in the **Chest Shop** in the **Collection** (Standard 100, Rare 200, Epic 400, Legendary 600, Ancient 900). Aether is only earned by playing, never bought with real money, and chests you already hold stay yours. Open a chest right after the game or later from the **Collection**. It gives you a cosmetic you **don't already own**. A plain chest rolls **Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%** (if you already own everything of the rarity it rolls, you get the nearest rarity that still has something); a Rare, Epic, Legendary or Ancient chest never gives less than its own rarity.",
+    a: "Your first game gives a **Welcome Chest**. After that you get **one chest per Account Level**, and the **first time you clear each Gauntlet stage** while signed in earns one too. **Once Aether arrives**, that changes: you get a free **Legendary Chest** at Level **10, 20, 30** and every 10th level after instead of one every level, a first Gauntlet clear pays **Aether**, and you spend Aether in the **Chest Shop** in the **Collection** (Standard 100, Rare 200, Epic 400, Legendary 600, Ancient 900). Everyone gets **1,000 Aether** free when it arrives; after that it is only earned by playing, never bought with real money, and chests you already hold stay yours. Open a chest right after the game or later from the **Collection**. It gives you a cosmetic you **don't already own**. A plain chest rolls **Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%** (if you already own everything of the rarity it rolls, you get the nearest rarity that still has something); a Rare, Epic, Legendary or Ancient chest never gives less than its own rarity.",
     aliases: ['chest', 'chests', 'gauntlet chest', 'crate', 'crates', 'gauntlet crate', 'loot box', 'rewards', 'unlock', 'open chest', 'open crate', 'aether', 'chest shop', 'buy chest', 'milestone chest'],
     seeAlso: ['collection', 'account-levels'],
     covers: [
       { rule: 'R-PROG-CRATE-01', fp: '1ac19df4' }, { rule: 'R-PROG-CRATE-02', fp: 'f8a0ebcc' },
-      { rule: 'R-PROG-AETHER-01', fp: '8aa78721' }, { rule: 'R-PROG-AETHER-02', fp: 'c6de6628' }, { rule: 'R-PROG-AETHER-04', fp: '7e734ee3' },
+      { rule: 'R-PROG-AETHER-01', fp: '2865f837' }, { rule: 'R-PROG-AETHER-02', fp: 'c6de6628' }, { rule: 'R-PROG-AETHER-04', fp: '7e734ee3' },
     ],
   },
   {

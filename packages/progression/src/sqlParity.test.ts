@@ -59,6 +59,8 @@ const versusProg = readFileSync(join(root, 'supabase/migrations/2026-10-14-versu
 // The Aether file (2026-10-18): the newest settle_progression, record_gauntlet_clear, open_crate (4 args, roll version 5),
 // progression_crate_json / result_json / profile_json, plus the Aether wallet, the Crate Shop and the tiered pick.
 const aether = readFileSync(join(root, 'supabase/migrations/2026-10-18-aether.sql'), 'utf8');
+/** The launch grant (2026-10-19, R-PROG-AETHER-05): appended to schema.sql right after the Aether file. */
+const launchGrant = readFileSync(join(root, 'supabase/migrations/2026-10-19-aether-launch-grant.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
 /** The body of a function's LATEST definition (Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
@@ -562,13 +564,23 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const body = lf(aether).trim();
     const at = flat.indexOf(body);
     expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
-    // it is the LAST thing in the paste file: nothing follows it
-    expect(flat.slice(at).trimEnd()).toBe(body);
+    // only the launch-grant file (2026-10-19) follows it
+    expect(flat.slice(at, at + body.length)).toBe(body);
+    expect(flat.slice(at + body.length).trim()).toBe(lf(launchGrant).trim());
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
       expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
       // no later migration in schema.sql redefines it
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThanOrEqual(at);
     }
+  });
+
+  it('schema.sql ENDS with the launch-grant file verbatim, so its aether_rollout (which pays the grant) is the one a paste leaves', () => {
+    const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+    const flat = lf(schema);
+    const body = lf(launchGrant).trim();
+    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    expect(flat.lastIndexOf('create or replace function public.aether_rollout(')).toBeGreaterThan(flat.lastIndexOf(lf(aether).trim()));
+    expect(body).toContain("perform public.aether_launch_grant(v_user);");
   });
 });

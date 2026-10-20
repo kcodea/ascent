@@ -103,6 +103,14 @@ export function parseAetherEconomy(v: unknown): AetherEconomy | null {
   });
 }
 
+// ── The launch grant ────────────────────────────────────────────────────────────────────────────────────────
+
+/** Every account's one-time gift when Aether launches (owner 2026-10-19: "lets give everyone 1,000 Aether as part of
+ *  the announcement of this change"). The server pays it (2026-10-19-aether-launch-grant.sql, `c_grant`): the rollout
+ *  pays every existing profile, a trigger pays each profile created after. This copy is what the Collection's
+ *  "Introducing Aether" announcement names. */
+export const AETHER_LAUNCH_GRANT = 1000;
+
 // ── What a settlement pays ──────────────────────────────────────────────────────────────────────────────────
 
 export interface AetherBreakdown {

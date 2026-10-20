@@ -452,3 +452,11 @@
 /* "Buying…": held pressed while the purchase runs (static; no bevel lift, no drop shadow). */
 .colls-shop .colls-shop-buy.pressed { opacity: 1; transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring); }
 @media (prefers-reduced-motion: reduce) { .colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy, .colls-shop-back):is(:hover, :active) { transform: none; } }
+
+/* INTRODUCING AETHER (AetherIntroPopup, owner 2026-10-19): the Ranked confirmation's window and motion as-is
+   (styles.css "THE RANKED CONFIRMATION"); this only lifts it over the Collection page (.lbpage is 470) to the
+   New Rewards popup's layer, and gives the longer copy a little more measure. */
+.rankedconfirm-ov.aetherintro-ov { z-index: 560; }
+.aetherintro .rankedconfirm-text { max-width: 50ch; }
+.aetherintro .aetherintro-gift { color: var(--ui-title); }
+.aetherintro-sign { margin: 0; font-family: var(--font-body), sans-serif; font-weight: 600; font-style: italic; font-size: 15px; color: var(--ui-muted); }

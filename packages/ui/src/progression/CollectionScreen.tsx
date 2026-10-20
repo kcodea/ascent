@@ -28,6 +28,7 @@ import { rectToStage, type StageRect } from '../stage';
 import { SkinCardPreview } from './SkinCardPreview';
 import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
+import { AetherIntroPopup, aetherIntroSeen } from './AetherIntroPopup';
 import { CrateSignInGate } from './CrateSignInGate';
 import { AetherIcon } from './AetherIcon';
 import { TitleBadge } from '../titles/TitleBadge';
@@ -131,6 +132,13 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const userId = useGame((s) => s.account.userId);
   const playerName = useGame((s) => s.playerName);
   const me = mirrorFor(userId, mirror);
+  // INTRODUCING AETHER (owner 2026-10-19, R-PROG-AETHER-05): the first visit once Aether is live opens with the
+  // announcement (the server has paid this account's 1,000 by the time its profile exists, so it waits for `me`).
+  // It goes first; the New Rewards summary (the backdated milestone chests, say) waits until it is closed.
+  const wantsIntro = aetherOn && !!userId && !!me && !aetherIntroSeen(userId);
+  const [introFor, setIntroFor] = useState<string | null>(null);
+  useEffect(() => { if (wantsIntro && userId) setIntroFor(userId); }, [wantsIntro, userId]);
+  const introUp = wantsIntro || introFor !== null;
   // STARTER items are everyone's, signed in or not (since 2026-10-15 just Zen Brian, the one starter emote).
   const ownedList = useMemo(() => withStarterCosmetics(me ? ownedIds(me) : EMPTY), [me]);
   // The emote menu by position, as the game will show it (the server's rows, this device's layer, owned emotes filling in).
@@ -495,7 +503,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
       </div>
 
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
-      <NewRewardsPopup sealedIds={sealedIds} milestoneIds={milestoneIds} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />
+      {introFor && <AetherIntroPopup userId={introFor} onDone={() => setIntroFor(null)} />}
+      {!introUp && <NewRewardsPopup sealedIds={sealedIds} milestoneIds={milestoneIds} onOpenCrates={(all) => { if (all) openAllBay(); else openBay(); }} />}
       <CrateSignInGate open={gate} onClose={closeGate} />
       {hover && <SkinCardPreview key={`${hover.cardId}:${hover.art ?? ''}:${hover.plate === undefined ? '' : hover.plate?.id ?? 'standard'}:${hover.rect.left}:${hover.rect.top}`} cardId={hover.cardId} art={hover.art} anchor={hover.rect} plate={hover.plate} />}
       {theatre && (

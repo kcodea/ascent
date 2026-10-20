@@ -1,6 +1,6 @@
 import { damageMeterOf, foldTribes, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe } from '@game/sim';
+import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe, runTallyFor } from '@game/sim';
 import type { CardView } from './Card';
 import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
@@ -355,7 +355,7 @@ export function instView(
   spellsCast = 0,
   clingEnchant?: { attack: number; health: number },
   fodderConsumed?: { attack: number; health: number },
-  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState; /** Set 4: the run's Whisper improvements (Runebind), by Whisper id. */ whisperImprove?: Record<string, number>; /** Rune of Living Growth's accrual: a Growth in hand prints it, as everywhere else (R-TEXT-SURFACES-01). */ growthBonus?: number },
+  live?: { cardTribes?: Record<string, Tribe[]>; grimToast?: { attack: number; health: number }; unityAura?: { attack: number; health: number }; nextSpellBonus?: { attack: number; health: number }; undeadBuyAtk?: number; soulsmanGold?: number; impAura?: { attack: number; health: number }; cardBuffs?: Record<string, { attack: number; health: number }>; castMult?: number; goldSpent?: number; goldSpentRun?: number; goldPouchValue?: number; playedThisTurn?: string[]; squirlScoutBuff?: number; conductorBuff?: number; lastSpellName?: string; rememberedSpellNames?: readonly string[]; impBank?: { attack: number; health: number }; firstSpellThisTurnName?: string; lastSpellThisTurnName?: string; topTribe?: string | null; frontToBackBonusH?: number; onBoard?: boolean; inHand?: boolean; eotTickOverride?: number; improveReps?: number; rubyCasts?: number; rubyBonus?: { attack: number; health: number }; clueBonus?: number; starCrashBonus?: { attack: number; health: number }; revelerX?: number; spiritDiscount?: number; spiritsPlayed?: number; anySpellsThisTurn?: number; grimoireCharged?: boolean; runeMammoth?: boolean; runeFlags?: RuneTextFlags; tier7Access?: boolean; alesThisTurn?: number; unusedEquipment?: number; /** The run flags the (Both) predicate reads (`runeFacetwright` / `runeUnbrokenVein`) — passed rather than a precomputed boolean so the ONE predicate stays the only place the rule lives. */ chooseBothState?: { runeFacetwright?: boolean; runeUnbrokenVein?: boolean }; /** What the sell value reads (Frank × Fortune's Clearance sale line). */ sellState?: SellTextState; /** Set 4: the run's Whisper improvements (Runebind), by Whisper id. */ whisperImprove?: Record<string, number>; /** Rune of Living Growth's accrual: a Growth in hand prints it, as everywhere else (R-TEXT-SURFACES-01). */ growthBonus?: number; /** Vaultkeeper: the run-wide "Dragons or Dwarves played this game" tallies; replaces the copy's own tally for a run-tally card. */ tribeUnionPlays?: Record<string, number> },
 ): CardView {
   const c = CARD_INDEX[inst.cardId];
   const spell = playsAsSpell(c);
@@ -363,6 +363,9 @@ export function instView(
   // it in `faceOmen`, after the beats play), so the card text + step counter climb in sync with the medallion
   // pulse instead of jumping a turn later. Outside the animation this is the committed value.
   const eotTickShown = live?.eotTickOverride ?? inst.eotTick;
+  // Vaultkeeper: a RUN-WIDE tally (owner 2026-10-20) rides the same slot as the per-copy tribe-played tally, so its
+  // text and step counter read the run's count. A served foe has no run map and reads the count its snapshot stamped.
+  const spiritTallyShown = (live?.tribeUnionPlays ? runTallyFor(inst.cardId, live.tribeUnionPlays) : undefined) ?? inst.spiritTally;
   // The full live rule text (+ golden variant) — shared with the shop / Discover via liveCardText.
   // (BOTH) — the ONE predicate, shared with the printed text below and with the reducer's prompt decision.
   const chooseBoth = chooseBothActive(live?.chooseBothState ?? {}, inst, c);
@@ -376,7 +379,7 @@ export function instView(
     deathrattlesTriggered, clingEnchant, fodderConsumed,
     undeadBuyAtk: live?.undeadBuyAtk ?? 0, soulsmanGold: live?.soulsmanGold ?? 0, nextSpellBonus: live?.nextSpellBonus, cardBuffs: live?.cardBuffs, impAura: live?.impAura,
     goldSpent: live?.goldSpent ?? 0, goldSpentRun: live?.goldSpentRun ?? 0, goldPouchValue: live?.goldPouchValue ?? 0,
-    spellProgress: inst.spellProgress, spiritTally: inst.spiritTally, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
+    spellProgress: inst.spellProgress, spiritTally: spiritTallyShown, ascendProgress: inst.ascendProgress, summonBonus: inst.summonBonus,
     overflowBonus: inst.overflowBonus,
     hpGrantBonus: inst.hpGrantBonus, eotTick: eotTickShown, eotBonus: inst.eotBonus, sellBonus: inst.sellBonus, soldProgress: inst.soldProgress,
     playedThisTurn: live?.playedThisTurn, cardTribes: live?.cardTribes, squirlScoutBuff: live?.squirlScoutBuff, conductorBuff: live?.conductorBuff, onBoard: live?.onBoard, inHand: live?.inHand, alesThisTurn: live?.alesThisTurn, unusedEquipment: live?.unusedEquipment,
@@ -460,7 +463,7 @@ export function instView(
     stepProgress: live?.onBoard
       ? ((): ReturnType<typeof stepProgress> => {
           const sp = stepProgress(inst.cardId, {
-            spellProgress: inst.spellProgress, spiritTally: inst.spiritTally, summonBonus: inst.summonBonus, // spiritTally: Festival Keeper / Aspect (owner 2026-09-11)
+            spellProgress: inst.spellProgress, spiritTally: spiritTallyShown, summonBonus: inst.summonBonus, // spiritTally: Festival Keeper / Aspect (owner 2026-09-11)
             ascendProgress: inst.ascendProgress, eotTick: eotTickShown, goldTick: inst.goldTick, buyTick: inst.buyTick, playTick: inst.playTick, rubyCastTick: inst.rubyCastTick,
             shoutTick: inst.shoutTick, soldProgress: inst.soldProgress, grimoireCharged: live?.grimoireCharged,
             orbitTick: inst.orbitTick, // CELESTIAL Orbit (N) — the shop-phase cadence counter
@@ -500,6 +503,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: run.cardBuffs,
       improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, impAura: run.impBuff, // +1 per Mastery copy (owner 2026-08-27)
       rubyCasts: run.rubyCasts, // Vaultkeeper's spell umbrella — dropped here until the 2026-09-10 parity pass
+      tribeUnionPlays: run.tribeUnionPlays ?? {}, // Vaultkeeper: the run-wide improve tally (owner 2026-10-20); {} = "the player's, none yet", never the copy's own
       goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
       playedThisTurn: run.playedThisTurn, cardTribes: run.cardTribes, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,

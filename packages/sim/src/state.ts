@@ -937,6 +937,12 @@ export interface RunState {
   /** Set 2 — cards PLAYED this run, cumulative. Mountainbond's "after you play 8 cards" is a running total, not
    *  a per-turn one, so it can't ride `playedThisTurn` (which clears every turn). */
   cardsPlayedTotal?: number;
+  /** RUN-WIDE "X or Y played this game" tallies (Vaultkeeper, owner 2026-10-20: "i want this mechanic to be active even
+   *  when the card is not on board or in hand or in shop"). Keyed by a sorted `tribes` union (`dragon+dwarf`), one
+   *  key per union some card's `tribePlayedGainSelfImproving` reads; a minion played from hand that is ANY of the
+   *  union's types adds 1 (a dual-type or All-types body once). Counted from the start of the game whether or not a
+   *  reader is owned, so a late copy arrives improved. Read via `tribeUnionPlaysOf`. Absent = 0. */
+  tribeUnionPlays?: Record<string, number>;
   /** Set 2 — cards bought THIS turn (reset each wave). Threaded into combat for Frenzied Excavator's
    *  Start-of-Combat "play 1 Ruby per 4 cards bought this turn" scaler. Absent = 0. */
   cardsBoughtThisTurn?: number;

@@ -5710,6 +5710,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tier": 6,
     "tribes": [
+      "dwarf",
       "dragon"
     ],
     "tags": [
@@ -5729,7 +5730,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 3,
-            "every": 3,
+            "every": 4,
             "health": 3
           }
         }

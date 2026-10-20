@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (105) — NOT owner questions
+## Doc Bot verification backlog (106) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -124,4 +124,5 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeDeathtouchedApple (Rune of the Deathtouched Apple: "When a minion Rises, give it Rise. (2 uses per combat)")
 - combat mod runeStokedMenagerie (Rune of the Stoked Menagerie: "Start of Combat: if you control all 5 minion types, double the stats of 3 random minions.") — Rune of the Stoked Menagerie: SoC — controlling every active type doubles 3 random minions.
 - combat mod runeMastery (Rune of Mastery: "Whenever one of your effects Improves, it improves an additional time.") — Rune of Mastery (Epic): +1 extra "Improve" step per copy held (read via `CombatContext.improveRepsFor`; the recruit engine mirrors it off `RunState.runeMastery`). Carries the COPY COUNT since the 2026-08-27 duplicate rulings; `true` in older snapshots reads as 1 (= the classic double).
+- combat mod runeConduit (Rune of the Conduit: "Your Rubies all bounce an additional time.") — Rune of the Conduit: "Your Rubies all bounce an additional time." Carries the COPY COUNT (repeat family, owner 2026-08-27 — the recruit half reads `runeStacksOf(state, 'rune_conduit')`); every Ruby CAST in combat on this side hops to one extra random other living friendly minion per copy (owner 2026-10-16: cross-phase).
 - combat mod oldPack — Rune of the Old Pack: the first Beast resummoned each combat returns with its full stats.

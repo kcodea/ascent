@@ -23,7 +23,7 @@ describe('set 2 — the Dragon tribe is wired into the set', () => {
     // The pool is set-scoped; grab set 2's roster directly rather than depending on which set is enabled.
     const set2Dragons = Object.values(CARD_INDEX).filter((c) => c.id.startsWith('d2_'));
     expect(set2Dragons.length).toBeGreaterThan(0);
-    expect(set2Dragons.every((c) => c.tribe === 'dragon')).toBe(true);
+    expect(set2Dragons.every((c) => c.tribe === 'dragon' || c.tribe2 === 'dragon')).toBe(true); // a dual type counts (Vaultkeeper is a Dwarf/Dragon since 2026-10-20)
     // Sanity: every authored Dragon is a real minion, not a spell. Tokens are allowed since 2026-07-27 —
     // Commander Warpath hands out a Brood Whelp, which is a Dragon you play but can't buy.
     expect(set2Dragons.every((c) => !c.spell)).toBe(true);

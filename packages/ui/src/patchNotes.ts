@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-20',
+    changes: [
+      {
+        category: 'Balance',
+        text: 'Vaultkeeper is now a Dwarf and a Dragon, and it improves every 4 Dragons or Dwarves you play this game.',
+        details: [
+          'It still gains +3/+3 whenever you play a Dragon, and each improvement adds another +3/+3 to that gain.',
+          'The count covers the whole game, even before you own a Vaultkeeper, so one you find late arrives already improved.',
+          'A minion that is both a Dragon and a Dwarf counts once, and playing a Vaultkeeper counts too.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-19',
     changes: [
       { category: 'Systems', text: 'The round backing circle behind the mechanic icon on cards is gone again, along with other small visual touches that had quietly reverted.' },

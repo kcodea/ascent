@@ -223,16 +223,23 @@ export const SET2_DRAGONS: CardDef[] = [
     // toward the improve, `gainTribe` is what pays. Each 3 counted plays add +3/+3 to the gain (owner: "+3/+3 per
     // step"), per copy, permanently; the N/3 step counter is the tribe-played tally. Golden doubles the gain. The
     // 10-10 pulse factory (`onGainAttackBuffAdjacentTribe`) has no card now and stays dormant, pinned by a probe.
+    // OWNER CHANGE 2026-10-20 ("lets change vaultkeeper to a Dwarf / Dragon tribe type, and let's change its mechanic
+    // to 4 dragons or dwarves played improves it. i want this mechanic to be active even when the card is not on
+    // board or in hand or in shop"): now a Dwarf/Dragon, and the improve is a RUN-WIDE tally (`tribeUnionPlays`)
+    // counted from the start of the game, every 4 Dragons or Dwarves played (a dual-type play once, a Vaultkeeper's
+    // own play included). The +3/+3 still pays on Dragons only. Worded with the existing "this game" tail (Tome's),
+    // no keyword (owner pick 2026-10-20). R-VAULT-02.
     id: 'd2_herzog',
     name: 'Vaultkeeper',
-    tribe: 'dragon',
+    tribe: 'dwarf',
+    tribe2: 'dragon',
     tier: 6,
     attack: 6,
     health: 10,
     keywords: [],
-    effects: [{ on: 'onTribePlayed', do: 'tribePlayedGainSelfImproving', params: { tribes: ['dragon', 'dwarf'], gainTribe: 'dragon', attack: 3, health: 3, every: 3 } }],
-    text: 'When you play a **Dragon**, gain **+3/+3**. Play **3 Dragons or Dwarves** to improve this.',
-    goldenText: 'When you play a **Dragon**, gain **+6/+6**. Play **3 Dragons or Dwarves** to improve this.',
+    effects: [{ on: 'onTribePlayed', do: 'tribePlayedGainSelfImproving', params: { tribes: ['dragon', 'dwarf'], gainTribe: 'dragon', attack: 3, health: 3, every: 4 } }],
+    text: 'When you play a **Dragon**, gain **+3/+3**. Improves every **4 Dragons or Dwarves** played this game.',
+    goldenText: 'When you play a **Dragon**, gain **+6/+6**. Improves every **4 Dragons or Dwarves** played this game.',
   },
   {
     // Owner add 2026-08-14, respec 2026-08-17. The Dragon line's PERMANENCE card: a warded T4 whose Start of

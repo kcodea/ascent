@@ -835,16 +835,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-dual-tribe",
-    "title": "Dual & universal tribes · 23 carriers",
+    "title": "Dual & universal tribes · 24 carriers",
     "statement": "A dual-tribe minion counts as both tribes, everywhere. A universal minion counts as every tribe. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "isTribe/tribe predicates fold tribe2 and universalTribe; the tribePredicates lane sweeps raw comparisons.",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Gravus · Goldilox · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · Kurse · Lab Experiment · … and 11 more",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Vaultkeeper · Gravus · Goldilox · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · Kurse · … and 12 more",
     "example": "Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
     "contentIds": [
       "bane",
       "cryptdrake",
       "cryptwolf",
+      "d2_herzog",
       "d3_gravus",
       "dw3_goldilox",
       "dw3_hangover",
@@ -2613,7 +2614,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 5 of these fire on one trigger: you play a minion of a named tribe. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "5 effect factories across 5 cards dispatch on 'onTribePlayed' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Vaultkeeper: \"When you play a Dragon, gain +3/+3. Play 3 Dragons or Dwarves to improve this.\" · Members: Vaultkeeper · Aspect · Tally · Old Timber · Dozer",
+    "cardText": "Exemplar — Vaultkeeper: \"When you play a Dragon, gain +3/+3. Improves every 4 Dragons or Dwarves played this game.\" · Members: Vaultkeeper · Aspect · Tally · Old Timber · Dozer",
     "example": "Vaultkeeper fires when you play a minion of a named tribe, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d2_herzog",

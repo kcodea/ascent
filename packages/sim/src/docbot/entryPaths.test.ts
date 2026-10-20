@@ -100,7 +100,9 @@ describe('Doc Bot — entry paths: the non-shop worklist', () => {
     // RE-PIN 2026-10-10 (Kobold balance batch): Prospector now carries `getRandomRubies` and is the first carrier the
     // stager finds; its single random Ruby draws Warding on the fixture seed, so Golden joined the unstaged queue.
     // Golden Ruby's cast stays covered directly in rubyTypes.test.ts.
-    expect(Object.keys(scan.unstaged).sort(), `unstaged: ${JSON.stringify(scan.unstaged)}`).toEqual(['dark-ruby', 'golden-ruby', 'ripple-ruby', 'rubyblast', 'splintered-ruby']);
+    // RE-PIN 2026-10-20 (Kobold balance): Prospector mints plain Rubies again, so the stager's first random-Ruby
+    // carrier changed and its draw now delivers Golden; Golden left the unstaged queue.
+    expect(Object.keys(scan.unstaged).sort(), `unstaged: ${JSON.stringify(scan.unstaged)}`).toEqual(['dark-ruby', 'ripple-ruby', 'rubyblast', 'splintered-ruby']);
   });
 
   it('every cast-shaped, named worklist item lands in exactly one bucket (nothing is silently skipped)', () => {

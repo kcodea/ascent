@@ -1208,23 +1208,25 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-BRISBANE-01',
-    title: 'Alchemist Brisbane: Shout, Echo and Rally all pay one improving Ruby grant, improved by Gold spent',
+    title: 'Alchemist Brisbane: Shout and Rally pay one improving Ruby grant, improved by Gold spent',
     statement:
-      'Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this." All three '
-      + 'triggers pay the SAME grant, in the Shop and in combat. Every 30 Gold spent while Brisbane is on your board '
-      + 'improves that copy by +2/+2 (+2/+2, then +4/+4, then +6/+6), permanently; the Gold meter carries across turns. '
-      + 'Gilded doubles the grant. Brisbane has no End of Turn effect.',
+      'Alchemist Brisbane: "Shout and Rally: Your Rubies gain +1/+1. Spend 40 Gold to improve this." Both triggers pay '
+      + 'the SAME grant, in the Shop and in combat. Every 40 Gold spent while Brisbane is on your board improves that '
+      + 'copy by +1/+1 (+1/+1, then +2/+2, then +3/+3), permanently; the Gold meter carries across turns. Gilded doubles '
+      + 'the grant. Brisbane has no Echo and no End of Turn effect.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner rework 2026-10-13 (Alchemist Brisbane)', quote: 'Shout, Echo, and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this.' },
       { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (how much the grant grows per 30 Gold)', quote: '+2/+2 per step' },
       { kind: 'owner-chat', ref: 'Owner answer 2026-10-13 (the End of Turn Ruby cast)', quote: 'Remove it' },
-      { kind: 'code', ref: 'packages/core/src/effects/arena.ts improvingGrant + deathrattleRubyStatGain + rallyRubyStatGain; packages/core/src/effects/factories.ts rubyStatGain; packages/sim/src/recruit.ts rubyStatGain + goldSpentImproveSelf; packages/content/src/cards/set2/kobolds.ts k_alchemist; packages/ui/src/cardText.ts improvingRubyGrantText' },
+      { kind: 'owner-chat', ref: 'Owner balance 2026-10-20 (Alchemist Brisbane)', quote: 'change brisbane to just shout and rally, change spend to 40.' },
+      { kind: 'owner-chat', ref: 'Owner balance 2026-10-20 (Brisbane grant size)', quote: 'change brisbane to 1/1 gem buffs, and improving it means improve by 1/1' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts improvingGrant + rallyRubyStatGain; packages/core/src/effects/factories.ts rubyStatGain; packages/sim/src/recruit.ts rubyStatGain + goldSpentImproveSelf; packages/content/src/cards/set2/kobolds.ts k_alchemist; packages/ui/src/cardText.ts improvingRubyGrantText' },
     ],
     contentIds: ['k_alchemist'],
-    currentBehaviour: 'Conforms as of 2026-10-13. The improvements ride the copy (summonBonus), so they go into combat with it and a re-fired Shout, the Echo and every Rally all read them. Rune of Mastery doubles each improvement earned, like every other improve. A Brisbane in hand earns nothing: the Gold meter runs on board bodies only.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultBrisbane1013.test.ts'], lastVerifiedAt: '2026-10-13' },
+    currentBehaviour: 'Conforms as of 2026-10-20 (Echo leg removed, 30 -> 40 Gold, +2/+2 -> +1/+1 base and step; Shout, Echo and Rally at +2/+2 per 30 from 2026-10-13). The improvements ride the copy (summonBonus), so they go into combat with it and a re-fired Shout and every Rally read them. Rune of Mastery doubles each improvement earned, like every other improve. A Brisbane in hand earns nothing: the Gold meter runs on board bodies only.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultBrisbane1013.test.ts'], lastVerifiedAt: '2026-10-20' },
   },
   {
     id: 'R-INDY-01',

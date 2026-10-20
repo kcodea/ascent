@@ -52,24 +52,25 @@ describe('Rune of the Vaultkeeper: "Your Vaultkeepers also give their stats to a
   });
 });
 
-describe('Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Spend 30 Gold to improve this."', () => {
+// Owner balance 2026-10-20: "change brisbane to just shout and rally, change spend to 40." (Echo removed, 30 -> 40 Gold)
+describe('Alchemist Brisbane: "Shout and Rally: Your Rubies gain +1/+1. Spend 40 Gold to improve this."', () => {
   const B = CARD_INDEX['k_alchemist']!;
   const ruby = (s: RunState) => s.rubyBonus ?? { attack: 0, health: 0 };
   const bm = (over: Partial<BoardMinion> = {}): BoardMinion => ({ cardId: 'k_alchemist', attack: 1, health: 4000, sourceUid: 'AB', keywords: ['RL'], ...over } as BoardMinion);
   const wall: BoardMinion = { cardId: 'sandbag', attack: 0, health: 4000 } as BoardMinion;
 
-  it.each([[false, 2], [true, 4]] as const)('Shout (golden=%s): Rubies gain +%i/+%i', (golden, n) => {
+  it.each([[false, 1], [true, 2]] as const)('Shout (golden=%s): Rubies gain +%i/+%i', (golden, n) => {
     const s = act(run({ hand: [body('ab', 'k_alchemist', { golden })] }), { type: 'play', uid: 'ab' });
     expect(ruby(s)).toEqual({ attack: n, health: n });
   });
 
-  it('30 Gold spent on the board earns one improvement; the meter carries across spends', () => {
+  it('40 Gold spent on the board earns one improvement; the meter carries across spends', () => {
     const s = run({ board: [body('ab', 'k_alchemist')] });
-    applyGoldSpent(s, 20);
-    expect(at(s, 'ab').summonBonus ?? 0, '20 Gold: not yet').toBe(0);
+    applyGoldSpent(s, 30);
+    expect(at(s, 'ab').summonBonus ?? 0, '30 Gold: not yet').toBe(0);
     applyGoldSpent(s, 10);
-    expect(at(s, 'ab').summonBonus, '30 Gold: one improvement').toBe(1);
-    applyGoldSpent(s, 65);
+    expect(at(s, 'ab').summonBonus, '40 Gold: one improvement').toBe(1);
+    applyGoldSpent(s, 85);
     expect(at(s, 'ab').summonBonus, 'a big spend can cross the meter twice (5 left over)').toBe(3);
     expect(at(s, 'ab').goldTick).toBe(5);
   });
@@ -80,16 +81,17 @@ describe('Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Sp
     expect(s.hand[0]!.summonBonus ?? 0).toBe(0);
   });
 
-  it.each([[false, 1, 4], [false, 2, 6], [true, 1, 8]] as const)('Echo in the Shop (golden=%s, %i improvement(s)): Rubies gain +%i/+%i', (golden, steps, n) => {
-    const s = run({ board: [body('ab', 'k_alchemist', { golden, summonBonus: steps })] });
+  it('the Echo is gone: a Shop death pays nothing', () => {
+    const s = run({ board: [body('ab', 'k_alchemist', { summonBonus: 2 })] });
     fireRecruitDeathrattlesForTest(s, at(s, 'ab'));
-    expect(ruby(s)).toEqual({ attack: n, health: n });
+    expect(ruby(s)).toEqual({ attack: 0, health: 0 });
+    expect(B.effects.some((e) => e.on === 'onDeath')).toBe(false);
   });
 
   it('a re-fired Shout pays the improved value (Shrieker, End of Turn: trigger Shouts)', () => {
     const s = run({ board: [body('sh', 'd2_shrieker'), body('ab', 'k_alchemist', { summonBonus: 2 })] });
     applyEndOfTurn(s);
-    expect(ruby(s), 'base 2 + 2 improvements of 2').toEqual({ attack: 6, health: 6 });
+    expect(ruby(s), 'base 1 + 2 improvements of 1').toEqual({ attack: 3, health: 3 });
   });
 
   it('Rally in combat: every attack pays the grant, improvements included, and it carries back', () => {
@@ -97,22 +99,19 @@ describe('Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Sp
     // The same seeded fight three times: the Rally fires the same number of times in each, so the totals are the
     // per-Rally grant times one shared count.
     const plain = fight({}).playerRubyBonusGain!;
-    const rallies = plain.attack / 2;
-    expect(Number.isInteger(rallies) && rallies > 0, 'whole +2/+2 grants, at least one').toBe(true);
-    expect(plain).toEqual({ attack: 2 * rallies, health: 2 * rallies });
-    expect(fight({ summonBonus: 1 }).playerRubyBonusGain, '+4/+4 per Rally with one improvement').toEqual({ attack: 4 * rallies, health: 4 * rallies });
-    expect(fight({ summonBonus: 3 }).playerRubyBonusGain, '+8/+8 per Rally with three').toEqual({ attack: 8 * rallies, health: 8 * rallies });
-    expect(fight({ summonBonus: 1, golden: true }).playerRubyBonusGain, 'Gilded: +8/+8 per Rally with one').toEqual({ attack: 8 * rallies, health: 8 * rallies });
+    const rallies = plain.attack;
+    expect(Number.isInteger(rallies) && rallies > 0, 'whole +1/+1 grants, at least one').toBe(true);
+    expect(plain).toEqual({ attack: rallies, health: rallies });
+    expect(fight({ summonBonus: 1 }).playerRubyBonusGain, '+2/+2 per Rally with one improvement').toEqual({ attack: 2 * rallies, health: 2 * rallies });
+    expect(fight({ summonBonus: 3 }).playerRubyBonusGain, '+4/+4 per Rally with three').toEqual({ attack: 4 * rallies, health: 4 * rallies });
+    expect(fight({ summonBonus: 1, golden: true }).playerRubyBonusGain, 'Gilded: +4/+4 per Rally with one').toEqual({ attack: 4 * rallies, health: 4 * rallies });
   });
 
-  it('Echo in combat pays the improved grant too', () => {
+  it('the Echo is gone in combat too: a Brisbane killed before it attacks pays nothing', () => {
     // A 1-Health Brisbane that never gets to attack: the foe swings first and kills it.
     const r = simulate([bm({ attack: 0, health: 1, summonBonus: 1, keywords: [] })], [{ cardId: 'sandbag', attack: 50, health: 4000 } as BoardMinion],
       makeRng(3), CARD_INDEX, combatSide({ tier: 7, tribes: ['kobold'] }), combatSide({ tier: 1 }));
-    const g = r.playerRubyBonusGain ?? { attack: 0, health: 0 };
-    expect(g.attack % 4, 'whole +4/+4 grants only').toBe(0);
-    expect(g.attack, 'the Echo paid').toBeGreaterThanOrEqual(4);
-    expect(g.health).toBe(g.attack);
+    expect(r.playerRubyBonusGain ?? { attack: 0, health: 0 }).toEqual({ attack: 0, health: 0 });
   });
 
   it('the End of Turn Ruby cast is gone', () => {
@@ -126,8 +125,8 @@ describe('Alchemist Brisbane: "Shout, Echo and Rally: Your Rubies gain +2/+2. Sp
     expect(B.keywords).toContain('RL');
     expect([B.tier, B.attack, B.health]).toEqual([7, 9, 6]);
     expect([B.text, B.goldenText]).toEqual([
-      '**Shout, Echo and Rally:** Your Rubies gain **+2/+2**. Spend **30 Gold** to improve this.',
-      '**Shout, Echo and Rally:** Your Rubies gain **+4/+4**. Spend **30 Gold** to improve this.',
+      '**Shout and Rally:** Your Rubies gain **+1/+1**. Spend **40 Gold** to improve this.',
+      '**Shout and Rally:** Your Rubies gain **+2/+2**. Spend **40 Gold** to improve this.',
     ]);
   });
 

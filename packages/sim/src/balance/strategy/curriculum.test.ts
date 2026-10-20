@@ -99,8 +99,10 @@ describe.each(CURRICULA)('curriculum — $pkg', ({ pkg, ready, engine, forge }) 
     // balance-bot strategist plays the Growth, then sells Spellsword (the engine) to reroll on 0 Gold. With Growth
     // at +1/+1 it did not. The balance bot is paused by owner ruling (2026-09-15), so the pilot is not retuned here;
     // the guard stays live for every other package and the spellEngine case is pinned to what it does today.
+    // Same for 'rally' since the Kobold balance of 2026-10-20 (Blazer 2/7 -> 2/5): the paused pilot now sells
+    // Packstrider for a reroll after the payoff. Pinned to today's behaviour, not retuned (bot paused).
     const soldEngine = actions.some((a) => a.type === 'sell');
-    if (pkg === 'spellEngine') expect(soldEngine, 'spellEngine: re-pin when the pilot is retuned').toBe(true);
+    if (pkg === 'spellEngine' || pkg === 'rally') expect(soldEngine, `${pkg}: re-pin when the pilot is retuned`).toBe(true);
     else expect(soldEngine, 'the engine was sold').toBe(false);
   });
 

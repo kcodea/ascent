@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Kobold balance: Prospector and Cave Cutter give plain Rubies again, Blazer has less Health, and Alchemist Brisbane loses its Echo.',
+        details: [
+          'Prospector: Shout: Get a Ruby (was a random Ruby).',
+          'Cave Cutter: its second choice now gets 4 Rubies (was 4 random Rubies).',
+          'Blazer: 2/7 to 2/5.',
+          'Alchemist Brisbane: Shout and Rally: Your Rubies gain +1/+1 (was +2/+2, and no more Echo). It now improves by +1/+1 every 40 Gold spent (was +2/+2 every 30).',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Vaultkeeper is now a Dwarf and a Dragon, and it improves every 4 Dragons or Dwarves you play this game.',
         details: [
           'It still gains +3/+3 whenever you play a Dragon, and each improvement adds another +3/+3 to that gain.',

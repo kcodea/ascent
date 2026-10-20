@@ -17145,11 +17145,6 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "phaseBasis": "derived:phaseRegistry"
       },
       {
-        "event": "onDeath",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry"
-      },
-      {
         "event": "onAttack",
         "phase": "both",
         "phaseBasis": "derived:phaseRegistry"
@@ -17166,22 +17161,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2,
-            "improveAttack": 2,
-            "improveHealth": 2
-          }
-        }
-      },
-      {
-        "kind": "deathrattleRubyStatGain",
-        "amount": {
-          "kind": "const",
-          "plain": {
-            "attack": 2,
-            "health": 2,
-            "improveAttack": 2,
-            "improveHealth": 2
+            "attack": 1,
+            "health": 1,
+            "improveAttack": 1,
+            "improveHealth": 1
           }
         }
       },
@@ -17190,10 +17173,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
-            "health": 2,
-            "improveAttack": 2,
-            "improveHealth": 2
+            "attack": 1,
+            "health": 1,
+            "improveAttack": 1,
+            "improveHealth": 1
           }
         }
       },
@@ -17202,7 +17185,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "every": 30
+            "every": 40
           }
         }
       }
@@ -17456,7 +17439,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "getRandomRubies",
+        "kind": "getRubies",
         "amount": {
           "kind": "const",
           "plain": {
@@ -18297,14 +18280,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "note": "Choose One branch 1: \"Give your Rubies +2/+1.\""
       },
       {
-        "kind": "getRandomRubies",
+        "kind": "battlecryGetRubies",
         "amount": {
           "kind": "const",
           "plain": {
             "count": 4
           }
         },
-        "note": "Choose One branch 2: \"Get 4 random Rubies.\""
+        "note": "Choose One branch 2: \"Get 4 Rubies.\""
       }
     ],
     "gildedDelta": {

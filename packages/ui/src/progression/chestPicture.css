@@ -1,0 +1,10 @@
+/* THE PAINTED CHEST PICTURE (`ChestPicture.tsx`, 2026-10-20): a tier's body + lid composed as the theatre composes them.
+   The component writes the composition inline as percentages of the body's width (padding-top = the lid's overhang,
+   the lid's left / width, the spike box's left / margin-top / width / aspect-ratio); this file is only the frame those
+   numbers land in. Width comes from the container. Static paint: no animation, no layout reads. */
+.chestpic { position: relative; display: block; box-sizing: border-box; width: 100%; pointer-events: none; }
+.chestpic img { display: block; max-width: none; height: auto; user-select: none; }
+.chestpic-body { width: 100%; }
+.chestpic-lid { position: absolute; top: 0; }
+.chestpic-spike { position: absolute; top: 0; overflow: hidden; }
+.chestpic-spike img { position: absolute; }

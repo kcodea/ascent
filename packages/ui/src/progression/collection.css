@@ -11,7 +11,7 @@
    - No cursor rules: every control is a <button>, which the global rule gives the gauntlet.
    The rarity colours are the shared `.r-common` .. `.r-ancient` tokens (`--rc`, `--rc-a`) in styles.css. */
 
-.colls-page { --colls-gold: #e8c877; --colls-ink: #fff6e4; --colls-dim: rgba(255, 246, 228, 0.62); --colls-line: rgba(196, 160, 92, 0.32);
+.colls-page, .cshop { --colls-gold: #e8c877; --colls-ink: #fff6e4; --colls-dim: rgba(255, 246, 228, 0.62); --colls-line: rgba(196, 160, 92, 0.32);
   --colls-panel: linear-gradient(180deg, rgba(13, 22, 40, 0.82), rgba(8, 14, 28, 0.9)); font-family: var(--font-ui); }
 .colls-page button { font-family: var(--font-ui); }
 
@@ -395,61 +395,6 @@
 .r-legendary .colls-gem, .colls-gem.r-legendary { transform: none; border-radius: 0; width: 15px; height: 15px; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); }
 .r-ancient .colls-gem, .colls-gem.r-ancient { transform: none; border-radius: 0; width: 13px; height: 15px; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
 .colls-gem-lg.colls-gem { width: 22px; height: 22px; }
-
-/* THE CRATE SHOP (Aether, 2026-10-18, `CrateShop.tsx`): the two-step picker in a `colls-panel`. Every control is the
-   shared GEM PLATE (the End Combat pill / `.rc-btn` grammar): sheen + plate on a gold edge, the bevel and inner ring,
-   cream sentence-case body text; hover = the hover plate + edge. A pressed tier or chip is the LIT plate (the
-   `.rc-btn-yes` gold ring), so the choice reads at a glance. Scoped under `.colls-shop` so it out-specifies
-   `.colls-page button`. Static paint only: the one transition is a short transform on hover / press. No cursor rules
-   (every control is a <button>, which the global rule gives the gauntlet). */
-.colls-shop { flex: none; gap: 12px; }
-.colls-shop-headrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.colls-shop-head { font-weight: 900; font-size: 17px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--colls-ink); }
-.colls-shop-step { display: flex; flex-direction: column; gap: 8px; }
-.colls-shop-lbl { font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 14px; color: var(--colls-dim); }
-.colls-shop-opt { font-weight: 600; opacity: 0.8; }
-.colls-shop-tiers { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-.colls-shop-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy) {
-  border: 2px solid transparent; border-radius: 7px;
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
-  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
-  font-family: var(--font-body), sans-serif; font-weight: 700; letter-spacing: normal; text-transform: none;
-  transition: transform 0.1s ease;
-}
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):hover:not(:disabled) {
-  /* #fff IS the Gem plate's hover ink: `.rc-btn`, `.hsback` and `.cv2-btn` / `.crate-btn` all hover to it (styles.css); the
-     theme has no hover-text token to use instead. */
-  color: #fff; transform: translateY(-1px);
-  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
-}
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
-/* Pressed (the picked tier, a ticked chip): the lit plate with the gold ring, gold letters. */
-.colls-shop :is(.colls-shop-tier, .colls-shop-chip).on, .colls-shop :is(.colls-shop-tier, .colls-shop-chip).on:hover:not(:disabled) {
-  color: var(--ui-title);
-  background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--ui-title) 45%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--ui-title) 30%, transparent), 0 0 14px -2px color-mix(in srgb, var(--ui-title) 55%, transparent);
-}
-.colls-shop .colls-shop-tier { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 58px; padding: 6px 4px; font-size: 15px; }
-.colls-shop-tier-price { font-size: 13px; color: var(--ui-muted); font-variant-numeric: tabular-nums; }
-.colls-shop-tier.on .colls-shop-tier-price { color: inherit; }
-.colls-shop .colls-shop-chip { min-height: 44px; padding: 6px 14px; border-radius: 999px; font-size: 14px; }
-/* Sold out: the chip stays in its place (the row never reflows), dimmed and inert. */
-.colls-shop .colls-shop-chip:disabled { opacity: 0.4; }
-/* Back to the crate bay (milestone mode): a small plate in the head row, held (dimmed) while a purchase runs. */
-.colls-shop-quote { display: grid; gap: 4px; }
-.colls-shop-name { font-family: var(--font-body), sans-serif; font-weight: 800; font-size: 17px; color: var(--colls-ink); }
-.colls-shop-odds, .colls-shop-left { font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 13px; color: var(--colls-dim); font-variant-numeric: tabular-nums; }
-.colls-shop-err { margin: 0; font-family: var(--font-body), sans-serif; font-weight: 700; font-size: 14px; color: #ffb45a; }
-.colls-shop .colls-shop-buy { width: 100%; min-height: 56px; padding: 12px 30px; font-size: 17px; font-variant-numeric: tabular-nums; }
-/* Short balance / sold out: the reason stays readable, the plate goes quiet. */
-.colls-shop .colls-shop-buy:disabled { opacity: 0.6; }
-/* "Buying…": held pressed while the purchase runs (static; no bevel lift, no drop shadow). */
-.colls-shop .colls-shop-buy.pressed { opacity: 1; transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring); }
-@media (prefers-reduced-motion: reduce) { .colls-shop :is(.colls-shop-tier, .colls-shop-chip, .colls-shop-buy):is(:hover, :active) { transform: none; } }
 
 /* INTRODUCING AETHER (AetherIntroPopup, owner 2026-10-19): the Ranked confirmation's window and motion as-is
    (styles.css "THE RANKED CONFIRMATION"); this only lifts it over the Collection page (.lbpage is 470) to the

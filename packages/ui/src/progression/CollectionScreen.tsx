@@ -15,7 +15,6 @@ import { warmChestArt } from './crateFx/chestArt';
 import {
   aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
-import { CrateShop } from './CrateShop';
 import {
   COMING_BLURB, acquisitionText, albumOf, categoryLive, collectibleItems, collectionCategories, countOf, filterAlbum, hasSeenBaseline,
   isEquipped, isNew, loadSeen, masteryText, missingHint, ownedIds, rarityCounts, skinTargetName, type RarityFilter, type ShowFilter,
@@ -443,7 +442,6 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
             cratesOn={cratesOn} loading={crateList === null} sealed={sealed} nextLevel={nextCrateLevel} guest={anonymous} oddsLine={oddsLine} busy={shopBusy}
             onOpen={openBay} onOpenAll={openAllBay}
           />
-          {aetherOn && <CrateShop guest={anonymous} onGuest={openGate} onOpen={playBought} onBusy={setShopBusy} />}
           {live && selected && (
             <DetailPanel
               item={selected} owned={owned.has(selected.id)} equipped={worn(selected)} busy={busy} error={error} playerName={name}

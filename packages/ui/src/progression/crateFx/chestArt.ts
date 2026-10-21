@@ -27,6 +27,10 @@ export type ChestImageLoader = (url: string) => Promise<HTMLImageElement>;
 /** A tier's art and anchors (Standard is the owner's original chest). */
 export const chestArtFor = (tier: ChestTier): ChestArt => (tier === 'standard' ? CHEST_ART : CHEST_TIER_ART[tier]);
 
+/** A chest layer's URL: public-folder art carries BASE_URL (itch serves from a CDN sub-path). The theatre's loader and
+ *  the screens' `<img>`s (`ChestPicture`) both build it here, so they always ask for the same file. */
+export const chestArtUrl = (rel: string): string => `${import.meta.env.BASE_URL}${rel}`;
+
 /**
  * Load one picture and resolve only once it is decoded, so drawing it later never decodes on the main thread. A browser
  * without `decode()` falls back to `onload`. A decode that rejects on a picture that did load (some browsers reject a
@@ -53,7 +57,7 @@ const cache = new Map<ChestTier, Promise<ChestArtImages | null>>();
 
 async function fetchChestArt(tier: ChestTier, load: ChestImageLoader): Promise<ChestArtImages | null> {
   const art = chestArtFor(tier);
-  const imgs = await loadChestImages(import.meta.env.BASE_URL, load, art);
+  const imgs = await loadChestImages(chestArtUrl(''), load, art);
   if (!imgs) return null;
   let mask: HTMLCanvasElement | null = null;
   try { mask = cutKeyholeMask(imgs.body, art.bodySrcW, art.keyhole); } catch { mask = null; }

@@ -746,7 +746,9 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     clean();
   });
 
-  it('the shop mounts when Aether is on: a purchase plays in the theatre, and the wallet takes the new balance', async () => {
+  // PARKED between Task 3 and Task 5 of the Chest Shop screen (2026-10-20): the sidebar shop is gone and the Collection's
+  // Shop button + shop mode land in Task 5, which re-points these at the full-screen shop and un-skips them.
+  it.skip('the shop mounts when Aether is on: a purchase plays in the theatre, and the wallet takes the new balance', async () => {
     open({ aether: 1200 }, { aether: true });
     expect($('.colls-shop[aria-label="Chest Shop"]')).not.toBeNull();
     expect($('.colls-bay')).not.toBeNull(); // beside the bay, not instead of it
@@ -857,7 +859,9 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     expect($('.crth')).not.toBeNull();
   });
 
-  it("a purchase in flight holds the bay's Open and Open all (a second theatre would replace the reveal)", async () => {
+  // PARKED between Task 3 and Task 5 of the Chest Shop screen (2026-10-20): the sidebar shop is gone and the Collection's
+  // Shop button + shop mode land in Task 5, which re-points these at the full-screen shop and un-skips them.
+  it.skip("a purchase in flight holds the bay's Open and Open all (a second theatre would replace the reveal)", async () => {
     open({ aether: 1200 }, { aether: true });
     buyCrateRemote.mockImplementation(() => new Promise(() => {}));
     act(() => shopBuy().click());
@@ -869,7 +873,9 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     expect(openCrateRemote).not.toHaveBeenCalled();
   });
 
-  it("a guest's Buy opens the sign-in gate and never reaches the server", async () => {
+  // PARKED between Task 3 and Task 5 of the Chest Shop screen (2026-10-20): the sidebar shop is gone and the Collection's
+  // Shop button + shop mode land in Task 5, which re-points these at the full-screen shop and un-skips them.
+  it.skip("a guest's Buy opens the sign-in gate and never reaches the server", async () => {
     useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
     open({ aether: 0 }, { aether: true });
     expect(text('[aria-label="Aether balance"]')).toBe('0 Aether'); // a guest earns and sees Aether

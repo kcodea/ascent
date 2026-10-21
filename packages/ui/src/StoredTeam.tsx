@@ -4,6 +4,7 @@ import type { RunCosmeticSnapshot } from '@game/progression';
 import { Card, type CardView } from './Card';
 import { storedCardView } from './storedBoardView';
 import { MinionSkins } from './skins/skins';
+import { formatStat, statFit } from './formatStat';
 
 const BOARD_SLOTS = 7;
 
@@ -26,9 +27,10 @@ export function StoredTeam({ minions, skins, label = 'Final team', compact, view
 }) {
   const built = useMemo(() => minions.slice(0, BOARD_SLOTS).map(storedCardView), [minions]);
   const views = given ? given.slice(0, BOARD_SLOTS) : built;
+  const fit = useMemo(() => boardStatFit(views), [views]);
   return (
     <MinionSkins snapshot={skins}>
-      <div className="cv2-team" aria-label={label}>
+      <div className="cv2-team" aria-label={label} data-fit={fit}>
         {Array.from({ length: BOARD_SLOTS }, (_, i) => {
           const v = views[i];
           return v
@@ -38,4 +40,21 @@ export function StoredTeam({ minions, skins, label = 'Final team', compact, view
       </div>
     </MinionSkins>
   );
+}
+
+/**
+ * ONE number size per board (owner 2026-10-21: "make those uniform size. the discrepancy looks sloppy"). A badge's
+ * own shrink-to-fit bucket (`statFit`) steps a 4+ glyph number down, so a board holding 1160 next to 14 printed two
+ * number sizes side by side. A stored board is static, so it takes the bucket of its LONGEST printed number and every
+ * badge on it uses that one size (`.cv2-team[data-fit]` in styles.css). Undefined = every number fits at full size.
+ */
+export function boardStatFit(views: readonly Pick<CardView, 'attack' | 'health'>[]): ReturnType<typeof statFit> {
+  let longest = '';
+  for (const v of views) {
+    for (const n of [v.attack, v.health]) {
+      const t = formatStat(n);
+      if (t.length > longest.length) longest = t;
+    }
+  }
+  return statFit(longest);
 }

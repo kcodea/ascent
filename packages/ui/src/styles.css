@@ -2372,6 +2372,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .badge > .value[data-fit='5'] { --sv-fit: 0.7; }
 .badge > .value[data-fit='6'] { --sv-fit: 0.66; }
 .badge > .value[data-fit='7'] { --sv-fit: 0.58; }
+/* A STORED board (StoredTeam) prints ONE number size on every badge: the bucket of its longest number, stamped on the
+   strip as `data-fit` (`boardStatFit`). Higher specificity than the per-value rules above, so a short number on a
+   board that holds a long one takes the same step down instead of printing larger beside it (owner 2026-10-21). */
+.cv2-team[data-fit='4'] .badge > .value { --sv-fit: 0.8; }
+.cv2-team[data-fit='5'] .badge > .value { --sv-fit: 0.7; }
+.cv2-team[data-fit='6'] .badge > .value { --sv-fit: 0.66; }
+.cv2-team[data-fit='7'] .badge > .value { --sv-fit: 0.58; }
 /* stats above base read green, below base read red */
 .atk.up > .plate, .hp.up > .plate { background: #1aa86f; }
 .atk.down > .plate, .hp.down > .plate { background: #d23b2b; }
@@ -8308,6 +8315,20 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-tile { position: relative; flex: none; width: var(--tw); min-height: calc(var(--tw) * 0.85 + 22px); display: flex; justify-content: center; align-items: flex-start; }
 .cv2-tile.empty::before { content: ''; width: calc(var(--tw) * 0.85); height: calc(var(--tw) * 0.85); border-radius: var(--arch-radius); border: 2px dashed rgba(255, 255, 255, 0.14); background: rgba(0, 0, 0, 0.18); box-sizing: border-box; }
 .cv2-tile .card { --cw: var(--tw); --ch: calc(var(--cw) / 0.752); --ccw: calc(var(--cw) * 0.85); min-width: 0; }
+/* THE STAT PILLS ON A STORED BOARD (owner 2026-10-21: "the card and dmg/health pills in career vs. recent games ...
+   make those uniform size"). In play the milestone pill is a fixed 60px disc with a fixed 26px number, tuned for the
+   ~184px board card. A stored board's cards are sized by their panel (70px in the Career, 110px in Recent Games at
+   1920), so the same fixed pill was half the card on one surface, collided with its neighbour on the other, and the
+   plate tier (sized from the card) disagreed with the framed tiers (fixed px) on the same board. Here every pill is
+   sized FROM ITS CARD: one ratio for the disc (`--pill`, 0.62 of the arch width, close to how the 60px pill sat on
+   Recent Games' 110px cards) and its number (26/60 of the disc, the tuned in-play ratio), for every milestone tier and the flat plate
+   alike. Only the size changes; the tier art, tint and colours are the in-play ones. Static paint, no animation. */
+.cv2-tile .card { --pill: calc(var(--ccw) * 0.62); }
+.cv2-tile .card .atk, .cv2-tile .card .hp { width: calc(var(--ccw) * 0.29); height: calc(var(--ccw) * 0.29); }
+.cv2-tile .card .badge > .msframe { width: calc(var(--pill) * var(--msf-scale, 1)); }
+.cv2-tile .card .badge > .msglow { width: calc(var(--pill) * var(--msf-scale, 1) * var(--msglow-frac, 0.95)); }
+.cv2-tile .card .badge > .mstint { width: calc(var(--pill) * var(--msf-scale, 1) * var(--mstint-frac, 0.66)); }
+.cv2-tile .card .badge > .value, .cv2-tile .card .badge:not([data-milestone='0']) > .value { font-size: calc(var(--pill) * 0.4333 * var(--sv-fit, 1)); }
 /* A hovered tile lifts above its neighbours so the card's own hover popups aren't clipped by the next tile. */
 .cv2-tile:hover { z-index: 3; }
 .cv2-row-foot { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; padding-top: 12px; border-top: 1px solid rgba(196, 160, 92, 0.18); }
@@ -13901,8 +13922,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* THE DETAIL CARD (`.gc-detail`; owner 2026-10-16: "fix the card pill/sizing", then "the minions + runes can be much
    larger and contain the rune names as well with all this space now"). One grid, nothing past the card's edge, and it
    takes the panel's height: the head row (placement | hero | Replay / Career), then the BIG board, then the runes row
-   (emblem + name, hover tip), then the meta line. The board's card width is DERIVED from the card's own width (7 cards
-   + 6 gaps), capped at 170px; the gap keeps the #2120 badge slot (card width + ~40px pitch, ~30% reserved below). */
+   (emblem + name, hover tip), then the meta line. The board uses one fixed card size on every detail card (owner 2026-10-21, see the board rule below;
+   it replaced a width derived from the panel, capped at 170px). */
 .gs-in { min-height: 100%; display: flex; flex-direction: column; }
 .gc.gc-detail { transform: none; flex: 1 0 auto; display: flex; flex-direction: column; }
 /* The open game is not a button: no hover change and no transition (a border transition repainted the whole card on
@@ -13919,9 +13940,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gc.gc-detail .gc-side { flex-direction: row; align-items: center; justify-content: flex-end; gap: 12px; align-self: center; }
 .gc.gc-detail .gc-actions { gap: 8px; }
 .gc.gc-detail .gc-actions .lb-btn, .gc.gc-detail .gc-actions .cv2-btn { font-size: 14px; padding: 10px 18px; }
-/* The board: seven slots across the full width, as large as the width allows (up to 170px). */
+/* The board: seven slots across the full width, at the one detail-board size below. */
 .gc.gc-detail .gc-board { align-self: center; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 6px; }
-.gc.gc-detail .gc-board .cv2-team.cv2-team { --tile-gap: 42px; --tw: min(170px, calc((100cqw - 6 * 42px - 28px) / 7)); flex-wrap: nowrap; justify-content: center;
+/* ONE card size for every detail board (owner 2026-10-21: the Career and Recent Games showed the same board at 70px
+   and 110px). The stage lays out at 1920 x 1080 and scales as a whole, so a fixed size is the same on every screen:
+   100px is the largest that fits the narrower host (the Career's centre column) with the pills' gap. The
+   min() only bites in a host narrower than that (never at the design size). The gap follows the card, since the
+   pills now do (`--pill` above). */
+.gc.gc-detail .gc-board .cv2-team.cv2-team { --tw: min(100px, calc((100cqw - 28px) / 8.2)); --tile-gap: calc(var(--tw) * 0.2); flex-wrap: nowrap; justify-content: center;
   padding: calc(var(--tw) * 0.3) 14px calc(var(--tw) * 0.3 + 6px); }
 .gc.gc-detail .gc-board .lb-team-none, .gc.gc-detail .gc-board .cv2-row-none { padding: 36px 0; text-align: center; font-size: 16px; }
 /* The runes: a row of pills, each the rune's emblem and its name; the hover tip carries the text. */

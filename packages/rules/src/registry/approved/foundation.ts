@@ -5952,6 +5952,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skins/heldSkin.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
   {
+    id: 'R-PROG-SKINS-18',
+    title: 'Skins batch 10: fourteen hero and minion skins join the crates at their folder rarity',
+    statement:
+      'Fourteen skins are crate items, each targeting one hero or card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Skins folder its master sits in (R-PROG-SKINS-11). Hero skins: Golf '
+      + 'Midas and Morning Midas (Rare); Amputee Midas, Mac and Melon Midas (Midas), Birthday Runesmith (Runesmith), Gambling '
+      + 'Robin (Robin) and Memory Membrance (Membrance) (Epic). Minion skins: Anvilshade (Anvilshade), Liberty Voss (Bellringer '
+      + 'Voss), Metal Rachel (Rad Rachel) and Mushy Pee (Mushy) (Rare); Cosmic Mushy (Mushy), Gilded Kennelmaster '
+      + '(Kennelmaster) and Jensen & Fi Sky (Jensen & Fi) (Epic). Names are the master filenames, except Gilded Kennelmaster '
+      + '(master GoldenKennelmaster.png), since an item name never uses Golden. With them in, a first crate holds 38 Common, '
+      + '74 Rare, 78 Epic, 70 Legendary and 28 Ancient items (each Rare 0.419%, Epic 0.282%). A portrait frame master that is '
+      + 'byte-identical to a wired frame master is a copy, not new art, so the disk check does not count it as unwired.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-21 (skins batch 10)', quote: 'i added various skins/collections items. can you find them and wire them up?' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 10); packages/ui/src/art/skins/ (14 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-21. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/progression/src/skinRarityFolders.test.ts', 'packages/progression/src/portraitFrameRarityFolders.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
     id: 'R-SPECTATE-AV-01',
     title: 'A spectator sees and hears every card action exactly as the player did, through the same presentation hooks',
     statement:

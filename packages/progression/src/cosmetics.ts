@@ -403,6 +403,26 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // master is the alt in the Set 2 Neutral folder, NOT a Skins rarity folder, so the rarity is a builder's pick (Rare)
   // for the owner to confirm, and the name is a placeholder for the owner to rename (the id stays).
   skin('skin_fatecarver_1', 'minion_skin', 'Astral Fatecarver', 'rare', 'n2_fatecarver', 'FatecarverAlt.png'),
+  // Skins batch 10 (owner 2026-10-21: "i added various skins/collections items. can you find them and wire them up?").
+  // Rarity = the Hero / Minion Skins rarity folder each master sits in (R-PROG-SKINS-11); names are the filenames,
+  // humanized. Targets matched by the art and the name: Mac and Melon Midas (Midas with a cat and a dog on a couch) is
+  // NEW art, not a re-export of Midas and Melon (lawnmower). Mushy is the card id d2_scalefeather. The master
+  // GoldenKennelmaster.png ships as "Gilded Kennelmaster": item names may not use "Golden" (the ranked medal / golden
+  // card word, see the player-text test), so the name is a placeholder for the owner to rename (the id stays).
+  skin('skin_midas_2', 'hero_skin', 'Golf Midas', 'rare', 'midas', 'GolfMidas.png'),
+  skin('skin_midas_3', 'hero_skin', 'Morning Midas', 'rare', 'midas', 'MorningMidas.png'),
+  skin('skin_midas_4', 'hero_skin', 'Amputee Midas', 'epic', 'midas', 'AmputeeMidas.png'),
+  skin('skin_midas_5', 'hero_skin', 'Mac and Melon Midas', 'epic', 'midas', 'MacandMelonMidas.png'),
+  skin('skin_runesmith_1', 'hero_skin', 'Birthday Runesmith', 'epic', 'runesmith', 'BirthdayRunesmith.png'),
+  skin('skin_robin_3', 'hero_skin', 'Gambling Robin', 'epic', 'robin', 'GamblingRobin.png'),
+  skin('skin_membrance_1', 'hero_skin', 'Memory Membrance', 'epic', 'membrance', 'MemoryMembrance.png'),
+  skin('skin_anvilshade_1', 'minion_skin', 'Anvilshade', 'rare', 'dw_anvilshade', 'Anvilshade.png'),
+  skin('skin_bellringer_2', 'minion_skin', 'Liberty Voss', 'rare', 'n2_bellringer', 'LibertyVoss.png'),
+  skin('skin_radrachel_1', 'minion_skin', 'Metal Rachel', 'rare', 'dm_radrachel', 'MetalRachel.png'),
+  skin('skin_scalefeather_1', 'minion_skin', 'Mushy Pee', 'rare', 'd2_scalefeather', 'MushyPee.png'),
+  skin('skin_scalefeather_2', 'minion_skin', 'Cosmic Mushy', 'epic', 'd2_scalefeather', 'CosmicMushy.png'),
+  skin('skin_kennel_1', 'minion_skin', 'Gilded Kennelmaster', 'epic', 'kennel', 'GoldenKennelmaster.png'),
+  skin('skin_jenkins_2', 'minion_skin', 'Jensen & Fi Sky', 'epic', 'jenkins', 'JensenFiSky.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

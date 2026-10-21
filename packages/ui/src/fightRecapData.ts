@@ -1,5 +1,5 @@
 import { CARD_INDEX } from '@game/content';
-import type { CombatResult } from '@game/core';
+import type { CombatResult, Keyword } from '@game/core';
 import { ANNOUNCER_HIGH_ODDS, ANNOUNCER_LOW_ODDS } from './announcer';
 
 /**
@@ -65,6 +65,18 @@ export interface GainItem {
 const sv = (a: number, h: number): string => `+${a}/+${h}`;
 const nameOf = (id: string): string => CARD_INDEX[id]?.name ?? id;
 
+/** Player-facing names of the keywords an Engraved minion can keep (`ENGRAVE_KEEPS_KEYWORDS`), the renamed terms. */
+const KEPT_KEYWORD_NAME: Partial<Record<Keyword, string>> = {
+  T: 'Taunt', DS: 'Ward', RW: 'Resilient Ward', V: 'Execute', W: 'Flurry', R: 'Rise', RB: 'Rebirth', C: 'Cleave',
+  IMM: 'Immune', ST: 'Stealth', CR: 'Critical Strike',
+};
+/** "+Ward +Taunt": the chip for keywords an Engraved minion kept. A Resilient Ward rides beside its Ward, so the pair
+ *  prints once, as the Resilient Ward. */
+export function engravedKeywordChip(keywords: readonly Keyword[]): string {
+  const shown = keywords.includes('RW') ? keywords.filter((k) => k !== 'DS') : keywords;
+  return shown.map((k) => `+${KEPT_KEYWORD_NAME[k] ?? k}`).join(' ');
+}
+
 /**
  * The permanent gains a fight left behind, as mini-card items (the same carry-back channels `combatGains`
  * reads, one item each, with kept stats broken out per minion so each gets its own portrait). [] = nothing
@@ -102,6 +114,12 @@ export function combatGainItems(r: CombatResult | null | undefined, board: reado
     if (!t.a && !t.h) continue;
     const cardId = initial.get(uid);
     out.push({ key: `pb${uid}`, cardId, icon: cardId ? undefined : 'engrave', label: cardId ? nameOf(cardId) : 'A minion', chip: sv(t.a, t.h) });
+  }
+  // Engraved keywords (owner 2026-10-21, R-ENGRAVE-03): one item per minion that kept keywords it gained in combat.
+  for (const { sourceUid, keywords } of r.playerPermaKeywords ?? []) {
+    if (keywords.length === 0) continue;
+    const cardId = initial.get(sourceUid);
+    out.push({ key: `pk${sourceUid}`, cardId, icon: cardId ? undefined : 'engrave', label: cardId ? nameOf(cardId) : 'A minion', chip: engravedKeywordChip(keywords) });
   }
   if (r.playerFodderGrants) out.push({ key: 'fodder', icon: 'fodder', label: 'Fodder next tavern', chip: `+${r.playerFodderGrants}` });
   if (r.playerFreeRolls) out.push({ key: 'rolls', icon: 'refresh', label: r.playerFreeRolls === 1 ? 'Free reroll' : 'Free rerolls', chip: `+${r.playerFreeRolls}` });

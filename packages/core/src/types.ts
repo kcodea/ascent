@@ -118,6 +118,12 @@ export type Keyword =
   | 'RW'; // Resilient Ward (Ancients POC, owner 2026-09-26) — a Ward that takes 2 hits to break. Always carried ALONGSIDE 'DS' (so every "has Ward" check still sees a Ward): the first hit strips 'RW' only (absorbed, a `wardDowngrade` event), the second breaks the Ward as usual.
 // NB: Transcendant grants Engraved as a LIVE ADJACENCY AURA rather than the keyword — see `engravedByAura`.
 
+/** ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): the keywords an Engraved body keeps when it GAINS them in
+ *  combat. The combat-behaviour keywords only. Left out on purpose: `EG` itself (a one-fight Engrave such as Taurus's
+ *  Start of Combat grant must not become a permanent one), and the trigger markers (`RL`, `SL`, `SC`, `CN`, `FD`, `M`),
+ *  which only label an effect: a combat graft's effect never reaches the run card, so its pill must not either. */
+export const ENGRAVE_KEEPS_KEYWORDS: ReadonlySet<Keyword> = new Set<Keyword>(['T', 'DS', 'RW', 'V', 'W', 'R', 'RB', 'C', 'IMM', 'ST', 'CR']);
+
 /**
  * ── Trigger multipliers ────────────────────────────────────────────────────────────────────────────────
  * The families of trigger a card can make fire extra times. Before this existed, every multiplier
@@ -3460,6 +3466,7 @@ export interface CombatCarryBacks {
   damageMeters?: CombatResult['playerDamageMeters'];
   ascendCount?: CombatResult['playerAscendCount'];
   permaBuffs?: CombatResult['playerPermaBuffs'];
+  permaKeywords?: CombatResult['playerPermaKeywords'];
   handGrants?: string[];
   handBuffs?: CombatResult['playerHandBuffs'];
   rubyGrants?: number;
@@ -3675,6 +3682,10 @@ export interface CombatResult {
    *  (`engraved: true` — native EG like Gnasher/Flowing-Monk-recipient, or EG granted at Start of Combat
    *  by Taurus). `engraved` only drives the inspect-panel source label; the stats apply either way. */
   playerPermaBuffs?: { sourceUid: string; attack: number; health: number; engraved: boolean; ruby?: boolean; /** The ledger line the run card should print (Kindled Sprite's own permanent Rally); absent = the legacy Engraved / Flowing Monk label. */ label?: string }[];
+  /** ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): the keywords each Engraved board card's PRIMARY combat body
+   *  gained this fight (see `ENGRAVE_KEEPS_KEYWORDS`), in gain order, keyed by the run board card uid. Applied to the
+   *  run board after combat, win or lose, dead or alive; a keyword the card already holds is not added twice. */
+  playerPermaKeywords?: { sourceUid: string; keywords: Keyword[] }[];
   /** Card ids the player's combat deathrattles grant to the hand after combat (Arcane Weaver). */
   playerHandGrants?: string[];
   /** Balance 9/23: combat Shout fires (see `CombatCarryBacks.shoutFires`) — the cross-phase Shout tally's combat half. */

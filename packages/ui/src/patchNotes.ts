@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-21',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Engraved minions now also keep keywords they gain in combat.',
+        details: [
+          'If an Engraved minion gains Ward, Taunt, Flurry or another keyword during a fight, it keeps it for good, even if it dies or the Ward breaks.',
+          'Keywords from spells you cast in the shop for the next combat only still last just that one fight.',
+          'A minion that Rises comes back as a fresh copy, and what that copy gains does not carry back.',
+          'The fight recap shows what was kept, for example "+Ward".',
+        ],
+      },
       { category: 'Balance', text: 'The Indy minion has new art.' },
       {
         category: 'Balance',

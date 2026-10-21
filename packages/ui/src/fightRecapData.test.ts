@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import type { CombatEvent, CombatResult, MinionSnapshot } from '@game/core';
 import { ANNOUNCER_HIGH_ODDS, ANNOUNCER_LOW_ODDS } from './announcer';
 import { lossDamageRangeOf } from '@game/sim';
-import { combatGainItems, oddsRecap, wholePercents } from './fightRecapData';
+import { combatGainItems, engravedKeywordChip, oddsRecap, wholePercents } from './fightRecapData';
 
 const snap = (uid: string, name: string, golden = false): MinionSnapshot =>
   ({ uid, cardId: `card_${uid}`, name, tribe: 'neutral', attack: 1, health: 1, keywords: [], ...(golden ? { golden } : {}) } as MinionSnapshot);
@@ -88,5 +88,15 @@ describe('combatGainItems', () => {
       ['Free reroll', '+1'],
     ]);
     expect(items[1]!.cardId).toBe('card_p1');
+  });
+});
+
+describe('Engraved keywords in the recap (owner 2026-10-21, R-ENGRAVE-03)', () => {
+  it('a minion that kept combat keywords gets its own "+Ward" style item', () => {
+    const items = combatGainItems(fight([], { playerPermaKeywords: [{ sourceUid: 'b7', keywords: ['DS', 'CR'] }] }), [{ uid: 'b7', cardId: 'taragosaheir' }]);
+    expect(items.map((i) => [i.cardId, i.chip])).toEqual([['taragosaheir', '+Ward +Critical Strike']]);
+  });
+  it('a Resilient Ward prints once, not beside its Ward', () => {
+    expect(engravedKeywordChip(['DS', 'RW'])).toBe('+Resilient Ward');
   });
 });

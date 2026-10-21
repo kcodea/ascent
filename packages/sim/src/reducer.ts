@@ -4938,6 +4938,17 @@ function settleCombat(s: RunState, result: CombatResult): void {
       addBuff(card, ruby ? 'Ruby' : engraved ? 'Engraved' : (label ?? 'Flowing Monk'), attack * mult, health * mult);
     }
   }
+  // ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): "if a minion is engraved and gains ward, they gain that ward
+  // permanently, so they would carry it back from combat." The primary body's combat-gained keywords land on its run
+  // card for good, win or lose. A keyword the card already holds is not added twice; a Resilient Ward brings its Ward.
+  if (result.playerPermaKeywords) {
+    for (const { sourceUid, keywords } of result.playerPermaKeywords) {
+      const card = s.board.find((c) => c.uid === sourceUid);
+      if (!card) continue;
+      for (const k of keywords) if (!card.keywords.includes(k)) card.keywords = [...card.keywords, k];
+      if (card.keywords.includes('RW') && !card.keywords.includes('DS')) card.keywords = [...card.keywords, 'DS'];
+    }
+  }
   // Set 2 — Rubies gained IN COMBAT (Rikk's Rally, Gemline's Avenge): mint them into hand now, baked with the
   // run's live rubyBonus (identical to a shop-minted Ruby).
   if (result.playerRubyGrants) mintRubies(s, result.playerRubyGrants);

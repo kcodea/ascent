@@ -140,7 +140,7 @@ describe('Rune of Bulk Order — "every 10 Gold you spend, give 4 random friendl
 
 describe('Rune of the Bargain Bin — the binned refresh draws only SHOUT minions', () => {
   it('the def: the text says Shout', () => {
-    expect(RUNE_INDEX['rune_bargain_bin']!.text).toBe('Your first **Refresh** each turn fills the Shop with **Shout** minions that cost **1 Gold**. They sell for **0 Gold**.');
+    expect(RUNE_INDEX['rune_bargain_bin']!.text).toBe('Your first **Refresh** each turn fills the Shop with **Shout** minions that cost **1 Gold**. They **Sell** for **0 Gold**.');
   });
 
   it.each(['set2', 'set3'] as const)('%s: the first Refresh fills every minion slot with a 1-Gold, sell-for-0 Shout minion at your tier or below', (setId) => {

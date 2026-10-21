@@ -250,7 +250,7 @@ export const GIFTS: CardDef[] = [
     cost: 0,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'giftPartingGifts', params: { count: 2 } }],
-    text: 'Sell a friendly minion. Give its stats to **2 random** friendly minions.',
+    text: '**Sell** a friendly minion. Give its stats to **2 random** friendly minions.',
   },
 ];
 

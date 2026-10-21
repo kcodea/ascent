@@ -60,6 +60,8 @@ const ART_PENDING = new Set<string>([
   'sp3_slumbering', 'sp3_flamebanner', 'sp3_handboundtitan', 'sp3_dreamingdeep',
   // RAYSE × ANCIENT OF DEATH (2026-10-09): the Sprout token is authored ahead of its art (art is wired only on the owner's ask).
   'raysesprout',
+  // SET 3 SELL DWARVES (2026-10-21): authored ahead of their art (the owner did not name art for this batch).
+  'dw3_salezarsails', 'dw3_marketing', 'dw3_valyou', 'dw3_leeds',
   // SET 3 NEUTRALS: NONE LEFT — the Clue master landed 2026-09-09 (Yazzus is one card for every set since
   // 2026-09-16 and wears the original Yazzus portrait).
   // SET 3 DWARVES: NONE LEFT — Tankerchief's master landed 2026-09-09.

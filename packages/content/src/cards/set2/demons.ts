@@ -261,8 +261,8 @@ export const SET2_DEMONS: CardDef[] = [
     health: 5,
     keywords: [],
     effects: [{ on: 'minionSold', do: 'minionSoldConsumeRightmost', params: { count: 3 } }],
-    text: 'When you **sell 3 minions**, a **Demon** consumes the right-most minion in the **Shop**.',
-    goldenText: 'When you **sell 3 minions**, a **Demon** consumes the **2 right-most** minions in the **Shop**.',
+    text: 'When you **Sell 3 minions**, a **Demon** consumes the right-most minion in the **Shop**.',
+    goldenText: 'When you **Sell 3 minions**, a **Demon** consumes the **2 right-most** minions in the **Shop**.',
   },
   {
     // Set 2 — Enigma (owner add 2026-08-18): every meal fattens the whole Shop. Guarded to THIS body's consume,
@@ -361,8 +361,8 @@ export const SET2_DEMONS: CardDef[] = [
     keywords: [],
     token: true, // forge-only: Source = Rune
     effects: [{ on: 'minionSold', do: 'minionSoldDemonGainStats', params: { tribe: 'demon' } }],
-    text: 'When you sell a **Demon**, this gains its stats.',
-    goldenText: 'When you sell a **Demon**, this gains **double** its stats.',
+    text: 'When you **Sell** a **Demon**, this gains its stats.',
+    goldenText: 'When you **Sell** a **Demon**, this gains **double** its stats.',
   },
 ];
 

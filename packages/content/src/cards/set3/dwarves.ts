@@ -122,8 +122,8 @@ export const SET3_DWARVES: CardDef[] = [
     health: 10,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'thymepiece' } }],
-    text: '**Equip Thymepiece (3):** cards sell for **+1** Gold for the next **8 seconds**.',
-    goldenText: '**Equip Thymepiece (3):** cards sell for **+1** Gold for the next **16 seconds**.',
+    text: '**Equip Thymepiece (3):** cards **Sell** for **+1** Gold for the next **8 seconds**.',
+    goldenText: '**Equip Thymepiece (3):** cards **Sell** for **+1** Gold for the next **16 seconds**.',
   },
   {
     // Kneel's Tier-7 sibling, and the reason the watcher has a re-entrancy guard: its grant carries +1 Attack,
@@ -252,5 +252,72 @@ export const SET3_DWARVES: CardDef[] = [
     effects: [{ on: 'onLoseDivineShield', do: 'onLoseWardOnceBuffSelfRegain', params: { attack: 10, health: 10 } }],
     text: '**Taunt.** **Ward.** The first time this loses **Ward** each combat, gain **+10/+10** and **Ward**.',
     goldenText: '**Taunt.** **Ward.** The first time this loses **Ward** each combat, gain **+20/+20** and **Ward**.',
+  },
+  // ── Owner Sell batch 2026-10-21: four Dwarves that pay off on the Sell keyword. ──
+  {
+    // Its OWN Sell (it is the card being sold): your Dwarves on the board gain +2/+3. It has already left the board when
+    // `onSell` fires, so it never buffs itself (`includeSelf: false` says so explicitly). The shared Shout body
+    // (`battlecryBuffTribe`): All-types count through `arena.isTribe`, Gilded doubles. A Shop buff, so permanent.
+    id: 'dw3_salezarsails',
+    name: 'Salezar Sails',
+    tribe: 'dwarf',
+    tier: 2,
+    attack: 3,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'onSell', do: 'battlecryBuffTribe', params: { tribe: 'dwarf', attack: 2, health: 3, includeSelf: false } }],
+    text: '**Sell:** Give your **Dwarves +2/+3**.',
+    goldenText: '**Sell:** Give your **Dwarves +4/+6**.',
+  },
+  {
+    // Runic Archivist's every-N sell meter (`minionSoldGrantSpell`): a per-instance `soldProgress` of the minions you
+    // Sell while this is on the board, carried round to round; every 4 pays a random Shop Spell from the run's legal
+    // spell pool (`runSpells`: set-pinned, tribe-gated, no tokens / Gifts / Rubies) at or below your Shop tier. Gilded
+    // follows the Archivist: TWO spells per payout (not a halved counter). The live text counts down the sales owed.
+    id: 'dw3_marketing',
+    name: 'Mark Eting',
+    tribe: 'dwarf',
+    tier: 3,
+    attack: 2,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 4 } }],
+    text: 'When you **Sell** **4 minions**, get a random **Shop Spell**.',
+    goldenText: 'When you **Sell** **4 minions**, get **2** random **Shop Spells**.',
+  },
+  {
+    // Shift Broker's sale watcher (`minionSoldBuffSelf`) with Health and an every-`count` Gold payout: +3/+3 on every
+    // sale while on the board (permanent), and every 4th sale also pays 2 Gold now. The meter is `soldProgress`
+    // (reduced, carried round to round). Gilded doubles the stats AND the Gold (Keg Runner / Hoard Whelp convention).
+    id: 'dw3_valyou',
+    name: 'Valyou',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 6,
+    health: 9,
+    keywords: [],
+    effects: [{ on: 'minionSold', do: 'minionSoldBuffSelf', params: { attack: 3, health: 3, count: 4, gold: 2 } }],
+    text: 'When you **Sell** a minion, gain **+3/+3**. Every **4** triggers also grants **2 Gold**.',
+    goldenText: 'When you **Sell** a minion, gain **+6/+6**. Every **4** triggers also grants **4 Gold**.',
+  },
+  {
+    // "When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions." Two halves: the play
+    // watcher (`tribePlayedBuffTribeSellImproving`) and the sale meter (`minionSoldTally`, lifetime `soldProgress`
+    // while on the board). The "Improves" convention: each step adds the base grant again (+2/+2 -> +4/+4 -> +6/+6),
+    // as Aspect / Flowing Monk / Archmagus Guel do. Gilded doubles the base and every step. The live text prints
+    // the current grant and the sales owed to the next step.
+    id: 'dw3_leeds',
+    name: 'Leeds',
+    tribe: 'dwarf',
+    tier: 6,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [
+      { on: 'onTribePlayed', do: 'tribePlayedBuffTribeSellImproving', params: { tribe: 'dwarf', attack: 2, health: 2, sellEvery: 4 } },
+      { on: 'minionSold', do: 'minionSoldTally', params: { count: 4 } },
+    ],
+    text: 'When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.',
+    goldenText: 'When you play a **Dwarf**, give your **Dwarves +4/+4**. Improves when you **Sell** **4 minions**.',
   },
 ];

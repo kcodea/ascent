@@ -10,7 +10,7 @@ import {
   type AncientId, type BoardCard, type BoardSnapshot, type RunState, type ShopCard,
 } from './index';
 
-const BASE = 'For each minion you sell, gain 1 Gold next turn.';
+const BASE = 'For each minion you **Sell**, gain 1 Gold next turn.';
 const plain = (c: (typeof CARD_INDEX)[string]) => !!c && !c.spell && !c.ruby && !c.token && c.effects.length === 0 && c.keywords.length === 0 && !c.universalTribe;
 /** Effect-less bodies, so a sale, a play or a summon never muddies the numbers. */
 const NEUTRALS = Object.values(CARD_INDEX).filter((c) => plain(c) && c.tribe === 'neutral' && !c.tribe2 && !c.henchman).map((c) => c.id);

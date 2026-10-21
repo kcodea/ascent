@@ -413,7 +413,7 @@ describe('Rune of Investment — Epic: sell 4 minions, get 2 random Rubies and i
   it('is an EPIC rune now', () => {
     expect(EPIC_RUNES.some((r) => r.id === 'rune_investment')).toBe(true);
     expect(RUNES.some((r) => r.id === 'rune_investment')).toBe(false);
-    expect(EPIC_RUNES.find((r) => r.id === 'rune_investment')!.text).toBe('When you **sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.');
+    expect(EPIC_RUNES.find((r) => r.id === 'rune_investment')!.text).toBe('When you **Sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.');
   });
   it('the fourth sale pays 2 random Rubies at the improved strength', () => {
     let s = run({ runeSellRubies: 2, runeSellRubiesSold: 3, board: [plain('x', 'beast')] });

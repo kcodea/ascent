@@ -449,7 +449,7 @@ export const SPELLS: CardDef[] = [
     cost: 2,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellSellToDemon' }],
-    text: 'Sell a friendly minion and give its stats to your left-most **Demon**.',
+    text: '**Sell** a friendly minion and give its stats to your left-most **Demon**.',
   },
   {
     // Quest reward (Feed the Alpha) — the Beast sibling of Fodder Treatment: sell a friendly minion, funnel its
@@ -467,7 +467,7 @@ export const SPELLS: CardDef[] = [
     cost: 0,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellSellToBeast' }],
-    text: 'Sell a friendly minion and give its stats to your right-most **Beast**.',
+    text: '**Sell** a friendly minion and give its stats to your right-most **Beast**.',
   },
   {
     // Re-trigger the target's Battlecry (reducer guards it to Battlecry minions). Yazzus multiplies it.
@@ -903,7 +903,7 @@ export const SPELLS: CardDef[] = [
     spell: true,
     cost: 1,
     effects: [{ on: 'cast', do: 'spellNextSellBonus', params: { gold: 2 } }],
-    text: 'The next minion you **sell** this turn sells for **2** additional Gold.',
+    text: 'The next minion you **Sell** this turn **Sells** for **2** additional Gold.',
   },
   {
     // Choose a friendly minion; refresh the tavern's minions with random minions of ITS type (up to your tier).

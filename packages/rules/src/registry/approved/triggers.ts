@@ -1406,4 +1406,31 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-21).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfRework1021.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-DWARF-1021-05',
+    title: 'Set 3 Sell Dwarves 2026-10-21: Salezar Sails, Mark Eting, Valyou, Leeds',
+    statement:
+      'Salezar Sails (T2 3/1) "Sell: Give your Dwarves +2/+3": its OWN sale buffs every Dwarf left on the board (All-types '
+      + 'count; never itself, it has left). Mark Eting (T3 2/6) "When you Sell 4 minions, get a random Shop Spell": a '
+      + 'per-instance meter of the minions you Sell while it is on the board, carried round to round; every 4 pays one '
+      + 'random Shop Spell from the run\'s legal spell pool (set-pinned, tribe-gated, no tokens) at or below your Shop tier; '
+      + 'Gilded pays TWO spells per payout (the Runic Archivist convention), not a halved counter. Valyou (T5 6/9) "When you '
+      + 'Sell a minion, gain +3/+3. Every 4 triggers also grants 2 Gold": +3/+3 per sale, permanent, and every 4th trigger '
+      + 'also pays 2 Gold now; Gilded doubles both (+6/+6, 4 Gold). Leeds (T6 6/8) "When you play a Dwarf, give your '
+      + 'Dwarves +2/+2. Improves when you Sell 4 minions": on a real Dwarf play (All-types count; not its own arrival) every '
+      + 'Dwarf on the board, Leeds and the played one included, gains base x (1 + floor(sales / 4)), the sales being those '
+      + 'made while this Leeds was on the board, carried round to round. Each improve adds the base grant again (+2/+2, '
+      + '+4/+4, +6/+6), the game\'s "Improves" convention (Aspect, Flowing Monk, Archmagus Guel). Gilded doubles the base and '
+      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every live meter prints its countdown.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-21 (four new Set 3 Dwarves)', quote: 'Leeds: When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldBuffSelf (count/gold) / minionSoldTally / tribePlayedBuffTribeSellImproving / minionSoldGrantSpell; battlecryBuffTribe on onSell; packages/ui/src/cardText.ts soldProgressText / sellGoldMeterText / sellImproveText' },
+    ],
+    cardText: 'When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.',
+    contentIds: ['dw3_salezarsails', 'dw3_marketing', 'dw3_valyou', 'dw3_leeds'],
+    currentBehaviour: 'Conforms (built 2026-10-21).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3SellDwarves1021.test.ts', 'packages/ui/src/sellDwarvesText.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

@@ -461,7 +461,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_bartering',
     name: 'Rune of Bartering',
     cost: 4, // owner 2026-09-27, Set 3 rune design pass (was 6)
-    text: '**Shout** minions sell for **2 Gold**.',
+    text: '**Shout** minions **Sell** for **2 Gold**.',
     reward: { kind: 'runeBartering' },
   },
   {
@@ -560,7 +560,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_altar',
     name: 'Rune of the Altar',
     cost: 3, // balance 9/23 (was 1)
-    text: 'Sell your **entire board**. Gain **3 Gold** for each minion sold.',
+    text: '**Sell** your **entire board**. Gain **3 Gold** for each minion sold.',
     reward: { kind: 'runeAltar', goldPer: 3 },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
@@ -712,7 +712,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_aftermarket',
     name: 'Rune of the Aftermarket',
     cost: 3, // balance 9/23 (was 4)
-    text: 'The first minion you **sell** each turn gives **half its stats** to the **right-most** minion in the current **Shop**.', // owner 2026-08-11
+    text: 'The first minion you **Sell** each turn gives **half its stats** to the **right-most** minion in the current **Shop**.', // owner 2026-08-11
     reward: { kind: 'runeAftermarket' },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
@@ -890,7 +890,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_trade_in',
     name: 'Rune of Trade-In',
     cost: 1, // balance 9/23 (was 2)
-    text: 'After you **sell** your first minion each turn, your next minion of that **type** costs **1 less**.',
+    text: 'After you **Sell** your first minion each turn, your next minion of that **type** costs **1 less**.',
     reward: { kind: 'runeTradeIn' },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
@@ -1108,7 +1108,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_baller',
     name: 'Rune of the Baller',
     cost: 4,
-    text: 'When you **sell** a minion, give your minions **+1 Attack**. Alternates between **Attack** and **Health**, improving every **2 sales**.',
+    text: 'When you **Sell** a minion, give your minions **+1 Attack**. Alternates between **Attack** and **Health**, improving every **2 sales**.',
     reward: { kind: 'runeBaller', step: 1 },
   },
   {
@@ -1442,7 +1442,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['spirit'],
     name: 'Rune of Festival Wages',
     cost: 3,
-    text: 'After you sell **3 Revelers**, your next card costs **0**.',
+    text: 'After you **Sell** **3 Revelers**, your next card costs **0**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalWages' },
     sets: ['set3'],
@@ -1506,7 +1506,7 @@ export const RUNES: RuneDef[] = [
     id: 'rune_quick_release',
     name: 'Rune of Quick Release',
     cost: 4,
-    text: "After you sell an **Equip** minion, your next Equipment activation costs **0** this turn. (Doesn't discount its own Equipment)",
+    text: "After you **Sell** an **Equip** minion, your next Equipment activation costs **0** this turn. (Doesn't discount its own Equipment)",
     reward: { kind: 'runeQuickRelease' },
     sets: [], // CUT FROM SET 3 (owner 2026-09-27, Set 3 rune design pass): was Set-3-only, so it is now offered in no set (never archived)
   },
@@ -1754,7 +1754,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['spirit'],
     name: 'Rune of the Encore',
     cost: 3,
-    text: 'The first **Reveler** you sell each turn also gives its bonus to the left-most minion in your hand.',
+    text: 'The first **Reveler** you **Sell** each turn also gives its bonus to the left-most minion in your hand.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'combatFlag', flag: 'runeEncore' },
     sets: ['set3'],
@@ -1848,7 +1848,7 @@ export const RUNES: RuneDef[] = [
     tribes: ['dwarf', 'spirit'],
     name: 'Rune of Closing Time',
     cost: 3,
-    text: 'When you sell a **Reveler**, get a **Dwarven Ale**.',
+    text: 'When you **Sell** a **Reveler**, get a **Dwarven Ale**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'combatFlag', flag: 'runeClosingTime' },
     sets: ['set3'],
@@ -2268,7 +2268,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Liquidation',
     cost: 4,
     epic: true,
-    text: 'When you **sell** a minion, give its **stats** to the **right-most Shop** minion.', // owner 2026-08-11 (was bonus stats)
+    text: 'When you **Sell** a minion, give its **stats** to the **right-most Shop** minion.', // owner 2026-08-11 (was bonus stats)
     reward: { kind: 'runeLiquidation' },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-25: not on the owner's Set 3 rune list)
   },
@@ -2767,7 +2767,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Foundry',
     cost: 3, // owner balance 2026-10-07 (was 4)
     epic: true,
-    text: 'After you sell **5 minions**, get a random **Dragon**.',
+    text: 'After you **Sell** **5 minions**, get a random **Dragon**.',
     reward: { kind: 'runeFoundry', per: 5 },
     sets: ['set1', 'set2'], // CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)
   },
@@ -2929,7 +2929,7 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     // Owner 2026-09-25: "the refresh should only include SHOUT minions." The binned row draws only Shout minions
     // from the run's pool at your Tavern tier or below.
-    text: 'Your first **Refresh** each turn fills the Shop with **Shout** minions that cost **1 Gold**. They sell for **0 Gold**.',
+    text: 'Your first **Refresh** each turn fills the Shop with **Shout** minions that cost **1 Gold**. They **Sell** for **0 Gold**.',
     reward: { kind: 'runeBargainBin' },
   },
   {
@@ -2938,7 +2938,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: "Rune of the Seller's Market",
     cost: 3,
     epic: true,
-    text: 'Whenever you **sell** a minion, give your minions **+6/+8**.', // balance 9/23 (was +4/+3)
+    text: 'Whenever you **Sell** a minion, give your minions **+6/+8**.', // balance 9/23 (was +4/+3)
     reward: { kind: 'runeSellersMarket' },
   },
   {
@@ -3408,7 +3408,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Shared Revelry',
     cost: 5,
     epic: true,
-    text: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn trigger twice.',
+    text: 'The first **Flame**, **Tide** and **Grove Reveler** you **Sell** each turn trigger twice.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeSharedRevelry' },
     sets: ['set3'],
@@ -3437,7 +3437,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Festival Circuit',
     cost: 4,
     epic: true,
-    text: 'After you sell **3 Revelers**, get a random **Celestial**. Your **Revelers** buff **Celestials**.',
+    text: 'After you **Sell** **3 Revelers**, get a random **Celestial**. Your **Revelers** buff **Celestials**.',
     previewCards: ['sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     reward: { kind: 'runeFestivalCircuit', count: 3 },
     sets: [], // PARKED 2026-10-14: was ['set3']. Its Celestial half moved to Set 4 (owner swap) and its other tribe stayed in Set 3, so it works in neither set; offered nowhere (never archived) pending an owner call
@@ -3541,7 +3541,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Dismantling',
     cost: 4,
     epic: true,
-    text: 'When you sell an **Equip** minion, activate its Equipment for free before selling it.',
+    text: 'When you **Sell** an **Equip** minion, activate its Equipment for free before **Selling** it.',
     reward: { kind: 'runeDismantling' },
     sets: ['set3'],
   },
@@ -3640,7 +3640,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of Investment',
     cost: 5, // balance 9/23 (was 3)
     epic: true,
-    text: 'When you **sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.',
+    text: 'When you **Sell 4 minions**, get **2 random Rubies** and improve your **Rubies** by **+1/+1**.',
     previewCards: ['ruby'], // names Rubies — forge hover shows the live Ruby (audit 2026-08-06)
     reward: { kind: 'runeSellRubies', count: 2 },
     sets: ['set2', 'set3'], // Rubies // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
@@ -3889,7 +3889,7 @@ export const EPIC_RUNES: RuneDef[] = [
     name: 'Rune of the Voicekeeper',
     cost: 2,
     epic: true,
-    text: 'When you sell **3 Dragons**, get a copy of one.',
+    text: 'When you **Sell** **3 Dragons**, get a copy of one.',
     reward: { kind: 'runeVoicekeeper', per: 3, tribe: 'dragon' },
     sets: ['set2'],
   },
@@ -4154,7 +4154,7 @@ export const ARCHIVED_RUNES: RuneDef[] = [
     tribes: ['dragon'], // TRIBE GATE (2026-09-10): the text names dragons on the board
     name: 'Rune of the Last Word',
     cost: 2, // balance 9/23 (was 4)
-    text: 'The first **Dragon** with a **Shout** you sell each turn triggers its Shout before being sold.',
+    text: 'The first **Dragon** with a **Shout** you **Sell** each turn triggers its Shout before being sold.',
     reward: { kind: 'runeLastWord' },
     sets: [], // history: was ['set1', 'set2'] (CUT FROM SET 3 (owner 2026-09-24: its tribe is not in Set 3)); archived 2026-10-07
   },

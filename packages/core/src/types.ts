@@ -939,6 +939,8 @@ export type EffectFactoryId =
   | 'endOfTurnBuffAdjacentPerCard' // Set 3 Dwarves — Striker: End of Turn, adjacent minions +N Attack per card played
   | 'equipmentCastRandomAle' // Set 3 Dwarves — Pourman's Keg: cast a random Dwarven Ale through the spell pipeline
   | 'minionSoldBuffRandomTribeOthers' // Set 3 Dwarves — Hank Pepe (2026-10-21): when you Sell a minion, N random OTHER Dwarves +a/+h
+  | 'minionSoldTally' // Set 3 Dwarves — Leeds (2026-10-21): count the minions you Sell while this is on the board (soldProgress)
+  | 'tribePlayedBuffTribeSellImproving' // Set 3 Dwarves — Leeds (2026-10-21): when you play a Dwarf, your Dwarves +a/+h, improving every N Sells
   | 'deathrattleGoldNextTurn' // Set 3 Dwarves — Tromboneer: Echo — Gold next turn (both phases; uncapped bank)
   | 'onTribeGainAttackBuffSelf' // Set 3 Dwarves — Kneel / Tankerchief: when a friendly Dwarf gains Attack, this gains +a/+h
   | 'equipmentSellBonusWindow' // Set 3 Dwarves — Thymepiece: cards sell for +N Gold for the next N clock-seconds

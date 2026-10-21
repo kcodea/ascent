@@ -46,10 +46,10 @@ describe('the Equipment', () => {
     expect(eq.effectId).toBe('equipmentSellBonusWindow');
     expect(eq.params).toEqual({ amount: 1, seconds: 8 });
     expect(eq.gildedParams).toEqual({ amount: 1, seconds: 16 });
-    expect(eq.text).toBe('Cards sell for **+1** Gold for the next **8 seconds**.');
-    expect(eq.goldenText).toBe('Cards sell for **+1** Gold for the next **16 seconds**.');
-    expect(CARD_INDEX['dw3_thymes']!.text).toContain('cards sell for **+1** Gold for the next **8 seconds**');
-    expect(CARD_INDEX['dw3_thymes']!.goldenText).toContain('cards sell for **+1** Gold for the next **16 seconds**');
+    expect(eq.text).toBe('Cards **Sell** for **+1** Gold for the next **8 seconds**.');
+    expect(eq.goldenText).toBe('Cards **Sell** for **+1** Gold for the next **16 seconds**.');
+    expect(CARD_INDEX['dw3_thymes']!.text).toContain('cards **Sell** for **+1** Gold for the next **8 seconds**');
+    expect(CARD_INDEX['dw3_thymes']!.goldenText).toContain('cards **Sell** for **+1** Gold for the next **16 seconds**');
   });
 });
 
@@ -203,7 +203,7 @@ describe('Amplified', () => {
     expect(equipmentText(eq, 'plain')).toContain('**8 seconds**');
     expect(equipmentText(eq, 'plain', { amplified: true })).toContain('**16 seconds**');
     expect(equipmentText(eq, 'gilded')).toContain('**16 seconds**');
-    expect(equipmentText(eq, 'gilded', { amplified: true })).toBe('Cards sell for **+1** Gold for the next **32 seconds**.');
+    expect(equipmentText(eq, 'gilded', { amplified: true })).toBe('Cards **Sell** for **+1** Gold for the next **32 seconds**.');
     expect(equipmentText(eq, 'plain', { amplified: false })).toBe(eq.text);
     const other = EQUIPMENT_INDEX['revelmaker']!;
     expect(equipmentText(other, 'plain', { amplified: true })).toBe(other.text);

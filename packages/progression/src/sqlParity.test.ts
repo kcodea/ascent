@@ -64,12 +64,15 @@ const launchGrant = readFileSync(join(root, 'supabase/migrations/2026-10-19-aeth
 /** Milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER-04): the newest open_crate, settle_progression
  *  and aether_rollout, appended to schema.sql right after the launch grant. */
 const milestoneEpic = readFileSync(join(root, 'supabase/migrations/2026-10-20-milestone-chests-epic.sql'), 'utf8');
+/** Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06): the newest aether_quote, appended to schema.sql right
+ *  after the milestone file. */
+const announcersNotFocusable = readFileSync(join(root, 'supabase/migrations/2026-10-20-announcers-not-focusable.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -568,9 +571,9 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const body = lf(aether).trim();
     const at = flat.indexOf(body);
     expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
-    // only the launch-grant file (2026-10-19) and then the milestone file (2026-10-20) follow it
+    // only the launch-grant file (2026-10-19), then the milestone file and the announcers file (2026-10-20) follow it
     expect(flat.slice(at, at + body.length)).toBe(body);
-    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}`);
+    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}`);
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
       expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
@@ -583,7 +586,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const lf = (t: string): string => t.replace(/\r\n/g, '\n');
     const flat = lf(schema);
     const body = lf(launchGrant).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}`)).toBe(true);
     expect(flat.lastIndexOf('create or replace function public.aether_rollout(')).toBeGreaterThan(flat.lastIndexOf(lf(aether).trim()));
     expect(body).toContain("perform public.aether_launch_grant(v_user);");
     expect(fnBody('aether_rollout', milestoneEpic)).toContain("perform public.aether_launch_grant(v_user);");
@@ -595,10 +598,10 @@ describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER
   // cannot focus those ones specifically"; the chests already granted: "Keep them Legendary".
   const lf = (t: string): string => t.replace(/\r\n/g, '\n');
 
-  it('schema.sql ENDS with the milestone file verbatim, and its three functions are the ones a paste leaves', () => {
+  it('schema.sql carries the milestone file verbatim (the announcers file follows it), and its three functions are the ones a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(milestoneEpic).trim();
-    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     for (const fn of ['open_crate', 'settle_progression', 'aether_rollout']) {
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThan(at);
@@ -633,5 +636,31 @@ describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER
     // the 4-argument signature stays, so an older client's focused call is refused rather than unmatched
     expect(milestoneEpic).toContain('create or replace function public.open_crate(p_user uuid, p_crate_id uuid, p_focus text[] default null, p_expected_fee int default null)');
     expect(milestoneEpic).toContain('grant execute on function public.open_crate(uuid, uuid, text[], int) to service_role;');
+  });
+});
+
+describe("Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06)", () => {
+  // Owner 2026-10-20: "lets remove announcers from being able to be focused"; "yes, announcers can drop from the unfocused
+  // chests"; every focusable category ticked: "Free, may give an Announcer".
+  const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+
+  it('schema.sql ENDS with the announcers file verbatim, and its aether_quote is the one a paste leaves', () => {
+    const flat = lf(schema);
+    const body = lf(announcersNotFocusable).trim();
+    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    const at = flat.lastIndexOf(body);
+    const fnAt = flat.lastIndexOf('create or replace function public.aether_quote(');
+    expect(fnAt).toBeGreaterThan(at);
+    expect(fnBody('aether_quote', flat.slice(fnAt))).toBe(fnBody('aether_quote'));
+  });
+
+  it('aether_quote keeps Announcers out of the available focus categories only, and the pool is untouched', () => {
+    const quote = fnBody('aether_quote', announcersNotFocusable);
+    expect(quote).toContain("where c.category <> 'announcer'");
+    // the pool the pick reads is unchanged, so an unfocused chest (or one that ticks every focusable category) can drop one
+    expect(announcersNotFocusable).not.toContain('create or replace function public.progression_tiered_crate_pool(');
+    expect(announcersNotFocusable).not.toContain('create or replace function public.progression_tiered_crate_pick(');
+    // still internal: revoked from every API role, the service role included
+    expect(announcersNotFocusable).toContain('revoke all on function public.aether_quote(uuid, text, text[], boolean) from public, anon, authenticated, service_role;');
   });
 });

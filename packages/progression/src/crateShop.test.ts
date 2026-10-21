@@ -5,7 +5,7 @@ import {
 } from './cosmetics';
 import { CRATE_TIERS, DEFAULT_AETHER_ECONOMY } from './aether';
 import {
-  CRATE_TIER_FLOOR, CRATE_TIER_LABELS, atOrAbove, availableFocusCategories, eligibleForCrate, focusFeePercent, normalizeFocus,
+  CRATE_TIER_FLOOR, CRATE_TIER_LABELS, NON_FOCUSABLE_CATEGORIES, atOrAbove, availableFocusCategories, eligibleForCrate, focusFeePercent, isFocusableCategory, normalizeFocus,
   pickTieredCrateReward, quoteCrate, tierOddsPercent, tieredCrateChances,
 } from './crateShop';
 
@@ -186,6 +186,48 @@ describe('quotes', () => {
   it('prices come from the economy passed in', () => {
     const eco = { ...DEFAULT_AETHER_ECONOMY, cratePrice: { ...DEFAULT_AETHER_ECONOMY.cratePrice, epic: 500 } };
     expect(quoteCrate({ tier: 'epic', focus: ['card_plate'], owned: [], economy: eco })).toMatchObject({ crate: 500, fee: 500, total: 1000 });
+  });
+});
+
+describe('Announcers are never a focus (owner 2026-10-20, R-PROG-AETHER-06)', () => {
+  const testDef = (id: string, category: CosmeticDef['category'], rarity: CosmeticDef['rarity']): CosmeticDef =>
+    ({ id, category, name: id, rarity, acquisition: { type: 'crate' }, assets: {}, active: true });
+
+  it('announcer is non-focusable and every other category is focusable', () => {
+    expect(NON_FOCUSABLE_CATEGORIES).toEqual(['announcer']);
+    expect(isFocusableCategory('announcer')).toBe(false);
+    expect(isFocusableCategory('hero_skin')).toBe(true);
+  });
+
+  it('the focus chips never offer announcer, at any floor', () => {
+    expect(availableFocusCategories(new Set(), 'common')).not.toContain('announcer');
+    for (const tier of CRATE_TIERS) expect(availableFocusCategories([], CRATE_TIER_FLOOR[tier])).not.toContain('announcer');
+    // …though the unfocused pool still holds them.
+    expect(eligibleForCrate([], 'legendary', null).some((c) => c.category === 'announcer')).toBe(true);
+  });
+
+  it('a focus on announcer is a bad focus', () => {
+    expect(quoteCrate({ tier: 'standard', focus: ['announcer'], owned: [] })).toBeNull();
+    expect(quoteCrate({ tier: 'legendary', focus: ['announcer', 'hero_skin'], owned: [] })).toBeNull();
+  });
+
+  it('ticking every focusable category is unfocused: free, and the pool keeps the Announcers', () => {
+    const owned: string[] = [];
+    const all = availableFocusCategories(owned, 'legendary');
+    const q = quoteCrate({ tier: 'legendary', focus: all, owned })!;
+    expect(q.focus).toBeNull();
+    expect(q.fee).toBe(0);
+    expect(q.remaining).toBe(eligibleForCrate(owned, 'legendary', null).length);
+    expect(q.remaining).toBeGreaterThan(eligibleForCrate(owned, 'legendary', all).length);
+  });
+
+  it('when the only focusable category left is the one ticked, the chest is unfocused and free', () => {
+    const catalog = [testDef('t_skin', 'hero_skin', 'legendary'), testDef('t_ann', 'announcer', 'legendary')];
+    expect(availableFocusCategories([], 'legendary', catalog)).toEqual(['hero_skin']);
+    const q = quoteCrate({ tier: 'legendary', focus: ['hero_skin'], owned: [], catalog })!;
+    expect(q.focus).toBeNull();
+    expect(q.fee).toBe(0);
+    expect(q.remaining).toBe(2);
   });
 });
 

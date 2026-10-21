@@ -7539,4 +7539,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-20 (perf/desktop-jank). Before, each seat read its row, appended its float, then the next seat read again.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyFloatBatch.test.ts', 'packages/ui/src/lobbyRoundDamage.test.tsx', 'packages/ui/src/lobbyKnockout.test.tsx'], lastVerifiedAt: '2026-10-20' },
   },
+  {
+    id: 'R-PROG-AETHER-06',
+    title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
+    statement:
+      'Announcers are never a chest focus category. They still drop from unfocused chests. When every focusable category is ticked '
+      + '(or the ticked ones are all that is left at the tier), the chest is unfocused: free, and it can give an Announcer.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'lets remove announcers from being able to be focused' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'yes, announcers can drop from the unfocused chests' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'Free, may give an Announcer' },
+      { kind: 'code', ref: 'packages/progression/src/crateShop.ts (NON_FOCUSABLE_CATEGORIES, isFocusableCategory, availableFocusCategories); supabase/migrations/2026-10-20-announcers-not-focusable.sql (aether_quote)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (feat/chest-shop-screen), once the owner runs 2026-10-20-announcers-not-focusable.sql after the milestone file. The client (availableFocusCategories) and the server (aether_quote) both leave announcer out of the available focus categories, so a focus naming it is refused as bad_focus and ticking every other category collapses to no focus (null, fee 0). The pool is untouched (eligibleForCrate, progression_tiered_crate_pool), so an unfocused chest still rolls Announcers. Until the SQL is run, the live server still accepts an announcer focus: the Edge Function\x27s parseFocus is deliberately unchanged, so the SQL quote is the gate.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crateShop.test.ts', 'packages/progression/src/announcersNotFocusable.db.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
 ];

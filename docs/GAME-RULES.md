@@ -913,10 +913,11 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
   moves to the nearest rarity that still does, **never below the floor**. A Standard chest with no focus rolls exactly
   as the older chests did. You still never get a duplicate, and a chest whose floor has nothing left for you cannot be
   bought (or, if it was earned, stays sealed and uncharged).
-- **Focus.** For an extra fee you can **focus** a chest on one or more categories (announcers, hero skins, minion skins, titles,
+- **Focus.** For an extra fee you can **focus** a chest on one or more categories (hero skins, minion skins, titles,
   hero attacks, portrait frames, emotes, card plates): the reward then comes only from those
-  categories. The fee is a share of the chest's price that **falls as you tick more categories**, because ticking more
-  makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
+  categories. **Announcers can never be focused** (owner 2026-10-20, R-PROG-AETHER-06: "lets remove announcers from being
+  able to be focused"); they still drop from chests that are not focused. The fee is a share of the chest's price that
+  **falls as you tick more categories**, because ticking more makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
 
   | Categories ticked | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 or more |
   |---|---|---|---|---|---|---|---|---|
@@ -924,7 +925,9 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
 
   Only **available** categories count: a category with nothing left that you could receive from that chest (at its floor
   or above, not already owned) cannot be ticked and does not count toward the number ticked. **Ticking
-  every available category is no focus at all and costs nothing.** A focus whose categories are all sold out cannot be
+  every available category is no focus at all and costs nothing**, and an unfocused chest can give an Announcer (owner:
+  "Free, may give an Announcer"): this also happens when the categories you ticked are all that is left at that chest's
+  tier. A focus whose categories are all sold out cannot be
   bought. The chest price and the fee are one charge.
 - **Milestone chests.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Epic-floor chest**
   (owner 2026-10-20: "reduce down to Epic for the milestone chests"); other levels grant no chest. When Aether launches,

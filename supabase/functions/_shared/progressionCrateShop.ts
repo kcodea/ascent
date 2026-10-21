@@ -83,11 +83,23 @@ export function eligibleForCrate(
   return eligibleCrateCosmetics(owned, catalog).filter((c) => serverAllows(c) && atOrAbove(c.rarity, floor) && (!cats || cats.has(c.category)));
 }
 
+/**
+ * Categories that can NEVER be a chest focus (owner 2026-10-20: "lets remove announcers from being able to be focused";
+ * "yes, announcers can drop from the unfocused chests"; R-PROG-AETHER-06). They are still in every unfocused pool
+ * (`eligibleForCrate` is untouched), so an unfocused chest can give one. The SQL mirror is the `v_available` select in
+ * `aether_quote` (2026-10-20-announcers-not-focusable.sql).
+ */
+export const NON_FOCUSABLE_CATEGORIES: readonly CosmeticCategory[] = Object.freeze(['announcer'] as CosmeticCategory[]);
+
+/** Can this category be ticked as a chest focus? */
+export const isFocusableCategory = (c: CosmeticCategory): boolean => !NON_FOCUSABLE_CATEGORIES.includes(c);
+
 /** The categories a player may focus at this floor: those with something still eligible (so never one the server has
- *  switched off), in `COSMETIC_CATEGORIES` order. */
+ *  switched off) and focusable (never an Announcer), in `COSMETIC_CATEGORIES` order. When every one of these is ticked
+ *  (`normalizeFocus`) the chest is unfocused, so its pool still includes the Announcers. */
 export function availableFocusCategories(owned: Iterable<string>, floor: CosmeticRarity, catalog: readonly CosmeticDef[] = COSMETICS): CosmeticCategory[] {
   const have = new Set(eligibleForCrate(owned, floor, null, catalog).map((c) => c.category));
-  return COSMETIC_CATEGORIES.filter((c) => have.has(c));
+  return COSMETIC_CATEGORIES.filter((c) => have.has(c) && isFocusableCategory(c));
 }
 
 /**

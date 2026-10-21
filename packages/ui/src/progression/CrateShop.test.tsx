@@ -390,11 +390,17 @@ describe('the Chest Shop: live odds', () => {
     expect(line.length).toBeGreaterThan(0);
   });
 
-  it('Standard + Announcers shows only Legendary 100%', () => {
+  it('the Announcers chip can never be ticked, at any tier (R-PROG-AETHER-06, owner 2026-10-20)', () => {
     seed(2000);
     render();
-    click(chip('Announcers'));
-    expect(norm($('.colls-shop-odds')?.textContent)).toBe('Legendary 100%');
+    for (const name of ['Standard', 'Legendary']) {
+      click(tier(name));
+      const ann = chip('Announcers');
+      expect(ann.disabled, name).toBe(true);
+      click(ann);
+      expect(ann.getAttribute('aria-pressed'), name).toBe('false');
+    }
+    expect(chip('Card Plates').disabled).toBe(false);
   });
 
   it('an unfocused Epic crate with a fresh collection shows 64.7 / 26.5 / 8.8', () => {

@@ -12,7 +12,12 @@
  * On desktop the splash now waits for all of them (capped, so a broken GPU can never hold it): the game is mounted
  * and warming underneath a full-opacity splash, and the fade starts on a warm page. Phones and iPads (`LITE_ART`)
  * keep their short gate and build these on demand as before (their memory budget is the tighter constraint).
+ *
+ * The one lazy CHUNK a game still evaluated mid-game rides along (desktop jank pass 2026-10-20): the board-strength
+ * reference (`strengthReference.v1`, ~0.65 MB of boards), first imported when the scorer rates a board after a combat,
+ * was a 20-35 ms task in the shop. Imported here, the module is cached and the scorer's own import resolves at once.
  */
+import { loadStrengthReference } from '@game/sim';
 import { LITE_ART } from './phoneArt';
 import { whenFxPrewarmed } from './fx/playDef';
 import { warmDiscoverFxNow } from './pixiFx';
@@ -35,6 +40,7 @@ export function bootWarm(capMs = BOOT_WARM_CAP_MS): Promise<void> {
     warmDiscoverFxNow(),
     wipeFx.ready(),
     gateFx.ready(),
+    loadStrengthReference(),
   ].map((p) => p.catch(() => undefined))).then(() => undefined);
   return Promise.race([all, new Promise<void>((r) => window.setTimeout(r, capMs))]);
 }

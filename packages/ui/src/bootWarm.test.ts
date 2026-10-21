@@ -14,6 +14,7 @@ vi.mock('./phoneArt', () => ({ get LITE_ART() { return state.lite; } }));
 vi.mock('./fx/playDef', () => ({ whenFxPrewarmed: pending('fx') }));
 vi.mock('./pixiFx', () => ({ warmDiscoverFxNow: pending('discover') }));
 vi.mock('./wipeFx', () => ({ wipeFx: { warm: () => state.calls.push('wipe.warm'), ready: pending('wipe') } }));
+vi.mock('@game/sim', () => ({ loadStrengthReference: pending('strength') }));
 vi.mock('./rankedGate/gateFx', () => ({ gateFx: { warm: () => state.calls.push('gate.warm'), ready: pending('gate') } }));
 
 import { bootWarm } from './bootWarm';
@@ -25,7 +26,7 @@ describe('the boot warm-up', () => {
   it('on desktop it starts every warm-up and resolves only once all of them have finished', async () => {
     let done = false;
     void bootWarm(4000).then(() => { done = true; });
-    expect(state.calls).toEqual(expect.arrayContaining(['wipe.warm', 'gate.warm', 'fx', 'discover', 'wipe', 'gate']));
+    expect(state.calls).toEqual(expect.arrayContaining(['wipe.warm', 'gate.warm', 'fx', 'discover', 'wipe', 'gate', 'strength']));
     for (const r of state.resolvers.slice(0, -1)) r();
     await vi.advanceTimersByTimeAsync(10);
     expect(done).toBe(false); // one still running

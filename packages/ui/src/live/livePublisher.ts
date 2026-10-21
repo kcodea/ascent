@@ -102,7 +102,7 @@ function setWatchers(l: Live, n: number): void {
     if (!l.channel) l.channel = remote.channel(l.gameId, (event, payload) => onBroadcast(l, event, payload));
     l.pub = newPublisher('p1');
     l.keyWanted = true;
-    setSpectatorTap(true, 'p1', l.channel.send, () => frames.schedule(undefined));
+    setSpectatorTap(true, 'p1', l.channel.send, () => frames.schedule(undefined), () => frames.flush());
     frames.schedule(undefined);
   } else if (n === 0 && l.pub) {
     stopPublishing(l);

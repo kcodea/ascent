@@ -56,15 +56,19 @@ export function findAnchor(key: string, root: ParentNode = document): HTMLElemen
 
 /**
  * The SENDER: a screen point (px) and the element under it, as it travels. One rect read for the anchor (called on the
- * sample timer, ~15 Hz while the pointer moves, never per frame).
+ * sample timer, ~20 Hz while the pointer moves, never per frame). `rects` shares the reads across the points of one
+ * message (they are usually over the same element); `anchor: false` sends the design-space point alone (while a card
+ * is held or an aim is out the rows under the pointer slide, so an anchor would ride a moving card; the game box does
+ * not move, R-SPECTATE-SMOOTH-01).
  */
-export function encodePoint(x: number, y: number, target: Element | null | undefined): CursorPointWire {
+export function encodePoint(x: number, y: number, target: Element | null | undefined, rects?: Map<Element, DOMRect>, anchor = true): CursorPointWire {
   const vw = window.innerWidth || 1, vh = window.innerHeight || 1;
   const box = gameBox();
   const out: CursorPointWire = { x: r3(x / vw), y: r3(y / vh), gx: r3((x - box.left) / (box.w || 1)), gy: r3((y - box.top) / (box.h || 1)) };
-  const a = anchorOf(target);
+  const a = anchor ? anchorOf(target) : null;
   if (a) {
-    const r = a.el.getBoundingClientRect();
+    let r = rects?.get(a.el);
+    if (!r) { r = a.el.getBoundingClientRect(); rects?.set(a.el, r); }
     if (r.width > 0 && r.height > 0) out.an = { k: a.key, fx: r3((x - r.left) / r.width), fy: r3((y - r.top) / r.height) };
   }
   return out;
@@ -72,12 +76,14 @@ export function encodePoint(x: number, y: number, target: Element | null | undef
 
 /**
  * The RECEIVER: where a travelled point lands on THIS screen (screen px). The anchor's element when it is on screen,
- * else the game box, else (an older sender) the window. One rect read per received sample, never per frame.
+ * else the game box, else (an older sender) the window. One rect read per anchor per received message (`rects` shares
+ * them across a message's points), never per frame.
  */
-export function decodePoint(p: CursorPointWire, root: ParentNode = document): { x: number; y: number; el: HTMLElement | null } {
+export function decodePoint(p: CursorPointWire, root: ParentNode = document, rects?: Map<string, DOMRect | null>): { x: number; y: number; el: HTMLElement | null } {
   if (p.an) {
     const el = findAnchor(p.an.k, root);
-    const r = el?.getBoundingClientRect();
+    let r = rects?.get(p.an.k);
+    if (r === undefined) { r = el?.getBoundingClientRect() ?? null; rects?.set(p.an.k, r); }
     if (el && r && r.width > 0 && r.height > 0) return { x: r.left + p.an.fx * r.width, y: r.top + p.an.fy * r.height, el };
   }
   if (typeof p.gx === 'number' && typeof p.gy === 'number') {

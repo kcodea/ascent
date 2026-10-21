@@ -184,9 +184,9 @@ describe('the tap', () => {
     tap.tapEndTurn({ batch });
     expect(wake).toHaveBeenCalledTimes(1);
     expect(tap.hasPendingActs()).toBe(true);
-    expect(tap.takeActs()).toEqual([{ t: 'endTurn', eot: { batch } }]);
+    expect(tap.takeActs()).toEqual([{ t: 'endTurn', ts: expect.any(Number), eot: { batch } }]);
     tap.tapEndTurn(null);
-    expect(tap.takeActs()).toEqual([{ t: 'endTurn' }]);
+    expect(tap.takeActs()).toEqual([{ t: 'endTurn', ts: expect.any(Number) }]);
   });
 });
 

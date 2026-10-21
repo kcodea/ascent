@@ -37,16 +37,18 @@ describe('aggregate (synthetic fixture)', () => {
     // the Set 3 Dragon batch the same day (Whaloo, Falx, Queen Morro, Shush).
     // Regenerated 2026-10-15: Set 3 Dragon batch 2 (eight new Dragons, three carried Set 2 Dragons) and Gravestar Seer archived;
     // again the same day when the owner moved Gravus and Well Watcher to Tier 5, and again for Bait Brood, Hatcher, Whispwarder.
+    // Regenerated 2026-10-21: the Set 3 Dwarf rework (Hank Pepe and Shift Broker on Sell; Coinfire, Striker, Billings and
+    // Lieutenant Thane out of Set 3; Dwarf King, Brill buyable).
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:5.07",
-        "fibbsy:30:4.13",
-        "gorr:30:4.13",
-        "harlan:30:4.80",
-        "midas:30:4.47",
-        "nadja:30:3.53",
-        "pete:30:4.80",
-        "warden:30:5.07",
+        "drakko:30:5.13",
+        "fibbsy:30:4.20",
+        "gorr:30:4.07",
+        "harlan:30:5.20",
+        "midas:30:4.07",
+        "nadja:30:3.80",
+        "pete:30:4.53",
+        "warden:30:5.00",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

@@ -210,7 +210,7 @@ const RECRUIT_NOT_A_CHOICE: Record<string, string> = {
   deathrattleSummonRandomHandMinion: 'the pool is the HAND, and the source is a board body',
   impInheritOnDeath: 'filters `c.uid !== self.uid && c.uid !== dead.uid` inline (declared in anotherMinionExcludesSelf)',
   deathrattleBuffRandom: 'filters `c !== self` inline',
-  onTribeSummonedBuffRandomOthers: 'filters `c.uid !== self.uid` inline (declared in anotherMinionExcludesSelf)',
+  minionSoldBuffRandomTribeOthers: 'filters `c.uid !== self.uid` inline (declared in anotherMinionExcludesSelf)',
 };
 const COMBAT_NOT_A_CHOICE: Record<string, string> = {
   rallyCastRandomTargetedSpell: 'filters `m !== self` inline (Badgington: "it can\'t target itself", owner ruling)',

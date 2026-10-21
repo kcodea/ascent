@@ -9158,7 +9158,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "onTribeSummonedBuffRandomOthers.tribe"
+        "minionSoldBuffRandomTribeOthers.tribe"
       ]
     },
     "setIds": [
@@ -9173,15 +9173,14 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "triggers": [
       {
-        "event": "onSummon",
+        "event": "minionSold",
         "phase": "shop",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "combat side excused: no-surface"
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [
       {
-        "kind": "onTribeSummonedBuffRandomOthers",
+        "kind": "minionSoldBuffRandomTribeOthers",
         "amount": {
           "kind": "const",
           "plain": {
@@ -9379,7 +9378,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1
+            "attack": 2
           }
         }
       }
@@ -9405,8 +9404,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 2,
     "tribes": [
@@ -9750,8 +9748,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 5,
     "tribes": [
@@ -9931,7 +9928,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
   },
   {
     "contentId": "dw_brill",
-    "contentType": "token",
+    "contentType": "minion",
     "revision": 1,
     "reviewStatus": "extracted",
     "extraction": {
@@ -9942,7 +9939,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2"
+      "set3"
     ],
     "tier": 6,
     "tribes": [
@@ -10203,8 +10200,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       ]
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 3,
     "tribes": [
@@ -10937,8 +10933,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tier": 6,
     "tribes": [
@@ -32318,8 +32313,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "confidence": "high"
     },
     "setIds": [
-      "set2",
-      "set3"
+      "set2"
     ],
     "tribes": [
       "dwarf"

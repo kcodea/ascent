@@ -385,7 +385,10 @@ describe('tranche C — the five that needed machinery', () => {
     // 29 → 30 on 2026-08-20: dw_kegheart joined the FORGE-ONLY rune minions (token: true, like Baal / Bucky).
     // 30 → 31 on 2026-10-07: dw_bigbrainbilly (Big Brain Billy, T2, owner add) joined the buyable roster.
     // 31 → 30 on 2026-10-10: Arnold + Chicken Brawl archived, Drunk Daniel (dw_drunkdaniel, T6) added (owner balance batch).
-    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(30);
+    // 30 → 29 on 2026-10-21: Brill (`dw_brill`) is a buyable Set 3 Dwarf now (no longer a token), so set 2 keeps it
+    // forge-only by leaving it out of its manifest; Rune of the High King still grants it by id.
+    expect(dwarfIds.length, `got ${dwarfIds.join(', ')}`).toBe(29);
+    expect(dwarfIds).not.toContain('dw_brill');
     expect(poolFor('set2').buyable.some((c) => c.id === 'dw_kegheart'), 'rune-only: in the set, never drawable').toBe(false);
     expect(dwarfIds).not.toContain('dw_chickenbrawl'); // archived 2026-10-10
     expect(dwarfIds).toContain('dw_drunkdaniel');

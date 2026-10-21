@@ -22,6 +22,7 @@ export const SET3_DWARVES: CardDef[] = [
   {
     // "When you sell a minion, gain +1 Attack" — any minion, any tribe (owner 2026-09-09). Board sells only,
     // because a card in hand cannot be sold. Rides the same `minionSold` broadcast Voicekeeper watches.
+    // Owner 2026-10-21 (Set 3 Dwarf rework): +1 -> +2 Attack (Gilded +4); same tier and stats.
     id: 'dw3_shiftbroker',
     name: 'Shift Broker',
     tribe: 'dwarf',
@@ -29,9 +30,9 @@ export const SET3_DWARVES: CardDef[] = [
     attack: 1,
     health: 4,
     keywords: [],
-    effects: [{ on: 'minionSold', do: 'minionSoldBuffSelf', params: { attack: 1 } }],
-    text: 'When you **sell** a minion, gain **+1 Attack**.',
-    goldenText: 'When you **sell** a minion, gain **+2 Attack**.',
+    effects: [{ on: 'minionSold', do: 'minionSoldBuffSelf', params: { attack: 2 } }],
+    text: 'When you **Sell** a minion, gain **+2 Attack**.',
+    goldenText: 'When you **Sell** a minion, gain **+4 Attack**.',
   },
   {
     // Kringle's shape pointed at its neighbours: the same `playedThisTurn` counter (minions AND spells), any
@@ -65,8 +66,10 @@ export const SET3_DWARVES: CardDef[] = [
     goldenText: "**Equip Pourman's Keg (1):** cast **2 random Dwarven Ales**.",
   },
   {
-    // "Give 3 other Dwarves +1/+1" — three RANDOM other Dwarves on the BOARD (the arriving Dwarf may be one).
-    // Hank never buffs himself and does not fire on his own arrival (owner 2026-09-09).
+    // Owner rework 2026-10-21: the trigger moved from "when you play a Dwarf" to "when you Sell a minion" (any
+    // minion, any tribe). Three RANDOM other Dwarves on the BOARD (All-types count) gain +1/+1, permanently (a Shop
+    // buff); fewer when fewer exist. Hank never buffs himself. Gilded doubles the STAT, not the count (the Billings /
+    // pre-rework Hank convention).
     id: 'dw3_hankpepe',
     name: 'Hank Pepe',
     tribe: 'dwarf',
@@ -74,9 +77,9 @@ export const SET3_DWARVES: CardDef[] = [
     attack: 2,
     health: 7,
     keywords: [],
-    effects: [{ on: 'onSummon', do: 'onTribeSummonedBuffRandomOthers', params: { tribe: 'dwarf', count: 3, attack: 1, health: 1 } }],
-    text: 'When you play a **Dwarf**, give **3 other Dwarves +1/+1**.',
-    goldenText: 'When you play a **Dwarf**, give **3 other Dwarves +2/+2**.',
+    effects: [{ on: 'minionSold', do: 'minionSoldBuffRandomTribeOthers', params: { tribe: 'dwarf', count: 3, attack: 1, health: 1 } }],
+    text: 'When you **Sell** a minion, give **3 other Dwarves +1/+1**.',
+    goldenText: 'When you **Sell** a minion, give **3 other Dwarves +2/+2**.',
   },
   {
     // Echo: Gold for the NEXT turn only, NOT capped at 10 (owner 2026-09-09) — it rides `bonusEmbersNextTurn`,

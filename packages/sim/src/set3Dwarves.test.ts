@@ -9,9 +9,10 @@ import { snapshotBoard } from './snapshot';
  * pinned by `set3Scaffold.test.ts` and exercised by `set2Dwarves.test.ts` (same definitions).
  *
  * These assert the MECHANICS, and specifically the owner's rulings from the roster review:
- *  - Shift Broker: ANY sold minion, any tribe.
+ *  - Shift Broker: ANY sold minion, any tribe (+2 Attack since the 2026-10-21 rework).
  *  - Striker: any-tribe neighbours, Kringle's counter, its own play counts.
- *  - Hank Pepe: three random OTHER Dwarves on the board; never on his own arrival, never himself.
+ *  - Hank Pepe: three random OTHER Dwarves on the board; never himself. Since 2026-10-21 he fires on a SALE, not a
+ *    Dwarf play (the rework's full matrix lives in `set3DwarfRework1021.test.ts`).
  *  - Tromboneer: Gold next turn, NOT capped, both phases.
  *  - Kneel / Tankerchief: shop AND combat, board only, per Dwarf, own gain excluded, no watcher ping-pong.
  *  - Pourman's Keg: a real Ale cast (Edward doubles it). Thymepiece (reworked 2026-10-21): cards sell for +1
@@ -31,7 +32,8 @@ describe('the roster', () => {
   it('every new Dwarf is a set-3 card, and Dwarf is a set-3 tribe', () => {
     const ids = ['dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel', 'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover'];
     const pool = poolFor('set3');
-    for (const id of ids) expect(pool.buyable.some((c) => c.id === id), id).toBe(true);
+    // Striker left set 3 on 2026-10-21 (owner Dwarf rework); it stays a set-2 card (asserted just below).
+    for (const id of ids) expect(pool.buyable.some((c) => c.id === id), id).toBe(id !== 'dw3_striker');
     expect(SETS.set3.tribes).toContain('dwarf');
     // …and none of them leaked into set 2 — new set-3 cards live in set-3 files only.
     // Striker is the exception: the owner added it to set 2 as a SHARED card on 2026-10-10 (it stays in set 3).
@@ -44,18 +46,18 @@ describe('the roster', () => {
   });
 });
 
-describe('Shift Broker — when you sell a minion, gain +1 Attack', () => {
+describe('Shift Broker — when you Sell a minion, gain +2 Attack (owner rework 2026-10-21)', () => {
   it('fires for ANY sold minion, any tribe, and stacks per sale', () => {
     let s = run({ board: [body('sb', 'dw3_shiftbroker'), body('d', 'dw_brunni'), body('n', 'e3_frank')] });
     s = act(s, { type: 'sell', uid: 'd' });
-    expect(at(s, 'sb').attack).toBe(2);
-    s = act(s, { type: 'sell', uid: 'n' }); // a neutral counts too
     expect(at(s, 'sb').attack).toBe(3);
+    s = act(s, { type: 'sell', uid: 'n' }); // a neutral counts too
+    expect(at(s, 'sb').attack).toBe(5);
   });
-  it('golden gains +2, and selling the Broker itself is a clean no-op', () => {
+  it('golden gains +4, and selling the Broker itself is a clean no-op', () => {
     let s = run({ board: [body('sb', 'dw3_shiftbroker', { golden: true }), body('d', 'dw_brunni')] });
     s = act(s, { type: 'sell', uid: 'd' });
-    expect(at(s, 'sb').attack).toBe(3);
+    expect(at(s, 'sb').attack).toBe(5);
     s = act(s, { type: 'sell', uid: 'sb' });
     expect(s.board.length).toBe(0);
   });
@@ -153,31 +155,29 @@ describe("Pourman's Keg — cast a random Dwarven Ale", () => {
   });
 });
 
-describe('Hank Pepe — when you play a Dwarf, give 3 other Dwarves +1/+1', () => {
-  it('buffs exactly three OTHER Dwarves, never Hank, and the arriving Dwarf is eligible', () => {
+describe('Hank Pepe — when you Sell a minion, give 3 other Dwarves +1/+1 (owner rework 2026-10-21)', () => {
+  it('a sale buffs exactly three OTHER Dwarves, never Hank, never a non-Dwarf', () => {
     let s = run({
       // Distinct Dwarves on purpose — three of a kind would triple into one golden body before Hank looks.
-      board: [body('h', 'dw3_hankpepe'), body('a', 'dw_brunni'), body('b', 'dw_coinfire'), body('c', 'dw_pimm'), body('n', 'e3_frank')],
-      hand: [body('d', 'dw_gangplank')],
+      board: [body('h', 'dw3_hankpepe'), body('a', 'dw_brunni'), body('b', 'dw_brakka'), body('c', 'dw_pimm'), body('g', 'dw_gangplank'), body('n', 'e3_frank'), body('x', 'e3_sculptor')],
     });
-    s = act(s, { type: 'play', uid: 'd' });
+    s = act(s, { type: 'sell', uid: 'x' });
     const buffed = s.board.filter((c) => c.buffs?.some((b) => b.source === 'Hank Pepe'));
     expect(buffed.length).toBe(3);
     expect(buffed.some((c) => c.uid === 'h'), 'never himself').toBe(false);
     expect(buffed.some((c) => c.uid === 'n'), 'never a non-Dwarf').toBe(false);
     for (const c of buffed) expect(c.buffs!.find((b) => b.source === 'Hank Pepe')).toMatchObject({ attack: 1, health: 1 });
-    expect(at(s, 'h').attack).toBe(2);
+    expect(at(s, 'h').attack).toBe(CARD_INDEX['dw3_hankpepe']!.attack);
   });
-  it('does not fire on his own arrival, nor for a non-Dwarf play', () => {
-    let s = run({ board: [body('a', 'dw_brunni'), body('b', 'dw_coinfire')], hand: [body('h', 'dw3_hankpepe'), body('n', 'e3_frank')] });
-    s = act(s, { type: 'play', uid: 'h' });
-    s = act(s, { type: 'play', uid: 'n' });
+  it('no longer fires on a Dwarf play', () => {
+    let s = run({ board: [body('h', 'dw3_hankpepe'), body('a', 'dw_brunni')], hand: [body('d', 'dw_brakka')] });
+    s = act(s, { type: 'play', uid: 'd' });
     expect(s.board.some((c) => c.buffs?.some((b) => b.source === 'Hank Pepe'))).toBe(false);
   });
   it('is seeded, and buffs fewer than three if fewer are there', () => {
-    let s = run({ board: [body('h', 'dw3_hankpepe')], hand: [body('d', 'dw_brunni')] });
+    let s = run({ board: [body('h', 'dw3_hankpepe'), body('d', 'dw_brunni'), body('n', 'e3_frank')] });
     const before = s.rngCursor;
-    s = act(s, { type: 'play', uid: 'd' });
+    s = act(s, { type: 'sell', uid: 'n' });
     expect(at(s, 'd').attack).toBe(CARD_INDEX['dw_brunni']!.attack + 1);
     expect(s.rngCursor).not.toBe(before);
   });

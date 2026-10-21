@@ -1382,4 +1382,28 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-21).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/wardReform.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-DWARF-1021-04',
+    title: 'Set 3 Dwarf rework 2026-10-21: Hank Pepe and Shift Broker fire on any Sell; four Dwarves leave Set 3; Brill is buyable there',
+    statement:
+      'Hank Pepe ("When you Sell a minion, give 3 other Dwarves +1/+1") fires on the sale of ANY minion, any tribe, and no '
+      + 'longer on a Dwarf play. It buffs up to 3 RANDOM other Dwarves on the board (seeded; never itself, never the sold '
+      + 'minion; an All-types minion counts as a Dwarf; fewer than 3 buffs them all). Gilded doubles the stat (+2/+2), '
+      + 'never the count. Shift Broker gains +2 Attack per sale (Gilded +4). Both are Shop buffs and permanent '
+      + '(R-BUFF-PHASE-01); a sale only happens in the Shop. Coinfire, Striker, Billings and Lieutenant Thane are out of the '
+      + 'Set 3 pool (still Set 2 cards; old Set 3 saves, snapshots and replays resolve them by id). Dwarf King, Brill is a '
+      + 'buyable Set 3 Tier 6 (no longer a token; Set 2 keeps it forge-only by leaving it out of its manifest), and Rune '
+      + 'of the High King is a Set 2 rune only.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content changes for Set 3, 2026-10-21', quote: 'Hank Pepe becomes: "When you Sell a minion, give 3 other Dwarves +1/+1."' },
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-21 (same PR)', quote: "add dwarf king brill to set 3's dwarf pool, archive the rune from set 3" },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldBuffRandomTribeOthers / minionSoldBuffSelf; packages/content/src/sets.ts SET3_DWARVES_IN_SET3 / SET2_DWARVES_IN_SET3 / SET2_BRILL_IN_SET3' },
+    ],
+    cardText: 'When you **Sell** a minion, give **3 other Dwarves +1/+1**.',
+    contentIds: ['dw3_hankpepe', 'dw3_shiftbroker', 'dw_coinfire', 'dw3_striker', 'dw_billings', 'dw_thane', 'dw_brill'],
+    currentBehaviour: 'Conforms (built 2026-10-21).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfRework1021.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

@@ -70,6 +70,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Set 3 Dwarves reworked. Hank Pepe and Shift Broker now pay off when you Sell a minion, Dwarf King, Brill joins the Shop, and four Dwarves leave the Set 3 pool.',
+        details: [
+          'Hank Pepe: when you Sell a minion, give 3 other Dwarves +1/+1. It used to trigger when you played a Dwarf. Same Tier 3, 2/7 body.',
+          'Shift Broker: when you Sell a minion, gain +2 Attack (was +1). Same Tier 1, 1/4 body.',
+          'Dwarf King, Brill (Tier 6, 5/8) can now be bought in the Set 3 Shop. Rune of the High King, which used to grant it, leaves the Set 3 Runeforge.',
+          'Coinfire, Striker, Billings and Lieutenant Thane leave the Set 3 pool. They stay in Set 2.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Thymepiece is reworked. Using it now makes cards sell for 1 more Gold for the next 8 seconds. It no longer makes cards cheaper.',
         details: [
           'Plain Thymes: cards sell for +1 Gold for 8 seconds. Gilded Thymes: +1 Gold for 16 seconds.',

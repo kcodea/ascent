@@ -2327,7 +2327,9 @@ export const EPIC_RUNES: RuneDef[] = [
     epic: true,
     text: 'Get a **Dwarf King, Brill**.',
     reward: { kind: 'grant', cards: ['dw_brill'] },
-    sets: ['set2', 'set3'], // Rubies / Ales / set-2 cards // + set3 2026-09-14 (rune roster handoff: mechanically compatible carryover)
+    // Left set 3 on 2026-10-21 (owner: "add dwarf king brill to set 3's dwarf pool, archive the rune from set 3"): Brill
+    // is buyable there now. Still a set-2 rune; an old set-3 run holding it resolves it by id through RUNE_INDEX.
+    sets: ['set2'], // Rubies / Ales / set-2 cards
   },
   {
     id: 'rune_exgalloper',

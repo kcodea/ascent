@@ -188,11 +188,29 @@ const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
 const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
   [
     // Paymaster Pimm, Gangplank, Blade Thrower, Kringle (dw_foreman) and Mountainbond left set 3 on 2026-10-13 (owner
-    // Set 3 batch); all five stay set-2 cards.
-    'dw_brunni', 'dw_coinfire', 'dw_dorrin', 'dw_brakka',
-    'dw_billings', 'dw_brewer', 'dw_edward', 'dw_thane', 'dw_tapkeeper',
+    // Set 3 batch); all five stay set-2 cards. Coinfire, Billings and Lieutenant Thane left set 3 on 2026-10-21 (owner
+    // Set 3 Dwarf rework, "archive"); all three stay set-2 cards and resolve globally for old set-3 saves and replays.
+    'dw_brunni', 'dw_dorrin', 'dw_brakka',
+    'dw_brewer', 'dw_edward', 'dw_tapkeeper',
   ].includes(c.id),
 );
+
+/**
+ * Set 3's OWN Dwarves, less the ones that have left set 3. Striker (`dw3_striker`) left on 2026-10-21 (owner Set 3
+ * Dwarf rework, "archive"); its definition stays in `SET3_DWARVES` because set 2 still draws it as a shared card
+ * (`SET3_DWARVES_IN_SET2`), and old set-3 saves and replays resolve it through `CARD_INDEX`.
+ */
+const SET3_DWARVES_IN_SET3: readonly CardDef[] = SET3_DWARVES.filter((c) => c.id !== 'dw3_striker');
+
+/**
+ * DWARF KING, BRILL joins set 3's Dwarf pool as a BUYABLE Tier 6 (owner 2026-10-21: "add dwarf king brill to set 3's
+ * dwarf pool, archive the rune from set 3"). It was a forge-only `token` granted by Rune of the High King; it is now
+ * drawable, so `dw_brill` is no longer a token, and set 2 (where it stays forge-only) drops it from its manifest so
+ * set 2's Shop can never offer it. Set 2's Rune of the High King still grants it there through `CARD_INDEX`.
+ */
+const SET2_BRILL_IN_SET3: readonly CardDef[] = SET2_DWARF_RUNE_MINIONS.filter((c) => c.id === 'dw_brill');
+/** Set 2's rune-granted Dwarves, less Brill (above): set 2 keeps them forge-only. */
+const SET2_DWARF_RUNE_MINIONS_IN_SET2: readonly CardDef[] = SET2_DWARF_RUNE_MINIONS.filter((c) => c.id !== 'dw_brill');
 
 /**
  * The DWARVEN ALES carry into set 3 unchanged (owner 2026-09-09: "the same"). They are drawable set-2 Shop
@@ -361,7 +379,7 @@ export const SETS: Record<SetId, SetDef> = {
     // dropped in, so an explicit `own` list is the manifest. Add `inherits: 'set1'` (+ `excludes`) instead
     // if you'd rather start from set 1 and trim; both compose, and `own` always appends last.
     // Kobolds (this set's minions) + Set 1's carried-over neutral spell toolkit + Set 2's own Ruby spells.
-    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2, ...SET3_DWARVES_IN_SET2, ...SET2_DWARVES_LATE, ...SET2_DEMONS_LATE, ...SET2_DEMON_RUNE_MINIONS, ...SET2_DEMONS_1011], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) and the 2026-10-10 adds (Striker, Drunk Daniel, Hydraskus, then the rune-only Ruinous Lord, then Gasket and Rad Rachel) are APPENDED so no existing set-2 position moves.
+    own: [...SET2_KOBOLDS, ...SET2_DWARVES, ...SET2_DRAGONS, ...SET1_DRAGONS_IN_SET2, ...SET2_BEASTS, ...SET1_BEASTS_IN_SET2, ...SET2_DEMONS, ...SET1_DEMONS_IN_SET2, ...SET2_NEUTRAL, ...SET1_NEUTRALS_IN_SET2, ...SET1_SPELLS_IN_SET2, ...SET2_SPELLS, ...SET1_TIER7_IN_SET2, ...SET2_DWARF_TOKENS, ...SET2_DWARF_RUNE_MINIONS_IN_SET2, ...SET2_DRAGON_RUNE_MINIONS, ...SET3_KOBOLDS_IN_SET2, ...SET1_DEMONS_LATE_IN_SET2, ...SET3_DWARVES_IN_SET2, ...SET2_DWARVES_LATE, ...SET2_DEMONS_LATE, ...SET2_DEMON_RUNE_MINIONS, ...SET2_DEMONS_1011], // → packages/content/src/cards/set2/*.ts (WIP). The two cross-set adds (2026-10-07) and the 2026-10-10 adds (Striker, Drunk Daniel, Hydraskus, then the rune-only Ruinous Lord, then Gasket and Rad Rachel) are APPENDED so no existing set-2 position moves.
   },
   set3: {
     id: 'set3',
@@ -396,7 +414,7 @@ export const SETS: Record<SetId, SetDef> = {
     // Then the WHISPER DRAGONS (2026-10-14, from Set 4), in the slot the Celestials held (appended 2026-09-11, moved to
     // Set 4 the same day the Dragons arrived), so every earlier minion keeps its position. Their Whispers (Tome,
     // Runebind) are granted Gift-class spells and stay OUT of the manifest. Then (2026-10-15) the three carried Set 2 Dragons.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES, ...SET2_DWARVES_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET2_DRAGONS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES_IN_SET3, ...SET2_DWARVES_IN_SET3, ...SET2_BRILL_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET2_DRAGONS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
   },
   set4: {
     id: 'set4',

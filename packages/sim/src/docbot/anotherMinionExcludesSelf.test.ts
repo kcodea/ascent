@@ -84,7 +84,7 @@ const SELF_EXCLUDING: Record<string, Exclusion> = {
   battlecryBuffTribeOthersAttack: 'arena skips `f.uid === arena.self.uid` before buffing',
   onTribeDamagedBuffRandomTribe: 'Alan (Set 4): the arena draws its pick from `others(arena, isBeast)` (R-TARGET-03), driven in noSelfTarget ARENA_PICKERS',
   battlecryBuffTarget: 'R-TARGET-03: the reducer refuses an aim at the source and the auto-pick draws from `others(arena, …)`; Humphry\'s "every other Dragon played" also never counts its own play (2026-10-10, perPlayedTribe)',
-  onTribeSummonedBuffRandomOthers: 'recruit builds `avail` as `board.filter(c => c.uid !== self.uid …)` before the seeded draw (Hank Pepe, set 3; also declines its own arrival)',
+  minionSoldBuffRandomTribeOthers: 'recruit builds `avail` as `board.filter(c => c.uid !== self.uid …)` before the seeded draw (Hank Pepe, set 3, 2026-10-21)',
   scBuffAlliesPctSelf: 'arena buffs `arena.friends()` filtered to `m.uid !== arena.self.uid`',
   onTribeAttackBuffAttacker: 'returns early on `minion === self` — the attacker must be someone else',
   rallyGrantKeywordRandomTribe: 'arena draws from `others(arena, …)`, the R-TARGET-03 pool that never holds the source (Raven, 2026-09-24)',

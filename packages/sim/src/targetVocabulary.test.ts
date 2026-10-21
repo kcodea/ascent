@@ -18,14 +18,15 @@ const body = (uid: string, cardId: string, attack = 2, health = 2): BoardCard =>
 
 describe('"other" — a same-named copy is a legal target (uid exclusion)', () => {
   it('Hank Pepe ("give 3 other Dwarves") buffs a SECOND Hank Pepe, never himself', () => {
-    // Two Hank Pepes + one filler; playing a Dwarf fires both. With only two other Dwarves each, every recipient
-    // is buffed — so the other Hank Pepe must be one of them, and the firing one never is.
+    // Two Hank Pepes + one Dwarf + a neutral to sell; the sale fires both (Hank's trigger is a Sell since 2026-10-21).
+    // With only two other Dwarves each, every recipient is buffed — so the other Hank Pepe must be one of them, and
+    // the firing one never is.
     const s: RunState = {
       ...createRun(7), phase: 'recruit', setId: 'set3', shop: [],
-      board: [body('hp1', 'dw3_hankpepe'), body('hp2', 'dw3_hankpepe'), body('f', 'dw_brunni')],
-      hand: [body('p', 'dw_brunni')],
+      board: [body('hp1', 'dw3_hankpepe'), body('hp2', 'dw3_hankpepe'), body('f', 'dw_brunni'), body('p', 'e3_frank')],
+      hand: [],
     } as RunState;
-    const out = reduce(s, { type: 'play', uid: 'p', toIndex: 3 });
+    const out = reduce(s, { type: 'sell', uid: 'p' });
     const hp1 = out.board.find((c) => c.uid === 'hp1')!, hp2 = out.board.find((c) => c.uid === 'hp2')!;
     // Each Hank Pepe fired once; each received exactly the OTHER one's +1/+1 (uid exclusion, not card identity).
     expect([hp1.attack, hp1.health], 'hp1 got hp2\'s buff — a same-named copy is a legal target').toEqual([3, 3]);

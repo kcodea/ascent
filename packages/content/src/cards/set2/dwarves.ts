@@ -377,7 +377,8 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     health: 8,
     keywords: [],
     effects: [{ on: 'goldSpent', do: 'goldSpentGrantTribeMinion', params: { every: 10, tribe: 'dwarf', count: 1 } }],
-    token: true, // forge-only: Source = Rune
+    // No longer a token (owner 2026-10-21): Brill is a BUYABLE Tier 6 in set 3's Dwarf pool. Set 2 keeps it forge-only
+    // by leaving it out of its manifest (`SET2_DWARF_RUNE_MINIONS_IN_SET2` in sets.ts), not by this flag.
     text: 'When you spend **10 Gold**, get a random **Dwarf**.',
     goldenText: 'When you spend **10 Gold**, get **2** random **Dwarves**.',
   },

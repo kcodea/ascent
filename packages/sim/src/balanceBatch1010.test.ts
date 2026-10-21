@@ -60,8 +60,9 @@ describe('2026-10-10 archives: out of every set, still resolvable', () => {
 });
 
 describe('2026-10-10 set membership: Striker, Drunk Daniel and Hydraskus appended to set 2', () => {
-  it('Striker joins set 2 and stays in set 3; the three adds sit at the very END of set 2\'s own list', () => {
-    expect(SETS.set3.own.some((c) => c.id === 'dw3_striker')).toBe(true);
+  it('Striker joins set 2 (it left set 3 on 2026-10-21); the three adds sit at the very END of set 2\'s own list', () => {
+    // Striker stayed in set 3 until the owner's 2026-10-21 Dwarf rework took it out; it is still a set-2 card.
+    expect(poolFor('set3').all.some((c) => c.id === 'dw3_striker')).toBe(false);
     const own = SETS.set2.own.map((c) => c.id);
     // Later adds (Gasket, 2026-10-10) append AFTER these three, so pin their run, not the tail.
     const at = own.indexOf('dw3_striker');

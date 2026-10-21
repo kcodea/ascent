@@ -5726,14 +5726,14 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     }
   },
 
-  /** Hank Pepe (a Dwarf was played): `count` RANDOM OTHER Dwarves on the BOARD gain +a/+h. Never fires on
-   *  Hank's own arrival and never picks Hank (owner 2026-09-09); the arriving Dwarf is eligible. Same seeded
-   *  draw-without-replacement Billings uses, so it is replay-faithful and never double-buffs one body. */
-  onTribeSummonedBuffRandomOthers: (ctx, self, params, payload) => {
-    const { minion } = payload as { minion?: BoardCard };
+  /** Hank Pepe (owner rework 2026-10-21, minionSold): when you Sell ANY minion, `count` RANDOM OTHER friendly
+   *  `tribe` minions on the BOARD gain +a/+h, permanently (a Shop buff). All-types bodies count through the shared
+   *  `isTribe` predicate; fewer than `count` candidates buffs them all; Hank never picks himself. The sold minion has
+   *  already left the board when `minionSold` broadcasts, so it is never a candidate. Gilded doubles the stat. Same
+   *  seeded draw-without-replacement Billings uses, so it is replay-faithful and never double-buffs one body. */
+  minionSoldBuffRandomTribeOthers: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
     const tribe = str(params.tribe);
-    if (!minion || minion.uid === self.uid) return;
-    if (tribe && !isTribe(minion, tribe as never)) return;
     const a = num(params.attack, 1) * gold(self);
     const h = num(params.health, 1) * gold(self);
     if (a <= 0 && h <= 0) return;

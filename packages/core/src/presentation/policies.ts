@@ -259,6 +259,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:impInheritOnSummon:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:minionSoldGrantSpell:minionSold': { policy: 'ownBeat', family: 'economy' },
   'factory:minionSoldBuffSelf:minionSold': { policy: 'ownBeat', family: 'economy' }, // Shift Broker (set 3)
+  'factory:minionSoldBuffRandomTribeOthers:minionSold': { policy: 'ownBeat', family: 'economy' }, // Hank Pepe (set 3, 2026-10-21)
   'factory:onAllyAttackBuffAll:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyAttackCastGrowth:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyTribeAttackBuffSelf:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -340,7 +341,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // factory:onGainAttackBuffAdjacentTribe:onGainAttack — its one user (Vaultkeeper) was reworked again 2026-10-13; entry removed so the registry carries no ghost.
   'factory:onTribePlayedConsumeShop:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:onTribeSummonedBuffTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
-  'factory:onTribeSummonedBuffRandomOthers:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Hank Pepe (set 3)
   'factory:orbitBuffAlignedCelestials:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:orbitBuffArriver:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:orbitBuffCelestialsPerBuffStack:orbit': { policy: 'ownBeat', family: 'orbit' },

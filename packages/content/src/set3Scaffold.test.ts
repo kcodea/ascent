@@ -42,13 +42,15 @@ describe('set 3 scaffold', () => {
       'k_kobe', 'k_boulderdash', 'k_blazer', // Geode Guardian + Beggy left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
       // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
       // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
-      'dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
+      'dw3_shiftbroker', /* Striker left set 3 2026-10-21 (owner Dwarf rework; still a set-2 card) */ 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
       'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover', // Han Gover appended 2026-09-18
       'dw3_goldilox', // Goldilox appended 2026-09-24 (owner batch)
       'dw3_coincounter', 'dw3_kegrunner', 'dw3_championinu', 'dw3_foamguard', // owner batch 2026-10-21
       // Kringle, Blade Thrower, Pimm, Mountainbond and Gangplank left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
-      'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_brewer', 'dw_tapkeeper',
-      'dw_thane', 'dw_edward', 'dw_billings',
+      // Coinfire, Lieutenant Thane and Billings left set 3 2026-10-21 (owner Dwarf rework; still set-2 cards)
+      'dw_brunni', 'dw_brakka', 'dw_dorrin', 'dw_brewer', 'dw_tapkeeper',
+      'dw_edward',
+      'dw_brill', // Dwarf King, Brill joined 2026-10-21 (owner: buyable in set 3, its rune left set 3)
       // …then the UNDEAD (owner roster 2026-09-09): set 3's eleven new ones (+ Bicycle Bob, 2026-09-18), then the ten set-1 Undead it keeps
       // (shared definitions; four re-specced in place because set 1 is disabled). Ossuary Colossus was pulled.
       // Wolves Den joined 2026-09-10 (owner ask). Pillager left set 3 on 2026-09-18 (owner balance pass; it stays

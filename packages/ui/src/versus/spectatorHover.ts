@@ -63,8 +63,10 @@ function applyHover(key: string | null, root: ParentNode): void {
  * cards, an opponent's runes) and get the same preview the player gets, locally. While their own mouse is on one, the
  * player's mirrored hover is lifted (their hover wins on their screen); when it leaves, the player's comes back.
  * Nothing is sent. Only REAL pointer events count (the mirrored hover's own synthetic events are untrusted).
+ * The watched player's offer cards (a Discover, a Gift pick, a Choose One) join them (R-SPECTATE-DISCHOVER-01): the
+ * spectator reads an option themselves, with the same preview a card in hand gives.
  */
-export const LOCAL_HOVER_SELECTOR = '.runebadge, .runecard, .lobbyscout-socket, .combatopp-rune';
+export const LOCAL_HOVER_SELECTOR = '.runebadge, .runecard, .lobbyscout-socket, .combatopp-rune, .discover-ov .card';
 export function noteLocalHover(el: Element | null): void {
   if (el === local) return;
   local = el;

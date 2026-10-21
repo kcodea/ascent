@@ -459,3 +459,11 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    button and wear the gauntlet's default, not its "open" hand. */
 .app.viewing.spectating .runecard { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .app.viewing.spectating .runecard:is(:hover, :focus-visible) { transform: none; }
+
+/* A SPECTATOR HOVERS DISCOVER CARDS (owner 2026-10-18: the watched player's Discover choices, Gift picks among them,
+   "can't be hovered"; R-SPECTATE-DISCHOVER-01). An offer's option card takes a click, so it is a `[role="button"]`, and
+   the watch screen's inert rule (`.app.viewing [role="button"]`, styles.css) took its pointer away with the press:
+   no hover, no preview. Every offer row's cards (Discover, the hero-power Discover, Choose One, the Quest pick, the
+   scout) take the spectator's hover again, exactly like a card in hand; a press still does nothing (the store refuses a
+   viewer's dispatch, and the pick sound skips a viewer). The gauntlet's default hand: it reads, it never picks. */
+.app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }

@@ -27,8 +27,9 @@ export const SPECTATE_BYE_EVENT = 'spectate_bye';
 
 /** One committed action, as the spectator replays it. */
 export interface SpectatorAct {
-  /** The action, or `endTurn`: the End Turn press (tapped when it is PREPARED, so the stands play its beats in step). */
-  t: Action['type'] | 'endTurn';
+  /** The action, or `endTurn`: the End Turn press (tapped when it is PREPARED, so the stands play its beats in step), or
+   *  `skipCombat`: the fight's Skip press (the stands skip their replay with it, R-SPECTATE-SKIP-01). */
+  t: Action['type'] | 'endTurn' | 'skipCombat';
   uid?: string;
   index?: number;
   /** An aimed spell's target (the spectator plays its cast FX at the same minion). */
@@ -121,6 +122,17 @@ export function tapAct(action: Action): void {
 export function tapEndTurn(eot: Pick<EotRecord, 'batch' | 'lassoFx'> | null): void {
   if (!watching) return;
   acts.push({ t: 'endTurn', ...(eot ? { eot: { batch: eot.batch, ...(eot.lassoFx ? { lassoFx: eot.lassoFx } : {}) } } : {}) });
+  if (acts.length > MAX_ACTS) acts.splice(0, acts.length - MAX_ACTS);
+  wake?.();
+}
+
+/** The fight's SKIP press (owner 2026-10-20: "if a player skips combat the spectator should follow their view back to
+ *  shop in real time"; R-SPECTATE-SKIP-01). Skip is a presentation on the player's screen (the fight jumps to its
+ *  result, nothing is dispatched), so the stands would never see it: the tag rides the next message and the spectator's
+ *  replay skips with it. An older spectator ignores the unknown tag. */
+export function tapSkipCombat(): void {
+  if (!watching) return;
+  acts.push({ t: 'skipCombat' });
   if (acts.length > MAX_ACTS) acts.splice(0, acts.length - MAX_ACTS);
   wake?.();
 }

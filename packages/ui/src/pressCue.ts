@@ -3,7 +3,7 @@
  * a spectator sees the SAME animation the player saw). Each button keeps its press visual in one function and plays it
  * both on its own click and when a cue for it is emitted here; the action itself is never part of the cue.
  */
-export type PressCue = 'refresh' | 'freeze' | 'upgrade' | 'heroPower' | 'endTurn' | 'endCombat';
+export type PressCue = 'refresh' | 'freeze' | 'upgrade' | 'heroPower' | 'endTurn' | 'endCombat' | 'skipCombat';
 
 const subs = new Map<PressCue, Set<() => void>>();
 

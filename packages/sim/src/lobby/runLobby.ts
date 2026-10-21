@@ -291,7 +291,14 @@ export function lobbyPoolTelemetryOf(lobby: RunLobby): LobbyPoolTelemetry {
  */
 const DRIVERS = new Map<string, SeatDriver>();
 
-const driverKey = (seat: LobbySeatState): string => `${seat.kind}:${seat.seed}:${seat.heroId}:${seat.runKey ?? ''}`;
+/**
+ * A seat driver's cache key. An AUTHORED seat's driver reads its board table when it is built, and a Versus opponent's
+ * table grows one board per committed round, so its key carries the table's length and the seat's label: a lobby that
+ * grew a round, or the other side's view of the same match (the same seed and, with two players on one hero, the same
+ * hero), is never served a driver built from another table (R-SPECTATE-SAMEHERO-01). Every other seat is unchanged.
+ */
+const driverKey = (seat: LobbySeatState): string =>
+  `${seat.kind}:${seat.seed}:${seat.heroId}:${seat.runKey ?? ''}${seat.kind === 'authored' ? `:${seat.label}:${seat.authoredBoards?.length ?? 0}` : ''}`;
 
 /** Evict cached drivers for these seats, so a newly created lobby starts them from round 1. */
 export function resetLobbyDrivers(seats: readonly LobbySeatState[]): void {

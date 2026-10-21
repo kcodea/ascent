@@ -21,7 +21,7 @@
 import { create } from 'zustand';
 import type { CombatResult } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { chooseOneNeedsChoice, sellValueWithBonus, type RunState, type VersusSeat } from '@game/sim';
+import { chooseOneNeedsChoice, resetLobbyDrivers, sellValueWithBonus, type RunState, type VersusSeat } from '@game/sim';
 import { presentAction, type ScreenPoint } from '../actionPresenter';
 import { playsAsSpell } from '../instView';
 import { actionSfx, useGame } from '../store';
@@ -221,6 +221,7 @@ export function receiveSpectate(payload: unknown): void {
   const msg = payload as SpectatorMessage;
   if (!msg || (msg.seat !== 'p1' && msg.seat !== 'p2') || typeof msg.seq !== 'number') return;
   if (!matchId || (msg.m && msg.m !== matchId)) return; // another match's frame (a room hosts match after match)
+  const prevView = rx[msg.seat].view;
   const applied = applySpectatorMessage(rx[msg.seat], msg);
   const { needKeyframe } = applied;
   let next = applied.rx;
@@ -241,14 +242,15 @@ export function receiveSpectate(payload: unknown): void {
   // The watched player's ACTIONS: their screen moves one action at a time, each with the animation and cue the
   // player saw (`playActs`). A message with no actions just renders (coalesced).
   if (msg.acts?.length || queue.length || busy) {
-    queue.push({ view: next.view!, acts: msg.acts ?? [] });
+    queue.push({ view: next.view!, acts: msg.acts ?? [], before: prevView });
     pump();
   } else schedule();
 }
 
 // ── the watched player's actions, replayed in order ────────────────────────────────────────────────────────
 
-interface Pending { view: VersusSpectatorView; acts: SpectatorAct[] }
+/** `before`: the view the message applied to (what the screen showed before these actions). */
+interface Pending { view: VersusSpectatorView; acts: SpectatorAct[]; before?: VersusSpectatorView | null }
 let queue: Pending[] = [];
 /** The view on screen while the queue plays (null: the latest received). */
 let shownView: VersusSpectatorView | null = null;
@@ -260,6 +262,9 @@ const MAX_FLIGHT_MS = 900;
 const ACT_GAP_MS = 60;
 /** Queued actions past this many are compressed: they land without a flight, so the screen never falls behind. */
 const BEHIND = 2;
+
+/** Waiting for the screen to leave the fight before the queued shop actions play (`pump`). */
+let awaitingShop = false;
 
 /** The press cue a button action replays (its own press visual, `pressCue.ts`). */
 const PRESS: Partial<Record<string, PressCue>> = { roll: 'refresh', freeze: 'freeze', upgrade: 'upgrade', heroPower: 'heroPower', endTurn: 'endTurn' };
@@ -338,9 +343,20 @@ function playEot(eot: NonNullable<SpectatorAct['eot']>, done: () => void): void 
 }
 
 function pump(): void {
-  if (busy != null) return;
+  if (busy != null || awaitingShop) return;
   const item = queue.shift();
   if (!item) { shownView = null; schedule(); return; }
+  // THE PLAYER IS BACK IN THE SHOP while this screen still shows the fight (they skipped it, or this screen is behind):
+  // the screen leaves the fight FIRST (the exit curtain, then the shop as it stood before these actions), and only then
+  // plays them, on the shop they were made in (R-SPECTATE-SKIP-01). Never a shop action presented over a fight.
+  if (useGame.getState().run.phase === 'combat' && item.view.phase === 'recruit') {
+    queue.unshift(item);
+    awaitingShop = true;
+    shownView = item.before?.phase === 'recruit' ? item.before : item.view;
+    render();
+    if (awaitingShop && useGame.getState().run.phase !== 'combat') { awaitingShop = false; pump(); }
+    return;
+  }
   const prevRun = useGame.getState().run;
   const behind = queue.length >= BEHIND;
   const flight = behind ? null : item.acts.find((a) => a.drag && playableDragPath(a.drag) && !(a.uid && liveDragShown(a.uid)));
@@ -371,6 +387,13 @@ function land(item: Pending, prevRun: RunState): void {
   const nextRun = useGame.getState().run;
   let eot: SpectatorAct['eot'] | null = null;
   item.acts.forEach((a, i) => {
+    // The fight's Skip (R-SPECTATE-SKIP-01): this screen's replay skips with the player's, only while it is still
+    // playing a fight (a screen already past it, or back in the shop, has nothing to skip).
+    if (a.t === 'skipCombat') {
+      const g = useGame.getState();
+      if (g.run.phase === 'combat' && !g.combatReplayDone) emitPressCue('skipCombat');
+      return;
+    }
     const cue = PRESS[a.t];
     if (cue) emitPressCue(cue);
     if (a.t !== 'heroPower' && a.t !== 'endTurn') { try { actionSfx({ type: a.t, ...(a.uid ? { uid: a.uid } : {}), ...(a.index != null ? { index: a.index } : {}) } as never, prevRun, nextRun); } catch { /* a cue never breaks the view */ } }
@@ -391,6 +414,7 @@ function clearQueue(): void {
   if (useGame.getState().replayEotCue) useGame.setState({ replayEotCue: null });
   queue = [];
   shownView = null;
+  awaitingShop = false;
   releaseGhostHold();
   if (useGame.getState().replayDragGhost) useGame.setState({ replayDragGhost: null });
 }
@@ -519,10 +543,16 @@ function render(): void {
   const seat = useSpectate.getState().seat;
   const latest = shownView ?? rx[seat].view;
   if (!latest) return; // nothing to show for this seat yet: the keyframe is on its way
-  // A fight joined LATE (no beat to seek to, e.g. an older player client) never holds the screen a whole fight behind:
-  // once the player is back in the shop, the screen cuts to real time (R-SPECTATE-JOIN-01).
+  // THE PLAYER LEFT THE FIGHT: the screen follows them out at once, however far its own replay has got (owner 2026-10-20:
+  // "if a player skips combat the spectator should follow their view back to shop in real time", R-SPECTATE-SKIP-01).
+  // The pin only ever holds a fight the player is still IN (their settle arriving before this screen's strike); it never
+  // holds the screen a fight behind a player who has gone back to the shop. A late join is the same rule
+  // (R-SPECTATE-JOIN-01).
   const now = rx[seat].view;
-  if (pin && pin.late && !pin.released && now && now.phase !== 'combat' && !queue.length) pin.released = true;
+  if (pin && !pin.released && now && (now.phase !== 'combat' || pin.key !== `${matchId}|${seat}|${now.wave}`)) {
+    pin.released = true;
+    if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }
+  }
   const view = pinnedView(seat, latest);
   const round = rounds[view.wave];
   const fight = round ? (seat === 'p1' ? round.p1_result : round.p2_result) : undefined;
@@ -546,7 +576,26 @@ function render(): void {
     return;
   }
   leaving = 'no';
+  freshDrivers(run.lobby);
   useGame.setState({ run });
+  // Out of the fight: the shop actions held for it play now, on the shop they were made in.
+  if (awaitingShop && run.phase !== 'combat') { awaitingShop = false; window.setTimeout(pump, 0); }
+}
+
+/**
+ * THE LOBBY ON SCREEN IS READ FRESH (owner report 2026-10-18: spectating a Versus match with the same hero on both seats,
+ * "opponent info isnt showing in combat"; R-SPECTATE-SAMEHERO-01). An authored seat's driver (the Versus opponent, whose
+ * boards grow a round at a time) reads its table when it is built and is cached by key; the player's own client evicts
+ * it on every rebuild, but the watch screen renders the lobby the player SENT, so it must evict too: whenever a new lobby
+ * object goes on screen (a round, a seat switch), its authored seats' drivers are dropped and rebuilt from it. Only
+ * authored seats (cheap tables); a live lobby game's recorded seats are never rebuilt here.
+ */
+let driversOf: RunState['lobby'] | null = null;
+function freshDrivers(lobby: RunState['lobby']): void {
+  if (!lobby || lobby === driversOf) return;
+  driversOf = lobby;
+  const authored = lobby.seats.filter((st) => st.kind === 'authored');
+  if (authored.length) resetLobbyDrivers(authored);
 }
 
 /** Leaving the fight on screen: 'covering' while the exit curtain closes, 'covered' once it has. */
@@ -685,6 +734,7 @@ export function stopSpectating(): void {
   const snap = snapshot;
   snapshot = null;
   last = null;
+  driversOf = null;
   unsubDone?.();
   unsubDone = null;
   if (releaseTimer != null) { window.clearTimeout(releaseTimer); releaseTimer = null; }

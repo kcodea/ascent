@@ -253,7 +253,7 @@ import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
-import { notePlayerBeat, tapOdds, tapOverlay } from './versus/spectateTap';
+import { notePlayerBeat, tapOdds, tapOverlay, tapSkipCombat } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
 
@@ -3285,6 +3285,8 @@ export function Recruit() {
   // replay to the resolved board under cover of opacity 0 and fade that back in. Audio stays muted (a
   // replacement one-shot goes here later); it un-mutes when the fight is left / the next fight begins.
   const skipCombat = useCallback((): void => {
+    // The stands skip with the player (R-SPECTATE-SKIP-01): a no-op with nobody watching, and never from a viewer.
+    if (!useGame.getState().replaying) tapSkipCombat();
     setSkipFade((s) => {
       if (s) return s; // already skipping
       const FADE = 260, HOLD = 900, IN = 300;
@@ -3310,6 +3312,8 @@ export function Recruit() {
       return 'out';
     });
   }, []);
+  // A SPECTATOR: the watched player's Skip runs this SAME skip, cued by the watch screen (R-SPECTATE-SKIP-01).
+  useEffect(() => (watchScreen ? onPressCue('skipCombat', skipCombat) : undefined), [watchScreen, skipCombat]);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
   // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),

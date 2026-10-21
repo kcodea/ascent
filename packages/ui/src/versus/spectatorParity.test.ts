@@ -166,10 +166,9 @@ describe('leaving a fight', () => {
     // the player is back in the shop
     const shop = { ...base(), phase: 'recruit', wave: 2 } as RunState;
     sp.receiveSpectate(nextSpectatorMessage(pub, shop, 2)!);
-    // the spectator's own replay finishes, then the strike's time
-    useGame.setState({ combatReplayDone: true });
-    vi.advanceTimersByTime(3000);
+    // the screen follows the player out AT ONCE, its own replay unfinished (R-SPECTATE-SKIP-01)
     expect(relight).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(1000);
     expect(useGame.getState().run.phase).toBe('combat'); // held under the closing curtain
     sp.spectatorFightCovered(); // Recruit, at full cover
     expect(useGame.getState().run.phase).toBe('recruit');

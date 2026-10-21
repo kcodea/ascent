@@ -528,7 +528,14 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'Marked Target, a Maw of the Pit Ward, a Lord of the Risen Rise, a Whisper keyword), which expire as before. A '
       + 'keyword gained and then lost in the same fight (a broken Ward) still carries back; losing a keyword it already had '
       + 'never changes the card. Only the PRIMARY body counts: a Rise return is a fresh combat-only copy (R-RISE-06) and '
-      + 'a summoned copy has no run card, so their gains never carry back; a Rebirth is the same body (as for stats). The '
+      + 'a summoned copy has no run card, so their gains never carry back; a Rebirth is the same body (as for stats, owner '
+      + 'confirmed 2026-10-21 that Rebirth gains DO carry, per R-RISE-06). REGAINS (owner 2026-10-21): the keyword is tracked '
+      + 'through the fight, not only "on the starting list". A keyword the body opened with only TEMPORARILY (BoardMinion '
+      + '`tempKeywords`: a Maw Ward, a Lord of the Risen Rise, a Whisper keyword; plus anything stamped on at combat start, '
+      + 'such as a banked next-combat keyword) that it LOSES and then regains from a combat-time effect while Engraved '
+      + 'carries back, and its temporary mark is dropped so it stays (Foamguard regaining a one-fight Ward included). The '
+      + 'temporary starting copy itself never counts (never lost, or lost and never regained). A PERMANENT keyword lost and '
+      + 'regained changes nothing. Never duplicated. The '
       + 'Shop card shows the keyword, the fight recap shows "+Ward", and a Gild keeps it. Both sides, one code path, so '
       + 'lobby snapshots and Versus settle the same way.',
     domain: 'persistence',
@@ -536,9 +543,10 @@ export const PERSISTENCE_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 (Engrave keeps keywords)', quote: 'change the engrave mechanic to also include keywords gained in combat. Therefore if a minion is engraved and gains ward, they gain that ward permanently, so they would carry it back from combat. Remember, if a risen minion gains something like ward or stats, that is technically a new copy of that minion and that would not carry back. Only if the first/primary copy gains keywords or stats. This does not include the spells that grant a next combat only keyword, since those are technically cast during recruit phase. However, if we introduced a spell that did grant keywords or stats at start of combat, those would count.' },
       { kind: 'owner-chat', ref: 'Owner confirmations 2026-10-21 (gained-then-lost, lost-own, Shop pill + recap beat, Gild)', quote: '1. Yes carries back 2. Correct 3. Yes 4. Yes' },
-      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts engraveKwStart baseline + scanEngravedKeywords (sampled on every emit) + carryBacksFor permaKeywords; packages/core/src/types.ts ENGRAVE_KEEPS_KEYWORDS + playerPermaKeywords; packages/sim/src/reducer.ts settleCombat playerPermaKeywords; packages/sim/src/versus/mirror.ts; packages/ui/src/fightRecapData.ts engravedKeywordChip' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 (a lost temporary keyword regained in combat)', quote: "yea if it re-gained in a 'legit' way it should carry back" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts engraveKwStart baseline + engraveKwPerm / engraveKwLost regain tracking + scanEngravedKeywords (sampled on every emit) + carryBacksFor permaKeywords; packages/core/src/types.ts ENGRAVE_KEEPS_KEYWORDS + playerPermaKeywords; packages/sim/src/reducer.ts settleCombat playerPermaKeywords (drops tempShield / tempReborn / whisperKeywords marks) + tempKeywordsOf in playerBoardMinions; packages/sim/src/versus/mirror.ts; packages/ui/src/fightRecapData.ts engravedKeywordChip' },
     ],
-    currentBehaviour: 'Conforms from 2026-10-21. Before, Engraved carried back combat stat gains only.',
+    currentBehaviour: 'Conforms from 2026-10-21. Before, Engraved carried back combat stat gains only; and until the regain fix (same day) a temporary starting keyword lost and regained in combat kept nothing.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/engravedKeepsKeywords.test.ts', 'packages/sim/src/engraveKeywords1021.test.ts', 'packages/ui/src/fightRecapData.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {

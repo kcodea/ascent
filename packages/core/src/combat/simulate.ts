@@ -348,7 +348,15 @@ export function simulate(
   // Gains are sampled on every `emit` (each keyword grant lands with its own event), which is what makes a keyword
   // gained and then lost in the same fight (a Ward that breaks) still count. `engraveKwScan` stays unset for a fight
   // with no run-board bodies (harness / bots), so those pay nothing. See `scanEngravedKeywords`.
+  // REGAINED TEMPORARY KEYWORDS (owner 2026-10-21: "if it re-gained in a 'legit' way it should carry back"): the baseline
+  // is tracked through the fight, not only as "on the starting list". `engraveKwPerm` is the part of the baseline the run
+  // card holds PERMANENTLY (its input `keywords` minus `tempKeywords`), which never counts, lost or not. Every other
+  // baseline keyword is TEMPORARY (Maw's one-fight Ward, Lord of the Risen's one-fight Rise, a Shop-cast next-combat
+  // keyword, a Whisper keyword, a run-wide start aura): the starting copy never counts, but once the body is seen WITHOUT
+  // it (`engraveKwLost`), a later combat-time grant is a real gain.
   const engraveKwStart: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
+  const engraveKwPerm: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
+  const engraveKwLost: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
   const engraveKwGained: Record<Side, Map<string, Keyword[]>> = { player: new Map(), enemy: new Map() };
   let engraveKwScan: (() => void) | undefined;
   const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); if (engraveKwScan) engraveKwScan(); };
@@ -614,7 +622,10 @@ export function simulate(
    *  (`riseCarry`, R-RISE-06), so nothing it gains reaches the board card; a summon without the run card's `sourceUid`
    *  is never looked at. A keyword the body already had when the fight opened is not a gain (no duplicate), and one it
    *  was seen holding while NOT Engraved is folded into its baseline, so a later Engrave does not retro-keep it.
-   *  Idempotent: a recorded keyword is never recorded twice, and losing a keyword never removes the record. */
+   *  Idempotent: a recorded keyword is never recorded twice, and losing a keyword never removes the record.
+   *  REGAINS (owner 2026-10-21): a TEMPORARY baseline keyword the body is seen without is marked lost; holding it again
+   *  later is a gain like any other. A PERMANENT baseline keyword (`engraveKwPerm`) never counts, lost and regained or
+   *  not: the card already keeps it. */
   function scanEngravedKeywords(): void {
     for (const side of SIDES) {
       const start = engraveKwStart[side];
@@ -625,13 +636,21 @@ export function simulate(
         if (su === undefined || riseCarry.has(m.uid)) continue;
         const base = start.get(su);
         if (!base) continue;
+        const perm = engraveKwPerm[side].get(su);
+        let lost = engraveKwLost[side].get(su);
+        for (const k of base) {
+          if (perm?.has(k) || m.keywords.includes(k)) continue;
+          if (!lost) { lost = new Set(); engraveKwLost[side].set(su, lost); }
+          lost.add(k);
+        }
         let engraved: boolean | undefined;
         for (const k of m.keywords) {
-          if (base.has(k) || !ENGRAVE_KEEPS_KEYWORDS.has(k)) continue;
+          if (!ENGRAVE_KEEPS_KEYWORDS.has(k) || perm?.has(k)) continue;
+          if (base.has(k) && !lost?.has(k)) continue;
           const got = gained.get(su);
           if (got && got.includes(k)) continue;
           engraved ??= m.keywords.includes('EG') || transcendantBeside(m) !== undefined;
-          if (!engraved) { base.add(k); continue; }
+          if (!engraved) { base.add(k); lost?.delete(k); continue; }
           if (got) got.push(k); else gained.set(su, [k]);
         }
       }
@@ -893,6 +912,17 @@ export function simulate(
   // ENGRAVED KEYWORDS: the baseline every later keyword is measured against (see `engraveKwStart`). Taken here, once the
   // starting bodies carry everything the Shop gave them, before any Start of Combat effect can grant one.
   for (const s of SIDES) for (const m of boards[s]) if (m.sourceUid !== undefined) engraveKwStart[s].set(m.sourceUid, new Set(m.keywords));
+  // The PERMANENT part comes from the INPUT boards (before the Shop's next-combat banks are stamped on): the run card's
+  // own keywords, minus the ones it marks temporary (`tempKeywords`).
+  for (const s of SIDES) {
+    if (engraveKwStart[s].size === 0) continue;
+    for (const b of inputBoards[s]) {
+      if (b.sourceUid === undefined) continue;
+      const temp = b.tempKeywords;
+      const own = b.keywords ?? cards[b.cardId]?.keywords ?? [];
+      engraveKwPerm[s].set(b.sourceUid, new Set(temp?.length ? own.filter((k) => !temp.includes(k)) : own));
+    }
+  }
   if (engraveKwStart.player.size > 0 || engraveKwStart.enemy.size > 0) engraveKwScan = scanEngravedKeywords;
   // ANCIENTS × Lord of the Risen: find the Undying bodies (the run card's uid rides in as `sourceUid`). War's Rise on
   // them is RED (Death's BLUE) from the first frame (the `initial` snapshot reads `riseTint`).

@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'An Engraved minion that loses a one-fight keyword and gets it back in combat now keeps it.',
+        details: [
+          'Example: a Maw of the Pit Ward that breaks, then comes back from a combat effect, is now kept for good.',
+          'A one-fight keyword that is never lost, or lost and never regained, still lasts just that one fight.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Engraved minions now also keep keywords they gain in combat.',
         details: [
           'If an Engraved minion gains Ward, Taunt, Flurry or another keyword during a fight, it keeps it for good, even if it dies or the Ward breaks.',

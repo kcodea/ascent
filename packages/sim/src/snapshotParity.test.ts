@@ -44,6 +44,7 @@ const MINION_FIELDS: { [K in keyof Required<BoardMinion>]: Carried | Excluded } 
   cardId: 'carried', attack: 'carried', health: 'carried', keywords: 'carried', golden: 'carried',
   align: { excluded: 'Celestial alignment: no Celestial is in a live set (owner 2026-10-17: "not a problem right now"); capture it when Set 4 goes live' },
   critChance: { excluded: "card-definition data: neither the player's mapping nor the snapshot sets it per instance" },
+  tempKeywords: { excluded: "Engraved keyword bookkeeping only (R-ENGRAVE-03): it changes no combat outcome, only which regained keywords the OWNER's settle keeps, and a served snapshot never settles (Versus fights the seat's own prepared side)" },
   addedTribes: 'carried', rallyMechAtk: 'carried', rallySpellWeld: 'carried', copiedEcho: 'carried', seedEchoes: 'carried',
   grantedEffects: 'carried', echoStripped: 'carried', impBank: 'carried', universalTribe: 'carried', bloodbinderMode: 'carried',
   bloodlust: 'carried', bloodlustRally: 'carried', chosenOption: 'carried', taughtSpellId: 'carried', chefGrantedLast: 'carried',

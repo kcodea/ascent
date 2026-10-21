@@ -90,3 +90,54 @@ describe('an Engraved minion keeps the keywords its primary body gains in combat
     expect(a.playerPermaKeywords).toEqual(b.playerPermaKeywords);
   });
 });
+
+/**
+ * REGAINED TEMPORARY KEYWORDS (owner 2026-10-21): "yea if it re-gained in a 'legit' way it should carry back". A body
+ * that opens the fight with a ONE-FIGHT keyword (Maw of the Pit's Ward here, `tempKeywords`), loses it, and then gets
+ * it back from a combat-time effect keeps it. The temporary starting copy itself never counts. The regain used is
+ * Foamguard's own "the first time this loses Ward each combat, gain +10/+10 and Ward".
+ */
+describe('a temporary keyword lost and then regained in combat carries back', () => {
+  const foam = (temp: boolean): BoardMinion => ({ cardId: 'dw3_foamguard', attack: 4, health: 60, keywords: ['T', 'DS', 'EG'], sourceUid: 'E', ...(temp ? { tempKeywords: ['DS'] } : {}) });
+  const wardBroke = (r: CombatResult): boolean => r.events.some((e) => e.type === 'shield' && e.target === r.initial.player[0]!.uid);
+
+  it('temporary Ward lost, then a combat effect grants Ward: it carries', () => {
+    const r = sim([foam(true)], [bag(undefined, 1, 30)]);
+    expect(wardBroke(r), 'the one-fight Ward broke').toBe(true);
+    expect(kept(r, 'E')).toEqual(['DS']);
+  });
+
+  it('a PERMANENT Ward lost and regained changes nothing (the card already keeps it)', () => {
+    const r = sim([foam(false)], [bag(undefined, 1, 30)]);
+    expect(wardBroke(r)).toBe(true);
+    expect(r.playerPermaKeywords).toBeUndefined();
+  });
+
+  it('temporary Ward never lost: it does not carry, even when a combat effect grants Ward on top', () => {
+    // No foe, so nothing ever hits it; Vanguard's Start of Combat Ward lands on a body that already holds one.
+    const r = sim([{ ...bag('E', 1, 60, ['EG', 'DS']), tempKeywords: ['DS'] }], [], { runeVanguard: true });
+    expect(wardBroke(r), 'nothing hit it').toBe(false);
+    expect(kept(r, 'E')).toEqual(['CR']);
+  });
+
+  it('temporary Ward lost and never regained: it does not carry', () => {
+    const r = sim([{ ...bag('E', 1, 60, ['EG', 'DS']), tempKeywords: ['DS'] }], [bag(undefined, 1, 30)]);
+    expect(wardBroke(r)).toBe(true);
+    expect(r.playerPermaKeywords).toBeUndefined();
+  });
+
+  it('a RISEN copy regaining its temporary Ward does not carry it (a fresh combat-only copy)', () => {
+    const r = sim([{ cardId: 'taragosaheir', attack: 0, health: 1, keywords: ['EG', 'R', 'DS'], tempKeywords: ['DS'], sourceUid: 'E' }], [bag(undefined, 5, 400)], { runeUndertow: 4 });
+    const uid = r.initial.player[0]!.uid;
+    expect(wardBroke(r), 'the primary body lost its one-fight Ward').toBe(true);
+    const back = r.events.find((e) => e.type === 'reborn' && e.target === uid);
+    expect(back && back.type === 'reborn' && back.keywords.includes('DS'), 'the risen copy came back Warded').toBe(true);
+    expect(r.playerPermaKeywords).toBeUndefined();
+  });
+
+  it('is reported once, never duplicated', () => {
+    const r = sim([foam(true)], [bag(undefined, 1, 30)], { runeVanguard: true });
+    const k = kept(r, 'E');
+    expect(k.filter((x) => x === 'DS')).toHaveLength(1);
+  });
+});

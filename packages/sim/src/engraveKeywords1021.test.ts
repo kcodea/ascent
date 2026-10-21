@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion, type QuestCombatMods } from '@game/core';
 import { CARD_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
+import { playerBoardMinions } from './reducer';
 import { mirrorForEnemySeat } from './versus/mirror';
 
 /**
@@ -66,5 +67,36 @@ describe('Versus: the other seat settles its own Engraved keywords', () => {
     const mirrored = mirrorForEnemySeat(r);
     expect([...(mirrored.playerPermaKeywords?.[0]?.keywords ?? [])].sort()).toEqual(['CR', 'DS']);
     expect(mirrored.playerPermaKeywords?.[0]?.sourceUid).toBe('E');
+  });
+});
+
+describe('a REGAINED temporary keyword becomes permanent on the Shop card (owner 2026-10-21)', () => {
+  it('the combat side marks the one-fight keywords (Maw Ward, Lord of the Risen Rise, a Whisper keyword)', () => {
+    const [m] = playerBoardMinions([body('eg', 'taragosaheir', { keywords: ['EG', 'DS', 'R', 'T'], tempShield: true, tempReborn: true, whisperKeywords: ['T'] })]);
+    expect(m!.tempKeywords).toEqual(['DS', 'R', 'T']);
+    const [plain] = playerBoardMinions([body('p', 'taragosaheir', { keywords: ['EG', 'DS'] })]);
+    expect(plain!.tempKeywords).toBeUndefined();
+  });
+
+  it("a carried Ward on a card whose Ward was Maw's one-fight Ward is no longer stripped after the fight", () => {
+    const s = settleWith(run({ board: [body('eg', 'taragosaheir', { keywords: ['EG', 'DS'], tempShield: true })] }), ['DS']);
+    const card = s.board.find((c) => c.uid === 'eg')!;
+    expect(card.keywords).toContain('DS');
+    expect(card.tempShield).toBeFalsy();
+  });
+
+  it('without the carry, the one-fight Ward is stripped as before (the contrast)', () => {
+    let t = act(run({ board: [body('eg', 'taragosaheir', { keywords: ['EG', 'DS'], tempShield: true })] }), { type: 'faceOmen' });
+    t.lastCombat!.playerPermaKeywords = undefined;
+    t = act(act(t, { type: 'settleCombat' }), { type: 'resolveCombat' });
+    expect(t.board.find((c) => c.uid === 'eg')!.keywords).not.toContain('DS');
+  });
+
+  it('a carried Rise on a one-fight Rise card, and a carried Whisper keyword, lose their temporary marks', () => {
+    const s = settleWith(run({ board: [body('eg', 'taragosaheir', { keywords: ['EG', 'R', 'T'], tempReborn: true, whisperKeywords: ['T'] })] }), ['R', 'T']);
+    const card = s.board.find((c) => c.uid === 'eg')!;
+    expect(card.keywords).toEqual(expect.arrayContaining(['R', 'T']));
+    expect(card.tempReborn).toBeFalsy();
+    expect(card.whisperKeywords).toBeUndefined();
   });
 });

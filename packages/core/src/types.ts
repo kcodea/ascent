@@ -2767,6 +2767,11 @@ export interface BoardMinion {
   align?: Alignment;
   /** Overrides the card's keywords if present (e.g. a granted Poison). */
   keywords?: Keyword[];
+  /** ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): the entries of `keywords` that are TEMPORARY on the run card
+   *  (Maw of the Pit's one-fight Ward, Lord of the Risen's one-fight Rise, a Whisper's keywords). Read only by the
+   *  Engraved keyword tracker: a temporary starting copy never counts as a combat gain, but losing it and then
+   *  regaining it from a combat effect does. Everything else in `keywords` is permanent. No combat effect reads it. */
+  tempKeywords?: Keyword[];
   golden?: boolean;
   /** Executioner's Edge: a spell-seeded per-swing Critical Strike chance (0–1) for THIS combat, overriding the
    *  CardDef's `critChance` at `instantiate`. Absent for everyone else (they fall back to the CardDef value). */

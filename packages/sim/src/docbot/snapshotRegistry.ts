@@ -141,6 +141,7 @@ export const SNAPSHOT_EXCUSED: Readonly<Record<string, SnapshotExcuse>> = {
 
   // ── 'combat' (BoardMinion → CombatResult.initial): the live Minion acts on these; the snapshot is display ──
   'combat:align': { boundary: 'combat', kind: 'consumed-live', why: 'instantiate carries it onto Minion.align for alignment-gated combat effects; the initial snapshot has no alignment reader' },
+  'combat:tempKeywords': { boundary: 'combat', kind: 'consumed-live', why: 'Engraved keyword bookkeeping (R-ENGRAVE-03): simulate reads it off the INPUT board to tell a one-fight keyword from a permanent one (engraveKwPerm); it reaches the result as playerPermaKeywords, never the Minion or the initial snapshot' },
   'combat:critChance': { boundary: 'combat', kind: 'consumed-live', why: 'Minion.critChance drives per-swing crits (crit events narrate them); no snapshot reader' },
   'combat:rallyMechAtk': { boundary: 'combat', kind: 'consumed-live', why: 'Minion.rallyMechAtk drives the Rally-Mech buff on attack (buff events narrate it); no snapshot reader' },
   'combat:rallySpellWeld': { boundary: 'combat', kind: 'consumed-live', why: 'Minion.rallySpellWeld grants spells on attack; no snapshot reader' },

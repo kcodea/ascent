@@ -1951,6 +1951,12 @@ carry it back from combat."*
   were cast in the recruit phase and expire as usual. A future spell that grants a keyword AT Start of Combat would count.
 - **Gained, then lost** in the same fight (a Ward that breaks) still carries back (owner: "1. Yes carries back").
   Losing a keyword it already had changes nothing on the Shop card ("2. Correct").
+- **A one-fight keyword lost, then regained** in combat carries back (owner 2026-10-21: *"yea if it re-gained in a
+  'legit' way it should carry back"*). The keyword is tracked through the fight: a body that opened with a temporary
+  keyword (a Maw Ward, a Lord of the Risen Rise, a next-combat spell keyword, a Whisper keyword), lost it, and then got
+  it again from a combat-time effect (Foamguard's own regain included) keeps it for good. The temporary starting copy
+  itself never counts: never lost, or lost and never regained, it expires as usual. A **permanent** keyword lost and
+  regained changes nothing (the card already keeps it), and it is never added twice.
 - **Only the primary body**: the one that started the fight from your board. A **Rise** brings back a fresh
   combat-only copy (R-RISE-06), so nothing it gains comes home; neither does anything a summoned copy gains. A
   **Rebirth** is the same body (it returns in full, with every counter), so its gains still count, exactly as for stats.

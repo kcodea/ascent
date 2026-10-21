@@ -4506,6 +4506,17 @@ function endRecruitTurn(s: RunState): void {
  * half of `preparePlayerCombatSide`, also used by the replay viewer's odds backfill (`oddsInputFromCombatFrame`,
  * 2026-09-19) so an OLD recording's estimate fights with the same per-instance fields the real fight had.
  */
+/** ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): the keywords this card holds for ONE fight only (Maw of the
+ *  Pit's Ward, Lord of the Risen's Rise, a Whisper's keywords), as the `BoardMinion.tempKeywords` combat reads to tell
+ *  a regained temporary keyword (carries) from a permanent one (already kept). `{}` when there are none. */
+export function tempKeywordsOf(b: Pick<BoardCard, 'keywords' | 'tempShield' | 'tempReborn' | 'whisperKeywords'>): { tempKeywords?: Keyword[] } {
+  const t: Keyword[] = [];
+  if (b.tempShield && b.keywords.includes('DS')) t.push('DS');
+  if (b.tempReborn && b.keywords.includes('R')) t.push('R');
+  for (const k of b.whisperKeywords ?? []) if (b.keywords.includes(k) && !t.includes(k)) t.push(k);
+  return t.length > 0 ? { tempKeywords: t } : {};
+}
+
 export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
   // CELESTIAL: alignment LOCKS here. The recruit board's live centring is stamped onto each body as it
   // enters combat, and combat never recomputes it — deaths don't re-centre the line, so a Celestial
@@ -4518,6 +4529,7 @@ export function playerBoardMinions(board: readonly BoardCard[]): BoardMinion[] {
     health: b.health,
     align: playerAligns[bi],
     keywords: [...b.keywords],
+    ...tempKeywordsOf(b), // Engraved keywords (R-ENGRAVE-03): which of `keywords` are one-fight only, so a regained one carries
     golden: b.golden,
     ...(b.addedTribes && b.addedTribes.length ? { addedTribes: [...b.addedTribes] } : {}), // Anomaly Reactor: a spell-added tribe (→ combat tribe2) — was dropped, so the tribe stopped counting in the player's own fights
     ...(b.bloodlust ? { bloodlust: true } : {}), // Bloodlust: a Start-of-Combat immune out-of-turn strike — was dropped, so it never fired
@@ -4945,7 +4957,18 @@ function settleCombat(s: RunState, result: CombatResult): void {
     for (const { sourceUid, keywords } of result.playerPermaKeywords) {
       const card = s.board.find((c) => c.uid === sourceUid);
       if (!card) continue;
-      for (const k of keywords) if (!card.keywords.includes(k)) card.keywords = [...card.keywords, k];
+      for (const k of keywords) {
+        if (!card.keywords.includes(k)) card.keywords = [...card.keywords, k];
+        // A REGAINED temporary keyword (owner 2026-10-21: "if it re-gained in a 'legit' way it should carry back"): the
+        // card already shows it, but only for one fight. Drop the temporary mark so the strip below (Maw's Ward, Lord
+        // of the Risen's Rise) or the next Start of Turn (a Whisper keyword) leaves it in place for good.
+        if (k === 'DS' && card.tempShield) card.tempShield = false;
+        if (k === 'R' && card.tempReborn) card.tempReborn = false;
+        if (card.whisperKeywords?.includes(k)) {
+          const rest = card.whisperKeywords.filter((w) => w !== k);
+          card.whisperKeywords = rest.length > 0 ? rest : undefined;
+        }
+      }
       if (card.keywords.includes('RW') && !card.keywords.includes('DS')) card.keywords = [...card.keywords, 'DS'];
     }
   }

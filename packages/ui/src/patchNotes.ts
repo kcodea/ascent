@@ -115,6 +115,10 @@ export const PATCH_NOTES: PatchNote[] = [
           'A minion that is both a Dragon and a Dwarf counts once, and playing a Vaultkeeper counts too.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Versus rooms: hovering a card in the spectator hand pops it up once and keeps it up, with no more flickering, and the popped card is easy to grab.',
+      },
     ],
   },
   {

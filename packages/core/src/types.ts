@@ -941,7 +941,7 @@ export type EffectFactoryId =
   | 'onTribeSummonedBuffRandomOthers' // Set 3 Dwarves — Hank Pepe: when you play a Dwarf, N random OTHER Dwarves +a/+h
   | 'deathrattleGoldNextTurn' // Set 3 Dwarves — Tromboneer: Echo — Gold next turn (both phases; uncapped bank)
   | 'onTribeGainAttackBuffSelf' // Set 3 Dwarves — Kneel / Tankerchief: when a friendly Dwarf gains Attack, this gains +a/+h
-  | 'equipmentCardDiscountWindow' // Set 3 Dwarves — Thymepiece: all cards cost −N Gold for the next N clock-seconds
+  | 'equipmentSellBonusWindow' // Set 3 Dwarves — Thymepiece: cards sell for +N Gold for the next N clock-seconds
   | 'shopSpellCastGrowSelf' // Set 3 Dwarves — Goldilox: a SHOP-POOL spell cast (any source, any phase) → this gains +a/+h permanently, `handMult`× while in hand
   | 'battlecryGainGoldNextTurn' // Set 2 Dwarves — Paymaster Pimm
   | 'cardsPlayedPlayRubies' // Set 2 Dwarves — Mountainbond

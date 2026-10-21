@@ -79,7 +79,7 @@ export function goldClockWaiting(seconds: number): boolean {
 }
 
 /**
- * The clock READING that anything anchored to the turn clock should use (a Thymepiece discount window stamps it at
+ * The clock READING that anything anchored to the turn clock should use (a Thymepiece sell window stamps it at
  * activation and its readout counts from it). A parked gold clock reads as the seconds it will start from: anchored
  * to the raw parked value, a window opened before the threshold is met would expire on the first tick after the
  * jump. The window is held while parked (the tick is), then gets its full length once the countdown runs. A run

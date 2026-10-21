@@ -70,6 +70,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: 'Thymepiece is reworked. Using it now makes cards sell for 1 more Gold for the next 8 seconds. It no longer makes cards cheaper.',
+        details: [
+          'Plain Thymes: cards sell for +1 Gold for 8 seconds. Gilded Thymes: +1 Gold for 16 seconds.',
+          'An Amplified Thymepiece doubles the time: 16 seconds, or 32 when gilded.',
+          'The extra Gold counts for every card you sell while the timer runs, from your board or your hand, and adds to every other sell bonus.',
+          'It still costs 3 Gold to use. The countdown above the Equipment slot shows the time left.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Foamguard now resets when it comes back. A Foamguard that Rises or is Reborn returns with Ward and can gain +10/+10 and Ward again.',
         details: [
           'The first time it loses Ward, it gains +10/+10 and Ward, as before.',

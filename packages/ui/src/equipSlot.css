@@ -32,7 +32,7 @@
    of below, and dont let it nudge anything on the screen at all"). The Ancients stylesheet's
    `.statusbar .heropanel .hplabel { position: relative }` out-ranked the old rule and put it back in flow, under
    the name, lifting the whole slot by half its height. Re-pinned here at a specificity that wins, in every look. */
-.statusbar .heropanel.equipslot .hplabel.discountwin { position: absolute; }
+.statusbar .heropanel.equipslot .hplabel.sellwin { position: absolute; }
 
 /* ── Shared by the three new looks ──────────────────────────────────────────────────────────────────────────── */
 :root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .equipslot .hpwrap::before,
@@ -106,7 +106,7 @@
 }
 
 /* The clock-window readout ("-1 Gold · 6s"), as a Gem plate pill in the discount green. */
-:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.discountwin {
+:root:is([data-eq-look="socket"], [data-eq-look="halo"], [data-eq-look="tablet"]) .statusbar .equipslot .hplabel.sellwin {
   border: 2px solid transparent; border-radius: 999px;
   background: var(--ui-plate) padding-box, linear-gradient(180deg, var(--eq-boost), var(--ui-edge-deep)) border-box;
   color: var(--eq-boost); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7);
@@ -174,4 +174,4 @@
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1));
 }
 :root[data-eq-look="tablet"] .statusbar .equipslot:is(.ready, .armed) .hplabel.eqname { background: none; color: var(--ui-title); }
-:root[data-eq-look="tablet"] .statusbar .equipslot .hplabel.discountwin { bottom: calc(100% + 28 * var(--u)); }
+:root[data-eq-look="tablet"] .statusbar .equipslot .hplabel.sellwin { bottom: calc(100% + 28 * var(--u)); }

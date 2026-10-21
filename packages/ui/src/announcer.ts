@@ -1942,7 +1942,7 @@ function detectShopBatch3(
   const once = (event: AnnouncerEvent): boolean => !hasFired(s, event);
   const did = (type: string): boolean => acts.some((a) => a.type === type);
   // Idle: any player action restarts the count (the clock's own window expiry is not the player acting).
-  if (clock.wave === w && (!acts.length || acts.some((a) => a.type !== 'discountWindowExpired'))) clock.idleFrom = clock.seconds;
+  if (clock.wave === w && (!acts.length || acts.some((a) => a.type !== 'sellWindowExpired'))) clock.idleFrom = clock.seconds;
   // FirstFreeze: the player froze the Shop (the flag flipping on; an unfreeze is the same action).
   if (!p.frozen && run.frozen && once('firstFreeze')) q('firstFreeze');
   // RefreshStreak: the 5th Refresh this turn.

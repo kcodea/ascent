@@ -24,7 +24,7 @@ export type VersusFreeze = 'paused' | 'held' | null;
  * exit, a shop death finishing). A PAUSE refuses these too: the screen and its clocks wait for the resume.
  */
 const SYSTEM_ACTIONS: ReadonlySet<Action['type']> = new Set<Action['type']>([
-  'faceOmen', 'landCombat', 'settleCombat', 'resolveCombat', 'resolveShopDeath', 'shopClockExpired', 'discountWindowExpired',
+  'faceOmen', 'landCombat', 'settleCombat', 'resolveCombat', 'resolveShopDeath', 'shopClockExpired', 'sellWindowExpired',
   'combatEscalationPreview', 'combatSpellPowerPreview', 'combatSpellCastPreview', 'combatFriendlyDeathPreview',
   'combatBladeAttackPreview', 'combatScoutPreview',
 ]);

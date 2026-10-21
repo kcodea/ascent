@@ -211,7 +211,7 @@ describe('time-anchored effects still get their full time when the fuse lights',
     let s = { ...createRun(11), setId: 'set3', phase: 'recruit', embers: 20, tier: 6, hand: [thymes] } as RunState;
     s = reduce(s, { type: 'play', uid: 'th', toIndex: 0 });
     s = reduce(s, { type: 'activateEquipment', clockSeconds: goldClockReading(w8, GOLD_CLOCK_WAITING) });
-    expect(s.cardDiscountWindow!.untilClock).toBe(52 - 8);
+    expect(s.sellBonusWindow!.untilClock).toBe(52 - 8);
   });
 
   it('every surface passes the Practice choice, so they agree on the seconds', () => {

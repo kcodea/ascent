@@ -1363,7 +1363,7 @@ export function Recruit() {
   // round's standard seconds, times Practice's 1-4x) and every GAUNTLET round (R-GAUNTLET-04: 30 Gold, then 60 s)
   // OPEN with no clock, parked on its waiting value; the countdown starts once the fuse's Gold is spent in the turn
   // (see the effect beside the clock reset below). `goldClockOf` is the ONE predicate every surface asks (this, the
-  // plaque, the store's Thymepiece stamp, the Discount readout). Primitive reads so the effects below key on values,
+  // plaque, the store's Thymepiece stamp, the sell-window readout). Primitive reads so the effects below key on values,
   // not a fresh object per render. `goldClockWaits` flips at most once per turn (goldSpentThisTurn only rises).
   const goldClock = goldClockOf(run, practiceTimer);
   const goldClockGold = goldClock?.gold ?? null;
@@ -4014,8 +4014,8 @@ export function Recruit() {
   // Frank × Ancient of Fortune's "Sells for N Gold." line: only what `sellValueOf` reads (the picked Ancient, not the
   // whole meter state, so a meter tick does not rebuild every view).
   const sellState = useMemo(
-    () => ({ runeBartering: run.runeBartering, runeStacks: run.runeStacks, ancientsEnabled: run.ancientsEnabled, heroId: run.heroId, ancients: run.ancients?.picked ? ({ picked: run.ancients.picked } as RunState['ancients']) : undefined }),
-    [run.runeBartering, run.runeStacks, run.ancientsEnabled, run.heroId, run.ancients?.picked],
+    () => ({ runeBartering: run.runeBartering, runeStacks: run.runeStacks, ancientsEnabled: run.ancientsEnabled, heroId: run.heroId, ancients: run.ancients?.picked ? ({ picked: run.ancients.picked } as RunState['ancients']) : undefined, sellBonusWindow: run.sellBonusWindow }),
+    [run.runeBartering, run.runeStacks, run.ancientsEnabled, run.heroId, run.ancients?.picked, run.sellBonusWindow],
   );
   const live = useMemo(
     () => handLiveOf(run, cardBuffsLive, sellState),
@@ -5065,12 +5065,12 @@ export function Recruit() {
   // The "Good Luck" game-start intro is up: the countdown below holds until it ends or is skipped.
   const introPlaying = useGoodLuckIntroActive();
   const tickMs = (): number => 1000 / Math.max(0.1, replaySpeed);
-  // THE CLOCK-WINDOW DISCOUNT (Thymepiece, owner design 2026-09-12): the reducer never reads a clock, so the
-  // tick below is what ENDS the window — it dispatches `discountWindowExpired` the moment the clock crosses
+  // THE CLOCK-WINDOW SELL BONUS (Thymepiece, owner rework 2026-10-21): the reducer never reads a clock, so the
+  // tick below is what ENDS the window — it dispatches `sellWindowExpired` the moment the clock crosses
   // `untilClock`. Read through a ref rather than a dep: adding the window to the effect's deps would restart
   // the self-scheduling loop on every activation and hand the player a free partial second each time.
-  const discountWindowRef = useRef(run.cardDiscountWindow);
-  discountWindowRef.current = run.cardDiscountWindow;
+  const sellWindowRef = useRef(run.sellBonusWindow);
+  sellWindowRef.current = run.sellBonusWindow;
   // The announcer's TimeRunningOut hears only a REAL clock (never the tutorial's / God sandbox's infinite one).
   // A ref, not a dep, for the same reason as the window above: the loop must not restart when it flips.
   const infiniteClockRef = useRef(infiniteClock);
@@ -5128,8 +5128,8 @@ export function Recruit() {
       // Discover, a Choose One, an aim, hero select — the effect's gate above) pauses the window with it. Once:
       // the reducer clears the window, so the next tick reads none. Replay pacing divides this tick too, so a
       // recorded window plays back over the same clock-seconds it was lived in.
-      const win = discountWindowRef.current;
-      if (win && win.untilClock !== null && next <= win.untilClock) dispatch({ type: 'discountWindowExpired' });
+      const win = sellWindowRef.current;
+      if (win && win.untilClock !== null && next <= win.untilClock) dispatch({ type: 'sellWindowExpired' });
       if (next <= 0) { turnClock.halt(); return; }
       id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));
     };

@@ -4172,7 +4172,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In a Gauntlet stage the shop has no clock at the start of a round. Once the player has spent 30 Gold in that round, '
       + 'a 60-second countdown starts, and it never restarts for more Gold spent later in the round. When it reaches 0 the '
-      + 'shop behaves exactly as the normal game\x27s timeout does. A time-limited discount window opened while the clock is '
+      + 'shop behaves exactly as the normal game\x27s timeout does. A time-limited Equipment window (the Thymepiece) opened while the clock is '
       + 'still waiting keeps its full length once the clock starts.',
     domain: 'foundation',
     status: 'approved',
@@ -4847,7 +4847,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'usually cannot spend 10 Gold, usually have no clock at all, but they still show the fuse and light it at that '
       + 'round\x27s normal length the moment 10 Gold is spent; no round falls back to an always-running clock. Practice on Unlimited has no clock and no fuse. The player\x27s rank never changes '
       + 'the clock, so no rank-up or rank-down screen mentions it. The Gauntlet keeps its own 30 Gold / 60 second fuse '
-      + '(R-GAUNTLET-04); the tutorial stays untimed. A time-limited discount window opened while the fuse is still '
+      + '(R-GAUNTLET-04); the tutorial stays untimed. A time-limited Equipment window (the Thymepiece) opened while the fuse is still '
       + 'waiting keeps its full length once the countdown starts.',
     domain: 'foundation',
     status: 'approved',

@@ -310,16 +310,15 @@ describe('rule 5 — it has a PRICE: 6 Gold, −1 per refresh (floor 0), across 
     expect(starformPrice(deserialize(serialize(back)))).toBe(6);
   });
 
-  it('the price helper takes EVERY regular discount like any minion — Cadence, Trade-In, the Gift, the Thymepiece window, the free first buy — and the buy charges exactly the coin', () => {
+  it('the price helper takes EVERY regular discount like any minion — Cadence, Trade-In, the Gift, the free first buy — and the buy charges exactly the coin', () => {
     const cases: Partial<RunState>[] = [
       { runeCadence: true, cadenceMinionOff: 1, questFlags: { runeCadence: 1 } } as Partial<RunState>,
       { runeTradeIn: true, tradeInTribe: 'celestial', questFlags: { runeTradeIn: 1 } } as Partial<RunState>,
       { minionCostOffTurn: 2 },
-      { cardDiscountWindow: { amount: 1, untilClock: null } } as Partial<RunState>,
       { questFreeFirstBuy: true },
-      { runeCadence: true, cadenceMinionOff: 1, questFlags: { runeCadence: 1 }, minionCostOffTurn: 2, cardDiscountWindow: { amount: 1, untilClock: null } } as Partial<RunState>,
+      { runeCadence: true, cadenceMinionOff: 1, questFlags: { runeCadence: 1 }, minionCostOffTurn: 2 } as Partial<RunState>,
     ];
-    const wants = [5, 5, 4, 5, 0, 2];
+    const wants = [5, 5, 4, 0, 3];
     cases.forEach((over, i) => {
       let s = run({ ...over, board: [body('c', 'ce3_courier')] }); // a full row: the create eats the right-most (no buy spends a discount first)
       const sf = createStarform(s, SRC);

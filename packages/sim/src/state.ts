@@ -872,20 +872,20 @@ export interface RunState {
    *  Spoils). Consumed when the next recruit turn's Gold is set, then cleared. Absent = 0. */
   bonusEmbersNextTurn?: number;
   /**
-   * Set 3 — Thymepiece (owner design 2026-09-12): "all cards cost −`amount` Gold for the next 8 seconds". A
-   * CLOCK-WINDOW discount on every shop CARD (minion offers, the spell slot, spell offers in the row — never
-   * the Shop upgrade or a refresh), floored at 0.
+   * Set 3 — Thymepiece (owner rework 2026-10-21, was a −1 Gold card discount): "cards sell for +1 Gold for the
+   * next 8 seconds" (gilded 16, Amplified doubles). A CLOCK-WINDOW sell bonus: every sale made while it is open
+   * pays +`amount` Gold on top of every other sell value (`sellValueOf`, the one sell-price helper).
    *
    * The engine never reads wall time. The activation ACTION carries the turn clock's reading (`clockSeconds`,
    * the UI's `turnClock.get()`), the factory stores `untilClock = clockSeconds − seconds`, and because the
-   * clock counts DOWN the window is live while `turnClock > untilClock`. Expiry is the `discountWindowExpired`
+   * clock counts DOWN the window is live while `turnClock > untilClock`. Expiry is the `sellWindowExpired`
    * ACTION, dispatched by the same UI tick loop that drives the clock — so whatever pauses the clock (a
    * Discover, a Choose One, an aim, hero select, a frozen modal) pauses the window, and a replay carries both
    * the activation's reading and the expiry as recorded actions. `untilClock: null` means the activation
    * carried NO reading (a headless test, a legacy recording) → live until the turn ends. Cleared at the turn
    * flip, on combat entry, and on a Continue whose saved clock is already past it (`deserialize`).
    */
-  cardDiscountWindow?: { amount: number; untilClock: number | null };
+  sellBonusWindow?: { amount: number; untilClock: number | null };
   /** The recruit clock reached 0:00 this turn (owner 2026-09-30, R-TIMER-LOCK-01). Set by the `shopClockExpired`
    *  ACTION the UI's tick dispatches (the engine never reads a clock), cleared at the turn flip. While set, the
    *  reducer refuses every action `SHOP_CLOCK_POLICY` marks locked (buy / sell / play / roll / upgrade / hero power /
@@ -2837,10 +2837,10 @@ export type Action =
   | { type: 'activateEquipment'; targetUid?: string; /** The turn clock's reading (seconds LEFT) at activation — a
    *  clock-window Equipment (Thymepiece) anchors its window to it. The store fills it from `turnClock.get()`;
    *  absent (a test, an old recording) = the window runs to the end of the turn. */ clockSeconds?: number }
-  /** A clock-window discount (Thymepiece) ran out: the UI's clock tick dispatches this ONCE when `turnClock`
-   *  crosses `cardDiscountWindow.untilClock`. A real ACTION so a recording replays the expiry where the player
+  /** A clock-window sell bonus (Thymepiece) ran out: the UI's clock tick dispatches this ONCE when `turnClock`
+   *  crosses `sellBonusWindow.untilClock`. A real ACTION so a recording replays the expiry where the player
    *  lived it, and so the reducer never reads a clock. A no-op when no window is open. */
-  | { type: 'discountWindowExpired' }
+  | { type: 'sellWindowExpired' }
   /** The recruit clock reached 0:00: the UI's tick dispatches this ONCE as it lands on 0. A real ACTION so a
    *  recording replays the lock where the player lived it and the reducer never reads a clock. Locks the Shop's
    *  player actions until the turn flips (`shopClock.ts`). Never dispatched by an untimed run (tutorial, God
@@ -3273,10 +3273,13 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
     if (saved.lastUsedEquipmentId) healed.lastUsedEquipmentId = saved.lastUsedEquipmentId;
     state.equipment = healed;
   }
-  // Thymepiece (2026-09-12 rework): the retired "+30 seconds next turn" fields are dropped from any save that
-  // still carries them, and an open clock-window discount is healed against the saved clock (see above).
+  // Thymepiece: the retired "+30 seconds next turn" fields (2026-09-12 rework) and the retired card-discount
+  // window `cardDiscountWindow` (2026-10-21 rework, now a sell bonus) are dropped from any save that still carries
+  // them — an old open discount is NOT converted, it simply ends. An open sell window is healed against the saved
+  // clock below.
   delete (state as { bonusTurnSeconds?: number }).bonusTurnSeconds;
   delete (state as { bonusTurnSecondsNextTurn?: number }).bonusTurnSecondsNextTurn;
+  delete (state as { cardDiscountWindow?: unknown }).cardDiscountWindow;
   // THE DISPLAY-ONLY COMBAT PREVIEWS never survive a save (review 2026-09-22). The store saves DURING combat
   // ("the clock is irrelevant"), and on Continue the replay re-mounts at beat 0 and re-publishes its fold from
   // the top — so a persisted reading would be the fight's progress counted twice until settle cleared it. They
@@ -3287,10 +3290,10 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   state.fxFriendlyDeathPreview = undefined;
   state.fxBladeAttacksPreview = undefined;
   state.fxScoutPreview = undefined;
-  const win = state.cardDiscountWindow;
-  if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.cardDiscountWindow = undefined;
+  const win = state.sellBonusWindow;
+  if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.sellBonusWindow = undefined;
   else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {
-    state.cardDiscountWindow = undefined;
+    state.sellBonusWindow = undefined;
   }
   return state;
 }

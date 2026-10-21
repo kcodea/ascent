@@ -194,8 +194,9 @@
 .colls-bay-art .colls-bay-chest { width: 124px; }
 .colls-bay.ready .colls-bay-chest { animation: colls-float 3.2s ease-in-out infinite; will-change: transform; }
 .colls-bay:not(.ready) .colls-bay-chest { opacity: 0.4; filter: grayscale(0.7); }
-/* The Chest Shop button at the top of the sidebar: the Gem plate (the shared --ui-* tokens), full width. */
-.colls-shopbtn { display: flex; align-items: center; justify-content: center; gap: 10px; flex: none; width: 100%; min-height: 56px; padding: 10px 18px; box-sizing: border-box;
+/* The Chest Shop button at the top of the sidebar: the Gem plate (the shared --ui-* tokens), full width, double height
+   (owner 2026-10-21: "increase the height of the chest shop button by double"). */
+.colls-shopbtn { display: flex; align-items: center; justify-content: center; gap: 10px; flex: none; width: 100%; min-height: 112px; padding: 10px 18px; box-sizing: border-box;
   border: 2px solid transparent; border-radius: 10px;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);

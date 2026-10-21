@@ -2211,25 +2211,29 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-HAND-RUNE-TURN-01',
-    title: 'A rune grant can push the hand past 10 only on a turn a rune is acquired',
+    title: 'A rune grant can push the hand past 10 only at the moment a rune is acquired',
     statement:
-      'The hand holds 10 cards. On a turn a rune is acquired (bought at a Runeforge, or granted to you by a reward), '
-      + 'rune grants may push the hand past 10 so the pickup reward is never lost, and the hand may hold 20 while the '
-      + 'Runeforge is open. On every other turn a rune grant (a Start of Turn faucet, a meter, a trigger, a delayed '
-      + 'repeat) respects the 10-card cap like any other card source: with a full hand it gets nothing. Cards already '
-      + 'over the cap are kept; the cap only limits adding. Quest reward cards still over-cap on any turn.',
+      'The hand holds 10 cards. Only the cards granted AS PART OF acquiring a rune may push the hand past 10: the '
+      + 'Runeforge pick (or a rune granted to you by a reward) and that rune\'s own on-acquire reward, so the pickup '
+      + 'reward is never lost. The hand may hold 20 while the Runeforge is open. Every later rune grant, on the same turn '
+      + 'or any other (an End of Turn or Start of Turn faucet, a meter, a trigger, combat, a delayed repeat), respects the '
+      + '10-card cap like any other card source: with a full hand it gets nothing. Cards already over the cap are kept; '
+      + 'the cap only limits adding. Quest reward cards still over-cap at any time.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-20', quote: 'the extending of the hand past 10 cards should only happen on turns where a rune is acquired, not from rune sources on every turn.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21, on the 2026-10-20 whole-turn window', quote: 'seems fine, but whole turn shouldnt count, only the moment when rune is selected/rewards granted i think' },
       { kind: 'owner-chat', ref: 'Owner ruling 2026-08-04 (the rune-turn hand grace, cited in handCap)', quote: 'at the start of rune turns the player should be allowed to have up to 20 cards only one time' },
-      { kind: 'code', ref: 'packages/sim/src/state.ts runeGrantOverflow + markRuneAcquired (runeAcquiredWave); every rune grant call site in recruit.ts / reducer.ts / starform.ts' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts runeGrantOverflow + withRuneAcquisition (a scoped flag around the acquisition; the retired runeAcquiredWave field is ignored on old saves); reducer.ts buyRune / grantRune reward / devGrant / godGrantRune; every rune grant call site in recruit.ts / reducer.ts / starform.ts' },
     ],
     contentIds: ['rune_deep', 'rune_foundry', 'rune_meteor_shower', 'rune_last_rites', 'rune_collector', 'rune_strange_caravan'],
     currentBehaviour:
-      'Conforms, FIXED 2026-10-20: every rune grant passed the earned-reward overflow unconditionally, so a per-turn '
-      + 'rune faucet grew the hand past 10 on every turn of the run. A rune grant now over-caps only when '
-      + '`runeAcquiredWave` is the current turn.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handCapRuneTurn.test.ts'], lastVerifiedAt: '2026-10-20' },
+      'Conforms, FIXED 2026-10-20 and NARROWED 2026-10-21: every rune grant passed the earned-reward overflow '
+      + 'unconditionally, so a per-turn rune faucet grew the hand past 10 on every turn of the run. 2026-10-20 limited it '
+      + 'to the turn a rune was acquired (`runeAcquiredWave`); 2026-10-21 limits it to the acquisition itself: '
+      + '`withRuneAcquisition` wraps only the rune\'s reward application, so an End of Turn drip or trigger later that '
+      + 'same turn no longer over-caps.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/handCapRuneMoment.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

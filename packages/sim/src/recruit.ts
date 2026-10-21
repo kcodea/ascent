@@ -2145,15 +2145,15 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // `t.tick >= t.per` branch, so banking below the line is correctly not a fire.
   procRuneId(state, t.sourceId);
   const pool = poolOf(state);
-  if (t.grantSpell) conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, runeGrantOverflow(state));
-  if (t.grantAle) conjureToHand(state, runSpells(state).filter((c) => ALE_IDS.includes(c.id)), t.grantAle, runeGrantOverflow(state));
+  if (t.grantSpell) conjureToHand(state, runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id)), t.grantSpell, runeGrantOverflow());
+  if (t.grantAle) conjureToHand(state, runSpells(state).filter((c) => ALE_IDS.includes(c.id)), t.grantAle, runeGrantOverflow());
   if (t.grantRuby) mintRubies(state, t.grantRuby);
   if (t.grantRandomRuby) mintRandomRubies(state, t.grantRandomRuby); // Rune of Minted Gems (Set 3 design pass)
   // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
   // a full hand — the same rule every quest/rune grant follows.
   for (const id of t.grantCards ?? []) {
     const def = CARD_INDEX[id];
-    if (def) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow(state));
+    if (def) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow());
   }
   // Rune of the Gilded Ledger: CAST a random stat-granting Shop spell — a real cast, so spell power, the cast
   // counters and every on-cast watcher see it. The pool is THE stat-granting category (`isStatGrantingSpell`,
@@ -2185,13 +2185,13 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
     const id = t.grantOneOf[rng.int(t.grantOneOf.length)]!;
     state.rngCursor = rng.state();
     const def = CARD_INDEX[id];
-    if (def) conjureToHand(state, [def], 1, runeGrantOverflow(state));
+    if (def) conjureToHand(state, [def], 1, runeGrantOverflow());
   }
   // Rune of the Dragon's Pantry: a random buyable minion of the tribe at or below the shop tier.
   if (t.grantRandomTribe) {
     const tribe = t.grantRandomTribe;
     const pool = poolOf(state).buyable.filter((c) => defIsTribe(c, tribe, state) && c.tier <= state.tier); // R-ALL-TYPES-EVERYWHERE-01
-    conjureToHand(state, pool, 1, runeGrantOverflow(state));
+    conjureToHand(state, pool, 1, runeGrantOverflow());
   }
   // Rune of the Spellmarket: CAST the named spells (untargeted) — a real `castSpell`, the same rune-cast path
   // the Gilded Ledger uses, so the cast beat / spell-power / cast counters all see it. The cast itself ticks
@@ -3579,7 +3579,7 @@ export function afterShopDestroy(state: RunState, destroyed: BoardCard): void {
   if (!def) return;
   state.lastRitesUsedThisTurn = true;
   procRuneId(state, 'rune_last_rites');
-  for (let k = 0; k < runeStacksOf(state, 'rune_last_rites'); k++) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow(state));
+  for (let k = 0; k < runeStacksOf(state, 'rune_last_rites'); k++) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow());
 }
 
 /**
@@ -5276,7 +5276,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // wide the board is. Routed through `conjureToHand` so the hand cap and every copy-watcher behave normally.
     if (ctx.state.runeMountainTrade) {
       const ales = ALE_IDS.map((id) => CARD_INDEX[id]).filter((d): d is CardDef => !!d);
-      if (ales.length > 0) conjureToHand(ctx.state, ales, 1, runeGrantOverflow(ctx.state));
+      if (ales.length > 0) conjureToHand(ctx.state, ales, 1, runeGrantOverflow());
     }
   },
 
@@ -11567,7 +11567,7 @@ export function fireOnFriendDeath(state: RunState, dead: BoardCard, opts?: { ret
     if (state.runeBodyCountTick >= BODY_COUNTING_DEATHS) {
       state.runeBodyCountTick -= BODY_COUNTING_DEATHS;
       procRuneId(state, 'rune_body_counting');
-      conjureToHand(state, poolOf(state).buyable.filter((c) => defIsTribe(c, 'undead', state) && c.tier <= state.tier), runeStacksOf(state, 'rune_body_counting'), runeGrantOverflow(state));
+      conjureToHand(state, poolOf(state).buyable.filter((c) => defIsTribe(c, 'undead', state) && c.tier <= state.tier), runeStacksOf(state, 'rune_body_counting'), runeGrantOverflow());
     }
   }
   // ANCIENTS × Xerox (a no-op unless picked): Death's hero Avenge counts this Shop death; Bonds breaks on it.
@@ -11803,7 +11803,7 @@ export function fireStarformRemoved(state: RunState, reason: 'consume' | 'collap
   // Crash per copy. The Star Destroyer's silent exit never reaches this function (rule 9).
   if (state.questFlags?.runeAfterglow) {
     const sc = CARD_INDEX['starcrash'];
-    if (sc) { procRuneId(state, 'rune_afterglow'); conjureToHand(state, [sc], runeStacksOf(state, 'rune_afterglow'), runeGrantOverflow(state)); }
+    if (sc) { procRuneId(state, 'rune_afterglow'); conjureToHand(state, [sc], runeStacksOf(state, 'rune_afterglow'), runeGrantOverflow()); }
   }
   if (reason === 'consume' && state.runeOpenConstellation && !state.openConstellationUsedThisTurn) {
     state.openConstellationUsedThisTurn = true;
@@ -12004,7 +12004,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
     // RUNE OF CLOSING TIME (Set 3 design pass): every Reveler sold gets a random Dwarven Ale per copy.
     if (state.questFlags?.runeClosingTime) {
       const ales = runSpells(state).filter((c) => ALE_IDS.includes(c.id));
-      if (ales.length > 0) { procRuneId(state, 'rune_closing_time'); conjureToHand(state, ales, runeStacksOf(state, 'rune_closing_time'), runeGrantOverflow(state)); }
+      if (ales.length > 0) { procRuneId(state, 'rune_closing_time'); conjureToHand(state, ales, runeStacksOf(state, 'rune_closing_time'), runeGrantOverflow()); }
     }
     // RUNE OF FESTIVAL WAGES: every `REVELER_METER` Revelers sold arm a free card — the next Shop buy (minion or
     // spell, either row) costs 0. One charge per copy held (repeat family); the charges carry until spent.
@@ -12018,7 +12018,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
     if (circuit > 0 && sold3 % circuit === 0) {
       // `defIsTribe` — the shared helper, so an All-types body counts as a Celestial here as it does everywhere else.
       const pool = poolOf(state).buyable.filter((c) => !c.spell && !c.token && !c.ruby && c.tier <= state.tier && defIsTribe(c, 'celestial', state));
-      if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, runeStacksOf(state, 'rune_festival_circuit'), runeGrantOverflow(state)); }
+      if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, runeStacksOf(state, 'rune_festival_circuit'), runeGrantOverflow()); }
     }
   }
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
@@ -12123,7 +12123,7 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
       // like every other "get a random X" grant.
       const dragons = legalRandomMinionPool(state, { maxTier: state.tier }).filter((c) => defIsTribe(c, 'dragon', state));
       // Same 5-sale meter, one Dragon per copy held per trip (threshold family, owner 2026-08-27).
-      if (dragons.length > 0) { procRuneId(state, 'rune_foundry'); conjureToHand(state, dragons, runeStacksOf(state, 'rune_foundry'), runeGrantOverflow(state)); }
+      if (dragons.length > 0) { procRuneId(state, 'rune_foundry'); conjureToHand(state, dragons, runeStacksOf(state, 'rune_foundry'), runeGrantOverflow()); }
     }
     state.runeFoundry = fd;
   }
@@ -12142,7 +12142,7 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
         const rng = makeRng(state.rngCursor);
         const pick = CARD_INDEX[trio[rng.int(trio.length)]!];
         state.rngCursor = rng.state();
-        if (pick) grantMinionToHandOrBoard(state, pick, false, runeGrantOverflow(state));
+        if (pick) grantMinionToHandOrBoard(state, pick, false, runeGrantOverflow());
       }
     }
     state.runeVoicekeeper = vk;
@@ -13847,7 +13847,7 @@ function spellCopyableForCountRunes(id: string): CardDef | undefined {
  *  else through the shared conjure (overflow-safe: an earned rune reward is never dropped). */
 function grantCountRuneCopy(state: RunState, def: CardDef, n: number): void {
   if (def.ruby) mintRubies(state, n, def.id);
-  else conjureToHand(state, [def], n, runeGrantOverflow(state));
+  else conjureToHand(state, [def], n, runeGrantOverflow());
 }
 
 /**
@@ -13970,7 +13970,7 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     state.meteorShowerUsedThisTurn = true;
     procRuneId(state, 'rune_meteor_shower');
     const sc = CARD_INDEX['starcrash'];
-    if (sc) conjureToHand(state, [sc], runeStacksOf(state, 'rune_meteor_shower'), runeGrantOverflow(state));
+    if (sc) conjureToHand(state, [sc], runeStacksOf(state, 'rune_meteor_shower'), runeGrantOverflow());
   }
   // Rune of Runic Exchange pays out in Ales, so counting Ales would let it feed itself — its meter excludes them.
   if (!ALE_IDS.includes(spellDef.id)) advanceRuneThresholds(state, 'spellCastNonAle', 1);
@@ -15437,7 +15437,7 @@ function runRecurringEndOfTurn(
     // Rune of Quick Study: a Gold Font (`manafont`) + 2 random Shop spells, every turn.
     procRuneId(state, 'rune_quick_study');
     const font = CARD_INDEX['manafont'];
-    if (font) step(() => conjureToHand(state, [font], 1, runeGrantOverflow(state)));
+    if (font) step(() => conjureToHand(state, [font], 1, runeGrantOverflow()));
     const spells = runSpells(state).filter((c) => c.tier <= state.tier && !ALE_IDS.includes(c.id));
     if (spells.length > 0) step(() => conjureToHand(state, spells, 2));
   } else if (effect === 'grantAles' || effect === 'grantAles3') {
@@ -15495,7 +15495,7 @@ function runRecurringEndOfTurn(
     // Rune of Facetwright: a Facetwright every turn. Drawn from the run's pool like every other grant,
     // so a set without the card grants nothing rather than injecting something the run cannot otherwise see.
     const fw = runSpells(state).find((c) => c.id === 'facetwright');
-    if (fw) { procRuneId(state, 'rune_facetwright'); step(() => conjureToHand(state, [fw], 1, runeGrantOverflow(state))); }
+    if (fw) { procRuneId(state, 'rune_facetwright'); step(() => conjureToHand(state, [fw], 1, runeGrantOverflow())); }
   } else if (effect === 'grantRuby') {
     // MINTED, not conjured — a Ruby is base 1/1 plus the run's live `rubyBonus`, like every other Ruby source.
     step(() => mintRubies(state, 1));
@@ -15508,7 +15508,7 @@ function runRecurringEndOfTurn(
     // Runic Refrain: get a COPY of the turn's first spell — it lands in hand to cast later, where Rune of
     // Recurrence's `recastFirstSpell` casts it again immediately. Deliberately different rewards.
     const def = state.firstSpellThisTurnId ? CARD_INDEX[state.firstSpellThisTurnId] : undefined;
-    if (def?.spell) { procRuneId(state, 'rune_recollection'); step(() => conjureToHand(state, [def], 1, runeGrantOverflow(state))); }
+    if (def?.spell) { procRuneId(state, 'rune_recollection'); step(() => conjureToHand(state, [def], 1, runeGrantOverflow())); }
   } else if (effect === 'recastFirstSpell') {
     // Rune of Recurrence: cast the FIRST spell you cast this turn again, free. An AIMED spell re-targets a
     // seeded-random friendly board minion (owner call 2026-07-17); untargeted spells just resolve. Skipped

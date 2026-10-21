@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-20',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Fixed: effects that give or summon a random minion could hand out a Tier 7 minion the Shop never offers. They now only pick minions the Shop could sell you.',
+        details: [
+          'Bullseye played through Funeral on Loan could summon Elderhorn. Rune of the Foundry could give Orivax.',
+          'Bullseye and Menagerie Mammoth played through Funeral on Loan now also stay at or below your Shop tier, like they do in combat.',
+          'Effects that name Tier 7 still give Tier 7, and runs with Tier 7 access can still roll it.',
+        ],
+      },
       { category: 'Systems', text: 'Milestone chests (every 10th level) are now Epic chests, and they open straight away like any other chest you earn: they can no longer be focused. Milestone chests you already have stay Legendary.' },
       {
         category: 'Systems',

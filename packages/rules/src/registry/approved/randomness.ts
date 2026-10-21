@@ -72,4 +72,30 @@ export const RANDOMNESS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-09-24.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
   },
+  {
+    id: 'R-RANDOM-POOL-01',
+    title: 'A random minion is always one the Shop could offer this run (no Tier 7 without Tier-7 access)',
+    statement:
+      'Every effect that summons, gets or grants "a random minion" (of a tribe, a keyword, a trigger family) picks '
+      + 'only LEGAL random minions: from the pinned set of the run, never a spell, Ruby, token or henchman, and never above '
+      + 'the tier ceiling of the run (6 in a normal run; 7 only with Tier-7 access: the Summit rift or the tier7Access '
+      + 'flag; in combat, a side whose Shop stands at Tier 7). One helper owns it: legalRandomMinionPool in the Shop '
+      + '(packages/sim/src/cardPool.ts) and isLegalRandomMinion in combat (packages/core/src/randomPool.ts). Bullseye '
+      + 'and Menagerie Mammoth also cap at your Shop tier in the Shop, matching their combat body (owner fix '
+      + '2026-08-18). An effect whose text NAMES a tier (Rune of the Deep, "a random Tier 7 minion") is authored and '
+      + 'keeps its tier.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-20', quote: 'a player just got elderhorn from a bullseye from funeral on loan - that shouldnt be possible.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-20', quote: 'orivax can be granted from the rune that gives a dragon when you sell 5 minions. that also should not be possible.' },
+      { kind: 'code', ref: 'packages/sim/src/cardPool.ts legalRandomMinionPool + randomTierCeiling; packages/core/src/randomPool.ts isLegalRandomMinion / combatTierCeiling; routed: recruit.ts deathrattleSummonRandomTribe, deathrattleSummonRandomTribeSetStats, rallySummonAndGetRally, grantRandomChooseOne, discoverChooseOne, the shop arena grantRandomFromPool, Rune of the Foundry; factories.ts grantRandomFromPool, rallyGrantChooseOne, rallySummonAndGetRally, battlecryGrantRandomReveler, onKillGrantMagnetic, deathrattleSummonRandomTribe(SetStats); simulate.ts Rune of Salvage' },
+    ],
+    contentIds: ['b2_bullseye', 'b2_mammoth', 'funeralonloan', 'rune_foundry', 'b2_elderhorn', 'd2_orivax', 'n3_recruiter'],
+    currentBehaviour:
+      'Conforms as of 2026-10-20. Before: the Shop twins of Bullseye and Mammoth (fired by Funeral on Loan) and Rune '
+      + 'of the Foundry built their list off the set pool with no tier bound, so Elderhorn and Orivax (Tier 7) could '
+      + 'come out; combat Uncle Orc on an unpinned pool could summon the Tier 7 Kobold Alchemist.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
 ];

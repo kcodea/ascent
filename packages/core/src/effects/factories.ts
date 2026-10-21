@@ -2,6 +2,7 @@ import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactory
 import { defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
+import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 
 /** Re-entrancy guard for Hunter's onGainAttack aura (its +Attack grant would re-fire onGainAttack). Keyed by the
  *  minion object + always cleared in `finally`, so it never pollutes a shared card across combats/turns. */
@@ -460,7 +461,9 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     spellsThisTurn: () => ctx.spellsThisTurnFor(self.side),
     playedThisTurn: (tribe) => ctx.playedThisTurnFor(self.side, tribe as Tribe),
     grantRandomFromPool: (pred, count) => {
-      const pool = ctx.poolCards(self.side).filter(pred);
+      // Minions must be LEGAL random minions (R-RANDOM-POOL-01: no Tier 7 below a Tier-7 Shop); spells keep their pool.
+      const ceiling = combatTierCeiling(ctx.tierFor(self.side));
+      const pool = ctx.poolCards(self.side).filter((c) => pred(c) && isLegalRandomCard(c, ceiling));
       if (pool.length === 0) return;
       for (let i = 0; i < count; i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
     },
@@ -1624,7 +1627,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // in this file carries; the `rallyGuard` Doc Bot lane now enforces it rather than trusting the reading.
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
-    const pool = ctx.poolCards(self.side).filter((c) => (c.chooseOne?.length ?? 0) > 0);
+    const ceiling = combatTierCeiling(ctx.tierFor(self.side)); // R-RANDOM-POOL-01
+    const pool = ctx.poolCards(self.side).filter((c) => (c.chooseOne?.length ?? 0) > 0 && isLegalRandomCard(c, ceiling));
     if (pool.length === 0) return;
     for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -1634,8 +1638,9 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     void params;
     const { minion } = payload as MinionPayload;
     if (self.dead || minion !== self) return; // Rally: this minion's own attack only
+    const ceiling = combatTierCeiling(ctx.tierFor(self.side)); // R-RANDOM-POOL-01
     const pool = ctx.poolCards(self.side).filter((c) =>
-      !!c && !c.spell && !c.token && c.keywords.includes('RL') && c.effects.some((e) => e.on === 'onAttack') && c.id !== self.cardId);
+      isLegalRandomMinion(c, ceiling) && c.keywords.includes('RL') && c.effects.some((e) => e.on === 'onAttack') && c.id !== self.cardId);
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) {
       const pick = ctx.rng.pick(pool);
@@ -1783,7 +1788,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Revelator (Shout): `count` random Revelers to hand NOW (a Reveler = a card whose Sell is `revelerSell`). */
   battlecryGrantRandomReveler: (ctx, self, params) => {
-    const pool = ctx.poolCards(self.side).filter((c) => !c.spell && c.effects.some((e) => e.on === 'onSell' && e.do === 'revelerSell'));
+    const ceiling = combatTierCeiling(ctx.tierFor(self.side)); // R-RANDOM-POOL-01
+    const pool = ctx.poolCards(self.side).filter((c) => isLegalRandomMinion(c, ceiling) && c.effects.some((e) => e.on === 'onSell' && e.do === 'revelerSell'));
     if (pool.length === 0) return;
     for (let i = 0; i < num(params.count, 1) * mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -3084,7 +3090,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  after combat (golden → 2). Attacker-guarded (fires on the kill even if it then dies). */
   onKillGrantMagnetic: (ctx, self, _params, payload) => {
     if ((payload as { attacker?: Minion }).attacker !== self) return;
-    const pool = ctx.poolCards(self.side).filter((c) => c.keywords.includes('M') && !c.token && !c.spell);
+    const ceiling = combatTierCeiling(ctx.tierFor(self.side)); // R-RANDOM-POOL-01
+    const pool = ctx.poolCards(self.side).filter((c) => isLegalRandomMinion(c, ceiling) && c.keywords.includes('M'));
     if (pool.length === 0) return;
     for (let i = 0; i < mul(self); i++) ctx.grantToHand(ctx.rng.pick(pool).id, self.side, self.uid);
   },
@@ -4908,8 +4915,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // Owner fix 2026-08-18: cap at the summoner's current tier — a low-tier Menagerie Mammoth must not roll a
     // Tier-6 Beast.
     const maxTier = ctx.tierFor(self.side);
-    const pool = ctx.poolCards(self.side).filter(
-      (c) => !c.token && !c.spell && c.tier <= maxTier && (!params.excludeSelf || c.id !== self.cardId)
+    const pool = ctx.poolCards(self.side).filter( // R-RANDOM-POOL-01: the shared legal-minion gate
+      (c) => isLegalRandomMinion(c, maxTier) && (!params.excludeSelf || c.id !== self.cardId)
         && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
@@ -4926,8 +4933,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = str(params.tribe);
     // Owner fix 2026-08-18: cap at the summoner's current tier (Bullseye must not roll a Tier-6 body).
     const maxTier = ctx.tierFor(self.side);
-    const pool = ctx.poolCards(self.side).filter(
-      (c) => !c.token && !c.spell && c.tier <= maxTier && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+    const pool = ctx.poolCards(self.side).filter( // R-RANDOM-POOL-01: the shared legal-minion gate
+      (c) => isLegalRandomMinion(c, maxTier) && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
     );
     if (pool.length === 0) return;
     const s = num(params.stat, 7) * mul(self);

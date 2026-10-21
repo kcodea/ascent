@@ -10,7 +10,7 @@ export * from './ancients';
 export * from './state';
 export * from './practiceTribes';
 export { alignmentAt, alignmentsOf, alignmentOf, boardHasCelestial } from './alignment';
-export { poolOf, setIdOf } from './cardPool';
+export { poolOf, setIdOf, legalRandomMinionPool, randomTierCeiling } from './cardPool';
 export * from './quests';
 export * from './buildTags';
 export * from './contribution';

@@ -25,6 +25,7 @@ import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
+import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
 import { addedSecondTribe, instantiate, seedEchoCount, type CardIndex } from './minion';
@@ -6282,7 +6283,8 @@ export function simulate(
   for (const sside of SIDES) {
     if (!modsFor(sside).runeSalvage) continue;
     fireTrigger('runeSalvage', sside); // pulse the badge when the Attachment is actually banked
-    const magnetics = ctx.poolCards(sside).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M') && !c.token && !c.spell);
+    const magnetics = ctx.poolCards(sside).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M')
+      && isLegalRandomMinion(c, combatTierCeiling(ctx.tierFor(sside)))); // R-RANDOM-POOL-01
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };

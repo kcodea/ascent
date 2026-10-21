@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -13,7 +13,7 @@ import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as g
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
-import { poolOf } from './cardPool';
+import { legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
@@ -363,7 +363,9 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     },
     grantRandomFromPool: (pred, count) => {
       // The FULL pool (buyable + spells): Ales are spells, Attachments are minions — the predicate decides.
-      const pool = [...poolOf(state).buyable, ...runSpells(state)].filter(pred);
+      // Minions must be LEGAL random minions (R-RANDOM-POOL-01: no Tier 7 without access); spells keep their pool.
+      const ceiling = randomTierCeiling(state);
+      const pool = [...poolOf(state).buyable, ...runSpells(state)].filter((c) => pred(c) && isLegalRandomCard(c, ceiling));
       if (pool.length === 0) return;
       conjureToHand(state, pool, count);
     },
@@ -4118,7 +4120,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     void params;
     if (payload.minion !== self) return;
     const state = ctx.state;
-    const pool = poolOf(state).buyable.filter((c) => isRallyDef(c) && c.id !== self.cardId);
+    const pool = legalRandomMinionPool(state).filter((c) => isRallyDef(c) && c.id !== self.cardId); // R-RANDOM-POOL-01
     if (pool.length === 0) return;
     for (let n = 0; n < gold(self); n++) {
       const rng = makeRng(state.rngCursor);
@@ -5172,7 +5174,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    */
   grantRandomChooseOne: (ctx, self, params) => {
     const pool = poolOf(ctx.state);
-    const candidates = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => (c.chooseOne?.length ?? 0) > 0);
+    const ceiling = randomTierCeiling(ctx.state); // R-RANDOM-POOL-01
+    const candidates = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => (c.chooseOne?.length ?? 0) > 0 && isLegalRandomCard(c, ceiling));
     if (candidates.length === 0) return;
     conjureToHand(ctx.state, candidates, num(params.count, 1) * gold(self));
   },
@@ -5184,7 +5187,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   discoverChooseOne: (ctx, self, params) => {
     void self;
     const pool = poolOf(ctx.state);
-    const ids = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => (c.chooseOne?.length ?? 0) > 0).map((c) => c.id);
+    const ceiling = randomTierCeiling(ctx.state); // R-RANDOM-POOL-01
+    const ids = [...pool.buyable, ...runSpells(ctx.state)].filter((c) => (c.chooseOne?.length ?? 0) > 0 && isLegalRandomCard(c, ceiling)).map((c) => c.id);
     if (ids.length === 0) return;
     for (let i = 0; i < num(params.count, 1); i++) queueDiscover(ctx.state, { kind: 'pool', ids });
   },
@@ -6623,8 +6627,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Menagerie Mammoth: Echo — summon `count` random `tribe` minions from the run pool. */
   deathrattleSummonRandomTribe: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const pool = poolOf(ctx.state).buyable.filter(
-      (c) => !c.token && !c.spell && (!params.excludeSelf || c.id !== self.cardId)
+    // R-RANDOM-POOL-01: legal random minions only, capped at your Shop tier like the combat body (owner fix
+    // 2026-08-18). This twin had no tier bound, so a Funeral on Loan Mammoth could summon a Tier 7.
+    const pool = legalRandomMinionPool(ctx.state, { maxTier: ctx.state.tier }).filter(
+      (c) => (!params.excludeSelf || c.id !== self.cardId)
         && (!tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)),
     );
     if (pool.length === 0) return;
@@ -6637,7 +6643,10 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  statline, not the count — mirrors the combat body). */
   deathrattleSummonRandomTribeSetStats: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const pool = poolOf(ctx.state).buyable.filter((c) => !c.token && !c.spell && (!tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)));
+    // R-RANDOM-POOL-01 (owner 2026-10-20: "a player just got elderhorn from a bullseye from funeral on loan"):
+    // legal random minions only, capped at your Shop tier like the combat body (owner fix 2026-08-18).
+    const pool = legalRandomMinionPool(ctx.state, { maxTier: ctx.state.tier })
+      .filter((c) => !tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe));
     if (pool.length === 0) return;
     const s = num(params.stat, 7) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
@@ -12112,7 +12121,9 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
     const fd = { ...state.runeFoundry, sold: state.runeFoundry.sold + 1 };
     if (fd.sold >= fd.per) {
       fd.sold -= fd.per;
-      const dragons = poolOf(state).all.filter((c) => !c.spell && !c.token && !c.ruby && defIsTribe(c, 'dragon', state));
+      // R-RANDOM-POOL-01 (owner 2026-10-20: "orivax can be granted from the rune ... that also should not be
+      // possible"): legal random minions only, so no Tier 7 without Tier-7 access. No Shop-tier cap (unchanged).
+      const dragons = legalRandomMinionPool(state).filter((c) => defIsTribe(c, 'dragon', state));
       // Same 5-sale meter, one Dragon per copy held per trip (threshold family, owner 2026-08-27).
       if (dragons.length > 0) { procRuneId(state, 'rune_foundry'); conjureToHand(state, dragons, runeStacksOf(state, 'rune_foundry'), runeGrantOverflow(state)); }
     }

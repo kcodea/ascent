@@ -6384,11 +6384,10 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -6464,7 +6463,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -6508,7 +6507,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -6656,7 +6655,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -6921,7 +6920,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -7020,7 +7019,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -7112,7 +7111,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -7203,7 +7202,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
+      "description": "a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, which the authored gilded text (read from CARD_INDEX at check time) states"
     },
     "textContract": {
       "source": "index"
@@ -9019,9 +9018,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "triggers": [
       {
         "event": "onLoseDivineShield",
-        "phase": "both",
-        "phaseBasis": "derived:phaseRegistry",
-        "note": "trigger 'onLoseDivineShield' not in TRIGGER_PHASES — phase unknown"
+        "phase": "combat",
+        "phaseBasis": "derived:phaseRegistry"
       }
     ],
     "effects": [

@@ -190,6 +190,9 @@ describe('no redundant PNG masters ship alongside their WebP builds', () => {
     //   art"). The other re-wired Dragons overwrite existing slots (+0).
     // → 1465: emotes 2026-10-18 (+9 owner-named emote webps in `art/emotes/`; owner: "add the emote cosmetics i added";
     //   measured 1464 with them).
-    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1465);
+    // → 1469: Set 3 Dwarf batch 2026-10-21 (+4 owner-named minion webps: Coin Counter, Keg Runner, Champion Inu,
+    //   Foamguard; owner: "create these set 3 dwarf minions and wire their art"; measured 1468 with them, no PNG
+    //   masters or extra sizes shipped).
+    expect(total, `art files: ${total} — the WHOLE-ZIP count (~${total + 176}) is what itch caps at 1000`).toBeLessThan(1469);
   });
 });

@@ -57,6 +57,39 @@ function tagMoved(run: readonly CombatEvent[], pulled: readonly CombatEvent[]): 
   return swap;
 }
 
+/** Event types that, aimed at a body, must keep their order relative to a Ward coming back on that body. */
+const WARD_ORDERED = new Set<CombatEvent['type']>(['shield', 'wardDowngrade', 'dmg', 'poison', 'venomLost', 'death']);
+
+/**
+ * A WARD RE-FORM (R-DWARF-1021-03, owner 2026-10-21: "can you show the ward break and then get re-applied? i think
+ * it'd be more satisfying"). A triggered `shieldUp` (it carries an effect `key`; Foamguard's "the first time this
+ * loses Ward each combat, gain +10/+10 and Ward") emitted in the SAME slice that broke that body's Ward used to fold
+ * into the break's own moment, so the frame committed with the Ward already back: the break read as nothing. Pulled
+ * out to the END of the slice (after the deferred buffs), it becomes its own `shieldGain` moment: the break plays at
+ * the impact, the +10/+10 lands on the buff beat, then the Ward re-forms (`ward-gain-blast`). Only when nothing later
+ * in the slice touches that body's Ward or Health, so the folded frame at the slice's end is identical.
+ */
+const REFORMS = new WeakSet<CombatEvent>();
+
+/** Is `e` a Ward re-form the replay pulled out of its break's slice? Read by the beat clock (`holdMs`) to land it a
+ *  short, fixed gap after the break / the buff beat instead of a full result-beat wait. */
+export function isWardReformEvent(e: CombatEvent): boolean {
+  return REFORMS.has(e);
+}
+
+function isWardReform(slice: readonly CombatEvent[], k: number): boolean {
+  const e = slice[k]!;
+  if (e.type !== 'shieldUp' || e.key === undefined) return false;
+  let broke = false;
+  for (let j = 0; j < k; j++) { const p = slice[j]!; if (p.type === 'shield' && p.target === e.target) { broke = true; break; } }
+  if (!broke) return false;
+  for (let j = k + 1; j < slice.length; j++) {
+    const f = slice[j]!;
+    if (WARD_ORDERED.has(f.type) && 'target' in f && f.target === e.target) return false;
+  }
+  return true;
+}
+
 export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
   const out: CombatEvent[] = [];
   let changed = false;
@@ -75,20 +108,25 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
       while (j < events.length && events[j]!.wave === wave) j++;
       const hits: CombatEvent[] = [];
       const reactions: CombatEvent[] = [];
+      const reforms: CombatEvent[] = [];
+      const slice = events.slice(i, j);
       for (let k = i; k < j; k++) {
         const e = events[k]!;
-        if (isReactionTailEvent(e)) reactions.push(e);
+        if (isWardReform(slice, k - i)) { const c = { ...e, wave: undefined } as CombatEvent; REFORMS.add(c); reforms.push(c); changed = true; }
+        else if (isReactionTailEvent(e)) reactions.push(e);
         else { if (reactions.length > 0) changed = true; hits.push(e); }
       }
       // A reaction that moved past a hit (or the arrival) of its own body is already inside that event's number.
-      const swapW = changed ? tagMoved(events.slice(i, j), []) : new Map<CombatEvent, CombatEvent>();
-      out.push(...hits, ...reactions.map((e) => swapW.get(e) ?? e));
+      const swapW = changed ? tagMoved(slice, []) : new Map<CombatEvent, CombatEvent>();
+      // A Ward re-form leaves the pass (its wave id dropped) so it is its own moment after the pass's reactions.
+      out.push(...hits, ...reactions.map((e) => swapW.get(e) ?? e), ...reforms);
       i = j;
     } else if (RESULT_TYPES.has(events[i]!.type)) {
       // A clash: a maximal contiguous run of results (+ interleaved buffs). Emit the non-buffs in order,
       // then the buffs — so a buff that sat between two results moves past them.
       const nonBuff: CombatEvent[] = [];
       const buffs: CombatEvent[] = [];
+      const reforms: CombatEvent[] = [];
       let seenBuff = false;
       // Never slide a buff across a WAVE boundary (multi-pass echo — Fel Spikes): a wave's events must stay
       // contiguous so `compileMoments` groups each pass as one moment. Confine the run to a single wave id
@@ -102,6 +140,15 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
         i++;
       }
       const runEnd = i;
+      // A Ward re-form (see `isWardReform`) leaves the impact and lands after the run's buffs.
+      if (nonBuff.some((e) => e.type === 'shieldUp')) {
+        const run = events.slice(runStart, runEnd);
+        for (let k = 0; k < run.length; k++) if (isWardReform(run, k)) { REFORMS.add(run[k]!); reforms.push(run[k]!); }
+        if (reforms.length > 0) {
+          changed = true;
+          for (const r of reforms) nonBuff.splice(nonBuff.indexOf(r), 1);
+        }
+      }
       out.push(...nonBuff);
       // If we're deferring buffs, let the clash's own consequence SUMMONS (deathrattle tokens, emitted right
       // after the death in the log) play BEFORE the buff floats. Otherwise the deferred buff becomes a beat
@@ -114,7 +161,7 @@ export function deferClashBuffs(events: CombatEvent[]): CombatEvent[] {
       if (buffs.length) while (i < events.length && events[i]!.wave === w0 && events[i]!.type === 'summon') { out.push(events[i]!); pulled.push(events[i]!); i++; }
       const swap = buffs.length ? tagMoved(events.slice(runStart, runEnd), pulled) : new Map<CombatEvent, CombatEvent>();
       if (swap.size > 0) changed = true;
-      out.push(...buffs.map((b) => swap.get(b) ?? b));
+      out.push(...buffs.map((b) => swap.get(b) ?? b), ...reforms);
     } else {
       out.push(events[i]!);
       i++;

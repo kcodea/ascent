@@ -3,6 +3,14 @@ import { RESULT_TYPES } from '../combatBeats';
 import { getLungeConfig } from '../lungeConfig';
 import { combatKeyedHoldMs } from '../choreographer/combatHolds';
 import { HIT_REACTION_LEAD_MS, reactionChainMs } from './hitReactions';
+import { isWardReformEvent } from './clashOrder';
+
+/** A WARD RE-FORM (R-DWARF-1021-03, Foamguard): base-speed (1x) gap from the buff beat that precedes it to the Ward
+ *  re-forming. The buff beat itself shows `beatDelay('buff')` x tempo (210 ms) after the break, so break to re-form
+ *  is ~370 ms: the shatter reads, the +10/+10 lands, then the Ward comes back. */
+export const WARD_REFORM_AFTER_BUFF_MS = 160;
+/** …and from the break itself when no buff beat sits between them (a re-form with no stat gain). */
+export const WARD_REFORM_AFTER_BREAK_MS = 320;
 
 /** Moment kinds whose hold is a plain timeout — the only ones an authored hold may replace. */
 export const KEYED_HOLD_KINDS = new Set([
@@ -53,6 +61,13 @@ export function holdMs(next: Moment, shown: Moment | undefined, combatSpeed: num
   // A wave pass's REACTION beat (R-DEMON-DMG-BEATS-01): it starts right after the pass lands, and nothing after it
   // (the next pass, the parked swing's strike) starts until its tendrils have reached their targets.
   if (shown && next.hitReaction) return HIT_REACTION_LEAD_MS / spd;
+  // A Ward re-form (R-DWARF-1021-03): a short fixed gap after the break / its buff beat, so it reads as break → buff →
+  // Ward back in one breath, not a full result-beat wait. A reaction chain still finishes its read first.
+  if (shown && isWardReformEvent(next.primary)) {
+    const lead = shown.kind === 'buffWave' ? WARD_REFORM_AFTER_BUFF_MS : WARD_REFORM_AFTER_BREAK_MS;
+    const chain = shown.hitReaction || (shown.ticks ?? 1) > 1 ? reactionChainMs(shown.ticks ?? 1) : 0;
+    return Math.max(lead, chain) / spd;
+  }
   // …and holds until its LAST tick has read (R-DEMON-DMG-BEATS-02: one tick per trigger fire, `reactionChainMs`). A
   // stand-alone buff wave of several fires holds for its chain the same way.
   if (shown && (shown.hitReaction || (shown.ticks ?? 1) > 1)) {

@@ -237,7 +237,7 @@ export const SET3_DWARVES: CardDef[] = [
   {
     // "The first time this loses Ward each combat, gain +10/+10 and Ward." Rides the real Ward break
     // (`onLoseDivineShield`, emitted only when a hit pops the Ward; a Resilient Ward's first layer is not a loss).
-    // Once per combat via `wardRegainFired` on the instance (a Risen body is the same combat instance). The stats
+    // Once per body via `wardRegainFired`; a Rise / Rebirth return resets it (owner 2026-10-21, R-DWARF-1021-02). The stats
     // are a combat gain (R-BUFF-PERM). Gilded doubles the stats, not the regain count.
     id: 'dw3_foamguard',
     name: 'Foamguard',

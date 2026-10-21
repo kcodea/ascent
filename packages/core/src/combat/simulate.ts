@@ -3378,6 +3378,10 @@ export function simulate(
       // not a buff, keyword or effect — so it is NOT part of the "full body" Rebirth keeps (owner 2026-09-16:
       // "it acts like rise, so copy that"). Stamped after its own death was tallied, so that death is no progress.
       minion.avengeBaseline = deaths[minion.side];
+      // FOAMGUARD (owner 2026-10-21, R-DWARF-1021-02: "it should rise and gain ward, then reset when it's removed
+      // again"): its "first time this loses Ward each combat" re-arms on every return. Bounded: a return needs a
+      // spent Rebirth / Rise, so the trigger fires at most once per body plus once per return.
+      minion.wardRegainFired = undefined;
       let at = arr.indexOf(minion);
       arr.splice(at, 1);
       while (at < arr.length && !before.has(arr[at]!.uid)) at++;
@@ -3529,6 +3533,7 @@ export function simulate(
       minion.sellBonus = undefined;
       minion.overflowBonus = undefined;
       minion.chefGrantedLast = undefined;
+      minion.wardRegainFired = undefined; // FOAMGUARD re-arms on a Rise return (R-DWARF-1021-02, owner 2026-10-21)
       // …and its AVENGE progress restarts (owner: "1/3 should reset to 0/3"). Avenge counts are a side-level
       // deaths tally, so the reset is a per-instance BASELINE: everything before this moment no longer counts
       // for this body. Stamped AFTER its own rise-death was tallied, so that death isn't "progress" either.

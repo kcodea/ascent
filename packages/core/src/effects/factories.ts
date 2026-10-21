@@ -3706,8 +3706,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
 
   /** Foamguard (set 3 Dwarf, owner 2026-10-21) — "The first time this loses Ward each combat, gain +10/+10 and Ward."
    *  `onLoseDivineShield` is the real break (a hit popped the Ward); only THIS body's own break counts. Once per
-   *  combat through `wardRegainFired` on the instance (Yeti's `reflectFired` convention: a Risen body is the same
-   *  combat instance, a fresh Minion per fight re-arms it). The stats are a combat gain (R-BUFF-PERM); gilded
+   *  body through `wardRegainFired` on the instance; a Rise / Rebirth return clears it in `killOrReborn`, so each
+   *  returned body can fire it once more (owner 2026-10-21, R-DWARF-1021-02), and a fresh Minion per fight re-arms it. The stats are a combat gain (R-BUFF-PERM); gilded
    *  doubles them. The Ward comes back through `grantShield`, so the replay shows a `shieldUp` beat after the buff. */
   onLoseWardOnceBuffSelfRegain: (ctx, self, params, payload) => {
     const { minion } = payload as MinionPayload;

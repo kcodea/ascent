@@ -3015,8 +3015,9 @@ export interface Minion {
    *  `grantedRefresh` / Candleback's `rubyRecvTick`, and deliberately NOT on the Rise / Rebirth reset list — a
    *  returned body is the same combat instance, so "once per combat" stays spent. A fresh Minion per fight. */
   reflectFired?: boolean;
-  /** Foamguard (Set 3 Dwarf, 2026-10-21): its once-per-combat "loses Ward → +10/+10 and Ward" has fired. Same
-   *  convention as `reflectFired`: on the instance, not reset by Rise / Rebirth; a fresh Minion per fight re-arms it. */
+  /** Foamguard (Set 3 Dwarf, 2026-10-21): its "first time this loses Ward each combat → +10/+10 and Ward" has fired
+   *  for THIS body. Unlike Yeti's `reflectFired`, a Rise / Rebirth return RESETS it (owner 2026-10-21, R-DWARF-1021-02:
+   *  "it should rise and gain ward, then reset when it's removed again"); a fresh Minion per fight re-arms it too. */
   wardRegainFired?: boolean;
   /** PUMMEL (X) — how many damage-meter payouts this body has made THIS combat (Goldvein's Gold, Han Gover's
    *  Ale, Maestro Lux's Celestial; `DAMAGE_METER_MARKERS`), checked against the marker's `maxPerCombat` (default

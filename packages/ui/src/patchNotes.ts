@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Foamguard now resets when it comes back. A Foamguard that Rises or is Reborn returns with Ward and can gain +10/+10 and Ward again.',
+        details: [
+          'The first time it loses Ward, it gains +10/+10 and Ward, as before.',
+          'Each time it dies and comes back through Rise or Rebirth, that trigger is ready again for the returned body.',
+          'The +10/+10 still lasts for that combat only.',
+          'You now see it happen: the Ward breaks, the +10/+10 lands, then the Ward forms again a moment later.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Four new Dwarves join Set 3: Coin Counter, Keg Runner, Champion Inu and Foamguard.',
         details: [
           'Coin Counter (Tier 1, 1/3): after you play a Dwarf, it gains +1/+1.',

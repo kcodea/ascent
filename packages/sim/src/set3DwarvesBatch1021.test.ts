@@ -198,3 +198,68 @@ describe('FOAMGUARD — the first Ward loss each combat: +10/+10 and Ward', () =
     expect((r.playerPermaBuffs ?? [])).toEqual([]);
   });
 });
+
+// R-DWARF-1021-02 (owner 2026-10-21: "no it should rise and gain ward, then reset when it's removed again"): the trigger
+// is spent per BODY. A Rise / Rebirth return comes back with Ward and the trigger re-armed; each removal resets it.
+describe('FOAMGUARD — a Rise / Rebirth return re-arms "the first time this loses Ward"', () => {
+  const bm = (uid: string, cardId: string, attack: number, health: number, keywords: string[]): BoardMinion =>
+    ({ uid, sourceUid: uid, cardId, attack, health, keywords, golden: false } as unknown as BoardMinion);
+  // A huge wall that hits hard: Foamguard's Ward breaks, it regains, breaks again, then it dies (and returns).
+  const vsWall = (keywords: string[]) => simulate(
+    [bm('fg', 'dw3_foamguard', 4, 8, keywords)],
+    [bm('w1', 'sandbag', 100, 5000, [])], makeRng(5), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 6 }));
+  const fires = (ev: readonly CombatEvent[], uid: string) => ({
+    ups: ev.filter((e) => e.type === 'shieldUp' && e.target === uid).length,
+    gains: ev.filter((e) => e.type === 'buff' && e.target === uid && e.attack === 10 && e.health === 10).length,
+    returns: ev.filter((e) => e.type === 'reborn' && e.target === uid),
+  });
+
+  it('control: no return, one fire', () => {
+    const r = vsWall(['T', 'DS']);
+    const f = fires(r.events, uidOf(r, 'dw3_foamguard'));
+    expect(f.returns.length).toBe(0);
+    expect([f.ups, f.gains]).toEqual([1, 1]);
+  });
+  it('Rise: the risen body has Ward and fires once more (two fires total)', () => {
+    const r = vsWall(['T', 'DS', 'R']);
+    const fg = uidOf(r, 'dw3_foamguard');
+    const f = fires(r.events, fg);
+    expect(f.returns.length).toBe(1);
+    const back = f.returns[0]! as Extract<CombatEvent, { type: 'reborn' }>;
+    expect(back.keywords, 'the Rise copy keeps its printed Ward').toContain('DS');
+    expect([f.ups, f.gains]).toEqual([2, 2]);
+    // The second fire happens on the risen body: after the return.
+    const iBack = r.events.indexOf(back);
+    const iLastGain = r.events.map((e, i) => [e, i] as const).filter(([e]) => e.type === 'buff' && e.target === fg && e.attack === 10).pop()![1];
+    expect(iLastGain).toBeGreaterThan(iBack);
+    expect(r.playerPermaBuffs ?? [], 'still a combat-only gain').toEqual([]);
+  });
+  it('Rebirth: the reborn body has Ward back and fires once more (two fires total)', () => {
+    const r = vsWall(['T', 'DS', 'RB']);
+    const f = fires(r.events, uidOf(r, 'dw3_foamguard'));
+    expect(f.returns.length).toBe(1);
+    expect((f.returns[0]! as Extract<CombatEvent, { type: 'reborn' }>).keywords).toContain('DS');
+    expect([f.ups, f.gains]).toEqual([2, 2]);
+  });
+  it('two removals (Rebirth then Rise): it resets each time, three fires total', () => {
+    const r = vsWall(['T', 'DS', 'R', 'RB']);
+    const f = fires(r.events, uidOf(r, 'dw3_foamguard'));
+    expect(f.returns.length).toBe(2);
+    expect([f.ups, f.gains]).toEqual([3, 3]);
+  });
+  it('loop guard: Foamguards with Rise + Rebirth + Resilient Ward on both sides end, each fires at most once per body', () => {
+    const kws = ['T', 'DS', 'RW', 'R', 'RB'];
+    const r = simulate(
+      [bm('a1', 'dw3_foamguard', 4, 8, [...kws]), bm('a2', 'dw3_foamguard', 4, 8, [...kws])],
+      [bm('b1', 'dw3_foamguard', 4, 8, [...kws]), bm('b2', 'dw3_foamguard', 4, 8, [...kws])],
+      makeRng(9), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 6 }));
+    expect(r.result).toBeDefined();
+    for (const side of ['player', 'enemy'] as const) {
+      for (const m of r.initial[side]) {
+        const f = fires(r.events, m.uid);
+        expect(f.returns.length).toBeLessThanOrEqual(2);
+        expect(f.ups, `${m.uid}: one fire per body`).toBeLessThanOrEqual(f.returns.length + 1);
+      }
+    }
+  });
+});

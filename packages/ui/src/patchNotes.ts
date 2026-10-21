@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-21',
     changes: [
       {
+        category: 'Balance',
+        text: 'Four new Dwarves join Set 3: Coin Counter, Keg Runner, Champion Inu and Foamguard.',
+        details: [
+          'Coin Counter (Tier 1, 1/3): after you play a Dwarf, it gains +1/+1.',
+          'Keg Runner (Tier 2, 3/2): sell it to gain 2 extra Gold.',
+          'Champion Inu (Tier 5, 6/8): after you cast a Dwarven Ale, your Dwarves get +2/+2.',
+          'Foamguard (Tier 5, 4/8): Taunt and Ward. The first time it loses Ward each combat, it gains +10/+10 and Ward.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Boards in your Career and Recent Games now show their minions at the same size, with matching Attack and Health badges.',
         details: [

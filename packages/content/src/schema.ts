@@ -312,6 +312,7 @@ export const EffectFactoryIdSchema = z.enum([
   'onShieldBreakGrantShield',
   'onShieldBreakDamage',
   'onShieldBreakBuffAll',
+  'onLoseWardOnceBuffSelfRegain', // Foamguard (set 3 Dwarf, 2026-10-21): first Ward loss each combat → +a/+h and Ward
   'onFriendDeathSummon',
   'scDestroyHighestAttack',
   'scGrantEnemyTaunt',

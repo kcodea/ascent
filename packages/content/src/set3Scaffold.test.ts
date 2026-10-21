@@ -45,6 +45,7 @@ describe('set 3 scaffold', () => {
       'dw3_shiftbroker', 'dw3_striker', 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',
       'dw3_thymes', 'dw3_tankerchief', 'dw3_hangover', // Han Gover appended 2026-09-18
       'dw3_goldilox', // Goldilox appended 2026-09-24 (owner batch)
+      'dw3_coincounter', 'dw3_kegrunner', 'dw3_championinu', 'dw3_foamguard', // owner batch 2026-10-21
       // Kringle, Blade Thrower, Pimm, Mountainbond and Gangplank left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
       'dw_brunni', 'dw_coinfire', 'dw_brakka', 'dw_dorrin', 'dw_brewer', 'dw_tapkeeper',
       'dw_thane', 'dw_edward', 'dw_billings',

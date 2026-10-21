@@ -3704,6 +3704,19 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ctx.damage(ctx.rng.pick(targets), num(params.amount, 3) * mul(self));
   },
 
+  /** Foamguard (set 3 Dwarf, owner 2026-10-21) — "The first time this loses Ward each combat, gain +10/+10 and Ward."
+   *  `onLoseDivineShield` is the real break (a hit popped the Ward); only THIS body's own break counts. Once per
+   *  combat through `wardRegainFired` on the instance (Yeti's `reflectFired` convention: a Risen body is the same
+   *  combat instance, a fresh Minion per fight re-arms it). The stats are a combat gain (R-BUFF-PERM); gilded
+   *  doubles them. The Ward comes back through `grantShield`, so the replay shows a `shieldUp` beat after the buff. */
+  onLoseWardOnceBuffSelfRegain: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || minion !== self || self.wardRegainFired) return;
+    self.wardRegainFired = true;
+    ctx.buff(self, num(params.attack, 10) * mul(self), num(params.health, 10) * mul(self), self.uid);
+    grantShield(ctx, self);
+  },
+
   /** Junkyard Titan — when any friendly Shield breaks, give your minions +atk/+hp. */
   onShieldBreakBuffAll: (ctx, self, params, payload) => {
     const { side } = payload as MinionPayload;
@@ -4769,8 +4782,11 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   spellCastBuffAll: (ctx, self, params, payload) => {
     // SIDE GUARD (owner bug report 2026-08-07): every sibling spell-cast watcher checks the caster's side;
     // this one didn't, so an ENEMY Earthbreaker was buffing its board off YOUR casts.
-    const { side } = payload as { side: Side };
+    const { side, spellId } = payload as { side: Side; spellId?: string };
     if (self.dead || side !== self.side) return;
+    // `aleOnly` (Champion Inu, owner 2026-10-21): only a Dwarven Ale cast. The bare `spellCast` bus emit carries no
+    // spell id, so it never wakes an Ale watcher; `spellResolved` in simulate calls this with the id it cast.
+    if (params.aleOnly === true && !(spellId && ALE_IDS.includes(spellId))) return;
     ARENA_EFFECTS.spellCastBuffAll(combatArena(ctx, self), params);
   },
 

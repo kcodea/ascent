@@ -223,9 +223,14 @@ describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', 
     const { readFileSync } = await import('node:fs');
     const { join } = await import('node:path');
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    const hover = /\.vsbcard:hover\s*\{([^}]*)\}/.exec(css)![1]!;
+    const hover = /\.vsbcard:hover \.vsbcard-lift\s*\{([^}]*)\}/.exec(css)![1]!;
     expect(hover).toMatch(/transform:/);
     expect(hover).not.toMatch(/filter|box-shadow|width|height|top|left/);
+    // R-VERSUS-HAND-HOVER-01: the hover never moves what is hovered: the lift takes no pointer, the still pads do, and
+    // what changes on hover is a transform or the pointer only.
+    expect(/\.vsbcard-lift\s*\{([^}]*)\}/.exec(css)![1]).toMatch(/pointer-events:\s*none/);
+    expect(/\.vsbcard \{([^}]*)\}/.exec(css)![1]).toMatch(/pointer-events:\s*none/);
+    for (const m of css.matchAll(/\.vsbcard:hover \.vsbcard-(?:hit|hitup|band)\s*\{([^}]*)\}/g)) expect(m[1]).not.toMatch(/top|left|width|height|background|filter|shadow/);
     const room = css.slice(css.indexOf('.vsvignette'), css.indexOf('/* Controls on the game'));
     expect(room).not.toMatch(/animation\s*:/);
   });

@@ -125,21 +125,43 @@
 .vsstatus.vsbench-label { font-size: calc(18 * var(--u)); padding: calc(6 * var(--u)) calc(22 * var(--u)); }
 .vsbench-label { position: absolute; top: 0; left: 50%; translate: -50% 0; font-family: var(--font-title), serif; letter-spacing: 0.08em; text-transform: uppercase; }
 .vsbench-empty { position: absolute; top: 36%; left: 50%; translate: -50% 0; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: calc(17 * var(--u)); color: rgba(247, 236, 210, 0.8); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
-.vsbcard { position: absolute; top: 31%; left: calc(50% + var(--off) * var(--vsb-step)); translate: -50% 0; pointer-events: auto; z-index: calc(10 + var(--i));
-  transform-origin: 50% 100%; transform: translateY(calc(var(--off) * var(--off) * var(--vsb-arc))) rotate(calc(var(--off) * var(--vsb-tilt)));
-  transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1); }
-.vsbcard:hover { z-index: 60; transform: translateY(calc(-2 * var(--vsb-ccw))) scale(var(--vsb-zoom)); }
+.vsbcard { position: absolute; top: 31%; left: calc(50% + var(--off) * var(--vsb-step)); translate: -50% 0; pointer-events: none; z-index: calc(10 + var(--i)); }
+/* THE HAND'S HOVER (owner 2026-10-20: "the hand/spectator area can allow for really janky pop previews ... make it easier
+   to grab and not pop in/out a million times in certain spots"; R-VERSUS-HAND-HOVER-01). The pop used to move the very
+   element that was hovered: it rose two card widths and scaled x2.3 from its foot, so a hand on the lower half of a
+   resting card was no longer over it, the card dropped back under the hand, and it popped again, every frame. Now the
+   slot never moves and never takes the pointer itself: the card and its lift live on `.vsbcard-lift` (no pointer
+   events), and the hover is decided by two still, transparent pads (hit-testing only: no paint, no layout change):
+     - `.vsbcard-hit`: the card's own strip of the fan (its plate's width, or the fan's pitch once the cards overlap, so
+       every card is reachable however many there are), from the card's top down past the stage edge;
+     - `.vsbcard-band`: the same strip a little wider, live only while hovered, so two neighbours meet in a dead band
+       instead of a one-pixel seam a resting hand could flicker across;
+     - `.vsbcard-hitup`: the popped card's box ABOVE the fan, live only while hovered, so the hand can travel up onto the
+       big card (and grab it) without losing it, while sideways moves inside the fan still reach the neighbours.
+   The popped box follows the lift below (2 card widths up, `--vsb-zoom` from the foot) in % of the slot (the card box):
+   change one and re-derive the other. */
+.vsbcard-lift { transform-origin: 50% 100%; transform: translateY(calc(var(--off) * var(--off) * var(--vsb-arc))) rotate(calc(var(--off) * var(--vsb-tilt)));
+  transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1); pointer-events: none; }
+.vsbcard:hover { z-index: 60; }
+.vsbcard:hover .vsbcard-lift { transform: translateY(calc(-2 * var(--vsb-ccw))) scale(var(--vsb-zoom)); }
+.vsbcard-hit, .vsbcard-band { position: absolute; top: -30%; bottom: -110%; left: 50%; translate: -50% 0; width: min(152%, var(--vsb-step)); pointer-events: auto; }
+.vsbcard-band { width: calc(min(152%, var(--vsb-step)) + 0.24 * var(--vsb-ccw)); pointer-events: none; }
+.vsbcard:hover .vsbcard-band { pointer-events: auto; }
+.vsbcard-hitup { position: absolute; top: -393%; bottom: 120%; left: -125%; right: -125%; pointer-events: none; }
+.vsbcard:hover .vsbcard-hitup { pointer-events: auto; }
+/* A drag in progress owns the pointer: nothing in the hand pops under the flying card. */
+.vsbench:has(.vsdragsrc) :is(.vsbcard-hit, .vsbcard-band, .vsbcard-hitup) { pointer-events: none; }
 .vspcard-bench { --vspcard-k: var(--vsb-k, 0.72); }
 /* A small card keeps the in-game badge size (x1.45 is for the big seat card). */
 .vspcard-bench .card .badge { scale: 1; }
-@media (prefers-reduced-motion: reduce) { .vsbcard { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .vsbcard-lift { transition: none; } }
 /* THE SEAT DRAG (owner 2026-10-17, R-VERSUS-DRAG-SEAT-01): my own card drags (the shop's drag: the floating
    `.dragcard`, its grab-shrink, the closed-gauntlet veil, the play glow, the sell zone). `touch-action: none` so a
    finger drags the card instead of panning; the gauntlet cursor still comes from the global `.card` rule. The card
    the ghost was lifted from hides like the shop's `.card.dragsrc`. An open seat under a droppable card brightens
    (opacity only); a taken seat stays as it is and the drop springs back. All one-shot, transform / opacity only. */
 .vsdraggable { touch-action: none; }
-.vsdragsrc > .vspcard-hold { opacity: 0; }
+.vsdragsrc .vspcard-hold { opacity: 0; }
 .vspcard .vspcard-empty { transition: opacity 0.12s ease; }
 .vspcard.vsseat-over .vspcard-empty { opacity: 0.95; }
 /* The shop's sell zone, inside the room's stage box (the room covers the whole stage, so its top is the stage's). */

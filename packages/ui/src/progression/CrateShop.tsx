@@ -131,7 +131,8 @@ function Amount({ value, cost }: { value: number; cost?: boolean }): JSX.Element
 }
 
 /** Each tier's hover tip: its guarantee and its published odds (static: they depend only on the floor). */
-const TIER_TIP: Readonly<Record<CrateTier, { guarantee: string; odds: { rarity: CosmeticRarity; pct: number }[] }>> = Object.fromEntries(
+interface TierTip { guarantee: string; odds: { rarity: CosmeticRarity; pct: number }[] }
+const TIER_TIP: Readonly<Record<CrateTier, TierTip>> = Object.fromEntries(
   CRATE_TIERS.map((t) => {
     const floor = CRATE_TIER_FLOOR[t];
     const pct = tierOddsPercent(floor);
@@ -140,7 +141,7 @@ const TIER_TIP: Readonly<Record<CrateTier, { guarantee: string; odds: { rarity: 
       odds: COSMETIC_RARITIES.filter((r) => pct[r] > 0).map((rarity) => ({ rarity, pct: pct[rarity] })),
     }];
   }),
-) as Record<CrateTier, { guarantee: string; odds: { rarity: CosmeticRarity; pct: number }[] }>;
+) as Record<CrateTier, TierTip>;
 
 /** One chest card: the painted chest, its name in its tier colour, its price; the tip below it on hover (and on a tap,
  *  through the `.tt-on` twin). The card is the stable host the pick celebration attaches to. */
@@ -160,7 +161,7 @@ const ChestCard = memo(function ChestCard({ tier, price, on, onPick }: {
       <span className="cshop-chest-check" aria-hidden="true">✓</span>
       <span className="cshop-chest-art"><ChestPicture tier={chest} /></span>
       <span className="cshop-chest-name">{label}</span>
-      <span className="cshop-chest-price"><AetherIcon />{price}</span>
+      <span className="cshop-gem cshop-chest-price"><AetherIcon />{price}</span>
       <span className="atip cshop-pop" role="tooltip" id={tipId}>
         <span className="atip-title">{label} Chest</span>
         <span className="cshop-guar">{tip.guarantee}</span>
@@ -199,7 +200,10 @@ const OddsSeg = memo(function OddsSeg({ slice }: { slice: OddsSlice }): JSX.Elem
   const tipId = useId();
   const name = RARITY_LABELS[slice.rarity];
   return (
-    <span className={`cshop-seg r-${slice.rarity}`} style={{ flex: `${slice.percent} 1 0` }} tabIndex={0} aria-describedby={tipId}>
+    <span
+      className={`cshop-seg r-${slice.rarity}`} style={{ flex: `${slice.percent} 1 0` }} tabIndex={0} role="img"
+      aria-label={`${name} ${slice.percent}%`} aria-describedby={tipId}
+    >
       <span className="cshop-seg-pct">{slice.percent}%</span>
       <span className="atip cshop-pop" role="tooltip" id={tipId}>
         <span className="atip-title">{name} · {slice.percent}%</span>
@@ -243,17 +247,25 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
   // Every chest's art starts loading as the screen opens, so whichever the player buys never opens cold.
   useEffect(() => { for (const t of CHEST_TIERS) warmChestArt(t); }, []);
 
-  // ESC = Back (a bubbling listener: the theatre, the sign-in gate and the pop-ups capture Esc first and stop it), never
-  // while a purchase runs (leaving would hide the "Buying…" state of a charge that is still in flight).
+  // ESC = Back. Registered on `document` in the CAPTURE phase: it runs after the theatre's, the sign-in gate's and the
+  // pop-ups' window-capture handlers (which claim Esc and stop it), and BEFORE Game.tsx's window-bubble handler, which
+  // would otherwise also toggle the settings menu on the same press. When it acts it claims the key (preventDefault +
+  // stopPropagation), so the menu never opens underneath the trip back. It stands aside while a purchase runs (leaving
+  // would hide the "Buying…" state of a charge still in flight), while the settings menu, the Minion Book or a card
+  // Inspect is open (Game's handler closes those), and for a press something earlier already handled.
   const backRef = useRef(onBack);
   backRef.current = onBack;
   useEffect(() => {
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'Escape' || e.defaultPrevented || busyRef.current) return;
+      const st = useGame.getState();
+      if (st.settingsOpen || st.showBook || st.inspect) return;
+      e.preventDefault();
+      e.stopPropagation();
       backRef.current();
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    document.addEventListener('keydown', onKey, { capture: true });
+    return () => document.removeEventListener('keydown', onKey, { capture: true });
   }, []);
 
   const floor = CRATE_TIER_FLOOR[tier];
@@ -405,13 +417,13 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
               </div>
             </div>
             <div className="cshop-buywrap">
-              {error && <p className="cshop-err" role="alert">{error}</p>}
               <button
                 type="button" className={`cshop-gem cshop-buy${busy ? ' pressed' : ''}`} disabled={disabled} aria-busy={busy || undefined}
                 aria-label={ariaLabel} onClick={() => { void spend(); }}
               >
                 {label}
               </button>
+              {error && <p className="cshop-err" role="alert">{error}</p>}
             </div>
           </section>
         </div>

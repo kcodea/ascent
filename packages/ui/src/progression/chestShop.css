@@ -9,7 +9,9 @@
    - The tips wear the shared skin (`.atip`, tooltips.css); the rules here give them only geometry and show / hide.
      Every hover reveal has its `.tt-on` twin in the same rule (touchInput.ts: a tap is a parked hover).
    - No cursor rules: every control is a <button>, which the global rule gives the gauntlet.
-   - STATIC paint. Hover and select are short one-shot transitions of transform / opacity / border-colour. The
+   - STATIC paint. Hover and select are short one-shot transitions of transform / opacity only (border colours snap),
+     and every lift, press and transition lives in ONE block at the end, gated on motion being allowed (the OS setting
+     AND the page's `.cshop-still`), so reduced motion never has to out-specify them. The
      celebrations (the pick bursts, halos, rays, the toggle pop and its breathing glow) are layered on in Task 4 and
      attach to `.cshop-chest` (its `.cshop-chest-fx` clip layer) and to `.cshop-cat` / `.cshop-toggle`. */
 
@@ -23,9 +25,7 @@
   box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
   color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-family: var(--font-body); font-weight: 700;
 }
-.cshop button.cshop-gem { transition: transform 0.12s ease; }
 .cshop button.cshop-gem:hover:not(:disabled) { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
-.cshop button.cshop-gem:active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
 .cshop button.cshop-gem:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
 .cshop button.cshop-gem:disabled { opacity: 0.55; }
 
@@ -54,16 +54,15 @@
   position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 16px 12px 14px;
   border-radius: 16px; background: var(--colls-panel); border: 2px solid var(--colls-line); color: var(--colls-ink);
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.7);
-  transition: transform 0.14s ease, border-color 0.14s ease;
 }
 /* The tier-coloured floor glow (static; brighter on the picked card). */
 .cshop-chest::before {
   content: ''; position: absolute; inset: 0; border-radius: 14px; pointer-events: none; opacity: 0.55;
   background: radial-gradient(60% 40% at 50% 62%, color-mix(in srgb, var(--tc) 30%, transparent), transparent 70%);
 }
-.cshop .cshop-chest:hover, .cshop .cshop-chest.tt-on { z-index: 10; transform: translateY(-3px); border-color: color-mix(in srgb, var(--tc) 60%, var(--colls-line)); }
+.cshop .cshop-chest:hover, .cshop .cshop-chest.tt-on { z-index: 10; border-color: color-mix(in srgb, var(--tc) 60%, var(--colls-line)); }
 .cshop .cshop-chest.on, .cshop .cshop-chest.on:hover {
-  transform: translateY(-4px); border-color: var(--tc);
+  border-color: var(--tc);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc) 45%, transparent), 0 0 26px -4px color-mix(in srgb, var(--tc) 70%, transparent), inset 0 0 40px rgba(0, 0, 0, 0.3);
 }
 .cshop-chest.on::before { opacity: 1; }
@@ -88,19 +87,14 @@
   background: linear-gradient(90deg, #8af5ff, #f4eeff 45%, #ff9bf0); -webkit-background-clip: text; background-clip: text; color: transparent;
   text-shadow: none; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.6));
 }
-.cshop-chest-price {
-  position: relative; z-index: 2; margin-top: 4px; padding: 5px 16px; border: 2px solid transparent; border-radius: 999px;
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
-  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-family: var(--font-body); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums;
-}
+.cshop .cshop-chest-price { position: relative; z-index: 2; margin-top: 4px; padding: 5px 16px; border-radius: 999px; font-size: 18px; font-variant-numeric: tabular-nums; }
 .cshop-chest.on .cshop-chest-price { color: var(--ui-title); }
 .cshop-chest-price .aether-icon, .cshop-amt .aether-icon, .cshop-buy-total .aether-icon { width: 1.15em; height: 1.15em; margin-right: 0.18em; vertical-align: -0.22em; }
 
 /* The card's tip: the shared skin, dropped below the card. */
 .cshop-chest .cshop-pop {
   position: absolute; left: 50%; top: calc(100% + 12px); z-index: 20; box-sizing: border-box; width: 260px; text-align: left;
-  opacity: 0; pointer-events: none; transform: translate(-50%, 6px); transition: opacity 0.14s ease, transform 0.14s ease;
+  opacity: 0; pointer-events: none; transform: translate(-50%, 6px);
 }
 .cshop-chest:hover .cshop-pop, .cshop-chest.tt-on .cshop-pop, .cshop-chest:focus-visible .cshop-pop { opacity: 1; transform: translate(-50%, 0); }
 .cshop-pop .atip-title { padding-bottom: 0; border-bottom: 0; }
@@ -183,16 +177,15 @@
   background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 100%, #fff 18%), var(--rc) 55%, color-mix(in srgb, var(--rc) 70%, #000));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
   font-family: var(--font-body); font-weight: 900; font-size: 14px; color: #140d24; white-space: nowrap; font-variant-numeric: tabular-nums;
-  transition: transform 0.12s ease;
 }
 .cshop-seg:first-child { border-radius: 8px 0 0 8px; }
 .cshop-seg:last-child { border-radius: 0 8px 8px 0; }
 .cshop-seg:only-child { border-radius: 8px; }
-.cshop-seg:hover, .cshop-seg.tt-on, .cshop-seg:focus-visible { z-index: 5; transform: translateY(-2px); }
+.cshop-seg:hover, .cshop-seg.tt-on, .cshop-seg:focus-visible { z-index: 5; }
 .cshop-seg:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
 .cshop-seg .cshop-pop {
   position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 20; box-sizing: border-box; width: 240px; text-align: left; white-space: normal;
-  opacity: 0; pointer-events: none; transform: translate(-50%, 6px); transition: opacity 0.14s ease, transform 0.14s ease;
+  opacity: 0; pointer-events: none; transform: translate(-50%, 6px);
 }
 .cshop-seg:hover .cshop-pop, .cshop-seg.tt-on .cshop-pop, .cshop-seg:focus-visible .cshop-pop { opacity: 1; transform: translate(-50%, 0); }
 .cshop-seg:first-child .cshop-pop { left: 0; transform: translate(0, 6px); }
@@ -208,13 +201,21 @@
 .cshop .cshop-buy { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; min-height: 92px; padding: 12px 40px; border-radius: 14px; }
 .cshop-buy-main { font-size: 26px; font-weight: 800; }
 .cshop-buy-total { font-size: 21px; color: var(--ui-title); font-variant-numeric: tabular-nums; }
-.cshop .cshop-buy.pressed { opacity: 1; transform: translateY(1px); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring); }
+.cshop .cshop-buy.pressed { opacity: 1; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring); }
 .cshop-err { margin: 0; font-family: var(--font-body); font-weight: 700; font-size: 14px; color: #ffb45a; }
 
-/* Reduced motion (the page's setting and the OS's): nothing lifts or slides; the states still read. */
-.cshop-still :is(.cshop-chest, .cshop-seg, .cshop-pop, .cshop-gem) { transition: none; }
-.cshop-still :is(.cshop-chest:hover, .cshop-chest.tt-on, .cshop-chest.on, .cshop-seg:hover, .cshop-seg.tt-on, .cshop-gem:active) { transform: none; }
-@media (prefers-reduced-motion: reduce) {
-  .cshop :is(.cshop-chest, .cshop-seg, .cshop-pop, .cshop-gem) { transition: none; }
-  .cshop :is(.cshop-chest:hover, .cshop-chest.tt-on, .cshop-chest.on, .cshop-seg:hover, .cshop-seg.tt-on, .cshop-gem:active) { transform: none; }
+/* ── MOTION: every lift, press and transition, only where motion is allowed ─────────────────────────────────────
+   Reduced motion (the OS setting, or the page's own `reducedMotion` -> `.cshop-still`) never matches this block, so
+   nothing lifts, presses or slides there and no override has to win a specificity fight; the states still read
+   (border colours, the check badge, the gold pill, the tips simply snap open). Transform / opacity only. */
+@media (prefers-reduced-motion: no-preference) {
+  .cshop:not(.cshop-still) button.cshop-gem { transition: transform 0.12s ease; }
+  .cshop:not(.cshop-still) button.cshop-gem:active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
+  .cshop:not(.cshop-still) .cshop-buy.pressed { transform: translateY(1px); }
+  .cshop:not(.cshop-still) .cshop-chest { transition: transform 0.14s ease; }
+  .cshop:not(.cshop-still) .cshop-chest:hover, .cshop:not(.cshop-still) .cshop-chest.tt-on { transform: translateY(-3px); }
+  .cshop:not(.cshop-still) .cshop-chest.on, .cshop:not(.cshop-still) .cshop-chest.on:hover { transform: translateY(-4px); }
+  .cshop:not(.cshop-still) .cshop-seg { transition: transform 0.12s ease; }
+  .cshop:not(.cshop-still) .cshop-seg:hover, .cshop:not(.cshop-still) .cshop-seg.tt-on, .cshop:not(.cshop-still) .cshop-seg:focus-visible { transform: translateY(-2px); }
+  .cshop:not(.cshop-still) .cshop-pop { transition: opacity 0.14s ease, transform 0.14s ease; }
 }

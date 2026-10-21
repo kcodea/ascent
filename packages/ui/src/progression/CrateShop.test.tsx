@@ -84,7 +84,8 @@ const err = (): string => norm($('.cshop-err')?.textContent);
 /** The receipt as [what, amount] pairs, top to bottom (the chest line, each focus row, the total). */
 const receipt = (): [string, string][] => $$('.cshop-receipt .cshop-line, .cshop-receipt .cshop-sub')
   .map((l) => [norm(l.querySelector('.cshop-what')?.textContent), norm(l.querySelector('.cshop-amt')?.textContent)]);
-const esc = (): void => { act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); }); };
+/** A real key press's path: window capture, document capture, ..., the target, then the bubble back up to window. */
+const esc = (): void => { act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); }); };
 
 const bought = (crateId: string): BuyCrateResult => ({
   status: 'opened', rewardId: 'title_stormcaller', sealedRemaining: 0, aether: 1200,
@@ -249,7 +250,7 @@ describe('the Chest Shop screen (owner 2026-10-20: "a dedicated full screen expe
     expect(pcts.length).toBeGreaterThan(0);
   });
 
-  it('picking a chest warms every chest\x27s art on mount (Standard needs none)', () => {
+  it('mounting the screen warms every chest\x27s art (Standard needs none)', () => {
     const urls: string[] = [];
     setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
     seed(2000);
@@ -333,13 +334,53 @@ describe('the Chest Shop: buying', () => {
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
-  it('Esc that a capturing overlay already handled does not leave the shop', () => {
+  it('Esc that a capturing overlay already handled (stopped) does not leave the shop', () => {
     seed(2000);
     render();
     const capture = (e: KeyboardEvent): void => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); } };
     window.addEventListener('keydown', capture, true);
     try { esc(); } finally { window.removeEventListener('keydown', capture, true); }
     expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it('Esc already defaultPrevented (but not stopped) does not leave the shop', () => {
+    seed(2000);
+    render();
+    const capture = (e: KeyboardEvent): void => { if (e.key === 'Escape') e.preventDefault(); };
+    window.addEventListener('keydown', capture, true);
+    try { esc(); } finally { window.removeEventListener('keydown', capture, true); }
+    expect(onBack).not.toHaveBeenCalled();
+  });
+
+  // Game.tsx toggles the settings menu from a window BUBBLE-phase Esc listener and never preventDefaults: the shop must
+  // claim the press first, or one Esc would both leave the shop and open the menu.
+  it('Esc that leaves the shop is claimed: the window bubble listener (the settings-menu toggle) never sees it', () => {
+    seed(2000);
+    render();
+    const bubble = vi.fn();
+    window.addEventListener('keydown', bubble);
+    try { esc(); } finally { window.removeEventListener('keydown', bubble); }
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(bubble).not.toHaveBeenCalled();
+  });
+
+  it('Esc stands aside while the settings menu, the Minion Book or a card Inspect is open (Game closes those)', () => {
+    seed(2000);
+    render();
+    const bubble = vi.fn();
+    window.addEventListener('keydown', bubble);
+    const before = useGame.getState();
+    try {
+      for (const open of [{ settingsOpen: true }, { showBook: true }, { inspect: before.inspect ?? ({} as never) }]) {
+        act(() => { useGame.setState({ settingsOpen: false, showBook: false, inspect: null, ...open } as never); });
+        esc();
+      }
+    } finally {
+      window.removeEventListener('keydown', bubble);
+      act(() => { useGame.setState({ settingsOpen: before.settingsOpen, showBook: before.showBook, inspect: before.inspect } as never); });
+    }
+    expect(onBack).not.toHaveBeenCalled();
+    expect(bubble).toHaveBeenCalledTimes(3);
   });
 
   it('a purchase that succeeds after the shop unmounted still hands the theatre its chest (a charged player always gets the reveal)', async () => {
@@ -426,6 +467,8 @@ describe('the Chest Shop: buying', () => {
     click(buyBtn());
     await settle();
     expect(err()).toBe('Prices just changed. Check the new price.');
+    // The error line sits UNDER the button (spec).
+    expect(buyBtn().nextElementSibling?.classList.contains('cshop-err')).toBe(true);
     expect(onOpen).not.toHaveBeenCalled();
     // The button comes back for another try at the new price.
     expect(buyText()).toBe('Open Chest 400');

@@ -20,9 +20,11 @@ should follow their view back to shop in real time."
 
 **Fix.**
 
-- `spectateTap.tapSkipCombat()`: the Skip press is a tag (`t: 'skipCombat'`) on the next message. Recruit taps it and,
-  on the watch screen, answers the `skipCombat` press cue with the same `skipCombat`. The spectator emits the cue only
-  while its screen is in that fight and its replay is not done.
+- `spectateTap.tapSkipCombat()`: the Skip press is a tag (`t: 'skipCombat'`) on the next message. The watch screen
+  turns it into a request (`useSpectate.skip = { wave, n }`, like the existing `seek`), and Recruit runs its own
+  `skipCombat` once that fight is actually playing (`fighting`) and not done. A first version fired a press cue at once;
+  live testing showed the tag usually lands during the fight's entrance curtain, before the replay exists, so the cue
+  did nothing. The request waits for the fight instead.
 - `render()` releases the pin the moment the player's real latest view has left the fight (any join, not only late
   ones). The pin still holds a fight the player is IN, so the strike is not cut by the player's settle.
 - `pump()` never lands a shop action on a fight: it holds the queue (`awaitingShop`), shows the shop as it stood
@@ -65,9 +67,42 @@ viewer's dispatch; Game.tsx skips the pick sound for `.app.viewing`). The offer 
 the spectator's own hover lifts the player's mirrored one, as for runes. Covers Discover, Gift picks, the hero-power
 Discover, Choose One, the Quest pick and the scout.
 
+## 4. Spectators drawn like players (R-SPECTATE-HUD-03)
+
+Owner (via the coordinator): "make the spectators look a bit larger, and set them up like a normal 'player' or hero
+where the names under the portrait." CSS only (`versus.css`): every `.vswatch-seat` (the player's Spectating row and the
+spectator's own row) stacks the ring on top (72u, 84u for the spectator's own plate, up from 44u / 54u), the name plate
+under it tucked over the ring's edge like the hero's, and the Spectating / Muted tag smaller under that. The row wraps.
+Same markup, same ring / name / pill classes.
+
+## 5. A reloaded player froze their spectators (R-SPECTATE-RESUME-01)
+
+Found while testing with two clients. A publisher's `seq` started at 0, so a player who reloaded or reconnected sent
+seq 1, 2, ... again: every spectator dropped those as stale (`applySpectatorMessage` ignores a seq at or below the one
+it holds) and the server's keyframe upsert (`versus_publish_frame`, `lobby_live_publish_frame`: only a higher seq
+replaces) kept the old frame. The stands froze on the round before the reload. `newPublisher` now starts at
+`Date.now()`, so a new session always outranks the last (seq is a bigint in both tables). Verified live: the host
+reloaded at round 5 and the spectator moved from round 1 to round 5 at once.
+
+## Verification
+
+- Unit tests below, plus typecheck, lint, test, build:web.
+- Two clients against the live backend (Versus room, host + the in-tab test bot + one spectator; identities named
+  Claudebot1 to Claudebot4, plus two test bot accounts, one per browser profile): the spectator entered each fight within about 200 ms of the
+  host, the host's Skip reached the spectator about 300 ms later and its replay finished early, and when the host went
+  back to the shop the spectator's exit curtain started about 600 ms later and the shop was on screen about 1.8 s later.
+  The Discover cards on the watch screen had `pointer-events: auto` and the gauntlet cursor (Disco Dan's turn-1
+  Discover). The restyled plates were checked on desktop (1600x900) and the phone layout (844x390), with five fake
+  watchers (three plates, then "+2").
+- Seen while testing, NOT fixed here: a host client that sat behind the pre-match gate crystal for a whole shop stayed
+  on round 1 locally while the match moved on, until it reloaded. Probably a scripting artefact (nobody pressed the
+  crystal), but worth a look.
+
 ## Tests
 
 - `packages/ui/src/versus/spectateSkip.test.tsx` (new): the tap, the mirrored skip, the immediate exit with held shop
   actions, the same-hero seat switch on the watch screen, and the Discover card's hover rule.
 - `packages/sim/src/versus/versusFoeDriver.test.ts` (new): a grown lobby and the other side never reuse a driver.
 - `packages/ui/src/versus/spectatorParity.test.ts`: "leaving a fight" now expects the exit at once.
+- `packages/ui/src/versus/spectatorView.test.ts`: a reloaded publisher outranks the old session.
+- `packages/ui/src/versus/spectatorHud.test.tsx`: the plate layout.

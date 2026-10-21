@@ -251,6 +251,11 @@ let trail: MovePoint[] = [];
 /** The card the last message showed in hand, and the action serial when it was picked up. */
 let heldUid: string | null = null;
 let heldMark = 0;
+/** Points stay unanchored until this time: a drop just re-laid the rows out, so the element a point was over may have
+ *  moved (an anchor to it would land the stands' hand on its OLD slot, a jump across the board). */
+let unanchoredUntil = 0;
+/** How long after a drop the rows are still settling (the commit FLIP and the place slide). */
+const SETTLE_MS = 450;
 
 const onMove = (e: PointerEvent): void => {
   cx = e.clientX; cy = e.clientY; overEl = e.target as Element | null;
@@ -293,7 +298,7 @@ function tick(): void {
   // The drop: the card the last message held is gone from the hand. Committed if an action was tagged since it was
   // picked up (the drop's own dispatch), else refused / cancelled.
   let de: CursorSample['de'];
-  if (heldUid && dragNow?.uid !== heldUid) { de = actSerial > heldMark ? 'c' : 'x'; heldUid = null; }
+  if (heldUid && dragNow?.uid !== heldUid) { de = actSerial > heldMark ? 'c' : 'x'; heldUid = null; unanchoredUntil = performance.now() + SETTLE_MS; }
   if (dragNow && dragNow.uid !== heldUid) { heldUid = dragNow.uid; heldMark = actSerial; }
   const idle = !dragNow && !aimNow && !de && performance.now() - movedAt > CURSOR_IDLE_MS;
   if (document.visibilityState === 'hidden' || idle) {
@@ -310,8 +315,10 @@ function tick(): void {
   if (!trail.length && dragKey === lastDragKey && !hidden && !de) return;
   hidden = false;
   lastDragKey = dragKey;
-  // While a card is held or an aim is out, points travel in design space only (the rows under them slide).
-  const anchored = !dragNow && !aimNow;
+  // While a card is held or an aim is out, and while the rows settle after a drop, points travel in design space only
+  // (the rows under them slide). A sample with no fresh move (a state change only) is never anchored either: its
+  // element is the one from the last move, which the action may have moved since.
+  const anchored = !dragNow && !aimNow && performance.now() >= unanchoredUntil && trail.length > 0;
   const pts: MovePoint[] = trail.length ? trail : [{ t: performance.now(), x: cx, y: cy, el: overEl, slot: 0 }];
   trail = [];
   const rects = new Map<Element, DOMRect>();
@@ -363,6 +370,7 @@ export function setSpectatorTap(on: boolean, mySeat: VersusSeat | null, sender: 
     acts = [];
     trail = [];
     heldUid = null;
+    unanchoredUntil = 0;
     if (flushTimer != null) window.clearTimeout(flushTimer);
     flushTimer = null;
     odds = null;

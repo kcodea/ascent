@@ -1326,8 +1326,8 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Ales in ALE_IDS) by any caster, once per cast repetition, in the Shop and in combat, and never on any other spell; '
       + '"your Dwarves" includes itself and All-types minions. Foamguard ("Taunt. Ward. The first time this loses Ward each '
       + 'combat, gain +10/+10 and Ward") reacts to the real Ward break on its own body (not a Resilient Ward downgrade), '
-      + 'once per combat: it gains the stats as a combat buff, then regains Ward. Gilding doubles every number above and '
-      + 'never the once-per-combat count.',
+      + 'once per body: it gains the stats as a combat buff, then regains Ward (a Rise / Rebirth return re-arms it, see '
+      + 'R-DWARF-1021-02). Gilding doubles every number above and never the once-per-body count.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
@@ -1338,5 +1338,48 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['dw3_coincounter', 'dw3_kegrunner', 'dw3_championinu', 'dw3_foamguard'],
     currentBehaviour: 'Conforms (built with the cards, 2026-10-21).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarvesBatch1021.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DWARF-1021-02',
+    title: 'Foamguard re-arms on every return: a Risen or Reborn Foamguard can lose Ward and regain it once more',
+    statement:
+      "Foamguard's \"the first time this loses Ward each combat, gain +10/+10 and Ward\" is spent per BODY, not per fight. "
+      + 'When it dies and comes back through Rise or Rebirth, the returned body has Ward (Rise keeps printed keywords; '
+      + 'Rebirth restores a Ward it carried) and its trigger is available again, so the next real Ward break on that '
+      + 'body gives +10/+10 and Ward once more. After that it is spent until the next removal and return. Each '
+      + 'removal and return resets it. The stats stay a combat-only gain (R-BUFF-PERM). Bounded: a reset needs a spent '
+      + 'Rise / Rebirth (or a budgeted Deathtouched Apple re-arm), so no loop is possible. This reverses the '
+      + "R-DWARF-1021-01 build, which copied Yeti's \"a returned body stays spent\" rule; Yeti is unchanged.",
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 on Foamguard after #2194', quote: "no it should rise and gain ward, then reset when it's removed again" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts killOrReborn (Rebirth and Rise branches clear wardRegainFired); packages/core/src/effects/factories.ts onLoseWardOnceBuffSelfRegain' },
+    ],
+    cardText: '**Taunt.** **Ward.** The first time this loses **Ward** each combat, gain **+10/+10** and **Ward**.',
+    contentIds: ['dw3_foamguard'],
+    currentBehaviour: 'Conforms (fixed 2026-10-21).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarvesBatch1021.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DWARF-1021-03',
+    title: 'Foamguard presentation: the Ward break plays, then the +10/+10, then the Ward visibly re-forms',
+    statement:
+      'When Foamguard loses Ward and its trigger fires, the replay shows three beats in order: the normal Ward break on '
+      + 'the hit, then the +10/+10 buff beat, then the Ward re-forming on its own Ward-gain moment (the existing '
+      + 'ward-gain-blast FX and Ward-gain sound), about 250 to 400 ms after the break at 1x speed. The break moment never '
+      + 'carries the Ward coming back. Same on both sides, in replays and spectating (one replay path), and on a risen '
+      + 'or reborn body. Presentation only: a triggered Ward gain is moved to the end of the slice that broke that Ward, '
+      + 'unless something later in that slice touches the same body, so the folded end state is unchanged.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-21 on the Foamguard PR', quote: "can you show the ward break and then get re-applied? i think it'd be more satisfying" },
+      { kind: 'code', ref: 'packages/ui/src/choreo/clashOrder.ts isWardReform / isWardReformEvent; packages/ui/src/choreo/clock.ts WARD_REFORM_AFTER_BUFF_MS' },
+    ],
+    cardText: '**Taunt.** **Ward.** The first time this loses **Ward** each combat, gain **+10/+10** and **Ward**.',
+    contentIds: ['dw3_foamguard'],
+    currentBehaviour: 'Conforms (built 2026-10-21).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/wardReform.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

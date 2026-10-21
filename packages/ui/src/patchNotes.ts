@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'New cosmetics: fourteen new hero and minion skins join the chests.',
+        details: [
+          'Hero skins, Rare: Golf Midas and Morning Midas.',
+          'Hero skins, Epic: Amputee Midas, Mac and Melon Midas, Birthday Runesmith, Gambling Robin and Memory Membrance.',
+          'Minion skins, Rare: Anvilshade, Liberty Voss, Metal Rachel and Mushy Pee.',
+          'Minion skins, Epic: Cosmic Mushy, Gilded Kennelmaster and Jensen & Fi Sky.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Smoother play on desktop: buying, selling, playing, hovering, aiming and the start of each fight no longer stall the screen.',
         details: [
           'Actions in the shop no longer restyle the whole screen each time.',

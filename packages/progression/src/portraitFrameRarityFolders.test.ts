@@ -1,4 +1,5 @@
-import { existsSync, readdirSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COSMETICS } from './cosmetics';
@@ -44,8 +45,15 @@ describe.skipIf(!existsSync(PORTRAITS))('portrait frame rarity = the art folder 
     expect(c.rarity, `${c.id} (${file}) is in the ${found[0]} folder`).toBe(found[0]);
   });
 
+  // A file that is BYTE-IDENTICAL to a wired master is a copy, not new art, so it is not "unwired" (2026-10-21:
+  // Epic/DragonGem.png = CracklingRuby.png and Epic/ElectricBlue.png = BlueEnergy.png have sat there since 2026-10-01,
+  // skipped by every batch; the owner re-exports them if they were meant to be different frames, and they then fail here).
+  const md5 = (folder: string, f: string): string => createHash('md5').update(readFileSync(join(PORTRAITS, folder, f))).digest('hex');
+  const folderOf = (f: string): string => Object.entries(RARITY_DIRS).find(([, r]) => r === where.get(f)![0])![0];
+
   it('every frame master in the rarity folders is wired', () => {
     const wired = new Set(FRAMES.map((c) => c.assets.master!.split('/').pop()!));
-    expect([...where.keys()].filter((f) => !wired.has(f))).toEqual([]);
+    const wiredHashes = new Set([...wired].filter((f) => where.has(f)).map((f) => md5(folderOf(f), f)));
+    expect([...where.keys()].filter((f) => !wired.has(f) && !wiredHashes.has(md5(folderOf(f), f)))).toEqual([]);
   });
 });

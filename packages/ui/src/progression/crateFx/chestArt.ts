@@ -18,6 +18,7 @@ import { CHEST_ART, CHEST_TIER_ART, loadChestImages, type ChestArt } from './che
 import type { ChestTier } from './chestTiers';
 import { cutKeyholeMask } from './crateTextures';
 import { pixiAllowed } from '../../phoneDiag';
+import { publicArt } from '../../phoneArt';
 
 /** One chest's pictures, decoded, and its keyhole's light mask (null when it could not be cut: a round glow only). */
 export interface ChestArtImages { body: HTMLImageElement; lid: HTMLImageElement; mask: HTMLCanvasElement | null }
@@ -27,9 +28,14 @@ export type ChestImageLoader = (url: string) => Promise<HTMLImageElement>;
 /** A tier's art and anchors (Standard is the owner's original chest). */
 export const chestArtFor = (tier: ChestTier): ChestArt => (tier === 'standard' ? CHEST_ART : CHEST_TIER_ART[tier]);
 
-/** A chest layer's URL: public-folder art carries BASE_URL (itch serves from a CDN sub-path). The theatre's loader and
- *  the screens' `<img>`s (`ChestPicture`) both build it here, so they always ask for the same file. */
+/** A chest layer's URL for the opening theatre: public-folder art carries BASE_URL (itch serves from a CDN sub-path).
+ *  Always the ORIGINAL file: the theatre's anchors are pixels of the master. */
 export const chestArtUrl = (rel: string): string => `${import.meta.env.BASE_URL}${rel}`;
+
+/** A chest layer's URL for the screens' plain-DOM picture (`ChestPicture`): the phone copy on a lite-art phone
+ *  (`phonePublicCap`, R-TOUCH-GPU-MEMORY-01), else the original. The picture lays out in percents of the body's width,
+ *  so a smaller copy composes the same. */
+export const chestPictureUrl = (rel: string): string => publicArt(rel);
 
 /**
  * Load one picture and resolve only once it is decoded, so drawing it later never decodes on the main thread. A browser

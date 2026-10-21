@@ -12,11 +12,14 @@
  * The lid master was scaled by the same factor as the body, so the lid's width in body units is `lidSrcW` and nothing
  * here needs the images' real sizes: the picture lays out before they load and never reads layout.
  *
+ * PHONES: the images load through `chestPictureUrl` (`publicArt`), so a lite-art phone draws the build's 512 px copy
+ * (R-TOUCH-GPU-MEMORY-01); the opening theatre keeps loading the originals.
+ *
  * Static paint: no animation here (the shop's one-shots move the whole picture by transform).
  */
 import { memo } from 'react';
 import type { ChestArt } from './crateFx/chestModel';
-import { chestArtFor, chestArtUrl } from './crateFx/chestArt';
+import { chestArtFor, chestPictureUrl } from './crateFx/chestArt';
 import type { ChestTier } from './crateFx/chestTiers';
 import './chestPicture.css';
 
@@ -77,12 +80,12 @@ const layoutOf = (tier: ChestTier): ChestLayout => {
 export const ChestPicture = memo(function ChestPicture({ tier, className }: { tier: ChestTier; className?: string }): JSX.Element {
   const art = chestArtFor(tier);
   const l = layoutOf(tier);
-  const body = chestArtUrl(art.bodyUrl);
+  const body = chestPictureUrl(art.bodyUrl);
   return (
     <span className={className ? `chestpic ${className}` : 'chestpic'} style={{ paddingTop: `${l.padTopPct}%` }} aria-hidden="true">
       <img className="chestpic-body" src={body} alt="" draggable={false} decoding="sync" />
       <img
-        className="chestpic-lid" src={chestArtUrl(art.lidUrl)} alt="" draggable={false} decoding="sync"
+        className="chestpic-lid" src={chestPictureUrl(art.lidUrl)} alt="" draggable={false} decoding="sync"
         style={{ left: `${l.lidLeftPct}%`, width: `${l.lidWidthPct}%` }}
       />
       {l.spike && (

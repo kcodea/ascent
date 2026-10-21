@@ -1428,12 +1428,18 @@ export function allInPayoutOf(state: RunState): number {
 
 /** The Gold a minion sells for: Hoarder a flat 2 (golden 4), everything else `CONFIG.sellValue`. Shared by
  *  the reducer's sell case and the UI's sell-amount float so the two never drift. */
-export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'> & Partial<Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>>): number {
+export function sellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'> & Partial<Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId' | 'sellBonusWindow'>>): number {
+  // THYMEPIECE (owner rework 2026-10-21): "cards sell for +1 Gold for the next 8 seconds" — a flat bonus ON TOP of
+  // whatever the card sells for (the Bargain Bin's override and Fortune's Clearance price included), read at the
+  // moment of the sale. Folded HERE, the one helper every sale path calls (the sell action, Dissipate, Parting
+  // Gifts, Fodder Treatment, Feed the Alpha, Rune of the Altar), so it stacks with every other sell bonus and the
+  // sell float shows the Gold actually paid. The window closes on its own expiry action (`sellWindowExpired`).
+  const window = state?.sellBonusWindow?.amount ?? 0;
   // Rune of the Bargain Bin: a bin-bought minion sells for its overridden value (0) — checked first so it wins.
-  if (card.sellOverride !== undefined) return card.sellOverride;
+  if (card.sellOverride !== undefined) return card.sellOverride + window;
   // ANCIENT OF FORTUNE × Frantic Frank: a Clearance minion sells for 2 Gold (never below what it would sell for anyway).
   const clearance = card.clearanceBuy && state?.heroId ? ancientClearanceSellValue(card, state as Pick<RunState, 'ancientsEnabled' | 'ancients' | 'heroId'>) : undefined;
-  return clearance !== undefined ? Math.max(clearance, baseSellValueOf(card, state)) : baseSellValueOf(card, state);
+  return (clearance !== undefined ? Math.max(clearance, baseSellValueOf(card, state)) : baseSellValueOf(card, state)) + window;
 }
 
 function baseSellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering' | 'runeStacks'>): number {
@@ -1462,7 +1468,7 @@ function baseSellValueOf(card: BoardCard, state?: Pick<RunState, 'runeBartering'
  * (The drift this fixes: the reducer added `nextSellBonus` inline while the UI's float called `sellValueOf`
  * alone, so selling under Quick Sale paid 3 Gold but floated "+1" in the plain gold style — owner 2026-07-24.)
  */
-export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeBartering' | 'nextSellBonus' | 'runeStacks'>): number {
+export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeBartering' | 'nextSellBonus' | 'runeStacks'> & Partial<Pick<RunState, 'sellBonusWindow'>>): number {
   return sellValueOf(card, state) + (state.nextSellBonus ?? 0);
 }
 
@@ -2489,7 +2495,6 @@ export function spellCostReduction(state: RunState, def?: CardDef): number {
   for (const c of state.board) if (c.cardId === 'lazarus') n += c.golden ? 2 : 1;
   n += gateUses(state.cadenceSpellOff); // Rune of Cadence: the armed one-shot spell discount, −1 per copy held (spent at buy)
   n += state.spellCostOffTurn ?? 0;  // GIFT — Arcane Clearance: this turn only
-  n += state.cardDiscountWindow?.amount ?? 0; // Thymepiece: "all cards" for the next 8 clock-seconds — spells included
   // Rune of Thrift: STAT-GRANTING spells cost 2 less. Gated on the def (callers without one see no change).
   if (state.runeThrift && isStatSpell(def)) n += 2 * runeStacksOf(state, 'rune_thrift'); // −2 per copy held (owner 2026-08-27: "Thrift −4")
   return n;
@@ -5870,28 +5875,28 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /**
-   * Thymepiece (one Equipment TRIGGER; owner design 2026-09-12): every shop CARD costs `amount` less Gold for
-   * the next `seconds` of the turn clock. The activation carries the clock's reading (`payload.clockSeconds`,
+   * Thymepiece (one Equipment TRIGGER; owner rework 2026-10-21, was a card discount): every card sold pays
+   * `amount` more Gold for the next `seconds` of the turn clock (8, gilded 16). The activation carries the clock's reading (`payload.clockSeconds`,
    * seconds LEFT — the clock counts down), so the window closes at `clockSeconds − seconds`; with no reading
    * (a test, an old recording) the window runs to the end of the turn (`untilClock: null`). A later activation
    * while a window is open REPLACES it with the fresher, larger one — the amounts do not stack (the design is
-   * "−1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
+   * "+1 for 8 seconds", not a bank), but a re-use never shortens a window already running.
    *
    * AMPLIFIED DOUBLES IT (owner 2026-09-22: "an amplified timepiece should double the duration"). An Amplified
-   * activation fires this twice, and a second 8-second window would just replace the first; so the window is
-   * `seconds × 2` whenever the activation is Amplified (both triggers open the same 16-second window and the
-   * rule below keeps it). An EXTRA trigger from any other source does not lengthen it — that stays "a rate,
-   * not a bank" (set3Dwarves.test.ts). The AMOUNT is never multiplied: "−1 for 16 seconds", never "−2".
+   * activation fires this twice, and a second window would just replace the first; so the window is
+   * `seconds × 2` whenever the activation is Amplified (both triggers open the same 16-second window, 32 gilded,
+   * and the rule below keeps it). An EXTRA trigger from any other source does not lengthen it — that stays "a
+   * rate, not a bank" (set3Dwarves.test.ts). The AMOUNT is never multiplied: "+1 for 16 seconds", never "+2".
    */
-  equipmentCardDiscountWindow: (ctx, _self, params, payload) => {
+  equipmentSellBonusWindow: (ctx, _self, params, payload) => {
     const amount = Math.max(0, num(params.amount, 1));
     const seconds = Math.max(0, num(params.seconds, 8)) * (payload.amplified ? 2 : 1);
     const reading = payload.clockSeconds;
     const untilClock = typeof reading === 'number' && Number.isFinite(reading) ? reading - seconds : null;
-    const cur = ctx.state.cardDiscountWindow;
+    const cur = ctx.state.sellBonusWindow;
     // `null` = "to the end of the turn", the longest window there is; otherwise the LOWER `untilClock` closes later.
     const later = cur === undefined || untilClock === null || (cur.untilClock !== null && untilClock <= cur.untilClock);
-    ctx.state.cardDiscountWindow = {
+    ctx.state.sellBonusWindow = {
       amount: Math.max(amount, cur?.amount ?? 0),
       untilClock: later ? untilClock : cur.untilClock,
     };

@@ -21,14 +21,14 @@ const EVERY_ACTION: Record<Action['type'], true> = {
   activateEquipment: true, ancientSetMeter: true, battlecryTarget: true, buy: true, buyHenchman: true, buyQuest: true, buyRune: true,
   cancelChoice: true, chooseOne: true, closeScout: true, combatBladeAttackPreview: true, combatEscalationPreview: true,
   combatFriendlyDeathPreview: true, combatScoutPreview: true, combatSpellCastPreview: true, combatSpellPowerPreview: true, devGrant: true,
-  devOpenRuneforge: true, discountWindowExpired: true, discover: true, faceOmen: true, freeze: true, godGrantRune: true, godPrint: true,
+  devOpenRuneforge: true, sellWindowExpired: true, discover: true, faceOmen: true, freeze: true, godGrantRune: true, godPrint: true,
   heroPower: true, landCombat: true, pickAncient: true, pickPower: true, play: true, reorderHand: true, reorderShop: true,
   reposition: true, rerollRuneforge: true, resolveCombat: true, resolveShopDeath: true, roll: true, selectEquipment: true, sell: true,
   settleCombat: true, shopClockExpired: true, skipRuneforge: true, upgrade: true,
 };
 const actions = (Object.keys(EVERY_ACTION) as Action['type'][]).map((type) => ({ type }) as Action);
 /** The actions the PLAYER makes (refused while held as well as while paused). */
-const SYSTEM = new Set(['faceOmen', 'landCombat', 'settleCombat', 'resolveCombat', 'resolveShopDeath', 'shopClockExpired', 'discountWindowExpired']);
+const SYSTEM = new Set(['faceOmen', 'landCombat', 'settleCombat', 'resolveCombat', 'resolveShopDeath', 'shopClockExpired', 'sellWindowExpired']);
 const playerActions = actions.filter((a) => !SYSTEM.has(a.type) && !a.type.startsWith('combat'));
 
 let freeze: 'paused' | 'held' | null = null;

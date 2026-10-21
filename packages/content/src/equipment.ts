@@ -287,24 +287,24 @@ export const POURMANS_KEG: EquipmentDefinition = {
 };
 
 /**
- * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster; reworked by the owner 2026-09-12): all cards cost
- * 1 less Gold for the next 8 SECONDS (gilded: 2 less, same 8 seconds).
+ * THYMEPIECE — Thymes's Equipment (set-3 Dwarf roster; reworked by the owner 2026-10-21, was a −1 Gold card
+ * discount): cards sell for +1 Gold for the next 8 SECONDS (gilded: the same +1 for 16 seconds).
  *
  * The only Equipment that reads the clock. The window runs on the recruit TURN CLOCK — it pauses whenever the
- * clock pauses (a Discover, a Choose One, an aim, hero select) and replays from the recorded actions — and it
- * discounts CARDS only: shop minions, the spell slot and spell offers in the row, floored at 0. The Shop
- * upgrade and a refresh are untouched. See `RunState.cardDiscountWindow` for the mechanism.
+ * clock pauses (a Discover, a Choose One, an aim, hero select) and replays from the recorded actions — and every
+ * sale made while it is open pays +1 on top of every other sell value (`sellValueOf`). An Amplified activation
+ * doubles the seconds. See `RunState.sellBonusWindow` for the mechanism.
  */
 export const THYMEPIECE: EquipmentDefinition = {
   id: 'thymepiece',
   name: 'Thymepiece',
-  text: 'All cards cost **1** less Gold for the next **8 seconds**.',
-  goldenText: 'All cards cost **2** less Gold for the next **8 seconds**.',
+  text: 'Cards sell for **+1** Gold for the next **8 seconds**.',
+  goldenText: 'Cards sell for **+1** Gold for the next **16 seconds**.',
   baseCost: 3,
   targetMode: 'none',
-  effectId: 'equipmentCardDiscountWindow',
+  effectId: 'equipmentSellBonusWindow',
   params: { amount: 1, seconds: 8 },
-  gildedParams: { amount: 2, seconds: 8 },
+  gildedParams: { amount: 1, seconds: 16 },
   // The owner's clip (2026-09-09). No authored def yet — the slot plays the clip alone until one is published.
   useSfxId: 'thymepiece',
 };

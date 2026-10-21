@@ -1207,14 +1207,16 @@ collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.
 - Swapping the selected Equipment is **free** (no Gold, no charge). Activation is **atomic** (validate, pay,
   spend, resolve in one action — a cancel costs nothing by construction). Gold cost, temporary cost
   reductions, extra-trigger repeats and Choose One on an Equipment are unaffected by charges.
-- **Clock-window Equipment** (Thymepiece, owner design 2026-09-12: *"All cards cost 1 less Gold for the next
-  8 seconds"*; gilded −2) runs on the **turn clock**, not wall time: the activation records the clock's reading,
-  the window is 8 clock-seconds in every mode (Practice's multiplier only stretches the real seconds), it
-  pauses with the clock (Discover / Choose One / aim / hero select), it discounts **cards only** (Shop minions,
-  the spell slot, spell offers in the row — never the Shop upgrade or a refresh), prices floor at 0 (the
-  Starform's live price included), every discounted coin shows green, the slot counts it down, and it ends on its own expiry
-  action, at combat entry, or at the turn flip. A Continue whose saved clock is already past the window
-  resumes without it; the engine never reads a clock (`RunState.cardDiscountWindow`).
+- **Clock-window Equipment** (Thymepiece, owner rework 2026-10-21: *"Cards sell for +1 Gold for the next 8
+  seconds"*; gilded 16 seconds, Amplified doubles either; R-EQUIP-THYME-SELL-01. It replaced the 2026-09-12
+  "all cards cost 1 less Gold" discount, which is gone) runs on the **turn clock**, not wall time: the activation
+  records the clock's reading, the window is 8 clock-seconds in every mode (Practice's multiplier only stretches
+  the real seconds), and it pauses with the clock (Discover / Choose One / aim / hero select). Every card sold
+  while it is open (board or hand, and every effect that sells a minion) pays **+1 Gold on top of every other sell
+  value**, read at the moment of the sale (`sellValueOf`). The amount never stacks: a re-use only keeps the later
+  close. The slot counts it down ("Sell +1 Gold · 6s"), and it ends on its own expiry action, at combat entry, or
+  at the turn flip. A Continue whose saved clock is already past the window resumes without it, and an old save
+  holding a discount window loads with it dropped; the engine never reads a clock (`RunState.sellBonusWindow`).
 - **Amplified** (owner design 2026-09-16, Set 3 batch 2): a per-Equipment STATE. The rune prints *"Equipment you
   do not use becomes Amplified."* (owner wording 2026-09-18); the glossary pill / Compendium define the state:
   *"An Amplified Equipment will trigger its effect twice for no additional gold."* An Amplified Equipment's next
@@ -1272,7 +1274,7 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    It spawns at **6 Gold**; **every refresh — paid or free — knocks 1 off** (floor 0); the reduction
    **survives the turn boundary** (a 3-Gold Starform is 3 Gold next turn); a **new** token (Zenith's
    re-creation included) starts at 6 again. Every regular discount applies exactly as to a minion (Cadence,
-   Trade-In, the Friends-and-Family Gift, the Thymepiece window, the free first buy), and the coin always
+   Trade-In, the Friends-and-Family Gift, the free first buy), and the coin always
    shows the charged price. **Buying it = your left-most board Celestial CONSUMES it** for its full stats
    (base 1/1 included) — it leaves through the consume path, so Zenith re-creates and Twin Star hears the
    gain. **With no Celestial on board the Gold is still spent and the token is simply lost** (consumed into

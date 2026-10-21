@@ -94,8 +94,8 @@ export const ECONOMY_RULES: GameRule[] = [
     id: 'R-EQUIP-01',
     title: 'Thymepiece: Amplified doubles the window; the readout sits above the slot',
     statement:
-      'An Amplified Thymepiece activation opens one window of twice the printed seconds (16), plain or gilded; an '
-      + 'extra trigger from any other source does not lengthen it, and the discount amount is never multiplied. '
+      'An Amplified Thymepiece activation opens one window of twice the printed seconds (8 to 16, gilded 16 to 32); an '
+      + 'extra trigger from any other source does not lengthen it, and the sell bonus amount is never multiplied. '
       + 'While the Equipment will fire twice, the rule the slot prints shows the doubled window. The countdown '
       + 'readout sits above the slot, out of layout flow, and moves nothing.',
     domain: 'economy',
@@ -103,18 +103,55 @@ export const ECONOMY_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Thymepiece)', quote: 'an amplified timepiece should double the duration' },
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-22 (Thymepiece)', quote: "make timepiece's buff show above the equipment instead of below, and dont let it nudge anything on the screen at all" },
-      { kind: 'fix-pr', ref: 'Thymepiece Amplified + readout — packages/sim/src/recruit.ts equipmentCardDiscountWindow (Amplified doubles the window), fireEquipmentTriggers (the amplified flag in the payload), packages/sim/src/equipment.ts equipmentText (amplified), packages/ui/src/styles.css .discountwin' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-21 (Thymepiece sell bonus)', quote: 'Amplified doubles the duration (confirmed)' },
+      { kind: 'fix-pr', ref: 'Thymepiece Amplified + readout — packages/sim/src/recruit.ts equipmentSellBonusWindow (Amplified doubles the window), fireEquipmentTriggers (the amplified flag in the payload), packages/sim/src/equipment.ts equipmentText (amplified), packages/ui/src/styles.css .sellwin' },
     ],
     currentBehaviour:
       'Conforms — 2026-09-22. Before this the factory replaced a window with the fresher, larger one, so the second '
       + 'trigger of an Amplified activation re-opened the same 8-second window and Amplified did nothing for the '
       + 'Thymepiece; and the readout was a flow child under the name pill, so its appearance grew the '
-      + 'translate-centred slot and shifted the button and the name by half its height.',
-    cardText: 'Thymepiece: "All cards cost **1** less Gold for the next **8 seconds**." (Amplified: "**16 seconds**").',
+      + 'translate-centred slot and shifted the button and the name by half its height. Re-verified 2026-10-21 '
+      + 'after the rework to a sell bonus (R-EQUIP-THYME-SELL-01): the doubling and the readout carried over unchanged.',
+    cardText: 'Thymepiece: "Cards sell for **+1** Gold for the next **8 seconds**." (Amplified: "**16 seconds**"; gilded "**16 seconds**", Amplified "**32 seconds**").',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/thymepiece.test.ts'],
-      lastVerifiedAt: '2026-09-22',
+      lastVerifiedAt: '2026-10-21',
+    },
+  },
+  {
+    id: 'R-EQUIP-THYME-SELL-01',
+    title: 'Thymepiece: cards sell for +1 Gold for the next 8 seconds (16 gilded); it no longer discounts anything',
+    statement:
+      'Using the Thymepiece opens a window on the turn clock: every card sold while it is open (a board minion, a '
+      + 'minion in hand, and every effect that sells one) pays +1 Gold on top of every other sell value. The window '
+      + 'lasts 8 seconds, 16 when gilded, doubled when Amplified. The bonus is read at the moment of the sale and '
+      + 'stacks with every other sell bonus. The window pauses with the clock and ends on its expiry, at combat entry '
+      + 'or at the turn flip. This SUPERSEDES the 2026-09-12 design ("All cards cost 1 less Gold for the next 8 '
+      + 'seconds"): no price is discounted any more, and an old save holding an open discount window loads with it '
+      + 'dropped.',
+    domain: 'economy',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-21 (Thymepiece rework)', quote: "change thyme's equipment to be: cards sell for +1 gold for the next 10 seconds" },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-21 (Thymepiece rework, correction)', quote: 'the window is 8 SECONDS (not 10), and 16 seconds when GILDED' },
+      { kind: 'fix-pr', ref: 'feat/thymepiece-sell-bonus — packages/sim/src/recruit.ts sellValueOf (the +1 at the one sell-price boundary) and equipmentSellBonusWindow; packages/sim/src/state.ts deserialize drops cardDiscountWindow; packages/sim/src/reducer.ts offerBuyPrice loses the window discount' },
+    ],
+    currentBehaviour:
+      'Conforms — 2026-10-21. The bonus lives in sellValueOf, the helper every sale path calls (the sell action, '
+      + 'Dissipate, Parting Gifts, Fodder Treatment, Feed the Alpha, Rune of the Altar) and the sell float reads, so '
+      + 'the Gold shown is the Gold paid. It adds on top of an overridden sell value too (a Bargain Bin minion sells '
+      + 'for 1 while the window is open).',
+    cardText: 'Thymepiece: "Cards sell for **+1** Gold for the next **8 seconds**." Gilded: "…for the next **16 seconds**."',
+    example:
+      'You use the Thymepiece with 40 seconds on the clock, then sell a Keg Runner at 33 seconds: 1 base + 2 from '
+      + 'its Sell + 1 from the Thymepiece = 4 Gold. At 32 seconds the window closes, and a sale after that pays the '
+      + 'normal amount.',
+    contentIds: ['dw3_thymes'],
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/sim/src/thymepiece.test.ts'],
+      lastVerifiedAt: '2026-10-21',
     },
   },
   {

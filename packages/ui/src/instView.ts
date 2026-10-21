@@ -328,7 +328,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
  * given the instance + the run-wide live inputs, it derives the display without touching game state.
  */
 /** The run fields a minion's sell value reads (`sellValueOf`), for the Fortune sale line. */
-export type SellTextState = Pick<RunState, 'runeBartering' | 'runeStacks' | 'ancientsEnabled' | 'ancients' | 'heroId'>;
+export type SellTextState = Pick<RunState, 'runeBartering' | 'runeStacks' | 'ancientsEnabled' | 'ancients' | 'heroId'> & Partial<Pick<RunState, 'sellBonusWindow'>>;
 
 /** FRANK × ANCIENT OF FORTUNE: a Clearance minion's current sell value while Fortune is live, else undefined (no line). */
 export function clearanceSellGoldOf(inst: BoardCard, s: SellTextState | undefined): number | undefined {

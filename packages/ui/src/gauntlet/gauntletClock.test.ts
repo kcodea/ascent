@@ -121,7 +121,7 @@ describe('a Thymepiece window opened before the Gauntlet clock starts', () => {
     s = reduce(s, { type: 'play', uid: 'th', toIndex: 0 });
     // Activated while parked: the store stamps the clock through `gauntletClockReading`.
     s = reduce(s, { type: 'activateEquipment', clockSeconds: gauntletClockReading('gauntlet', GAUNTLET_CLOCK_WAITING) });
-    const win = s.cardDiscountWindow!;
+    const win = s.sellBonusWindow!;
     expect(win.untilClock).toBe(GAUNTLET_CLOCK_SECONDS - 8);
     // The clock starts at 60 and Recruit's tick expires the window when `next <= untilClock`: 8 live seconds.
     const live = [];
@@ -132,7 +132,7 @@ describe('a Thymepiece window opened before the Gauntlet clock starts', () => {
   it('the store stamps and the readout counts through the Gauntlet reading', () => {
     const read = (f: string): string => readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', f), 'utf8');
     expect(read('store.ts')).toContain('clockSeconds: goldClockReading(goldClockOf(prev, get().practiceTimer), turnClock.get())');
-    expect(read('DiscountWindowReadout.tsx')).toContain('goldClockReading(goldClockSeconds == null ? null : { seconds: goldClockSeconds }, useTurnSeconds())');
-    expect(read('StatusBar.tsx')).toContain('<DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run, practiceTimer)?.seconds ?? null} />');
+    expect(read('SellWindowReadout.tsx')).toContain('goldClockReading(goldClockSeconds == null ? null : { seconds: goldClockSeconds }, useTurnSeconds())');
+    expect(read('StatusBar.tsx')).toContain('<SellWindowReadout window={run.sellBonusWindow} goldClockSeconds={goldClockOf(run, practiceTimer)?.seconds ?? null} />');
   });
 });

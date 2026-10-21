@@ -28,7 +28,7 @@ import { getEquipFxConfig } from './equipFxConfig';
 import { getEquipSlotConfig } from './equipSlotConfig';
 import { useEquipLook } from './equipLookConfig';
 import { EquipNamePlate } from './EquipNamePlate';
-import { DiscountWindowReadout } from './DiscountWindowReadout';
+import { SellWindowReadout } from './SellWindowReadout';
 import { goldClockOf } from './goldClock';
 import { sfx } from './sfx';
 import { onPressCue } from './pressCue';
@@ -1281,9 +1281,9 @@ export function StatusBar() {
               >{equipUses}</span>
             </div>
             <EquipNamePlate name={selectedEquipDef.name} look={equipLook} />
-            {/* A clock-window discount in flight (Thymepiece): "−1 Gold · 6s", counting on the turn clock. Its own
-                leaf so the per-second subscription never reaches this component (see DiscountWindowReadout). */}
-            {run.cardDiscountWindow && <DiscountWindowReadout window={run.cardDiscountWindow} goldClockSeconds={goldClockOf(run, practiceTimer)?.seconds ?? null} />}
+            {/* A clock-window sell bonus in flight (Thymepiece): "Sell +1 Gold · 6s", counting on the turn clock. Its own
+                leaf so the per-second subscription never reaches this component (see SellWindowReadout). */}
+            {run.sellBonusWindow && <SellWindowReadout window={run.sellBonusWindow} goldClockSeconds={goldClockOf(run, practiceTimer)?.seconds ?? null} />}
             <div className="herotip" role="tooltip">
               <b>{selectedEquipDef.name}</b>{selectedEquip.version === 'gilded' ? ' · gilded' : ''}
               <span className="herotip-rule" dangerouslySetInnerHTML={{ __html: mdBold(equipRule) }} />

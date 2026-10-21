@@ -1,23 +1,21 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import {
-  createRun, reduce, deserialize, serialize, offerBuyPrice, spellCostReduction, upgradeCostOf, nextRefreshCostOf,
+  createRun, reduce, deserialize, serialize, offerBuyPrice, spellCostReduction, sellValueOf, sellValueWithBonus,
   type Action, type BoardCard, type RunState, type ShopCard,
 } from './index';
-import { createStarform } from './starform';
 import { amplifyEquipment, equipmentAmplifiedOf, equipmentText } from './equipment';
 
 /**
- * THYMEPIECE — "All cards cost −1 Gold for the next 8 seconds" (owner design 2026-09-12; gilded −2, same 8s).
+ * THYMEPIECE — "Cards sell for +1 Gold for the next 8 seconds" (owner rework 2026-10-21; gilded: +1 for 16
+ * seconds; Amplified doubles the seconds). It replaced the 2026-09-12 design ("all cards cost 1 less Gold for
+ * the next 8 seconds").
  *
  * The engine never reads a clock. The activation action carries the turn clock's reading (`clockSeconds`,
- * seconds LEFT), the factory anchors the window at `clockSeconds − 8`, and EXPIRY is the
- * `discountWindowExpired` action the UI's clock tick dispatches when the clock crosses that anchor — so the
- * window pauses with the clock (Discover, Choose One, aim, hero select) and replays from the recording.
- *
- * Scope: CARDS ONLY — shop minions (`offerBuyPrice`) and spells, in the slot AND in the row
- * (`spellCostReduction`, which both buy paths use). The Shop upgrade and a refresh are untouched. Prices
- * floor at 0; the Starform's 0 stays 0.
+ * seconds LEFT), the factory anchors the window at `clockSeconds − seconds`, and EXPIRY is the
+ * `sellWindowExpired` action the UI's clock tick dispatches when the clock crosses that anchor — so the window
+ * pauses with the clock (Discover, Choose One, aim, hero select) and replays from the recording. A sale counts
+ * when it lands before that expiry action (the bonus is read at the moment of the sale, in `sellValueOf`).
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -27,28 +25,31 @@ const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): Board
 const run = (over: Partial<RunState> = {}): RunState =>
   ({ ...createRun(11), setId: 'set3', phase: 'recruit', embers: 20, tier: 6, ...over } as RunState);
 const act = (s: RunState, a: Action): RunState => reduce(s, a);
-const offer = (s: RunState, cardId: string, over: Partial<ShopCard> = {}): ShopCard => ({ uid: `s${s.uidSeq++}`, cardId, ...over });
-/** Thymes on the board, its Thymepiece granted and selected. */
+/** Thymes on the board, its Thymepiece granted and selected. `board` lands to Thymes's right. */
 const armed = (golden = false, over: Partial<RunState> = {}): RunState =>
   act(run({ hand: [body('th', 'dw3_thymes', { golden })], ...over }), { type: 'play', uid: 'th', toIndex: 0 });
 const activate = (s: RunState, clockSeconds?: number): RunState =>
   act(s, { type: 'activateEquipment', ...(clockSeconds !== undefined ? { clockSeconds } : {}) });
+/** Gold a sale of `uid` paid. */
+const soldFor = (s: RunState, uid: string): number => act(s, { type: 'sell', uid }).embers - s.embers;
 /** The first plain (non-spell, non-Ruby, non-Starform) minion offer in the row. */
 const minionOffer = (s: RunState): ShopCard => s.shop.find((o) => { const d = CARD_INDEX[o.cardId]; return d && !d.spell && !d.ruby && !o.starform; })!;
+/** Re-arm the Equipment's own charge (spent by a use) so a second activation is legal this turn. */
+const recharge = (s: RunState): RunState =>
+  ({ ...s, embers: 20, equipment: { ...s.equipment!, available: s.equipment!.available.map((g) => ({ ...g, ownChargeSpent: false })) } } as RunState);
 
 describe('the Equipment', () => {
-  it('keeps its cost and no-target shape; the texts print the amount and the window', () => {
+  it('keeps its cost and no-target shape; +1 for 8 seconds, gilded +1 for 16', () => {
     const eq = EQUIPMENT_INDEX['thymepiece']!;
     expect(eq.baseCost).toBe(3);
     expect(eq.targetMode).toBe('none');
-    expect(eq.effectId).toBe('equipmentCardDiscountWindow');
+    expect(eq.effectId).toBe('equipmentSellBonusWindow');
     expect(eq.params).toEqual({ amount: 1, seconds: 8 });
-    expect(eq.gildedParams).toEqual({ amount: 2, seconds: 8 });
-    expect(eq.text).toContain('**1** less Gold');
-    expect(eq.text).toContain('**8 seconds**');
-    expect(eq.goldenText).toContain('**2** less Gold');
-    expect(CARD_INDEX['dw3_thymes']!.text).toContain('**1** less Gold for the next **8 seconds**');
-    expect(CARD_INDEX['dw3_thymes']!.goldenText).toContain('**2** less Gold');
+    expect(eq.gildedParams).toEqual({ amount: 1, seconds: 16 });
+    expect(eq.text).toBe('Cards sell for **+1** Gold for the next **8 seconds**.');
+    expect(eq.goldenText).toBe('Cards sell for **+1** Gold for the next **16 seconds**.');
+    expect(CARD_INDEX['dw3_thymes']!.text).toContain('cards sell for **+1** Gold for the next **8 seconds**');
+    expect(CARD_INDEX['dw3_thymes']!.goldenText).toContain('cards sell for **+1** Gold for the next **16 seconds**');
   });
 });
 
@@ -57,98 +58,82 @@ describe('the window', () => {
     const s = armed();
     const t = activate(s, 40);
     expect(t.embers).toBe(s.embers - 3);
-    expect(t.cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
+    expect(t.sellBonusWindow).toEqual({ amount: 1, untilClock: 32 });
   });
-  it('gilded Thymes opens a −2 window, still 8 seconds', () => {
-    expect(activate(armed(true), 40).cardDiscountWindow).toEqual({ amount: 2, untilClock: 32 });
+  it('gilded Thymes opens a +1 window of 16 seconds', () => {
+    expect(activate(armed(true), 40).sellBonusWindow).toEqual({ amount: 1, untilClock: 24 });
   });
   it('no clock reading (a headless test, a legacy recording) → the window runs to the end of the turn', () => {
-    const t = activate(armed());
-    expect(t.cardDiscountWindow).toEqual({ amount: 1, untilClock: null });
-    expect(offerBuyPrice(t, minionOffer(t)).cost).toBe(2);
+    expect(activate(armed()).sellBonusWindow).toEqual({ amount: 1, untilClock: null });
   });
   it('the expiry action closes it; a stray expiry with no window is a free no-op (same state)', () => {
     const t = activate(armed(), 40);
-    const closed = act(t, { type: 'discountWindowExpired' });
-    expect(closed.cardDiscountWindow).toBeUndefined();
-    expect(act(closed, { type: 'discountWindowExpired' })).toBe(closed);
+    const closed = act(t, { type: 'sellWindowExpired' });
+    expect(closed.sellBonusWindow).toBeUndefined();
+    expect(act(closed, { type: 'sellWindowExpired' })).toBe(closed);
   });
-  it('a re-activation replaces the window with the fresher one and never shortens a running one', () => {
-    let s = activate(armed(), 40); // closes at 32
-    // Re-arm the Equipment's own charge (spent by the first use) so a second activation is legal this turn.
-    s = { ...s, embers: 20, equipment: { ...s.equipment!, available: s.equipment!.available.map((g) => ({ ...g, ownChargeSpent: false })) } } as RunState;
-    const later = activate(s, 36); // closes at 28 — later than 32, so it wins
-    expect(later.cardDiscountWindow).toEqual({ amount: 1, untilClock: 28 });
-    // A third use at clock 20 closes at 12 — later still (the clock counts down), so it wins too.
-    const third = activate({ ...later, embers: 20, equipment: { ...later.equipment!, available: later.equipment!.available.map((g) => ({ ...g, ownChargeSpent: false })) } } as RunState, 20);
-    expect(third.cardDiscountWindow).toEqual({ amount: 1, untilClock: 12 });
+  it('a re-activation replaces the window with the fresher one, never shortens a running one, never stacks the amount', () => {
+    const later = activate(recharge(activate(armed(), 40)), 36); // 32 → 28, later wins
+    expect(later.sellBonusWindow).toEqual({ amount: 1, untilClock: 28 });
+    const third = activate(recharge(later), 20);
+    expect(third.sellBonusWindow).toEqual({ amount: 1, untilClock: 12 });
   });
 });
 
-describe('what it discounts', () => {
-  it('every minion offer in the row: coin and charge both −1 while the window is open, base again after expiry', () => {
-    const t = activate(armed(), 40);
-    const o = minionOffer(t);
-    const base = offerBuyPrice(act(t, { type: 'discountWindowExpired' }), o).cost;
-    expect(base).toBe(3);
-    const price = offerBuyPrice(t, o);
-    expect(price).toMatchObject({ cost: 2, windowOff: 1 });
-    const bought = act(t, { type: 'buy', uid: o.uid });
-    expect(t.embers - bought.embers, 'the charge equals the coin').toBe(2);
-    const after = act(t, { type: 'discountWindowExpired' });
-    expect(offerBuyPrice(after, o).cost).toBe(3);
-    const boughtLate = act(after, { type: 'buy', uid: o.uid });
-    expect(after.embers - boughtLate.embers).toBe(3);
+describe('what it pays', () => {
+  const withBoard = (cards: BoardCard[], golden = false, over: Partial<RunState> = {}): RunState => armed(golden, { board: cards, ...over });
+
+  it('a board minion sold inside the window pays +1; after the expiry action it pays the base again', () => {
+    const t = activate(withBoard([body('a', 'dw3_striker')]), 40);
+    expect(soldFor(t, 'a'), 'base 1 + 1').toBe(2);
+    expect(soldFor(act(t, { type: 'sellWindowExpired' }), 'a')).toBe(1);
   });
-  it('the spell slot: −1 while open, base after expiry — through the real buy', () => {
-    const s = armed(false, { spell: offer(run(), 'manafont') }); // Gold Font, cost 3
-    const baseCost = CARD_INDEX['manafont']!.cost!;
-    expect(baseCost).toBe(3);
-    const t = activate(s, 40);
-    expect(spellCostReduction(t, CARD_INDEX['manafont'])).toBe(spellCostReduction(s, CARD_INDEX['manafont']) + 1);
-    const bought = act(t, { type: 'buy', uid: t.spell!.uid });
-    expect(t.embers - bought.embers).toBe(baseCost - 1);
-    const after = act(t, { type: 'discountWindowExpired' });
-    const boughtLate = act(after, { type: 'buy', uid: after.spell!.uid });
-    expect(after.embers - boughtLate.embers).toBe(baseCost);
+  it('the bonus is read at the moment of the sale: a sale before the expiry lands counts, one after does not', () => {
+    let s = activate(withBoard([body('a', 'dw3_striker'), body('b', 'dw3_striker')]), 40);
+    const g0 = s.embers;
+    s = act(s, { type: 'sell', uid: 'a' }); // the clock reads 32.1 — the expiry has not been dispatched
+    expect(s.embers - g0).toBe(2);
+    s = act(s, { type: 'sellWindowExpired' });
+    const g1 = s.embers;
+    s = act(s, { type: 'sell', uid: 'b' });
+    expect(s.embers - g1).toBe(1);
   });
-  it('a spell offer sitting in the minion row (Spell Cart) is discounted the same way', () => {
-    const s0 = run();
-    const spellInRow = offer(s0, 'emberpouch');
-    const s = armed(false, { shop: [spellInRow], spell: null });
-    const t = activate(s, 40);
-    const bought = act(t, { type: 'buy', uid: spellInRow.uid });
-    expect(bought.hand.some((c) => c.cardId === 'emberpouch')).toBe(true);
-    expect(t.embers - bought.embers, 'a 1-Gold spell floors at 0').toBe(0);
+  it('a minion sold from the hand pays +1 too (every sellable card)', () => {
+    const t = activate(armed(false, { hand: [body('th', 'dw3_thymes'), body('h', 'dw3_striker')] }), 40);
+    expect(soldFor(t, 'h')).toBe(2);
   });
-  it('gilded: −2 on minions, floored at 0 on a 1-Gold spell', () => {
-    const t = activate(armed(true), 40);
-    expect(offerBuyPrice(t, minionOffer(t)).cost).toBe(1);
-    expect(Math.max(0, 1 - spellCostReduction(t, CARD_INDEX['emberpouch']))).toBe(0);
+  it('no window, no bonus (an untouched Thymepiece changes nothing)', () => {
+    expect(soldFor(withBoard([body('a', 'dw3_striker')]), 'a')).toBe(1);
   });
-  it('the Starform is a card like any other: its live 6-Gold price takes the window (rules v2 2026-09-13)', () => {
-    let s = armed();
-    s = act(s, { type: 'buy', uid: minionOffer(s).uid }); // open a slot
-    const sf = createStarform(s, { cardId: 'dbg_starseed', name: 'Star Seed' });
-    const t = activate(s, 40);
-    expect(offerBuyPrice(t, sf)).toMatchObject({ cost: 5, windowOff: 1 });
+  it('stacks with Keg Runner\'s Sell (+2): 1 + 2 + 1 = 4', () => {
+    const t = activate(withBoard([body('k', 'dw3_kegrunner')]), 40);
+    expect(soldFor(t, 'k')).toBe(4);
   });
-  it('a held (displaced) offer is never discounted — callers price it at the flat minion cost', () => {
-    // Documented contract of `offerBuyPrice` (held offers branch before it); the UI reads `minionCostOf`.
-    const t = activate(armed(), 40);
-    expect(offerBuyPrice(t, minionOffer(t)).windowOff).toBe(1);
+  it('stacks with Hoarder\'s flat 2 and a per-instance sell bonus', () => {
+    const t = activate(withBoard([body('h', 'hoarder'), body('f', 'dw3_striker', { sellBonus: 2 })]), 40);
+    expect(soldFor(t, 'h')).toBe(3);
+    expect(soldFor(t, 'f')).toBe(4);
   });
-  it('a free first buy overrides the window and spends nothing of it', () => {
-    const t = activate(armed(false, { questFreeFirstBuy: true }), 40);
-    expect(offerBuyPrice(t, minionOffer(t))).toMatchObject({ cost: 0, freeBuy: true, windowOff: 0 });
+  it('stacks with Quick Sale\'s one-shot bonus, and the float helper shows the Gold actually paid', () => {
+    const t = activate(withBoard([body('a', 'dw3_striker')], false, { nextSellBonus: 2 }), 40);
+    expect(sellValueWithBonus(t.board.find((c) => c.uid === 'a')!, t)).toBe(4);
+    expect(soldFor(t, 'a')).toBe(4);
   });
-  it('the Shop upgrade and a refresh are untouched', () => {
+  it('lands on top of an overridden sell value (Bargain Bin\'s 0 sells for 1)', () => {
+    const t = activate(withBoard([body('a', 'dw3_striker', { sellOverride: 0 })]), 40);
+    expect(sellValueOf(t.board.find((c) => c.uid === 'a')!, t)).toBe(1);
+    expect(soldFor(t, 'a')).toBe(1);
+  });
+  it('gilded: still +1 per sale (only the window is longer)', () => {
+    const t = activate(withBoard([body('a', 'dw3_striker')], true), 40);
+    expect(soldFor(t, 'a')).toBe(2);
+  });
+  it('no longer touches any price: minion offers and spells cost exactly what they did', () => {
     const s = armed();
     const t = activate(s, 40);
-    expect(upgradeCostOf(t)).toBe(upgradeCostOf(s));
-    expect(nextRefreshCostOf(t)).toBe(nextRefreshCostOf(s));
-    const rolled = act(t, { type: 'roll' });
-    expect(t.embers - rolled.embers).toBe(nextRefreshCostOf(t));
+    const o = minionOffer(t);
+    expect(offerBuyPrice(t, o).cost).toBe(offerBuyPrice(s, o).cost);
+    expect(spellCostReduction(t, CARD_INDEX['manafont'])).toBe(spellCostReduction(s, CARD_INDEX['manafont']));
   });
 });
 
@@ -156,77 +141,70 @@ describe('lifecycle', () => {
   it('clears on combat entry and at the turn flip', () => {
     let s = activate(armed(), 40);
     s = act(s, { type: 'faceOmen' });
-    expect(s.cardDiscountWindow).toBeUndefined();
+    expect(s.sellBonusWindow).toBeUndefined();
     s = act(s, { type: 'settleCombat' });
     s = act(s, { type: 'resolveCombat' });
-    expect(s.cardDiscountWindow).toBeUndefined();
-    expect(offerBuyPrice(s, minionOffer(s)).windowOff).toBe(0);
+    expect(s.sellBonusWindow).toBeUndefined();
   });
   it('Continue: a save at clock 30 with untilClock 32 resumes CLEARED; a save at clock 34 resumes ACTIVE', () => {
     const t = activate(armed(), 40); // untilClock 32
     const json = serialize(t);
-    expect(deserialize(json, { turnRemaining: 30 }).cardDiscountWindow).toBeUndefined();
-    expect(deserialize(json, { turnRemaining: 32 }).cardDiscountWindow, 'at the anchor the window is over').toBeUndefined();
-    expect(deserialize(json, { turnRemaining: 34 }).cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
-    expect(deserialize(json).cardDiscountWindow, 'no reading → left as saved').toEqual({ amount: 1, untilClock: 32 });
+    expect(deserialize(json, { turnRemaining: 30 }).sellBonusWindow).toBeUndefined();
+    expect(deserialize(json, { turnRemaining: 32 }).sellBonusWindow, 'at the anchor the window is over').toBeUndefined();
+    expect(deserialize(json, { turnRemaining: 34 }).sellBonusWindow).toEqual({ amount: 1, untilClock: 32 });
+    expect(deserialize(json).sellBonusWindow, 'no reading → left as saved').toEqual({ amount: 1, untilClock: 32 });
   });
   it('a to-the-turn-end window (no reading) survives any resume clock', () => {
     const t = activate(armed());
-    expect(deserialize(serialize(t), { turnRemaining: 1 }).cardDiscountWindow).toEqual({ amount: 1, untilClock: null });
+    expect(deserialize(serialize(t), { turnRemaining: 1 }).sellBonusWindow).toEqual({ amount: 1, untilClock: null });
   });
-  it('old saves: the retired next-turn-seconds fields are dropped', () => {
-    const legacy = { ...run(), bonusTurnSeconds: 30, bonusTurnSecondsNextTurn: 60 } as RunState & { bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number };
-    const healed = deserialize(JSON.stringify(legacy)) as RunState & { bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number };
+  it('old saves: the retired next-turn-seconds fields and an open card-DISCOUNT window are dropped, never converted', () => {
+    type Legacy = RunState & { bonusTurnSeconds?: number; bonusTurnSecondsNextTurn?: number; cardDiscountWindow?: unknown };
+    const legacy = { ...run(), bonusTurnSeconds: 30, bonusTurnSecondsNextTurn: 60, cardDiscountWindow: { amount: 1, untilClock: 32 } } as Legacy;
+    const healed = deserialize(JSON.stringify(legacy), { turnRemaining: 40 }) as Legacy;
     expect(healed.bonusTurnSeconds).toBeUndefined();
     expect(healed.bonusTurnSecondsNextTurn).toBeUndefined();
     expect(healed.cardDiscountWindow).toBeUndefined();
+    expect(healed.sellBonusWindow).toBeUndefined();
+    const o = minionOffer(healed);
+    expect(offerBuyPrice(healed, o).cost, 'the old discount is gone').toBe(offerBuyPrice(run(), o).cost);
   });
 });
 
 /**
- * AMPLIFIED (owner 2026-09-22: "an amplified timepiece should double the duration"). An Amplified activation
- * opens a 16-second window (both of its triggers open the same one); an extra trigger from any other source
- * keeps the pinned 8 (set3Dwarves.test.ts: "a rate, not a bank"). The rule the slot prints says 16 while the
- * stack is armed.
+ * AMPLIFIED (owner 2026-09-22: "an amplified timepiece should double the duration"; reaffirmed for the sell
+ * bonus 2026-10-21). An Amplified activation doubles the seconds (8 → 16, gilded 16 → 32); both of its triggers
+ * open the same window. An extra trigger from any other source keeps the printed seconds ("a rate, not a bank").
  */
 describe('Amplified', () => {
-  it('an Amplified activation at clock 40 closes at 24 (16 seconds), spends the stack, and keeps the amount at −1', () => {
+  it('an Amplified activation at clock 40 closes at 24 (16 seconds), spends the stack, and keeps the amount at +1', () => {
     const s = armed();
     amplifyEquipment(s, 'thymepiece');
     expect(equipmentAmplifiedOf(s, 'thymepiece')).toBe(1);
     const t = activate(s, 40);
-    expect(t.cardDiscountWindow).toEqual({ amount: 1, untilClock: 24 });
+    expect(t.sellBonusWindow).toEqual({ amount: 1, untilClock: 24 });
     expect(equipmentAmplifiedOf(t, 'thymepiece')).toBe(0);
   });
-
-  it('a plain activation still closes at 32 (8 seconds); gilded doubles the amount, not the window', () => {
-    expect(activate(armed(), 40).cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
-    expect(activate(armed(true), 40).cardDiscountWindow).toEqual({ amount: 2, untilClock: 32 });
-  });
-
-  it('an extra trigger that is NOT Amplified still closes at 32 — only Amplified doubles', () => {
-    expect(activate(armed(false, { equipmentExtraTriggers: 1 }), 40).cardDiscountWindow).toEqual({ amount: 1, untilClock: 32 });
-  });
-
-  it('gilded and Amplified together: −2 for 16 seconds', () => {
+  it('gilded and Amplified together: +1 for 32 seconds', () => {
     const s = armed(true);
     amplifyEquipment(s, 'thymepiece');
-    expect(activate(s, 40).cardDiscountWindow).toEqual({ amount: 2, untilClock: 24 });
+    expect(activate(s, 40).sellBonusWindow).toEqual({ amount: 1, untilClock: 8 });
   });
-
+  it('an extra trigger that is NOT Amplified keeps the printed 8 seconds', () => {
+    expect(activate(armed(false, { equipmentExtraTriggers: 1 }), 40).sellBonusWindow).toEqual({ amount: 1, untilClock: 32 });
+  });
   it('Amplified with no clock reading still runs to the end of the turn', () => {
     const s = armed();
     amplifyEquipment(s, 'thymepiece');
-    expect(activate(s).cardDiscountWindow).toEqual({ amount: 1, untilClock: null });
+    expect(activate(s).sellBonusWindow).toEqual({ amount: 1, untilClock: null });
   });
-
   it('the printed rule doubles the window while Amplified, on both versions, and nothing else', () => {
     const eq = EQUIPMENT_INDEX['thymepiece']!;
     expect(equipmentText(eq, 'plain')).toContain('**8 seconds**');
     expect(equipmentText(eq, 'plain', { amplified: true })).toContain('**16 seconds**');
-    expect(equipmentText(eq, 'gilded', { amplified: true })).toContain('**2** less Gold for the next **16 seconds**');
+    expect(equipmentText(eq, 'gilded')).toContain('**16 seconds**');
+    expect(equipmentText(eq, 'gilded', { amplified: true })).toBe('Cards sell for **+1** Gold for the next **32 seconds**.');
     expect(equipmentText(eq, 'plain', { amplified: false })).toBe(eq.text);
-    // An Equipment without a printed window is untouched by the flag.
     const other = EQUIPMENT_INDEX['revelmaker']!;
     expect(equipmentText(other, 'plain', { amplified: true })).toBe(other.text);
   });

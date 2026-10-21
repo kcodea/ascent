@@ -285,8 +285,6 @@ export interface OfferBuyPrice {
   tradeInOff: number;
   spiritOff: number;
   giftMinionOff: number;
-  /** Thymepiece's clock-window discount ("all cards cost −N for 8 seconds"), while the window is open. */
-  windowOff: number;
 }
 export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: number; starform?: true; enchanted?: boolean }): OfferBuyPrice {
   // THE STARFORM (owner rule A, 2026-09-13) carries its LIVE price on `cost` (6 at creation, −1 per refresh) and
@@ -308,9 +306,6 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // (All-types matches any armed tribe; −1 per copy held — owner 2026-08-27).
   const tiDef = s.tradeInTribe ? CARD_INDEX[offer.cardId] : undefined;
   const tradeInOff = !freeBuy && s.runeTradeIn && s.tradeInTribe && defIsTribe(tiDef, s.tradeInTribe, s) ? runeStacksOf(s, 'rune_trade_in') : 0;
-  // Set 3 Dwarves — Thymepiece: "all cards cost −N Gold for the next 8 seconds" (a clock window the UI's tick
-  // closes via `discountWindowExpired`). Every non-held CARD, spells included (`spellCostReduction`).
-  const windowOff = !freeBuy ? (s.cardDiscountWindow?.amount ?? 0) : 0;
   // ANCIENT OF FORTUNE × Drakko: "Shout minions cost 1 Gold less." (floored at 0 with every other discount below).
   const shoutOff = !freeBuy ? ancientShoutDiscount(s, offer.cardId) : 0;
   // ANCIENT OF TIME × Frantic Frank: the first N minions bought each turn cost at most the Time price (every price
@@ -321,8 +316,8 @@ export function offerBuyPrice(s: RunState, offer: { cardId: string; cost?: numbe
   // ANCIENT OF FORTUNE × Ayse: an Enchanted offer is set to the Fortune price (never raised above its own).
   const caps = [ancientTimePrice(s), bondsPrice, ancientEnchantedPrice(s, offer)].filter((c): c is number => c !== undefined);
   const capped = caps.length > 0 ? Math.min(priced, ...caps) : priced;
-  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - windowOff - shoutOff);
-  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff, windowOff };
+  const cost = freeBuy ? 0 : Math.max(0, capped - cadenceOff - tradeInOff - spiritOff - giftMinionOff - shoutOff);
+  return { cost, freeBuy, cadenceOff, tradeInOff, spiritOff, giftMinionOff };
 }
 
 /** Rune of Festival Wages: a buy that was free because a free-card charge was armed spends ONE charge. A buy that
@@ -1445,7 +1440,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.
-  if (action.type === 'discountWindowExpired' && !state.cardDiscountWindow) return state;
+  if (action.type === 'sellWindowExpired' && !state.sellBonusWindow) return state;
   // THE SHOP CLOCK LOCK (owner 2026-09-30, R-TIMER-LOCK-01): once the recruit clock reached 0:00 the Shop's player
   // actions (buy / sell / play / roll / upgrade / hero power / Equipment / Henchman) are refused — ONE predicate
   // shared with the UI, keyed on an exhaustive per-action table so a new action cannot forget it (`shopClock.ts`).
@@ -2978,10 +2973,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       s.shopClockExpired = true;
       return s;
 
-    case 'discountWindowExpired':
+    case 'sellWindowExpired':
       // Thymepiece's clock window ran out (the UI's clock tick crossed `untilClock`). The reducer never reads a
       // clock — the tick DISPATCHES, so a paused clock is a paused window and a recording replays the expiry.
-      s.cardDiscountWindow = undefined;
+      s.sellBonusWindow = undefined;
       return s;
 
     case 'resolveShopDeath':
@@ -4401,7 +4396,7 @@ function endRecruitTurn(s: RunState): void {
   for (const o of s.shop) if (o.kept) o.kept = false;
   // Thymepiece's clock window ends with the shop: the clock stops in combat, so an unexpired window would
   // otherwise sit open until the next turn's first tick. (The turn flip clears it again, belt and braces.)
-  s.cardDiscountWindow = undefined;
+  s.sellBonusWindow = undefined;
   s.shopClockExpired = undefined; // the 0:00 lock belongs to this Shop turn only (R-TIMER-LOCK-01)
   // An unresolved targeted Battlecry (the player ended the turn mid-pick, or the clock ran out under the aim) auto-
   // resolves on a RANDOM legal target — never strand a played Toxin Tender without its grant (R-TARGET-07).
@@ -5671,7 +5666,7 @@ function advanceCombat(s: RunState): void {
   s.spellCostOffTurn = 0;
   s.minionCostOffTurn = 0;
   s.spiritDiscount = 0; // Festival Treasurer: "this turn"
-  s.cardDiscountWindow = undefined; // Thymepiece: an 8-second window never outlives the turn it opened in
+  s.sellBonusWindow = undefined; // Thymepiece: an 8-second window never outlives the turn it opened in
   s.shopClockExpired = undefined; // a fresh turn's clock is running again (R-TIMER-LOCK-01)
   s.processionReturned = []; // Grand Procession: one return per Reveler type per turn
   s.handCopiedThisTurn = []; // the hand-summon mechanic's shop twin: one copy per hand card per turn

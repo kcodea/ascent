@@ -4254,9 +4254,9 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
 }
 .equipslot .hplabel {
   transform: translate(calc(var(--eqn-x, 0) * 1px), calc(var(--eqn-y, 0) * 1px)) scale(var(--eqn-scale, 1)); }
-/* THE CLOCK-WINDOW READOUT (Thymepiece, 2026-09-12): a pill — "−1 Gold · 6s" — in the same discount GREEN the
-   shop coins turn while the window is open, so the slot and the prices tell one story. Static colours only;
-   the per-second text change is a React render of one tiny leaf, no animation.
+/* THE CLOCK-WINDOW READOUT (Thymepiece; a sell bonus since 2026-10-21): a pill — "Sell +1 Gold · 6s" — in the
+   game's gain GREEN. Static colours only; the per-second text change is a React render of one tiny leaf, no
+   animation.
 
    ABOVE the slot and OUT OF FLOW (owner 2026-09-22: "show above the equipment instead of below, and dont let
    it nudge anything on the screen at all"). The slot is a translate(-50%, -50%)-centred flex column, so a pill
@@ -4264,7 +4264,7 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
    Absolute against the slot, anchored to the slot's top edge, it adds no height anywhere. The 16u gap clears
    the cost coin, which protrudes 14u above the button's wrap. It overrides the name pill's tuner transform
    (`.equipslot .hplabel` above) on purpose: the readout is not the name and must not follow the name nudge. */
-.equipslot .hplabel.discountwin {
+.equipslot .hplabel.sellwin {
   position: absolute; bottom: calc(100% + 16 * var(--u)); left: 50%; transform: translateX(-50%);
   margin: 0; white-space: nowrap; pointer-events: none; z-index: 5;
   color: #8ff0a4; border-color: color-mix(in srgb, #8ff0a4 55%, #000);

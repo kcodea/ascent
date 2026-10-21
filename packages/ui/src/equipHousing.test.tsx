@@ -117,8 +117,8 @@ describe.each(EQ_LOOKS as readonly EqLook[])('every state still lands on the slo
   });
 
   it('the Thymepiece readout still renders with the slot', () => {
-    show(holding('thymepiece', { cardDiscountWindow: { amount: 1, untilClock: null } }));
-    expect(ui.container.querySelector('.equipslot .hplabel.discountwin')?.textContent).toContain('this turn');
+    show(holding('thymepiece', { sellBonusWindow: { amount: 1, untilClock: null } }));
+    expect(ui.container.querySelector('.equipslot .hplabel.sellwin')?.textContent).toContain('this turn');
   });
 });
 

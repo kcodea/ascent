@@ -3,9 +3,8 @@ import { useTurnSeconds } from './turnClock';
 import { goldClockReading } from './goldClock';
 
 /**
- * The live readout for a clock-window card discount (Thymepiece: "all cards cost −1 Gold for the next 8
- * seconds"). Renders under the Equipment slot while a window is open — "−1 Gold · 6s" — and nothing at all
- * otherwise.
+ * The live readout for a clock-window sell bonus (Thymepiece: "cards sell for +1 Gold for the next 8 seconds").
+ * Renders above the Equipment slot while a window is open — "Sell +1 Gold · 6s" — and nothing at all otherwise.
  *
  * Its OWN component on purpose: it subscribes to the per-second turn clock (`useTurnSeconds`), and that
  * subscription must stay in a leaf this small — the StatusBar and the recruit tree never re-render on a tick
@@ -14,14 +13,14 @@ import { goldClockReading } from './goldClock';
  * reducer's expiry. `untilClock: null` is a window with no clock reading (a legacy recording) — it runs to
  * the end of the turn and prints that instead of a count.
  */
-export function DiscountWindowReadout({ window, goldClockSeconds }: { window: NonNullable<RunState['cardDiscountWindow']>; goldClockSeconds: number | null }): JSX.Element {
+export function SellWindowReadout({ window, goldClockSeconds }: { window: NonNullable<RunState['sellBonusWindow']>; goldClockSeconds: number | null }): JSX.Element {
   // Read the clock as the window was anchored to it: a parked Gold Fuse (any lobby, Practice, Gauntlet) reads as the
   // seconds it will start from (`goldClockSeconds`, this turn's `goldClockOf(run, practiceTimer)?.seconds`; see goldClock.ts).
   const seconds = goldClockReading(goldClockSeconds == null ? null : { seconds: goldClockSeconds }, useTurnSeconds());
   const left = window.untilClock === null ? null : Math.max(0, seconds - window.untilClock);
   return (
-    <div className="hplabel discountwin" aria-live="polite">
-      −{window.amount} Gold · {left === null ? 'this turn' : `${left}s`}
+    <div className="hplabel sellwin" aria-live="polite">
+      Sell +{window.amount} Gold · {left === null ? 'this turn' : `${left}s`}
     </div>
   );
 }

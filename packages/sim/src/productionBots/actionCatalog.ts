@@ -71,7 +71,7 @@ export const ACTION_CATALOG = {
   activateEquipment: { generation: 'recruit', reveal: false, note: 'the SELECTED Equipment, with a friendly target when it aims; reveal audited by its effect id' },
   // Thymepiece's clock-window expiry: the UI's clock tick dispatches it when the window runs out. A bot has no
   // clock (it never activates Equipment either), and every turn flip / combat entry closes the window anyway.
-  discountWindowExpired: { generation: 'automatic', reveal: false, note: 'closes Thymepiece\'s clock-window discount; driven by the UI clock, never a choice' },
+  sellWindowExpired: { generation: 'automatic', reveal: false, note: 'closes Thymepiece\'s clock-window sell bonus; driven by the UI clock, never a choice' },
   // The recruit clock reaching 0:00 (R-TIMER-LOCK-01): the UI's tick dispatches it. A bot has no clock.
   shopClockExpired: { generation: 'automatic', reveal: false, note: 'locks the Shop at 0:00; driven by the UI clock, never a choice' },
   devGrant: { generation: 'never', reveal: false, note: 'development tooling — not available to a bot' },

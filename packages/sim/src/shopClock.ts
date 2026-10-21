@@ -59,7 +59,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   closeScout: 'open',
   // Automatic transitions, display-only previews, the clock's own ticks, dev tooling.
   shopClockExpired: 'open',
-  discountWindowExpired: 'open',
+  sellWindowExpired: 'open',
   resolveShopDeath: 'open',
   settleCombat: 'open',
   resolveCombat: 'open',

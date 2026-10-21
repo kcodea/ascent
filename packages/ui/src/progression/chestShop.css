@@ -150,7 +150,8 @@
 }
 .cshop .cshop-toggle:hover:not(:disabled) { color: rgba(255, 255, 255, 0.6); background: linear-gradient(180deg, #34333b, #222128) padding-box, linear-gradient(180deg, #7a7984, #44434c) border-box; }
 .cshop .cshop-toggle:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
-.cshop .cshop-toggle:disabled { opacity: 0.45; }
+/* Dimmed only when sold out: every toggle is also disabled while a purchase runs, and the picks it bought with stay lit. */
+.cshop .cshop-cat.out .cshop-toggle:disabled { opacity: 0.45; }
 .cshop .cshop-cat.on .cshop-toggle, .cshop .cshop-cat.on .cshop-toggle:hover {
   color: #2a1806; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6); font-weight: 900;
   background: radial-gradient(110% 80% at 50% 0%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%) padding-box, var(--ui-edge) padding-box, linear-gradient(180deg, var(--ui-hover-edge-hi), var(--ui-hover-edge-deep)) border-box;
@@ -167,6 +168,8 @@
   content: ''; position: absolute; inset: -3px; border-radius: 16px; pointer-events: none; opacity: 0;
   box-shadow: 0 0 calc(var(--gl) * 1px) calc(var(--gs) * 1px) var(--tc);
 }
+/* Selected: the halo shows steadily at 0.7 even under reduced motion; where motion is allowed it breathes (MOTION block). */
+.cshop-chest.on::after { opacity: 0.7; }
 .cshop-chest.t-ancient::after {
   box-shadow: -10px 0 calc(var(--gl) * 1px) calc(var(--gs) * 1px) #8af5ff, 10px 0 calc(var(--gl) * 1px) calc(var(--gs) * 1px) #ff9bf0, 0 0 calc(var(--gl) * 0.6px) 2px #f4eeff;
 }
@@ -207,6 +210,8 @@
   content: ''; position: absolute; inset: -5px; border-radius: 999px; pointer-events: none; opacity: 0;
   box-shadow: 0 0 22px 6px rgba(255, 200, 90, 0.75);
 }
+/* On: the halo shows steadily at 0.7 even under reduced motion; where motion is allowed it breathes (MOTION block). */
+.cshop .cshop-cat.on .cshop-toggle::before { opacity: 0.7; }
 .cshop .cshop-toggle::after { content: ''; position: absolute; inset: 0; border-radius: 999px; border: 3px solid #fff1c4; opacity: 0; pointer-events: none; }
 .cshop-toggle-burst { position: absolute; inset: 0; pointer-events: none; }
 .cshop-cat-sweep { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: 8px; }
@@ -325,7 +330,9 @@
   .cshop:not(.cshop-still) .cshop-chest.t-ancient[data-pop] .cshop-chest-sweep { animation: cshop-csweep 0.7s ease-out 0.1s; }
   /* The burst nodes (each removes itself when its animation ends). */
   .cshop:not(.cshop-still) .cshop-ringfx { animation: cshop-ringx 0.7s ease-out forwards; }
-  .cshop:not(.cshop-still) .cshop-spark { animation: cshop-spark 0.75s cubic-bezier(0.15, 0.7, 0.3, 1) both; }
+  /* `forwards`, not `both`: a spark waiting out its random start delay stays hidden (its base opacity 0) instead of
+     sitting at the origin in its first frame. */
+  .cshop:not(.cshop-still) .cshop-spark { animation: cshop-spark 0.75s cubic-bezier(0.15, 0.7, 0.3, 1) forwards; }
   .cshop:not(.cshop-still) .cshop-mote { animation: cshop-rise 1.2s ease-out forwards; }
   /* While selected: the halo breathes (opacity), Legendary's rays turn slowly and Ancient's faster (rotation). */
   .cshop:not(.cshop-still) .cshop-chest.on::after { animation: cshop-halo 2s ease-in-out infinite; }

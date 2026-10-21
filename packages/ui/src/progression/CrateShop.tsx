@@ -40,7 +40,8 @@
  * may have landed on the server. The screen keeps that attempt's request id, keyed by (tier, canonical focus, total),
  * until a DEFINITE answer (success, or a 4xx refusal: `isDefiniteBuyFailure`), and a retry of the same picks sends the
  * SAME id: a purchase that did land answers `already_opened` with its reward and the reveal plays; one that did not is
- * bought now. Changing the picks drops the kept id. The store re-reads the balance and the crates after such a failure.
+ * bought now. Changing the picks drops the kept id; while a purchase runs the chest cards and the focus toggles are
+ * disabled (and the drop is skipped), so its picks and its id can never change under it. The store re-reads the balance and the crates after such a failure.
  *
  * THE SERVER'S KILL SWITCH: a category or item the server has switched off is not in the shop's pool
  * (`eligibleForCrate` reads `setServerCatalogState`), so it has no row and is not counted or priced. The store's
@@ -76,6 +77,7 @@ import { focusReceipt, leftByCategory, oddsSlices, shopFocusCategories, type Odd
 import { ChestPicture } from './ChestPicture';
 import { playPickBurst, playToggleBurst, playToggleSound, TIER_PICK_SOUND } from './chestShopFx';
 import { AetherIcon } from './AetherIcon';
+import { publicArt } from '../phoneArt';
 import './collection.css';
 import './chestShop.css';
 
@@ -152,8 +154,8 @@ const TIER_TIP: Readonly<Record<CrateTier, TierTip>> = Object.fromEntries(
 
 /** One chest card: the painted chest, its name in its tier colour, its price; the tip below it on hover (and on a tap,
  *  through the `.tt-on` twin). The card is the stable host the pick celebration attaches to. */
-const ChestCard = memo(function ChestCard({ tier, price, on, reduced, onPick }: {
-  tier: CrateTier; price: number; on: boolean; reduced: boolean; onPick: (t: CrateTier) => void;
+const ChestCard = memo(function ChestCard({ tier, price, on, reduced, locked, onPick }: {
+  tier: CrateTier; price: number; on: boolean; reduced: boolean; locked: boolean; onPick: (t: CrateTier) => void;
 }): JSX.Element {
   const tipId = useId();
   const chest = chestTierOf(CRATE_TIER_FLOOR[tier]);
@@ -162,7 +164,7 @@ const ChestCard = memo(function ChestCard({ tier, price, on, reduced, onPick }: 
   return (
     <button
       type="button" className={`cshop-chest t-${chest}${on ? ' on' : ''}`} aria-pressed={on} aria-describedby={tipId}
-      aria-label={`${label} Chest, ${price} Aether`}
+      aria-label={`${label} Chest, ${price} Aether`} disabled={locked}
       onClick={(e) => { onPick(tier); TIER_PICK_SOUND[chest](); playPickBurst(e.currentTarget, chest, reduced); }}
     >
       {/* Behind the chest: Legendary and Ancient's rays and flash, Epic and up's light sweep (`chestShop.css`). */}
@@ -190,8 +192,8 @@ const ChestCard = memo(function ChestCard({ tier, price, on, reduced, onPick }: 
 
 /** One focus row: the category, its count left to find at this floor, its toggle. The row (and the toggle in it) is the
  *  stable host the toggle-on celebration attaches to. */
-const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, onToggle }: {
-  cat: CosmeticCategory; left: number; on: boolean; soldOut: boolean; reduced: boolean; onToggle: (cat: CosmeticCategory) => void;
+const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, locked, onToggle }: {
+  cat: CosmeticCategory; left: number; on: boolean; soldOut: boolean; reduced: boolean; locked: boolean; onToggle: (cat: CosmeticCategory) => void;
 }): JSX.Element {
   const label = COSMETIC_CATEGORY_DEFS[cat].label;
   const rowRef = useRef<HTMLDivElement>(null);
@@ -207,7 +209,7 @@ const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, onTog
       <span className="cshop-cat-name">{label}</span>
       <span className="cshop-cat-left">{left}</span>
       <button
-        type="button" className="cshop-toggle" aria-pressed={on} disabled={soldOut} aria-label={`Focus ${label}`}
+        type="button" className="cshop-toggle" aria-pressed={on} disabled={soldOut || locked} aria-label={`Focus ${label}`}
         aria-description={soldOut ? 'Nothing left to find here' : undefined} onClick={click}
       >
         <span className="cshop-toggle-burst" data-burst="" aria-hidden="true" />
@@ -240,7 +242,8 @@ const OddsSeg = memo(function OddsSeg({ slice }: { slice: OddsSlice }): JSX.Elem
   );
 });
 
-const DIVIDER_SRC = `${import.meta.env.BASE_URL}frames/name-divider.webp`;
+/** Through `publicArt`: a phone loads the build's small copy of the frame art (phoneArt.ts). */
+const DIVIDER_SRC = publicArt('frames/name-divider.webp');
 
 /** Memoized: the Collection page re-renders on its own state; the shop's props are stable (`useCallback` handlers, the
  *  setState `onBusy`), so those renders skip this screen. */
@@ -320,11 +323,15 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
   );
   // Changing the picks (or a moved price) drops the request id a failed purchase kept.
   const key = quote ? purchaseKey(quote) : '';
-  useEffect(() => { if (pendingRef.current && pendingRef.current.key !== key) pendingRef.current = null; }, [key]);
+  // Never while a purchase runs: its id must survive until its answer (a price moving mid-flight must not drop it).
+  useEffect(() => { if (!busyRef.current && pendingRef.current && pendingRef.current.key !== key) pendingRef.current = null; }, [key]);
 
   // The sounds and bursts are the card's and the row's (`chestShopFx.ts`); these only change the picks.
-  const pickTier = useCallback((t: CrateTier) => { setTier(t); setError(null); }, []);
+  // Both stand still while a purchase runs (the cards and toggles are disabled then too): the picks it was bought with
+  // stay on screen, and its kept request id stays theirs (NEVER CHARGED TWICE).
+  const pickTier = useCallback((t: CrateTier) => { if (busyRef.current) return; setTier(t); setError(null); }, []);
   const toggle = useCallback((cat: CosmeticCategory) => {
+    if (busyRef.current) return;
     setError(null);
     setTicked((prev) => {
       const next = new Set(prev);
@@ -400,7 +407,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
           <img src={DIVIDER_SRC} alt="" aria-hidden="true" draggable={false} decoding="sync" />
         </div>
         <div className="cshop-chests" role="group" aria-label="Chest">
-          {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={economy.cratePrice[t]} on={tier === t} reduced={still} onPick={pickTier} />)}
+          {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={economy.cratePrice[t]} on={tier === t} reduced={still} locked={busy} onPick={pickTier} />)}
         </div>
 
         <div className="cshop-lower">
@@ -409,7 +416,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
             <div className="cshop-cats" role="group" aria-label="Focus">
               <div className="cshop-cat cshop-cat-head" aria-hidden="true"><span>CATEGORY</span><span>LEFT TO FIND</span></div>
               {cats.map((c) => (
-                <FocusRow key={c} cat={c} left={left.get(c) ?? 0} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} reduced={still} onToggle={toggle} />
+                <FocusRow key={c} cat={c} left={left.get(c) ?? 0} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} reduced={still} locked={busy} onToggle={toggle} />
               ))}
             </div>
           </section>

@@ -560,6 +560,42 @@ describe('the Chest Shop: never charged twice', () => {
     expect(ids()[2]).not.toBe(ids()[1]);
   });
 
+  it('while buying, the chest cards and the focus toggles are locked: a click changes nothing, and the retry keeps the id', async () => {
+    seed(2000);
+    render();
+    click(tier('Epic'));
+    click(toggle('Card Plates'));
+    let answer!: (o: BuyCrateOutcome) => void;
+    buyCrate.mockImplementationOnce(() => new Promise<BuyCrateOutcome>((r) => { answer = r; }));
+    click(buyBtn());
+    expect(buyText()).toBe('Buying…');
+    const before = receipt();
+    // Every card and every toggle is disabled while the purchase runs, and a click on one changes nothing.
+    expect($$('.cshop-chest').every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    expect($$('.cshop-toggle').every((b) => (b as HTMLButtonElement).disabled)).toBe(true);
+    click(tier('Rare'));
+    click(toggle('Card Plates'));
+    click(toggle('Heroes'));
+    expect(tier('Epic').getAttribute('aria-pressed')).toBe('true');
+    expect(tier('Rare').getAttribute('aria-pressed')).toBe('false');
+    expect(toggle('Card Plates').getAttribute('aria-pressed')).toBe('true');
+    expect(toggle('Heroes').getAttribute('aria-pressed')).toBe('false');
+    expect(receipt()).toEqual(before);
+    // The picks it bought with stay lit: the On toggle is not dimmed like a sold-out one.
+    expect(row('Card Plates')!.classList.contains('out')).toBe(false);
+    // The answer never came: the retry of the same picks sends the SAME id.
+    await act(async () => { answer({ status: 'error', reason: 'timeout' }); await Promise.resolve(); });
+    await settle();
+    expect(tier('Rare').disabled).toBe(false);
+    expect(toggle('Card Plates').disabled).toBe(false);
+    buyCrate.mockResolvedValueOnce({ status: 'error', reason: 'timeout' });
+    click(buyBtn());
+    await settle();
+    expect(buyCrate.mock.calls.map((c) => c.slice(0, 3))).toEqual([['epic', ['card_plate'], 800], ['epic', ['card_plate'], 800]]);
+    expect(ids()).toHaveLength(2);
+    expect(ids()[1]).toBe(ids()[0]);
+  });
+
   it('a definite refusal (sold_out) clears the id', async () => {
     seed(2000);
     render();

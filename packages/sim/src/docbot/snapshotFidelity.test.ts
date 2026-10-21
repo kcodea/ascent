@@ -176,6 +176,7 @@ function boardMinionExemplar(): Required<BoardMinion> {
     health: 9999, // survives the fight — `initial` is captured pre-combat, but a quiet sim keeps the run honest
     align: 'dawn',
     keywords: ['DS'] as Keyword[],
+    tempKeywords: ['DS'] as Keyword[],
     golden: true,
     critChance: 0.5,
     addedTribes: ['mech'],

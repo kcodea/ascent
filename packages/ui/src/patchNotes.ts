@@ -183,6 +183,21 @@ export const PATCH_NOTES: PatchNote[] = [
           'Effects that name Tier 7 still give Tier 7, and runs with Tier 7 access can still roll it.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'The Chest Shop now has its own full screen, opened from the new Chest Shop button in your Collection. Pick a chest, focus it, and see exactly what you pay.',
+        details: [
+          'The Chest Shop button sits at the top of the Collection sidebar, above your Sealed chests.',
+          'All five chests are shown side by side with their painted art. Pick one and it celebrates, with more sparks and light the higher the tier.',
+          'Hover a chest to see what it guarantees and the odds for each rarity it can give.',
+          'Focus Chest lists each category with how many items you have left to find in it. Switching a category on gets its own flourish.',
+          'Your Chest shows the price step by step: the chest, the focus fee, and a discount for every extra category you add.',
+          'The Odds bar shows the live chance of each rarity for the chest you picked. Hover a slice to see what is left to find in each category.',
+          'After you open a chest you land back on the Chest Shop, ready for the next one.',
+          'Your Sealed chests now show the painted chest of the tier you will open next.',
+        ],
+      },
+      { category: 'Systems', text: 'Announcers can no longer be focused when you buy a chest. They can still drop from chests that are not focused.' },
       { category: 'Systems', text: 'Milestone chests (every 10th level) are now Epic chests, and they open straight away like any other chest you earn: they can no longer be focused. Milestone chests you already have stay Legendary.' },
       {
         category: 'Systems',

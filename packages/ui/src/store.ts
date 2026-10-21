@@ -1566,7 +1566,9 @@ function warmLobbyDrivers(run: RunState): void {
   const step = (): void => {
     const i = queue.shift();
     if (i === undefined) return;
-    try { warmLobbySeat(lobby, i); } catch { /* a seat that won't build is built on demand later, or skipped */ }
+    // Labelled (desktop jank pass 2026-10-18): a generated seat's build is one ~100 ms block, and unlabelled it showed
+    // in the perf monitor as an anonymous long task in the first shop, blamed on whatever input came last.
+    try { perfMonitor.measure('lobby:warm-seat', () => warmLobbySeat(lobby, i)); } catch { /* a seat that won't build is built on demand later, or skipped */ }
     idle(step);
   };
   idle(step);
@@ -2660,7 +2662,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     // RATED save it overwrites is abandoned. Outside the updater (a queue write).
     // A God Mode run replaces nothing (it is never saved), so the player's real save is left alone.
     if (!godPick) settleAbandonedRun(get().savedRun);
-    set((s) => {
+    // Labelled (desktop jank pass 2026-10-18): building the lobby run is one synchronous block on the hero pick.
+    perfMonitor.measure('run:start', () => set((s) => {
       // The run's par comes from the player's rating-derived Line (career skill pressure).
       // A lobby run needs its 8 seats built alongside it, so it goes through its own constructor.
       // The seed the hero offer was rolled against (`pendingSeed`) — so the tribes the picker filtered on are the
@@ -2708,7 +2711,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       writeSave(run, []); // the new run is now the resumable save (a no-op for a God Mode run: `sandbox`)
       // GOD MODE: Continue keeps offering the player's real saved run, never the God Mode game.
       return { run, savedRun: god ? s.savedRun : run, lastRunBoards: 0, presentationTx: null, heroArmed: false, endTurnAnimating: false, sellTick: 0, inspect: null, heroChoices: null, heroReroll: null, pendingSeed: undefined, pendingGauntletStage: undefined, lastHeroOffer: s.heroChoices ?? [heroId], showTitle: false, avatarPickerOpen: false, replayActions: [], capturedBoards: [], replayFrames: beginReplayCapture(run), replayPartial: false, ...freshObservers(run), ...RANK_SLICE_RESET, ...(run.runId ? { rankedEntry: null } : {}) };
-    });
+    }));
     // A rated game now holds the entry's id (and is the save), so the entry record is spent. Outside the updater (storage).
     if (get().rankedEntry === null) clearRankedEntry();
   },

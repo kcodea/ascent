@@ -411,6 +411,33 @@ export function ensureDefsReady(): Promise<void> {
   return hasPrimitives() ? Promise.resolve() : readying;
 }
 
+/** FX program warm-ups still linking (one per GL context whose queue has not drained). */
+let prewarmsRunning = 0;
+let prewarmWaiters: Array<() => void> = [];
+function settlePrewarmWaiters(): void {
+  const w = prewarmWaiters;
+  prewarmWaiters = [];
+  for (const fn of w) fn();
+}
+/**
+ * Resolves once the board FX layer's shader warm-up has finished: the main canvas's renderer is up and every
+ * program-link step queued for it (and for any slot canvas brought up alongside it) has run. The boot splash waits
+ * on this on desktop (`bootWarm.ts`, R-PERF-BOOT-WARM-01) so the links (64-145 ms each) land behind it instead of
+ * on the title's first frames. Never rejects; the caller caps the wait.
+ */
+export function whenFxPrewarmed(): Promise<void> {
+  return new Promise<void>((resolve) => {
+    const check = (): void => {
+      if (pixiFx.rendererFor('over') && prewarmsRunning === 0) resolve();
+      else prewarmWaiters.push(check);
+    };
+    void ensureDefsReady().then(() => {
+      if (pixiFx.rendererFor('over')) { check(); return; }
+      const off = pixiFx.onRendererReady((_r, slot) => { if (slot === 'over') { off(); window.setTimeout(check, 0); } });
+    });
+  });
+}
+
 /** How long to keep waiting for the overlay's renderer before giving up on pre-warming, and how often to
  *  look. A few seconds is far longer than `pixiFx.attach()` has ever taken; the cap is only there so a
  *  session where the overlay never initialises (no WebGL) doesn't hold a timer forever. */
@@ -434,9 +461,10 @@ function schedulePrewarm(
   if (typeof window === 'undefined') return;
   pixiFx.onRendererReady((renderer, slot) => {
     const queue = slot === 'over' ? steps(renderer) : slotSteps(renderer);
+    prewarmsRunning += 1;
     const next = (): void => {
       const step = queue.shift();
-      if (!step) return;
+      if (!step) { prewarmsRunning -= 1; if (prewarmsRunning === 0) settlePrewarmWaiters(); return; }
       // A context torn down mid-queue (a fast detach) is skipped; every warm is best-effort anyway and
       // already swallows a failed link.
       // Labelled (perf 2026-10-10): each step is ONE blocking program link (30-800 ms cold), and unlabelled they

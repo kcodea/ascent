@@ -16,7 +16,7 @@ import { newlyKnockedOut } from './lobbyKnockoutFx';
 const ko = vi.hoisted(() => ({ calls: [] as string[] }));
 vi.mock('./lobbyKnockoutFx', async (orig) => ({
   ...(await orig<typeof import('./lobbyKnockoutFx')>()),
-  playLobbyKnockoutOnSeat: (id: string) => { ko.calls.push(id); return true; },
+  playLobbyKnockoutOnSeats: (ids: readonly string[]) => { ko.calls.push(...ids); return ids.length; },
 }));
 const ghost = vi.hoisted(() => ({ on: false }));
 vi.mock('@game/sim', async (orig) => {

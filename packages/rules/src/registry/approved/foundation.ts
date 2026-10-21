@@ -7410,4 +7410,133 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Modes, then Gauntlet: the mode tiles fade up and out while the stage grid rises in; the rail and the hall never move.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/menuViewSwap.test.tsx'], lastVerifiedAt: '2026-10-21' },
   },
+  // ── Desktop jank pass (2026-10-18): frame-time fixes with no visible change ───────────────────────────────────────
+  {
+    id: 'R-PERF-AIM-CURSOR-01',
+    title: 'Aiming hides the cursor without restyling the whole page',
+    statement:
+      'While a hero power, a piece of Equipment, a targeted Shout or a targeted spell is aimed, the OS cursor is hidden '
+      + 'everywhere the pointer goes, exactly as before, but only the element under the pointer is restyled to hide it. '
+      + 'No stylesheet rule keys on body.aiming (it stays a plain flag for touchInput), so starting or ending an aim never '
+      + 'restyles every element on the page.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, prod build around main 480583bb0, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'owner-chat', ref: 'Owner bar, 2026-10-09 (docs/performance.md, memory fps-bar-160)', quote: '>160 fps at ALL times, ideally 240+' },
+      { kind: 'code', ref: 'packages/ui/src/aimCursorHide.ts; packages/ui/src/Recruit.tsx (DragOverlay aim effect); packages/ui/src/styles.css (body.aiming rule removed)' },
+    ],
+    example: 'Heavy shop, 20 hero-power arm / disarm toggles: the universal body.aiming * rule restyled the whole document (~700 to 1,300 elements, 11 to 19 ms) at each start and end; after, each toggle restyles the one element under the pointer.',
+    currentBehaviour: 'Conforms from 2026-10-18 (perf/desktop-jank). Before, body.aiming, body.aiming * { cursor: none !important } restyled every element twice per aim.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/aimCursorHide.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PERF-BOOT-WARM-01',
+    title: 'On desktop the boot splash covers the GPU warm-up, so the title is smooth from its first frame',
+    statement:
+      'On desktop the boot splash fades only once the board FX shaders have linked and the Discover, screen-wipe and '
+      + 'ranked gate Pixi layers are built, capped at 4 s so a broken GPU can never hold it. The game is already mounted '
+      + 'under the opaque splash, so none of that work lands on a visible frame. Only the splash\'s own opacity fade removes '
+      + 'it; a child transition ending (the progress bar, the art fade-in) never cuts it. Phones and iPads (LITE_ART) keep '
+      + 'their short gate and build these layers on demand. The board-strength reference (the one lazy code chunk a game '
+      + 'used to evaluate mid-shop) is imported behind the same splash, so no game evaluates it during play.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, prod build around main 480583bb0, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'owner-chat', ref: 'Owner bar, 2026-10-09 (docs/performance.md, memory fps-bar-160)', quote: '>160 fps at ALL times, ideally 240+' },
+      { kind: 'code', ref: 'packages/ui/src/bootWarm.ts; packages/ui/src/Boot.tsx (fade waits on bootWarm); packages/ui/src/fx/playDef.ts (whenFxPrewarmed); packages/ui/src/pixiFx.ts (warmDiscoverFxNow); loadStrengthReference (@game/sim) imported by bootWarm' },
+    ],
+    example: 'Prod bench build, warm cache, uncapped 1920x1080, 3 runs each: the title\'s first 3 s after the fade starts went from 13 frames over 6.25 ms (worst 108-118 ms, Pixi renderer construction and shader links) to 0-1 (worst 6.2-6.6 ms). The splash stays up about 0.4 s longer.',
+    currentBehaviour: 'Conforms from 2026-10-18 (perf/desktop-jank). Before, the shader links and three new WebGL contexts landed on the title\'s first seconds as 55-150 ms tasks.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/bootWarm.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PERF-PIXI-KEEPALIVE-01',
+    title: 'On desktop the ranked gate never builds a WebGL context mid-game',
+    statement:
+      'On desktop the ranked gate\'s Pixi layer is built behind the boot splash and kept for the session: between gates it '
+      + 'idles with its ticker stopped and its canvas hidden. Neither the ranked entry nor the end-of-game gate creates a '
+      + 'new WebGL context as its doors start to close. Phones and iPads (LITE_ART) still build it per gate and free it '
+      + 'afterwards (their memory budget is the tighter constraint).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, prod build around main 480583bb0, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'code', ref: 'packages/ui/src/rankedGate/gateFx.ts (release keeps the app unless LITE_ART; ready()); packages/ui/src/bootWarm.ts' },
+    ],
+    example: 'Prod bench build, a lobby game to its end: the end-of-game gate opened with a 55-57 ms Long Animation Frame (resolve-promise import.then in Pixi browserExt, the gate\'s new renderer); with the layer kept, the gate builds nothing.',
+    currentBehaviour: 'Conforms from 2026-10-18 (perf/desktop-jank). Before, every gate built and freed its own context (the owner\'s 240 Hz capture: import.then 90.7 ms worst, 3 calls, 226 ms).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/bootWarm.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PERF-FLIP-BATCH-01',
+    title: 'The board re-layout reads every card before it writes any',
+    statement:
+      'When a commit slides cards to new slots (a sell, a summon, a drag-drop, a triple emptying the other row), every '
+      + 'card\'s position is read first and the slide is ONE tween over all the moving cards, so the browser recalculates '
+      + 'style once per commit instead of once per moved card. Same distances, ease, duration and clean-up as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, prod build around main 480583bb0, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (RowFlip: slideFromSweep and the drop branch)' },
+    ],
+    example: 'The owner\'s 240 Hz capture: layout:flip:write averaged 3.0 ms with a 21.7 ms worst over 419 calls. A tween per card made GSAP read each card\'s computed transform right after the previous card\'s transform write: a forced style recalc per moved card.',
+    currentBehaviour: 'Conforms from 2026-10-18 (perf/desktop-jank).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/flipBatch.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PERF-TOUCH-HAS-01',
+    title: 'Touch-only :has() rules never reach a mouse device',
+    statement:
+      'Every touch UI rule that uses :has() lives inside @media (hover: none) and (pointer: coarse), the same test as '
+      + 'isTouchDevice(), so on a mouse device the rules are not in the active style sheet at all: no :has() matching '
+      + 'or invalidation on the stage or the FX canvases. A phone matches them exactly as before (R-TOUCH-MENU-MEMORY-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, prod build around main 480583bb0, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css (the phone memory block)' },
+    ],
+    example: 'Regression check, scripted 7-round desktop game, prod build: main 480583bb0 dropped 229 recruit / 357 combat frames over 6.25 ms (median of 4 games) against 191 / 315 on b4746e35e (the merge before); the same build without the :has() block measured 197 / 284. A :has() rule is matched right to left, so the html[data-touch-ui] guard was the last thing checked.',
+    currentBehaviour: 'Conforms from 2026-10-18 (perf/desktop-jank). Before, #2160\'s block was guarded by html[data-touch-ui] only.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchUi.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-PERF-HAS-SUBJECT-01',
+    title: 'A :has() rule never styles a featureless subject, so a :has() change never restyles the whole document',
+    statement:
+      'Every stylesheet rule that puts :has() on an ancestor names what it styles with a class, id, tag or attribute (never '
+      + 'only *, ::before or :not(...)). Blink turns such a rule into a whole-subtree restyle of every element whose :has() '
+      + 'state changes, and .app and <body> change on nearly every action, so one such rule restyled the whole document on '
+      + 'every buy, sell, play, hover and combat entry.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'owner-chat', ref: 'Owner bar, 2026-10-09 (docs/performance.md, memory fps-bar-160)', quote: '>160 fps at ALL times, ideally 240+' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (the frosted plate reveal rule: .cardref-inner > .kwdefs, was > :not(.card), from #2173); packages/ui/src/featureSubjects.test.ts' },
+    ],
+    example: 'Prod bench build, heavy shop, invalidation trace: a buy restyled 771 elements (21.3 ms forced) and again 773; a hover 590. After: 196-322 elements per action, 35 per hover.',
+    currentBehaviour: 'Conforms from 2026-10-20 (perf/desktop-jank). From #2173 (2026-10-19) the frosted plate rule `.cardref:has(.plate-frosted) .cardref-inner > :not(.card)` made every :has() change on .app or <body> restyle the whole document.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/featureSubjects.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-PERF-LOBBY-FLOAT-01',
+    title: 'The lobby rail measures every seat row before it adds any damage float or knockout effect',
+    statement:
+      'When the shop is revealed after a fight, the round\x27s damage floats and knockout effects on the lobby rail read every '
+      + 'seat row\x27s position first and only then add the floats and play the effects. Same rows, points, numbers and '
+      + 'effects as before; the browser lays the page out once instead of once per seat.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (a ranked game on the 240 Hz desktop, relayed by the coordinator)', quote: 'felt terribly laggy/janky' },
+      { kind: 'code', ref: 'packages/ui/src/lobbyDamageFx.ts (floatLobbyDamageOnSeats); packages/ui/src/lobbyKnockoutFx.ts (playLobbyKnockoutOnSeats); packages/ui/src/LobbyPanel.tsx' },
+    ],
+    example: 'CPU profile of a shop open (prod bench build): floatLobbyDamageOnSeat 63 ms in one frame, almost all of it getBoundingClientRect forced after the previous seat\x27s float was appended.',
+    currentBehaviour: 'Conforms from 2026-10-20 (perf/desktop-jank). Before, each seat read its row, appended its float, then the next seat read again.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyFloatBatch.test.ts', 'packages/ui/src/lobbyRoundDamage.test.tsx', 'packages/ui/src/lobbyKnockout.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
 ];

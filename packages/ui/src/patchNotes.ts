@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-21',
     changes: [
       {
+        category: 'Systems',
+        text: 'Smoother play on desktop: buying, selling, playing, hovering, aiming and the start of each fight no longer stall the screen.',
+        details: [
+          'Actions in the shop no longer restyle the whole screen each time.',
+          'Aiming a hero power or a targeted card no longer hitches as it starts and ends.',
+          'The title, the first combat and the end of a game no longer pause to set up their effects. That now happens behind the loading screen.',
+          'Nothing looks different. This is speed only.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Foamguard now resets when it comes back. A Foamguard that Rises or is Reborn returns with Ward and can gain +10/+10 and Ward again.',
         details: [

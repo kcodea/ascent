@@ -4989,7 +4989,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
    applied"): their white haze is a `filter` on the whole popup, so with a glass card the haze moves onto the frame and
    each side panel, and the reveal slides in without its opacity fade (a fade is a backdrop root too). */
 .cardref:has(.plate-frosted), .castprev:has(.plate-frosted) { filter: none; }
-.cardref:has(.plate-frosted) .plate-frame, .cardref:has(.plate-frosted) .cardref-inner > :not(.card),
+/* `.kwdefs`, not `:not(.card)` (desktop jank pass 2026-10-20, R-PERF-HAS-SUBJECT-01): a `:has()` rule whose last part
+   has no class, id, tag or attribute makes Blink restyle the WHOLE subtree of every element whose `:has()` state changes,
+   and `.app` and `<body>` change on nearly every commit, so `:not(.card)` restyled the whole document (700-1,000
+   elements, 5-21 ms) on every buy, sell, play, hover and combat entry. The keyword panel is the only non-card child a
+   reveal has (Card, RuneCard). `featureSubjects.test.ts` keeps any such selector out. */
+.cardref:has(.plate-frosted) .plate-frame, .cardref:has(.plate-frosted) .cardref-inner > .kwdefs,
 .castprev:has(.plate-frosted) .plate-frame {
   filter: drop-shadow(0 0 11px rgba(255, 255, 255, 0.75)) drop-shadow(0 0 26px rgba(255, 255, 255, 0.45)) drop-shadow(0 12px 28px rgba(0, 0, 0, 0.45));
 }
@@ -5480,9 +5485,10 @@ body.choreo-open .pixifx { z-index: 205; }
    steals the panels' clicks; scoped to stage-setter-active, so normal chrome is untouched. */
 body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 /* While a targeter is live (armed hero power / pending targeted Battlecry / a targeted spell drag), the
-   Pixi aim line IS the pointer — hide the OS cursor everywhere. Toggled by Recruit's aim-line effect;
-   removed the moment the aim ends (fired, cancelled, or released). */
-body.aiming, body.aiming * { cursor: none !important; }
+   Pixi aim line IS the pointer and the OS cursor is hidden. NOT by a `body.aiming *` rule any more: toggling a
+   universal rule restyled the whole document twice per aim (11-19 ms each, desktop jank pass 2026-10-18).
+   `aimCursorHide.ts` hides it on the element under the pointer only (R-PERF-AIM-CURSOR-01). `body.aiming` is
+   still toggled as a plain flag (touchInput.ts reads it); keep every stylesheet rule off it. */
 /* Start-of-Combat bolt flying from the caster to its target */
 .proj { position: fixed; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; background: radial-gradient(circle, #fff3b0 0%, #ff7a1e 60%, transparent 72%); box-shadow: 0 0 12px 4px rgba(255, 140, 40, 0.8); pointer-events: none; z-index: 14; animation: projfly 0.5s ease-in forwards; }
 /* Blaster's Deathrattle: purple blast bolts to every minion. */

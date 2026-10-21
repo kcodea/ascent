@@ -224,6 +224,7 @@ import { diceCosmetics, diceSeed, type DieFace } from './diceRollTimeline';
 import { DICE_TEST_EVENT, FLICK_WINDOW_MS, diceRollParamsFor, flickDistanceScale, flickOf, throwLanding, towardBoard, type PointerSample } from './diceRollConfig';
 import { Flip } from 'gsap/Flip';
 import { elementBelowVeil, hideDragCursorVeil, showDragCursorVeil } from './dragCursorVeil';
+import { installAimCursorHide, setAimCursorHidden } from './aimCursorHide';
 import { fromSimpleState, getSimpleState, withoutFlipBodyLock, type StageFlipState } from './stageFlip';
 import { recordCursorSample, useGame } from './store';
 import { combatMayEndGame, gateMotionAllowed, resolutionEndsGame } from './rankedGate/endGameGate';
@@ -9310,15 +9311,27 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         const deltas = new Map(plan.map((p) => [p.uid, p.delta]));
         const pool = all.filter((el) => !inDrop(el));
         gsap.set(pool, { transition: 'none' });
+        // ONE multi-target tween, not a tween per card (desktop jank pass 2026-10-18, R-PERF-FLIP-BATCH-01). GSAP
+        // reads each target's computed transform when a tween initialises (`clearProps` drops its cache every
+        // slide), and a per-card `fromTo` interleaved that read with the previous card's transform WRITE: a forced
+        // style recalc per moved card (`layout:flip:write`, worst 21.7 ms in the owner's 240 Hz capture). A
+        // multi-target tween initialises every target first (all reads) and renders after (all writes). Same
+        // values, same ease, same duration, same per-card clearProps: one recalc.
+        const movers: HTMLElement[] = [];
+        const moverDeltas: number[] = [];
         for (const el of pool) {
           const delta = deltas.get(el.dataset.uid ?? '');
           if (delta === undefined) {
             el.style.transition = ''; // unmoved (or new) card — restore base
             continue;
           }
+          movers.push(el);
+          moverDeltas.push(delta);
+        }
+        if (movers.length > 0) {
           gsap.fromTo(
-            el,
-            { x: delta },
+            movers,
+            { x: (i: number) => moverDeltas[i] ?? 0 },
             {
               x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition',
               // A DEATH holds the row still for a beat first (owner 2026-08-28) — the survivors seed at their
@@ -9358,18 +9371,26 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
         const targets = gsap.utils.toArray<HTMLElement>(sel);
         gsap.set(targets, { transition: 'none' });
         void document.body.offsetWidth; // reflow so transform:0 is the instant baseline (no rebound)
+        // READ every card's rect FIRST, then write (R-PERF-FLIP-BATCH-01). The loop used to read a rect, then write
+        // that card's transition / tween, then read the next rect: every read after a write forced a fresh style
+        // recalc. A card's rect is unaffected by a sibling's transform or transition, so reading them all up front
+        // returns exactly the values the interleaved loop saw.
+        const movers: HTMLElement[] = [];
+        const moverDeltas: number[] = [];
+        const settled: HTMLElement[] = [];
         for (const el of targets) {
           const uid = el.dataset.uid;
           const old = uid ? rects?.get(uid) : undefined;
           // Two rect lefts = a screen delta; GSAP x is stage px (stage.ts).
           const delta = old === undefined ? 0 : toStage(old - el.getBoundingClientRect().left);
-          if (Math.abs(delta) < 0.5) {
-            el.style.transition = ''; // static card (or the new one) — restore its base transition
-            continue;
-          }
+          if (Math.abs(delta) < 0.5) settled.push(el); // static card (or the new one)
+          else { movers.push(el); moverDeltas.push(delta); }
+        }
+        for (const el of settled) el.style.transition = ''; // restore its base transition
+        if (movers.length > 0) {
           gsap.fromTo(
-            el,
-            { x: delta },
+            movers,
+            { x: (i: number) => moverDeltas[i] ?? 0 },
             { x: 0, duration: flipCfg.commitMs / 1000, ease: 'power2.out', clearProps: 'transform,transition' },
           );
         }
@@ -9578,7 +9599,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
   // `SpectatorCursor`, so nothing here draws or clears it.
   const aimingNow = !viewing && !!((heroArmed || equipArmed || hasPendingTarget) || (castingSpell && drag));
   useEffect(() => {
-    if (viewing) { document.body.classList.remove('aiming'); return; }
+    if (viewing) { document.body.classList.remove('aiming'); setAimCursorHidden(false); return; }
     if (castingSpell && drag) {
       // Use the exact live position, not the quantised state, so this render-time placement agrees with the
       // per-frame update in the move flush (otherwise the line would flick back on every commit).
@@ -9589,12 +9610,14 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       pixiFx.clearAimLine(); // no targeting gesture of any kind is live
     }
     // While the targeter is live, the aim line IS the pointer — hide the OS cursor (restored the moment
-    // the aim ends; see styles.css `body.aiming`).
+    // the aim ends). Hidden on the element under the pointer only (aimCursorHide.ts, R-PERF-AIM-CURSOR-01): a
+    // universal `body.aiming *` rule restyled the whole page twice per aim. `body.aiming` stays as a flag.
     document.body.classList.toggle('aiming', aimingNow);
+    setAimCursorHidden(aimingNow);
     // `castTargetUid` rides `drag` (a new decision is a new `drag` object), so every change that matters
     // already re-runs this.
   }, [aimingNow, heroArmed, equipArmed, hasPendingTarget, castingSpell, drag, viewing]);
-  useEffect(() => () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); }, []); // never strand the line/cursor on unmount
+  useEffect(() => { installAimCursorHide(); return () => { pixiFx.clearAimLine(); document.body.classList.remove('aiming'); setAimCursorHidden(false); }; }, []); // never strand the line/cursor on unmount
 
   return (
     <>

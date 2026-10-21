@@ -87,13 +87,35 @@ export function whenCurtainDown(fn: () => void): () => void {
   return () => finish(false);
 }
 
+/** Where a seat row's float starts (the right end, where the old number sat), or null when the row is not on screen.
+ *  A layout read: callers measure every row BEFORE adding any float. */
+function seatFloatPoint(seatId: string): { x: number; y: number } | null {
+  const el = document.querySelector(`.lobbyrail [data-seat="${seatId.replace(/["\\]/g, '\\$&')}"]`);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (r.width < 4 || r.height < 4) return null; // laid out but not visible — don't fire into nowhere
+  return { x: r.left + r.width * 0.84, y: r.top + r.height * 0.5 };
+}
+
 /** Float the hit over a seat row, if that row is on screen. Returns whether it fired. */
 export function floatLobbyDamageOnSeat(seatId: string, amount: number): boolean {
   if (amount <= 0 || typeof document === 'undefined') return false;
-  const el = document.querySelector(`.lobbyrail [data-seat="${seatId.replace(/["\\]/g, '\\$&')}"]`);
-  if (!el) return false;
-  const r = el.getBoundingClientRect();
-  if (r.width < 4 || r.height < 4) return false; // laid out but not visible — don't fire into nowhere
-  floatLobbyDamage(r.left + r.width * 0.84, r.top + r.height * 0.5, amount); // the right end, where the old number sat
+  const at = seatFloatPoint(seatId);
+  if (!at) return false;
+  floatLobbyDamage(at.x, at.y, amount);
   return true;
+}
+
+/**
+ * The round's floats, every seat at once: EVERY row is measured first, then every number is added (desktop jank pass
+ * 2026-10-20, R-PERF-LOBBY-FLOAT-01). One `floatLobbyDamageOnSeat` per seat read a row, appended its float, then read
+ * the next row, so each read after an append forced a fresh style + layout in the first frame of the revealed shop.
+ * Same rows, same points, same floats. Returns how many fired.
+ */
+export function floatLobbyDamageOnSeats(floats: readonly { id: string; amount: number }[]): number {
+  if (typeof document === 'undefined') return 0;
+  const at = floats.map((f) => ({ f, p: f.amount > 0 ? seatFloatPoint(f.id) : null }));
+  let n = 0;
+  for (const { f, p } of at) if (p) { floatLobbyDamage(p.x, p.y, f.amount); n += 1; }
+  return n;
 }

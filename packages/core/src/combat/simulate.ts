@@ -1897,6 +1897,17 @@ export function simulate(
         const n = 3 * flagCopiesOf(side, 'runeStarTap');
         ctx.gainStarform(n, n, side, 'Rune of the Star Tap');
       }
+      // CHAMPION INU (owner 2026-10-21): "After you cast a Dwarven Ale, give your Dwarves +2/+2." The Ale watchers
+      // (`spellCastBuffAll` with `aleOnly`) need the spell's identity, which only this per-repetition hook carries;
+      // the factory ignores the bare `spellCast` bus emit. A combat buff (R-BUFF-PERM).
+      if (ALE_IDS.includes(spellId)) {
+        for (const m of living(side)) {
+          for (const eff of m.effects) {
+            if (eff.on !== 'spellCast' || eff.do !== 'spellCastBuffAll' || eff.params?.aleOnly !== true) continue;
+            withEffect(m, eff, () => FACTORIES.spellCastBuffAll!(ctx, m, eff.params ?? {}, { side, spellId }));
+          }
+        }
+      }
       // GOLDILOX (owner 2026-09-24): "shop spells cast from anywhere count, not rubies, clues or generic spells …
       // this should work in combat, so if spells are cast in combat, goldilox gains stats and those stats are
       // permanent". `castInCombat` reports each finished repetition with the spell it cast; only a Shop-POOL

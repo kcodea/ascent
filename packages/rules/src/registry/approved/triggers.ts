@@ -1315,4 +1315,28 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'casting Rubies) was withheld with no deliverer and snapped in on the next beat.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/realtimeStatsAudit.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
+  {
+    id: 'R-DWARF-1021-01',
+    title: 'Set 3 Dwarf batch 2026-10-21: "after you play a Dwarf" is a play, "a Dwarven Ale" is the Ale family, Foamguard re-wards once per combat',
+    statement:
+      'Coin Counter ("After you play a Dwarf, gain +1/+1") grows only on a real PLAY of a Dwarf from hand, never a token '
+      + 'summon and never its own play; an All-types minion counts as a Dwarf; it listens on the board only; the gain is '
+      + 'permanent. Keg Runner ("Sell: gain 2 additional Gold") pays its 2 Gold on top of the normal sell value. Champion '
+      + 'Inu ("After you cast a Dwarven Ale, give your Dwarves +2/+2") fires on any cast of the Dwarven Ale family (the five '
+      + 'Ales in ALE_IDS) by any caster, once per cast repetition, in the Shop and in combat, and never on any other spell; '
+      + '"your Dwarves" includes itself and All-types minions. Foamguard ("Taunt. Ward. The first time this loses Ward each '
+      + 'combat, gain +10/+10 and Ward") reacts to the real Ward break on its own body (not a Resilient Ward downgrade), '
+      + 'once per combat: it gains the stats as a combat buff, then regains Ward. Gilding doubles every number above and '
+      + 'never the once-per-combat count.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-21 — Set 3 Dwarf batch', quote: 'create these set 3 dwarf minions and wire their art' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts tribePlayedBuffSelfInHand (board form) / fireOnTribePlayed / spellCastBuffAll (aleOnly) / onSellGainGold; packages/core/src/effects/factories.ts spellCastBuffAll (aleOnly) / onLoseWardOnceBuffSelfRegain; packages/core/src/combat/simulate.ts ctx.spellResolved (Ale watchers)' },
+    ],
+    cardText: 'After you cast a **Dwarven Ale**, give your **Dwarves +2/+2**.',
+    contentIds: ['dw3_coincounter', 'dw3_kegrunner', 'dw3_championinu', 'dw3_foamguard'],
+    currentBehaviour: 'Conforms (built with the cards, 2026-10-21).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarvesBatch1021.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

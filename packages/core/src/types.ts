@@ -630,6 +630,7 @@ export type EffectFactoryId =
   | 'onShieldBreakGrantShield'
   | 'onShieldBreakDamage'
   | 'onShieldBreakBuffAll'
+  | 'onLoseWardOnceBuffSelfRegain' // Set 3 Dwarves — Foamguard: the first time THIS loses Ward each combat, gain +a/+h and Ward
   // Demons — Consume / destroy (combat-resolved half)
   | 'onFriendDeathSummon'
   | 'scDestroyHighestAttack'
@@ -3014,6 +3015,9 @@ export interface Minion {
    *  `grantedRefresh` / Candleback's `rubyRecvTick`, and deliberately NOT on the Rise / Rebirth reset list — a
    *  returned body is the same combat instance, so "once per combat" stays spent. A fresh Minion per fight. */
   reflectFired?: boolean;
+  /** Foamguard (Set 3 Dwarf, 2026-10-21): its once-per-combat "loses Ward → +10/+10 and Ward" has fired. Same
+   *  convention as `reflectFired`: on the instance, not reset by Rise / Rebirth; a fresh Minion per fight re-arms it. */
+  wardRegainFired?: boolean;
   /** PUMMEL (X) — how many damage-meter payouts this body has made THIS combat (Goldvein's Gold, Han Gover's
    *  Ale, Maestro Lux's Celestial; `DAMAGE_METER_MARKERS`), checked against the marker's `maxPerCombat` (default
    *  1 = "(Once per combat)"; Han Gover 5, owner 2026-09-24). The tally itself is lifetime and keeps growing;

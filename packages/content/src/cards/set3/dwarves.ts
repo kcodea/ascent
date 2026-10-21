@@ -188,4 +188,66 @@ export const SET3_DWARVES: CardDef[] = [
     text: 'When you cast a **Shop spell**, gain **+3/+2**. Gains **2x** while in hand.',
     goldenText: 'When you cast a **Shop spell**, gain **+6/+4**. Gains **2x** while in hand.',
   },
+  // ── Owner batch 2026-10-21 ("create these set 3 dwarf minions"), appended in declaration order. ──
+  {
+    // "After you play a Dwarf, gain +1/+1." A PLAY watcher (`onTribePlayed`, the dispatcher `fireOnTribePlayed`
+    // runs on a real play only, never a token summon), board-side. The tribe test is the dispatcher's `defIsTribe`,
+    // so an All-types minion counts as a Dwarf. Its own play does not count (the dispatcher skips the played card).
+    // A shop gain, so permanent (R-BUFF-PERM). Gilded doubles.
+    id: 'dw3_coincounter',
+    name: 'Coin Counter',
+    tribe: 'dwarf',
+    tier: 1,
+    attack: 1,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onTribePlayed', do: 'tribePlayedBuffSelfInHand', params: { tribe: 'dwarf', attack: 1, health: 1 } }],
+    text: 'After you play a **Dwarf**, gain **+1/+1**.',
+    goldenText: 'After you play a **Dwarf**, gain **+2/+2**.',
+  },
+  {
+    // Hoard Whelp's sell primitive (`onSellGainGold`): the extra Gold on top of the normal sell value. Gilded doubles.
+    id: 'dw3_kegrunner',
+    name: 'Keg Runner',
+    tribe: 'dwarf',
+    tier: 2,
+    attack: 3,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onSell', do: 'onSellGainGold', params: { amount: 2 } }],
+    text: '**Sell:** gain **2** additional **Gold**.',
+    goldenText: '**Sell:** gain **4** additional **Gold**.',
+  },
+  {
+    // "After you cast a Dwarven Ale, give your Dwarves +2/+2." Scalechanter's `spellCastBuffAll` with `aleOnly`: only
+    // an `ALE_IDS` cast wakes it (any caster: hand, Pourman's Keg, a rune). Shop (`noteSpellCast`, per repetition, so
+    // Edward's extra trigger pays again) and combat (`spellResolved`). Includes itself, like Chef Gary Toast's "your
+    // Dwarves". Shop gains are permanent, combat gains last the fight (R-BUFF-PERM). Gilded doubles.
+    id: 'dw3_championinu',
+    name: 'Champion Inu',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 6,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'spellCast', do: 'spellCastBuffAll', params: { tribe: 'dwarf', attack: 2, health: 2, aleOnly: true } }],
+    text: 'After you cast a **Dwarven Ale**, give your **Dwarves +2/+2**.',
+    goldenText: 'After you cast a **Dwarven Ale**, give your **Dwarves +4/+4**.',
+  },
+  {
+    // "The first time this loses Ward each combat, gain +10/+10 and Ward." Rides the real Ward break
+    // (`onLoseDivineShield`, emitted only when a hit pops the Ward; a Resilient Ward's first layer is not a loss).
+    // Once per combat via `wardRegainFired` on the instance (a Risen body is the same combat instance). The stats
+    // are a combat gain (R-BUFF-PERM). Gilded doubles the stats, not the regain count.
+    id: 'dw3_foamguard',
+    name: 'Foamguard',
+    tribe: 'dwarf',
+    tier: 5,
+    attack: 4,
+    health: 8,
+    keywords: ['T', 'DS'],
+    effects: [{ on: 'onLoseDivineShield', do: 'onLoseWardOnceBuffSelfRegain', params: { attack: 10, health: 10 } }],
+    text: '**Taunt.** **Ward.** The first time this loses **Ward** each combat, gain **+10/+10** and **Ward**.',
+    goldenText: '**Taunt.** **Ward.** The first time this loses **Ward** each combat, gain **+20/+20** and **Ward**.',
+  },
 ];

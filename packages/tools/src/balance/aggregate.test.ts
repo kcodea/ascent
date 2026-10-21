@@ -39,14 +39,14 @@ describe('aggregate (synthetic fixture)', () => {
     // again the same day when the owner moved Gravus and Well Watcher to Tier 5, and again for Bait Brood, Hatcher, Whispwarder.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:4.67",
-        "fibbsy:30:4.47",
-        "gorr:30:4.27",
-        "harlan:30:5.23",
-        "midas:30:4.30",
-        "nadja:30:3.47",
-        "pete:30:4.70",
-        "warden:30:4.90",
+        "drakko:30:5.07",
+        "fibbsy:30:4.13",
+        "gorr:30:4.13",
+        "harlan:30:4.80",
+        "midas:30:4.47",
+        "nadja:30:3.53",
+        "pete:30:4.80",
+        "warden:30:5.07",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

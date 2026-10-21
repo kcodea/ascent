@@ -224,6 +224,18 @@ export function deriveGildedDelta(def: CardDef, unparsed: string[]): GildedDelta
         + 'at check time) is the statement of the gilded form',
     };
   }
+  if (def.effects.some((e) => e.do === 'grantWhisper')) {
+    // A WHISPER grant (Bait Brood, Tolan, Hatcher…): exactly ONE Whisper per Start of Turn whatever the gild; the
+    // gild changes what the granted Whisper DOES (a gilded Bait gives +6/+10), never how many arrive. So even when
+    // the gilded text is the plain sentence with doubled numbers, no count factor describes it: the authored gilded
+    // text is the statement. (Found 2026-10-21: Bait Brood derived 'multiply' and the activation-grant driver
+    // correctly measured 1 Bait plain and gilded once a sample rotation reached it.)
+    return {
+      kind: 'reshape', basis: 'derived:golden-text', goldenTextSource: 'index:goldenText',
+      description: 'a Whisper grant: one Whisper per turn plain or gilded; the gild reshapes the payload of the granted Whisper, '
+        + 'which the authored gilded text (read from CARD_INDEX at check time) states',
+    };
+  }
   if (numberSkeleton(def.text) === numberSkeleton(def.goldenText)) {
     const p = numbersOf(def.text);
     const g = numbersOf(def.goldenText);

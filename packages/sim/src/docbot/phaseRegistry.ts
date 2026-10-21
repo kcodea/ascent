@@ -65,6 +65,7 @@ export const TRIGGER_PHASES: Readonly<Record<string, 'recruit' | 'combat' | 'bot
   avenge: 'combat',
   onKill: 'combat',
   onDamaged: 'combat',
+  onLoseDivineShield: 'combat', // a Ward broken by a hit (simulate.ts damage site); first card trigger 2026-10-21, Foamguard
   friendlyDemonDealtDamage: 'combat',
 
   // ── dual-phase: both dispatchers exist; every factory used on this trigger must cover both or be excused ──
@@ -216,7 +217,6 @@ export const COMBAT_EMIT_WAIVED: Readonly<Record<string, string>> = {
   // fix and their combat factories are present.
   battlecryTriggered: "combat re-fires notify through the caller; its handlers are separate combat factory ids, all present (audited 2026-08-29)",
   spellCast: "the recruit pair is the SHOP watcher; combat's spell-cast watchers dispatch through their own factory ids, all present (audited 2026-08-29)",
-  // Not a card trigger at all — an internal keyword-loss signal with no `on:` in any card, so no content pair
-  // exists for it to classify. Left unlisted in TRIGGER_PHASES on purpose.
-  onLoseDivineShield: 'engine-internal signal, never authored as a card trigger (no content uses it as `on`)',
+  // (`onLoseDivineShield` was waived here as engine-internal until Foamguard made it a card trigger on 2026-10-21;
+  // it is classified 'combat' in TRIGGER_PHASES now.)
 };

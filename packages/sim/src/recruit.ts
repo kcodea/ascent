@@ -4904,9 +4904,13 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   },
 
   /** Slumbering Colossus (a HAND watcher — `inHand: true`): whenever you play a `tribe` minion, THIS card, still
-   *  in hand, grows +atk/+hp. Permanent (R-HAND-02). Golden doubles. */
+   *  in hand, grows +atk/+hp. Permanent (R-HAND-02). Golden doubles.
+   *  Coin Counter (set 3 Dwarf, owner 2026-10-21) is the BOARD form (`inHand` absent): "After you play a Dwarf,
+   *  gain +1/+1". The watcher fires only where its `inHand` param says it lives, the same split `fireOnTribePlayed`
+   *  makes, so a board watcher never grows from the hand and a hand watcher never grows from the board. */
   tribePlayedBuffSelfInHand: (ctx, self, params) => {
-    if (!ctx.state.hand.includes(self)) return;
+    if (ctx.state.hand.includes(self) !== (params.inHand === true)) return;
+    if (params.inHand !== true && !ctx.state.board.includes(self)) return;
     addBuff(self, nameOf(self), num(params.attack, 4) * gold(self), num(params.health, 4) * gold(self));
   },
 
@@ -7196,7 +7200,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  already shop-spell-only (Rubies don't route through `castSpell`), so the printed "Shop spell" wording
    *  needs no explicit Ruby check. Golden doubles the grant. */
   // ARENA-MIGRATED (Step 3): one body in arena.ts serves both phases.
-  spellCastBuffAll: (ctx, self, params) => {
+  spellCastBuffAll: (ctx, self, params, payload) => {
+    // `aleOnly` (Champion Inu, owner 2026-10-21: "After you cast a Dwarven Ale"): only an Ale cast (`ALE_IDS`) wakes it.
+    if (params.aleOnly === true && !ALE_IDS.includes((payload as { spellDef?: CardDef } | undefined)?.spellDef?.id ?? '')) return;
     ARENA_EFFECTS.spellCastBuffAll(shopArena(ctx.state, self), params);
   },
 

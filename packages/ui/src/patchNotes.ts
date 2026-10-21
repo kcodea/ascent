@@ -89,7 +89,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The Versus room got a full makeover: a softer arena, the two fighters face off low and close, and joining a room now has a proper entrance.',
         details: [
-          'Creating or joining a room puts you on the Spectators bench. Drag your card onto a seat to fight, and back to the bench to leave it.',
+          'Creating or joining a room puts you with the spectators, shown as a hand of cards along the bottom. Drag your card onto a seat to fight, and back to leave it.',
           'The host wears a crown on their card, and Start game appears once both seats are filled.',
           'Taking a seat lands your card with the same dust as playing a minion. Leaving a seat plays the sell coins and your card forms back in the hand.',
           'Every card in the room shows its wins and losses in the same size of stat pill.',

@@ -284,21 +284,23 @@ describe('one action area that is empty until two fighters sit; drag-only seats;
 });
 
 describe('the bench (R-VERSUS-ROOM-STANDS-01)', () => {
-  it('a static, pointer-free band as wide as the fan, its top faded (no edge line), with the Spectators pill and count', () => {
+  it('no box: the spectators are a flat hand (no tilt, no arc) on the shop hand drop shadow, with the label on the fan', () => {
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
-    const band = /\n\.vsbench::before \{([^}]*)\}/.exec(css)![1]!;
-    expect(band).toMatch(/pointer-events: none/);
-    expect(band).toMatch(/linear-gradient\(180deg, rgba\(13, 22, 40, 0\) 0/);
-    expect(band).toMatch(/var\(--n\)/);
-    expect(band).not.toMatch(/border-top|animation/);
+    expect(css).not.toMatch(/\.vsbench::before/);
+    expect(css).not.toMatch(/\.vsstands \{/);
+    const bench = /\n\.vsbench \{([^}]*)\}/.exec(css)![1]!;
+    expect(bench).toMatch(/--vsb-tilt: 0deg/);
+    expect(bench).toMatch(/--vsb-arc: 0px/);
+    expect(css).toMatch(/\.vsbench \.vsbcard-lift \.cardplate \{ filter: drop-shadow\(0 calc\(9 \* var\(--u\)\) calc\(20 \* var\(--u\)\) rgba\(20, 12, 4, 0\.42\)\); \}/);
+    const label = /\n\.vsstands-label \{([^}]*)\}/.exec(css)![1]!;
+    expect(label).toMatch(/left: 50%/);
     const ui = enter([member('host', 'p1'), member('me', 'spectator'), member('you', 'spectator')]);
     try {
       expect(document.querySelector('.vsbench .vsstands-label')?.textContent).toBe('Spectators2 / 20');
-      expect(document.querySelector('.vsbcard-you')).toBeNull(); // owner 2026-10-21: no You pill
+      expect(document.querySelector('.vsbcard-you, .vsstands')).toBeNull();
     } finally { ui.unmount(); }
   });
 });
-
 
 describe('the open seat fades rather than snaps (owner 2026-10-21)', () => {
   it('the open-seat card stays mounted under a seated card and fades by one transform / opacity transition', () => {

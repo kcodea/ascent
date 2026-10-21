@@ -272,8 +272,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'minionSold', do: 'minionSoldRevelerDiscount', params: { amount: 1, max: 3 } }],
-    text: 'Whenever you **sell** a **Reveler**, your next Spirit costs **1** less this turn.',
-    goldenText: 'Whenever you **sell** a **Reveler**, your next Spirit costs **2** less this turn.',
+    text: 'Whenever you **Sell** a **Reveler**, your next Spirit costs **1** less this turn.',
+    goldenText: 'Whenever you **Sell** a **Reveler**, your next Spirit costs **2** less this turn.',
   },
   {
     id: 'sp3_revelator',
@@ -329,8 +329,8 @@ export const SET3_SPIRITS: readonly CardDef[] = [
     health: 9,
     keywords: [],
     effects: [{ on: 'minionSold', do: 'minionSoldRevelerReturn', params: { count: 1 } }],
-    text: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn return a plain copy to your hand.',
-    goldenText: 'The first **Flame**, **Tide** and **Grove Reveler** you sell each turn return **2** plain copies to your hand.',
+    text: 'The first **Flame**, **Tide** and **Grove Reveler** you **Sell** each turn return a plain copy to your hand.',
+    goldenText: 'The first **Flame**, **Tide** and **Grove Reveler** you **Sell** each turn return **2** plain copies to your hand.',
   },
   {
     // RUNE-EXCLUSIVE TOKEN (Rune of the Handy Flame, Set 3 batch 2 — owner 2026-09-16). `token: true` keeps it out

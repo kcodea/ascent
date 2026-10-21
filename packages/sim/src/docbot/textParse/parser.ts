@@ -667,7 +667,7 @@ function recChoose(s: string): Rec | null {
 /** Cost / sell-value sentences: "Shop spells cost 1 less this turn" / "Sells for 2 Gold" / "Costs 11 Gold, reduced by 1
  *  each turn" / "Reduce the cost of upgrading the Shop by 5" / "each use costs 1 more Gold" / "The first is free". */
 function recCost(s: string): Rec | null {
-  let m = /^(?:(?:[Ss]ells?|sell) for|[Cc]osts?) (\d+)(g| Gold| less| more| additional Gold)?(?:, plus (\d+)g for every ([^.,]+))?(?:, reduced by (\d+) (?:each turn|when [^.,]+))?(?: — reduced by (\d+) when [^.,]+)?/.exec(s);
+  let m = /^(?:[Ss]ells? for|[Cc]osts?) (\d+)(g| Gold| less| more| additional Gold)?(?:, plus (\d+)g for every ([^.,]+))?(?:, reduced by (\d+) (?:each turn|when [^.,]+))?(?: — reduced by (\d+) when [^.,]+)?/.exec(s);
   if (m) {
     const eff: Omit<ParsedEffect, 'span'> = { kind: 'cost-mod', verb: /sell/i.test(m[0]) ? 'sells-for' : 'costs', amount: { value: Number(m[1]), unit: (m[2] ?? ' Gold').trim().replace(/^g$/, 'Gold').toLowerCase() } };
     if (m[3]) eff.scaler = { per: m[4]!, amount: { value: Number(m[3]), unit: 'gold' }, span: { start: 0, end: 0, text: '' } };
@@ -812,14 +812,14 @@ function recSubjectFirst(s: string, ctx: Ctx): Rec | null {
   // "The first Shop spell you cast each turn …" / "Your first Rally each combat …" — the first-per-window subject.
   let subject: ParsedTarget | null = null;
   let len = 0;
-  const first = /^(?:The|Your|the|your) (first|next)(?: (\d+))? (.+?)(?: (each (?:turn|combat)|every turn|this turn|next combat|in combat))?(?=(?<!\byou|\bthat|\bspell|\bRuby|\bAle) (?:also |permanently |all |each )?(?:gives?|casts?|triggers?|returns?|gains?|refills|splits|fills|contains?|are|come|summons?|sells?|costs?|attacks?|gets?|has|have|improves?|transforms?|attaches|bounce|[Cc]onsumes?)\b)/.exec(s);
+  const first = /^(?:The|Your|the|your) (first|next)(?: (\d+))? (.+?)(?: (each (?:turn|combat)|every turn|this turn|next combat|in combat))?(?=(?<!\byou|\bthat|\bspell|\bRuby|\bAle) (?:also |permanently |all |each )?(?:gives?|casts?|triggers?|returns?|gains?|refills|splits|fills|contains?|are|come|summons?|[Ss]ells?|costs?|attacks?|gets?|has|have|improves?|transforms?|attaches|bounce|[Cc]onsumes?)\b)/.exec(s);
   if (first) {
     subject = { cardinality: 'exactly', count: first[2] ? Number(first[2]) : 1, scope: `${first[1]}-${first[3]!.toLowerCase().replace(/\s+/g, '-')}` };
     len = first[0].length;
   } else {
     const tp = targetPhrase(s);
     if (!tp) return null;
-    if (!/^ (?:also |permanently |all |each )?(?:gives?|casts?|triggers?|returns?|gains?|refills|splits|fills|contains?|are|come|summons?|sells?|costs?|attacks?|gets?|has|have|improves?|transforms?|attaches|bounce|[Cc]onsumes?)\b/.test(s.slice(tp.len))) return null;
+    if (!/^ (?:also |permanently |all |each )?(?:gives?|casts?|triggers?|returns?|gains?|refills|splits|fills|contains?|are|come|summons?|[Ss]ells?|costs?|attacks?|gets?|has|have|improves?|transforms?|attaches|bounce|[Cc]onsumes?)\b/.test(s.slice(tp.len))) return null;
     subject = tp.target;
     len = tp.len;
   }

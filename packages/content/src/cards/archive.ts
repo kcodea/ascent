@@ -357,7 +357,7 @@ export const ARCHIVED_CARDS: CardDef[] = [
     cost: 4,
     target: 'friendly',
     effects: [{ on: 'cast', do: 'spellSellToShopRightmost' }],
-    text: 'Sell a minion and give its stats to the right-most minion in the Shop.',
+    text: '**Sell** a minion and give its stats to the right-most minion in the Shop.',
   },
   // ── 2026-10-07 owner balance batch: thirteen Shop spells archived from EVERY set. A held copy still casts, and the
   //    banked next-combat machinery (#1969) stays for replays and remaining sources. Two are still GRANTED by live
@@ -1580,8 +1580,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
     // Owner rework 2026-07-27 — the recast moved to Water Dragon; the Archivist now pays for SELLING. The
     // tally rides on the card (`soldProgress`) and carries round to round.
     effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 5 } }],
-    text: 'After you sell **5 minions**, get a **Shop spell**.',
-    goldenText: 'After you sell **5 minions**, get **2 Shop spells**.',
+    text: 'After you **Sell** **5 minions**, get a **Shop spell**.',
+    goldenText: 'After you **Sell** **5 minions**, get **2 Shop spells**.',
   },
   {
     // ARCHIVED 2026-08-18 (owner). Moved verbatim from set2/dragons.ts (SET2_DRAGONS).

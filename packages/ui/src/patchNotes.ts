@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Balance', text: 'The Indy minion has new art.' },
       {
+        category: 'Balance',
+        text: 'Four new Dwarves join Set 3, all built around selling: Salezar Sails, Mark Eting, Valyou and Leeds. Sell is now written as a keyword on every card.',
+        details: [
+          'Salezar Sails (Tier 2, 3/1): Sell: give your Dwarves +2/+3.',
+          'Mark Eting (Tier 3, 2/6): when you Sell 4 minions, get a random Shop Spell. Gilded gets 2.',
+          'Valyou (Tier 5, 6/9): when you Sell a minion, gain +3/+3. Every 4th time, also gain 2 Gold.',
+          'Leeds (Tier 6, 6/8): when you play a Dwarf, give your Dwarves +2/+2. It goes up by +2/+2 every time you Sell 4 minions.',
+          'The sell counts on Mark Eting, Valyou and Leeds carry over between turns and show on the card.',
+          'Sell now reads as a capitalised keyword in all card, rune, hero and Equipment text. Nothing about how selling works has changed.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Smoother play on desktop: buying, selling, playing, hovering, aiming and the start of each fight no longer stall the screen.',
         details: [

@@ -112,8 +112,8 @@ export const SET2_DRAGONS: CardDef[] = [
     health: 6,
     keywords: [],
     effects: [{ on: 'minionSold', do: 'onMinionSoldCopyFirstOfTribe', params: { tribe: 'dragon', count: 1 } }],
-    text: 'Get a **plain copy** of the first Dragon you sell each turn.',
-    goldenText: 'Get **2 plain copies** of the first Dragon you sell each turn.',
+    text: 'Get a **plain copy** of the first Dragon you **Sell** each turn.',
+    goldenText: 'Get **2 plain copies** of the first Dragon you **Sell** each turn.',
   },
   {
     // The tribe's spell-supply piece: a Shout that just hands you a spell to fuel the recursion line.

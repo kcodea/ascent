@@ -249,7 +249,8 @@ export const TEXT_RULES: GameRule[] = [
       + 'entry raises the pill and colours the word; the parser already read "Sell:" as onSell.',
     example:
       'Beggy reads "Sell: get 2 Rubies." with Sell highlighted; hovering shows "Sell: Triggers when this minion is '
-      + 'sold." Arcane Behemoth still reads "When you sell a Demon, this gains its stats." and shows no Sell pill.',
+      + 'sold." Arcane Behemoth reads "When you Sell a Demon, this gains its stats." (capitalised since R-TEXT-SELL-CAPS-01) '
+      + 'and shows no Sell pill.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/detectCardKeywords.test.ts', 'packages/ui/src/termColour.test.tsx', 'packages/ui/src/keywordGlossaryCoverage.test.ts'],
@@ -665,5 +666,26 @@ export const TEXT_RULES: GameRule[] = [
       + 'note no longer fit the row (the menu column minus the trash button) and the overflow: hidden on the plaque clipped the '
       + 'note. The label and note now stack in `.mbstack`; the Continue label steps down to 30px so it fits the narrower seat.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/titleContinue.test.tsx'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TEXT-SELL-CAPS-01',
+    title: 'Sell is a keyword: every printed use of the sell verb is bold and capitalised',
+    statement:
+      'Wherever printed game text means the SELL action or trigger (cards plain and Gilded in every set and the archive, '
+      + 'runes, Equipment, hero powers, Ancient pairing lines), the verb prints as the keyword form: **Sell**, **Sells** or '
+      + '**Selling**, or the "**Sell:**" trigger lead (R-TEXT-09). Text only: no effect, trigger or parameter changes. The '
+      + 'hover pill stays pinned to the "Sell:" form (R-TEXT-09), because its definition is "Triggers when this minion is '
+      + 'sold"; a capitalised verb elsewhere is highlighted by its bold, not by that pill. "sell value" (a noun), "sold" and '
+      + '"sales" are not the verb and stay as they are.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-21 (Set 3 Sell Dwarves PR)', quote: "capitalized, it's a keyword" },
+      { kind: 'code', ref: 'packages/content/src (cards, runes, equipment); packages/sim/src/heroes.ts; packages/sim/src/ancients.ts; packages/ui/src/cardText.ts (Smokey Joe live text); packages/ui/src/questText.ts' },
+    ],
+    contentIds: ['dw3_shiftbroker', 'dw3_hankpepe', 'dm_behemoth', 'rune_baller', 'rune_sellers_market'],
+    currentBehaviour: 'Conforms (swept 2026-10-21).',
+    example: 'Rune of the Seller\'s Market reads "Whenever you **Sell** a minion, give your minions +6/+8."; Quick Sale reads "The next minion you **Sell** this turn **Sells** for 2 additional Gold."',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/sellKeywordText.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

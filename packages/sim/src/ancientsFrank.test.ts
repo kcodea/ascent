@@ -141,7 +141,7 @@ describe('Frank × FORTUNE — Clearance minions sell for 2 Gold', () => {
     expect(sellValueOf(at(s, uid), s)).toBe(1);
   });
   it('prints the live power', () => {
-    expect(heroPowerText(picked('fortune'))).toBe(`${BASE} Minions you buy from it sell for **2 Gold**.`);
+    expect(heroPowerText(picked('fortune'))).toBe(`${BASE} Minions you buy from it **Sell** for **2 Gold**.`);
   });
 });
 
@@ -311,6 +311,6 @@ describe('Frank × BONDS — selling a Clearance minion gives its stats to a ran
     expect(t.board.length).toBe(0);
   });
   it('prints the live power', () => {
-    expect(heroPowerText(picked('bonds'))).toBe(`${BASE} Selling a minion you bought from it gives its stats to a random friendly minion.`);
+    expect(heroPowerText(picked('bonds'))).toBe(`${BASE} **Selling** a minion you bought from it gives its stats to a random friendly minion.`);
   });
 });

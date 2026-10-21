@@ -298,8 +298,8 @@ export const POURMANS_KEG: EquipmentDefinition = {
 export const THYMEPIECE: EquipmentDefinition = {
   id: 'thymepiece',
   name: 'Thymepiece',
-  text: 'Cards sell for **+1** Gold for the next **8 seconds**.',
-  goldenText: 'Cards sell for **+1** Gold for the next **16 seconds**.',
+  text: 'Cards **Sell** for **+1** Gold for the next **8 seconds**.',
+  goldenText: 'Cards **Sell** for **+1** Gold for the next **16 seconds**.',
   baseCost: 3,
   targetMode: 'none',
   effectId: 'equipmentSellBonusWindow',

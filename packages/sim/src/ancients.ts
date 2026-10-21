@@ -816,8 +816,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
       effects: [{ do: 'powerTargetGainsKeywords', keywords: ['RB', 'T'] }],
     },
     fortune: {
-      offerText: 'Selling a **Gilded** minion gets you a plain copy of it.',
-      powerText: '{base} Selling a **Gilded** minion gets you a plain copy of it.',
+      offerText: '**Selling** a **Gilded** minion gets you a plain copy of it.',
+      powerText: '{base} **Selling** a **Gilded** minion gets you a plain copy of it.',
       effects: [{ do: 'sellGildedGetsPlainCopy', count: 1 }],
     },
     war: {
@@ -1070,8 +1070,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Clearance minions sell for 2g"
-      offerText: 'Minions you buy from Clearance sell for **2 Gold**.',
-      powerText: '{base} Minions you buy from it sell for **2 Gold**.',
+      offerText: 'Minions you buy from Clearance **Sell** for **2 Gold**.',
+      powerText: '{base} Minions you buy from it **Sell** for **2 Gold**.',
       effects: [{ do: 'clearanceSellValue', gold: 2 }],
     },
     war: {
@@ -1097,8 +1097,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     bonds: {
       // "Selling Clearance minions grants the minions stats to a random friendly minion."
-      offerText: 'Selling a minion you bought from Clearance gives its stats to a random friendly minion.',
-      powerText: '{base} Selling a minion you bought from it gives its stats to a random friendly minion.',
+      offerText: '**Selling** a minion you bought from Clearance gives its stats to a random friendly minion.',
+      powerText: '{base} **Selling** a minion you bought from it gives its stats to a random friendly minion.',
       effects: [{ do: 'clearanceSaleGivesStats' }],
     },
   },
@@ -1237,20 +1237,20 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     fortune: {
       // "Every 2 minions sold also grants a free refresh."
-      offerText: 'Every **2** minions you sell also give you a free Refresh.',
-      powerText: '{base} Every **2** minions you sell also give you a free Refresh (**{refreshLeft}** more to go).',
+      offerText: 'Every **2** minions you **Sell** also give you a free Refresh.',
+      powerText: '{base} Every **2** minions you **Sell** also give you a free Refresh (**{refreshLeft}** more to go).',
       effects: [{ do: 'sellsGrantFreeRefresh', every: 2 }],
     },
     war: {
       // "Give your left-most minion +2/+3 every time you sell a minion."
-      offerText: 'Whenever you sell a minion, give your left-most minion **+2/+3**.',
-      powerText: '{base} Whenever you sell a minion, give your left-most minion **+2/+3**.',
+      offerText: 'Whenever you **Sell** a minion, give your left-most minion **+2/+3**.',
+      powerText: '{base} Whenever you **Sell** a minion, give your left-most minion **+2/+3**.',
       effects: [{ do: 'saleBuffsLeftmost', attack: 2, health: 3 }],
     },
     genesis: {
       // "When you sell 7 minions, get a copy of one of them."
-      offerText: 'Every **7** minions you sell, get a plain copy of one of them.',
-      powerText: '{base} Every **7** minions you sell, get a plain copy of one of them (**{copyLeft}** more to go).',
+      offerText: 'Every **7** minions you **Sell**, get a plain copy of one of them.',
+      powerText: '{base} Every **7** minions you **Sell**, get a plain copy of one of them (**{copyLeft}** more to go).',
       effects: [{ do: 'sellsGetCopy', every: 7 }],
     },
     time: {
@@ -1261,8 +1261,8 @@ export const ANCIENT_PAIRINGS: Record<string, Partial<Record<AncientId, AncientP
     },
     bonds: {
       // "Selling a minion makes the next of its tribe cost 2g."
-      offerText: 'Selling a minion makes the next minion of its type you buy cost **2 Gold**.',
-      powerText: '{base} Selling a minion makes the next minion of its type you buy cost **2 Gold**.{bondsTypes}',
+      offerText: '**Selling** a minion makes the next minion of its type you buy cost **2 Gold**.',
+      powerText: '{base} **Selling** a minion makes the next minion of its type you buy cost **2 Gold**.{bondsTypes}',
       effects: [{ do: 'saleDiscountsTribe', price: 2 }],
     },
   },

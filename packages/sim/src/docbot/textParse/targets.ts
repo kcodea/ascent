@@ -45,7 +45,7 @@ const TAIL =
   + '|that give stats|and a random minion in your hand|of it|of your most common type|of the targeted minion\'s type|from your (?:next )?opponent\'s (?:warband|board)|from a type you do not control'
   + '|from your (?:Shop )?tier|from the tier above(?: (?:it|your Shop tier))?|one [Tt]ier higher|Tier \\d+ or (?:below|lower)|opposite this|to the left|to the right'
   + '|next to it|and its neighbours|with (?:a )?Shout|with Ward|with Taunt|with Rise|of your last opponent\'s board|that died this combat|that doesn\'t fit|that can\'t fit'
-  + '|that killed this|you (?:control|own|summon|sell|buy|play|played this turn|kill next combat)|summoned (?:in|next) combat|(?:you )?summoned this combat'
+  + '|that killed this|you (?:control|own|summon|[Ss]ell|buy|play|played this turn|kill next combat)|summoned (?:in|next) combat|(?:you )?summoned this combat'
   + '|in combat|next combat|this combat|in your hand this combat|of the (?:first|last) minion you kill next combat|each turn|you (?:cast|sold|played) this turn';
 
 const NOUN_RE = new RegExp(`^(?:${TRIBE_NOUN})\\b`, 'i');

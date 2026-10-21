@@ -46,8 +46,8 @@ export const NEUTRAL: CardDef[] = [
     health: 3,
     keywords: [],
     effects: [{ on: 'onPlay', do: 'battlecryBonusGoldNextTurn', params: { gold: 1 } }],
-    text: '**Battlecry:** get **1** extra Gold next turn. Sells for **2 Gold**.',
-    goldenText: '**Battlecry:** get **2** extra Gold next turn. Sells for **4 Gold**.',
+    text: '**Battlecry:** get **1** extra Gold next turn. **Sells** for **2 Gold**.',
+    goldenText: '**Battlecry:** get **2** extra Gold next turn. **Sells** for **4 Gold**.',
   },
   {
     id: 'broker',

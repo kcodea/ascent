@@ -427,7 +427,7 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
     case 'runeBrokerage':
       return 'Your Ruby Brokers can be triggered endlessly';
     case 'runeSellRubies':
-      return `Get ${r.count === 1 ? 'a random Ruby' : `${r.count} random Rubies`} when you sell a minion`;
+      return `Get ${r.count === 1 ? 'a random Ruby' : `${r.count} random Rubies`} when you Sell a minion`;
     case 'runeRubyDrip':
       return 'Start of Turn: get a random Ruby';
     case 'runeOpenMarket':

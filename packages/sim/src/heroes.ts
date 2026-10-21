@@ -301,7 +301,7 @@ export const HEROES: HeroDef[] = [
       name: 'Spoils',
       kind: 'sellGold',
       passive: true,
-      text: 'For each minion you sell, gain 1 Gold next turn.',
+      text: 'For each minion you **Sell**, gain 1 Gold next turn.',
     },
   },
   {

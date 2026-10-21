@@ -31,7 +31,7 @@ describe('Dissipate', () => {
     expect(def.cost).toBe(4);
     expect(def.target).toBe('friendly');
     expect(def.singleCast).toBe(true);
-    expect(def.text).toBe('Sell a minion and give its stats to the right-most minion in the Shop.');
+    expect(def.text).toBe('**Sell** a minion and give its stats to the right-most minion in the Shop.');
     expect(SETS.set2.own.some((c) => c.id === 'sp_dissipate')).toBe(false);
     expect(SETS.set3.own.some((c) => c.id === 'sp_dissipate')).toBe(false);
   });

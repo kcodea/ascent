@@ -78,17 +78,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-numeral-01",
-    "title": "Wording: Gold vs g · 79 vs 2",
+    "title": "Wording: Gold vs g · 81 vs 2",
     "statement": "Money always prints as \"N Gold\" — never the \"Ng\" abbreviation. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"N Gold\" in 79 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"N Gold\" in 81 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
     "cardText": "\"N Gold\" — Bone Taxer: \"Avenge (4): get 2 Gold next shop. Deathrattle: raise your maximum Gold by 1.\" · \"Ng\" — Trail Forager: \"Sells for 3g, plus 1g for every Beast you play.\"",
     "example": "Trail Forager would be re-worded to the \"N Gold\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 79 vs 2)"
+        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 81 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -224,17 +224,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-verb-01",
-    "title": "Wording: trigger vs fire/proc · 102 vs 2",
+    "title": "Wording: trigger vs fire/proc · 104 vs 2",
     "statement": "Effects \"trigger\" — never \"fire\" or \"proc\". The three straggler texts are updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"trigger\" in 102 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"trigger\" in 104 printed texts, \"fire/proc\" in 2. Approving picks \"trigger\"; the LG-VERB-01 guide predicate then watches new text.",
     "cardText": "\"trigger\" — Dawnclaw: \"Taunt. Echo: trigger both adjacent minions' Shouts.\" · \"fire/proc\" — Graverobber: \"Battlecry: Destroy a friendly minion (procs its Deathrattle), then add a random Shop spell of its tier to your hand.\"",
     "example": "Graverobber would be re-worded to the \"trigger\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 102 vs 2)"
+        "ref": "textParse.wording · LG-VERB-01 (corpus survey: 104 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",
@@ -277,17 +277,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-zone-01",
-    "title": "Wording: Shop vs tavern · 214 vs 9",
+    "title": "Wording: Shop vs tavern · 216 vs 9",
     "statement": "The buy row is always \"the Shop\" in text; every remaining \"tavern\" is updated to match. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"Shop\" in 214 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"Shop\" in 216 printed texts, \"tavern\" in 9. Approving picks \"Shop\"; the LG-ZONE-01 guide predicate then watches new text.",
     "cardText": "\"Shop\" — Black Hole: \"Your Starform consumes 3 random Shop minions.\" · \"tavern\" — Korok, the Hungerer: \"When you buy 4 cards, give your Fodder +1/+1 and add 1 Fodder to your next tavern.\"",
     "example": "Korok, the Hungerer would be re-worded to the \"Shop\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 214 vs 9)"
+        "ref": "textParse.wording · LG-ZONE-01 (corpus survey: 216 vs 9)"
       }
     ],
     "sourceQueue": "textParse.wording",

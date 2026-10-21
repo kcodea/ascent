@@ -39,15 +39,16 @@ describe('aggregate (synthetic fixture)', () => {
     // again the same day when the owner moved Gravus and Well Watcher to Tier 5, and again for Bait Brood, Hatcher, Whispwarder.
     // Regenerated 2026-10-21: the Set 3 Dwarf rework (Hank Pepe and Shift Broker on Sell; Coinfire, Striker, Billings and
     // Lieutenant Thane out of Set 3; Dwarf King, Brill buyable).
+    // Regenerated 2026-10-21: the Set 3 Sell Dwarves (Salezar Sails, Mark Eting, Valyou, Leeds) join the pool.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:5.13",
-        "fibbsy:30:4.20",
-        "gorr:30:4.07",
-        "harlan:30:5.20",
-        "midas:30:4.07",
-        "nadja:30:3.80",
-        "pete:30:4.53",
+        "drakko:30:5.20",
+        "fibbsy:30:4.10",
+        "gorr:30:4.13",
+        "harlan:30:4.77",
+        "midas:30:4.43",
+        "nadja:30:3.53",
+        "pete:30:4.83",
         "warden:30:5.00",
       ]
     `);

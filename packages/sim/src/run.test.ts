@@ -5917,7 +5917,7 @@ describe('Beast quests (combat objectives + rewards)', () => {
     expect(sellValueOf(f)).toBe(8); // 6 + 2
     // The printed golden text must state the doubled values (a fresh golden showed the 3g/1g base — owner
     // report 2026-07-16; behavior was already doubled, the display wasn't).
-    expect(CARD_INDEX['trailforager']!.goldenText).toBe('Sells for **6g**, plus **2g** for every Beast you play.');
+    expect(CARD_INDEX['trailforager']!.goldenText).toBe('**Sells** for **6g**, plus **2g** for every Beast you play.');
   });
 
   it('Feed the Alpha spell sells the target and feeds the right-most Beast', () => {

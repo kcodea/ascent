@@ -238,14 +238,58 @@ export function attackGrantImproveText(cardId: string, summonBonus: number, gold
  * be live is the COUNTDOWN: print how many more sales are owed rather than the bare "5 minions", which reads as
  * a fresh requirement whether you're 0 or 4 in.
  */
-export function soldProgressText(cardId: string, soldProgress: number): string | null {
+export function soldProgressText(cardId: string, soldProgress: number, golden = false): string | null {
   const def = CARD_INDEX[cardId];
   const eff = def?.effects.find((e) => e.do === 'minionSoldGrantSpell');
   if (!def || !eff) return null;
   const every = Math.max(1, Number((eff.params as { count?: number })?.count ?? 5));
   const left = every - (soldProgress % every);
   if (left === every) return null; // no progress yet — the printed threshold is already accurate
-  return def.text.replace(/\*\*\d+ minions\*\*/, `{{${left} more minion${left === 1 ? '' : 's'}}}`);
+  // Gilded reads its own printed text (Mark Eting, 2026-10-21: "get 2 random Shop Spells").
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\*\*\d+ minions\*\*/, `{{${left} more minion${left === 1 ? '' : 's'}}}`);
+}
+
+/**
+ * Valyou (set 3, owner 2026-10-21; `minionSoldBuffSelf` with an every-`count` Gold payout): "When you Sell a minion,
+ * gain +3/+3. Every 4 triggers also grants 2 Gold." The stats are per sale (printed value is live); what moves is
+ * the Gold countdown, so print the triggers still owed beside the threshold. `soldProgress` is stored REDUCED.
+ * Null with no progress (the printed threshold is accurate).
+ */
+export function sellGoldMeterText(cardId: string, golden: boolean, soldProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  // Keyed on the effect SHAPE (a sale watcher with a Gold payout), not the factory id: the rendered-text lane derives
+  // its subjects from id literals here, and Shift Broker shares the factory without the payout.
+  const eff = def?.effects.find((e) => e.on === 'minionSold' && Number((e.params as { gold?: number })?.gold ?? 0) > 0);
+  if (!def || !eff) return null;
+  const every = Math.max(1, Number((eff.params as { count?: number })?.count ?? 4));
+  const left = every - (soldProgress % every);
+  if (left === every) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/(\*\*\d+\*\* triggers)/, `$1 ({{${left} more}})`);
+}
+
+/**
+ * Leeds (set 3, owner 2026-10-21; `tribePlayedBuffTribeSellImproving` + the `minionSoldTally` meter): "When you play a
+ * Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions." The grant is base x (1 + floor(sold / every)) x
+ * golden, `soldProgress` being the LIFETIME sales tallied on this copy. Surface the CURRENT grant (green) in place of
+ * the printed one, and the sales still owed to the next step in place of "4 minions". Null before the first sale.
+ */
+export function sellImproveText(cardId: string, golden: boolean, soldProgress: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const eff = def?.effects.find((e) => e.do === 'tribePlayedBuffTribeSellImproving');
+  if (!def || !eff || soldProgress <= 0) return null;
+  const p = eff.params as { attack?: number; health?: number; sellEvery?: number };
+  const every = Math.max(1, Number(p?.sellEvery ?? 4));
+  const level = 1 + Math.floor(soldProgress / every);
+  const g = golden ? 2 : 1;
+  const a = Number(p?.attack ?? 2) * level * g, h = Number(p?.health ?? 2) * level * g;
+  const left = every - (soldProgress % every);
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  let done = false;
+  return src
+    .replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${a}/+${h}}}`)))
+    .replace(/\*\*\d+ minions\*\*/, `{{${left} more minion${left === 1 ? '' : 's'}}}`);
 }
 
 /**
@@ -1496,7 +1540,7 @@ export function spiritText(
       // The banked discount is the card's whole live value (owner 2026-09-12: "festival treasurer being active
       // should show the discounted price on spirits" — the coin shows it; the card says how much is banked).
       const off = p.spiritDiscount ?? 0;
-      return off > 0 ? `Whenever you **sell** a **Reveler**, your next Spirit costs **${g}** less this turn. ${live(`Next Spirit: −${off} Gold`)}` : null;
+      return off > 0 ? `Whenever you **Sell** a **Reveler**, your next Spirit costs **${g}** less this turn. ${live(`Next Spirit: −${off} Gold`)}` : null;
     }
     case 'sp3_forestcolossus': {
       // Owner handoff 2026-09-18: a base +3/+2 that improves by +3/+2 per Spirit played since this was played —

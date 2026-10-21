@@ -5670,8 +5670,42 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  2026-09-09). Board sells only, structurally: a card in hand cannot be sold. Golden doubles the grant. */
   minionSoldBuffSelf: (ctx, self, params) => {
     const a = num(params.attack, 1) * gold(self);
-    if (a <= 0 || !ctx.state.board.some((c) => c.uid === self.uid)) return;
-    addBuff(self, nameOf(self), a, 0);
+    const h = num(params.health, 0) * gold(self);
+    if ((a <= 0 && h <= 0) || !ctx.state.board.some((c) => c.uid === self.uid)) return;
+    addBuff(self, nameOf(self), a, h);
+    // VALYOU (set 3, owner 2026-10-21): "Every 4 triggers also grants 2 Gold." An optional every-`count` Gold payout
+    // on the same sale, counted per instance on `soldProgress` (Runic Archivist's meter: stored REDUCED, carries
+    // round to round). Gilded doubles the Gold as well as the stats (Keg Runner / Hoard Whelp convention).
+    const every = num(params.count, 0);
+    const goldAmt = num(params.gold, 0) * gold(self);
+    if (every > 0 && goldAmt > 0) {
+      const progress = (self.soldProgress ?? 0) + 1;
+      self.soldProgress = progress % every;
+      if (progress >= every) gainGold(ctx.state, goldAmt * Math.floor(progress / every));
+    }
+  },
+
+  /** LEEDS (set 3, owner 2026-10-21) — the sale half: count every minion you Sell while this is on the board. The
+   *  tally is per instance on `soldProgress`, stored UNREDUCED (a lifetime count, since the improve level is
+   *  `floor(sold / every)`); the shared sold meter and the live text read it `% count`. */
+  minionSoldTally: (ctx, self) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    self.soldProgress = (self.soldProgress ?? 0) + 1;
+  },
+
+  /** LEEDS (set 3, owner 2026-10-21): "When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4
+   *  minions." A board PLAY watcher (`onTribePlayed`: a real play, never a token summon; the dispatcher's
+   *  `defIsTribe` lets an All-types play count, and skips Leeds' own arrival). Every friendly `tribe` minion on the
+   *  board (All-types included, Leeds and the arriving Dwarf included, like Chef Gary Toast's "your Dwarves") gains
+   *  base x LEVEL, LEVEL = 1 + floor(sales tallied by `minionSoldTally` / `sellEvery`): the game's "Improves"
+   *  convention, where each step adds the base grant again (Aspect, Flowing Monk, Archmagus Guel). Gilded doubles
+   *  the base and so every step. A Shop buff, so permanent. */
+  tribePlayedBuffTribeSellImproving: (ctx, self, params) => {
+    if (!ctx.state.board.some((c) => c.uid === self.uid)) return;
+    const tribe = str(params.tribe) as Tribe;
+    const level = 1 + Math.floor((self.soldProgress ?? 0) / Math.max(1, num(params.sellEvery, 4)));
+    const a = num(params.attack, 2) * level * gold(self), h = num(params.health, 2) * level * gold(self);
+    for (const c of ctx.state.board) if (!tribe || isTribe(c, tribe)) addBuff(c, nameOf(self), a, h);
   },
 
   /** Striker (End of Turn): its two NEIGHBOURS (any tribe) gain +N Attack, then again once per card played this

@@ -260,6 +260,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:minionSoldGrantSpell:minionSold': { policy: 'ownBeat', family: 'economy' },
   'factory:minionSoldBuffSelf:minionSold': { policy: 'ownBeat', family: 'economy' }, // Shift Broker (set 3)
   'factory:minionSoldBuffRandomTribeOthers:minionSold': { policy: 'ownBeat', family: 'economy' }, // Hank Pepe (set 3, 2026-10-21)
+  'factory:minionSoldTally:minionSold': { policy: 'passive', family: 'economy' }, // Leeds (set 3, 2026-10-21): the improve meter, no visible change
+  'factory:tribePlayedBuffTribeSellImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' }, // Leeds (set 3, 2026-10-21)
+  'factory:battlecryBuffTribe:onSell': { policy: 'ownBeat', family: 'economy' }, // Salezar Sails (set 3, 2026-10-21): Sell, give your Dwarves +2/+3
   'factory:onAllyAttackBuffAll:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyAttackCastGrowth:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyTribeAttackBuffSelf:onAttack': { policy: 'ownBeat', family: 'rally' },

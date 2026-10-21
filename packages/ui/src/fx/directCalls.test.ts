@@ -196,6 +196,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'gild-trail',
       // 'good-luck-intro' joined on 2026-09-24: the spark burst of the game-start "Good Luck" intro (`goodLuck/GoodLuckIntro.tsx`).
       'good-luck-intro',
+      // 'ground-slam' joined on 2026-10-21: the Versus room's VS slam, on the entrance and when the second fighter sits
+      // (`versus/VersusRoom.tsx`).
+      'ground-slam',
       'hand-buff', 'hero-power-spark', 'hero-power-target',
       // 'immune-shield-*' joined on 2026-10-18: the immune-while-attacking shield's formation, deflect and dissipate
       // plays, fired from the lunge's wind-up / contact / settle anchors (`choreo/channels/immuneShield.ts`).

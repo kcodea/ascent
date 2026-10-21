@@ -77,6 +77,19 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The Versus room got a full makeover: a softer arena, the two fighters face off low and close, and joining a room now has a proper entrance.',
+        details: [
+          'Creating or joining a room puts you on the Spectators bench. Drag your card onto a seat to fight, and back to the bench to leave it.',
+          'The host wears a crown on their card, and Start game appears once both seats are filled.',
+          'Taking a seat lands your card with the same dust as playing a minion. Leaving a seat plays the sell coins and your card forms back in the hand.',
+          'Every card in the room shows its wins and losses in the same size of stat pill.',
+          'Hovering a card in the hand lifts it less far and a little smaller.',
+          'The room list is cleaner: each room is a card with its host, both seats, how many are watching, and Join or Watch.',
+          'The Versus tile turns its name red while a room is open.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'All-types minions such as Paragon and Standard Bearer now count as every type everywhere, including effects that give, summon or offer a minion of a type.',
         details: [
           'Effects that give or offer a random minion of a type can now give an All-types minion.',

@@ -9,6 +9,7 @@
  */
 import { memo, useMemo, type SyntheticEvent } from 'react';
 import { Card, type CardView } from '../Card';
+import { Icon } from '../Icon';
 import { CardPlateContext, cardPlateLookOf } from '../cardPlate/cardPlateLook';
 import { currentUserId } from '../identity';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
@@ -19,7 +20,7 @@ import type { VersusMember } from './versusRemote';
 
 const swallow = (e: SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); };
 
-export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, bench = false }: { m: VersusMember; server: SeatServerData | undefined; bench?: boolean }) {
+export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, bench = false, host = false }: { m: VersusMember; server: SeatServerData | undefined; bench?: boolean; host?: boolean }) {
   const own = m.userId === currentUserId();
   const showOpp = useGame((s) => s.showOpponentSkins);
   const myAvatar = useGame((s) => s.playerAvatar);
@@ -38,17 +39,22 @@ export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, benc
       <CardPlateContext.Provider value={plate}>
         <Card card={view} forceFull suppressPop plated />
       </CardPlateContext.Provider>
+      {/* THE HOST (owner 2026-10-21: "mark the host with a small crown ON the card's name plate"): the game's crown icon
+          in the plate's top slot, instead of a Host pill under the card. */}
+      {host && <span className="vshostmark" aria-label="Host"><Icon name="crown" /></span>}
     </div>
   );
 });
 
 /** The OPEN SEAT placeholder: the same plated card, on the standard plate, dimmed, with no art and no badges. */
 const EMPTY_VIEW: CardView = { name: 'Open seat', cardId: PLAYER_CARD_ID, tribe: 'neutral', attack: 0, health: 0, keywords: [], text: 'Waiting for a player' };
-export const VersusEmptySeatCard = memo(function VersusEmptySeatCard() {
+/** `hint` replaces the text when the viewer can take the seat (owner 2026-10-21: the empty seat says how to fight). */
+export const VersusEmptySeatCard = memo(function VersusEmptySeatCard({ hint, gone = false }: { hint?: string | undefined; gone?: boolean }) {
+  const view = useMemo(() => (hint ? { ...EMPTY_VIEW, text: hint } : EMPTY_VIEW), [hint]);
   return (
-    <div className="vspcard-hold vspcard-empty" onClickCapture={swallow} onContextMenuCapture={swallow} aria-hidden="true">
+    <div className={`vspcard-hold vspcard-empty${gone ? ' gone' : ''}`} onClickCapture={swallow} onContextMenuCapture={swallow} aria-hidden="true">
       <CardPlateContext.Provider value={null}>
-        <Card card={EMPTY_VIEW} forceFull suppressPop plated />
+        <Card card={view} forceFull suppressPop plated />
       </CardPlateContext.Provider>
     </div>
   );

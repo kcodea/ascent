@@ -213,9 +213,13 @@ describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', 
       expect(fan[0]!.querySelector('.badge.atk .value')?.textContent).toBe('12');
       expect(backend.rpcCalls).toBe(1); // seats + spectators in one read, no N+1
       expect(backend.lastArgs).toEqual({ p_users: ['me', 's1', 's2', 's3'] });
-      // An open seat is the dimmed placeholder card with Join (R-VERSUS-DRAG-SEAT-01: Join / Spectate are the buttons).
+      // An open seat is the recessed placeholder card (R-VERSUS-ROOM-POLISH-02). I am seated, so it offers no Join: it
+      // says it is waiting (a spectator would see the slot itself as the Join).
       expect(document.querySelector('.vspcard-p2 .vspcard-empty .card.plated')).not.toBeNull();
-      expect(document.querySelector('.vspcard-p2 .vstake')?.textContent).toBe('Join');
+      expect(document.querySelector('.vspcard-p2 .vstake')).toBeNull();
+      expect(document.querySelector('.vspcard-p2 .vspcard-empty')?.textContent).toContain('Waiting for an opponent');
+      // The host (me) wears the crown on my seat card; no Host pill under it.
+      expect(document.querySelector('.vspcard-p1 .vshostmark')).not.toBeNull();
     } finally { ui.unmount(); useVersus.setState({ room: null, screen: 'browser' } as never); }
   });
 

@@ -148,7 +148,9 @@ interface Mote { x: number; y: number; vx: number; vy: number; born: number; lif
 export type PlateDissolveOverrides = Partial<PlateDissolveConfig>;
 const paletteSprites = new Map<string, { core: HTMLCanvasElement; mid: HTMLCanvasElement }>();
 
-export function playPlateDissolve(screenRect: { left: number; top: number; width: number; height: number }, overrides?: PlateDissolveOverrides): void {
+/** `z`: the overlay's stacking level (default 114, just over the board's FX canvas). The Versus room, which sits over
+ *  the title at z480, passes its own so the dissolve plays over the room's cards. */
+export function playPlateDissolve(screenRect: { left: number; top: number; width: number; height: number }, overrides?: PlateDissolveOverrides, z = 114): void {
   if (typeof document === 'undefined') return;
   // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
   const rect = rectToStage(screenRect);
@@ -169,7 +171,7 @@ export function playPlateDissolve(screenRect: { left: number; top: number; width
   imp.style.cssText = [
     'position:fixed', `left:${rect.left}px`, `top:${rect.top}px`,
     `width:${rect.width}px`, `height:${rect.height}px`,
-    'pointer-events:none', 'z-index:114', 'opacity:0',
+    'pointer-events:none', `z-index:${z}`, 'opacity:0',
     `background:${arcaneGradient(c.cDeep, c.cMid, c.cCore, c.grad)}`,
     `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
@@ -184,7 +186,7 @@ export function playPlateDissolve(screenRect: { left: number; top: number; width
   cv.width = cw; cv.height = ch;
   cv.style.cssText = [
     'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
-    `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', 'z-index:114',
+    `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', `z-index:${z}`,
   ].join(';');
   stageHost().appendChild(cv);
   const ctx = cv.getContext('2d');

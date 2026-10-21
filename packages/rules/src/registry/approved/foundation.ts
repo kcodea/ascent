@@ -6509,6 +6509,162 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatCard.test.tsx'], lastVerifiedAt: '2026-10-20' },
   },
   {
+    id: 'R-VERSUS-ROOM-PILLS-01',
+    title: 'Every Versus room card wears the in-game stat pills at the same proportion, in every state',
+    statement:
+      'A room card (a seated player, a hand card at rest, a hand card lifted on hover, the drag ghost) shows the in-game minion Attack / Health pills scaled with the card itself (`scale: var(--vspcard-k)` about the card corner), so the pill to card proportion is the in-game one everywhere. No room card carries its own pill size.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish)', quote: 'look at the damage pills in versus - make them uniform size.' },
+    ],
+    currentBehaviour: 'Before, the seat card scaled its pills x1.45 while a hand card kept the unscaled 60px pill, so a lifted hand card showed pills about 1.7x bigger relative to the card than the same player seated.',
+    example: 'Hover a spectator card: its pills are the same size relative to the card as the seated cards.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-HAND-01',
+    title: 'A player who creates or joins a Versus room arrives in the hand',
+    statement:
+      'Creating a room steps the creator down from the seat the server gives them to the stands before the room shows (they stay the host); a join from the room list is a spectator join, and only falls back to a free seat when the stands are full. A seat is then one drag (or Join) away.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish)', quote: 'when a player joins/creates a room, by default put them in the hand.' },
+    ],
+    currentBehaviour: 'Before, the creator was seated as player 1 and the list\'s Join took a seat.',
+    example: 'Create a room: your card is in the hand at the bottom, both seats open.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-SELL-01',
+    title: 'A card leaving a Versus seat for the hand plays the shop sale, then forms back in the hand',
+    statement:
+      'When any member goes from a seat to the stands (a drag up or onto the hand, the Spectate button, or another client\'s move over Realtime), every client plays the authored `coin` def where the card left the seat (my own drop: where I let go) with the sell sound, then the hand card forms in place with the plate coalesce. A refused move is a rollback and plays nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish)', quote: 'when a player sells their card from a seat, show the coins animation and then have the card coalesce back \'in hand.\'' },
+    ],
+    currentBehaviour: 'Before, the card glided back to the hand with no sale presentation.',
+    example: 'Drag your seated card down to the hand: coins burst at the seat, then your card forms in the hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-PLAY-01',
+    title: 'A card taking a Versus seat lands like a minion played to the board',
+    statement:
+      'When any member moves into a seat, the card glides home and, as it settles, every client plays the authored `landing-dust` def at the card (sized to it, +50% dense, as the shop\'s own landing) with the play sound. My own drop already played the sound on release.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish)', quote: 'play the dust animation/settle just like it is in game when a player plays their card in a seat.' },
+    ],
+    currentBehaviour: 'Before, the card glided into the seat silently with no landing.',
+    example: 'Drag your hand card onto an open seat: it lands with the board\'s landing dust and thump.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-ENTER-01',
+    title: 'Entering a Versus room plays a short, skippable entrance',
+    statement:
+      'Opening a room plays one beat of about 1.2 s: the room opens out of the dark, the backdrop settles from a push-in, the two seats stride in from their sides, the VS mark slams down with the authored `ground-slam` def and the gate\'s open cue, the hand rises card by card and the chrome fades in. One-shot transform / opacity keyframes only; any click or key finishes it at once; reduced motion skips it. Members joining later form in place (plate coalesce) and members leaving burn off (plate dissolve).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish)', quote: 'i also want entering a versus lobby to be more exciting/feel like you\'re entering a lobby.' },
+    ],
+    currentBehaviour: 'Before, the room appeared in one frame.',
+    example: 'Join a room: the fighters stride in, VS slams, the hand rises; click to skip.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-POLISH-01',
+    title: 'The Versus room stage: a blurred static backdrop, low close seats, a lower smaller hand pop, one line of status',
+    statement:
+      'The room\'s backdrop is a pre-blurred copy of the arena (a static image, never a live blur) under a static grade. The seats sit low and close across the VS mark, with one action area under them (R-VERSUS-ROOM-POLISH-02); the heading plate names the room, its host and the watchers. A hovered hand card rises one card width (half the old rise) and grows to 90% of the seat card\'s size, its grab pad re-derived over it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish)', quote: 'blur the background and improve the UI dramatically. this is a 1.5/10, i need an 8/10 minimum here.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (hand pop tweak)', quote: 'make the hand pop 50% lower for a spectator mousing over their card, and 10% smaller' },
+    ],
+    currentBehaviour: 'Before, a crisp busy arena, seats high and far apart, Host / Player / Open seat / Spectators pills, and the hand pop rose two card widths to x2.3.',
+    example: 'Open a room: the cards read first against a soft arena, with the hand at the bottom.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx', 'packages/ui/src/versus/versusRoomGeometry.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-POLISH-02',
+    title: 'The Versus room has a header plate, a crowned host and recessed open seats',
+    statement:
+      'The header is a plate at the top centre with the room name and "Hosted by <name>", level with Back and fully on screen. The host wears the crown icon in their card\'s top slot (seat or hand); there is no Host pill. An open seat is a recessed slot of the seat card\'s footprint (the plate drawn only along its wireframe, dim) whose text is the only waiting cue: "Drag your card here" for someone in the stands, "Waiting for an opponent" for a seated player. When the second fighter sits, the VS slams once (one-shot) with the ground slam. The open-seat card stays mounted under a seated card, so it fades out as a card lands and fades back in (about 250 ms, opacity and a slight scale) as the seat empties, never snapping.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish, round 2)', quote: 'the versus ui still looks unfinished and cluttered/gross. can you please find ways to polish this further?' },
+    ],
+    currentBehaviour: 'Before, three rows of floating controls (HOST pill, a greyed Start game with a caption, Join and Add bot under the open seat), a small clipped title, and a detailed stone open seat that competed with the real card.',
+    example: 'Two fighters sit: the VS slams and the host sees one gold-edged Start game with Spectate beside it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx', 'packages/ui/src/versus/seatDrag.test.tsx', 'packages/ui/src/versus/versusSeatCard.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-POLISH-03',
+    title: 'Versus seats are taken and left only by dragging; Start game arrives only with two fighters; nothing moves under the cursor',
+    statement:
+      'There is no Join, Spectate or waiting pill in the room: a seat is taken by dragging your card onto it and left by dragging it back to the hand. The action area under the VS is empty until both seats are filled; then the host\'s Start game (everyone else: "Host starts the match", in the same place) fades in and floats up (about 250 ms, transform and opacity); if a seat empties it fades and sinks away. Add bot (test tools) shows only to the host, only on an empty seat, at one fixed place under the seat\'s footprint, and no room control moves on hover or press.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room polish, round 3)', quote: 'Joining stays by dragging your card into a seat; leaving a seat stays by dragging back to the hand.' },
+    ],
+    currentBehaviour: 'Before, "Waiting for two fighters" / "Waiting for an opponent" pills, Join buttons inside the empty seats and a Spectate button; Add bot moved with the layout and its plate nudged on hover.',
+    example: 'The second player drags into a seat: Start game rises into place for the host.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx', 'packages/ui/src/versus/seatDrag.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-ROOM-STANDS-01',
+    title: 'The Versus spectators sit on a bench along the bottom',
+    statement:
+      'The hand of spectator cards rests inside a panel band along the bottom (the menu panel\'s navy) as wide as the fan plus a margin, whose top fades in from transparent instead of a hard edge and whose ends fade out, with an inner shadow; a quiet "Spectators n / 20" name pill sits centred just above the cards. It is static, takes no pointer, and never clips the cards or the hand\'s hover pads. No card carries a "You" marker.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench)', quote: "add a bench/hand area in the bottom so it's slightly more obvious that players in the 'hand' are spectators" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench edge)', quote: "fade the box up a bit so it's less of a hard line" },
+    ],
+    currentBehaviour: 'Before, the spectator hand floated on the arena floor with nothing marking it as the stands.',
+    example: 'Join a room: your card sits on the Spectators bench at the bottom until you drag it into a seat.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-BROWSER-01',
+    title: 'The Versus room list is a clean panel of room cards with Create room as the call to action',
+    statement:
+      'The room browser is one panel sized to its content: Create room with its name field built in (prefilled "<name>\'s room"), then each room as a card with the host\'s portrait ring and name, the two seats as filled or empty sockets, a status pill, the watchers with the eye icon, and Join (open) or Watch (running). The list refreshes itself, so there is no Refresh button; no rooms shows one line, "No rooms open. Create one and invite a friend."',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room list)', quote: 'improve the versus lobby viewer so it looks modernized and clean. this looks like a 1999 menu' },
+    ],
+    currentBehaviour: 'Before, a big empty panel of plain-text rows with a Refresh button.',
+    example: 'Open Versus: a room shows as a card with its host and two seat sockets, Join on the right.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-VERSUS-OPEN-PLATE-01',
+    title: 'The Versus tile\'s name plate turns red while a room is open',
+    statement:
+      'While at least one Versus room is open, the Mode screen\'s Versus tile name plate takes the red of the "N open" chip (both pill looks), next to the existing "N open" chip; at 0 it goes back to the normal plate. Static colour, no loop.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus tile)', quote: 'just go back to X open, but also make the Versus pill red if there\'s a room open so it\'s more obvious' },
+    ],
+    currentBehaviour: 'Before, only the small "N open" chip and the tile glow marked an open room.',
+    example: 'Someone opens a room: the Versus plate on the tile turns red.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx', 'packages/ui/src/versus/versusOpenRooms.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
     id: 'R-LOBBY-SERVE-01',
     title: 'A resumed lobby serves every seat exactly the boards it was serving, whatever the new session\'s pool holds',
     statement:

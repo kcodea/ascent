@@ -16,7 +16,7 @@ const rule = (sel: string): string => {
   if (!m) throw new Error(`no rule ${sel}`);
   return m[2]!;
 };
-const OVERLAYS = ['.vspcard', '.vspcard-p1', '.vspcard-p2', '.vsseatlabel', '.vsseatlabel-p1', '.vsseatlabel-p2', '.vsgatebox', '.vsgatebox-p1', '.vsgatebox-p2', '.vscenter', '.vsmark', '.vsbench'];
+const OVERLAYS = ['.vspcard', '.vspcard-p1', '.vspcard-p2', '.vsgatebox', '.vsgatebox-p1', '.vsgatebox-p2', '.vsactions', '.vsmark', '.vsbench'];
 const PAINT_W = 2560;
 const PAINT_H = 1086;
 

@@ -53,7 +53,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'tendril-trail-spirit': ['buffFxRender.ts'],
   // The owner-authored Undead Aura surge (2026-09-16): every rise of the run-wide Undead Aura, both phases.
   'undead-aura-buff': ['Recruit.tsx', 'useCombatReplay.ts'],
-  coin: ['Recruit.tsx'],
+  // The Versus room's sale (R-VERSUS-ROOM-SELL-01): the shop's coins where a card left its seat.
+  coin: ['Recruit.tsx', 'versus/useSeatDrag.tsx'],
   coins: ['useCombatReplay.ts'],
   'consume-pull': ['Recruit.tsx'],
   // Recruit.tsx dropped off on 2026-08-25: the defeat BOLT that played this on the Resolve bar was replaced
@@ -70,6 +71,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // five seconds, with the turntick sound; fired from `ShopTimer` in Recruit, building in intensity toward ONE.
   'final-countdown-tick': ['Recruit.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
+  // The Versus room's VS slam (R-VERSUS-ROOM-ENTER-01): the entrance and the face-off beat, under the VS mark.
+  'ground-slam': ['versus/VersusRoom.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,
   // from where it stood into the new gilded card — the poof, the arc and the landing are all this one def.
   // The Ancients PICK (2026-09-27, owner: "collapse it into the same pixi style effect we use for when the player gets
@@ -93,7 +96,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'immune-shield-deflect': ['choreo/channels/immuneShield.ts'],
   'immune-shield-dissipate': ['choreo/channels/immuneShield.ts'],
   'immune-shield-form': ['choreo/channels/immuneShield.ts'],
-  'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts'],
+  'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts', 'versus/useSeatDrag.tsx'],
   // THE LOBBY KNOCKOUT (owner ask 2026-10-02): a soft smoke veil (and a few motes) over a rail seat's row as the player is knocked out.
   'lobby-knockout': ['lobbyKnockoutFx.ts'],
   // THE LASSO (owner-authored 2026-09-22): stealing a Shop minion throws a rope at it — from the spell's drop

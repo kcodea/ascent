@@ -881,7 +881,7 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     it('Esc leaves the shop for the Collection', () => {
       open({ aether: 1200 }, { aether: true });
       openShop();
-      act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+      act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
       expect($('.cshop')).toBeNull();
       expect($('.colls-body')).not.toBeNull();
     });

@@ -6467,6 +6467,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/seatDrag.test.tsx', 'packages/ui/src/versus/versusSeatCard.test.tsx'], lastVerifiedAt: '2026-10-17' },
   },
   {
+    id: 'R-VERSUS-HAND-HOVER-01',
+    title: 'The Versus room spectator hand pops a card on hover without flickering, and the popped card stays grabbable',
+    statement:
+      'The hover of a spectator card in the room is decided by still, transparent hit pads, never by the card that pops: the card and its lift live on an element that takes no pointer. Each card has its strip of the fan (its plate width, or the fan pitch once the cards overlap) reaching down past the stage edge; while hovered the strip is a little wider (a dead band between neighbours) and a pad covers the popped card above the fan, so the hand can move up onto it and grab it. Sweeping across the fan pops each card once; a resting hand never flickers. While a seat drag is live the pads take no pointer.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-20 (Versus and spectating polish)', quote: 'the hand/spectator area can allow for really janky pop previews similar to our old hand related bugs. make it easier to grab and not pop in/out a million times in certain spots' },
+    ],
+    currentBehaviour: 'Before, the hovered card itself rose two card widths and scaled up from its foot, so a hand on the lower half of a resting card was no longer over it: it dropped, re-hovered and popped again every frame (100 to 128 hover changes in one slow sweep across six cards).',
+    example: 'Rest the hand on the lower half of a spectator card: it pops once and stays up; slide sideways and each neighbour pops in turn; move up onto the big card and press to drag it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatCard.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
     id: 'R-LOBBY-SERVE-01',
     title: 'A resumed lobby serves every seat exactly the boards it was serving, whatever the new session\'s pool holds',
     statement:

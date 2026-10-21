@@ -5,7 +5,7 @@
  * Everything on it is the game's own pieces: each seated player is a real game card (VersusPlayerCard, blue side left,
  * red side right) with HOST / the seat on the Gem-plate pill under it, an Open seat is the same card dimmed with Take
  * seat over it, the VS mark between them, the status line, and the spectators as a hand-style fan of small player cards
- * along the bottom (hover lifts one to full size, transform only). The room controls are on the Gem plate. Nothing here
+ * along the bottom (hover lifts one to full size, transform only, decided by still hit pads so it never flickers). The room controls are on the Gem plate. Nothing here
  * draws a frame, a bench or an emblem (no code-drawn props); the VS mark is display-font text until it has art.
  *
  * Geometry: the arena box keeps the painting's aspect (2560x1086) at the stage's full height and is centred, so the
@@ -101,7 +101,17 @@ function SpectatorFan({ spectators, data, room, me, drag, arena }: { spectators:
       {spectators.map((m, i) => (
         <div key={m.userId} className={`vsbcard${dragClass(m, room, me, drag)}`} style={{ '--i': i, '--off': i - (n - 1) / 2 } as CSSProperties}
           onPointerDown={canDragSeatCard(room, me, m.userId) ? (e) => beginSeatDrag(e, m.userId, arena.current) : undefined}>
-          <VersusPlayerCard m={m} server={data.get(m.userId)} bench />
+          {/* THE HOVER IS DECIDED BY STILL PADS, NEVER BY THE MOVING CARD (owner 2026-10-20, R-VERSUS-HAND-HOVER-01): the
+              card's lift is drawn on `.vsbcard-lift`, which never takes the pointer, so popping up cannot move the card
+              out from under the hand that popped it. `hit` is the card's strip of the fan; `band` widens it a little
+              while hovered (a boundary never flickers between two neighbours); `up` covers the popped card above the
+              fan only while it is up, so the hand can travel onto it and grab it. */}
+          <span className="vsbcard-hit" aria-hidden="true" />
+          <span className="vsbcard-band" aria-hidden="true" />
+          <span className="vsbcard-hitup" aria-hidden="true" />
+          <div className="vsbcard-lift">
+            <VersusPlayerCard m={m} server={data.get(m.userId)} bench />
+          </div>
         </div>
       ))}
     </div>

@@ -980,7 +980,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   (the deny buzz, it springs back). The buttons do the same: **Join** on an empty seat, **Spectate** under the room.
   Both go through the same seat request; the move shows at once and goes back with a short message if the server
   refuses (someone took the seat first). Every client sees a member's card move between the hand and the seats.
-  Moving to the stands keeps the host the host. The spectator hand rests low, like the in-game hand.
+  Moving to the stands keeps the host the host. The spectator hand rests low, like the in-game hand. Hovering a card
+  in it pops that card up once and keeps it up while the hand is on it or on the popped card (it never flickers), so
+  the popped card can be grabbed (R-VERSUS-HAND-HOVER-01).
 - **Open rooms on the menus** (owner 2026-10-17, R-VERSUS-OPEN-ROOMS-01). While a room is Open that the player could
   join (a member seen in the last 2 minutes, the player's version, not the player's own room), the Mode screen's Versus
   tile glows with "N open" and Play (title and side menu) carries a count badge; the hover reads "N Versus rooms open".

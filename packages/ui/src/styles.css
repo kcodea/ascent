@@ -526,6 +526,10 @@ body.wipe-up .cardref, body.wipe-up .castprev-layer { visibility: hidden !import
 body.wipe-up .gtip[data-tip]::after { visibility: hidden !important; }
 body.wipe-up .lobbydmg-float { z-index: 240; }
 body.wipe-up .fxflash { z-index: 2990; }
+/* GATE TRANSITION TEST (owner 2026-10-21, Recruit `GATE_WIPE_TEST`): when the ranked gate's doors stand in for the
+   curtain they take its place on the ladder, above every in-game layer (the gate's own z700 is under a few). */
+body.wipe-up .rgate { z-index: 2995; }
+body.wipe-up .gatefx-canvas { z-index: 2996; }
 body.wipe-up .escov, body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
 body.wipe-up .disc-toggle.disc-peek.inspect-act { z-index: 3101; }
 body.wipe-up .replay-cursor { z-index: 3135; }

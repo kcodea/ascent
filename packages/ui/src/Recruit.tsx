@@ -265,6 +265,9 @@ const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ 
  *  multi-cast Golden Ruby pays several times in one action. */
 const GOLDEN_RUBY_COIN_DELAY_MS = 180;
 const GOLDEN_RUBY_COIN_GAP_MS = 220;
+/** GATE TRANSITION TEST (owner 2026-10-21): true = the ranked gate doors cover the shop <-> combat swap instead of the
+ *  blue curtain (see `playGateWipe`). A throwaway experiment on `test/gate-transition`; flip to false to compare. */
+const GATE_WIPE_TEST: boolean = true;
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
  *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
@@ -2363,9 +2366,25 @@ export function Recruit() {
     // has no other loader, and a first-exit pop-in on the blue would read as a blip).
     new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
   }, []);
+  // GATE TRANSITION TEST (owner 2026-10-21: "would you be willing to test putting the gate transition in instead of
+  // the transition curtain as a test? we may undo it"). While true, the ranked gate's doors (the `end` variant) cover
+  // the shop <-> combat swap instead of the blue curtain: the doors shut, the scene swaps behind them (the same
+  // covered states the curtain uses), and the machine resumes once they have opened. The curtain is not rendered.
+  const gateWipeRef = useRef(false);
+  const wipeNowRef = useRef(wipe);
+  wipeNowRef.current = wipe;
+  const playGateWipe = useCallback((cover: 'coverIn' | 'coverOut'): void => {
+    gateWipeRef.current = true;
+    setWipe(cover);
+    void requestRankedGate(() => setWipe(cover === 'coverIn' ? 'coveredIn' : 'coveredOut'), 'end').then(() => {
+      gateWipeRef.current = false;
+      setWipe(cover === 'coverIn' ? 'combat' : 'idle');
+    });
+  }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
+    if (gateWipeRef.current) return; // gate test: the doors bring their own FX
     if (!o) return;
     const c = getScreenWipeConfig();
     const ease: [number, number, number, number] = [c.easeX1, c.easeY1, c.easeX2, c.easeY2];
@@ -2380,6 +2399,7 @@ export function Recruit() {
   }, []);
   // Hold timers (the beat at full blue) + the sweep backstop live in one effect keyed on the state.
   useEffect(() => {
+    if (gateWipeRef.current) return undefined; // gate test: the doors' own clock drives the states
     if (wipe === 'coveredIn' || wipe === 'coveredOut') {
       const t = window.setTimeout(() => setWipe(afterBeat(wipe)), wipe === 'coveredIn' ? getScreenWipeConfig().holdInMs : getScreenWipeConfig().holdOutMs);
       return () => window.clearTimeout(t);
@@ -2400,6 +2420,10 @@ export function Recruit() {
     // "returning to shop" announcement (owner ask 2026-08-28). Snap the machine home; the end screen
     // covers the scene itself.
     if (!inCombat && run.phase !== 'recruit') { setWipe('idle'); return; }
+    if (GATE_WIPE_TEST && inCombat && !gateWipeRef.current) {
+      const w = wipeNowRef.current;
+      if (w === 'idle' || w === 'primeOut' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut') { playGateWipe('coverIn'); return; }
+    }
     if (inCombat) setWipe((w) => (w === 'idle' || w === 'primeOut' || w === 'coverOut' || w === 'coveredOut' || w === 'revealOut' ? 'chargeIn' : w));
     else setWipe((w) => (w === 'combat' || w === 'chargeIn' || w === 'coverIn' || w === 'coveredIn' || w === 'revealIn' ? 'primeOut' : w));
     // (The wipe once fired a Pixi streak def here — retired 2026-08-28 when the curtain moved ABOVE the FX
@@ -3261,8 +3285,9 @@ export function Recruit() {
         }
       }
     }
+    if (GATE_WIPE_TEST) { playGateWipe('coverOut'); return; } // gate test: the doors cover the exit
     setWipe('primeOut'); // one parked-circle frame, then the exit bloom (see the wipe hold effect)
-  }, [sandboxReplay, spectating]);
+  }, [sandboxReplay, spectating, playGateWipe]);
   // A SPECTATOR (owner 2026-10-15: every animation the player gets): the watched player's End Combat runs this SAME
   // exit (the curtain), cued by the watch screen (versus/spectate.ts), whose shop swap waits for its full cover.
   const watchScreen = useSpectate((s) => s.active);
@@ -8119,7 +8144,7 @@ export function Recruit() {
           canvases and floats included (owner 2026-10-19; see `.wipecurtain` in styles.css and
           curtainLadder.test.ts); only the wipe FX canvas rides on it. The curtain's clip-path transition is the
           sanctioned one-shot kind. */}
-      {createPortal(<>
+      {!GATE_WIPE_TEST && createPortal(<>
       <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it

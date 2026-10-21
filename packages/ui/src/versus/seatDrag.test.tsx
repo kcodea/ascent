@@ -203,11 +203,11 @@ describe('dragging in the room (R-VERSUS-DRAG-SEAT-01)', () => {
       drag(document.querySelector('.vsbcard.vsdraggable')!, 450, 600, 200, 200);
       // Optimistic: my card is in the seat the moment I drop it, before the server answers.
       expect(shownRole()).toBe('p1');
-      expect(document.querySelector('.vspcard-p1 [data-versus-card="me"]')).not.toBeNull();
+      expect(document.querySelector('.vsmcard-p1 [data-versus-card="me"]')).not.toBeNull();
       await act(async () => { refuse(new VersusError('seat_taken')); await new Promise((r) => setTimeout(r, 0)); });
       // Rolled back: back in the hand, the seat empty for me, and the reason shown.
       expect(shownRole()).toBe('spectator');
-      expect(document.querySelector('.vsbench [data-versus-card="me"]')).not.toBeNull();
+      expect(document.querySelector('.vsbcard [data-versus-card="me"]')).not.toBeNull();
       expect(useVersus.getState().error).toBe('That seat was just taken.');
       expect(document.querySelector('.vsroomerror')?.textContent).toBe('That seat was just taken.');
     } finally { ui.unmount(); }

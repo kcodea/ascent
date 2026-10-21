@@ -68,7 +68,14 @@
 .vsarena-ext { position: absolute; inset: -3%; background: var(--vs-arena) center / cover no-repeat; pointer-events: none; }
 .vsarena { position: absolute; top: var(--bar-y, 0px); height: var(--gh, 100%); aspect-ratio: 2560 / 1086;
   /* Explicit centring (no -50% translate): the box is exactly --gh x (--gh * 2560 / 1086), centred on the stage. */
-  --_vs-w: calc(var(--gh, 100%) * 2560 / 1086); width: var(--_vs-w); left: calc(50% - var(--_vs-w) / 2); }
+  --_vs-w: calc(var(--gh, 100%) * 2560 / 1086); width: var(--_vs-w); left: calc(50% - var(--_vs-w) / 2);
+  /* THE ROOM CARD SIZES (R-VERSUS-ROOM-MOUNTED-01): every room card is drawn at the seat size (x1.6 of a board card);
+     a hand card is the same card scaled by `--vsb-s` (x0.72 / x1.6) through its transform. */
+  --vs-seat-k: 1.6;
+  --vsb-k: 0.72;
+  --vsb-s: calc(var(--vsb-k) / var(--vs-seat-k));
+  --vsb-ccw: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vsb-k) * 0.752 * 0.85);
+  --vsb-zoom: 2; }
 /* THE GRADE: a static vignette over the backdrop (gradients only, no blur, no animation). It dims the busy arena so
    the cards read first, keeps a soft pool of light on the two seats, and darkens the floor the hand rests on. */
 .vsvignette { position: absolute; inset: 0; pointer-events: none;
@@ -86,7 +93,7 @@
 .vspcard-p2 { left: 53.6%; }
 .vspcard > .vspcard-hold { position: absolute; left: 50%; top: 11.4%; translate: -50% 0; }
 .vspcard-hold {
-  --vspcard-k: 1.6;
+  --vspcard-k: var(--vs-seat-k, 1.6);
   --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vspcard-k)); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85);
   --plate-k: var(--vspcard-k);
   position: relative; display: grid; place-items: center;
@@ -162,20 +169,22 @@
    cut off (owner 2026-10-20, R-VERSUS-HAND-HOVER-01): every resting card shows whole, plate included, at any count up
    to 20. */
 .vsbench { position: absolute; top: 75.5%; height: 24.5%; left: 28%; width: 44%; z-index: 5; pointer-events: none;
-  --vsb-k: 0.72;
-  --vsb-ccw: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vsb-k) * 0.752 * 0.85);
   --vsb-bw: calc(var(--vsb-ccw) * 1.5);
   --vsb-fanw: calc(var(--gh, var(--lvh, 100%)) * 2560 / 1086 * 0.44);
-  --vsb-step: min(calc(var(--vsb-bw) * 0.9), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1)));
-  --vsb-tilt: 0deg; /* flat like the shop hand (R-VERSUS-ROOM-STANDS-01) */
-  --vsb-arc: 0px; /* one baseline, no arc (R-VERSUS-ROOM-STANDS-01) */
-  --vsb-zoom: 2; }
+  --vsb-step: min(calc(var(--vsb-bw) * 0.9), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1))); }
 /* THE BENCH AS A HAND (owner 2026-10-21: "versus spectator area looks terrible. clean that up", R-VERSUS-ROOM-STANDS-01).
    No box: the panel band behind the fan is gone (it read as a muddy rectangle with dead space round one card). The
    spectators read as a HAND the way the shop's does: a flat row at one baseline (no tilt, no arc, `.row.hand`'s
    `--fan-rot: 0deg`), each card a little over its neighbour, every plate on the shop hand's own static drop shadow.
    The quiet "Spectators n / 20" pill is centred on the fan just above the cards. Static paint only. */
-.vsbench .vsbcard-lift .cardplate { filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
+/* A hand card's pills exactly where a hand-sized card wore them (R-VERSUS-ROOM-MOUNTED-01, measured against #2197). The
+   badge BOX scales with the card, but its scale origin (8px / 52px, 48px) and the pill art inside it are fixed px, so
+   the seat card scaled by s = `--vsb-s` would seat each pill off by (1 - s) * (origin - k * half the box) hand px.
+   This puts it back, in the card's own units (/ s); `%` is of the badge's own box. A class switch on a move: no
+   layout, two badges restyle. */
+.vsbcard .vspcard-hold .card .badge.atk { translate: calc((1 - var(--vsb-s)) / var(--vsb-s) * (8px - var(--vsb-k) * 50%)) calc((1 - var(--vsb-s)) / var(--vsb-s) * (48px - var(--vsb-k) * 50%)); }
+.vsbcard .vspcard-hold .card .badge.hp { translate: calc((1 - var(--vsb-s)) / var(--vsb-s) * (52px - var(--vsb-k) * 50%)) calc((1 - var(--vsb-s)) / var(--vsb-s) * (48px - var(--vsb-k) * 50%)); }
+.vsbcard .vsbcard-lift .cardplate { filter: drop-shadow(0 calc(9 * var(--u) / var(--vsb-s)) calc(20 * var(--u) / var(--vsb-s)) rgba(20, 12, 4, 0.42)); }
 .vsstands-label { position: absolute; z-index: 45; pointer-events: none; left: 50%; top: calc(-32 * var(--u)); translate: -50% 0;
   display: inline-flex; align-items: center; gap: calc(8 * var(--u));
   height: calc(24 * var(--u)); box-sizing: border-box; padding: 0 calc(13 * var(--u)); border-radius: 999px; white-space: nowrap;
@@ -183,7 +192,23 @@
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); opacity: 0.92; }
 :root[data-hp-look="gem"] .vsstands-label.hudpill-name { color: var(--ui-title); }
 .vsstands-count { letter-spacing: 0.04em; opacity: 0.7; }
-.vsbcard { position: absolute; top: 10%; left: calc(50% + var(--off) * var(--vsb-step)); translate: -50% 0; pointer-events: none; z-index: calc(10 + var(--i)); }
+/* THE HAND'S SLOTS: one still anchor per spectator, where the shop hand would put that card (its top centre, flat, one
+   baseline: R-VERSUS-ROOM-STANDS-01); its width is the fan's pitch. `useRoomCards` reads them once per seating change. */
+.vsbslot { position: absolute; top: 10%; left: calc(50% + var(--off) * var(--vsb-step)); width: var(--vsb-step); height: 0; pointer-events: none; }
+/* ONE CARD PER MEMBER (owner 2026-10-21, R-VERSUS-ROOM-MOUNTED-01): every member's card stays mounted in this layer for
+   the life of the room. `useRoomCards` places it with ONE transform (origin top-left): a seat at x1, a hand slot at
+   `--vsb-s`. A move between a seat and the hand is that transform changing, never a remount or a layout. `--vsz` is a
+   registered, non-inherited stacking order (written per card, it restyles that one element only). */
+@property --vsz { syntax: '<integer>'; inherits: false; initial-value: 10; }
+.vscards { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.vsmcard { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; z-index: var(--vsz); }
+.vsmcard-in { position: relative; }
+.vsbpads { position: absolute; inset: 0; pointer-events: none; }
+/* A seated card has no hand pads, and takes no pointer itself: the open-seat card under it (same box, always
+   mounted, a real `.card`, so the same gauntlet cursor) takes the hover and hands the press to the seat's drag. So a
+   move flips nothing inherited on the card's own subtree. */
+.vsmcard-seat .vsbpads { visibility: hidden; }
+.vsbcard { pointer-events: none; }
 /* THE HAND'S HOVER (owner 2026-10-20: "the hand/spectator area can allow for really janky pop previews ... make it easier
    to grab and not pop in/out a million times in certain spots"; R-VERSUS-HAND-HOVER-01). The pop used to move the very
    element that was hovered, so a hand on the lower half of a resting card was no longer over it, the card dropped back
@@ -199,18 +224,18 @@
    The popped box follows the lift below (1 card width up, `--vsb-zoom` from the foot) in % of the slot (the card box):
    change one and re-derive the other. HALF THE RISE AND 10% SMALLER (owner 2026-10-21: "make the hand pop 50% lower
    ... and 10% smaller"): one card width up (was two) at x2 (was the seat size, x2.22), so the pad's top is -255% (the plate's crest included). */
-.vsbcard-lift { transform-origin: 50% 100%; transform: translateY(calc(var(--off) * var(--off) * var(--vsb-arc))) rotate(calc(var(--off) * var(--vsb-tilt)));
-  transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1); pointer-events: none; }
+/* The card is drawn at the seat size and scaled by `--vsb-s`, so its lengths here are the hand's divided by `--vsb-s`
+   (the fan's pitch arrives as `--vsb-stepl`, already in the card's own units, written per card by `useRoomCards`). */
+.vsbcard-lift { transform-origin: 50% 100%; transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1); pointer-events: none; }
 .vsbcard:hover { z-index: 60; }
-.vsbcard:hover .vsbcard-lift { transform: translateY(calc(-1 * var(--vsb-ccw))) scale(var(--vsb-zoom)); }
-.vsbcard-hit, .vsbcard-band { position: absolute; top: -30%; bottom: -160%; left: 50%; translate: -50% 0; width: min(152%, var(--vsb-step)); pointer-events: auto; }
-.vsbcard-band { width: calc(min(152%, var(--vsb-step)) + 0.24 * var(--vsb-ccw)); pointer-events: none; }
+.vsbcard:hover .vsbcard-lift { transform: translateY(calc(-1 * var(--vsb-ccw) / var(--vsb-s))) scale(var(--vsb-zoom)); }
+.vsbcard-hit, .vsbcard-band { position: absolute; top: -30%; bottom: -160%; left: 50%; translate: -50% 0; width: min(152%, var(--vsb-stepl, 152%)); pointer-events: auto; }
+.vsbcard-band { width: calc(min(152%, var(--vsb-stepl, 152%)) + 0.24 * var(--vsb-ccw) / var(--vsb-s)); pointer-events: none; }
 .vsbcard:hover .vsbcard-band { pointer-events: auto; }
 .vsbcard-hitup { position: absolute; top: -255%; bottom: 120%; left: -125%; right: -125%; pointer-events: none; }
 .vsbcard:hover .vsbcard-hitup { pointer-events: auto; }
 /* A drag in progress owns the pointer: nothing in the hand pops under the flying card. */
-.vsbench:has(.vsdragsrc) :is(.vsbcard-hit, .vsbcard-band, .vsbcard-hitup) { pointer-events: none; }
-.vspcard-bench { --vspcard-k: var(--vsb-k, 0.72); }
+.vscards:has(.vsdragsrc) :is(.vsbcard-hit, .vsbcard-band, .vsbcard-hitup) { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) { .vsbcard-lift { transition: none; } }
 /* THE SEAT DRAG (owner 2026-10-17, R-VERSUS-DRAG-SEAT-01): my own card drags (the shop's drag: the floating
    `.dragcard`, its grab-shrink, the closed-gauntlet veil, the play glow, the sell zone). `touch-action: none` so a
@@ -230,6 +255,9 @@
 .vssellzone { z-index: 6; }
 /* The ghost rides over the room (the room overlay is z480; the shop's .dragcard sits at z115 under it). */
 .dragcard.vsdragcard { z-index: 485; }
+/* The ghost stays mounted between drags (R-VERSUS-ROOM-MOUNTED-01): idle, it is transparent, off screen, and not a
+   compositor layer or a shadow (both come back with the pick-up). */
+.dragcard.vsdragcard.vsghost-off { opacity: 0; will-change: auto; filter: none; }
 /* THE ROOM'S FX (coins, landing dust, the entrance slam) play on the game's FX canvas. It sits at z110, under the title
    (z450) the room lives in, so while the room is up (`body.vsroom-on`, a class set by the room) it is lifted over the
    title and under the drag ghost (z485). The plate coalesce / dissolve take the room's level as an argument. */
@@ -285,8 +313,16 @@ body.vsroom-on .pixifx { z-index: 470; }
 @keyframes vsinright { from { transform: translateX(70%) rotate(5deg); opacity: 0; } 55% { opacity: 1; } to { transform: none; opacity: 1; } }
 .vsenter .vsmark { animation: vsinslam 0.42s cubic-bezier(0.5, 0, 0.75, 0) 0.2s both; }
 @keyframes vsinslam { from { transform: scale(2.6); opacity: 0; } 70% { transform: scale(0.96); opacity: 1; } to { transform: none; opacity: 1; } }
-.vsenter .vsbcard { animation: vsinrise 0.44s cubic-bezier(0.2, 0.85, 0.3, 1.1) calc(0.46s + min(var(--i), 8) * 0.045s) both; }
+/* The room's cards ride the same beat from inside their mounted element (R-VERSUS-ROOM-MOUNTED-01): a fighter's card
+   strides in with its seat (the seat's own distance and pivot, in the card's units), the hand rises card by card. The
+   stagger is the card's inline `animation-delay` (0.18 s / 0.24 s, the hand from 0.46 s by 0.045 s a card). */
+.vsenter .vsbcard > .vsmcard-in { animation: vsinrise 0.44s cubic-bezier(0.2, 0.85, 0.3, 1.1) both; }
 @keyframes vsinrise { from { transform: translateY(150%); opacity: 0; } 40% { opacity: 1; } to { transform: none; opacity: 1; } }
+.vsmcard-seat > .vsmcard-in { transform-origin: 50% calc(var(--gh, 0px) * 0.18528); }
+.vsenter .vsmcard-p1 > .vsmcard-in { animation: vsinleftc 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }
+.vsenter .vsmcard-p2 > .vsmcard-in { animation: vsinrightc 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }
+@keyframes vsinleftc { from { transform: translateX(calc(-0.098 * var(--_vs-w))) rotate(-5deg); opacity: 0; } 55% { opacity: 1; } to { transform: none; opacity: 1; } }
+@keyframes vsinrightc { from { transform: translateX(calc(0.098 * var(--_vs-w))) rotate(5deg); opacity: 0; } 55% { opacity: 1; } to { transform: none; opacity: 1; } }
 .vsenter :is(.vsslot-bot, .vsactions, .vshostmark) { animation: vsinfade 0.3s ease-out 0.62s both; }
 .vsenter :is(.vsroomhead, .vsroomtop, .vsroomctl) { animation: vsinfade 0.36s ease-out 0.5s both; }
 @keyframes vsinfade { from { opacity: 0; } to { opacity: 1; } }

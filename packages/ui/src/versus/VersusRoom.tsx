@@ -18,7 +18,7 @@
  * overlay is a percentage of the PAINTING and lands in the same place at any stage scale. Static paint; the only motion
  * is one-shot transform / opacity (the entrance, the seat moves); the gauntlet cursor comes from the global rule.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
 import { VERSUS_HEARTS, VERSUS_SPECTATOR_CAP } from '@game/sim';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
@@ -35,7 +35,7 @@ import { VersusEmptySeatCard, VersusPlayerCard } from './VersusPlayerCard';
 import { MAX_RECORD_IDS, useSeatData, type SeatServerData } from './versusSeatCard';
 import { leaveRoom, myRole, setVersusStatsOpen, startGame, useVersus, versusRemainingMs, type VersusState } from './versusStore';
 import { canDragSeatCard, roomWithSeatMove } from './seatDrag';
-import { beginSeatDrag, endSeatDrag, SeatDragGhost, useSeatDragStore, useSeatFlip, type SeatDragState } from './useSeatDrag';
+import { beginSeatDrag, endSeatDrag, SeatDragGhost, useRoomCards, useSeatDragStore, type SeatDragState } from './useSeatDrag';
 import type { VersusMember } from './versusRemote';
 import './versus.css';
 
@@ -155,14 +155,7 @@ function useStartPresence(full: boolean): [boolean, boolean] {
   return [full || leaving, !full && leaving];
 }
 
-/** The drag classes a room card's wrapper wears (R-VERSUS-DRAG-SEAT-01): `vsdraggable` = my own card in an open room
- *  (press and drag it), `vsdragsrc` = the card the ghost was lifted from (hidden while it flies). */
-function dragClass(m: VersusMember | null, room: NonNullable<VersusState['room']>, me: string | null, drag: SeatDragState | null): string {
-  if (!m) return '';
-  return `${canDragSeatCard(room, me, m.userId) ? ' vsdraggable' : ''}${drag?.userId === m.userId ? ' vsdragsrc' : ''}`;
-}
-
-function Seat({ side, m, room, match, server, me, drag, arena }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; server: SeatServerData | undefined; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
+function Seat({ side, m, room, match, me, drag, arena }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
   const botStatus = useVersusBot((s) => s.status);
   const open = room.status === 'open';
   const running = room.status === 'in_game' && match && match.phase !== 'complete';
@@ -174,18 +167,25 @@ function Seat({ side, m, room, match, server, me, drag, arena }: { side: 'p1' | 
   const joinable = !m && open && !!mine && !iSit;
   // The drop-target state while a card is dragged over this seat: open = lit, taken = no light (the drop is refused).
   const over = drag && !drag.snap && drag.zone === side ? (drag.valid ? ' vsseat-over' : ' vsseat-bad') : '';
-  const hint = !open ? 'Waiting for a player' : joinable ? 'Drag your card here' : 'Waiting for an opponent';
+  const live = !open ? 'Waiting for a player' : joinable ? 'Drag your card here' : 'Waiting for an opponent';
+  // Under a seated card the open-seat card is invisible: its text holds still until the seat empties again, so a card
+  // landing never re-lays out text no one can see (R-VERSUS-ROOM-MOUNTED-01).
+  const shownHint = useRef(live);
+  if (!m) shownHint.current = live;
+  const hint = shownHint.current;
+  const mineHere = !!m && canDragSeatCard(room, me, m.userId);
   return (
     <>
-      {/* A seated player is a REAL card (owner 2026-10-16), the host's wearing the crown; an open seat is a recessed
-          slot of the same footprint (the plate's wireframe, dimmed). MY card drags (R-VERSUS-DRAG-SEAT-01): onto the
-          other open seat to switch, or down to the hand. */}
-      <div className={`vspcard vspcard-${side}${over}${dragClass(m, room, me, drag)}${m ? '' : ' vspcard-open'}${joinable ? ' vspcard-joinable' : ''}`} data-seat={side}
-        onPointerDown={m && canDragSeatCard(room, me, m.userId) ? (e) => beginSeatDrag(e, m.userId, arena.current) : undefined}>
+      {/* The SEAT: the drop target and an open seat's recessed slot of the seat card's footprint (the plate's wireframe,
+          dimmed). The seated player's REAL card (owner 2026-10-16) is not in here: it is that member's one card in the
+          room's card layer, placed over this slot (R-VERSUS-ROOM-MOUNTED-01). MY seated card drags from anywhere on the
+          seat (R-VERSUS-DRAG-SEAT-01): onto the other open seat to switch, or down to the hand. */}
+      <div className={`vspcard vspcard-${side}${over}${mineHere ? ' vsdraggable' : ''}${m ? '' : ' vspcard-open'}${joinable ? ' vspcard-joinable' : ''}`} data-seat={side}
+        onPointerDown={mineHere ? (e) => beginSeatDrag(e, m.userId, arena.current) : undefined}>
         {/* The open-seat card is ALWAYS here, under a seated card (owner 2026-10-21: "show the empty seat fade back in,
-            not snap in"): it fades out as a card lands and fades back in as the seat empties (`.gone`, one transition). */}
+            not snap in"): it fades out as a card lands and fades back in as the seat empties (`.gone`, one transition).
+            Its box is also the seated card's slot (`readRoomGeo`). */}
         <VersusEmptySeatCard hint={hint} gone={!!m} />
-        {m && <VersusPlayerCard m={m} server={server} host={m.userId === room.host_user_id} />}
         {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. The host's
             only, on an empty seat, at ONE fixed place under the seat's footprint (owner 2026-10-21: "add bot jumps
             around and is hard to click"): nothing it sits in moves, and it never moves on hover. */}
@@ -202,33 +202,92 @@ function Seat({ side, m, room, match, server, me, drag, arena }: { side: 'p1' | 
 
 /**
  * THE STANDS as a hand of cards (owner 2026-10-16: "spectators should show as cards in hand so you can mouse over to
- * view their cards too"): each spectator is a small player card, fanned and overlapped like the hand (`.row.hand .card`:
- * a tilt per position about a point below the row, so the row arcs), tighter the more there are, up to the 20 seats.
- * Hovering one lifts it upright to 90% of the seat card's size (one transform; nothing is measured). Memoised per member.
+ * view their cards too"): a flat row along the bottom like the shop hand, tighter the more there are, up to the 20
+ * seats. The bench itself holds only its label and one still ANCHOR per hand slot (`.vsbslot`, placed by the hand's CSS
+ * from `--n` and its `--off`); the cards are the members' own cards in the room's card layer, placed over the anchors
+ * (R-VERSUS-ROOM-MOUNTED-01).
  */
-function SpectatorFan({ spectators, data, room, me, drag, arena }: { spectators: readonly VersusMember[]; data: ReadonlyMap<string, SeatServerData>; room: NonNullable<VersusState['room']>; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
-  const n = spectators.length;
+function SpectatorFan({ n }: { n: number }) {
   return (
     <div className="vsbench" style={{ '--n': n } as CSSProperties}>
       {/* THE BENCH (owner 2026-10-21, R-VERSUS-ROOM-STANDS-01): the spectators as a hand, no box behind them; the quiet
           label is centred on the fan just above the cards. */}
       <span className="vsstands-label hudpill-name" aria-hidden="true">Spectators<span className="vsstands-count">{n} / {VERSUS_SPECTATOR_CAP}</span></span>
-      {spectators.map((m, i) => (
-        <div key={m.userId} className={`vsbcard${dragClass(m, room, me, drag)}`} style={{ '--i': i, '--off': i - (n - 1) / 2 } as CSSProperties}
-          onPointerDown={canDragSeatCard(room, me, m.userId) ? (e) => beginSeatDrag(e, m.userId, arena.current) : undefined}>
-          {/* THE HOVER IS DECIDED BY STILL PADS, NEVER BY THE MOVING CARD (owner 2026-10-20, R-VERSUS-HAND-HOVER-01): the
-              card's lift is drawn on `.vsbcard-lift`, which never takes the pointer, so popping up cannot move the card
-              out from under the hand that popped it. `hit` is the card's strip of the fan; `band` widens it a little
-              while hovered (a boundary never flickers between two neighbours); `up` covers the popped card above the
-              fan only while it is up, so the hand can travel onto it and grab it. */}
-          <span className="vsbcard-hit" aria-hidden="true" />
-          <span className="vsbcard-band" aria-hidden="true" />
-          <span className="vsbcard-hitup" aria-hidden="true" />
-          <div className="vsbcard-lift">
-            <VersusPlayerCard m={m} server={data.get(m.userId)} bench host={m.userId === room.host_user_id} />
-          </div>
+      {Array.from({ length: n }, (_, i) => <span key={i} className="vsbslot" style={{ '--off': i - (n - 1) / 2 } as CSSProperties} aria-hidden="true" />)}
+    </div>
+  );
+}
+
+/** What a room card draws of its member (the card ignores the role): one object per member for as long as its name and
+ *  profile hold, so a seat move (a new member object with a new role) never re-renders the card. */
+type CardFace = Pick<VersusMember, 'userId' | 'displayName' | 'profile'>;
+function useCardFaces(): (m: VersusMember) => CardFace {
+  const cache = useRef(new Map<string, { m: VersusMember; key: string; face: CardFace }>());
+  return (m) => {
+    const hit = cache.current.get(m.userId);
+    if (hit && hit.m === m) return hit.face;
+    const key = `${m.displayName}|${JSON.stringify(m.profile ?? {})}`;
+    if (hit && hit.key === key) { hit.m = m; return hit.face; }
+    const face = { userId: m.userId, displayName: m.displayName, profile: m.profile };
+    cache.current.set(m.userId, { m, key, face });
+    return face;
+  };
+}
+
+/**
+ * ONE ROOM CARD, mounted for as long as its member is in the room (R-VERSUS-ROOM-MOUNTED-01). `useRoomCards` places it
+ * by its transform (a seat, or a hand slot at the hand's smaller scale); nothing here moves it. As a HAND card it keeps
+ * the hand's hover (R-VERSUS-HAND-HOVER-01): THE HOVER IS DECIDED BY STILL PADS, NEVER BY THE MOVING CARD. The lift is
+ * drawn on `.vsbcard-lift`, which never takes the pointer, so popping up cannot move the card out from under the hand
+ * that popped it. `hit` is the card's strip of the fan; `band` widens it a little while hovered (a boundary never
+ * flickers between two neighbours); `up` covers the popped card above the fan only while it is up, so the hand can
+ * travel onto it and grab it. As a SEAT card the pads are off and it takes no pointer: the open-seat card under it
+ * (same box) takes the hover and hands the press to the seat's own drag.
+ */
+const RoomCard = memo(function RoomCard({ face, server, host, slot, i, draggable, dragSrc, arena }: { face: CardFace; server: SeatServerData | undefined; host: boolean; slot: 'p1' | 'p2' | 'bench'; i: number; draggable: boolean; dragSrc: boolean; arena: RefObject<HTMLDivElement> }) {
+  const seat = slot !== 'bench';
+  // The entrance's stagger (`.vsenter`): the fighters stride in at 0.18 s / 0.24 s, the hand rises card by card.
+  const delay = slot === 'p1' ? 0.18 : slot === 'p2' ? 0.24 : 0.46 + Math.min(i, 8) * 0.045;
+  return (
+    <div className={`vsmcard ${seat ? `vsmcard-seat vsmcard-${slot}` : 'vsbcard'}${draggable ? ' vsdraggable' : ''}${dragSrc ? ' vsdragsrc' : ''}`} data-vsm={face.userId}
+      style={{ '--vsz': seat ? 10 : 10 + i } as CSSProperties}
+      onPointerDown={draggable ? (e) => beginSeatDrag(e, face.userId, arena.current) : undefined}>
+      <div className="vsmcard-in" style={{ animationDelay: `${delay}s` }}>
+        <span className="vsbpads" aria-hidden="true">
+          <span className="vsbcard-hit" />
+          <span className="vsbcard-band" />
+          <span className="vsbcard-hitup" />
+        </span>
+        <div className="vsbcard-lift">
+          <VersusPlayerCard m={face} server={server} host={host} />
         </div>
-      ))}
+      </div>
+    </div>
+  );
+});
+
+/**
+ * THE ROOM'S CARD LAYER: every member's one card, in the order they arrived (moving a DOM node is a remount for the
+ * browser, so a seat move never reorders this list; only a join appends and a leave removes). The hand's order lives
+ * in its slots, not here.
+ */
+function RoomCards({ room, data, me, drag, arena }: { room: NonNullable<VersusState['room']>; data: ReadonlyMap<string, SeatServerData>; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
+  const order = useRef<string[]>([]);
+  const faceOf = useCardFaces();
+  const byId = new Map(room.members.map((m) => [m.userId, m] as const));
+  const kept = order.current.filter((id) => byId.has(id));
+  order.current = [...kept, ...room.members.map((m) => m.userId).filter((id) => !kept.includes(id))];
+  const benchIndex = new Map(room.members.filter((m) => m.role === 'spectator').map((m, i) => [m.userId, i] as const));
+  return (
+    <div className="vscards">
+      {order.current.map((id) => {
+        const m = byId.get(id)!;
+        const slot = m.role === 'p1' || m.role === 'p2' ? m.role : 'bench';
+        return (
+          <RoomCard key={id} face={faceOf(m)} server={data.get(id)} host={id === room.host_user_id} slot={slot} i={benchIndex.get(id) ?? 0}
+            draggable={canDragSeatCard(room, me, id)} dragSrc={drag?.userId === id} arena={arena} />
+        );
+      })}
     </div>
   );
 }
@@ -242,7 +301,7 @@ export function VersusRoom() {
   const drag = useSeatDragStore((s) => s.drag);
   const arenaRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  useSeatFlip(arenaRef, room?.members.map((x) => `${x.userId}:${x.role}`).join(',') ?? '');
+  useRoomCards(arenaRef, room?.members.map((x) => `${x.userId}:${x.role}`).join(',') ?? '');
   useEffect(() => () => endSeatDrag(), []);
   // The room's FX (coins, landing dust, the entrance slam) play on the game's FX canvas, lifted over the room while it
   // is up (versus.css `body.vsroom-on`): a class, so nothing is matched per mutation.
@@ -292,8 +351,8 @@ export function VersusRoom() {
       <div className="vsarena" ref={arenaRef}>
         {/* The VS mark between the two cards: the game's display font with a static glow until it has its own art. */}
         <div key={vsBeat} className={`vsmark${vsBeat > 0 ? ' vsmark-full' : ''}`} aria-hidden="true">VS</div>
-        <Seat side="p1" m={p1} room={room} match={match} server={p1 ? seatData.get(p1.userId) : undefined} me={me} drag={drag} arena={arenaRef} />
-        <Seat side="p2" m={p2} room={room} match={match} server={p2 ? seatData.get(p2.userId) : undefined} me={me} drag={drag} arena={arenaRef} />
+        <Seat side="p1" m={p1} room={room} match={match} me={me} drag={drag} arena={arenaRef} />
+        <Seat side="p2" m={p2} room={room} match={match} me={me} drag={drag} arena={arenaRef} />
 
         {/* THE ACTION AREA (owner 2026-10-21, R-VERSUS-ROOM-POLISH-03): EMPTY until both seats are filled. Then the host's
             Start game (everyone else: "Host starts the match", in the same place) fades in and floats up into place;
@@ -313,7 +372,9 @@ export function VersusRoom() {
           )}
         </div>
 
-        <SpectatorFan spectators={spectators} data={seatData} room={room} me={me} drag={drag} arena={arenaRef} />
+        <SpectatorFan n={spectators.length} />
+        {/* Every member's card, mounted for the life of the room and placed by transform (R-VERSUS-ROOM-MOUNTED-01). */}
+        <RoomCards room={room} data={seatData} me={me} drag={drag} arena={arenaRef} />
       </div>
 
       {/* The room's name heads the stage, with its host and how many are watching (of the 20 seats, ruling 8) under it. */}

@@ -6638,6 +6638,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
   },
   {
+    id: 'R-VERSUS-ROOM-MOUNTED-01',
+    title: 'A Versus room card moving between a seat and the hand is a transform change only',
+    statement:
+      'Every room member has ONE card element for as long as they are in the room. Taking a seat, leaving a seat, switching seats and the hand closing up or opening around someone only change that card\'s transform (a seat at full size, a hand slot at the hand\'s smaller scale); the card is never unmounted and remounted, and no layout property is written on it. The slots are read from the layout once per seating change and once per resize, never per frame. Everything the moves already showed is unchanged: the glide, the landing dust and play sound, the sale\'s coins and the coalesce into the hand, the open seat fading, the hand\'s hover pads and pop, the drag and the entrance. So a move costs no card mount, unmount or layout on any client (the drag ghost stays mounted between drags too).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus room perf, after #2196 / #2197)', quote: 'keep ONE card element per room member mounted for the life of the room' },
+      { kind: 'owner-chat', ref: 'Kevin, FPS bar 2026-10-09', quote: '>160 fps at all times' },
+    ],
+    currentBehaviour: 'Before, a move unmounted the card in one container and mounted a new one in the other, then laid it out: one 12-18 ms frame on the mover and on every watcher.',
+    example: 'Drag your card from the spectators onto an open seat: the same card (the same element) glides up and lands; a friend watching sees that move in a frame of about 5 ms instead of 10.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatMounted.test.tsx'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
     id: 'R-VERSUS-BROWSER-01',
     title: 'The Versus room list is a clean panel of room cards with Create room as the call to action',
     statement:

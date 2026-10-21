@@ -83,6 +83,8 @@ export function SpectatorCursor(): JSX.Element | null {
 
   useEffect(() => {
     let raf = 0;
+    // True while `frame` runs: a state it applies notifies `sync`, which must not start a second loop.
+    let inFrame = false;
     // The held card's wind trail, as the player's own drag drew it (dragTrail.ts). Screen px for the FX layer.
     const trail = newDragTrail();
     let aiming = false;
@@ -92,8 +94,9 @@ export function SpectatorCursor(): JSX.Element | null {
     let lastFrame = 0;
     const frame = (): void => {
       raf = 0;
+      inFrame = true;
       const now = performance.now();
-      advanceCursorFeed(now);
+      try { advanceCursorFeed(now); } finally { inFrame = false; }
       const target = pointAt(cursorFeed.pts, cursorPlayback(now));
       const dt = lastFrame ? Math.min(50, now - lastFrame) : 16;
       lastFrame = now;
@@ -131,7 +134,7 @@ export function SpectatorCursor(): JSX.Element | null {
       // A card just picked up starts on the hand (the frame loop moves it from the next frame on).
       if (card?.mode === 'held' && cardRef.current && moverRef.current?.style.transform) cardRef.current.style.transform = moverRef.current.style.transform;
       setAimOn(show && !!cursorFeed.aim);
-      if (!raf && (show || cursorFeed.pending.length || cursorFeed.landing)) raf = requestAnimationFrame(frame);
+      if (!raf && !inFrame && (show || cursorFeed.pending.length || cursorFeed.landing)) raf = requestAnimationFrame(frame);
       // The held card's drop gap moved (a new decision object only when it did): the rows slide, as the player's do.
       const d = cursorFeed.drag;
       const cur = dragStore.get();

@@ -263,7 +263,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "That's the **Gold Fuse**, and every lobby uses it, at every rank (Practice too). Each shop turn begins with no clock, and a bar fills as you spend Gold. Once you've spent **10 Gold** in the turn, that round's normal timer starts. The Gold Fuse is there from **round 1**: early on you usually won't spend 10 Gold, so those rounds often have no clock, but if you do (say by selling), the timer starts just the same. The Gauntlet uses a Gold Fuse too, at **30 Gold**, then 60 seconds.",
     aliases: ['gold fuse', 'fuse', 'bronze timer', 'gold timer', 'no timer', '10 gold', 'timer starts late', 'silver timer', 'timer did not start', 'no clock'],
     seeAlso: ['timer-runs-out', 'turn-timer-length', 'practice-timer'],
-    covers: [{ rule: 'R-TIMER-FUSE-01', fp: '6cd2de88' }],
+    covers: [{ rule: 'R-TIMER-FUSE-01', fp: '3fa7d242' }],
   },
   {
     id: 'practice-heroes',

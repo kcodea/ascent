@@ -114,6 +114,22 @@ describe('SHIFT BROKER: when you Sell a minion, gain +2 Attack', () => {
   });
 });
 
+describe('a sale during a Thymepiece window (#2200) still fires the sell triggers', () => {
+  it('pays the +1 sell bonus AND fires Hank Pepe and Shift Broker on the same sale', () => {
+    const board = [body('h', 'dw3_hankpepe'), body('sb', 'dw3_shiftbroker'), body('a', 'dw_brunni'), body('n', NON_DWARF)];
+    const plain = act(run({ board: board.map((c) => ({ ...c })) }), { type: 'sell', uid: 'n' });
+    const timed = act(run({ board: board.map((c) => ({ ...c })), sellBonusWindow: { amount: 1, untilClock: null } }), { type: 'sell', uid: 'n' });
+    expect(timed.embers - plain.embers, 'the Thymepiece window adds its +1 Gold').toBe(1);
+    for (const s of [plain, timed]) {
+      // Shift Broker's own +2, plus Hank's +1 (only two other Dwarves, so both are picked).
+      expect(at(s, 'sb').attack, 'Shift Broker +2 (and Hank +1)').toBe(CARD_INDEX['dw3_shiftbroker']!.attack + 2 + 1);
+      expect(hankBuff(at(s, 'sb')), 'Hank buffs the other Dwarves').toMatchObject({ attack: 1, health: 1 });
+      expect(hankBuff(at(s, 'a'))).toMatchObject({ attack: 1, health: 1 });
+    }
+    expect(timed.sellBonusWindow, 'the window stays open after a sale').toEqual({ amount: 1, untilClock: null });
+  });
+});
+
 describe('ARCHIVED FROM SET 3: Coinfire, Striker, Billings, Lieutenant Thane', () => {
   it('are out of every Set 3 draw (pool, buyable), and still Set 2 cards', () => {
     const p3 = poolFor('set3');

@@ -6,8 +6,8 @@ import {
   seatStartingArmor,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import { floatLobbyDamageOnSeat, roundDamageFloats, whenCurtainDown } from './lobbyDamageFx';
-import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeat } from './lobbyKnockoutFx';
+import { floatLobbyDamageOnSeats, roundDamageFloats, whenCurtainDown } from './lobbyDamageFx';
+import { LOBBY_KO_MS, aliveSet, newlyKnockedOut, playLobbyKnockoutOnSeats } from './lobbyKnockoutFx';
 import { questArt, runeArt } from './art';
 import { heroPortrait, opponentSkins, useRunSkins } from './skins/skins';
 import { PortraitFrame, frameIdOf, usePortraitFrame } from './portraitFrame/PortraitFrame';
@@ -256,7 +256,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // THE ROUND'S DAMAGE, ANNOUNCED ONCE (owner ask 2026-10-03: "remove the -x number here. when the player gets back to
   // lobby, they can have the damage dealt to players show and float/fade, but dont leave it on the rail"). The rail
   // used to print every seat's last-round loss as a static number that sat there all shop phase; now each seat that
-  // took damage gets a one-shot "-N" that pops on its row, rises a little and fades (`floatLobbyDamageOnSeat`), and
+  // took damage gets a one-shot "-N" that pops on its row, rises a little and fades (`floatLobbyDamageOnSeats`), and
   // the hover card carries the lasting record (its last-fights list). This absorbed the older "damage you dealt"
   // float: your foe's loss is one of the seats announced.
   //
@@ -276,7 +276,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     if (floats.length === 0) return;
     pendingFloatRef.current?.();
     pendingFloatRef.current = whenCurtainDown(() => {
-      requestAnimationFrame(() => { for (const f of floats) floatLobbyDamageOnSeat(f.id, f.amount); });
+      requestAnimationFrame(() => { floatLobbyDamageOnSeats(floats); }); // every row measured, then every float added
     });
   }, [lobby?.round, lobby]);
   useEffect(() => () => pendingFloatRef.current?.(), []);
@@ -296,7 +296,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     let clear = 0;
     const cancelHold = whenCurtainDown(() => {
       requestAnimationFrame(() => {
-        for (const id of fresh) playLobbyKnockoutOnSeat(id);
+        playLobbyKnockoutOnSeats(fresh); // every row measured, then every effect played
         setKoIds((k) => [...k, ...fresh]);
         clear = window.setTimeout(() => setKoIds((k) => k.filter((id) => !fresh.includes(id))), LOBBY_KO_MS + 100);
       });

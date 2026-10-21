@@ -16,12 +16,12 @@ import { roundDamageFloats } from './lobbyDamageFx';
 const fx = vi.hoisted(() => ({ calls: [] as string[] }));
 vi.mock('./lobbyDamageFx', async (orig) => ({
   ...(await orig<typeof import('./lobbyDamageFx')>()),
-  floatLobbyDamageOnSeat: (id: string, amount: number) => { fx.calls.push(`${id}:${amount}`); return true; },
+  floatLobbyDamageOnSeats: (floats: readonly { id: string; amount: number }[]) => { for (const f of floats) fx.calls.push(`${f.id}:${f.amount}`); return floats.length; },
 }));
 // The knockout FX is not under test here; keep it off the Pixi layer.
 vi.mock('./lobbyKnockoutFx', async (orig) => ({
   ...(await orig<typeof import('./lobbyKnockoutFx')>()),
-  playLobbyKnockoutOnSeat: () => true,
+  playLobbyKnockoutOnSeats: (ids: readonly string[]) => ids.length,
 }));
 
 const { LobbyPanel } = await import('./LobbyPanel');

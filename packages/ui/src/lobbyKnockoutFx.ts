@@ -39,10 +39,25 @@ export function aliveSet(seats: readonly { id: string; alive: boolean }[]): Set<
  *  fired (false: the row isn't on screen, or the FX layer isn't up). */
 export function playLobbyKnockoutOnSeat(seatId: string): boolean {
   if (typeof document === 'undefined' || !canPlayDefs()) return false;
+  const at = seatCentre(seatId);
+  return at ? playDef('lobby-knockout', { source: at, target: at, cursor: at }) !== null : false;
+}
+
+/** A seat row's centre, or null when the row is not on screen. A layout read. */
+function seatCentre(seatId: string): { x: number; y: number } | null {
   const el = document.querySelector(`.lobbyrail [data-seat="${seatId.replace(/["\\]/g, '\\$&')}"]`);
-  if (!el) return false;
+  if (!el) return null;
   const r = el.getBoundingClientRect();
-  if (r.width < 4 || r.height < 4) return false;
-  const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
-  return playDef('lobby-knockout', { source: at, target: at, cursor: at }) !== null;
+  if (r.width < 4 || r.height < 4) return null;
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+/** Every knockout of a round: all rows measured first, then every effect played (R-PERF-LOBBY-FLOAT-01, the same
+ *  read-then-write as the damage floats). Returns how many fired. */
+export function playLobbyKnockoutOnSeats(seatIds: readonly string[]): number {
+  if (typeof document === 'undefined' || !canPlayDefs()) return 0;
+  const at = seatIds.map(seatCentre);
+  let n = 0;
+  for (const p of at) if (p && playDef('lobby-knockout', { source: p, target: p, cursor: p }) !== null) n += 1;
+  return n;
 }

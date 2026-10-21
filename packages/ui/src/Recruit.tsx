@@ -2362,16 +2362,17 @@ export function Recruit() {
     // Warm the exit splash's shop vignette too (the foe face is boot-loaded by the title screen; this one
     // has no other loader, and a first-exit pop-in on the blue would read as a blip).
     new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
+    // …and the sliding panel's own art (2026-10-21), so the first End Turn never slides in a bare colour.
+    new Image().src = `${import.meta.env.BASE_URL}transition-vortex.webp`;
   }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
     if (!o) return;
     const c = getScreenWipeConfig();
-    const ease: [number, number, number, number] = [c.easeX1, c.easeY1, c.easeX2, c.easeY2];
+    // The gem's charge-up tell stays. The bloom stardust and the exit inhale rode the retired radial bloom's seam;
+    // the sliding panel (2026-10-21) has no seam for them to follow, so they no longer play.
     if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
-    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease);
-    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease); wipeFx.inhale(o.cx, o.cy, o.r, c.coverMs + 200); }
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
@@ -2458,7 +2459,8 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
-    if (e.propertyName !== 'clip-path') return;
+    // The panel SLIDES (transform; 2026-10-21). Only the panel's own transition counts, not a child's.
+    if (e.propertyName !== 'transform' || e.target !== e.currentTarget) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);

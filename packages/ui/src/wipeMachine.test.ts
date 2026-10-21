@@ -52,9 +52,42 @@ describe('the wipe machine', () => {
       expect(curtainClassFor(pass[iHold]!)).toContain(' full settle');
       expect(curtainClassFor(pass[iHold + 1]!)).toMatch(/ gone/);
     }
-    // ...and the CSS agrees: the hold's clip is the full inset with the transition off.
-    expect(css).toMatch(/\.wipecurtain\.full\.settle \{ clip-path: inset\(0 0 0 0\); \}/);
+    // ...and the CSS agrees: covering is the panel at rest on screen, and the holds snap (transition off).
+    expect(css).toMatch(/\.wipecurtain\.full \{ transform: translateX\(0\); \}/);
     expect(css).toMatch(/\.wipecurtain\.settle \{ transition: none; \}/);
+  });
+
+  // Owner 2026-10-21: "a png that goes across the screen, holds, as the opponent is displayed, and then continues to
+  // reveal the game board". The panel only SLIDES (a clip-path bloom could drop a frame and let the game pop through).
+  it('the panel only slides: no clip-path, the art on a transform-only transition', () => {
+    const rule = /\.wipecurtain \{ position: fixed; inset: 0; z-index: \d+; pointer-events: none;([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toContain("url('/transition-vortex.webp')");
+    expect(rule).toMatch(/transition: transform /);
+    expect(rule).not.toMatch(/clip-path/);
+    expect(css).not.toMatch(/\.wipecurtain[^{]*\{[^}]*clip-path/);
+  });
+
+  it('the panel travels left to right into combat and back right to left, never jumping on screen', () => {
+    // Where each state's class puts the panel (mirrors the `.wipecurtain` transform rules, each asserted below).
+    const x = (w: WipeState): number => {
+      const c = curtainClassFor(w);
+      if (c.includes(' full')) return 0;
+      if (c.includes(' gone')) return c.includes(' rtl') ? -100 : 100;
+      if (c.includes(' settle') && c.includes(' exit')) return 100;
+      return -100;
+    };
+    expect(css).toMatch(/\.wipecurtain \{[^}]*transform: translateX\(-100%\);/);
+    expect(css).toMatch(/\.wipecurtain\.settle\.exit:not\(\.full\) \{ transform: translateX\(100%\); \}/);
+    expect(css).toMatch(/\.wipecurtain\.gone \{ transform: translateX\(100%\);/);
+    expect(css).toMatch(/\.wipecurtain\.gone\.rtl \{ transform: translateX\(-100%\); \}/);
+    expect(WIPE_ENTRY.map(x)).toEqual([-100, -100, 0, 0, 100, 100]); // in from the left, out to the right
+    expect(WIPE_EXIT.map(x)).toEqual([100, 100, 0, 0, -100, -100]); // back in from the right, out to the left
+    // Every hop that does NOT animate (into a tell, a hold or a parked state) is between equal positions.
+    for (const pass of [WIPE_ENTRY, WIPE_EXIT]) {
+      for (let i = 1; i < pass.length; i++) {
+        if (!wipeSweeping(pass[i]!)) expect(x(pass[i]!), `${pass[i - 1]} -> ${pass[i]}`).toBe(x(pass[i - 1]!));
+      }
+    }
   });
 
   it('the tells snap (settle), so the bloom never slides its centre in from the last origin', () => {
@@ -105,7 +138,9 @@ describe('screen wipe config', () => {
 
   it('writes every var the curtain, ring and bar read', () => {
     const v = wipeCssVars(WIPE_DEFAULTS, wipeOriginFor(3440, 1440, null, { ellipse: 1, ringLine: WIPE_DEFAULTS.ringLine }));
-    for (const k of ['--wipe-dur', '--wipe-reveal-dur', '--wipe-ease', '--wipe-cx', '--wipe-cy', '--wipe-rx', '--wipe-ry',
+    // (`--wipe-rx` / `--wipe-ry` are still written, but only the retired clip-path bloom read them: the curtain slides
+    // since 2026-10-21.)
+    for (const k of ['--wipe-dur', '--wipe-reveal-dur', '--wipe-ease', '--wipe-cx', '--wipe-cy',
       '--wipe-front-sx', '--wipe-front-sy', '--wf-in0', '--wf-in1', '--wf-line', '--wf-out1', '--wf-glow', '--wf-halo']) {
       expect(v[k], k).toBeTruthy();
       expect(css.includes(`var(${k}`), `${k} is read by styles.css`).toBe(true);

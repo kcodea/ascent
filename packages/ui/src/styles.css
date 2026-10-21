@@ -399,27 +399,39 @@ canvas.spr { image-rendering: pixelated; display: block; }
    empty parked states snap back to the zero circle invisibly (both cover nothing — Recruit's `primeOut`
    guarantees the exit bloom launches from the zero circle, not the parked sliver). `.snap` is unused on
    the curtain and kept only for the fronts. */
+/* THE SLIDING PANEL (owner 2026-10-21: "a png that goes across the screen, holds, as the opponent is displayed, and
+   then continues to reveal the game board"). The curtain no longer RESHAPES (the clip-path bloom above is retired):
+   it is one full-screen panel of painted art (`transition-vortex.webp`, the owner's "Swirling Blue Ethereal Energy
+   Vortex") that only SLIDES, `transform` alone, like the ranked gate's doors. A clip-path animation is recomputed
+   every frame and could drop a frame on the busy End Turn swap, which read as game elements popping in over the
+   blue; a translated layer is moved by the compositor and cannot be see-through mid-move.
+   The path, by the machine's classes (wipeMachine.curtainClassFor):
+     idle / chargeIn        parked off the LEFT (-100%)
+     coverIn  (`full`)      slides in left to right and stops, covering the screen (NOW FACING rides on it)
+     coveredIn (`full settle`) holds; the board swaps behind it
+     revealIn / combat (`gone`) carries on off the RIGHT (+100%), revealing the fight; parked there
+     primeOut (`settle exit`)  still parked off the right
+     coverOut (`full exit`) slides back in right to left (RETURNING TO SHOP rides on it)
+     coveredOut             holds; the shop comes back behind it
+     revealOut (`gone rtl`) carries on off the LEFT, which is where idle parks it again
+   Every hop between parked states is between identical positions, so nothing ever jumps on screen. The cover decelerates
+   into the hold and the reveal accelerates away, so the two halves read as one pass that pauses. */
 .wipecurtain { position: fixed; inset: 0; z-index: 3000; pointer-events: none;
-  background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
-  clip-path: ellipse(0px 0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
-  /* Hint the clip transition onto the compositor (Chromium composites basic-shape clip-path animations when
-     the element is promoted) — without it the near-fullscreen gradient repaints every frame of the bloom. */
-  will-change: clip-path;
-  transition: clip-path var(--wipe-dur, 450ms) var(--wipe-ease, cubic-bezier(.4, 0, .2, 1)); }
-/* The EXIT curtain wears a lighter, daylight-sky blue (owner ask 2026-08-30 — matched to the sky in the
-   Returning-to-Shop vignette, sampled ≈#2390f5→#61b6f9). The class flips while the curtain is parked
-   empty (primeOut) and clears at idle, so the gradient swap is never on screen. */
-.wipecurtain.exit { background: radial-gradient(ellipse 60% 60% at 50% 50%, #4a9be8 0%, #16406f 100%); }
-/* The bloom: an ELLIPSE (round 2 of the ultrawide fix, owner 2026-09-24 "smoother/wider/cleaner"). Its radii come
-   from wipeGeometry.ts via Recruit: the farthest corner, stretched sideways by how much wider than 16:9 the screen
-   is (a circle on 16:9). The easing is the Screen wipe tuner's; by default it leaves the screen still moving. */
-.wipecurtain.full { clip-path: ellipse(var(--wipe-rx, 150vmax) var(--wipe-ry, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
-/* The covered hold: same full cover, INSET shape — the invisible switch that lets the reveal run linear. */
-.wipecurtain.full.settle { clip-path: inset(0 0 0 0); }
-/* Entry reveal (R→L retreat; parked here through combat) / exit reveal (`.rtl`, L→R retreat). The reveals run
-   their own duration and keep the original ease-in-out. */
-.wipecurtain.gone { clip-path: inset(0 100% 0 0); transition-duration: var(--wipe-reveal-dur, 450ms); transition-timing-function: cubic-bezier(.4, 0, .2, 1); }
-.wipecurtain.gone.rtl { clip-path: inset(0 0 0 100%); }
+  background: #0a1730 url('/transition-vortex.webp') 50% 50% / cover no-repeat;
+  transform: translateX(-100%); will-change: transform;
+  transition: transform var(--wipe-dur, 450ms) cubic-bezier(.2, .7, .25, 1); }
+/* A soft light on both edges, INSIDE the panel so a parked panel shows none of it on screen; static gradients that
+   travel with the panel, so they can never drift off its edge. */
+.wipecurtain::before, .wipecurtain::after { content: ''; position: absolute; top: 0; bottom: 0; width: calc(7 * var(--vw, 1vw)); pointer-events: none; }
+.wipecurtain::before { left: 0; background: linear-gradient(to right, rgba(200, 228, 255, 0.55), rgba(140, 190, 255, 0.18) 45%, rgba(120, 170, 255, 0)); }
+.wipecurtain::after { right: 0; background: linear-gradient(to left, rgba(200, 228, 255, 0.55), rgba(140, 190, 255, 0.18) 45%, rgba(120, 170, 255, 0)); }
+/* The exit pass parks on the RIGHT, where the entry reveal left it. */
+.wipecurtain.settle.exit:not(.full) { transform: translateX(100%); }
+/* Covering: both covers and both holds. */
+.wipecurtain.full { transform: translateX(0); }
+/* The reveals carry on in the same direction they came in. */
+.wipecurtain.gone { transform: translateX(100%); transition-duration: var(--wipe-reveal-dur, 450ms); transition-timing-function: cubic-bezier(.55, 0, .8, .3); }
+.wipecurtain.gone.rtl { transform: translateX(-100%); }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
    advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
@@ -500,6 +512,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipebar.rtl.go { transform: translateX(0); }
 .wipebar.sweeping { opacity: 1; }
 .wipebar.snap { transition: none; }
+/* The sliding panel (2026-10-21) carries its own edge light, so the ring (which rode the retired radial bloom) and the
+   bar (the old linear reveal's seam) are not shown. Their rules and markup stay so the Screen wipe tuner still loads. */
+.wipefront, .wipebar { display: none; }
 /* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts). Hidden + ticker stopped when idle. Its base z255 is for the Ancients
    awakening, which plays the same motes over its own z105 gate; while the combat curtain is up (`body.wipe-up`)
    it rises to z3005 so the motes/runes ride ON the z3000 blue. */

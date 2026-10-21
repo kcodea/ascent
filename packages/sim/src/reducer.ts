@@ -29,7 +29,7 @@ import {
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
 import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget } from './recruit';
-import { createRun, handCap, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
+import { createRun, handCap, markRuneAcquired, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
@@ -1236,7 +1236,7 @@ export function reduce(state: RunState, action: Action): RunState {
             const pickId = trio[rng.int(trio.length)]!;
             next.rngCursor = rng.state();
             const pick = CARD_INDEX[pickId];
-            if (pick) grantMinionToHandOrBoard(next, pick, false, true);
+            if (pick) grantMinionToHandOrBoard(next, pick, false, runeGrantOverflow(next));
           }
         }
       }
@@ -1245,7 +1245,7 @@ export function reduce(state: RunState, action: Action): RunState {
       // per copy held (recurring family, owner 2026-08-27). All-types bodies count as Dragons.
       if (next.runeDraconicCuriosity && boughtMinion && (bdef.tribe === 'dragon' || bdef.tribe2 === 'dragon' || hasRunTribe(next, bdef.id, 'dragon') || bdef.universalTribe)) {
         procRuneId(next, 'rune_draconic_curiosity');
-        conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier && !ALE_IDS.includes(c.id)), runeStacksOf(next, 'rune_draconic_curiosity'), true);
+        conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier && !ALE_IDS.includes(c.id)), runeStacksOf(next, 'rune_draconic_curiosity'), runeGrantOverflow(next));
       }
     }
     // A Shout is a TRIGGER: each Battlecry FIRE (Drakko + shout-repeat rewards + charges) counts toward the Shout
@@ -2996,6 +2996,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       if (action.kind === 'rune') {
         const rune = RUNE_INDEX[action.id];
         if (!rune) return state;
+        markRuneAcquired(s);
         applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
         (s.ownedRunes ??= []).push(rune.id);
       } else {
@@ -3030,6 +3031,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const rune = RUNE_INDEX[action.runeId];
       if (!rune || godRuneBlocked(s, rune.id)) return state;
       // A copy you already own behaves exactly as a bought second copy (spec §2): the shared duplicate handling.
+      markRuneAcquired(s);
       applyRuneCopyTo(s, rune, (s.ownedRunes ?? []).includes(rune.id));
       (s.ownedRunes ??= []).push(rune.id);
       checkTriples(s);
@@ -3078,6 +3080,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       const runeCost = Math.max(0, rune.cost - (s.runeforgeDiscounts?.[action.index] ?? 0)); // pivot discount
       if (s.embers < runeCost) return state; // can't afford — no-op (the UI greys it out)
       spendGold(s, runeCost);
+      markRuneAcquired(s); // a rune turn: its grants (and every other rune grant this turn) may over-cap the hand
       const applyRuneCopy = (isDuplicate: boolean): void => applyRuneCopyTo(s, rune, isDuplicate);
       applyRuneCopy((s.ownedRunes ?? []).includes(rune.id));
       // Rune of Duplication: "Copy the first Epic Rune you select" (R-RUNESLOT-02) — the NEXT Epic bought has its
@@ -5933,7 +5936,8 @@ function advanceCombat(s: RunState): void {
     if (!def2) continue;
     const src = g.sourceId ?? '';
     recordSotBeat(s, QUEST_INDEX[src] ? { kind: 'quest', id: src, label: QUEST_INDEX[src]!.name } : runeSource(src), () => {
-      conjureToHand(s, [def2], 1, true);
+      // A quest cadence keeps its never-dropped overflow; a RUNE cadence over-caps only on a rune turn (R-HAND-RUNE-TURN-01).
+      conjureToHand(s, [def2], 1, RUNE_INDEX[src] && !QUEST_INDEX[src] ? runeGrantOverflow(s) : true);
       procRuneId(s, g.sourceId);
     });
   }
@@ -6041,7 +6045,7 @@ function advanceCombat(s: RunState): void {
       const rng = makeRng(s.rngCursor);
       const tribe = un[rng.int(un.length)]!;
       s.rngCursor = rng.state();
-      grantRandomTribeMinion(s, tribe, 1, true);
+      grantRandomTribeMinion(s, tribe, 1, runeGrantOverflow(s));
     }
   });
   // Rune of Fresh Pages: Start of Turn, Discover a Shop spell (queues behind any start-of-turn modal).
@@ -6494,7 +6498,7 @@ function greaterQuestRewardMinions(): string[] {
 export function payDeep(s: RunState): void {
   if (!s.runeDeep) return;
   const pool = poolOf(s).all.filter((c) => !c.spell && !c.token && !c.ruby && c.tier === s.runeDeep);
-  if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, runeStacksOf(s, 'rune_deep'), true); }
+  if (pool.length > 0) { procRuneId(s, 'rune_deep'); conjureToHand(s, pool, runeStacksOf(s, 'rune_deep'), runeGrantOverflow(s)); }
 }
 
 /** Who a recurring hand grant (`questRecurringGrants`) belongs to, for its Start of Turn beat's pulse: the rune that
@@ -6688,7 +6692,7 @@ function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void 
   const pool = poolOf(s).all.filter((c) =>
     !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe || hasRunTribe(s, c.id, drip.tribe)));
   if (pool.length === 0) return;
-  conjureToHand(s, pool, drip.count, true);
+  conjureToHand(s, pool, drip.count, runeGrantOverflow(s));
   procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);
 }
 
@@ -6697,7 +6701,7 @@ function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void 
 function payRevelerDrip(s: RunState, count: number): void {
   const pool = REVELER_IDS.map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
   if (pool.length === 0 || count <= 0) return;
-  conjureToHand(s, pool, count, true);
+  conjureToHand(s, pool, count, runeGrantOverflow(s));
   procRuneId(s, 'rune_traveling_festival');
 }
 
@@ -6777,30 +6781,34 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
     case 'buffBoard':
       for (const c of s.board) addBuff(c, `Quest: ${def.name}`, r.attack, r.health);
       break;
-    case 'grant':
+    case 'grant': {
       // Quest / rune reward cards are guaranteed delivery — they OVERFLOW the hand cap rather than being dropped
       // when hand + board are full (owner ruling: never lose an earned reward). `overflow = true` on every grant.
-      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, true);
-      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, runSpells(s).filter((c) => c.tier <= s.tier), r.randomSpell!, true); // Hoard Spark's random spell
+      // A RUNE's grant over-caps only on a turn a rune was acquired (R-HAND-RUNE-TURN-01, owner 2026-10-20): true at
+      // its pickup (the buy stamps the turn first), but a banked re-fire on a later turn (Rune of the Gilded Spark's
+      // "another in 2 turns") respects the cap. Quest rewards keep the unconditional overflow.
+      const ov = RUNE_INDEX[def.id] && !QUEST_INDEX[def.id] ? runeGrantOverflow(s) : true;
+      if (r.randomTribe && (r.randomCount ?? 0) > 0) grantRandomTribeMinion(s, r.randomTribe, r.randomCount!, ov);
+      if ((r.randomSpell ?? 0) > 0) conjureToHand(s, runSpells(s).filter((c) => c.tier <= s.tier), r.randomSpell!, ov); // Hoard Spark's random spell
       // Set 2 — N random Dwarven ALES specifically (owner 2026-07-29). Drawn from the run's pool like every other
       // grant, so a set without the Ales grants nothing instead of injecting cards the run can't otherwise have.
-      if ((r.randomAle ?? 0) > 0) conjureToHand(s, runSpells(s).filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, true);
+      if ((r.randomAle ?? 0) > 0) conjureToHand(s, runSpells(s).filter((c) => ALE_IDS.includes(c.id)), r.randomAle!, ov);
       // Rubies are MINTED, never conjured: a Ruby's stats are base 1/1 plus the run's live `rubyBonus`, so
       // handing over a raw pool copy would give a late-run Kobold deck 1/1 Rubies while every other source
       // pays full strength.
       if ((r.randomRuby ?? 0) > 0) mintRubies(s, r.randomRuby!);
-      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, true); // "N random Shout/Echo/Rally/Attachment minions"
-      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, true); // Rune of the Pair — N random Tier-K minions
+      if (r.randomFilter) grantRandomFilterMinion(s, r.randomFilter, r.randomFilterCount ?? 1, r.randomFilterExactTier, ov); // "N random Shout/Echo/Rally/Attachment minions"
+      if (r.randomTier) grantRandomTierMinion(s, r.randomTier, r.randomCount ?? 1, ov); // Rune of the Pair — N random Tier-K minions
       // SET FORKS (2026-09-14): a granted id resolves to the pinned set's fork when one exists (`SET_FORKS` — empty
       // since Yazzus was unified 2026-09-16, kept for the next set that needs one).
       for (const raw of r.grantGolden ?? []) { // Leader of the Pack / Stormcalling — a GILDED copy (board-overflow safe)
         const id = forkedCardId(setIdOf(s), raw);
-        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, true);
+        if (CARD_INDEX[id]) grantMinionToHandOrBoard(s, CARD_INDEX[id]!, true, ov);
       }
       for (const raw of r.cards ?? []) {
         const id = forkedCardId(setIdOf(s), raw);
         if (!CARD_INDEX[id]) continue;
-        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false, true);
+        const card = grantMinionToHandOrBoard(s, CARD_INDEX[id]!, false, ov);
         // Apex Hunt: stamp the granted card (a Badgington) with extra keywords (Flurry + Ward) on the way in.
         if (r.grantKeywords) for (const kw of r.grantKeywords) if (!card.keywords.includes(kw)) card.keywords.push(kw);
       }
@@ -6808,6 +6816,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
         (s.pendingQuestRewards ??= []).push({ questId: def.id, turnsLeft: r.repeatInTurns! });
       }
       break;
+    }
     case 'shoutDouble':
       s.shoutDoubleCharges = (s.shoutDoubleCharges ?? 0) + r.count;
       break;
@@ -7232,6 +7241,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       const rng = makeRng(s.rngCursor);
       const rune = pool[rng.int(pool.length)]!;
       s.rngCursor = rng.state();
+      markRuneAcquired(s); // a granted rune is an acquired rune
       applyQuestReward(s, { id: rune.id, name: rune.name, reward: rune.reward } as unknown as QuestDef, true, 'rune');
       (s.ownedRunes ??= []).push(rune.id);
       break;

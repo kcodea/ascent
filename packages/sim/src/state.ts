@@ -1891,6 +1891,11 @@ export interface RunState {
   collectorBoughtThisTurn?: string[];
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
+  /** The turn (`wave`) a rune was last ACQUIRED: bought at a Runeforge, granted by a reward, or dropped in by the
+   *  DEV / God Mode grant. Stamped by `markRuneAcquired` just before the rune's reward applies. Read only by
+   *  `runeGrantOverflow`: a rune-sourced card may push the hand past its cap on this turn and no other
+   *  (R-HAND-RUNE-TURN-01, owner 2026-10-20). Absent = no rune acquired yet. */
+  runeAcquiredWave?: number;
   /** RUNE DUPLICATE STACKING (owner rulings 2026-08-27): how many times each rune's reward has APPLIED this
    *  run — ticked once per application (buy, Rune of Duplication's copy, a granted rune). Consumers read
    *  `runeStacksOf` (min 1) to scale their output, so a single copy — and every legacy save from before the
@@ -2907,6 +2912,26 @@ export function henchmanOffer(state: RunState): { cardId: string; cost: number }
  */
 export function handCap(state: Pick<RunState, 'runeforgeOffer'>): number {
   return state.runeforgeOffer ? CONFIG.handMaxRuneTurn : CONFIG.handMax;
+}
+
+/**
+ * May a RUNE-sourced card grant push the hand past its cap right now? Only on a turn a rune was acquired.
+ *
+ * Owner ruling 2026-10-20 (R-HAND-RUNE-TURN-01): "the extending of the hand past 10 cards should only happen on
+ * turns where a rune is acquired, not from rune sources on every turn." Every rune grant used to pass
+ * `overflow = true` unconditionally (the earned-reward rule), so a per-turn faucet such as Rune of the Deep or a
+ * tribe drip grew the hand past 10 on every turn of the run. Now a rune grant over-caps only on the turn a rune
+ * was bought or granted (`runeAcquiredWave`); on any other turn it respects the normal cap like every other grant.
+ * Quest reward grants are untouched (they keep their own never-dropped overflow).
+ */
+export function runeGrantOverflow(state: Pick<RunState, 'runeAcquiredWave' | 'wave'>): boolean {
+  return state.runeAcquiredWave === state.wave;
+}
+
+/** Stamp "a rune was acquired this turn" (see `runeGrantOverflow`). Called at every place a rune joins `ownedRunes`,
+ *  BEFORE its reward applies, so the rune's own pickup grants may over-cap the hand. */
+export function markRuneAcquired(state: Pick<RunState, 'runeAcquiredWave' | 'wave'>): void {
+  state.runeAcquiredWave = state.wave;
 }
 
 /**

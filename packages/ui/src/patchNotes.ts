@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Runes can only push your hand past 10 cards on a turn you get a rune.',
+        details: [
+          'On the turn you buy or are given a rune, its cards still arrive even with a full hand.',
+          'On other turns, cards from runes (Start of Turn grants, meters, triggers) need a free hand slot, like every other card.',
+          'Quest rewards still arrive on a full hand.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Kobold balance: Prospector and Cave Cutter give plain Rubies again, Blazer has less Health, and Alchemist Brisbane loses its Echo.',
         details: [

@@ -10,7 +10,7 @@ import { runSpells } from './spellPool';
 import { currentCollector, withActiveCollector } from './activeCollector';
 import { surfaceKeyForRune, surfaceKeyForQuest, CARD_INDEX, EPIC_RUNES, GIFT_IDS, QUEST_INDEX, RUNE_INDEX, RUNES, runeSynergies, type SynergyTag } from '@game/content';
 import { seatCombatSide, sideFromSnapshot } from './boardSide';
-import { poolOf, setIdOf } from './cardPool';
+import { poolOf, randomTierCeiling, setIdOf } from './cardPool';
 import { ACE_DISCOUNT_MAX_TIER, ACE_TIER_DISCOUNT, CONFIG, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, maxTierFor, hasTier7Access } from './config';
 import { lobbyOpponentBoard, settleRunLobbyRound, playerEliminated, practicePlayerPlacement, playerLossDamage } from './lobby/runLobby';
 import { botDamageMultFor } from './lobby/practiceBots';
@@ -3604,9 +3604,9 @@ function reduceCore(state: RunState, action: Action): RunState {
         // than the second silently overwriting the first.
         for (let r = 1; r < reps; r++) queueDiscover(s, { kind: 'minion', tier: s.tier });
       } else if (power.kind === 'empowerment') {
-        // Albus: a SHOP minion becomes a Discover from the tier above it. The tier step follows the standard
-        // ceiling (`hasTier7Access`), so on a Tier-6 offer it re-rolls within Tier 6 unless Tier 7 is open —
-        // the same clamp Pete's Contrabanana uses. Targeted at a Shop offer only (not a board minion).
+        // Albus: a SHOP minion becomes a Discover from the tier above it. The tier step follows the random
+        // ceiling (`randomTierCeiling`, R-RANDOM-TIER7-01), so on a Tier-6 offer it re-rolls within Tier 6 unless
+        // your Shop stands at Tier 7. Targeted at a Shop offer only (not a board minion).
         // ANCIENT OF TIME × Albus: Empowerment is passive (its Start of Turn Discover) — never activatable.
         if (ancientEmpowerPassive(s)) return state;
         const shopIdx = s.shop.findIndex((o) => o.uid === action.uid);
@@ -3616,7 +3616,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (s.shop[shopIdx]!.starform) return state; // a Discover never replaces the Starform — it stays put (rule 5)
         // Wishbone: the power happening TWICE steps the tier twice (tier + 2) rather than opening a second
         // Discover — the pick REPLACES the targeted offer, so a second one would have no offer to land on.
-        const tgt = Math.min(def.tier + reps, hasTier7Access(s) ? 7 : 6);
+        const tgt = Math.min(def.tier + reps, randomTierCeiling(s));
         const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier === tgt);
         if (pool.length === 0) return state;
         const rng = makeRng(s.rngCursor);
@@ -8327,7 +8327,7 @@ function ciaBuyEnchanted(s: RunState, offer: ShopCard): void {
   if (n < 3) { s.ciaEnchantedBought = n; return; }
   s.ciaEnchantedBought = 0;
   const suit = s.ciaSuit ?? 'hearts';
-  const cap = hasTier7Access(s) ? 7 : 6;
+  const cap = randomTierCeiling(s); // R-RANDOM-TIER7-01: a random prize reaches Tier 7 only from a Tier 7 Shop
   // Wishbone: the prize pays TWICE (owner ruling — "doubles reward"). Wrapped around the whole switch rather
   // than doubling each arm, so a suit added later doubles for free instead of silently paying once.
   for (let rep = 0; rep < wishboneReps(s); rep++)

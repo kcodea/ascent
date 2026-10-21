@@ -208,8 +208,8 @@ export const SET2_NEUTRAL: CardDef[] = [
   {
     // CLOCKWORK ASSISTANT — a peek one rung above where you are. Reuses `battlecryDiscoverMinion` through the
     // new `tierOffset` param, so it inherits the exclude-self rule, the Drakko stacking and the Discover
-    // queueing for free. The offset clamps to the RUN's ceiling, so a non-Summit board tops out at Tier 6
-    // instead of promising a Tier 7 the run can never reach.
+    // queueing for free. The offset clamps to the random ceiling (`randomTierCeiling`, R-RANDOM-TIER7-01), so it
+    // tops out at Tier 6 unless your Shop already stands at Tier 7.
     id: 'n2_clockwork',
     name: 'Clockwork Assistant',
     tribe: 'mech',

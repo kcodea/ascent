@@ -48,12 +48,14 @@ describe('the legal random minion pool', () => {
     expect(ids).not.toContain('d2_orivax');
   });
 
-  it('opens Tier 7 only with Tier-7 access (Summit, or the access flag), and keeps the set pool order', () => {
-    const access = legalRandomMinionPool(run(1, 'set2', { tier7Access: true })).map((c) => c.id);
+  it('opens Tier 7 only from a Tier 7 Shop (R-RANDOM-TIER7-01), and keeps the set pool order', () => {
+    // Access alone with a Tier 6 Shop no longer opens it (owner 2026-10-21: "cant be getting t7s in combat either").
+    expect(legalRandomMinionPool(run(1, 'set2', { tier7Access: true })).filter((c) => c.tier >= 7)).toEqual([]);
+    expect(randomTierCeiling(run(1, 'set2', { rift: 'summit' }))).toBe(STANDARD_TIER_CEILING);
+    const access = legalRandomMinionPool(run(1, 'set2', { tier7Access: true, tier: 7 })).map((c) => c.id);
     expect(access).toContain('b2_elderhorn');
     expect(access).toContain('d2_orivax');
-    const summit = run(1, 'set2', { rift: 'summit' });
-    expect(randomTierCeiling(summit)).toBe(7);
+    expect(randomTierCeiling(run(1, 'set2', { tier: 7 }))).toBe(7);
     const expectOrder = poolFor('set2').buyable.filter((c) => !c.ruby && !c.henchman).map((c) => c.id);
     expect(access, 'stable order: the set pool order, filtered').toEqual(expectOrder.filter((id) => access.includes(id)));
   });

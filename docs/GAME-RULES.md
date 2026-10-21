@@ -1856,6 +1856,20 @@ live opponent has one.)
 
 ---
 
+### Random picks reach Tier 7 only from a Tier 7 Shop (owner rulings 2026-10-21, R-RANDOM-TIER7-01, R-RANDOM-POOL-01)
+
+*"cant be getting t7s in combat either"*
+
+A random minion pick (summon, get, grant or Discover a random minion, including the "tier above your Shop" Discovers)
+never gives a **Tier 7** minion, in the Shop or in combat, unless that player's Shop actually stands at Tier 7. Tier-7
+*access* (Open Road, Summit Passage, the Summit rift) still opens the Tier 7 upgrade, but with a Tier 6 Shop it does not
+open Tier 7 to random picks. **Rune of the Foundry** (a random Dragon every 5 minions sold) is capped at your Shop tier,
+like every other "get a random X". Effects whose text names Tier 7 keep it: Rune of the Deep, Beyond the Summit, Pete,
+Strange Revision, and the printed "up to Tier 7" cards (Skybound Ascendant, Golden Monkey).
+
+Code: one rule for both phases, `combatTierCeiling(shopTier)` in `packages/core/src/randomPool.ts`; the Shop's
+`randomTierCeiling(state)` (`packages/sim/src/cardPool.ts`) calls it with the Shop tier.
+
 ### A triple uses the BOARD copies first (owner rule 2026-09-25, R-GILD-03)
 
 *"the minions on board should be used first and foremeost for triples"*

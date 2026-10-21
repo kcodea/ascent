@@ -1,8 +1,7 @@
-import { inRunTribes, legalRandomMinions, type CardDef } from '@game/core';
+import { combatTierCeiling, inRunTribes, legalRandomMinions, type CardDef } from '@game/core';
 import type { CardPool, SetId } from '@game/content';
 import { poolFor } from '@game/content';
 import type { RunState } from './state';
-import { hasTier7Access, maxTierFor } from './config';
 
 /**
  * The card pool a RUN draws from — resolved from the set pinned on the run, never from the live registry.
@@ -63,11 +62,14 @@ function narrowedPool(base: CardPool, tribes: readonly string[]): CardPool {
 }
 
 /**
- * The tier CEILING a random effect may reach for this run: 6 normally, 7 with Tier-7 access (Summit rift, or a
- * quest / hero power that set `tier7Access`). The same ceiling the Discover clamps and Pete's upgrade read.
+ * The tier CEILING a random effect may reach for this run RIGHT NOW: Tier 7 only while your Shop actually stands at
+ * Tier 7, otherwise 6. R-RANDOM-TIER7-01 (owner 2026-10-21, "cant be getting t7s in combat either"): Tier-7 ACCESS
+ * alone (the Summit rift, Open Road / Summit Passage's `tier7Access`) with a Tier 6 Shop no longer opens Tier 7 to a
+ * random picker. The SAME rule as combat's `combatTierCeiling`, so the two phases cannot drift. Effects whose text
+ * names Tier 7 (Rune of the Deep, Beyond the Summit, Pete, Strange Revision) ask for it explicitly and skip this.
  */
-export function randomTierCeiling(state: Pick<RunState, 'rift' | 'tier7Access'>): number {
-  return hasTier7Access(state) ? 7 : maxTierFor(state.rift);
+export function randomTierCeiling(state: Pick<RunState, 'tier'>): number {
+  return combatTierCeiling(state.tier);
 }
 
 /**
@@ -78,7 +80,7 @@ export function randomTierCeiling(state: Pick<RunState, 'rift' | 'tier7Access'>)
  * pool's, so seeded picks replay faithfully. Tribe / effect predicates stay with the caller.
  */
 export function legalRandomMinionPool(
-  state: Pick<RunState, 'setId' | 'rift' | 'tier7Access'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'mode'>>,
+  state: Pick<RunState, 'setId' | 'tier'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'mode'>>,
   opts?: { maxTier?: number },
 ): CardDef[] {
   const ceiling = Math.min(randomTierCeiling(state), opts?.maxTier ?? Infinity);

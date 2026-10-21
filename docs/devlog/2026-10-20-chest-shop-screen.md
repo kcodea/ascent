@@ -73,7 +73,7 @@ Owner words that bound the work:
 - Claude's calls inside the spec: Standard is selected when the screen opens (nothing is spent by opening it); a category
   with nothing left keeps its row, reading 0 with a disabled "None left" toggle; after a purchase the player returns to the
   shop; the "Everything ticked: no focus, so any category can drop, Announcers too." note under the receipt.
-- Deferred minor review notes: GAME-RULES wording "available" vs "focusable" (~line 927), `aether.db.test.ts`'s all-ticked
+- Deferred minor review notes: `aether.db.test.ts`'s all-ticked
   case still runs the old SQL (the new db test covers the new behaviour), the Shop button lacks the `pressable` class, the
   Collection JSX fragment is not re-indented, `receiptRows`' absorb branch is untested (dead today).
 
@@ -88,6 +88,30 @@ server (which still counts Announcers as a category), and the purchase is refuse
 `inventory.ts` `parseFocus` is unchanged, so no edge function needs deploying; until the SQL runs, the live server still
 accepts an Announcers focus (the SQL quote is the gate).
 
+The window between step 1 and step 2 matters too. Once the SQL has run, the live OLD client (still the sidebar shop)
+still offers an Announcers focus: the server refuses it and the player reads "Couldn't buy that chest". And ticking
+everything except Announcers is now the server's "no focus" (free) while the old client quotes a fee, so that purchase
+answers `price_changed`. Both are safe (nothing is charged), but confusing, so keep the window between running the SQL
+and shipping the client short.
+
+## Final review fixes (2026-10-21)
+
+- The section divider loads through `publicArt` (a raw `BASE_URL` frames path failed `phoneArt.test.ts`).
+- **Phone art (R-TOUCH-GPU-MEMORY-01).** `phonePublicCap` gives the ten chest layers (`collection/crate_*` and
+  `collection/chest_*_{body,lid}.webp`, 840 px masters) a 512 px phone copy, and `ChestPicture` loads them through
+  `chestPictureUrl` (`publicArt`), so a lite-art phone decodes about a third of the pixels in the shop and the bay. The
+  opening theatre keeps `chestArtUrl` (the originals): its anchors are master pixels. It is not off on phones (only
+  the `nofx` diagnostics switch turns Pixi off), so a phone that opens a chest still decodes that tier's originals, as
+  before this branch.
+- R-PROG-AETHER-03 now says the available set is the focusable categories with something left (never Announcers);
+  GAME-RULES says the same and lists R-PROG-AETHER-06.
+- While a purchase runs, the chest cards and the focus toggles are disabled and the kept request id is never dropped,
+  so a retry after a timeout always reuses it (new test). Toggles dim only when sold out.
+- The selected chest's halo and the On pill's halo show at a steady 0.7 under reduced motion (they breathe only where
+  motion is allowed); sparks use `forwards`, so they stay hidden through their start delay.
+- Guards: `SHOP_FOCUS_ORDER` must hold every enabled, focusable category; the Collection's looping-animation tripwire
+  reads `chestShop.css` and `chestPicture.css` too.
+
 ## Please check (owner)
 
 - **Profile the shop on the prod build** (`npm run build:web`, then `vite preview`, as in `docs/performance.md`; Chrome
@@ -99,3 +123,6 @@ accepts an Announcers focus (the SQL quote is the gate).
 - **Eyeball the layout at 1920x1080 and a scaled stage.** The screen was built from the mockup's proportions (1560px page,
   five columns, 1.35fr/1fr lower panels) and pinned by tests, but not visually verified in a browser by the builders.
 - **Touch:** both tooltips (chest card, odds slice) have `.tt-on` twins; check a tap on a phone-sized stage.
+- **On the iPhone (the prod build, `release:web`):** open the Collection, then the Chest Shop, pick each chest and go
+  back a few times. The chests should look the same as on desktop (they now load a 512 px phone copy) and the tab should
+  not crash. If it does, the crash log names the step.

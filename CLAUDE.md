@@ -167,6 +167,24 @@ a rule in a skill stops being true, fix it in the same PR as the behaviour chang
 - `npm run build:web` — production build (the CI gate + what players actually run)
 - `npm run dev` — live dev server
 
+## Releasing: every Netlify package ships Versus with it (owner ruling 2026-10-20)
+
+**Whenever you pack the Netlify zip (`npm run release:web`), redeploy the Versus server from the SAME commit in the
+same step.** The versus-resolve Edge Function refuses any match whose game data differs from its own, so a build that
+goes live without its matching Versus server freezes every Versus match at "both ready" (hit 2026-10-20: three matches
+lost after #2177/#2178 went live un-redeployed). `release:web` builds `origin/main`; run these from a checkout sitting
+on exactly the commit the zip names (the badge sha), never a dirty or different tree:
+
+1. `npm run versus:bundle`, and note the `content <rev>` it prints.
+2. `npx --yes supabase@2.120.0 functions deploy versus-resolve --project-ref zcwhbejpqcdcfdpfxeza --use-api`
+3. `npm run versus:parity -- remote https://zcwhbejpqcdcfdpfxeza.supabase.co/functions/v1/versus-resolve`
+   (must be all cases byte-identical).
+4. Tell the owner the zip AND the Versus content revision in the same message.
+
+If the bundle's revision is unchanged from what's deployed, say so and skip the deploy. Versus only matches once
+the Netlify upload is live too, so the owner should upload promptly; until then the old live client is the one out of
+step. No other trigger for a Versus deploy is needed: merges alone never change what players run.
+
 ## Collaboration (2 devs — Kevin + Mike, both using Claude Code)
 
 > New to the repo? Start with [`ONBOARDING.md`](ONBOARDING.md) (clone → install → verify → the rules).

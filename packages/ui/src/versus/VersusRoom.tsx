@@ -210,8 +210,8 @@ function SpectatorFan({ spectators, data, room, me, drag, arena }: { spectators:
   const n = spectators.length;
   return (
     <div className="vsbench" style={{ '--n': n } as CSSProperties}>
-      {/* THE BENCH (owner 2026-10-21, R-VERSUS-ROOM-STANDS-01): the band the hand rests in is `.vsbench::before` (as wide
-          as the fan, its top faded), and its quiet label is centred just above the cards. */}
+      {/* THE BENCH (owner 2026-10-21, R-VERSUS-ROOM-STANDS-01): the spectators as a hand, no box behind them; the quiet
+          label is centred on the fan just above the cards. */}
       <span className="vsstands-label hudpill-name" aria-hidden="true">Spectators<span className="vsstands-count">{n} / {VERSUS_SPECTATOR_CAP}</span></span>
       {spectators.map((m, i) => (
         <div key={m.userId} className={`vsbcard${dragClass(m, room, me, drag)}`} style={{ '--i': i, '--off': i - (n - 1) / 2 } as CSSProperties}

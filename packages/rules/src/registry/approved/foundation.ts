@@ -6623,17 +6623,18 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-VERSUS-ROOM-STANDS-01',
-    title: 'The Versus spectators sit on a bench along the bottom',
+    title: 'The Versus spectators sit along the bottom as a hand of cards',
     statement:
-      'The hand of spectator cards rests inside a panel band along the bottom (the menu panel\'s navy) as wide as the fan plus a margin, whose top fades in from transparent instead of a hard edge and whose ends fade out, with an inner shadow; a quiet "Spectators n / 20" name pill sits centred just above the cards. It is static, takes no pointer, and never clips the cards or the hand\'s hover pads. No card carries a "You" marker.',
+      'The spectators read as a hand of cards along the bottom, the way the shop\'s hand does: no box or band behind them, a flat row on one baseline (no tilt, no arc), each card a little over its neighbour, every plate on the shop hand\'s static drop shadow, and a quiet "Spectators n / 20" name pill centred on the row just above the cards. It never clips the cards or the hand\'s hover pads. No card carries a "You" marker.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench)', quote: "add a bench/hand area in the bottom so it's slightly more obvious that players in the 'hand' are spectators" },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench edge)', quote: "fade the box up a bit so it's less of a hard line" },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-21 (Versus bench, after #2196)', quote: 'versus spectator area looks terrible. clean that up then otherwise we\'re good to go i think.' },
     ],
-    currentBehaviour: 'Before, the spectator hand floated on the arena floor with nothing marking it as the stands.',
-    example: 'Join a room: your card sits on the Spectators bench at the bottom until you drag it into a seat.',
+    currentBehaviour: 'Before, a dark navy panel band sat behind the spectator cards, reading as a muddy box with dead space round them.',
+    example: 'Join a room: your card sits in the spectators row at the bottom, under the Spectators pill, until you drag it into a seat.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRoomPolish.test.tsx'], lastVerifiedAt: '2026-10-21' },
   },
   {

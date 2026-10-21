@@ -152,40 +152,30 @@
   font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); letter-spacing: 0.02em; line-height: 1;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
 /* THE STANDS as a hand of cards (owner 2026-10-16: "spectators should show as cards in hand so you can mouse over to
-   view their cards too"). Small player cards (x0.72 of a board card) fanned along the bottom like `.row.hand .card`:
-   each tilts by its offset from the middle and drops by its offset squared, so the row arcs; the step between cards is
+   view their cards too"). Small player cards (x0.72 of a board card) in a row along the bottom like `.row.hand .card`:
+   flat and on one baseline since 2026-10-21 (the tilt and arc vars are 0, R-VERSUS-ROOM-STANDS-01); the step between cards is
    the smaller of a natural overlap and what fits the stands' width (`--n` cards), so up to 20 always fit. Hover lifts
    the card upright from its foot to 90% of the SEAT card's size (`--vsb-zoom` = 0.9 x seat k / hand k; its pills keep
    the same in-game proportion as the seat's, R-VERSUS-ROOM-PILLS-01): one transform with a short transition (compositor-only), nothing measured. The
    widths come from the painting's own size (--gh), so the fan keeps its place at any stage scale.
    LOWERED to the in-game hand's place (owner 2026-10-17, R-VERSUS-DRAG-SEAT-01) and RAISED just enough that NOTHING is
    cut off (owner 2026-10-20, R-VERSUS-HAND-HOVER-01): every resting card shows whole, plate included, at any count up
-   to 20 (the arc's drop is bounded below). */
+   to 20. */
 .vsbench { position: absolute; top: 75.5%; height: 24.5%; left: 28%; width: 44%; z-index: 5; pointer-events: none;
   --vsb-k: 0.72;
   --vsb-ccw: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vsb-k) * 0.752 * 0.85);
   --vsb-bw: calc(var(--vsb-ccw) * 1.5);
   --vsb-fanw: calc(var(--gh, var(--lvh, 100%)) * 2560 / 1086 * 0.44);
-  --vsb-step: min(calc(var(--vsb-bw) * 0.96), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1)));
-  --vsb-tilt: min(3.5deg, calc(40deg / max(var(--n), 1)));
-  /* The arc's drop is bounded (~0.15 card widths at the ends, however many cards): a 20-card fan used to sink its
-     outer cards almost two card widths, off the bottom of the screen. */
-  --vsb-arc: calc(var(--vsb-ccw) * 0.6 / max(var(--n) * var(--n), 30));
+  --vsb-step: min(calc(var(--vsb-bw) * 0.9), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1)));
+  --vsb-tilt: 0deg; /* flat like the shop hand (R-VERSUS-ROOM-STANDS-01) */
+  --vsb-arc: 0px; /* one baseline, no arc (R-VERSUS-ROOM-STANDS-01) */
   --vsb-zoom: 2; }
-/* THE BENCH (owner 2026-10-21: "add a bench/hand area in the bottom", "fade the box up a bit", then "polish that up";
-   R-VERSUS-ROOM-STANDS-01). The menu panel's navy as a band the hand rests IN: as wide as the fan plus a margin (it
-   follows `--n`, so one card or eight both look intended), from a little above the cards' tops to past the screen
-   edge, so every card sits inside it on the fan's one arc and nothing crosses an edge. Its top fades in from
-   transparent (no line), its ends fade out (a static mask), and an inner shadow gives it depth. The quiet label is
-   centred just above the cards, inside the fade. Static, behind the cards, no pointer. */
-.vsbench::before { content: ''; position: absolute; left: 50%; translate: -50% 0; z-index: 0; pointer-events: none;
-  top: calc(-34 * var(--u)); bottom: -4%;
-  width: max(calc(var(--vsb-bw) * 3), calc(var(--vsb-bw) * 1.7 + max(var(--n) - 1, 0) * var(--vsb-step)));
-  border-radius: calc(26 * var(--u)) calc(26 * var(--u)) 0 0;
-  background: linear-gradient(180deg, rgba(13, 22, 40, 0) 0, rgba(13, 22, 40, 0.66) calc(48 * var(--u)), rgba(8, 13, 26, 0.86) 100%);
-  box-shadow: inset 0 calc(30 * var(--u)) calc(40 * var(--u)) calc(-20 * var(--u)) rgba(0, 0, 0, 0.45), inset 0 0 calc(60 * var(--u)) rgba(0, 0, 0, 0.35);
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 calc(56 * var(--u)), #000 calc(100% - 56 * var(--u)), transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 calc(56 * var(--u)), #000 calc(100% - 56 * var(--u)), transparent 100%); }
+/* THE BENCH AS A HAND (owner 2026-10-21: "versus spectator area looks terrible. clean that up", R-VERSUS-ROOM-STANDS-01).
+   No box: the panel band behind the fan is gone (it read as a muddy rectangle with dead space round one card). The
+   spectators read as a HAND the way the shop's does: a flat row at one baseline (no tilt, no arc, `.row.hand`'s
+   `--fan-rot: 0deg`), each card a little over its neighbour, every plate on the shop hand's own static drop shadow.
+   The quiet "Spectators n / 20" pill is centred on the fan just above the cards. Static paint only. */
+.vsbench .vsbcard-lift .cardplate { filter: drop-shadow(0 calc(9 * var(--u)) calc(20 * var(--u)) rgba(20, 12, 4, 0.42)); }
 .vsstands-label { position: absolute; z-index: 45; pointer-events: none; left: 50%; top: calc(-32 * var(--u)); translate: -50% 0;
   display: inline-flex; align-items: center; gap: calc(8 * var(--u));
   height: calc(24 * var(--u)); box-sizing: border-box; padding: 0 calc(13 * var(--u)); border-radius: 999px; white-space: nowrap;

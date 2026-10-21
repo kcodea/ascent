@@ -57,7 +57,7 @@
  */
 import { makeRng, type CardDef } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { procRuneId, type BoardCard, type RunState, type ShopCard } from './state';
+import { procRuneId, runeGrantOverflow, type BoardCard, type RunState, type ShopCard } from './state';
 import { addBuff, addOfferBuff, conjureToHand, consumeShopOffer, fireStarformGained, fireStarformRemoved, isTribe, offerBuyStats, rightmostShopMinion, grantMinionToHandOrBoard } from './recruit';
 import { syncStarDestroyer } from './equipment';
 import { tierSlots } from './shop';
@@ -230,7 +230,7 @@ function afterStarformAte(state: RunState, cardId: string): void {
     const def = CARD_INDEX[cardId];
     if (def && !def.spell && !def.ruby) {
       procRuneId(state, 'rune_stolen_constellations');
-      for (let k = 0; k < runeStacksOf(state, 'rune_stolen_constellations'); k++) grantMinionToHandOrBoard(state, def, false, true);
+      for (let k = 0; k < runeStacksOf(state, 'rune_stolen_constellations'); k++) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow(state));
     }
   }
 }

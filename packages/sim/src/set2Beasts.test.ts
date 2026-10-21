@@ -551,7 +551,8 @@ describe('set 2 — Menagerie Mammoth (owner rework 2026-08-12: Echo, summon 3 r
       combatSide({ tier: 6, tribes: ['beast'] }), combatSide({ tier: 1 }));
     const summoned = summonedBy(r, mammothUid(r));
     expect(summoned.length, 'three bodies from the Mammoth').toBe(3);
-    expect(summoned.every((id) => CARD_INDEX[id]?.tribe === 'beast' || CARD_INDEX[id]?.tribe2 === 'beast'), 'all Beasts').toBe(true);
+    // An All-types minion counts as a Beast (R-ALL-TYPES-EVERYWHERE-01), so it is a legal summon too.
+    expect(summoned.every((id) => CARD_INDEX[id]?.tribe === 'beast' || CARD_INDEX[id]?.tribe2 === 'beast' || !!CARD_INDEX[id]?.universalTribe), 'all Beasts').toBe(true);
     expect(summoned.includes('b2_mammoth'), 'never summons another Mammoth').toBe(false);
   });
 

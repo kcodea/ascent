@@ -1809,6 +1809,26 @@ since 2026-09-21 — see "Pummel (X)" below), Sell (a keyword since 2026-09-23 �
 
 Source: `packages/ui/src/terms.ts`.
 
+### All types counts as every tribe, everywhere (owner rules 2026-08-26 and 2026-10-21, R-ALL-TYPES-EVERYWHERE-01)
+
+*"all types need to trigger all types of interactions"* (2026-08-26), extended on 2026-10-21 to the tribe pools.
+
+An **All-types** minion (printed All types, such as Paragon or Standard Bearer, or marked All by the Anomaly Reactor)
+counts as **every tribe and never as neutral**, in both phases:
+
+- **Pools.** In any pool of cards of a tribe (a random grant, a summon, an offer, a Discover, a Shop refill such as
+  Sigil of Kinship, the Basic and Epic tribe rune drips), an All-types card belongs to every tribe's pool. The pool
+  keeps its seeded order; the All-types cards just pass the filter.
+- **Counts and checks.** A count or check of a tribe (Hoardflame's Dragons played, Rune of Spellhide's Beast,
+  Company Rate's Dwarf price, Ancestral Roar's dying Dragon, Candlelight Toll and Gemstorm's Kobolds, the Mech shield
+  runes) sees an All-types minion as that tribe.
+- **Not changed:** sites that count *distinct* types (the most common type, how many types you control, Centerline's
+  two different end types, Wishbone's archived type). There an All-types body is handled case by case.
+
+Code: `defIsTribe` / `isTribe` / `isTribeNatural` / `offerIsTribe` (`packages/sim/src/recruit.ts`), `defIsTribe` /
+`bodyIsTribe` (`packages/core/src/combat/tribe.ts`), `isTribeOf` (`simulate.ts`). The Doc Bot tribe ratchet
+(`packages/sim/src/docbot/tribeRatchet.ts`) fails CI on a new raw `.tribe ===` comparison.
+
 ### "A card is added to your hand" — every source, every phase (owner rule 2026-08-29)
 
 *"cards added to hand is an effect in recruit + shop and should trigger effects that track them in all

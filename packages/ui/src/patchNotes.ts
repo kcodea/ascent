@@ -56,6 +56,22 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-21',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'All-types minions such as Paragon and Standard Bearer now count as every type everywhere, including effects that give, summon or offer a minion of a type.',
+        details: [
+          'Effects that give or offer a random minion of a type can now give an All-types minion.',
+          'Sigil of Kinship can refresh All-types minions into the Shop.',
+          'Hoardflame counts an All-types minion you played as a Dragon.',
+          'Rune of Spellhide counts an All-types minion as a Beast.',
+          'In combat, All-types minions count for Dragon, Kobold and Mech effects such as Rune of Ancestral Roar and Rune of Gemstorm.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-20',
     changes: [
       { category: 'Systems', text: 'A hero power you find mid-game now always arrives ready. Before, finding a power again could leave it greyed out as spent because a different power had been used, for example Copy Machine after Masterwork. A power you already used yourself still stays used if you find it again.' },

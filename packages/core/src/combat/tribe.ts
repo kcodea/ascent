@@ -11,3 +11,18 @@ export function defIsTribe(def: CardDef | undefined, tribe: Tribe): boolean {
   if (def.universalTribe) return true;
   return def.tribe === tribe || def.tribe2 === tribe;
 }
+
+/**
+ * Does a combat BODY count as `tribe`? Its printed + folded tribes (`tribe`, `tribe2`, where combat folds an Anomaly
+ * Reactor added type), its per-instance All mark (`universalTribe`), or an All-types CardDef (`def`). Neutral is never
+ * a type, so an All-types body is not "a neutral". R-ALL-TYPES-EVERYWHERE-01 (owner 2026-10-21): the raw
+ * `m.tribe === t || m.tribe2 === t` checks this replaced missed All-types bodies.
+ */
+export function bodyIsTribe(
+  m: { tribe?: string; tribe2?: string; universalTribe?: boolean },
+  tribe: string,
+  def?: CardDef,
+): boolean {
+  if (m.tribe === tribe || m.tribe2 === tribe) return true;
+  return tribe !== 'neutral' && (!!m.universalTribe || !!def?.universalTribe);
+}

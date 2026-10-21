@@ -12,7 +12,6 @@ import { Recruit } from './Recruit';
 import { PERF_DOM_CONTAINERS } from './perfDomContainers';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
-import { PracticeOptions } from './PracticeOptions';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
 import { RuneforgeEntrancePreview } from './runeforgeEntrance/RuneforgeEntrancePreview';
@@ -605,9 +604,8 @@ export function Game() {
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />
-      {/* Practice setup — the options screen between the Practice card and the hero picker (self-gates on
-          `practiceSetupOpen`). Sits by the picker: choosing Practice opens this, Start opens the picker. */}
-      <PracticeOptions />
+      {/* Practice setup: a view of the title's mode screen now (Title.tsx, R-MENU-VIEW-SWAP-01), so choosing Practice
+          shifts the content beside the sidebar instead of closing the whole menu and fading a new one in. */}
       {/* The hero-select launch curtain: mounted in Game (NOT in HeroSelect) so it survives the unmount
           pickHero causes, and after HeroSelect so it z-orders above it (blueprint §7). */}
       {/* The "Good Luck" game-start intro (owner ask 2026-09-24): a dimmed board with the words over it, begun by

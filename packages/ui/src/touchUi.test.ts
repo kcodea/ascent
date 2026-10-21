@@ -155,9 +155,9 @@ describe('R-TOUCH-MENU-MEMORY-01: nothing hidden under an open menu holds a laye
   it('never hides the wipe or the ranked gate canvases', () => {
     for (const r of rules) expect(r.sel).not.toMatch(/wipefx|gatefx/);
   });
-  it('the title art under a mode page and the mode home under another mode page stop painting', () => {
+  it('the title art under a mode page and the mode screen under the tutorial nudge stop painting', () => {
     expect(find('.titlescreen:has(> .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
-    expect(find('.modepick.mp-home:has(~ .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
+    expect(find('.modepick.mp-shell:has(~ .modepick)')[0]?.body).toMatch(/visibility:\s*hidden/);
   });
   it('the touch sidebar never scrolls sideways', () => {
     expect(rules.some((r) => r.sel === 'html[data-touch-ui] .msb' && /overflow-x:\s*hidden/.test(r.body))).toBe(true);

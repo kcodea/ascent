@@ -40,6 +40,17 @@ import { levelProgress } from '@game/progression';
 import { mirrorFor } from './progression/progressionStore';
 import { scalarCaption } from './rank/rankFormat';
 import { crumb, crumbTrail } from './crashLog';
+import { MenuViewSwap } from './MenuViewSwap';
+import { PracticeOptions } from './PracticeOptions';
+
+/** The mode screen's views (`MenuViewSwap`): the home, its sub-views, Practice's setup, and the Versus room's empty
+ *  ground (the room is its own stage over it). */
+type ShellView = 'modes' | 'learn' | 'gauntlet' | 'versus' | 'versus-room' | 'practice';
+const SHELL_LABEL: Record<ShellView, string> = {
+  modes: 'Choose a mode', learn: 'Learn', gauntlet: 'Gauntlet', versus: 'Versus', 'versus-room': 'Versus', practice: 'Practice options',
+};
+// The layer classes the views' CSS hangs on (`.mp-home` places the home spread; `.mp-practice` the setup column).
+const shellViewClass = (v: ShellView): string => (v === 'modes' ? 'mp-home' : v === 'practice' ? 'practiceopts mp-practice' : `mp-${v}`);
 
 /**
  * The title screen — the game's front door, shown at boot and after a run ends. Styled after the
@@ -95,6 +106,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const versusScreen = useVersus((s) => s.screen);
+  const practiceOpen = useGame((s) => s.practiceSetupOpen);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
   const openAvatarPicker = useGame((s) => s.openAvatarPicker);
@@ -166,7 +178,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // how far the screen got (R-TOUCH-GPU-MEMORY-01).
   useEffect(() => (showTitle ? crumbTrail(titleView === 'menu' ? 'title' : `title view ${titleView}`) : undefined), [showTitle, titleView]);
 
-  if (!showTitle) return null;
+  // Practice's setup closes the title flag (`startPractice`: showTitle false), but it is a view of the mode screen, so
+  // the title stays mounted under it: the sidebar and backdrop stay put and only the content shifts (R-MENU-VIEW-SWAP-01).
+  if (!showTitle && !practiceOpen) return null;
 
   // A player who has never finished (or skipped) the guided course is "new" — hitting Play offers the tutorial
   // once before the real game, rather than dropping them in cold.
@@ -262,6 +276,96 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       <h1 className="disp mptitle">{name}</h1>
     </div>
   );
+
+  // Which view the mode screen shows (null = the main menu, no mode screen). Practice's setup is a view here too:
+  // `startPractice` closes the title flag, but the mode screen it opens over stays mounted (see the early return).
+  const shellView: ShellView | null = practiceOpen ? 'practice'
+    : titleView === 'menu' ? null
+    : titleView === 'versus' && versusScreen === 'room' ? 'versus-room'
+    : titleView;
+  // One view's content, the `.mpbox` beside the sidebar (`MenuViewSwap` also renders the outgoing one with it).
+  const renderShellView = (v: ShellView): ReactNode => {
+    switch (v) {
+      // MODE PICKER (redesigned for UI refinement WS-2, 2026-10-16; owner: "our play mode screen seems bad"). One fixed
+      // grid over the painted hall (MenuBackdrop): PLAY, the ranked lobby, is the large tile with the one gold call to
+      // action; Practice and Versus stack beside it; Gauntlet and Learn share the row below. Every mode stays one click
+      // away and the tiles never move (muscle memory); the mode you last launched wears a "Last played" tag instead
+      // (lastMode.ts). Descriptions are always shown, never hidden behind a hover. The mode id stays `lobby` everywhere
+      // internally; only the LABEL is "Play" (owner 2026-08-17).
+      case 'modes': return (
+        <div className="mpbox">
+          {/* WHO YOU ARE, across the top (owner 2026-10-16): portrait + frame, name + title, rank + MMR, level + XP. */}
+          <PlayerStrip />
+          <div className="mphead"><h1 className="disp mptitle">Choose a mode</h1></div>
+          <div className="mpgrid">
+            <button className="modecard mc-hero" data-mp="play" onClick={() => { rememberMode('play'); onPlay(); }}>
+              <div className="mcframe" data-mode="lobby" data-mp="play">
+                {modeArt('lobby')
+                  ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
+                  : <span className="mcemblem"><IconHelm /></span>}
+                {/* No rank on the Play card (owner 2026-09-21): the crest + bar live on the Career page and the
+                    Leaderboard; the card is just the door to the ranked lobby. */}
+                <div className="mcdesc">The ranked eight-seat lobby.</div>
+                {lastMode === 'play' && <span className="mclast">Last played</span>}
+                <span className="mcname mc-cta"><Crest /><span>Play</span></span>
+              </div>
+            </button>
+            <div className="mpside">
+              {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}
+              {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Seven hearts each. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
+            </div>
+            <div className="mprow2">
+              {modeTile('gauntlet', 'gauntlet', 'Gauntlet', 'Survive 10 rounds against a hand-built foe.', () => { rememberMode('gauntlet'); sfx.pulse(); setTitleView('gauntlet'); }, <Crest />)}
+              {modeTile('learn', 'learn', 'Learn', 'The tutorial and techniques.', () => { sfx.pulse(); setTitleView('learn'); }, <IconHelm />)}
+            </div>
+          </div>
+        </div>
+      );
+      // LEARN HUB: the guided Tutorial today; the advanced-lessons slot is a placeholder for lessons we add later
+      // (owner 2026-08-17). The crumb (and the rail's Play) lead back to the picker.
+      case 'learn': return (
+        <div className="mpbox">
+          {subHead('Learn')}
+          <div className="mprow">
+            <button className="modecard" onClick={() => { rememberMode('learn'); sfx.pulse(); startTutorial(LEARN_ASCENT); }}>
+              <div className="mcframe" data-mode="learn">
+                <div className="mcname hudpill-name">Tutorial</div>
+                {modeArt('learn')
+                  ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
+                  : <span className="mcemblem"><IconHelm /></span>}
+                <div className="mcdesc">A coached first game. Every mechanic, then graduate.</div>
+              </div>
+            </button>
+
+            <button className="modecard mclocked" disabled data-tip="More guided lessons are coming soon">
+              <div className="mcframe" data-mode="soon">
+                <div className="mcname hudpill-name">Advanced</div>
+                <span className="mcemblem"><Icon name="clock" /></span>
+                <div className="mcdesc">Tribes, synergies, tactics. Coming soon.</div>
+              </div>
+            </button>
+          </div>
+        </div>
+      );
+      // GAUNTLET STAGE SELECT: picking a stage opens the hero picker for that stage; the crumb returns to the picker.
+      case 'gauntlet': return (
+        <div className="mpbox">
+          {subHead('Gauntlet')}
+          <StageSelect />
+        </div>
+      );
+      // VERSUS: the lobby browser (versus/VersusTitle.tsx). The room is its own stage over this screen (below).
+      case 'versus': return (
+        <div className="mpbox">
+          {subHead('Versus')}
+          <VersusTitle />
+        </div>
+      );
+      case 'versus-room': return null;
+      // PRACTICE OPTIONS (PracticeOptions.tsx): the setup between the Practice tile and the hero picker.
+      case 'practice': return <PracticeOptions />;
+    }
+  };
 
   return (
     // `covered && pageOpen`, not `covered` alone (2026-10-16, owner: "when going from career -> play there's a weird
@@ -425,105 +529,24 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
       </div>
 
-      {/* MODE PICKER (redesigned for UI refinement WS-2, 2026-10-16; owner: "our play mode screen seems bad").
-          One fixed grid over the painted hall (MenuBackdrop): PLAY, the ranked lobby, is the large tile with the one
-          gold call to action; Practice and Versus stack beside it; Gauntlet and Learn share the row below. Every
-          mode stays one click away and the tiles never move (muscle memory); the mode you last launched wears a
-          "Last played" tag instead (lastMode.ts). Descriptions are always shown, never hidden behind a hover.
-          The mode id stays `lobby` everywhere internally; only the LABEL is "Play" (owner 2026-08-17). */}
-      {/* Mounted under the Learn / Gauntlet / Versus views too (they open OVER it), so opening one never flashes
-          the title through its fade-in. */}
-      {titleView !== 'menu' && (
-        <SidebarHost className="modepick sb-host mp-home" role="dialog" aria-label="Choose a mode">
+      {/* THE MODE SCREEN (owner 2026-10-21, R-MENU-VIEW-SWAP-01: "it should be a clean, seamless menu shift going into
+          the different views"). ONE host for the mode home AND its views (Practice, Gauntlet, Learn, the Versus browser):
+          the sidebar, the painted backdrop and the scroller stay put, and only the content beside the sidebar shifts
+          (`MenuViewSwap`: the old view fades and lifts out while the new one rises in, about 0.2 s, transform + opacity
+          only). Each view used to be its own full-screen host over the home: the home's content remounted and replayed
+          its entrance under it while the new host faded in whole, which flashed the mode tiles through (Gauntlet, Learn,
+          Versus); and Practice closed the whole title and mounted its own host, a full fade out and in. */}
+      {shellView && (
+        <SidebarHost className="modepick sb-host mp-shell" role="dialog" aria-label={SHELL_LABEL[shellView]}>
           <MenuSidebar current="modes" />
-          {/* Keyed on the nav stamp (owner 2026-10-16: "the cards dont fade/slide in when going to play from career"):
-              the picker stays mounted under a menu page (so closing the page never flashes), so a hop back to Play would
-              otherwise re-show it with no entrance. A fresh key remounts only the CONTENT, which replays the strip's rise
-              and the tiles' stagger; the backdrop and the rail stay put. */}
-          <div className="mpbox" key={titleView === 'modes' ? modesEnterKey : 'sub'}>
-            {/* WHO YOU ARE, across the top (owner 2026-10-16): portrait + frame, name + title, rank + MMR, level + XP. */}
-            <PlayerStrip />
-            <div className="mphead"><h1 className="disp mptitle">Choose a mode</h1></div>
-            <div className="mpgrid">
-              <button className="modecard mc-hero" data-mp="play" onClick={() => { rememberMode('play'); onPlay(); }}>
-                <div className="mcframe" data-mode="lobby" data-mp="play">
-                  {modeArt('lobby')
-                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('lobby')} alt="" draggable={false} /></div>
-                    : <span className="mcemblem"><IconHelm /></span>}
-                  {/* No rank on the Play card (owner 2026-09-21): the crest + bar live on the Career page and the
-                      Leaderboard; the card is just the door to the ranked lobby. */}
-                  <div className="mcdesc">The ranked eight-seat lobby.</div>
-                  {lastMode === 'play' && <span className="mclast">Last played</span>}
-                  <span className="mcname mc-cta"><Crest /><span>Play</span></span>
-                </div>
-              </button>
-              <div className="mpside">
-                {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}
-                {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Seven hearts each. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
-              </div>
-              <div className="mprow2">
-                {modeTile('gauntlet', 'gauntlet', 'Gauntlet', 'Survive 10 rounds against a hand-built foe.', () => { rememberMode('gauntlet'); sfx.pulse(); setTitleView('gauntlet'); }, <Crest />)}
-                {modeTile('learn', 'learn', 'Learn', 'The tutorial and techniques.', () => { sfx.pulse(); setTitleView('learn'); }, <IconHelm />)}
-              </div>
-            </div>
-          </div>
+          {/* The home is keyed on the nav stamp (owner 2026-10-16: "the cards dont fade/slide in when going to play
+              from career"): the host stays mounted under a menu page (so closing the page never flashes), so a hop
+              back to Play remounts only the home's CONTENT, which replays the strip's rise and the tiles' stagger. */}
+          <MenuViewSwap view={shellView} nonce={shellView === 'modes' ? modesEnterKey : undefined} viewClass={shellViewClass} render={renderShellView} />
         </SidebarHost>
       )}
-
-      {/* LEARN HUB — opened from the Learn card in the mode picker. Holds the guided Tutorial today; the
-          advanced-lessons slots are placeholders for lessons we add later (owner 2026-08-17). The crumb (and the
-          rail's Play) lead back to the picker. */}
-      {titleView === 'learn' && (
-        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Learn">
-          <MenuSidebar current="modes" />
-          <div className="mpbox">
-            {subHead('Learn')}
-            <div className="mprow">
-              <button className="modecard" onClick={() => { rememberMode('learn'); sfx.pulse(); startTutorial(LEARN_ASCENT); }}>
-                <div className="mcframe" data-mode="learn">
-                  <div className="mcname hudpill-name">Tutorial</div>
-                  {modeArt('learn')
-                    ? <div className="mcart-clip"><FadeImg className="mcframe-art" src={modeArt('learn')} alt="" draggable={false} /></div>
-                    : <span className="mcemblem"><IconHelm /></span>}
-                  <div className="mcdesc">A coached first game. Every mechanic, then graduate.</div>
-                </div>
-              </button>
-
-              <button className="modecard mclocked" disabled data-tip="More guided lessons are coming soon">
-                <div className="mcframe" data-mode="soon">
-                  <div className="mcname hudpill-name">Advanced</div>
-                  <span className="mcemblem"><Icon name="clock" /></span>
-                  <div className="mcdesc">Tribes, synergies, tactics. Coming soon.</div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </SidebarHost>
-      )}
-
-      {/* GAUNTLET STAGE SELECT — opened from the Gauntlet card in the mode picker (the Learn hub's pattern: it sits
-          over the picker, and the crumb returns to it). Picking a stage opens the hero picker for that stage. */}
-      {titleView === 'gauntlet' && (
-        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Gauntlet">
-          <MenuSidebar current="modes" />
-          <div className="mpbox">
-            {subHead('Gauntlet')}
-            <StageSelect />
-          </div>
-        </SidebarHost>
-      )}
-
-      {/* VERSUS — the lobby browser and the room (versus/VersusTitle.tsx), over the picker like the Gauntlet view. */}
-      {titleView === 'versus' && versusScreen === 'room' && <VersusRoom />}
-      {titleView === 'versus' && versusScreen !== 'room' && (
-        <SidebarHost className="modepick sb-host" role="dialog" aria-label="Versus">
-          <MenuSidebar current="modes" />
-          <div className="mpbox">
-            {subHead('Versus')}
-            <VersusTitle />
-          </div>
-        </SidebarHost>
-      )}
+      {/* VERSUS ROOM (versus/VersusRoom.tsx): its own arena stage over the mode screen (whose content is empty under it). */}
+      {shellView === 'versus-room' && <VersusRoom />}
 
       {/* TUTORIAL NUDGE — a new player who hits Play is offered the guided course first (owner 2026-08-17:
           the nudge lives here, not on an auto-popup). Either choice retires it: "Start Playing" records a

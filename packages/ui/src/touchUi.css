@@ -84,13 +84,13 @@ html[data-touch-ui] .modepick.sb-host { --touch-mp-w: calc(100 * var(--vw, 1vw) 
 html[data-touch-ui] .modepick .mpbox { max-width: calc(var(--touch-mp-w) / var(--hs-zoom)); }
 html[data-touch-ui] .modepick .pomodes-box { min-width: min(1180px, calc(var(--touch-mp-w) / var(--hs-zoom))); }
 /* The mode picker's home is one composed spread (the ranked tile + the side tiles): it grows less, so it still fits. */
-html[data-touch-ui][data-touch-small] .modepick.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * min(var(--touch-p), 1.15)); }
+html[data-touch-ui][data-touch-small] .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * min(var(--touch-p), 1.15)); }
 /* Desktop centres the home spread over the whole screen (the narrow sidebar never reaches it); beside the wider touch
    sidebar it centres in the space right of it instead. */
-html[data-touch-ui] .modepick.mp-home.sb-host { padding-left: calc(var(--sb-w) + var(--safe-l)); }
+html[data-touch-ui] .mpview.mp-home { padding-left: calc(var(--sb-w) + var(--safe-l)); }
 /* The bigger corner buttons sit over the bottom-right of these pages: their content keeps clear of that strip. */
-html[data-touch-ui] .modepick.sb-host { padding-bottom: calc(var(--touch-cb) + 40px + var(--safe-b)); }
-html[data-touch-ui]:not([data-touch-small]) .modepick.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745); }
+html[data-touch-ui] .modepick.sb-host:not(.mp-shell), html[data-touch-ui] .mpview { padding-bottom: calc(var(--touch-cb) + 40px + var(--safe-b)); }
+html[data-touch-ui]:not([data-touch-small]) .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745); }
 /* Recent Games' placement sparkline takes its own full-width row instead of a sliver beside the stats. */
 html[data-touch-ui] .rg-summary { grid-template-columns: auto minmax(0, 1fr); row-gap: 14px; }
 html[data-touch-ui] .rg-sum-chart { grid-column: 1 / -1; padding-left: 0; border-left: none; }
@@ -124,13 +124,14 @@ html[data-touch-ui][data-touch-small] .disc-toggle.disc-peek:not(.inspect-act) {
         size to the window, never to the element, so nothing resizes; `!important` beats the inline `display: block`
         Pixi writes). The wipe and the ranked gate keep theirs.
      2. The title's own art and buttons under an open mode page stop painting (the bobbing logo is a running animation
-        that promotes everything over it), and so does the mode home under another mode page (Versus, Learn ...).
+        that promotes everything over it), and so does the mode screen under the tutorial nudge. (The mode home and its
+        views share one host since R-MENU-VIEW-SWAP-01, so there is no home left mounted under Versus or Learn.)
      3. The touch sidebar scrolls up and down only: a sideways overflow made it a two-way scroller. */
 html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) > #root > .pixifx,
 html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) > canvas.pixifx-above,
 html[data-touch-ui] #stage:has(> #root > :is(.titlescreen, .lbpage, .modepick)) > div > canvas.pixi-screen { display: none !important; }
 html[data-touch-ui] .titlescreen:has(> .modepick) > :is(.titlemenu, .titleaccount, .titlefoot) { visibility: hidden; }
-html[data-touch-ui] .titlescreen > .modepick.mp-home:has(~ .modepick) { visibility: hidden; }
+html[data-touch-ui] .titlescreen > .modepick.mp-shell:has(~ .modepick) { visibility: hidden; }
 html[data-touch-ui] .msb { overflow-x: hidden; }
 
 /* ── Phone GPU memory: no looping layers on the menus (owner 2026-10-18, R-TOUCH-GPU-MEMORY-01) ─────────────────────

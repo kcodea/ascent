@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Moving between the mode screen and Practice, Gauntlet, Learn or Versus is now one smooth shift. The old screen no longer flashes through, and the whole menu no longer fades out and back in.',
+        details: [
+          'The side menu and the background stay put. Only the content beside them changes.',
+          'The old view fades up and out while the new one rises in, in about a fifth of a second.',
+          'With reduced motion turned on, the views switch instantly.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Boards in your Career and Recent Games now show their minions at the same size, with matching Attack and Health badges.',
         details: [
           'Every badge on a board is the same size, and every number on it uses the same text size.',

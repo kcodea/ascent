@@ -6851,8 +6851,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'With the touch UI on, while the title or a menu page (the mode picker, Practice, Versus, Career, Leaderboard, '
       + 'Recent Games, Live Games, Collection, hero select) is open, the gameplay effects canvases under it are taken out '
-      + 'of the page, the title art and buttons under an open mode page stop painting, the mode home under another mode '
-      + 'page stops painting, and the menu sidebar scrolls vertically only. Only things already invisible under an opaque '
+      + 'of the page, the title art and buttons under an open mode page stop painting, the mode screen under the tutorial '
+      + 'nudge stops painting, and the menu sidebar scrolls vertically only. Only things already invisible under an opaque '
       + 'menu change, so nothing looks different, and a mouse device is untouched. Every menu screen stays inside the '
       + 'phone layer-memory budget of scripts/phone-menu-memory.mjs (iPhone landscape, 3x).',
     domain: 'foundation',
@@ -7228,5 +7228,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-20 (fix/spectator-view). Found in two-client testing: a publisher restarted its seq at 1 after a reload, so every spectator dropped its frames as stale and the server kept the old keyframe; the stands froze on the round before the reload until the match ended.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorView.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-MENU-VIEW-SWAP-01',
+    title: 'The mode screen shifts only its content between the home and its views',
+    statement:
+      'The mode home (Play, Practice, Versus, Gauntlet, Learn) and its views (the Practice setup, the Gauntlet stages, the '
+      + 'Learn hub, the Versus browser) are one screen: the sidebar, the painted backdrop and the scroller stay put, and only '
+      + 'the content beside the sidebar changes. Going into a view or back to the home, the old content fades and lifts out '
+      + 'over about 0.14 s while the new content rises and fades in a beat later (about 0.2 s), transform and opacity only. '
+      + 'No frame shows the old content at full opacity over the new, no frame is blank, and nothing fades the whole screen. '
+      + 'With reduced motion the content switches at once.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-21', quote: "clicking into gauntlet, learn, and versus all have a glitchy flash of the 'play modes' before entering their view. practice does a quick fade out/in of the full ui. I don't want the full fade out/in, but i want the janky flash of the old ui gone, too. it should be a clean, seamless menu shift going into the different views." },
+      { kind: 'code', ref: 'packages/ui/src/MenuViewSwap.tsx; packages/ui/src/Title.tsx (the .mp-shell host); packages/ui/src/styles.css (the mode screen view swap block)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-21 (fix/menu-mode-transitions). Before, Gauntlet, Learn and Versus each mounted a second '
+      + 'full-screen host that faded in whole over 0.3 s, while the home under it remounted its content (a key change) and '
+      + 'replayed its tile entrance, so the mode tiles showed through. Practice closed the title flag, which unmounted the '
+      + 'whole title, and mounted its own host with the same 0.3 s fade.',
+    example: 'Modes, then Gauntlet: the mode tiles fade up and out while the stage grid rises in; the rail and the hall never move.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/menuViewSwap.test.tsx'], lastVerifiedAt: '2026-10-21' },
   },
 ];

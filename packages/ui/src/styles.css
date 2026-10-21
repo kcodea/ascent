@@ -7649,6 +7649,30 @@ body:has(.titlescreen) .bookbtn, body:has(.titlescreen) .rulesbtn { z-index: 451
   .lbpage.hop > :not(.msb):not(.mbd), .modepick.hop > :not(.msb):not(.mbd), .lbpage:not(.hop) > .lbtopbar, .lbpage:not(.hop) > .lbscroll { animation: fadein 0.12s ease both; }
 }
 
+/* ── THE MODE SCREEN'S VIEW SWAP (owner 2026-10-21, R-MENU-VIEW-SWAP-01: "it should be a clean, seamless menu shift
+   going into the different views"; `MenuViewSwap.tsx`). The mode home and its views (Practice, Gauntlet, Learn, the
+   Versus browser) share ONE host, `.mp-shell`: the sidebar, the backdrop and the scroller stay put. Each view is a
+   `.mpview` layer filling the host; on a change the outgoing and incoming layers share the one grid cell for ~0.2 s.
+   The host's padding moved onto the layers (each view places its own content: the home centres over the whole screen,
+   the others beside the sidebar), so a view's layout never moves when the next view arrives.
+   Motion is the content box's opacity + transform only, one-shot: out 0.14 s (fades, lifts 6px, inert), in 0.2 s a
+   beat later (rises 8px, fades in), so no frame shows the old view at full opacity over the new one. The in fill is
+   `backwards` (it rests on the element's own style and lets go of its layer when done); the out layer is removed. ── */
+.modepick.sb-host.mp-shell, html[data-touch-ui] .modepick.sb-host.mp-shell { padding: 0; place-items: stretch; grid-template: minmax(100%, max-content) / minmax(0, 1fr); }
+.mpview { grid-area: 1 / 1; min-width: 0; display: grid; place-items: safe center;
+  padding: 24px var(--safe-r) calc(24px + var(--safe-b)) calc(var(--sb-w) + var(--safe-l)); }
+@keyframes mpv-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes mpv-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(-6px); } }
+.modepick.sb-host > .mpview.mpv-in, .modepick.sb-host > .mpview.mpv-out { animation: none; }
+.modepick.sb-host > .mpview.mpv-out { pointer-events: none; }
+.modepick.sb-host > .mpview.mpv-out > * { animation: mpv-out 0.14s cubic-bezier(0.4, 0, 1, 1) forwards; }
+.modepick.sb-host > .mpview.mpv-in > * { animation: mpv-in 0.2s cubic-bezier(0, 0, 0.2, 1) 0.03s backwards; }
+/* Reduced motion: `MenuViewSwap` switches at once (no outgoing layer); this is the belt to its braces. */
+@media (prefers-reduced-motion: reduce) {
+  .modepick.sb-host > .mpview.mpv-in > * { animation: none; }
+  .modepick.sb-host > .mpview.mpv-out { visibility: hidden; }
+}
+
 /* ── MENU BACKDROP (UI refinement WS-1, 2026-10-16; `MenuBackdrop.tsx`) — the painted plate behind every sidebar
    host. It sits at z -1 INSIDE the host's stacking context (both hosts are fixed + z-indexed), so it paints over the
    host's navy radial (kept as the fallback while the plate decodes) and under every in-flow child. The picker
@@ -8794,7 +8818,7 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
      the hero card and the Gauntlet / Learn name tabs. */
   row-gap: 80px; }
 /* The picker sits centred on the stage, a little below the middle, with room under the bottom row. */
-.modepick.mp-home { place-items: center; padding: 30px 0 56px; }
+.mpview.mp-home { place-items: center; padding: 30px 0 56px; }
 .mc-hero { grid-area: hero; }
 .mpside { grid-area: side; display: flex; flex-direction: column; gap: 44px; }
 .mprow2 { grid-area: row; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
@@ -13611,7 +13635,8 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The two mode tiles never move (owner 2026-10-16: "lock those in place so they don't move"): the screen is TOP-aligned
    (it was centred, so the shorter God Mode panel pulled everything 117px down), and the options panel keeps the taller
    Sandbox height in both states, so Start stays put too. */
-.mp-practice { place-items: start center; padding: 150px 0 56px; }
+/* The setup column hangs from near the top, beside the sidebar (the generic `.mpview` padding keeps the rest). */
+.mpview.mp-practice { place-items: start center; padding-top: 150px; }
 .mp-practice .popanel { min-height: 440px; align-content: start; }
 .mp-practice .pomodes-box { width: 1240px; min-width: 0; max-width: calc(100% - 80px); align-items: stretch; gap: 0; }
 .mp-practice .mphead { margin: 0 0 24px; }
@@ -13696,8 +13721,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lb-trow-btn:hover .lb-row-go { color: #ffe2a0; transform: translateX(3px); }
 @media (prefers-reduced-motion: reduce) { .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { animation: none; } .lb-trow-btn:hover .lb-row-go { transform: none; } }
 
-/* Reduced motion: the Mode screen's content still arrives with a short fade on every visit (no rise, no stagger). */
-@media (prefers-reduced-motion: reduce) { .modepick.mp-home > .mpbox { animation: fadein 0.12s ease both; } }
+/* Reduced motion: the Mode screen's views switch at once (R-MENU-VIEW-SWAP-01: "an instant switch, still with no flash"). */
 
 /* RECENT GAMES POLISH (owner 2026-10-16: "this looks bad, can you fix this"). Sized for the 1080p stage: the summary is
    a hero panel (big numbers, the most-played hero at a real size, a placement chart with a 1st-8th axis and band marks),

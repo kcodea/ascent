@@ -1,7 +1,6 @@
 import { useGame } from './store';
 import { modeArt } from './art';
 import { FadeImg } from './FadeImg';
-import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { sfx } from './sfx';
 import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
 
@@ -113,94 +112,92 @@ const GOD_FEATURES: { title: string; text: string }[] = [
   { title: 'Nothing is saved', text: 'No rating, no history. Experiment freely.' },
 ];
 
+/** The Practice setup's content (the `.mpbox` beside the sidebar). It is a VIEW of the mode screen (Title.tsx renders it
+ *  in the shared host through `MenuViewSwap`, R-MENU-VIEW-SWAP-01), so it brings no host or sidebar of its own, and it is
+ *  not gated on `practiceSetupOpen`: the mode screen decides when it shows (and keeps it a moment as it leaves). */
 export function PracticeOptions() {
-  const open = useGame((s) => s.practiceSetupOpen);
   const cfg = useGame((s) => s.practiceDraft);
   const setDraft = useGame((s) => s.setPracticeDraft);
   const confirm = useGame((s) => s.confirmPracticeSetup);
-  const cancel = useGame((s) => s.cancelPracticeSetup);
-  if (!open) return null;
+  const goTo = useGame((s) => s.goTo);
   // GOD MODE (owner sketch 2026-10-08): God Mode ignores the Sandbox options (it always plays every hero, Unlimited
   // health, every tribe, no timer), so they are greyed out and inert until Sandbox Mode is selected.
   const god = cfg.godMode === true;
 
-  const setTitleView = (v: 'modes') => { useGame.getState().setTitleView(v); };
-  // Back to the mode picker (the crumb), the way the Learn / Gauntlet / Versus views lead back.
-  const back = (): void => { sfx.pulse(); cancel(); setTitleView('modes'); };
+  // Back to the mode picker (the crumb), the way the Learn / Gauntlet / Versus views lead back. ONE store write
+  // (`goTo('modes')` closes the setup, raises the title flag and lands on the home together): two separate writes
+  // could render the main menu for a frame in between.
+  const back = (): void => { sfx.pulse(); goTo('modes'); };
 
   return (
-    // The side menu, like the Gauntlet and Learn views beside it (owner 2026-10-16: "add it"); it mounts the backdrop.
-    <SidebarHost className="modepick sb-host practiceopts mp-practice" role="dialog" aria-label="Practice options">
-      <MenuSidebar current="modes" />
-      <div className="mpbox pobox pomodes-box">
-        <div className="mphead">
-          <button className="mpcrumb" onPointerDown={back}>Modes</button>
-          <span className="mpsep" aria-hidden="true">/</span>
-          <h1 className="disp mptitle">Practice</h1>
-        </div>
-        <div className="pomodes">
-          <ModeTile mode="sandbox" title="Sandbox Mode" on={!god} art={modeArt('practice')} onSelect={() => setDraft({ godMode: false })}
-            text="The Practice game, set up your way. Nothing here is rated." />
-          <ModeTile mode="god" title="God Mode" on={god} art={modeArt('gauntlet')} onSelect={() => setDraft({ godMode: true })}
-            text="999 Gold and no timer. Put any card in your shop, take any rune, and choose which round your opponent comes from. Nothing is saved." />
-        </div>
-        <div className="popanel">
-          {god && (
-            <div className="pogod" aria-label="What God Mode gives you">
-              {GOD_FEATURES.map((f) => (
-                <div className="pogod-item" key={f.title}><span className="pogod-t">{f.title}</span><span className="pogod-x">{f.text}</span></div>
-              ))}
-            </div>
-          )}
-          {/* GOD MODE (owner sketch 2026-10-08): it ignores the Sandbox options (it always plays every hero, Unlimited
-              health, every tribe, no timer), so they are inert (and folded away) while God Mode is selected. */}
-          <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
-            <Segmented
-              label="Heroes"
-              hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
-              value={cfg.heroes ?? 'beginner'}
-              options={HERO_MODES}
-              onPick={(v) => setDraft({ heroes: v })}
-              disabled={god}
-            />
-            <Segmented
-              label="Health"
-              hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
-              value={cfg.health}
-              options={HEALTH}
-              onPick={(v) => setDraft({ health: v })}
-              disabled={god}
-            />
-            <Segmented
-              label="Time"
-              hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
-              value={cfg.timeMult}
-              options={TIMES}
-              onPick={(v) => setDraft({ timeMult: v })}
-              disabled={god}
-            />
-            <Segmented
-              label="Opponent Rank"
-              hint={rankHint(normalizePracticeRank(cfg.rank))}
-              value={normalizePracticeRank(cfg.rank)}
-              options={RANKS}
-              onPick={(v) => setDraft({ rank: v })}
-              disabled={god}
-            />
-            <Segmented
-              label="Tribes"
-              hint={`Select as many as you'd like. Selected tribes join the Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
-              isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
-              options={TRIBE_OPTIONS}
-              onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
-              disabled={god}
-            />
-          </div>
-        </div>
-
-        {/* START: the one bright gold action on this screen (the gold rule). */}
-        <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>
+    <div className="mpbox pobox pomodes-box">
+      <div className="mphead">
+        <button className="mpcrumb" onPointerDown={back}>Modes</button>
+        <span className="mpsep" aria-hidden="true">/</span>
+        <h1 className="disp mptitle">Practice</h1>
       </div>
-    </SidebarHost>
+      <div className="pomodes">
+        <ModeTile mode="sandbox" title="Sandbox Mode" on={!god} art={modeArt('practice')} onSelect={() => setDraft({ godMode: false })}
+          text="The Practice game, set up your way. Nothing here is rated." />
+        <ModeTile mode="god" title="God Mode" on={god} art={modeArt('gauntlet')} onSelect={() => setDraft({ godMode: true })}
+          text="999 Gold and no timer. Put any card in your shop, take any rune, and choose which round your opponent comes from. Nothing is saved." />
+      </div>
+      <div className="popanel">
+        {god && (
+          <div className="pogod" aria-label="What God Mode gives you">
+            {GOD_FEATURES.map((f) => (
+              <div className="pogod-item" key={f.title}><span className="pogod-t">{f.title}</span><span className="pogod-x">{f.text}</span></div>
+            ))}
+          </div>
+        )}
+        {/* GOD MODE (owner sketch 2026-10-08): it ignores the Sandbox options (it always plays every hero, Unlimited
+            health, every tribe, no timer), so they are inert (and folded away) while God Mode is selected. */}
+        <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
+          <Segmented
+            label="Heroes"
+            hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
+            value={cfg.heroes ?? 'beginner'}
+            options={HERO_MODES}
+            onPick={(v) => setDraft({ heroes: v })}
+            disabled={god}
+          />
+          <Segmented
+            label="Health"
+            hint={cfg.health === 'unlimited' ? "You can't be eliminated." : 'Real damage. Last one standing wins.'}
+            value={cfg.health}
+            options={HEALTH}
+            onPick={(v) => setDraft({ health: v })}
+            disabled={god}
+          />
+          <Segmented
+            label="Time"
+            hint={cfg.timeMult === 0 ? 'No shop timer. Take as long as you like.' : 'Shop-timer length. It starts once you spend 10 Gold in a turn.'}
+            value={cfg.timeMult}
+            options={TIMES}
+            onPick={(v) => setDraft({ timeMult: v })}
+            disabled={god}
+          />
+          <Segmented
+            label="Opponent Rank"
+            hint={rankHint(normalizePracticeRank(cfg.rank))}
+            value={normalizePracticeRank(cfg.rank)}
+            options={RANKS}
+            onPick={(v) => setDraft({ rank: v })}
+            disabled={god}
+          />
+          <Segmented
+            label="Tribes"
+            hint={`Select as many as you'd like. Selected tribes join the Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
+            isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
+            options={TRIBE_OPTIONS}
+            onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
+            disabled={god}
+          />
+        </div>
+      </div>
+
+      {/* START: the one bright gold action on this screen (the gold rule). */}
+      <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>
+    </div>
   );
 }

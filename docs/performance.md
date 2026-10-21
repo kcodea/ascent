@@ -826,6 +826,24 @@ throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/20
   software-GPU artifact. Main-thread numbers (busy %, long tasks, script/style time) are reliable; GPU-side frame
   spikes need a real device (Safari Web Inspector timeline on an iPhone).
 
+## 3j. Desktop jank pass, 2026-10-21: featureless `:has()` subjects and body-class rules
+
+Numbers and method: `docs/devlog/2026-10-21-desktop-jank.md` (five interleaved full games per build, recruit frames
+over 6.25 ms down 39%, combat 18%).
+
+- **A `:has()` rule with a featureless subject restyles a whole subtree.** `.cardref:has(.plate-frosted) .cardref-inner
+  > :not(.card)` made Blink restyle every descendant of any element whose `:has()` state changed, and `.app` /
+  `<body>` change on nearly every commit: 700-1,000 elements, 5-21 ms on every buy, sell, play, hover and combat
+  entry. Name the subject (`.kwdefs`). `featureSubjects.test.ts` enforces it.
+- **An attribute guard does not keep a `:has()` rule off desktop.** Selectors match right to left; a touch-only rule
+  goes inside `@media (hover: none) and (pointer: coarse)`.
+- **A body-class cursor rule is a whole-page restyle** (the aim cursor, like the drag cursor before it). Hide the
+  cursor on the element under the pointer (`aimCursorHide.ts`).
+- **Warm GPU layers behind the boot splash on desktop** (`bootWarm.ts`), keep the ranked gate layer for the session;
+  phones stay lazy.
+- **Harness trap:** a CDP `Runtime.evaluate` appears as `EvaluateScript` with no URL. Check for a
+  `blink.mojom.DevToolsSession` parent before blaming the page.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.
@@ -953,6 +971,13 @@ These are the rules the audits surfaced; the codebase already follows them — k
   styles, or carry it on a dedicated element (the drag cursor veil).
 - **Detach Pixi's DOM events on every new `Application`** (`detachPixiDomEvents`), and wrap new `Flip.from` /
   `Flip.to` calls in `withoutFlipBodyLock`.
+- **A `:has()` rule's subject (its last compound) must name a class, id, tag or attribute** (§3j). `X:has(.y) > :not(.z)`
+  makes Blink restyle every descendant of `X` whenever `X`'s `:has()` state flips, and `.app` / `<body>` flip on nearly
+  every commit. `featureSubjects.test.ts` fails on a featureless subject.
+- **Guard a touch-only `:has()` rule with a media query, not only an attribute.** Selectors match right to left, so
+  `html[data-touch-ui] #stage:has(...)` is still evaluated on a mouse device (§3j).
+- **Read every rect, then write** in any loop over cards or rows (FLIP, rail floats, gild sources). A per-target GSAP
+  tween reads its target's computed transform at init, so tween a target ARRAY, not one tween per card.
 
 When in doubt: a property that changes the *pixels* of an element is expensive to animate; a property that
 only *moves or fades* an already-painted layer is cheap.

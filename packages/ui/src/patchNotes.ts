@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-20',
     changes: [
+      { category: 'Systems', text: 'Milestone chests (every 10th level) are now Epic chests, and they open straight away like any other chest you earn: they can no longer be focused. Milestone chests you already have stay Legendary.' },
       {
         category: 'Balance',
         text: 'Kobold balance: Prospector and Cave Cutter give plain Rubies again, Blazer has less Health, and Alchemist Brisbane loses its Echo.',

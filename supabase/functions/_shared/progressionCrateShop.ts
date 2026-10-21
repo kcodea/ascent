@@ -132,6 +132,8 @@ export interface CrateQuote {
 /**
  * What a crate costs this player right now. Null = sold out (nothing eligible) or a bad focus. `milestone` = the crate
  * is free and its floor is Legendary whatever `tier` was passed; only the focus fee is charged, at the Legendary price.
+ * (`milestone` priced the milestone crate's focus at open, which is gone since 2026-10-20: nothing passes it now. It is
+ * kept only so this stays the exact mirror of the SQL `aether_quote`, which aether.db.test.ts checks draw for draw.)
  */
 export function quoteCrate(input: {
   tier: CrateTier; focus: readonly string[] | null; owned: Iterable<string>; economy?: AetherEconomy; milestone?: boolean; catalog?: readonly CosmeticDef[];

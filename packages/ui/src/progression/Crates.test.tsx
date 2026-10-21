@@ -510,18 +510,19 @@ describe('the chest tier in the theatre', () => {
     expect(cueCategories().filter((c) => c.startsWith('crateTier'))).toEqual([]);
   });
 
+  // A milestone crate is floor Epic since 2026-10-20 (owner: "reduce down to Epic for the milestone chests").
   it('reduced motion shows the tier name: a milestone crate names its chest, wears its tier class, and calls no Pixi', async () => {
     liveCrates();
     answerEach();
-    const item = { crateId: 'c-m10', earnedLevel: null, source: 'milestone:10', tier: 'legendary' as const };
+    const item = { crateId: 'c-m10', earnedLevel: null, source: 'milestone:10', tier: 'epic' as const };
     ui = mount(<CrateOpener queue={[item]} reducedMotion />);
     expect(text('.crate-name')).toBe(crateLabel({ earnedLevel: null, source: 'milestone:10' }));
-    expect(text('.crate-name')).toMatch(/Legendary (Crate|Chest)/);
-    expect(tierClass()).toBe('legendary');
+    expect(text('.crate-name')).toBe('Level 10 Epic Chest');
+    expect(tierClass()).toBe('epic');
     act(() => button('Open')!.click());
     await settle();
     expect(phase()).toBe('settled');
-    expect(tierClass()).toBe('legendary');
+    expect(tierClass()).toBe('epic');
     expect(fxCalls).toEqual([]); // never created
   });
 

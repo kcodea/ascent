@@ -7,7 +7,7 @@
  *
  * Aether is earned by playing and spent in the Crate Shop; it is never bought with real money and accounts start
  * at 0. This file is THE economy rules: what each mode pays, the crate prices, the focus-fee ladder, and the
- * milestone cadence for the free Legendary crates. Level no longer grants a crate per level (Level 1's Welcome
+ * milestone cadence and floor for the free milestone crates (Epic since 2026-10-20). Level no longer grants a crate per level (Level 1's Welcome
  * Crate and every 10th level's milestone crate are the exceptions).
  *
  * DEPENDENCY-FREE ON PURPOSE (its one import is the sibling `rules.ts`). Like the other progression files it is
@@ -48,7 +48,7 @@ export interface AetherEconomy {
   cratePrice: Readonly<Record<CrateTier, number>>;
   /** Focus fee as a percent of the crate's price, by number of categories ticked. Length 7, index 0 = 1 ticked. */
   focusFeePercent: readonly number[];
-  /** A free Legendary-floor milestone crate arrives at every Nth account level. */
+  /** A free milestone crate (floor `MILESTONE_CRATE_TIER`) arrives at every Nth account level. */
   milestoneEvery: number;
 }
 
@@ -151,7 +151,17 @@ export function aetherForSettlement(
 
 // ── Milestone crates ────────────────────────────────────────────────────────────────────────────────────────
 
-/** The milestone levels (10, 20, 30, ...) at or below `level`: each owes the account one free Legendary crate. */
+/**
+ * The tier a milestone crate is granted at: its rarity FLOOR, and the chest it opens as. EPIC since 2026-10-20 (owner: "i
+ * want the chest quality to reduce down to Epic for the milestone chests (every 10 levels) and you cannot focus those ones
+ * specifically"); the SQL copy is the `'epic'` in settle_progression + aether_rollout
+ * (2026-10-20-milestone-chests-epic.sql). Milestone crates granted before then stay floor Legendary (owner: "Keep them
+ * Legendary"), so a crate's own `floor` is the truth and this is only the default for a crate that has none. A milestone
+ * crate is never focused: not at open, not ever.
+ */
+export const MILESTONE_CRATE_TIER: CrateTier = 'epic';
+
+/** The milestone levels (10, 20, 30, ...) at or below `level`: each owes the account one free milestone crate. */
 export function milestoneLevelsThrough(level: number, every: number = DEFAULT_AETHER_ECONOMY.milestoneEvery): number[] {
   const out: number[] = [];
   if (!Number.isFinite(level) || !Number.isInteger(every) || every < 1) return out;

@@ -14,7 +14,7 @@ import {
   ACHIEVEMENTS, ACHIEVEMENT_AGGS, ACHIEVEMENT_MODES, ACHIEVEMENT_TRUSTS, ASCENDANT_DIVISION, BRUTAL_LOBBY_STRENGTH, META_METRIC, SERVER_METRICS, achievementCatalogPayload,
 } from './achievements';
 import { INVENTORY_ERROR_STATUS } from './inventory';
-import { DEFAULT_AETHER_ECONOMY } from './aether';
+import { DEFAULT_AETHER_ECONOMY, MILESTONE_CRATE_TIER } from './aether';
 
 /**
  * TS ↔ SQL PARITY for the progression writer. There is no Postgres in CI, so (like the medal-rank parity test)
@@ -61,12 +61,15 @@ const versusProg = readFileSync(join(root, 'supabase/migrations/2026-10-14-versu
 const aether = readFileSync(join(root, 'supabase/migrations/2026-10-18-aether.sql'), 'utf8');
 /** The launch grant (2026-10-19, R-PROG-AETHER-05): appended to schema.sql right after the Aether file. */
 const launchGrant = readFileSync(join(root, 'supabase/migrations/2026-10-19-aether-launch-grant.sql'), 'utf8');
+/** Milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER-04): the newest open_crate, settle_progression
+ *  and aether_rollout, appended to schema.sql right after the launch grant. */
+const milestoneEpic = readFileSync(join(root, 'supabase/migrations/2026-10-20-milestone-chests-epic.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -559,14 +562,15 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
   });
 
   it('schema.sql carries the Aether migration verbatim, after the last older migration, and ends with the same settle_progression, open_crate, buy_crate and record_gauntlet_clear', () => {
+    // (settle_progression and open_crate are the milestone file's since 2026-10-20: `fnBody` reads the newest.)
     const lf = (t: string): string => t.replace(/\r\n/g, '\n');
     const flat = lf(schema);
     const body = lf(aether).trim();
     const at = flat.indexOf(body);
     expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
-    // only the launch-grant file (2026-10-19) follows it
+    // only the launch-grant file (2026-10-19) and then the milestone file (2026-10-20) follow it
     expect(flat.slice(at, at + body.length)).toBe(body);
-    expect(flat.slice(at + body.length).trim()).toBe(lf(launchGrant).trim());
+    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}`);
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
       expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
@@ -575,12 +579,59 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     }
   });
 
-  it('schema.sql ENDS with the launch-grant file verbatim, so its aether_rollout (which pays the grant) is the one a paste leaves', () => {
+  it('schema.sql carries the launch-grant file verbatim right before the milestone file, whose aether_rollout still pays the grant', () => {
     const lf = (t: string): string => t.replace(/\r\n/g, '\n');
     const flat = lf(schema);
     const body = lf(launchGrant).trim();
-    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}`)).toBe(true);
     expect(flat.lastIndexOf('create or replace function public.aether_rollout(')).toBeGreaterThan(flat.lastIndexOf(lf(aether).trim()));
     expect(body).toContain("perform public.aether_launch_grant(v_user);");
+    expect(fnBody('aether_rollout', milestoneEpic)).toContain("perform public.aether_launch_grant(v_user);");
+  });
+});
+
+describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER-04)', () => {
+  // Owner 2026-10-20: "i want the chest quality to reduce down to Epic for the milestone chests (every 10 levels) and you
+  // cannot focus those ones specifically"; the chests already granted: "Keep them Legendary".
+  const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+
+  it('schema.sql ENDS with the milestone file verbatim, and its three functions are the ones a paste leaves', () => {
+    const flat = lf(schema);
+    const body = lf(milestoneEpic).trim();
+    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    const at = flat.lastIndexOf(body);
+    for (const fn of ['open_crate', 'settle_progression', 'aether_rollout']) {
+      expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThan(at);
+      expect(fnBody(fn, flat.slice(flat.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
+    }
+  });
+
+  it('both writers create a milestone crate at the TS MILESTONE_CRATE_TIER (Epic), and no milestone crate is created Legendary', () => {
+    expect(MILESTONE_CRATE_TIER).toBe('epic');
+    const settle = fnBody('settle_progression', milestoneEpic);
+    const rollout = fnBody('aether_rollout', milestoneEpic);
+    expect(settle).toContain(`select p_user, null, 'milestone:' || g.lvl, p_mode || ':' || p_run_id, '${MILESTONE_CRATE_TIER}'`);
+    expect(rollout).toContain(`select p.user_id, null, 'milestone:' || g.lvl, 'aether_rollout', '${MILESTONE_CRATE_TIER}'`);
+    for (const body of [settle, rollout]) expect(body).not.toContain("'legendary'");
+  });
+
+  it('the table allows a milestone crate at Epic (new) or Legendary (granted before), and nothing else', () => {
+    expect(milestoneEpic).toContain('alter table public.loot_crates drop constraint if exists loot_crates_milestone_is_legendary;');
+    expect(milestoneEpic).toContain("check (source is null or source not like 'milestone:%' or floor_rarity in ('epic', 'legendary'));");
+  });
+
+  it('open_crate refuses ANY focus at open, charges nothing for one, and otherwise opens exactly as before', () => {
+    const open = fnBody('open_crate', milestoneEpic);
+    expect(open).toContain("if p_focus is not null then raise exception 'focus_not_allowed'; end if;");
+    expect(open).not.toContain('aether_quote');
+    expect(open).not.toContain('crate_focus');
+    expect(open).not.toContain('aether_apply');
+    // the opening itself is the 2026-10-18 one: the crate's own floor and focus, one draw, roll version 5
+    expect(open).toContain('public.progression_tiered_crate_pick(p_user, random(), v_crate.floor_rarity, v_focus)');
+    expect(open).toContain('v_focus := v_crate.focus_categories;');
+    expect(n(open, 'c_roll_version')).toBe(5);
+    // the 4-argument signature stays, so an older client's focused call is refused rather than unmatched
+    expect(milestoneEpic).toContain('create or replace function public.open_crate(p_user uuid, p_crate_id uuid, p_focus text[] default null, p_expected_fee int default null)');
+    expect(milestoneEpic).toContain('grant execute on function public.open_crate(uuid, uuid, text[], int) to service_role;');
   });
 });

@@ -16,8 +16,7 @@ import './collection.css';
  *    side-menu plaque, Career's Collection button). Static: no animation.
  *  - `NewRewardsPopup`: the one tidy summary the Collection opens with: achievements unlocked (with XP, and a link to
  *    them all in Career), titles unlocked, crates earned (Open / Open all through the Collection's own crate
- *    theatre, by the bay's own rules: with Aether on, Open all leaves milestone crates sealed for their focus step, and
- *    is not offered when every crate here is one). Any way out of it marks everything seen.
+ *    theatre, by the bay's own rules). Any way out of it marks everything seen.
  */
 
 /** Is anything waiting? Keeps the queue pointed at the signed-in account. */
@@ -34,11 +33,9 @@ export function NewPill() {
 /** Where the Career's tab choice lives (Career.tsx `TAB_KEY`): "See all in Career" opens the Achievements tab. */
 const CAREER_TAB_KEY = 'ascent.career.tab';
 
-export function NewRewardsPopup({ sealedIds, milestoneIds = null, onOpenCrates }: {
+export function NewRewardsPopup({ sealedIds, onOpenCrates }: {
   /** The crates still sealed right now (a queued crate opened elsewhere drops out). */
   sealedIds: ReadonlySet<string> | null;
-  /** (Aether) The sealed milestone crates: Open all skips them. Null = Open all opens every crate. */
-  milestoneIds?: ReadonlySet<string> | null;
   /** Open the crates in the Collection's theatre: one, or all. */
   onOpenCrates: (all: boolean) => void;
 }) {
@@ -67,7 +64,6 @@ export function NewRewardsPopup({ sealedIds, milestoneIds = null, onOpenCrates }
   if (!shown) return null;
 
   const crates = shown.crates.filter((c) => !sealedIds || sealedIds.has(c.crateId));
-  const bulk = milestoneIds ? crates.filter((c) => !milestoneIds.has(c.crateId)).length : crates.length;
   const achievements = shown.achievements.map((a) => ({ ...a, def: achievementOf(a.id) })).filter((a) => !!a.def);
   const titles = shown.titles.filter((t) => titleName(t));
   // Everything it held has gone (the crates opened elsewhere, ids this build does not know): nothing to show.
@@ -118,7 +114,7 @@ export function NewRewardsPopup({ sealedIds, milestoneIds = null, onOpenCrates }
             </div>
             <div className="nrw-crate-actions">
               <button type="button" className="crate-btn pressable" onClick={() => openCrates(false)}>Open</button>
-              {crates.length > 1 && bulk > 0 && <button type="button" className="colls-quiet pressable quiet" onClick={() => openCrates(true)}>Open all ({bulk})</button>}
+              {crates.length > 1 && <button type="button" className="colls-quiet pressable quiet" onClick={() => openCrates(true)}>Open all ({crates.length})</button>}
             </div>
           </div>
         )}

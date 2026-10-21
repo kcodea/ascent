@@ -68,6 +68,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'The fight recap shows what was kept, for example "+Ward".',
         ],
       },
+      { category: 'Balance', text: 'Valyou and Leeds have their art.' },
       { category: 'Balance', text: 'The Indy minion has new art.' },
       {
         category: 'Balance',

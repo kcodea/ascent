@@ -114,6 +114,9 @@ async function checkBundle(): Promise<void> {
 }
 
 function publishableKey(): string {
+  // CI (the versus-follow-live workflow) has no apps/web/.env; it passes the publishable key in the environment.
+  const fromEnv = process.env.VERSUS_PARITY_APIKEY?.trim();
+  if (fromEnv) return fromEnv;
   const env = readFileSync(join(root, 'apps/web/.env'), 'utf8');
   const m = /^VITE_SUPABASE_ANON_KEY=(.+)$/m.exec(env);
   if (!m) throw new Error('VITE_SUPABASE_ANON_KEY missing from apps/web/.env');

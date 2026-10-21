@@ -1,0 +1,131 @@
+name: Versus follows the live site
+
+# The Versus server (the versus-resolve Edge Function) refuses any match whose game data differs from its own
+# (`content_mismatch`), so a content merge that goes live on Netlify without a versus redeploy freezes every
+# match at "both ready" (owner report 2026-10-20: three matches lost that way). Deploying on every merge would
+# break it the other way round, because Netlify is deployed by hand later. So this job FOLLOWS THE LIVE SITE:
+# it reads the commit the live build came from (`version.json`, emitted by apps/web/vite.config.ts), and when
+# the server's content revision differs from that commit's, it rebuilds the engine bundle at that commit,
+# deploys versus-resolve and runs the parity check against the deployed function.
+#
+# Setup (repo Settings > Secrets and variables > Actions):
+#   secret   SUPABASE_ACCESS_TOKEN   a Supabase personal access token that can deploy functions
+#   secret   SUPABASE_ANON_KEY       the project's publishable (anon) key, for the health + parity calls
+#   variable LIVE_SITE_URL           the live game's base URL, e.g. https://example.netlify.app
+# Until those exist the job skips with a notice instead of failing.
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Deploy from this commit instead of the one the live site reports'
+        required: false
+
+concurrency:
+  group: versus-follow-live
+  cancel-in-progress: false
+
+env:
+  PROJECT_REF: zcwhbejpqcdcfdpfxeza
+  FUNCTION_URL: https://zcwhbejpqcdcfdpfxeza.supabase.co/functions/v1/versus-resolve
+
+jobs:
+  follow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Read the live commit and the deployed revision
+        id: probe
+        env:
+          SITE: ${{ vars.LIVE_SITE_URL }}
+          ANON: ${{ secrets.SUPABASE_ANON_KEY }}
+          HAS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+          INPUT_SHA: ${{ github.event.inputs.sha }}
+        run: |
+          if [ -z "$ANON" ] || [ "$HAS_TOKEN" != "true" ] || { [ -z "$SITE" ] && [ -z "$INPUT_SHA" ]; }; then
+            echo "::notice::versus-follow-live is not configured yet (SUPABASE_ACCESS_TOKEN, SUPABASE_ANON_KEY, LIVE_SITE_URL). Skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          sha="$INPUT_SHA"
+          if [ -z "$sha" ]; then
+            ver=$(curl -fsSL --max-time 20 "${SITE%/}/version.json?ts=$(date +%s)" || true)
+            sha=$(printf '%s' "$ver" | jq -r '.sha // empty' 2>/dev/null || true)
+            dirty=$(printf '%s' "$ver" | jq -r '.dirty // false' 2>/dev/null || echo false)
+            if [ -z "$sha" ] || [ "$sha" = "dev" ]; then
+              echo "::notice::The live site has no usable version.json yet (a build from before this workflow). Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+            if [ "$dirty" = "true" ]; then
+              echo "::warning::The live build ($sha) was made from a dirty tree, so its game data may not match any commit. Skipping."
+              echo "skip=true" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          fi
+          if ! printf '%s' "$sha" | grep -Eq '^[0-9a-f]{7,40}$'; then
+            echo "::error::'$sha' is not a commit id."; exit 1
+          fi
+          deployed=$(curl -fsS --max-time 20 -X POST "$FUNCTION_URL" -H "Authorization: Bearer $ANON" -H "apikey: $ANON" \
+            -H 'Content-Type: application/json' -d '{"action":"health"}' | jq -r '.contentRevision // empty' || true)
+          echo "Live site commit: $sha. Deployed versus content revision: ${deployed:-unknown}."
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "deployed=$deployed" >> "$GITHUB_OUTPUT"
+
+      # The revision a commit maps to never changes, so remember it per commit: a quiet poll ends here in seconds.
+      - name: Recall this commit's content revision
+        if: steps.probe.outputs.skip != 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .versus-rev
+          key: versus-rev-${{ steps.probe.outputs.sha }}
+
+      - name: Compare
+        if: steps.probe.outputs.skip != 'true'
+        id: cmp
+        run: |
+          known=$(cat .versus-rev 2>/dev/null || true)
+          if [ -n "$known" ] && [ "$known" = "${{ steps.probe.outputs.deployed }}" ]; then
+            echo "Versus already runs $known, which matches the live commit. Nothing to do."
+            echo "done=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.probe.outputs.skip != 'true' && steps.cmp.outputs.done != 'true'
+        with:
+          fetch-depth: 0
+      - name: Check out the live commit
+        if: steps.probe.outputs.skip != 'true' && steps.cmp.outputs.done != 'true'
+        run: git checkout --detach "${{ steps.probe.outputs.sha }}"
+      - uses: actions/setup-node@v4
+        if: steps.probe.outputs.skip != 'true' && steps.cmp.outputs.done != 'true'
+        with:
+          node-version: 20
+          cache: npm
+      - name: Build the engine bundle at the live commit
+        if: steps.probe.outputs.skip != 'true' && steps.cmp.outputs.done != 'true'
+        id: bundle
+        run: |
+          npm ci
+          out=$(npm run --silent versus:bundle)
+          echo "$out"
+          rev=$(printf '%s\n' "$out" | sed -n 's/.*(content \([0-9a-f]*\),.*/\1/p' | tail -1)
+          [ -n "$rev" ] || { echo "::error::Could not read the content revision from versus:bundle."; exit 1; }
+          echo "$rev" > .versus-rev
+          echo "rev=$rev" >> "$GITHUB_OUTPUT"
+      - name: Remember this commit's content revision
+        if: steps.probe.outputs.skip != 'true' && steps.cmp.outputs.done != 'true'
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: .versus-rev
+          key: versus-rev-${{ steps.probe.outputs.sha }}
+
+      - name: Deploy versus-resolve and run parity
+        if: steps.probe.outputs.skip != 'true' && steps.cmp.outputs.done != 'true' && steps.bundle.outputs.rev != steps.probe.outputs.deployed
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VERSUS_PARITY_APIKEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          echo "Deploying content ${{ steps.bundle.outputs.rev }} (was ${{ steps.probe.outputs.deployed }}) from ${{ steps.probe.outputs.sha }}."
+          npx --yes supabase@2.120.0 functions deploy versus-resolve --project-ref "$PROJECT_REF" --use-api
+          npm run --silent versus:parity -- remote "$FUNCTION_URL"
+          echo "::notice::versus-resolve now runs content ${{ steps.bundle.outputs.rev }} (live commit ${{ steps.probe.outputs.sha }})."

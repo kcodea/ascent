@@ -69,7 +69,14 @@ export default defineConfig(({ command }) => ({
   // the dev server restarts, while the Stage Builder always reads from disk via GET.
   plugins: [react(), fxDefsPlugin(), uiAssetPlugin(), beatLabPlugin(), rulebookPlugin(), bugBoardPlugin(), qaScenarioPlugin(), workbenchPlugin(), gauntletStagePlugin(), plateTuningPlugin(),
     // Production only: the downscaled phone copies of the big art + the `__PHONE_ART__` list of them (phoneArtPlugin.ts).
-    phoneArtPlugin({ uiSrc: r('../../packages/ui/src'), publicDir: r('./public'), publicArt, cacheDir: r('../../node_modules/.cache/phone-art') })],
+    phoneArtPlugin({ uiSrc: r('../../packages/ui/src'), publicDir: r('./public'), publicArt, cacheDir: r('../../node_modules/.cache/phone-art') }),
+    // Production only: `version.json` names the commit this build came from. The `versus-follow-live` workflow reads it
+    // off the live site and redeploys versus-resolve from that same commit, so the Versus server always runs the game
+    // data the live client sends (a mismatch froze every match at "both ready", owner report 2026-10-20).
+    { name: 'build-version-json', apply: 'build', generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'version.json',
+        source: JSON.stringify({ version: pkgVersion, sha: buildSha, dirty: buildDirty, date: buildDate }) });
+    } }],
   // HOVER GUARD (R-TOUCH-HOVERGUARD-01): every hover glow / lift rule is wrapped in `@media (hover: hover)` at build
   // time so it never sticks after a tap on a phone. A mouse always matches the query, so desktop is unchanged.
   css: { postcss: { plugins: [hoverGuardPlugin()] } },

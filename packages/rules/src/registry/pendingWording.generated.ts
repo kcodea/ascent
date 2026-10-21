@@ -78,17 +78,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-numeral-01",
-    "title": "Wording: Gold vs g · 77 vs 2",
+    "title": "Wording: Gold vs g · 79 vs 2",
     "statement": "Money always prints as \"N Gold\" — never the \"Ng\" abbreviation. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"N Gold\" in 77 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"N Gold\" in 79 printed texts, \"Ng\" in 2. Approving picks \"N Gold\"; the LG-NUMERAL-01 guide predicate then watches new text.",
     "cardText": "\"N Gold\" — Bone Taxer: \"Avenge (4): get 2 Gold next shop. Deathrattle: raise your maximum Gold by 1.\" · \"Ng\" — Trail Forager: \"Sells for 3g, plus 1g for every Beast you play.\"",
     "example": "Trail Forager would be re-worded to the \"N Gold\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 77 vs 2)"
+        "ref": "textParse.wording · LG-NUMERAL-01 (corpus survey: 79 vs 2)"
       }
     ],
     "sourceQueue": "textParse.wording",

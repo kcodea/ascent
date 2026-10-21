@@ -259,3 +259,27 @@ describe('the stands: state on the hand\'s clock, the drop parks until its actio
     expect(useGame.getState().run.embers).toBe(next.embers);
   });
 });
+
+describe('R-SPECTATE-HELDCOPY-01: the held card is the exact copy being dragged', () => {
+  it('a plain copy dragged while a golden copy of the same minion is on the board shows plain (and the golden one golden)', async () => {
+    const { heldCardView } = await import('./SpectatorCursor');
+    const { ghostCardView } = await import('../replay/replayPlayer');
+    const gold = { ...bc('g1', 'dw_pimm'), golden: true, attack: 6, health: 6 } as BoardCard;
+    const plain = { ...bc('p1', 'dw_pimm'), attack: 2, health: 2 } as BoardCard;
+    const run = { ...createVersusRun(5, 'warden', 'set2'), board: [gold], hand: [plain] } as RunState;
+    expect(heldCardView(run, 'p1', 'dw_pimm')?.golden).toBeFalsy();
+    expect(heldCardView(run, 'p1', 'dw_pimm')?.attack).toBe(2);
+    expect(heldCardView(run, 'g1', 'dw_pimm')?.golden).toBe(true);
+    // The flight / replay path: the same, by uid, for board, hand and shop copies.
+    expect(ghostCardView(run as never, 'dw_pimm', 'p1')?.golden).toBeFalsy();
+    expect(ghostCardView(run as never, 'dw_pimm', 'g1')?.golden).toBe(true);
+    const shopRunG = { ...run, shop: [{ uid: 'o1', cardId: 'dw_pimm', golden: true }, { uid: 'o2', cardId: 'dw_pimm' }] } as unknown as RunState;
+    expect(ghostCardView(shopRunG as never, 'dw_pimm', 'o2')?.golden).toBeFalsy();
+    expect(ghostCardView(shopRunG as never, 'dw_pimm', 'o1')?.golden).toBe(true);
+    // A plain BOARD copy dragged while a golden copy waits in the HAND, and a hand copy dragged while a golden offer of
+    // the same minion sits in the shop: the old id lookup dressed both in the other copy's gold.
+    const flipped = { ...run, hand: [gold], board: [plain], shop: [{ uid: 'o1', cardId: 'dw_pimm', golden: true }] } as unknown as RunState;
+    expect(heldCardView(flipped, 'p1', 'dw_pimm')?.golden).toBeFalsy();
+    expect(ghostCardView(flipped as never, 'dw_pimm', 'p1')?.golden).toBeFalsy();
+  });
+});

@@ -128,6 +128,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'While the player holds a card, the board opens room for it under their hand, and when they let go the card slides into that spot once, with no snap back.',
           'A bought card slides from where it was let go into the hand, and a card put back springs home to its slot.',
           'Hover previews and targeting arrows appear as the player\'s hand reaches them.',
+          'The card the player is holding always shows as that exact copy: a plain copy no longer looks golden because a golden copy of it is elsewhere.',
         ],
       },
     ],

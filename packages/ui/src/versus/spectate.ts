@@ -383,7 +383,7 @@ function pump(): void {
   if (flight?.drag) {
     // The card flies the player's own drag path over the screen as it was, then lands (the replay viewer's ghost).
     const drag = flight.drag;
-    const view = ghostCardView(prevRun as never, drag.cardId);
+    const view = ghostCardView(prevRun as never, drag.cardId, drag.uid);
     const durMs = Math.min(drag.durMs, MAX_FLIGHT_MS) / (queue.length ? 2 : 1);
     ghostKey += 1;
     presentAction({ kind: 'touch' }); // the pick-up, as the player's press on the card sounded it

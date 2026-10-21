@@ -603,7 +603,7 @@ export function playableDragPath(d: DragPath | undefined): DragPath | null {
  *  view so the ghost carries the stats/golden state the card actually had when the player grabbed it (owner
  *  report 2026-08-19: the first ghost was a tiny generic tile, "not what the card actually looks like").
  *  Falls back to the printed base card when the id isn't found (edge of coalescing / a consumed offer). */
-export function ghostCardView(prevView: ShopView | null, cardId: string): CardView | undefined {
+export function ghostCardView(prevView: ShopView | null, cardId: string, uid?: string): CardView | undefined {
   const def = CARD_INDEX[cardId];
   if (!def) return undefined;
   const base: CardView = {
@@ -613,6 +613,15 @@ export function ghostCardView(prevView: ShopView | null, cardId: string): CardVi
     baseAttack: def.attack, baseHealth: def.health,
   };
   if (!prevView) return base;
+  // THE EXACT COPY (owner 2026-10-20, R-SPECTATE-HELDCOPY-01: "the held copy when dragged shows dif art / etc
+  // sometimes"): with the held card's uid, the view is THAT instance, never the first card sharing its id (a golden copy
+  // on the board used to dress a plain copy being dragged). The cardId lookup is only for an older path with no uid.
+  const exactOffer = uid ? prevView.shop?.find((o) => o?.uid === uid && o.cardId === cardId) : undefined;
+  if (exactOffer) return { ...base, attack: def.attack + (exactOffer.atk ?? 0), health: def.health + (exactOffer.hp ?? 0), golden: exactOffer.golden };
+  const exactInst = uid ? (prevView.hand?.find((c) => c.uid === uid) ?? prevView.board?.find((c) => c.uid === uid)) : undefined;
+  if (exactInst && exactInst.cardId === cardId) return { ...base, attack: exactInst.attack, health: exactInst.health, golden: exactInst.golden, keywords: [...exactInst.keywords] };
+  // The held uid is not in the frame (a spell slot, a card already moved): the printed card, never another copy's look.
+  if (uid) return base;
   const offer = prevView.shop?.find((o) => o?.cardId === cardId);
   if (offer) {
     return { ...base, attack: def.attack + (offer.atk ?? 0), health: def.health + (offer.hp ?? 0), golden: offer.golden };
@@ -701,7 +710,7 @@ function advance(myToken: number): void {
     ghostKey += 1;
     ghostLandPending = true;
     ghostFlightStartedAtReal = performance.now();
-    const view = ghostCardView(prevView, drag.cardId);
+    const view = ghostCardView(prevView, drag.cardId, drag.uid);
     useGame.setState({ replayDragGhost: { ...drag, durMs: drag.durMs / speed, key: ghostKey, view } });
     // The source card LIFTS for the flight (owner report 2026-09-19) — the ghost is the only copy on screen.
     holdGhostCard(prevView, (nf as ShopFrame).view, (nf as ShopFrame).cause, drag, view);

@@ -6158,6 +6158,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSmooth.test.tsx'], lastVerifiedAt: '2026-10-20' },
   },
   {
+    id: 'R-SPECTATE-HELDCOPY-01',
+    title: 'The card a watched player holds is drawn as that exact copy, never another copy of the same minion',
+    statement:
+      'The spectator held card (the live drag, a parked or springing drop, and a replayed drag flight) is resolved by the dragged instance uid: a hand or board copy is drawn the way its own zone draws it (its golden flag, stats, keywords and live text), a shop offer through the offer by uid. It never takes the first card sharing its card id, so a golden copy elsewhere never dresses a plain copy being dragged (and the reverse). With no uid (an older path) the id lookup stays as the fallback.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-20', quote: 'this is when a player is spectating another player, the held copy when dragged shows dif art / etc sometimes' },
+    ],
+    currentBehaviour: 'Before, the held card was looked up by card id (shop offers first, then the hand, then the board), so a golden offer or a golden hand copy of the same minion was drawn in place of the plain copy actually being dragged.',
+    example: 'A golden Pimm sits in the hand and the player drags the plain Pimm from the board: the spectator sees a plain Pimm in their hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSmooth.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
     id: 'R-EMOTE-VERSUS-SHOP-01',
     title: 'Versus emotes show in the shop as well as in combat, beside the opponent block',
     statement:

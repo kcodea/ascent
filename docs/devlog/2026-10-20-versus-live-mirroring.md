@@ -41,6 +41,16 @@ R-SPECTATE-SMOOTH-01 (`packages/rules/src/registry/approved/foundation.ts`), tes
   loop (guarded against re-entrant restarts), two transform writes per frame, no layout reads per frame.
 - An older player (no `ts`) plays exactly as before (state on arrival, fixed 100 ms buffer).
 
+## The held copy (R-SPECTATE-HELDCOPY-01)
+
+Owner, same day: "this is when a player is spectating another player, the held copy when dragged shows dif art / etc
+sometimes." The held card was built by `replayPlayer.ghostCardView(view, cardId)`, which takes the first SHOP offer with
+that id, else the first hand card, else the first board card. A golden offer, or a golden hand copy, of the minion
+being dragged dressed the plain copy in gold (golden art, stats). `ghostCardView` now takes the dragged uid and resolves
+that exact instance (offer, hand or board), falling back to the printed card, never another copy; the live overlay
+draws a hand or board copy through `liveBoardView` (exactly as its zone draws it). The drag flight and the replay
+viewer pass the path's uid too.
+
 ## Verification
 
 A two-client loopback (two headless Chromium contexts, a player page and a spectator page at a different window size

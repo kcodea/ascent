@@ -29,6 +29,9 @@ import { dragStore } from '../dragStore';
 import { NO_DRAG_DECISION } from '../dragDecision';
 import { getDragFeel } from '../dragFeel';
 import { ghostCardView } from '../replay/replayPlayer';
+import { liveBoardView } from '../instView';
+import type { CardView } from '../Card';
+import type { RunState } from '@game/sim';
 import { toStage } from '../stage';
 import { useGame } from '../store';
 import { getAimFxConfig } from '../aimFxConfig';
@@ -60,6 +63,21 @@ export function cursorAt(pts: readonly { t: number; x: number; y: number }[], t:
   }
   const last = pts[pts.length - 1]!;
   return { x: last.x, y: last.y };
+}
+
+/**
+ * THE HELD COPY, EXACTLY (owner 2026-10-20, R-SPECTATE-HELDCOPY-01: "this is when a player is spectating another player,
+ * the held copy when dragged shows dif art / etc sometimes"). The card in the watched hand is the instance with the
+ * dragged uid: a hand or board card is drawn the way its own zone draws it (`liveBoardView`: its golden flag, stats,
+ * keywords, live text), a shop offer through the offer view by uid. Never the first card sharing its id (a golden copy
+ * on the board dressed a plain copy being dragged). Pure on the run; tested.
+ */
+export function heldCardView(run: RunState, uid: string, cardId: string): CardView | undefined {
+  const inst = run.hand.find((c) => c.uid === uid) ?? run.board.find((c) => c.uid === uid);
+  if (inst && inst.cardId === cardId) {
+    try { return liveBoardView(inst, run); } catch { /* a partial view: the plain mapping below */ }
+  }
+  return ghostCardView(run as never, cardId, uid);
 }
 
 /** The card the overlay shows: in hand, parked after a committed drop, or springing back. */
@@ -153,7 +171,7 @@ export function SpectatorCursor(): JSX.Element | null {
     const d = cursorFeed.drag?.uid === holdUid ? cursorFeed.drag : cursorFeed.landing?.drag.uid === holdUid ? cursorFeed.landing.drag : cursorFeed.spring?.uid === holdUid ? cursorFeed.spring : null;
     if (!holdUid || !d) return undefined;
     const run = useGame.getState().run;
-    const view = ghostCardView(run as never, d.cardId);
+    const view = heldCardView(run, d.uid, d.cardId);
     if (!view) return undefined;
     dragStore.set({
       drag: { uid: d.uid, source: d.source as never, view, active: true, ghost: true, ox: 0, oy: 0, grabOx: 0, grabOy: 0, w: 0, h: 0, startX: 0, startY: 0, x: 0, y: 0 },
@@ -194,7 +212,7 @@ export function SpectatorCursor(): JSX.Element | null {
 
   if (inCombat || flying) return null; // in a fight there is nothing to point at; a flight's fist IS the hand
   const card = shown && !(aimOn && shown.mode === 'held') ? shown : null;
-  const view = card ? ghostCardView(useGame.getState().run as never, card.cardId) : undefined;
+  const view = card ? heldCardView(useGame.getState().run, card.uid, card.cardId) : undefined;
   return (
     <div className="replay-dragghost vsspec-cursor" aria-hidden="true" style={{ opacity: visible || card ? 1 : 0 }}>
       <div className="ghostmover vsspec-cardmover" ref={cardRef}>

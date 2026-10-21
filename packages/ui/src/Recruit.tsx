@@ -253,7 +253,7 @@ import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
-import { notePlayerBeat, tapOdds, tapOverlay } from './versus/spectateTap';
+import { notePlayerBeat, tapOdds, tapOverlay, tapSkipCombat } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
 
@@ -2912,6 +2912,15 @@ export function Recruit() {
   }, [watchingVersus, fighting, run.lastCombat]);
   // A spectator already in this fight and behind the player's beat: snap to it (spectate.ts `syncFightBeat`).
   // A request that lands during the fight's entrance waits for the fight itself (`fighting`), then runs once.
+  // The watched player SKIPPED this fight (R-SPECTATE-SKIP-01): the same skip the Skip button runs, once the fight is
+  // actually playing here (a Skip that arrives during the entrance waits for it), once per request.
+  const spectatorSkip = useSpectate((s) => s.skip ?? null);
+  const skipDoneRef = useRef(0);
+  useEffect(() => {
+    if (!watchingVersus || !fighting || !spectatorSkip || spectatorSkip.wave !== run.wave || skipDoneRef.current === spectatorSkip.n) return;
+    skipDoneRef.current = spectatorSkip.n;
+    if (!replay.done) skipCombat();
+  }, [spectatorSkip, fighting, watchingVersus, run.wave]);
   const spectatorSeek = useSpectate((s) => s.seek ?? null);
   const seekDoneRef = useRef(0);
   useEffect(() => {
@@ -3285,6 +3294,8 @@ export function Recruit() {
   // replay to the resolved board under cover of opacity 0 and fade that back in. Audio stays muted (a
   // replacement one-shot goes here later); it un-mutes when the fight is left / the next fight begins.
   const skipCombat = useCallback((): void => {
+    // The stands skip with the player (R-SPECTATE-SKIP-01): a no-op with nobody watching, and never from a viewer.
+    if (!useGame.getState().replaying) tapSkipCombat();
     setSkipFade((s) => {
       if (s) return s; // already skipping
       const FADE = 260, HOLD = 900, IN = 300;

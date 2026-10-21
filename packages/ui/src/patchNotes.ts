@@ -77,6 +77,17 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Spectating: you follow the player out of a fight the moment they leave it, see the opponent when both players share a hero, can hover their Discover cards, and spectators look like players.',
+        details: [
+          'When the player skips a fight, your view skips with them. When they go back to the shop, you go back with them right away, and their shop moves play on the shop, never over the fight.',
+          'In Versus, two players on the same hero no longer hide the opponent in combat: the portrait, Health, board and Summary show for both sides.',
+          'Hover any card the player is choosing from (Discover, Gift picks, Choose One, quests) to read it, the same way you hover cards in their hand.',
+          'Spectators now show like players: a bigger portrait with the name under it and a small Spectating tag.',
+          'If the player you are watching reloads or reconnects, you keep following them instead of being stuck on an old frame.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Kobold balance: Prospector and Cave Cutter give plain Rubies again, Blazer has less Health, and Alchemist Brisbane loses its Echo.',
         details: [

@@ -415,9 +415,19 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    The spectator bar's own plates (ring, name pill, a second pill reading "Spectating"), up to three, then a "+N" name
    pill whose names ride the game's `data-tip` bubble. Not interactive (only the chip takes a hover). Static paint. */
 .vswatch { pointer-events: none; z-index: 60; }
-.vswatch .vswatch-ring { --ring: calc(44 * var(--u)); }
-.vswatch .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(11 * var(--u)); letter-spacing: 0.04em; }
 .vswatch .vswatch-more { pointer-events: auto; align-self: center; }
+/* A SPECTATOR LOOKS LIKE A PLAYER (owner 2026-10-20: "make the spectators look a bit larger, and set them up like a
+   normal 'player' or hero where the names under the portrait"; R-SPECTATE-HUD-03). Every spectator plate (the player's
+   "Spectating" row, a spectator's own top-left row) is laid out like the hero portraits: the portrait ring on top, the
+   name plate UNDER it, tucked over the ring's bottom edge the way the hero's name plate sits, then a small secondary
+   "Spectating" tag (the hero's Health pill look, smaller). The same ring, name and pill classes as before; only the
+   stacking and the sizes change. Static paint. */
+.vswatch-seat { flex-direction: column; align-items: center; gap: 0; }
+.vswatch-seat .vsspec-info { align-items: center; gap: calc(2 * var(--u)); margin-top: calc(-11 * var(--u)); position: relative; z-index: 2; }
+.vswatch-seat .vsspec-name { max-width: calc(118 * var(--u)); font-size: calc(14 * var(--u)); }
+.vswatch-seat .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(10 * var(--u)); letter-spacing: 0.04em; padding: calc(1.5 * var(--u)) calc(7 * var(--u)); }
+.vswatch .vswatch-ring, .vsself .vswatch-seat:not(.vsself-seat) .vsspec-ring { --ring: calc(72 * var(--u)); }
+.vswatch .vsspec-seats, .vsself .vsspec-seats { align-items: flex-start; flex-wrap: wrap; gap: calc(12 * var(--u)); }
 /* UI refinement 2026-10-16: the room browser sits in a list panel on the hall (the ladder pages' panel), with room for
    the list to breathe, instead of a bare input row floating over the painting. */
 .vsbrowser { padding: 22px 24px 26px; border-radius: 16px; background: linear-gradient(180deg, rgba(13, 22, 40, 0.86), rgba(9, 15, 29, 0.92));
@@ -431,9 +441,7 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    corner's Settings / book / rules buttons and the version line. Static paint; no cursor rule (buttons take the global
    gauntlet, everything else inherits the body's). */
 .vsself .vsself-seat { opacity: 1; }
-.vsself .vsself-seat .vsspec-ring { --ring: calc(54 * var(--u)); }
-.vsself .vswatch-seat:not(.vsself-seat) .vsspec-ring { --ring: calc(44 * var(--u)); }
-.vsself .vswatch-tag { color: var(--ui-title, #ffd98a); font-size: calc(11 * var(--u)); letter-spacing: 0.04em; }
+.vsself .vsself-seat .vsspec-ring { --ring: calc(84 * var(--u)); }
 .vswatchpanel { left: auto; top: auto; right: calc(var(--edge-r, 0px) + 20 * var(--u));
   bottom: calc(var(--edge-b, 0px) + 16px + 40 * var(--u) + 30px); }
 .vswatchpanel-one .vsspec-info { align-items: flex-end; }
@@ -459,3 +467,11 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    button and wear the gauntlet's default, not its "open" hand. */
 .app.viewing.spectating .runecard { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
 .app.viewing.spectating .runecard:is(:hover, :focus-visible) { transform: none; }
+
+/* A SPECTATOR HOVERS DISCOVER CARDS (owner 2026-10-18: the watched player's Discover choices, Gift picks among them,
+   "can't be hovered"; R-SPECTATE-DISCHOVER-01). An offer's option card takes a click, so it is a `[role="button"]`, and
+   the watch screen's inert rule (`.app.viewing [role="button"]`, styles.css) took its pointer away with the press:
+   no hover, no preview. Every offer row's cards (Discover, the hero-power Discover, Choose One, the Quest pick, the
+   scout) take the spectator's hover again, exactly like a card in hand; a press still does nothing (the store refuses a
+   viewer's dispatch, and the pick sound skips a viewer). The gauntlet's default hand: it reads, it never picks. */
+.app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }

@@ -84,4 +84,18 @@ describe('Versus spectator view', () => {
     expect(forced.kind).toBe('key');
     expect(messageBytes(forced)).toBeLessThan(VERSUS_LIMITS.spectatorFrameBytes);
   });
+
+  it('R-SPECTATE-RESUME-01: a player who reloads mid-game is followed again (the new session outranks the old one)', () => {
+    const run = run0();
+    const before = newPublisher('p1', Date.now() - 60_000); // a session a minute ago
+    let rx = newReceiver();
+    for (let i = 0; i < 40; i++) rx = applySpectatorMessage(rx, nextSpectatorMessage(before, { ...run, embers: i } as typeof run, 1, i === 0, true)!).rx;
+    const heldSeq = rx.seq;
+    // The player reloads: a fresh publisher, a little later.
+    const after = newPublisher('p1'); // the default: the clock
+    const key = nextSpectatorMessage(after, { ...run, wave: 2 } as typeof run, 2, true)!;
+    expect(key.seq).toBeGreaterThan(heldSeq);
+    const next = applySpectatorMessage(rx, key);
+    expect(next.rx.view?.wave).toBe(2);
+  });
 });

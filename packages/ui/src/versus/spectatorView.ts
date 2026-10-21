@@ -58,7 +58,14 @@ export interface SpectatorPublisher {
   sinceKey: number;
 }
 
-export const newPublisher = (seat: VersusSeat, seq = 0): SpectatorPublisher => ({ seat, seq, last: null, sinceKey: 0 });
+/**
+ * A publisher's first sequence number is the CLOCK, not 0 (R-SPECTATE-RESUME-01, found 2026-10-20). A receiver drops any
+ * message at or below the seq it holds, and the server keeps a persisted keyframe only when its seq is higher, so a
+ * player who reloads or reconnects mid-game used to restart at 1 and be ignored by every spectator (their screen froze on
+ * the last frame before the reload) and by the persisted keyframe. Starting at the wall clock in ms keeps every new
+ * session above the last one (a session sends far fewer than one message per millisecond); seq is a bigint in the SQL.
+ */
+export const newPublisher = (seat: VersusSeat, seq = Date.now()): SpectatorPublisher => ({ seat, seq, last: null, sinceKey: 0 });
 
 /**
  * The next message for `run`, or null when nothing visible changed. `forceKey` (shop open, reconnect) sends a

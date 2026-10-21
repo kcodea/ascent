@@ -10,7 +10,7 @@ import { sfx } from '../sfx';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { IconChest } from '../menuIcons';
 import { CrateOpener, type CrateQueueItem } from './CrateOpener';
-import { chestFloorOf, chestTierOf } from './crateFx/chestTiers';
+import { chestFloorOf, chestTierOf, type ChestTier } from './crateFx/chestTiers';
 import { warmChestArt } from './crateFx/chestArt';
 import {
   aetherBalance, aetherVisible, cratesVisible, equipCosmetic, equipTitle, markCosmeticsSeen, mirrorFor, refreshCrates, useProgression, type CrateOpenOutcome,
@@ -30,6 +30,8 @@ import { HeroAttackPreview } from '../heroBlast/HeroAttackPreview';
 import { NewRewardsPopup } from './NewRewardsPopup';
 import { AetherIntroPopup, aetherIntroSeen } from './AetherIntroPopup';
 import { CrateSignInGate } from './CrateSignInGate';
+import { CrateShop } from './CrateShop';
+import { ChestPicture } from './ChestPicture';
 import { AetherIcon } from './AetherIcon';
 import { TitleBadge } from '../titles/TitleBadge';
 import { previewAnnouncerPack, stopAnnouncerPreview } from '../announcer';
@@ -82,8 +84,9 @@ import { touchText } from '../touchInput';
  *
  *   AETHER      (2026-10-18, spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md: "An Aether balance is
  *               always visible") Only while `aetherVisible`; with it off the page renders exactly as before. The header
- *               carries the wallet chip; the Crate Shop (`CrateShop.tsx`) is its own panel under the bay, and a purchase
- *               plays straight in the theatre with the answer it already has. A MILESTONE crate opens in the bay like any
+ *               carries the wallet chip; the Crate Shop (`CrateShop.tsx`) is its own full-screen page (2026-10-20): a Chest Shop button at the top of the sidebar
+ *               swaps it in for the header and the body (the menu rail and every overlay stay), and a purchase plays straight in
+ *               the theatre with the answer it already has. The bay draws its first sealed chest's painted picture (`ChestPicture`). A MILESTONE crate opens in the bay like any
  *               other earned crate, in Open and in Open all (owner 2026-10-20: milestone chests are Epic and "you cannot
  *               focus those ones specifically", which retired the focus step they used to open through). With level
  *               crates retired, the bay names the next milestone level, and its odds are the first sealed crate's (its
@@ -175,6 +178,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [gate, setGate] = useState(false);
   /** A Crate Shop purchase is in flight. */
   const [shopBusy, setShopBusy] = useState(false);
+  /** The Chest Shop screen is open (Aether on only: see `shopShown`). It starts closed on every visit to the page. */
+  const [shopOpen, setShopOpen] = useState(false);
   /** The skin whose target was just put back in its default art: its preview shows that default (owner 2026-09-30). */
   const [defaultShown, setDefaultShown] = useState<string | null>(null);
   /** The card-skin preview under the pointer: the card, the art to wear (undefined = default), and the anchor
@@ -182,10 +187,15 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const [hover, setHover] = useState<{ cardId: string; art: string | undefined; rect: StageRect; plate?: CardPlateLook | null } | null>(null);
   const closeGate = useCallback(() => setGate(false), []);
   const openGate = useCallback(() => setGate(true), []);
+  const openShop = useCallback(() => { sfx.pulse(); setShopOpen(true); }, []);
+  const closeShop = useCallback(() => setShopOpen(false), []);
   /** A shop purchase, already bought and opened: the theatre plays it. */
   const playBought = useCallback((item: CrateQueueItem, open: OpenFn) => { setTheatre({ queue: [item], openAll: false, open }); }, []);
 
   useEffect(() => { void refreshCrates(); }, []);
+  // Aether switched off under an open shop: back to the Collection, and it stays there if Aether returns.
+  useEffect(() => { if (!aetherOn) setShopOpen(false); }, [aetherOn]);
+  const shopShown = shopOpen && aetherOn;
 
   const sealedRows: CrateRow[] = useMemo(() => (crateList ?? []).filter((c) => c.state === 'sealed'), [crateList]);
   const sealed: CrateQueueItem[] = useMemo(
@@ -196,6 +206,9 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   // Every sealed tier's chest art starts loading while the bay is on screen, so no opening loads it cold (none under
   // reduced motion: its opening never draws the art).
   useEffect(() => { if (!reducedMotion) for (const t of new Set(sealed.map((c) => c.tier))) warmChestArt(t); }, [sealed, reducedMotion]);
+  // The bay's chest picture: the first sealed chest's tier; none sealed, the chest the next one will be (a milestone Epic
+  // with Aether on, today's Standard chest with it off). The nothing-sealed chest is drawn dimmed (collection.css).
+  const bayTier: ChestTier = sealed[0]?.tier ?? (aetherOn ? chestTierOf(MILESTONE_FLOOR) : 'standard');
   const firstFloor = sealedRows[0] ? floorOf(sealedRows[0]) : null;
   // Aether: the first sealed crate's odds; none sealed, the next crate is a milestone chest (Epic). Off: today's line.
   const oddsLine = useMemo(() => (aetherOn ? floorOddsLine(firstFloor ?? MILESTONE_FLOOR) : crateOddsLine()), [aetherOn, firstFloor]);
@@ -331,6 +344,10 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   return (
     <SidebarHost className={`lbpage colls-page${reducedMotion ? ' colls-still' : ''}`}>
       <MenuSidebar current="collection" />
+      {shopShown ? (
+        <CrateShop guest={anonymous} onGuest={openGate} onOpen={playBought} onBusy={setShopBusy} onBack={closeShop} reducedMotion={reducedMotion} />
+      ) : (
+        <>
       <div className="lbtopbar colls-top">
         <div className="lbtitle">
           <IconChest />
@@ -438,8 +455,11 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
         </main>
 
         <aside className="colls-side">
+          {aetherOn && (
+            <button type="button" className="colls-shopbtn" onClick={openShop}><AetherIcon className="colls-shopbtn-gem" />Chest Shop</button>
+          )}
           <CrateBay
-            cratesOn={cratesOn} loading={crateList === null} sealed={sealed} nextLevel={nextCrateLevel} guest={anonymous} oddsLine={oddsLine} busy={shopBusy}
+            cratesOn={cratesOn} loading={crateList === null} sealed={sealed} tier={bayTier} nextLevel={nextCrateLevel} guest={anonymous} oddsLine={oddsLine} busy={shopBusy}
             onOpen={openBay} onOpenAll={openAllBay}
           />
           {live && selected && (
@@ -465,6 +485,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
           )}
         </aside>
       </div>
+        </>
+      )}
 
       {/* NEW REWARDS (owner 2026-09-28): what the last games awarded, summarised once, then marked seen. */}
       {introFor && <AetherIntroPopup userId={introFor} onDone={() => setIntroFor(null)} />}
@@ -732,8 +754,10 @@ const plateLookOf = (item: CosmeticDef | null | undefined): CardPlateLook | null
 
 // ── The crate bay (always in view) ─────────────────────────────────────────────────────────────────────────
 
-function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, oddsLine, busy, onOpen, onOpenAll }: {
+function CrateBay({ cratesOn, loading, sealed, tier, nextLevel, guest, oddsLine, busy, onOpen, onOpenAll }: {
   cratesOn: boolean; loading: boolean; sealed: CrateQueueItem[]; nextLevel: number; guest: boolean;
+  /** The chest the bay draws (see `bayTier`). */
+  tier: ChestTier;
   /** The odds line's body (`crateOddsLine()` with Aether off; the first sealed crate's floor odds with it on). */
   oddsLine: string;
   /** A Crate Shop purchase is in flight: hold Open / Open all (a second theatre would replace the reveal). */
@@ -746,7 +770,7 @@ function CrateBay({ cratesOn, loading, sealed, nextLevel, guest, oddsLine, busy,
     <section className={`colls-panel colls-bay${ready ? ' ready' : ''}`} aria-label="Sealed chests">
       <div className="colls-bay-art" aria-hidden>
         {ready && <span className="colls-hero-glow" />}
-        <span className="colls-crate" />
+        <ChestPicture tier={tier} className="colls-bay-chest" />
         {ready && <span className="colls-hero-count">{n}</span>}
       </div>
       <div className="colls-bay-body">

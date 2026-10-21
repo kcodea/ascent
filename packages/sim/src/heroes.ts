@@ -1062,6 +1062,75 @@ interface PowerCarrier {
   ancients?: { powerOverride?: Partial<Pick<HeroPower, 'passive' | 'untargeted' | 'cost' | 'oncePerGame' | 'usesPerTurn'>> };
 }
 
+/** One power's own spend state, filed under its hero id while it is out of a slot (`RunState.powerLatches`). */
+export interface PowerLatch { spent?: boolean; uses?: number }
+
+/** The run fields `swapPowerLatch` reads and writes (a structural slice of `RunState`). */
+interface LatchCarrier {
+  heroPowerSpent: boolean; heroPowerSpent2?: boolean; heroPowerUses?: number; heroPowerUses2?: number;
+  heroReady: boolean; heroReady2?: boolean; heroUsesThisTurn?: number; indyGildRearmAt?: number;
+  powerLatches?: Record<string, PowerLatch>;
+}
+
+/**
+ * A HERO POWER ARRIVES READY (owner 2026-10-20, R-HERO-POWER-FRESH-01: "copy machine came spent - i had used
+ * masterwork before this ... it should reset from finding a new hero power").
+ *
+ * The spend state lives on run-level SLOT fields (`heroPowerSpent`, `heroPowerUses`), so it used to belong to the
+ * slot, not the power: a once-per-game latch set by Masterwork was still set when Copy Machine moved into the
+ * slot. Every path that puts a power into a slot (Mimic's turn pick, Void's turn-4 pair, Power Shifter, Second
+ * Calling) calls this ONE function at the moment of the swap: it files the outgoing power's latch under its own id
+ * and loads the incoming power's own latch, fresh when the run never spent it. A power found again keeps what IT
+ * spent (a Mimic re-finding a used Masterwork does not get a free Gild; Jenkins keeps his dig count), which is the
+ * anti-farm rule the old once-per-run seed guard enforced, now without leaking one power's state into another.
+ *
+ * `outgoingId` is the hero id whose power is leaving the slot (absent when the slot was empty, e.g. Void's second
+ * pick). Per-turn charges re-arm on any arrival: the incoming power is fresh for this turn too.
+ */
+export function swapPowerLatch(run: LatchCarrier, slot: 0 | 1, outgoingId: string | undefined, incomingId: string): void {
+  const latches = (run.powerLatches ??= {});
+  if (outgoingId) {
+    latches[outgoingId] = slot === 1
+      ? { spent: !!run.heroPowerSpent2, uses: run.heroPowerUses2 ?? 0 }
+      : { spent: !!run.heroPowerSpent, uses: run.heroPowerUses ?? 0 };
+  }
+  const own = latches[incomingId];
+  const spent = !!own?.spent;
+  const uses = own?.uses ?? 0;
+  if (slot === 1) { run.heroPowerSpent2 = spent; run.heroPowerUses2 = uses; run.heroReady2 = true; }
+  else { run.heroPowerSpent = spent; run.heroPowerUses = uses; run.heroReady = true; }
+  const incoming = getHero(incomingId).power;
+  // Masterwork's recharge threshold only means anything while a Masterwork is spent. A Masterwork arriving
+  // un-spent must not carry a stale threshold (it would print a recharge pill on a ready power).
+  if (incoming.kind === 'gild' && !spent) run.indyGildRearmAt = undefined;
+  // A twice-a-turn power (Fibbsy) arrives with its full per-turn budget, whatever the old power counted.
+  if (incoming.usesPerTurn) run.heroUsesThisTurn = 0;
+}
+
+/** The hero id whose power sits in `slot` right now (slot 0 falls back to the run's own hero). */
+export function wieldedPowerId(run: PowerCarrier, slot: 0 | 1): string | undefined {
+  if (slot === 1) return run.voidPowerIds?.[1];
+  return run.voidPowerIds?.[0] ?? run.adoptedPowerId ?? run.mimicPowerId ?? run.heroId;
+}
+
+/** Is `heroId`'s once-per-game latch set? Reads the live slot field when that power is in a slot, else its filed
+ *  latch. For the NATIVE-keyed passives (Drakko's and Chronos' quests, Runesmith's forge) that keep running on the
+ *  hero's own clock after a Power Shifter: they must read and write THEIR latch, never the one on the slot. */
+export function powerLatchSpent(run: PowerCarrier & LatchCarrier, heroId: string): boolean {
+  if (wieldedPowerId(run, 0) === heroId) return !!run.heroPowerSpent;
+  if (wieldedPowerId(run, 1) === heroId) return !!run.heroPowerSpent2;
+  return !!run.powerLatches?.[heroId]?.spent;
+}
+
+/** Set `heroId`'s once-per-game latch (see `powerLatchSpent`): on the slot that holds it, else on its filed latch,
+ *  so a native quest completing while another power is wielded never spends that other power (R-HERO-POWER-FRESH-01). */
+export function markPowerLatchSpent(run: PowerCarrier & LatchCarrier, heroId: string): void {
+  if (wieldedPowerId(run, 0) === heroId) { run.heroPowerSpent = true; return; }
+  if (wieldedPowerId(run, 1) === heroId) { run.heroPowerSpent2 = true; return; }
+  const latches = (run.powerLatches ??= {});
+  latches[heroId] = { ...latches[heroId], spent: true };
+}
+
 /** The power(s) this run is wielding RIGHT NOW — one for everyone, one adopted for Mimic, two for a
  *  post-turn-4 Void. Before Mimic's first pick / Void's turn 4, the base placeholder power stands. */
 export function activePowers(run: PowerCarrier): HeroPower[] {

@@ -18,7 +18,7 @@ import type { LobbyRules } from './lobby/types';
 import { accumulateContribution, tallyCombat } from './contribution';
 import { rollShop, topUpTavern, returnToPool, takeFromPool, rollCiaEnchants, tierSlots, stampNewShopOffers } from './shop';
 import { generateQuestOffer, questOfferPlan } from './quests';
-import { DEFAULT_HERO_ID, activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool } from './heroes';
+import { DEFAULT_HERO_ID, activePowers, getHero, gildCopiesNeeded, hasPower, powerDiscoverPool, swapPowerLatch, powerLatchSpent, markPowerLatchSpent, wieldedPowerId } from './heroes';
 import { buildEnemyBoard, selectThreat } from './threats';
 import { pickOpponent, opponentBoard, oppKey } from './opponents';
 import type { BoardSnapshot } from './snapshot';
@@ -42,6 +42,13 @@ import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurn
 import { withWhisperMult } from './recruit';
 import { HUM_PER_TURN, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
+
+/** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
+ *  Shifter adopter), else the run's own hero. The forge's once-per-game charge is spent on THAT power's latch. */
+function runeforgeHolderId(s: RunState): string {
+  const slot = activePowers(s).findIndex((p) => p.kind === 'runeforge');
+  return (slot === 0 || slot === 1 ? wieldedPowerId(s, slot) : undefined) ?? s.heroId;
+}
 
 /** Spend `amount` Gold and fire any `goldSpent` payoffs (Acid, Banksly) — the single Gold-spend chokepoint
  *  for buys, rerolls, tier-ups, hero powers, runes and Equipment activations. */
@@ -180,7 +187,7 @@ function gorrQuestBuy(s: RunState, card: CardDef): void {
  *  PAID Battlecry buy — the normal path AND a held-Displacement restore (which used to skip it); the
  *  reward lands in the hand if there's room. */
 function drakkoQuestBuy(s: RunState, card: CardDef): void {
-  if (s.heroId !== 'drakko' || s.heroPowerSpent || !hasBattlecry(card)) return;
+  if (s.heroId !== 'drakko' || powerLatchSpent(s, s.heroId) || !hasBattlecry(card)) return;
   s.drakkoBuys += 1;
   // 5 buys natively; Drakko × Ancient of Genesis needs one fewer per completion so far (5, 4, 3).
   if (s.drakkoBuys < ancientDrumlineNeed(s)) return;
@@ -199,13 +206,13 @@ function drakkoQuestBuy(s: RunState, card: CardDef): void {
   // Quest complete: it stops counting and arms nothing further, unless Drakko × Ancient of Genesis has completions left
   // (then it resets for the next one).
   if (ancientDrumlineComplete(s)) s.drakkoBuys = 0;
-  else s.heroPowerSpent = true;
+  else markPowerLatchSpent(s, s.heroId); // Drakko's own latch, even if a Power Shifter moved another power into the slot
 }
 
 /** Chronos hero's Encore quest: buy 4 End-of-Turn minions → get a Chronos (once per game). Mirrors
  *  `drakkoQuestBuy` — progresses on every PAID buy of a minion that carries an End-of-Turn effect. */
 function chronosQuestBuy(s: RunState, card: CardDef): void {
-  if (s.heroId !== 'chronoshero' || s.heroPowerSpent) return;
+  if (s.heroId !== 'chronoshero' || powerLatchSpent(s, s.heroId)) return;
   if (!card.effects.some((e) => e.on === 'endOfTurn')) return;
   s.eotMinionBuys = (s.eotMinionBuys ?? 0) + 1;
   if ((s.eotMinionBuys ?? 0) < 4) return;
@@ -220,7 +227,7 @@ function chronosQuestBuy(s: RunState, card: CardDef): void {
       golden: false,
     });
   }
-  s.heroPowerSpent = true; // quest complete
+  markPowerLatchSpent(s, s.heroId); // quest complete: Chronos' own latch, never a shifted-in power's
 }
 
 /** Keshi's Crown: every card acquired by a SHOP PURCHASE — including one made free by a discount or the
@@ -3096,7 +3103,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       (s.ownedRunes ??= []).push(rune.id);
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
-      if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
+      if (!s.runeforgeEpic && !s.runeforgeNoCharge) markPowerLatchSpent(s, runeforgeHolderId(s));
       // The power button now wears this rune — but only when the forge was the HERO's, not a quest's.
       // GUARDIAN (R-RUNESLOT-01): every Epic forge is `runeforgeEpic`, the universal turn-9 one included, so
       // "any Epic forge" let the turn-9 pick overwrite his turn-8 rune in the power slot (owner report
@@ -3118,7 +3125,7 @@ function reduceCore(state: RunState, action: Action): RunState {
     case 'skipRuneforge': {
       // Leave the Runeforge without buying (e.g. you can't afford any) — closes it for the run.
       if (!s.runeforgeOffer) return state;
-      if (!s.runeforgeEpic && !s.runeforgeNoCharge) s.heroPowerSpent = true;
+      if (!s.runeforgeEpic && !s.runeforgeNoCharge) markPowerLatchSpent(s, runeforgeHolderId(s));
       closeRuneforge(s);
       openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal
       return s;
@@ -3738,27 +3745,30 @@ function reduceCore(state: RunState, action: Action): RunState {
         // POWER SHIFTER (T5 spell): replace the power the run is wielding, for the rest of the run.
         // On VOID that means slot 0 in place — collapsing his pair to one would delete a power the shifter
         // never claimed to touch.
+        const outgoing = s.voidPowerIds?.[0] ?? s.adoptedPowerId ?? s.mimicPowerId ?? s.heroId;
         if (s.voidPowerIds?.length) s.voidPowerIds = [heroId, ...s.voidPowerIds.slice(1)];
         else s.adoptedPowerId = heroId;
-        s.heroReady = true; // a new power arrives charged, whatever the old one had spent
-        seedAdoptedPower(s, heroId, 0);
+        swapPowerLatch(s, 0, outgoing, heroId); // a new power arrives ready, whatever the old one had spent
+        seedAdoptedPower(s, heroId);
       } else if (offer.slot === 'mimic') {
+        const outgoing = s.adoptedPowerId ?? s.mimicPowerId ?? s.heroId;
         s.adoptedPowerId = heroId;
         // A fresh disguise is a fresh charge: the adopted power arms now even when the previous one was
-        // spent this same turn (each turn's power is its own).
-        s.heroReady = true;
-        seedAdoptedPower(s, heroId, 0);
+        // spent this same turn (each turn's power is its own), and it carries ITS OWN once-per-game latch,
+        // never the one the previous disguise left behind (R-HERO-POWER-FRESH-01).
+        swapPowerLatch(s, 0, outgoing, heroId);
+        seedAdoptedPower(s, heroId);
       } else if (offer.slot === 'void1') {
         s.voidPowerIds = [heroId];
-        s.heroReady = true;
-        seedAdoptedPower(s, heroId, 0);
+        swapPowerLatch(s, 0, s.heroId, heroId);
+        seedAdoptedPower(s, heroId);
         // Chain straight into the second pick — the two are one turn-4 ceremony. The pool re-derives with the
         // first pick excluded, so the same power can never be held twice.
         mintPowerOffer(s, 'void2');
       } else {
         (s.voidPowerIds ??= []).push(heroId);
-        s.heroReady2 = true;
-        seedAdoptedPower(s, heroId, 1);
+        swapPowerLatch(s, 1, undefined, heroId);
+        seedAdoptedPower(s, heroId);
       }
       // An adopted power can GRANT cards (Yirin's Reflector, Chaos' token) and can change the Gild threshold
       // itself (Midas' Touch: 3 → 2), so copies already held may combine the moment it lands — check like buy /
@@ -6553,7 +6563,7 @@ function mintPowerOffer(s: RunState, slot: 'mimic' | 'void1' | 'void2'): void {
  * a few passives normally get set up at `createRun` — without this a mimicked Lucky Seat would pay its prize
  * off an unset suit and show a blank suit card.
  */
-function seedAdoptedPower(s: RunState, heroId: string, slot: 0 | 1): void {
+function seedAdoptedPower(s: RunState, heroId: string): void {
   const power = getHero(heroId).power;
   const kind = power.kind;
   // PRICE CLOCKS — re-based on EVERY adoption, before the once-per-run guard below. The shrinking-cost powers
@@ -6574,17 +6584,10 @@ function seedAdoptedPower(s: RunState, heroId: string, slot: 0 | 1): void {
   // into a faucet — re-adopting Brackus was a Tier-7 Discover per turn.
   if (s.seededPowers?.includes(heroId)) return;
   (s.seededPowers ??= []).push(heroId);
-  // The firing slot's whole-game counters belong to the power that arrives: Jenkins's Dynamite Dig prices its
-  // next dig off the slot's use count (a Power Shifter after two Gildmaster uses started at 2 Gold instead of
-  // free), and a once-per-game power (Indy's Gild) must not inherit a `spent` flag from the power it replaced
-  // (it would be dead on arrival, with no recharge ever armed). Inside the guard so a Mimic re-adopting
-  // Jenkins or Indy does not get a fresh free dig / fresh Gild every turn — the second visit is the native
-  // hero's own recharge rule.
-  if (kind === 'dynamiteDig' || power.maxUses) { if (slot === 1) s.heroPowerUses2 = 0; else s.heroPowerUses = 0; }
-  if (power.oncePerGame) {
-    if (slot === 1) s.heroPowerSpent2 = false; else s.heroPowerSpent = false;
-    if (kind === 'gild') s.indyGildRearmAt = undefined;
-  }
+  // The slot's spend state (once-per-game latch, whole-game use count) is NOT reset here any more: it used to be,
+  // but only on the FIRST adoption of each hero, so a power found a second time inherited whatever the power it
+  // replaced had spent (Copy Machine arriving spent after a used Masterwork, owner report 2026-10-20). The
+  // callers now swap per-power latches at the moment of adoption (`swapPowerLatch`, R-HERO-POWER-FRESH-01).
   if (kind === 'luckySeat') {
     if (!s.ciaSuit) {
       const rng = makeRng(s.rngCursor);

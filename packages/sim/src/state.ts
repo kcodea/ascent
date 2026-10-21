@@ -7,7 +7,7 @@ import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
 import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
-import { DEFAULT_HERO_ID, getHero, powerDiscoverPool } from './heroes';
+import { DEFAULT_HERO_ID, getHero, powerDiscoverPool, type PowerLatch } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { queueDiscover } from './recruit';
 import { rollCiaEnchants, rollShop, stockPool } from './shop';
@@ -1377,6 +1377,13 @@ export interface RunState {
    *  turn, and without this ledger re-adopting Brackus farmed a Tier-7 Discover per turn — the start-of-game
    *  reward is a once-per-run gift, not a faucet. */
   seededPowers?: string[];
+  /** PER-POWER spend state (owner 2026-10-20, R-HERO-POWER-FRESH-01: "it should reset from finding a new hero
+   *  power"). The live slot fields (`heroPowerSpent` / `heroPowerUses` and their slot-1 siblings) describe the power
+   *  in that slot RIGHT NOW; when a power leaves a slot its latch is filed here under its hero id, and the power that
+   *  arrives loads ITS OWN latch (fresh when absent). So a new power always arrives ready, and a power you already
+   *  spent stays spent if you find it again (a Mimic cannot farm a fresh Masterwork every turn). Written only by
+   *  `swapPowerLatch` (heroes.ts). */
+  powerLatches?: Record<string, PowerLatch>;
   /** A power Discover WAITING behind another start-of-turn modal (quest offer / forge) — opened by
    *  `openNextStartOfTurnModal` when the queue drains, mirroring `pendingBasicForge`. */
   pendingPowerOffer?: { slot: 'mimic' | 'void1' };  // 'shifter' is cast-driven, never queued at turn start

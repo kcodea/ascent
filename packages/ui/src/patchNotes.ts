@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-20',
     changes: [
+      { category: 'Systems', text: 'A hero power you find mid-game now always arrives ready. Before, finding a power again could leave it greyed out as spent because a different power had been used, for example Copy Machine after Masterwork. A power you already used yourself still stays used if you find it again.' },
       {
         category: 'Systems',
         text: 'Fixed: effects that give or summon a random minion could hand out a Tier 7 minion the Shop never offers. They now only pick minions the Shop could sell you.',

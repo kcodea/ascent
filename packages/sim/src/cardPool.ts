@@ -1,7 +1,8 @@
-import { inRunTribes, type CardDef } from '@game/core';
+import { inRunTribes, legalRandomMinions, type CardDef } from '@game/core';
 import type { CardPool, SetId } from '@game/content';
 import { poolFor } from '@game/content';
 import type { RunState } from './state';
+import { hasTier7Access, maxTierFor } from './config';
 
 /**
  * The card pool a RUN draws from — resolved from the set pinned on the run, never from the live registry.
@@ -59,6 +60,29 @@ function narrowedPool(base: CardPool, tribes: readonly string[]): CardPool {
   };
   NARROWED.set(key, pool);
   return pool;
+}
+
+/**
+ * The tier CEILING a random effect may reach for this run: 6 normally, 7 with Tier-7 access (Summit rift, or a
+ * quest / hero power that set `tier7Access`). The same ceiling the Discover clamps and Pete's upgrade read.
+ */
+export function randomTierCeiling(state: Pick<RunState, 'rift' | 'tier7Access'>): number {
+  return hasTier7Access(state) ? 7 : maxTierFor(state.rift);
+}
+
+/**
+ * THE LEGAL RANDOM MINIONS of a run (owner reports 2026-10-20, R-RANDOM-POOL-01): the run's pinned buyable pool
+ * minus spells, Rubies, tokens and henchmen, at or below `randomTierCeiling` (or a tighter `maxTier`, e.g. "up to
+ * your Shop tier"). Every "summon / get a random minion" picker in the Shop starts here, so a card the Shop could
+ * never sell (Elderhorn, Orivax and every other Tier 7 in a normal run) cannot come out of one. Order is the
+ * pool's, so seeded picks replay faithfully. Tribe / effect predicates stay with the caller.
+ */
+export function legalRandomMinionPool(
+  state: Pick<RunState, 'setId' | 'rift' | 'tier7Access'> & Partial<Pick<RunState, 'tribes' | 'practiceConfig' | 'mode'>>,
+  opts?: { maxTier?: number },
+): CardDef[] {
+  const ceiling = Math.min(randomTierCeiling(state), opts?.maxTier ?? Infinity);
+  return legalRandomMinions(poolOf(state).buyable, ceiling);
 }
 
 /** The set a run is pinned to, defaulted for pre-sets saves. */

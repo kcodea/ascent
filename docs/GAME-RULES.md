@@ -1935,6 +1935,28 @@ hear **wherever it happens**:
 risen body in the payload. Pinned in `set3Undead.test.ts` for both phases and for the enemy case, and in
 `shopRiseWatchers.test.ts` for every shop destroy path.
 
+### Engraved keeps combat stats AND combat keywords (owner rulings 2026-10-10 and 2026-10-21, R-BUFF-PHASE-01, R-ENGRAVE-02, R-ENGRAVE-03)
+
+An **Engraved** minion keeps what it gains in combat, win or lose, alive or dead. Since 2026-10-21 that is its
+stats **and its keywords**: *"if a minion is engraved and gains ward, they gain that ward permanently, so they would
+carry it back from combat."*
+
+- **Which keywords**: Taunt, Ward, Resilient Ward, Execute, Flurry, Rise, Rebirth, Cleave, Immune, Stealth and
+  Critical Strike. Engraved itself is not kept (a one-fight Engrave, such as Taurus's, stays one fight), nor are the
+  trigger labels (Rally, Slaughter, Start of Combat, Consume, Fodder, Magnetic), whose effect never comes home.
+- **Gained in combat** means applied during the fight: Start of Combat, on attack, on kill, an aura or rune firing in
+  combat. A keyword the body already had when the fight opened is not a gain, so it is never added twice. That
+  includes the **next-combat-only** spells (Field Maneuvers, Last Stand, Executioner's Edge, Marked Target) and every
+  other Shop-granted one-combat keyword (a Maw of the Pit Ward, a Lord of the Risen Rise, a Whisper's keyword): they
+  were cast in the recruit phase and expire as usual. A future spell that grants a keyword AT Start of Combat would count.
+- **Gained, then lost** in the same fight (a Ward that breaks) still carries back (owner: "1. Yes carries back").
+  Losing a keyword it already had changes nothing on the Shop card ("2. Correct").
+- **Only the primary body**: the one that started the fight from your board. A **Rise** brings back a fresh
+  combat-only copy (R-RISE-06), so nothing it gains comes home; neither does anything a summoned copy gains. A
+  **Rebirth** is the same body (it returns in full, with every counter), so its gains still count, exactly as for stats.
+- The kept keyword is on the Shop card (its keyword pill) from then on ("3. Yes"), the fight recap shows it as
+  "+Ward", and a Gild keeps it ("4. Yes"). The opponent's side follows the same rule (lobby snapshots, Versus).
+
 ### A combat Rise is a fresh copy, for that fight only (owner ruling 2026-10-12, R-RISE-06)
 
 *"rise rises a 'fresh copy' of something, but that is a combat only thing. the recruit phase would still have the

@@ -27,6 +27,7 @@ const LIVE: Record<string, string> = {
   playerHandBuffs: "the 'handBuff' event — the hand card grows on the trigger beat (R-HAND-02; useCombatReplay.handBuffsShownThrough)",
   playerRubyMints: "the 'toHand'-style mint beat in the replay (each Ruby flies to hand on its trigger)",
   playerPermaBuffs: "the 'buff' events themselves — the stats move on the body as they land",
+  playerPermaKeywords: "the keyword's own grant beat ('keyword' / 'shieldUp' / the pill on the body) — it shows on the body as it lands (R-ENGRAVE-03)",
   playerImpBuffGain: "the 'tribeAura' event — the board wash + Buffs-panel row tick",
   playerHoardGain: "Cindara's Hoard — each +2/+2 is a visible buff on the living Whelps as it lands, so the growth is watched in real time rather than reported at settle",
   playerUndeadAuraGain: "the 'tribeAura' event (Lantern channel)",

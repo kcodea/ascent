@@ -515,6 +515,33 @@ export const PERSISTENCE_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/engravedKeepsGainsWhenDead.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
   {
+    id: 'R-ENGRAVE-03',
+    title: 'An Engraved minion also keeps the keywords its primary body gains in combat',
+    statement:
+      'Extends R-ENGRAVE-02 and R-BUFF-PHASE-01 from stats to keywords. A keyword an Engraved minion GAINS during combat '
+      + '(applied by the simulator in the fight: Start of Combat, on attack, on kill, a combat aura or rune) is added to '
+      + 'its run board card permanently, win or lose, alive or dead. Kept keywords: Taunt, Ward, Resilient Ward (with its '
+      + 'Ward), Execute, Flurry, Rise, Rebirth, Cleave, Immune, Stealth, Critical Strike. Not kept: Engraved itself (a '
+      + 'one-fight Engrave stays one fight) and the trigger labels (Rally, Slaughter, Start of Combat, Consume, Fodder, '
+      + 'Magnetic). A keyword the body opened the fight with is not a gain: never duplicated, and that covers every '
+      + "next-combat-only keyword cast in the recruit phase (banked Field Maneuvers / Last Stand / Executioner's Edge, "
+      + 'Marked Target, a Maw of the Pit Ward, a Lord of the Risen Rise, a Whisper keyword), which expire as before. A '
+      + 'keyword gained and then lost in the same fight (a broken Ward) still carries back; losing a keyword it already had '
+      + 'never changes the card. Only the PRIMARY body counts: a Rise return is a fresh combat-only copy (R-RISE-06) and '
+      + 'a summoned copy has no run card, so their gains never carry back; a Rebirth is the same body (as for stats). The '
+      + 'Shop card shows the keyword, the fight recap shows "+Ward", and a Gild keeps it. Both sides, one code path, so '
+      + 'lobby snapshots and Versus settle the same way.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 (Engrave keeps keywords)', quote: 'change the engrave mechanic to also include keywords gained in combat. Therefore if a minion is engraved and gains ward, they gain that ward permanently, so they would carry it back from combat. Remember, if a risen minion gains something like ward or stats, that is technically a new copy of that minion and that would not carry back. Only if the first/primary copy gains keywords or stats. This does not include the spells that grant a next combat only keyword, since those are technically cast during recruit phase. However, if we introduced a spell that did grant keywords or stats at start of combat, those would count.' },
+      { kind: 'owner-chat', ref: 'Owner confirmations 2026-10-21 (gained-then-lost, lost-own, Shop pill + recap beat, Gild)', quote: '1. Yes carries back 2. Correct 3. Yes 4. Yes' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts engraveKwStart baseline + scanEngravedKeywords (sampled on every emit) + carryBacksFor permaKeywords; packages/core/src/types.ts ENGRAVE_KEEPS_KEYWORDS + playerPermaKeywords; packages/sim/src/reducer.ts settleCombat playerPermaKeywords; packages/sim/src/versus/mirror.ts; packages/ui/src/fightRecapData.ts engravedKeywordChip' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-21. Before, Engraved carried back combat stat gains only.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/engravedKeepsKeywords.test.ts', 'packages/sim/src/engraveKeywords1021.test.ts', 'packages/ui/src/fightRecapData.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
     id: 'R-PERSIST-EMAIL-01',
     title: "A player's email is never readable by other players",
     statement:

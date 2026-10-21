@@ -1,5 +1,6 @@
 import { CARD_INDEX } from '@game/content';
 import type { CombatResult } from '@game/core';
+import { engravedKeywordChip } from './fightRecapData';
 
 /**
  * Post-combat summary (A4): the PERMANENT gains a fight left you with, as readable lines. Pure mapping over
@@ -35,6 +36,10 @@ export function combatGains(r: CombatResult | null | undefined): string[] {
     { a: 0, h: 0, n: 0 },
   );
   if (eng.a || eng.h) out.push(`Kept combat stats ${sv(eng.a, eng.h)} across ${plural(eng.n, 'minion')}`);
+  // Engraved keywords (owner 2026-10-21, R-ENGRAVE-03).
+  for (const { keywords } of r.playerPermaKeywords ?? []) {
+    if (keywords.length > 0) out.push(`Engraved: ${engravedKeywordChip(keywords)}`);
+  }
 
   if (r.playerFodderGrants) out.push(`${plural(r.playerFodderGrants, 'Fodder')} added to your next tavern`);
   if (r.playerFreeRolls) out.push(`${plural(r.playerFreeRolls, 'free reroll')} banked`);

@@ -20,7 +20,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -341,7 +341,17 @@ export function simulate(
     try { return fire(); }
     finally { echoDeferDepth--; if (echoDeferDepth === 0 && echoDeferredDeaths.length > 0) flushEchoDeaths(); }
   };
-  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); };
+  // ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): "change the engrave mechanic to also include keywords gained in
+  // combat". Per side, keyed by the RUN-board uid (`sourceUid`): the keywords each starting body opened the fight with
+  // (after the Shop's next-combat banks and the run-wide auras, so a recruit-cast "next combat only" keyword is part of
+  // this baseline and never reads as a combat gain), and the carryable keywords it GAINED while Engraved, in gain order.
+  // Gains are sampled on every `emit` (each keyword grant lands with its own event), which is what makes a keyword
+  // gained and then lost in the same fight (a Ward that breaks) still count. `engraveKwScan` stays unset for a fight
+  // with no run-board bodies (harness / bots), so those pay nothing. See `scanEngravedKeywords`.
+  const engraveKwStart: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
+  const engraveKwGained: Record<Side, Map<string, Keyword[]>> = { player: new Map(), enemy: new Map() };
+  let engraveKwScan: (() => void) | undefined;
+  const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); if (engraveKwScan) engraveKwScan(); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
@@ -584,6 +594,49 @@ export function simulate(
     permaLabel?: string;
     engraved: boolean;
   }>();
+  /** TRANSCENDANT's live adjacency aura: the living Transcendant beside `target` when `target` is a Dragon, else
+   *  undefined. Read at the moment of a gain (stats in `ctx.buff`, keywords in `scanEngravedKeywords`), which is what
+   *  makes "while alive and adjacent" literally true. */
+  function transcendantBeside(target: Minion): Minion | undefined {
+    const side = boards[target.side];
+    const i = side.indexOf(target);
+    if (i < 0) return undefined;
+    // `isTribeOf`, not a bare tribe compare — an all-tribes body (Paragon, Lab Experiment) IS a Dragon
+    // for every other Dragon check in the engine, so it must be one here too (owner 2026-08-17).
+    if (!isTribeOf(target, 'dragon', cards)) return undefined;
+    for (const nb of [side[i - 1], side[i + 1]]) {
+      if (nb && !nb.dead && nb.health > 0 && nb.cardId === 'd2_transcendence') return nb;
+    }
+    return undefined;
+  }
+  /** ENGRAVED KEYWORDS (owner 2026-10-21, R-ENGRAVE-03): record every carryable keyword a run-board body GAINED this
+   *  fight while it was Engraved. Only the PRIMARY body counts: a body that has Risen is a fresh combat-only copy
+   *  (`riseCarry`, R-RISE-06), so nothing it gains reaches the board card; a summon without the run card's `sourceUid`
+   *  is never looked at. A keyword the body already had when the fight opened is not a gain (no duplicate), and one it
+   *  was seen holding while NOT Engraved is folded into its baseline, so a later Engrave does not retro-keep it.
+   *  Idempotent: a recorded keyword is never recorded twice, and losing a keyword never removes the record. */
+  function scanEngravedKeywords(): void {
+    for (const side of SIDES) {
+      const start = engraveKwStart[side];
+      if (start.size === 0) continue;
+      const gained = engraveKwGained[side];
+      for (const m of boards[side]) {
+        const su = m.sourceUid;
+        if (su === undefined || riseCarry.has(m.uid)) continue;
+        const base = start.get(su);
+        if (!base) continue;
+        let engraved: boolean | undefined;
+        for (const k of m.keywords) {
+          if (base.has(k) || !ENGRAVE_KEEPS_KEYWORDS.has(k)) continue;
+          const got = gained.get(su);
+          if (got && got.includes(k)) continue;
+          engraved ??= m.keywords.includes('EG') || transcendantBeside(m) !== undefined;
+          if (!engraved) { base.add(k); continue; }
+          if (got) got.push(k); else gained.set(su, [k]);
+        }
+      }
+    }
+  }
   /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each Ward that BROKE this fight, per side — recorded only
    *  for a side whose mods carry `ancientTrackWardBreaks`, so every other fight's result stays byte-identical. */
   const wardBreakLog: Record<Side, string[]> = { player: [], enemy: [] };
@@ -837,6 +890,10 @@ export function simulate(
   // for the player only, so a served board's Undead fought without its owner's Lantern aura (R-SYMMETRY-01).
   for (const s of SIDES) for (const m of boards[s]) applyAuras(m, false);
   for (const s of SIDES) syncUnityCombat(s, true); // Rune of Unity: the starting boards, before Start of Combat (the `initial` snapshot shows it)
+  // ENGRAVED KEYWORDS: the baseline every later keyword is measured against (see `engraveKwStart`). Taken here, once the
+  // starting bodies carry everything the Shop gave them, before any Start of Combat effect can grant one.
+  for (const s of SIDES) for (const m of boards[s]) if (m.sourceUid !== undefined) engraveKwStart[s].set(m.sourceUid, new Set(m.keywords));
+  if (engraveKwStart.player.size > 0 || engraveKwStart.enemy.size > 0) engraveKwScan = scanEngravedKeywords;
   // ANCIENTS × Lord of the Risen: find the Undying bodies (the run card's uid rides in as `sourceUid`). War's Rise on
   // them is RED (Death's BLUE) from the first frame (the `initial` snapshot reads `riseTint`).
   for (const side of SIDES) {
@@ -1304,18 +1361,7 @@ export function simulate(
       // adjacent" literally true: gains made beside a living Transcendant carry back, and gains made after it
       // dies do not. Granting the EG keyword instead would be wrong — the keyword persists, so a single
       // adjacent buff would silently engrave the rest of the fight.
-      const transcendant = ((): Minion | undefined => {
-        const side = boards[target.side];
-        const i = side.indexOf(target);
-        if (i < 0) return undefined;
-        // `isTribeOf`, not a bare tribe compare — an all-tribes body (Paragon, Lab Experiment) IS a Dragon
-        // for every other Dragon check in the engine, so it must be one here too (owner 2026-08-17).
-        if (!isTribeOf(target, 'dragon', cards)) return undefined;
-        for (const nb of [side[i - 1], side[i + 1]]) {
-          if (nb && !nb.dead && nb.health > 0 && nb.cardId === 'd2_transcendence') return nb;
-        }
-        return undefined;
-      })();
+      const transcendant = transcendantBeside(target);
       // Golden Taurus doubles every combat stat-gain its engraved neighbours receive (`gainMult`), and a GOLDEN
       // Transcendant does the same for its adjacent Dragons — live rather than stamped, so the doubling stops
       // the moment it dies. The LARGER of the two wins rather than the product: two separate "2x stats" sources
@@ -6588,6 +6634,9 @@ export function simulate(
         }
         return out;
       });
+    // ENGRAVED KEYWORDS (R-ENGRAVE-03): one last sample (a grant with no event after it), then the primary bodies' gains.
+    engraveKwScan?.();
+    const permaKeywords = [...engraveKwGained[side]].map(([sourceUid, keywords]) => ({ sourceUid, keywords: [...keywords] }));
     const qt = questTallies[side];
     const qe = questEventsFor[side];
     const tbg = tavernBuyGain[side];
@@ -6618,6 +6667,7 @@ export function simulate(
       damageMeters: damageMeters.length > 0 ? damageMeters : undefined,
       ascendCount: ascendCount.length > 0 ? ascendCount : undefined,
       permaBuffs: permaBuffs.length > 0 ? permaBuffs : undefined,
+      permaKeywords: permaKeywords.length > 0 ? permaKeywords : undefined,
       handGrants: handGrants[side].length > 0 ? handGrants[side] : undefined,
       handBuffs: handBuffs[side].length > 0 ? handBuffs[side] : undefined,
       rubyGrants: rubyGrants[side].n > 0 ? rubyGrants[side].n : undefined,
@@ -6718,6 +6768,7 @@ export function simulate(
     playerDamageMeters: pc.damageMeters,
     playerAscendCount: pc.ascendCount,
     playerPermaBuffs: pc.permaBuffs,
+    playerPermaKeywords: pc.permaKeywords,
     playerHandGrants: pc.handGrants,
     playerHandBuffs: pc.handBuffs,
     playerRubyGrants: pc.rubyGrants,

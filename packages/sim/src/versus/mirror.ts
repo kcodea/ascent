@@ -114,6 +114,7 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerDamageMeters: c.damageMeters,
     playerAscendCount: c.ascendCount,
     playerPermaBuffs: c.permaBuffs,
+    playerPermaKeywords: c.permaKeywords,
     playerHandGrants: c.handGrants,
     playerHandBuffs: c.handBuffs,
     playerRubyGrants: c.rubyGrants,

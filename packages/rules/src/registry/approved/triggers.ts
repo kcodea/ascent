@@ -1409,10 +1409,10 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-DWARF-1021-05',
-    title: 'Set 3 Sell Dwarves 2026-10-21: Salezar Sails, Mark Eting, Valyou, Leeds',
+    title: 'Set 3 Sell Dwarves 2026-10-21: Sailsey, Mariet, Valyou, Leeds',
     statement:
-      'Salezar Sails (T2 3/1) "Sell: Give your Dwarves +2/+3": its OWN sale buffs every Dwarf left on the board (All-types '
-      + 'count; never itself, it has left). Mark Eting (T3 2/6) "When you Sell 4 minions, get a random Shop Spell": a '
+      'Sailsey (T2 3/1) "Sell: Give your Dwarves +2/+3": its OWN sale buffs every Dwarf left on the board (All-types '
+      + 'count; never itself, it has left). Mariet (T3 2/6) "When you Sell 4 minions, get a random Shop Spell": a '
       + 'per-instance meter of the minions you Sell while it is on the board, carried round to round; every 4 pays one '
       + 'random Shop Spell from the run\'s legal spell pool (set-pinned, tribe-gated, no tokens) at or below your Shop tier; '
       + 'Gilded pays TWO spells per payout (the Runic Archivist convention), not a halved counter. Valyou (T5 6/9) "When you '
@@ -1422,7 +1422,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Dwarf on the board, Leeds and the played one included, gains base x (1 + floor(sales / 4)), the sales being those '
       + 'made while this Leeds was on the board, carried round to round. Each improve adds the base grant again (+2/+2, '
       + '+4/+4, +6/+6), the game\'s "Improves" convention (Aspect, Flowing Monk, Archmagus Guel). Gilded doubles the base and '
-      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every sold meter (Mark Eting, Valyou, Leeds) '
+      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every sold meter (Mariet, Valyou, Leeds) '
       + 'shows its countdown as the game\'s standard integer counter under the card (N/4, like Avenge and every every-N card), '
       + 'never as prose in the text (owner 2026-10-21): the printed sentence stays authored, and Leeds prints its CURRENT '
       + 'grant in place of +2/+2 once it has improved.',
@@ -1430,7 +1430,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-21 (four new Set 3 Dwarves)', quote: 'Leeds: When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions.' },
-      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (countdown prose on Mark Eting / Valyou / Leeds)', quote: 'i dont think we use text for this, just integers' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (countdown prose on Mariet / Valyou / Leeds)', quote: 'i dont think we use text for this, just integers' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldBuffSelf (count/gold) / minionSoldTally / tribePlayedBuffTribeSellImproving / minionSoldGrantSpell; battlecryBuffTribe on onSell; packages/ui/src/cardText.ts sellImproveText (Leeds grant) + stepProgress minions-SOLD counter' },
     ],
     cardText: 'When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.',

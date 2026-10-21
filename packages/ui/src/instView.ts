@@ -257,7 +257,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             sellDiscoverTierText(c.id, p.golden, p.tier) ?? // Golden Monkey: the Tier its Sell Discover offers right now
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden, p.runeMammoth) ?? // Menagerie Mammoth: escalating grant (+Health with the rune)
-            // Runic Archivist / Mark Eting / Valyou: no text helper, their countdown is the N/4 counter (owner 2026-10-21)
+            // Runic Archivist / Mariet / Valyou: no text helper, their countdown is the N/4 counter (owner 2026-10-21)
             sellImproveText(c.id, p.golden, p.soldProgress ?? 0) ?? // Leeds: the current grant (its countdown is the counter)
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
             vaultkeeperText(c.id, p.golden, p.spiritTally ?? 0) ?? // Vaultkeeper: its current per-Dragon gain

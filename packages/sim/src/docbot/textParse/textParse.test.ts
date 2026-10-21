@@ -172,7 +172,7 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // (new phrasings: a keyword granted with stats until your next turn, a tier that climbs every turn, a placeholder-named Whisper).
 // 2026-10-21 (Set 3 Sell Dwarves): 141 -> 142, CONSCIOUSLY. Two new texts have no grammar rule yet: Leeds' sale-driven
 // improve ("Improves when you Sell 4 minions.") and Valyou's every-N-triggers Gold tail ("Every 4 triggers also grants 2
-// Gold."); Salezar Sails and Mark Eting parse. The same PR capitalised Sell as a keyword (R-TEXT-SELL-CAPS-01) and grew
+// Gold."); Sailsey and Mariet parse. The same PR capitalised Sell as a keyword (R-TEXT-SELL-CAPS-01) and grew
 // the sell grammar to read "Sells for" / "Sell for" / "you Sell" in either case, so no existing text regressed.
 const UNRESOLVED_CAP = 142;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */

@@ -2134,7 +2134,7 @@ Sells, a price line. Its one-line definition covers both meanings: *Return a min
 effects trigger when this minion is sold.* Lower-case "sell" / "sold" never raise it. Text only, no effect changed.
 
 **Sold meters count with the integer counter, not prose** (owner 2026-10-21: *"i dont think we use text for this,
-just integers"*). Mark Eting, Valyou and Leeds show their progress toward the next payout or improve as the N/4
+just integers"*). Mariet, Valyou and Leeds show their progress toward the next payout or improve as the N/4
 counter under the card, like Avenge and every every-N card; their printed sentence stays authored. Leeds still prints
 its CURRENT grant in place of +2/+2 once it has improved (the live-text rule).
 

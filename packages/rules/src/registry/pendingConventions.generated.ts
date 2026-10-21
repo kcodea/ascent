@@ -2457,7 +2457,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "statement": "All 23 of these fire on one trigger: you sell a card. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
     "currentBehaviour": "18 effect factories across 23 cards dispatch on 'minionSold', 'onSell' (recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Solburn: \"Sell: Collapse your Starform.\" · Members: Solburn · Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Hank Pepe · Keg Runner · Leeds · Mark Eting · Salezar Sails · Shift Broker · Valyou · … and 11 more",
+    "cardText": "Exemplar — Solburn: \"Sell: Collapse your Starform.\" · Members: Solburn · Riverback · Voicekeeper · Arcane Behemoth · Grevlin & Co. · Hank Pepe · Keg Runner · Leeds · Mariet · Sailsey · Shift Broker · Valyou · … and 11 more",
     "example": "Solburn fires when you sell a card, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_coronadevotee",

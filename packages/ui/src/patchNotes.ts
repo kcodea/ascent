@@ -120,6 +120,17 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Versus rooms: hovering a card in the spectator hand pops it up once and keeps it up, with no more flickering, and the popped card is easy to grab.',
       },
+      {
+        category: 'Systems',
+        text: 'Spectating is smoother: the player\'s hand glides at an even pace, and their buys, plays, moves and sales land as they happen.',
+        details: [
+          'The watched cursor no longer stalls and jumps when the connection is uneven.',
+          'While the player holds a card, the board opens room for it under their hand, and when they let go the card slides into that spot once, with no snap back.',
+          'A bought card slides from where it was let go into the hand, and a card put back springs home to its slot.',
+          'Hover previews and targeting arrows appear as the player\'s hand reaches them.',
+          'The card the player is holding always shows as that exact copy: a plain copy no longer looks golden because a golden copy of it is elsewhere.',
+        ],
+      },
     ],
   },
   {

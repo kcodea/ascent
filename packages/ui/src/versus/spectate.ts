@@ -31,6 +31,7 @@ import type { DragDecision, Zone } from '../dragDecision';
 import { NO_DRAG_DECISION } from '../dragDecision';
 import { dragStore } from '../dragStore';
 import { decodePoint } from './cursorSpace';
+import { addPoint, localTimeOf, newRemoteClock, noteDelivery, playbackTime, type PlaybackPoint, type RemoteClock } from './cursorPlayback';
 import { setSpectatorHover, watchLocalHover } from './spectatorHover';
 import type { CursorSample, SpectatorAct, WireDecision, WireOdds, WireOverlay } from './spectateTap';
 import { applySpectatorMessage, newReceiver, type CombatBeat, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
@@ -265,6 +266,12 @@ const MAX_FLIGHT_MS = 900;
 const ACT_GAP_MS = 60;
 /** Queued actions past this many are compressed: they land without a flight, so the screen never falls behind. */
 const BEHIND = 2;
+/** The longest an action waits for the drawn hand to reach it. */
+const MAX_LAND_WAIT_MS = 400;
+/** The drag-drop FLIP a landing action primes, by action (the player's own `onUp` decides the same from its drop). */
+const DROP_OF: Partial<Record<string, 'place' | 'reposition' | 'reorderShop' | 'sell' | 'buy'>> = {
+  play: 'place', reposition: 'reposition', reorderShop: 'reorderShop', sell: 'sell', buy: 'buy',
+};
 
 /** Waiting for the screen to leave the fight before the queued shop actions play (`pump`). */
 let awaitingShop = false;
@@ -360,13 +367,23 @@ function pump(): void {
     if (awaitingShop && useGame.getState().run.phase !== 'combat') { awaitingShop = false; pump(); }
     return;
   }
+  // ON THE HAND'S CLOCK (R-SPECTATE-SMOOTH-01): an action lands when the drawn hand reaches the moment it happened on
+  // the player's screen, not when its message arrived (which is usually before the hand gets there). Capped, and only
+  // while the screen is not behind.
+  const due = queue.length < BEHIND ? cursorDueAt(item.acts.find((a) => typeof a.ts === 'number')?.ts) : null;
+  const wait = due === null ? 0 : Math.min(MAX_LAND_WAIT_MS, due - performance.now());
+  if (wait > 4) {
+    queue.unshift(item);
+    busy = window.setTimeout(() => { busy = null; pump(); }, wait);
+    return;
+  }
   const prevRun = useGame.getState().run;
   const behind = queue.length >= BEHIND;
   const flight = behind ? null : item.acts.find((a) => a.drag && playableDragPath(a.drag) && !(a.uid && liveDragShown(a.uid)));
   if (flight?.drag) {
     // The card flies the player's own drag path over the screen as it was, then lands (the replay viewer's ghost).
     const drag = flight.drag;
-    const view = ghostCardView(prevRun as never, drag.cardId);
+    const view = ghostCardView(prevRun as never, drag.cardId, drag.uid);
     const durMs = Math.min(drag.durMs, MAX_FLIGHT_MS) / (queue.length ? 2 : 1);
     ghostKey += 1;
     presentAction({ kind: 'touch' }); // the pick-up, as the player's press on the card sounded it
@@ -381,6 +398,24 @@ function pump(): void {
 function land(item: Pending, prevRun: RunState): void {
   // The card in the hand that let go of it (the flight's ghost, or the live drag's): where its plate dissolves from.
   const plate = document.querySelector<HTMLElement>('.replay-dragghost .ghostcardwrap .card')?.getBoundingClientRect() ?? null;
+  // THE LIVE DROP (R-SPECTATE-SMOOTH-01): the card the watched hand is holding (or parked where it was let go) is the
+  // one this action moved. The rows are snapshotted with its gap still open and the card slides home from where it
+  // is, exactly as the player's own drop does, so the board settles once instead of closing the gap and re-opening it.
+  for (const a of item.acts) {
+    if (!a.uid) continue;
+    const held = takeLanding(a.uid);
+    const drop = DROP_OF[a.t];
+    if (!held || !drop) continue;
+    const card = a.t === 'play' ? prevRun.hand.find((c) => c.uid === a.uid) : undefined;
+    const def = card ? CARD_INDEX[card.cardId] : undefined;
+    if (a.t === 'play' && (!def || playsAsSpell(def) || def.ruby)) continue; // a spell is cast, not placed
+    // A buy's hand copy is a new uid: the one card the next hand has that this one lacked (none if a triple took it).
+    const nextHand = (item.view as { hand?: { uid: string }[] }).hand ?? [];
+    const bought = drop === 'buy' && (item.view as { triplesMade?: number }).triplesMade === prevRun.triplesMade
+      ? nextHand.filter((c) => !prevRun.hand.some((h) => h.uid === c.uid)) : [];
+    presentAction({ kind: 'dropping', uid: a.uid, drop, from: held.rect, ...(bought.length === 1 ? { boughtUid: bought[0]!.uid } : {}) });
+    break;
+  }
   // ONE ACTION, ONE PRESENTATION (`actionPresenter.ts`): what the player's input showed before its dispatch...
   const pre = item.acts.map((a) => presentBefore(a, prevRun));
   releaseGhostHold();
@@ -423,49 +458,186 @@ function clearQueue(): void {
 
 // ── the watched player's cursor ────────────────────────────────────────────────────────────────────────────
 
-/** A cursor sample landed on THIS screen (screen px, `cursorSpace.decodePoint`). */
+/** A cursor sample landed on THIS screen (screen px, `cursorSpace.decodePoint`). Kept for the older wire's tests. */
 export interface CursorPoint { t: number; x: number; y: number }
 /** The player's live aim line, landed on this screen (screen px). */
 export interface CursorAim { x: number; y: number; on: boolean; def?: string; end?: { x: number; y: number } | null }
 /** The card in the player's hand, and (R-SPECTATE-DRAGGAP-01) the drop gap their rows open for it right now. */
 export interface CursorDrag { uid: string; source: string; cardId: string; overZone: Zone | null; decision: DragDecision }
-/** The live cursor the overlay draws (`SpectatorCursor`): a short buffer of samples, the card in hand, hidden. */
-export const cursorFeed: { pts: CursorPoint[]; drag: CursorDrag | null; aim: CursorAim | null; hidden: boolean; version: number } = { pts: [], drag: null, aim: null, hidden: true, version: 0 };
+
+/**
+ * One message's STATE, stamped on the player's clock and applied when playback reaches it (R-SPECTATE-SMOOTH-01): the
+ * card in hand, the aim, the hovered element and a drop all happen as the drawn hand gets there, not ~100 ms early.
+ */
+interface FeedState {
+  s: number;
+  hidden: boolean;
+  drag: CursorDrag | null;
+  aim: CursorAim | null;
+  aimT: string | null;
+  hover: string | null;
+  de?: 'c' | 'x';
+}
+
+/**
+ * The live cursor the overlay draws (`SpectatorCursor`): the points (on the PLAYER's clock, or the arrival clock for an
+ * older player that sends none), the clock that maps them, the state applied so far, and the held card's afterlife:
+ * `landing` = a committed drop parked where it was let go until its action lands (`takeLanding`), `spring` = a refused
+ * or cancelled drop flying back to its slot.
+ */
+export const cursorFeed: {
+  pts: PlaybackPoint[];
+  clock: RemoteClock;
+  /** The sender stamps nothing (an older client): points are stamped on arrival and drawn a fixed buffer behind. */
+  legacy: boolean;
+  pending: FeedState[];
+  drag: CursorDrag | null;
+  aim: CursorAim | null;
+  hidden: boolean;
+  landing: { drag: CursorDrag; until: number } | null;
+  spring: CursorDrag | null;
+  /** Arrival time of the newest message (the overlay stops its loop when the hand goes quiet). */
+  lastAt: number;
+  version: number;
+} = { pts: [], clock: newRemoteClock(), legacy: true, pending: [], drag: null, aim: null, hidden: true, landing: null, spring: null, lastAt: -1e9, version: 0 };
+/** A committed drop waits this long at most for its action (a lost message must never strand the card mid-air). */
+export const LAND_WAIT_MS = 1200;
+/** An older player's points are drawn this far behind their arrival (the pre-2026-10-20 behaviour). */
+export const LEGACY_BUFFER_MS = 100;
 const dragSeen = new Map<string, number>();
 const liveDragShown = (uid: string): boolean => performance.now() - (dragSeen.get(uid) ?? -1e9) < 2500;
 const cursorListeners = new Set<() => void>();
 export function onCursorFeed(fn: () => void): () => void { cursorListeners.add(fn); return () => { cursorListeners.delete(fn); }; }
+const notifyCursor = (): void => { cursorFeed.version += 1; for (const fn of cursorListeners) fn(); };
+
+/** The PLAYER-clock moment the hand is drawn at, local time `now`. */
+export function cursorPlayback(now: number): number {
+  return cursorFeed.legacy ? now - LEGACY_BUFFER_MS : playbackTime(cursorFeed.clock, now);
+}
 
 /** A cursor sample from a player (only the watched player's is drawn). */
 export function receiveSpectatorCursor(payload: unknown): void {
   const c = payload as CursorSample;
   if (!c || c.seat !== useSpectate.getState().seat || !useSpectate.getState().active) return;
-  if (c.hide) {
+  const now = performance.now();
+  const stamped = typeof c.ts === 'number' && Number.isFinite(c.ts);
+  if (stamped !== !cursorFeed.legacy) { cursorFeed.legacy = !stamped; cursorFeed.pts = []; cursorFeed.clock = newRemoteClock(); }
+  if (stamped) noteDelivery(cursorFeed.clock, c.ts!, now);
+  const s = stamped ? c.ts! : now;
+  cursorFeed.lastAt = now;
+  // Landed on THIS screen: on the same element, else the same spot of the game box (R-SPECTATE-CURSOR-01). One rect
+  // read per anchor per message, shared by its points.
+  const rects = new Map<string, DOMRect | null>();
+  let aim: CursorAim | null = null;
+  if (!c.hide) {
+    for (const t of c.tr ?? []) {
+      if (!Array.isArray(t) || typeof t[0] !== 'number') continue;
+      const at = decodePoint({ x: 0, y: 0, gx: t[1], gy: t[2], ...(typeof t[3] === 'string' ? { an: { k: t[3], fx: t[4] as number, fy: t[5] as number } } : {}) }, document, rects);
+      addPoint(cursorFeed.pts, { s: s - t[0], x: at.x, y: at.y });
+    }
+    const at = decodePoint(c, document, rects);
+    addPoint(cursorFeed.pts, { s, x: at.x, y: at.y });
+    const from = c.aim ? decodePoint(c.aim, document, rects) : null;
+    // The aim's END snaps to the minion the player's aim is on (R-SPECTATE-AIM-01): its centre on this screen.
+    const end = c.aim?.t ? decodePoint({ x: 0, y: 0, an: { k: `u:${c.aim.t}`, fx: 0.5, fy: 0.5 } }, document, rects) : null;
+    aim = c.aim && from ? { x: from.x, y: from.y, on: c.aim.on, ...(c.aim.def ? { def: c.aim.def } : {}), end: end?.el ? { x: end.x, y: end.y } : null } : null;
+  }
+  const state: FeedState = {
+    s,
+    hidden: !!c.hide,
+    drag: !c.hide && c.drag ? { uid: c.drag.uid, source: c.drag.source, cardId: c.drag.cardId, ...wireDecision(c.drag.g) } : null,
+    aim,
+    aimT: !c.hide ? c.aim?.t ?? null : null,
+    // The player's hover preview (R-SPECTATE-HOVER-01): the element under their hand, unless a card is in it or an aim
+    // line is out (their own screen opens no preview then). An idle hand still over a card keeps its preview open (the
+    // player is reading it); a hidden tab clears it.
+    hover: c.hide ? c.an?.k ?? null : !c.drag && !c.aim ? c.an?.k ?? null : null,
+    ...(c.de ? { de: c.de } : {}),
+  };
+  // An older player's state applies on arrival, as it always did; a stamped one waits for playback to reach it.
+  if (cursorFeed.legacy) applyFeedState(state, now);
+  else {
+    // In player-clock order (one socket keeps them in order; a reconnect might not).
+    const q = cursorFeed.pending;
+    let i = q.length;
+    while (i > 0 && q[i - 1]!.s > state.s) i--;
+    q.splice(i, 0, state);
+    if (q.length > 64) applyFeedState(q.shift()!, now);
+  }
+  notifyCursor();
+}
+
+/** Apply every stamped state playback has reached (the overlay's frame loop). Returns true when one applied. */
+export function advanceCursorFeed(now: number): boolean {
+  const at = cursorPlayback(now);
+  let any = false;
+  while (cursorFeed.pending.length && cursorFeed.pending[0]!.s <= at) { applyFeedState(cursorFeed.pending.shift()!, now); any = true; }
+  // A committed drop whose action never came: let it go (it springs back, as a refused one does).
+  if (cursorFeed.landing && now > cursorFeed.landing.until) { cursorFeed.spring = cursorFeed.landing.drag; cursorFeed.landing = null; any = true; }
+  if (any) notifyCursor();
+  return any;
+}
+
+function applyFeedState(e: FeedState, now: number): void {
+  const prev = cursorFeed.drag;
+  if (e.hidden) {
     cursorFeed.hidden = true;
     cursorFeed.aim = null;
     setAimTarget(null);
-    // An idle hand still over a card keeps its preview open (the player is reading it); a hidden tab clears it.
-    setSpectatorHover(c.an?.k ?? null);
-  } else {
-    cursorFeed.hidden = false;
-    // Landed on THIS screen: on the same element, else the same spot of the game box (R-SPECTATE-CURSOR-01).
-    const at = decodePoint(c);
-    cursorFeed.pts.push({ t: performance.now(), x: at.x, y: at.y });
-    if (cursorFeed.pts.length > 12) cursorFeed.pts.splice(0, cursorFeed.pts.length - 12);
-    if (c.drag && c.drag.uid !== cursorFeed.drag?.uid) presentAction({ kind: 'touch' }); // the pick-up
-    cursorFeed.drag = c.drag ? { uid: c.drag.uid, source: c.drag.source, cardId: c.drag.cardId, ...wireDecision(c.drag.g) } : null;
-    const from = c.aim ? decodePoint(c.aim) : null;
-    // The aim's END snaps to the minion the player's aim is on (R-SPECTATE-AIM-01): its centre on this screen.
-    const end = c.aim?.t ? decodePoint({ x: 0, y: 0, an: { k: `u:${c.aim.t}`, fx: 0.5, fy: 0.5 } }) : null;
-    cursorFeed.aim = c.aim && from ? { x: from.x, y: from.y, on: c.aim.on, ...(c.aim.def ? { def: c.aim.def } : {}), end: end?.el ? { x: end.x, y: end.y } : null } : null;
-    setAimTarget(c.aim?.t ?? null);
-    if (c.drag) dragSeen.set(c.drag.uid, performance.now());
-    // The player's hover preview (R-SPECTATE-HOVER-01): the element under their hand, unless a card is in it or an
-    // aim line is out (their own screen opens no preview then).
-    setSpectatorHover(!c.drag && !c.aim ? c.an?.k ?? null : null);
+    setSpectatorHover(e.hover);
+    return;
   }
-  cursorFeed.version += 1;
-  for (const fn of cursorListeners) fn();
+  cursorFeed.hidden = false;
+  if (e.drag && e.drag.uid !== prev?.uid) {
+    presentAction({ kind: 'touch' }); // the pick-up
+    // A new pick-up ends whatever the last drop left behind.
+    cursorFeed.landing = null;
+    cursorFeed.spring = null;
+  }
+  // THE DROP (R-SPECTATE-SMOOTH-01): the card the hand held is let go. A committed drop stays where it was let go (the
+  // rows keep its gap open) until its action lands (`takeLanding`); a refused one springs back to its slot. An older
+  // player says neither: the card is simply let go, as before.
+  if (prev && e.drag?.uid !== prev.uid && e.de) {
+    if (e.de === 'c') cursorFeed.landing = { drag: prev, until: now + LAND_WAIT_MS };
+    else cursorFeed.spring = prev;
+  }
+  cursorFeed.drag = e.drag;
+  cursorFeed.aim = e.aim;
+  setAimTarget(e.aimT);
+  if (e.drag) dragSeen.set(e.drag.uid, now);
+  setSpectatorHover(e.hover);
+}
+
+/**
+ * THE ACTION LANDS (`land`): if the watched hand holds (or has just let go of) the card this action moved, hand back
+ * where that card is on screen (for the drop's FLIP, `presentAction('dropping')`) and clear it: the parked card, the
+ * live hold, and any queued state that would pick it up again. Null when no held card belongs to the action.
+ */
+export function takeLanding(uid: string | undefined): { rect: DOMRect | null; source: string } | null {
+  const held = cursorFeed.landing?.drag ?? (cursorFeed.drag && !cursorFeed.legacy ? cursorFeed.drag : null);
+  if (!held || (uid && held.uid !== uid)) return null;
+  const card = document.querySelector<HTMLElement>('.vsspec-cursor .ghostcardwrap .card');
+  const rect = card ? card.getBoundingClientRect() : null;
+  cursorFeed.landing = null;
+  cursorFeed.spring = null;
+  if (cursorFeed.drag?.uid === held.uid) cursorFeed.drag = null;
+  // The player let go before these were drawn: they must not lift the card again once it has landed.
+  for (const p of cursorFeed.pending) if (p.drag?.uid === held.uid) { p.drag = null; delete p.de; }
+  notifyCursor();
+  return { rect: rect && rect.width > 0 ? rect : null, source: held.source };
+}
+
+/** The drop's spring-back finished (the overlay's animation). */
+export function endSpring(): void {
+  if (!cursorFeed.spring) return;
+  cursorFeed.spring = null;
+  notifyCursor();
+}
+
+/** When playback reaches the player-clock moment `ts` (local ms), or null if this hand carries no clock. */
+export function cursorDueAt(ts: number | undefined): number | null {
+  if (typeof ts !== 'number' || cursorFeed.legacy || performance.now() - cursorFeed.lastAt > 3000) return null;
+  return localTimeOf(cursorFeed.clock, ts);
 }
 
 /** The drop gap the player's rows open for the held card (R-SPECTATE-DRAGGAP-01), one object per distinct decision so
@@ -502,11 +674,15 @@ function resetCursor(): void {
   setSpectatorHover(null);
   setAimTarget(null);
   cursorFeed.pts = [];
+  cursorFeed.pending = [];
+  cursorFeed.clock = newRemoteClock();
+  cursorFeed.legacy = true;
   cursorFeed.drag = null;
   cursorFeed.aim = null;
+  cursorFeed.landing = null;
+  cursorFeed.spring = null;
   cursorFeed.hidden = true;
-  cursorFeed.version += 1;
-  for (const fn of cursorListeners) fn();
+  notifyCursor();
 }
 
 function askForKey(force = false): void {

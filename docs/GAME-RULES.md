@@ -1061,6 +1061,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   spectator too; the board opens the same gap while the player drags a minion over it; a targeting arrow follows the
   player's aim and ends on their target, and the spectator's own mouse never moves it. Joining or coming back in the
   middle of a fight starts it from the player's current moment, never from its first beat.
+- **The watched hand plays back smoothly, and drops land as they happen** (owner 2026-10-20; R-SPECTATE-SMOOTH-01).
+  The player's hand is drawn at an even pace a short, self-adjusting moment behind them (about a tenth to a fifth of a
+  second, by how steady the connection is), so it never stalls and jumps. What the hand does (picking a card up, the
+  gap the board opens for it, a targeting arrow, a hover preview) happens as the drawn hand gets there. When the player
+  lets a card go, it stays where they let go until the action lands, then slides into place once (a bought card slides
+  into the hand); a card they put back springs home to its slot.
 - **The player sees who is watching** (owner 2026-10-15; R-SPECTATE-WATCHERS-01). Top left of their own screen, in
   shop and combat: each spectator's portrait in their frame, their name (or "Spectator") and "Spectating", up to
   three, then "+N" (hover it for the names). It stays while they watch and goes when they leave. The same applies to

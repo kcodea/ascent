@@ -7880,6 +7880,21 @@ export function Recruit() {
         puffOnBoard(a.uid);
         return;
       case 'repositioned': puffOnBoard(a.uid); return;
+      case 'dropping': {
+        // A VIEWER's live drop (R-SPECTATE-SMOOTH-01): prime the same commit FLIP `onUp` primes for the player's own
+        // drop, so the rows settle from where they stand (the held card's gap open) and the card slides home.
+        const sel = a.drop === 'place' || a.drop === 'reposition' || a.drop === 'sell'
+          ? '[data-zone="warband"] .row .card[data-uid]' : '[data-zone="tavern"] .row .card[data-uid]';
+        const m = new Map<string, number>();
+        document.querySelectorAll<HTMLElement>(sel).forEach((el) => { const uid = el.dataset.uid; if (uid && uid !== a.uid) m.set(uid, el.getBoundingClientRect().left); });
+        handFlipRef.current = m;
+        handFlipSelRef.current = sel;
+        handPlaySnapRef.current = true;
+        const from = a.from && a.from.width > 0 ? { x: a.from.left, y: a.from.top, w: a.from.width, h: a.from.height } : null;
+        if (from && a.drop !== 'sell' && a.drop !== 'buy') placePendingRef.current = { uid: a.uid, sel, from };
+        if (from && a.drop === 'buy' && a.boughtUid) buyPendingRef.current = { uid: a.boughtUid, from };
+        return;
+      }
       case 'cast': {
         if (a.targetUid) {
           const target = a.targetUid;

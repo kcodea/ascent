@@ -780,7 +780,7 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const watchers = get().room?.members.filter((m) => m.role === 'spectator').length ?? 0;
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
-  setSpectatorTap(watchers > 0, mySeat(), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }));
+  setSpectatorTap(watchers > 0, mySeat(), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
   if (watchers === 0) return;
   const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted, hasPendingActs());
   keyWanted = false;

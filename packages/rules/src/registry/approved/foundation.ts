@@ -6144,6 +6144,34 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSync.test.tsx'], lastVerifiedAt: '2026-10-15' },
   },
   {
+    id: 'R-SPECTATE-SMOOTH-01',
+    title: 'The watched hand plays back at an even pace, and a watched drop settles the board once, as the player saw it',
+    statement:
+      'Each cursor message carries the player clock (ts) and up to three points about 16 ms apart (tr), 20 messages a second. The spectator maps the player clock onto its own (the fastest recent delivery plus an eased jitter buffer) and draws the hand at that playback moment, interpolated, never stamped by arrival time. The card in hand, the drop gap, the aim and the hover apply when playback reaches them. A drop says whether it committed (de): a committed card stays where it was let go, its gap open, until its action lands, and the action primes the same commit FLIP the player own drop primes (the rows settle once, the card slides home, a bought card slides into the hand). A refused or cancelled drop springs back to its slot. An action is published within 40 ms and lands when the drawn hand reaches it. An older player (no ts) plays exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-20 (Versus and spectating polish)', quote: 'cursor tracking is janky sometimes, shop buys and moves still don\'t seem to work with re-orienting cards etc, things happen once placed instead of in real time' },
+    ],
+    currentBehaviour: 'Before, samples were stamped on arrival (15 a second), so network bursts became stalls and jumps; a drop let the card go before its action arrived, so the board closed the gap, snapped back, and then slid again when the action landed.',
+    example: 'The player plays a minion into the gap between their two minions: on the spectator screen the gap stays open under the released card and the minion slides into it, with no snap back and no second slide.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSmooth.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-SPECTATE-HELDCOPY-01',
+    title: 'The card a watched player holds is drawn as that exact copy, never another copy of the same minion',
+    statement:
+      'The spectator held card (the live drag, a parked or springing drop, and a replayed drag flight) is resolved by the dragged instance uid: a hand or board copy is drawn the way its own zone draws it (its golden flag, stats, keywords and live text), a shop offer through the offer by uid. It never takes the first card sharing its card id, so a golden copy elsewhere never dresses a plain copy being dragged (and the reverse). With no uid (an older path) the id lookup stays as the fallback.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-20', quote: 'this is when a player is spectating another player, the held copy when dragged shows dif art / etc sometimes' },
+    ],
+    currentBehaviour: 'Before, the held card was looked up by card id (shop offers first, then the hand, then the board), so a golden offer or a golden hand copy of the same minion was drawn in place of the plain copy actually being dragged.',
+    example: 'A golden Pimm sits in the hand and the player drags the plain Pimm from the board: the spectator sees a plain Pimm in their hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSmooth.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
     id: 'R-EMOTE-VERSUS-SHOP-01',
     title: 'Versus emotes show in the shop as well as in combat, beside the opponent block',
     statement:

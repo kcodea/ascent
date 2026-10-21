@@ -29,7 +29,12 @@ export type PresentedAction =
   /** AFTER the commit: a board minion moved slot. */
   | { kind: 'repositioned'; uid: string }
   /** BEFORE the commit: a board minion is sold (its Gold floats at `at`, coins out of the Gold pill). */
-  | { kind: 'sold'; at: ScreenPoint; amount: number };
+  | { kind: 'sold'; at: ScreenPoint; amount: number }
+  /** BEFORE the commit of a drag-drop a VIEWER watched live (R-SPECTATE-SMOOTH-01): the rows are snapshotted with the
+   *  held card's gap still open, and the card slides home from `from` (where the watched hand let it go), the same
+   *  commit FLIP the player's own `onUp` primes. `drop` is the player's drop kind; `boughtUid` is a buy's new hand card
+   *  (it slides in from `from`, as the player's own buy does; absent when the buy completed a triple). */
+  | { kind: 'dropping'; uid: string; drop: 'place' | 'reposition' | 'reorderShop' | 'sell' | 'buy'; from: { left: number; top: number; width: number; height: number } | null; boughtUid?: string };
 
 let presenter: ((a: PresentedAction) => void) | null = null;
 

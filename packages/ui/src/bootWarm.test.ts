@@ -66,6 +66,6 @@ describe('the splash waits on it, and only its own fade removes it', () => {
 describe('desktop keeps the ranked gate layer', () => {
   it('release() frees the WebGL context on phones only', () => {
     const src = readFileSync(join(__dirname, 'rankedGate', 'gateFx.ts'), 'utf8');
-    expect(src).toMatch(/release\(\): void \{[\s\S]*?if \(!LITE_ART\) return;[\s\S]*?this\.releaseWhenIdle = true;/);
+    expect(src).toMatch(/release\(\): void \{[\s\S]*?if \(!PHONE_GPU\) return;[\s\S]*?this\.releaseWhenIdle = true;/);
   });
 });

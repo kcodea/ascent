@@ -2,6 +2,7 @@
 
 Owner: "the card dragging in versus lobby is okay but the hand/spectator area can allow for really janky pop previews
 similar to our old hand related bugs. make it easier to grab and not pop in/out a million times in certain spots."
+Escalated the same day: "the card behavior here is unacceptably bad" (his card's plate cut off by the bottom edge).
 Oracle rule R-VERSUS-HAND-HOVER-01 (`packages/rules/src/registry/approved/foundation.ts`), pinned in
 `packages/ui/src/versus/versusSeatCard.test.tsx`.
 
@@ -21,6 +22,15 @@ events). The hover is decided by still, transparent pads (hit-testing only, no p
 card above the fan, live only while hovered, so the hand can travel onto it and grab it). The seat drag still starts
 from the slot's `pointerdown`; while one is live the pads take no pointer.
 
+## Nothing clipped
+
+The fan rested with its plates running off the bottom edge (2026-10-17, modelled on the in-game hand), and its arc
+dropped the outer cards by `--off` squared x 0.02 card widths, so a full stands (20) sank its end cards almost two card
+widths, far off screen. The slot now sits at 10% of the stands (was 31%), the Spectators label above the tops, and
+the arc's drop is bounded (`0.6 / max(n², 30)` card widths per offset squared, ~0.15 card widths at the ends at any
+count). Measured bottom of the lowest card at 1920x1080: 1 card 1103 -> 1047 px, 6 cards 1125 -> 1068, 20 cards
+1301 -> 1079 (the screen is 1080); 16:10 and 21:9 likewise inside the stage. The popped card is fully on screen.
+
 ## Verification
 
 Headless Chromium, dev build, a fake room (no backend), slow sweeps across the fan at four heights, a still hand on
@@ -33,5 +43,6 @@ each card, a vertical reach from below and a 4 px jiggle on a boundary:
 | still hand, 600 ms | 2 to 3 toggles per card | 0 |
 | reach up from below into the popped card | 22 changes | 1 (leaving the top) |
 | jiggle on a boundary | | 0 |
+| frame sequence of a slow sweep (12 frames) | half the frames show no card up | one card up in every frame, in order |
 
 No looping animation; the lift is the same one-shot transform transition as before.

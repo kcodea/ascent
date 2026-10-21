@@ -111,8 +111,10 @@
    measured. The widths come from the painting's own size (--gh), so the fan keeps its place at any stage scale.
    LOWERED to the in-game hand's place (owner 2026-10-17, R-VERSUS-DRAG-SEAT-01: "lower the spectator hand so it looks
    more like the in game location"): the shop's hand rests with its tops about three quarters down the stage and its
-   plates running off the bottom edge, and pops up on hover; the fan now rests the same way (plates bleed off the
-   painting's foot), the Spectators label just over the tops. */
+   plates running off the bottom edge, and pops up on hover; the fan now rests the same way, the Spectators label just
+   over the tops. RAISED just enough that NOTHING is cut off (owner 2026-10-20, R-VERSUS-HAND-HOVER-01: "the card
+   behavior here is unacceptably bad", his card's plate was clipped by the screen edge): every resting card shows
+   whole, plate included, at any count up to 20 (the arc's drop is bounded below). */
 .vsbench { position: absolute; top: 75.5%; height: 24.5%; left: 28%; width: 44%; z-index: 5; pointer-events: none;
   --vsb-k: 0.72;
   --vsb-ccw: calc(var(--ch-base) * var(--card-scale, 0.75) * var(--vsb-k) * 0.752 * 0.85);
@@ -120,12 +122,14 @@
   --vsb-fanw: calc(var(--gh, var(--lvh, 100%)) * 2560 / 1086 * 0.44);
   --vsb-step: min(calc(var(--vsb-bw) * 0.96), calc((var(--vsb-fanw) - var(--vsb-bw)) / max(var(--n) - 1, 1)));
   --vsb-tilt: min(3.5deg, calc(40deg / max(var(--n), 1)));
-  --vsb-arc: calc(var(--vsb-ccw) * 0.02);
+  /* The arc's drop is bounded (~0.15 card widths at the ends, however many cards): a 20-card fan used to sink its
+     outer cards almost two card widths, off the bottom of the screen. */
+  --vsb-arc: calc(var(--vsb-ccw) * 0.6 / max(var(--n) * var(--n), 30));
   --vsb-zoom: 2.3; }
 .vsstatus.vsbench-label { font-size: calc(18 * var(--u)); padding: calc(6 * var(--u)) calc(22 * var(--u)); }
-.vsbench-label { position: absolute; top: 0; left: 50%; translate: -50% 0; font-family: var(--font-title), serif; letter-spacing: 0.08em; text-transform: uppercase; }
+.vsbench-label { position: absolute; top: -22%; left: 50%; translate: -50% 0; font-family: var(--font-title), serif; letter-spacing: 0.08em; text-transform: uppercase; }
 .vsbench-empty { position: absolute; top: 36%; left: 50%; translate: -50% 0; white-space: nowrap; font-family: var(--font-ui); font-weight: 700; font-size: calc(17 * var(--u)); color: rgba(247, 236, 210, 0.8); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
-.vsbcard { position: absolute; top: 31%; left: calc(50% + var(--off) * var(--vsb-step)); translate: -50% 0; pointer-events: none; z-index: calc(10 + var(--i)); }
+.vsbcard { position: absolute; top: 10%; left: calc(50% + var(--off) * var(--vsb-step)); translate: -50% 0; pointer-events: none; z-index: calc(10 + var(--i)); }
 /* THE HAND'S HOVER (owner 2026-10-20: "the hand/spectator area can allow for really janky pop previews ... make it easier
    to grab and not pop in/out a million times in certain spots"; R-VERSUS-HAND-HOVER-01). The pop used to move the very
    element that was hovered: it rose two card widths and scaled x2.3 from its foot, so a hand on the lower half of a
@@ -144,7 +148,7 @@
   transition: transform 0.14s cubic-bezier(0.2, 0.85, 0.35, 1); pointer-events: none; }
 .vsbcard:hover { z-index: 60; }
 .vsbcard:hover .vsbcard-lift { transform: translateY(calc(-2 * var(--vsb-ccw))) scale(var(--vsb-zoom)); }
-.vsbcard-hit, .vsbcard-band { position: absolute; top: -30%; bottom: -110%; left: 50%; translate: -50% 0; width: min(152%, var(--vsb-step)); pointer-events: auto; }
+.vsbcard-hit, .vsbcard-band { position: absolute; top: -30%; bottom: -160%; left: 50%; translate: -50% 0; width: min(152%, var(--vsb-step)); pointer-events: auto; }
 .vsbcard-band { width: calc(min(152%, var(--vsb-step)) + 0.24 * var(--vsb-ccw)); pointer-events: none; }
 .vsbcard:hover .vsbcard-band { pointer-events: auto; }
 .vsbcard-hitup { position: absolute; top: -393%; bottom: 120%; left: -125%; right: -125%; pointer-events: none; }

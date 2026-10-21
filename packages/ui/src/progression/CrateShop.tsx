@@ -48,8 +48,14 @@
  *
  * PERFORMANCE (the north star): the state is local (a toggle re-renders this screen only, never the Collection grid),
  * the quote, the odds and the counts are memoized (on the picks, owned, the economy and the catalog state), the cards
- * and the rows are `memo`'d with stable props, and nothing reads layout. Static paint here; the celebrations (Task 4)
- * attach to each card (`.cshop-chest`) and each row / toggle (`.cshop-cat`, `.cshop-toggle`), which stay mounted.
+ * and the rows are `memo`'d with stable props, and nothing reads layout per frame.
+ *
+ * THE CELEBRATIONS (`chestShopFx.ts`; owner: "increasingly exciting for each rarity", the toggle "SUPER noticeable and fun
+ * when you toggle it on"): every chest click (a repeat click too) bursts from that card and plays its tier's sound, each
+ * tier out-doing the one below; switching a focus ON bursts from its toggle with one bright cue, and off is a quiet tick.
+ * The card and the row are the stable hosts: a burst draws into their empty `[data-burst]` layer (React never renders
+ * into it) and replaces that host's previous burst. Reduced motion (`reducedMotion` or the OS) draws nothing; the
+ * sounds still play.
  */
 import { memo, useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
@@ -68,6 +74,7 @@ import {
 import { ownedIds } from './collectionModel';
 import { focusReceipt, leftByCategory, oddsSlices, shopFocusCategories, type OddsSlice, type ReceiptRow } from './chestShopModel';
 import { ChestPicture } from './ChestPicture';
+import { playPickBurst, playToggleBurst, playToggleSound, TIER_PICK_SOUND } from './chestShopFx';
 import { AetherIcon } from './AetherIcon';
 import './collection.css';
 import './chestShop.css';
@@ -145,8 +152,8 @@ const TIER_TIP: Readonly<Record<CrateTier, TierTip>> = Object.fromEntries(
 
 /** One chest card: the painted chest, its name in its tier colour, its price; the tip below it on hover (and on a tap,
  *  through the `.tt-on` twin). The card is the stable host the pick celebration attaches to. */
-const ChestCard = memo(function ChestCard({ tier, price, on, onPick }: {
-  tier: CrateTier; price: number; on: boolean; onPick: (t: CrateTier) => void;
+const ChestCard = memo(function ChestCard({ tier, price, on, reduced, onPick }: {
+  tier: CrateTier; price: number; on: boolean; reduced: boolean; onPick: (t: CrateTier) => void;
 }): JSX.Element {
   const tipId = useId();
   const chest = chestTierOf(CRATE_TIER_FLOOR[tier]);
@@ -155,9 +162,15 @@ const ChestCard = memo(function ChestCard({ tier, price, on, onPick }: {
   return (
     <button
       type="button" className={`cshop-chest t-${chest}${on ? ' on' : ''}`} aria-pressed={on} aria-describedby={tipId}
-      aria-label={`${label} Chest, ${price} Aether`} onClick={() => onPick(tier)}
+      aria-label={`${label} Chest, ${price} Aether`}
+      onClick={(e) => { onPick(tier); TIER_PICK_SOUND[chest](); playPickBurst(e.currentTarget, chest, reduced); }}
     >
-      <span className="cshop-chest-fx" aria-hidden="true" />
+      {/* Behind the chest: Legendary and Ancient's rays and flash, Epic and up's light sweep (`chestShop.css`). */}
+      <span className="cshop-chest-fx" aria-hidden="true">
+        {(chest === 'legendary' || chest === 'ancient') && <><span className="cshop-chest-rays" /><span className="cshop-chest-flash" /></>}
+        {chest !== 'standard' && chest !== 'rare' && <span className="cshop-chest-sweep" />}
+      </span>
+      <span className="cshop-chest-burst" data-burst="" aria-hidden="true" />
       <span className="cshop-chest-check" aria-hidden="true">✓</span>
       <span className="cshop-chest-art"><ChestPicture tier={chest} /></span>
       <span className="cshop-chest-name">{label}</span>
@@ -177,18 +190,27 @@ const ChestCard = memo(function ChestCard({ tier, price, on, onPick }: {
 
 /** One focus row: the category, its count left to find at this floor, its toggle. The row (and the toggle in it) is the
  *  stable host the toggle-on celebration attaches to. */
-const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, onToggle }: {
-  cat: CosmeticCategory; left: number; on: boolean; soldOut: boolean; onToggle: (cat: CosmeticCategory) => void;
+const FocusRow = memo(function FocusRow({ cat, left, on, soldOut, reduced, onToggle }: {
+  cat: CosmeticCategory; left: number; on: boolean; soldOut: boolean; reduced: boolean; onToggle: (cat: CosmeticCategory) => void;
 }): JSX.Element {
   const label = COSMETIC_CATEGORY_DEFS[cat].label;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const click = (): void => {
+    const turningOn = !on;
+    onToggle(cat);
+    playToggleSound(turningOn);
+    if (turningOn && rowRef.current) playToggleBurst(rowRef.current, reduced);
+  };
   return (
-    <div className={`cshop-cat${on ? ' on' : ''}${soldOut ? ' out' : ''}`} data-cat={cat}>
+    <div ref={rowRef} className={`cshop-cat${on ? ' on' : ''}${soldOut ? ' out' : ''}`} data-cat={cat}>
+      <span className="cshop-cat-sweep" aria-hidden="true" />
       <span className="cshop-cat-name">{label}</span>
       <span className="cshop-cat-left">{left}</span>
       <button
         type="button" className="cshop-toggle" aria-pressed={on} disabled={soldOut} aria-label={`Focus ${label}`}
-        aria-description={soldOut ? 'Nothing left to find here' : undefined} onClick={() => onToggle(cat)}
+        aria-description={soldOut ? 'Nothing left to find here' : undefined} onClick={click}
       >
+        <span className="cshop-toggle-burst" data-burst="" aria-hidden="true" />
         {soldOut ? 'None left' : on ? <><span className="cshop-ck" aria-hidden="true">✓</span> On</> : 'Off'}
       </button>
     </div>
@@ -268,6 +290,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
     return () => document.removeEventListener('keydown', onKey, { capture: true });
   }, []);
 
+  const still = !!reducedMotion;
   const floor = CRATE_TIER_FLOOR[tier];
   const price = economy.cratePrice[tier];
   // `catalogEpoch` moves when the server retires an item or a category (`applyServerCatalogState` records the state
@@ -299,9 +322,9 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
   const key = quote ? purchaseKey(quote) : '';
   useEffect(() => { if (pendingRef.current && pendingRef.current.key !== key) pendingRef.current = null; }, [key]);
 
-  const pickTier = useCallback((t: CrateTier) => { sfx.pulse(); setTier(t); setError(null); }, []);
+  // The sounds and bursts are the card's and the row's (`chestShopFx.ts`); these only change the picks.
+  const pickTier = useCallback((t: CrateTier) => { setTier(t); setError(null); }, []);
   const toggle = useCallback((cat: CosmeticCategory) => {
-    sfx.pulse();
     setError(null);
     setTicked((prev) => {
       const next = new Set(prev);
@@ -361,7 +384,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
   };
 
   return (
-    <section className={`cshop${reducedMotion ? ' cshop-still' : ''}`} aria-label="Chest Shop">
+    <section className={`cshop${still ? ' cshop-still' : ''}`} aria-label="Chest Shop">
       <div className="cshop-page">
         <div className="cshop-top">
           <button type="button" className="cshop-gem cshop-back" disabled={busy} onClick={back}>◀ Collection</button>
@@ -377,7 +400,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
           <img src={DIVIDER_SRC} alt="" aria-hidden="true" draggable={false} decoding="sync" />
         </div>
         <div className="cshop-chests" role="group" aria-label="Chest">
-          {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={economy.cratePrice[t]} on={tier === t} onPick={pickTier} />)}
+          {CRATE_TIERS.map((t) => <ChestCard key={t} tier={t} price={economy.cratePrice[t]} on={tier === t} reduced={still} onPick={pickTier} />)}
         </div>
 
         <div className="cshop-lower">
@@ -386,7 +409,7 @@ export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBus
             <div className="cshop-cats" role="group" aria-label="Focus">
               <div className="cshop-cat cshop-cat-head" aria-hidden="true"><span>CATEGORY</span><span>LEFT TO FIND</span></div>
               {cats.map((c) => (
-                <FocusRow key={c} cat={c} left={left.get(c) ?? 0} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} onToggle={toggle} />
+                <FocusRow key={c} cat={c} left={left.get(c) ?? 0} on={ticked.has(c) && available.has(c)} soldOut={!available.has(c)} reduced={still} onToggle={toggle} />
               ))}
             </div>
           </section>

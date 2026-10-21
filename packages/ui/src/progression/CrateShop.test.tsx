@@ -39,6 +39,7 @@ import { oddsSlices } from './chestShopModel';
 import { setChestArtLoaderForTests } from './crateFx/chestArt';
 import { applyServerCatalogState, resetProgressionForTests, useProgression } from './progressionStore';
 import { useGame } from '../store';
+import { sfx } from '../sfx';
 
 let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; setChestArtLoaderForTests(null); });
@@ -60,12 +61,12 @@ const onGuest = vi.fn();
 const onOpen = vi.fn();
 const onBusy = vi.fn();
 const onBack = vi.fn();
-function render(guest = false): void {
+function render(guest = false, reducedMotion = false): void {
   onGuest.mockReset();
   onOpen.mockReset();
   onBusy.mockReset();
   onBack.mockReset();
-  ui = mount(<CrateShop guest={guest} onGuest={onGuest} onOpen={onOpen} onBusy={onBusy} onBack={onBack} />);
+  ui = mount(<CrateShop guest={guest} onGuest={onGuest} onOpen={onOpen} onBusy={onBusy} onBack={onBack} reducedMotion={reducedMotion} />);
 }
 
 const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
@@ -594,5 +595,74 @@ describe('the Chest Shop: the server catalog switch', () => {
     act(() => { applyServerCatalogState(null, false); });
     expect(row('Card Plates')).toBeDefined();
     expect(left()).toBe(before);
+  });
+});
+
+// THE CELEBRATIONS (spec "Selecting a chest: escalating by tier", "The toggle"): every chest click bursts from that card
+// and plays its tier's sound; switching a focus ON bursts from its toggle with one bright cue; switching off is quiet.
+// The burst sizes and the CSS are pinned in chestShopFx.test.ts; this pins the wiring.
+describe('the Chest Shop: the celebrations', () => {
+  const sparksIn = (el: Element | null | undefined): number => el?.querySelectorAll('.cshop-spark').length ?? 0;
+  const spies = (): Record<string, ReturnType<typeof vi.spyOn>> => Object.fromEntries(
+    (['pulse', 'discoverSelect', 'equipmentSheen', 'upgrade', 'triple', 'gemApply', 'triggerGlow', 'tick'] as const)
+      .map((n) => [n, vi.spyOn(sfx, n).mockImplementation((() => undefined) as never)]),
+  );
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it('picking a chest bursts from that card\x27s burst layer and plays its tier\x27s sound; a repeat click replays it', () => {
+    seed(2000);
+    const s = spies();
+    render();
+    click(tier('Epic'));
+    const epic = tier('Epic');
+    expect(epic.hasAttribute('data-pop')).toBe(true);
+    expect(sparksIn(epic.querySelector('[data-burst]'))).toBe(18);
+    expect(s.discoverSelect).toHaveBeenCalledTimes(1);
+    expect(s.equipmentSheen).toHaveBeenCalledTimes(1);
+    click(tier('Ancient'));
+    expect(sparksIn(tier('Ancient').querySelector('[data-burst]'))).toBe(42);
+    expect(s.triple).toHaveBeenCalledTimes(1);
+    click(tier('Ancient'));
+    expect(sparksIn(tier('Ancient').querySelector('[data-burst]'))).toBe(42); // replaced, not piled up
+    expect(s.triple).toHaveBeenCalledTimes(2);
+    click(tier('Standard'));
+    expect(s.pulse).toHaveBeenCalledTimes(1);
+  });
+
+  it('only Legendary and Ancient carry rays and a flash; Epic and up a sweep', () => {
+    seed(2000);
+    render();
+    const has = (label: string, cls: string): boolean => tier(label).querySelector(`.cshop-chest-fx .${cls}`) !== null;
+    expect(['Standard', 'Rare', 'Epic', 'Legendary', 'Ancient'].map((t) => [has(t, 'cshop-chest-rays'), has(t, 'cshop-chest-flash'), has(t, 'cshop-chest-sweep')]))
+      .toEqual([[false, false, false], [false, false, false], [false, false, true], [true, true, true], [true, true, true]]);
+  });
+
+  it('switching a focus ON bursts from its toggle with one bright cue; switching it off is the quiet tick, no burst', () => {
+    seed(2000);
+    const s = spies();
+    render();
+    click(toggle('Heroes'));
+    expect(row('Heroes')!.hasAttribute('data-pop')).toBe(true);
+    expect(sparksIn(toggle('Heroes').querySelector('[data-burst]'))).toBe(14);
+    expect(s.triggerGlow).toHaveBeenCalledTimes(1);
+    expect(norm(toggle('Heroes').textContent)).toBe('✓ On');
+    click(toggle('Heroes'));
+    expect(s.tick).toHaveBeenCalledTimes(1);
+    expect(s.triggerGlow).toHaveBeenCalledTimes(1);
+    expect(sparksIn(toggle('Heroes').querySelector('[data-burst]'))).toBe(14); // no second burst on the way off
+    expect(norm(toggle('Heroes').textContent)).toBe('Off');
+  });
+
+  it('reduced motion: no bursts, no pop; the sounds still play', () => {
+    seed(2000);
+    const s = spies();
+    render(false, true);
+    expect($('.cshop')!.classList.contains('cshop-still')).toBe(true);
+    click(tier('Legendary'));
+    click(toggle('Minions'));
+    expect(document.querySelectorAll('.cshop-spark, .cshop-ringfx, .cshop-mote')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-pop]')).toHaveLength(0);
+    expect(s.upgrade).toHaveBeenCalledTimes(1);
+    expect(s.triggerGlow).toHaveBeenCalledTimes(1);
   });
 });

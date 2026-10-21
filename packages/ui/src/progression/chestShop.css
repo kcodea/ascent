@@ -1,0 +1,349 @@
+/* THE CHEST SHOP SCREEN (`CrateShop.tsx`, 2026-10-20; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md,
+   the approved mockup beside it is the visual reference): a top bar, the five painted chest cards, then the focus list
+   (left) beside the checkout (right).
+
+   Rules this file keeps:
+   - Layout px only, inside the scaled stage: no viewport units, no viewport @media (stageTripwire.test.ts).
+   - Buttons and pills are the Gem plate (the shared `--ui-*` tokens). Literal colours are only the tier colours, the
+     opal Ancient name, the discount green and the mockup's Off slab greys.
+   - The tips wear the shared skin (`.atip`, tooltips.css); the rules here give them only geometry and show / hide.
+     Every hover reveal has its `.tt-on` twin in the same rule (touchInput.ts: a tap is a parked hover).
+   - No cursor rules: every control is a <button>, which the global rule gives the gauntlet.
+   - STATIC paint. Hover and select are short one-shot transitions of transform / opacity only (border colours snap),
+     and every lift, press and transition lives in ONE block at the end, gated on motion being allowed (the OS setting
+     AND the page's `.cshop-still`), so reduced motion never has to out-specify them. The
+     celebrations (the pick bursts, halos, rays, the toggle pop and its breathing glow) are layered on in Task 4 and
+     attach to `.cshop-chest` (its `.cshop-chest-fx` clip layer) and to `.cshop-cat` / `.cshop-toggle`. */
+
+.cshop { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; font-family: var(--font-ui); color: var(--colls-ink); }
+.cshop-page { box-sizing: border-box; display: flex; flex-direction: column; gap: 22px; max-width: 1560px; min-height: 100%; margin: 0 auto; padding: 22px 34px 30px; }
+
+/* ── The Gem plate (buttons, the wallet chip, the price pills) ───────────────────────────────────────────────────── */
+.cshop .cshop-gem {
+  border: 2px solid transparent; border-radius: 10px;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring), 0 3px 10px -3px rgba(0, 0, 0, 0.7);
+  color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); font-family: var(--font-body); font-weight: 700;
+}
+.cshop button.cshop-gem:hover:not(:disabled) { color: #fff; background: var(--ui-sheen) padding-box, var(--ui-hover-plate) padding-box, var(--ui-hover-edge) border-box; }
+.cshop button.cshop-gem:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+.cshop button.cshop-gem:disabled { opacity: 0.55; }
+
+/* ── Top bar ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+.cshop-top { display: flex; align-items: center; gap: 18px; }
+.cshop .cshop-back { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 10px 18px; font-size: 16px; }
+.cshop-title { margin: 0; font-family: var(--font-ui); font-weight: 900; font-size: 34px; letter-spacing: 0.02em; color: var(--ui-title); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6); }
+.cshop-spacer { flex: 1; }
+.cshop .cshop-wallet { display: inline-flex; align-items: center; gap: 10px; padding: 8px 18px 8px 12px; border-radius: 999px; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cshop-wallet small { font-size: 14px; font-weight: 700; color: var(--ui-muted); }
+.cshop-wallet .aether-icon { width: 1.15em; height: 1.15em; }
+
+/* ── "PICK A CHEST" with the game's name divider under it ──────────────────────────────────────────────────── */
+.cshop-sec-h { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cshop-sec-h span { font-weight: 900; font-size: 26px; letter-spacing: 0.14em; color: var(--colls-gold); }
+.cshop-sec-h img { width: 360px; height: auto; opacity: 0.9; }
+
+/* ── The five chest cards ────────────────────────────────────────────────────────────────────────────────────── */
+.cshop-chests { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 18px; }
+.cshop-chest.t-standard { --tc: #d6e0ec; }
+.cshop-chest.t-rare { --tc: #5aa8ff; }
+.cshop-chest.t-epic { --tc: #c07bff; }
+.cshop-chest.t-legendary { --tc: #ffb938; }
+.cshop-chest.t-ancient { --tc: #f4eeff; }
+/* Per tier, for the celebrations: --h the pick's hop height, --gl / --gs the selected halo's blur / spread (each tier
+   out-does the one below). */
+.cshop-chest.t-standard { --h: 6; --gl: 10; --gs: 0; }
+.cshop-chest.t-rare { --h: 10; --gl: 16; --gs: 1; }
+.cshop-chest.t-epic { --h: 15; --gl: 24; --gs: 3; }
+.cshop-chest.t-legendary { --h: 21; --gl: 32; --gs: 5; }
+.cshop-chest.t-ancient { --h: 28; --gl: 40; --gs: 7; }
+.cshop .cshop-chest {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; padding: 16px 12px 14px;
+  border-radius: 16px; background: var(--colls-panel); border: 2px solid var(--colls-line); color: var(--colls-ink);
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.7);
+}
+/* The tier-coloured floor glow (static; brighter on the picked card). */
+.cshop-chest::before {
+  content: ''; position: absolute; inset: 0; border-radius: 14px; pointer-events: none; opacity: 0.55;
+  background: radial-gradient(60% 40% at 50% 62%, color-mix(in srgb, var(--tc) 30%, transparent), transparent 70%);
+}
+.cshop .cshop-chest:hover, .cshop .cshop-chest.tt-on { z-index: 10; border-color: color-mix(in srgb, var(--tc) 60%, var(--colls-line)); }
+.cshop .cshop-chest.on, .cshop .cshop-chest.on:hover {
+  border-color: var(--tc);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--tc) 45%, transparent), 0 0 26px -4px color-mix(in srgb, var(--tc) 70%, transparent), inset 0 0 40px rgba(0, 0, 0, 0.3);
+}
+.cshop-chest.on::before { opacity: 1; }
+.cshop .cshop-chest:focus-visible { z-index: 10; outline: 2px solid var(--ui-edge-hi); outline-offset: 3px; }
+/* The celebrations' clip layer (the rays, the flash, the sweep, behind the chest) and the unclipped burst layer the
+   rings, sparks and motes fly out of (`chestShopFx.ts` draws into its `[data-burst]`). */
+.cshop-chest-fx { position: absolute; inset: 0; border-radius: 14px; overflow: hidden; pointer-events: none; }
+.cshop-chest-burst { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.cshop-chest-check {
+  position: absolute; top: 10px; right: 10px; z-index: 2; display: none; place-items: center; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--tc); color: #140d24; font-weight: 900; font-size: 15px;
+}
+.cshop-chest.t-ancient .cshop-chest-check { background: linear-gradient(135deg, #8af5ff, #f4eeff, #ff9bf0); }
+.cshop-chest.on .cshop-chest-check { display: grid; }
+/* The painted chest, in the mockup's 840 x 620 frame, standing on its bottom edge. Standard's picture is taller for its
+   width (its lid sits higher), so it is drawn a touch narrower to fit the same frame. */
+.cshop-chest-art {
+  position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: center; width: 100%; max-width: 230px; aspect-ratio: 840 / 620;
+  filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.55));
+}
+.cshop-chest.t-standard .chestpic { width: 93%; }
+.cshop-chest-name { position: relative; z-index: 2; font-weight: 900; font-size: 22px; color: var(--tc); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.6); }
+.cshop-chest.t-ancient .cshop-chest-name {
+  background: linear-gradient(90deg, #8af5ff, #f4eeff 45%, #ff9bf0); -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: none; filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.6));
+}
+.cshop .cshop-chest-price { position: relative; z-index: 2; margin-top: 4px; padding: 5px 16px; border-radius: 999px; font-size: 18px; font-variant-numeric: tabular-nums; }
+.cshop-chest.on .cshop-chest-price { color: var(--ui-title); }
+.cshop-chest-price .aether-icon, .cshop-amt .aether-icon, .cshop-buy-total .aether-icon { width: 1.15em; height: 1.15em; margin-right: 0.18em; vertical-align: -0.22em; }
+
+/* The card's tip: the shared skin, dropped below the card. */
+.cshop-chest .cshop-pop {
+  position: absolute; left: 50%; top: calc(100% + 12px); z-index: 20; box-sizing: border-box; width: 260px; text-align: left;
+  opacity: 0; pointer-events: none; transform: translate(-50%, 6px);
+}
+.cshop-chest:hover .cshop-pop, .cshop-chest.tt-on .cshop-pop, .cshop-chest:focus-visible .cshop-pop { opacity: 1; transform: translate(-50%, 0); }
+.cshop-pop .atip-title { padding-bottom: 0; border-bottom: 0; }
+.cshop-guar { display: block; padding-bottom: 0.5em; border-bottom: 1px solid var(--atip-divider); }
+.cshop-orows { display: flex; flex-direction: column; gap: 0.15em; }
+.cshop-orow { display: flex; justify-content: space-between; gap: 1em; font-size: 0.92em; font-variant-numeric: tabular-nums; }
+.cshop-chest .cshop-orow-name { font-weight: 800; color: var(--rc); }
+
+/* ── The lower half: the focus list | the checkout ───────────────────────────────────────────────────────────── */
+.cshop-lower { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: stretch; }
+.cshop-panel {
+  display: flex; flex-direction: column; gap: 14px; padding: 18px 22px; border-radius: 16px; background: var(--colls-panel);
+  border: 2px solid rgba(196, 160, 92, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.14), inset 0 0 40px rgba(0, 0, 0, 0.3), 0 12px 30px -14px rgba(0, 0, 0, 0.7);
+}
+.cshop-panel-h { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; }
+.cshop-panel-h span { font-weight: 900; font-size: 15px; letter-spacing: 0.16em; color: var(--colls-gold); }
+.cshop-panel-h em { font-style: normal; font-family: var(--font-body); font-weight: 700; font-size: 13px; color: var(--colls-dim); }
+
+/* The focus rows: name | left to find (right-aligned, so every count sits in the same spot) | the toggle. */
+.cshop-cats { display: flex; flex-direction: column; }
+.cshop-cat {
+  position: relative; display: grid; grid-template-columns: 210px 110px 1fr; align-items: center; gap: 14px; min-height: 52px;
+  padding: 6px 4px 6px 10px; border-bottom: 1px solid rgba(196, 160, 92, 0.16);
+}
+.cshop-cat:last-child { border-bottom: 0; }
+.cshop-cat-head { min-height: 0; padding-top: 0; padding-bottom: 6px; }
+.cshop-cat-head span { font-family: var(--font-ui); font-weight: 900; font-size: 11px; letter-spacing: 0.14em; color: var(--colls-dim); }
+.cshop-cat-head span:nth-child(2) { text-align: right; }
+.cshop-cat-name { transform-origin: 0 50%; font-family: var(--font-body); font-weight: 800; font-size: 18px; color: var(--colls-ink); }
+.cshop-cat-left { text-align: right; font-family: var(--font-body); font-weight: 700; font-size: 13px; color: var(--colls-dim); font-variant-numeric: tabular-nums; }
+.cshop-cat.on { background: linear-gradient(90deg, rgba(255, 217, 138, 0.1), rgba(255, 217, 138, 0.03) 55%, transparent 80%); }
+.cshop-cat.on .cshop-cat-name, .cshop-cat.on .cshop-cat-left { color: var(--ui-title); }
+.cshop-cat.out .cshop-cat-name, .cshop-cat.out .cshop-cat-left { opacity: 0.6; }
+
+/* THE TOGGLE (owner: "SUPER noticeable and fun when you toggle it on. have off greyed out almost"). Off: a flat, dim
+   grey slab that brightens a little on hover. On: a polished gold pill (the `--ui-edge` gold as its fill) in dark ink.
+   Sold out at this floor ("None left"): disabled and dimmer than Off. */
+.cshop .cshop-toggle {
+  position: relative; justify-self: end; min-width: 118px; min-height: 42px; padding: 6px 18px; border: 2px solid transparent; border-radius: 999px;
+  font-family: var(--font-body); font-weight: 700; font-size: 16px; white-space: nowrap;
+  background: linear-gradient(180deg, #2b2a31, #1c1b21) padding-box, linear-gradient(180deg, #5d5c66, #34333b) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 5px -3px rgba(0, 0, 0, 0.6), 0 2px 6px -3px rgba(0, 0, 0, 0.7);
+  color: rgba(255, 255, 255, 0.32); text-shadow: none;
+}
+.cshop .cshop-toggle:hover:not(:disabled) { color: rgba(255, 255, 255, 0.6); background: linear-gradient(180deg, #34333b, #222128) padding-box, linear-gradient(180deg, #7a7984, #44434c) border-box; }
+.cshop .cshop-toggle:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+/* Dimmed only when sold out: every toggle is also disabled while a purchase runs, and the picks it bought with stay lit. */
+.cshop .cshop-cat.out .cshop-toggle:disabled { opacity: 0.45; }
+.cshop .cshop-cat.on .cshop-toggle, .cshop .cshop-cat.on .cshop-toggle:hover {
+  color: #2a1806; text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6); font-weight: 900;
+  background: radial-gradient(110% 80% at 50% 0%, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 60%) padding-box, var(--ui-edge) padding-box, linear-gradient(180deg, var(--ui-hover-edge-hi), var(--ui-hover-edge-deep)) border-box;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -4px 6px -3px rgba(90, 55, 10, 0.6), 0 0 0 1px rgba(255, 217, 138, 0.6), 0 0 20px 2px rgba(255, 190, 80, 0.55);
+}
+.cshop-ck { display: inline-block; }
+
+/* ── THE CELEBRATIONS (spec "Selecting a chest: escalating by tier", "The toggle"; ported from the approved mockup) ──
+   Static pieces here (all invisible at rest); every one-shot and loop that moves them is in the MOTION block at the end.
+   The one-shots run on the host's `data-pop` attribute (restarted by `chestShopFx.ts` on each click) and move transform /
+   opacity only. The two loops: a halo's OPACITY over a static shadow (the `kwglow` pattern) and the rays' ROTATION. */
+/* The steady selected halo, stronger per tier (Ancient: cyan and pink either side, opal in the middle). */
+.cshop-chest::after {
+  content: ''; position: absolute; inset: -3px; border-radius: 16px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 calc(var(--gl) * 1px) calc(var(--gs) * 1px) var(--tc);
+}
+/* Selected: the halo shows steadily at 0.7 even under reduced motion; where motion is allowed it breathes (MOTION block). */
+.cshop-chest.on::after { opacity: 0.7; }
+.cshop-chest.t-ancient::after {
+  box-shadow: -10px 0 calc(var(--gl) * 1px) calc(var(--gs) * 1px) #8af5ff, 10px 0 calc(var(--gl) * 1px) calc(var(--gs) * 1px) #ff9bf0, 0 0 calc(var(--gl) * 0.6px) 2px #f4eeff;
+}
+/* Legendary and Ancient: rays behind the chest while selected (they turn only where motion is allowed). */
+.cshop-chest-rays {
+  position: absolute; left: 50%; top: 40%; width: 360px; height: 360px; margin: -180px 0 0 -180px; border-radius: 50%; opacity: 0;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--tc) 50%, transparent) 0deg 7deg, transparent 7deg 20deg);
+  -webkit-mask: radial-gradient(circle, #000 18%, transparent 66%); mask: radial-gradient(circle, #000 18%, transparent 66%);
+}
+.cshop-chest.t-ancient .cshop-chest-rays {
+  background: repeating-conic-gradient(from 0deg, rgba(138, 245, 255, 0.6) 0deg 6deg, transparent 6deg 16deg, rgba(255, 155, 240, 0.55) 16deg 22deg, transparent 22deg 32deg, rgba(244, 238, 255, 0.6) 32deg 38deg, transparent 38deg 48deg);
+}
+.cshop-chest.on.t-legendary .cshop-chest-rays { opacity: 0.5; }
+.cshop-chest.on.t-ancient .cshop-chest-rays { opacity: 0.75; }
+/* Legendary and Ancient: the white flash. Epic and up: the tier-coloured light sweeping across the card. */
+.cshop-chest-flash { position: absolute; inset: 0; opacity: 0; background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.4) 30%, transparent 70%); }
+.cshop-chest-sweep {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 50%; opacity: 0; transform: translateX(-110%);
+  background: linear-gradient(100deg, transparent, color-mix(in srgb, var(--tc) 55%, transparent), transparent);
+}
+/* The transient burst nodes (`chestShopFx.ts`): --c colour, --rs a ring's final scale, --dx / --dy a spark's flight. */
+.cshop-ringfx {
+  position: absolute; left: 50%; top: 40%; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%; pointer-events: none; opacity: 0;
+  border: 3px solid var(--c); box-shadow: 0 0 12px var(--c), inset 0 0 10px var(--c);
+}
+.cshop-spark {
+  position: absolute; left: 50%; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 2px; pointer-events: none; opacity: 0;
+  background: var(--c); box-shadow: 0 0 8px 1px var(--c); transform: rotate(45deg);
+}
+.cshop-chest .cshop-spark { top: 40%; }
+.cshop-mote {
+  position: absolute; bottom: 30%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; pointer-events: none; opacity: 0;
+  background: var(--c); box-shadow: 0 0 8px 2px var(--c);
+}
+/* The toggle: its breathing gold halo while On (static shadow, opacity loops), the ring it blasts on switching on, the
+   layer its sparks fly from, and the light band that sweeps the row. */
+.cshop .cshop-toggle::before {
+  content: ''; position: absolute; inset: -5px; border-radius: 999px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 22px 6px rgba(255, 200, 90, 0.75);
+}
+/* On: the halo shows steadily at 0.7 even under reduced motion; where motion is allowed it breathes (MOTION block). */
+.cshop .cshop-cat.on .cshop-toggle::before { opacity: 0.7; }
+.cshop .cshop-toggle::after { content: ''; position: absolute; inset: 0; border-radius: 999px; border: 3px solid #fff1c4; opacity: 0; pointer-events: none; }
+.cshop-toggle-burst { position: absolute; inset: 0; pointer-events: none; }
+.cshop-cat-sweep { position: absolute; inset: 0; overflow: hidden; pointer-events: none; border-radius: 8px; }
+.cshop-cat-sweep::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 45%; opacity: 0; transform: translateX(-110%);
+  background: linear-gradient(90deg, transparent, rgba(255, 225, 150, 0.35), transparent);
+}
+
+@keyframes cshop-hop { 0% { transform: none; } 35% { transform: translateY(calc(var(--h) * -1px)) scale(calc(1 + var(--h) * 0.006)); } 65% { transform: translateY(2px) scale(1.03, 0.96); } 100% { transform: none; } }
+@keyframes cshop-hopwiggle {
+  0% { transform: none; }
+  25% { transform: translateY(calc(var(--h) * -1px)) scale(calc(1 + var(--h) * 0.006)) rotate(-4deg); }
+  45% { transform: translateY(calc(var(--h) * -0.8px)) scale(calc(1 + var(--h) * 0.006)) rotate(4deg); }
+  70% { transform: translateY(2px) scale(1.04, 0.95) rotate(0); }
+  100% { transform: none; }
+}
+@keyframes cshop-shake-s { 0%, 100% { transform: translateY(-4px); } 20% { transform: translate(-3px, -4px); } 40% { transform: translate(3px, -5px); } 60% { transform: translate(-2px, -4px); } 80% { transform: translate(2px, -4px); } }
+@keyframes cshop-shake-l {
+  0%, 100% { transform: translateY(-4px); } 12% { transform: translate(-7px, -6px) rotate(-1deg); } 26% { transform: translate(7px, -2px) rotate(1deg); }
+  40% { transform: translate(-5px, -6px); } 55% { transform: translate(5px, -3px); } 70% { transform: translate(-3px, -5px); } 85% { transform: translate(2px, -4px); }
+}
+@keyframes cshop-flash { 0% { opacity: 0.9; } 100% { opacity: 0; } }
+@keyframes cshop-csweep { 0% { opacity: 1; transform: translateX(-110%); } 100% { opacity: 0; transform: translateX(240%); } }
+@keyframes cshop-ringx { 0% { opacity: 1; transform: scale(0.3); } 100% { opacity: 0; transform: scale(var(--rs)); } }
+@keyframes cshop-spark { 0% { opacity: 1; transform: translate(0, 0) rotate(45deg) scale(1.2); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(225deg) scale(0.2); } }
+@keyframes cshop-rise { 0% { opacity: 0; transform: translateY(0) scale(0.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-150px) scale(1.1); } }
+@keyframes cshop-halo { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
+@keyframes cshop-spin { to { transform: rotate(360deg); } }
+@keyframes cshop-togpop { 0% { transform: scale(0.78); } 45% { transform: scale(1.24); } 75% { transform: scale(0.96); } 100% { transform: scale(1); } }
+@keyframes cshop-ring { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.7, 2.3); } }
+@keyframes cshop-nmpop { 0% { transform: scale(1); } 40% { transform: scale(1.1); } 100% { transform: scale(1); } }
+@keyframes cshop-sweep { 0% { opacity: 1; transform: translateX(-110%); } 100% { opacity: 0; transform: translateX(260%); } }
+
+/* ── The checkout: the receipt, the odds, the button ─────────────────────────────────────────────────────────── */
+.cshop-checkout { justify-content: space-between; }
+.cshop-receipt { display: grid; gap: 6px; font-family: var(--font-body); font-weight: 700; font-size: 16px; }
+.cshop-line, .cshop-sub { display: flex; align-items: baseline; gap: 10px; }
+.cshop-what { color: var(--colls-ink); }
+.cshop-dots { flex: 1; border-bottom: 1px dotted rgba(255, 246, 228, 0.25); transform: translateY(-4px); }
+.cshop-amt { font-variant-numeric: tabular-nums; color: var(--colls-ink); white-space: nowrap; }
+/* "Focusing", then its rows under a thin gold line: the first carries the cost (gold), each later one its discount (green). */
+.cshop-subs { display: grid; gap: 3px; margin: -2px 0 2px 6px; padding-left: 14px; border-left: 2px solid rgba(255, 217, 138, 0.3); }
+.cshop-sub { font-size: 15px; }
+.cshop-sub::before { content: '\2713'; margin-right: -2px; color: var(--ui-title); font-weight: 900; }
+.cshop-sub .cshop-dots { border-bottom-color: rgba(255, 246, 228, 0.2); }
+.cshop-sub .cshop-amt { color: #7fe0a0; }
+.cshop-sub:first-child .cshop-amt { color: var(--ui-title); }
+.cshop-allnote { font-weight: 700; font-size: 13px; color: var(--colls-dim); }
+.cshop-total { margin-top: 4px; padding-top: 8px; border-top: 1px solid rgba(196, 160, 92, 0.35); font-size: 20px; font-weight: 800; }
+.cshop-total .cshop-amt { color: var(--ui-title); }
+
+/* The odds bar: one slice per rarity, coloured by the shared rarity tokens (`.r-*` -> `--rc`), sized by its share,
+   only its percent inside; a slice keeps a minimum width so its number reads. Hover (or tap) a slice for its tip. */
+.cshop-odds { display: grid; gap: 6px; font-family: var(--font-body); }
+.cshop-odds h4 { margin: 0; font: 900 13px var(--font-ui); letter-spacing: 0.14em; color: var(--colls-gold); }
+.cshop-bars { display: flex; gap: 2px; height: 34px; padding: 2px; border-radius: 10px; background: rgba(0, 0, 0, 0.5); box-shadow: inset 0 0 0 1px rgba(196, 160, 92, 0.3); }
+.cshop-seg {
+  position: relative; display: flex; align-items: center; justify-content: center; min-width: 46px; height: 100%; padding: 0 6px; box-sizing: border-box;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--rc) 100%, #fff 18%), var(--rc) 55%, color-mix(in srgb, var(--rc) 70%, #000));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  font-family: var(--font-body); font-weight: 900; font-size: 14px; color: #140d24; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.cshop-seg:first-child { border-radius: 8px 0 0 8px; }
+.cshop-seg:last-child { border-radius: 0 8px 8px 0; }
+.cshop-seg:only-child { border-radius: 8px; }
+.cshop-seg:hover, .cshop-seg.tt-on, .cshop-seg:focus-visible { z-index: 5; }
+.cshop-seg:focus-visible { outline: 2px solid var(--ui-edge-hi); outline-offset: 2px; }
+.cshop-seg .cshop-pop {
+  position: absolute; left: 50%; bottom: calc(100% + 12px); z-index: 20; box-sizing: border-box; width: 240px; text-align: left; white-space: normal;
+  opacity: 0; pointer-events: none; transform: translate(-50%, 6px);
+}
+.cshop-seg:hover .cshop-pop, .cshop-seg.tt-on .cshop-pop, .cshop-seg:focus-visible .cshop-pop { opacity: 1; transform: translate(-50%, 0); }
+.cshop-seg:first-child .cshop-pop { left: 0; transform: translate(0, 6px); }
+.cshop-seg:first-child:hover .cshop-pop, .cshop-seg:first-child.tt-on .cshop-pop, .cshop-seg:first-child:focus-visible .cshop-pop { transform: translate(0, 0); }
+.cshop-seg:last-child .cshop-pop { left: auto; right: 0; transform: translate(0, 6px); }
+.cshop-seg:last-child:hover .cshop-pop, .cshop-seg:last-child.tt-on .cshop-pop, .cshop-seg:last-child:focus-visible .cshop-pop { transform: translate(0, 0); }
+.cshop-seg .atip-title { color: var(--rc); }
+.cshop-oddsline { display: block; padding-bottom: 0.45em; border-bottom: 1px solid var(--atip-divider); }
+.cshop-seg .cshop-orow-name { color: var(--atip-muted); }
+
+/* The big button: "Open Chest" over the total, or why it cannot be bought. Held pressed while buying. */
+.cshop-buywrap { display: flex; flex-direction: column; align-items: stretch; gap: 8px; text-align: center; }
+.cshop .cshop-buy { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; width: 100%; min-height: 92px; padding: 12px 40px; border-radius: 14px; }
+.cshop-buy-main { font-size: 26px; font-weight: 800; }
+.cshop-buy-total { font-size: 21px; color: var(--ui-title); font-variant-numeric: tabular-nums; }
+.cshop .cshop-buy.pressed { opacity: 1; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55), inset 0 0 0 2px var(--ui-ring); }
+.cshop-err { margin: 0; font-family: var(--font-body); font-weight: 700; font-size: 14px; color: #ffb45a; }
+
+/* ── MOTION: every lift, press and transition, only where motion is allowed ─────────────────────────────────────
+   Reduced motion (the OS setting, or the page's own `reducedMotion` -> `.cshop-still`) never matches this block, so
+   nothing lifts, presses or slides there and no override has to win a specificity fight; the states still read
+   (border colours, the check badge, the gold pill, the tips simply snap open). Transform / opacity only. */
+@media (prefers-reduced-motion: no-preference) {
+  .cshop:not(.cshop-still) button.cshop-gem { transition: transform 0.12s ease; }
+  .cshop:not(.cshop-still) button.cshop-gem:active:not(:disabled) { transform: translateY(1px); transition-duration: 0.05s; }
+  .cshop:not(.cshop-still) .cshop-buy.pressed { transform: translateY(1px); }
+  .cshop:not(.cshop-still) .cshop-chest { transition: transform 0.14s ease; }
+  .cshop:not(.cshop-still) .cshop-chest:hover, .cshop:not(.cshop-still) .cshop-chest.tt-on { transform: translateY(-3px); }
+  .cshop:not(.cshop-still) .cshop-chest.on, .cshop:not(.cshop-still) .cshop-chest.on:hover { transform: translateY(-4px); }
+  .cshop:not(.cshop-still) .cshop-seg { transition: transform 0.12s ease; }
+  .cshop:not(.cshop-still) .cshop-seg:hover, .cshop:not(.cshop-still) .cshop-seg.tt-on, .cshop:not(.cshop-still) .cshop-seg:focus-visible { transform: translateY(-2px); }
+  .cshop:not(.cshop-still) .cshop-pop { transition: opacity 0.14s ease, transform 0.14s ease; }
+
+  /* THE PICK (one-shot, on the card's `data-pop`): the chest hops (Epic and up: hops and wiggles), Legendary shakes the card
+     a little and Ancient hard, Legendary and Ancient flash (Ancient longer), Epic and up sweep a light across it. */
+  .cshop:not(.cshop-still) .cshop-chest[data-pop] .cshop-chest-art { animation: cshop-hop 0.65s cubic-bezier(0.3, 1.5, 0.5, 1); }
+  .cshop:not(.cshop-still) .cshop-chest.t-epic[data-pop] .cshop-chest-art { animation: cshop-hopwiggle 0.75s cubic-bezier(0.3, 1.5, 0.5, 1); }
+  .cshop:not(.cshop-still) .cshop-chest.t-legendary[data-pop] .cshop-chest-art,
+  .cshop:not(.cshop-still) .cshop-chest.t-ancient[data-pop] .cshop-chest-art { animation: cshop-hopwiggle 0.85s cubic-bezier(0.3, 1.5, 0.5, 1); }
+  .cshop:not(.cshop-still) .cshop-chest.t-legendary[data-pop] { animation: cshop-shake-s 0.4s ease-out; }
+  .cshop:not(.cshop-still) .cshop-chest.t-ancient[data-pop] { animation: cshop-shake-l 0.55s ease-out; }
+  .cshop:not(.cshop-still) .cshop-chest.t-legendary[data-pop] .cshop-chest-flash { animation: cshop-flash 0.5s ease-out; }
+  .cshop:not(.cshop-still) .cshop-chest.t-ancient[data-pop] .cshop-chest-flash { animation: cshop-flash 0.7s ease-out; }
+  .cshop:not(.cshop-still) .cshop-chest.t-epic[data-pop] .cshop-chest-sweep,
+  .cshop:not(.cshop-still) .cshop-chest.t-legendary[data-pop] .cshop-chest-sweep,
+  .cshop:not(.cshop-still) .cshop-chest.t-ancient[data-pop] .cshop-chest-sweep { animation: cshop-csweep 0.7s ease-out 0.1s; }
+  /* The burst nodes (each removes itself when its animation ends). */
+  .cshop:not(.cshop-still) .cshop-ringfx { animation: cshop-ringx 0.7s ease-out forwards; }
+  /* `forwards`, not `both`: a spark waiting out its random start delay stays hidden (its base opacity 0) instead of
+     sitting at the origin in its first frame. */
+  .cshop:not(.cshop-still) .cshop-spark { animation: cshop-spark 0.75s cubic-bezier(0.15, 0.7, 0.3, 1) forwards; }
+  .cshop:not(.cshop-still) .cshop-mote { animation: cshop-rise 1.2s ease-out forwards; }
+  /* While selected: the halo breathes (opacity), Legendary's rays turn slowly and Ancient's faster (rotation). */
+  .cshop:not(.cshop-still) .cshop-chest.on::after { animation: cshop-halo 2s ease-in-out infinite; }
+  .cshop:not(.cshop-still) .cshop-chest-rays { transition: opacity 0.35s ease; }
+  .cshop:not(.cshop-still) .cshop-chest.on.t-legendary .cshop-chest-rays { animation: cshop-spin 18s linear infinite; }
+  .cshop:not(.cshop-still) .cshop-chest.on.t-ancient .cshop-chest-rays { animation: cshop-spin 11s linear infinite; }
+  /* THE TOGGLE: the On pill's halo breathes; switching on (the row's `data-pop`) bounces the pill, blasts its ring, pops the
+     name and sweeps a light across the row. */
+  .cshop:not(.cshop-still) .cshop-cat.on .cshop-toggle::before { animation: cshop-halo 1.8s ease-in-out infinite; }
+  .cshop:not(.cshop-still) .cshop-cat[data-pop] .cshop-toggle { animation: cshop-togpop 0.55s cubic-bezier(0.3, 1.6, 0.5, 1); }
+  .cshop:not(.cshop-still) .cshop-cat[data-pop] .cshop-toggle::after { animation: cshop-ring 0.6s ease-out; }
+  .cshop:not(.cshop-still) .cshop-cat[data-pop] .cshop-cat-name { animation: cshop-nmpop 0.45s ease-out; }
+  .cshop:not(.cshop-still) .cshop-cat[data-pop] .cshop-cat-sweep::before { animation: cshop-sweep 0.6s ease-out; }
+}

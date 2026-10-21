@@ -52,6 +52,10 @@ export function phonePublicCap(rel: string): number | null {
   // Card frames, plates, desc boxes, tier stars, the shop buttons. NOT the title logo (drawn huge on the title), the
   // Compendium frame (a border-image sliced in image pixels) or the ranked gate (CSS-painted).
   if (/^frames\/(?!title-logo|compendium-|ranked-gate)/.test(rel)) return 512;
+  // The painted chests (body + lid, 840 px masters) as the Chest Shop and the Collection bay draw them in plain DOM
+  // (`ChestPicture`, about 230 / 124 stage px). ChestPicture lays out in percents of the body's width, so a smaller
+  // copy composes the same. The opening theatre (Pixi, `crateFx/chestArt.ts`) still loads the originals.
+  if (/^collection\/(?:chest_[a-z]+|crate)_(?:body|lid)\.webp$/.test(rel)) return 512;
   return null;
 }
 

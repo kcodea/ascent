@@ -7222,13 +7222,14 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-AETHER-03',
-    title: 'Focusing a crate costs a share of its price that falls as more categories are ticked; only categories still available count; all available is free; a sold-out focus cannot be bought',
+    title: 'Focusing a crate costs a share of its price that falls as more categories are ticked; only focusable categories still available count; all available is free; a sold-out focus cannot be bought',
     statement:
       'A crate can be focused on one or more cosmetic categories for an extra fee that is a percentage of the crate\x27s price, set by '
       + 'how many categories are ticked: 1 category 100%, 2 60%, 3 40%, 4 25%, 5 15%, 6 10%, 7 5%, and 8 or more (but not every '
       + 'available one) 5%. Ticking more categories never costs more, because more categories make the result less precise. Only '
-      + 'categories that still have something this player could receive from that crate (at or above its floor, not already owned) count '
-      + 'as available, both for the fee and for the choice; a category with nothing left cannot be ticked. Ticking every available '
+      + 'FOCUSABLE categories (never Announcers, see R-PROG-AETHER-06) that still have something this player could receive from that '
+      + 'crate (at or above its floor, not already owned) count as available, both for the fee and for the choice; a category with '
+      + 'nothing left cannot be ticked. Ticking every available '
       + 'category is the same as no focus and costs nothing. A focus with nothing left to give (all ticked categories sold out) '
       + 'cannot be bought. The fee is added to the crate price in one charge. A focus that is not a list of known categories is refused.',
     domain: 'foundation',
@@ -7238,8 +7239,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Aether + Crate Shop brainstorm; spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md)', quote: 'i want to go in a slightly different direction where you purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it into one or more of the various categories' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-18-aether.sql (aether_quote, progression_tiered_crate_pool, buy_crate); packages/progression/src/crateShop.ts (focusFeePercent, quoteCrate, availableFocusCategories, normalizeFocus); packages/progression/src/aether.ts (DEFAULT_AETHER_ECONOMY.focusFeePercent)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout).',
-    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-18' },
+    currentBehaviour: 'Conforms as of 2026-10-18 (feat/aether-engine), behind progression_config.aether_enabled (off until the owner runs aether_rollout). '
+      + 'Amended 2026-10-20 (feat/chest-shop-screen): the available set is the focusable categories with something left, so Announcers never count '
+      + '(R-PROG-AETHER-06). The client (availableFocusCategories) conforms from that branch; the server (aether_quote) conforms once the owner runs '
+      + '2026-10-20-announcers-not-focusable.sql, and until then it still counts announcer as available.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/aether.db.test.ts', 'packages/progression/src/crateShop.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
     id: 'R-PROG-AETHER-04',
@@ -7538,5 +7542,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'CPU profile of a shop open (prod bench build): floatLobbyDamageOnSeat 63 ms in one frame, almost all of it getBoundingClientRect forced after the previous seat\x27s float was appended.',
     currentBehaviour: 'Conforms from 2026-10-20 (perf/desktop-jank). Before, each seat read its row, appended its float, then the next seat read again.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyFloatBatch.test.ts', 'packages/ui/src/lobbyRoundDamage.test.tsx', 'packages/ui/src/lobbyKnockout.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-PROG-AETHER-06',
+    title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
+    statement:
+      'Announcers are never a chest focus category. They still drop from unfocused chests. When every focusable category is ticked '
+      + '(or the ticked ones are all that is left at the tier), the chest is unfocused: free, and it can give an Announcer.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'lets remove announcers from being able to be focused' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'yes, announcers can drop from the unfocused chests' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (Chest Shop screen design; spec docs/superpowers/specs/2026-10-20-chest-shop-screen-design.md)', quote: 'Free, may give an Announcer' },
+      { kind: 'code', ref: 'packages/progression/src/crateShop.ts (NON_FOCUSABLE_CATEGORIES, isFocusableCategory, availableFocusCategories); supabase/migrations/2026-10-20-announcers-not-focusable.sql (aether_quote)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (feat/chest-shop-screen), once the owner runs 2026-10-20-announcers-not-focusable.sql after the milestone file. The client (availableFocusCategories) and the server (aether_quote) both leave announcer out of the available focus categories, so a focus naming it is refused as bad_focus and ticking every other category collapses to no focus (null, fee 0). The pool is untouched (eligibleForCrate, progression_tiered_crate_pool), so an unfocused chest still rolls Announcers. Until the SQL is run, the live server still accepts an announcer focus: the Edge Function\x27s parseFocus is deliberately unchanged, so the SQL quote is the gate.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/crateShop.test.ts', 'packages/progression/src/announcersNotFocusable.db.test.ts'], lastVerifiedAt: '2026-10-20' },
   },
 ];

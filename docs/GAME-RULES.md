@@ -868,7 +868,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
   result. The client queues the request durably and retries; a failure reads "Progress pending".
 
-### Aether and the Chest Shop (owner rulings 2026-10-18 and 2026-10-19; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04, R-PROG-AETHER-05)
+### Aether and the Chest Shop (owner rulings 2026-10-18, 2026-10-19 and 2026-10-20; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04, R-PROG-AETHER-05, R-PROG-AETHER-06)
 
 **Aether** is a currency you earn by playing and spend on chests. It is **never bought with real money**. Apart from
 the one-time launch gift below, an account starts with 0. It arrives behind a switch the owner flips (`aether_enabled`): until then chests work exactly as above.
@@ -913,18 +913,21 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
   moves to the nearest rarity that still does, **never below the floor**. A Standard chest with no focus rolls exactly
   as the older chests did. You still never get a duplicate, and a chest whose floor has nothing left for you cannot be
   bought (or, if it was earned, stays sealed and uncharged).
-- **Focus.** For an extra fee you can **focus** a chest on one or more categories (announcers, hero skins, minion skins, titles,
+- **Focus.** For an extra fee you can **focus** a chest on one or more categories (hero skins, minion skins, titles,
   hero attacks, portrait frames, emotes, card plates): the reward then comes only from those
-  categories. The fee is a share of the chest's price that **falls as you tick more categories**, because ticking more
-  makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
+  categories. **Announcers can never be focused** (owner 2026-10-20, R-PROG-AETHER-06: "lets remove announcers from being
+  able to be focused"); they still drop from chests that are not focused. The fee is a share of the chest's price that
+  **falls as you tick more categories**, because ticking more makes the result less precise (owner: "focusing shouldnt be added cost per extra category"):
 
   | Categories ticked | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 or more |
   |---|---|---|---|---|---|---|---|---|
   | Fee (% of the chest's price) | 100% | 60% | 40% | 25% | 15% | 10% | 5% | 5% |
 
-  Only **available** categories count: a category with nothing left that you could receive from that chest (at its floor
+  Only **focusable categories with something left** count (never Announcers, R-PROG-AETHER-06): a category with nothing left that you could receive from that chest (at its floor
   or above, not already owned) cannot be ticked and does not count toward the number ticked. **Ticking
-  every available category is no focus at all and costs nothing.** A focus whose categories are all sold out cannot be
+  every focusable category with something left is no focus at all and costs nothing**, and an unfocused chest can give an Announcer (owner:
+  "Free, may give an Announcer"): this also happens when the categories you ticked are all that is left at that chest's
+  tier. A focus whose categories are all sold out cannot be
   bought. The chest price and the fee are one charge.
 - **Milestone chests.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Epic-floor chest**
   (owner 2026-10-20: "reduce down to Epic for the milestone chests"); other levels grant no chest. When Aether launches,

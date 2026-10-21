@@ -77,6 +77,22 @@ describe('variant selection', () => {
     expect(phonePublicCap('frames/ranked-gate-crystal.webp')).toBeNull();
     expect(phonePublicCap('medallions/echo.webp')).toBeNull();
   });
+
+  it('the painted chests the Chest Shop and the Collection bay draw get a 512 px phone copy; nothing else in collection/', () => {
+    for (const t of ['crate', 'chest_rare', 'chest_epic', 'chest_legendary', 'chest_ancient']) {
+      expect(phonePublicCap(`collection/${t}_body.webp`)).toBe(512);
+      expect(phonePublicCap(`collection/${t}_lid.webp`)).toBe(512);
+    }
+    expect(phonePublicCap('collection/chest_epic_body.png')).toBeNull();
+    expect(phonePublicCap('collection/other.webp')).toBeNull();
+  });
+
+  it('the DOM chest picture loads through publicArt (the phone copy); only the Pixi theatre keeps the originals', () => {
+    const pic = readFileSync(join(__dirname, 'progression', 'ChestPicture.tsx'), 'utf8');
+    expect(pic).toContain('chestPictureUrl(art.bodyUrl)');
+    expect(pic).toContain('chestPictureUrl(art.lidUrl)');
+    expect(pic).not.toMatch(/chestArtUrl|BASE_URL/);
+  });
 });
 
 describe('every public frame / button image in UI code goes through publicArt()', () => {

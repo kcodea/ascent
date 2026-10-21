@@ -50,7 +50,7 @@ import { CollectionPage, CollectionScreen } from './CollectionScreen';
 import { refreshSeenList, resetProgressionForTests, useProgression } from './progressionStore';
 import { queueNewCrate, resetNewRewardsForTests } from './newRewards';
 import { setCrateFxFactoryForTests } from './crateFx/crateFxPixi';
-import { setChestArtLoaderForTests } from './crateFx/chestArt';
+import { chestArtFor, setChestArtLoaderForTests } from './crateFx/chestArt';
 import { useGame } from '../store';
 
 /** The Pixi layer as a no-op: every method does nothing, `mount` succeeds. A Proxy, so a method the opener's
@@ -723,7 +723,11 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
   // Owner 2026-10-20: a milestone crate is floor EPIC and never focused; one granted before then stays floor Legendary.
   const milestone: CrateRow = { crateId: 'c-m10', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: 'milestone:10', floor: 'epic' };
   const legacyMilestone: CrateRow = { ...milestone, crateId: 'c-m20', source: 'milestone:20', floor: 'legendary' };
-  const shopBuy = (): HTMLButtonElement => $('.colls-shop .colls-shop-buy') as HTMLButtonElement;
+  const shopBuy = (): HTMLButtonElement => $('.cshop-buy') as HTMLButtonElement;
+  const shopBtn = (): HTMLButtonElement => $('.colls-shopbtn') as HTMLButtonElement;
+  /** Open the full-screen Chest Shop from the Collection's Shop button. */
+  const openShop = (): void => { act(() => shopBtn().click()); };
+  const bodySrc = (sel: string): string | null => $(`${sel} .chestpic-body`)?.getAttribute('src') ?? null;
   const tierOf = (): string | undefined => $('.crth')?.className.match(/\bt-(\w+)/)?.[1];
   /** Open all moves on by itself (`autoNextMs` after each reward settles): waits until the theatre has asked for `n`
    *  crates, or gives up after a few seconds (the assertion that follows then reports what it did ask for). */
@@ -746,10 +750,11 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     clean();
   });
 
-  it('the shop mounts when Aether is on: a purchase plays in the theatre, and the wallet takes the new balance', async () => {
+  it('the Chest Shop opens from the Shop button: a purchase plays in the theatre, and the wallet takes the new balance', async () => {
     open({ aether: 1200 }, { aether: true });
-    expect($('.colls-shop[aria-label="Chest Shop"]')).not.toBeNull();
-    expect($('.colls-bay')).not.toBeNull(); // beside the bay, not instead of it
+    expect($('[aria-label="Chest Shop"]')).toBeNull(); // the shop is its own screen now, not a panel in the sidebar
+    openShop();
+    expect($('[aria-label="Chest Shop"]')).not.toBeNull();
     const result = bought('c-shop', 'title_hearthkeeper');
     buyCrateRemote.mockResolvedValue({ status: 'ok', value: result, profile: profile({ aether: 1100, revision: 10, titles: ['alpha_tester', 'title_star_chaser', 'title_hearthkeeper'] }) });
     act(() => shopBuy().click());
@@ -773,7 +778,7 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_hearthkeeper', 2, 0), profile: profile({ revision: 10 }) });
     act(() => button('Open')!.click());
     await settle();
-    expect($('.colls-shop.milestone')).toBeNull();
+    expect($('.cshop')).toBeNull();
     expect($('.colls-bay')).not.toBeNull(); // the bay is never swapped out
     expect(openCrateRemote.mock.calls).toStrictEqual([['c-m10']]); // the id ALONE: no focus, no fee
     expect(tierOf()).toBe('epic');
@@ -813,7 +818,7 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     act(() => all.click());
     await settle();
     await drain(2);
-    expect($('.colls-shop.milestone')).toBeNull();
+    expect($('.cshop')).toBeNull();
     expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-m10', 'c-m20']);
     resetNewRewardsForTests();
     clean();
@@ -834,15 +839,118 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     expect(text('.colls-bay-odds')).toBe('Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
   });
 
+  describe('the Shop button and the shop mode (Chest Shop screen, 2026-10-20)', () => {
+    it('with Aether on, the sidebar leads with a Chest Shop button above the Sealed chests bay, and no shop panel', () => {
+      open({ aether: 1200 }, { aether: true });
+      const btn = shopBtn();
+      expect(btn).not.toBeNull();
+      expect(btn.tagName).toBe('BUTTON');
+      expect(btn.textContent?.trim()).toBe('Chest Shop');
+      expect(btn.querySelector('img.aether-icon')).not.toBeNull();
+      const side = $('aside.colls-side')!;
+      expect(side.firstElementChild).toBe(btn);
+      expect(btn.compareDocumentPosition($('.colls-bay')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect($('.cshop')).toBeNull();
+      clean();
+    });
+
+    it('with Aether off there is no Shop button', () => {
+      open();
+      expect($('.colls-shopbtn')).toBeNull();
+      expect(button('Chest Shop')).toBeUndefined();
+    });
+
+    it('the button replaces the header and the body with the Chest Shop; "◀ Collection" brings the Collection back', () => {
+      open({ aether: 1200 }, { aether: true });
+      expect($('.lbtopbar')).not.toBeNull();
+      expect($('.colls-body')).not.toBeNull();
+      openShop();
+      expect($('.cshop')).not.toBeNull();
+      expect($('.lbtopbar')).toBeNull();
+      expect($('.colls-body')).toBeNull();
+      expect($('.colls-bay')).toBeNull();
+      expect($('.msb')).not.toBeNull(); // the menu rail stays
+      act(() => button('◀ Collection')!.click());
+      expect($('.cshop')).toBeNull();
+      expect($('.lbtopbar')).not.toBeNull();
+      expect($('.colls-body')).not.toBeNull();
+      expect($('.colls-shopbtn')).not.toBeNull();
+      clean();
+    });
+
+    it('Esc leaves the shop for the Collection', () => {
+      open({ aether: 1200 }, { aether: true });
+      openShop();
+      act(() => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
+      expect($('.cshop')).toBeNull();
+      expect($('.colls-body')).not.toBeNull();
+    });
+
+    it('switching Aether off while the shop is open returns to the Collection, and it stays there if Aether returns', () => {
+      open({ aether: 1200 }, { aether: true });
+      openShop();
+      expect($('.cshop')).not.toBeNull();
+      act(() => { useProgression.setState({ aetherCapability: 'off' }); });
+      expect($('.cshop')).toBeNull();
+      expect($('.colls-body')).not.toBeNull();
+      expect($('.colls-shopbtn')).toBeNull();
+      act(() => { useProgression.setState({ aetherCapability: 'on' }); });
+      expect($('.cshop')).toBeNull(); // back to the Collection, not straight into a shop nobody asked for
+      expect($('.colls-shopbtn')).not.toBeNull();
+    });
+
+    it('the overlays stay rendered over the shop (the sign-in gate for a guest)', async () => {
+      useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
+      open({ aether: 100 }, { aether: true });
+      openShop();
+      act(() => shopBuy().click());
+      await settle();
+      expect($('.crgate-panel')).not.toBeNull();
+      expect($('.cshop')).not.toBeNull();
+    });
+  });
+
+  describe("the bay's painted chest", () => {
+    const epicBody = 'collection/chest_epic_body.webp';
+    const standardBody = chestArtFor('standard').bodyUrl;
+    it("draws the first sealed chest's tier (an Epic milestone crate: epic art)", () => {
+      open({ aether: 1200 }, { aether: true, crates: [milestone] });
+      expect($('.colls-bay .chestpic.colls-bay-chest')).not.toBeNull();
+      expect($('.colls-bay .colls-crate')).toBeNull();
+      expect(bodySrc('.colls-bay')?.endsWith(epicBody)).toBe(true);
+    });
+
+    it('a legacy Legendary milestone crate draws legendary art; a level crate draws the Standard chest', () => {
+      open({ aether: 1200 }, { aether: true, crates: [legacyMilestone] });
+      expect(bodySrc('.colls-bay')?.endsWith(chestArtFor('legendary').bodyUrl)).toBe(true);
+      ui!.unmount();
+      open({ aether: 1200 }, { aether: true }); // old level crates: no floor
+      expect(bodySrc('.colls-bay')?.endsWith(standardBody)).toBe(true);
+    });
+
+    it('with nothing sealed it draws the Epic chest (dimmed) when Aether is on, the Standard chest when off', () => {
+      open({ aether: 1200 }, { aether: true, crates: [crateList[0]!] });
+      expect($('.colls-bay')!.className).not.toMatch(/ready/); // the stylesheet dims .colls-bay:not(.ready) .colls-bay-chest
+      expect(bodySrc('.colls-bay')?.endsWith(epicBody)).toBe(true);
+      ui!.unmount();
+      open({}, { crates: [crateList[0]!] });
+      expect(bodySrc('.colls-bay')?.endsWith(standardBody)).toBe(true);
+    });
+  });
+
   it("Aether off renders today's bay", async () => {
     open();
-    // Verbatim the bay as it rendered before the Crate Shop (captured from 1f31f5feb).
-    expect($('.colls-bay')!.outerHTML).toBe(
-      '<section class="colls-panel colls-bay ready" aria-label="Sealed chests"><div class="colls-bay-art" aria-hidden="true"><span class="colls-hero-glow"></span><span class="colls-crate"></span><span class="colls-hero-count">2</span></div><div class="colls-bay-body"><div class="colls-bay-head">Sealed chests</div><div class="colls-bay-sub"><b>2</b> ready. Next: Level 2 Chest</div><div class="colls-bay-actions"><button type="button" class="cv2-btn pressable colls-open">Open</button><button type="button" class="colls-quiet pressable quiet">Open all (2)</button></div><div class="colls-bay-odds">Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%</div></div></section>',
+    // The bay as it rendered before the Crate Shop (captured from 1f31f5feb), with the painted chest picture (Task 5 of the
+    // Chest Shop screen, 2026-10-20) standing where the CSS crate was: the picture itself is pinned in the bay tests below.
+    const bay = $('.colls-bay')!.cloneNode(true) as HTMLElement;
+    bay.querySelector('.colls-bay-chest')!.replaceWith(document.createTextNode('@@CHEST@@'));
+    expect(bay.outerHTML).toBe(
+      '<section class="colls-panel colls-bay ready" aria-label="Sealed chests"><div class="colls-bay-art" aria-hidden="true"><span class="colls-hero-glow"></span>@@CHEST@@<span class="colls-hero-count">2</span></div><div class="colls-bay-body"><div class="colls-bay-head">Sealed chests</div><div class="colls-bay-sub"><b>2</b> ready. Next: Level 2 Chest</div><div class="colls-bay-actions"><button type="button" class="cv2-btn pressable colls-open">Open</button><button type="button" class="colls-quiet pressable quiet">Open all (2)</button></div><div class="colls-bay-odds">Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%</div></div></section>',
     );
     expect(text('.colls-bay')).toBe('2Sealed chests2 ready. Next: Level 2 ChestOpenOpen all (2)Chest odds: Common 35%, Rare 31%, Epic 22%, Legendary 9%, Ancient 3%');
     expect($('[aria-label="Aether balance"]')).toBeNull();
-    expect($('.colls-shop')).toBeNull();
+    expect($('.colls-shopbtn')).toBeNull();
+    expect($('.cshop')).toBeNull();
     ui!.unmount();
     // A milestone crate with Aether off opens straight into the theatre, unfocused; the next crate is the next level.
     open({ accountXp: 0 }, { crates: [crateList[0]!] });
@@ -852,27 +960,46 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_hearthkeeper', 2, 0), profile: profile({ revision: 10 }) });
     act(() => button('Open')!.click());
     await settle();
-    expect($('.colls-shop')).toBeNull();
+    expect($('.cshop')).toBeNull();
     expect(openCrateRemote).toHaveBeenCalledWith('c-m10');
     expect($('.crth')).not.toBeNull();
   });
 
-  it("a purchase in flight holds the bay's Open and Open all (a second theatre would replace the reveal)", async () => {
-    open({ aether: 1200 }, { aether: true });
+  it("a purchase in flight holds every Open (the bay is hidden, so the New rewards pop-up's Open is the way in): a second theatre would replace the reveal", async () => {
+    resetNewRewardsForTests();
+    queueNewCrate('u-1', milestone);
+    queueNewCrate('u-1', legacyMilestone);
+    open({ aether: 1200 }, { aether: true, crates: [milestone, legacyMilestone] });
     buyCrateRemote.mockImplementation(() => new Promise(() => {}));
+    openShop();
     act(() => shopBuy().click());
-    expect(button('Open')!.disabled).toBe(true);
-    expect(button('Open all (2)')!.disabled).toBe(true);
-    act(() => button('Open')!.click());
+    expect($('.cshop-back')).toHaveProperty('disabled', true); // Back is held too, so the bay never shows a busy purchase
+    const all = [...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].find((x) => x.textContent === 'Open all (2)')!;
+    act(() => all.click());
     await settle();
     expect($('.crth')).toBeNull();
     expect(openCrateRemote).not.toHaveBeenCalled();
+    resetNewRewardsForTests();
+  });
+
+  it("the bay's Open is held again once the purchase answers (shopBusy clears), and the bay is back after Back", async () => {
+    open({ aether: 1200 }, { aether: true });
+    buyCrateRemote.mockResolvedValue({ status: 'ok', value: bought('c-shop', 'title_hearthkeeper'), profile: profile({ aether: 1100, revision: 10, titles: ['alpha_tester', 'title_star_chaser', 'title_hearthkeeper'] }) });
+    openShop();
+    act(() => shopBuy().click());
+    await settle();
+    act(() => button('Done')!.click());
+    act(() => ($('.cshop-back') as HTMLButtonElement).click());
+    expect(button('Open')!.disabled).toBe(false);
+    expect(button('Open all (2)')!.disabled).toBe(false);
   });
 
   it("a guest's Buy opens the sign-in gate and never reaches the server", async () => {
     useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
     open({ aether: 0 }, { aether: true });
     expect(text('[aria-label="Aether balance"]')).toBe('0 Aether'); // a guest earns and sees Aether
+    openShop();
+    expect(text('[aria-label="Aether balance"]')).toBe('0 Aether'); // and in the shop
     act(() => shopBuy().click());
     await settle();
     expect($('.crgate-panel')).not.toBeNull();
@@ -891,17 +1018,20 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
 });
 
 describe('the Collection screen: stage and performance tripwires', () => {
-  const css = readFileSync(join(__dirname, 'collection.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const read = (f: string): string => readFileSync(join(__dirname, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const css = read('collection.css');
+  // The page's own stylesheet plus the Chest Shop screen's and the painted chest picture's (both drawn on this page).
+  const pageCss = ['collection.css', 'chestShop.css', 'chestPicture.css'].map(read).join('\n');
   it('no raw viewport units, no viewport @media, no plain cursor keywords', () => {
-    expect(css).not.toMatch(/(?<![\w-])-?[\d.]+[dsl]?v[wh]\b/);
-    expect(css).not.toMatch(/@media[^{]*\((min-|max-)?(width|height|aspect-ratio)\s*:/);
-    expect(css).not.toMatch(/cursor\s*:/);
+    expect(pageCss).not.toMatch(/(?<![\w-])-?[\d.]+[dsl]?v[wh]\b/);
+    expect(pageCss).not.toMatch(/@media[^{]*\((min-|max-)?(width|height|aspect-ratio)\s*:/);
+    expect(pageCss).not.toMatch(/cursor\s*:/);
   });
-  it('every looping animation moves only transform or opacity', () => {
-    const looping = new Set([...css.matchAll(/animation:\s*([\w-]+)[^;]*infinite/g)].map((m) => m[1]!));
+  it('every looping animation moves only transform or opacity (the Collection, the Chest Shop and the chest picture)', () => {
+    const looping = new Set([...pageCss.matchAll(/animation:\s*([\w-]+)[^;]*infinite/g)].map((m) => m[1]!));
     expect(looping.size).toBeGreaterThan(0);
     for (const name of looping) {
-      const body = css.match(new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?\\})\\s*\\}`))?.[1] ?? '';
+      const body = pageCss.match(new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?\\})\\s*\\}`))?.[1] ?? '';
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
       expect(props.length, name).toBeGreaterThan(0);
       for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);

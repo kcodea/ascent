@@ -1,7 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import type { CardDef, Tribe } from '@game/core';
 import { poolOf } from './cardPool';
-import { hasRunTribe, isTribe } from './recruit';
+import { hasRunTribe, isTribe, offerIsTribe } from './recruit';
 import type { BoardCard, RunState } from './state';
 
 /**
@@ -64,7 +64,9 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
     const perTribe = p.perTribe as Tribe | undefined;
     if (perTribe) return !s.board.some((c) => isTribe(c, perTribe));
     const tribe = p.tribe as string | undefined;
-    return !!tribe && !shopMinions(s).some((o) => { const d = CARD_INDEX[o.cardId]; return !!d && (d.tribe === tribe || d.tribe2 === tribe || hasRunTribe(s, d.id, tribe)); });
+    // The SAME predicate the steal itself uses (`offerIsTribe`), so an All-types offer (Paragon) counts as a Dwarf
+    // here exactly as it does when the Writ resolves. R-WRIT-ALL-TYPES-01.
+    return !!tribe && !shopMinions(s).some((o) => offerIsTribe(s, o, tribe as Tribe));
   },
 
   // ── Conditional / stateful ───────────────────────────────────────────────────────────────────────────

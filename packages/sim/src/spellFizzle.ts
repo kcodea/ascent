@@ -1,7 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import type { CardDef, Tribe } from '@game/core';
 import { poolOf } from './cardPool';
-import { hasRunTribe, isTribe, offerIsTribe } from './recruit';
+import { defIsTribe, isTribe, offerIsTribe } from './recruit';
 import type { BoardCard, RunState } from './state';
 
 /**
@@ -45,7 +45,7 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
   spellBuffRandomHand: (s) => !s.hand.some((c) => !CARD_INDEX[c.cardId]?.spell),                 // Aspect's Blessing: no minion in hand
   spellBuffLeftmostHandMinion: (s) => !s.hand.some((c) => !CARD_INDEX[c.cardId]?.spell),         // Hand Soap: no minion in hand
   spellBuffRandomBoardAndHand: (s) => s.board.length === 0 && !s.hand.some((c) => !CARD_INDEX[c.cardId]?.spell), // Shared Spirit: nothing anywhere
-  spellBuffAllPerTribePlayed: (s, _d, p) => s.board.length === 0 || !(s.playedThisTurn ?? []).some((id) => { const d = CARD_INDEX[id]; return !!d && (d.tribe === p.tribe || d.tribe2 === p.tribe || hasRunTribe(s, d.id, p.tribe as string) || !!d.universalTribe); }), // Crescendo: no Spirit played, or no board
+  spellBuffAllPerTribePlayed: (s, _d, p) => s.board.length === 0 || !(s.playedThisTurn ?? []).some((id) => { const d = CARD_INDEX[id]; return defIsTribe(d, p.tribe as Tribe, s); }), // Crescendo: no Spirit played, or no board
 
   // ── Shop-facing: nothing in the tavern to act on ─────────────────────────────────────────────────────
   stealTavernMinion: (s) => shopMinions(s).length === 0,     // Lasso
@@ -90,7 +90,7 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
   conjureTribeArmy: (s, _d, p) => {
     const tribe = p.tribe as string | undefined;
     if (!tribe) return false;
-    return !poolOf(s).buyable.some((c) => c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(s, c.id, tribe));
+    return !poolOf(s).buyable.some((c) => defIsTribe(c, tribe as Tribe, s)); // R-ALL-TYPES-EVERYWHERE-01: the conjure's own pool
   },
 
   // ── Target-facing ────────────────────────────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ const NO_OP: Record<string, (s: RunState, def: CardDef, params: Record<string, u
     const def = CARD_INDEX[target.cardId];
     const tribe = def?.tribe;
     if (!tribe || tribe === 'neutral') return true;
-    return !poolOf(s).buyable.some((c) => c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(s, c.id, tribe)));
+    return !poolOf(s).buyable.some((c) => c.tier <= s.tier && defIsTribe(c, tribe, s)); // R-ALL-TYPES-EVERYWHERE-01
   },
   // DELIBERATELY ABSENT: Feed the Alpha / Fodder Treatment. With no recipient they still SELL the target and
   // pay its Gold — so they are a bad play, not an impossible one, and an existing ruling pins that ("Fodder

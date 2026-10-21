@@ -196,7 +196,7 @@ const num = (v: unknown, fallback = 0): number => (typeof v === 'number' ? v : f
 /** Celestial by TRIBE (set 3 onward) or by the legacy `celestial` flag (the 2026-08-03 test units). */
 const isCelestialCard = (c: BoardCard): boolean => {
   const d = CARD_INDEX[c.cardId];
-  return !!d && (d.tribe === 'celestial' || d.celestial === true);
+  return !!d && (isTribe(c, 'celestial') || d.celestial === true); // R-ALL-TYPES-EVERYWHERE-01: All types counts
 };
 
 /** The shop-side `EffectArena` adapter (Step 1 spike). `BoardCard` satisfies `ArenaBody` structurally and
@@ -1041,10 +1041,9 @@ export function undeadBuyBonus(state: RunState, def: CardDef): number {
   // Run-wide tribe ATTACK auras baked into a minion at creation: Undead (Lantern/Toxin Tender) + Beast
   // (Squirl Scout). A universal-tribe minion counts as both. Called at every creation site (buy / conjure /
   // steal / discover / offer), so a new bonus tribe added here reaches them all.
-  const universal = !!def.universalTribe;
   let bonus = 0;
-  if (universal || def.tribe === 'undead' || def.tribe2 === 'undead' || hasRunTribe(state, def.id, 'undead')) bonus += state.undeadBuyAtk ?? 0;
-  if (universal || def.tribe === 'beast' || def.tribe2 === 'beast' || hasRunTribe(state, def.id, 'beast')) bonus += state.beastBuyAtk ?? 0;
+  if (defIsTribe(def, 'undead', state)) bonus += state.undeadBuyAtk ?? 0;
+  if (defIsTribe(def, 'beast', state)) bonus += state.beastBuyAtk ?? 0;
   if (def.keywords.includes('M')) bonus += state.magneticBuyAtk ?? 0; // Scrap Herald (Magnetic/Attachment aura)
   return bonus;
 }
@@ -1068,7 +1067,7 @@ export function buffUndeadAttackEverywhere(state: RunState, amount: number, sour
 export function buyHealthAura(state: RunState, def: CardDef): number {
   let bonus = 0;
   if (def.keywords.includes('M')) bonus += state.magneticBuyHp ?? 0;
-  if (def.universalTribe || def.tribe === 'beast' || def.tribe2 === 'beast' || hasRunTribe(state, def.id, 'beast')) bonus += state.beastBuyHp ?? 0;
+  if (defIsTribe(def, 'beast', state)) bonus += state.beastBuyHp ?? 0;
   return bonus;
 }
 
@@ -1115,7 +1114,7 @@ export function heroOfferPrice(state: RunState, offer: { cardId: string }): numb
   const kind = getHero(state.heroId).power.kind;
   if (kind === 'companyRate') {
     const def = CARD_INDEX[offer.cardId];
-    if (def && (def.tribe === 'dwarf' || def.tribe2 === 'dwarf' || hasRunTribe(state, def.id, 'dwarf'))) return 2;
+    if (defIsTribe(def, 'dwarf', state)) return 2; // R-ALL-TYPES-EVERYWHERE-01: an All-types offer is a Dwarf
   }
   return undefined;
 }
@@ -1729,7 +1728,7 @@ export function bakedAuraOf(state: RunState, card: BoardCard): { attack: number;
 /** The display-only fold — the run-wide Undead aura, which never touches stored stats. */
 export function foldedAuraOf(state: RunState, card: BoardCard): { attack: number; health: number } {
   const def = CARD_INDEX[card.cardId];
-  const undead = !!def && (def.tribe === 'undead' || def.tribe2 === 'undead' || hasRunTribe(state, def.id, 'undead') || !!def.universalTribe);
+  const undead = defIsTribe(def, 'undead', state);
   if (undead) return { attack: state.undeadAttackBonus ?? 0, health: state.undeadHealthBonus ?? 0 };
   // RUNE OF THE GRIM TOAST (Set 3 design pass): a NON-Undead Dwarf folds the whole Undead Aura (the buy channel is
   // not baked into a Dwarf, so it folds here too).
@@ -2191,7 +2190,7 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   // Rune of the Dragon's Pantry: a random buyable minion of the tribe at or below the shop tier.
   if (t.grantRandomTribe) {
     const tribe = t.grantRandomTribe;
-    const pool = poolOf(state).buyable.filter((c) => (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(state, c.id, tribe)) && c.tier <= state.tier);
+    const pool = poolOf(state).buyable.filter((c) => defIsTribe(c, tribe, state) && c.tier <= state.tier); // R-ALL-TYPES-EVERYWHERE-01
     conjureToHand(state, pool, 1, runeGrantOverflow(state));
   }
   // Rune of the Spellmarket: CAST the named spells (untargeted) — a real `castSpell`, the same rune-cast path
@@ -3815,7 +3814,7 @@ export function grantTopTypeMinion(state: RunState): boolean {
   if (!tribe) return false;
   const pool = poolOf(state).buyable.filter(
     (c) =>
-      (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(state, c.id, tribe)) &&
+      defIsTribe(c, tribe, state) && // R-ALL-TYPES-EVERYWHERE-01
       inRunTribes(c, state.tribes) &&
       c.tier <= state.tier && // bound by your tavern tier — no T6 grant at T2
       (state.pool[c.id] ?? 0) > 0,
@@ -5537,7 +5536,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Dwarf King, Brill (Gold spent): a random minion of `tribe` from the run's pool, capped at your tier. */
   goldSpentGrantTribeMinion: (ctx, self, params) => {
     const tribe = str(params.tribe);
-    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && (!tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)));
+    const pool = poolOf(ctx.state).buyable.filter((c) => c.tier <= ctx.state.tier && (!tribe || defIsTribe(c, tribe as Tribe, ctx.state)));
     if (pool.length === 0) return;
     conjureToHand(ctx.state, pool, num(params.count, 1) * gold(self));
   },
@@ -6219,7 +6218,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         (tier > 0 ? c.tier === tier : c.tier <= ctx.state.tier) &&
         (filter !== 'shout' || hasBattlecry(c)) &&
         (tribe
-          ? c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)
+          ? defIsTribe(c, tribe as Tribe, ctx.state)
           : inRunTribes(c, ctx.state.tribes)),
     );
     if (pool.length === 0) return;
@@ -6629,7 +6628,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // 2026-08-18). This twin had no tier bound, so a Funeral on Loan Mammoth could summon a Tier 7.
     const pool = legalRandomMinionPool(ctx.state, { maxTier: ctx.state.tier }).filter(
       (c) => (!params.excludeSelf || c.id !== self.cardId)
-        && (!tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)),
+        && (!tribe || defIsTribe(c, tribe as Tribe, ctx.state)),
     );
     if (pool.length === 0) return;
     const rng = makeRng(ctx.state.rngCursor);
@@ -6644,7 +6643,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // R-RANDOM-POOL-01 (owner 2026-10-20: "a player just got elderhorn from a bullseye from funeral on loan"):
     // legal random minions only, capped at your Shop tier like the combat body (owner fix 2026-08-18).
     const pool = legalRandomMinionPool(ctx.state, { maxTier: ctx.state.tier })
-      .filter((c) => !tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe));
+      .filter((c) => !tribe || defIsTribe(c, tribe as Tribe, ctx.state));
     if (pool.length === 0) return;
     const s = num(params.stat, 7) * gold(self);
     const rng = makeRng(ctx.state.rngCursor);
@@ -6762,7 +6761,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribes = (params.tribes as Tribe[] | undefined) ?? ['beast', 'dragon'];
     const played = (ctx.state.playedThisTurn ?? []).filter((id) => {
       const def = CARD_INDEX[id];
-      return def ? tribes.some((t) => def.tribe === t || def.tribe2 === t || hasRunTribe(ctx.state, def.id, t)) : false;
+      return tribes.some((t) => defIsTribe(def, t, ctx.state));
     }).length;
     if (played === 0) return;
     const g = gold(self);
@@ -7211,7 +7210,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  current tier like every other "get a random X" — an un-capped roll could hand a Tier-6 body at Tier 3. */
   battlecryGrantShoutDragon: (ctx, self, params) => {
     const pool = poolOf(ctx.state).buyable.filter(
-      (c) => !c.spell && !c.ruby && (c.tribe === 'dragon' || c.tribe2 === 'dragon' || hasRunTribe(ctx.state, c.id, 'dragon'))
+      (c) => !c.spell && !c.ruby && defIsTribe(c, 'dragon', ctx.state)
         && c.tier <= ctx.state.tier && c.effects.some((e) => e.on === 'onPlay'),
     );
     if (pool.length === 0) return;
@@ -7286,7 +7285,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 1) * gold(self);
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
-        (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)) &&
+        defIsTribe(c, tribe, ctx.state) &&
         inRunTribes(c, ctx.state.tribes) &&
         c.tier <= ctx.state.tier &&
         (ctx.state.pool[c.id] ?? 0) > 0,
@@ -7306,7 +7305,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const proc = num(payload.proc, 0);
     // The build's Magnetic Mechs (Cling, Money Bot, Better Bot…), sorted by id so the pick is deterministic.
     const magnetics = Object.values(CARD_INDEX)
-      .filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech' || hasRunTribe(ctx.state, c.id, 'mech')) && c.keywords.includes('M') && !c.token && !c.spell)
+      .filter((c) => defIsTribe(c, 'mech', ctx.state) && c.keywords.includes('M') && !c.token && !c.spell)
       .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     if (magnetics.length === 0) return;
     // Roll the magnetic mech on a distinct stream (the trailing tag separates it from the host shuffle).
@@ -7374,7 +7373,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  run — honored by every `isTribe` synergy and folded into its combat tribe2. No-op if it's already that tribe. */
   spellAddTribe: (_ctx, self, params) => {
     const t = str(params.tribe) as Tribe;
-    if (!t || self.tribe === t || CARD_INDEX[self.cardId]?.tribe2 === t) return;
+    if (!t || isTribeNatural(self, t)) return; // already that type (an All-types body already counts as every type)
     if (!(self.addedTribes ?? []).includes(t)) self.addedTribes = [...(self.addedTribes ?? []), t];
   },
 
@@ -8701,7 +8700,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const tribe = str(params.tribe);
     const tier = num(params.tier, 1);
     const pool = poolOf(ctx.state);
-    conjureToHand(ctx.state, pool.buyable.filter((c) => c.tier === tier && (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe))), n);
+    conjureToHand(ctx.state, pool.buyable.filter((c) => c.tier === tier && defIsTribe(c, tribe as Tribe, ctx.state)), n);
     conjureToHand(ctx.state, runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier), n);
   },
 
@@ -8922,7 +8921,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
         c.tier <= ctx.state.tier &&
-        (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)) &&
+        defIsTribe(c, tribe, ctx.state) &&
         (ctx.state.pool[c.id] ?? 0) > 0, // only offer cards with copies left
     );
     conjureToHand(ctx.state, pool, 1);
@@ -8948,7 +8947,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const count = num(params.count, 2);
     const pool = poolOf(ctx.state).buyable.filter(
       (c) =>
-        (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)) &&
+        defIsTribe(c, tribe as Tribe, ctx.state) &&
         inRunTribes(c, ctx.state.tribes) &&
         c.tier <= ctx.state.tier && // bound by your tavern tier
         (ctx.state.pool[c.id] ?? 0) > 0,
@@ -9163,7 +9162,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const per = num(params.per, 1);
     const dragons = (ctx.state.playedThisTurn ?? []).filter((id) => {
       const d = CARD_INDEX[id];
-      return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon' || hasRunTribe(ctx.state, d.id, 'dragon'));
+      return defIsTribe(d, 'dragon', ctx.state); // R-ALL-TYPES-EVERYWHERE-01: an All-types play is a Dragon
     }).length;
     // Owner 2026-08-18: spell power now scales the PER-DRAGON increment as well (reversing the once-only
     // 2026-07-26 ruling), and the per-Dragon rate is asymmetric (`perAttack`/`perHealth`, default `per`). The
@@ -9185,7 +9184,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // every refresh runs (owner bug 2026-10-14, "sigil of kinship refreshes dont have minions with shop buffs"):
     // the right-most / left-most slot enchants (Market Tormentor, Picnic, Display Case), Rune of the Embers,
     // Endless Inventory and the shopRefreshed watchers. Not a player-pressed roll (Indy counts only those).
-    refillShopFiltered(ctx.state, (c) => c.tier <= ctx.state.tier && (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(ctx.state, c.id, tribe)));
+    refillShopFiltered(ctx.state, (c) => c.tier <= ctx.state.tier && defIsTribe(c, tribe, ctx.state)); // R-ALL-TYPES-EVERYWHERE-01
     applyShopRefreshed(ctx.state);
   },
 
@@ -10595,8 +10594,8 @@ export function offerDiscover(
   // card matching ANY of the listed tribes. `exclude` drops the source card (Sea Urchin can't Discover itself).
   const filter = (c: CardDef): boolean =>
     baseFilter(c) && c.id !== exclude &&
-    (!tribe || c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(state, c.id, tribe)) &&
-    (!tribes || tribes.length === 0 || tribes.some((t) => c.tribe === t || c.tribe2 === t || hasRunTribe(state, c.id, t)));
+    (!tribe || defIsTribe(c, tribe as Tribe, state)) &&
+    (!tribes || tribes.length === 0 || tribes.some((t) => defIsTribe(c, t as Tribe, state)));
   let pool: readonly CardDef[] = [];
   if (opts?.tier !== undefined) {
     // Fixed-tier Discover (Sprout): exactly that tier, no floor-walking.
@@ -11154,7 +11153,7 @@ export function spellDisplayText(cardId: string, bonusA: number, escalation = 0,
     const perAttack = Number(p?.perAttack ?? p?.per ?? 1), perHealth = Number(p?.perHealth ?? p?.per ?? 1);
     const dragons = (extra?.playedThisTurn ?? []).filter((id) => {
       const d = CARD_INDEX[id];
-      return !!d && (d.tribe === 'dragon' || d.tribe2 === 'dragon' || hasRunTribe(extra, d.id, 'dragon'));
+      return defIsTribe(d, 'dragon', extra); // the live twin of spellBuffPerDragonPlayed's count
     }).length;
     // Spell power folds into BOTH the base and the per-Dragon rate (owner 2026-08-18). Green the base total AND
     // the live per-Dragon rate so the card always states what it will grant right now.
@@ -12027,7 +12026,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
   {
     const def = CARD_INDEX[sold.cardId];
-    const isDragon = def?.tribe === 'dragon' || def?.tribe2 === 'dragon' || hasRunTribe(state, def?.id ?? '', 'dragon');
+    const isDragon = defIsTribe(def, 'dragon', state) || isTribeNatural(sold, 'dragon'); // R-ALL-TYPES-EVERYWHERE-01
     if (state.runeLastWord && !state.lastWordUsedThisTurn && isDragon && def && hasBattlecry(def)) {
       procRune(state, 'runeLastWord');
       state.lastWordUsedThisTurn = true;
@@ -12196,8 +12195,7 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
     const at = state.board.indexOf(card);
     for (const nb of [state.board[at - 1], state.board[at + 1]]) {
       if (!nb || nb === card) continue;
-      const nd = CARD_INDEX[nb.cardId];
-      if (nd?.tribe !== 'dragon' && nd?.tribe2 !== 'dragon') continue;
+      if (!isTribe(nb, 'dragon')) continue; // R-ALL-TYPES-EVERYWHERE-01: an All-types neighbour is a Dragon
       procRuneId(state, 'rune_shared_reflection');
       // A RUNE'S CAST (owner 2026-09-24: "the runes that repeat casts should use the rune-cast visual"): the spread
       // runs with the rune as the cast actor, so it records, previews and flourishes from the rune's node on the
@@ -13777,7 +13775,7 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
       // real spell in combat — a spell whose value scales with run state pays its live value, not this one.
       const def = CARD_INDEX[target.cardId];
       // A WHISPER is never banked (Set 4): its grant is a temporary Shop buff, not a spell combat can re-cast.
-      if (!spellDef.whisper && state.runeSpellhide && !state.spellhideUsedThisTurn && (def?.tribe === 'beast' || def?.tribe2 === 'beast' || hasRunTribe(ctx.state, def?.id ?? '', 'beast'))) {
+      if (!spellDef.whisper && state.runeSpellhide && !state.spellhideUsedThisTurn && (isTribe(target, 'beast') || defIsTribe(def, 'beast', ctx.state))) { // R-ALL-TYPES-EVERYWHERE-01
         state.spellhideUsedThisTurn = true;
         (state.spellhidePending ??= []).push({ spellId: spellDef.id, uid: target.uid });
       }

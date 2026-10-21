@@ -3717,7 +3717,7 @@ export function simulate(
     // granted to it as an Echo, so there is no left-most pick to make and no once-per-combat latch: the rune
     // grants an ability to every qualifying Dragon rather than firing once itself.
     if (modsFor(minion.side).runeAncestralRoar
-        && (minion.tribe === 'dragon' || minion.tribe2 === 'dragon')
+        && isTribeOf(minion, 'dragon', cards) // R-ALL-TYPES-EVERYWHERE-01
         && minion.effects.some((e) => e.on === 'onPlay')) {
       nextStep(); fireTrigger('runeAncestralRoar', minion.side);
       // q-interact-combat-shout-multipliers (owner APPROVE 2026-08-27): the granted Echo's Shout folds the
@@ -3809,7 +3809,7 @@ export function simulate(
     // rides `playerRubyGrants`, which runs the run's real `mintRubies` at settle with the live `rubyBonus` baked
     // in (and fires the Motherlode / Candle Conduit "when you GET a Ruby" watchers, which the hand-grant channel
     // also skipped). Same replay `toHand` event either way.
-    if (modsFor(minion.side).candlelightToll && (minion.tribe === 'kobold' || minion.tribe2 === 'kobold')) {
+    if (modsFor(minion.side).candlelightToll && isTribeOf(minion, 'kobold', cards)) { // R-ALL-TYPES-EVERYWHERE-01
       ctx.grantRubies(1, minion.side, minion.uid);
     }
     // Rune of the Gem Golem (owner rework 2026-09-23): a dying Kobold summons a GEMHEART GOLEM — the printed 1/1
@@ -5228,7 +5228,7 @@ export function simulate(
       for (const m of boards[rside]) {
         if (left <= 0) break;
         if (m.dead || m.health <= 0 || m.divineShield) continue;
-        if (m.tribe !== 'mech' && m.tribe2 !== 'mech') continue;
+        if (!isTribeOf(m, 'mech', cards)) continue; // R-ALL-TYPES-EVERYWHERE-01
         nextStep();
         if (!sharedFired) { fireTrigger('sharedCircuit', rside); sharedFired = true; } // one pulse for the SoC grant
         m.divineShield = true;
@@ -5243,8 +5243,8 @@ export function simulate(
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
         if (side !== tSide || transfers <= 0) return;
-        if (minion.tribe !== 'mech' && minion.tribe2 !== 'mech') return;
-        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && (m.tribe === 'mech' || m.tribe2 === 'mech' || !!m.universalTribe));
+        if (!isTribeOf(minion, 'mech', cards)) return; // R-ALL-TYPES-EVERYWHERE-01
+        const next = boards[tSide].find((m) => !m.dead && m.health > 0 && !m.divineShield && isTribeOf(m, 'mech', cards));
         if (!next) return;
         transfers--;
         nextStep();
@@ -6212,7 +6212,7 @@ export function simulate(
     // amplifying Gemstorm's Rubies (owner report 2026-08-06). Each Kobold is the play's own source: the rune
     // has no body on the board, and the side/attribution are what the primitive actually reads.
     const n = modsFor(side).runeGemstorm ?? 2;
-    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && (m.tribe === 'kobold' || m.tribe2 === 'kobold'));
+    const kobolds = boards[side].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'kobold', cards)); // R-ALL-TYPES-EVERYWHERE-01
     if (kobolds.length === 0) return;
     nextStep();
     for (const k of kobolds) playRubyOn(ctx, k, k, n);
@@ -6283,12 +6283,12 @@ export function simulate(
   for (const sside of SIDES) {
     if (!modsFor(sside).runeSalvage) continue;
     fireTrigger('runeSalvage', sside); // pulse the badge when the Attachment is actually banked
-    const magnetics = ctx.poolCards(sside).filter((c) => (c.tribe === 'mech' || c.tribe2 === 'mech') && c.keywords.includes('M')
+    const magnetics = ctx.poolCards(sside).filter((c) => defIsTribe(c, 'mech') && c.keywords.includes('M')
       && isLegalRandomMinion(c, combatTierCeiling(ctx.tierFor(sside)))); // R-RANDOM-POOL-01
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
-        if (side !== sside || !(minion.tribe === 'mech' || minion.tribe2 === 'mech' || !!minion.universalTribe)) return;
+        if (side !== sside || !isTribeOf(minion, 'mech', cards)) return;
         // One Attachment per copy held (boolean-flag family, owner 2026-08-27). The enemy draws off its side stream.
         const draw = grantRngFor(sside);
         for (let k = 0; k < flagCopiesOf(sside, 'runeSalvage'); k++) ctx.grantToHand(magnetics[draw.int(magnetics.length)]!.id, sside, minion.uid);

@@ -1,6 +1,7 @@
 import type { Rng } from '../rng';
 import { ALE_IDS, type CardDef, type EffectDef } from '../types';
 import { inRunTribes } from '../tribeGate';
+import { defIsTribe } from '../combat/tribe';
 
 /**
  * ── EFFECT ARENA (Step 1 spike — see docs/effect-arena-spec.md) ────────────────────────────────────────
@@ -1457,7 +1458,7 @@ export const ARENA_EFFECTS = {
   /** Mechanical Jouster — Rally: get a random Magnetic MECH (golden 2 per rally). */
   rallyGrantMagnetic(arena: EffectArena, params: Record<string, unknown>): void {
     arena.grantRandomFromPool(
-      (c) => c.keywords.includes('M') && (c.tribe === 'mech' || c.tribe2 === 'mech') && !c.token && !c.spell,
+      (c) => c.keywords.includes('M') && defIsTribe(c, 'mech') && !c.token && !c.spell, // R-ALL-TYPES-EVERYWHERE-01
       num(params.count, 1) * gold(arena),
     );
   },

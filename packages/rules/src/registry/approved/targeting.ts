@@ -242,4 +242,30 @@ export const TARGETING_RULES: GameRule[] = [
       + 'which also reads the All-types and added-type marks a displaced body carries.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/writAllTypes.test.ts'], lastVerifiedAt: '2026-10-20' },
   },
+  {
+    id: 'R-ALL-TYPES-EVERYWHERE-01',
+    title: 'An All-types minion counts as every tribe in every tribe pool, count and check',
+    statement:
+      'An All-types minion (printed All types, such as Paragon or Standard Bearer, or marked All by the Anomaly Reactor) '
+      + 'counts as every tribe, never as neutral. In a pool of cards of a tribe (an offer, a grant, a summon, a Discover or a '
+      + 'refill) an All-types card belongs to the pool of every tribe. In a count or a check of a tribe (Dragons played, a Beast '
+      + 'target, a dying Kobold, a Mech that lost its shield) an All-types minion is that tribe. Pools keep their seeded order: '
+      + 'the All-types cards simply join the filter in their usual place.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21, on the raw-tribe sites listed in #2181 (Hoardflame, Sigil of Kinship, the tribe pools and the tribe rune drip, Spellhide, the Dragon checks, the cast gates)', quote: 'yes' },
+      { kind: 'owner-chat', ref: 'Owner rule 2026-08-26', quote: 'all types need to trigger all types of interactions' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts defIsTribe / isTribe / isTribeNatural; packages/core/src/combat/tribe.ts defIsTribe / bodyIsTribe; packages/core/src/combat/simulate.ts isTribeOf' },
+    ],
+    contentIds: ['hoardflame', 'sigilkinship', 'rune_basic_dragon', 'rune_spellhide', 'rune_ancestral_roar', 'n2_paragon', 'n2_standardbearer'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-21: about forty sites in recruit.ts, reducer.ts, spellFizzle.ts, simulate.ts, factories.ts and '
+      + 'arena.ts read only the printed tribe and second tribe, so an All-types card was missing from tribe pools (Sigil of '
+      + 'Kinship, the tribe rune drip, the Pantry rune, Discover and conjure by tribe, the random-tribe summons) and failed tribe '
+      + 'checks (the Dragon count of Hoardflame, Spellhide, Rune of the Last Word, Shared Reflection, Company Rate, Ancestral Roar, '
+      + 'Candlelight Toll, Gemstorm, Shared Circuit, Salvage). All now use the shared predicates. Left as they are: type COUNTING '
+      + 'sites (most common type, distinct types, the two different end types of Centerline, the archived type of Wishbone) and bot scoring.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/allTypesEverywhere.test.ts', 'packages/sim/src/docbot/tribePredicates.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

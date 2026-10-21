@@ -38,7 +38,7 @@ import { spellFizzles } from './spellFizzle';
 import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
-import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, hasRunTribe, stampRunTribes } from './recruit';
+import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
 import { withWhisperMult } from './recruit';
 import { HUM_PER_TURN, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
@@ -141,7 +141,7 @@ function spendGold(s: RunState, amount: number): void {
  *  the right-hand spell slot, a Spell-Cart shop spell, a held-Displacement restore, and the normal buy. */
 function tiffBuyDiscount(s: RunState, card: CardDef): void {
   if (!hasPower(s, 'dragonTamer')) return;
-  if (card.spell || card.tribe === 'dragon' || card.tribe2 === 'dragon' || hasRunTribe(s, card.id, 'dragon') || card.universalTribe) {
+  if (card.spell || defIsTribe(card, 'dragon', s)) {
     s.tiffDiscount = (s.tiffDiscount ?? 0) + 1;
   }
 }
@@ -396,7 +396,7 @@ export function nextRefreshCostOf(s: RunState): number {
 function appendDominantTypeOffer(s: RunState): void {
   const tribe = dominantBoardTribe(s);
   if (!tribe) return;
-  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(s, c.id, tribe)));
+  const pool = poolOf(s).buyable.filter((c) => !c.spell && !c.ruby && c.tier <= s.tier && defIsTribe(c, tribe, s)); // R-ALL-TYPES-EVERYWHERE-01
   if (pool.length === 0) return;
   const rng = makeRng(s.rngCursor);
   const pick = pool[rng.int(pool.length)]!;
@@ -1195,8 +1195,7 @@ export function reduce(state: RunState, action: Action): RunState {
     if (action.type === 'sell') {
       const soldCard = state.board.find((c) => c.uid === action.uid) ?? state.hand.find((c) => c.uid === action.uid);
       const sdef = soldCard ? CARD_INDEX[soldCard.cardId] : undefined;
-      const stribes = sdef ? ([sdef.tribe, sdef.tribe2].filter(Boolean) as Tribe[]) : [];
-      advanceQuests(next, (o) => o.event === 'sell' && (!o.tribe || stribes.includes(o.tribe)));
+      advanceQuests(next, (o) => o.event === 'sell' && (!o.tribe || defIsTribe(sdef, o.tribe, state)));
     }
     if (action.type === 'buy') {
       // "Buy N <tribe>" (Forager's Trail) / "Buy N Shout minions" (Warm Embers): narrow the buy tick to the
@@ -1204,9 +1203,8 @@ export function reduce(state: RunState, action: Action): RunState {
       // shop offer the action targeted.
       const offer = state.shop.find((c) => c.uid === action.uid);
       const bdef = offer ? CARD_INDEX[offer.cardId] : undefined;
-      const tribes = bdef ? ([bdef.tribe, bdef.tribe2].filter(Boolean) as Tribe[]) : [];
       const isShout = !!bdef && hasBattlecry(bdef);
-      advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || tribes.includes(o.tribe)) && (o.filter !== 'shout' || isShout));
+      advanceQuests(next, (o) => o.event === 'buy' && (!o.tribe || defIsTribe(bdef, o.tribe, state)) && (o.filter !== 'shout' || isShout));
       applyCardsBought(next, 1); // Korok / Banksly: "when you buy N cards" (the buy-count sibling of the Gold meter)
       next.cardsBoughtThisTurn = (next.cardsBoughtThisTurn ?? 0) + 1; // set 2: Frenzied Excavator's SoC scaler
       // ANCIENTS (a no-op unless the run has them): every successful buy, each path once. The spell SLOT is not in
@@ -1250,7 +1248,7 @@ export function reduce(state: RunState, action: Action): RunState {
       // RUNE OF DRACONIC CURIOSITY (balance 9/23: "when you buy a Dragon get a random spell") — moved here from
       // the Discover pick. A random Shop spell from the run's pool at or below the shop tier (never an Ale), one
       // per copy held (recurring family, owner 2026-08-27). All-types bodies count as Dragons.
-      if (next.runeDraconicCuriosity && boughtMinion && (bdef.tribe === 'dragon' || bdef.tribe2 === 'dragon' || hasRunTribe(next, bdef.id, 'dragon') || bdef.universalTribe)) {
+      if (next.runeDraconicCuriosity && boughtMinion && defIsTribe(bdef, 'dragon', next)) {
         procRuneId(next, 'rune_draconic_curiosity');
         conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier && !ALE_IDS.includes(c.id)), runeStacksOf(next, 'rune_draconic_curiosity'), runeGrantOverflow(next));
       }
@@ -1292,7 +1290,7 @@ export function reduce(state: RunState, action: Action): RunState {
         if (next.runeStructure) { procRuneId(next, 'rune_structure'); conjureToHand(next, runSpells(next).filter((c) => c.tier <= next.tier), runeStacksOf(next, 'rune_structure')); }
       }
       // Trail Forager: each Beast you play raises every OTHER Trail Forager's sell value (+1, ×2 golden).
-      if (pdef && (pdef.tribe === 'beast' || pdef.tribe2 === 'beast' || hasRunTribe(next, pdef.id, 'beast') || pdef.universalTribe)) {
+      if (defIsTribe(pdef, 'beast', next)) {
         for (const c of next.board) {
           if (c.cardId === 'trailforager' && c.uid !== action.uid) c.sellBonus = (c.sellBonus ?? 0) + (c.golden ? 2 : 1);
         }
@@ -1301,8 +1299,7 @@ export function reduce(state: RunState, action: Action): RunState {
     for (const c of next.board) {
       if (before.has(c.uid)) continue; // only minions NOT present before this action count as summons
       const cdef = CARD_INDEX[c.cardId];
-      const tribes = cdef ? ([cdef.tribe, cdef.tribe2].filter(Boolean) as Tribe[]) : [];
-      advanceQuests(next, (o) => o.event === 'summon' && (!o.tribe || tribes.includes(o.tribe)));
+      advanceQuests(next, (o) => o.event === 'summon' && (!o.tribe || isTribeNatural(c, o.tribe) || defIsTribe(cdef, o.tribe, next)));
       if (cdef?.imp) advanceQuests(next, (o) => o.event === 'summonImp'); // Imp Census / Implosion — recruit-summoned Imps
     }
     // A quest that completed this action may have granted a card to hand — if so, check for a triple (a quest
@@ -1750,7 +1747,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         const aHp = (s.friedCircuitsStepHp ?? 0) * s.friedCircuitsBuys;
         for (const o of s.shop) {
           const d = CARD_INDEX[o.cardId];
-          if (d && (d.tribe === 'mech' || d.tribe2 === 'mech' || hasRunTribe(s, d.id, 'mech') || d.universalTribe)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
+          if (defIsTribe(d, 'mech', s)) addOfferBuff(o, 'Fried Circuits', aAtk, aHp);
         }
       }
       const cb = cardBuff(s, card.id); // persistent run buff (Ritualist's Fodder enchantment)
@@ -6168,7 +6165,7 @@ function resolveQuestThreshold(s: RunState, aq: ActiveQuest, def: QuestDef): voi
 /** Conjure `reps` random minions of `tribe` (≤ current tier) into the hand — the quest-reward draw (Grave
  *  Toll's "random Undead", Trail Rations' "random Beast"). Shares `conjureToHand`'s seeded pick + hand cap. */
 function grantRandomTribeMinion(s: RunState, tribe: Tribe, reps: number, overflow = false): void {
-  const pool = poolOf(s).buyable.filter((c) => (c.tribe === tribe || c.tribe2 === tribe || hasRunTribe(s, c.id, tribe)) && c.tier <= s.tier);
+  const pool = poolOf(s).buyable.filter((c) => defIsTribe(c, tribe, s) && c.tier <= s.tier); // R-ALL-TYPES-EVERYWHERE-01
   conjureToHand(s, pool, reps, overflow);
 }
 
@@ -6693,7 +6690,7 @@ function withQuestRewardBeat(s: RunState, key: string | undefined, label: string
  */
 function payTribeDrip(s: RunState, drip: { tribe: Tribe; count: number }): void {
   const pool = poolOf(s).all.filter((c) =>
-    !c.spell && !c.token && !c.ruby && c.tier <= s.tier && (c.tribe === drip.tribe || c.tribe2 === drip.tribe || hasRunTribe(s, c.id, drip.tribe)));
+    !c.spell && !c.token && !c.ruby && c.tier <= s.tier && defIsTribe(c, drip.tribe, s)); // R-ALL-TYPES-EVERYWHERE-01
   if (pool.length === 0) return;
   conjureToHand(s, pool, drip.count, runeGrantOverflow(s));
   procRuneId(s, `rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`);

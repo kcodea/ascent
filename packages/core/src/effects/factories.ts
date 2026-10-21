@@ -1,5 +1,5 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
-import { defIsTribe } from '../combat/tribe';
+import { bodyIsTribe, defIsTribe } from '../combat/tribe';
 import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
@@ -346,7 +346,7 @@ function applyRubyStats(ctx: CombatContext, self: Minion, target: Minion, a: num
 function playRubies(ctx: CombatContext, self: Minion, per: number, tribe: string, permanent = false): void {
   if (per <= 0) return;
   for (const m of ctx.living(self.side)) {
-    if (tribe && m.tribe !== tribe && m.tribe2 !== tribe) continue;
+    if (tribe && !bodyIsTribe(m, tribe, ctx.getCard(m.cardId))) continue; // R-ALL-TYPES-EVERYWHERE-01
     playRubyOn(ctx, self, m, per, permanent);
   }
 }
@@ -3183,7 +3183,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const tribe = self.golden ? '' : str(params.tribe);
     const targets = num(params.targets, 2) * mul(self);
     const per = num(params.rubies, 1);
-    const pool = ctx.living(self.side).filter((m) => !tribe || m.tribe === tribe || m.tribe2 === tribe);
+    const pool = ctx.living(self.side).filter((m) => !tribe || bodyIsTribe(m, tribe, ctx.getCard(m.cardId))); // R-ALL-TYPES-EVERYWHERE-01
     for (let i = 0; i < targets && i < pool.length; i++) playRubyOn(ctx, self, pool[i]!, per);
   },
 
@@ -4917,7 +4917,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     const maxTier = ctx.tierFor(self.side);
     const pool = ctx.poolCards(self.side).filter( // R-RANDOM-POOL-01: the shared legal-minion gate
       (c) => isLegalRandomMinion(c, maxTier) && (!params.excludeSelf || c.id !== self.cardId)
-        && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+        && (!tribe || defIsTribe(c, tribe as Tribe)), // R-ALL-TYPES-EVERYWHERE-01
     );
     if (pool.length === 0) return;
     for (let i = 0; i < num(params.count, 2) * mul(self); i++) {
@@ -4934,7 +4934,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     // Owner fix 2026-08-18: cap at the summoner's current tier (Bullseye must not roll a Tier-6 body).
     const maxTier = ctx.tierFor(self.side);
     const pool = ctx.poolCards(self.side).filter( // R-RANDOM-POOL-01: the shared legal-minion gate
-      (c) => isLegalRandomMinion(c, maxTier) && (!tribe || c.tribe === tribe || c.tribe2 === tribe),
+      (c) => isLegalRandomMinion(c, maxTier) && (!tribe || defIsTribe(c, tribe as Tribe)), // R-ALL-TYPES-EVERYWHERE-01
     );
     if (pool.length === 0) return;
     const s = num(params.stat, 7) * mul(self);

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-21',
     changes: [
+      { category: 'Balance', text: 'The Indy minion has new art.' },
       {
         category: 'Systems',
         text: 'Smoother play on desktop: buying, selling, playing, hovering, aiming and the start of each fight no longer stall the screen.',

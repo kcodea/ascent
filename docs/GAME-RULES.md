@@ -2024,6 +2024,10 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
   it.
 - **Its Avenge progress restarts** on the return, as a Rise's does (*"1/3 should reset to 0/3"*) and as any
   body placed mid-combat: the deaths tally is side-level state, not part of the body it keeps.
+- **Its per-combat limits start fresh** on the return, as a Rise's do (owner 2026-10-21, R-RETURN-RESET-01): every
+  once-per-combat or N-per-combat limit that belongs to the body (Pummel caps, Evolving Abomination, Brood Matron,
+  Whaloo, Immune Iggy / Bounty Bot's immune swings, Gryphon, Yeti, Foamguard) is available again, then spent until the
+  next removal and return. Side-wide budgets and per-turn limits do not reset.
 - **A body that dies to retaliation on its own swing and returns is next to attack again** — the Rise rewind
   in the attack rotation applies to a Rebirth return too.
 - **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Rune of the Deathtouched
@@ -2059,8 +2063,8 @@ resetting to 0/X after combat. It needs to carry over from turn to turn and comb
   never resets.
 - A payout happens **each time the tally crosses a multiple of X** (35 → 40 pays; 47 → 52 does not).
 - But **at most the card's per-combat cap** (`maxPerCombat`, default 1 = "(Once per combat.)"; Han Gover prints
-  "(Max 5 per combat.)", owner 2026-09-24). The payout count lives on the combat body, fresh every fight (a Rise
-  does not re-arm it). Within the cap every multiple crossed pays, including several crossed by one hit; past
+  "(Max 5 per combat.)", owner 2026-09-24). The payout count lives on the combat body, fresh every fight and
+  fresh again after a Rise or Rebirth return (R-RETURN-RESET-01, owner 2026-10-21). Within the cap every multiple crossed pays, including several crossed by one hit; past
   the cap the crossings are **spent, not banked** (under a cap of 1, a 120 hit from 0 pays once and the next
   payout waits for 160). Gilded doubles the payout, never the fire count.
 - The readout on every surface (shop, board, hand, combat) is progress toward the **next** payout: `total mod

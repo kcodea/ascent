@@ -36,6 +36,42 @@ export function foldTribes<T extends string>(tribe: T, tribe2: T | undefined, ex
   return seen[1] === undefined ? { tribe: seen[0]! } : { tribe: seen[0]!, tribe2: seen[1] };
 }
 
+/** Bounty Bot / Immune Iggy / Mauron: the immune-while-attacking swings a FRESH combat body starts with (`instantiate`
+ *  seeds it; a Rise / Rebirth return re-seeds it through `resetPerCombatLimits`). */
+export function freshAttackImmune(card: CardDef | undefined, golden: boolean): number | undefined {
+  if (!card) return undefined;
+  return card.attackImmuneAlways ? 1 : (golden && card.attackImmuneTurnsGilded ? card.attackImmuneTurnsGilded : card.attackImmuneTurns);
+}
+
+/**
+ * A RETURNED BODY STARTS ITS PER-COMBAT LIMITS FRESH (owner ruling 2026-10-21, R-RETURN-RESET-01, extending Foamguard's
+ * R-DWARF-1021-02 to every per-body cap: "yes"). The ONE reset both return paths (Rise and Rebirth in `killOrReborn`)
+ * call, so a once-per-combat or N-per-combat limit that lives ON THE BODY is available again after each removal and
+ * return, then spent until the next one. Covers:
+ *  - `pummelFires`: every Pummel cap (Tauntbreaker, Impossible Todd, Kobe, Han Gover, Goldvein, Maestro Lux);
+ *  - `bredCount`: Brood Matron's Imp cap AND Evolving Abomination's "twice per combat" Rally double;
+ *  - `whisperCastsUsed`: Whaloo's 3 Runebind casts;
+ *  - `attackImmuneLeft`: Immune Iggy / Bounty Bot's immune swings, RE-SEEDED from the card (the engine stamps
+ *    `attack.immune` off this count, so the immune-shield FX follows the reset with no UI change);
+ *  - `grantedRefresh`: Gryphon's free-refresh cap;
+ *  - `reflectFired`: Yeti's once-per-combat reflection;
+ *  - `wardRegainFired`: Foamguard (R-DWARF-1021-02).
+ * NOT here, on purpose: side-wide budgets (Deathtouched Apple, Dragonscale, Author's Hand, the Ancient Pummel latch),
+ * per-TURN latches whose combat half reads per combat (Candleback Bulwark's "(2 times per turn)" `rubyRecvTick`, Tamby,
+ * Reflector: a return happens inside the same turn, so a per-turn cap stays spent), and Lord of the Risen's Undying
+ * regain (`undyingRegained`), which is the guard that keeps Rise from re-arming itself. Bounded: a reset needs a spent
+ * Rise / Rebirth, and nothing reset here grants either back to its own body, so no loop is possible.
+ */
+export function resetPerCombatLimits(m: Minion, card: CardDef | undefined): void {
+  m.pummelFires = undefined;
+  m.bredCount = undefined;
+  m.whisperCastsUsed = undefined;
+  m.attackImmuneLeft = freshAttackImmune(card, !!m.golden);
+  m.grantedRefresh = undefined;
+  m.reflectFired = undefined;
+  m.wardRegainFired = undefined;
+}
+
 /** The token a Seed's granted Echo summons (Gardener's Whisper, Set 3 2026-10-15). */
 export const SEED_TOKEN_ID = 'd3_drakepup';
 /** ONE Seed stack: "Echo: summon a 3/3 Drake Pup with Taunt". `fixed`: a stack is one Pup whatever the body's gilding
@@ -113,7 +149,7 @@ export function instantiate(
     // Bounty Bot: fresh each combat — immune for its first N swings, spent per attack. Mauron
     // (attackImmuneAlways) seeds 1 and never spends it (see the swing site in simulate).
     // Immune Iggy (2026-10-15): a GILDED copy reads its own count (`attackImmuneTurnsGilded`, 4 swings).
-    attackImmuneLeft: card.attackImmuneAlways ? 1 : (board.golden && card.attackImmuneTurnsGilded ? card.attackImmuneTurnsGilded : card.attackImmuneTurns),
+    attackImmuneLeft: freshAttackImmune(card, !!board.golden),
 
     overflowBonus: board.overflowBonus, // Flowing Monk: flat grant bonus from the triple combine
     hpGrantBonus: board.hpGrantBonus, // Sergeant: seed the Deathrattle HP-grant accrual from the run board

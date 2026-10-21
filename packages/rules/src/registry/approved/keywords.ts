@@ -119,7 +119,7 @@ export const KEYWORDS_RULES: GameRule[] = [
       'Each Pummel (X) card declares how many payouts it may make in one combat (`maxPerCombat`, default 1 = '
       + '"(Once per combat.)"). Within that cap it pays once for EVERY multiple of X the tally crosses, including '
       + 'several multiples crossed by one hit, and each payout is its own pummelTrigger. The count is per combat '
-      + 'instance: a Rise does not re-arm it and a fresh combat does. Han Gover prints "(Max 5 per combat.)" and '
+      + 'instance: a fresh combat re-arms it, and so does a Rise / Rebirth return (R-RETURN-RESET-01, owner 2026-10-21). Han Gover prints "(Max 5 per combat.)" and '
       + 'pays up to 5 Ales, never a 6th; Goldvein and Maestro Lux stay once per combat.',
     domain: 'keywords',
     status: 'approved',
@@ -395,5 +395,31 @@ export const KEYWORDS_RULES: GameRule[] = [
       + '+3/+3 lifted it back to 3 Health, so it survived. Effect damage from an Execute body (Bleed, Echo spray) did not '
       + 'execute at all.',
     enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/execute.test.ts'], lastVerifiedAt: '2026-10-15' },
+  },
+  {
+    id: 'R-RETURN-RESET-01',
+    title: 'A body that returns through Rise or Rebirth starts every per-body per-combat limit fresh',
+    statement:
+      'Every once-per-combat or N-per-combat limit that belongs to one minion is spent per BODY. When that minion dies and '
+      + 'comes back through Rise or Rebirth, the returned body starts all of those limits fresh, then spends them until '
+      + 'the next removal and return; each removal and return resets them again. Covered: every Pummel cap (Tauntbreaker, '
+      + 'Impossible Todd, Kobe, Han Gover, Goldvein, Maestro Lux), Evolving Abomination\'s Rally double, Brood Matron\'s Imp '
+      + 'cap, Whaloo\'s Runebind casts, Immune Iggy and Bounty Bot\'s immune swings (the immune shield shows again on the '
+      + 'fresh swings), Gryphon\'s free refreshes, Yeti\'s reflection and Foamguard (R-DWARF-1021-02). The Pummel damage '
+      + 'tally itself is not a limit and keeps counting (R-PUMMEL-01). Unchanged: side-wide budgets (Deathtouched Apple, '
+      + 'Rune of Dragonscale, Author\'s Hand, the hero Pummel latch), per-TURN limits (Candleback Bulwark, Tamby, Reflector) '
+      + 'and Lord of the Risen\'s once-per-combat Rise regain. Bounded: a reset needs a spent Rise or Rebirth, and nothing '
+      + 'reset grants either back to its own body, so it cannot loop. The live "left this combat" card text restarts too.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21, extending the Foamguard ruling (#2198) to every per-combat limit', quote: 'yes' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 on Foamguard (R-DWARF-1021-02)', quote: "no it should rise and gain ward, then reset when it's removed again" },
+      { kind: 'code', ref: 'packages/core/src/combat/minion.ts resetPerCombatLimits / freshAttackImmune; packages/core/src/combat/simulate.ts killOrReborn (Rebirth and Rise branches); packages/ui/src/useCombatReplay.ts computeFrame (reborn branch)' },
+    ],
+    contentIds: ['tauntbreaker', 'dm_todd', 'k_kobe', 'dw3_hangover', 'k3_goldvein', 'ce3_starcharter', 'n2_abomination', 'brood', 'd3_whaloo', 'd3_iggy', 'bountybot', 'gryphon', 'n3_yeti', 'dw3_foamguard'],
+    currentBehaviour:
+      'Conforms (2026-10-21). Before, only Foamguard re-armed; every other per-body cap stayed spent after a Rise or Rebirth.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/riseResetLimits.test.ts', 'packages/ui/src/riseResetLiveText.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

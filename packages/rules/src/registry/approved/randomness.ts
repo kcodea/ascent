@@ -124,4 +124,23 @@ export const RANDOMNESS_RULES: GameRule[] = [
       + 'the Foundry had no Shop-tier cap at all.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts', 'packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-RANDOM-TIER7-02',
+    title: 'Summit rift: the default Discover clamp and Elevation Ritual reach Tier 7 only from a Tier 7 Shop',
+    statement:
+      'The default Discover clamp (any Discover without an authored tier cap, including the "one tier up" triple reward) '
+      + 'and Elevation Ritual\'s cap follow R-RANDOM-TIER7-01: they reach Tier 7 only while the Shop stands at Tier 7, even '
+      + 'on a Summit rift run. On a Tier 6 Summit Shop, Elevation Ritual re-rolls a Tier 6 offer within Tier 6. A Discover '
+      + 'whose text names Tier 7 (an explicit tier or cap) is authored and unchanged. Provisional: the owner may reverse '
+      + 'it, and the whole rule lives in one function (`discoverElevateCeiling`) so a revert is one line.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 on the two Summit exceptions left by #2191', quote: 'yes for now, may change this' },
+      { kind: 'code', ref: 'packages/sim/src/cardPool.ts discoverElevateCeiling; packages/sim/src/recruit.ts offerDiscover; packages/sim/src/shop.ts elevateShop' },
+    ],
+    contentIds: ['elevationritual'],
+    currentBehaviour: 'Conforms (2026-10-21). Before, both read maxTierFor(rift): 7 on any Summit rift run, whatever the Shop tier.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

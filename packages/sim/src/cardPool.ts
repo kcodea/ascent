@@ -73,6 +73,16 @@ export function randomTierCeiling(state: Pick<RunState, 'tier'>): number {
 }
 
 /**
+ * The DEFAULT Discover clamp (`offerDiscover` with no `maxTier`) and Elevation Ritual's offer cap. Owner ruling
+ * 2026-10-21 (R-RANDOM-TIER7-02, "yes for now, may change this"): these follow R-RANDOM-TIER7-01 too, so a Summit
+ * rift run reaches Tier 7 here only while its Shop actually stands at Tier 7. Before the ruling both read
+ * `maxTierFor(state.rift)` (7 on ANY Summit run). TO REVERT: return `maxTierFor(state.rift)` here; nothing else moves.
+ */
+export function discoverElevateCeiling(state: Pick<RunState, 'tier'>): number {
+  return randomTierCeiling(state);
+}
+
+/**
  * THE LEGAL RANDOM MINIONS of a run (owner reports 2026-10-20, R-RANDOM-POOL-01): the run's pinned buyable pool
  * minus spells, Rubies, tokens and henchmen, at or below `randomTierCeiling` (or a tighter `maxTier`, e.g. "up to
  * your Shop tier"). Every "summon / get a random minion" picker in the Shop starts here, so a card the Shop could

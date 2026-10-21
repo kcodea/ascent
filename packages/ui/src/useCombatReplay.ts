@@ -463,6 +463,10 @@ export function computeFrame(
         u.baseAttack = e.attack; // a returned minion is "fresh" — its stats become the new baseline
         u.baseHealth = e.hp;
         u.buffs = undefined; // back at base stats — the old buff breakdown no longer applies
+        // A returned body (Rise AND Rebirth) starts its per-combat caps fresh (owner 2026-10-21, R-RETURN-RESET-01): the
+        // live "N left this combat" counters (Whaloo's casts, Immune Iggy / Bounty Bot's immune swings) restart.
+        whisperCasts.delete(u.uid);
+        attacksBy.delete(u.uid);
         // A RISE returns the fresh printed copy (R-RISE-01): mirror the sim's per-instance reset so the combat card
         // text prints the risen body's reset value, not the original's stacks. Combat only: the Shop card keeps
         // the original's stacks (R-RISE-06). A Rebirth is the full body and keeps them.

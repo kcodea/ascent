@@ -72,6 +72,25 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'A minion that comes back with Rise or Rebirth starts its "per combat" limits fresh.',
+        details: [
+          'Pummel limits reset on a return: Tauntbreaker, Impossible Todd, Kobe, Han Gover, Goldvein and Maestro Lux.',
+          'Evolving Abomination can double twice more. Brood Matron can summon 3 more Imps. Whaloo can cast 3 more Runebinds.',
+          'Immune Iggy and Bounty Bot are immune on their first swings again, and show their shield again.',
+          'Gryphon can earn up to 4 more free refreshes. Yeti can throw a hit back once more.',
+          'Each return resets them once. Limits shared by your whole side, and "per turn" limits, are unchanged.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'On a Summit run, Discovers and Elevation Ritual only reach Tier 7 when your Shop is Tier 7.',
+        details: [
+          'This matches every other random pick, which already needed a Tier 7 Shop.',
+          'On a Tier 6 Shop, Elevation Ritual turns a Tier 6 minion into another Tier 6 minion.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'New cosmetics: fourteen new hero and minion skins join the chests.',
         details: [

@@ -13,7 +13,7 @@ import { equipIsNews, equipmentParams as equipmentParamsFor, grantEquipment as g
 import { currentCollector } from './activeCollector';
 import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
-import { legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
+import { discoverElevateCeiling, legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
@@ -10654,7 +10654,7 @@ export function offerDiscover(
   } else if (opts?.topTierFirst) {
     // Golden/triple reward only ("peek one tier up"): bias to the highest tier — fill from the top tier
     // down, walking the floor down only if the top tier can't supply 3. The single high-tier exception.
-    const target = Math.min(opts?.maxTier ?? maxTierFor(state.rift), discoverTier); // Summit / maxTier: ceiling can be 7
+    const target = Math.min(opts?.maxTier ?? discoverElevateCeiling(state), discoverTier); // R-RANDOM-TIER7-02: 7 only from a Tier 7 Shop (or an explicit maxTier)
     let floor = target;
     while (pool.length < 3 && floor >= 1) {
       pool = poolOf(state).buyable.filter(
@@ -10670,7 +10670,7 @@ export function offerDiscover(
   } else {
     // Card-driven Discover up to the tavern tier (Sea Urchin, Help Wanted): EVERY eligible card at or below
     // the target tier, weighed EVENLY — no high-tier bias (same rule as the shop + spell Discover).
-    const target = Math.min(opts?.maxTier ?? maxTierFor(state.rift), discoverTier); // Summit / maxTier: ceiling can be 7
+    const target = Math.min(opts?.maxTier ?? discoverElevateCeiling(state), discoverTier); // R-RANDOM-TIER7-02: 7 only from a Tier 7 Shop (or an explicit maxTier)
     pool = poolOf(state).buyable.filter(
       (c) =>
         c.tier <= target &&

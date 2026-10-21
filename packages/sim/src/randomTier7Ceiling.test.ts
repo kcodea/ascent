@@ -3,6 +3,9 @@ import { combatTierCeiling, STANDARD_TIER_CEILING } from '@game/core';
 import { CARD_INDEX, SETS, type SetId } from '@game/content';
 import { createRun, reduce, randomTierCeiling, type RunState } from './index';
 import { albusTimeTier } from './ancients';
+import { discoverElevateCeiling } from './cardPool';
+import { offerDiscover } from './recruit';
+import { elevateShop } from './shop';
 import type { BoardCard } from './state';
 
 /**
@@ -82,5 +85,41 @@ describe('the tier-above Discovers stop at 6 unless the Shop is at Tier 7', () =
     expect(albusTimeTier(run(1, 'set2', { tier7Access: true }))).toBe(6);
     expect(albusTimeTier(run(1, 'set2', { tier7Access: true, tier: 7 }))).toBe(7);
     expect(albusTimeTier(run(1, 'set2', { tier: 4 }))).toBe(5);
+  });
+});
+
+// R-RANDOM-TIER7-02 (owner 2026-10-21, "yes for now, may change this"): the default Discover clamp and Elevation Ritual's
+// cap follow R-RANDOM-TIER7-01 too. A Summit rift run reaches Tier 7 there only while its Shop stands at Tier 7.
+describe('Summit rift: the default Discover clamp and Elevation Ritual need a Tier 7 Shop', () => {
+  const summit = (seed: number, tier: number) => run(seed, 'set2', { rift: 'summit', tier });
+  const hasT7 = Object.values(CARD_INDEX).some((c) => c.tier === 7 && !c.token && !c.spell);
+
+  it('the shared ceiling: 6 from a Tier 6 Summit Shop, 7 from a Tier 7 one', () => {
+    expect(discoverElevateCeiling(summit(1, 6))).toBe(STANDARD_TIER_CEILING);
+    expect(discoverElevateCeiling(summit(1, 7))).toBe(7);
+  });
+
+  it('a "peek one tier up" Discover from a Tier 6 Summit Shop offers no Tier 7 (a Tier 7 Shop still can)', () => {
+    expect(hasT7, 'Tier 7 minions exist').toBe(true);
+    let t7From7 = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const s6 = summit(seed, 6);
+      offerDiscover(s6, 7, { topTierFirst: true });
+      expect((s6.discover ?? []).filter((id) => tierOf(id) >= 7), `seed ${seed}`).toEqual([]);
+      const s7 = summit(seed, 7);
+      offerDiscover(s7, 7, { topTierFirst: true });
+      t7From7 += (s7.discover ?? []).filter((id) => tierOf(id) === 7).length;
+    }
+    expect(t7From7, 'a Tier 7 Shop still Discovers Tier 7').toBeGreaterThan(0);
+  });
+
+  it('Elevation Ritual on a Tier 6 Summit Shop re-rolls Tier 6 offers within Tier 6', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const s = summit(seed, 6);
+      const t6 = Object.values(CARD_INDEX).filter((c) => c.tier === 6 && !c.token && !c.spell && (s.pool[c.id] ?? 0) > 0).slice(0, 3);
+      s.shop = t6.map((c, i) => ({ uid: `o${i}`, cardId: c.id } as RunState['shop'][number]));
+      elevateShop(s);
+      expect(s.shop.map((o) => tierOf(o.cardId)).filter((t) => t >= 7), `seed ${seed}`).toEqual([]);
+    }
   });
 });

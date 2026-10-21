@@ -972,6 +972,17 @@ export function onePerTribeTargets(board: readonly BoardCard[]): BoardCard[] {
   return out;
 }
 
+/** The SHOP-OFFER twin of `isTribe`: does this tavern offer count as `tribe`? A displaced body (`held`) answers as
+ *  the instance it is (its Anomaly Reactor `allTribes` / `addedTribes` marks travel with it); every other offer
+ *  answers from its def through `defIsTribe` (All-types `universalTribe`, the second tribe, run type overrides).
+ *  R-WRIT-ALL-TYPES-01: Deep Delve Writ's fizzle gate hand-rolled `def.tribe`/`tribe2` and refused to cast when the
+ *  only Dwarf-counting offer was an All-types body such as Paragon (owner 2026-10-20). */
+export function offerIsTribe(state: Pick<RunState, 'cardTribes'>, offer: ShopCard, tribe: Tribe): boolean {
+  if (tribe === 'neutral') return false;
+  if (offer.held && isTribeNatural(offer.held, tribe)) return true;
+  return defIsTribe(CARD_INDEX[offer.cardId], tribe, state);
+}
+
 export function isTribe(card: BoardCard, tribe: Tribe): boolean {
   if (tribe !== 'neutral' && card.unityTribes) return true; // Rune of Unity: the board's full house counts as every type
   return isTribeNatural(card, tribe);
@@ -9026,7 +9037,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
         .filter(({ o, def }) => {
           if (!def || o.starform) return false; // the Starform can't be stolen to hand (rule 5)
           if (!tribe) return true; // the Requisition takes anything the row holds, spells included
-          return !def.spell && !def.ruby && (def.tribe === tribe || def.tribe2 === tribe || hasRunTribe(ctx.state, def.id, tribe) || !!def.universalTribe);
+          return !def.spell && !def.ruby && offerIsTribe(st, o, tribe as Tribe);
         });
       if (pool.length === 0) break;
       const pick = pool[rng.int(pool.length)]!;

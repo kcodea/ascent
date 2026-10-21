@@ -221,4 +221,25 @@ export const TARGETING_RULES: GameRule[] = [
       + 'follows the Fatecarver convention.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/onePerTribeAllTypes.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
+  {
+    id: 'R-WRIT-ALL-TYPES-01',
+    title: 'Deep Delve Writ steals an All-types minion as a Dwarf',
+    statement:
+      'Deep Delve Writ steals a random Dwarf from the Shop. An All-types minion (printed All types, such as Paragon or '
+      + 'Standard Bearer, or a displaced body marked All by the Anomaly Reactor) counts as a Dwarf: it is a legal steal, '
+      + 'and a Shop whose only Dwarf-counting offer is All-types lets the Writ cast. With no Dwarf and no All-types offer '
+      + 'the Writ still fizzles and stays in hand.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-20', quote: 'paragon/other all types should be stolen from deep delve writs' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts offerIsTribe (spellStealShop pool); packages/sim/src/spellFizzle.ts spellStealShop gate' },
+    ],
+    contentIds: ['deepdelvewrit', 'n2_paragon', 'n2_standardbearer'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-20: the fizzle gate in front of the steal read only the printed tribe and second tribe, so a '
+      + 'Shop whose only Dwarf-counting offer was All-types refused the cast. The gate and the steal now share `offerIsTribe`, '
+      + 'which also reads the All-types and added-type marks a displaced body carries.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/writAllTypes.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
 ];

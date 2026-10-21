@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-20',
     changes: [
       {
+        category: 'Systems',
+        text: 'Deep Delve Writ can now steal All-types minions such as Paragon and Standard Bearer, since they count as Dwarves.',
+        details: [
+          'Before, the Writ refused to cast when the only Dwarf in the Shop was an All-types minion.',
+          'A minion given All types by the Anomaly Reactor counts too.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Kobold balance: Prospector and Cave Cutter give plain Rubies again, Blazer has less Health, and Alchemist Brisbane loses its Echo.',
         details: [

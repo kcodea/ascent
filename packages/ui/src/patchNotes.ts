@@ -69,6 +69,16 @@ export const PATCH_NOTES: PatchNote[] = [
           'In combat, All-types minions count for Dragon, Kobold and Mech effects such as Rune of Ancestral Roar and Rune of Gemstorm.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Effects that give, summon or Discover a random minion now only reach Tier 7 when your Shop is at Tier 7, in the Shop and in combat.',
+        details: [
+          'Unlocking Tier 7 (for example with Open Road) no longer lets random effects hand out Tier 7 minions while your Shop is still at Tier 6.',
+          'This includes Discovers from the tier above your Shop, such as Clockwork Assistant and Albus.',
+          'Rune of the Foundry now gives a Dragon at or below your Shop tier.',
+          'Effects that name Tier 7, such as Rune of the Deep and Beyond the Summit, are unchanged.',
+        ],
+      },
     ],
   },
   {

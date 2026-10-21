@@ -145,12 +145,17 @@ describe('Albus × TIME — Empowerment becomes Start of Turn: Discover a minion
     const beat = (s.sotBeatFx ?? []).find((b) => b.source.kind === 'hero' && b.source.label === 'Ancient of Time');
     expect(beat?.discovers).toBe(1);
   });
-  it('at the top tier it Discovers from your own top tier (Tier 6, or Tier 7 with access)', () => {
+  it('at the top tier it Discovers from your own top tier (Tier 6; Tier 7 only from a Tier 7 Shop)', () => {
     const top = picked('time', { tier: 6 });
     ancientStartOfTurn(top);
     expect(top.discover!.length).toBeGreaterThan(0);
     for (const id of top.discover!) expect(CARD_INDEX[id]!.tier).toBe(6);
-    const t7 = picked('time', { tier: 6, tier7Access: true });
+    // R-RANDOM-TIER7-01 (owner 2026-10-21): Tier 7 access alone with a Tier 6 Shop no longer opens Tier 7.
+    const access = picked('time', { tier: 6, tier7Access: true });
+    ancientStartOfTurn(access);
+    expect(access.discover!.length).toBeGreaterThan(0);
+    for (const id of access.discover!) expect(CARD_INDEX[id]!.tier).toBe(6);
+    const t7 = picked('time', { tier: 7, tier7Access: true });
     ancientStartOfTurn(t7);
     for (const id of t7.discover!) expect(CARD_INDEX[id]!.tier).toBe(7);
   });

@@ -6263,11 +6263,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const uncontrolled = raw === 'uncontrolled';
     const tribes = uncontrolled ? uncontrolledTribes(ctx.state) : undefined;
     const tribe = uncontrolled ? undefined : (raw as Tribe | undefined);
-    // `tierOffset` (Clockwork Assistant): EXACTLY the Shop's tier plus N, clamped to the run's own ceiling —
-    // `hasTier7Access` / `maxTierFor`, so Tier 7 is reachable only on a Summit run. Resolved into `fixed`, so
+    // `tierOffset` (Clockwork Assistant): EXACTLY the Shop's tier plus N, clamped to the random ceiling
+    // (`randomTierCeiling`, R-RANDOM-TIER7-01): Tier 7 only from a Tier 7 Shop. Resolved into `fixed`, so
     // it shares the exact-tier branch below rather than adding a third shape.
     const offset = num(params.tierOffset, 0);
-    const ceiling = hasTier7Access(ctx.state) ? 7 : maxTierFor(ctx.state.rift);
+    const ceiling = randomTierCeiling(ctx.state);
     const fixed = offset > 0
       ? Math.min(ceiling, ctx.state.tier + offset)
       : num(params.tier, 0); // 0 = tavern-tier bound; N = exactly tier N
@@ -12119,8 +12119,9 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
     if (fd.sold >= fd.per) {
       fd.sold -= fd.per;
       // R-RANDOM-POOL-01 (owner 2026-10-20: "orivax can be granted from the rune ... that also should not be
-      // possible"): legal random minions only, so no Tier 7 without Tier-7 access. No Shop-tier cap (unchanged).
-      const dragons = legalRandomMinionPool(state).filter((c) => defIsTribe(c, 'dragon', state));
+      // possible"): legal random minions only. R-RANDOM-TIER7-01 (owner 2026-10-21, "yes"): capped at your Shop tier
+      // like every other "get a random X" grant.
+      const dragons = legalRandomMinionPool(state, { maxTier: state.tier }).filter((c) => defIsTribe(c, 'dragon', state));
       // Same 5-sale meter, one Dragon per copy held per trip (threshold family, owner 2026-08-27).
       if (dragons.length > 0) { procRuneId(state, 'rune_foundry'); conjureToHand(state, dragons, runeStacksOf(state, 'rune_foundry'), runeGrantOverflow(state)); }
     }

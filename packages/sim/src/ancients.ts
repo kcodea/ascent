@@ -430,7 +430,7 @@ import { castSpell, exactBoardCopy, stampXeroxBond, addBuff, addOfferBuff, aegis
 import { CONFIG, INDY_GILD_RECHARGE_GOLD, hasTier7Access, maxTierFor } from './config';
 import { conjureToHand, gildMinion } from './recruit'; // Braum's Gilded payout (Investment's own conjure + gild)
 import { COMMISSION_DELAY, COMMISSION_TEXT, hasBattlecry, syncRunTribes } from './recruit'; // the 2026-10-09 batch
-import { poolOf } from './cardPool';
+import { poolOf, randomTierCeiling } from './cardPool';
 
 export type AncientId = 'death' | 'fortune' | 'war' | 'genesis' | 'time' | 'bonds';
 export const ANCIENT_IDS: readonly AncientId[] = ['death', 'fortune', 'war', 'genesis', 'time', 'bonds'];
@@ -2669,10 +2669,11 @@ export function ancientEmpowerPassive(state: RunState): boolean {
   return !!effectOf(state, 'sotDiscoverTierAbove');
 }
 
-/** TIME: the tier the Start of Turn Discover draws from: one above your Shop tier, clamped at the ceiling the way
- *  Empowerment itself clamps (Tier 6, or Tier 7 with access), so at the top it Discovers from your own top tier. */
+/** TIME: the tier the Start of Turn Discover draws from: one above your Shop tier, clamped at the random ceiling the
+ *  way Empowerment itself clamps (Tier 6, or Tier 7 only from a Tier 7 Shop: R-RANDOM-TIER7-01), so at the top it
+ *  Discovers from your own top tier. */
 export function albusTimeTier(state: RunState): number {
-  return Math.min(state.tier + 1, hasTier7Access(state) ? 7 : 6);
+  return Math.min(state.tier + 1, randomTierCeiling(state));
 }
 
 /** TIME: Start of Turn, queue a Discover of a minion from the tier above your Shop tier, as its own beat (R-SOT-BEAT-01). */

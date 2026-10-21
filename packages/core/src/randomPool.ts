@@ -13,7 +13,8 @@ import type { CardDef } from './types';
  *  - a MINION (not a spell, not a Ruby),
  *  - not a token (generated or reward-only bodies),
  *  - not a henchman (hero-bound, never in any shop),
- *  - at or below the run's tier CEILING: 6 in a normal run, 7 only with Tier-7 access (Summit, Open Road).
+ *  - at or below the tier CEILING: 6, or 7 only while that player's Shop actually stands at Tier 7. Tier-7 access
+ *    alone (Summit, Open Road) does not open it (R-RANDOM-TIER7-01, owner 2026-10-21).
  *
  * An effect whose text NAMES a tier ("a random Tier 7 minion", Rune of the Deep) asks for that tier explicitly and
  * does not come through this gate. The filter keeps the input order, so seeded picks stay replay-stable.
@@ -35,8 +36,9 @@ export function isLegalRandomCard(c: CardDef, ceiling: number = STANDARD_TIER_CE
   return c.spell ? true : isLegalRandomMinion(c, ceiling);
 }
 
-/** Combat's ceiling for one side: a side whose Shop already stands at Tier 7 has access; every other side is
- *  capped at the standard 6. (Combat carries no access flag; the Shop tier is the honest read.) */
+/** THE random-pick ceiling for one player, both phases (the Shop's `randomTierCeiling` calls this): Tier 7 only
+ *  while that player's Shop stands at Tier 7, else the standard 6. R-RANDOM-TIER7-01 (owner 2026-10-21, "cant be
+ *  getting t7s in combat either"): access alone never opens Tier 7 to a random picker. */
 export function combatTierCeiling(sideTier: number): number {
-  return Math.max(STANDARD_TIER_CEILING, sideTier);
+  return sideTier >= 7 ? 7 : STANDARD_TIER_CEILING;
 }

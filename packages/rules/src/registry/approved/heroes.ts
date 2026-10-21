@@ -417,7 +417,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCALBUS-05',
     title: 'Albus × Ancient of Time: Empowerment becomes passive; Start of Turn Discovers a minion from the tier above your Shop tier',
     statement:
-      'With the Ancient of Time, Empowerment is passive (never activatable). Every Start of Turn opens a Discover of a minion from exactly one tier above your Shop tier, as its own Start of Turn beat (R-SOT-BEAT-01). At the top the tier is clamped the way Empowerment clamps: at Tier 6 it Discovers Tier 6 minions, or Tier 7 with Tier 7 access. The power text prints the live tier.',
+      'With the Ancient of Time, Empowerment is passive (never activatable). Every Start of Turn opens a Discover of a minion from exactly one tier above your Shop tier, as its own Start of Turn beat (R-SOT-BEAT-01). At the top the tier is clamped the way Empowerment clamps: at Tier 6 it Discovers Tier 6 minions; Tier 7 only from a Tier 7 Shop (R-RANDOM-TIER7-01, 2026-10-21: Tier 7 access alone no longer opens it). The power text prints the live tier.',
     domain: 'heroes',
     status: 'approved',
     evidence: [

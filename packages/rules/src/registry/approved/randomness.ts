@@ -74,12 +74,12 @@ export const RANDOMNESS_RULES: GameRule[] = [
   },
   {
     id: 'R-RANDOM-POOL-01',
-    title: 'A random minion is always one the Shop could offer this run (no Tier 7 without Tier-7 access)',
+    title: 'A random minion is always one the Shop could offer this run (no Tier 7 below a Tier 7 Shop)',
     statement:
       'Every effect that summons, gets or grants "a random minion" (of a tribe, a keyword, a trigger family) picks '
       + 'only LEGAL random minions: from the pinned set of the run, never a spell, Ruby, token or henchman, and never above '
-      + 'the tier ceiling of the run (6 in a normal run; 7 only with Tier-7 access: the Summit rift or the tier7Access '
-      + 'flag; in combat, a side whose Shop stands at Tier 7). One helper owns it: legalRandomMinionPool in the Shop '
+      + 'the tier ceiling (6; 7 only while that player\'s Shop stands at Tier 7, in both phases, R-RANDOM-TIER7-01 since '
+      + '2026-10-21: Tier-7 access alone no longer opens it). One helper owns it: legalRandomMinionPool in the Shop '
       + '(packages/sim/src/cardPool.ts) and isLegalRandomMinion in combat (packages/core/src/randomPool.ts). Bullseye '
       + 'and Menagerie Mammoth also cap at your Shop tier in the Shop, matching their combat body (owner fix '
       + '2026-08-18). An effect whose text NAMES a tier (Rune of the Deep, "a random Tier 7 minion") is authored and '
@@ -96,6 +96,32 @@ export const RANDOMNESS_RULES: GameRule[] = [
       'Conforms as of 2026-10-20. Before: the Shop twins of Bullseye and Mammoth (fired by Funeral on Loan) and Rune '
       + 'of the Foundry built their list off the set pool with no tier bound, so Elderhorn and Orivax (Tier 7) could '
       + 'come out; combat Uncle Orc on an unpinned pool could summon the Tier 7 Kobold Alchemist.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-20' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RANDOM-TIER7-01',
+    title: 'A random pick gives Tier 7 only while your Shop is at Tier 7, in both phases; Rune of the Foundry caps at your Shop tier',
+    statement:
+      'A random minion pick (summon, get, grant or Discover a random minion, including the "tier above your Shop" '
+      + 'Discovers) never gives a Tier 7 minion, in the Shop or in combat, unless that player\'s Shop actually stands at '
+      + 'Tier 7. Tier-7 ACCESS alone (Open Road, Summit Passage, the Summit rift) with a Tier 6 Shop does not open Tier 7 to a '
+      + 'random picker. Rune of the Foundry\'s random Dragon (every 5 minions sold) is capped at your Shop tier like every '
+      + 'other "get a random X". Effects whose text names Tier 7 are authored and keep their tier: Rune of the Deep, Beyond '
+      + 'the Summit, Pete, Strange Revision (and the other printed "up to Tier 7" cards such as Skybound Ascendant and Golden '
+      + 'Monkey). The Shop ladder itself is unchanged: access still lets you upgrade to Tier 7.',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21 on Rune of the Foundry', quote: 'yes' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-21, on "combat ignores Tier 7 access"', quote: 'cant be getting t7s in combat either' },
+      { kind: 'code', ref: 'packages/sim/src/cardPool.ts randomTierCeiling (now combatTierCeiling of the Shop tier); packages/core/src/randomPool.ts combatTierCeiling; recruit.ts Rune of the Foundry (maxTier: Shop tier) and the Clockwork Assistant tierOffset Discover; ancients.ts albusTimeTier; reducer.ts Empowerment and the Lucky Seat prize cap' },
+    ],
+    contentIds: ['rune_foundry', 'n2_clockwork'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-21: randomTierCeiling returned 7 for any run with Tier-7 access, so with a Tier 6 Shop the '
+      + 'random grants, Choose One grants, Rally summons, Clockwork Assistant, Albus (Empowerment and the Ancient of Time '
+      + 'Discover) and the Lucky Seat prizes could reach Tier 7 in the Shop while combat (Shop tier read) could not. Rune of '
+      + 'the Foundry had no Shop-tier cap at all.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts', 'packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

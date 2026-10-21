@@ -197,7 +197,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "**Sell:** only fires when **this** minion is sold. A card that says \"when you sell a Demon\" (or any minion) is watching you sell **other** minions while it stays on your board.",
     aliases: ['sell trigger', 'when you sell', 'on sell', 'sell another'],
     seeAlso: ['sell-trigger', 'rally-watchers'],
-    covers: [{ keyword: 'sell', fp: '2b305b36' }, { rule: 'R-TEXT-09', fp: '522bf00e' }],
+    covers: [{ keyword: 'sell', fp: '0586604d' }, { rule: 'R-TEXT-09', fp: '623acc38' }],
   },
 
   // ── Positions and targets ──────────────────────────────────────────────────────────────────────────────

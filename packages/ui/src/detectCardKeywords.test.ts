@@ -79,11 +79,11 @@ describe('detectCardKeywords', () => {
   });
 
   // SELL (owner keyword 2026-09-23): "any card that operates on a 'When you sell this' should now say 'Sell: xyz'
-  // with sell being a highlighted keyword … put a pill in for Sell that says 'Triggers when this minion is sold.'"
-  // Every `onSell` minion prints the keyword form and raises the pill; the wording is the owner's verbatim. The pill
-  // fires ONLY on the keyword form: the verb in a sell spell ("Sell a friendly minion") and the sell-value line
-  // ("Sells for 2 Gold") are ordinary text and never raise a pill that says "this minion".
-  it('Sell pills: every onSell minion reads "Sell: …" and raises the pill; the verb never does', () => {
+  // with sell being a highlighted keyword". Every `onSell` minion prints the keyword form and raises the pill.
+  // BROADENED 2026-10-21 (owner): since #2203 made every printed sell verb the capitalised keyword
+  // (R-TEXT-SELL-CAPS-01), the pill also raises on "When you Sell…", "Sells for…" and "Selling", and its definition
+  // covers both meanings in one line. A lower-case "sell" / "sold" still never raises it.
+  it('Sell pills: the "Sell:" lead AND every capitalised Sell mention raise the pill; lower case never does', () => {
     const SELLERS = ['hoardwhelp', 'salvatore', 'd2_riverdrake', 'k_beggy', 'k_pouchpincher', 'n2_salesman', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'];
     for (const id of SELLERS) {
       const c = CARD_INDEX[id]!;
@@ -97,13 +97,23 @@ describe('detectCardKeywords', () => {
     expect(CARD_INDEX['k_beggy']!.text).toBe('**Sell:** Get a random **Ruby**.'); // re-pin 2026-10-10 (Kobold balance batch)
     expect(CARD_INDEX['sp3_grovereveler']!.text).toBe('**Sell:** give your minions **+1/+1**, then increase that by 1.');
     const def = KEYWORD_GLOSSARY.find((d) => d.id === 'sell')!;
-    expect(def.def).toBe('Triggers when this minion is sold.');
+    expect(def.def).toBe('Return a minion to the Shop for Gold. "Sell:" effects trigger when this minion is sold.');
+    expect(def.def).not.toMatch(/—|--/); // player text style: no em dash
     expect(def.section).toBe('triggers');
-    // Only the keyword form: the bare verb, the sell-value sentence and a lower-case "sell" never raise it.
-    expect(ids({ keywords: [], text: 'Sell a friendly minion. Give its stats to **2 random** friendly minions.' })).toEqual([]);
-    expect(ids({ keywords: [], text: 'Sells for **2 Gold**.' })).toEqual([]);
-    expect(ids({ keywords: [], text: 'The next minion you **sell** this turn sells for 3 Gold.' })).toEqual([]);
-    expect(ids({ keywords: [], text: 'When you sell a **Demon**, this gains its stats.' })).toEqual([]);
+    // "When you Sell" watchers (the Set 3 Sell Dwarves, Arcane Behemoth) now raise it, plain and Gilded.
+    for (const id of ['dw3_marketing', 'dw3_valyou', 'dw3_leeds', 'dw3_shiftbroker', 'dm_behemoth']) {
+      const c = CARD_INDEX[id]!;
+      expect(c.text, id).toMatch(/\*\*Sell\*\*/);
+      expect(ids({ keywords: c.keywords, text: c.text ?? '' }), id).toContain('sell');
+      expect(ids({ keywords: c.keywords, text: c.goldenText ?? c.text ?? '' }), id).toContain('sell');
+    }
+    expect(ids({ keywords: [], text: 'When you **Sell** a **Demon**, this gains its stats.' })).toEqual(['sell']);
+    expect(ids({ keywords: [], text: '**Sell** a friendly minion. Give its stats to **2 random** friendly minions.' })).toEqual(['sell']);
+    expect(ids({ keywords: [], text: 'Cards **Sell** for +1 Gold.' })).toEqual(['sell']); // the price sense, capitalised (kept, owner 2026-10-21)
+    expect(ids({ keywords: [], text: 'The next minion you **Sell** this turn **Sells** for 3 Gold.' })).toEqual(['sell']);
     expect(ids({ keywords: [], text: '**Sell:** get **6 Gold**. **End of Turn:** get a random Tier 1 Spell or Minion.' })).toEqual(['endofturn', 'sell']);
+    // Lower case is ordinary text (and "Seller" / "Sellsword"-style words are not the keyword).
+    expect(ids({ keywords: [], text: 'The next minion you sell this turn sells for 3 Gold. 2 minions sold.' })).toEqual([]);
+    expect(ids({ keywords: [], text: "Rune of the Seller's Market." })).toEqual([]);
   });
 });

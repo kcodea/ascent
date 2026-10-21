@@ -1,9 +1,10 @@
 /**
- * SET 3 SELL DWARVES (owner batch 2026-10-21): the live text prints what each card is doing right now.
- *   Mark Eting  the sales still owed to the next Shop Spell ("2 more minions"), plain and Gilded.
- *   Valyou      the triggers still owed to the next Gold.
- *   Leeds       the CURRENT grant in place (+2/+2 -> +4/+4 after 4 sales) and the sales owed to the next step.
- * All three also wear the shared sold-meter counter (N/4).
+ * SET 3 SELL DWARVES (owner batch 2026-10-21): what each card shows while its sold meter fills.
+ *
+ * Owner 2026-10-21 on the first cut (which wrote "When you Sell 2 more minions" / "(3 more)" into the text): "i dont
+ * think we use text for this, just integers". So the countdown is the game's standard integer counter under the card
+ * (`stepProgress`, N/4, the Avenge-style tally every every-N card wears) and the printed sentence stays the authored
+ * one. The live-text rule still holds: Leeds' current grant prints in place of +2/+2 once it has improved.
  */
 import { describe, expect, it } from 'vitest';
 import { liveCardText } from './instView';
@@ -14,43 +15,51 @@ const live = (id: string, soldProgress: number | undefined, golden = false) => {
   const r = liveCardText(id, { ...base, golden, soldProgress } as never);
   return golden ? r.goldenText ?? r.text : r.text;
 };
+/** No countdown prose on any surface: no "more", no "to go", no fraction in the text. */
+const noProse = (t: string): void => {
+  expect(t).not.toMatch(/\bmore\b|to go|\d+\/\d+(?!\/)/);
+};
 
-describe('Mark Eting: counts down the Sells to the next Shop Spell', () => {
-  it('prints the printed text with no progress, then the sales still owed', () => {
-    expect(live('dw3_marketing', 0)).toBe('When you **Sell** **4 minions**, get a random **Shop Spell**.');
-    expect(live('dw3_marketing', 2)).toBe('When you **Sell** {{2 more minions}}, get a random **Shop Spell**.');
-    expect(live('dw3_marketing', 3)).toBe('When you **Sell** {{1 more minion}}, get a random **Shop Spell**.');
-  });
-  it('Gilded keeps its 2 spells while counting down', () => {
-    expect(live('dw3_marketing', 1, true)).toBe('When you **Sell** {{3 more minions}}, get **2** random **Shop Spells**.');
+describe('Mark Eting: authored text, the countdown is the integer counter', () => {
+  it('prints the authored text at every point of the meter', () => {
+    for (const n of [0, 1, 2, 3]) {
+      expect(live('dw3_marketing', n)).toBe('When you **Sell** **4 minions**, get a random **Shop Spell**.');
+      noProse(live('dw3_marketing', n));
+    }
+    expect(live('dw3_marketing', 1, true)).toBe('When you **Sell** **4 minions**, get **2** random **Shop Spells**.');
   });
   it('wears the N/4 sold counter', () => {
     expect(stepProgress('dw3_marketing', { soldProgress: 3 })).toEqual({ current: 3, total: 4 });
+    expect(stepProgress('dw3_marketing', { soldProgress: 0 })).toEqual({ current: 0, total: 4 });
   });
 });
 
-describe('Valyou: counts down the triggers to the next Gold', () => {
-  it('prints the triggers still owed beside the threshold', () => {
-    expect(live('dw3_valyou', 0)).toBe('When you **Sell** a minion, gain **+3/+3**. Every **4** triggers also grants **2 Gold**.');
-    expect(live('dw3_valyou', 1)).toBe('When you **Sell** a minion, gain **+3/+3**. Every **4** triggers ({{3 more}}) also grants **2 Gold**.');
-    expect(live('dw3_valyou', 3, true)).toBe('When you **Sell** a minion, gain **+6/+6**. Every **4** triggers ({{1 more}}) also grants **4 Gold**.');
+describe('Valyou: authored text, the countdown is the integer counter', () => {
+  it('prints the authored text at every point of the meter, plain and Gilded', () => {
+    for (const n of [0, 1, 3]) {
+      expect(live('dw3_valyou', n)).toBe('When you **Sell** a minion, gain **+3/+3**. Every **4** triggers also grants **2 Gold**.');
+      noProse(live('dw3_valyou', n));
+    }
+    expect(live('dw3_valyou', 3, true)).toBe('When you **Sell** a minion, gain **+6/+6**. Every **4** triggers also grants **4 Gold**.');
   });
   it('wears the N/4 sold counter', () => {
     expect(stepProgress('dw3_valyou', { soldProgress: 2 })).toEqual({ current: 2, total: 4 });
   });
 });
 
-describe('Leeds: the current grant and the Sells to the next improve', () => {
-  it('prints the base grant before any sale', () => {
-    expect(live('dw3_leeds', 0)).toBe('When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.');
+describe('Leeds: the current grant in place, the countdown is the integer counter', () => {
+  it('prints the authored text while the grant is still the printed one', () => {
+    for (const n of [0, 1, 3]) {
+      expect(live('dw3_leeds', n)).toBe('When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.');
+    }
   });
-  it('counts down, then prints the improved grant in place', () => {
-    expect(live('dw3_leeds', 3)).toBe('When you play a **Dwarf**, give your **Dwarves {{+2/+2}}**. Improves when you **Sell** {{1 more minion}}.');
-    expect(live('dw3_leeds', 4)).toBe('When you play a **Dwarf**, give your **Dwarves {{+4/+4}}**. Improves when you **Sell** {{4 more minions}}.');
-    expect(live('dw3_leeds', 9)).toBe('When you play a **Dwarf**, give your **Dwarves {{+6/+6}}**. Improves when you **Sell** {{3 more minions}}.');
+  it('prints the improved grant in place, the rest of the sentence authored', () => {
+    expect(live('dw3_leeds', 4)).toBe('When you play a **Dwarf**, give your **Dwarves {{+4/+4}}**. Improves when you **Sell** **4 minions**.');
+    expect(live('dw3_leeds', 9)).toBe('When you play a **Dwarf**, give your **Dwarves {{+6/+6}}**. Improves when you **Sell** **4 minions**.');
+    noProse(live('dw3_leeds', 9));
   });
   it('Gilded doubles the base and every step', () => {
-    expect(live('dw3_leeds', 4, true)).toBe('When you play a **Dwarf**, give your **Dwarves {{+8/+8}}**. Improves when you **Sell** {{4 more minions}}.');
+    expect(live('dw3_leeds', 4, true)).toBe('When you play a **Dwarf**, give your **Dwarves {{+8/+8}}**. Improves when you **Sell** **4 minions**.');
   });
   it('wears the N/4 sold counter (the lifetime tally, read mod 4)', () => {
     expect(stepProgress('dw3_leeds', { soldProgress: 6 })).toEqual({ current: 2, total: 4 });

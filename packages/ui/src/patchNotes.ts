@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-21',
     changes: [
       {
+        category: 'Systems',
+        text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
+        details: [
+          'The tip now explains both meanings: selling a minion for Gold, and "Sell:" effects that trigger when that minion is sold.',
+          'Mark Eting, Valyou and Leeds show how close they are with the number counter under the card, and their text stays as printed. Leeds still shows its current buff.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Engraved minions now also keep keywords they gain in combat.',
         details: [

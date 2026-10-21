@@ -81,11 +81,11 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'overflow', name: 'Overflow', aliases: [], section: 'triggers', mechanic: 'overflow', def: 'When a minion is summoned, but does not have space on your board.' },
   // Sell (owner keyword 2026-09-23): the `onSell` trigger's printed form, "**Sell:** …" on every minion that does
   // something when IT is sold (Hoard Whelp, Salvatore McKlusky, River Drake, Beggy, Cheap Date, Traveling Salesman,
-  // the three Revelers). `match` pins detection + colouring to the keyword form: the bare verb is ordinary text on
-  // the sell spells ("Sell a friendly minion") and the sell-value lines ("Sells for 2 Gold"), which must not raise
-  // a pill that says "this minion". No schema badge and no medallion mechanic; the pill renders from the text hit,
-  // like Shout. Wording is the owner's verbatim.
-  { id: 'sell', name: 'Sell', aliases: [], section: 'triggers', mechanic: 'sell', match: /(?<![A-Za-z])Sell(?=\s*[:：])/, def: 'Triggers when this minion is sold.' },
+  // the three Revelers). Since #2203 every printed sell verb is the capitalised keyword (R-TEXT-SELL-CAPS-01), and the
+  // owner broadened the pill to match (2026-10-21): it raises on every Sell mention, "When you **Sell** a minion",
+  // "**Sells** for 2 Gold", "**Selling**", as well as the "Sell:" lead, so the definition covers both meanings in one
+  // line. Case-sensitive like every term: a lower-case "sell" / "sold" never raises it.
+  { id: 'sell', name: 'Sell', aliases: ['Sells', 'Selling'], section: 'triggers', mechanic: 'sell', def: 'Return a minion to the Shop for Gold. "Sell:" effects trigger when this minion is sold.' },
   { id: 'bleed', name: 'Bleed', aliases: [], section: 'triggers', mechanic: 'bleed', def: "Marks random enemies at Start of Combat. Every few attacks in the fight, each marked enemy still alive takes this minion's Attack." },
   { id: 'chooseone', name: 'Choose One', aliases: [], section: 'triggers', mechanic: 'chooseOne', def: 'When you play it, pick one of its two effects.' },
   // Compendium-only: no shipped text says "Watcher" — the medallion + codex row name the reactive family.

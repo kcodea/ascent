@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Boards in your Career and Recent Games now show their minions at the same size, with matching Attack and Health badges.',
+        details: [
+          'Every badge on a board is the same size, and every number on it uses the same text size.',
+          'Badges no longer overlap their neighbours on the Career page.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'All-types minions such as Paragon and Standard Bearer now count as every type everywhere, including effects that give, summon or offer a minion of a type.',
         details: [
           'Effects that give or offer a random minion of a type can now give an All-types minion.',

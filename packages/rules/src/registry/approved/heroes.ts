@@ -2086,4 +2086,24 @@ export const HEROES_RULES: GameRule[] = [
     example: "Ranked offers Indy, Warden, Keshi. Re-roll Warden: Warden dissolves and, say, Rayse coalesces in its place; the three re-roll buttons are gone. Pick Rayse: the run records { slot 1, warden to rayse }.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroReroll.test.ts", "packages/sim/src/versus/versusHeroReroll.db.test.ts", "packages/ui/src/heroReroll.test.tsx"], lastVerifiedAt: '2026-10-15' },
   },
+  {
+    id: "R-HERO-POWER-FRESH-01",
+    title: "A newly found hero power arrives ready: spend state belongs to the power, not the slot",
+    statement:
+      "Every way a run puts a hero power into a slot mid-run (Mimic's turn-start pick, Void's turn-4 pair, Power Shifter, "
+      + "Second Calling) gives the arriving power ITS OWN spend state: its once-per-game latch and its whole-game use count. "
+      + "A power the run never spent arrives ready, whatever the power it replaced had used. A power found AGAIN keeps what "
+      + "it spent itself (a Mimic re-finding a used Masterwork gets no free Gild; Jenkins keeps his dig count). The per-turn "
+      + "charge re-arms on every arrival. A native passive that keeps running after a Power Shifter (Drakko's and Chronos' "
+      + "quests, Runesmith's forge) spends its own latch, never the shifted-in power's.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-20 (Copy Machine came spent)", quote: "copy machine came spent - i had used masterwork before this, maybe that's why? it should reset from finding a new hero power tho" },
+      { kind: 'code', ref: "packages/sim/src/heroes.ts swapPowerLatch / powerLatchSpent / markPowerLatchSpent; packages/sim/src/reducer.ts pickPower, drakkoQuestBuy, chronosQuestBuy, buyRune / skipRuneforge; packages/sim/src/recruit.ts giftSecondCalling; RunState.powerLatches" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-20). Before: the slot latch was reset only on a hero's FIRST adoption, so Copy Machine found a second time inherited Masterwork's spent flag.",
+    example: "Mimic wears Copy Machine (unused), then Masterwork and Gilds a minion, then finds Copy Machine again: it is ready and copies a minion.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerArrivesReady.test.ts"], lastVerifiedAt: '2026-10-20' },
+  },
 ];

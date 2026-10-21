@@ -15,7 +15,7 @@ import { alignmentOf } from './alignment';
 import { lobbyOpponentBoard } from './lobby/runLobby';
 import { legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
-import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool } from './heroes';
+import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
 import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants } from './shop';
@@ -4042,9 +4042,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     // Slot 0 stays whatever the run already wields; slot 1 is the granted power.
     const cur = st.voidPowerIds ?? [st.heroId];
     st.voidPowerIds = [cur[0] ?? st.heroId, pick];
-    st.heroReady2 = true;
-    st.heroPowerSpent2 = false;
-    st.heroPowerUses2 = 0;
+    swapPowerLatch(st, 1, cur[1], pick); // it arrives ready (R-HERO-POWER-FRESH-01)
   },
 
   /** PARTING GIFTS: sell the target, then hand its stats to 2 random OTHER friendly minions. The stats are

@@ -3976,7 +3976,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
    *  amount to `count` DISTINCT random living enemies (fewer when fewer stand; one enemy → just that one). Each
    *  hit goes through `ctx.damage`, the normal path — a Ward pops, Immune shrugs it, on-damaged watchers wake,
    *  a kill resolves at once with the standing Echo-before-Rise order, and Yeti is the credited source. The latch
-   *  is `reflectFired` on the instance (like Gryphon's cap), so a Risen / Reborn Yeti does NOT re-arm. Fires even
+   *  is `reflectFired` on the instance (like Gryphon's cap); a Risen / Reborn Yeti re-arms (R-RETURN-RESET-01). Fires even
    *  on the hit that kills it (the guard is `dead`, not Health — the body is still resolving). Golden doubles
    *  nothing: the owner's text has no gilded rider. Reads `payload.amount` (added to `onDamaged` for it). */
   onDamagedReflectRandomEnemies: (ctx, self, params, payload) => {

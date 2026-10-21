@@ -481,8 +481,8 @@ offsets in `styles.css`).
   ATLASES (one file per tribe/set instead of one per card — also fewer HTTP requests); **(b)** host art
   off-zip on a CDN and load by URL (itch allows external fetches, but it breaks offline/desktop parity);
   **(c)** ship art only for the active set and lazy-load the rest. The desktop/Electron package is unaffected
-  (no file cap). `artNoRedundantMasters.test.ts` now documents the true arithmetic and is a trend tripwire
-  only — it does NOT prove a package will upload.
+  (no file cap). The art file-count tripwire in `artNoRedundantMasters.test.ts` was REMOVED 2026-10-21 (owner:
+  "we dont care about this"); that test now only blocks redundant PNG masters.
 
 - **Minion mechanic-icon (medallion `mechIcon` glyph) fixes — PR-1 SHIPPED 2026-08-19.** The resolver is
   rewritten: a shared `packages/ui/src/mechanics.ts` registry (structured detection over effect data +

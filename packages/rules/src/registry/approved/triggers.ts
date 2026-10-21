@@ -1349,7 +1349,8 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'body gives +10/+10 and Ward once more. After that it is spent until the next removal and return. Each '
       + 'removal and return resets it. The stats stay a combat-only gain (R-BUFF-PERM). Bounded: a reset needs a spent '
       + 'Rise / Rebirth (or a budgeted Deathtouched Apple re-arm), so no loop is possible. This reverses the '
-      + "R-DWARF-1021-01 build, which copied Yeti's \"a returned body stays spent\" rule; Yeti is unchanged.",
+      + "R-DWARF-1021-01 build, which copied Yeti's \"a returned body stays spent\" rule. Since 2026-10-21 the same reset "
+      + 'covers every per-body per-combat limit, Yeti included (R-RETURN-RESET-01).',
     domain: 'triggers',
     status: 'approved',
     evidence: [

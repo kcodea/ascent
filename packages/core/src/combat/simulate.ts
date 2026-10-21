@@ -28,7 +28,7 @@ import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
-import { addedSecondTribe, instantiate, seedEchoCount, type CardIndex } from './minion';
+import { addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
@@ -3115,8 +3115,8 @@ export function simulate(
    * instantiate, carried back whole at settle, kept by a Rise / Rebirth body (carry-over ruling 2026-09-21 —
    * "it needs to carry over from turn to turn and combat to shop"). Each time the tally crosses a MULTIPLE of
    * `every` the marker pays out — but at most ONCE per combat: the "(Once per combat)" rider is the
-   * `pummelFired` latch (on the instance like Yeti's `reflectFired`, so a Risen body does not re-arm and a fresh
-   * combat does). Overkill counts (a 30-Attack swing into a 1-Health body is 30 damage dealt). One enormous hit
+   * `pummelFires` count (on the instance; a fresh combat re-arms it, and so does a Rise / Rebirth return,
+   * R-RETURN-RESET-01). Overkill counts (a 30-Attack swing into a 1-Health body is 30 damage dealt). One enormous hit
    * that crosses several multiples still pays once, and the uncredited crossings are SPENT, not banked — the
    * tally already advanced by the full amount, so a 120 hit from 0 pays once and the next payout waits for 160.
    * A second crossing in the same fight likewise pays nothing (the latch holds); the tally still moves, and the
@@ -3147,7 +3147,7 @@ export function simulate(
     //
     // THE PER-COMBAT CAP (`params.maxPerCombat`, default 1 — the "(Once per combat)" rider; Han Gover's
     // "(Max 5 per combat.)" is 5, owner 2026-09-24): the fire count rides the combat instance (`pummelFires`,
-    // fresh every fight, NOT reset by a Rise). A hit that crosses several multiples pays once PER multiple up to
+    // fresh every fight, and reset by a Rise / Rebirth return, R-RETURN-RESET-01). A hit that crosses several multiples pays once PER multiple up to
     // what the cap has left — the keyword is "triggers each time this minion has dealt another X damage"; under a
     // cap of 1 that is the old "one payout, the rest spent" reading exactly. Uncredited crossings are SPENT.
     const cap = Math.max(1, typeof p.maxPerCombat === 'number' ? p.maxPerCombat : 1);
@@ -3378,10 +3378,10 @@ export function simulate(
       // not a buff, keyword or effect — so it is NOT part of the "full body" Rebirth keeps (owner 2026-09-16:
       // "it acts like rise, so copy that"). Stamped after its own death was tallied, so that death is no progress.
       minion.avengeBaseline = deaths[minion.side];
-      // FOAMGUARD (owner 2026-10-21, R-DWARF-1021-02: "it should rise and gain ward, then reset when it's removed
-      // again"): its "first time this loses Ward each combat" re-arms on every return. Bounded: a return needs a
-      // spent Rebirth / Rise, so the trigger fires at most once per body plus once per return.
-      minion.wardRegainFired = undefined;
+      // EVERY PER-BODY PER-COMBAT LIMIT RESETS on a return (owner 2026-10-21, R-RETURN-RESET-01, extending Foamguard's
+      // R-DWARF-1021-02): Pummel caps, Brood Matron / Evolving Abomination, Whaloo, Immune Iggy / Bounty Bot, Gryphon,
+      // Yeti, Foamguard. Bounded: a return needs a spent Rebirth / Rise. See `resetPerCombatLimits`.
+      resetPerCombatLimits(minion, cards[minion.cardId]);
       let at = arr.indexOf(minion);
       arr.splice(at, 1);
       while (at < arr.length && !before.has(arr[at]!.uid)) at++;
@@ -3533,7 +3533,7 @@ export function simulate(
       minion.sellBonus = undefined;
       minion.overflowBonus = undefined;
       minion.chefGrantedLast = undefined;
-      minion.wardRegainFired = undefined; // FOAMGUARD re-arms on a Rise return (R-DWARF-1021-02, owner 2026-10-21)
+      resetPerCombatLimits(minion, def); // every per-body per-combat limit starts fresh (R-RETURN-RESET-01, owner 2026-10-21)
       // …and its AVENGE progress restarts (owner: "1/3 should reset to 0/3"). Avenge counts are a side-level
       // deaths tally, so the reset is a per-instance BASELINE: everything before this moment no longer counts
       // for this body. Stamped AFTER its own rise-death was tallied, so that death isn't "progress" either.

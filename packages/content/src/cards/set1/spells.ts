@@ -921,7 +921,7 @@ export const SPELLS: CardDef[] = [
     text: "Choose a minion. Refresh the Shop with minions of its **type**.",
   },
   {
-    // Replace the tavern's minions with random minions ONE tier higher (capped at Tier 7). Untargeted.
+    // Replace the tavern's minions with random minions ONE tier higher (capped at Tier 6, or 7 from a Tier 7 Shop: R-RANDOM-TIER7-02). Untargeted.
     id: 'elevationritual',
     name: 'Elevation Ritual',
     tribe: 'neutral',

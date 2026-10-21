@@ -268,7 +268,8 @@ describe('Equipment Charger — Start of Turn: an extra Equipment charge', () =>
 /**
  * YETI (owner handoff 2026-09-19) — Tier 6 Neutral 0/12: "When this minion takes damage, deal it to 2 random enemies.
  * (Once per combat)". The reflection rides the normal damage path (Ward pops, kills resolve), targets are DISTINCT
- * living enemies off the combat rng, and the latch is on the combat instance — a Risen Yeti does not re-arm.
+ * living enemies off the combat rng, and the latch is on the combat instance. A Risen / Reborn Yeti re-arms (owner
+ * 2026-10-21, R-RETURN-RESET-01: every per-body per-combat limit starts fresh on a return).
  */
 describe('Yeti — the first hit each combat is thrown back at 2 random enemies', () => {
   const yeti = (over: Partial<BoardMinion> = {}): BoardMinion => bm('n3_yeti', over);
@@ -324,11 +325,12 @@ describe('Yeti — the first hit each combat is thrown back at 2 random enemies'
     expect(r.events.some((e) => e.type === 'death' && e.target === r.initial.enemy[0]!.uid)).toBe(true);
   });
 
-  it('once per COMBAT: a Risen Yeti does not re-arm (the latch stays on the instance)', () => {
-    // A 12-Attack foe kills Yeti in one hit (reflected: 12 to the foe), Yeti Rises at 1 Health and is hit again.
+  it('once per BODY: a Risen Yeti re-arms and throws its next hit back too (R-RETURN-RESET-01, owner 2026-10-21)', () => {
+    // A 12-Attack foe kills Yeti in one hit (reflected: 12 to the foe), Yeti Rises at 1 Health and is hit again,
+    // which the risen body reflects too (the second hit's own amount).
     const r = fightWithHand([yeti({ keywords: ['R'] })], [foeK(12, 100)]);
     const hits = reflected(r);
-    expect(hits.length).toBe(1);
+    expect(hits.length).toBe(2);
     expect(hits[0]!.amount).toBe(12);
     const yetiUid = r.initial.player[0]!.uid;
     expect(r.events.filter((e) => e.type === 'death' && e.target === yetiUid).length).toBe(2); // died, rose, died

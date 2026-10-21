@@ -342,10 +342,10 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'pummel-cap',
     topic: 'keywords',
     q: 'Can Pummel pay out more than once in a fight?',
-    a: "Only up to the card's limit, which is **once per combat** unless the card says \"Max N per combat\". Crossings past the limit are **used up, not saved**. One huge hit can pay out several times if the limit allows.",
+    a: "Only up to the card's limit, which is **once per combat** unless the card says \"Max N per combat\". Crossings past the limit are **used up, not saved**. One huge hit can pay out several times if the limit allows. If the minion comes back with **Rise or Rebirth**, its limit starts fresh.",
     aliases: ['pummel once per combat', 'pummel max', 'pummel limit'],
     seeAlso: ['pummel'],
-    covers: [{ rule: 'R-PUMMEL-02', fp: 'cfa3809c' }],
+    covers: [{ rule: 'R-PUMMEL-02', fp: '0227ad0b' }],
   },
   {
     id: 'pummel-gilded',

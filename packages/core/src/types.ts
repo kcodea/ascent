@@ -3014,18 +3014,18 @@ export interface Minion {
    *  (so a Taunt soaking many hits doesn't roll unlimited refreshes). Absent = 0. */
   grantedRefresh?: number;
   /** Yeti (Set 3 Neutral, 2026-09-19): its once-per-combat reflection has fired. On the INSTANCE like Gryphon's
-   *  `grantedRefresh` / Candleback's `rubyRecvTick`, and deliberately NOT on the Rise / Rebirth reset list — a
-   *  returned body is the same combat instance, so "once per combat" stays spent. A fresh Minion per fight. */
+   *  `grantedRefresh` / Candleback's `rubyRecvTick`; a fresh Minion per fight, and a Rise / Rebirth return resets it
+   *  (owner 2026-10-21, R-RETURN-RESET-01, `resetPerCombatLimits`). */
   reflectFired?: boolean;
   /** Foamguard (Set 3 Dwarf, 2026-10-21): its "first time this loses Ward each combat → +10/+10 and Ward" has fired
-   *  for THIS body. Unlike Yeti's `reflectFired`, a Rise / Rebirth return RESETS it (owner 2026-10-21, R-DWARF-1021-02:
+   *  for THIS body. A Rise / Rebirth return RESETS it, like every per-body cap (R-RETURN-RESET-01) (owner 2026-10-21, R-DWARF-1021-02:
    *  "it should rise and gain ward, then reset when it's removed again"); a fresh Minion per fight re-arms it too. */
   wardRegainFired?: boolean;
   /** PUMMEL (X) — how many damage-meter payouts this body has made THIS combat (Goldvein's Gold, Han Gover's
    *  Ale, Maestro Lux's Celestial; `DAMAGE_METER_MARKERS`), checked against the marker's `maxPerCombat` (default
    *  1 = "(Once per combat)"; Han Gover 5, owner 2026-09-24). The tally itself is lifetime and keeps growing;
-   *  only the payouts are counted. Same convention as `reflectFired`: on the instance, NOT reset by Rise /
-   *  Rebirth (a returned body is the same combat instance). A fresh Minion per fight re-arms it. */
+   *  only the payouts are counted. On the instance: a fresh Minion per fight re-arms it, and so does a
+   *  Rise / Rebirth return (owner 2026-10-21, R-RETURN-RESET-01, `resetPerCombatLimits`). */
   pummelFires?: number;
   /** Sergeant: accumulated HP bonus on its Deathrattle (grows each time Sergeant gains Attack in
    *  combat). Applied on top of the base params.health when the Deathrattle fires. Absent = 0. */

@@ -1,8 +1,8 @@
 import { inRunTribes, makeRng, type CardDef, type Rng, type Tribe } from '@game/core';
 import { runSpells } from './spellPool';
 import { CARD_INDEX } from '@game/content';
-import { poolOf } from './cardPool';
-import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES, maxTierFor } from './config';
+import { discoverElevateCeiling, poolOf } from './cardPool';
+import { CIA_ENCHANT_CHANCE, POOL_QUANTITIES } from './config';
 import { getHero, hasPower } from './heroes';
 import type { RunState, ShopCard } from './state';
 import { addOfferBuff, defIsTribe, rightmostShopMinion, stampVeinstormRubies } from './recruit';
@@ -380,7 +380,7 @@ function refillShopFilteredRow(state: RunState, filter: (c: CardDef) => boolean,
  * AT THE TIER CAP the offer is REFRESHED IN PLACE instead — a Tier-6 offer becomes a random Tier-6 (owner
  * 2026-07-24: it used to be left untouched, so the spell silently did nothing to the very offers it mattered
  * most for). `Math.min(tier + 1, cap)` expresses both cases: below the cap it steps up, at the cap it re-rolls
- * its own tier. The cap is `maxTierFor(state.rift)` — Tier 7 only with the Summit rift. No HERO raises it:
+ * its own tier. The cap is `discoverElevateCeiling` — Tier 7 only while the Shop stands at Tier 7 (R-RANDOM-TIER7-02). No HERO raises it:
  * Brackus's `summitLock` grants a single turn-1 Tier-7 Discover, not a higher shop tier.
  *
  * A cap re-roll may legitimately land on the SAME minion, and that still counts as a refresh (owner ruling) —
@@ -392,7 +392,7 @@ function refillShopFilteredRow(state: RunState, filter: (c: CardDef) => boolean,
  */
 export function elevateShop(state: RunState): void {
   const prior = [...state.shop];
-  const cap = maxTierFor(state.rift);
+  const cap = discoverElevateCeiling(state); // R-RANDOM-TIER7-02 (owner 2026-10-21): Tier 7 only from a Tier 7 Shop
   const rng = makeRng(state.rngCursor);
   const next: RunState['shop'] = [];
   for (const offer of state.shop) {

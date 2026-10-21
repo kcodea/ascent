@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  availableFocusCategories, COSMETICS, CRATE_TIER_FLOOR, DEFAULT_AETHER_ECONOMY, eligibleForCrate, quoteCrate,
+  availableFocusCategories, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETICS, CRATE_TIER_FLOOR, DEFAULT_AETHER_ECONOMY, eligibleForCrate, isFocusableCategory, quoteCrate,
   type CosmeticCategory, type CrateTier,
 } from '@game/progression';
 import { focusReceipt, leftByCategory, oddsSlices, SHOP_FOCUS_ORDER, shopFocusCategories } from './chestShopModel';
@@ -21,6 +21,14 @@ describe('shop category order', () => {
     expect(SHOP_FOCUS_ORDER).toEqual(['hero_skin', 'minion_skin', 'card_plate', 'portrait_frame', 'hero_attack', 'emote', 'title']);
     expect(shopFocusCategories()).not.toContain('announcer');
     for (const c of shopFocusCategories()) expect(SHOP_FOCUS_ORDER).toContain(c);
+  });
+
+  it('has a row for every enabled, focusable category in the catalog (a newly enabled one cannot silently lack a row)', () => {
+    const focusable = COSMETIC_CATEGORIES.filter((c) => COSMETIC_CATEGORY_DEFS[c].enabled && isFocusableCategory(c));
+    expect(focusable.length).toBeGreaterThan(0);
+    for (const c of focusable) expect(SHOP_FOCUS_ORDER, `${c} needs a place in SHOP_FOCUS_ORDER`).toContain(c);
+    // And nothing in the order is a category that can never be focused.
+    for (const c of SHOP_FOCUS_ORDER) expect(isFocusableCategory(c), c).toBe(true);
   });
 });
 

@@ -83,7 +83,8 @@ import { touchText } from '../touchInput';
  *               it account-wide; "Use default frame" puts the default ring back and previews it at once.
  *
  *   AETHER      (2026-10-18, spec docs/superpowers/specs/2026-10-18-aether-crate-shop-design.md: "An Aether balance is
- *               always visible") Only while `aetherVisible`; with it off the page renders exactly as before. The header
+ *               always visible") The wallet, the Chest Shop button and every purchase only while `aetherVisible`; with it
+ *               off the page has none of them, but the bay still draws its sealed chest's painted picture. The header
  *               carries the wallet chip; the Crate Shop (`CrateShop.tsx`) is its own full-screen page (2026-10-20): a Chest Shop button at the top of the sidebar
  *               swaps it in for the header and the body (the menu rail and every overlay stay), and a purchase plays straight in
  *               the theatre with the answer it already has. The bay draws its first sealed chest's painted picture (`ChestPicture`). A MILESTONE crate opens in the bay like any

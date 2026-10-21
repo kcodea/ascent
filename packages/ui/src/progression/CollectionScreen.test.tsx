@@ -1018,17 +1018,20 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
 });
 
 describe('the Collection screen: stage and performance tripwires', () => {
-  const css = readFileSync(join(__dirname, 'collection.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const read = (f: string): string => readFileSync(join(__dirname, f), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+  const css = read('collection.css');
+  // The page's own stylesheet plus the Chest Shop screen's and the painted chest picture's (both drawn on this page).
+  const pageCss = ['collection.css', 'chestShop.css', 'chestPicture.css'].map(read).join('\n');
   it('no raw viewport units, no viewport @media, no plain cursor keywords', () => {
-    expect(css).not.toMatch(/(?<![\w-])-?[\d.]+[dsl]?v[wh]\b/);
-    expect(css).not.toMatch(/@media[^{]*\((min-|max-)?(width|height|aspect-ratio)\s*:/);
-    expect(css).not.toMatch(/cursor\s*:/);
+    expect(pageCss).not.toMatch(/(?<![\w-])-?[\d.]+[dsl]?v[wh]\b/);
+    expect(pageCss).not.toMatch(/@media[^{]*\((min-|max-)?(width|height|aspect-ratio)\s*:/);
+    expect(pageCss).not.toMatch(/cursor\s*:/);
   });
-  it('every looping animation moves only transform or opacity', () => {
-    const looping = new Set([...css.matchAll(/animation:\s*([\w-]+)[^;]*infinite/g)].map((m) => m[1]!));
+  it('every looping animation moves only transform or opacity (the Collection, the Chest Shop and the chest picture)', () => {
+    const looping = new Set([...pageCss.matchAll(/animation:\s*([\w-]+)[^;]*infinite/g)].map((m) => m[1]!));
     expect(looping.size).toBeGreaterThan(0);
     for (const name of looping) {
-      const body = css.match(new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?\\})\\s*\\}`))?.[1] ?? '';
+      const body = pageCss.match(new RegExp(`@keyframes ${name}\\s*\\{([\\s\\S]*?\\})\\s*\\}`))?.[1] ?? '';
       const props = [...body.matchAll(/([a-z-]+)\s*:/g)].map((m) => m[1]);
       expect(props.length, name).toBeGreaterThan(0);
       for (const p of props) expect(['transform', 'opacity'], `${name}: ${p}`).toContain(p);

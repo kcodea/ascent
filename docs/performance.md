@@ -979,5 +979,19 @@ These are the rules the audits surfaced; the codebase already follows them — k
 - **Read every rect, then write** in any loop over cards or rows (FLIP, rail floats, gild sources). A per-target GSAP
   tween reads its target's computed transform at init, so tween a target ARRAY, not one tween per card.
 
+- **Don't move a card between containers; keep it mounted and move its transform** (the Versus room,
+  R-VERSUS-ROOM-MOUNTED-01, `docs/devlog/2026-10-21-versus-seat-mounted.md`). Re-parenting a card in React is an
+  unmount plus a mount plus a layout of the whole Card. Give each card one element in one layer for its whole life,
+  keep that list in arrival order (a keyed reorder is a DOM move, which is also a remount for the browser), and place
+  it with one `transform` read from still slot anchors (computed styles, so a transform or entrance on a slot never
+  leaks in). The same goes for a drag ghost that holds a Card: hide it between drags, don't unmount it on the drop.
+- **A card scaled by a transform is not the card laid out at that size when something inside it is fixed px.** The
+  room's stat pills scale about a px origin with px art inside a card-sized box, so a scaled seat card seated its
+  pills about 8 x 14 px off where the hand-sized card drew them. Measure the parts (not the boxes: a pill's visible
+  frame is a child of `.badge`) on both builds, then correct the offset in CSS.
+- **Don't flip an inherited property on a card's root in a hot path** (`pointer-events`, `visibility`, a custom
+  property): every element of the Card restyles. Put it on a leaf, or let an element that is already there take the
+  pointer.
+
 When in doubt: a property that changes the *pixels* of an element is expensive to animate; a property that
 only *moves or fades* an already-painted layer is cheap.

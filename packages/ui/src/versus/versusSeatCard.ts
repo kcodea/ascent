@@ -162,6 +162,10 @@ async function fetchProfiles(ids: readonly string[]): Promise<Map<string, Omit<S
   return out;
 }
 
+const sameSeatData = (a: SeatServerData, b: SeatServerData): boolean =>
+  a.avatar === b.avatar && a.favoriteHero === b.favoriteHero && a.titleId === b.titleId
+  && a.record?.wins === b.record?.wins && a.record?.losses === b.record?.losses;
+
 /** The last answer per player, so a refresh never flashes the numbers back to 0. */
 const seatCache = new Map<string, SeatServerData>();
 
@@ -173,9 +177,12 @@ export async function fetchSeatData(ids: readonly string[]): Promise<Map<string,
   const wanted = [...new Set(ids.filter((u) => typeof u === 'string' && u.length > 0))].slice(0, MAX_RECORD_IDS);
   const [records, profiles] = await Promise.all([fetchRecords(wanted).catch(() => new Map<string, VersusRecord>()), fetchProfiles(wanted)]);
   for (const id of wanted) {
-    const prev = seatCache.get(id) ?? {};
+    const prev = seatCache.get(id);
     const rec = records.get(id);
-    seatCache.set(id, { ...prev, ...(profiles.get(id) ?? {}), ...(rec ? { record: rec } : {}) });
+    const next: SeatServerData = { ...prev, ...(profiles.get(id) ?? {}), ...(rec ? { record: rec } : {}) };
+    // An unchanged answer keeps its object, so a re-read after a seat move never re-renders the room's cards
+    // (R-VERSUS-ROOM-MOUNTED-01: the cards are memoised on this object).
+    if (!prev || !sameSeatData(prev, next)) seatCache.set(id, next);
   }
   return new Map(wanted.map((id) => [id, seatCache.get(id)!] as const));
 }

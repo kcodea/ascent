@@ -5,7 +5,8 @@
  * provides): their portrait as the art, their name on the name line, their title as the text, Versus wins in the Attack
  * badge and losses in the Health badge (the normal badges, milestone frames and big-number fit included). What it says
  * is built in `versusSeatCard.ts`. Static: no animation of its own, no hover popup, and it never opens Inspect (a click
- * or right-click on it does nothing). `bench` = the small spectator size (its hover lift lives in versus.css).
+ * or right-click on it does nothing). Always drawn at the seat card's size: in the room a hand card is this same card
+ * scaled down by its transform (R-VERSUS-ROOM-MOUNTED-01), so a move between a seat and the hand never re-lays it out.
  */
 import { memo, useMemo, type SyntheticEvent } from 'react';
 import { Card, type CardView } from '../Card';
@@ -20,7 +21,7 @@ import type { VersusMember } from './versusRemote';
 
 const swallow = (e: SyntheticEvent): void => { e.preventDefault(); e.stopPropagation(); };
 
-export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, bench = false, host = false }: { m: VersusMember; server: SeatServerData | undefined; bench?: boolean; host?: boolean }) {
+export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, host = false }: { m: Pick<VersusMember, 'userId' | 'displayName' | 'profile'>; server: SeatServerData | undefined; host?: boolean }) {
   const own = m.userId === currentUserId();
   const showOpp = useGame((s) => s.showOpponentSkins);
   const myAvatar = useGame((s) => s.playerAvatar);
@@ -34,7 +35,7 @@ export const VersusPlayerCard = memo(function VersusPlayerCard({ m, server, benc
   const view = useMemo(() => playerCardView(src), [src]);
   const plate = cardPlateLookOf(src.cosmetics);
   return (
-    <div className={`vspcard-hold${bench ? ' vspcard-bench' : ''}${src.record ? '' : ' vspcard-norec'}`} onClickCapture={swallow} onContextMenuCapture={swallow} data-versus-card={m.userId}
+    <div className={`vspcard-hold${src.record ? '' : ' vspcard-norec'}`} onClickCapture={swallow} onContextMenuCapture={swallow} data-versus-card={m.userId}
       aria-label={src.record ? `${src.name}: ${view.attack} Versus wins, ${view.health} losses` : `${src.name}: Versus record loading`} role="img">
       <CardPlateContext.Provider value={plate}>
         <Card card={view} forceFull suppressPop plated />

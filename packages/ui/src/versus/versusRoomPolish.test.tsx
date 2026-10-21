@@ -158,7 +158,10 @@ describe('the room CSS contracts', () => {
     expect(rule('.vspcard-hold .card .badge')).toMatch(/scale:\s*var\(--vspcard-k\)/);
     // No size-specific override left on any room card's badges (the old x1.45 seat / x1 hand split).
     expect(css).not.toMatch(/--vspcard-badge|\.vspcard-bench \.card \.badge/);
-    expect(rule('.vspcard-bench')).toMatch(/--vspcard-k:\s*var\(--vsb-k/);
+    // A hand card is the seat card itself, scaled by --vsb-s (x0.72 of x1.6) through its transform, so its pills keep
+    // the same proportion by construction (R-VERSUS-ROOM-MOUNTED-01).
+    expect(rule('.vsarena')).toMatch(/--vsb-s:\s*calc\(var\(--vsb-k\) \/ var\(--vs-seat-k\)\)/);
+    expect(css).toMatch(/--vspcard-k: var\(--vs-seat-k, 1\.6\);/);
   });
 
   it('the backdrop is a pre-blurred static image: no live blur anywhere in the room (R-VERSUS-ROOM-POLISH-01)', () => {
@@ -179,7 +182,8 @@ describe('the room CSS contracts', () => {
   });
 
   it('the hand pops half as high and 10% smaller than the seat card, its grab pad over the popped card', () => {
-    expect(rule('.vsbcard:hover .vsbcard-lift')).toMatch(/translateY\(calc\(-1 \* var\(--vsb-ccw\)\)\) scale\(var\(--vsb-zoom\)\)/);
+    // One HAND card width up (the hand's --vsb-ccw, in the seat-sized card's own units: / --vsb-s), then x2.
+    expect(rule('.vsbcard:hover .vsbcard-lift')).toMatch(/translateY\(calc\(-1 \* var\(--vsb-ccw\) \/ var\(--vsb-s\)\)\) scale\(var\(--vsb-zoom\)\)/);
     expect(css).toMatch(/--vsb-zoom: 2;/);
     expect(rule('.vsbcard-hitup')).toMatch(/top: -255%/);
   });
@@ -243,7 +247,7 @@ describe('one action area that is empty until two fighters sit; drag-only seats;
       expect(labels).not.toContain('Spectate');
       expect(labels).not.toContain('Start game');
       expect(document.querySelector('.vspcard-p2 .vspcard-empty')?.textContent).toContain('Drag your card here');
-      expect(document.querySelector('.vspcard-p1 .vshostmark')).not.toBeNull();
+      expect(document.querySelector('.vsmcard-p1 .vshostmark')).not.toBeNull();
       expect(document.querySelector('.vsseatlabel, .vshosttag')).toBeNull();
     } finally { ui.unmount(); }
   });
@@ -288,10 +292,13 @@ describe('the bench (R-VERSUS-ROOM-STANDS-01)', () => {
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
     expect(css).not.toMatch(/\.vsbench::before/);
     expect(css).not.toMatch(/\.vsstands \{/);
-    const bench = /\n\.vsbench \{([^}]*)\}/.exec(css)![1]!;
-    expect(bench).toMatch(/--vsb-tilt: 0deg/);
-    expect(bench).toMatch(/--vsb-arc: 0px/);
-    expect(css).toMatch(/\.vsbench \.vsbcard-lift \.cardplate \{ filter: drop-shadow\(0 calc\(9 \* var\(--u\)\) calc\(20 \* var\(--u\)\) rgba\(20, 12, 4, 0\.42\)\); \}/);
+    // Flat by construction: a hand slot is a point on one baseline and a resting hand card is placed by a translate +
+    // scale only (no tilt, no arc anywhere in the hand).
+    expect(/\n\.vsbslot \{([^}]*)\}/.exec(css)![1]).toMatch(/top: 10%; left: calc\(50% \+ var\(--off\) \* var\(--vsb-step\)\)/);
+    expect(/\n\.vsbcard-lift \{([^}]*)\}/.exec(css)![1]).not.toMatch(/rotate|--off/);
+    expect(css).not.toMatch(/--vsb-tilt|--vsb-arc/);
+    // The shop hand's shadow, at the hand's size (the card is drawn at seat size, so its lengths are / --vsb-s).
+    expect(css).toMatch(/\.vsbcard \.vsbcard-lift \.cardplate \{ filter: drop-shadow\(0 calc\(9 \* var\(--u\) \/ var\(--vsb-s\)\) calc\(20 \* var\(--u\) \/ var\(--vsb-s\)\) rgba\(20, 12, 4, 0\.42\)\); \}/);
     const label = /\n\.vsstands-label \{([^}]*)\}/.exec(css)![1]!;
     expect(label).toMatch(/left: 50%/);
     const ui = enter([member('host', 'p1'), member('me', 'spectator'), member('you', 'spectator')]);

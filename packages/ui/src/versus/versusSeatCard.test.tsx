@@ -205,11 +205,13 @@ describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', 
     const ui = mount(<VersusRoom />);
     try {
       await act(async () => { await new Promise((r) => setTimeout(r, 0)); });
-      const fan = document.querySelectorAll('.vsbench .vsbcard');
+      // The hand: three slots placed by the hand's CSS, and the three spectators' own cards in the room's card layer
+      // (R-VERSUS-ROOM-MOUNTED-01), each a real plated card.
+      const fan = document.querySelectorAll('.vscards .vsbcard');
       expect(fan).toHaveLength(3);
       expect((document.querySelector('.vsbench') as HTMLElement).style.getPropertyValue('--n')).toBe('3');
-      expect([...fan].map((f) => (f as HTMLElement).style.getPropertyValue('--off'))).toEqual(['-1', '0', '1']);
-      expect(document.querySelectorAll('.vsbench .vspcard-hold.vspcard-bench .card.plated')).toHaveLength(3);
+      expect([...document.querySelectorAll('.vsbench .vsbslot')].map((f) => (f as HTMLElement).style.getPropertyValue('--off'))).toEqual(['-1', '0', '1']);
+      expect(document.querySelectorAll('.vsbcard .vspcard-hold .card.plated')).toHaveLength(3);
       expect(fan[0]!.querySelector('.badge.atk .value')?.textContent).toBe('12');
       expect(backend.rpcCalls).toBe(1); // seats + spectators in one read, no N+1
       expect(backend.lastArgs).toEqual({ p_users: ['me', 's1', 's2', 's3'] });
@@ -219,7 +221,7 @@ describe('the stands: spectators as a hand of player cards (owner 2026-10-16)', 
       expect(document.querySelector('.vspcard-p2 .vstake')).toBeNull();
       expect(document.querySelector('.vspcard-p2 .vspcard-empty')?.textContent).toContain('Waiting for an opponent');
       // The host (me) wears the crown on my seat card; no Host pill under it.
-      expect(document.querySelector('.vspcard-p1 .vshostmark')).not.toBeNull();
+      expect(document.querySelector('.vsmcard-p1 .vshostmark')).not.toBeNull();
     } finally { ui.unmount(); useVersus.setState({ room: null, screen: 'browser' } as never); }
   });
 

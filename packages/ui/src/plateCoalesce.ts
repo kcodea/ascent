@@ -167,6 +167,8 @@ interface Mote {
 export function playPlateCoalesce(
   screenRect: { left: number; top: number; width: number; height: number },
   target?: HTMLElement | null,
+  /** The overlay's stacking level (default 114). The Versus room (over the title, z480) passes its own. */
+  z = 114,
 ): void {
   if (typeof document === 'undefined') return;
   // Every node below is a fixed-position DOM overlay inside the stage: work in layout px (screen -> stage, stage.ts).
@@ -194,7 +196,7 @@ export function playPlateCoalesce(
   imp.style.cssText = [
     'position:fixed', `left:${rect.left}px`, `top:${rect.top}px`,
     `width:${rect.width}px`, `height:${rect.height}px`,
-    'pointer-events:none', 'z-index:114', 'opacity:0',
+    'pointer-events:none', `z-index:${z}`, 'opacity:0',
     `background:${arcaneGradient(pal.cDeep, pal.cMid, pal.cCore, c.grad)}`,
     `-webkit-mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
     `mask:url(${WIRE_SRC}) center / 100% 100% no-repeat`,
@@ -209,7 +211,7 @@ export function playPlateCoalesce(
   cv.width = cw; cv.height = ch;
   cv.style.cssText = [
     'position:fixed', `left:${rect.left - (cw - rect.width) / 2}px`, `top:${rect.top - (ch - rect.height) / 2}px`,
-    `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', 'z-index:114',
+    `width:${cw}px`, `height:${ch}px`, 'pointer-events:none', `z-index:${z}`,
   ].join(';');
   stageHost().appendChild(cv);
   const ctx = cv.getContext('2d');

@@ -7,7 +7,7 @@
  *
  * Pinned: my own card dropped on an open seat calls take-seat; an occupied seat refuses it (deny + spring back, no
  * call); a seated card dragged up into the sell band calls take-seat('spectator'); only my own card drags; the move is
- * optimistic and rolls back when the server refuses; the Join / Spectate buttons still work; the hand sits lower.
+ * optimistic and rolls back when the server refuses; there are no Join / Spectate buttons (R-VERSUS-ROOM-POLISH-03); the hand sits lower.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
@@ -213,19 +213,15 @@ describe('dragging in the room (R-VERSUS-DRAG-SEAT-01)', () => {
     } finally { ui.unmount(); }
   });
 
-  it('the Join and Spectate buttons still work (keyboard and touch path)', async () => {
-    const call = vi.spyOn(versusRemote, 'takeSeat').mockImplementation(async (_id, role) => roomOf([member('me', role)]));
-    const ui = enter([member('me', 'spectator')]);
+  it('a seat is taken and left only by dragging: no Join or Spectate buttons (R-VERSUS-ROOM-POLISH-03)', async () => {
+    const ui = enter([member('me', 'spectator'), member('you', 'p1')]);
     try {
       await flush();
-      const join = [...document.querySelectorAll<HTMLButtonElement>('.vspcard-p2 button')].find((b) => b.textContent === 'Join')!;
-      await act(async () => { join.click(); await new Promise((r) => setTimeout(r, 0)); });
-      expect(call).toHaveBeenLastCalledWith('r', 'p2');
-      expect(roles().me).toBe('p2');
-      const spectate = [...document.querySelectorAll<HTMLButtonElement>('.vsroomctl button')].find((b) => b.textContent === 'Spectate')!;
-      await act(async () => { spectate.click(); await new Promise((r) => setTimeout(r, 0)); });
-      expect(call).toHaveBeenLastCalledWith('r', 'spectator');
-      expect(roles().me).toBe('spectator');
+      const labels = [...document.querySelectorAll('button')].map((b) => b.textContent);
+      expect(labels).not.toContain('Join');
+      expect(labels).not.toContain('Spectate');
+      // The open seat's own text is the only cue: a spectator is told to drag.
+      expect(document.querySelector('.vspcard-p2 .vspcard-empty')?.textContent).toContain('Drag your card here');
     } finally { ui.unmount(); }
   });
 

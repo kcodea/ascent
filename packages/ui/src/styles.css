@@ -14200,6 +14200,14 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .vs-openchip { position: absolute; top: 14px; left: 14px; z-index: 3; padding: 3px 11px; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 900; font-size: 14px; letter-spacing: 0.05em; line-height: 1.2; white-space: nowrap;
   color: #fff; background: #b4423a; border: 1px solid #ffb3a8; box-shadow: 0 2px 6px -2px rgba(0, 0, 0, 0.7); }
+/* THE VERSUS PLATE GOES RED while a room is open (owner 2026-10-21: "make the Versus pill red if there's a room open so
+   it's more obvious", R-VERSUS-OPEN-PLATE-01): the tile's name plate takes the "N open" chip's red (its fill and its
+   pale edge), static, back to the normal plate at 0. Both looks: the classic cream plate and the Gem plate (whose
+   doubled-class rule needs the extra specificity, like the locked tiles' grey plate). One-shot colour change only. */
+.modecard.vs-open .mcname.hudpill-name,
+:root[data-hp-look="gem"] .modecard.vs-open .mcname.hudpill-name {
+  background: linear-gradient(180deg, #c9503f, #9c3328) padding-box, linear-gradient(180deg, #ffcfc4, #ffb3a8) border-box;
+  border-color: transparent; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
 .vs-badge { position: relative; z-index: 1; flex: none; margin-left: auto; display: grid; place-items: center;
   min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 900; font-size: 13px; line-height: 1; letter-spacing: 0;

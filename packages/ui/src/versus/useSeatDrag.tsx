@@ -20,6 +20,10 @@ import { currentUserId } from '../identity';
 import { getDragFeel } from '../dragFeel';
 import { hideDragCursorVeil, showDragCursorVeil } from '../dragCursorVeil';
 import { sfx } from '../sfx';
+import { cardFxScale } from '../fx/cardScale';
+import { playDef } from '../fx/playDef';
+import { playPlateCoalesce } from '../plateCoalesce';
+import { playPlateDissolve } from '../plateDissolve';
 import { onStageChange, stageHost, toScreen, toStage } from '../stage';
 import { TAP_SLOP } from '../touchInput';
 import { VersusPlayerCard } from './VersusPlayerCard';
@@ -222,41 +226,132 @@ export function SeatDragGhost({ room, data }: { room: VersusRoom; data: Readonly
   ), stageHost());
 }
 
+/** The room's FX level: over the room (the title is z450, the room z480 inside it), under the drag ghost (z485). */
+export const VS_FX_Z = 482;
+
+/** A refused seat move snaps the card back (R-VERSUS-DRAG-SEAT-01). That is a rollback, not a sale or a play, so the
+ *  next seating change it causes plays the plain glide with no coins, dust or sound. Set when the optimistic move is
+ *  dropped without a new room (the store's failure path), consumed by the next FLIP. */
+let rollbackPending = false;
+useVersus.subscribe((s, prev) => { if (prev.seatMove && !s.seatMove && s.room === prev.room) rollbackPending = true; });
+
+interface CardSpot { cx: number; cy: number; w: number; role: string; plate: PlateBox | null }
+interface PlateBox { left: number; top: number; width: number; height: number }
+const isSeat = (role: string): boolean => role === 'p1' || role === 'p2';
+const plateRect = (el: HTMLElement): PlateBox | null => {
+  const p = el.querySelector<HTMLElement>('.cardplate');
+  if (!p) return null;
+  const r = p.getBoundingClientRect();
+  return r.width > 0 ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
+};
+
+/** THE SALE (owner 2026-10-21, R-VERSUS-ROOM-SELL-01): the shop's sell, then the card forms back in the hand. The
+ *  authored `coin` def bursts where the card left its seat (my own drop: where I let go), then the hand card is
+ *  conjured in place by the arcane plate coalesce, the same one a generated hand card plays. */
+function presentSale(el: HTMLElement, at: { x: number; y: number }, sound: boolean): void {
+  if (sound) sfx.sell();
+  playDef('coin', { source: at, target: at, cursor: at });
+  // Hidden from this frame (the coalesce owns its reveal), formed once the coins have burst.
+  el.style.setProperty('opacity', '0', 'important');
+  window.setTimeout(() => {
+    const r = el.isConnected ? plateRect(el) : null;
+    if (r) playPlateCoalesce(r, el, VS_FX_Z); // hides it again until the wireframe resolves, then reveals it
+    else el.style.removeProperty('opacity');
+  }, 240);
+}
+
+/** THE PLAY (owner 2026-10-21, R-VERSUS-ROOM-PLAY-01): a card landing in a seat lands like a minion played to the
+ *  board. The glide home is the FLIP; as it settles, the authored `landing-dust` def plays at the card, sized to it
+ *  and +50% dense exactly like the shop's own landing (Recruit's `puffOnBoard`), with the shop's play sound. */
+function presentLanding(el: HTMLElement, afterMs: number, sound: boolean): void {
+  window.setTimeout(() => {
+    if (!el.isConnected) return;
+    if (sound) sfx.play();
+    const r = el.getBoundingClientRect();
+    const c = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    // `over`: the def's own `under` canvas lives inside the board (`.app`), under the title the room sits on.
+    playDef('landing-dust', { source: c, target: c }, { scale: cardFxScale(r.width), intensity: 1.5, slot: 'over' });
+  }, afterMs);
+}
+
 /**
  * THE FLIP for every room card (R-VERSUS-DRAG-SEAT-01: "a spectator who takes a seat visibly moves from the hand to
  * the slot for everyone"). When the room's seating changes (my drop, a rollback, a Realtime update from another
  * client, a Join / Spectate press), each card that changed place starts where it was and glides to where it is now:
- * transform + opacity only, through the Web Animations API (compositor), never a per-frame layout read. A card that
- * changed ROLE also scales from its old size (hand card to seat card and back). My own drop starts from the ghost.
+ * transform + opacity only, through the Web Animations API (compositor), never a per-frame layout read.
+ *
+ * What each change PRESENTS (owner 2026-10-21, R-VERSUS-ROOM-SELL-01 / -PLAY-01 / -ARRIVE-01), on every client:
+ *  - hand to seat: the card glides from the hand (or from where my drop let go) and lands with the shop's landing
+ *    dust and play sound;
+ *  - seat to hand: the shop's sale (the coins), then the card forms back in the hand (the plate coalesce);
+ *  - someone new: their card forms in place (the coalesce); someone leaving: their card burns off (the dissolve);
+ *  - a refused move just glides back, silent.
+ * My own drop already played its sound on release, so its presentation is silent here.
  */
 export function useSeatFlip(arena: RefObject<HTMLElement>, signature: string): void {
-  const prev = useRef(new Map<string, { cx: number; cy: number; w: number; role: string }>());
+  const prev = useRef(new Map<string, CardSpot>());
+  // Everyone this room view has already shown, so a resize (which forgets the places) never replays an arrival.
+  const known = useRef<Set<string> | null>(null);
   // A resize moves every card: the remembered places are stale, so the next change starts from where cards ARE.
   useEffect(() => onStageChange(() => prev.current.clear()), []);
   useLayoutEffect(() => {
     const root = arena.current;
     if (!root) return;
     const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const rollback = rollbackPending;
+    rollbackPending = false;
+    const first = known.current === null;
+    const seen = known.current ?? new Set<string>();
     const roles = new Map(signature.split(',').filter(Boolean).map((p) => { const i = p.lastIndexOf(':'); return [p.slice(0, i), p.slice(i + 1)] as const; }));
-    const next = new Map<string, { cx: number; cy: number; w: number; role: string }>();
-    for (const el of root.querySelectorAll<HTMLElement>('[data-versus-card]')) {
-      const id = el.dataset.versusCard!;
+    const next = new Map<string, CardSpot>();
+    const me = currentUserId();
+    // READ EVERYTHING FIRST (perf, measured 2026-10-21): every card's box and plate in one pass, before any write. The
+    // first read pays the commit's one layout; reading after an `animate()` or a style write would pay it again per card.
+    const cards = [...root.querySelectorAll<HTMLElement>('[data-versus-card]')].map((el) => {
       const r = el.getBoundingClientRect();
-      const now = { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, role: roles.get(id) ?? '' };
+      const id = el.dataset.versusCard!;
+      return { el, id, now: { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width, role: roles.get(id) ?? '', plate: plateRect(el) } as CardSpot };
+    });
+    for (const { el, id, now } of cards) {
       next.set(id, now);
-      const was = flipFrom.get(id) ?? prev.current.get(id);
+      const dropped = flipFrom.get(id);
+      const last = prev.current.get(id);
       flipFrom.delete(id);
-      if (!was || reduce || typeof el.animate !== 'function' || now.w <= 0) continue;
-      const moved = 'role' in was ? was.role !== now.role : true;
+      const animated = !reduce && typeof el.animate === 'function' && now.w > 0;
+      if (!seen.has(id)) {
+        seen.add(id);
+        // A new arrival (never the room's first paint: the entrance owns that). Formed in place, like a conjured card.
+        if (!first && animated && now.plate) playPlateCoalesce(now.plate, el, VS_FX_Z);
+        continue;
+      }
+      const was = dropped ?? last;
+      if (!was || !animated) continue;
+      const wasRole = last?.role ?? now.role;
+      const moved = wasRole !== now.role;
+      // My own drop played its sound on release; a press, a rollback and anyone else's move are heard here.
+      const sound = !(dropped && id === me);
+      if (moved && !rollback && isSeat(wasRole) && now.role === 'spectator') {
+        // Sold back to the stands: the coins where the card left (my drop: where I let go), then it forms in hand.
+        presentSale(el, { x: was.cx, y: was.cy }, sound);
+        continue;
+      }
       const dx = toStage(was.cx - now.cx);
       const dy = toStage(was.cy - now.cy);
       if (!moved && Math.abs(dx) < 2 && Math.abs(dy) < 2) continue;
       const s = moved ? was.w / now.w : 1;
+      const ms = moved ? 300 : 220;
       el.animate(
         [{ transform: `translate(${dx}px, ${dy}px) scale(${s})`, zIndex: 80 }, { transform: 'none', zIndex: 80 }],
-        { duration: moved ? 340 : 220, easing: 'cubic-bezier(0.2, 0.85, 0.35, 1)' },
+        { duration: ms, easing: 'cubic-bezier(0.2, 0.85, 0.35, 1)' },
       );
+      if (moved && !rollback && isSeat(now.role)) presentLanding(el, ms - 40, sound && wasRole === 'spectator');
     }
+    // Someone left: their card burns off where it last stood (the hand card's backplate exit, `plateDissolve`).
+    if (!first && !reduce) {
+      for (const [id, spot] of prev.current) if (!next.has(id) && !roles.has(id) && spot.plate) playPlateDissolve(spot.plate, undefined, VS_FX_Z);
+    }
+    for (const id of [...seen]) if (!roles.has(id)) seen.delete(id);
+    known.current = seen;
     prev.current = next;
   }, [arena, signature]);
 }

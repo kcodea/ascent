@@ -187,18 +187,31 @@ export async function refreshRooms(): Promise<void> {
   }
 }
 
+/**
+ * EVERYONE ARRIVES IN THE HAND (owner 2026-10-21, R-VERSUS-ROOM-HAND-01: "when a player joins/creates a room, by
+ * default put them in the hand"). The server seats a room's creator as player 1, so the creator steps down to the
+ * stands before the room is shown (the existing take-seat RPC; the host stays the host). If that step fails the room
+ * still opens, with the creator seated, rather than not at all.
+ */
 export async function createRoom(name: string): Promise<void> {
   try {
-    const room = await timed(() => versusRemote.createRoom(name, myIdentity()), (r) => r.serverNow);
+    let room = await timed(() => versusRemote.createRoom(name, myIdentity()), (r) => r.serverNow);
+    try { room = await versusRemote.takeSeat(room.id, 'spectator'); } catch { /* opens seated (above) */ }
     enterRoom(room);
   } catch (e) {
     set({ error: errorText(e) });
   }
 }
 
+/** Join a room into the hand (R-VERSUS-ROOM-HAND-01); a seat is then one drag (or Join) away. Only when the stands
+ *  are full does a `player` join take an open seat instead, so a full stand never locks a player out of a free seat. */
 export async function joinRoom(roomId: string, as: 'player' | 'spectator'): Promise<void> {
   try {
-    const room = await timed(() => versusRemote.joinRoom(roomId, as, myIdentity()), (r) => r.serverNow);
+    const room = await timed(() => versusRemote.joinRoom(roomId, 'spectator', myIdentity()), (r) => r.serverNow)
+      .catch((e: unknown) => {
+        if (as !== 'player' || (e as VersusError)?.code !== 'spectators_full') throw e;
+        return timed(() => versusRemote.joinRoom(roomId, 'player', myIdentity()), (r) => r.serverNow);
+      });
     enterRoom(room);
   } catch (e) {
     set({ error: errorText(e) });

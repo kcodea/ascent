@@ -4,8 +4,8 @@
  * skips breaks everything basically, if a player skips combat the spectator should follow their view back to shop in
  * real time"; R-SPECTATE-SKIP-01). Pinned:
  *  - THE TAP: the player's Skip press is tagged for the stands (nobody watching: nothing kept).
- *  - THE SKIP: the tag skips the spectator's own replay through the same skip the player's button runs, only while the
- *    screen is still playing that fight.
+ *  - THE SKIP: the tag asks the watch screen to skip that fight; Recruit runs the same skip the player's button runs
+ *    once the fight is playing there (a Skip landing during the entrance waits for it), never once it is done.
  *  - BACK TO THE SHOP: the player's shop view arriving while the spectator's replay is still mid-fight starts the exit
  *    at once (never a fight behind the player), and the shop actions they made meanwhile wait for the swap, then play
  *    on the shop as it stood before them (never presented over the fight).
@@ -86,30 +86,28 @@ describe('R-SPECTATE-SKIP-01: the tap', () => {
   it('Recruit tags the player\'s own Skip and runs the same skip on the watch screen\'s cue', () => {
     const src = readFileSync(join(__dirname, '..', 'Recruit.tsx'), 'utf8');
     expect(src).toContain('if (!useGame.getState().replaying) tapSkipCombat();');
-    expect(src).toContain("onPressCue('skipCombat', skipCombat)");
+    expect(src).toContain('if (!replay.done) skipCombat();');
   });
 });
 
 describe('R-SPECTATE-SKIP-01: the spectator skips with the player', () => {
-  it('the tag skips this screen\'s replay while it plays the fight, and never once it is done', async () => {
+  it('the tag asks this screen to skip that fight (Recruit performs it once the fight plays); never from the shop', async () => {
     const { pub, shop0 } = await watchIntoFight('sk1');
     vi.useFakeTimers();
-    const skip = vi.fn();
-    const off = press.onPressCue('skipCombat', skip);
     const settled = { ...shop0, phase: 'combat', combatSettled: true } as RunState;
     const m = nextSpectatorMessage(pub, settled, 1, false, true)!;
     m.acts = [{ t: 'skipCombat' }];
     sp.receiveSpectate(m);
     vi.advanceTimersByTime(100);
-    expect(skip).toHaveBeenCalledTimes(1);
-    // a second Skip after this screen's replay is over: nothing to skip
-    useGame.setState({ combatReplayDone: true });
-    const m2 = nextSpectatorMessage(pub, settled, 1, false, true)!;
-    m2.acts = [{ t: 'skipCombat' }];
-    sp.receiveSpectate(m2);
+    const first = sp.useSpectate.getState().skip;
+    expect(first).toMatchObject({ wave: 1 });
+    // a stray Skip tag on a shop view asks for nothing
+    const shop = nextSpectatorMessage(pub, { ...shop0, wave: 2 } as RunState, 2, false, true)!;
+    shop.acts = [{ t: 'skipCombat' }];
+    sp.receiveSpectate(shop);
+    sp.spectatorFightCovered();
     vi.advanceTimersByTime(100);
-    expect(skip).toHaveBeenCalledTimes(1);
-    off();
+    expect(sp.useSpectate.getState().skip).toEqual(first);
   });
 });
 

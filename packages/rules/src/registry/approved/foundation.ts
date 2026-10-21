@@ -7105,4 +7105,86 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-19 (fix/tuned-defaults-in-prod). From #2151 (2026-10-18) to this fix, 21 config modules (medallion, epic / spell medallion, gilded badge, glow, ward, tribe colour, UI theme, freeze, Tavern Up, lobby panel / rail, replay rail, Runeforge look, scout card, second power, step counter, hero duel / FX, buff drawer, align arc) were loaded only by their DEV tuner, so a production build fell back to the stylesheet defaults; the visible one was the medallion circle (circleOn 0 sets the cgem-nobg root class). tunedDefaults.test.ts fails if a module with a load-time apply is imported only by a tuner panel or tunerAll.ts.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/tunedDefaults.test.ts'], lastVerifiedAt: '2026-10-19' },
   },
+  {
+    id: 'R-SPECTATE-SKIP-01',
+    title: 'A spectator follows the watched player out of a fight the moment they leave it, skipped or not',
+    statement:
+      'When the watched player presses Skip, the spectator replay skips with it (the same skip the player screen runs), as long as the spectator is still playing that fight. '
+      + 'When the watched player is back in the shop (they skipped and ended combat, or the spectator is simply behind), the spectator screen leaves the fight at once: the End Combat exit curtain plays and the shop swaps in under it, however far its own replay had got. The screen is never held a fight behind a player who has gone back to the shop. '
+      + 'Shop actions the player makes while the spectator is still leaving the fight wait for the swap, then play in order on the shop as it stood before them, never over the fight. '
+      + 'This holds in Versus and in live ranked games, for a spectator who joined mid-fight too. While the player is still in the fight (their settle arriving before the spectator strike), the spectator still sees the strike play out.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (spectator and Versus polish)', quote: 'if a player skips combat the spectator should follow their view back to shop in real time' },
+      { kind: 'fix-pr', ref: 'fix/spectator-view' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectateTap.ts (tapSkipCombat); packages/ui/src/versus/spectate.ts (render pin release, pump awaitingShop, the skipCombat act); packages/ui/src/Recruit.tsx (skipCombat taps and answers the cue)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (fix/spectator-view). Before, the Skip never reached the stands, and the first combat view stayed pinned until the spectator own replay and strike had finished, so the player shop actions were presented over the fight and the shop arrived a whole fight late. An older player client sends no Skip tag: the spectator then plays the fight until the player is back in the shop, and follows them out at that moment.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSkip.test.tsx', 'packages/ui/src/versus/spectatorParity.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-SPECTATE-SAMEHERO-01',
+    title: 'The opponent shows in a spectated fight whatever heroes the two players picked',
+    statement:
+      'On the watch screen the watched player opponent (portrait, name, Health, board, runes, the fight Summary) is always the one in the lobby on screen: the opponent of the player being watched, in the current round. '
+      + 'Two players on the same hero (even with the same name) never share the opponent data, and switching between them shows each side its own opponent. A seat that is shown is read from the lobby the player sent, never from a cached copy of an earlier round or of the other player side.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (Versus spectating, Rooks and LEMON both on the tree hero)', quote: 'having 2 of the same hero doesnt show the opponent' },
+      { kind: 'fix-pr', ref: 'fix/spectator-view' },
+      { kind: 'code', ref: 'packages/sim/src/lobby/runLobby.ts (driverKey: an authored seat keys on its label and board count); packages/ui/src/versus/spectate.ts (freshDrivers: every lobby put on the watch screen rebuilds its authored seats)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (fix/spectator-view). Before, the Versus opponent seat driver was cached by kind, seed and hero only. The player own client evicts it on every rebuild, but the watch screen did not, so a driver built before any board existed (round 1) answered every later round with nothing, and the other side of the match (same seed, same hero) was served the first side driver. With two different heroes the two sides never collided (their keys differ by hero), which is why it showed with the same hero.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusFoeDriver.test.ts', 'packages/ui/src/versus/spectateSkip.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-SPECTATE-DISCHOVER-01',
+    title: 'A spectator can hover the watched player Discover cards and read them, without picking',
+    statement:
+      'On the watch screen every offer card the watched player is choosing from (a Discover, a Gift pick, the hero power Discover, a Choose One, the Quest pick) takes the spectator own hover and shows the same preview a card in hand gives, with the live values. '
+      + 'While their own mouse is on one, the player mirrored hover is lifted, as for runes (R-SPECTATE-RUNEHOVER-01). A press does nothing and plays no pick sound, and the cursor is the gauntlet.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-18 (parked, un-parked 2026-10-20), noted wording', quote: 'the cards in an opponent Discover cannot be hovered' },
+      { kind: 'fix-pr', ref: 'fix/spectator-view' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versus.css (.app.viewing.spectating .discover-ov .card); packages/ui/src/versus/spectatorHover.ts (LOCAL_HOVER_SELECTOR); the cause: an offer card takes a click, so it is role=button, and styles.css made every .app.viewing [role=button] inert' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (fix/spectator-view). Before, offer cards had no pointer events on the watch screen (only hand cards and runes could be hovered).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateSkip.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-SPECTATE-HUD-03',
+    title: 'Spectators are drawn like players: a larger portrait with the name plate under it',
+    statement:
+      'Every spectator plate (the player Spectating row top left, and a spectator own row top left with the other spectators) is laid out like a hero portrait: the portrait ring on top, larger than before, the name plate under it tucked over the ring bottom edge, and a small secondary Spectating tag under the name (Muted for a muted spectator). '
+      + 'Up to three plates then a +N chip, in one row that wraps instead of overlapping the HUD, on desktop and on the phone layout. The Leave button stays beside them. Long names are cut with an ellipsis. Only existing pieces are used (the portrait ring, the name plate, the pill), static paint, the gauntlet cursor, no browser tooltips.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-20 (spectator presence chips)', quote: 'make the spectators look a bit larger, and set them up like a normal player or hero where the names under the portrait' },
+      { kind: 'fix-pr', ref: 'fix/spectator-view' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versus.css (.vswatch-seat column layout, ring sizes); WatchersBadge.tsx and SpectatorHud.tsx markup unchanged' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (fix/spectator-view). Before, each spectator was a small ring with the name and Spectating pills beside it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-SPECTATE-RESUME-01',
+    title: 'A player who reloads or reconnects mid-game is followed again by everyone watching',
+    statement:
+      'When the watched player reloads the page, reconnects, or resumes their game, the spectators keep following them: the first frame the new session sends replaces what the stands were showing, and the saved keyframe a late joiner reads is the new session one. '
+      + 'A spectator screen never stays frozen on the last frame from before the player reload. This holds in Versus and in live ranked games.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-20 (spectator and Versus polish)', quote: 'the spectator and versus modes need a massive amount of polish' },
+      { kind: 'fix-pr', ref: 'fix/spectator-view' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectatorView.ts (newPublisher starts its seq at the clock); the receiver applySpectatorMessage and the SQL upserts (versus_publish_frame, lobby_live_publish_frame) both drop a seq at or below the held one' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-20 (fix/spectator-view). Found in two-client testing: a publisher restarted its seq at 1 after a reload, so every spectator dropped its frames as stale and the server kept the old keyframe; the stands froze on the round before the reload until the match ended.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorView.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
 ];

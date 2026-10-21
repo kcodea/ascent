@@ -2912,6 +2912,15 @@ export function Recruit() {
   }, [watchingVersus, fighting, run.lastCombat]);
   // A spectator already in this fight and behind the player's beat: snap to it (spectate.ts `syncFightBeat`).
   // A request that lands during the fight's entrance waits for the fight itself (`fighting`), then runs once.
+  // The watched player SKIPPED this fight (R-SPECTATE-SKIP-01): the same skip the Skip button runs, once the fight is
+  // actually playing here (a Skip that arrives during the entrance waits for it), once per request.
+  const spectatorSkip = useSpectate((s) => s.skip ?? null);
+  const skipDoneRef = useRef(0);
+  useEffect(() => {
+    if (!watchingVersus || !fighting || !spectatorSkip || spectatorSkip.wave !== run.wave || skipDoneRef.current === spectatorSkip.n) return;
+    skipDoneRef.current = spectatorSkip.n;
+    if (!replay.done) skipCombat();
+  }, [spectatorSkip, fighting, watchingVersus, run.wave]);
   const spectatorSeek = useSpectate((s) => s.seek ?? null);
   const seekDoneRef = useRef(0);
   useEffect(() => {
@@ -3312,8 +3321,6 @@ export function Recruit() {
       return 'out';
     });
   }, []);
-  // A SPECTATOR: the watched player's Skip runs this SAME skip, cued by the watch screen (R-SPECTATE-SKIP-01).
-  useEffect(() => (watchScreen ? onPressCue('skipCombat', skipCombat) : undefined), [watchScreen, skipCombat]);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
   // opponent's tavern tier fly up into a damage counter above the enemy board (clamped to the round cap),

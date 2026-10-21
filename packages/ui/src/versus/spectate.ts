@@ -52,6 +52,9 @@ export interface SpectateState {
   /** Seek the fight on screen to the watched player's beat (a late joiner catching up, R-SPECTATE-JOIN-01); `n`
    *  bumps per request, so the same beat can be asked twice. Recruit performs it. */
   seek?: { wave: number; beat: number; n: number } | null;
+  /** The watched player skipped the fight of `wave` (R-SPECTATE-SKIP-01); `n` bumps per request. Recruit performs it
+   *  once that fight is playing on this screen. */
+  skip?: { wave: number; n: number } | null;
   /** Each watched player's own odds for the fight they are in (`spectateTap.tapOdds`): the Summary's numbers. */
   odds?: Partial<Record<VersusSeat, WireOdds>>;
   /** Each watched player's minimized shop overlays (`spectateTap.tapOverlay`); absent = an older player: all open. */
@@ -387,11 +390,10 @@ function land(item: Pending, prevRun: RunState): void {
   const nextRun = useGame.getState().run;
   let eot: SpectatorAct['eot'] | null = null;
   item.acts.forEach((a, i) => {
-    // The fight's Skip (R-SPECTATE-SKIP-01): this screen's replay skips with the player's, only while it is still
-    // playing a fight (a screen already past it, or back in the shop, has nothing to skip).
+    // The fight's Skip (R-SPECTATE-SKIP-01): this screen's replay skips with the player's. Recruit performs the request
+    // once that fight is actually playing here (a Skip that lands during the entrance waits), and not once it is done.
     if (a.t === 'skipCombat') {
-      const g = useGame.getState();
-      if (g.run.phase === 'combat' && !g.combatReplayDone) emitPressCue('skipCombat');
+      if (item.view.phase === 'combat') { seekSeq += 1; useSpectate.setState({ skip: { wave: item.view.wave, n: seekSeq } }); }
       return;
     }
     const cue = PRESS[a.t];
@@ -742,7 +744,7 @@ export function stopSpectating(): void {
   lateEntry = true;
   fightBeat = null;
   resumeAt = null;
-  if (useSpectate.getState().seek) useSpectate.setState({ seek: null });
+  if (useSpectate.getState().seek || useSpectate.getState().skip) useSpectate.setState({ seek: null, skip: null });
   leaving = 'no';
   if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
   useSpectate.setState({ active: false });

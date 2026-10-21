@@ -1124,10 +1124,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Shop**: minion cost **3**, sell value **1**, refresh (reroll) cost **1**
   (`minionCost`, `sellValue`, `refreshCost`).
 - **Board** holds **7** minions; **hand** holds **10** (`boardMax: 7`, `handMax: 10`).
-  The hand can go past 10 only on a turn a rune is acquired: while the Runeforge is open it holds **20**
-  (`handMaxRuneTurn`), and that turn's rune grants may over-cap it so the pickup reward is never lost. On any other
-  turn a rune grant respects the 10-card cap (R-HAND-RUNE-TURN-01, owner 2026-10-20). Quest reward cards always
-  over-cap. Cards already over the cap are kept; the cap only limits adding.
+  The hand can go past 10 only at the moment a rune is acquired: while the Runeforge is open it holds **20**
+  (`handMaxRuneTurn`), and the cards granted as part of acquiring a rune (the Runeforge pick, or a rune granted by a
+  reward, and that rune's own on-acquire reward) may over-cap it so the pickup reward is never lost. Every later rune
+  grant, the same turn or any other (End of Turn drips, triggers, combat), respects the 10-card cap
+  (R-HAND-RUNE-TURN-01, owner 2026-10-20, narrowed 2026-10-21: *"whole turn shouldnt count, only the moment when rune
+  is selected/rewards granted"*). Quest reward cards always over-cap. Cards already over the cap are kept; the cap only
+  limits adding.
 - **Tiers** run **1–6** (`maxTier: 6`). Tavern-up costs: T2 **5**, T3 **7**, T4 **8**, T5 **11**,
   T6 **10**, and the cost drops by **1** each wave you don't upgrade, down to a floor of 0
   (`upgradeCost`, `upgradeDiscountPerWave`, `upgradeCostFloor`).

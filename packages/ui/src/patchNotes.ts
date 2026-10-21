@@ -79,6 +79,15 @@ export const PATCH_NOTES: PatchNote[] = [
           'Effects that name Tier 7, such as Rune of the Deep and Beyond the Summit, are unchanged.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Runes now push your hand past 10 cards only at the moment you get the rune, not for the rest of that turn.',
+        details: [
+          'The cards a rune gives you when you pick it at the Runeforge, or when a reward gives you a rune, still arrive even with a full hand.',
+          'Later rune cards on that same turn, such as End of Turn grants and triggers, need a free hand slot like every other card.',
+          'Quest rewards still arrive with a full hand, and cards you already hold past 10 are kept.',
+        ],
+      },
     ],
   },
   {

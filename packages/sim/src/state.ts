@@ -1898,11 +1898,6 @@ export interface RunState {
   collectorBoughtThisTurn?: string[];
   /** Rune ids bought this run — shown as permanent run-buff badges (above the hero panel). */
   ownedRunes?: string[];
-  /** The turn (`wave`) a rune was last ACQUIRED: bought at a Runeforge, granted by a reward, or dropped in by the
-   *  DEV / God Mode grant. Stamped by `markRuneAcquired` just before the rune's reward applies. Read only by
-   *  `runeGrantOverflow`: a rune-sourced card may push the hand past its cap on this turn and no other
-   *  (R-HAND-RUNE-TURN-01, owner 2026-10-20). Absent = no rune acquired yet. */
-  runeAcquiredWave?: number;
   /** RUNE DUPLICATE STACKING (owner rulings 2026-08-27): how many times each rune's reward has APPLIED this
    *  run — ticked once per application (buy, Rune of Duplication's copy, a granted rune). Consumers read
    *  `runeStacksOf` (min 1) to scale their output, so a single copy — and every legacy save from before the
@@ -2922,23 +2917,33 @@ export function handCap(state: Pick<RunState, 'runeforgeOffer'>): number {
 }
 
 /**
- * May a RUNE-sourced card grant push the hand past its cap right now? Only on a turn a rune was acquired.
+ * May a RUNE-sourced card grant push the hand past its cap right now? Only WHILE a rune is being acquired.
  *
- * Owner ruling 2026-10-20 (R-HAND-RUNE-TURN-01): "the extending of the hand past 10 cards should only happen on
- * turns where a rune is acquired, not from rune sources on every turn." Every rune grant used to pass
- * `overflow = true` unconditionally (the earned-reward rule), so a per-turn faucet such as Rune of the Deep or a
- * tribe drip grew the hand past 10 on every turn of the run. Now a rune grant over-caps only on the turn a rune
- * was bought or granted (`runeAcquiredWave`); on any other turn it respects the normal cap like every other grant.
- * Quest reward grants are untouched (they keep their own never-dropped overflow).
+ * Owner rulings: 2026-10-20 (R-HAND-RUNE-TURN-01) "the extending of the hand past 10 cards should only happen on
+ * turns where a rune is acquired, not from rune sources on every turn", narrowed 2026-10-21 (same rule)
+ * "whole turn shouldnt count, only the moment when rune is selected/rewards granted". So the window is the
+ * acquisition itself: the Runeforge pick (or a rune granted by a reward, or the DEV / God Mode grant) and that
+ * rune's own on-acquire reward resolution, wrapped in `withRuneAcquisition`. Later rune grants on the same turn
+ * (End of Turn drips, triggers, combat) respect the normal cap like every other grant. Quest reward grants are
+ * untouched (they keep their own never-dropped overflow), and cards already past the cap are kept.
+ *
+ * A synchronous scope marker, not run state: it is set and cleared around one call, so nothing is saved, nothing
+ * replays it, and an old save's retired `runeAcquiredWave` field is simply ignored.
  */
-export function runeGrantOverflow(state: Pick<RunState, 'runeAcquiredWave' | 'wave'>): boolean {
-  return state.runeAcquiredWave === state.wave;
+let runeAcquisitionDepth = 0;
+export function runeGrantOverflow(): boolean {
+  return runeAcquisitionDepth > 0;
 }
 
-/** Stamp "a rune was acquired this turn" (see `runeGrantOverflow`). Called at every place a rune joins `ownedRunes`,
- *  BEFORE its reward applies, so the rune's own pickup grants may over-cap the hand. */
-export function markRuneAcquired(state: Pick<RunState, 'runeAcquiredWave' | 'wave'>): void {
-  state.runeAcquiredWave = state.wave;
+/** Run `fn` as "a rune is being acquired" (see `runeGrantOverflow`): wrap the rune's reward application, and nothing
+ *  after it. Re-entrant (a rune whose reward grants another rune nests) and exception-safe. */
+export function withRuneAcquisition<T>(fn: () => T): T {
+  runeAcquisitionDepth++;
+  try {
+    return fn();
+  } finally {
+    runeAcquisitionDepth--;
+  }
 }
 
 /**

@@ -230,7 +230,7 @@ function afterStarformAte(state: RunState, cardId: string): void {
     const def = CARD_INDEX[cardId];
     if (def && !def.spell && !def.ruby) {
       procRuneId(state, 'rune_stolen_constellations');
-      for (let k = 0; k < runeStacksOf(state, 'rune_stolen_constellations'); k++) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow(state));
+      for (let k = 0; k < runeStacksOf(state, 'rune_stolen_constellations'); k++) grantMinionToHandOrBoard(state, def, false, runeGrantOverflow());
     }
   }
 }

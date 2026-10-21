@@ -64,6 +64,6 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "That effect happens **when you sell the minion**. So selling it isn't just for Gold, it's part of the plan.",
     aliases: ['when sold', 'on sell', 'sell effect'],
     seeAlso: ['sell-a-minion', 'what-things-cost'],
-    covers: [{ keyword: 'sell', fp: '2b305b36' }],
+    covers: [{ keyword: 'sell', fp: '0586604d' }],
   },
 ];

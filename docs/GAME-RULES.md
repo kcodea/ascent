@@ -2119,18 +2119,24 @@ the multiple and before the payout's own events), which the replay presents with
 
 ### Sell — the self-sold trigger (owner keyword 2026-09-23)
 
-**Sell: Triggers when this minion is sold.** It is the printed form of the `onSell` trigger — an effect that
+The "**Sell:**" lead is the printed form of the `onSell` trigger — an effect that
 fires when THIS minion is sold from your board (a shop action; it has no combat meaning). Every minion with
 an `onSell` effect reads "**Sell:** …" (owner ask 2026-09-23: *"any card that operates on a 'When you sell
 this' should now say 'Sell: xyz' with sell being a highlighted keyword. no mechanical change"*): Hoard Whelp,
 Salvatore McKlusky, Riverback, Beggy, Cheap Date, Traveling Salesman, and the three Revelers. The hover
 pill and the Compendium row carry the definition above; the word is coloured in card text.
 
-The keyword is pinned to its FORM. A card that reacts to selling **another** minion (Arcane Behemoth "When
-you sell a Demon", Shift Broker, Voicekeeper — the `minionSold` watcher), a spell that sells ("Sell a
-friendly minion"), a sell-value line ("Sells for 2 Gold") and a hero power that counts sales (Robin) keep
-their sentences: none of them is "this minion is sold", so none raises the pill. Text only — no effect, param
-or trigger changed.
+Since #2203 every printed sell verb is the capitalised keyword (**Sell**, **Sells**, **Selling**, R-TEXT-SELL-CAPS-01),
+including the price sense ("Cards **Sell** for +1 Gold", owner 2026-10-21: KEEP). The pill now follows suit (owner
+2026-10-21): it raises on EVERY capitalised Sell mention, the "Sell:" lead and also a card that reacts to selling
+**another** minion ("When you **Sell** a minion": Arcane Behemoth, Shift Broker, the Set 3 Sell Dwarves), a spell that
+Sells, a price line. Its one-line definition covers both meanings: *Return a minion to the Shop for Gold. "Sell:"
+effects trigger when this minion is sold.* Lower-case "sell" / "sold" never raise it. Text only, no effect changed.
+
+**Sold meters count with the integer counter, not prose** (owner 2026-10-21: *"i dont think we use text for this,
+just integers"*). Mark Eting, Valyou and Leeds show their progress toward the next payout or improve as the N/4
+counter under the card, like Avenge and every every-N card; their printed sentence stays authored. Leeds still prints
+its CURRENT grant in place of +2/+2 once it has improved (the live-text rule).
 
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 

@@ -228,18 +228,19 @@ export const TEXT_RULES: GameRule[] = [
     id: 'R-TEXT-09',
     title: 'A minion that triggers when IT is sold prints the Sell keyword',
     statement:
-      'Sell is a keyword: "Sell: Triggers when this minion is sold." Every minion whose effect fires on the onSell '
-      + 'trigger (an effect on the minion being sold) prints the keyword form "Sell: …" in place of a "When you sell '
-      + 'this" sentence, the word is highlighted in card text on every surface, and the hover pill and Compendium '
-      + 'carry the definition. The keyword is pinned to its form: a card that reacts to selling ANOTHER minion '
-      + '(the minionSold watchers), a spell that sells a minion, a sell-value line ("Sells for 2 Gold") and a hero '
-      + 'power that counts sales keep their sentences and never raise the pill, because none of them is "this '
-      + 'minion is sold". Text only: no effect, trigger or parameter changes with the keyword.',
+      'Sell is a keyword. Every minion whose effect fires on the onSell trigger (an effect on the minion being sold) '
+      + 'prints the keyword form "Sell: …" in place of a "When you sell this" sentence, the word is highlighted in card '
+      + 'text on every surface, and the hover pill and Compendium carry the definition. BROADENED 2026-10-21 (owner): the '
+      + 'pill also raises on every other capitalised Sell mention (R-TEXT-SELL-CAPS-01): a card that reacts to selling '
+      + 'ANOTHER minion ("When you Sell a minion"), a spell that Sells a minion, a price line ("Sells for 2 Gold"). Its '
+      + 'one-line definition covers both meanings: "Return a minion to the Shop for Gold. "Sell:" effects trigger when '
+      + 'this minion is sold." Lower-case "sell" / "sold" never raise it. Text only: no effect, trigger or parameter changes.',
     domain: 'text',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-09-23', quote: "i want to make Sell a keyword. any card that operates on a 'When you sell this' should now say 'Sell: xyz' with sell being a highlighted keyword. no mechanical change, just text and keyword updates. put a pill in for Sell that says 'Triggers when this minion is sold.'" },
-      { kind: 'code', ref: 'packages/ui/src/keywordGlossary.ts (the sell entry; `match` pins it to the "Sell:" form); packages/ui/src/detectCardKeywords.ts + packages/ui/src/termColour.ts (the pill + the colouring read `match`); packages/sim/src/docbot/textParse/lexicon.ts (TRIGGER_LEXICON "Sell:" → onSell)' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (broaden the Sell pill)', quote: 'broaden it so the pill also shows on "When you Sell" texts (and other Sell mentions)' },
+      { kind: 'code', ref: 'packages/ui/src/keywordGlossary.ts (the sell entry: name Sell, aliases Sells / Selling, case-sensitive word match); packages/ui/src/detectCardKeywords.ts + packages/ui/src/termColour.ts (the pill + the colouring read `match`); packages/sim/src/docbot/textParse/lexicon.ts (TRIGGER_LEXICON "Sell:" → onSell)' },
     ],
     contentIds: ['hoardwhelp', 'salvatore', 'd2_riverdrake', 'k_beggy', 'k_pouchpincher', 'n2_salesman', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
     currentBehaviour:
@@ -248,13 +249,12 @@ export const TEXT_RULES: GameRule[] = [
       + '"Sell: …" (the Revelers live-value helper in packages/ui/src/cardText.ts moved with them). The glossary '
       + 'entry raises the pill and colours the word; the parser already read "Sell:" as onSell.',
     example:
-      'Beggy reads "Sell: get 2 Rubies." with Sell highlighted; hovering shows "Sell: Triggers when this minion is '
-      + 'sold." Arcane Behemoth reads "When you Sell a Demon, this gains its stats." (capitalised since R-TEXT-SELL-CAPS-01) '
-      + 'and shows no Sell pill.',
+      'Beggy reads "Sell: get 2 Rubies." with Sell highlighted and the Sell pill. Arcane Behemoth reads "When you Sell a '
+      + 'Demon, this gains its stats." and, since 2026-10-21, shows the same Sell pill.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/detectCardKeywords.test.ts', 'packages/ui/src/termColour.test.tsx', 'packages/ui/src/keywordGlossaryCoverage.test.ts'],
-      lastVerifiedAt: '2026-09-23',
+      lastVerifiedAt: '2026-10-21',
     },
   },
   {
@@ -673,19 +673,21 @@ export const TEXT_RULES: GameRule[] = [
     statement:
       'Wherever printed game text means the SELL action or trigger (cards plain and Gilded in every set and the archive, '
       + 'runes, Equipment, hero powers, Ancient pairing lines), the verb prints as the keyword form: **Sell**, **Sells** or '
-      + '**Selling**, or the "**Sell:**" trigger lead (R-TEXT-09). Text only: no effect, trigger or parameter changes. The '
-      + 'hover pill stays pinned to the "Sell:" form (R-TEXT-09), because its definition is "Triggers when this minion is '
-      + 'sold"; a capitalised verb elsewhere is highlighted by its bold, not by that pill. "sell value" (a noun), "sold" and '
-      + '"sales" are not the verb and stay as they are.',
+      + '**Selling**, or the "**Sell:**" trigger lead (R-TEXT-09). Text only: no effect, trigger or parameter changes. '
+      + 'The price sense is capitalised too ("Cards **Sell** for +1 Gold"): owner 2026-10-21, KEEP. Since 2026-10-21 the '
+      + 'hover pill raises on EVERY capitalised Sell / Sells / Selling (R-TEXT-09), with one definition covering both '
+      + 'meanings: "Return a minion to the Shop for Gold. "Sell:" effects trigger when this minion is sold." Lower-case '
+      + '"sell", "sell value" (a noun), "sold" and "sales" are not the keyword and stay as they are.',
     domain: 'text',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner ask 2026-10-21 (Set 3 Sell Dwarves PR)', quote: "capitalized, it's a keyword" },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (Sell capitalised mid-sentence when describing a price, e.g. "Cards Sell for +1 Gold")', quote: 'KEEP' },
       { kind: 'code', ref: 'packages/content/src (cards, runes, equipment); packages/sim/src/heroes.ts; packages/sim/src/ancients.ts; packages/ui/src/cardText.ts (Smokey Joe live text); packages/ui/src/questText.ts' },
     ],
     contentIds: ['dw3_shiftbroker', 'dw3_hankpepe', 'dm_behemoth', 'rune_baller', 'rune_sellers_market'],
     currentBehaviour: 'Conforms (swept 2026-10-21).',
     example: 'Rune of the Seller\'s Market reads "Whenever you **Sell** a minion, give your minions +6/+8."; Quick Sale reads "The next minion you **Sell** this turn **Sells** for 2 additional Gold."',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/sellKeywordText.test.ts'], lastVerifiedAt: '2026-10-21' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/sellKeywordText.test.ts', 'packages/ui/src/detectCardKeywords.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

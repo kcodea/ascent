@@ -1422,16 +1422,20 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Dwarf on the board, Leeds and the played one included, gains base x (1 + floor(sales / 4)), the sales being those '
       + 'made while this Leeds was on the board, carried round to round. Each improve adds the base grant again (+2/+2, '
       + '+4/+4, +6/+6), the game\'s "Improves" convention (Aspect, Flowing Monk, Archmagus Guel). Gilded doubles the base and '
-      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every live meter prints its countdown.',
+      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every sold meter (Mark Eting, Valyou, Leeds) '
+      + 'shows its countdown as the game\'s standard integer counter under the card (N/4, like Avenge and every every-N card), '
+      + 'never as prose in the text (owner 2026-10-21): the printed sentence stays authored, and Leeds prints its CURRENT '
+      + 'grant in place of +2/+2 once it has improved.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-21 (four new Set 3 Dwarves)', quote: 'Leeds: When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions.' },
-      { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldBuffSelf (count/gold) / minionSoldTally / tribePlayedBuffTribeSellImproving / minionSoldGrantSpell; battlecryBuffTribe on onSell; packages/ui/src/cardText.ts soldProgressText / sellGoldMeterText / sellImproveText' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (countdown prose on Mark Eting / Valyou / Leeds)', quote: 'i dont think we use text for this, just integers' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldBuffSelf (count/gold) / minionSoldTally / tribePlayedBuffTribeSellImproving / minionSoldGrantSpell; battlecryBuffTribe on onSell; packages/ui/src/cardText.ts sellImproveText (Leeds grant) + stepProgress minions-SOLD counter' },
     ],
     cardText: 'When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.',
     contentIds: ['dw3_salezarsails', 'dw3_marketing', 'dw3_valyou', 'dw3_leeds'],
-    currentBehaviour: 'Conforms (built 2026-10-21).',
+    currentBehaviour: 'Conforms (built 2026-10-21; the countdown prose of the first cut replaced by the integer counter the same day).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3SellDwarves1021.test.ts', 'packages/ui/src/sellDwarvesText.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

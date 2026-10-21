@@ -233,47 +233,20 @@ export function attackGrantImproveText(cardId: string, summonBonus: number, gold
   return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${a} Attack}}`);
 }
 
-/**
- * Runic Archivist (`minionSoldGrantSpell`) — an every-N SELL meter. The threshold never changes, so what has to
- * be live is the COUNTDOWN: print how many more sales are owed rather than the bare "5 minions", which reads as
- * a fresh requirement whether you're 0 or 4 in.
- */
-export function soldProgressText(cardId: string, soldProgress: number, golden = false): string | null {
-  const def = CARD_INDEX[cardId];
-  const eff = def?.effects.find((e) => e.do === 'minionSoldGrantSpell');
-  if (!def || !eff) return null;
-  const every = Math.max(1, Number((eff.params as { count?: number })?.count ?? 5));
-  const left = every - (soldProgress % every);
-  if (left === every) return null; // no progress yet — the printed threshold is already accurate
-  // Gilded reads its own printed text (Mark Eting, 2026-10-21: "get 2 random Shop Spells").
-  const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/\*\*\d+ minions\*\*/, `{{${left} more minion${left === 1 ? '' : 's'}}}`);
-}
-
-/**
- * Valyou (set 3, owner 2026-10-21; `minionSoldBuffSelf` with an every-`count` Gold payout): "When you Sell a minion,
- * gain +3/+3. Every 4 triggers also grants 2 Gold." The stats are per sale (printed value is live); what moves is
- * the Gold countdown, so print the triggers still owed beside the threshold. `soldProgress` is stored REDUCED.
- * Null with no progress (the printed threshold is accurate).
- */
-export function sellGoldMeterText(cardId: string, golden: boolean, soldProgress: number): string | null {
-  const def = CARD_INDEX[cardId];
-  // Keyed on the effect SHAPE (a sale watcher with a Gold payout), not the factory id: the rendered-text lane derives
-  // its subjects from id literals here, and Shift Broker shares the factory without the payout.
-  const eff = def?.effects.find((e) => e.on === 'minionSold' && Number((e.params as { gold?: number })?.gold ?? 0) > 0);
-  if (!def || !eff) return null;
-  const every = Math.max(1, Number((eff.params as { count?: number })?.count ?? 4));
-  const left = every - (soldProgress % every);
-  if (left === every) return null;
-  const src = golden ? (def.goldenText ?? def.text) : def.text;
-  return src.replace(/(\*\*\d+\*\* triggers)/, `$1 ({{${left} more}})`);
-}
+// Runic Archivist / Mark Eting (`minionSoldGrantSpell`) and Valyou (`minionSoldBuffSelf` with a Gold payout) have
+// NO live-text helper on purpose (owner 2026-10-21: "i dont think we use text for this, just integers"). Their only
+// moving number is an every-N countdown, and every every-N card in the game shows that as its integer counter under
+// the card (`stepProgress`'s minions-SOLD branch, N/4), never as prose in the text: the convention Astral Spellcore
+// (2026-09-11, "the counter, never the text") and Festival Keeper ("use the avenge tally ... and not track on the card")
+// set. The printed sentence stays the authored one.
 
 /**
  * Leeds (set 3, owner 2026-10-21; `tribePlayedBuffTribeSellImproving` + the `minionSoldTally` meter): "When you play a
  * Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions." The grant is base x (1 + floor(sold / every)) x
  * golden, `soldProgress` being the LIFETIME sales tallied on this copy. Surface the CURRENT grant (green) in place of
- * the printed one, and the sales still owed to the next step in place of "4 minions". Null before the first sale.
+ * the printed one. The sales owed to the next step are the integer counter under the card (`stepProgress`, N/4), not
+ * prose (owner 2026-10-21), so "Improves when you Sell 4 minions" stays authored. Null while the grant is still the
+ * printed one (before the first step).
  */
 export function sellImproveText(cardId: string, golden: boolean, soldProgress: number): string | null {
   const def = CARD_INDEX[cardId];
@@ -282,14 +255,11 @@ export function sellImproveText(cardId: string, golden: boolean, soldProgress: n
   const p = eff.params as { attack?: number; health?: number; sellEvery?: number };
   const every = Math.max(1, Number(p?.sellEvery ?? 4));
   const level = 1 + Math.floor(soldProgress / every);
+  if (level <= 1) return null; // the printed grant is still the current one
   const g = golden ? 2 : 1;
   const a = Number(p?.attack ?? 2) * level * g, h = Number(p?.health ?? 2) * level * g;
-  const left = every - (soldProgress % every);
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  let done = false;
-  return src
-    .replace(/\+\d+\/\+\d+/g, (mt) => (done ? mt : ((done = true), `{{+${a}/+${h}}}`)))
-    .replace(/\*\*\d+ minions\*\*/, `{{${left} more minion${left === 1 ? '' : 's'}}}`);
+  return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
 }
 
 /**

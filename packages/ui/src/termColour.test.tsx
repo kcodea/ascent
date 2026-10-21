@@ -40,13 +40,14 @@ describe('colourTerms', () => {
     expect(colourTerms('Mechanical Jouster rises again')).toBe('Mechanical Jouster rises again');
     expect(colourTerms('the spirit of the mech')).toBe('the spirit of the mech');
   });
-  // Sell (owner keyword 2026-09-23) is pinned to its keyword FORM: "Sell:" colours, the verb and the sell-value line
-  // do not, so a sell spell never wears a keyword colour for an ordinary word.
-  it('colours Sell only in its keyword form', () => {
+  // Sell (owner keyword 2026-09-23; broadened 2026-10-21): every capitalised Sell mention colours like any other
+  // term, the "Sell:" lead, "When you Sell", "Sells for"; lower-case "sell" stays body text.
+  it('colours every capitalised Sell form, never the lower-case verb', () => {
     expect(colourTerms('Sell: get 2 Gold.')).toBe('<b class="term">Sell</b>: get 2 Gold.');
-    expect(colourTerms('Sell a friendly minion.')).toBe('Sell a friendly minion.');
-    expect(colourTerms('Sells for 2 Gold.')).toBe('Sells for 2 Gold.');
-    expect(COLOURED_TERMS).not.toContain('Sell');
+    expect(colourTerms('When you Sell a minion.')).toBe('When you <b class="term">Sell</b> a minion.');
+    expect(colourTerms('Sells for 2 Gold.')).toBe('<b class="term">Sells</b> for 2 Gold.');
+    expect(colourTerms('you sell a minion')).toBe('you sell a minion');
+    expect(COLOURED_TERMS).toContain('Sell');
   });
   it('the vocabulary includes every tribe and the three owner-named pills', () => {
     for (const t of ['Beast', 'Dragon', 'Mech', 'Undead', 'Demon', 'Kobold', 'Dwarf', 'Celestial', 'Spirit', 'Collapse', 'Starform', 'Equip']) {

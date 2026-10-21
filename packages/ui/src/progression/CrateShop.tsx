@@ -4,32 +4,27 @@
  * purchase a crate of various rarity floors, but then you can pay additional ammounts to focus it into one or more of
  * the various categories"):
  *
- *   step 1  the TIER: five Gem-plate buttons (Standard .. Ancient), each a rarity floor with its price. Hidden in
- *           milestone mode, where the floor is fixed at Legendary.
+ *   step 1  the TIER: five Gem-plate buttons (Standard .. Ancient), each a rarity floor with its price.
  *   step 2  the FOCUS: one chip per enabled category, in catalog order. A category with nothing left for this player at
  *           this floor is a disabled chip ("Nothing left to find here"); ticking every available one is no focus.
  *   quote   the crate's name, its LIVE odds (this exact crate for this player: its floor, its focus and what they do not
  *           own yet, so Standard + Card Plates shows no Common; spec "the live odds for that exact crate") and how many
  *           items are still left to find, then
- *           ONE button: the total, or why it cannot be bought (short balance, sold out). A milestone crate with no focus
- *           is free and just reads Open.
+ *           ONE button: the total, or why it cannot be bought (short balance, sold out).
  *
- * Two modes, one component:
- *   shop       Buy charges through `buyCrate` FIRST and opens the theatre only on success, so a price error stays here
- *              in the shop (where the new price is) instead of failing inside the theatre. The theatre then gets an
- *              `open` that answers with the purchase it already has.
- *   milestone  a free Legendary crate earned at every 10th level. Open hands the theatre an `open` that asks the server
- *              with the ticked focus and the fee the player saw (`openCrate(id, focus, fee)`); nothing is charged here.
+ * Buy charges through `buyCrate` FIRST and opens the theatre only on success, so a price error stays here in the shop
+ * (where the new price is) instead of failing inside the theatre. The theatre then gets an `open` that answers with the
+ * purchase it already has. (A milestone crate used to open through a "milestone mode" of this panel with a focus step;
+ * since 2026-10-20 milestone crates cannot be focused (owner: "you cannot focus those ones specifically") and open in the
+ * bay like any other earned crate.)
  *
- * GUESTS (owner 2026-10-18, R-PROG-AETHER-02): a guest earns and sees Aether but never spends it. Every spend click
- * (Buy, and a milestone crate's Open, focused or not) calls `onGuest` (the caller shows `CrateSignInGate`) and never
+ * GUESTS (owner 2026-10-18, R-PROG-AETHER-02): a guest earns and sees Aether but never spends it. Every Buy calls
+ * `onGuest` (the caller shows `CrateSignInGate`) and never
  * reaches the store. The server does not tell guests apart, so this gate IS the rule's client half. A guest's Buy stays
  * ENABLED at the price whatever the balance (ruling 2026-10-19): "Need N more Aether" would tell a guest to go earn
  * Aether they still could not spend, when what they need is an account. Only a sold-out crate disables it.
  *
- * ONCE PER CLICK: a fast double click never buys twice (the busy ref, set before the first await) and never hands the
- * theatre a milestone crate twice (the handed ref; the caller also swaps this panel out in the same update). While a
- * purchase runs, `onBusy` tells the caller so it can hold every control that would unmount this panel or start a
+ * ONCE PER CLICK: a fast double click never buys twice (the busy ref, set before the first await). While a purchase runs, `onBusy` tells the caller so it can hold every control that would unmount this panel or start a
  * second theatre over the reveal.
  *
  * TRUST: every number here is a QUOTE for display. The server prices, charges and rolls; the client only names the tier,
@@ -52,9 +47,9 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_TIERS, CRATE_TIER_FLOOR, CRATE_TIER_LABELS, RARITY_LABELS,
-  availableFocusCategories, crateLabel, eligibleForCrate, isCategoryLive, quoteCrate, tieredCrateChances, withStarterCosmetics,
+  availableFocusCategories, eligibleForCrate, isCategoryLive, quoteCrate, tieredCrateChances, withStarterCosmetics,
   type CosmeticRarity,
-  type CosmeticCategory, type CrateRow, type CrateTier,
+  type CosmeticCategory, type CrateTier,
 } from '@game/progression';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
@@ -62,16 +57,13 @@ import type { CrateQueueItem } from './CrateOpener';
 import { chestTierOf } from './crateFx/chestTiers';
 import { warmChestArt } from './crateFx/chestArt';
 import {
-  aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, openCrate, refreshEconomy, useProgression, type CrateOpenOutcome,
+  aetherBalance, buyCrate, isDefiniteBuyFailure, mintRequestId, mirrorFor, refreshEconomy, useProgression, type CrateOpenOutcome,
 } from './progressionStore';
 import { ownedIds } from './collectionModel';
 import { AetherIcon } from './AetherIcon';
 import './collection.css';
 
-export type CrateShopMode = { kind: 'shop' } | { kind: 'milestone'; crate: CrateRow };
-
 export interface CrateShopProps {
-  mode: CrateShopMode;
   guest: boolean;
   /** A guest's spend: the caller shows CrateSignInGate. */
   onGuest: () => void;
@@ -79,11 +71,6 @@ export interface CrateShopProps {
   onOpen: (item: CrateQueueItem, open: (crateId: string) => Promise<CrateOpenOutcome>) => void;
   /** A purchase started (true) or ended (false), whether or not this panel is still mounted. */
   onBusy?: (busy: boolean) => void;
-  /** Milestone mode: the caller's way back to the crate bay, shown as a Back button in the panel's head. */
-  onBack?: () => void;
-  /** The caller's purchase is in flight elsewhere: hold this panel's spend button and Back (an Open here would start a
-   *  theatre the purchase's reveal then replaces). */
-  held?: boolean;
 }
 
 const EMPTY: readonly string[] = [];
@@ -119,10 +106,9 @@ const FocusChip = memo(function FocusChip({ cat, on, soldOut, onToggle }: {
   );
 });
 
-/** Memoized: the Collection re-renders on every pick, tab switch and hover; the shop's props are stable (module-level or
- *  memoized mode, `useCallback` handlers, the setState `onBusy`), so those renders skip this panel. */
-export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen, onBusy, onBack, held = false }: CrateShopProps): JSX.Element {
-  const milestone = mode.kind === 'milestone';
+/** Memoized: the Collection re-renders on every pick, tab switch and hover; the shop's props are stable (`useCallback`
+ *  handlers, the setState `onBusy`), so those renders skip this panel. */
+export const CrateShop = memo(function CrateShop({ guest, onGuest, onOpen, onBusy }: CrateShopProps): JSX.Element {
   const economy = useProgression((s) => s.economy);
   const balance = useProgression(aetherBalance);
   const catalogEpoch = useProgression((s) => s.catalogEpoch);
@@ -137,8 +123,6 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
-  /** The milestone crate already handed to the theatre (a second click in the same frame must not hand it again). */
-  const handedRef = useRef<string | null>(null);
   /** The request id of a purchase still waiting for a definite answer, and the picks it was for (see NEVER CHARGED TWICE). */
   const pendingRef = useRef<{ key: string; id: string } | null>(null);
   const alive = useRef(true);
@@ -147,7 +131,7 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   // Fresh prices whenever the shop opens (one cheap read; the server prices the purchase regardless).
   useEffect(() => { void refreshEconomy(); }, []);
 
-  const floor = CRATE_TIER_FLOOR[milestone ? 'legendary' : tier];
+  const floor = CRATE_TIER_FLOOR[tier];
   // The picked chest's art starts loading now, while the player is still choosing, so its opening never loads it cold.
   useEffect(() => { warmChestArt(chestTierOf(floor)); }, [floor]);
   // `catalogEpoch` moves when the server retires an item or a category (`applyServerCatalogState` records the state
@@ -158,8 +142,8 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   // A tick on a category that sold out at THIS floor (the tier moved) is kept, but not priced and not shown as pressed.
   const focus = useMemo(() => CHIP_CATEGORIES.filter((c) => ticked.has(c) && available.has(c)), [ticked, available]);
   const quote = useMemo(
-    () => quoteCrate({ tier, focus: focus.length ? focus : null, owned, economy, milestone }),
-    [tier, focus, owned, economy, milestone, catalogEpoch],
+    () => quoteCrate({ tier, focus: focus.length ? focus : null, owned, economy }),
+    [tier, focus, owned, economy, catalogEpoch],
   );
   // THE LIVE ODDS of this exact crate: each rarity's share of `tieredCrateChances` over what it can still give (its
   // floor, its canonical focus, what is still unowned), so an empty rarity's odds show where they really fall. Keyed on
@@ -191,41 +175,26 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
     });
   }, []);
 
-  // The crate's name: a milestone crate keeps its own; a shop crate is its tier, plus the focus while it narrows anything.
-  const name = mode.kind === 'milestone'
-    ? crateLabel(mode.crate)
-    : `${CRATE_TIER_LABELS[tier]} Chest${quote?.focus ? ` · ${focus.map((c) => COSMETIC_CATEGORY_DEFS[c].label).join(', ')}` : ''}`;
+  // The crate's name: its tier, plus the focus while it narrows anything.
+  const name = `${CRATE_TIER_LABELS[tier]} Chest${quote?.focus ? ` · ${focus.map((c) => COSMETIC_CATEGORY_DEFS[c].label).join(', ')}` : ''}`;
 
   const short = quote ? Math.max(0, quote.total - balance) : 0;
-  const free = milestone && quote?.total === 0;
   // A guest is never "short": every spend is the sign-in gate (ruling 2026-10-19), so the price shows and Buy stays live.
   const needMore = guest ? 0 : short;
   const label: ReactNode = busy ? 'Buying…'
     : !quote ? 'Sold out'
-    : free ? 'Open'
     : needMore > 0 ? `Need ${needMore} more Aether`
     : <><AetherIcon />{quote.total}</>;
-  const disabled = busy || held || !quote || needMore > 0;
-  const ariaLabel = quote && !busy && !free && needMore === 0
-    ? `${milestone ? 'Open' : 'Buy'} ${name} for ${quote.total} Aether${guest ? ' (needs an account)' : ''}`
+  const disabled = busy || !quote || needMore > 0;
+  const ariaLabel = quote && !busy && needMore === 0
+    ? `Buy ${name} for ${quote.total} Aether${guest ? ' (needs an account)' : ''}`
     : undefined;
 
   const spend = async (): Promise<void> => {
-    if (!quote || busyRef.current || held) return;
+    if (!quote || busyRef.current) return;
     // GUESTS NEVER SPEND (R-PROG-AETHER-02): the sign-in gate, never the store.
     if (guest) { onGuest(); return; }
     setError(null);
-    if (mode.kind === 'milestone') {
-      const crate = mode.crate;
-      if (handedRef.current === crate.crateId) return;
-      handedRef.current = crate.crateId;
-      const pick = quote.focus;
-      const fee = quote.fee;
-      // A milestone crate opens the Legendary chest (tiered chest openings, 2026-10-19).
-      const item: CrateQueueItem = { crateId: crate.crateId, earnedLevel: crate.earnedLevel, ...(crate.source ? { source: crate.source } : {}), tier: chestTierOf(CRATE_TIER_FLOOR.legendary) };
-      onOpen(item, (id) => (pick ? openCrate(id, pick, fee) : openCrate(id)));
-      return;
-    }
     busyRef.current = true;
     setBusy(true);
     onBusy?.(true);
@@ -254,29 +223,24 @@ export const CrateShop = memo(function CrateShop({ mode, guest, onGuest, onOpen,
   };
 
   return (
-    <section className={`colls-panel colls-shop${milestone ? ' milestone' : ''}`} aria-label={milestone ? 'Open your milestone chest' : 'Chest Shop'}>
+    <section className="colls-panel colls-shop" aria-label="Chest Shop">
       <div className="colls-shop-headrow">
-        <div className="colls-shop-head">{milestone ? 'Milestone chest' : 'Chest Shop'}</div>
-        {milestone && onBack && (
-          <button type="button" className="colls-shop-back" disabled={held} onClick={() => { sfx.pulse(); onBack(); }}>Back</button>
-        )}
+        <div className="colls-shop-head">Chest Shop</div>
       </div>
-      {mode.kind === 'shop' && (
-        <div className="colls-shop-step">
-          <div className="colls-shop-lbl">Pick a chest</div>
-          <div className="colls-shop-tiers" role="group" aria-label="Chest">
-            {CRATE_TIERS.map((t) => (
-              <button
-                key={t} type="button" className={`colls-shop-tier r-${CRATE_TIER_FLOOR[t]}${tier === t ? ' on' : ''}`} aria-pressed={tier === t}
-                onClick={() => pickTier(t)}
-              >
-                <span className="colls-shop-tier-name">{CRATE_TIER_LABELS[t]}</span>
-                <span className="colls-shop-tier-price"><AetherIcon />{economy.cratePrice[t]}</span>
-              </button>
-            ))}
-          </div>
+      <div className="colls-shop-step">
+        <div className="colls-shop-lbl">Pick a chest</div>
+        <div className="colls-shop-tiers" role="group" aria-label="Chest">
+          {CRATE_TIERS.map((t) => (
+            <button
+              key={t} type="button" className={`colls-shop-tier r-${CRATE_TIER_FLOOR[t]}${tier === t ? ' on' : ''}`} aria-pressed={tier === t}
+              onClick={() => pickTier(t)}
+            >
+              <span className="colls-shop-tier-name">{CRATE_TIER_LABELS[t]}</span>
+              <span className="colls-shop-tier-price"><AetherIcon />{economy.cratePrice[t]}</span>
+            </button>
+          ))}
         </div>
-      )}
+      </div>
       <div className="colls-shop-step">
         <div className="colls-shop-lbl">Focus it <span className="colls-shop-opt">(optional)</span></div>
         <div className="colls-shop-chips" role="group" aria-label="Focus">

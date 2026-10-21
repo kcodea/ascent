@@ -7,8 +7,9 @@
  * the settlement takes:
  *   { action: 'open_crate', crateId }     → `open_crate`: pick one unowned, eligible item AT OPEN TIME (a rarity
  *                                           at the fixed odds, then an item of it; 2026-09-29), insert ownership,
- *                                           mark the crate opened. A MILESTONE crate may also name `focus` + the
- *                                           `expectedFee` it showed (2026-10-18); the SQL refuses a focus on any other crate.
+ *                                           mark the crate opened. It may still NAME `focus` + `expectedFee` (a
+ *                                           milestone crate's focus at open, 2026-10-18), but since 2026-10-20 the
+ *                                           SQL refuses any focus at open (`focus_not_allowed`).
  *   { action: 'buy_crate', tier, focus, expectedTotal, requestId }
  *                                         → `buy_crate` (2026-10-18, the Crate Shop): spend Aether on a crate of a tier
  *                                           (its rarity floor), optionally focused on categories, and open it in the same
@@ -75,7 +76,8 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
   if (b.action === 'open_crate') {
     if (typeof b.crateId !== 'string' || !UUID.test(b.crateId)) return { ok: false, status: 400, error: 'bad_crate_id' };
     const crateId = b.crateId.toLowerCase();
-    // A focus (a milestone crate, 2026-10-18) must come with the fee the client showed, so the SQL can refuse a moved price.
+    // A focus must come with the fee the client showed. Since 2026-10-20 the SQL refuses ANY focus at open
+    // (`focus_not_allowed`: milestone crates can no longer be focused); the shape stays so an older client gets that answer.
     const focus = parseFocus(b.focus);
     if (focus === 'bad') return { ok: false, status: 400, error: 'bad_focus' };
     if (!focus) return { ok: true, request: { action: 'open_crate', crateId } };

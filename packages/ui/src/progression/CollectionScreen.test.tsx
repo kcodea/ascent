@@ -300,8 +300,9 @@ describe('the Collection screen: the crate bay', () => {
   });
 
   // TIERED CHEST OPENINGS (2026-10-19): every bay crate reaches the theatre with its tier, from `floorOf` (its own floor,
-  // else a milestone's Legendary, else Standard). The class is the observable under reduced motion (no Pixi).
-  it('bay crates carry their tier: a floor of Epic opens Epic, a legacy level crate Standard, a milestone crate Legendary', async () => {
+  // else today's milestone floor for a milestone crate, Epic since 2026-10-20, else Standard). The class is the
+  // observable under reduced motion (no Pixi).
+  it('bay crates carry their tier: a floor of Epic opens Epic, a legacy level crate Standard, a milestone crate with no floor Epic', async () => {
     const rows: CrateRow[] = [
       { crateId: 'c-e', earnedLevel: 4, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, floor: 'epic' },
       { crateId: 'c-l', earnedLevel: 5, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null },
@@ -318,7 +319,7 @@ describe('the Collection screen: the crate bay', () => {
     expect(tierOf()).toBe('standard');
     act(() => button('Open next')!.click());
     await settle();
-    expect(tierOf()).toBe('legendary');
+    expect(tierOf()).toBe('epic');
     expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-e', 'c-l', 'c-m']);
   });
 
@@ -341,7 +342,7 @@ describe('the Collection screen: the crate bay', () => {
     open({}, { crates: rows, motion: true });
     await settle();
     const tiers = [...new Set(urls.map((u) => u.match(/chest_(\w+?)_/)?.[1]).filter(Boolean) as string[])].sort();
-    expect(tiers).toEqual(['epic', 'legendary']); // the level crate is Standard: nothing to preload
+    expect(tiers).toEqual(['epic']); // the shop crate and the floorless milestone crate are Epic; the level crate Standard
   });
 
   it('Open all hands the whole queue to the theatre', async () => {
@@ -719,10 +720,18 @@ describe('the Collection screen: the crate sign-in gate (owner 2026-09-29, a har
 });
 
 describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => {
-  const milestone: CrateRow = { crateId: 'c-m10', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: 'milestone:10', floor: 'legendary' };
-  const shopBuy = (): HTMLButtonElement => $('.colls-shop:not(.milestone) .colls-shop-buy') as HTMLButtonElement;
-  const milestoneOpen = (): HTMLButtonElement => $('.colls-shop.milestone .colls-shop-buy') as HTMLButtonElement;
-  const back = (): HTMLButtonElement | undefined => [...document.querySelectorAll<HTMLButtonElement>('.colls-shop.milestone button')].find((b) => b.textContent?.trim() === 'Back');
+  // Owner 2026-10-20: a milestone crate is floor EPIC and never focused; one granted before then stays floor Legendary.
+  const milestone: CrateRow = { crateId: 'c-m10', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: null, openedAt: null, source: 'milestone:10', floor: 'epic' };
+  const legacyMilestone: CrateRow = { ...milestone, crateId: 'c-m20', source: 'milestone:20', floor: 'legendary' };
+  const shopBuy = (): HTMLButtonElement => $('.colls-shop .colls-shop-buy') as HTMLButtonElement;
+  const tierOf = (): string | undefined => $('.crth')?.className.match(/\bt-(\w+)/)?.[1];
+  /** Open all moves on by itself (`autoNextMs` after each reward settles): waits until the theatre has asked for `n`
+   *  crates, or gives up after a few seconds (the assertion that follows then reports what it did ask for). */
+  const drain = async (n: number): Promise<void> => {
+    for (let waited = 0; openCrateRemote.mock.calls.length < n && waited < 5000; waited += 50) {
+      await act(async () => { await new Promise((r) => setTimeout(r, 50)); });
+    }
+  };
   const bought = (crateId: string, rewardId: string): BuyCrateResult => ({
     status: 'opened', rewardId, sealedRemaining: 0, aether: 1100,
     crate: { crateId, earnedLevel: null, state: 'opened', rewardId, earnedAt: 't0', openedAt: 't1', source: `shop:${'0'.repeat(8)}-0000-4000-8000-${'0'.repeat(12)}`, floor: 'common' },
@@ -755,134 +764,70 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     clean();
   });
 
-  it("a milestone crate's Open shows the focus step", async () => {
+  // Owner 2026-10-20: "i want the chest quality to reduce down to Epic for the milestone chests (every 10 levels) and you
+  // cannot focus those ones specifically". No focus step: Open goes straight to the theatre, unfocused, as the crate's
+  // own floor's chest (R-PROG-AETHER-04).
+  it('a milestone crate opens straight into the theatre, unfocused, as an Epic chest', async () => {
     open({ aether: 1200 }, { aether: true, crates: [milestone] });
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Chest');
-    act(() => button('Open')!.click());
-    expect($('.colls-shop.milestone')).not.toBeNull();
-    expect($('.colls-bay')).toBeNull(); // the bay panel swapped for the focus step
-    expect($('.crth')).toBeNull();
-    expect(openCrateRemote).not.toHaveBeenCalled();
-    expect(text('.colls-shop.milestone .colls-shop-name')).toBe('Level 10 Legendary Chest');
-    // Back puts the bay back.
-    act(() => back()!.click());
-    expect($('.colls-shop.milestone')).toBeNull();
-    expect($('.colls-bay')).not.toBeNull();
-    // Open (free, unfocused) hands the theatre this one crate and swaps the focus step out in the same update.
-    act(() => button('Open')!.click());
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Epic Chest');
     openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m10', 'title_hearthkeeper', 2, 0), profile: profile({ revision: 10 }) });
-    act(() => milestoneOpen().click());
-    expect($('.colls-shop.milestone')).toBeNull();
+    act(() => button('Open')!.click());
     await settle();
-    expect(openCrateRemote).toHaveBeenCalledTimes(1);
-    expect(openCrateRemote).toHaveBeenCalledWith('c-m10');
-    expect($('.crth')).not.toBeNull();
+    expect($('.colls-shop.milestone')).toBeNull();
+    expect($('.colls-bay')).not.toBeNull(); // the bay is never swapped out
+    expect(openCrateRemote.mock.calls).toStrictEqual([['c-m10']]); // the id ALONE: no focus, no fee
+    expect(tierOf()).toBe('epic');
     clean();
   });
 
-  it('a level crate ahead of a milestone crate: the bay\'s Open stops BEFORE the milestone, so "Open next" never opens it unfocused', async () => {
-    // fetchOwnCrates sorts by earned_level, nulls last: a pre-Aether sealed level crate comes before a backdated milestone.
-    open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone] });
-    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 2 Chest');
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_hearthkeeper', 2, 1), profile: profile({ revision: 10 }) });
+  it('a milestone crate granted before 2026-10-20 keeps its Legendary floor: its name and its chest', async () => {
+    open({ aether: 1200 }, { aether: true, crates: [legacyMilestone] });
+    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 20 Legendary Chest');
+    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-m20', 'title_hearthkeeper', 2, 0), profile: profile({ revision: 10 }) });
     act(() => button('Open')!.click());
     await settle();
-    expect(openCrateRemote).toHaveBeenCalledWith('c-2');
-    expect($('.colls-shop.milestone')).toBeNull();
-    // The theatre held only the level crate: nothing to open next, and the milestone crate was never asked for.
-    expect([...document.querySelectorAll<HTMLButtonElement>('.crth button')].some((b) => b.textContent?.startsWith('Open next'))).toBe(false);
-    expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
-    act(() => button('Done')!.click());
-    // The level crate is opened now: the next Open reaches the milestone crate's focus step.
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Chest');
-    act(() => button('Open')!.click());
-    expect($('.colls-shop.milestone')).not.toBeNull();
-    expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
+    expect(openCrateRemote.mock.calls).toStrictEqual([['c-m20']]);
+    expect(tierOf()).toBe('legendary');
+    clean();
   });
 
-  // RULING 2026-10-19 (revising "a free crate opened in bulk"): every milestone crate is opened one at a time through its
-  // focus step; Open all skips them.
-  it('Open all on [milestone, level] opens only the level crate; the milestone crate stays sealed for its focus step', async () => {
-    open({ aether: 1200 }, { aether: true, crates: [milestone, { ...crateList[1]! }] });
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
-    act(() => button('Open all (1)')!.click());
+  it('Open all opens milestone crates with the rest, in the bay\x27s order', async () => {
+    open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone, legacyMilestone] });
+    openCrateRemote.mockImplementation(async (id: string) => ({ status: 'ok', value: opened(id, 'title_wanderer', 2, 0), profile: profile({ revision: 10 }) }));
+    act(() => button('Open all (3)')!.click());
     await settle();
-    expect($('.colls-shop.milestone')).toBeNull();
-    expect($('.crth')).not.toBeNull();
-    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
-    expect([...document.querySelectorAll<HTMLButtonElement>('.crth button')].some((b) => b.textContent?.startsWith('Open next'))).toBe(false);
+    await drain(3);
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2', 'c-m10', 'c-m20']);
+    expect(openCrateRemote.mock.calls.every((c) => c.length === 1)).toBe(true); // none focused
+    clean();
   });
 
-  it('Open all on [level, milestone] opens only the level crate', async () => {
-    open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone] });
-    expect(button('Open all (2)')).toBeUndefined();
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
-    act(() => button('Open all (1)')!.click());
-    await settle();
-    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
-    act(() => button('Done')!.click());
-    // The milestone crate is still sealed, and the next Open is its focus step.
-    expect(text('.colls-bay-sub')).toBe('1 ready. Next: Level 10 Legendary Chest');
-    act(() => button('Open')!.click());
-    expect($('.colls-shop.milestone')).not.toBeNull();
-    expect(openCrateRemote.mock.calls.map((c) => c[0])).not.toContain('c-m10');
-  });
-
-  it("the New rewards pop-up's Open is the bay's: a milestone crate first gets its focus step", async () => {
+  it("the New rewards pop-up's Open and Open all treat milestone crates like any other crate", async () => {
     resetNewRewardsForTests();
     queueNewCrate('u-1', milestone);
-    open({ aether: 1200 }, { aether: true, crates: [milestone] });
+    queueNewCrate('u-1', legacyMilestone);
+    open({ aether: 1200 }, { aether: true, crates: [milestone, legacyMilestone] });
     expect($('.nrw-panel')).not.toBeNull();
-    act(() => ($('.nrw-panel .crate-btn') as HTMLButtonElement).click());
-    await settle();
-    expect($('.nrw-panel')).toBeNull();
-    expect($('.colls-shop.milestone')).not.toBeNull();
-    expect($('.crth')).toBeNull();
-    expect(openCrateRemote).not.toHaveBeenCalled();
-    resetNewRewardsForTests();
-  });
-
-  it("the New rewards pop-up's Open all skips milestone crates, and is not offered when every crate is one", async () => {
-    resetNewRewardsForTests();
-    const m20: CrateRow = { ...milestone, crateId: 'c-m20', source: 'milestone:20' };
-    queueNewCrate('u-1', milestone);
-    queueNewCrate('u-1', m20);
-    open({ aether: 1200 }, { aether: true, crates: [milestone, m20] });
-    expect($('.nrw-panel')).not.toBeNull();
-    expect([...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].some((b) => b.textContent?.startsWith('Open all'))).toBe(false);
-    act(() => ($('.nrw-panel .crate-btn') as HTMLButtonElement).click());
-    await settle();
-    expect($('.colls-shop.milestone')).not.toBeNull(); // the single Open: the first milestone crate's focus step
-    expect(openCrateRemote).not.toHaveBeenCalled();
-    ui!.unmount();
-    // A level crate beside a milestone crate: Open all opens the level crate only.
-    resetNewRewardsForTests();
-    queueNewCrate('u-1', milestone);
-    queueNewCrate('u-1', crateList[1]!);
-    open({ aether: 1200 }, { aether: true, crates: [crateList[1]!, milestone] });
-    openCrateRemote.mockResolvedValue({ status: 'ok', value: opened('c-2', 'title_wanderer', 2, 1), profile: profile({ revision: 10 }) });
-    const all = [...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].find((b) => b.textContent === 'Open all (1)')!;
+    openCrateRemote.mockImplementation(async (id: string) => ({ status: 'ok', value: opened(id, 'title_wanderer', 2, 0), profile: profile({ revision: 10 }) }));
+    const all = [...document.querySelectorAll<HTMLButtonElement>('.nrw-panel button')].find((x) => x.textContent === 'Open all (2)')!;
     act(() => all.click());
     await settle();
-    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-2']);
+    await drain(2);
+    expect($('.colls-shop.milestone')).toBeNull();
+    expect(openCrateRemote.mock.calls.map((c) => c[0])).toEqual(['c-m10', 'c-m20']);
     resetNewRewardsForTests();
+    clean();
   });
 
-  it('every sealed crate a milestone crate: no Open all; the single Open leads to the focus step', async () => {
-    open({ aether: 1200 }, { aether: true, crates: [milestone, { ...milestone, crateId: 'c-m20', source: 'milestone:20' }] });
-    expect(text('.colls-bay-sub')).toBe('2 ready. Next: Level 10 Legendary Chest');
-    expect([...document.querySelectorAll<HTMLButtonElement>('.colls-bay button')].some((b) => b.textContent?.startsWith('Open all'))).toBe(false);
-    act(() => button('Open')!.click());
-    expect($('.colls-shop.milestone')).not.toBeNull();
-    expect(openCrateRemote).not.toHaveBeenCalled();
-  });
-
-  it("the bay names the next milestone level, and its odds are the first sealed crate's", () => {
+  it("the bay names the next milestone level, and its odds are the first sealed crate's (none sealed: the next milestone chest's, Epic)", () => {
     open({ accountXp: 0, aether: 0 }, { aether: true, crates: [crateList[0]!] });
     expect(text('.colls-bay-sub')).toBe('None right now. Your next chest comes at Level 10.');
-    expect(text('.colls-bay-odds')).toBe('Chest odds: Legendary 75%, Ancient 25%'); // the next crate IS a milestone Legendary
+    expect(text('.colls-bay-odds')).toBe('Chest odds: Epic 64.7%, Legendary 26.5%, Ancient 8.8%'); // the next crate IS a milestone Epic
     ui!.unmount();
     open({ aether: 0 }, { aether: true, crates: [milestone] });
+    expect(text('.colls-bay-odds')).toBe('Chest odds: Epic 64.7%, Legendary 26.5%, Ancient 8.8%');
+    ui!.unmount();
+    open({ aether: 0 }, { aether: true, crates: [legacyMilestone] });
     expect(text('.colls-bay-odds')).toBe('Chest odds: Legendary 75%, Ancient 25%');
     ui!.unmount();
     open({ aether: 0 }, { aether: true }); // old level crates: no floor, so every rarity at the published odds
@@ -912,29 +857,6 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     expect($('.crth')).not.toBeNull();
   });
 
-  it("a purchase in flight holds the milestone panel's Back and Open (nothing can pull the shop away or start a second theatre)", async () => {
-    open({ aether: 1200 }, { aether: true, crates: [milestone] });
-    let answer!: (o: unknown) => void;
-    buyCrateRemote.mockImplementation(() => new Promise((r) => { answer = r; }));
-    act(() => button('Open')!.click());
-    expect(back()!.disabled).toBe(false);
-    act(() => shopBuy().click());
-    expect(text('.colls-shop:not(.milestone) .colls-shop-buy')).toBe('Buying…');
-    expect(back()!.disabled).toBe(true);
-    expect(milestoneOpen().disabled).toBe(true);
-    act(() => back()!.click());
-    act(() => milestoneOpen().click());
-    expect($('.colls-shop.milestone')).not.toBeNull();
-    expect($('.crth')).toBeNull();
-    await act(async () => { answer({ status: 'ok', value: bought('c-shop', 'title_hearthkeeper'), profile: profile({ aether: 1100, revision: 10 }) }); await Promise.resolve(); });
-    await settle();
-    expect($('.crth')).not.toBeNull(); // the charged player gets the reveal
-    expect(openCrateRemote).not.toHaveBeenCalled();
-    act(() => button('Done')!.click());
-    expect(back()!.disabled).toBe(false);
-    expect(milestoneOpen().disabled).toBe(false);
-  });
-
   it("a purchase in flight holds the bay's Open and Open all (a second theatre would replace the reveal)", async () => {
     open({ aether: 1200 }, { aether: true });
     buyCrateRemote.mockImplementation(() => new Promise(() => {}));
@@ -958,13 +880,12 @@ describe('the Collection screen: Aether and the Chest Shop (2026-10-18)', () => 
     expect($('.crth')).toBeNull();
   });
 
-  it("a guest's Open on a milestone crate is the sign-in gate, never the focus step", async () => {
+  it("a guest's Open on a milestone crate is the sign-in gate", async () => {
     useGame.setState({ account: { userId: 'u-1', email: null, anonymous: true, discriminator: null } });
     open({ aether: 0 }, { aether: true, crates: [milestone] });
     act(() => button('Open')!.click());
     await settle();
     expect($('.crgate-panel')).not.toBeNull();
-    expect($('.colls-shop.milestone')).toBeNull();
     expect(openCrateRemote).not.toHaveBeenCalled();
   });
 });

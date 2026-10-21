@@ -6,16 +6,16 @@
  *  - step 1 picks a tier (a rarity floor), step 2 ticks focus chips; the price follows the picks;
  *  - a category with nothing left at this floor is a disabled chip;
  *  - a short balance and a sold-out crate disable Buy with their reason;
- *  - a GUEST never spends (owner 2026-10-18, R-PROG-AETHER-02): Buy and a milestone crate's Open call `onGuest`, never
- *    the store;
+ *  - a GUEST never spends (owner 2026-10-18, R-PROG-AETHER-02): Buy calls `onGuest`, never the store;
  *  - a purchase completes before the theatre opens: `onOpen` gets the bought crate and an `open` that answers with it;
- *  - milestone mode: no tier row, a free unfocused Open, the Legendary focus fee once a chip is ticked;
+ *  - there is no milestone mode any more (owner 2026-10-20: milestone chests "you cannot focus those ones"): the panel
+ *    is the shop alone, and it never opens an earned crate;
  *  - the server's refusals read as plain sentences.
  * No native tooltips, no em dashes.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { eligibleForCrate, type BuyCrateResult, type CosmeticCategory, type CrateRow, type CrateTier, type ProgressionProfile } from '@game/progression';
+import { eligibleForCrate, type BuyCrateResult, type CosmeticCategory, type CrateTier, type ProgressionProfile } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { BuyCrateOutcome, CrateOpenOutcome } from './progressionStore';
 
@@ -31,7 +31,7 @@ vi.mock('./progressionStore', async (orig) => ({
   refreshEconomy: () => refreshEconomy(),
 }));
 
-import { CrateShop, type CrateShopMode } from './CrateShop';
+import { CrateShop } from './CrateShop';
 import { setChestArtLoaderForTests } from './crateFx/chestArt';
 import { applyServerCatalogState, resetProgressionForTests, useProgression } from './progressionStore';
 import { useGame } from '../store';
@@ -51,16 +51,15 @@ function seed(aether: number): void {
   useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null } });
   useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: 'on', mirror: { userId: 'u-1', ...profile(aether) } });
 }
-const milestoneCrate: CrateRow = { crateId: 'c-m10', earnedLevel: null, state: 'sealed', rewardId: null, earnedAt: 't0', openedAt: null, source: 'milestone:10', floor: 'legendary' };
 
 const onGuest = vi.fn();
 const onOpen = vi.fn();
 const onBusy = vi.fn();
-function render(mode: CrateShopMode = { kind: 'shop' }, guest = false): void {
+function render(guest = false): void {
   onGuest.mockReset();
   onOpen.mockReset();
   onBusy.mockReset();
-  ui = mount(<CrateShop mode={mode} guest={guest} onGuest={onGuest} onOpen={onOpen} onBusy={onBusy} />);
+  ui = mount(<CrateShop guest={guest} onGuest={onGuest} onOpen={onOpen} onBusy={onBusy} />);
 }
 
 const $ = (sel: string): HTMLElement | null => document.querySelector<HTMLElement>(sel);
@@ -132,7 +131,7 @@ describe('the Chest Shop picker (owner 2026-10-18: "you purchase a crate of vari
 
   it('guest is gated', async () => {
     seed(2000);
-    render({ kind: 'shop' }, true);
+    render(true);
     click(tier('Epic'));
     click(buyBtn());
     await settle();
@@ -143,7 +142,7 @@ describe('the Chest Shop picker (owner 2026-10-18: "you purchase a crate of vari
 
   it('a guest with no Aether still reaches the sign-in gate: Buy stays enabled at the price (ruling 2026-10-19)', async () => {
     seed(0);
-    render({ kind: 'shop' }, true);
+    render(true);
     click(tier('Epic'));
     expect(buyBtn().disabled).toBe(false);
     expect(norm(buyBtn().textContent)).toBe('400');
@@ -239,7 +238,7 @@ describe('the Chest Shop picker (owner 2026-10-18: "you purchase a crate of vari
   });
 
   // Final review (2026-10-19): the chest's art loads while the player is still choosing, never cold at the click.
-  it('picking a tier preloads that chest\x27s art (Standard needs none; a milestone crate preloads the Legendary chest)', () => {
+  it('picking a tier preloads that chest\x27s art (Standard needs none)', () => {
     const urls: string[] = [];
     setChestArtLoaderForTests(async (url) => { urls.push(url); return {} as HTMLImageElement; });
     seed(2000);
@@ -249,91 +248,18 @@ describe('the Chest Shop picker (owner 2026-10-18: "you purchase a crate of vari
     expect(urls.filter((u) => u.includes('chest_epic'))).toHaveLength(2);
     click(tier('Ancient'));
     expect(urls.filter((u) => u.includes('chest_ancient'))).toHaveLength(2);
-    ui!.unmount();
-    urls.length = 0;
-    render({ kind: 'milestone', crate: milestoneCrate });
-    expect(urls.filter((u) => u.includes('chest_legendary'))).toHaveLength(2);
   });
 
-  it('milestone mode', async () => {
+  // Owner 2026-10-20: milestone chests are Epic and "you cannot focus those ones specifically": the shop has no mode that
+  // opens an earned crate, so it is always the shop (its head, its tier row) and only ever buys.
+  it('is the Chest Shop alone: no milestone mode, no Back, and its button only buys', async () => {
     seed(2000);
-    render({ kind: 'milestone', crate: milestoneCrate });
-    expect($('.colls-shop-tiers')).toBeNull();
-    expect(norm($('.colls-shop-name')?.textContent)).toBe('Level 10 Legendary Chest');
-    expect(norm(buyBtn().textContent)).toBe('Open');
-    click(chip('Card Plates'));
-    expect(norm(buyBtn().textContent)).toBe('600');
-    click(buyBtn());
-    await settle();
-    expect(buyCrate).not.toHaveBeenCalled();
-    expect(onOpen).toHaveBeenCalledTimes(1);
-    const [item, open] = onOpen.mock.calls[0]! as [{ crateId: string; earnedLevel: number | null; source?: string }, (id: string) => Promise<CrateOpenOutcome>];
-    expect(item).toEqual({ crateId: 'c-m10', earnedLevel: null, source: 'milestone:10', tier: 'legendary' }); // a milestone crate opens the Legendary chest
-    expect(openCrate).not.toHaveBeenCalled(); // the theatre asks when it plays
-    void open('c-m10');
-    expect(openCrate).toHaveBeenCalledWith('c-m10', ['card_plate'], 600);
-  });
-
-  it('milestone mode: an unfocused Open asks the server with the crate id ALONE (no focus, no fee)', async () => {
-    seed(2000);
-    render({ kind: 'milestone', crate: milestoneCrate });
-    click(buyBtn());
-    await settle();
-    expect(onOpen).toHaveBeenCalledTimes(1);
-    const open = onOpen.mock.calls[0]![1] as (id: string) => Promise<CrateOpenOutcome>;
-    void open('c-m10');
-    expect(openCrate.mock.calls).toHaveLength(1);
-    expect(openCrate.mock.calls[0]).toStrictEqual(['c-m10']);
-  });
-
-  it('milestone mode: two clicks inside ONE act hand the theatre the crate once', async () => {
-    seed(2000);
-    render({ kind: 'milestone', crate: milestoneCrate });
-    const b = buyBtn();
-    act(() => { b.click(); b.click(); });
-    await settle();
-    expect(onOpen).toHaveBeenCalledTimes(1);
-    expect(openCrate).not.toHaveBeenCalled();
-  });
-
-  it('milestone mode: nothing left at Legendary reads Sold out and is disabled', async () => {
-    useGame.setState({ account: { userId: 'u-1', email: 'kev@example.com', anonymous: false, discriminator: null } });
-    const all = eligibleForCrate([], 'legendary', null).map((c) => c.id);
-    useProgression.setState({ capability: 'on', cratesCapability: 'on', aetherCapability: 'on', mirror: { userId: 'u-1', ...profile(2000, { cosmetics: all }) } });
-    render({ kind: 'milestone', crate: milestoneCrate });
-    expect(norm(buyBtn().textContent)).toBe('Sold out');
-    expect(buyBtn().disabled).toBe(true);
-    click(buyBtn());
-    await settle();
-    expect(onOpen).not.toHaveBeenCalled();
-  });
-
-  it('milestone mode: Back is offered when the caller passes one; Back and Open are held while the caller says so', () => {
-    seed(2000);
-    const onBack = vi.fn();
-    ui = mount(<CrateShop mode={{ kind: 'milestone', crate: milestoneCrate }} guest={false} onGuest={onGuest} onOpen={onOpen} onBack={onBack} held />);
-    const back = [...document.querySelectorAll<HTMLButtonElement>('.colls-shop button')].find((x) => norm(x.textContent) === 'Back')!;
-    expect(back.disabled).toBe(true);
-    click(back);
-    expect(onBack).not.toHaveBeenCalled();
-    expect(buyBtn().disabled).toBe(true);
-    click(buyBtn());
-    expect(onOpen).not.toHaveBeenCalled();
-    ui.render(<CrateShop mode={{ kind: 'milestone', crate: milestoneCrate }} guest={false} onGuest={onGuest} onOpen={onOpen} onBack={onBack} held={false} />);
-    click([...document.querySelectorAll<HTMLButtonElement>('.colls-shop button')].find((x) => norm(x.textContent) === 'Back')!);
-    expect(onBack).toHaveBeenCalledTimes(1);
-    noDashes();
-  });
-
-  it('milestone mode: a guest cannot open it, focused or not', async () => {
-    seed(2000);
-    render({ kind: 'milestone', crate: milestoneCrate }, true);
-    click(buyBtn());
-    click(chip('Card Plates'));
-    click(buyBtn());
-    await settle();
-    expect(onGuest).toHaveBeenCalledTimes(2);
-    expect(onOpen).not.toHaveBeenCalled();
+    render();
+    expect(norm($('.colls-shop-head')?.textContent)).toBe('Chest Shop');
+    expect($('.colls-shop.milestone')).toBeNull();
+    expect($('.colls-shop-tiers')).not.toBeNull();
+    expect([...document.querySelectorAll<HTMLButtonElement>('.colls-shop button')].some((x) => norm(x.textContent) === 'Back')).toBe(false);
+    expect(norm(buyBtn().textContent)).toBe('100');
     expect(openCrate).not.toHaveBeenCalled();
   });
 

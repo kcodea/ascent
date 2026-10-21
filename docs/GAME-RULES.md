@@ -905,7 +905,7 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
   reward's sparks now shimmer through the colours (from any chest; the Ancient reward itself stays cyan to magenta).
   **What is inside still decides the finale**: the reward's rarity drives the burst, rays and sound as it always did,
   and the chest's tier only adds to it, so a Rare chest can still produce an Ancient finale. A milestone chest opens as
-  a Legendary chest. If a chest's art is not ready in time, that opening uses the Standard chest's art, but its tier's
+  its own floor's chest: an Epic chest (a milestone chest granted before 2026-10-20 opens as a Legendary chest). If a chest's art is not ready in time, that opening uses the Standard chest's art, but its tier's
   effects and sounds still play; reduced motion is still a short fade.
 - **The odds inside a chest.** The usual odds (Common 35 / Rare 31 / Epic 22 / Legendary 9 / Ancient 3) are kept, but
   only the rarities **at or above the floor** stay in the draw, and their odds are scaled up to total 100%. (An Epic chest
@@ -926,12 +926,13 @@ kept), and a Gauntlet first clear pays Aether instead of a chest.
   or above, not already owned) cannot be ticked and does not count toward the number ticked. **Ticking
   every available category is no focus at all and costs nothing.** A focus whose categories are all sold out cannot be
   bought. The chest price and the fee are one charge.
-- **Milestone chests.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Legendary-floor
-  chest**; other levels grant no chest. When Aether launches, every multiple of 10 at or below your level is granted at
-  once, once each (a Level 37 account receives three). A milestone chest opens unfocused for free, or you can **focus it
-  when you open it** and pay the Legendary focus fee from the table above (60% of 600 for two categories, for example).
-  Milestone chests are opened **one at a time**, each through its focus step: **Open all** opens your other sealed
-  chests and leaves milestone chests sealed for you.
+- **Milestone chests.** Reaching Level **10, 20, 30, and every 10th level** after grants one **free Epic-floor chest**
+  (owner 2026-10-20: "reduce down to Epic for the milestone chests"); other levels grant no chest. When Aether launches,
+  every multiple of 10 at or below your level is granted at once, once each (a Level 37 account receives three). A
+  milestone chest **cannot be focused** ("you cannot focus those ones specifically"): it opens unfocused, for free, like
+  any other chest you earned, and **Open all** opens it with the rest. Milestone chests granted **before 2026-10-20** were
+  Legendary-floor and **stay Legendary** (owner: "Keep them Legendary"); they cannot be focused either. Focus is something
+  you buy with a chest in the Chest Shop, never at opening.
 - **Chests you already hold.** Sealed chests earned before Aether launched are kept and open exactly as before (no
   floor, no focus, no fee).
 - **The launch gift (owner 2026-10-19, R-PROG-AETHER-05).** When Aether launches, **every account receives 1,000 Aether,

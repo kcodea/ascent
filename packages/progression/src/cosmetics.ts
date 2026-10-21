@@ -876,7 +876,8 @@ export interface CrateRow {
   /** The crate's rarity FLOOR (Aether era, 2026-10-18): nothing below it can drop. Absent = Common (every crate before the
    *  Crate Shop, and an unfocused Standard crate). `parseCrate` drops it when the server sent none or an unknown value. */
   floor?: CosmeticRarity;
-  /** The categories the crate was focused on at purchase (or at opening, for a milestone crate). Absent = unfocused. */
+  /** The categories the crate was focused on at purchase (or at opening, for a milestone crate opened before
+   *  2026-10-20, when that was still allowed). Absent = unfocused. */
   focus?: CosmeticCategory[];
 }
 
@@ -891,7 +892,8 @@ export function gauntletStageOfSource(source: string | null | undefined): number
   return m ? Number(m[1]) : null;
 }
 
-/** A free Legendary crate for reaching every 10th level (Aether era): `milestone:<level>`, the level a multiple of 10. */
+/** A free crate for reaching every 10th level (Aether era): `milestone:<level>`, the level a multiple of 10. Floor Epic
+ *  since 2026-10-20; the ones granted before that are floor Legendary. */
 const MILESTONE_SOURCE = /^milestone:([1-9][0-9]*0)$/;
 
 /** The milestone level a crate `source` names (`milestone:<n>`, n = 10, 20, 30, ...), or null. */
@@ -915,14 +917,15 @@ export const crateFloorLabel = (floor: CosmeticRarity): string => (floor === 'co
 
 /**
  * Any crate's player-facing name: a level crate keeps its `crateName`, a Gauntlet crate names its stage, a milestone crate
- * its level, a shop crate its tier (`floor` absent = Common = Standard).
+ * its level and its own floor ("Level 10 Epic Chest"; one granted before 2026-10-20 is Legendary; `floor` absent = Epic,
+ * today's milestone floor), a shop crate its tier (`floor` absent = Common = Standard).
  */
 export function crateLabel(crate: { earnedLevel: number | null; source?: string | null; floor?: CosmeticRarity | null }): string {
   if (crate.earnedLevel === null) {
     const stage = gauntletStageOfSource(crate.source);
     if (stage !== null) return `Gauntlet Chest · Stage ${stage}`;
     const milestone = milestoneLevelOfSource(crate.source);
-    if (milestone !== null) return `Level ${milestone} Legendary Chest`;
+    if (milestone !== null) return `Level ${milestone} ${crateFloorLabel(crate.floor ?? 'epic')} Chest`;
     if (isShopSource(crate.source)) return `${crateFloorLabel(crate.floor ?? 'common')} Chest`;
   }
   return crateName(crate.earnedLevel ?? 1);

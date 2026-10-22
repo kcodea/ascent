@@ -2268,4 +2268,132 @@ export const RUNES_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-21',
     },
   },
+  // ── Set 3 Dragon runes, Epic A (owner 2026-10-21) ──
+  {
+    id: 'R-DRAGONRUNE-A-01',
+    title: 'Rune of the War Council: Start of Combat, Runebind on 3 different random Dragons',
+    statement:
+      'Combat only (a Start of Combat rune; Twilight repeats it with the other passes). Three DIFFERENT random living '
+      + 'friendly Dragons (every Dragon when there are fewer; none = nothing), seeded draws, each takes one real combat '
+      + 'Runebind cast with the rune as the caster: counted as a spell cast, repeated by Queen Morro, echoed by Whisp, '
+      + 'copied by Tamby, its stats combat-only (R-BUFF-PERM) and its improve permanent and real time, so each cast reads '
+      + 'the live value and the next lands bigger. All-types bodies count as Dragons. Per copy held: another round of 3, '
+      + 're-drawn.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'Start of Combat: Cast Runebind on 3 random Dragons.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the Start of Combat rune pass, runeCastRunebind); packages/core/src/effects/factories.ts castWhisperInCombat' },
+    ],
+    contentIds: ['rune_war_council', 'w4_runebind'],
+    cardText: '**Start of Combat:** Cast **Runebind** on **3** random **Dragons**.',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DRAGONRUNE-A-02',
+    title: 'Rune of the Growing Inferno: every friendly Dragon attack casts Growth',
+    statement:
+      'Combat only (the text says "in combat"). Every swing of a friendly Dragon, after its own Rally, casts Growth once '
+      + 'per copy held, the rune as the caster (an ungilded stand-in for the attacker, so a Gilded Dragon does not double '
+      + 'it). A real cast: counted, repeated by Queen Morro, at Growth\'s live value (spell power, Rune of Living Growth). '
+      + 'The buffs are combat-only (R-BUFF-PERM). No cap.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'Dragon attacks in combat cast Growth.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts performAttack (runeGrowingInferno) + runeGrowingInferno()' },
+    ],
+    contentIds: ['rune_growing_inferno', 'growth'],
+    cardText: '**Dragon** attacks in combat cast **Growth**.',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DRAGONRUNE-A-03',
+    title: "From-hand play meters: the Secret Exchange counts Whispers, the Wyrm's Hoard counts Shop spells, both every 3",
+    statement:
+      'Two `runeThreshold` meters tick once per CARD the player casts from hand, after it resolves: `whisperFromHand` for '
+      + 'a Whisper, `shopSpellFromHand` for a Shop spell (never a Whisper, Gift, Ruby, token or reward spell). A Yazzus or '
+      + 'Nimbus repeat is the same play; a rune\'s, minion\'s, Equipment\'s or Whisp\'s cast is not a hand cast. Both bank '
+      + 'their remainder across turns and pay EVERY 3 (the counting-rune convention), each copy held its own meter. Rune '
+      + 'of the Secret Exchange opens a Shop-spell Discover (the run\'s Shop spells up to your tier); Rune of the Wyrm\'s '
+      + 'Hoard raises spell power +1/+1 for the rest of the run. Shop only: nothing is cast from hand in combat.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'After you cast 3 Whispers from hand, Discover a Shop spell.' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'After you cast 3 Shop spells from hand, permanently improve your Shop spells by +1/+1.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts noteHandCastPlay + payRuneThresholdInner (discoverSpell); packages/sim/src/reducer.ts hand-play paths' },
+    ],
+    contentIds: ['rune_secret_exchange', 'rune_wyrms_hoard'],
+    cardText: 'After you cast **3 Whispers** from hand, **Discover** a **Shop spell**.',
+    currentBehaviour: 'Conforms (2026-10-21, new). "Every 3" (repeating) is the agent reading of "After you cast 3"; owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DRAGONRUNE-A-04',
+    title: 'Rune of the Runebound Brood: every Drake Pup you summon casts Runebind on itself, both phases',
+    statement:
+      'A Drake Pup arriving on your side (a Seed Echo, a copy, a return; combat or Shop) casts Runebind on itself once per '
+      + 'copy held, after its own arrival watchers, the rune as the caster: a real Whisper cast (counted, Whisp-echoed, '
+      + 'Runebind improves). In combat its stats are combat-only; in the Shop they follow the Whisper rule (temporary, '
+      + 'removed at your next Start of Turn).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'Drake Pups you summon cast Runebind on themselves.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonEntryEffects (runeRuneboundBrood); packages/sim/src/recruit.ts runeboundBroodShop' },
+    ],
+    contentIds: ['rune_runebound_brood', 'd3_drakepup', 'w4_runebind'],
+    cardText: '**Drake Pups** you summon cast **Runebind** on themselves.',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DRAGONRUNE-A-05',
+    title: 'Rune of Unbroken Scales: a side-wide 2 per combat; each Dragon Ward loss pays +10/+10, then the Ward re-forms',
+    statement:
+      'Combat only. The first 2 times any friendly Dragon loses Ward in a fight (a SIDE-WIDE budget across all your '
+      + 'Dragons, not per body, so a Rise or Rebirth return does not refill it; R-RETURN-RESET-01 resets per-body limits '
+      + 'only), that Dragon gains +10/+10 (combat-only) and Ward again. A Resilient Ward downgrade is not a loss. Two '
+      + 'copies: still 2 fires, each +20/+20. Presentation: the break, then the buff, then the Ward re-forms on its own '
+      + 'beat (Foamguard\'s three beats, R-DWARF-1021-03), because the re-formed Ward carries the rune\'s effect key.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'The first 2 times your Dragons loses Ward each combat, give it +10/+10 and Ward.' },
+      { kind: 'owner-chat', ref: 'Owner brief 2026-10-21', quote: 'a side-wide counter, 2 per combat across all your Dragons (not per Dragon)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the runeUnbrokenScales onLoseDivineShield listener, UNBROKEN_SCALES_KEY); packages/ui/src/choreo/clashOrder.ts isWardReform' },
+    ],
+    contentIds: ['rune_unbroken_scales'],
+    cardText: 'The first **2** times your **Dragons** lose **Ward** each combat, give it **+10/+10** and **Ward**.',
+    currentBehaviour: 'Conforms (2026-10-21, new). Copies multiply the buff, not the budget (agent call; owner approved the readings 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-DRAGONRUNE-A-06',
+    title: "Rune of Runic Transposition: a Whisper's Health on a Dragon also lands as Attack, on top of its own Attack",
+    statement:
+      'Both phases. A Whisper cast on a Dragon (from any source: hand, Whisp, a rune, Whaloo) that gives Health also '
+      + 'gives Attack equal to that Health, ADDED to the Attack it already gives (a +2/+3 Whisper gives +5/+3), per copy '
+      + 'held. The extra Attack is part of the Whisper\'s own grant: temporary with it in the Shop (a Hum keeps it with '
+      + 'it) and combat-only in combat. Non-Dragons and Health-less Whispers are untouched.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'if it already gives attack it still gains the health as attack bonus' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts runicTranspositionAttack (whisperBuffTarget); packages/core/src/effects/factories.ts castWhisperInCombat' },
+    ],
+    contentIds: ['rune_runic_transposition'],
+    cardText: '**Whispers** that give a **Dragon** Health also give it that much **Attack**.',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

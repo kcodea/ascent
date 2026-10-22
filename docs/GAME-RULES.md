@@ -2438,6 +2438,26 @@ copy held pays its own share. Buffs are permanent in the Shop and last the fight
 | Rune of the Final Utterance | Avenge (4): Get a random Whisper and a Shop Spell | Combat only (Avenge). Rune of Fury doubles it. |
 | Rune of Ember Inheritance | After your first Dragon with Echo dies each combat, give its Attack to your left-most Dragon. | The first friendly Dragon carrying an Echo to die; its Attack at death goes to the left-most living friendly Dragon. |
 
+### Set 3 Dragon runes, Epic A (owner 2026-10-21; R-DRAGONRUNE-A-01..06)
+
+Seven Epic runes, Set 3 only, offered when Dragon is one of the run's tribes.
+
+- **War Council** (5): Start of Combat, cast Runebind on 3 different random living Dragons (all of them if fewer). Each
+  is a real combat Whisper cast (counted, Morro-repeated, Whisp-echoed, its improve permanent), so each lands at the
+  live value. Twilight repeats it. Per copy: another 3.
+- **Growing Inferno** (5): every friendly Dragon swing casts Growth (the rune casts; a Gilded Dragon does not double it).
+  Combat buffs, no cap.
+- **Secret Exchange** (4) and **Wyrm's Hoard** (4): count CARDS cast from hand (a Yazzus repeat is the same card; a
+  rune, minion, Equipment or Whisp cast is not from hand). Every 3 Whispers: Discover a Shop spell. Every 3 Shop spells
+  (never a Whisper, Gift or Ruby): your Shop spells +1/+1 for the run. The count banks across turns.
+- **Runebound Brood** (4): a Drake Pup you summon, in combat or the Shop, casts Runebind on itself. In the Shop its
+  stats follow the Whisper rule (until your next turn).
+- **Unbroken Scales** (5): the first 2 times your Dragons lose Ward in a fight (2 for the whole side, not per Dragon; a
+  return does not refill it), that Dragon gets +10/+10 and Ward. It plays as break, buff, Ward back. Two copies: still 2
+  fires, +20/+20 each.
+- **Runic Transposition** (4): a Whisper that gives a Dragon Health also gives it that much Attack, on top of its own
+  Attack (+2/+3 becomes +5/+3), part of the Whisper's own grant (temporary with it; a Hum keeps it).
+
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 
 The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:

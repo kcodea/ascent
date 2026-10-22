@@ -86,6 +86,19 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Seven new Epic Dragon runes join the Set 3 Runeforge.',
+        details: [
+          'Rune of the War Council (5 Gold): at Start of Combat, cast Runebind on 3 random Dragons.',
+          'Rune of the Growing Inferno (5 Gold): every Dragon attack in combat casts Growth.',
+          'Rune of the Secret Exchange (4 Gold): every 3 Whispers you cast from hand, Discover a Shop spell.',
+          'Rune of the Runebound Brood (4 Gold): Drake Pups you summon cast Runebind on themselves, in combat and in the Shop.',
+          'Rune of Unbroken Scales (5 Gold): the first 2 times your Dragons lose Ward each combat, that Dragon gets +10/+10 and Ward back.',
+          'Rune of Runic Transposition (4 Gold): a Whisper that gives a Dragon Health also gives it that much Attack. A +2/+3 Whisper gives +5/+3.',
+          "Rune of the Wyrm's Hoard (4 Gold): every 3 Shop spells you cast from hand, your Shop spells get +1/+1 for the rest of the game.",
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
         details: [

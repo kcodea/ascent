@@ -26,9 +26,9 @@ import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
-import { addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
+import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
@@ -363,6 +363,9 @@ export function simulate(
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
+  /** Rune of Unbroken Scales: fires per side per combat, and the presentation key its re-formed Ward carries. */
+  const UNBROKEN_SCALES_PER_COMBAT = 2;
+  const UNBROKEN_SCALES_KEY = 'rune:runeUnbrokenScales';
   const bus = new CombatBus();
   // Fire the Avenge bus with `inAvenge` set, so every event the handlers emit (buff / improve / maxGold /
   // shieldUp / summon / …) is stamped `avenge:true`. try/finally guarantees the flag clears even if a handler
@@ -1767,6 +1770,13 @@ export function simulate(
     // combat Runebind). The running totals ride `shoutCarry.whisperImprove` so settle can raise the run to them; the
     // enemy's are tracked the same way (R-SYMMETRY-01) and simply have no run to land on.
     whisperImproveFor: (side, whisperId) => shoutCarry[side].whisperImprove?.[whisperId] ?? stateOf(side).whisperImprove?.[whisperId] ?? 0,
+    // RUNE OF RUNIC TRANSPOSITION (owner 2026-10-21): asked only when a Whisper's Health is landing on a Dragon, so the
+    // badge pulses exactly when the rune adds Attack.
+    runicTranspositionFor: (side) => {
+      if (!modsFor(side).runeRunicTransposition) return 0;
+      fireTrigger('runeRunicTransposition', side);
+      return flagCopiesOf(side, 'runeRunicTransposition');
+    },
     addWhisperImprove: (side, whisperId, n) => {
       const map = (shoutCarry[side].whisperImprove ??= { ...(stateOf(side).whisperImprove ?? {}) });
       map[whisperId] = (map[whisperId] ?? 0) + n;
@@ -2654,6 +2664,16 @@ export function simulate(
     // …THEN the augmenting onSummon watchers, in CURRENT board order left→right (bus order was registration
     // order, which drifts from the visible board as bodies re-slot and summon).
     emitOnSummonOrdered(minion, side);
+    // RUNE OF THE RUNEBOUND BROOD (owner 2026-10-21): "Drake Pups you summon cast Runebind on themselves." Every Drake
+    // Pup arriving on this side (a Seed Echo, a copy, a return) casts Runebind on itself once per copy held, after its
+    // own arrival watchers. The Shop twin is `runeboundBroodShop` (sim/recruit.ts).
+    if (minion.cardId === SEED_TOKEN_ID && minion.side === side && modsFor(side).runeRuneboundBrood) {
+      for (let k = 0; k < flagCopiesOf(side, 'runeRuneboundBrood'); k++) {
+        if (minion.dead || minion.health <= 0) break;
+        nextStep(); fireTrigger('runeRuneboundBrood', side);
+        runeCastRunebind(minion, 'rune_runebound_brood', 'Rune of the Runebound Brood');
+      }
+    }
     // ANCIENT OF DEATH × Robin: "Summoned minions gain +3/+2 for every count of Spoils this turn." Every friendly summon
     // (this chokepoint: a token, a Rise, a resummon) gains the turn's live amount, after its own watchers (the Shop's
     // Den Marker order), a combat buff.
@@ -4448,6 +4468,11 @@ export function simulate(
         fireTrigger('runeDeepBreaths', attacker.side);
         for (let k = 0; k < flagCopiesOf(attacker.side, 'runeDeepBreaths'); k++) runeCastGrowth(attacker);
       }
+      // RUNE OF THE GROWING INFERNO (owner 2026-10-21): "Dragon attacks in combat cast Growth." Every friendly Dragon
+      // swing casts Growth once per copy held, after the attacker's own Rally (the Sunpony slot), the rune as caster.
+      if (modsFor(attacker.side).runeGrowingInferno && !attacker.dead && isTribeOf(attacker, 'dragon', cards)) {
+        runeGrowingInferno(attacker);
+      }
       // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
       // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
       // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.
@@ -5487,6 +5512,20 @@ export function simulate(
         for (const m of recipients) ctx.buff(m, fb, fb, 'Rune of the Five Banners');
       }
     }
+    // RUNE OF THE WAR COUNCIL (owner 2026-10-21): "Start of Combat: Cast Runebind on 3 random Dragons." Three DIFFERENT
+    // living friendly Dragons (all of them when fewer), seeded draws off the fight's stream, one cast each; again
+    // per copy held (re-drawn). Each cast reads the live Runebind value, so later casts land bigger. A Start of Combat
+    // rune, so Twilight repeats it with the other passes.
+    if (rmods.runeWarCouncil) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeWarCouncil'); k++) {
+        const pool = boards[rside].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards));
+        if (pool.length === 0) break;
+        const picks: Minion[] = [];
+        while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeWarCouncil', rside);
+        for (const t of picks) { if (t !== picks[0]) nextStep(); runeCastRunebind(t, 'rune_war_council', 'Rune of the War Council'); }
+      }
+    }
     if (base && rmods.unitedFront && rmods.unitedFront > 0) {
       // Emissary (United Front), a hero power (base pass only): the Five Banners rule — one friendly of each
       // type gains +N/+N, where N is the number of spells cast this GAME (owner respec 2026-08-17; it was the
@@ -6040,6 +6079,33 @@ export function simulate(
       }
     }, spell.id);
   }
+  /** RUNE OF THE GROWING INFERNO (owner 2026-10-21): one rune cast of Growth per copy held, through the attacking
+   *  Dragon's body as an UNGILDED stand-in (a Gilded Dragon does not double it; the rune is the caster). A real cast:
+   *  `castInCombat` counts it (spell tallies, Queen Morro's extra casts, watchers) and `resolveCombatSpellCast` pays
+   *  Growth's live value (spell power, Rune of Living Growth). Combat buffs only (R-BUFF-PERM). */
+  function runeGrowingInferno(attacker: Minion): void {
+    const spell = cards['growth'];
+    if (!spell?.spell) return;
+    const side = attacker.side;
+    const caster = { ...attacker, golden: false } as Minion;
+    for (let k = 0; k < flagCopiesOf(side, 'runeGrowingInferno'); k++) {
+      nextStep();
+      fireTrigger('runeGrowingInferno', side);
+      castInCombat(ctx, caster, () => {
+        if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
+          emit({ type: 'sc', source: attacker.uid, text: `Rune of the Growing Inferno casts ${spell.name}`, spellId: spell.id, rune: 'rune_growing_inferno', side });
+        }
+      }, spell.id);
+    }
+  }
+  /** RUNEBIND FROM A RUNE (War Council, the Runebound Brood; owner 2026-10-21): one real combat Whisper cast of Runebind
+   *  on `target` (`castWhisperInCombat`: counted, Morro-repeated, Whisp-echoed, Tamby-copied; its stats combat-only,
+   *  its improve permanent and real time), the rune as the caster (the `sc` carries `rune`), at the plain value. */
+  function runeCastRunebind(target: Minion, runeId: string, runeName: string): void {
+    const def = cards['w4_runebind'];
+    if (!def?.whisper || target.dead || target.health <= 0) return;
+    castWhisperInCombat(ctx, target, target, def, 1, `${runeName} casts ${def.name}`, runeId);
+  }
   /** RUNE OF CALL AND ANSWER, combat half: the left-most minion in this side's hand (the fight's hand snapshot, minus
    *  any summoned out) +2/+2 per copy, through `buffHand` (permanent, R-HAND-02; either side's hand). */
   function callAndAnswer(side: Side, sourceUid: string): void {
@@ -6510,6 +6576,27 @@ export function simulate(
         for (let k = 0; k < flagCopiesOf(sside, 'runeSalvage'); k++) ctx.grantToHand(magnetics[draw.int(magnetics.length)]!.id, sside, minion.uid);
       });
     }
+  }
+  // RUNE OF UNBROKEN SCALES (owner 2026-10-21): "The first 2 times your Dragons lose Ward each combat, give it +10/+10
+  // and Ward." A SIDE-WIDE budget of 2 per fight across every friendly Dragon (not per body, so a Rise / Rebirth return
+  // does not refill it; R-RETURN-RESET-01 covers per-body limits only). Each fire: the +10/+10 (x copies held, a combat
+  // buff, R-BUFF-PERM) then the Ward re-forms. The re-formed Ward's `shieldUp` carries the rune's key, so the replay
+  // plays Foamguard's three beats (R-DWARF-1021-03): the break, the buff, the Ward coming back.
+  for (const uside of SIDES) {
+    if (!modsFor(uside).runeUnbrokenScales) continue;
+    let left = UNBROKEN_SCALES_PER_COMBAT;
+    bus.on('onLoseDivineShield', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (side !== uside || left <= 0 || minion.dead || minion.health <= 0 || !isTribeOf(minion, 'dragon', cards)) return;
+      left--;
+      fireTrigger('runeUnbrokenScales', uside);
+      const n = 10 * flagCopiesOf(uside, 'runeUnbrokenScales');
+      ctx.buff(minion, n, n, 'Rune of Unbroken Scales');
+      if (minion.dead || minion.health <= 0 || minion.divineShield) return;
+      minion.divineShield = true;
+      if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+      emit({ type: 'shieldUp', target: minion.uid, key: UNBROKEN_SCALES_KEY });
+    });
   }
   // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
   // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)

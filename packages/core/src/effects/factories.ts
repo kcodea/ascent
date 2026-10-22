@@ -1139,7 +1139,7 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
  *  - Tamby: cast on a Tamby, it hands a copy of the Whisper to hand (x its golden copies), once per fight.
  */
 let WHISP_COMBAT_ECHOING = false;
-export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: Minion, def: CardDef, mult: number, text?: string): void {
+export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: Minion, def: CardDef, mult: number, text?: string, runeId?: string): void {
   const side = caster.side;
   const m = Math.max(1, mult);
   // The multiplier is the Whisper's own (a gilded copy), never a repeat: cast through an ungilded stand-in.
@@ -1150,12 +1150,16 @@ export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: 
       const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
       const p = (eff?.params ?? {}) as Record<string, unknown>;
       const imp = ctx.whisperImproveFor?.(side, def.id) ?? 0;
-      const a = (num(p.attack, 1) + imp) * m;
       const h = (num(p.health, 1) + imp) * m;
+      // RUNE OF RUNIC TRANSPOSITION (owner 2026-10-21): a Whisper giving a Dragon Health also gives it that much
+      // Attack, on top of its own Attack, per copy held, folded into the same (combat) grant. The Shop twin is
+      // `runicTranspositionAttack` (sim/recruit.ts).
+      const tp = eff && h > 0 && combatArena(ctx, caster).isTribe(target, 'dragon') ? (ctx.runicTranspositionFor?.(side) ?? 0) : 0;
+      const a = (num(p.attack, 1) + imp) * m + h * tp;
       if (eff) ctx.buff(target, a, h, caster.uid);
       const step = num(p.improve, 0);
       const total = step > 0 ? ctx.addWhisperImprove?.(side, def.id, step * m) : undefined;
-      ctx.log({ type: 'sc', source: caster.uid, side, text: text ?? `${caster.name} casts ${def.name}`, spellId: def.id, target: target.uid, ...(total !== undefined ? { whisperImprove: total } : {}) });
+      ctx.log({ type: 'sc', source: caster.uid, side, text: text ?? `${caster.name} casts ${def.name}`, spellId: def.id, target: target.uid, ...(runeId ? { rune: runeId } : {}), ...(total !== undefined ? { whisperImprove: total } : {}) });
       // Set 3 Dragon runes (Rune of Borrowed Flame, Rune of Spell Tempering): every resolved Whisper cast, each repetition its own.
       ctx.onWhisperCast?.(side, def.id, target, caster.uid);
     });

@@ -176,7 +176,11 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // the sell grammar to read "Sells for" / "Sell for" / "you Sell" in either case, so no existing text regressed.
 // 2026-10-21 (Set 3 Dragon runes, Basic): 142 -> 145, CONSCIOUSLY. Three new rune texts have no grammar rule yet (the
 // distinct-Whispers-from-hand Gold meter, the Whisper-count spell-power improve, the first-Echo-Dragon Attack gift).
-const UNRESOLVED_CAP = 145;
+// 2026-10-21 (Set 3 Dragon runes, Epic A): 145 -> 148, CONSCIOUSLY (on top of Basic's +3). Seven new runes; three texts have no grammar rule
+// yet: Growing Inferno ("Dragon attacks in combat cast Growth."), the Runebound Brood ("cast Runebind on themselves")
+// and Runic Transposition ("also give it that much Attack"). War Council, Secret Exchange, Unbroken Scales and the
+// Wyrm's Hoard parse.
+const UNRESOLVED_CAP = 148;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

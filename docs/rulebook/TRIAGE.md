@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (113) — NOT owner questions
+## Doc Bot verification backlog (118) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -96,6 +96,11 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeDeepBreaths (Rune of Deep Breaths: "The first 2 Dragon attacks each combat cast Growth.") — Rune of Deep Breaths: the first 2 friendly Dragon swings each fight cast Growth (per copy).
 - combat mod runeDefiantWings (Rune of Defiant Wings: "Start of Combat: Give 2 Dragons +3/+6 and Ward.") — Rune of Defiant Wings: Start of Combat, 2 random friendly Dragons +3/+6 and Ward (per copy).
 - combat mod runeEmberInheritance (Rune of Ember Inheritance: "After your first Dragon with Echo dies each combat, give its Attack to your left-most Dragon.") — Rune of Ember Inheritance: the first friendly Dragon WITH an Echo to die each fight gives its Attack to the left-most living friendly Dragon (per copy).
+- combat mod runeWarCouncil (Rune of the War Council: "Start of Combat: Cast Runebind on 3 random Dragons.") — Rune of the War Council: Start of Combat, cast Runebind on 3 random friendly Dragons (per copy).
+- combat mod runeGrowingInferno (Rune of the Growing Inferno: "Dragon attacks in combat cast Growth.") — Rune of the Growing Inferno: every friendly Dragon attack casts Growth (per copy), the rune as caster.
+- combat mod runeRuneboundBrood (Rune of the Runebound Brood: "Drake Pups you summon cast Runebind on themselves.") — Rune of the Runebound Brood: a Drake Pup this side summons casts Runebind on itself (per copy).
+- combat mod runeUnbrokenScales (Rune of Unbroken Scales: "The first 2 times your Dragons lose Ward each combat, give it +10/+10 and Ward.") — Rune of Unbroken Scales: the first 2 times a friendly Dragon loses Ward each combat (side-wide), it gains +10/+10 (per copy) and Ward.
+- combat mod runeRunicTransposition (Rune of Runic Transposition: "Whispers that give a Dragon Health also give it that much Attack.") — Rune of Runic Transposition: a Whisper cast on a friendly Dragon also gives it Attack equal to the Health it gives.
 - combat mod starCrashBonus — Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too.
 - combat mod candlelightToll (Candlelight Toll: "") — Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the board-wide sibling of `runeRallying`, which fires only the left-most). */ /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant).
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.

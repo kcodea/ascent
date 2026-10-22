@@ -28,7 +28,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -1927,6 +1927,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (dop.spell) {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def, card);
           withHandCast(def.id, () => { for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
+          noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
           if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
@@ -1959,6 +1960,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // why Sprout didn't trigger Runebloom Matriarch or Groveweaver (owner report 2026-07-27). Once per
         // cast, so a multiplied Discover counts each time, exactly like a multiplied ordinary spell.
         withHandCast(def.id, () => { for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
+        noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
@@ -2161,6 +2163,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
           if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
           clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
+          noteHandCastPlay(s, def); // Rune of the Secret Exchange: one Whisper cast from hand (a Yazzus repeat is not another)
           checkTriples(s);
           return s;
         }
@@ -2266,6 +2269,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
+        noteHandCastPlay(s, def); // Rune of the Wyrm's Hoard: one Shop spell cast from hand (multi-casts are one play)
         // Rune of Contraband: the FIRST Dwarven Ale cast each turn smuggles back a Ruby.
         if (s.runeContraband && !s.contrabandAleUsed && ALE_IDS.includes(card.cardId)) {
           procRune(s, 'runeContraband');
@@ -2595,6 +2599,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           withHandCast(spellDef.id, () => castSpell(s, spellDef, second)); // factory averages `second` with `pt.spellFirstUid` BEFORE we clear pt; a cast from hand
           s.hand.splice(hi, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), pt.cardId]; // counts as a card played (Rune of Action)
+          noteHandCastPlay(s, spellDef); // the from-hand meters (Wyrm's Hoard)
         }
         s.pendingTarget = undefined;
         checkTriples(s);
@@ -4055,6 +4060,7 @@ function resolveChooseOneSpell(
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
   s.hand.splice(hi, 1);
   s.playedThisTurn = [...(s.playedThisTurn ?? []), def.id]; // counts as a card played (Rune of Action)
+  noteHandCastPlay(s, def); // the from-hand meters (Wyrm's Hoard)
   // Ruby Roach — AFTER the branch has been cast (owner 2026-08-31), so anything the spell put on the board
   // is standing to receive the Roach's Ruby. The minion half fires at its own resolution site.
   applyChooseOnePlayed(s, def);
@@ -7143,7 +7149,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).
@@ -8189,6 +8195,12 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeDefiantWings: f?.runeDefiantWings,           // SoC: 2 Dragons +3/+6 and Ward
     runeFinalUtterance: f?.runeFinalUtterance,       // Avenge (4): a Whisper and a Shop Spell
     runeEmberInheritance: f?.runeEmberInheritance,   // the first Echo Dragon death gives its Attack left-most
+    // ── Set 3 Dragon runes, Epic A (owner 2026-10-21) ──
+    runeWarCouncil: f?.runeWarCouncil,               // Start of Combat: Runebind on 3 random Dragons
+    runeGrowingInferno: f?.runeGrowingInferno,       // a Dragon attack casts Growth
+    runeRuneboundBrood: f?.runeRuneboundBrood,       // a summoned Drake Pup casts Runebind on itself
+    runeUnbrokenScales: f?.runeUnbrokenScales,       // the first 2 Dragon Ward losses each combat: +10/+10 and Ward
+    runeRunicTransposition: f?.runeRunicTransposition, // a Whisper's Health on a Dragon also gives that much Attack
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

@@ -758,6 +758,14 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_defiant_wings:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: 2 Dragons +3/+6 and Ward
   'rune:rune_final_utterance:combat': { policy: 'ownBeat', family: 'avenge' }, // Avenge (4): a Whisper and a Shop Spell
   'rune:rune_ember_inheritance:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first Echo Dragon death: its Attack left-most
+  // Set 3 Dragon runes, Epic A (owner 2026-10-21)
+  'rune:rune_war_council:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: Runebind on 3 random Dragons (each cast its own sc beat)
+  'rune:rune_growing_inferno:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dragon attacks: the rune casts Growth
+  'rune:rune_secret_exchange:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Whispers cast from hand: Discover a Shop spell
+  'rune:rune_runebound_brood:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Drake Pup arrives: it casts Runebind on itself (both phases)
+  'rune:rune_unbroken_scales:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dragon loses Ward (2 per combat): +10/+10, then the Ward re-forms
+  'rune:rune_runic_transposition:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a Dragon: its Health also as Attack (both phases)
+  'rune:rune_wyrms_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Shop spells cast from hand: spell power +1/+1
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

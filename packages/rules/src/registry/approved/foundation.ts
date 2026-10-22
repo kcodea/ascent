@@ -7699,4 +7699,46 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A 4v4 that would take 14 seconds: press Skip on the second swing, the fight and its effects race at 20× under a whir, slow evenly for a second and a half while the game sounds fade back in, and the final killing swing plays at normal speed with its sound.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurbo.test.ts', 'packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-10-22' },
   },
+  // ── The shop <-> combat transition only MOVES, it never reshapes (owner 2026-10-21/22, millisecond flashes) ─────
+  {
+    id: 'R-PRESENT-35',
+    title: 'The shop and combat transition covers the screen by moving a solid layer, never by reshaping one, so no frame of it is see-through',
+    statement:
+      'The screen that hides the swap between the Shop and combat (both ways) covers it by MOVING a solid, full-screen '
+      + 'layer (today a wooden gate that falls from the top, slams, holds and is cranked back up), never by growing, '
+      + 'clipping or reshaping one. A busy frame may make it late, but never see-through, so nothing of the game ever '
+      + 'flashes over it. It covers the WHOLE screen for as long as the scene behind it changes, including through its '
+      + 'landing bounce, and the scene swaps only while it fully covers. Anything that rides on it (the poster with the '
+      + 'opponent, its edge FX) moves with it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-21 (after the z3000 curtain fix)',
+        quote: 'interestingly i still see random flashes of various elements over the transition curtain. they are milisecond flashes, but they do occur, i wonder why',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-21 (the ranked gate standing in for the curtain, as a test)',
+        quote: 'so far not a single issue',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-21 (the redesign)',
+        quote: 'i want to do something that falls from the "ceiling" of the screen and lands at the bottom of the screen with a bang, like a big stone gate or something',
+      },
+      { kind: 'fix-pr', ref: 'feat/panel-transition' },
+      { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts curtainClassFor; packages/ui/src/styles.css .wipecurtain / .wipecurtain::after (the foot) / .wipeposter / @keyframes wipeslam, wipecrank, posterslam, postercrank; packages/ui/src/Recruit.tsx (the curtain markup + its sounds)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-22. Before, the blue curtain bloomed out of the End Turn gem by animating its clip-path: a '
+      + 'shape recomputed every frame, which on the heavy End Turn frame could come out wrong or not be drawn, so the game '
+      + 'showed through for a frame (the "millisecond flashes" left after R-PRESENT-17 put the curtain above every layer). '
+      + 'With the ranked gate (doors that only slide) standing in, the owner saw none. Now the curtain is the owner\'s '
+      + 'wooden gate: transform-only motion (fall, slam bounce, a swaying crank), a hidden strip of its bottom beam below '
+      + 'its edge so the landing bounce never opens a gap at the floor while the scene swaps, and the poster carrying '
+      + 'NOW FACING swinging on its own nail (transform only).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

@@ -55,6 +55,7 @@ export const DAMAGE_METER_MARKERS: Readonly<Record<string, true>> = {
   dealtDamageAleMeter: true,     // Han Gover — "Pummel (40): Get a Dwarven Ale. (Once per combat)"
   dealtDamageGoldNextTurn: true, // Goldvein — "Pummel (6): Gain 3 Gold next turn. (Once per combat)"
   dealtDamageGrantRandomTribe: true, // Maestro Lux (2026-09-24) — "Pummel (12): Get a random Celestial. (Once per combat.)"
+  dealtDamageCastRubiesTribe: true, // Zapdash (owner 2026-10-22) - "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)"
   dealtDamageGetRandomRuby: true, // Kobe (Ruby batch 2026-09-24) — "Pummel (15): Get a random Ruby. (Twice per combat)"
   dealtDamageGetRandomSpell: true, // Tauntbreaker (owner 2026-10-03) — "Pummel (25): Get a random Shop Spell. (Once per combat)"
   dealtDamageSummonToken: true, // Impossible Todd (owner 2026-10-10) - "Pummel (20): Summon an Imp. (Once per combat.)"
@@ -1035,6 +1036,11 @@ export type EffectFactoryId =
   | 'whisperGetTribeOfTier' // Hatcher's Whisper (Set 3, 2026-10-15): get a random `tribe` minion of the held Whisper's tier (`grantedTier`, default 1), x the cast Whisper's multiplier (recruit)
   | 'whisperGrantKeyword' // Warding Call (Whispwarder's Whisper, 2026-10-15): the target gains `keyword` until your next turn; a gilded copy grants `gildedKeyword` instead (recruit)
   | 'whisperGrantSeedEcho' // Seed (Gardener's Whisper): the target gains "Echo: summon a 3/3 Drake Pup with Taunt" until your next turn, x the cast Whisper's multiplier (recruit)
+  | 'battlecryGrantFreeRolls' // Boy Scout (Set 3 Kobold, owner 2026-10-22): Shout, bank `count` (x2 gilded) free Refreshes (`freeRolls`); combat Shout replays bank through `grantFreeRolls` (the Gryphon carry-back)
+  | 'dealtDamageCastRubiesTribe' // Zapdash (owner 2026-10-22): "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)" - a DAMAGE_METER_MARKERS passive; each payout casts `count` (x2 gilded) plain Rubies (`playRubyOn`) on every living friendly `tribe` body, at most `maxPerCombat` payouts (combat)
+  | 'friendlyAttacksPlayRubiesSelf' // Frack Attack (owner 2026-10-22): every `every` FRIENDLY attacks this combat (each swing, itself included; per-combat `attackSeen`, reset on a Rise / Rebirth return) cast `count` (x2 gilded) plain Rubies on itself (combat)
+  | 'rubyCastGainSelfImproving' // Rosey (owner 2026-10-22): passive marker the Ruby-cast chokepoints scan (`fireOnRubyPlayed` / `playRubyOn`) - per friendly Ruby cast, gain +attack/+health x (1 + floor(eotTick / every of its `shopRefreshTallySelf`)), x2 gilded, PERMANENTLY (combat gains carry back)
+  | 'shopRefreshTallySelf' // Rosey: a player-pressed Refresh (`playerRoll`) while on the board ticks this copy's `eotTick` (its Improves meter, read with the sibling effect's `every`)
   | 'dealtDamageGoldNextTurn'; // Goldvein: "Pummel (6): Gain 3 Gold next turn. (Once per combat)" — Han Gover's damage-dealt meter (`noteDamageDealt`) with a Gold-next-turn body (`grantBonusGold`), latched once per combat on the instance (`pummelFired`); the tally is LIFETIME (seeded from the run card, carried back whole — carry-over ruling 2026-09-21), a payout per multiple of 6 crossed, one per combat; gilded doubles G (combat)
 
 export interface EffectDef {

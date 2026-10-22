@@ -42,16 +42,17 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-10-21: the Set 3 Sell Dwarves (Sailsey, Mariet, Valyou, Leeds) join the pool.
     // Regenerated 2026-10-22: Adeptus (4/1) and Bicycle Bob (3/7) move to Tier 3.
     // Regenerated 2026-10-22: Stellar Chorus out of Set 3; Shredder and Jumpstart Jules archived.
+    // Regenerated 2026-10-22: the Set 3 Kobold pool call (#2223) plus the Set 3 Kobold batch (Boy Scout, Gramps, Zapdash, Frack Attack, Rosey).
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:4.77",
-        "fibbsy:30:3.80",
-        "gorr:30:4.83",
-        "harlan:30:4.77",
-        "midas:30:4.37",
-        "nadja:30:4.43",
-        "pete:30:4.37",
-        "warden:30:4.67",
+        "drakko:30:4.63",
+        "fibbsy:30:4.03",
+        "gorr:30:5.03",
+        "harlan:30:4.50",
+        "midas:30:4.30",
+        "nadja:30:4.47",
+        "pete:30:4.27",
+        "warden:30:4.77",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

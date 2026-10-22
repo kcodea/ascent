@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { bodyIsTribe, defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, improvingGrant, rubyCastGainOf, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 
@@ -261,6 +261,18 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       // `target` → Trouble (owner ask 2026-09-15). Presentation only — the stats above are unchanged.
       applyRubyStats(ctx, m, m, (1 + rb.attack) * reps * mult, (1 + rb.health) * reps * mult, engraved, { from: target.uid, kind: 'ruby' });
     }
+  }
+  // ROSEY (Set 3 Kobold, owner 2026-10-22): "When you cast a Ruby, this gains +2/+1 permanently." Every living friendly
+  // Rosey (the target included: "you cast" names no target) gains its live grant once PER RUBY (`per`, the Trouble
+  // ruling). PERMANENT (owner confirmed 2026-10-22): `buffPermanent` accrues `permaGain`, carried back at settle like
+  // an Engraved gain. A plain buff, never a Ruby, so no Ruby watcher hears it and nothing can loop. Hops (bounces,
+  // Rupture, the Conduit) and Trouble's self-Rubies are stats only, never casts, so they pay Rosey nothing.
+  for (const m of ctx.living(self.side)) {
+    if (m.dead) continue;
+    const gain = rubyCastGainOf(ctx.getCard(m.cardId), !!m.golden, m.eotTick);
+    if (!gain) continue;
+    const ga = gain.attack * per, gh = gain.health * per;
+    if (ga > 0 || gh > 0) combatArena(ctx, m).buffPermanent(m, ga, gh);
   }
   // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
   // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
@@ -1289,6 +1301,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleGrantRandomSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleGrantRandomSpell(combatArena(ctx, self), params);
+  },
+
+  /** Boy Scout (Set 3 Kobold, owner 2026-10-22) — Shout: bank `count` (x gilded) free Refreshes. In combat (a Shout
+   *  replayed mid-fight) through `grantFreeRolls`, the Gryphon carry-back to the next Shop. */
+  battlecryGrantFreeRolls: (ctx, self, params) => {
+    ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /** Frack Attack (Set 3 Kobold, owner 2026-10-22) — "Repeat after 3 friendly attacks": every friendly attack this
+   *  combat (each swing, Flurry swings one by one, itself included; owner confirmed 2026-10-22) ticks the per-combat
+   *  `attackSeen` meter; every `every`-th casts `count` (x gilded) plain Rubies on itself, combat-only. The meter is
+   *  fresh each fight and re-armed by a Rise / Rebirth return (`resetPerCombatLimits`). A dead body counts nothing. */
+  friendlyAttacksPlayRubiesSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || self.health <= 0 || !minion || minion.side !== self.side) return;
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    if (self.attackSeen % Math.max(1, num(params.every, 3)) !== 0) return;
+    playRubyOn(ctx, self, self, num(params.count, 3) * mul(self));
   },
 
   /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
@@ -3298,6 +3328,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same meter, a summon-an-Imp body - `noteDamageDealt` pays it
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
+  dealtDamageCastRubiesTribe: () => {}, // Zapdash (2026-10-22): the same meter, a cast-a-Ruby-on-your-Kobolds body - `noteDamageDealt` pays it
+  rubyCastGainSelfImproving: () => {}, // Rosey (2026-10-22): a passive marker - `playRubyOn` scans living friendlies for it, inside the Ruby it reacts to
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */

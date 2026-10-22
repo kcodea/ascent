@@ -60,6 +60,17 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Balance',
+        text: 'Five new Kobolds join Set 3: Boy Scout, Gramps, Zapdash, Frack Attack and Rosey.',
+        details: [
+          'Boy Scout (Tier 2, 3/3): Shout: Gain 2 free Refreshes.',
+          'Gramps (Tier 3, 4/2): Sell: Cast a Ruby on all of your minions.',
+          'Zapdash (Tier 3, 4/4): Pummel (10): Cast a Ruby on your Kobolds. Twice per combat.',
+          'Frack Attack (Tier 4, 6/5): Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks.',
+          'Rosey (Tier 6, 2/2): When you cast a Ruby, this gains +2/+1 permanently. Improves every 3 Refreshes.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Kobold changes: Shardluck, Delver and Cavern Fiend are back. Kobe and Blazer leave. Dealski and Prismatic Pick are reworked.',
         details: [
           'Shardluck, Delver and Cavern Fiend return to the Kobold pool. Their stats and text are unchanged.',

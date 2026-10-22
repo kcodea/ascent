@@ -38,6 +38,7 @@ describe('set 3 scaffold', () => {
       'k3_legionnaire', // appended 2026-09-24 (owner Ruby batch)
       'k3_dealski', // appended 2026-09-24 (owner Ruby batch)
       'k3_veinchant', 'k3_facetbound', 'k_gemgorge', // Delver, Shardluck, Cavern Fiend restored 2026-10-22 (owner Kobold pool call), appended
+      'k3_boyscout', 'k3_gramps', 'k3_zapdash', 'k3_frackattack', 'k3_rosey', // appended 2026-10-22 (owner Kobold batch)
       // …then the six set-2 Kobolds it keeps (Chipwick Prospector left 2026-09-19 — owner handoff; still a set-2 card).
       'k_gemheart', 'k_kobabyboldies',
       'k_boulderdash', // Geode Guardian + Beggy left set 3 2026-10-13 (owner Set 3 batch); Kobe + Blazer 2026-10-22 (owner Kobold pool call); all still set-2 cards

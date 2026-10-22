@@ -1,4 +1,4 @@
-import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, shopSpellGrowth, type Tribe } from '@game/core';
+import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, rubyCastGainOf, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue } from '@game/sim';
 
@@ -260,6 +260,21 @@ export function sellImproveText(cardId: string, golden: boolean, soldProgress: n
   const a = Number(p?.attack ?? 2) * level * g, h = Number(p?.health ?? 2) * level * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
+}
+
+/**
+ * Rosey (set 3 Kobold, owner 2026-10-22): "When you cast a Ruby, this gains +2/+1 permanently. Improves every 3
+ * Refreshes." The grant per Ruby is core's `rubyCastGainOf` (the SAME reading the Shop and combat chokepoints pay),
+ * from this copy's Refresh meter (`eotTick`). Surface the CURRENT grant (green) in place of the printed one; the
+ * Refreshes owed to the next step are the integer counter under the card (`stepProgress`'s refresh branch), not
+ * prose. Null while the printed grant is still the current one.
+ */
+export function rubyCastGainText(cardId: string, golden: boolean, refreshes: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const gain = rubyCastGainOf(def, golden, refreshes);
+  if (!def || !gain || gain.level <= 1) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\+\d+\/\+\d+/, `{{+${gain.attack}/+${gain.health}}}`);
 }
 
 /**
@@ -1333,6 +1348,9 @@ export function stepProgress(
   if (tribeEvery) return cyc(p.spiritTally ?? 0, Math.max(1, n((tribeEvery.params as { every?: number })?.every, 3)));
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
   if (monk) return cyc(p.summonBonus ?? 0, Math.max(1, n((monk.params as { improveEvery?: number })?.improveEvery, 5)));
+  // Frack Attack (owner 2026-10-22): its "Repeat after 3 friendly attacks" meter (`attackSeen`, per combat), N/3.
+  const frack = def.effects.find((e) => e.do === 'friendlyAttacksPlayRubiesSelf');
+  if (frack) return cyc(p.attackSeen ?? 0, Math.max(1, n((frack.params as { every?: number })?.every, 3)));
   const crypt = def.effects.find((e) => e.do === 'onAllyAttackBuffAll');
   if (crypt) return cyc(p.attackSeen ?? 0, Math.max(1, n((crypt.params as { every?: number })?.every, 2)));
   // Frontdrake / Money Maker / Vineweaver: cadence ticks at END OF TURN, so it's a SHOP-phase counter —

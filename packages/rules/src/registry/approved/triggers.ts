@@ -1463,4 +1463,86 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-KOBOLD-1022-02',
+    title: 'Set 3 Kobolds 2026-10-22: Boy Scout, Gramps, Zapdash, Frack Attack, Rosey',
+    statement:
+      'Boy Scout (T2 3/3) "Shout: Gain 2 free Refreshes": banks 2 free Refreshes in the run\'s free-refresh bank (spent '
+      + 'before Gold on a roll); Gilded 4; a combat Shout replay banks through the Gryphon carry-back. Gramps (T3 4/2) '
+      + '"Sell: Cast a Ruby on all of your minions" (the sheet\'s "Play" printed as "Cast", the 2026-08-30 one-verb ruling): '
+      + 'its own sale casts one Ruby on every minion left on the board, any tribe, never itself (it has left); Gilded casts 2 '
+      + 'on each, each its own landing. Zapdash (T3 4/4) "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)": a '
+      + 'Pummel marker on the shared lifetime damage meter; each payout casts a Ruby on every living friendly Kobold, itself, '
+      + 'dual tribes and All-types included; at most 2 payouts per combat, re-armed by a Rise / Rebirth return '
+      + '(R-RETURN-RESET-01); Gilded casts 2 Rubies per Kobold per payout (owner). Frack Attack (T4 6/5) "Start of Combat: '
+      + 'Cast 3 Rubies on this. Repeat after 3 friendly attacks": 3 Rubies on itself at Start of Combat, then 3 more on every '
+      + '3rd friendly attack this combat (repeating); the meter is per combat, counts only while Frack lives, and starts over on a '
+      + 'Rise / Rebirth return (resetPerCombatLimits); Gilded 6. Combat Rubies from Zapdash and Frack Attack are combat-only '
+      + '(R-BUFF-PHASE-01). Rosey (T6 2/2) "When you cast a Ruby, this gains +2/+1 permanently. Improves every 3 Refreshes": '
+      + 'per Ruby cast by you, from any source, on any minion (Rosey and a Shop minion included), in the Shop and in combat; a '
+      + 'bounce hop is not a cast and pays nothing; each step adds the base again (+2/+1, +4/+2, ...) every 3 Refreshes the '
+      + 'player presses while it is on the board (Indy\'s meter); Gilded doubles base and steps. Live text: Rosey prints its '
+      + 'current grant in place; every countdown is the integer counter under the card (Rosey N Refreshes, Zapdash the Pummel '
+      + 'badge, Frack Attack N/3), never prose.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (five new Set 3 Kobolds)', quote: 'Frack Attack: Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/kobolds.ts; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageCastRubiesTribe); packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf / battlecryGrantFreeRolls / playRubyOn (Rosey); packages/core/src/combat/minion.ts resetPerCombatLimits; packages/sim/src/recruit.ts roseyHearsRubies / shopRefreshTallySelf; packages/core/src/effects/arena.ts rubyCastGainOf' },
+    ],
+    cardText: '**Pummel (10):** Cast a **Ruby** on your **Kobolds**. (Twice per combat)',
+    contentIds: ['k3_boyscout', 'k3_gramps', 'k3_zapdash', 'k3_frackattack', 'k3_rosey'],
+    currentBehaviour: 'Conforms (built 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts', 'packages/ui/src/set3Kobolds1022Text.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-03',
+    title: '"A Ruby" without "random" is the plain Ruby (Gramps, Zapdash, Frack Attack)',
+    statement:
+      'A card that casts "a Ruby" / "N Rubies" without the word "random" casts the PLAIN Ruby (+1/+1 plus the run\'s Ruby '
+      + 'improvements, no Kobold rider), never a random special type. Gramps, Zapdash and Frack Attack all cast plain Rubies. '
+      + 'A Ruby DISCOVER is the different case: it offers special types only, never the plain one.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner confirmed 2026-10-22 (via the coordinator)', quote: '"A Ruby" without "random" means the plain Ruby (Gramps, Zapdash, Frack Attack).' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (plain Ruby); packages/core/src/effects/arena.ts battlecryPlayRubiesAll / scPlayRubiesSelfAndAdjacentTribe' },
+    ],
+    contentIds: ['k3_gramps', 'k3_zapdash', 'k3_frackattack'],
+    currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-04',
+    title: 'Rosey\'s "permanently" carries combat gains back to the Shop',
+    statement:
+      'Rosey\'s per-Ruby gain is PERMANENT in every phase: a gain earned in combat carries back to the Shop board at settle, '
+      + 'the way an Engraved minion keeps its combat gains (the printed "permanently" overrides the combat-only default of '
+      + 'R-BUFF-PHASE-01).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner confirmed 2026-10-22 (via the coordinator)', quote: 'Rosey\'s "permanently" carries combat gains back to the Shop, like Engraved.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (Rosey: combatArena.buffPermanent, permaGain)' },
+    ],
+    contentIds: ['k3_rosey'],
+    currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-05',
+    title: 'Frack Attack counts every friendly attack, each Flurry swing included',
+    statement:
+      'Frack Attack\'s "Repeat after 3 friendly attacks" meter counts EVERY attack a friendly minion makes, Frack itself '
+      + 'included, and a Flurry minion\'s swings count one by one.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner confirmed 2026-10-22 (via the coordinator)', quote: 'Frack Attack\'s 3-attack counter counts every friendly attack, including each Flurry swing.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf (the onAttack bus fires per swing)' },
+    ],
+    contentIds: ['k3_frackattack'],
+    currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

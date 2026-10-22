@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, rubyCastGainOf, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -282,7 +282,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       if (opts?.attack !== undefined && opts.health !== undefined) {
         if (opts.rubyLabel) {
           const ea = opts.attack - made.attack, eh = opts.health - made.health;
-          if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh); }
+          if (ea > 0 || eh > 0) { addBuff(made, 'Ruby', ea, eh); fireOnRubyPlayed(state, made, ea, eh, undefined, 0); } // 0: a Golem born with Rubies, not a Ruby CAST (Rosey hears none)
         } else {
           made.attack = opts.attack; made.health = opts.health;
         }
@@ -292,7 +292,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     playRubiesOn: (t, per) => {
       const rb = rubyStatBonus(state);
       const a = (1 + rb.attack) * per, h = (1 + rb.health) * per;
-      if (a > 0 || h > 0) { addBuff(t as BoardCard, 'Ruby', a, h); fireOnRubyPlayed(state, t as BoardCard, a, h); }
+      if (a > 0 || h > 0) { addBuff(t as BoardCard, 'Ruby', a, h); fireOnRubyPlayed(state, t as BoardCard, a, h, undefined, per); }
     },
     hasReborn: (t) => t.keywords.includes('R'),
     grantReborn: (t) => { const c = t as BoardCard; c.keywords = [...c.keywords, 'R']; },
@@ -5328,7 +5328,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (a <= 0 && h <= 0) return;
     for (const c of [...ctx.state.board]) {
       addBuff(c, 'Ruby', a, h);
-      fireOnRubyPlayed(ctx.state, c, a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h, undefined, per);
     }
   },
 
@@ -5340,7 +5340,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (a <= 0 && h <= 0) return;
     for (const c of [...ctx.state.board]) {
       addBuff(c, 'Ruby', a, h);
-      fireOnRubyPlayed(ctx.state, c, a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h, undefined, per);
     }
     // Rune of Mountain Trade: the Ruby play also hands over a random Dwarven Ale. Once per trigger (not per
     // minion buffed) — the rune reads "whenever Mountainbond plays Rubies", which is this one event however
@@ -5639,7 +5639,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const c of [...state.board]) {
       if (tribe !== 'all' && !isTribe(c, tribe as never)) continue;
       addBuff(c, 'Ruby', a, h);
-      fireOnRubyPlayed(state, c, a, h);
+      fireOnRubyPlayed(state, c, a, h, undefined, per);
     }
   },
 
@@ -6770,7 +6770,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (const c of ctx.state.board) {
       if (tribe && !isTribe(c, tribe as Tribe)) continue;
       addBuff(c, 'Ruby', a, h);
-      fireOnRubyPlayed(ctx.state, c, a, h);
+      fireOnRubyPlayed(ctx.state, c, a, h, undefined, per);
     }
   },
 
@@ -7169,6 +7169,21 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!CARD_INDEX[cardId]) return;
     const n = num(params.count, 1) * gold(self);
     for (let i = 0; i < n; i++) addCardToShop(ctx.state, cardId);
+  },
+
+  /** Rosey (Set 3 Kobold, owner 2026-10-22): "Improves every 3 Refreshes." Indy's meter exactly: only a Refresh the
+   *  player PRESSES (`playerRoll`, a free one included) ticks this copy's `eotTick`; the turn's fresh row and rune /
+   *  spell / hero-power refreshes do not. The grant reads it through `rubyCastGainOf` (core), so the Shop, combat and
+   *  the live text agree; the step counter (`stepProgress`'s refresh branch) counts down to the next step. */
+  shopRefreshTallySelf: (_ctx, self, _params, payload) => {
+    if (!payload.playerRoll) return;
+    self.eotTick = (self.eotTick ?? 0) + 1;
+  },
+
+  /** Boy Scout (Set 3 Kobold, owner 2026-10-22): "Shout: Gain 2 free Refreshes." The run's free-refresh bank
+   *  (`freeRolls`, Refreshing Texts' channel), x2 gilded. */
+  battlecryGrantFreeRolls: (ctx, self, params) => {
+    ctx.state.freeRolls += num(params.count, 1) * gold(self);
   },
 
   onShopRefreshGainRightmostShopStats: (ctx, self, params) => {
@@ -10270,6 +10285,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   dealtDamageAleMeter: () => {}, // Han Gover (Pummel (40)): a combat-read meter (`noteDamageDealt`); the LIFETIME tally carries shop → combat → shop (carry-over ruling 2026-09-21), one payout per combat
   dealtDamageGetRandomSpell: () => {}, // Tauntbreaker (2026-10-03): the same combat-read meter, a random-Shop-Spell body
   dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same combat-read meter, a summon-an-Imp body
+  dealtDamageCastRubiesTribe: () => {}, // Zapdash (2026-10-22): the same combat-read meter, a cast-a-Ruby-on-your-Kobolds body (twice per combat)
+  rubyCastGainSelfImproving: () => {}, // Rosey (2026-10-22): a marker the Ruby-cast chokepoint (`fireOnRubyPlayed`) scans, never dispatched
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same combat-read meter, a random-Ruby body
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same combat-read meter, a random-Celestial body
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same combat-read meter, a Gold-next-turn body
@@ -12047,8 +12064,9 @@ export function applyRubyRiderAction(state: RunState, target: BoardCard, def: Ca
  *  buff — and so does its keyword rider (`rubyKeyword`, a Warding Ruby's Ward), granted to THIS landing here
  *  and carried by every hop, so a bounced Ruby is the whole Ruby. The bounce uses `addBuff` directly (not
  *  this path) so it can't cascade into an infinite loop. */
-export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number, rubyKeyword?: Keyword): void {
+export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: number, rubyHealth: number, rubyKeyword?: Keyword, rubies = 1): void {
   grantRubyKeyword(card, rubyKeyword);
+  roseyHearsRubies(state, rubies);
   // Counted BEFORE the effects run, mirroring `fireOnSpellCastOnThis` — a spread/recast that lands another Ruby
   // on this body must see a count past 1 or a "first each turn" card recurses.
   card.rubiesOnThisTurn = (card.rubiesOnThisTurn ?? 0) + 1;
@@ -12086,6 +12104,20 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
   for (const eff of def.effects) {
     if (eff.on !== 'onRubyPlayed') continue;
     RECRUIT_FACTORIES[eff.do]?.(ctx, card, eff.params ?? {}, { minion: card, rubyAttack, rubyHealth, rubyKeyword });
+  }
+}
+
+/** ROSEY (Set 3 Kobold, owner 2026-10-22): "When you cast a Ruby, this gains +2/+1 permanently." `rubies` Rubies were
+ *  just CAST (a landing on a board minion through `fireOnRubyPlayed`, or a hand Ruby cast on a Shop offer): every
+ *  Rosey on the board gains its live grant (`rubyCastGainOf`) once per Ruby, a plain permanent buff that no Ruby
+ *  watcher hears (so it cannot loop). Bounce hops never come through here, so they pay nothing (they are not casts). */
+export function roseyHearsRubies(state: RunState, rubies: number): void {
+  if (rubies <= 0) return;
+  for (const m of state.board) {
+    const gain = rubyCastGainOf(CARD_INDEX[m.cardId], !!m.golden, m.eotTick);
+    if (!gain) continue;
+    const a = gain.attack * rubies, h = gain.health * rubies;
+    if (a > 0 || h > 0) captureBuffFx(state, m, 'minion', () => addBuff(m, nameOf(m), a, h));
   }
 }
 

@@ -69,7 +69,7 @@ describe('the wipe machine', () => {
     for (const k of ['wipeslam', 'wipecrank']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       expect(frames, k).toMatch(/transform/);
-      expect(frames.replace(/transform: translateY\([^)]*\);|animation-timing-function: [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);
+      expect(frames.replace(/transform: [^;]*;|animation-timing-function: [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);
     }
   });
 

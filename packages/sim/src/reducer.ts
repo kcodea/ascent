@@ -41,7 +41,7 @@ import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermane
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
 import { withWhisperMult } from './recruit';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
-import { HUM_PER_TURN, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
+import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 
 /** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
@@ -2152,13 +2152,23 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Ripple (Falx, 2026-10-14) only fires on a minion with a Shout: any other target is refused, kept in hand (the
           // Resonance precedent above, and the aim UI's `whisperTargetLegal`).
           if (whisperTarget && !whisperTargetLegal(def, whisperTarget)) return state;
-          const whisperCasts = giftCastCount(s, def, !!whisperTarget);
+          // RUNE OF THE OPENED VAULT (Set 3 Dragon Epic, owner 2026-10-21): a Jar of Secrets activation armed "your next
+          // Whisper cast from hand casts twice": this cast spends it and resolves once more (once per copy held) on the
+          // same target, on top of any Yazzus repeat. Spent here, after every refusal above, so a fizzle keeps it.
+          let vaultExtra = 0;
+          if (s.openedVaultArmed && s.questFlags?.runeOpenedVault) {
+            s.openedVaultArmed = undefined;
+            vaultExtra = runeStacksOf(s, 'rune_opened_vault');
+            procRuneId(s, 'rune_opened_vault');
+          }
+          const whisperCasts = giftCastCount(s, def, !!whisperTarget) + vaultExtra;
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withWhisperMult(card.whisperMult ?? 1, () => {
             for (let n = 0; n < whisperCasts; n++) {
               if (whisperTarget && !s.board.includes(whisperTarget)) break;
-              castSpell(s, def, whisperTarget);
+              // Every cast here is a cast FROM HAND: Lasting Words and Twin Tongues hook it (sim/whisper.ts).
+              castWhisperFromHand(s, def, whisperTarget);
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
           if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
@@ -2949,6 +2959,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
       // activation, after its own triggers, before any Counterrotation re-fire (which is not the player pressing).
       fireEquipmentActivated(s, def.id);
+      // RUNE OF THE OPENED VAULT (Set 3 Dragon Epic, owner 2026-10-21): activating Jar of Secrets arms the next Whisper
+      // cast from hand to cast twice. One charge at most ("your next Whisper"): a second activation before it is spent
+      // changes nothing. Only a real activation arms it (a free fire, such as Rune of Dismantling's, is not one).
+      if (def.id === 'jar_of_secrets' && s.questFlags?.runeOpenedVault && !s.openedVaultArmed) {
+        s.openedVaultArmed = true;
+        procRuneId(s, 'rune_opened_vault');
+      }
       // RUNE OF COUNTERROTATION (Set 3 batch 2): three DIFFERENT Equipment activated this turn → every one of them
       // triggers again (targeted → a random friendly minion, a Choose One → a random branch), then the set resets so
       // the next three can pay again. The Star Destroyer never joins the set (owner note 2026-09-16).
@@ -5617,6 +5634,7 @@ function advanceCombat(s: RunState): void {
     if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
     if (c.whisperCopiedThisTurn) c.whisperCopiedThisTurn = false; // Tamby: "(Once per turn)" re-arms
     if (c.whisperKeptThisTurn && HUM_PER_TURN) c.whisperKeptThisTurn = 0; // Hum: "the first Whisper ... each turn" re-arms
+    if (c.lastingWordsUsedThisTurn) c.lastingWordsUsedThisTurn = undefined; // Rune of Lasting Words: "each Dragon each turn" re-arms
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;
@@ -5684,6 +5702,7 @@ function advanceCombat(s: RunState): void {
   s.rememberedThisTurn = false; // Runesnout Archivist may record one entry again next turn
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
+  s.bequeathedUsedThisTurn = false;  // Rune of Bequeathed Secrets: the first Dragon sold each turn
   // Set 3 batch 2 (2026-09-16) — the tranche-A per-turn gates. `nextCardFree` is deliberately NOT cleared: an
   // armed free card carries until it is spent (an earned reward is never dropped).
   s.revelersSoldThisTurn = 0;          // Festival Wages / the Festival Circuit: "after you sell 3 Revelers" counts afresh

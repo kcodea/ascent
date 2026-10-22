@@ -78,6 +78,10 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_spell_tempering' && run.questFlags?.runeSpellTempering) return `${Math.min(SPELL_TEMPERING_PER, run.runeSpellTemperingTick ?? 0)}/${SPELL_TEMPERING_PER}`;
   // Rune of the Open Treasury: its one copy a turn (1 ready, 0 spent), as the Open Grave shows it.
   if (runeId === 'rune_open_treasury' && run.questFlags?.runeOpenTreasury) return run.openTreasuryUsed ? '0/1' : '1/1';
+  // Set 3 Dragon Epics B (2026-10-21): Bequeathed Secrets' one Dragon sale a turn (the Open Grave shape), and the Opened
+  // Vault's armed double while it waits for the next Whisper cast from hand.
+  if (runeId === 'rune_bequeathed_secrets' && run.questFlags?.runeBequeathedSecrets) return run.bequeathedUsedThisTurn ? '0/1' : '1/1';
+  if (runeId === 'rune_opened_vault' && run.questFlags?.runeOpenedVault && run.openedVaultArmed) return 'next Whisper x2';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
     return `${Math.min(run.shopAuraGrow.tick, run.shopAuraGrow.per)}/${run.shopAuraGrow.per}`;

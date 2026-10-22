@@ -263,10 +263,19 @@ export function equipmentParams(
  *  will actually open — an Amplified Thymepiece reads "for the next **16 seconds**" (CLAUDE.md: card text shows
  *  the CURRENT value, never the base rate alone). Only a `**N seconds**` span is touched; every other Equipment
  *  expresses "twice" through what it does, not a printed number. */
-export function equipmentText(def: EquipmentDefinition, version: 'plain' | 'gilded', opts?: { amplified?: boolean }): string {
-  const text = version === 'gilded' ? def.goldenText ?? def.text : def.text;
-  if (!opts?.amplified) return text;
-  return text.replace(/\*\*(\d+) seconds\*\*/g, (_m, n: string) => `**${Number(n) * 2} seconds**`);
+export function equipmentText(
+  def: EquipmentDefinition,
+  version: 'plain' | 'gilded',
+  opts?: { amplified?: boolean; chooseBothCharges?: number },
+): string {
+  let text = version === 'gilded' ? def.goldenText ?? def.text : def.text;
+  if (opts?.amplified) text = text.replace(/\*\*(\d+) seconds\*\*/g, (_m, n: string) => `**${Number(n) * 2} seconds**`);
+  // ARMED CHARGE (owner 2026-10-22, Prismatic Pick rework: "live text shows an armed charge"): an Equipment whose
+  // Choose One can arm a Choose-Both charge prints how many charges are armed right now, so the slot says the next
+  // Choose One will take both effects. The charges are the run's one pool (`chooseBothCharges`), whatever armed them.
+  const armed = Math.max(0, opts?.chooseBothCharges ?? 0);
+  if (armed > 0 && def.chooseOne?.some((b) => b.effectId === 'grantChooseBothCharges')) text = `${text} **(${armed} armed)**`;
+  return text;
 }
 
 /** Is this Equipment still backed by a body on the board? Sources are tracked per-uid, so a duplicate keeps

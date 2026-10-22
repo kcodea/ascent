@@ -71,50 +71,8 @@ export const ARCHIVED_CARDS: CardDef[] = [
     text: 'Whenever you cast a spell, this gains **+4 Attack** permanently.',
     goldenText: 'Whenever you cast a spell, this gains **+8 Attack** permanently.',
   },
-  // -- 2026-10-13 owner Set 3 batch: Delver, Shardluck, Dreaming Deep, Cosmo Express, Constellation Prime and Yeti archived
+  // -- 2026-10-13 owner Set 3 batch: Dreaming Deep, Cosmo Express, Constellation Prime and Yeti archived (Delver and Shardluck were too, until the 2026-10-22 owner Kobold pool call restored them to Set 3)
   //    (set-3-own cards). The set-2 / set-1 carry-overs on the same list left SET 3 only (`sets.ts`); set 2 keeps them. --
-  {
-    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/kobolds.ts; belongs to no set now.
-    // Echo (a death trigger) hands back the Veinstorm spell.
-    //
-    // `cardId`, NOT `spellId`, and NO `count` — the factory reads `params.cardId` and grants `mul(self)`
-    // copies, so golden's "2 Veinstorms" is automatic. Set 2's Staff of Guel carries the same warning after
-    // the wrong key granted the empty string and crashed the hand-grant preview (owner report 2026-07-25);
-    // the content schema catches it now, which is how this one was caught.
-    id: 'k3_veinchant',
-    name: 'Delver', // 'Veinchant Delver' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'kobold',
-    tier: 2, // T3 5/3 → T2 4/3 (owner 2026-09-24)
-    attack: 4,
-    health: 3,
-    keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'veinstorm' } }],
-    text: '**Echo:** get a **Veinstorm**.',
-    goldenText: '**Echo:** get **2 Veinstorms**.',
-  },
-  {
-    // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/kobolds.ts; belongs to no set now.
-    // Owner Ruby batch 2026-09-24 (T5 5/4 -> T6 8/5): the left branch plays 3 PLAIN Rubies, EACH on a random
-    // OTHER friendly Kobold (`battlecryPlayRubiesRandomTribe` — dual-tribe and All-types bodies count; never itself, R-TARGET-03);
-    // the right branch casts Veinstorm 3 times through the REAL Shop-spell pipeline, so each cast counts as a
-    // Shop spell cast and wakes every cast-watcher. Gilded: 6 Rubies / 6 Veinstorms.
-    id: 'k3_facetbound',
-    name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'kobold',
-    tier: 6,
-    attack: 8,
-    health: 5,
-    keywords: [],
-    effects: [],
-    chooseOne: [
-      { text: 'Play **3 Rubies** on your **Kobolds**.', goldenText: 'Play **6 Rubies** on your **Kobolds**.',
-        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesRandomTribe', params: { count: 3, tribe: 'kobold' } }] },
-      { text: 'Cast **Veinstorm** 3 times.', goldenText: 'Cast **Veinstorm** 6 times.',
-        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 3 } }] },
-    ],
-    text: '**Choose One:** Play **3 Rubies** on your **Kobolds** or cast **Veinstorm** 3 times.',
-    goldenText: '**Choose One:** Play **6 Rubies** on your **Kobolds** or cast **Veinstorm** 6 times.',
-  },
   {
     // ARCHIVED 2026-10-13 (owner Set 3 batch: "archive"). Moved verbatim from set3/spirits.ts; belongs to no set now.
     // Echo: summon a COPY of the highest-Health minion in your hand and give it Ward.
@@ -247,23 +205,6 @@ export const ARCHIVED_CARDS: CardDef[] = [
     cost: 3,
     effects: [{ on: 'cast', do: 'spellPlayRubiesAll', params: { rubies: 2 } }],
     text: 'Cast **2 Rubies** on all of your minions.',
-  },
-  {
-    // ARCHIVED 2026-10-10 (owner: archive Cavern Fiend). Moved verbatim from set2/kobolds.ts; belongs to no set now.
-    // Kobold/DEMON — every 3 Rubies cast, Consume a Shop minion (gain its stats, Demon-style).
-    id: 'k_gemgorge',
-    name: 'Cavern Fiend', // was 'Gemgorge Fiend' (owner 2026-10-09); id unchanged
-    tribe: 'kobold',
-    tribe2: 'demon',
-    tier: 6,
-    attack: 6,
-    health: 6,
-    keywords: [],
-    // Owner balance 2026-10-10: the meal is the HIGHEST-HEALTH Shop minion (was random). `pick` names the target
-    // rule; ties go to the right-most (the shared `pickShopMinionFor`). Gilded eats twice, re-picking each time.
-    effects: [{ on: 'rubyCast', do: 'rubyCastConsumeShop', params: { every: 3, pick: 'highestHealth' } }],
-    text: 'When you cast **3 spells**, Consume the highest-Health minion in the Shop.',
-    goldenText: 'When you cast **3 spells**, Consume the **2** highest-Health minions in the Shop.',
   },
   // -- 2026-10-10 owner balance batch: three minions (Hellrider, Chicken Brawl, Arnold) and five Shop spells (Rival's
   //    Reflection, Common Ground, Might of Aeon, Ironclad Requisition, Dissipate) archived from EVERY set. Might of Aeon is

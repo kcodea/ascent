@@ -169,7 +169,9 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
  */
 const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
   [
-    /* k_geode: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 card */ 'k_blazer', 'k_gemheart', 'k_kobe',
+    /* k_geode: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 card */
+    /* k_blazer + k_kobe: left set 3 2026-10-22 (owner Set 3 Kobold pool call, "archive"); both stay set-2 cards and
+       resolve globally for old set-3 saves and replays */ 'k_gemheart',
     'k_boulderdash', 'k_kobabyboldies', // Chipwick Prospector left 2026-09-19 (owner handoff); it stays in set 2
     /* k_beggy: back in set 3 2026-09-24, left again 2026-10-13 (owner Set 3 batch); still a set-2 card */
   ].includes(c.id),

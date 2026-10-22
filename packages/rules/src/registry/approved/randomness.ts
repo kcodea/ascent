@@ -68,7 +68,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'the pool is all 6 types (plain, Warding, Golden, Splintered, Ripple, Dark) at equal odds' },
       { kind: 'code', ref: 'packages/core/src/types.ts RUBY_TYPE_IDS; packages/sim/src/recruit.ts mintRandomRubies; packages/core/src/combat/simulate.ts ctx.grantRandomRubies (playerRubyGrantIds)' },
     ],
-    contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'rune_resonance', 'rune_investment'],
+    contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'rune_resonance', 'rune_investment', 'k3_dealski'],
     currentBehaviour: 'Conforms as of 2026-09-24.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
   },
@@ -142,5 +142,23 @@ export const RANDOMNESS_RULES: GameRule[] = [
     contentIds: ['elevationritual'],
     currentBehaviour: 'Conforms (2026-10-21). Before, both read maxTierFor(rift): 7 on any Summit rift run, whatever the Shop tier.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RAND-RUBY-DISCOVER-01',
+    title: 'A Ruby DISCOVER offers only the special Ruby types, never the plain Ruby',
+    statement:
+      'Every "Discover a Ruby" (today: the Ruby branch of Prismatic Pick, from Picksy, "Discover 2 Rubies" = two separate '
+      + 'Discovers, Gilded four) offers 3 of the 5 SPECIAL Ruby types (Warding, Golden, Splintered, Ripple, Dark) and '
+      + 'never the plain Ruby. The pick is minted at the live run Ruby strength. By contrast "get / play / cast a Ruby" '
+      + 'without "random" is the plain Ruby, and "a random Ruby" draws from all six (R-RAND-02).',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner ruling 2026-10-22 (Set 3 Kobold pool call, \"in picksy's case\")", quote: "it's discovering a ruby which means it's of the random ruby types, this should also NOT discover a regular ruby, only the special ones" },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts discoverRuby (SPECIAL_RUBY_IDS); packages/content/src/equipment.ts PRISMATIC_PICK' },
+    ],
+    contentIds: ['k3_prismpick'],
+    currentBehaviour: 'Conforms (the pool was already special-only since 2026-09-24; pinned across seeds 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts', 'packages/sim/src/prismaticPick.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
 ];

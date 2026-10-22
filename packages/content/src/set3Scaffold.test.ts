@@ -37,9 +37,10 @@ describe('set 3 scaffold', () => {
       'k3_goldvein', // appended 2026-09-19 (owner handoff)
       'k3_legionnaire', // appended 2026-09-24 (owner Ruby batch)
       'k3_dealski', // appended 2026-09-24 (owner Ruby batch)
+      'k3_veinchant', 'k3_facetbound', 'k_gemgorge', // Delver, Shardluck, Cavern Fiend restored 2026-10-22 (owner Kobold pool call), appended
       // …then the six set-2 Kobolds it keeps (Chipwick Prospector left 2026-09-19 — owner handoff; still a set-2 card).
       'k_gemheart', 'k_kobabyboldies',
-      'k_kobe', 'k_boulderdash', 'k_blazer', // Geode Guardian + Beggy left set 3 2026-10-13 (owner Set 3 batch; still set-2 cards)
+      'k_boulderdash', // Geode Guardian + Beggy left set 3 2026-10-13 (owner Set 3 batch); Kobe + Blazer 2026-10-22 (owner Kobold pool call); all still set-2 cards
       // …then the DWARVES (owner roster 2026-09-09): set 3's eight new ones, appended AFTER the Kobolds so no
       // Kobold moved, then the fourteen set-2 Dwarves it keeps (shared definitions, same as the Kobolds).
       'dw3_shiftbroker', /* Striker left set 3 2026-10-21 (owner Dwarf rework; still a set-2 card) */ 'dw3_pourman', 'dw3_hankpepe', 'dw3_tromboneer', 'dw3_kneel',

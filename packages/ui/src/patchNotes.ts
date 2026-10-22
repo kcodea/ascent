@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: '40 more runes have their emblem art.' },
       {
+        category: 'Balance',
+        text: 'Adeptus and Bicycle Bob move to Tier 3 with slightly lower stats (Adeptus 4/1, Bicycle Bob 3/7).',
+        details: [
+          'Adeptus: Tier 4 to Tier 3, 5/1 to 4/1. Its Echo is unchanged.',
+          'Bicycle Bob: Tier 4 to Tier 3, 3/9 to 3/7. Its Overflow is unchanged.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Replays now show the recorded hand exactly as spectators see it live.',
         details: [

@@ -43180,12 +43180,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 4,
+    "tier": 3,
     "tribes": [
       "undead"
     ],
     "tags": [
-      "tier:4"
+      "tier:3"
     ],
     "triggers": [
       {
@@ -43232,12 +43232,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set3"
     ],
-    "tier": 4,
+    "tier": 3,
     "tribes": [
       "undead"
     ],
     "tags": [
-      "tier:4"
+      "tier:3"
     ],
     "triggers": [
       {

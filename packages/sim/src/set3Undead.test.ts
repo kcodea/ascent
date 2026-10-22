@@ -343,7 +343,7 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     fireRecruitDeathrattlesForTest(s, s.board[0]!);
     expect(spellAttackBonus(s)).toBe(beforeA + 1);
     expect(spellHealthBonus(s)).toBe(beforeH + 1);
-    expect([CARD_INDEX['u3_adeptus']!.tier, CARD_INDEX['u3_adeptus']!.attack, CARD_INDEX['u3_adeptus']!.health]).toEqual([4, 5, 1]);
+    expect([CARD_INDEX['u3_adeptus']!.tier, CARD_INDEX['u3_adeptus']!.attack, CARD_INDEX['u3_adeptus']!.health]).toEqual([3, 4, 1]);
     expect(CARD_INDEX['u3_adeptus']!.text).toContain('+1/+1');
     expect(CARD_INDEX['u3_adeptus']!.goldenText).toContain('+2/+2');
   });
@@ -363,7 +363,7 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
 });
 
 /**
- * BICYCLE BEN (owner handoff 2026-09-18) — Tier 4 Undead 3/9: "When a summoned minion does not fit, give a random
+ * BICYCLE BEN (owner handoff 2026-09-18) — Tier 3 Undead 3/7 (was Tier 4 3/9 until 2026-10-22): "When a summoned minion does not fit, give a random
  * Undead +1/+1. Improves for every Undead played this turn." The grant is (1 + N)/(1 + N) for N Undead PLAYED this
  * turn, gilded ×2; permanent in both phases; never Ben himself (R-TARGET-03). The turn's Undead count reaches combat
  * on the per-tribe `tribesPlayed` side channel (`ctx.playedThisTurnFor`).

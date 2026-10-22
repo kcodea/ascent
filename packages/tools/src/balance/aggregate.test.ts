@@ -40,16 +40,17 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-10-21: the Set 3 Dwarf rework (Hank Pepe and Shift Broker on Sell; Coinfire, Striker, Billings and
     // Lieutenant Thane out of Set 3; Dwarf King, Brill buyable).
     // Regenerated 2026-10-21: the Set 3 Sell Dwarves (Sailsey, Mariet, Valyou, Leeds) join the pool.
+    // Regenerated 2026-10-22: Adeptus (4/1) and Bicycle Bob (3/7) move to Tier 3.
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:5.20",
-        "fibbsy:30:4.10",
-        "gorr:30:4.13",
-        "harlan:30:4.77",
-        "midas:30:4.43",
-        "nadja:30:3.53",
-        "pete:30:4.83",
-        "warden:30:5.00",
+        "drakko:30:4.77",
+        "fibbsy:30:4.33",
+        "gorr:30:4.20",
+        "harlan:30:4.93",
+        "midas:30:4.40",
+        "nadja:30:3.77",
+        "pete:30:4.53",
+        "warden:30:5.07",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

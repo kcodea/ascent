@@ -38,7 +38,6 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'ancient-slam-sparks': ['ancients/ancientsSmoke.ts'],
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
-  'choose-one-both': ['useChooseBothFx.ts'],   // the persistent (Both) marker on hand / shop / Discover cards
   'cia-hp': ['useCiaEnchantedFx.ts'],
   // The persistent ON LOAN smoke on a Funeral on Loan hand card (owner-authored 2026-10-13): a looping play that
   // follows the card, fired by literal id from its hook.

@@ -346,9 +346,8 @@ export function StatusBar() {
    *  - UI-store overlays (`uiCovering`): the Compendium (Tab), the Inspect view, the Ctrl+B bug reporter, the
    *    ladder / balance pages and the title. Every one is a fixed full-viewport backdrop above that canvas too
    *    (review finding 2026-09-22: the Book left the ring burning behind its blur). The set is the one Recruit
-   *    folds into `overlayOpen`, which pauses the shop clock, the combat replay and the sibling `useChooseBothFx`
-   *    loop, PLUS the Inspect view: Recruit exempts that one only because the inspected card is exactly where a
-   *    "(Both)" ring wants to be, and nothing on it wants this glow. Keep the two lists in step. ONE boolean
+   *    folds into `overlayOpen`, which pauses the shop clock and the combat replay,
+   *    PLUS the Inspect view, which nothing on it wants this glow behind. Keep the two lists in step. ONE boolean
    *    selector, so the bar re-renders when the answer flips and not when any one flag does. (`showTitle` is
    *    here for parity: today `isPreRun` unmounts this bar with the title and the unmount teardown catches it.)
    */

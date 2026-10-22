@@ -61,7 +61,6 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'hero-power-target', why: 'fires at the click point on the targeted unit (cursor anchor), not via slot anchors' },
   { file: 'useCiaEnchantedFx.ts', id: 'cia-hp', why: 'fires on a SHOP offer card the moment Cia enchants it (recruit phase) — anchored to the card DOM rect, not a combat slot, and never replayed' },
   { file: 'useOnLoanFx.ts', id: 'funeral-on-loan', why: 'the persistent ON LOAN smoke on a HAND card, keyed by the `data-on-loan` DOM hook and followed by rect: a hand card is not a combat slot, so there is no unit uid to pass (2026-10-13)' },
-  { file: 'useChooseBothFx.ts', id: 'choose-one-both', why: 'a persistent MARKER on a hand / shop / Discover CARD, keyed by the `data-choose-both` DOM hook and followed by rect — a Discover option has no uid at all, and none of the three surfaces is a combat slot' },
   { file: 'useRuneArrivalFx.ts', id: 'rune-select-implosion', why: "the ARRIVAL implosion fires on a rune BADGE in the HUD tray as the lock-in ceremony hands the rune over — the subject is the rune, not a body on the board, and a badge has no unit uid (the same reason `runeTriggerFx` is here)" },
   { file: 'QuestBadges.tsx', id: 'rune-slot-break', why: 'fires at the locked 3rd rune slot in the HUD badge row, not a unit' },
   { file: 'runeTriggerFx.ts', id: '<dynamic>', why: 'fires on a rune BADGE in the status bar — a HUD node, not a unit, so there is no uid to pass' },

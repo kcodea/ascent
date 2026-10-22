@@ -40,7 +40,7 @@ export const ON_LOAN_RETRY_FRAMES = 10;
  * The looping ON LOAN smoke (owner 2026-10-13): while a Funeral on Loan card waits in hand, the owner-authored
  * `funeral-on-loan` def rides it continuously, so it never reads as a card that would stay if played.
  *
- * Built on the same rails as `useChooseBothFx` / `useCiaEnchantedFx`, for the same reasons:
+ * Built on the same rails as `useCiaEnchantedFx` (and the retired Pixi (Both) ring), for the same reasons:
  *  - `loop: true` runs the def continuously, so THE CALLER OWNS TEARDOWN: a looping player never retires on its
  *    own. Every loop here is disposed the moment its key leaves the list, when the tab is hidden, and on unmount.
  *  - `follow` re-reads the card's rect each frame, so the smoke tracks the card as the hand fans. Returning `null`

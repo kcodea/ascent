@@ -307,7 +307,7 @@ describe('the Discover scene cap', () => {
 
   it('still never trims a protected play (a looping card treatment on a Discover card)', () => {
     const live: FxLivePlay[] = [];
-    const loop = play(live, 'choose-one-both', 217, 0, true);
+    const loop = play(live, 'funeral-on-loan', 217, 0, true);
     const old = play(live, 'a', 300);
     expect(admitPlay('c', { particles: 300, filters: 0 }, CFG, registryReaders(live), 'discover')).toBe(1);
     expect(loop.retired()).toBe(false);

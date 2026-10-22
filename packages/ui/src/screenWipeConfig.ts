@@ -60,9 +60,10 @@ export const WIPE_DEFAULTS: ScreenWipeConfig = {
   coverMs: 450,
   revealMs: 450,
   chargeMs: 260,
-  // +0.3 s each way for the falling gate (owner 2026-10-22: "have the wood door land hard and wait a little bit longer").
-  holdInMs: 1200,
-  holdOutMs: 1000,
+  // The falling gate's hold (owner 2026-10-22): +0.3 s each way ("land hard and wait a little bit longer"), then doubled
+  // ("we need the hold to be twice as long").
+  holdInMs: 2400,
+  holdOutMs: 2000,
   easeX1: 0.45,
   easeY1: 0,
   easeX2: 0.7,

@@ -577,14 +577,15 @@ const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
     // EVERY crank layer is cut at 1.5 s with a 0.2 s fade-out (owner 2026-10-22: a 0.55 s cut was too sharp; "change the
     // cut to .85 seconds with a .2 second fade out", then "lets increase the cut to 1.5 seconds"): full level to 1.3 s,
     // silent by 1.5 s. (The gears clip is only 1.3 s, so it simply plays out.) And a 20% reverb on every crank layer
-    // (owner: "lets add a slight amount of reverb to it too. specifically the cranking part ... im talking a mix of 20%").
-    { clip: 'wipecrank', offset: 0.9, duration: 1.5, fadeMs: 200, reverb: 0.2 }, { clip: 'wipegears', duration: 1.5, fadeMs: 200, reverb: 0.2 },
-    { clip: 'wipegroan', offset: 2.9, duration: 1.5, fadeMs: 200, reverb: 0.2 },
+    // (owner: "lets add a slight amount of reverb to it too. specifically the cranking part ... im talking a mix of 20%"),
+    // raised to 40% the same day (owner: "increase the reverb to 40%").
+    { clip: 'wipecrank', offset: 0.9, duration: 1.5, fadeMs: 200, reverb: 0.4 }, { clip: 'wipegears', duration: 1.5, fadeMs: 200, reverb: 0.4 },
+    { clip: 'wipegroan', offset: 2.9, duration: 1.5, fadeMs: 200, reverb: 0.4 },
     // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
     // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
     // Its grind runs about 2 s (owner: "it lingers for a long time after its done cranking up"): it takes the same
     // 1.5 s cut and 0.2 s fade as the rest of the crank.
-    { clip: 'gateopen', category: 'wipegateopen', duration: 1.5, fadeMs: 200, reverb: 0.2 },
+    { clip: 'gateopen', category: 'wipegateopen', duration: 1.5, fadeMs: 200, reverb: 0.4 },
   ],
 };
 /** One layer: from its offset, for its duration (or to the end), its last `fadeMs` eased away on the audio clock. */

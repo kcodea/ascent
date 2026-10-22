@@ -5,6 +5,9 @@ import {
   admit,
   admitPlay,
   MIN_PARTICLE_SCALE,
+  MIN_DEF_SCALE,
+  defLifeScale,
+  livePlaysSnapshot,
   rampMsOf,
   thinDef,
   culledTotal,
@@ -18,7 +21,7 @@ import {
   type FxBudgetReaders,
   type FxLivePlay,
 } from './fxBudget';
-import { FXBUDGET_DEFAULTS, type FxBudgetConfig } from './fxBudgetConfig';
+import { DEF_PARTICLE_BUDGETS, FXBUDGET_DEFAULTS, type FxBudgetConfig } from './fxBudgetConfig';
 import { registerSavedDef } from './fxDefs';
 import { playDef } from './playDef';
 import type { FxInstance } from './primitive';
@@ -263,6 +266,24 @@ describe('through playDef (the real spawn-time hook)', () => {
     expect(livePlayCount('budget-test')).toBe(FXBUDGET_DEFAULTS.maxPerDef - 1);
   });
 
+  it('dedupeKey: a same-key fire inside coalesceMs spawns nothing; past it, the old play is retired (R-PERF-HANDBUFF-01)', () => {
+    let now = 1000;
+    vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const first = playDef('budget-test', { target: { x: 0, y: 0 } }, { dedupeKey: 'card-1', coalesceMs: 300 });
+    expect(first).not.toBeNull();
+    now = 1100;
+    expect(playDef('budget-test', { target: { x: 0, y: 0 } }, { dedupeKey: 'card-1', coalesceMs: 300 })).toBeNull();
+    expect(livePlayCount('budget-test')).toBe(1);
+    expect(destroyed).toEqual([]);
+    now = 1400;
+    expect(playDef('budget-test', { target: { x: 0, y: 0 } }, { dedupeKey: 'card-1', coalesceMs: 300 })).not.toBeNull();
+    expect(destroyed).toEqual([0]); // the first play was refreshed away
+    expect(livePlayCount('budget-test')).toBe(1);
+    // Another card is its own key.
+    playDef('budget-test', { target: { x: 0, y: 0 } }, { dedupeKey: 'card-2', coalesceMs: 300 });
+    expect(livePlayCount('budget-test')).toBe(2);
+  });
+
   it('a play with an onDone is protected: it is never the one trimmed', () => {
     const onDone = vi.fn();
     playDef('budget-test', { target: { x: 0, y: 0 } }, { onDone }); // instance 0 — protected
@@ -404,5 +425,107 @@ describe('admit — pending load and thinning (the 2026-09-30 particle blow-up)'
     expect((t.layers[1]!.params as Record<string, number>).rate).toBe(50);
     expect(t.layers[2]).toBe(def.layers[2]);
     expect(expectedLoad(t).particles).toBe(100 + 20);
+  });
+});
+
+/**
+ * PER-KEY DEDUPE + PER-DEF LIVE BUDGET (perf 2026-10-22, R-PERF-HANDBUFF-01). The owner's report: a Cave Cutter
+ * with both Choose One effects on a hand of Rubies put 12 `hand-buff` plays / 1,152 particles live at once (each
+ * Ruby popped twice: the Ruby-power watcher and the shop hand diff). These pin the contract: one live play per key,
+ * a same-moment repeat dropped, a def's live total held under its budget across calls, and a lone play untouched.
+ */
+describe('admit — per-key dedupe and the per-def live budget', () => {
+  beforeEach(() => resetFxBudget());
+  const CAP = 300;
+  /** A registered hand-buff-like play born at `bornAt`, already emitted (no ramp), whose retire unregisters it. */
+  function keyed(id: string, particles: number, key: string | undefined, bornAt: number, prot = false): FxLivePlay & { retired: () => boolean } {
+    let done = false;
+    let unregister: () => void = () => {};
+    const p: FxLivePlay & { retired: () => boolean } = {
+      id, key, load: { particles, filters: 0 }, protected: prot, bornAt, rampMs: 0,
+      retire: () => { done = true; unregister(); }, retired: () => done,
+    };
+    unregister = registerLivePlay(p);
+    return p;
+  }
+  const at = (now: number): FxBudgetReaders => ({ liveParticles: () => 0, activeFilters: () => 0, now: () => now });
+
+  it('a lone play under its def budget is untouched: scale 1, no life change, nothing retired', () => {
+    const a = admit('hb', { particles: 96, filters: 0 }, { key: 'r1', coalesceMs: 300, defCap: CAP }, CFG, at(0), null);
+    expect(a).toEqual({ trimmed: 0, particleScale: 1 });
+  });
+
+  it('a second fire on the SAME key inside the coalesce window is dropped (one moment, one cue)', () => {
+    const first = keyed('hb', 96, 'r1', 1000);
+    const a = admit('hb', { particles: 96, filters: 0 }, { key: 'r1', coalesceMs: 300, defCap: CAP }, CFG, at(1100), null);
+    expect(a.skip).toBe(true);
+    expect(first.retired()).toBe(false);
+    expect(livePlayCount('hb')).toBe(1);
+  });
+
+  it('past the window the same key REFRESHES: the older play retires, the new one is admitted', () => {
+    const first = keyed('hb', 96, 'r1', 1000);
+    const a = admit('hb', { particles: 96, filters: 0 }, { key: 'r1', coalesceMs: 300, defCap: CAP }, CFG, at(1400), null);
+    expect(a.skip).toBeUndefined();
+    expect(first.retired()).toBe(true);
+    expect(a.particleScale).toBe(1);
+    expect(livePlayCount('hb')).toBe(0); // the caller registers the new play
+  });
+
+  it('another key, or another def, is never deduped', () => {
+    const r1 = keyed('hb', 96, 'r1', 1000);
+    const other = keyed('other', 96, 'r2', 1000);
+    expect(admit('hb', { particles: 96, filters: 0 }, { key: 'r2', coalesceMs: 300, defCap: CAP }, CFG, at(1010), null).skip).toBeUndefined();
+    expect(r1.retired()).toBe(false);
+    expect(other.retired()).toBe(false);
+  });
+
+  it("a chain is held under the def's live budget: later plays are thinned (and shortened), the total never passes it", () => {
+    let total = 0;
+    for (let i = 0; i < 12; i++) {
+      const a = admit('hb', { particles: 96, filters: 0 }, { key: `r${i}`, coalesceMs: 300, defCap: CAP }, CFG, at(i * 100), null);
+      expect(a.skip).toBeUndefined();
+      const n = Math.max(1, Math.round(96 * a.particleScale));
+      if (a.particleScale < 1) expect(a.lifeScale).toBeCloseTo(defLifeScale(a.particleScale), 9);
+      keyed('hb', n, `r${i}`, i * 100);
+      total = livePlaysSnapshot().filter((p) => p.id === 'hb').reduce((s, p) => s + p.particles, 0);
+      expect(total, `after play ${i + 1}`).toBeLessThanOrEqual(CAP + Math.ceil(96 * MIN_DEF_SCALE));
+    }
+    // The first three fit as authored; the fourth onward share what is left.
+    expect(livePlaysSnapshot().filter((p) => p.id === 'hb').slice(0, 3).map((p) => p.particles)).toEqual([96, 96, 96]);
+  });
+
+  it('a caller fan intensity shortens the shards even when the budget itself does not bite', () => {
+    const a = admit('hb', { particles: 30, filters: 0 }, { defCap: CAP, authoredScale: 0.31 }, CFG, at(0), null);
+    expect(a.particleScale).toBe(1);
+    expect(a.lifeScale).toBeCloseTo(defLifeScale(0.31), 9);
+  });
+
+  it('a protected play is never deduped or trimmed by the def budget (a gild trail sequencing its card)', () => {
+    const p = keyed('gt', 1050, 'g:0', 0, true);
+    const a = admit('gt', { particles: 344, filters: 0 }, { key: 'g:0', coalesceMs: 300, defCap: 1100 }, CFG, at(10), null);
+    expect(a.skip).toBeUndefined();
+    expect(p.retired()).toBe(false);
+    expect(a.particleScale).toBe(MIN_DEF_SCALE);
+  });
+
+  it('defLifeScale is 1 at full density and 0.6..1 below it; thinDef applies it to burst life only', () => {
+    expect(defLifeScale(1)).toBe(1);
+    expect(defLifeScale(0)).toBeCloseTo(0.6, 9);
+    expect(defLifeScale(0.5)).toBeCloseTo(0.8, 9);
+    const def = {
+      id: 'x', duration: 600,
+      layers: [{ primitive: 'burst', anchor: 'target', at: 0, params: { count: 100, life: 1000 } }],
+    } as unknown as Parameters<typeof thinDef>[0];
+    const t = thinDef(def, 0.5, 0.8);
+    expect(t.layers[0]!.params).toMatchObject({ count: 50, life: 800 });
+    // Life alone (a fan already thinned by intensity): count untouched.
+    expect(thinDef(def, 1, 0.8).layers[0]!.params).toMatchObject({ count: 100, life: 800 });
+    expect(thinDef(def, 1, 1)).toBe(def);
+  });
+
+  it('ships budgets for hand-buff and gild-trail that keep ONE ordinary moment as authored', () => {
+    expect(DEF_PARTICLE_BUDGETS['hand-buff']).toBeGreaterThanOrEqual(96 * 3);
+    expect(DEF_PARTICLE_BUDGETS['gild-trail']).toBeGreaterThanOrEqual(344 * 3);
   });
 });

@@ -844,6 +844,20 @@ over 6.25 ms down 39%, combat 18%).
 - **Harness trap:** a CDP `Runtime.evaluate` appears as `EvaluateScript` with no URL. Check for a
   `blink.mojom.DevToolsSession` parent before blaming the page.
 
+## 3k. Hand-buff pile-up, 2026-10-22: a JS-driven card pop re-rasters the card every frame
+
+Numbers and method: `docs/devlog/2026-10-22-hand-buff-pileup.md` (R-PERF-HANDBUFF-01).
+
+- **A `react` FX layer's pop is not on the compositor.** Its playhead is written from JS each frame, and a scale set
+  from the main thread makes Chrome re-raster the element at the new scale every frame. Eight hand cards popping
+  together: 1.3 s of GPU raster in 2.8 s, the WebGL overlay blocked behind it (the HUD shows it as `fx:render`).
+  While 2+ whole cards pop, each now gets `will-change: transform` for its pop (`PROMOTE_AT` in `react.ts`).
+- **Count the DOM before the particles.** The same eight plays without the pop were 3-5 frames over 6.25 ms; with it,
+  78-83. Particle budgets alone would have moved the HUD's particle counter and not the frames.
+- **Per-def budgets now exist across calls.** `DEF_PARTICLE_BUDGETS` (fxBudgetConfig.ts) caps one def's live particles
+  (thin, then shorten, then trim); `PlayDefOptions.dedupeKey` keeps one live play per key. Use them for any cue that
+  several watchers or a chain can fire on the same target.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

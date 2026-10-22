@@ -7601,6 +7601,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyFloatBatch.test.ts', 'packages/ui/src/lobbyRoundDamage.test.tsx', 'packages/ui/src/lobbyKnockout.test.tsx'], lastVerifiedAt: '2026-10-20' },
   },
   {
+    id: 'R-PERF-HANDBUFF-01',
+    title: 'A hand card carries one live hand-buff cue at a time, and a chain of them shares one particle budget',
+    statement:
+      'The hand-buff cue (the pop on a hand card that just got stronger) plays at most once at a time per card. A second '
+      + 'buff on the same card within 300 ms is the same moment and plays nothing new; a later one restarts the card\x27s '
+      + 'cue instead of stacking a second copy. Every live hand-buff play together stays inside one particle budget (300): '
+      + 'a single buff, or up to three cards at once, plays exactly as authored; a wider fan shares the budget evenly, and '
+      + 'a chain of fans thins and shortens the later plays. The gild trail is held the same way (one live trail per gilded '
+      + 'card and copy, a 1,100 particle budget that one gild never reaches). While two or more whole cards pop at once, '
+      + 'each popping card is put on its own GPU layer (will-change: transform) for its pop and given back its own value '
+      + 'after, so the browser does not re-draw every popping card every frame; a lone pop is left exactly as it was.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (perf report, 240 Hz, relayed by the coordinator)', quote: 'when a cave cutter is played with both effects active it nukes performance' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22, approving the one-live-cue-per-card + shared budget plan', quote: 'yeah do it' },
+      { kind: 'code', ref: 'packages/ui/src/handBuffFx.ts (dedupeKey, HAND_BUFF_COALESCE_MS, fan intensity); packages/ui/src/fx/primitives/react.ts (PROMOTE_AT); packages/ui/src/fx/fxBudget.ts (admit: per-key dedupe, per-def live budget, defLifeScale); packages/ui/src/fx/fxBudgetConfig.ts (DEF_PARTICLE_BUDGETS); packages/ui/src/fx/fanBudget.ts; packages/ui/src/gildTrail.ts' },
+    ],
+    example: 'Cave Cutter with the Unbroken Vein rune on a hand of eight Rubies (prod bench, median of 6): the Ruby-power watcher and the shop hand diff both popped every Ruby, up to 12 hand-buff plays and 1,152 particles live, and every popping card was re-rasterised every frame (1.5 s of GPU raster in a 5 s window). Now the hand-buff total stays at or under 300, raster is 0.6 s, and frames over 6.25 ms fall from 104 to 40.',
+    currentBehaviour: 'Conforms from 2026-10-22 (perf/hand-buff-pileup). Before, every fire stacked a new 96-particle play on the card, bounded only by the 1,500 shop-wide cap.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/fxBudget.test.ts', 'packages/ui/src/handBuffFx.test.tsx', 'packages/ui/src/fx/reactPopLayer.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-PROG-AETHER-06',
     title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
     statement:

@@ -196,6 +196,15 @@ export interface PlayDefOptions extends FxScaleAxes {
    * filter, no extra pass), so it costs nothing per frame. Used by the Runeforge entrance's dust-opacity dial.
    */
   alpha?: number;
+  /**
+   * ONE LIVE PLAY PER KEY (perf 2026-10-22, the Cave Cutter hand-buff pile-up): at most one live play of this def
+   * carries a given key (a hand card's uid). A second fire on the key while the first is younger than `coalesceMs`
+   * is the same moment and spawns nothing (`playDef` returns null); an older one is retired and the new play starts
+   * fresh, so a chain of buffs refreshes the cue on a card instead of stacking copies of it. Omitted = no dedupe.
+   */
+  dedupeKey?: string;
+  /** With `dedupeKey`: how young (ms) a same-key play must be for a new fire to be dropped rather than refresh it. */
+  coalesceMs?: number;
 }
 
 /**
@@ -648,8 +657,14 @@ function playDefInner(
     }
   }
   const admissionLoad = expectedLoad(shared);
-  const admission = admit(id, admissionLoad, { thinnable: !persistent });
-  const def = admission.particleScale < 1 ? thinDef(shared, admission.particleScale) : shared;
+  const admission = admit(id, admissionLoad, {
+    thinnable: !persistent, key: opts.dedupeKey, coalesceMs: opts.coalesceMs, authoredScale: opts.intensity,
+  });
+  // Deduped (`opts.dedupeKey`): the same moment is already playing on this key, so nothing new spawns.
+  if (admission.skip) { filterSeat?.release(); return null; }
+  const def = admission.particleScale < 1 || (admission.lifeScale ?? 1) < 1
+    ? thinDef(shared, admission.particleScale, admission.lifeScale)
+    : shared;
   const layers = def.layers;
   const load = def === shared ? admissionLoad : expectedLoad(def);
 
@@ -717,7 +732,7 @@ function playDefInner(
   // `onDone` is being sequenced on, so none of the three may be trimmed (see `fxBudget.ts`'s header).
   unregisterPlay = registerLivePlay({
     id, load, retire, protected: opts.loop === true || follow !== undefined || opts.onDone !== undefined,
-    bornAt: performance.now(), rampMs: rampMsOf(def),
+    bornAt: performance.now(), rampMs: rampMsOf(def), key: opts.dedupeKey,
   });
 
   // `fx:def:<id>` — the def's PER-FRAME cost (its layers' sims + filter retunes), as distinct from the spawn

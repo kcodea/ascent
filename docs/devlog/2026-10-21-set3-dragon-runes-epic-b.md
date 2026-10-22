@@ -7,10 +7,10 @@ Name check: SAME 0, CHANGED 0, NEW 4 (no existing rune or card uses these names 
 
 | Rune | Owner text | Cost |
 |---|---|---|
-| Rune of Lasting Words | The first Whisper you cast from hand on each Dragon each turn is permanent. | 4 (placeholder) |
-| Rune of Twin Tongues | Whispers cast from hand also cast on another friendly Dragon. | 4 (placeholder) |
-| Rune of the Opened Vault | Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts twice. | 3 (placeholder) |
-| Rune of Bequeathed Secrets | The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most Dragon permanently. | 3 (placeholder) |
+| Rune of Lasting Words | The first Whisper you cast from hand on each Dragon each turn is permanent. | 5 |
+| Rune of Twin Tongues | Whispers cast from hand also cast on another friendly Dragon. | 5 |
+| Rune of the Opened Vault | Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts twice. | 5 |
+| Rune of Bequeathed Secrets | The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most Dragon permanently. | 5 |
 
 ## How
 
@@ -30,7 +30,7 @@ New state: `BoardCard.lastingWordsUsedThisTurn` (per-turn latch, cleared at the 
 `snapshotFidelity.test.ts`): the latch is turn-scoped, the record is shop-only (read only on a sale; the stats
 themselves are already in attack/health, so a served board fights identically). No new effect factory.
 
-## Interpretations (each flagged for the owner)
+## Interpretations (owner approved the readings 2026-10-22)
 
 1. Lasting Words: "permanent" = Hum's keep (stats, Whisper keyword, Seed stacks). A Yazzus or Opened Vault repeat is a
    second cast, so only the first is kept. The first cast spends the Dragon's latch even when it had nothing to keep.
@@ -43,7 +43,7 @@ themselves are already in attack/health, so a served board fights identically). 
    good), not every Whisper it ever received. Spent by the first Dragon sold even with nothing to give. Inherited stats
    are not Whisper stats (no chain).
 5. Duplicates: Lasting Words pays the sweetener; the other three scale per copy held.
-6. Costs were not given; 4 / 4 / 3 / 3 are placeholders.
+6. Costs come from docs/set3-dragon-rune-draft-30.md (owner ruling 2026-10-22): 5 Gold each (the placeholders were 4 / 4 / 3 / 3).
 
 Twin Tongues + Runic Transposition: epic-a had not landed when this branch was cut, so that interaction is not tested
 here. The copy goes through `castSpell` like every other cast, so a cast-level Transposition hook applies to it.

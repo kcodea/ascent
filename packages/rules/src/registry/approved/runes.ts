@@ -2411,11 +2411,12 @@ export const RUNES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'The first Whisper you cast from hand on each Dragon each turn is permanent.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'code', ref: 'packages/sim/src/whisper.ts castWhisperFromHand; packages/sim/src/recruit.ts keepWhisperCastDelta (shared with Hum); reducer.ts Whisper branch + turn-flip clear of lastingWordsUsedThisTurn' },
     ],
     contentIds: ['rune_lasting_words'],
     cardText: 'The first **Whisper** you cast from hand on each **Dragon** each turn is permanent.',
-    currentBehaviour: 'Conforms as of 2026-10-21 (new).',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2431,11 +2432,12 @@ export const RUNES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'Whispers cast from hand also cast on another friendly Dragon.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'code', ref: 'packages/sim/src/whisper.ts castWhisperFromHand / twinTonguesCopy (rngCursor pick, withCastActor rune caster, recordBounceFx hop)' },
     ],
     contentIds: ['rune_twin_tongues'],
     cardText: '**Whispers** cast from hand also cast on another friendly **Dragon**.',
-    currentBehaviour: 'Conforms as of 2026-10-21 (new).',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2450,11 +2452,12 @@ export const RUNES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts twice.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'code', ref: 'packages/sim/src/reducer.ts activateEquipment (arms openedVaultArmed) + Whisper branch (spends it); packages/ui/src/runeTally.ts' },
     ],
     contentIds: ['rune_opened_vault', 'd3_shush'],
     cardText: 'Get a **Shush**. After you activate **Jar of Secrets**, your next **Whisper** cast from hand casts twice.',
-    currentBehaviour: 'Conforms as of 2026-10-21 (new).',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2471,11 +2474,12 @@ export const RUNES_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most Dragon permanently.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts fireOnMinionSold + whisperStatBonusesOf + keepWhisperCastDelta (records whisperKept); packages/sim/src/whisper.ts seedEchoMerge; docbot snapshotRegistry capture:whisperKept' },
     ],
     contentIds: ['rune_bequeathed_secrets'],
     cardText: 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.',
-    currentBehaviour: 'Conforms as of 2026-10-21 (new).',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

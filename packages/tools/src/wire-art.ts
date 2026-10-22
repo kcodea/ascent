@@ -12,7 +12,7 @@
  * script — those four are exactly the parts that would drift apart if copied, and three of them were bugs
  * found the hard way on the minion pass (devlog 2026-07-30).
  */
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { CARD_INDEX, EPIC_RUNES, EQUIPMENT, QUEST_DEFS, RUNES, poolFor } from '@game/content';
@@ -46,6 +46,16 @@ const IDS = (() => {
   if (!arg) return null;
   return new Set(arg.slice('--ids='.length).split(',').map((x) => x.trim()).filter(Boolean));
 })();
+/**
+ * `--prefer-newest` — when several source files target one id, the most recently MODIFIED file wins, and a
+ * generator export is no longer superseded by an OLDER curated twin.
+ *
+ * Added 2026-10-22: the owner redrew 15 existing rune emblems, and the new art arrived as generator exports
+ * beside the months-old curated `RuneOf….png` twins. The 2026-09-11 rule ("the curated twin wins") then
+ * picked the OLD art every time. A redraw is the one case where the newer file is the choice, so it is an
+ * opt-in flag for that pass (combine with `--ids=`), not a change to the default precedence.
+ */
+const PREFER_NEWEST = process.argv.includes('--prefer-newest');
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
 const ART_PX = 512;
 
@@ -517,7 +527,7 @@ for (const job of JOBS) {
       if (gen) {
         const embedded = gen[1]!.replace(/-/g, ' ');
         const target = resolveId(norm(embedded), embedded);
-        if (target && curatedIds.has(target)) { superseded.push(`${dir === '.' ? file : `${dir}/${file}`}  (curated twin wins: ${embedded})`); continue; }
+        if (target && curatedIds.has(target) && !PREFER_NEWEST) { superseded.push(`${dir === '.' ? file : `${dir}/${file}`}  (curated twin wins: ${embedded})`); continue; }
       }
       // Strip a trailing GENERATOR INDEX (`Motherlode_00001_.png`): it is an export artifact of the art tool,
       // not part of the name, so removing it is normalisation rather than the guessing the matcher forbids —
@@ -545,6 +555,21 @@ for (const job of JOBS) {
   // the folder — and whichever copied last used to win by directory-listing luck. Alias matches copy FIRST so
   // an exact current-name match always lands on top of them.
   matches.sort((a, b) => Number(a.exact) - Number(b.exact));
+  if (PREFER_NEWEST) {
+    // Keep only the most recently modified source per id, so the overwrite is decided by date, not by order.
+    const newest = new Map<string, { src: string; t: number }>();
+    for (const m of matches) {
+      const t = statSync(m.src).mtimeMs;
+      const cur = newest.get(m.id);
+      if (!cur || t > cur.t) newest.set(m.id, { src: m.src, t });
+    }
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const m = matches[i]!;
+      if (newest.get(m.id)!.src === m.src) continue;
+      superseded.push(`${m.label}  (older than the newest source under --prefer-newest)`);
+      matches.splice(i, 1);
+    }
+  }
   for (const m of matches) {
     if (IDS && !IDS.has(m.id)) continue; // `--ids=`: a targeted wire leaves every other id untouched
     wired.push(`${m.label}  ->  ${m.id}.png`);

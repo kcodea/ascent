@@ -174,7 +174,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // improve ("Improves when you Sell 4 minions.") and Valyou's every-N-triggers Gold tail ("Every 4 triggers also grants 2
 // Gold."); Sailsey and Mariet parse. The same PR capitalised Sell as a keyword (R-TEXT-SELL-CAPS-01) and grew
 // the sell grammar to read "Sells for" / "Sell for" / "you Sell" in either case, so no existing text regressed.
-const UNRESOLVED_CAP = 142;
+// 2026-10-21 (Set 3 Dragon runes, Basic): 142 -> 145, CONSCIOUSLY. Three new rune texts have no grammar rule yet (the
+// distinct-Whispers-from-hand Gold meter, the Whisper-count spell-power improve, the first-Echo-Dragon Attack gift).
+const UNRESOLVED_CAP = 145;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

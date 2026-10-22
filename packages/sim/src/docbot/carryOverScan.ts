@@ -241,4 +241,8 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   equipmentActivationsThisTurn: { kind: 'no-combat-meaning', why: 'the per-turn Equipment activation count (Efficient Tooling / Overcharge read "first"); activation is a shop action' },
   equipmentFreeThisTurn: { kind: 'no-combat-meaning', why: "Rune of the Last Tool's free-Equipment list for THIS turn — a shop price; promoted from the bank at the rollover" },
   equipmentFreeNextTurn: { kind: 'no-combat-meaning', why: "Rune of the Last Tool's bank for NEXT turn — written by a shop Echo now and by settleCombat from the combat Echo's questTrigger carry-back; only a shop price reads it" },
+  // Set 3 Dragon runes, Basic (2026-10-21)
+  clearVoicesIds: { kind: 'no-combat-meaning', why: "Clear Voices' distinct Whispers cast FROM HAND this turn; only the Shop casts from hand" },
+  clearVoicesPaid: { kind: 'no-combat-meaning', why: "Clear Voices' once-per-turn Gold latch; a Shop payout" },
+  openTreasuryUsed: { kind: 'no-combat-meaning', why: "Open Treasury's first-spell-bought latch; buying is a Shop action" },
 };

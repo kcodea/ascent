@@ -1905,19 +1905,6 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeSunpony' },
     sets: ['set2'], // owner 2026-10-07: this batch is Set 2 only
   },
-  {
-    // OWNER ADD 2026-10-10: a Basic grant rune for a forge-only Demon (the Rune of Bucky / Flaming Dragon shape, at
-    // Basic). Ruinous Lord: "When a Demon deals damage, give your Demons +1/+1" (this combat only).
-    id: 'rune_ruinous',
-    tribes: ['demon'], // TRIBE GATE: it grants a Demon
-    name: 'Rune of the Ruinous',
-    cost: 4,
-    text: 'Get a **Ruinous Lord**.',
-    previewCards: ['dm_ruinouslord'], // text names it, so the forge hover shows the card
-    synergy: ['demon'], // the text names only the body; its synergy is the Lord's
-    reward: { kind: 'grant', cards: ['dm_ruinouslord'] },
-    sets: ['set2'],
-  },
   // ── SET 3 DRAGON RUNES, BASIC (owner 2026-10-21). All Set-3-only and Dragon-gated (the owner's Dragon list; All-types
   //    counts as a Dragon everywhere through the shared tribe helpers). Rulings: docs/devlog/2026-10-21-set3-dragon-runes-basic.md.
   //    Shop hooks live in packages/sim/src/dragonRunesBasic.ts; the combat halves in simulate.ts ("SET 3 DRAGON RUNES, BASIC"). ──
@@ -2041,6 +2028,19 @@ export const RUNES: RuneDef[] = [
     text: 'After your first **Dragon** with **Echo** dies each combat, give its **Attack** to your **left-most Dragon**.',
     reward: { kind: 'combatFlag', flag: 'runeEmberInheritance' },
     sets: ['set3'],
+  },
+  {
+    // OWNER ADD 2026-10-10: a Basic grant rune for a forge-only Demon (the Rune of Bucky / Flaming Dragon shape, at
+    // Basic). Ruinous Lord: "When a Demon deals damage, give your Demons +1/+1" (this combat only).
+    id: 'rune_ruinous',
+    tribes: ['demon'], // TRIBE GATE: it grants a Demon
+    name: 'Rune of the Ruinous',
+    cost: 4,
+    text: 'Get a **Ruinous Lord**.',
+    previewCards: ['dm_ruinouslord'], // text names it, so the forge hover shows the card
+    synergy: ['demon'], // the text names only the body; its synergy is the Lord's
+    reward: { kind: 'grant', cards: ['dm_ruinouslord'] },
+    sets: ['set2'],
   },
 ];
 

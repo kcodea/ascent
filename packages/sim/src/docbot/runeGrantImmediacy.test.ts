@@ -104,6 +104,7 @@ describe('Doc Bot — a rune whose text OPENS with "Get" leaves you holding some
     rune_muster: 'a Shop refresh, which fills the tavern row rather than your hand',
     rune_trophy: 'conditional — the copy is of a minion you have not killed yet',
     rune_happy_birthday: 'a Gift Discover, which opens a choice rather than dealing a card',
+    rune_open_treasury: 'conditional: the copy is of the first Shop Spell you BUY each turn, nothing until then (Set 3 Dragon runes, 2026-10-21)',
   };
 
   /** Text with markdown stripped, so "Get a **Hoardflame**" and "Get a Hoardflame" read alike. */

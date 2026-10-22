@@ -22,10 +22,12 @@ describe('the roster', () => {
     // Star Crash moved to Set 4 with the Celestials (owner swap 2026-10-14).
     expect(p.spells.some((c) => c.id === 'starcrash'), 'Star Crash left set 3').toBe(false);
     expect(poolFor('set4').spells.some((c) => c.id === 'starcrash'), 'Star Crash is a set-4 spell').toBe(true);
+    // Stellar Chorus left set 3 (owner 2026-10-22); it is still a set-4 shared spell (set3Archives1022.test.ts).
+    expect(p.spells.some((c) => c.id === 'stellarchorus'), 'Stellar Chorus left set 3').toBe(false);
     const rows: [string, number, number, string][] = [
       ['aspectsblessing', 1, 1, 'neutral'], ['rushorder', 2, 1, 'dwarf'], ['sharedspirit', 2, 2, 'neutral'],
       ['graverobbery', 3, 2, 'neutral'], ['handsoap', 4, 2, 'neutral'], ['crescendo', 6, 3, 'spirit'],
-      ['stellarchorus', 4, 2, 'neutral'], ['splitdecision', 5, 2, 'neutral'],
+      ['splitdecision', 5, 2, 'neutral'],
     ];
     for (const [id, tier, cost, tribe] of rows) {
       const d = CARD_INDEX[id]!;

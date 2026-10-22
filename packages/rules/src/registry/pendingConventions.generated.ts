@@ -227,11 +227,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-endOfTurn",
-    "title": "'endOfTurn' family · 30 cards",
-    "statement": "All 30 'endOfTurn' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'endOfTurn' family · 29 cards",
+    "statement": "All 29 'endOfTurn' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "36 effect factories across 30 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Stonehorn Archivist · Roundabout · Combinator · Crypt Scribe · Skybound Ascendant · Shrieker · Soul Defiler · Bob Blart · Hydraskus · Striker · … and 18 more",
+    "currentBehaviour": "36 effect factories across 29 cards dispatch through the 'endOfTurn' presentation family, all on the single trigger 'endOfTurn' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Abyssal Feeder: \"End of Turn: adjacent minions each Consume a Fodder.\" · Members: Abyssal Feeder · Aeon Guard · Stonehorn Archivist · Roundabout · Combinator · Crypt Scribe · Skybound Ascendant · Shrieker · Soul Defiler · Bob Blart · Hydraskus · Striker · … and 17 more",
     "example": "Abyssal Feeder follows the 'endOfTurn' convention — its trigger fires on endOfTurn. its printed numbers double when the card is gilded.",
     "contentIds": [
       "abyssalfeeder",
@@ -257,7 +257,6 @@ export const CONVENTION_PENDING: GameRule[] = [
       "maw",
       "moneymaker",
       "n2_bellringer",
-      "n3_shredder",
       "ritualist",
       "ropewrangler",
       "scrapvendor",
@@ -909,7 +908,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "397 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "395 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2583,11 +2582,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-startOfTurn",
-    "title": "Trigger: the turn starts · 9 cards",
-    "statement": "All 9 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: the turn starts · 8 cards",
+    "statement": "All 8 of these fire on one trigger: the turn starts. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 9 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Bait Brood: \"Whisper: Give a minion +3/+5 and Taunt.\" · Members: Bait Brood · Falx · Gardener · Hatcher · Well Watcher · Whispwarder · Galas · Tolan · Jumpstart Jules",
+    "currentBehaviour": "4 effect factories across 8 cards dispatch on 'startOfTurn' (recruit) — re-clustered by TRIGGER out of the 'economy' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Bait Brood: \"Whisper: Give a minion +3/+5 and Taunt.\" · Members: Bait Brood · Falx · Gardener · Hatcher · Well Watcher · Whispwarder · Galas · Tolan",
     "example": "Bait Brood fires when the turn starts, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "d3_baitbrood",
@@ -2597,8 +2596,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "d3_wellwatcher",
       "d3_whispwarder",
       "d4_galas",
-      "d4_tolan",
-      "n3_charger"
+      "d4_tolan"
     ]
   },
   {

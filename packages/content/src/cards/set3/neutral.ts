@@ -90,23 +90,6 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     goldenText: '**Rally:** summon and get **2** random **Rally** minions.',
   },
   {
-    // Start of Turn (fires as the shop reopens, right after the Equipment charges are rebuilt): one bonus
-    // Equipment charge this turn, into the SHARED pool any held Equipment may spend (and spends first). The
-    // pool lives in `equipment.bonusActivations`, which the turn rebuild zeroes — a per-turn grant, never
-    // banked. Golden: two. Renamed from "Equipment Inspector" on the
-    // owner's sheet (2026-09-09: "rename Equipment Inspector -> Equipment Charger").
-    id: 'n3_charger',
-    name: 'Jumpstart Jules', // 'Equipment Charger' until 2026-09-14 (owner rename handoff; id + art unchanged)
-    tribe: 'neutral',
-    tier: 4,
-    attack: 6,
-    health: 7,
-    keywords: [],
-    effects: [{ on: 'startOfTurn', do: 'startOfTurnEquipmentCharge', params: { count: 1 } }],
-    text: '**Start of Turn:** gain an **Equipment charge**.',
-    goldenText: '**Start of Turn:** gain **2 Equipment charges**.',
-  },
-  {
     // A Choose One between one big body and two medium ones. Option 1 TARGETS (a per-option `target`, the
     // Godfodder shape) and rides the shared targeted-Shout body; option 2 is a new Shout-family arena effect
     // (`battlecryBuffAdjacent`) so a combat re-fire (Ryme, Myra) buffs its neighbours there too. Golden doubles.
@@ -126,24 +109,6 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     ],
     text: '**Choose One:** give a friendly minion **+6/+6**, or give adjacent minions **+3/+3**.',
     goldenText: '**Choose One:** give a friendly minion **+12/+12**, or give adjacent minions **+6/+6**.',
-  },
-  {
-    // Owner handoff 2026-09-18, reworked 2026-10-13 (owner Set 3 batch; was "your left-most and right-most minions
-    // +4/+4"). End of Turn: EVERY friendly minion gains +2/+3 for EVERY Equipment the player holds whose charge was
-    // NOT spent this turn (`unusedEquipmentCount` — the per-turn `usedThisTurn` mark Rune of Amplification also
-    // reads, taken BEFORE `expireEquipmentTurn` clears it). `scope: 'all'` widens the shared factory from the two
-    // ends to the whole board. Permanent shop buff; golden +4/+6 per Equipment. The live text prints the current
-    // total (`shredderText`) on every surface.
-    id: 'n3_shredder',
-    name: 'Shredder',
-    tribe: 'neutral',
-    tier: 4,
-    attack: 8,
-    health: 4,
-    keywords: [],
-    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsPerUnusedEquipment', params: { attack: 2, health: 3, scope: 'all' } }],
-    text: '**End of Turn:** give your minions **+2/+3** for every **Equipment** unused this turn.',
-    goldenText: '**End of Turn:** give your minions **+4/+6** for every **Equipment** unused this turn.',
   },
   {
     // Owner handoff 2026-09-18. Equip minion: the Calibration Wrench (1 Gold) arms the run so the NEXT Equipment

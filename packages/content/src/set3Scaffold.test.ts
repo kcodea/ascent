@@ -66,7 +66,7 @@ describe('set 3 scaffold', () => {
       // held) — then the carried set-1 and set-2 neutrals (shared definitions). Shredder, Calibration Master and
       // Rig joined the own list 2026-09-18 (owner handoff); Tauntbreaker left the carry-over the same day. Yeti
       // joined 2026-09-19 (owner handoff).
-      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_charger', 'n3_splitboon', 'n3_shredder', 'n3_calibration', 'n3_rig', 'n3_indy', 'n3_agnus', 'yazzus', // Yeti archived, Indy + Agnus added 2026-10-13
+      'blaster', 'n3_defender', 'n3_pell', 'n3_hustler', 'n3_recruiter', 'n3_splitboon', 'n3_calibration', 'n3_rig', 'n3_indy', 'n3_agnus', 'yazzus', // Yeti archived, Indy + Agnus added 2026-10-13; Jumpstart Jules + Shredder archived 2026-10-22
       'drummer', 'sylus', 'chronos', 'joker', 'venom', 'blackbelt', 'jenkins', 'stewardofspells',
       'arenaheckler', 'wayfinder', 'salvatore',
       'n2_spellsword', 'n2_bellringer', 'k_pouchpincher', 'n2_paragon',
@@ -130,7 +130,7 @@ describe('set 3 scaffold', () => {
     }
     // 58 + Power Shifter (2026-08-22) + the five Dwarven Ales (2026-09-09). The Ales are drawable set-2 spells,
     // not tokens, so — unlike the Ruby — the Dwarves' Ale engine DOES need them opted in.
-    expect(p.spells.length).toBe(57); // Star Crash + Black Hole moved to Set 4 with the Celestials 2026-10-14 (-2); Veinstorm left set 3 2026-10-13 (-1); Turnabout archived everywhere 2026-10-10, spell batch (-1); Dissipate + Rival's Reflection archived everywhere 2026-10-10 (-2); Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
+    expect(p.spells.length).toBe(56); // Stellar Chorus left set 3 2026-10-22 (-1); Star Crash + Black Hole moved to Set 4 with the Celestials 2026-10-14 (-2); Veinstorm left set 3 2026-10-13 (-1); Turnabout archived everywhere 2026-10-10, spell batch (-1); Dissipate + Rival's Reflection archived everywhere 2026-10-10 (-2); Hourglass Reserve archived everywhere 2026-10-07 (-1); 42 neutral toolkit (Common Ground out 2026-09-14, Gamble in 2026-09-17, Dissipate in 2026-09-18, Picnic in 2026-09-23) + 7 tribe spells + 5 Ales + 9 set-3 spells (owner sheet 2026-09-10) + Black Hole (Accretion, 2026-09-12)
     expect(p.spells.filter((c) => c.name.includes('Ale')).map((c) => c.id).sort()).toEqual(['wo_attack', 'wo_champion', 'wo_health', 'wo_mine', 'wo_reinforcement']);
     expect(p.spells.some((c) => c.id === 'apples')).toBe(true);
     expect(p.spells.some((c) => c.id === 'sparkplug')).toBe(true); // Waking Rift

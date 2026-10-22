@@ -1198,8 +1198,8 @@ collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.
 **Charges (2026-09-11):**
 - **Every Equipment has its OWN charge, once per turn.** Holding Bloodpot and Titan Hammer, you may activate
   each once per turn. Own charges reset at Start of Turn; nothing carries across turns.
-- **Bonus charges are ONE shared pool.** Jumpstart Jules's Start of Turn grant (gilded = 2) and any future
-  source add to it; two grants = a pool of 2. Per-turn only — it expires at End of Turn / the next rebuild.
+- **Bonus charges are ONE shared pool.** Jumpstart Jules's Start of Turn grant (gilded = 2; archived 2026-10-22, so
+  only old saves still hold it) and any future source add to it; two grants = a pool of 2. Per-turn only — it expires at End of Turn / the next rebuild.
 - **The number shown on an Equipment = its own remaining charge + the shared pool.** With one bonus every
   Equipment reads **2**, in **green** (modified above baseline); plain when the pool is 0 (1, or 0 once its
   own charge is spent).

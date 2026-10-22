@@ -35,9 +35,10 @@ const nextTurn = (s: RunState): RunState => {
 };
 
 describe('roster', () => {
-  it('the three ship in set 3; Tauntbreaker left it (and still resolves for the other sets)', () => {
+  it('Calibration Master and Rig ship in set 3 (Shredder was archived 2026-10-22); Tauntbreaker left it (and still resolves for the other sets)', () => {
     const ids = poolFor('set3').buyable.map((c) => c.id);
-    for (const id of ['n3_shredder', 'n3_calibration', 'n3_rig']) expect(ids, id).toContain(id);
+    for (const id of ['n3_calibration', 'n3_rig']) expect(ids, id).toContain(id);
+    expect(ids, 'Shredder archived 2026-10-22').not.toContain('n3_shredder');
     expect(ids).not.toContain('tauntbreaker');
     expect(poolFor('set2').buyable.map((c) => c.id), 'set 2 keeps it').toContain('tauntbreaker');
     expect(CARD_INDEX['tauntbreaker']).toBeTruthy();

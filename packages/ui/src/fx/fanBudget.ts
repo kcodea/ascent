@@ -25,6 +25,10 @@ import { getDef } from './fxDefs';
  */
 export const FAN_PARTICLE_BUDGETS: Readonly<Record<string, number>> = {
   gasket: 600,
+  // HAND BUFF (perf 2026-10-22): one fan-out of the hand-buff cue (`handBuffFx.ts`) over N hand cards. 96 particles a
+  // play, so 1-3 cards play as authored and a 10-card hand shares 300 evenly (~30 a card). The def's LIVE budget
+  // (`DEF_PARTICLE_BUDGETS` in fxBudgetConfig.ts) holds the same line across a CHAIN of such fan-outs.
+  'hand-buff': 300,
 };
 
 /** PURE: the per-play intensity that keeps `plays` copies of a `perPlay`-particle def inside `budget`. 1 when it

@@ -1,7 +1,7 @@
 import { perfMonitor } from '../perfMonitor';
 import type { FxDef } from './def';
 import { fxActiveFilters, fxLiveParticles } from './fxRuntime';
-import { getFxBudgetConfig, type FxBudgetConfig } from './fxBudgetConfig';
+import { DEF_PARTICLE_BUDGETS, getFxBudgetConfig, type FxBudgetConfig } from './fxBudgetConfig';
 import { getPrimitive } from './registry';
 
 /**
@@ -65,6 +65,9 @@ export interface FxLivePlay {
    *  `admit`). Absent = never pending (a test stub, a particle-free play). */
   readonly bornAt?: number;
   readonly rampMs?: number;
+  /** The play's DEDUPE key (`PlayDefOptions.dedupeKey`, e.g. the hand card it pops): at most one live play of a
+   *  def per key. Absent = never deduped. */
+  readonly key?: string;
 }
 
 /** The live totals a cap is checked against. Injectable so the policy is testable without a renderer. */
@@ -93,6 +96,8 @@ const plays: FxLivePlay[] = [];
 let culled = 0;
 /** Plays spawned THINNED since load (see `admit`): the `fx:thinned` level. */
 let thinned = 0;
+/** Fires dropped or refreshed by a per-key dedupe since load (see `admit`'s `key`): the `fx:deduped` level. */
+let deduped = 0;
 
 /**
  * The SCENE a spawn is admitted into. A scene may carry its own, lower particle ceiling
@@ -124,6 +129,7 @@ export function particleCapFor(
 // registration under the same name would only overwrite. A level, read at 20 Hz — never per frame.
 perfMonitor.registerCounter('fx:culled', () => culled);
 perfMonitor.registerCounter('fx:thinned', () => thinned);
+perfMonitor.registerCounter('fx:deduped', () => deduped);
 
 const numParam = (params: Record<string, unknown>, key: string, fallback: number): number => {
   const v = params[key];
@@ -268,6 +274,35 @@ export interface FxAdmission {
   /** The fraction of its authored particle count the incoming play should spawn with: 1 = as authored, lower =
    *  THINNED to fit the particle cap (never below `MIN_PARTICLE_SCALE`; always 1 for a non-thinnable play). */
   particleScale: number;
+  /** True when the incoming play should NOT spawn at all: a same-key play of this def is younger than the caller's
+   *  `coalesceMs`, so the moment is already on screen (see `admit`'s `key`). */
+  skip?: boolean;
+  /** How much of its authored particle LIFE the incoming play keeps (1 = as authored). Below 1 only when a per-def
+   *  live budget (`DEF_PARTICLE_BUDGETS`) thinned it: see `defLifeScale`. */
+  lifeScale?: number;
+}
+
+/**
+ * The floor a play thinned by its def's LIVE budget keeps of its authored particle count. Lower than
+ * `MIN_PARTICLE_SCALE` on purpose: a per-def budget exists for one def's pile-up, so the plays it thins are many
+ * small copies of the same pop, and a fifth of a burst still reads as that pop.
+ */
+export const MIN_DEF_SCALE = 0.2;
+
+/** PURE: the particle-life multiplier for a play spawned at `particleScale` of its authored count by a per-def live
+ *  budget. Linear from 0.6 (at no particles) to 1 (as authored): a thinner pop is also a shorter one, so a long chain
+ *  clears sooner instead of trailing a cloud of sparse, long-lived shards. Exactly 1 at scale 1. */
+export function defLifeScale(particleScale: number): number {
+  if (!(particleScale < 1)) return 1;
+  return 0.6 + 0.4 * Math.max(0, particleScale);
+}
+
+/** The live-particle total the registry holds for one def: every registered play's (post-thin) expected load. An
+ *  over-count of what is still alive (a burst's shards are all counted until the play retires), the safe side. */
+function defCommitted(id: string): number {
+  let n = 0;
+  for (const p of plays) if (p.id === id) n += p.load.particles;
+  return n;
 }
 
 /**
@@ -288,15 +323,60 @@ export interface FxAdmission {
 export function admit(
   id: string,
   load: FxPlayLoad,
-  opts: { thinnable?: boolean } = {},
+  opts: {
+    thinnable?: boolean; key?: string; coalesceMs?: number; defCap?: number;
+    /** How much of its AUTHORED particle count the incoming load already is (a caller's fan `intensity`): the
+     *  per-def life shortening is taken off the product of this and the budget's own scale. Default 1. */
+    authoredScale?: number;
+  } = {},
   cfg: FxBudgetConfig = getFxBudgetConfig(),
   readers: FxBudgetReaders = RUNTIME_READERS,
   activeScene: FxScene | null = scene,
 ): FxAdmission {
   let n = 0;
   let particleScale = 1;
+  let lifeScale = 1;
   const now = readers.now?.();
   const maxParticles = particleCapFor(cfg, activeScene);
+  // PER-KEY DEDUPE (2026-10-22): one live play of a def per key (a hand card's pop). A second fire on the same key
+  // while the first is younger than `coalesceMs` is the SAME moment (two watchers announcing one buff, or a chain's
+  // next beat landing mid-pop): it is dropped. Past that it REFRESHES: the older play (mostly faded) is retired and
+  // the new one plays from its start, so a card never stacks two copies of the cue.
+  if (opts.key !== undefined) {
+    for (const p of [...plays]) {
+      if (p.id !== id || p.key !== opts.key || p.protected) continue;
+      if (now !== undefined && p.bornAt !== undefined && opts.coalesceMs !== undefined && now - p.bornAt < opts.coalesceMs) {
+        deduped++;
+        perfMonitor.count('fx:deduped');
+        return { trimmed: n, particleScale: 1, skip: true };
+      }
+      const i = plays.indexOf(p);
+      if (i >= 0) plays.splice(i, 1);
+      deduped++;
+      perfMonitor.count('fx:deduped');
+      p.retire();
+      n++;
+    }
+  }
+  // PER-DEF LIVE BUDGET (`DEF_PARTICLE_BUDGETS`): this def's own live total, across calls. Thin the incoming play
+  // to the headroom left (its particles also live shorter, `defLifeScale`); only when even the floor does not fit is
+  // the oldest same-def play retired. A play that fits is untouched, so one ordinary moment looks as authored.
+  const defCap = opts.defCap ?? DEF_PARTICLE_BUDGETS[id];
+  if (defCap !== undefined && load.particles > 0 && opts.thinnable !== false) {
+    while (defCommitted(id) + load.particles * MIN_DEF_SCALE > defCap) {
+      const victim = pickVictim(id, (p) => p.id === id && p.load.particles > 0 && !isPending(p, now));
+      if (!victim) break;
+      trim(victim);
+      n++;
+    }
+    const left = defCap - defCommitted(id);
+    if (left < load.particles) {
+      particleScale = Math.max(MIN_DEF_SCALE, Math.min(1, Math.max(0, left) / load.particles));
+      thinned++;
+      perfMonitor.count('fx:thinned');
+    }
+    lifeScale = defLifeScale(particleScale * Math.min(1, Math.max(0, opts.authoredScale ?? 1)));
+  }
   // Per-def concurrency: this def's own oldest goes, and only this def's — another def's play cannot
   // relieve a per-def cap.
   while (livePlayCount(id) >= cfg.maxPerDef) {
@@ -310,15 +390,17 @@ export function admit(
   // scene's lower cap (`particleCapFor`) — same trim, same protections, only the number changes.
   if (load.particles > 0) {
     const committed = (): number => readers.liveParticles() + pendingParticles(now);
-    while (committed() + load.particles > maxParticles) {
+    const incoming = load.particles * particleScale;
+    while (committed() + incoming > maxParticles) {
       const victim = pickVictim(id, (p) => p.load.particles > 0 && !isPending(p, now));
       if (!victim) break;
       trim(victim);
       n++;
     }
     const left = maxParticles - committed();
-    if (left < load.particles && opts.thinnable !== false) {
-      particleScale = Math.max(MIN_PARTICLE_SCALE, Math.min(1, Math.max(0, left) / load.particles));
+    if (left < incoming && opts.thinnable !== false) {
+      // Never THICKER than the per-def budget already made it: the global scale applies to what is left.
+      particleScale = Math.min(particleScale, Math.max(MIN_PARTICLE_SCALE, Math.min(1, Math.max(0, left) / load.particles)));
       thinned++;
       perfMonitor.count('fx:thinned');
     }
@@ -333,7 +415,7 @@ export function admit(
       n++;
     }
   }
-  return { trimmed: n, particleScale };
+  return lifeScale < 1 ? { trimmed: n, particleScale, lifeScale } : { trimmed: n, particleScale };
 }
 
 /**
@@ -376,6 +458,7 @@ export function resetFxBudget(): void {
   plays.length = 0;
   culled = 0;
   thinned = 0;
+  deduped = 0;
   scene = null;
 }
 
@@ -383,17 +466,25 @@ export function resetFxBudget(): void {
  * PURE (given the registry): `def` with every particle layer's QUANTITY scaled by `scale` (a burst's `count`, an
  * emitter/smoke layer's `rate`), for a play `admit` THINNED. Nothing else moves: sizes, timings, colours and the
  * mesh layers (ribbons, beams, shockwaves) stay exactly as authored, so a thinned play is the same effect with
- * fewer particles. Returns the input by identity at scale 1.
+ * fewer particles. `lifeScale` (< 1 only for a play a per-def live budget thinned) also shortens each burst's shard
+ * `life`. Returns the input by identity at scale 1.
  */
-export function thinDef<T extends { layers: readonly FxDef['layers'][number][] }>(def: T, scale: number): T {
-  if (!(scale > 0) || scale >= 1) return def;
+export function thinDef<T extends { layers: readonly FxDef['layers'][number][] }>(def: T, scale: number, lifeScale = 1): T {
+  const thin = scale > 0 && scale < 1;
+  const life = lifeScale > 0 && lifeScale < 1 ? lifeScale : 1;
+  if (!thin && life === 1) return def;
   const layers = def.layers.map((layer) => {
     const p = layer.params as Record<string, unknown>;
     if (layer.primitive === 'burst') {
       const count = numParam(p, 'count', specDefault('burst', 'count', 0));
-      return count > 0 ? { ...layer, params: { ...layer.params, count: Math.max(1, Math.round(count * scale)) } } : layer;
+      if (!(count > 0)) return layer;
+      const params: Record<string, unknown> = { ...layer.params };
+      if (thin) params['count'] = Math.max(1, Math.round(count * scale));
+      // A per-def live budget also SHORTENS the shards (`admit`'s `lifeScale`); the global thinning never does.
+      if (life < 1) params['life'] = Math.max(1, Math.round(numParam(p, 'life', specDefault('burst', 'life', 450)) * life));
+      return { ...layer, params: params as typeof layer.params };
     }
-    if (layer.primitive === 'emitter' || layer.primitive === 'smoke') {
+    if (thin && (layer.primitive === 'emitter' || layer.primitive === 'smoke')) {
       const rate = numParam(p, 'rate', specDefault(layer.primitive, 'rate', 0));
       return rate > 0 ? { ...layer, params: { ...layer.params, rate: Math.max(1, rate * scale) } } : layer;
     }

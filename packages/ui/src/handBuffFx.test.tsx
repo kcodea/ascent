@@ -22,9 +22,10 @@ vi.mock('./fx/playDef', () => ({
   canPlayDefs: () => true,
 }));
 
-import { diffHandBuffs, fireHandBuff, HAND_BUFF_DEF_ID, HAND_BUFF_GAP_MS, clearAllHandBuffs } from './handBuffFx';
+import { diffHandBuffs, fireHandBuff, HAND_BUFF_COALESCE_MS, HAND_BUFF_DEF_ID, HAND_BUFF_GAP_MS, clearAllHandBuffs } from './handBuffFx';
 import { handBuffUidsIn } from './useCombatReplay';
 import { unitSelector } from './fx/combatAnchors';
+import { fanIntensity, FAN_PARTICLE_BUDGETS } from './fx/fanBudget';
 
 /** A mounted hand card carrying the `data-uid` hook the cue binds to, inside the hand zone. */
 function stubHandCard(uid: string, x: number): HTMLElement {
@@ -100,8 +101,10 @@ describe('fireHandBuff — the play', () => {
     expect(plays).toEqual([{
       id: HAND_BUFF_DEF_ID,
       anchors: { source: { x: 150, y: 570 }, target: { x: 150, y: 570 } },
-      opts: { uids: { source: 'm', target: 'm' } },
+      opts: { uids: { source: 'm', target: 'm' }, dedupeKey: 'm', coalesceMs: HAND_BUFF_COALESCE_MS },
     }]);
+    // A lone card plays as authored: no fan intensity is passed at all (R-PERF-HANDBUFF-01).
+    expect((plays[0]!.opts as { intensity?: number }).intensity).toBeUndefined();
     expect(HAND_BUFF_DEF_ID).toBe('hand-buff');
   });
 
@@ -119,6 +122,15 @@ describe('fireHandBuff — the play', () => {
     vi.advanceTimersByTime(HAND_BUFF_GAP_MS);
     expect(plays.map((p) => (p.opts as { uids: { target: string } }).uids.target)).toEqual(['a', 'b', 'c']);
     expect(plays.every((p) => p.id === 'hand-buff')).toBe(true);
+  });
+
+  it('every play is keyed by its card (one live cue per card), past the pop peak (R-PERF-HANDBUFF-01)', () => {
+    stubHandCard('a', 0); stubHandCard('b', 120);
+    fireHandBuff(['a', 'b']);
+    vi.advanceTimersByTime(HAND_BUFF_GAP_MS);
+    expect(plays.map((p) => (p.opts as { dedupeKey: string }).dedupeKey)).toEqual(['a', 'b']);
+    // The window covers the pop's peak (hold 640 x peak 0.35) so a refresh never cuts a pop before it lands.
+    expect(HAND_BUFF_COALESCE_MS).toBeGreaterThan(640 * 0.35);
   });
 
   it('a uid with no hand card on screen plays nothing (drawn this frame, played, sold)', () => {
@@ -172,5 +184,17 @@ describe('the Spiritbinder hand recipient keeps the generic pop', () => {
     fireHandBuff(after.changed);
     expect(plays.map((p) => p.id), 'and it plays the generic hand-buff def, not the beam').toEqual(['hand-buff']);
     expect((plays[0]!.opts as { uids: { target: string } }).uids.target).toBe('h');
+  });
+});
+
+describe('the hand-buff fan share (R-PERF-HANDBUFF-01)', () => {
+  const PER_PLAY = 96; // hand-buff.json: 67 + 29
+  it('one to three cards play as authored; a full hand shares the budget evenly', () => {
+    const budget = FAN_PARTICLE_BUDGETS['hand-buff'];
+    expect(fanIntensity(budget, PER_PLAY, 1)).toBe(1);
+    expect(fanIntensity(budget, PER_PLAY, 3)).toBe(1);
+    const k = fanIntensity(budget, PER_PLAY, 10);
+    expect(k).toBeLessThan(1);
+    expect(k * PER_PLAY * 10).toBeCloseTo(budget!, 6);
   });
 });

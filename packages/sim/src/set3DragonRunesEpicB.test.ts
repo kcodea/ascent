@@ -186,6 +186,18 @@ describe('R-RUNE-TWIN-TONGUES-01: a Whisper cast from hand also casts on another
     s = nextTurn(s);
     expect(stats(at(s, 'd2'))).toEqual([5 + 3, 4 + 5]);
   });
+
+  it('INTERACTION with Runic Transposition (Epic A): the copy is a real Whisper cast, so the twin gets the Health as Attack too', () => {
+    // Bait is +3/+5; Transposition adds the +5 Health as Attack on top, so each Dragon gets +8/+5.
+    let s = withRunes(['rune_twin_tongues', 'rune_runic_transposition'], { board: [bc('d1', 'd3_woozy'), bc('d2', 'd3_gatherer')] });
+    s = castFromHand(s, 'w3_bait', 'd1');
+    expect(stats(at(s, 'd1')), 'the from-hand target').toEqual([5 + 3 + 5, 3 + 5]);
+    expect(stats(at(s, 'd2')), 'the twin copy').toEqual([5 + 3 + 5, 4 + 5]);
+    // Control: Twin Tongues alone gives the twin only the plain +3/+5.
+    let plain = withRunes(['rune_twin_tongues'], { board: [bc('d1', 'd3_woozy'), bc('d2', 'd3_gatherer')] });
+    plain = castFromHand(plain, 'w3_bait', 'd1');
+    expect(stats(at(plain, 'd2'))).toEqual([5 + 3, 4 + 5]);
+  });
 });
 
 describe('R-RUNE-OPENED-VAULT-01: get a Shush; after a Jar of Secrets activation the next Whisper cast from hand casts twice', () => {

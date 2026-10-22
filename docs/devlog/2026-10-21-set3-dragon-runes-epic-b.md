@@ -45,5 +45,5 @@ themselves are already in attack/health, so a served board fights identically). 
 5. Duplicates: Lasting Words pays the sweetener; the other three scale per copy held.
 6. Costs come from docs/set3-dragon-rune-draft-30.md (owner ruling 2026-10-22): 5 Gold each (the placeholders were 4 / 4 / 3 / 3).
 
-Twin Tongues + Runic Transposition: epic-a had not landed when this branch was cut, so that interaction is not tested
-here. The copy goes through `castSpell` like every other cast, so a cast-level Transposition hook applies to it.
+Twin Tongues + Runic Transposition: tested after Epic A merged (2026-10-22). The copy goes through `castSpell` like
+every other cast, so the twin also gets the Transposition Attack (a Bait copy lands +8/+5).

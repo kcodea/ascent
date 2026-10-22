@@ -2437,7 +2437,7 @@ export const RUNES_RULES: GameRule[] = [
     ],
     contentIds: ['rune_twin_tongues'],
     cardText: '**Whispers** cast from hand also cast on another friendly **Dragon**.',
-    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22. The copy is a real Whisper cast, so Rune of Runic Transposition (Epic A) applies to it too (tested 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {

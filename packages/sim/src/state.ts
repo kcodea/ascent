@@ -786,6 +786,28 @@ export function isRuneBuffSource(source: string): boolean {
   return source.startsWith('Rune') || RUNE_BUFF_LABELS.has(source) || source === 'Twin Sun Oath';
 }
 
+/** SHOP DAMAGE IN THE LEDGER (owner report 2026-10-22, R-LEDGER-SHOP-DAMAGE-01): Shop damage to your own minions
+ *  is permanent (a Shop-fired Fel Spikes Echo / Gasket Rally sprays YOUR non-Demons, owner ruling 2026-08-04), so the
+ *  Health it takes away is recorded on `card.buffs` as its own negative row, labelled `<source> (damage)`, and the
+ *  inspect breakdown adds up to the Health the card shows. Before this, a body that took 800 Shop damage while Rad
+ *  Rachel gave it +802 showed "Rad Rachel +1604/+802" over a 16 Health badge. A damage row is NOT a buff stack:
+ *  stack counters (Celestial Crucible) and buff tallies skip it via `isShopDamageRow`. */
+export const SHOP_DAMAGE_SUFFIX = ' (damage)';
+export function isShopDamageRow(source: string): boolean {
+  return source.endsWith(SHOP_DAMAGE_SUFFIX);
+}
+/** Record `amount` Shop damage dealt to `card` by `source` (a name) as one more hit on its damage row. Writes the
+ *  ledger only: the caller has already taken the Health off. Never routed through `addBuff`, so no gain mirror
+ *  (Sable's bond, Xerox, Shared Spoils) or Attack-gain watcher sees a loss as a gain. */
+export function recordShopDamage(card: { buffs?: CardBuff[] }, source: string, amount: number): void {
+  if (amount <= 0) return;
+  const label = `${source}${SHOP_DAMAGE_SUFFIX}`;
+  card.buffs ??= [];
+  const row = card.buffs.find((b) => b.source === label);
+  if (row) { row.health -= amount; row.count += 1; }
+  else card.buffs.push({ source: label, attack: 0, health: -amount, count: 1 });
+}
+
 /** Total rune-sourced buff magnitude (Σ attack+health) on a card — the diff of this across an action is what
  *  tells the UI a rune just buffed the minion. */
 export function runeBuffMagnitude(card: { buffs?: { source: string; attack: number; health: number }[] }): number {

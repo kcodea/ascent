@@ -1,7 +1,7 @@
 import { CARD_INDEX } from '@game/content';
 import type { CardDef, GameEvent, Tribe } from '@game/core';
 import { CONFIG } from './config';
-import { lineResult, metLine, runRecord, type RunState } from './state';
+import { isShopDamageRow, lineResult, metLine, runRecord, type RunState } from './state';
 
 /**
  * Build-tag classifier (A5, expanded). Reads a run's FINAL board + run signals (history, triples, buffs,
@@ -155,7 +155,7 @@ export function buildTags(state: RunState): string[] {
   if (state.triplesMade >= 3 || goldens.length >= 3) add('Triple Hunter', state.triplesMade + goldens.length);
 
   // Scaling Engine — big permanent run-wide growth, or a heavily-enchanted board.
-  const buffSum = rows.reduce((s, x) => s + (x.m.buffs?.reduce((a, b) => a + b.attack + b.health, 0) ?? 0), 0);
+  const buffSum = rows.reduce((s, x) => s + (x.m.buffs?.reduce((a, b) => a + (isShopDamageRow(b.source) ? 0 : b.attack + b.health), 0) ?? 0), 0);
   const runWideScale = (state.spellBonus?.attack ?? 0) + (state.spellBonus?.health ?? 0) + (state.undeadBuyAtk ?? 0) + (state.beastBuyAtk ?? 0) + (state.magneticBuyAtk ?? 0) + (state.magneticBuyHp ?? 0) + impScale;
   if (buffSum >= 40 || runWideScale >= 8) add('Scaling Engine', Math.min(10, Math.round(buffSum / 12) + runWideScale));
 

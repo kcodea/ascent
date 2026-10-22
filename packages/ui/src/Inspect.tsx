@@ -8,6 +8,9 @@ import { inspectActionFor, lastPointerWasTouch, lastTouchTarget } from './touchI
 import { useSpectate } from './versus/spectate';
 import './discoverEntrance/discoverEntrance.css'; // the gold action pill the touch Buy / Pick button reuses
 
+/** A ledger amount with its sign: a gain reads +N, a loss (Shop damage, a Titan Hammer set DOWN) reads -N, never "+-N". */
+const signed = (n: number): string => (n < 0 ? `-${-n}` : `+${n}`);
+
 /**
  * Right-click "inspect": the card floats to the centre of the screen, enlarged, over
  * a dimmed backdrop so the player can read it closely. Click the backdrop (or press
@@ -62,7 +65,7 @@ export function Inspect() {
               <div className="ib-row" key={`${b.source}-${i}`}>
                 <span className="ib-src">{bareRuneLabel(b.source)} <em>×{b.count}</em></span>
                 {/* A stat-less row is a granted ability (Seed's Drake Pup Echo, Set 3), not a +0/+0 buff. */}
-                <span className="ib-amt">{b.attack === 0 && b.health === 0 ? 'Echo' : `+${b.attack}/+${b.health}`}</span>
+                <span className="ib-amt">{b.attack === 0 && b.health === 0 ? 'Echo' : `${signed(b.attack)}/${signed(b.health)}`}</span>
               </div>
             ))}
           </div>

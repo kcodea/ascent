@@ -48,7 +48,7 @@ export const navClockNow = (): number => (typeof performance !== 'undefined' ? p
 import type { CardView } from './Card';
 import type { CareerRun } from './careerData';
 import type { CombatBuffDelta } from './runBuffs';
-import { DRAG_CAUSES, takeDragTrace } from './replay/dragTrace';
+import { dragTraceOf } from './replay/dragTrace';
 import { closeCursorWave, resetCursorTrail, sampleCursor, shiftCursorTrail, takeCursorTrail } from './replay/cursorTrace';
 import {
   DRAFT_STALE_MS, RESUME_GAP_MS, REPLAY_DRAFT_SCHEMA, draftRunId, firstRecordedWave, lastRecordedTMs,
@@ -1747,8 +1747,9 @@ function commitResolvedAction(
       } else if (next.phase === 'recruit' && s.run.phase === 'recruit') {
         // DRAG PATH (owner ask 2026-08-19, "1:1 hands"): when this action was drag-driven (a drop dispatched
         // it), attach the recorded pointer path so playback can ghost the card along it. Take-and-clear with
-        // a staleness window, so an aborted drag never mislabels a later same-typed action.
-        const dragPath: DragPath | null = DRAG_CAUSES.has(action.type) ? takeDragTrace() : null;
+        // a staleness window, so an aborted drag never mislabels a later same-typed action. `dragTraceOf` hands the
+        // spectator tap (`tapAct`, after this commit) the SAME path (R-REPLAY-DRAG-SHARED-01).
+        const dragPath: DragPath | null = dragTraceOf(action);
         // An ordinary recruit action: a DELTA against the previous frame's view (§8 — measured: full views
         // are ~7 KB and a human run takes ~250 actions; deltas keep the payload in the hundreds of KB).
         if (replayLastShopView) {

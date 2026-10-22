@@ -772,6 +772,12 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_unbroken_scales:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dragon loses Ward (2 per combat): +10/+10, then the Ward re-forms
   'rune:rune_runic_transposition:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a Dragon: its Health also as Attack (both phases)
   'rune:rune_wyrms_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Shop spells cast from hand: spell power +1/+1
+  // ── Set 3 Kobold runes (owner 2026-10-22) ──
+  'rune:rune_refreshing_rubies:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 4 Refreshes pressed: a random Ruby
+  'rune:rune_ruby_sales:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 minions Sold: a random Ruby
+  'rune:rune_goleming:combat': { policy: 'ownBeat', family: 'avenge' }, // Avenge (5): a Gemheart Golem, then 6 Rubies cast on it
+  'rune:rune_red_start:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: a permanent Ruby on each Kobold
+  'rune:rune_roseys_garden:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every Ruby cast: a random minion +4/+5 permanently (both phases)
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

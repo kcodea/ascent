@@ -2501,4 +2501,83 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-22: every rune name is bare; the Menagerie keeps one name across its three set twins, which never share a set.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeNamesBare.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  // ── Set 3 Kobold runes (owner 2026-10-22) ──
+  {
+    id: 'R-KOBOLD-RUNES-1022-01',
+    title: 'Refreshing Rubies and Ruby Sales: running meters (4 Refreshes pressed / 3 minions Sold) that each get a random Ruby',
+    statement:
+      'Refreshing Rubies (Basic, 2) counts every Refresh the player presses, a free one included (the Rosey / Indy meter: '
+      + 'the `roll` action only; the fresh Shop of a new turn and rune / hero / spell refreshes never count); every 4th gets a '
+      + 'random Ruby. Ruby Sales (Basic, 1) counts every minion you Sell (board or hand, a spell that Sells included); every '
+      + '3rd gets a random Ruby. A random Ruby is one of all six types (R-RAND-02). Both meters carry across turns, repeat, '
+      + 'print a plain N/M badge, respect the hand cap (they never pay at the acquire moment), and each copy held runs its own meter.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'When you Refresh 4 times, get a Random Ruby. / When you Sell 3 minions, get a Random Ruby.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts advanceRuneThresholds (`refresh` / `sell` meters); reducer `roll`; recruit settleMinionSale' },
+    ],
+    contentIds: ['rune_refreshing_rubies', 'rune_ruby_sales'],
+    currentBehaviour: 'Conforms as of 2026-10-22 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-RUNES-1022-02',
+    title: 'Goleming: Avenge (5), a plain Gemheart Golem summon, then 6 plain Rubies cast on it (combat-only)',
+    statement:
+      'Goleming (Basic, 3) is a combat Avenge (5) rune (Rune of Fury repeats it; each copy held is its own fire). It summons '
+      + 'the printed Gemheart Golem token as a PLAIN summon, not a "when you have space" queue: on a full board the Golem is '
+      + 'lost and so are its Rubies. The Golem then casts 6 plain Rubies on itself through the one combat Ruby primitive, so '
+      + 'the Ruby strength of the side and every Ruby watcher (Rosey, the Garden, the Gemheart summon trigger) see real '
+      + 'casts. A Golem whose landing is deferred (it attacks immediately) gets its Rubies as it lands. The Golem and its '
+      + 'Rubies last the fight only (buff permanence by phase).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'Avenge (5): Summon a Gemheart Golem and cast 6 Rubies on it.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runeAvenge(GOLEMING_AVENGE, runeGoleming) + rubiesOnLanding' },
+    ],
+    contentIds: ['rune_goleming'],
+    currentBehaviour: 'Conforms as of 2026-10-22 (new content). The plain-summon (lost on a full board) reading is flagged for owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-RUNES-1022-03',
+    title: 'A "permanent Ruby" cast in combat keeps its stats: they carry back to the Shop board (Red Start)',
+    statement:
+      'A Ruby the card text calls "permanent" (Red Start, Combatative Rubies, Gemheart, Korn) is cast in combat through '
+      + '`playRubyOn(..., permanent)`: the Ruby stats land now and are recorded as a permanent Ruby gain that settle '
+      + 'carries back to the run card, like Engraved. Red Start (Epic, 3): at Start of Combat, one permanent Ruby on EACH '
+      + 'living friendly Kobold (All-types bodies count), each Kobold its own caster; again per copy held; Twilight repeats it '
+      + '(a Start of Combat rune). No Kobold: nothing. Combat-only: the Shop has no Start of Combat replay of it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'Start of Combat: Cast a Permanent Ruby on your Kobolds.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (permanent); simulate.ts runRuneStartOfCombat "RED START"' },
+    ],
+    contentIds: ['rune_red_start', 'rune_combatative_rubies'],
+    currentBehaviour: 'Conforms as of 2026-10-22: Red Start reuses the existing permanent-Ruby path (no new primitive).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-RUNES-1022-04',
+    title: "Rosey's Garden: every Ruby cast gives a seeded-random friendly minion +4/+5 permanently, and cannot loop",
+    statement:
+      "Rosey's Garden (Epic, 4) hears every Ruby CAST at the same chokepoints as Rosey (the Shop's Ruby landing and Shop-offer "
+      + 'cast; `playRubyOn` in combat), once PER RUBY (two Rubies cast is two) and per copy held. Each payout gives a '
+      + 'seeded-random friendly minion (Shop: the board; combat: the living side) +4/+5. Permanent in both phases: in combat '
+      + 'it is recorded as `permaGain` and carried back to the Shop. Bounce hops and the Double Trouble self-Rubies are stats '
+      + 'only (never casts), so they pay nothing, and the +4/+5 is a plain buff no Ruby watcher hears: Rosey, the Garden and '
+      + 'every Ruby trigger together always settle.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'When you Cast a Ruby, give a random minion +4/+5 permanently.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts roseysGardenHearsRubies; packages/core/src/combat/simulate.ts runeRubyCastCombat (the Garden block)' },
+    ],
+    contentIds: ['rune_roseys_garden'],
+    currentBehaviour: 'Conforms as of 2026-10-22 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

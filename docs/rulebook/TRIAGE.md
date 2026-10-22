@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (118) — NOT owner questions
+## Doc Bot verification backlog (120) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -101,6 +101,8 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod runeRuneboundBrood (Runebound Brood: "Drake Pups you summon cast Runebind on themselves.") — Rune of the Runebound Brood: a Drake Pup this side summons casts Runebind on itself (per copy).
 - combat mod runeUnbrokenScales (Unbroken Scales: "The first 2 times your Dragons lose Ward each combat, give it +10/+10 and Ward.") — Rune of Unbroken Scales: the first 2 times a friendly Dragon loses Ward each combat (side-wide), it gains +10/+10 (per copy) and Ward.
 - combat mod runeRunicTransposition (Runic Transposition: "Whispers that give a Dragon Health also give it that much Attack.") — Rune of Runic Transposition: a Whisper cast on a friendly Dragon also gives it Attack equal to the Health it gives.
+- combat mod runeRedStart (Red Start: "Start of Combat: cast a permanent Ruby on your Kobolds.") — Red Start: Start of Combat, cast a PERMANENT Ruby on each friendly Kobold (per copy).
+- combat mod runeRoseysGarden (Rosey's Garden: "When you cast a Ruby, give a random minion +4/+5 permanently.") — Rosey's Garden: every Ruby cast gives a random friendly minion +4/+5 PERMANENTLY (per Ruby, per copy).
 - combat mod starCrashBonus — Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too.
 - combat mod candlelightToll (Candlelight Toll: "") — Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the board-wide sibling of `runeRallying`, which fires only the left-most). */ /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant).
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.

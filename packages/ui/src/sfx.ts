@@ -556,8 +556,8 @@ const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
  *  - drop:   the door whoosh as the gate starts to fall (it swells to its peak at 0.4 s, just before the 0.45 s fall lands)
  *  - impact: four thuds as one hit (wooden door, ground body, heavy object fall, body grit), and the poster's page
  *            flap as it is knocked swinging on its nail (its peak lands on the poster's first swing)
- *  - crank:  as it is winched up: a slice of the crank recording, the gears, and the loud part of the metal groan,
- *            the long ones cut short with a fade (`duration` / `fadeMs`) so they end with the 0.45 s crank
+ *  - crank:  as it is winched up: a slice of the crank recording, the gears, the loud part of the metal groan and the
+ *            ranked gate's grind, every one cut to 0.55 s with a 0.1 s fade (`duration` / `fadeMs`) to end with the crank
  */
 /** `category`: the fader a layer plays on (default: the clip's own). */
 interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number }
@@ -570,8 +570,10 @@ const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
     { clip: 'wipeposter', offset: 0.05 },
   ],
   crank: [
-    { clip: 'wipecrank', offset: 0.9, duration: 0.75, fadeMs: 160 }, { clip: 'wipegears' },
-    { clip: 'wipegroan', offset: 2.9, duration: 1.1, fadeMs: 260 },
+    // EVERY crank layer is over by 0.55 s, its last 0.1 s faded (owner 2026-10-22: "make sure all sounds are faded out at
+    // .55s"), so nothing rings on once the 0.45 s crank has finished.
+    { clip: 'wipecrank', offset: 0.9, duration: 0.55, fadeMs: 100 }, { clip: 'wipegears', duration: 0.55, fadeMs: 100 },
+    { clip: 'wipegroan', offset: 2.9, duration: 0.55, fadeMs: 100 },
     // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
     // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
     // Its grind runs about 2 s, so it is cut off sharply just after the 0.45 s crank (owner: "it lingers for a long time

@@ -2165,6 +2165,18 @@ just integers"*). Mariet, Valyou and Leeds show their progress toward the next p
 counter under the card, like Avenge and every every-N card; their printed sentence stays authored. Leeds still prints
 its CURRENT grant in place of +2/+2 once it has improved (the live-text rule).
 
+**Counters are plain integers, never words** (owner 2026-10-22: *"change rosey to our typical x/3 setup. we dont want
+to show 'refreshes' etc in our counter text"*, R-KOBOLD-1022-06). Every meter under a card reads N/M and counts UP
+(1/3, 2/3, 3/3 when it pays, then 1/3), as Avenge does. The Refresh meters (Rosey, Hellrider, Indy) used to read
+"1 Refresh" and the End-of-Turn "every N turns" cadences (Frontdrake, Money Maker and the rest) "2 Turns"; both are now N/M. The rune
+meters dropped their words the same way: Rune of Unity reads 3/5 (was "3/5 types"), and the turn cadences (Rune of the
+Deep, Happy Birthday, Merry Christmas, the cadenced grants) read 1/2 (was "1/2 turns"). Value readouts that are not a
+meter (a rune's "+3 Health", "N left", a hero power's "2t") are unchanged.
+
+**Frack Attack's counter ticks in combat** (owner 2026-10-22: *"frack attack's counter isnt working in combat, please
+fix that"*, R-KOBOLD-1022-07). Its N/3 under the card climbs on every friendly swing during the fight, lands on 3/3 on the
+swing whose Ruby repeat follows (the repeat plays on its own beat), and starts over at 0/3 on a Rise / Rebirth return.
+
 ### A named-spell caster prints the spell, not its value (owner rule 2026-09-09, R-TEXT-01)
 
 A minion whose effect **casts a named spell** — Watcher, Wick Mortis, Anubis — reads "cast

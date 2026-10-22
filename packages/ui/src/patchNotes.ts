@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-22',
     changes: [
       {
+        category: 'Systems',
+        text: 'Counters under cards now show plain numbers like 1/3, never words. The Frack Attack counter now ticks during combat.',
+        details: [
+          'Rosey, Hellrider and Indy count Refreshes as 1/3, 2/3, 3/3 instead of "1 Refresh".',
+          'Cards that act every few turns count up as 1/2, 2/2 instead of "2 Turns".',
+          'Rune counters drop their words too: Rune of Unity reads 3/5, and the turn based runes read 1/2.',
+          'The Frack Attack 3 attack counter goes up with every friendly attack in combat and resets when it comes back.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Five new Kobolds join Set 3: Boy Scout, Gramps, Zapdash, Frack Attack and Rosey.',
         details: [

@@ -25,9 +25,13 @@ describe('Rosey: the current grant in place, the countdown as the counter', () =
     expect(live('k3_rosey', 7)).not.toMatch(/\bmore\b|\d+\/\d+(?!\/)/);
   });
 
-  it('counts down the Refreshes to the next step as an integer counter in the Shop', () => {
-    expect(stepProgress('k3_rosey', { eotTick: 0 })).toMatchObject({ current: 3, total: 3 });
-    expect(stepProgress('k3_rosey', { eotTick: 4 })).toMatchObject({ current: 2, total: 3 });
+  it('counts the Refreshes toward the next step as the plain integer N/3, no "Refresh" word (owner 2026-10-22)', () => {
+    // "change rosey to our typical x/3 setup. we dont want to show 'refreshes' etc in our counter text"
+    expect(stepProgress('k3_rosey', { eotTick: 0 })).toEqual({ current: 0, total: 3 });
+    expect(stepProgress('k3_rosey', { eotTick: 1 })).toEqual({ current: 1, total: 3 });
+    expect(stepProgress('k3_rosey', { eotTick: 3 })).toEqual({ current: 3, total: 3 }); // the step lands on 3/3
+    expect(stepProgress('k3_rosey', { eotTick: 4 })).toEqual({ current: 1, total: 3 });
+    expect(stepProgress('k3_rosey', {}), 'no counter in combat (Refreshes are a Shop thing)').toBeNull();
   });
 });
 

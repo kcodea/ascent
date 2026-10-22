@@ -146,8 +146,8 @@ export const SET3_NEUTRAL: readonly CardDef[] = [
     // Owner Set 3 batch 2026-10-13. A roll meter that pays out in the SHOP: every 5th Shop refresh while this is on
     // the board adds a Golden Monkey to the Shop (gilded: 2). The meter is Hellrider's: a per-instance tally on
     // `eotTick`, counted by the `shopRefreshed` trigger (every refresh that rebuilds the row, the turn's fresh row
-    // included), cumulative since this body arrived and repeating every 5. The board badge counts down the
-    // refreshes left (`stepProgress`). Named after the hero Indy on purpose (owner); the id is distinct.
+    // included), cumulative since this body arrived and repeating every 5. The board badge is the plain
+    // integer N/5 (`stepProgress`, owner 2026-10-22: no words in counters). Named after the hero Indy on purpose (owner); the id is distinct.
     id: 'n3_indy',
     name: 'Indy',
     tribe: 'neutral',

@@ -1281,7 +1281,8 @@ export function castSpellPerGoldText(cardId: string, goldSpentThisTurn: number, 
 export interface StepProgress {
   current: number;
   total: number;
-  /** When set, the counter renders THIS text instead of "current/total" (e.g. cadence → "2 Turns"). `current`
+  /** When set, the counter renders THIS text instead of "current/total". Must stay a plain integer reading, never a word
+   *  (owner 2026-10-22: "we dont want to show 'refreshes' etc in our counter text"). `current`
    *  still drives the keyed re-bump + the shop hide-at-0 gate, so keep it the value that changes per tick. */
   label?: string;
 }
@@ -1359,12 +1360,9 @@ export function stepProgress(
   const cadence = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (cadence) {
     if (p.eotTick === undefined) return null; // combat: cadence is irrelevant, no counter
-    const every = Math.max(1, n((cadence.params as { every?: number })?.every, 3));
-    // Countdown of TURNS until the effect next fires (not an X/N progress bar): every=2 reads "2 Turns" fresh,
-    // ticks to "1 Turn" at end of turn, fires, resets to "2 Turns". `toNext` is 1..every (never 0), so the shop
-    // hide-at-0 gate always shows it. Keyed re-bump rides `current = toNext` (flips each turn).
-    const toNext = every - (p.eotTick % every);
-    return { current: toNext, total: every, label: `${toNext} Turn${toNext === 1 ? '' : 's'}` };
+    // The plain integer N/every, counting the turns UP like every other meter (owner 2026-10-22: "we dont want to show
+    // 'refreshes' etc in our counter text"). This was a worded "2 Turns" countdown; now it is 1/2, 2/2 (fired), 1/2.
+    return cyc(p.eotTick, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
   }
   // CELESTIAL Orbit (N) / "after N Orbits" (audit 2026-08-06 — Star Cartographer, Worldseed Gardener,
   // Orrery, Astral Shopkeeper shipped with a bare cadence and no counter). `orbitTick` is the per-instance
@@ -1413,9 +1411,9 @@ export function stepProgress(
   const refreshed = def.effects.find((e) => e.on === 'shopRefreshed' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (refreshed) {
     if (p.eotTick === undefined) return null; // combat: refreshes are irrelevant
-    const every = Math.max(1, n((refreshed.params as { every?: number })?.every, 4));
-    const toNext = every - (p.eotTick % every);
-    return { current: toNext, total: every, label: `${toNext} Refresh${toNext === 1 ? '' : 'es'}` };
+    // Rosey / Hellrider: the plain integer N/every, counting Refreshes UP (owner 2026-10-22: "change rosey to our typical
+    // x/3 setup. we dont want to show 'refreshes' etc in our counter text"). Was a worded "1 Refresh" countdown.
+    return cyc(p.eotTick, Math.max(1, n((refreshed.params as { every?: number })?.every, 4)));
   }
   // Runic Archivist: the minions-SOLD meter. Its tally already rides the card as `soldProgress`, and the
   // printed text already counts down — but with no counter the card gave no at-a-glance read of how close the

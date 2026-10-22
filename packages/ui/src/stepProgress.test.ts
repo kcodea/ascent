@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { stepProgress } from './cardText';
+import { CARD_INDEX } from '@game/content';
 
 describe('stepProgress', () => {
   it('Guel counts 1..4 then wraps (cyclic, per 4 spells)', () => {
@@ -50,16 +51,16 @@ describe('stepProgress', () => {
     expect(stepProgress('cryptdrake', { attackSeen: 2 })).toEqual({ current: 2, total: 2 });
     expect(stepProgress('cryptdrake', { attackSeen: 3 })).toEqual({ current: 1, total: 2 });
   });
-  it('Cadence cards (endOfTurn + every) count DOWN turns-until-fire (labelled "N Turns")', () => {
-    // Frontdrake: every 3 turns. toNext = every − (eotTick % every), 1..every, wraps to `every` on the fire turn.
-    expect(stepProgress('frontdrake', { eotTick: 0 })).toEqual({ current: 3, total: 3, label: '3 Turns' });
-    expect(stepProgress('frontdrake', { eotTick: 2 })).toEqual({ current: 1, total: 3, label: '1 Turn' });
-    expect(stepProgress('frontdrake', { eotTick: 3 })).toEqual({ current: 3, total: 3, label: '3 Turns' });
-    expect(stepProgress('frontdrake', { eotTick: 4 })).toEqual({ current: 2, total: 3, label: '2 Turns' });
-    // Money Maker: every 2 turns. Fresh reads "2 Turns", ticks to "1 Turn", fires, resets to "2 Turns".
-    expect(stepProgress('moneymaker', { eotTick: 0 })).toEqual({ current: 2, total: 2, label: '2 Turns' });
-    expect(stepProgress('moneymaker', { eotTick: 1 })).toEqual({ current: 1, total: 2, label: '1 Turn' });
-    expect(stepProgress('moneymaker', { eotTick: 2 })).toEqual({ current: 2, total: 2, label: '2 Turns' });
+  it('Cadence cards (endOfTurn + every) count the turns UP as a plain integer N/every, no "Turns" word (owner 2026-10-22)', () => {
+    // Frontdrake: every 3 turns. Cyclic like every other meter: 1/3, 2/3, 3/3 (the firing turn), then 1/3.
+    expect(stepProgress('frontdrake', { eotTick: 0 })).toEqual({ current: 0, total: 3 });
+    expect(stepProgress('frontdrake', { eotTick: 2 })).toEqual({ current: 2, total: 3 });
+    expect(stepProgress('frontdrake', { eotTick: 3 })).toEqual({ current: 3, total: 3 });
+    expect(stepProgress('frontdrake', { eotTick: 4 })).toEqual({ current: 1, total: 3 });
+    // Money Maker: every 2 turns.
+    expect(stepProgress('moneymaker', { eotTick: 0 })).toEqual({ current: 0, total: 2 });
+    expect(stepProgress('moneymaker', { eotTick: 1 })).toEqual({ current: 1, total: 2 });
+    expect(stepProgress('moneymaker', { eotTick: 2 })).toEqual({ current: 2, total: 2 });
     // Combat passes no eotTick → cadence is irrelevant → no counter.
     expect(stepProgress('moneymaker', {})).toBeNull();
   });
@@ -67,5 +68,24 @@ describe('stepProgress', () => {
     expect(stepProgress('tara', { ascendProgress: 10 })).toEqual({ current: 10, total: 15 });
     expect(stepProgress('tara', { ascendProgress: 15 })).toEqual({ current: 15, total: 15 });
     expect(stepProgress('tara', { ascendProgress: 25 })).toEqual({ current: 15, total: 15 });
+  });
+});
+
+describe('no counter under a card prints a word (owner 2026-10-22)', () => {
+  // "change rosey to our typical x/3 setup. we dont want to show 'refreshes' etc in our counter text"
+  it('every card, at every meter value, reads as plain integers', () => {
+    const offenders: string[] = [];
+    for (const id of Object.keys(CARD_INDEX)) {
+      for (const v of [0, 1, 2, 3, 4, 7, 13]) {
+        const sp = stepProgress(id, {
+          spellProgress: v, spiritTally: v, summonBonus: v, ascendProgress: v, eotTick: v, attackSeen: v, avengeSeen: v,
+          bleedAttacks: v, goldTick: v, buyTick: v, playTick: v, shoutTick: v, soldProgress: v, orbitTick: v, rubyCastTick: v,
+          damageDealt: v, goldSpentTurn: v,
+        });
+        const shown = sp ? sp.label ?? `${sp.current}/${sp.total}` : null;
+        if (shown !== null && /[A-Za-z]/.test(shown)) offenders.push(`${id}@${v}: ${shown}`);
+      }
+    }
+    expect(offenders).toEqual([]);
   });
 });

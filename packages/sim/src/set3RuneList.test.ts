@@ -205,8 +205,8 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(106); // 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
-    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(91); // 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(109); // 106 → 109 on 2026-10-22 (Set 3 Kobold runes, Basic); 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
+    expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(93); // 91 → 93 on 2026-10-22 (Set 3 Kobold runes, Epic); 87 → 91 on 2026-10-21 (Set 3 Dragon runes, Epic B); 80 → 87 on 2026-10-21 (Set 3 Dragon runes, Epic A); 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 
   it('every rune NOT named is out of Set 3, still resolves, and keeps its other sets (never archived)', () => {

@@ -5631,11 +5631,6 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 .app.combatin .pixifx,
 .app.combatin .combatctl { animation: boardfadein 0.26s ease both; }
 @keyframes boardfadein { from { opacity: 0; } to { opacity: 1; } }
-/* Skip-combat freeze: while the replay is frozen (GSAP + both Pixi tickers are paused in JS), also stop every
-   CSS-driven combat animation — the units' idle pulses etc. — so LITERALLY everything holds still as it fades.
-   (End Combat never sets this — it has no live FX to stop.) */
-.app.combatfrozen .zone .row,
-.app.combatfrozen .zone .row * { animation-play-state: paused !important; }
 /* The loose transient overlays (SoC bolts, damage/death floats) drive their OWN opacity keyframes — a transition
    can't fade a property that's mid-animation, so we hard-hide them the instant the fade begins (`!important`
    beats the running animation). They're sub-second anyway, so they simply vanish with the rest. */

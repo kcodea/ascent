@@ -73,6 +73,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Skip now fast-forwards the rest of a fight instead of cutting straight to the result, then slows back down so you see the hit that decides it.',
+        details: [
+          'The fight and its effects race at 20 times speed after you press Skip, under a fast-forward whir.',
+          'It slows down smoothly to your normal replay speed for the final deciding blow.',
+          'The game sounds fade back in as it slows, so the final blow plays with its sound.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Replays now show the recorded hand exactly as spectators see it live.',
         details: [
           'The cursor moves smoothly at the full rate and lands on the same card or button on any screen shape.',

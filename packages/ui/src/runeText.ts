@@ -43,6 +43,9 @@ export function liveRuneText(runeId: string, text: string, st: RuneLiveState | n
     // 2 sales." The NEXT sale's amount AND stat.
     case 'rune_baller':
       return st.baller ? text.replace(ATTACK, `**+${st.baller.amount} ${st.baller.stat}**`) : text;
+    // "Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this." (Set 3 Dragon runes, 2026-10-21)
+    case 'rune_borrowed_flame':
+      return st.borrowedFlame != null ? pair(text, st.borrowedFlame, st.borrowedFlame) : text;
     default:
       return text;
   }

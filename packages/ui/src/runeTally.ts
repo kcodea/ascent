@@ -1,6 +1,6 @@
-import { kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
+import { CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -69,6 +69,15 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_gem_star' && run.questFlags?.runeGemStar) return `${Math.min(GEM_STAR_CAP, run.gemStarThisTurn ?? 0)}/${GEM_STAR_CAP}`;
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
   if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
+  // ── Set 3 Dragon runes, Basic (owner 2026-10-21): the N/X integer counter convention. ──
+  // Rune of Clear Voices: distinct Whispers cast from hand this turn, toward the 3 that pay (full once paid this turn).
+  if (runeId === 'rune_clear_voices' && run.questFlags?.runeClearVoices) {
+    return run.clearVoicesPaid ? `${CLEAR_VOICES_DISTINCT}/${CLEAR_VOICES_DISTINCT}` : `${Math.min(CLEAR_VOICES_DISTINCT, run.clearVoicesIds?.length ?? 0)}/${CLEAR_VOICES_DISTINCT}`;
+  }
+  // Rune of Spell Tempering: Whispers cast toward the next improve (a running meter across turns and fights).
+  if (runeId === 'rune_spell_tempering' && run.questFlags?.runeSpellTempering) return `${Math.min(SPELL_TEMPERING_PER, run.runeSpellTemperingTick ?? 0)}/${SPELL_TEMPERING_PER}`;
+  // Rune of the Open Treasury: its one copy a turn (1 ready, 0 spent), as the Open Grave shows it.
+  if (runeId === 'rune_open_treasury' && run.questFlags?.runeOpenTreasury) return run.openTreasuryUsed ? '0/1' : '1/1';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
     return `${Math.min(run.shopAuraGrow.tick, run.shopAuraGrow.per)}/${run.shopAuraGrow.per}`;
@@ -309,6 +318,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   // 2026-08-20 batch — both Avenge (3), both improving Rubies.
   rune_shifting_facets: 3, rune_deepening_vein: 3,
   rune_soul_toll: 4, // Set 3 design pass (2026-09-27): Avenge (4) raises the Undead Aura
+  rune_final_utterance: DRAGON_RUNES_BASIC.finalUtteranceAvenge, // Set 3 Dragon runes (2026-10-21): Avenge (4), a Whisper and a Shop Spell
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

@@ -39,6 +39,8 @@ export interface RuneLiveState {
   wheel?: { attack: number; health: number };
   /** Rune of the Baller: what the NEXT sale pays, per copy, and which stat. */
   baller?: { amount: number; stat: 'Attack' | 'Health' };
+  /** Rune of Borrowed Flame (Set 3 Dragon runes, 2026-10-21): what the NEXT Whisper cast on a Dragon gives, per copy. */
+  borrowedFlame?: number;
 }
 
 const intIn = (v: unknown): number | undefined =>
@@ -91,6 +93,7 @@ export function runeLiveStateOfRun(run: RunState): RuneLiveState {
     // The reducer pays step × ceil(next/2) × copies; the badge text is per copy.
     out.baller = { amount: run.runeBaller.step * Math.ceil(next / 2), stat: next % 2 === 1 ? 'Attack' : 'Health' };
   }
+  if (f?.runeBorrowedFlame) out.borrowedFlame = run.runeBorrowedFlame ?? 1;
   return out;
 }
 
@@ -113,6 +116,8 @@ export function runeLiveStateOfSnapshot(snap: object | null | undefined): RuneLi
   }
   const bs = intIn(m?.beastialSwarmLevel);
   if (m?.runeBeastialSwarm || bs) out.beastialSwarm = bs || BEASTIAL_SWARM_BASE;
+  const bf = intIn(m?.runeBorrowedFlame); // the captured per-copy value (the mod IS the value)
+  if (bf) out.borrowedFlame = bf;
   return out;
 }
 
@@ -144,6 +149,10 @@ export function runeLiveStateInCombat(base: RuneLiveState, prog: RuneCombatProgr
   if (base.beastialSwarm != null) {
     out.beastialSwarm = base.beastialSwarm + BEASTIAL_SWARM_BASE * Math.floor(prog.deaths / BEASTIAL_SWARM_EVERY);
   }
+  // Rune of Borrowed Flame: every fire (a Whisper cast on a Dragon) improves it by +1 (Rune of Mastery's doubling is not visible
+  // here, so a Mastery run under-reads mid-fight until settle banks the true value).
+  const bf = prog.triggers['runeBorrowedFlame'] ?? 0;
+  if (bf > 0 && base.borrowedFlame != null) out.borrowedFlame = base.borrowedFlame + bf;
   return out;
 }
 
@@ -163,6 +172,7 @@ export function parseRuneLiveState(v: unknown): RuneLiveState | undefined {
   const b = o.baller as { amount?: unknown; stat?: unknown } | undefined;
   const ba = b && typeof b === 'object' ? intIn(b.amount) : undefined;
   if (ba !== undefined && (b!.stat === 'Attack' || b!.stat === 'Health')) out.baller = { amount: ba, stat: b!.stat };
+  const bfl = intIn(o.borrowedFlame); if (bfl) out.borrowedFlame = bfl;
   return Object.keys(out).length ? out : undefined;
 }
 

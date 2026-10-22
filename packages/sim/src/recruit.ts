@@ -20,6 +20,7 @@ import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandS
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants } from './shop';
 import { runeStacksOf } from './runeDup';
+import { defiantWingsShop, openTreasuryOnBuy, spellFedScalesOnCast, whisperCastShop } from './dragonRunesBasic';
 
 /**
  * The recruit-phase half of the effect system (handoff C.5), split across the
@@ -2155,6 +2156,7 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   if (t.grantAle) conjureToHand(state, runSpells(state).filter((c) => ALE_IDS.includes(c.id)), t.grantAle, runeGrantOverflow());
   if (t.grantRuby) mintRubies(state, t.grantRuby);
   if (t.grantRandomRuby) mintRandomRubies(state, t.grantRandomRuby); // Rune of Minted Gems (Set 3 design pass)
+  if (t.grantRandomWhisper) mintRandomWhispers(state, t.grantRandomWhisper); // Rune of Loose Tongues (Set 3 Dragon runes): the gated Whisper pool
   // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
   // a full hand — the same rule every quest/rune grant follows.
   for (const id of t.grantCards ?? []) {
@@ -3011,12 +3013,13 @@ export function mintHandSpells(state: RunState, cardId: string, count: number): 
  * only the owner's grant (`grantWhisperFrom` / the `grantWhisper` Start of Turn) and Tamby's copy ("tamby should always
  * copy a whisper cast on it, even above tier") pass `owner = true` (= ungated).
  */
-export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number, owner = false): void {
+export function mintWhisper(state: RunState, cardId: string, count: number, mult = 1, tier?: number, owner = false, overflow = false): void {
   const def = CARD_INDEX[cardId];
   if (!def?.whisper) return;
   if (!owner && !whisperAllowedAtTier(def, state.tier)) return;
   let minted = 0;
-  for (let i = 0; i < count && state.hand.length < handCap(state); i++) {
+  // `overflow`: a RUNE's grant at the moment the rune is acquired (Rune of the Runic Primer's pickup, R-HAND-RUNE-TURN-01).
+  for (let i = 0; i < count && (overflow || state.hand.length < handCap(state)); i++) {
     state.hand.push({
       uid: `b${state.uidSeq++}`,
       cardId,
@@ -12917,6 +12920,7 @@ export function replayRecurringEndOfTurn(state: RunState): boolean {
  * would change what every existing buy-trigger sees.
  */
 export function applySpellBought(state: RunState, spellId: string): void {
+  openTreasuryOnBuy(state, spellId); // Rune of the Open Treasury (Set 3 Dragon runes): the turn's first spell bought hands over a copy
   // Rune of the White Wolf: the rune teaches on its own, sharing the per-turn ceiling with any Mentor on board.
   if (state.runeWhiteWolf) { procRuneId(state, 'rune_white_wolf'); teachMagePup(state, spellId); }
   // A dedicated loop rather than the generic `fire`, which is typed to a minion-only payload — this event's
@@ -13832,6 +13836,9 @@ export function castSpell(state: RunState, spellDef: CardDef, target?: BoardCard
   // Set 2 — tell the TARGET a spell landed on it (Mirrorwing re-casts, Runefire spreads). Fired after the
   // spell's own effects so the minion reacts to a resolved cast, and only for a real board target: an
   // untargeted spell has no "this" to be cast on. The re-entrancy guard lives in `fireOnSpellCastOnThis`.
+  // SET 3 DRAGON RUNES (Rune of Borrowed Flame, Rune of Spell Tempering): every Whisper cast, before the target's reactors and Whisp's
+  // echo (each echo is its own cast and reaches here itself).
+  if (spellDef.whisper) whisperCastShop(state, spellDef, target && state.board.includes(target) ? target : undefined);
   if (target && state.board.includes(target)) fireOnSpellCastOnThis(state, target, spellDef);
   // SET 4 — WHISP: a Whisper cast on a Dragon is also cast on every Whisp (a full cast each, never re-echoing).
   if (spellDef.whisper && target && state.board.includes(target)) whisperEchoOnDragons(state, spellDef, target);
@@ -14066,6 +14073,8 @@ export function noteSpellCast(state: RunState, spellDef: CardDef): void {
     procRuneId(state, 'rune_rubywire');
     for (let k = 0; k < runeStacksOf(state, 'rune_rubywire'); k++) rubyOnRandomKobolds(state, 2);
   }
+  // SPELL-FED SCALES (Set 3 Dragon runes): the same Shop-spell test; a random friendly Dragon +6/+7 per copy.
+  spellFedScalesOnCast(state, spellDef);
   for (const card of [...state.board]) {
     const def = CARD_INDEX[card.cardId];
     if (!def) continue;
@@ -14623,6 +14632,8 @@ export function socRuneReplaysOf(state: RunState): SocRuneReplay[] {
   if (f?.runeVanguard) out.push({ id: 'rune_vanguard', kind: 'rune', label: 'Rune of the Vanguard', fire: (st) => {
     for (const m of st.board.slice(0, 3)) { grantKw(m, 'CR'); grantKw(m, 'DS'); }
   } });
+  // Rune of Defiant Wings (Set 3 Dragon runes): 2 random friendly Dragons +3/+6 and Ward, per copy (permanent here).
+  if (f?.runeDefiantWings) out.push({ id: 'rune_defiant_wings', kind: 'rune', label: 'Rune of Defiant Wings', fire: (st) => defiantWingsShop(st) });
   // Rune of Warding: the rightmost gains Ward and TRIPLE Health. SEVERE COMPOUNDING (health ×3 per turn).
   if (f?.runeWarding) out.push({ id: 'rune_warding', kind: 'rune', label: 'Rune of Warding', fire: (st) => {
     const lead = st.board[st.board.length - 1];

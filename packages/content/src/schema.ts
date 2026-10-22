@@ -795,7 +795,10 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // tranche 5: Menagerie + neutral
   'runeHeavyHand', 'runeUnity',
   // owner batch 2026-10-07: the Beast runes
-  'runeSunpony']);
+  'runeSunpony',
+  // Set 3 Dragon runes, Basic (owner 2026-10-21)
+  'runeRunicPrimer', 'runeClearVoices', 'runeSpellFedScales', 'runeBorrowedFlame', 'runeSpellTempering', 'runeOpenTreasury',
+  'runeDeepBreaths', 'runeDefiantWings', 'runeFinalUtterance', 'runeEmberInheritance']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -937,6 +940,7 @@ z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'anySpell', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit', 'playBeast']), per: z.number().int().positive(),
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
+  grantRandomWhisper: z.number().int().positive().optional(), // Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21)
   grantCards: z.array(z.string().min(1)).min(1).optional(),
   castStatSpell: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),

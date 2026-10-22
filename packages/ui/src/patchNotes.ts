@@ -69,6 +69,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Rosey (Tier 6, 2/2): When you cast a Ruby, this gains +2/+1 permanently. Improves every 3 Refreshes.',
         ],
       },
+      { category: 'Balance', text: 'Boy Scout, Gramps, Zapdash, Frack Attack and Rosey have their art.' },
       {
         category: 'Balance',
         text: 'Kobold changes: Shardluck, Delver and Cavern Fiend are back. Kobe and Blazer leave. Dealski and Prismatic Pick are reworked.',

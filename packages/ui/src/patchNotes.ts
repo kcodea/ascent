@@ -58,6 +58,18 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Kobold changes: Shardluck, Delver and Cavern Fiend are back. Kobe and Blazer leave. Dealski and Prismatic Pick are reworked.',
+        details: [
+          'Shardluck, Delver and Cavern Fiend return to the Kobold pool. Their stats and text are unchanged.',
+          'Kobe and Blazer leave the Kobold pool.',
+          'Dealski: when you play a Choose One card, get a random Ruby (was 2 Rubies).',
+          'Prismatic Pick: Choose One: Discover 2 Rubies (was 1) or your next Choose One card this turn gains both effects.',
+          'A Ruby Discover only offers the special Rubies, never a plain Ruby.',
+          'The Prismatic Pick slot now shows when a both effects charge is armed.',
+        ],
+      },
       { category: 'Systems', text: 'The effect when a minion gets both Choose One options is remade.' },
       { category: 'Balance', text: 'Stellar Chorus, Shredder and Jumpstart Jules leave the Set 3 pool.' },
       { category: 'Systems', text: "Runes now show just their name, without 'Rune of'." },

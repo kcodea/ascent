@@ -1438,4 +1438,29 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-21; the countdown prose of the first cut replaced by the integer counter the same day).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3SellDwarves1021.test.ts', 'packages/ui/src/sellDwarvesText.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-KOBOLD-1022-01',
+    title: 'Set 3 Kobold pool 2026-10-22: Kobe and Blazer out; Shardluck, Delver, Cavern Fiend back; Dealski gets a random Ruby; Prismatic Pick Discovers 2 Rubies',
+    statement:
+      'Kobe and Blazer are out of the Set 3 pool (still Set 2 cards; old Set 3 saves, snapshots and replays resolve them '
+      + 'by id). Shardluck and Delver (archived 2026-10-13) and Cavern Fiend (the old Gemgorge Fiend, archived from every '
+      + 'set 2026-10-10) are buyable Set 3 Kobolds again at their existing tier, stats and text; Set 2 does not regain '
+      + 'Cavern Fiend. Delver and Shardluck still name Veinstorm, which is granted or cast by id even though Set 3 does '
+      + 'not sell it. Dealski: "When you play a Choose One card, get a random Ruby" (one of all six types, R-RAND-02; '
+      + 'Gilded 2), on the shared chooseOnePlayed trigger. Prismatic Pick: "Choose One: Discover 2 Rubies or your next '
+      + 'Choose One card gains both effects": the Ruby branch is TWO Ruby Discovers (Gilded four, special types only, '
+      + 'R-RAND-RUBY-DISCOVER-01); the Both branch arms one shared Choose-Both charge (Gilded two), spent by the next '
+      + 'Choose One played and cleared at the turn boundary, and the Equipment slot prints how many charges are armed.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content changes for Set 3 Kobolds, 2026-10-22', quote: 'Dealski becomes: "When you play a Choose One card, get a random Ruby."' },
+      { kind: 'owner-handoff', ref: 'Owner content changes for Set 3 Kobolds, 2026-10-22', quote: 'Choose One: Discover 2 Rubies or your next Choose One card gains both effects.' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET2_KOBOLDS_IN_SET3; packages/content/src/cards/set3/kobolds.ts; packages/content/src/equipment.ts PRISMATIC_PICK; packages/sim/src/equipment.ts equipmentText' },
+    ],
+    cardText: 'When you play a **Choose One** card, get a random **Ruby**.',
+    contentIds: ['k_kobe', 'k_blazer', 'k3_veinchant', 'k3_facetbound', 'k_gemgorge', 'k3_dealski', 'k3_prismpick'],
+    currentBehaviour: 'Conforms (built 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

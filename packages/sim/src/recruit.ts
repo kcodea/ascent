@@ -16,7 +16,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { discoverElevateCeiling, legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
-import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -397,6 +397,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // too — removed, its own Echo firing, the same cascade combat runs.
       for (const c of [...state.board]) {
         c.health -= amount;
+        recordShopDamage(c, nameOf(self), amount); // the ledger adds up to the Health shown (R-LEDGER-SHOP-DAMAGE-01)
         // A landed hit on a friendly body: the Shop's damage-taken watchers answer it (Apua / Alan, R-WOUND-01's
         // "damage-taken triggers fire in both phases"). Only effects with a Shop body run, so nothing older moves.
         if (amount > 0) fireShopDamaged(state, c, amount);
@@ -552,6 +553,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
         const hitWave = nextShopWave(state);
         for (const c of live) {
           c.health -= damage;
+          recordShopDamage(c, nameOf(self), damage); // R-LEDGER-SHOP-DAMAGE-01
           state.recruitBuffFx.push({
             sourceUid: self.uid, targetUid: c.uid, attack: 0, health: 0, damage,
             sourceCardId: self.cardId, sourceTribe: self.tribe, kind, fxWave: hitWave,
@@ -8071,7 +8073,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  reward for playing something you have INVESTED in rather than for playing at all. */
   orbitBuffCelestialsPerBuffStack: (ctx, self, params, { minion, noArriver }) => {
     if (noArriver) return;
-    const stacks = (minion.buffs ?? []).reduce((n, b) => n + b.count, 0);
+    const stacks = (minion.buffs ?? []).reduce((n, b) => n + (isShopDamageRow(b.source) ? 0 : b.count), 0); // damage is not a buff stack
     if (stacks <= 0) return;
     const a = num(params.attack, 1) * stacks * gold(self);
     const h = num(params.health, 1) * stacks * gold(self);
@@ -11842,6 +11844,9 @@ function shopSprayExceptTribe(state: RunState, amount: number, exc: string, sour
     for (const c of victims) {
       if (c.health <= 0 || !state.board.includes(c)) continue;
       c.health -= amount;
+      // Permanent Shop damage is itemised in the ledger BEFORE the reactions it wakes, so a Rad Rachel heal and the
+      // hit that caused it both show (owner report 2026-10-22, R-LEDGER-SHOP-DAMAGE-01).
+      recordShopDamage(c, source ? nameOf(source) : 'Shop', amount);
       if (demonSource) fireShopDemonDealtDamage(state, source!, p);
       fireShopDamaged(state, c, amount); // Set 4: a landed hit wakes the Shop's damage-taken watchers (Apua / Alan)
     }

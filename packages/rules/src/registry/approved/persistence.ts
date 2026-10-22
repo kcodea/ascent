@@ -899,4 +899,23 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13. A triple keeps the kept copies\' marks, so the golden sheds them too.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set4.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-LEDGER-SHOP-DAMAGE-01',
+    title: 'Permanent Shop damage is its own row in the buff ledger, so the breakdown adds up to the stats shown',
+    statement:
+      'Damage your own minions take in the Shop (a Shop-fired Fel Spikes Echo or Gasket Rally spraying your non-Demons, '
+      + 'a Shop damage-all, a Set 4 wound) is permanent, so the inspect buff ledger records it as a negative row labelled '
+      + '"<source> (damage)", one count per hit. Printed stats plus every ledger row equal the stats the card shows. A '
+      + 'damage row is not a buff stack: Celestial Crucible and the build-tag buff tally skip it, and no gain mirror '
+      + '(Soulbind, Xerox, Shared Spoils) sees it.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22 (Uron, Gilded, BUFFS "Rad Rachel x401 +1604/+802" over 16 Health)', quote: 'why did the HP bug out here?' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts recordShopDamage / isShopDamageRow; packages/sim/src/recruit.ts shopSprayExceptTribe + shopArena damageAll / woundAll; packages/ui/src/Inspect.tsx signed ledger amounts' },
+    ],
+    contentIds: ['dm_felspikes', 'dm_gasket', 'dm_radrachel'],
+    currentBehaviour: 'Conforms as of 2026-10-22. Before it, Shop damage lowered Health correctly but was missing from the ledger, so a non-Demon beside Rad Rachel showed +802 Health buffs over a Health that had not moved.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopDamageLedger.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

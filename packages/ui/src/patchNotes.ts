@@ -80,6 +80,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'The Buffs list on a minion now shows damage it took in the Shop, so the list adds up to its stats.',
+        details: [
+          'Fel Spikes and Gasket can hit your own minions in the Shop. That damage is permanent, but the Buffs list only showed the gains, so a minion next to Rad Rachel could list hundreds of Health it did not have.',
+          'Shop damage now gets its own line, for example "Fel Spikes (damage)", and losses read with a minus sign.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Counters under cards now show plain numbers like 1/3, never words. The Frack Attack counter now ticks during combat.',
         details: [
           'Rosey, Hellrider and Indy count Refreshes as 1/3, 2/3, 3/3 instead of "1 Refresh".',

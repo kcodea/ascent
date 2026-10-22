@@ -559,8 +559,12 @@ const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
  *  - crank:  as it is winched up: a slice of the crank recording, the gears, the loud part of the metal groan and the
  *            ranked gate's grind, every one cut at 1.5 s with a 0.2 s fade-out (`duration` / `fadeMs`)
  */
-/** `category`: the fader a layer plays on (default: the clip's own). */
-interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number }
+/** `category`: the fader a layer plays on (default: the clip's own). `reverb`: a wet send of that much (0 to 1) into a
+ *  short convolution tail, through the soft-tail voice (`playTailedSample`). */
+interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number; reverb?: number }
+/** The crank's reverb tail length (owner 2026-10-22: "a slight amount of reverb ... specifically the cranking part").
+ *  Pre-built once audio starts (`warmWipeGate`), so the first crank never builds an impulse on its own frame. */
+const WIPE_CRANK_REVERB_SEC = 1.2;
 type WipeGateCue = 'drop' | 'impact' | 'crank';
 const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   drop: [{ clip: 'wipedrop' }],
@@ -572,19 +576,24 @@ const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   crank: [
     // EVERY crank layer is cut at 1.5 s with a 0.2 s fade-out (owner 2026-10-22: a 0.55 s cut was too sharp; "change the
     // cut to .85 seconds with a .2 second fade out", then "lets increase the cut to 1.5 seconds"): full level to 1.3 s,
-    // silent by 1.5 s. (The gears clip is only 1.3 s, so it simply plays out.)
-    { clip: 'wipecrank', offset: 0.9, duration: 1.5, fadeMs: 200 }, { clip: 'wipegears', duration: 1.5, fadeMs: 200 },
-    { clip: 'wipegroan', offset: 2.9, duration: 1.5, fadeMs: 200 },
+    // silent by 1.5 s. (The gears clip is only 1.3 s, so it simply plays out.) And a 20% reverb on every crank layer
+    // (owner: "lets add a slight amount of reverb to it too. specifically the cranking part ... im talking a mix of 20%").
+    { clip: 'wipecrank', offset: 0.9, duration: 1.5, fadeMs: 200, reverb: 0.2 }, { clip: 'wipegears', duration: 1.5, fadeMs: 200, reverb: 0.2 },
+    { clip: 'wipegroan', offset: 2.9, duration: 1.5, fadeMs: 200, reverb: 0.2 },
     // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
     // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
     // Its grind runs about 2 s (owner: "it lingers for a long time after its done cranking up"): it takes the same
     // 1.5 s cut and 0.2 s fade as the rest of the crank.
-    { clip: 'gateopen', category: 'wipegateopen', duration: 1.5, fadeMs: 200 },
+    { clip: 'gateopen', category: 'wipegateopen', duration: 1.5, fadeMs: 200, reverb: 0.2 },
   ],
 };
 /** One layer: from its offset, for its duration (or to the end), its last `fadeMs` eased away on the audio clock. */
 function playWipeLayer(l: WipeLayer): void {
   const slice = l.offset !== undefined || l.duration !== undefined ? { offset: l.offset ?? 0, duration: l.duration ?? 60 } : undefined;
+  if (l.reverb) {
+    playTailedSample(l.clip, l.category ?? l.clip, 1, 0, { fadeOutMs: l.fadeMs ?? 0, reverbMix: l.reverb, reverbSec: WIPE_CRANK_REVERB_SEC }, slice);
+    return;
+  }
   playSample(l.clip, l.category ?? l.clip, 0, l.fadeMs && l.duration ? (({ src, gain }) => {
     const a = ctx;
     if (!a) return;
@@ -1718,7 +1727,10 @@ export const sfx = {
   /** The falling gate's cues (`WIPE_GATE_LAYERS`): every layer of the moment at once. */
   wipeGate: (cue: WipeGateCue): void => { for (const l of WIPE_GATE_LAYERS[cue]) playWipeLayer(l); },
   /** Fetch + decode the falling gate's clips now (Recruit, on mount), so the first End Turn of a session is not silent. */
-  warmWipeGate: (): void => { for (const ls of Object.values(WIPE_GATE_LAYERS)) for (const l of ls) loadSample(l.clip); },
+  warmWipeGate: (): void => {
+    for (const ls of Object.values(WIPE_GATE_LAYERS)) for (const l of ls) loadSample(l.clip);
+    onAudioContextReady((a) => { reverbImpulse(a, WIPE_CRANK_REVERB_SEC, 0.55); }); // the crank's tail, built once now
+  },
   warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum', 'placelow']) loadSample(clip); }, // + the End Turn cue "Yes" plays, the hum, and the end-of-match tone
   /**
    * THE PLACEMENT TONES (owner 2026-10-13): the sound of the result. 1st to 4th plays the gate's cinematic hit;

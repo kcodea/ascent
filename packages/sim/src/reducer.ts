@@ -40,6 +40,7 @@ import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starfor
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
 import { withWhisperMult } from './recruit';
+import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 
@@ -2159,6 +2160,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
           if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
+          clearVoicesOnHandCast(s, def); // Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
           checkTriples(s);
           return s;
         }
@@ -5388,6 +5390,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (s.questFlags?.runeBodyCounting) {
     s.runeBodyCountTick = ((s.runeBodyCountTick ?? 0) + (result.playerDeaths ?? 0)) % BODY_COUNTING_DEATHS;
   }
+  // SET 3 DRAGON RUNES (Basic): what the fight grew comes home. Borrowed Flame's improve is permanent; Spell Tempering's
+  // meter advances by the fight's Whisper casts (its payouts already landed live, through the spell-power carry).
+  if (s.questFlags?.runeBorrowedFlame && result.playerShoutCarry?.borrowedFlameGain) {
+    s.runeBorrowedFlame = borrowedFlameValue(s) + result.playerShoutCarry.borrowedFlameGain;
+  }
+  if (s.questFlags?.runeSpellTempering && result.playerShoutCarry?.whispersCast) {
+    s.runeSpellTemperingTick = ((s.runeSpellTemperingTick ?? 0) + result.playerShoutCarry.whispersCast) % SPELL_TEMPERING_PER;
+  }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
     // `SLAYING_KILLS` (5 — owner balance 2026-09-23, was 6) is the ONE threshold: the badge's x/N reads the same
@@ -5620,6 +5630,9 @@ function advanceCombat(s: RunState): void {
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
+  s.clearVoicesIds = undefined;          // Clear Voices: the turn's distinct Whispers count afresh
+  s.clearVoicesPaid = undefined;         // …and its "Once per turn" re-arms
+  s.openTreasuryUsed = undefined;        // Open Treasury: the first spell bought of the new turn is copied
   // Batch-4 per-turn gates (Shared Pour / Aftermarket read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -5991,6 +6004,8 @@ function advanceCombat(s: RunState): void {
   // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
   // tribe filter and the count can never drift between "the turn it was taken" and every turn after.
   for (const drip of s.runeTribeDrip ?? []) recordSotBeat(s, runeSource(`rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`), () => payTribeDrip(s, drip));
+  // Runic Primer (Set 3 Dragon runes): "Repeat each turn", the tribe-drip shape (2 Runebinds per copy held).
+  if (s.questFlags?.runeRunicPrimer) recordSotBeat(s, runeSource('rune_runic_primer'), () => runicPrimerTurnStart(s));
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
   if (s.runePendant) recordSotBeat(s, runeSource('rune_pendant'), () => {
@@ -7040,6 +7055,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 5;   // amount = Beasts per payout (5, balance 9/23)
       else if (r.flag === 'runeGraveRefreshment') s.questFlags.runeGraveRefreshment = r.amount ?? 2; // amount = Echoes per free refresh
       else s.questFlags[r.flag] = true;
+      // Runic Primer (Set 3 Dragon runes): "Get 2 Runebinds" pays NOW for the copy just acquired; every Start of Turn
+      // after pays for every copy held (`runicPrimerTurnStart`).
+      if (r.flag === 'runeRunicPrimer') payRunicPrimer(s, 1);
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
       // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
       s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
@@ -7125,7 +7143,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).
@@ -8162,6 +8180,15 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeHeavyHand: f?.runeHeavyHand,                 // friendly damage counts double toward Pummel
     runeUnity: f?.runeUnity,                         // all 5 types controlled → every minion counts as every type
     runeSunpony: f?.runeSunpony,                     // Rune of the Sunpony: a Beast attack spreads +1 Attack + Sunmane's Rally
+    // ── Set 3 Dragon runes, Basic (owner 2026-10-21) ──
+    runeSpellFedScales: f?.runeSpellFedScales,       // a Shop Spell cast: a random Dragon +6/+7
+    runeBorrowedFlame: f?.runeBorrowedFlame ? borrowedFlameValue(s) : undefined, // the per-copy value right now
+    runeSpellTempering: f?.runeSpellTempering,       // every 4th Whisper cast: spell power +1/+1
+    runeSpellTemperingTick: f?.runeSpellTempering ? (s.runeSpellTemperingTick ?? 0) : undefined, // the carried meter
+    runeDeepBreaths: f?.runeDeepBreaths,             // the first 2 Dragon attacks cast Growth
+    runeDefiantWings: f?.runeDefiantWings,           // SoC: 2 Dragons +3/+6 and Ward
+    runeFinalUtterance: f?.runeFinalUtterance,       // Avenge (4): a Whisper and a Shop Spell
+    runeEmberInheritance: f?.runeEmberInheritance,   // the first Echo Dragon death gives its Attack left-most
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

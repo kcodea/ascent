@@ -257,6 +257,15 @@ export function boardShoutExtras(
 export const COMBATATIVE_RUBIES_ATTACKS = 3;
 export const BODY_COUNTING_DEATHS = 6; // owner 2026-09-27 (Set 3 rune design pass): was 8
 export const RUPTURED_RUBY_BOUNCES = 2;
+/** Set 3 Dragon runes, Basic (owner 2026-10-21): the printed numbers both phases read (the Shop module
+ *  `packages/sim/src/dragonRunesBasic.ts` and simulate), so the two halves cannot drift. */
+export const DRAGON_RUNES_BASIC = {
+  spellFedScales: { attack: 6, health: 7 },
+  defiantWings: { count: 2, attack: 3, health: 6 },
+  deepBreathsAttacks: 2,
+  spellTemperingPer: 4,
+  finalUtteranceAvenge: 4,
+} as const;
 /** Rune of the Soul Furnace (Set 3 design pass, owner 2026-09-27): "Your Undead Aura also gives Health equal to half
  *  its Attack." The derived Health term for an Aura Attack of `auraAttack` (the whole Undead Aura: the Lantern channel
  *  plus the buy channel), per copy held. Half rounds UP (the design doc's ceil). One function for both phases. */
@@ -1473,6 +1482,8 @@ export type QuestReward =
       /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
       grantRandomRuby?: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
+      /** Loose Tongues (Set 3 Dragon runes, 2026-10-21): get that many RANDOM Whispers (the gated pool) when the meter trips. */
+      grantRandomWhisper?: number;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
       grantCards?: string[];
@@ -1965,7 +1976,15 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Tranche 5: heavyHand = friendly damage counts double toward Pummel; unity = all 5 types controlled → every type.
   | 'runeHeavyHand' | 'runeUnity'
   // Owner batch 2026-10-07: sunpony = when a Beast attacks, your Beasts +1 Attack and Sunmane's spreading Rally.
-  | 'runeSunpony';
+  | 'runeSunpony'
+  // Set 3 Dragon runes, Basic (owner 2026-10-21). Shop-only: runicPrimer (2 Runebinds now + every Start of Turn),
+  // clearVoices (3 distinct Whispers from hand in a turn = 2 Gold), openTreasury (copy the turn's first bought spell).
+  // Both phases: spellFedScales (a Shop Spell cast = a random Dragon +6/+7), borrowedFlame (a Whisper cast on a Dragon =
+  // the current value on it, then improve), spellTempering (every 4th Whisper cast = spell power +1/+1). Combat:
+  // deepBreaths (the first 2 Dragon attacks cast Growth), defiantWings (SoC: 2 Dragons +3/+6 and Ward), finalUtterance
+  // (Avenge (4): a Whisper and a Shop Spell), emberInheritance (the first Echo Dragon death gives its Attack left-most).
+  | 'runeRunicPrimer' | 'runeClearVoices' | 'runeSpellFedScales' | 'runeBorrowedFlame' | 'runeSpellTempering' | 'runeOpenTreasury'
+  | 'runeDeepBreaths' | 'runeDefiantWings' | 'runeFinalUtterance' | 'runeEmberInheritance';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2437,6 +2456,24 @@ export interface QuestCombatMods {
   /** Rune of the Sunpony (owner 2026-10-07): a friendly Beast attacking gives all your Beasts +1 Attack (per copy) and
    *  Sunmane Herald's spreading Rally, through Sunmane's own body. */
   runeSunpony?: boolean;
+  // ── Set 3 Dragon runes, Basic (owner 2026-10-21). Copies ride `flagCopies`. ──
+  /** Spell-Fed Scales: every Shop-pool spell this side casts gives a random living friendly Dragon +6/+7 per copy. */
+  runeSpellFedScales?: boolean;
+  /** Borrowed Flame: the per-copy value a Whisper cast on a Dragon gives right now (1 = unimproved). Each trigger grows
+   *  it by `improveRepsFor`; the growth is carried back (`ShoutCarry.borrowedFlameGain`). */
+  runeBorrowedFlame?: number;
+  /** Spell Tempering: on, and the carried Whisper-cast meter (0-3) coming into this fight. */
+  runeSpellTempering?: boolean;
+  runeSpellTemperingTick?: number;
+  /** Deep Breaths: the first 2 friendly Dragon swings each fight cast Growth (per copy). */
+  runeDeepBreaths?: boolean;
+  /** Defiant Wings: Start of Combat, 2 random friendly Dragons +3/+6 and Ward (per copy). */
+  runeDefiantWings?: boolean;
+  /** Final Utterance: Avenge (4), a random Whisper and a random Shop Spell to hand. */
+  runeFinalUtterance?: boolean;
+  /** Ember Inheritance: the first friendly Dragon WITH an Echo to die each fight gives its Attack to the left-most
+   *  living friendly Dragon (per copy). */
+  runeEmberInheritance?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
@@ -3885,6 +3922,10 @@ export interface ShoutCarry {
   whisperImprove?: Record<string, number>;
   /** Tamby in combat: indices into `handGrants` whose arrived Whisper keeps a multiplier (a gilded copy). */
   handWhisperMults?: { idx: number; mult: number }[];
+  /** Borrowed Flame (Set 3 Dragon runes): how much the rune's per-copy value grew this fight (permanent). */
+  borrowedFlameGain?: number;
+  /** Spell Tempering (Set 3 Dragon runes): Whispers this side cast this fight (settle advances the run's meter). */
+  whispersCast?: number;
 }
 
 export interface CombatContext {
@@ -4201,6 +4242,8 @@ export interface CombatContext {
    *  each combat Runebind), and the raise itself. Absent = no Whisper support (a bare harness). */
   whisperImproveFor?(side: Side, whisperId: string): number;
   addWhisperImprove?(side: Side, whisperId: string, n: number): number;
+  /** Set 3 Dragon runes (Borrowed Flame, Spell Tempering): a combat Whisper cast landed on `target` (after its own grant). */
+  onWhisperCast?(side: Side, whisperId: string, target: Minion, casterUid: string): void;
   /** Tamby in combat: a Whisper copy to `side`'s hand at multiplier `mult` (a gilded copy keeps its doubling). */
   grantWhisperToHand?(whisperId: string, side: Side, mult: number, sourceUid?: string): void;
   /** Woozy (Set 3, 2026-10-15): `count` RANDOM Whispers to hand (each drawn from every Whisper in the card index, in

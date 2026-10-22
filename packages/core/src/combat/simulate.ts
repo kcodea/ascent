@@ -20,7 +20,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -744,6 +744,9 @@ export function simulate(
   const deferredBattlecries = perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => []);
   /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
   const shoutCarry = perSide<ShoutCarry>(() => ({}));
+  /** Set 3 Dragon runes (Basic): Deep Breaths' Dragon swings used, and Ember Inheritance's once-per-fight latch. */
+  const deepBreathsUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  const emberInheritanceUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Squirl Scout's snowball, live: the side's run value, grown by every combat re-fire this fight. */
   const scoutBuff: Record<Side, number> = { player: playerState.squirlScoutBuff ?? 0, enemy: enemyState.squirlScoutBuff ?? 0 };
   // Declared up here (not beside the functions that use them, further down) because a Start-of-Combat cast can
@@ -1769,6 +1772,7 @@ export function simulate(
       map[whisperId] = (map[whisperId] ?? 0) + n;
       return map[whisperId]!;
     },
+    onWhisperCast: (side, whisperId, target, casterUid) => dragonRunesWhisperCast(side, whisperId, target, casterUid), // Set 3 Dragon runes
     grantWhisperToHand: (whisperId, side, mult, sourceUid) => {
       // UNGATED on purpose (R-WHISPER-TIER-01): its callers are Tamby's copy (exempt: "tamby should always copy a whisper
       // cast on it, even above tier") and `grantRandomWhispers`, whose pool is already tier-gated. A NEW gated combat
@@ -2000,6 +2004,15 @@ export function simulate(
       if (modsFor(side).runeRubywire) {
         fireTrigger('runeRubywire', side);
         for (let k = 0; k < flagCopiesOf(side, 'runeRubywire'); k++) rubyOnRandomKobolds(side, 2, false);
+      }
+      // SPELL-FED SCALES (Set 3 Dragon runes, owner 2026-10-21): the same Shop-spell test; a random living friendly Dragon
+      // +6/+7 per copy, a combat buff (R-BUFF-PERM). No Dragon: nothing.
+      if (modsFor(side).runeSpellFedScales && living(side).some((m) => isTribeOf(m, 'dragon', cards))) {
+        fireTrigger('runeSpellFedScales', side);
+        for (let k = 0; k < flagCopiesOf(side, 'runeSpellFedScales'); k++) {
+          const pick = pickAutoTarget(rng, living(side).filter((m) => isTribeOf(m, 'dragon', cards)));
+          if (pick) ctx.buff(pick, DRAGON_RUNES_BASIC.spellFedScales.attack, DRAGON_RUNES_BASIC.spellFedScales.health, 'Spell-Fed Scales');
+        }
       }
       // BOARD: the living bodies' own factories (permanent self-growth), in board order.
       for (const m of living(side)) {
@@ -4427,6 +4440,14 @@ export function simulate(
         fireTrigger('runeSunpony', attacker.side);
         FACTORIES.rallySpreadTribeBuff?.(ctx, attacker, { tribe: 'beast', attack: flagCopiesOf(attacker.side, 'runeSunpony'), fixed: true, includeSelf: true }, { minion: attacker, side: attacker.side });
       }
+      // DEEP BREATHS (Set 3 Dragon runes, owner 2026-10-21): each of the side's first 2 Dragon swings this fight casts
+      // Growth, once per copy (a real rune cast through the attacker; Windfury swings count as attacks, as for Rallies).
+      if (modsFor(attacker.side).runeDeepBreaths && !attacker.dead && isTribeOf(attacker, 'dragon', cards)
+          && deepBreathsUsed[attacker.side] < DRAGON_RUNES_BASIC.deepBreathsAttacks) {
+        deepBreathsUsed[attacker.side] += 1;
+        fireTrigger('runeDeepBreaths', attacker.side);
+        for (let k = 0; k < flagCopiesOf(attacker.side, 'runeDeepBreaths'); k++) runeCastGrowth(attacker);
+      }
       // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
       // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
       // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.
@@ -5638,6 +5659,23 @@ export function simulate(
         }
       }
     }
+    // DEFIANT WINGS (Set 3 Dragon runes, owner 2026-10-21): "Start of Combat:" (so Twilight repeats it). Per copy, 2
+    // distinct random living friendly Dragons +3/+6 (a combat buff) and Ward. Fewer Dragons: all of them.
+    if (rmods.runeDefiantWings && boards[rside].some((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards))) {
+      nextStep(); twilightPulse(rside, pass); fireTrigger('runeDefiantWings', rside);
+      for (let k = 0; k < flagCopiesOf(rside, 'runeDefiantWings'); k++) {
+        const pool = boards[rside].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards));
+        for (let i = 0; i < DRAGON_RUNES_BASIC.defiantWings.count && pool.length > 0; i++) {
+          const m = pool.splice(rng.int(pool.length), 1)[0]!;
+          ctx.buff(m, DRAGON_RUNES_BASIC.defiantWings.attack, DRAGON_RUNES_BASIC.defiantWings.health, 'Defiant Wings');
+          if (!m.divineShield) {
+            m.divineShield = true;
+            if (!m.keywords.includes('DS')) m.keywords.push('DS');
+            emit({ type: 'shieldUp', target: m.uid });
+          }
+        }
+      }
+    }
     if (rmods.runeWarding) {
       const living = boards[rside].filter((m) => !m.dead && m.health > 0);
       const lead = living[living.length - 1];
@@ -5948,6 +5986,41 @@ export function simulate(
       }
     } finally { meteorEchoing = false; }
   }
+  /** DEEP BREATHS: one rune cast of Growth through the attacking Dragon (an ungilded stand-in, so a Gilded attacker does
+   *  not double it). `castInCombat` counts it as a real spell cast (counters, Queen Morro, watchers). */
+  function runeCastGrowth(source: Minion): void {
+    const spell = cards['growth'];
+    if (!spell?.spell || !combatCastable(spell)) return;
+    const caster = { ...source, golden: false } as Minion;
+    nextStep();
+    castInCombat(ctx, caster, () => {
+      if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
+        emit({ type: 'sc', source: source.uid, text: `Deep Breaths casts ${spell.name}`, spellId: spell.id, rune: 'rune_deep_breaths', side: source.side });
+      }
+    }, spell.id);
+  }
+  /** SET 3 DRAGON RUNES (owner 2026-10-21): one resolved combat Whisper cast (Whaloo, Whisp's echo), each repetition.
+   *  BORROWED FLAME: a cast on a living friendly Dragon gives it the side's live value (per copy; a combat buff), then
+   *  the value improves now (real time) and the gain carries home. SPELL TEMPERING: the carried meter ticks; every 4th
+   *  cast raises the side's spell power +1/+1 per copy (live, carried home through the spell-power channel). */
+  function dragonRunesWhisperCast(side: Side, _whisperId: string, target: Minion, casterUid: string): void {
+    const m = modsFor(side);
+    const carry = shoutCarry[side];
+    if (m.runeBorrowedFlame && !target.dead && target.health > 0 && target.side === side && isTribeOf(target, 'dragon', cards)) {
+      const v = (m.runeBorrowedFlame + (carry.borrowedFlameGain ?? 0)) * flagCopiesOf(side, 'runeBorrowedFlame');
+      fireTrigger('runeBorrowedFlame', side);
+      ctx.buff(target, v, v, 'Borrowed Flame');
+      carry.borrowedFlameGain = (carry.borrowedFlameGain ?? 0) + ctx.improveRepsFor(side);
+    }
+    if (m.runeSpellTempering) {
+      carry.whispersCast = (carry.whispersCast ?? 0) + 1;
+      if (((m.runeSpellTemperingTick ?? 0) + carry.whispersCast) % DRAGON_RUNES_BASIC.spellTemperingPer === 0) {
+        fireTrigger('runeSpellTempering', side);
+        const n = ctx.improveRepsFor(side) * flagCopiesOf(side, 'runeSpellTempering');
+        ctx.grantSpellPower(n, n, side, casterUid);
+      }
+    }
+  }
   /** RUNE OF THE GUIDING STAR: one rune cast of Star Crash from a Celestial Echo, aimed at a random living friendly
    *  Celestial (none = no cast). The rune is the caster: an ungilded stand-in for the Echo body, so a Gilded Celestial
    *  does not double it, and `castInCombat` counts it as a real spell cast (spell counters, multi-cast, watchers). */
@@ -6234,6 +6307,28 @@ export function simulate(
   });
   // RUNE OF THE SOUL TOLL (Set 3 design pass, owner 2026-09-27): Avenge (4) raises the Undead Aura +1 Attack.
   runeAvenge(4, 'runeSoulToll', (m) => !!m.runeSoulToll, (side) => { nextStep(); raiseUndeadAura(side, 1, 'Rune of the Soul Toll'); });
+  // FINAL UTTERANCE (Set 3 Dragon runes, owner 2026-10-21): Avenge (4), a random Whisper (the gated pool: your tier and
+  // below, owners in your set) and a random Shop Spell (the side's pool at its tier), both to hand at settle.
+  runeAvenge(4, 'runeFinalUtterance', (m) => !!m.runeFinalUtterance, (side) => {
+    nextStep();
+    ctx.grantRandomWhispers?.(1, side, 1, undefined);
+    ctx.grantRandomSpell(1, side, undefined);
+  });
+  // EMBER INHERITANCE (Set 3 Dragon runes, owner 2026-10-21): the side's FIRST friendly Dragon with an Echo to die this
+  // fight gives its Attack at death to the left-most living friendly Dragon, once per copy (a combat buff). The latch
+  // is spent by that first death even when no Dragon is left to inherit.
+  bus.on('avenge', (payload) => {
+    const { side, victim } = payload as { side: Side; count: number; victim?: Minion };
+    if (!victim || emberInheritanceUsed[side] || !modsFor(side).runeEmberInheritance) return;
+    if (!isTribeOf(victim, 'dragon', cards) || !victim.effects.some((e) => e.on === 'onDeath')) return;
+    emberInheritanceUsed[side] = true;
+    const heir = living(side).find((m) => m !== victim && isTribeOf(m, 'dragon', cards));
+    const atk = Math.max(0, victim.attack);
+    if (!heir || atk <= 0) return;
+    nextStep();
+    fireTrigger('runeEmberInheritance', side);
+    ctx.buff(heir, atk * flagCopiesOf(side, 'runeEmberInheritance'), 0, victim.uid);
+  });
   runeAvenge(4, 'runeSpearline', (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }

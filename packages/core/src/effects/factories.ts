@@ -1156,6 +1156,8 @@ export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: 
       const step = num(p.improve, 0);
       const total = step > 0 ? ctx.addWhisperImprove?.(side, def.id, step * m) : undefined;
       ctx.log({ type: 'sc', source: caster.uid, side, text: text ?? `${caster.name} casts ${def.name}`, spellId: def.id, target: target.uid, ...(total !== undefined ? { whisperImprove: total } : {}) });
+      // Set 3 Dragon runes (Borrowed Flame, Spell Tempering): every resolved Whisper cast, each repetition its own.
+      ctx.onWhisperCast?.(side, def.id, target, caster.uid);
     });
   }, def.id);
   // Tamby: a Whisper cast on THIS hands back a copy, once per fight (its "(Once per turn)", combat half).

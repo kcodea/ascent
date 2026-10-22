@@ -1918,6 +1918,130 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'grant', cards: ['dm_ruinouslord'] },
     sets: ['set2'],
   },
+  // ── SET 3 DRAGON RUNES, BASIC (owner 2026-10-21). All Set-3-only and Dragon-gated (the owner's Dragon list; All-types
+  //    counts as a Dragon everywhere through the shared tribe helpers). Rulings: docs/devlog/2026-10-21-set3-dragon-runes-basic.md.
+  //    Shop hooks live in packages/sim/src/dragonRunesBasic.ts; the combat halves in simulate.ts ("SET 3 DRAGON RUNES, BASIC"). ──
+  {
+    // "Repeat each turn" = every Start of Turn (the tribe-drip shape): 2 Runebinds now, then 2 at every turn setup.
+    // A RUNE source, so the Whisper tier gate applies (Runebind is Tier 2, Tolan's tier; R-WHISPER-TIER-01).
+    id: 'rune_runic_primer',
+    tribes: ['dragon'],
+    name: 'Runic Primer',
+    cost: 3,
+    text: 'Get **2 Runebinds**. Repeat each turn.',
+    previewCards: ['w4_runebind'],
+    reward: { kind: 'combatFlag', flag: 'runeRunicPrimer' },
+    sets: ['set3'],
+  },
+  {
+    // The `playDragon` meter (Dragon's Pantry) at `per: 1`, paying a random Whisper from the gated pool (your tier and
+    // below, owners in the run's set). "Play" is the Shop's from-hand play (the Actioned Beasts ruling).
+    id: 'rune_loose_tongues',
+    tribes: ['dragon'],
+    name: 'Loose Tongues',
+    cost: 3,
+    text: 'Whenever you play a **Dragon**, get a random **Whisper**.',
+    reward: { kind: 'runeThreshold', meter: 'playDragon', per: 1, grantRandomWhisper: 1 },
+    sets: ['set3'],
+  },
+  {
+    // Distinct Whisper NAMES cast from hand this turn (a Yazzus repeat is the same Whisper); the third distinct one pays
+    // 2 Gold per copy, once per turn. Shop-only by construction (only the Shop casts from hand).
+    id: 'rune_clear_voices',
+    tribes: ['dragon'],
+    name: 'Clear Voices',
+    cost: 3,
+    text: 'After you cast **3** different **Whispers** from hand in a turn, gain **2 Gold**. Once per turn.',
+    reward: { kind: 'combatFlag', flag: 'runeClearVoices' },
+    sets: ['set3'],
+  },
+  {
+    // R-SHOPSPELL-01's Shop Spell, from any caster, both phases: a random friendly Dragon (seeded) +6/+7 per copy.
+    // Permanent in the Shop, combat-only in combat (R-BUFF-PERM).
+    id: 'rune_spell_fed_scales',
+    tribes: ['dragon'],
+    name: 'Spell-Fed Scales',
+    cost: 3,
+    text: 'Whenever you cast a **Shop Spell**, give a **Dragon +6/+7**.',
+    reward: { kind: 'combatFlag', flag: 'runeSpellFedScales' },
+    sets: ['set3'],
+  },
+  {
+    // Every Whisper CAST that lands on a friendly Dragon (hand, Whisp's echo, Whaloo in combat): the Dragon gains the
+    // current value (+1/+1 to start) per copy, then the value improves by +1/+1 (x Rune of Mastery). The improve is
+    // permanent and real time in both phases; the buff is permanent in the Shop, combat-only in combat.
+    id: 'rune_borrowed_flame',
+    tribes: ['dragon'],
+    name: 'Borrowed Flame',
+    cost: 3,
+    text: 'Whenever you cast a **Whisper** on a **Dragon**, give it **+1/+1** and improve this.',
+    reward: { kind: 'combatFlag', flag: 'runeBorrowedFlame' },
+    sets: ['set3'],
+  },
+  {
+    // A running meter over every Whisper cast (any source, both phases): every 4th improves the run's spell power
+    // +1/+1 per copy (x Rune of Mastery), the same channel every "improve your spells" uses.
+    id: 'rune_spell_tempering',
+    tribes: ['dragon'],
+    name: 'Spell Tempering',
+    cost: 3,
+    text: 'After you cast **4 Whispers**, permanently improve your **Shop Spells** by **+1/+1**.',
+    reward: { kind: 'combatFlag', flag: 'runeSpellTempering' },
+    sets: ['set3'],
+  },
+  {
+    // The first spell BOUGHT each turn (the spell slot or a spell offer in the row) hands over a plain copy, one per
+    // copy held. Buying is a Shop action.
+    id: 'rune_open_treasury',
+    tribes: ['dragon'],
+    name: 'Open Treasury',
+    cost: 3,
+    text: 'Get a copy of the first **Shop Spell** you buy each turn.',
+    reward: { kind: 'combatFlag', flag: 'runeOpenTreasury' },
+    sets: ['set3'],
+  },
+  {
+    // Combat: each of the side's first 2 Dragon swings each fight casts Growth (a real rune cast through the attacker).
+    id: 'rune_deep_breaths',
+    tribes: ['dragon'],
+    name: 'Deep Breaths',
+    cost: 3,
+    text: 'The first **2 Dragon** attacks each combat cast **Growth**.',
+    previewCards: ['growth'],
+    reward: { kind: 'combatFlag', flag: 'runeDeepBreaths' },
+    sets: ['set3'],
+  },
+  {
+    // A Start-of-Combat rune (Twilight repeats it; Combat Prowess replays it in the Shop): 2 random friendly Dragons.
+    id: 'rune_defiant_wings',
+    tribes: ['dragon'],
+    name: 'Defiant Wings',
+    cost: 3,
+    text: '**Start of Combat:** Give **2 Dragons +3/+6** and **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeDefiantWings' },
+    sets: ['set3'],
+  },
+  {
+    // Avenge runs in combat (the shared `runeAvenge`, so Rune of Fury doubles it). Both cards reach hand at settle.
+    id: 'rune_final_utterance',
+    tribes: ['dragon'],
+    name: 'Final Utterance',
+    cost: 3,
+    text: '**Avenge (4):** Get a random **Whisper** and a **Shop Spell**.',
+    reward: { kind: 'combatFlag', flag: 'runeFinalUtterance' },
+    sets: ['set3'],
+  },
+  {
+    // Combat: the side's first friendly Dragon WITH an Echo to die each fight gives its Attack at death to the left-most
+    // living friendly Dragon (combat-only, R-BUFF-PERM). One gift per copy held.
+    id: 'rune_ember_inheritance',
+    tribes: ['dragon'],
+    name: 'Ember Inheritance',
+    cost: 3,
+    text: 'After your first **Dragon** with **Echo** dies each combat, give its **Attack** to your **left-most Dragon**.',
+    reward: { kind: 'combatFlag', flag: 'runeEmberInheritance' },
+    sets: ['set3'],
+  },
 ];
 
 /**

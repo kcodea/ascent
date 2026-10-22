@@ -62,8 +62,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // layers four thuds at once, so each starts lower (the wooden door is the hottest file, -3 dB peak); tune by ear.
   // wipedrop 0.55 -> 0.7 the same day (owner: "up the woosh to .7").
   wipedrop: 0.7, wipethudwood: 0.4, wipethudground: 0.6, wipethudheavy: 0.6, wipethudgrit: 0.5,
-  // wipegroan 0.45 -> 0.7 the same day (owner: "increase metal groan to .7").
-  wipecrank: 0.5, wipegears: 0.45, wipegroan: 0.7,
+  // wipegroan 0.45 -> 0.7 the same day (owner: "increase metal groan to .7"); then crank, gears and groan all down 25%
+  // (owner: "reduce the cranking sounds (except the gate cranking sound) by 25%"): 0.5 -> 0.375, 0.45 -> 0.3375, 0.7 -> 0.525.
+  wipecrank: 0.375, wipegears: 0.3375, wipegroan: 0.525,
   // The poster's page flap: a quiet recording (-26 dB peak), so it starts high.
   wipeposter: 0.85,
   // The ranked gate's grinding open, layered back on the crank (owner 2026-10-22: "just have it a bit lowered"):

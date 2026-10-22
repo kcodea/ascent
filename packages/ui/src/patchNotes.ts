@@ -69,6 +69,14 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Skip has moved onto the End Turn diamond: it glows gold while a fight can be skipped, and clicking it skips.',
+        details: [
+          'Hover the glowing diamond during a fight to see Skip Combat.',
+          'Once the fight ends the diamond goes back to ending combat as before.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Five new Kobolds join Set 3: Boy Scout, Gramps, Zapdash, Frack Attack and Rosey.',
         details: [

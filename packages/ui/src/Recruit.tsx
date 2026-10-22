@@ -8517,7 +8517,7 @@ export function Recruit() {
  * `chooseOnePreview`, the FX call-site scans) still read these blocks in this file.
  * ---------------------------------------------------------------------------------------------------------- */
 
-/** The shop furniture + the End Turn / End Combat diamond + the combat Skip/Summary controls — everything
+/** The shop furniture + the End Turn / Skip / End Combat diamond + the combat Summary pill — everything
  *  between the HUD and the drag zones. Memoized on primitives + stable handlers (perf 2026-09-16: a drag
  *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
 const ShopControls = memo(function ShopControls({
@@ -8544,6 +8544,9 @@ const ShopControls = memo(function ShopControls({
   onRefresh: () => void; onUpgrade: () => void; onSkip: () => void;
 }) {
   const combatGateOpen = endCombatReady({ replayDone, replayResult, sandboxReplay, strikePhase: lossPhase, combatSettled });
+  // SKIP lives on the diamond (R-SKIP-DIAMOND-01, owner ask 2026-10-22): from the moment the fight starts until
+  // Skip is pressed or the replay ends, the diamond glows yellow and skips; then it is End Combat as before.
+  const skipReady = fighting && !replayDone && !replayTurboing;
   return (
     <>
       {!fighting ? (
@@ -8578,9 +8581,7 @@ const ShopControls = memo(function ShopControls({
       </>
       ) : (
         <div className="combatctl">
-          {/* Post-combat actions stay centred. During the replay the Skip button + speed slider live in the
-              top-right combat HUD (below) instead, so the arena stays clear. */}
-          {/* Empty spacer — End Combat lives on the diamond and Summary is a glass pill above it (below);
+          {/* Empty spacer — Skip and End Combat live on the diamond and Summary is a glass pill above it (below);
               the .combatctl footprint stays so the enemy warband keeps its vertical spot. */}
           <div className="cbtns" />
         </div>
@@ -8617,8 +8618,10 @@ const ShopControls = memo(function ShopControls({
         onEndTurn={onEndTurn}
         onEndCombat={onEndCombat}
         combatReady={inCombat && combatGateOpen}
+        skipReady={inCombat && skipReady}
+        onSkip={onSkip}
         disabled={inCombat
-          ? !combatGateOpen || gemLocked
+          ? !(combatGateOpen || skipReady) || gemLocked
           : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled || gemLocked}
         pressed={inCombat || eotAnimating || gemLocked}
         note={readyNote}
@@ -8678,20 +8681,11 @@ const ShopControls = memo(function ShopControls({
       <GoldPill gold={embers} nextTurnGold={nextTurnGold} afterNextGold={afterNextGold} wave={wave} />
       )}
 
-      {/* ROUND X — white, top-centre, just above the Skip button (owner ask 2026-09-25). Mounted for the WHOLE
-          fight (replay + settled screen), so it stays after Skip unmounts. Shares Skip's stage anchor in CSS.
+      {/* ROUND X — white, top-centre (owner ask 2026-09-25). Mounted for the WHOLE fight (replay + settled screen).
+          Keeps the old Skip pill's stage anchor in CSS (Skip itself is on the diamond now, R-SKIP-DIAMOND-01).
           Hidden in God Mode: the player picks each fight's round there, so the label means nothing (owner
           2026-10-08, R-GODMODE-06). */}
       {inCombat && !godMode && <CombatRoundLabel round={combatRoundNo} />}
-
-      {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
-          a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
-      {/* Hidden once pressed: the fight is already fast-forwarding to its deciding hit (R-SKIP-TURBO-01). */}
-      {inCombat && !replayDone && !replayTurboing && (
-        <button className="combathud-skip" onClick={onSkip} aria-description="Skip the combat replay">
-          <Icon name="sword" /> Skip
-        </button>
-      )}
     </>
   );
 });

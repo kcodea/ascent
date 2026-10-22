@@ -1,4 +1,4 @@
-import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent, type ReactNode } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -267,6 +267,18 @@ const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ 
  *  multi-cast Golden Ruby pays several times in one action. */
 const GOLDEN_RUBY_COIN_DELAY_MS = 180;
 const GOLDEN_RUBY_COIN_GAP_MS = 220;
+
+/** THE BRAND (owner 2026-10-22: "the portrait is branded onto the parchment on impact, with a quick ember glow that
+ *  cools to a dark scorch"). The falling gate's portrait is drawn twice: a dark burnt-brown SCORCH, and over it an
+ *  ember-hot copy that flashes in as the gate lands and fades away (`.wipebrand` in styles.css; opacity only). */
+function Branded({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <span className="wipebrand">
+      <span className="wipebrand-scorch">{children}</span>
+      <span className="wipebrand-ember" aria-hidden="true">{children}</span>
+    </span>
+  );
+}
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
  *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
@@ -8155,7 +8167,7 @@ export function Recruit() {
           if (!foe?.seat) return null;
           return (
             <div className="wipevs">
-              <div className="wipevs-label">Now Facing</div>
+              <div className="wipevs-label" data-text="Now Facing">Now Facing</div>
               {(() => {
                 // GAUNTLET: the stage opponent has no hero (its `heroId` is a stand-in), so the disc wears the
                 // stage's tribe emblem — the same face the combat portrait and the in-run panel show.
@@ -8170,11 +8182,9 @@ export function Recruit() {
                 // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
                 // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.
                 const ring = gFace ? foeFrame : resolvePortraitFrame('opp', frameIdOf(opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board))));
-                return ring ? (
-                  <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span>
-                ) : face;
+                return <Branded>{ring ? <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span> : face}</Branded>;
               })()}
-              <div className="wipevs-name">{foe.seat.label}</div>
+              <div className="wipevs-name" data-text={foe.seat.label}>{foe.seat.label}</div>
             </div>
           );
         })()}
@@ -8182,8 +8192,8 @@ export function Recruit() {
             the same format as NOW FACING, with the shop art in the circle instead of a foe portrait. */}
         {wipeIsExiting && (
           <div className="wipevs">
-            <div className="wipevs-label">Returning to Shop</div>
-            <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
+            <div className="wipevs-label" data-text="Returning to Shop">Returning to Shop</div>
+            <Branded><img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} /></Branded>
           </div>
         )}
       </div>

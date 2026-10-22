@@ -169,3 +169,10 @@ html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *::after {
   transition-duration: 0s !important; transition-delay: 0s !important;
 }
 html[data-touch-ui][data-pd-litebd] .mbd-lite { background: #0a1220; }
+
+/* THE FALLING GATE'S BRAND on phones (2026-10-22): no ember flash, no glow; the burnt-brown scorch simply appears as the
+   gate lands (styles.css `.wipebrand`). Keeps the landing to static layers on the phone GPU. */
+html[data-touch-ui][data-phone-gpu] .wipebrand-ember,
+html[data-touch-ui][data-phone-gpu] .wipebrand::before,
+html[data-touch-ui][data-phone-gpu] .wipecurtain .wipevs-label::after,
+html[data-touch-ui][data-phone-gpu] .wipecurtain .wipevs-name::after { display: none; }

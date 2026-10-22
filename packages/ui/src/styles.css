@@ -409,7 +409,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
      idle / chargeIn / primeOut   parked ABOVE the screen (-100%)
      coverIn / coverOut (`full`)  drops, accelerating like a falling weight, onto the floor
      coveredIn / coveredOut (`full settle`) the SLAM: a one-shot bounce on landing (+ the gate's slam sound, Recruit),
-                                  then it holds while the scene swaps behind it, the opponent (or the shop) carved in it
+                                  then it holds while the scene swaps behind it, NOW FACING (or RETURNING TO SHOP) riding on it
      revealIn / revealOut (`gone`) the CRANK: winched back up in quick jerky pulls, revealing the new screen
      combat (`gone parked`)       parked above again (no crank: a run resumed mid-combat starts here)
    Every hop between parked states is between identical positions, so nothing ever jumps on screen. */
@@ -467,23 +467,6 @@ canvas.spr { image-rendering: pixelated; display: block; }
    title font. */
 .wipevs-name { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px));
   color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
-/* CARVED INTO THE FALLING GATE (owner 2026-10-21: "on that gate or object is the opponent etched into it"). The
-   announcement is part of the stone, so it arrives with the slab (no entrance of its own) and is laid out without a
-   transform: a transform would make it its own stacking context and the portrait's multiply could not reach the stone.
-   The portrait turns to grey stone and MULTIPLIES onto the slab (its darks cut in, its lights vanish into the rock),
-   under a sunken rim; the words are engraved (a dark fill, a light lower lip, a shadowed upper edge). All static: the
-   slab only moves by transform, so this rasterises once per pass. */
-.wipecurtain .wipevs { left: 0; top: 0; right: 0; bottom: 0; justify-content: center; transform: none; animation: none; }
-.wipecurtain .wipevs-label, .wipecurtain.exit .wipevs-label, .wipecurtain .wipevs-name {
-  color: rgba(22, 18, 14, 0.8); opacity: 1;
-  text-shadow: 0 calc(1.5 * var(--u, 1px)) 0 rgba(255, 240, 210, 0.3), 0 calc(-1 * var(--u, 1px)) 0 rgba(0, 0, 0, 0.55); }
-.wipevs-carve { position: relative; display: block; border-radius: 50%; }
-.wipevs-carve .wipevs-face, .wipevs-carve .wipevs-facewrap { filter: grayscale(1) contrast(1.25) brightness(1.08); mix-blend-mode: multiply; }
-.wipevs-carve .wipevs-face { border: none; box-shadow: none; }
-.wipevs-carve::after { content: ''; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
-  box-shadow: inset 0 calc(9 * var(--u, 1px)) calc(16 * var(--u, 1px)) rgba(0, 0, 0, 0.6),
-    inset 0 calc(-3 * var(--u, 1px)) calc(6 * var(--u, 1px)) rgba(255, 240, 210, 0.2),
-    0 calc(2 * var(--u, 1px)) 0 rgba(255, 240, 210, 0.2), 0 calc(-2 * var(--u, 1px)) 0 rgba(0, 0, 0, 0.45); }
 /* The glowing wipe FRONT — now a blue-white energy RING riding the bloom's seam. A circle div centred on
    the gem (same `--wipe-cx/--wipe-cy/--wipe-r` vars as the curtain) whose ring gradient sits at its outer
    edge; scaling it 0→1 with the SAME duration + easing as the curtain's clip transition keeps the ring
@@ -563,6 +546,8 @@ body.wipe-up .cardref, body.wipe-up .castprev-layer { visibility: hidden !import
 body.wipe-up .gtip[data-tip]::after { visibility: hidden !important; }
 body.wipe-up .lobbydmg-float { z-index: 240; }
 body.wipe-up .fxflash { z-index: 2990; }
+/* The falling gate's landing dust (gateFx.land) rides the ranked gate's particle canvas, lifted over the curtain while it is up. */
+body.wipe-up .gatefx-canvas { z-index: 3005; }
 body.wipe-up .escov, body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
 body.wipe-up .disc-toggle.disc-peek.inspect-act { z-index: 3101; }
 body.wipe-up .replay-cursor { z-index: 3135; }

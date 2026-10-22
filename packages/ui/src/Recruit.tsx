@@ -241,6 +241,8 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+import { gateFx } from './rankedGate/gateFx';
+import { PHONE_GPU } from './phoneDiag';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
@@ -2365,6 +2367,7 @@ export function Recruit() {
     // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     sfx.warmGate();
+    if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
@@ -2379,7 +2382,12 @@ export function Recruit() {
   // cranks back up"): the ranked gate's slam as it lands (the hold begins the moment it touches down), and its
   // grinding open as it is winched back up.
   useEffect(() => {
-    if (wipe === 'coveredIn' || wipe === 'coveredOut') sfx.gate('slam');
+    if (wipe === 'coveredIn' || wipe === 'coveredOut') {
+      sfx.gate('slam');
+      // …and the dust it knocks up from the floor (owner 2026-10-21: "create the dust from the bottom"), on the ranked
+      // gate's particle layer (lifted over the curtain while it is up). Desktop only: phones keep no extra FX context.
+      if (!PHONE_GPU) gateFx.land({ left: 0, right: window.innerWidth, bottom: window.innerHeight });
+    }
     else if (wipe === 'revealIn' || wipe === 'revealOut') sfx.gate('open');
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
@@ -8162,12 +8170,9 @@ export function Recruit() {
                 // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
                 // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.
                 const ring = gFace ? foeFrame : resolvePortraitFrame('opp', frameIdOf(opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board))));
-                // CARVED into the falling gate (2026-10-21): the carve wrapper sinks the whole disc (ring included) into the stone.
-                return (
-                  <span className="wipevs-carve">
-                    {ring ? <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span> : face}
-                  </span>
-                );
+                return ring ? (
+                  <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span>
+                ) : face;
               })()}
               <div className="wipevs-name">{foe.seat.label}</div>
             </div>
@@ -8178,7 +8183,7 @@ export function Recruit() {
         {wipeIsExiting && (
           <div className="wipevs">
             <div className="wipevs-label">Returning to Shop</div>
-            <span className="wipevs-carve"><img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} /></span>
+            <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
           </div>
         )}
       </div>

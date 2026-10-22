@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest';
 import { makeRng, simulate, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS } from '@game/core';
 import { ARCHIVED_CARDS, CARD_INDEX, EQUIPMENT_INDEX, SETS, poolFor } from '@game/content';
-import { createRun, reduce, equipmentText, sideFromSnapshot, type Action, type BoardCard, type RunState } from './index';
+import { createRun, reduce, equipmentText, chooseBothActive, chooseBothStateOf, sideFromSnapshot, type Action, type BoardCard, type RunState } from './index';
 import { snapshotBoard } from './snapshot';
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -179,6 +179,21 @@ describe('Prismatic Pick: "Choose One: Discover 2 Rubies or your next Choose One
     expect(s.hand.some((c) => CARD_INDEX[c.cardId]?.tribe === 'kobold' && !CARD_INDEX[c.cardId]?.ruby), 'the random-Kobold branch').toBe(true);
     expect((s.maxGoldBonus ?? 0) > 0 || s.maxEmbers > maxBefore, 'the max-Gold branch').toBe(true);
     expect(s.chooseBothCharges ?? 0, 'the charge is spent').toBe(0);
+  });
+
+  it('the armed charge drives the shared (Both) state the card marker reads (chooseBothActive), and only until spent', () => {
+    // The (Both) label and the card-silhouette glow (#2224, R-TEXT-BOTH-MARKER-01) both key off `chooseBothActive` over
+    // `chooseBothStateOf(run)`, so a Pick charge must light a Choose One card in hand and nothing else.
+    const jewel = CARD_INDEX['k3_jeweler']!;
+    const plainCard = CARD_INDEX['u3_poochy']!;
+    let s = armed();
+    expect(chooseBothActive(chooseBothStateOf(s), { golden: false }, jewel), 'nothing armed yet').toBe(false);
+    s = act(act(s, { type: 'activateEquipment' }), { type: 'chooseOne', index: 1 });
+    expect(chooseBothActive(chooseBothStateOf(s), { golden: false }, jewel), 'armed: the Choose One card reads Both').toBe(true);
+    expect(chooseBothActive(chooseBothStateOf(s), { golden: false }, plainCard), 'a non-Choose-One card never does').toBe(false);
+    s.hand.push(body('j', 'k3_jeweler'));
+    s = act(s, { type: 'play', uid: 'j' });
+    expect(chooseBothActive(chooseBothStateOf(s), { golden: false }, jewel), 'spent: the marker goes away').toBe(false);
   });
 
   it('live text shows an armed charge in the Equipment slot, and nothing when none is armed', () => {

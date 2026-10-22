@@ -99,6 +99,16 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Four new Epic Dragon runes for Whispers: Lasting Words, Twin Tongues, the Opened Vault and Bequeathed Secrets.',
+        details: [
+          'Rune of Lasting Words: the first Whisper you cast from hand on each Dragon each turn is permanent.',
+          'Rune of Twin Tongues: Whispers cast from hand also cast on another random friendly Dragon.',
+          'Rune of the Opened Vault: get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts twice.',
+          'Rune of Bequeathed Secrets: the first Dragon you sell each turn gives its Whisper stats to your left-most Dragon for good.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
         details: [

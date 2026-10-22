@@ -2341,7 +2341,8 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   pool, and never copied by the spell-copy effects. It aims at a friendly minion.
 - **Its stats are temporary** unless a card says otherwise: kept for the rest of the turn and through that turn's
   combat, removed at the start of your next turn. **Engraved does not keep them** (it keeps stats gained in combat).
-  No card keeps Whisper stats yet; the grant is recorded per body so one can.
+  Hum and Rune of Lasting Words keep a cast for good; every Whisper stat a body keeps is recorded on it (Rune of
+  Bequeathed Secrets reads that record).
 - **Live values.** Tome grants +1/+1 plus +1/+1 for every 4 spells cast this game, counted retroactively (60 spells
   by turn 10 makes it +16/+16). Runebind grants +2/+2 and then improves EVERY Runebind for the rest of the run by
   +2/+2 (each cast, each repeat; a later Tolan's Runebind starts at the improved value). The Whisper in hand, its
@@ -2357,6 +2358,26 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   Avenge, and any spell, Equipment, Echo, Shout, rune or hero) only gives Whispers of tier <= your
   current shop tier, in every phase. A random roll draws (seeded) from those Whispers whose owning minion is in the
   run's set. Spells and Equipment give a Whisper no tier of their own.
+
+### Set 3 Dragon Epic runes for Whispers (owner 2026-10-21; R-RUNE-LASTING-WORDS-01, R-RUNE-TWIN-TONGUES-01, R-RUNE-OPENED-VAULT-01, R-RUNE-BEQUEATHED-SECRETS-01)
+
+All four act in the Shop, where Whispers are cast from hand. "Cast from hand" means the player's own cast of a Whisper
+card, and each Yazzus or Opened Vault repeat of it; a copy cast by a rune or a minion (Twin Tongues, Whisp, Tamby) or
+a combat cast (Whaloo) is not from hand.
+
+- **Rune of Lasting Words**: "The first Whisper you cast from hand on each Dragon each turn is permanent." Hum's keep,
+  per Dragon: stats, the Whisper's keyword and Seed stacks all stay. Each Dragon re-arms at the turn flip; a repeat is a
+  second cast and is not kept. The first cast spends the latch even if it had nothing to keep (Ripple).
+- **Rune of Twin Tongues**: "Whispers cast from hand also cast on another friendly Dragon." Each targeted cast from
+  hand is cast again on one random other friendly Dragon it may land on (seeded), once per copy of the rune. A full
+  cast (counted, Tamby / Whisp / Runebind see it). No other Dragon, or an untargeted Whisper: no copy.
+- **Rune of the Opened Vault**: "Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts
+  twice." Each Jar activation arms one charge (one at most), which waits across turns. The next Whisper cast from hand
+  resolves once more on the same target, on top of Yazzus. A refused cast keeps the charge.
+- **Rune of Bequeathed Secrets**: "The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most
+  Dragon permanently." The Whisper stats it carries now (this turn's temporary ones plus every one it kept) go to the
+  left-most remaining Dragon as a permanent buff. The first Dragon sale spends the turn's charge even with nothing to
+  give. The received stats are a rune buff, not Whisper stats.
 
 ### Set 3 Dragons: Whaloo, Falx, Queen Morro, Shush (owner 2026-10-14; R-WHISPER-03..07, R-SPELL-MORRO-01)
 

@@ -690,4 +690,28 @@ export const TEXT_RULES: GameRule[] = [
     example: 'Seller\'s Market reads "Whenever you **Sell** a minion, give your minions +6/+8."; Quick Sale reads "The next minion you **Sell** this turn **Sells** for 2 additional Gold."',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/sellKeywordText.test.ts', 'packages/ui/src/detectCardKeywords.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-TEXT-BOTH-MARKER-01',
+    title: 'A (Both) Choose One wears one clean marker: a glow on its own silhouette, on every card that qualifies',
+    statement:
+      'A card whose Choose One will resolve as BOTH options (`chooseBothActive`) shows its "(Both)" label in its tribe '
+      + 'colour and a glow that traces its OWN silhouette (the plate in hand, Discover and Inspect, the frame in the Shop) '
+      + 'in the same colour. The glow converges onto the card once when it appears, then breathes on opacity only. Every '
+      + 'qualifying card is marked, with no cap; a card that does not qualify (or has already chosen) is never marked; '
+      + 'nothing else draws a second marker on top. With reduced motion the glow simply holds.',
+    domain: 'text',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-22', quote: "remake the 'both choose one effects active' effect? it's really sloppy right now" },
+      { kind: 'fix-pr', ref: 'fx/choose-both-remake: packages/ui/src/Card.tsx (bothGlow / bothFrameGlow), packages/ui/src/styles.css "(BOTH) MARKER"; useChooseBothFx.ts removed' },
+    ],
+    contentIds: ['facetwright', 'k_veinbreaker'],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-22. The old marker was a looping Pixi ring (`choose-one-both`, about 215 blurred '
+      + 'teal and magenta particles per card on a 230 px circle) that spilled over neighbouring hand cards and the Shop '
+      + 'felt, clashed with the tribe-coloured label, and was capped at four loops, so a fifth qualifying card (three '
+      + 'Facetwrights in hand plus two Veinbreakers in the Shop) carried no marker at all.',
+    example: 'With the Rune of Facetwright, every Facetwright in hand glows in Kobold red along its plate, and a Veinbreaker offered under the Rune of the Unbroken Vein glows along its Shop frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/chooseOneBoth.test.tsx'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

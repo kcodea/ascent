@@ -2368,6 +2368,7 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     sfx.warmGate();
+    sfx.warmWipeGate();
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {
@@ -2379,17 +2380,19 @@ export function Recruit() {
     // the falling gate (2026-10-21) has no seam for them to follow, so they no longer play.
     if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
   }, [wipe]);
-  // THE FALLING GATE's sounds (owner 2026-10-21: "lands at the bottom of the screen with a bang ... then it quickly
-  // cranks back up"): the ranked gate's slam as it lands (the hold begins the moment it touches down), and its
-  // grinding open as it is winched back up.
+  // THE FALLING GATE's sounds: its OWN recordings since 2026-10-22 (owner: "i have new impact sounds i want to use so
+  // they are different from the gate sounds"; sfx.wipeGate): the door whoosh as it starts to fall, the layered thuds
+  // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
+  // groan as it is winched back up.
   useEffect(() => {
-    if (wipe === 'coveredIn' || wipe === 'coveredOut') {
-      sfx.gate('slam');
+    if (wipe === 'coverIn' || wipe === 'coverOut') sfx.wipeGate('drop');
+    else if (wipe === 'coveredIn' || wipe === 'coveredOut') {
+      sfx.wipeGate('impact');
       // …and the dust it knocks up from the floor (owner 2026-10-21: "create the dust from the bottom"), on the ranked
       // gate's particle layer (lifted over the curtain while it is up). Desktop only: phones keep no extra FX context.
       if (!PHONE_GPU) gateFx.land({ left: 0, right: window.innerWidth, bottom: window.innerHeight });
     }
-    else if (wipe === 'revealIn' || wipe === 'revealOut') sfx.gate('open');
+    else if (wipe === 'revealIn' || wipe === 'revealOut') sfx.wipeGate('crank');
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);

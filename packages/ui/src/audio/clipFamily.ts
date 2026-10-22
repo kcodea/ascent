@@ -70,6 +70,10 @@ export const CLIP_LABEL: Record<string, string> = {
   'ceremony/woosh1': 'Ceremony — woosh 1', 'ceremony/woosh2': 'Ceremony — woosh 2',
   // the two that used to have no fader
   auctioneerhp: 'Auctioneer — hero power', runeselect: 'Rune select — frame clang',
+  // the falling gate (shop <-> combat)
+  wipedrop: 'Falling gate — drop whoosh', wipethudwood: 'Falling gate — impact: wooden door', wipethudground: 'Falling gate — impact: ground body',
+  wipethudheavy: 'Falling gate — impact: heavy fall', wipethudgrit: 'Falling gate — impact: body grit', wipeposter: 'Falling gate — poster flap',
+  wipecrank: 'Falling gate — crank', wipegears: 'Falling gate — crank: gears', wipegroan: 'Falling gate — crank: metal groan',
   undeadaurabuff: 'Buff — Undead Aura surge', spirittendril: 'Buff — Spirit tendril hit',
   gamblesfx: 'Gamble — die roll',
 };

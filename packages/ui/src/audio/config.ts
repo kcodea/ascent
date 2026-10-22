@@ -58,6 +58,12 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // END OF MATCH (owner 2026-10-13): his tone for a 5th to 8th place finish, at the same level as the gate's cues;
   // and, for a 1st to 4th, the gate's cinematic hit (the `gateintro` clip) at that cue's own level.
   placelow: 0.6, placehigh: 0.72,
+  // THE FALLING GATE (owner 2026-10-22): the shop <-> combat transition's own recordings, one fader each. The impact
+  // layers four thuds at once, so each starts lower (the wooden door is the hottest file, -3 dB peak); tune by ear.
+  wipedrop: 0.55, wipethudwood: 0.4, wipethudground: 0.6, wipethudheavy: 0.6, wipethudgrit: 0.5,
+  wipecrank: 0.5, wipegears: 0.45, wipegroan: 0.45,
+  // The poster's page flap: a quiet recording (-26 dB peak), so it starts high.
+  wipeposter: 0.85,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -95,6 +101,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
   gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui', gatehum: 'ui', placelow: 'ui', placehigh: 'ui',
+  wipedrop: 'ui', wipethudwood: 'ui', wipethudground: 'ui', wipethudheavy: 'ui', wipethudgrit: 'ui', wipecrank: 'ui', wipegears: 'ui', wipegroan: 'ui', wipeposter: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',

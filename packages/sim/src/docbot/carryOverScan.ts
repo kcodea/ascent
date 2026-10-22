@@ -214,6 +214,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   rememberedThisTurn: { kind: 'no-combat-meaning', why: 'Runesnout Archivist\'s once-per-turn journal latch; recording happens in the shop, the JOURNAL itself is threaded (rememberedSpellIds)' },
   spellhideUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Spellhide\'s per-turn RECORD latch; recording happens on the shop cast, the recorded re-casts ride spellhidePending' },
   lastWordUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Last Word\'s per-turn sold-Dragon latch; selling is a shop action' },
+  bequeathedUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of Bequeathed Secrets: per-turn first-Dragon-sold latch (Set 3 Dragon Epic, 2026-10-21); selling is a shop action' },
   // ── Set 3 batch 2 (2026-09-16) — tranche A per-turn gates: every one is a SHOP latch (sells, buys, casts, plays) ──
   revelersSoldThisTurn: { kind: 'no-combat-meaning', why: 'Festival Wages / the Festival Circuit\'s per-turn Revelers-sold meter ("after you sell 3 Revelers"); selling is a shop action' },
   meteorShowerUsedThisTurn: { kind: 'no-combat-meaning', why: 'Rune of the Meteor Shower\'s per-turn first-Star-Crash latch; keyed at noteSpellCast, a shop cast' },

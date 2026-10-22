@@ -1991,7 +1991,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // growingInferno = a Dragon attack casts Growth; runeboundBrood = a summoned Drake Pup casts Runebind on itself;
   // unbrokenScales = the first 2 Dragon Ward losses each combat give +10/+10 and Ward; runicTransposition = a Whisper's
   // Health on a Dragon also gives that much Attack.
-  | 'runeWarCouncil' | 'runeGrowingInferno' | 'runeRuneboundBrood' | 'runeUnbrokenScales' | 'runeRunicTransposition';
+  | 'runeWarCouncil' | 'runeGrowingInferno' | 'runeRuneboundBrood' | 'runeUnbrokenScales' | 'runeRunicTransposition'
+  // Set 3 Dragon runes, Epic B (owner 2026-10-21), all Shop-only (Whispers are cast from hand): lastingWords = the first
+  // Whisper cast from hand on each Dragon each turn is permanent; twinTongues = a Whisper cast from hand also casts on
+  // another friendly Dragon; openedVault = after a Jar of Secrets activation the next Whisper cast from hand casts twice;
+  // bequeathedSecrets = the first Dragon sold each turn gives its Whisper stats to the left-most Dragon permanently.
+  | 'runeLastingWords' | 'runeTwinTongues' | 'runeOpenedVault' | 'runeBequeathedSecrets';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {

@@ -2396,4 +2396,90 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  // ── SET 3 DRAGON RUNES, EPIC B (owner 2026-10-21): the four Whisper Epics. ──
+  {
+    id: 'R-RUNE-LASTING-WORDS-01',
+    title: 'Rune of Lasting Words: the first Whisper cast from hand on each Dragon each turn is permanent',
+    statement:
+      'The first Whisper you cast FROM HAND on each Dragon each turn keeps everything that cast added: its stats, its '
+      + 'Whisper keyword (Bait\'s Taunt, Warding Call\'s Ward) and its Seed stacks, exactly as Hum keeps one. Each Dragon '
+      + 'has its own latch, re-armed at the turn flip, so three Dragons can each keep one. A Yazzus or Opened Vault repeat '
+      + 'is a second cast, so only the first is kept. A copy cast by anything else (Twin Tongues, Whisp, Tamby\'s copy, a '
+      + 'combat cast) is not from hand and is never kept. The first cast spends the latch even if it had nothing to keep '
+      + '(Ripple). A duplicate copy cannot deepen it and pays the sweetener.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'The first Whisper you cast from hand on each Dragon each turn is permanent.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'code', ref: 'packages/sim/src/whisper.ts castWhisperFromHand; packages/sim/src/recruit.ts keepWhisperCastDelta (shared with Hum); reducer.ts Whisper branch + turn-flip clear of lastingWordsUsedThisTurn' },
+    ],
+    contentIds: ['rune_lasting_words'],
+    cardText: 'The first **Whisper** you cast from hand on each **Dragon** each turn is permanent.',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RUNE-TWIN-TONGUES-01',
+    title: 'Rune of Twin Tongues: a Whisper cast from hand also casts on one random other friendly Dragon',
+    statement:
+      'Each TARGETED Whisper cast from hand (the cast itself and each Yazzus or Opened Vault repeat) is cast again on one '
+      + 'random other friendly Dragon it may legally land on, picked from the run seed, once per copy of the rune held. The '
+      + 'copy is a full cast at the same multiplier: it counts as a spell cast and reaches Tamby, Whisp, Lorekeeping and '
+      + 'Runebind\'s improve. It is cast by the rune, not from hand, so Lasting Words never keeps it and it never copies '
+      + 'itself. No other Dragon: no copy. An untargeted Whisper (Well of Dragons, Clutch) is not cast on anything and is not copied.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'Whispers cast from hand also cast on another friendly Dragon.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'code', ref: 'packages/sim/src/whisper.ts castWhisperFromHand / twinTonguesCopy (rngCursor pick, withCastActor rune caster, recordBounceFx hop)' },
+    ],
+    contentIds: ['rune_twin_tongues'],
+    cardText: '**Whispers** cast from hand also cast on another friendly **Dragon**.',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22. The copy is a real Whisper cast, so Rune of Runic Transposition (Epic A) applies to it too (tested 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RUNE-OPENED-VAULT-01',
+    title: 'Rune of the Opened Vault: a Jar of Secrets activation makes the next Whisper cast from hand cast twice',
+    statement:
+      'Buying it gets a Shush (whose Equip is Jar of Secrets). Each real Jar of Secrets activation arms one charge; only '
+      + 'one can wait at a time, and it waits across turns until spent. The next Whisper cast from hand (targeted or not) '
+      + 'spends it and resolves one more time on the same target, once per copy of the rune held, on top of any Yazzus '
+      + 'repeat. A refused cast (no legal target) keeps the charge. A free Equipment fire (Rune of Dismantling) is not an activation.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts twice.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'code', ref: 'packages/sim/src/reducer.ts activateEquipment (arms openedVaultArmed) + Whisper branch (spends it); packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_opened_vault', 'd3_shush'],
+    cardText: 'Get a **Shush**. After you activate **Jar of Secrets**, your next **Whisper** cast from hand casts twice.',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RUNE-BEQUEATHED-SECRETS-01',
+    title: 'Rune of Bequeathed Secrets: the first Dragon sold each turn gives its Whisper stats to the left-most Dragon',
+    statement:
+      'The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most remaining Dragon as a permanent '
+      + 'buff, once per copy of the rune held. Its Whisper stat bonuses are the Whisper stats it carries right now: this '
+      + 'turn\'s temporary Whisper stats plus every Whisper stat it kept for good (Hum, Lasting Words), tracked per minion '
+      + 'as `whisperKept` (a triple sums the copies\'). Expired Whisper stats and other buffs do not count, and the '
+      + 'inherited stats are a rune buff, not Whisper stats. The first Dragon sale spends the turn\'s charge even when it '
+      + 'had no Whisper stats or no Dragon is left to receive them.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes)', quote: 'The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most Dragon permanently.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts fireOnMinionSold + whisperStatBonusesOf + keepWhisperCastDelta (records whisperKept); packages/sim/src/whisper.ts seedEchoMerge; docbot snapshotRegistry capture:whisperKept' },
+    ],
+    contentIds: ['rune_bequeathed_secrets'],
+    cardText: 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
 ];

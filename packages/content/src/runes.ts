@@ -4155,6 +4155,60 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'runeThreshold', meter: 'playBeast', per: 1, buff: { target: 'tribeBoard', tribe: 'beast', attack: 6, health: 6 } },
     sets: ['set2'], // owner 2026-10-07: this batch is Set 2 only
   },
+  // ── SET 3 DRAGON RUNES, EPIC B (owner 2026-10-21): the four Whisper Epics. All four act in the Shop, where Whispers are
+  //    cast from hand; each arms a `questFlags` flag (`combatFlag`, the Open Grave shape) read by the Shop hooks in
+  //    sim/whisper.ts. Costs are placeholders pending the owner (none were given). ──
+  {
+    // The first Whisper cast FROM HAND on each Dragon each turn keeps everything that cast added (stats, Whisper
+    // keywords, Seed stacks): Hum's keep, per Dragon (`lastingWordsUsedThisTurn`). A Yazzus / Opened Vault repeat is a
+    // second cast, so only the first is kept; a copy cast by anything else (Twin Tongues, Whisp) is not from hand.
+    id: 'rune_lasting_words',
+    tribes: ['dragon'], // TRIBE GATE: the text names Dragons
+    name: 'Rune of Lasting Words',
+    cost: 5,
+    epic: true,
+    text: 'The first **Whisper** you cast from hand on each **Dragon** each turn is permanent.',
+    reward: { kind: 'combatFlag', flag: 'runeLastingWords' },
+    sets: ['set3'],
+  },
+  {
+    // Every targeted Whisper cast FROM HAND is cast again (a full cast, same multiplier) on a random OTHER friendly
+    // Dragon it may legally land on (seeded off the run cursor), once per copy held. No other Dragon: nothing. The copy
+    // is not from hand, so it never feeds Lasting Words, Opened Vault or this rune again.
+    id: 'rune_twin_tongues',
+    tribes: ['dragon'],
+    name: 'Rune of Twin Tongues',
+    cost: 5,
+    epic: true,
+    text: '**Whispers** cast from hand also cast on another friendly **Dragon**.',
+    reward: { kind: 'combatFlag', flag: 'runeTwinTongues' },
+    sets: ['set3'],
+  },
+  {
+    // Get a Shush (its Equip is the Jar of Secrets). Each Jar of Secrets ACTIVATION arms one charge (never more than one
+    // waiting); the next Whisper cast from hand spends it and resolves one more time on the same target, per copy held.
+    id: 'rune_opened_vault',
+    tribes: ['dragon'], // TRIBE GATE: it grants a Dragon
+    name: 'Rune of the Opened Vault',
+    cost: 5,
+    epic: true,
+    text: 'Get a **Shush**. After you activate **Jar of Secrets**, your next **Whisper** cast from hand casts twice.',
+    previewCards: ['d3_shush'],
+    reward: { kind: 'multi', rewards: [{ kind: 'grant', cards: ['d3_shush'] }, { kind: 'combatFlag', flag: 'runeOpenedVault' }] },
+    sets: ['set3'],
+  },
+  {
+    // The first Dragon sold each turn hands its Whisper stat bonuses (this turn's temporary Whisper stats plus every
+    // Whisper stat it has kept for good, `whisperStatBonusesOf`) to your left-most Dragon as a permanent buff.
+    id: 'rune_bequeathed_secrets',
+    tribes: ['dragon'],
+    name: 'Rune of Bequeathed Secrets',
+    cost: 5,
+    epic: true,
+    text: 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.',
+    reward: { kind: 'combatFlag', flag: 'runeBequeathedSecrets' },
+    sets: ['set3'],
+  },
 ];
 
 /**
@@ -4749,6 +4803,8 @@ export const RUNE_DUP_SWEETENER: ReadonlySet<string> = new Set([
   'rune_grim_toast',
   // …and Unity (tranche 5): your minions either count as every type or not.
   'rune_unity',
+  // …and Lasting Words (Set 3 Dragon Epic B, 2026-10-21): a Whisper cast is either permanent or not.
+  'rune_lasting_words',
 ]);
 
 /** Duplicates that do NOTHING — owner ruled unique ("rune of the ornate clock should do nothing if

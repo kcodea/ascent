@@ -3168,6 +3168,14 @@ export function whisperMarksOf(card: BoardCard): WhisperMarks {
   return { rows: (card.whisperBuffs ?? []).map((r) => ({ ...r })), seeds: card.seedEchoesTemp ?? 0, keywords: [...(card.whisperKeywords ?? [])] };
 }
 
+/** Every Whisper STAT bonus this body carries right now: this turn's temporary Whisper stats (`whisperBuffs`, what
+ *  actually landed) plus the Whisper stats it has kept for good (`whisperKept`). Rune of Bequeathed Secrets' payload. */
+export function whisperStatBonusesOf(card: Pick<BoardCard, 'whisperBuffs' | 'whisperKept'>): { attack: number; health: number } {
+  let attack = card.whisperKept?.attack ?? 0, health = card.whisperKept?.health ?? 0;
+  for (const r of card.whisperBuffs ?? []) { attack += r.attack; health += r.health; }
+  return { attack: Math.max(0, attack), health: Math.max(0, health) };
+}
+
 /** Hum's cap this turn: `count` (1), x2 Gilded. 0 = not a Hum. */
 export function humKeepCap(card: BoardCard): number {
   const eff = instanceEffects(card).find((e) => e.do === 'whisperKeepOnThis');
@@ -3187,24 +3195,44 @@ export function keepWhispersOnHum(target: BoardCard, before: WhisperMarks): void
   const cap = humKeepCap(target);
   if (cap <= 0 || (target.whisperKeptThisTurn ?? 0) >= cap) return;
   target.whisperKeptThisTurn = (target.whisperKeptThisTurn ?? 0) + 1;
+  keepWhisperCastDelta(target, before);
+}
+
+/**
+ * THE ONE "this Whisper cast is permanent" body (Hum, Rune of Lasting Words): whatever the cast added since `before`
+ * stops being temporary. The stat delta leaves the temporary rows (the stats and the `buffs` ledger simply stay) and is
+ * added to `whisperKept` (the record Rune of Bequeathed Secrets reads); its Whisper keywords stay in `keywords`; its
+ * Seed stacks move to the permanent lane. A cast whose share was already kept (a Hum kept it inside the cast) has no
+ * delta left, so keeping it twice changes nothing.
+ */
+export function keepWhisperCastDelta(target: BoardCard, before: WhisperMarks): boolean {
   const rows = target.whisperBuffs ?? [];
+  let ka = 0, kh = 0;
   for (const r of rows) {
     // Back to what the row held before this cast: the cast's share is no longer temporary.
     const b = before.rows.find((x) => x.source === r.source);
+    ka += r.attack - (b?.attack ?? 0);
+    kh += r.health - (b?.health ?? 0);
     r.attack = b?.attack ?? 0;
     r.health = b?.health ?? 0;
     r.count = b?.count ?? 0;
+  }
+  if (ka !== 0 || kh !== 0) {
+    const k = target.whisperKept ?? { attack: 0, health: 0 };
+    target.whisperKept = { attack: k.attack + ka, health: k.health + kh };
   }
   const left = rows.filter((r) => r.count > 0 || r.attack !== 0 || r.health !== 0);
   target.whisperBuffs = left.length > 0 ? left : undefined;
   // Its Whisper keywords (Bait's Taunt, Warding Call's Ward) stop being temporary: they stay in `keywords`.
   const kept = (target.whisperKeywords ?? []).filter((k) => before.keywords.includes(k));
+  const keptKeywords = (target.whisperKeywords?.length ?? 0) - kept.length;
   target.whisperKeywords = kept.length > 0 ? kept : undefined;
   const seeds = (target.seedEchoesTemp ?? 0) - before.seeds;
   if (seeds > 0) {
     target.seedEchoes = (target.seedEchoes ?? 0) + seeds;
     target.seedEchoesTemp = before.seeds > 0 ? before.seeds : undefined;
   }
+  return ka !== 0 || kh !== 0 || keptKeywords > 0 || seeds > 0; // did this keep make anything permanent?
 }
 
 /** Set 4 Beasts (Shop): did a friendly `params.tribe` body (default Beast) take a landed hit? */
@@ -12111,6 +12139,24 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
       state.lastWordUsedThisTurn = true;
       // The Shout fires once per copy held (repeat family, owner 2026-08-27: +1 repetition per copy).
       for (let k = 0; k < runeStacksOf(state, 'rune_last_word'); k++) replayBattlecry(state, sold);
+    }
+  }
+  // RUNE OF BEQUEATHED SECRETS (Set 3 Dragon Epic, owner 2026-10-21): the turn's FIRST Dragon sold hands its Whisper
+  // stat bonuses (`whisperStatBonusesOf`: this turn's temporary Whisper stats + the ones it kept) to your left-most
+  // Dragon as a permanent buff, once per copy held. The first Dragon sale spends the turn's charge even when it had no
+  // Whisper stats or no Dragon is left to inherit (the literal "first Dragon you sell"). The sold body has already
+  // left, so "left-most Dragon" never names it.
+  if (state.questFlags?.runeBequeathedSecrets && !state.bequeathedUsedThisTurn) {
+    const def = CARD_INDEX[sold.cardId];
+    if (defIsTribe(def, 'dragon', state) || isTribeNatural(sold, 'dragon')) { // R-ALL-TYPES-EVERYWHERE-01
+      state.bequeathedUsedThisTurn = true;
+      const gift = whisperStatBonusesOf(sold);
+      const heir = state.board.find((c) => isTribe(c, 'dragon'));
+      if (heir && (gift.attack > 0 || gift.health > 0)) {
+        const n = runeStacksOf(state, 'rune_bequeathed_secrets');
+        procRuneId(state, 'rune_bequeathed_secrets');
+        captureBuffFx(state, undefined, 'spell', () => addBuff(heir, 'Rune of Bequeathed Secrets', gift.attack * n, gift.health * n));
+      }
     }
   }
   for (const card of [...state.board]) {

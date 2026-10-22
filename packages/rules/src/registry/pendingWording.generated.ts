@@ -104,17 +104,17 @@ export const WORDING_PENDING: GameRule[] = [
   },
   {
     "id": "q-word-lg-position-01",
-    "title": "Wording: left-most vs leftmost · 73 vs 1",
+    "title": "Wording: left-most vs leftmost · 74 vs 1",
     "statement": "Positional words are hyphenated: \"left-most\" / \"right-most\", never \"leftmost\". — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "text",
     "status": "needs-ruling",
-    "currentBehaviour": "Both spellings are live: \"left-most\" in 73 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
+    "currentBehaviour": "Both spellings are live: \"left-most\" in 74 printed texts, \"leftmost\" in 1. Approving picks \"left-most\"; the LG-POSITION-01 guide predicate then watches new text.",
     "cardText": "\"left-most\" — Echohorn: \"Rally: trigger your left-most Echo.\" · \"leftmost\" — Grave Body: \"Copy your leftmost Echo when summoned.\"",
     "example": "Grave Body would be re-worded to the \"left-most\" form; mechanics untouched.",
     "evidence": [
       {
         "kind": "docbot-scan",
-        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 73 vs 1)"
+        "ref": "textParse.wording · LG-POSITION-01 (corpus survey: 74 vs 1)"
       }
     ],
     "sourceQueue": "textParse.wording",

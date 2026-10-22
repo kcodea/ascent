@@ -956,6 +956,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_soul_furnace:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_restless:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_open_grave:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── Set 3 Dragon runes, Epic B (owner 2026-10-21): Shop-only Whisper hooks; the flag name keys them like the Open Grave ──
+  'rune:rune_lasting_words:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a from-hand Whisper on a Dragon kept (folded into the cast)
+  'rune:rune_twin_tongues:combat': { policy: 'foldedCue', family: 'combatModifier' },         // the copy is a cast with its own spell cue
+  'rune:rune_opened_vault:combat': { policy: 'foldedCue', family: 'combatModifier' },         // the extra cast rides the Whisper's cast
+  'rune:rune_bequeathed_secrets:combat': { policy: 'foldedCue', family: 'combatModifier' },   // the inheritance rides the sale (a spell-kind buff descend)
   // ── tranche 2: Celestial ──
   'rune:rune_heralding_star:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_stellar_echoes:combat': { policy: 'foldedCue', family: 'combatModifier' },

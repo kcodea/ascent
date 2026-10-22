@@ -800,7 +800,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   'runeRunicPrimer', 'runeClearVoices', 'runeSpellFedScales', 'runeBorrowedFlame', 'runeSpellTempering', 'runeOpenTreasury',
   'runeDeepBreaths', 'runeDefiantWings', 'runeFinalUtterance', 'runeEmberInheritance',
   // Set 3 Dragon runes, Epic A (owner 2026-10-21)
-  'runeWarCouncil', 'runeGrowingInferno', 'runeRuneboundBrood', 'runeUnbrokenScales', 'runeRunicTransposition']);
+  'runeWarCouncil', 'runeGrowingInferno', 'runeRuneboundBrood', 'runeUnbrokenScales', 'runeRunicTransposition',
+  // Set 3 Dragon runes, Epic B (owner 2026-10-21): the Whisper Epics (Shop-only hooks)
+  'runeLastingWords', 'runeTwinTongues', 'runeOpenedVault', 'runeBequeathedSecrets']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [

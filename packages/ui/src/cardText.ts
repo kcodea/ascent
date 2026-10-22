@@ -233,7 +233,7 @@ export function attackGrantImproveText(cardId: string, summonBonus: number, gold
   return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${a} Attack}}`);
 }
 
-// Runic Archivist / Mark Eting (`minionSoldGrantSpell`) and Valyou (`minionSoldBuffSelf` with a Gold payout) have
+// Runic Archivist / Mariet (`minionSoldGrantSpell`) and Valyou (`minionSoldBuffSelf` with a Gold payout) have
 // NO live-text helper on purpose (owner 2026-10-21: "i dont think we use text for this, just integers"). Their only
 // moving number is an every-N countdown, and every every-N card in the game shows that as its integer counter under
 // the card (`stepProgress`'s minions-SOLD branch, N/4), never as prose in the text: the convention Astral Spellcore

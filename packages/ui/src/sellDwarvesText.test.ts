@@ -20,7 +20,7 @@ const noProse = (t: string): void => {
   expect(t).not.toMatch(/\bmore\b|to go|\d+\/\d+(?!\/)/);
 };
 
-describe('Mark Eting: authored text, the countdown is the integer counter', () => {
+describe('Mariet: authored text, the countdown is the integer counter', () => {
   it('prints the authored text at every point of the meter', () => {
     for (const n of [0, 1, 2, 3]) {
       expect(live('dw3_marketing', n)).toBe('When you **Sell** **4 minions**, get a random **Shop Spell**.');

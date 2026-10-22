@@ -63,7 +63,7 @@ export const PATCH_NOTES: PatchNote[] = [
         text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
         details: [
           'The tip now explains both meanings: selling a minion for Gold, and "Sell:" effects that trigger when that minion is sold.',
-          'Mark Eting, Valyou and Leeds show how close they are with the number counter under the card, and their text stays as printed. Leeds still shows its current buff.',
+          'Mariet, Valyou and Leeds show how close they are with the number counter under the card, and their text stays as printed. Leeds still shows its current buff.',
         ],
       },
       {
@@ -84,17 +84,18 @@ export const PATCH_NOTES: PatchNote[] = [
           'The fight recap shows what was kept, for example "+Ward".',
         ],
       },
+      { category: 'Balance', text: 'Mark Eting is now Mariet and Salezar Sails is now Sailsey; both have their art.' },
       { category: 'Balance', text: 'Valyou and Leeds have their art.' },
       { category: 'Balance', text: 'The Indy minion has new art.' },
       {
         category: 'Balance',
-        text: 'Four new Dwarves join Set 3, all built around selling: Salezar Sails, Mark Eting, Valyou and Leeds. Sell is now written as a keyword on every card.',
+        text: 'Four new Dwarves join Set 3, all built around selling: Sailsey, Mariet, Valyou and Leeds. Sell is now written as a keyword on every card.',
         details: [
-          'Salezar Sails (Tier 2, 3/1): Sell: give your Dwarves +2/+3.',
-          'Mark Eting (Tier 3, 2/6): when you Sell 4 minions, get a random Shop Spell. Gilded gets 2.',
+          'Sailsey (Tier 2, 3/1): Sell: give your Dwarves +2/+3.',
+          'Mariet (Tier 3, 2/6): when you Sell 4 minions, get a random Shop Spell. Gilded gets 2.',
           'Valyou (Tier 5, 6/9): when you Sell a minion, gain +3/+3. Every 4th time, also gain 2 Gold.',
           'Leeds (Tier 6, 6/8): when you play a Dwarf, give your Dwarves +2/+2. It goes up by +2/+2 every time you Sell 4 minions.',
-          'The sell counts on Mark Eting, Valyou and Leeds carry over between turns and show on the card.',
+          'The sell counts on Mariet, Valyou and Leeds carry over between turns and show on the card.',
           'Sell now reads as a capitalised keyword in all card, rune, hero and Equipment text. Nothing about how selling works has changed.',
         ],
       },

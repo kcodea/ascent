@@ -251,8 +251,9 @@ export const SET2_DEMONS: CardDef[] = [
     goldenText: '**Taunt.** **Echo:** summon **2 Imps**.',
   },
   {
-    // Set 2 — Grevlin & Co. (owner add 2026-08-18): a sell-fed eater. Every 3 minions sold, it consumes the
-    // right-most Shop minion (golden: the 2 right-most). The sell tally is per-instance and carries round to round.
+    // Set 2 — Grevlin & Co. (owner add 2026-08-18): a sell-fed eater. Every 3 minions sold, a RANDOM friendly Demon
+    // (Grevlin included; owner fix 2026-10-22) consumes the right-most Shop minion (golden: the 2 right-most, each
+    // bite its own pick). The sell tally is per-instance and carries round to round.
     id: 'dm_grevlin',
     name: 'Grevlin & Co.',
     tribe: 'demon',

@@ -193,8 +193,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
     // Owner rework 2026-10-22: the Ruby branch Discovers 2 Rubies (was 1); the Equipment's own text says the same.
-    text: '**Equip Prismatic Pick (1): Choose One.** **Discover 2 Rubies** or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover 4 Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One.** **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover 4 special Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not

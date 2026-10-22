@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      { category: 'Balance', text: 'Picksy and Prismatic Pick now say "Discover 2 special Rubies". Same effect: the plain Ruby was never offered.' },
       {
         category: 'Balance',
         text: 'Grevlin & Co. no longer always eats by himself. A random friendly Demon now does the eating, and Grevlin can still be picked.',

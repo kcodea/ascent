@@ -619,6 +619,12 @@ export const EffectFactoryIdSchema = z.enum([
   'dealtDamageSummonToken',       // Impossible Todd (2026-10-10): Pummel (20) - the same meter, a summon-a-token body (an Imp), once per combat
   'endOfTurnDemonsConsumeShop',   // Hydraskus (2026-10-10): End of Turn, EVERY friendly Demon consumes a random Shop minion, left to right
   'dealtDamageGetRandomSpell',    // Tauntbreaker (2026-10-03): Pummel (25) — the same meter, a random-Shop-Spell body, once per combat
+  // ── Set 3 Kobolds, owner batch 2026-10-22 ──
+  'battlecryGrantFreeRolls',      // Boy Scout: Shout, gain N free Refreshes (x2 gilded)
+  'dealtDamageCastRubiesTribe',   // Zapdash: Pummel (10), cast a Ruby on your Kobolds, twice per combat
+  'friendlyAttacksPlayRubiesSelf', // Frack Attack: every 3 friendly attacks, cast 3 Rubies on this
+  'rubyCastGainSelfImproving',    // Rosey: when you cast a Ruby, gain +2/+1 permanently (improving)
+  'shopRefreshTallySelf',         // Rosey: its Improves meter, one tick per Refresh pressed
   'dealtDamageGetRandomRuby',     // Kobe (2026-09-24): Pummel (15) — the same meter, a random-Ruby body
   'dealtDamageGrantRandomTribe',  // Maestro Lux (2026-09-24): Pummel (N) — the same meter, a random-tribe-minion body
   'dealtDamageGoldNextTurn',      // Goldvein: Pummel (N) — Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat

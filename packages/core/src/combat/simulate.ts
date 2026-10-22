@@ -3332,6 +3332,23 @@ export function simulate(
       }
       return;
     }
+    if (eff.do === 'dealtDamageCastRubiesTribe') {
+      // Zapdash (owner 2026-10-22): "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)". Each payout casts
+      // `count` (x2 gilded) PLAIN Rubies (owner confirmed 2026-10-22: "a Ruby" without "random" is the plain one) on
+      // every living friendly `tribe` body, Zapdash included, through the one combat Ruby primitive (`playRubyOn`:
+      // Ruby strength, Paragon, every Ruby watcher). Dual tribes and All-types count (`isTribeOf`). Combat Rubies are
+      // combat-only. The cap is `maxPerCombat` (2) on `pummelFires`, re-armed by a Rise / Rebirth return.
+      const named = p.tribe;
+      const tribe = typeof named === 'string' && named ? named : 'kobold';
+      for (let k = 0; k < pays; k++) {
+        fired();
+        for (const m of [...boards[dealer.side]]) {
+          if (m.dead || m.health <= 0 || !isTribeOf(m, tribe, cards)) continue;
+          playRubyOn(ctx, dealer, m, count);
+        }
+      }
+      return;
+    }
     if (eff.do === 'dealtDamageGetRandomRuby') {
       // Kobe (owner Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — each payout
       // hands over `count` (x2 gilded) Rubies, each a random type, through the combat Ruby carry-back.

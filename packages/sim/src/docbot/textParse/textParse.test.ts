@@ -186,7 +186,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-22 (Set 3 Kobold pool call): 152 -> 153, CONSCIOUSLY. Shardluck came back from the archive and its Choose One
 // ("Play 3 Rubies on your Kobolds or cast Veinstorm 3 times") has no grammar rule yet. Delver, Cavern Fiend and the
 // reworked Dealski parse.
-const UNRESOLVED_CAP = 153;
+// 2026-10-22 (Set 3 Kobolds: Boy Scout, Gramps, Zapdash, Frack Attack, Rosey): 153 -> 155, CONSCIOUSLY (on top of the pool call's +1). Two texts have no
+// grammar rule yet: Boy Scout's "Gain 2 free Refreshes." and Frack Attack's "Repeat after 3 friendly attacks." Gramps and
+// Zapdash parse; Rosey parses but is pinned in KNOWN_TEXT_MISMATCH ("When you cast a Ruby" reads as `spellCast`).
+const UNRESOLVED_CAP = 155;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

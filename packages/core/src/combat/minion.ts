@@ -55,7 +55,9 @@ export function freshAttackImmune(card: CardDef | undefined, golden: boolean): n
  *    `attack.immune` off this count, so the immune-shield FX follows the reset with no UI change);
  *  - `grantedRefresh`: Gryphon's free-refresh cap;
  *  - `reflectFired`: Yeti's once-per-combat reflection;
- *  - `wardRegainFired`: Foamguard (R-DWARF-1021-02).
+ *  - `wardRegainFired`: Foamguard (R-DWARF-1021-02);
+ *  - `attackSeen` for Frack Attack ONLY (owner 2026-10-22, R-KOBOLD-1022-02): its "Repeat after 3 friendly attacks"
+ *    meter starts over. Crypt Drake's `attackSeen` is a cadence, not a limit, and keeps running.
  * NOT here, on purpose: side-wide budgets (Deathtouched Apple, Dragonscale, Author's Hand, the Ancient Pummel latch),
  * per-TURN latches whose combat half reads per combat (Candleback Bulwark's "(2 times per turn)" `rubyRecvTick`, Tamby,
  * Reflector: a return happens inside the same turn, so a per-turn cap stays spent), and Lord of the Risen's Undying
@@ -70,6 +72,7 @@ export function resetPerCombatLimits(m: Minion, card: CardDef | undefined): void
   m.grantedRefresh = undefined;
   m.reflectFired = undefined;
   m.wardRegainFired = undefined;
+  if (card?.effects.some((e) => e.do === 'friendlyAttacksPlayRubiesSelf')) m.attackSeen = undefined;
 }
 
 /** The token a Seed's granted Echo summons (Gardener's Whisper, Set 3 2026-10-15). */

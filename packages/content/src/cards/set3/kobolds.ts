@@ -371,4 +371,97 @@ export const SET3_KOBOLDS: CardDef[] = [
     text: 'When you cast **3 spells**, Consume the highest-Health minion in the Shop.',
     goldenText: 'When you cast **3 spells**, Consume the **2** highest-Health minions in the Shop.',
   },
+  // ── Owner Set 3 Kobold batch, 2026-10-22 (five new cards, appended in sheet order) ──────────────────────────
+  {
+    // BOY SCOUT: "Shout: Gain 2 free Refreshes." The run's one free-refresh bank (`freeRolls`, spent before Gold on a
+    // roll: Refreshing Texts, Gryphon, Rune of Refreshments) through a Shout body that knows its gild
+    // (`battlecryGrantFreeRolls`; a combat Shout replay banks through the same carry-back as Gryphon). Gilded: 4.
+    id: 'k3_boyscout',
+    name: 'Boy Scout',
+    tribe: 'kobold',
+    tier: 2,
+    attack: 3,
+    health: 3,
+    keywords: [],
+    effects: [{ on: 'onPlay', do: 'battlecryGrantFreeRolls', params: { count: 2 } }],
+    text: '**Shout:** Gain **2 free Refreshes**.',
+    goldenText: '**Shout:** Gain **4 free Refreshes**.',
+  },
+  {
+    // GRAMPS: "Sell: Play a Ruby on all of your minions." PLAY is printed as CAST (the 2026-08-30 ruling above: one
+    // action, one verb). "A Ruby" = the PLAIN Ruby (owner confirmed 2026-10-22: no "random", no special type). It is
+    // Frenzied Excavator's per-Ruby body (`battlecryPlayRubiesAll`, each Ruby its own landing so every on-Ruby
+    // watcher hears each one) on the Sell trigger. The sell removes Gramps from the board BEFORE its Sell fires, so
+    // "all of your minions" never includes Gramps itself. Gilded: 2 Rubies on each.
+    id: 'k3_gramps',
+    name: 'Gramps',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 4,
+    health: 2,
+    keywords: [],
+    effects: [{ on: 'onSell', do: 'battlecryPlayRubiesAll', params: { rubies: 1 } }],
+    text: '**Sell:** Cast a **Ruby** on all of your minions.',
+    goldenText: '**Sell:** Cast **2 Rubies** on all of your minions.',
+  },
+  {
+    // ZAPDASH: "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)". A Pummel marker on the shared
+    // damage-dealt meter (`DAMAGE_METER_MARKERS`): lifetime tally, a payout per multiple of 10 crossed, at most
+    // `maxPerCombat` (2) payouts a fight; the fire count (`pummelFires`) re-arms on a Rise / Rebirth return
+    // (R-RETURN-RESET-01). Each payout casts a PLAIN Ruby (`playRubyOn`, the one combat Ruby primitive) on every
+    // living friendly Kobold, itself, dual tribes and All-types bodies included. Combat Rubies, so combat-only stats
+    // (buff permanence). Gilded (owner): 2 Rubies per Kobold per payout, still twice per combat.
+    id: 'k3_zapdash',
+    name: 'Zapdash',
+    tribe: 'kobold',
+    tier: 3,
+    attack: 4,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'passive', do: 'dealtDamageCastRubiesTribe', params: { every: 10, count: 1, maxPerCombat: 2, tribe: 'kobold' } }],
+    text: '**Pummel (10):** Cast a **Ruby** on your **Kobolds**. (Twice per combat)',
+    goldenText: '**Pummel (10):** Cast **2 Rubies** on your **Kobolds**. (Twice per combat)',
+  },
+  {
+    // FRACK ATTACK: "Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks." The Start of Combat
+    // is Kobe's self-Ruby body with no neighbours (`adjacent: false`). The repeat is a per-combat meter on the body
+    // (`attackSeen`) over EVERY friendly attack, itself included and each Flurry swing counted on its own (owner
+    // confirmed 2026-10-22); every 3rd casts the 3 Rubies again. The meter re-arms on a Rise / Rebirth return
+    // (`resetPerCombatLimits`). Combat Rubies are combat-only (buff permanence). Gilded: 6 Rubies each time.
+    id: 'k3_frackattack',
+    name: 'Frack Attack',
+    tribe: 'kobold',
+    tier: 4,
+    attack: 6,
+    health: 5,
+    keywords: [],
+    effects: [
+      { on: 'startOfCombat', do: 'scPlayRubiesSelfAndAdjacentTribe', params: { count: 3, adjacent: false } },
+      { on: 'onAttack', do: 'friendlyAttacksPlayRubiesSelf', params: { every: 3, count: 3 } },
+    ],
+    text: '**Start of Combat:** Cast **3 Rubies** on this. Repeat after **3** friendly attacks.',
+    goldenText: '**Start of Combat:** Cast **6 Rubies** on this. Repeat after **3** friendly attacks.',
+  },
+  {
+    // ROSEY: "When you cast a Ruby, this gains +2/+1 permanently. Improves every 3 Refreshes." Per RUBY (the Trouble
+    // ruling: two Rubies cast is two), from any source, on any friendly minion (Rosey included), in the Shop and in
+    // combat. Heard at each phase's one Ruby-cast chokepoint (`fireOnRubyPlayed` / `playRubyOn`), so a bounce hop
+    // (stats only, never a cast) pays nothing and Rosey's own gain is a plain buff no Ruby watcher hears: no loop.
+    // PERMANENT in combat too (owner confirmed 2026-10-22: carries back like Engraved). "Improves": +2/+1 more per
+    // step, every 3 Refreshes pressed while on the board (Indy's meter: the `roll` action only, `eotTick`). Gilded
+    // doubles base and steps.
+    id: 'k3_rosey',
+    name: 'Rosey',
+    tribe: 'kobold',
+    tier: 6,
+    attack: 2,
+    health: 2,
+    keywords: [],
+    effects: [
+      { on: 'rubyPlayedAnywhere', do: 'rubyCastGainSelfImproving', params: { attack: 2, health: 1 } },
+      { on: 'shopRefreshed', do: 'shopRefreshTallySelf', params: { every: 3 } },
+    ],
+    text: 'When you cast a **Ruby**, this gains **+2/+1** permanently. Improves every **3** Refreshes.',
+    goldenText: 'When you cast a **Ruby**, this gains **+4/+2** permanently. Improves every **3** Refreshes.',
+  },
 ];

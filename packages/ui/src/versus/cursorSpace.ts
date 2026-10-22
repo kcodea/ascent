@@ -14,10 +14,12 @@
  * The anchor key doubles as the HOVER key: the element the player's pointer is over is the one whose hover preview
  * the spectator opens (R-SPECTATE-HOVER-01).
  */
+import type { StreamAnchor } from '@game/sim';
 import { gameBox } from '../stage';
 
-/** A point anchored to an element: its key and the point as a fraction of the element's box. */
-export interface CursorAnchor { k: string; fx: number; fy: number }
+/** A point anchored to an element: its key and the point as a fraction of the element's box (the replay stream's own
+ *  type, so a recorded anchor and a live one can never differ; R-REPLAY-STREAM-01). */
+export type CursorAnchor = StreamAnchor;
 /** A point as it travels. */
 export interface CursorPointWire { x: number; y: number; gx?: number; gy?: number; an?: CursorAnchor | null }
 

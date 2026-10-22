@@ -7611,4 +7611,18 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A watched ranked player drags a shop minion onto their board: the replay frame and the spectator tag both carry the same pointer path.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/dragTraceShared.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-REPLAY-STREAM-01',
+    title: 'A replay records the same cursor messages the live spectator sender builds',
+    statement:
+      'One builder (versus/cursorSource.ts) makes the player cursor messages: 60 Hz points on the player clock, anchored to the UI element under the pointer (else the game box), the held card and the drop gap its rows open, the aim line, the hovered element, and whether a drop committed or sprang back. The live spectator sender and the replay recorder both subscribe to it and receive the same message object. While a ranked lobby or Practice run is in the shop, the recorder stores every message in the replay (ReplayV2.stream, one packed segment per round, on the frames clock), plus the shop overlays minimize state and the fight Skip. Decoding a segment returns each message exactly as the stands received it, minus the seat and the legacy window fractions. The replay version stays 2 and older replays without a stream are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (replay to spectating quality)', quote: 'is our replay as good as spectating is? spectating seems basically perfect now... would love to keep them both maintained' },
+    ],
+    currentBehaviour: 'Before, a replay recorded a thinner copy of the hand: a 20 Hz window-fraction trail and an untimed 30 Hz drag path, with no anchors, drop gap, aim, hover, overlay or Skip.',
+    example: 'A player hovers a shop card, drags it onto the board between two minions, and minimizes the Runeforge: the replay stream holds the same messages the stands received, so the replay can show the hover, the gap opening and the overlay closing at the same moments.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamParity.test.ts', 'packages/sim/src/replayStream.test.ts', 'packages/ui/src/replay/replayDraft.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

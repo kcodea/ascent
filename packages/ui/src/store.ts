@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -50,6 +50,7 @@ import type { CareerRun } from './careerData';
 import type { CombatBuffDelta } from './runBuffs';
 import { dragTraceOf } from './replay/dragTrace';
 import { closeCursorWave, resetCursorTrail, sampleCursor, shiftCursorTrail, takeCursorTrail } from './replay/cursorTrace';
+import { installStreamRecorder, prependStream, resetStream, takeStream, takeStreamSegments } from './replay/streamRecorder';
 import {
   DRAFT_STALE_MS, RESUME_GAP_MS, REPLAY_DRAFT_SCHEMA, draftRunId, firstRecordedWave, lastRecordedTMs,
   mergeDraftChunks, replayDrafts, runRecordsDraft, shiftFrames, shiftInspect, splitIntoChunks, trimToBaseline,
@@ -1307,6 +1308,27 @@ function replayClockTick(): number {
   replayLastFrameAt = now;
   return replayElapsedMs;
 }
+/** The frames' clock at `performance.now()` time `perfMs`, WITHOUT ticking it (the spectator stream's messages carry
+ *  their own player-clock stamp, R-REPLAY-STREAM-01). Never before the last tick. */
+function replayClockAt(perfMs: number): number {
+  if (replayLastFrameAt == null) return replayElapsedMs;
+  return replayElapsedMs + Math.max(0, perfMs - replayLastFrameAt);
+}
+/** Which runs record the SPECTATOR STREAM (R-REPLAY-STREAM-01): every run whose replay is kept and can be watched, the
+ *  ranked lobby (drafted per round) and Practice (its replay rides its own row). Never a sandbox. */
+function runRecordsStream(run: RunState): boolean {
+  return !run.sandbox && (runRecordsDraft(run) || run.mode === 'practice');
+}
+installStreamRecorder({
+  clockAt: replayClockAt,
+  recording: () => {
+    const st = useGame.getState();
+    if (st.replaying || !runRecordsStream(st.run)) return null;
+    return { wave: st.run.wave, shop: st.run.phase === 'recruit' };
+  },
+});
+/** Whether the live screen should record the spectator stream now (Recruit subscribes the recorder while true). */
+export const recordsStreamNow = (s: Pick<GameStore, 'replaying' | 'run'>): boolean => !s.replaying && runRecordsStream(s.run);
 /** Reset the clock and seed a run's FIRST frame: the opening shop as a `turnStart` keyframe at tMs 0. Called
  *  by every run-creation path (and at boot for a restored save, whose earlier frames are gone → `partial`). */
 function seedReplayFrames(run: RunState): ReplayFrame[] {
@@ -1316,6 +1338,7 @@ function seedReplayFrames(run: RunState): ReplayFrame[] {
   replayLastShopView = null;
   replayInspectTrail = [];
   resetCursorTrail();
+  resetStream();
   if (run.phase !== 'recruit') return [];
   const first = shopFrameOf(run, 'turnStart', 0);
   replayLastShopView = first.view;
@@ -1370,7 +1393,7 @@ function startReplayDraft(run: RunState): void {
  */
 function persistReplayWave(run: RunState, frames: readonly ReplayFrame[], trail: readonly InspectEvent[], wave: number): void {
   if (!replayDraftId || !replayDraftReady) return;
-  const chunk = splitIntoChunks(replayDraftId, frames, trail, takeCursorTrail()).find((c) => c.wave === wave);
+  const chunk = splitIntoChunks(replayDraftId, frames, trail, takeCursorTrail(), takeStreamSegments()).find((c) => c.wave === wave);
   if (!chunk) return;
   const meta = { ...draftMeta(run), runId: replayDraftId, currentWave: run.wave };
   void replayDrafts.putChunk(meta, chunk).catch(() => { replayPartialReason ??= 'storage_failure'; });
@@ -1385,6 +1408,8 @@ function persistReplayWave(run: RunState, frames: readonly ReplayFrame[], trail:
 function assembleReplayV2(next: RunState, o: {
   author: string; partial: boolean; frames: ReplayFrame[]; inspectTrail: InspectEvent[];
   cursorTrail: ReturnType<typeof takeCursorTrail>; placement: number; finalBoard: BoardSnapshot | null;
+  /** The recorded spectator stream (R-REPLAY-STREAM-01), or null when none was recorded. */
+  stream: ReplayStream | null;
   /** The run's frozen active play ms (R-MATCH-LENGTH-01); null = unknown (omitted from the payload). */
   activeMs: number | null;
 }): ReplayV2 {
@@ -1412,6 +1437,8 @@ function assembleReplayV2(next: RunState, o: {
     ...(o.inspectTrail.length ? { inspectTrail: o.inspectTrail } : {}),
     // The free-cursor trail (2026-09-19) — optional, the version stays 2.
     ...(o.cursorTrail.length ? { cursorTrail: o.cursorTrail } : {}),
+    // The spectator stream (2026-10-22, R-REPLAY-STREAM-01) — optional, the version stays 2.
+    ...(o.stream ? { stream: o.stream } : {}),
     result: {
       placement: o.placement,
       record: runRecord(next),
@@ -1454,7 +1481,7 @@ function beginReplayCapture(run: RunState): ReplayFrame[] {
 function persistClosedWaves(run: RunState, frames: readonly ReplayFrame[], trail: readonly InspectEvent[]): void {
   if (!replayDraftId || !replayDraftReady) return;
   const open = run.wave; // the wave now in progress — still mutable, written by `flushSave` instead
-  const chunks = splitIntoChunks(replayDraftId, frames, trail, takeCursorTrail());
+  const chunks = splitIntoChunks(replayDraftId, frames, trail, takeCursorTrail(), takeStreamSegments());
   const meta = { ...draftMeta(run), runId: replayDraftId, currentWave: open };
   for (const chunk of chunks) {
     if (chunk.wave >= open || chunk.wave <= replayPersistedWave) continue;
@@ -1482,20 +1509,22 @@ async function hydrateReplayDraft(run: RunState): Promise<void> {
   replayPersistedWave = 0;
   try {
     const draft = await replayDrafts.load(runId);
-    const restored = draft ? mergeDraftChunks(draft.chunks) : { frames: [], inspectTrail: [], cursorTrail: [] };
+    const restored = draft ? mergeDraftChunks(draft.chunks) : { frames: [], inspectTrail: [], cursorTrail: [], stream: [] };
     const frames = trimToBaseline(restored.frames);
     if (frames.length === 0) {
       // Nothing usable: a pre-persistence run, a cleared browser store, or a draft that failed validation.
       replayPartialReason = 'resumed_without_frames';
       return;
     }
-    const offset = lastRecordedTMs(frames, restored.inspectTrail, restored.cursorTrail) + RESUME_GAP_MS;
+    const offset = lastRecordedTMs(frames, restored.inspectTrail, restored.cursorTrail, restored.stream) + RESUME_GAP_MS;
     replayElapsedMs += offset; // the live clock continues from where the recording left off
     replayInspectTrail = [...restored.inspectTrail, ...shiftInspect(replayInspectTrail, offset)];
     // The cursor trail: this session's samples so far shift along with the frames, behind the restored ones.
     shiftCursorTrail(offset);
     const sinceBoot = takeCursorTrail(Number.MAX_SAFE_INTEGER);
     resetCursorTrail([...restored.cursorTrail, ...sinceBoot]);
+    // The spectator stream likewise: this session's segments move along, the restored rounds go in front.
+    prependStream(restored.stream, offset);
     useGame.setState((st) => ({
       replayFrames: [...frames, ...shiftFrames(st.replayFrames, offset)],
       // The recording now reaches back to its earliest persisted round. It is only still `partial` if that
@@ -1817,6 +1846,8 @@ function commitResolvedAction(
       const inspectTrail = replayInspectTrail.slice();
       // …and the cursor trail, capped to `CURSOR_TRAIL_MAX` (thinned uniformly beyond).
       const cursorTrail = takeCursorTrail();
+      // …and the spectator stream (R-REPLAY-STREAM-01): closed rounds by reference, the open one copied.
+      const stream = takeStream();
       // Capture locally (→ this browser's pool next launch) AND push to the shared backend (→ everyone's pool).
       // A victory also logs a leaderboard run (its final warband for the hover). Deferred so it never hitches
       // the end screen; all best-effort and never throw.
@@ -1983,7 +2014,7 @@ function commitResolvedAction(
         // reaches this block (lobby or not) and stashed on the store so "Rewatch last game" (Phase B) can play
         // it back locally; the lobby telemetry upload below rides the same object.
         const v2Base = assembleReplayV2(next, {
-          author, partial: s.replayPartial, frames: replayFrames, inspectTrail, cursorTrail,
+          author, partial: s.replayPartial, frames: replayFrames, inspectTrail, cursorTrail, stream,
           placement: lobbyPlacement ?? 0, finalBoard, activeMs: endedActiveMs,
         });
         // BOARD STRENGTH rides on the recorded result, for the Recent Games row (which reads this, never the history).
@@ -2090,6 +2121,7 @@ function commitResolvedAction(
       // Copied SYNCHRONOUSLY, as the ranked block does: the module-level trails reset the moment a new run seeds.
       const inspectTrail = replayInspectTrail.slice();
       const cursorTrail = takeCursorTrail();
+      const stream = takeStream();
       const partial = s.replayPartial;
       const actions = [...s.replayActions, action];
       // ACCOUNT PROGRESSION (2026-09-27): the practice ROW is this game's XP source, so the settlement waits for its
@@ -2102,7 +2134,7 @@ function commitResolvedAction(
           const patch = `${__APP_VERSION__}+${__BUILD_SHA__}`;
           const row = practiceGameOf(next, { author, patch, finalBoard, frames, activeMs: endedActiveMs });
           // The recorded outcome is the placement the practice end screen showed (the row's own placement).
-          const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, placement: row.placement ?? 0, finalBoard, activeMs: endedActiveMs });
+          const v2 = assembleReplayV2(next, { author, partial, frames, inspectTrail, cursorTrail, stream, placement: row.placement ?? 0, finalBoard, activeMs: endedActiveMs });
           // MATCH DETAILS (owner ask 2026-09-28): the table at this game's end, for the end screen now and the
           // Practice tab later. It rides inside the row's `replay` jsonb (`replay.match`), so no new column.
           const match = matchDetailsOf(next, author, finalBoard, row.placement);

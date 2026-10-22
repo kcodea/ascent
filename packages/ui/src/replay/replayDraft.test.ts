@@ -12,9 +12,9 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_BOT, combatFrameOf, createLobbyRun, deltaShopFrameOf, expandFrames, reduce, roundMarks,
+  DEFAULT_BOT, combatFrameOf, packInts, createLobbyRun, deltaShopFrameOf, expandFrames, reduce, roundMarks,
   shopFrameOf,
-  type InspectEvent, type ReplayFrame, type RunState, type ShopView,
+  type InspectEvent, type ReplayFrame, type RunState, type ShopView, type StreamSegment,
 } from '@game/sim';
 import {
   RESUME_GAP_MS, REPLAY_DRAFT_SCHEMA, draftRunId, firstRecordedWave, isValidChunk, lastRecordedTMs,
@@ -68,6 +68,21 @@ describe('splitIntoChunks / mergeDraftChunks round-trip', () => {
     expect(chunks.reduce((n, c) => n + c.frames.length, 0)).toBe(cap.frames.length);
     // Every frame in a chunk belongs to that chunk's wave — the key the store writes under.
     for (const c of chunks) for (const f of c.frames) expect(f.wave).toBe(c.wave);
+  });
+
+  it('R-REPLAY-STREAM-01: stream segments ride their round chunk, merge back in clock order, and push the resume clock', () => {
+    const waves = [...new Set(cap.frames.map((f) => f.wave))];
+    const segOf = (w: number, t0: number, t1: number): StreamSegment => ({ w, t0, t1, n: 1, k: [], m: packInts([0, 0, 5, 5]) });
+    const segs = [segOf(waves[0]!, 0, 50), segOf(waves[1]!, 400, 450), segOf(waves[1]!, 99_000, 99_500)];
+    const chunks = splitIntoChunks('r', cap.frames, [], [], segs);
+    expect(chunks.find((c) => c.wave === waves[1])!.stream).toEqual([segs[1], segs[2]]);
+    expect(chunks.every(isValidChunk)).toBe(true);
+    expect(isValidChunk({ ...chunks[0]!, stream: 'junk' })).toBe(false);
+    const merged = mergeDraftChunks(JSON.parse(JSON.stringify(chunks)));
+    expect(merged.stream).toEqual(segs);
+    expect(lastRecordedTMs(merged.frames, [], [], merged.stream)).toBe(Math.max(99_500, cap.tMs));
+    // An older chunk (no stream) merges to none.
+    expect(mergeDraftChunks(splitIntoChunks('r', cap.frames)).stream).toEqual([]);
   });
 
   it('merges back to the identical frame list, in the identical order', () => {

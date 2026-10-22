@@ -226,7 +226,8 @@ import { Flip } from 'gsap/Flip';
 import { elementBelowVeil, hideDragCursorVeil, showDragCursorVeil } from './dragCursorVeil';
 import { installAimCursorHide, setAimCursorHidden } from './aimCursorHide';
 import { fromSimpleState, getSimpleState, withoutFlipBodyLock, type StageFlipState } from './stageFlip';
-import { recordCursorSample, useGame } from './store';
+import { recordCursorSample, recordsStreamNow, useGame } from './store';
+import { startStreamCapture } from './replay/streamRecorder';
 import { combatMayEndGame, gateMotionAllowed, resolutionEndsGame } from './rankedGate/endGameGate';
 import { requestRankedGate } from './rankedGate/rankedGateController';
 import { warmRankedGate } from './rankedGate/RankedGate';
@@ -3204,6 +3205,11 @@ export function Recruit() {
     window.addEventListener('pointermove', onMove, { passive: true });
     return () => window.removeEventListener('pointermove', onMove);
   }, [spectating, inCombat]);
+  // REPLAY V2 SPECTATOR STREAM (owner 2026-10-22, R-REPLAY-STREAM-01): while a run that keeps a replay is in the shop,
+  // the recorder takes the SAME cursor messages the live spectator sender builds (`versus/cursorSource.ts`), so the
+  // replay can play the hand as the stands saw it. Off in combat, during playback and on the watch screen.
+  const recordsStream = useGame(recordsStreamNow);
+  useEffect(() => (recordsStream && !spectating && !inCombat ? startStreamCapture() : undefined), [recordsStream, spectating, inCombat]);
 
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt

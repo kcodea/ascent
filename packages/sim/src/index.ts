@@ -39,6 +39,7 @@ export * from './synthesize';
 export * from './balanceReport';
 export { BOTS, BOT_BY_ID, DEFAULT_BOT, type BotPolicy, type BotWeights } from './bots';
 export * from './replayV2';
+export * from './replayStream';
 export * from './bugReport'; // shared bug-reporter envelope/capsule + inbox shapes — ui AND tools read these
 export * from './qaScenario'; // QaScenarioV1 — the ONE shared QA scenario envelope + pure runner (Scene Builder, Docbot, bug repro, regressions)
 export * from './windowReplay'; // WP C — exact per-action report replay from the capsule's rolling window (tools + the dev report panel share one verdict)

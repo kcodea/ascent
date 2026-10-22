@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -2121,7 +2121,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -2138,6 +2138,21 @@ export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCas
       payRuneThreshold(state, t);
     }
   }
+}
+
+/**
+ * THE FROM-HAND PLAY METERS (Set 3 Dragon runes, owner 2026-10-21). "After you cast 3 Whispers from hand" (Rune of the
+ * Secret Exchange) and "After you cast 3 Shop spells from hand" (Rune of the Wyrm's Hoard) count CARDS the player
+ * casts from hand: one tick per hand play, called by the reducer's hand-play paths only (the same sites that open
+ * `withHandCast`). A Yazzus / Nimbus repeat is the same play, and a rune's, minion's, Equipment's or Whisp's cast
+ * is not a hand cast, so neither ticks. A Whisper is never a Shop spell; a Gift, a reward / token spell and a Ruby are
+ * neither. Called after the cast resolves, so the trip's payout follows the cast that earned it.
+ */
+export function noteHandCastPlay(state: RunState, def: CardDef): void {
+  if (!def.spell) return;
+  if (def.whisper) { advanceRuneThresholds(state, 'whisperFromHand', 1); return; }
+  if (def.gift || def.token || def.rewardSpell || def.ruby) return;
+  advanceRuneThresholds(state, 'shopSpellFromHand', 1);
 }
 
 function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThresholds']>[number]): void {
@@ -2157,6 +2172,9 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   if (t.grantRuby) mintRubies(state, t.grantRuby);
   if (t.grantRandomRuby) mintRandomRubies(state, t.grantRandomRuby); // Rune of Minted Gems (Set 3 design pass)
   if (t.grantRandomWhisper) mintRandomWhispers(state, t.grantRandomWhisper); // Rune of Loose Tongues (Set 3 Dragon runes): the gated Whisper pool
+  // Rune of the Secret Exchange (owner 2026-10-21): Discover a Shop spell (the Rift-Sunk Codex spec: the run's Shop
+  // spells up to your tier), queued behind any open Discover.
+  for (let i = 0; i < (t.discoverSpell ?? 0); i++) queueDiscover(state, { kind: 'spell' });
   // Rune of the Deep Feast: a NAMED body on a meter. `overflow` because an earned reward is never dropped to
   // a full hand — the same rule every quest/rune grant follows.
   for (const id of t.grantCards ?? []) {
@@ -3117,6 +3135,18 @@ export function whisperSpellsToNext(state: Pick<RunState, 'spellsCast' | 'rubyCa
   const per = num((eff?.params as { perSpells?: number } | undefined)?.perSpells, 0);
   if (per <= 0) return undefined;
   return per - (allSpellsCastThisGame(state) % per);
+}
+
+/**
+ * RUNE OF RUNIC TRANSPOSITION (owner 2026-10-21): "Whispers that give a Dragon Health also give it that much Attack."
+ * The extra Attack is PART OF the Whisper's grant (folded into the same temporary buff, so it expires with it and a Hum
+ * keeps it with it), on top of any Attack the Whisper already gives (owner: a +2/+3 Whisper gives +5 Attack and +3
+ * Health). Per copy held. The Shop half; the combat half is `castWhisperInCombat`. Returns the Attack to add.
+ */
+export function runicTranspositionAttack(state: RunState, target: BoardCard, health: number): number {
+  if (health <= 0 || !state.questFlags?.runeRunicTransposition || !isTribe(target, 'dragon')) return 0;
+  procRuneId(state, 'rune_runic_transposition');
+  return health * runeStacksOf(state, 'rune_runic_transposition');
 }
 
 /** Apply a Whisper's TEMPORARY grant: a normal Shop buff (so the ledger and every watcher see it) that is ALSO
@@ -4983,7 +5013,8 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (!def) return;
     const m = currentWhisperMult();
     const v = whisperValue(ctx.state, def);
-    applyWhisperBuff(self, str(params._source) || def.name, v.attack * m, v.health * m);
+    const wa = v.attack * m, wh = v.health * m;
+    applyWhisperBuff(self, str(params._source) || def.name, wa + runicTranspositionAttack(ctx.state, self, wh), wh);
     // Bait (2026-10-15): "+3/+5 and Taunt". The keyword lasts as long as the stats; a gilded copy does not double it.
     const kw = str(params.keyword);
     if (kw) applyWhisperKeyword(self, kw as Keyword);
@@ -12306,10 +12337,29 @@ function makeContext(state: RunState): RecruitContext {
         state.pendingSummonBuff = undefined;
       }
       fire(ctx, 'onSummon', { minion });
+      runeboundBroodShop(state, minion);
       return minion;
     },
   };
   return ctx;
+}
+
+/** Tolan's Whisper, the one the Set 3 Dragon runes cast (War Council, the Runebound Brood). */
+export const RUNEBIND_ID = 'w4_runebind';
+/**
+ * RUNE OF THE RUNEBOUND BROOD, Shop half (owner 2026-10-21): "Drake Pups you summon cast Runebind on themselves." A Pup
+ * summoned in the Shop (a Seed Echo fired there) casts Runebind on itself once per copy held: a real Whisper cast
+ * (counted, Whisp-echoed, Runebind improves), the rune as the caster, at the plain multiplier. Its stats follow the
+ * Whisper rule (temporary, until your next turn). The combat half is `summonEntryEffects` in simulate.ts.
+ */
+function runeboundBroodShop(state: RunState, pup: BoardCard): void {
+  if (pup.cardId !== SEED_TOKEN_ID || !state.questFlags?.runeRuneboundBrood) return;
+  const runebind = CARD_INDEX[RUNEBIND_ID];
+  if (!runebind?.whisper) return;
+  procRuneId(state, 'rune_runebound_brood');
+  withCastActor({ kind: 'rune', id: 'rune_runebound_brood' }, () => withWhisperMult(1, () => {
+    for (let k = 0; k < runeStacksOf(state, 'rune_runebound_brood') && state.board.includes(pup); k++) castSpell(state, runebind, pup);
+  }));
 }
 
 /** "Best single copy, no stacking, golden = +2" repeat count, shared by Drakko (Battlecries) and Chronos

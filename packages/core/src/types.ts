@@ -1478,7 +1478,9 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand'; per: number;
+      /** Rune of the Secret Exchange (Set 3 Dragon runes, owner 2026-10-21): open that many Shop-spell Discovers. */
+      discoverSpell?: number;
       /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
       grantRandomRuby?: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
@@ -1984,7 +1986,12 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // deepBreaths (the first 2 Dragon attacks cast Growth), defiantWings (SoC: 2 Dragons +3/+6 and Ward), finalUtterance
   // (Avenge (4): a Whisper and a Shop Spell), emberInheritance (the first Echo Dragon death gives its Attack left-most).
   | 'runeRunicPrimer' | 'runeClearVoices' | 'runeSpellFedScales' | 'runeBorrowedFlame' | 'runeSpellTempering' | 'runeOpenTreasury'
-  | 'runeDeepBreaths' | 'runeDefiantWings' | 'runeFinalUtterance' | 'runeEmberInheritance';
+  | 'runeDeepBreaths' | 'runeDefiantWings' | 'runeFinalUtterance' | 'runeEmberInheritance'
+  // Set 3 Dragon runes, Epic A (owner 2026-10-21): warCouncil = Start of Combat, Runebind on 3 random Dragons;
+  // growingInferno = a Dragon attack casts Growth; runeboundBrood = a summoned Drake Pup casts Runebind on itself;
+  // unbrokenScales = the first 2 Dragon Ward losses each combat give +10/+10 and Ward; runicTransposition = a Whisper's
+  // Health on a Dragon also gives that much Attack.
+  | 'runeWarCouncil' | 'runeGrowingInferno' | 'runeRuneboundBrood' | 'runeUnbrokenScales' | 'runeRunicTransposition';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2474,6 +2481,18 @@ export interface QuestCombatMods {
   /** Rune of Ember Inheritance: the first friendly Dragon WITH an Echo to die each fight gives its Attack to the left-most
    *  living friendly Dragon (per copy). */
   runeEmberInheritance?: boolean;
+  // ── Set 3 Dragon runes, Epic A (owner 2026-10-21) ──
+  /** Rune of the War Council: Start of Combat, cast Runebind on 3 random friendly Dragons (per copy). */
+  runeWarCouncil?: boolean;
+  /** Rune of the Growing Inferno: every friendly Dragon attack casts Growth (per copy), the rune as caster. */
+  runeGrowingInferno?: boolean;
+  /** Rune of the Runebound Brood: a Drake Pup this side summons casts Runebind on itself (per copy). */
+  runeRuneboundBrood?: boolean;
+  /** Rune of Unbroken Scales: the first 2 times a friendly Dragon loses Ward each combat (side-wide), it gains
+   *  +10/+10 (per copy) and Ward. */
+  runeUnbrokenScales?: boolean;
+  /** Rune of Runic Transposition: a Whisper cast on a friendly Dragon also gives it Attack equal to the Health it gives. */
+  runeRunicTransposition?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
@@ -4241,6 +4260,9 @@ export interface CombatContext {
   /** Set 3 WHISPERS: this side's LIVE per-Whisper improvement (seeded from `CombatSideState.whisperImprove`, raised by
    *  each combat Runebind), and the raise itself. Absent = no Whisper support (a bare harness). */
   whisperImproveFor?(side: Side, whisperId: string): number;
+  /** Rune of Runic Transposition: how many copies `side` holds (0 = none). A Whisper landing on a Dragon adds its
+   *  Health x this to its Attack. Absent = no rune support (a bare harness). */
+  runicTranspositionFor?(side: Side): number;
   addWhisperImprove?(side: Side, whisperId: string, n: number): number;
   /** Set 3 Dragon runes (Rune of Borrowed Flame, Rune of Spell Tempering): a combat Whisper cast landed on `target` (after its own grant). */
   onWhisperCast?(side: Side, whisperId: string, target: Minion, casterUid: string): void;

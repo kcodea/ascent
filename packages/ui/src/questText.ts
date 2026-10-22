@@ -381,11 +381,12 @@ export function questRewardText(r: QuestReward, live?: { completed?: boolean; sh
         : `Your Rubies cast ${times}`;
     }
     case 'runeThreshold': {
-      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', anySpell: 'spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', playDragon: 'Dragons you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume', playSpirit: 'Spirits you play', playBeast: 'Beasts you play' };
+      const METER: Record<typeof r.meter, string> = { gold: 'Gold you spend', spellCast: 'Shop spells you cast', anySpell: 'spells you cast', spellCastNonAle: 'Shop spells you cast (Dwarven Ales excluded)', castRuby: 'Rubies you cast', cardsBought: 'cards you buy', cardsPlayed: 'cards you play', playDragon: 'Dragons you play', shout: 'Shouts you trigger', consume: 'Shop minions you Consume', playSpirit: 'Spirits you play', playBeast: 'Beasts you play', whisperFromHand: 'Whispers you cast from hand', shopSpellFromHand: 'Shop spells you cast from hand' };
       const parts: string[] = [];
       if (r.grantSpell) parts.push(r.grantSpell === 1 ? 'get a random Shop spell' : `get ${r.grantSpell} random Shop spells`);
       if (r.grantAle) parts.push(r.grantAle === 1 ? 'get a random Dwarven Ale' : `get ${r.grantAle} random Dwarven Ales`);
       if (r.grantRuby) parts.push(r.grantRuby === 1 ? 'get a Ruby' : `get ${r.grantRuby} Rubies`);
+      if (r.discoverSpell) parts.push(r.discoverSpell === 1 ? 'Discover a Shop spell' : `Discover ${r.discoverSpell} Shop spells`);
       for (const id of r.grantCards ?? []) parts.push(`get a ${CARD_INDEX[id]?.name ?? id}`);
       if (r.castStatSpell) parts.push(r.castStatSpell === 1 ? 'cast a random stat-granting Shop spell' : `cast ${r.castStatSpell} random stat-granting Shop spells`);
       if (r.grantGoldNextTurn) parts.push(`gain ${r.grantGoldNextTurn} Gold next turn`);

@@ -3991,6 +3991,95 @@ export const EPIC_RUNES: RuneDef[] = [
     reward: { kind: 'multi', rewards: [{ kind: 'cardTribes', cardId: 'drummer', tribes: ['dragon', 'spirit'] }, { kind: 'grant', cards: ['drummer'] }] },
     sets: ['set2', 'set3'],
   },
+  // ── SET 3 DRAGON RUNES, EPIC A (owner 2026-10-21). Set 3 only, all Dragon-gated. Costs are the 2026-10-21 draft's
+  //    (docs/set3-dragon-rune-draft-30.md); the texts are the owner's. See docs/devlog/2026-10-21-set3-dragon-runes-epic-a.md. ──
+  {
+    // `runeWarCouncil` combat flag: Start of Combat, Runebind (a real Whisper cast, the rune as caster) on 3 different
+    // random living Dragons, per copy held. Twilight repeats it like every "Start of Combat:" rune.
+    id: 'rune_war_council',
+    tribes: ['dragon'], // TRIBE GATE: the text names Dragons
+    name: 'Rune of the War Council',
+    cost: 5,
+    epic: true,
+    text: '**Start of Combat:** Cast **Runebind** on **3** random **Dragons**.',
+    previewCards: ['w4_runebind'], // text names it: the forge hover shows the Whisper
+    reward: { kind: 'combatFlag', flag: 'runeWarCouncil' },
+    sets: ['set3'],
+  },
+  {
+    // `runeGrowingInferno` combat flag: every friendly Dragon swing casts Growth (the rune as caster), per copy held.
+    id: 'rune_growing_inferno',
+    tribes: ['dragon'],
+    name: 'Rune of the Growing Inferno',
+    cost: 5,
+    epic: true,
+    text: '**Dragon** attacks in combat cast **Growth**.',
+    previewCards: ['growth'],
+    reward: { kind: 'combatFlag', flag: 'runeGrowingInferno' },
+    sets: ['set3'],
+  },
+  {
+    // A `whisperFromHand` THRESHOLD (one tick per Whisper card cast from hand; repeats and rune/minion casts do not
+    // tick), banking its remainder, paying EVERY 3 (the counting-rune convention): a Shop-spell Discover.
+    id: 'rune_secret_exchange',
+    tribes: ['dragon'], // TRIBE GATE: Whispers come from Dragons
+    name: 'Rune of the Secret Exchange',
+    cost: 4,
+    epic: true,
+    text: 'After you cast **3 Whispers** from hand, **Discover** a **Shop spell**.',
+    reward: { kind: 'runeThreshold', meter: 'whisperFromHand', per: 3, discoverSpell: 1 },
+    sets: ['set3'],
+  },
+  {
+    // `runeRuneboundBrood` combat flag, read in BOTH phases: a Drake Pup summoned on your side casts Runebind on itself
+    // (combat: `summonEntryEffects`; Shop: `runeboundBroodShop`), per copy held.
+    id: 'rune_runebound_brood',
+    tribes: ['dragon'],
+    name: 'Rune of the Runebound Brood',
+    cost: 4,
+    epic: true,
+    text: '**Drake Pups** you summon cast **Runebind** on themselves.',
+    previewCards: ['d3_drakepup', 'w4_runebind'],
+    reward: { kind: 'combatFlag', flag: 'runeRuneboundBrood' },
+    sets: ['set3'],
+  },
+  {
+    // `runeUnbrokenScales` combat flag: a side-wide budget of 2 Dragon Ward losses per fight; each pays +10/+10 (per
+    // copy held) then the Ward re-forms (Foamguard's three beats).
+    id: 'rune_unbroken_scales',
+    tribes: ['dragon'],
+    name: 'Rune of Unbroken Scales',
+    cost: 5,
+    epic: true,
+    text: 'The first **2** times your **Dragons** lose **Ward** each combat, give it **+10/+10** and **Ward**.',
+    reward: { kind: 'combatFlag', flag: 'runeUnbrokenScales' },
+    sets: ['set3'],
+  },
+  {
+    // `runeRunicTransposition` combat flag, read in BOTH phases: a Whisper landing on a Dragon adds Attack equal to the
+    // Health it gives, on top of its own Attack (owner: a +2/+3 Whisper gives +5 Attack and +3 Health), as part of the
+    // Whisper's own grant (temporary like it; a Hum keeps it). Per copy held.
+    id: 'rune_runic_transposition',
+    tribes: ['dragon'],
+    name: 'Rune of Runic Transposition',
+    cost: 4,
+    epic: true,
+    text: '**Whispers** that give a **Dragon** Health also give it that much **Attack**.',
+    reward: { kind: 'combatFlag', flag: 'runeRunicTransposition' },
+    sets: ['set3'],
+  },
+  {
+    // A `shopSpellFromHand` THRESHOLD (one tick per Shop spell card cast from hand: no Whispers, Gifts, Rubies or
+    // reward spells; multi-casts are one play), paying EVERY 3: the run's spell power +1/+1 (the `spells` target).
+    id: 'rune_wyrms_hoard',
+    tribes: ['dragon'],
+    name: "Rune of the Wyrm's Hoard",
+    cost: 4,
+    epic: true,
+    text: 'After you cast **3 Shop spells** from hand, permanently improve your **Shop spells** by **+1/+1**.',
+    reward: { kind: 'runeThreshold', meter: 'shopSpellFromHand', per: 3, buff: { target: 'spells', attack: 1, health: 1 } },
+    sets: ['set3'],
+  },
   // ── OWNER BATCH 2026-10-07: the Dragon runes (Epic half) + the Wise Armory. ──
   {
     // A `shout` THRESHOLD paying a named card (`grantCards`, the Deep Feast shape). Cross-phase like the Chorus:

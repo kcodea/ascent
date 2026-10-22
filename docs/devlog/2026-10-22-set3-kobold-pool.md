@@ -29,7 +29,7 @@ Owner content changes for the Set 3 Kobolds.
 - Live text: `equipmentText` takes `chooseBothCharges` and appends `(N armed)` for an Equipment whose Choose One can arm
   a charge; the Status Bar slot passes the run's count.
 - Oracle: R-KOBOLD-1022-01 (triggers), R-RAND-RUBY-DISCOVER-01 (randomness). Patch note in the 2026-10-22 block.
-  `docbot:sync` regenerated; final-report contract total 1125 to 1128; balance aggregate snapshot regenerated.
+  `docbot:sync` regenerated; final-report contract total 1123 to 1126; balance aggregate snapshot regenerated. The text-parse unresolved pin moves 152 to 153 for Shardluck (its Choose One has no grammar rule yet).
 
 ## Verification
 
@@ -37,4 +37,4 @@ Owner content changes for the Set 3 Kobolds.
 snapshot and a deterministic combat replay, Delver's Echo in a Set 3 fight, Cavern Fiend consuming in a Set 3 run,
 Dealski seeded random across six types, Pick two Discovers with no plain Ruby across 40 seeds, Gilded four, the Both
 charge resolving Jewel's two branches and being spent, the armed text). Re-pinned: prismaticPick, rubyTypes,
-radRachel, koboldCelestialDwarf0924, set3Scaffold.
+radRachel, koboldCelestialDwarf0924, set3Scaffold, set3Batch1013.

@@ -67,8 +67,7 @@ const ART_PENDING = new Set<string>([
   // SET 3 UNDEAD: Bicycle Bob (owner handoff 2026-09-18) is authored ahead of its art — the tribe sprite until a master lands.
   // SET 3 KOBOLDS: NONE LEFT. The whole roster is arted as of 2026-08-31 — the last master (Gemsmith, both
   // Choose One branches) landed with the rename that gave the card its name.
-  // Owner Kobold batch 2026-10-22: the five new Kobolds ship ahead of their art (art is wired only on the owner's ask).
-  'k3_boyscout', 'k3_gramps', 'k3_zapdash', 'k3_frackattack', 'k3_rosey',
+  // Owner Kobold batch 2026-10-22: Boy Scout, Gramps, Zapdash, Frack Attack + Rosey masters wired the same day (owner ask). NONE LEFT.
   // SET 3 CELESTIALS (the reworked roster, 2026-09-11): all eight are arted as of 2026-09-13 (Neptus and Cometius
   // through aliases — their masters carry the pre-rename names).
   // SET 3 CELESTIALS — the Starform roster (2026-09-12): the 2026-09-13 Celestials batch landed Star Seed, Dawn

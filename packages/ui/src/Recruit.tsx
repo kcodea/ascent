@@ -255,6 +255,7 @@ import { heroSlotRuneId, rackRunes, runeNodeEl } from './heroSlotRune';
 import { VersusHud, useVersusRecruit } from './versus/VersusHud';
 import { finishVersusMatch, useVersusPaused, versusEndCombatPressed, versusMatchEndsAtPress } from './versus/versusStore';
 import { noteSpectatorBeat, overlayMinOf, spectatorFightCovered, takeSpectatorResume, useSpectate } from './versus/spectate';
+import { useReplayStream } from './replay/replayStreamPlayer';
 import { notePlayerBeat, tapOdds, tapOverlay, tapSkipCombat } from './versus/spectateTap';
 import { WatchersBadge } from './versus/WatchersBadge';
 import { onPressCue } from './pressCue';
@@ -2923,6 +2924,16 @@ export function Recruit() {
     skipDoneRef.current = spectatorSkip.n;
     if (!replay.done) skipCombat();
   }, [spectatorSkip, fighting, watchingVersus, run.wave]);
+  // A REPLAY whose recorded player skipped this fight skips it at the same point (R-REPLAY-PLAYBACK-01; the stream's
+  // Skip event, `replayStreamPlayer.streamFightShown`), the same skip the button runs, once per request.
+  const replayStreamSkip = useReplayStream((s) => s.skip);
+  const replaySkipDoneRef = useRef(0);
+  useEffect(() => {
+    if (!fighting || !replayStreamSkip || replayStreamSkip.wave !== run.wave || replaySkipDoneRef.current === replayStreamSkip.n) return;
+    if (!useGame.getState().replaySession) return;
+    replaySkipDoneRef.current = replayStreamSkip.n;
+    if (!replay.done) skipCombat();
+  }, [replayStreamSkip, fighting, run.wave]);
   const spectatorSeek = useSpectate((s) => s.seek ?? null);
   const seekDoneRef = useRef(0);
   useEffect(() => {
@@ -3055,6 +3066,16 @@ export function Recruit() {
     setQuestMin(min.quest);
     setForgeMin(min.forge);
   }, [spectatorOn, watchedOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer]);
+  // A REPLAY follows the recorded player's minimize the same way (R-REPLAY-PLAYBACK-01): the stream's overlay state at
+  // the replay's moment, applied after the same resets. Nothing recorded (an older replay): nothing changes.
+  const replayOverlay = useReplayStream((s) => s.overlay);
+  useEffect(() => {
+    if (spectatorOn || !replayOverlay || !useGame.getState().replaySession) return;
+    setDiscoverMin(replayOverlay.discover);
+    setPowerMin(replayOverlay.power);
+    setQuestMin(replayOverlay.quest);
+    setForgeMin(replayOverlay.forge);
+  }, [spectatorOn, replayOverlay, run.discover, run.powerOffer, run.questOffer, run.runeforgeOffer]);
   // Bridge the live enemy-death count to the store so the StatusBar's Cassen counter ticks up during the
   // replay. Zero it once the combat is SETTLED (not just when we leave combat): at replay's end settleCombat
   // banks the kills into run.cassenKills, so continuing to add the live count too would double-show them

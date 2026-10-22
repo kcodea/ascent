@@ -98,6 +98,9 @@ export function SpectatorCursor(): JSX.Element | null {
   const [aimOn, setAimOn] = useState(false);
   const inCombat = useGame((s) => s.run.phase === 'combat');
   const flying = useGame((s) => s.replayDragGhost !== null);
+  // A REPLAY's Cursor toggle off (R-REPLAY-PLAYBACK-01): the pointer sprite goes; the held card, its gap, the aim and the
+  // hovers still play (they are the game, not the pointer).
+  const handOff = useGame((s) => s.replaySession?.hasStream === true && s.replaySession.cursor === false);
 
   useEffect(() => {
     let raf = 0;
@@ -218,7 +221,7 @@ export function SpectatorCursor(): JSX.Element | null {
       <div className="ghostmover vsspec-cardmover" ref={cardRef}>
         {view && <div className={`ghostcardwrap${card?.source === 'hand' ? ' fromhand' : ''}`}><div className="dragshrink"><Card card={view} suppressPop /></div></div>}
       </div>
-      <div className="ghostmover" ref={moverRef} style={{ opacity: visible && !aimOn ? 1 : 0 }}>
+      <div className="ghostmover" ref={moverRef} style={{ opacity: visible && !aimOn && !handOff ? 1 : 0 }}>
         <img decoding="sync" className={fist ? 'ghostfist' : 'vsspec-cursor-open'} src={fist ? FIST_SRC : OPEN_SRC} alt="" draggable={false} />
       </div>
     </div>

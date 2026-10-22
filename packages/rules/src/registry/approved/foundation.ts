@@ -7625,4 +7625,18 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A player hovers a shop card, drags it onto the board between two minions, and minimizes the Runeforge: the replay stream holds the same messages the stands received, so the replay can show the hover, the gap opening and the overlay closing at the same moments.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamParity.test.ts', 'packages/sim/src/replayStream.test.ts', 'packages/ui/src/replay/replayDraft.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-REPLAY-PLAYBACK-01',
+    title: 'A replay with a recorded spectator stream plays the hand through the live watch screen pipeline',
+    statement:
+      'When a replay carries a stream (R-REPLAY-STREAM-01), its recorded cursor messages are fed into the watch screen cursor feed on the replay frames clock, a fixed lead ahead of it, and the watch screen SpectatorCursor draws the hand, the held card with its drop gap, the aim line, the hover previews and the refused-drop spring-back. A drag frame lands at its recorded moment with no ghost flight, and the held card lands through the watch screen own drop. The recorded overlay minimize state and Skip apply at their moments. Pause and the speed slider follow the replay clock. A seek clears the feed and rebuilds the hand at the target from the last message at or before it, so the same target always gives the same hand. A replay without a stream (or with a malformed one) plays exactly as before: the cursor trail and the drag ghost.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (replay to spectating quality)', quote: 'is our replay as good as spectating is? spectating seems basically perfect now... would love to keep them both maintained' },
+    ],
+    currentBehaviour: 'Before, a replay drew a 20 Hz window-fraction cursor and flew a ghost card along an untimed drag path, with no anchoring to the UI, no drop gap during the drag, no aim line, no hover previews, no overlay minimize and no Skip.',
+    example: 'Watching a replay at 2x, the hand hovers a shop minion (its preview opens), drags it over the board while the minions slide apart, and drops it: the board settles once, as it did for a live spectator.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamPlayback.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

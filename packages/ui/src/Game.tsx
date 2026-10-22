@@ -82,6 +82,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 import { ReplayOverlay } from './replay/ReplayOverlay';
 import { ReplayDragGhost } from './replay/ReplayDragGhost';
 import { ReplayCursorGhost } from './replay/ReplayCursorGhost';
+import { SpectatorCursor } from './versus/SpectatorCursor';
 import { RoundRail } from './replay/RoundRail';
 import { PixiFxLayer } from './PixiFxLayer';
 import { CastPreviewLayer } from './CastPreviewLayer';
@@ -139,6 +140,7 @@ const MENU_SFX_SKIP = '[data-nohoversfx], [data-quiet], .devmenu, .desk, .heropo
 
 export function Game() {
   const phase = useGame((s) => s.run.phase);
+  const replayHasStream = useGame((s) => s.replaySession?.hasStream === true);
   const sandbox = useGame((s) => s.run.sandbox);
   // GOD MODE (owner 2026-10-08) rides the sandbox flag, but the DEV rig's panels never mount over it.
   const godMode = useGame((s) => s.run.godMode === true);
@@ -653,6 +655,8 @@ export function Game() {
           recorded player's held card and wears their skin (R-PROG-SKINS-17). A context, not a DOM node. */}
       <RunSkins>
       <ReplayCursorGhost />
+      {/* A replay with a recorded spectator stream draws the hand exactly as the stands did (R-REPLAY-PLAYBACK-01). */}
+      {replayHasStream && <SpectatorCursor />}
       <ReplayDragGhost />
       <RoundRail />
       <ReplayOverlay />

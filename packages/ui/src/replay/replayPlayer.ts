@@ -25,6 +25,8 @@ import { captureRuneLockIn, chosenRuneIndex } from '../runeLockInCapture';
 import { skipRuneforgeEntrance } from '../runeforgeEntrance/entrance';
 import type { RuneLockInCard } from '../RuneLockIn';
 import { synthRunFromShopView } from './synthRun';
+import { presentHeldDrop } from '../versus/spectate';
+import { seekStream, startStreamPlayback, stopStreamPlayback, streamFightShown } from './replayStreamPlayer';
 
 /** Shop-frame pacing bounds (before the speed divisor) — salvaged from the killed v1 driver. A FLOOR so a
  *  fast run is still legible beat-by-beat rather than blipping past; a DEFAULT when a delta is missing or
@@ -114,6 +116,14 @@ let cursorTrail: CursorSample[] = [];
 export function replayCursorTrail(): readonly CursorSample[] {
   return cursorTrail;
 }
+/**
+ * THE RECORDED SPECTATOR STREAM IS PLAYING (R-REPLAY-PLAYBACK-01): the recording carries `stream`, so the hand, the held
+ * card and its drop gap, the aim, the hovers, the overlays and Skip play through the watch screen's own pipeline
+ * (`replayStreamPlayer.ts`). Then a drag frame lands at its recorded moment with no ghost flight (the stream's hand
+ * carried the card there) and the old cursor trail is not drawn. False for an older recording: everything as before.
+ */
+let streamOn = false;
+export const replayStreamOn = (): boolean => streamOn;
 
 // ── Viewer toggles (2026-09-19): shop sounds + the cursor sprite. Persisted per browser, default ON. ──────
 const SOUNDS_KEY = 'ascent.replay.sounds';
@@ -370,7 +380,7 @@ function sessionBase(i: number, f: Frame): NonNullable<StoreState['replaySession
   return {
     index: i, total: frames.length, playing, speed, round: f.wave, authorName, partial,
     phase: f.kind === 'combat' ? 'combat' : 'shop',
-    sounds, cursor: cursorOn, hasCursorTrail: cursorTrail.length > 0,
+    sounds, cursor: cursorOn, hasCursorTrail: !streamOn && cursorTrail.length > 0, hasStream: streamOn,
     roundInfoTick: prev?.roundInfoTick ?? 0,
   };
 }
@@ -686,7 +696,7 @@ export function replayClockMs(): number {
  *  nothing to show: no trail, the toggle off, a combat frame (the trail is recruit-only), or a ghost in
  *  flight (its closed fist IS the hand). `hint` threads the last sample index back in for O(1) advance. */
 export function replayCursorAt(hint?: number): { x: number; y: number; index: number } | null {
-  if (!cursorOn || cursorTrail.length === 0) return null;
+  if (streamOn || !cursorOn || cursorTrail.length === 0) return null;
   const f = frames[idx];
   if (!f || f.kind === 'combat' || ghostLandPending) return null;
   return cursorAt(cursorTrail, replayClockMs(), hint);
@@ -696,7 +706,8 @@ function advance(myToken: number): void {
   if (myToken !== token) return;
   if (idx >= frames.length - 1) { finish(); return; }
   const nf = frames[idx + 1];
-  const drag = nf && nf.kind === 'shop' ? playableDragPath(nf.drag) : null;
+  // A stream replay never flies a ghost: the recorded hand already carried the card to where it was let go.
+  const drag = !streamOn && nf && nf.kind === 'shop' ? playableDragPath(nf.drag) : null;
   if (drag) {
     // DRAG GHOST (owner ask 2026-08-19, "1:1 hands"): the clock has advanced INTO a frame produced by a
     // drag. Instead of the result snapping in, replay the hand first — a ghost of the card flies the
@@ -727,8 +738,16 @@ function advance(myToken: number): void {
   const prevF = frames[idx];
   idx += 1;
   const prevRun = useGame.getState().run;
+  // THE STREAM'S DROP (R-REPLAY-PLAYBACK-01): the card the recorded hand holds (or parked where it was let go) slides
+  // home from where it is as the frame lands, the watch screen's own drop (`presentHeldDrop`). Before the render.
+  const landed = frames[idx]!;
+  if (streamOn && prevF?.kind === 'shop' && landed.kind === 'shop') {
+    const act = frameAction(prevF, landed);
+    if (act) presentHeldDrop([{ t: act.type, ...('uid' in act && typeof act.uid === 'string' ? { uid: act.uid } : {}) }], prevRun, landed.view);
+  }
   renderFrame(idx);
   fireFrameSfx(prevF, frames[idx]!, prevRun, useGame.getState().run);
+  if (streamOn && landed.kind === 'combat') streamFightShown(landed.wave, landed.tMs, frames[idx + 1]?.tMs ?? Number.POSITIVE_INFINITY);
   scheduleNext(myToken);
 }
 
@@ -775,7 +794,7 @@ function scheduleNext(myToken: number): void {
     // INTO A FIGHT WITH A RECORDED END OF TURN: hold the shop until End Turn was pressed, then play the beats.
     const eot = next.kind === 'combat' ? next.eot : undefined;
     if (eot && eotPhase !== 'idle') { awaitEot(myToken); return; }
-    const stepDrag = next.kind === 'shop' ? playableDragPath(next.drag) : null;
+    const stepDrag = !streamOn && next.kind === 'shop' ? playableDragPath(next.drag) : null;
     const stepEndMs = eot ? Math.min(next.tMs, Math.max(f.tMs, eot.atMs)) : next.tMs;
     const paced = paceStepMs(stepEndMs - f.tMs);
     const total = Math.max(0, paced - (stepDrag ? Math.min(stepDrag.durMs, paced) : 0));
@@ -845,6 +864,8 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   speed = 1;
   playing = true;
   token += 1;
+  // The recorded spectator stream (2026-10-22): played through the watch screen's pipeline on this replay's clock.
+  streamOn = startStreamPlayback(replay.stream, replayClockMs, () => speed, () => frames[idx]?.kind === 'shop', () => sounds);
   authorName = meta?.authorName ?? replay.author;
   // A recording that doesn't reach back to round 1 advertises its RANGE, so the rail can say what it has
   // instead of letting the viewer infer that rounds were dropped. Derived from the marks rather than trusted
@@ -936,6 +957,8 @@ export function seekReplay(tMs: number): void {
   const seekTarget = Math.max(tMs, frames[idx]?.tMs ?? tMs);
   const ei = latestInspectAt(inspectTrail, seekTarget);
   if (ei >= 0 && inspectTrail[ei]!.inspect) applyInspect(inspectTrail[ei]!.inspect);
+  // The recorded hand, rebuilt at the target (held card, aim, hover, overlays), deterministically.
+  if (streamOn) seekStream(seekTarget);
   patchSession({ ended: false }); // seeking rewinds out of the terminal state
   if (playing) scheduleNext(token);
 }
@@ -966,6 +989,11 @@ export function seekReplayIndex(i: number, opts?: { atTMs?: number; playCombat?:
   const at = opts?.atTMs ?? frames[k]!.tMs;
   const ei = latestInspectAt(inspectTrail, at);
   if (ei >= 0 && inspectTrail[ei]!.inspect) applyInspect(inspectTrail[ei]!.inspect);
+  if (streamOn) {
+    seekStream(at);
+    const f = frames[k]!;
+    if (f.kind === 'combat') streamFightShown(f.wave, f.tMs, frames[k + 1]?.tMs ?? Number.POSITIVE_INFINITY);
+  }
   patchSession({ ended: false });
   if (playing) scheduleNext(token);
 }
@@ -1000,6 +1028,8 @@ export function endReplay(): void {
   effTimes = [];
   inspectTrail = [];
   cursorTrail = [];
+  stopStreamPlayback();
+  streamOn = false;
   roundInfo = [];
   cancelBackfill();
   replayEpoch += 1;

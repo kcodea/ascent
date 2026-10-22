@@ -56,6 +56,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-22',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Replays now show the recorded hand exactly as spectators see it live.',
+        details: [
+          'The cursor moves smoothly at the full rate and lands on the same card or button on any screen shape.',
+          'A dragged card travels in the hand, the board opens its gap as it passes, and a refused drop springs back.',
+          'Aim lines, hover previews, minimized overlays and a skipped fight all play back as they happened.',
+          'Speed, pause and scrubbing work as before. Replays recorded before this update play as they always did.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-21',
     changes: [
       {

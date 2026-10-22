@@ -34,6 +34,18 @@ const ONLY = (() => {
   if (!arg) return null;
   return new Set(arg.slice('--only='.length).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
 })();
+/**
+ * `--ids=<id>[,<id>]` — wire only matches that land on these output ids (e.g. `--ids=rune_wake,rune_anvil`).
+ *
+ * Added 2026-10-22: wiring a handful of NEW emblems with a full `--only=runes --apply` re-encodes every existing
+ * rune too. This keeps a targeted wire inside the same pipeline (same matcher, resize and report) while the
+ * diff stays limited to the ids actually being added. Combine with `--only=` to pick the job.
+ */
+const IDS = (() => {
+  const arg = process.argv.find((a) => a.startsWith('--ids='));
+  if (!arg) return null;
+  return new Set(arg.slice('--ids='.length).split(',').map((x) => x.trim()).filter(Boolean));
+})();
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
 const ART_PX = 512;
 
@@ -523,6 +535,7 @@ for (const job of JOBS) {
   // an exact current-name match always lands on top of them.
   matches.sort((a, b) => Number(a.exact) - Number(b.exact));
   for (const m of matches) {
+    if (IDS && !IDS.has(m.id)) continue; // `--ids=`: a targeted wire leaves every other id untouched
     wired.push(`${m.label}  ->  ${m.id}.png`);
     if (!APPLY) continue;
     // Both outputs are written RESIZED, never copied. `indexArt` in @game/ui resolves `.webp` over `.png` for

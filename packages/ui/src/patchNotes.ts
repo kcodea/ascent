@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      { category: 'Systems', text: '40 more runes have their emblem art.' },
       {
         category: 'Systems',
         text: 'Replays now show the recorded hand exactly as spectators see it live.',

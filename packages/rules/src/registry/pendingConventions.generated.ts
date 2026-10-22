@@ -139,11 +139,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-echo",
-    "title": "'echo' family · 63 cards",
-    "statement": "All 63 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'echo' family · 64 cards",
+    "statement": "All 64 'echo' cards trigger the same way. Gilding doubles their output; a few summon a gilded token instead. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "49 effect factories across 63 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
-    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Wooly · T-Rex · Voidmother · Wolvie · Eatah · Blaster · … and 51 more",
+    "currentBehaviour": "49 effect factories across 64 cards dispatch through the 'echo' presentation family, all on the single trigger 'onDeath' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline is the safe reading, with Void Panther / T-Rex / Chicken Brawl gilding the token they summon instead of doubling the count (owner ruling 2026-08-28).",
+    "cardText": "Exemplar — Amun Rab: \"Deathrattle: Summon 7 Imps and give your Imps +5/+5.\" · Members: Amun Rab · Anubis, Last Gate · Ashen Heir · Armadiyo · Bullseye · Dawnclaw · Wooly · T-Rex · Voidmother · Wolvie · Eatah · Blaster · … and 52 more",
     "example": "Amun Rab follows the 'echo' convention — its trigger fires on onDeath. Gilded T-Rex summons one GILDED T-Rex Baby, while gilded Wolves Den summons 6 Crypt Wolves instead of 3.",
     "contentIds": [
       "amunrab",
@@ -183,6 +183,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "impoverseer",
       "jenkins",
       "junk",
+      "k3_veinchant",
       "k_faultline",
       "k_gemheart",
       "k_geode",
@@ -833,11 +834,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-global-dual-tribe",
-    "title": "Dual & universal tribes · 24 carriers",
+    "title": "Dual & universal tribes · 25 carriers",
     "statement": "A dual-tribe minion counts as both tribes, everywhere. A universal minion counts as every tribe. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "categories",
     "currentBehaviour": "isTribe/tribe predicates fold tribe2 and universalTribe; the tribePredicates lane sweeps raw comparisons.",
-    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Vaultkeeper · Gravus · Goldilox · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · Kurse · … and 12 more",
+    "cardText": "Exemplar — Bane: \"After you trigger a Shout, give your Imps +3/+3 this run.\" · Carriers: Bane · Crypt Drake · Crypt Wolf · Vaultkeeper · Gravus · Goldilox · Han Gover · Baal · High King Mykel · Mountainbond · Heckbinder · Kurse · … and 13 more",
     "example": "Bane receives BOTH tribes' buffs and satisfies either tribe's quest counters.",
     "contentIds": [
       "bane",
@@ -852,6 +853,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "dw_mountainbond",
       "heckbinder",
       "k3_kurse",
+      "k_gemgorge",
       "labexperiment",
       "n2_abomination",
       "n2_paragon",
@@ -908,7 +910,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "395 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "398 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2424,14 +2426,15 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-ruby",
-    "title": "Trigger: a Ruby is gained or cast · 3 cards",
-    "statement": "All 3 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a Ruby is gained or cast · 4 cards",
+    "statement": "All 4 of these fire on one trigger: a Ruby is gained or cast. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "7 effect factories across 3 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Gem Sage · Reflector",
+    "currentBehaviour": "7 effect factories across 4 cards dispatch on 'onGetRuby', 'onRubyPlayed', 'rubyCast', 'rubyPlayedAnywhere' (both/combat/recruit) — re-clustered by TRIGGER out of the 'economy' + 'economyReact' presentation families on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Trouble: \"When a Ruby is cast on another minion in combat, cast a Ruby on this.\" · Members: Trouble · Cavern Fiend · Gem Sage · Reflector",
     "example": "Trouble fires when a Ruby is gained or cast, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "k3_doubletrouble",
+      "k_gemgorge",
       "k_gemsage",
       "n2_reflector"
     ]

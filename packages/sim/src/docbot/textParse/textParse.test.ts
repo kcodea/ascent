@@ -183,7 +183,10 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-21 (Set 3 Dragon Epic runes B: Lasting Words, Twin Tongues, the Opened Vault, Bequeathed Secrets): 148 -> 152,
 // CONSCIOUSLY (on top of Basic's and Epic A's +3 each). All four are Whisper-lifecycle rules (a from-hand cast made permanent, a cast copied onto another Dragon, an
 // Equipment activation arming a double cast, a sale handing on Whisper stats) that no grammar rule reads yet.
-const UNRESOLVED_CAP = 152;
+// 2026-10-22 (Set 3 Kobold pool call): 152 -> 153, CONSCIOUSLY. Shardluck came back from the archive and its Choose One
+// ("Play 3 Rubies on your Kobolds or cast Veinstorm 3 times") has no grammar rule yet. Delver, Cavern Fiend and the
+// reworked Dealski parse.
+const UNRESOLVED_CAP = 153;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

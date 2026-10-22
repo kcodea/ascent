@@ -157,7 +157,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: "Owner ruling 2026-10-22 (Set 3 Kobold pool call, \"in picksy's case\")", quote: "it's discovering a ruby which means it's of the random ruby types, this should also NOT discover a regular ruby, only the special ones" },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts discoverRuby (SPECIAL_RUBY_IDS); packages/content/src/equipment.ts PRISMATIC_PICK' },
     ],
-    contentIds: ['prismatic_pick', 'k3_prismpick'],
+    contentIds: ['k3_prismpick'],
     currentBehaviour: 'Conforms (the pool was already special-only since 2026-09-24; pinned across seeds 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts', 'packages/sim/src/prismaticPick.test.ts'], lastVerifiedAt: '2026-10-22' },
   },

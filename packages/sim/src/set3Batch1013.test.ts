@@ -39,8 +39,10 @@ describe('roster', () => {
   const set3 = poolFor('set3').all.map((c) => c.id);
   const set2 = poolFor('set2').all.map((c) => c.id);
 
-  it('the six set-3-own cards are archived: out of every set, still resolvable by id', () => {
-    for (const id of ['k3_veinchant', 'k3_facetbound', 'sp3_dreamingdeep', 'ce3_courier', 'ce3_constellationprime', 'n3_yeti']) {
+  // Delver (k3_veinchant) and Shardluck (k3_facetbound) were archived here too, until the 2026-10-22 owner Set 3 Kobold pool
+  // call restored them to Set 3 (pinned in set3KoboldPool1022.test.ts).
+  it('the four remaining set-3-own cards are archived: out of every set, still resolvable by id', () => {
+    for (const id of ['sp3_dreamingdeep', 'ce3_courier', 'ce3_constellationprime', 'n3_yeti']) {
       expect(set3, id).not.toContain(id);
       expect(set2, id).not.toContain(id);
       expect(CARD_INDEX[id], id).toBeTruthy();

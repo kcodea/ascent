@@ -35,6 +35,8 @@ const BODY_GRANT_ONLY = new Set<string>(['rune_lazarus', 'rune_ascension']);
  *  here needs an owner call. */
 const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon',
+  // Set 3 Dragon runes, Epic A (owner 2026-10-21): listed under Dragon; Whispers are the Set 3 Dragon line.
+  rune_secret_exchange: 'dragon', rune_runebound_brood: 'dragon', rune_wyrms_hoard: 'dragon',
   // The owner's Set 3 rune list (2026-09-25): "see here in this list how spearline and waking dreams are not
   // "neutral" tagged and are tagged to tribes?" Each rune takes the tribe it is listed under, in every set.
   rune_sellers_market: 'dwarf', rune_spearline: 'undead',

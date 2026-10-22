@@ -744,7 +744,7 @@ export function simulate(
   const deferredBattlecries = perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => []);
   /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
   const shoutCarry = perSide<ShoutCarry>(() => ({}));
-  /** Set 3 Dragon runes (Basic): Deep Breaths' Dragon swings used, and Ember Inheritance's once-per-fight latch. */
+  /** Set 3 Dragon runes (Basic): Rune of Deep Breaths' Dragon swings used, and Rune of Ember Inheritance's once-per-fight latch. */
   const deepBreathsUsed: Record<Side, number> = { player: 0, enemy: 0 };
   const emberInheritanceUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Squirl Scout's snowball, live: the side's run value, grown by every combat re-fire this fight. */
@@ -2011,7 +2011,7 @@ export function simulate(
         fireTrigger('runeSpellFedScales', side);
         for (let k = 0; k < flagCopiesOf(side, 'runeSpellFedScales'); k++) {
           const pick = pickAutoTarget(rng, living(side).filter((m) => isTribeOf(m, 'dragon', cards)));
-          if (pick) ctx.buff(pick, DRAGON_RUNES_BASIC.spellFedScales.attack, DRAGON_RUNES_BASIC.spellFedScales.health, 'Spell-Fed Scales');
+          if (pick) ctx.buff(pick, DRAGON_RUNES_BASIC.spellFedScales.attack, DRAGON_RUNES_BASIC.spellFedScales.health, 'Rune of Spell-Fed Scales');
         }
       }
       // BOARD: the living bodies' own factories (permanent self-growth), in board order.
@@ -5667,7 +5667,7 @@ export function simulate(
         const pool = boards[rside].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards));
         for (let i = 0; i < DRAGON_RUNES_BASIC.defiantWings.count && pool.length > 0; i++) {
           const m = pool.splice(rng.int(pool.length), 1)[0]!;
-          ctx.buff(m, DRAGON_RUNES_BASIC.defiantWings.attack, DRAGON_RUNES_BASIC.defiantWings.health, 'Defiant Wings');
+          ctx.buff(m, DRAGON_RUNES_BASIC.defiantWings.attack, DRAGON_RUNES_BASIC.defiantWings.health, 'Rune of Defiant Wings');
           if (!m.divineShield) {
             m.divineShield = true;
             if (!m.keywords.includes('DS')) m.keywords.push('DS');
@@ -5995,7 +5995,7 @@ export function simulate(
     nextStep();
     castInCombat(ctx, caster, () => {
       if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
-        emit({ type: 'sc', source: source.uid, text: `Deep Breaths casts ${spell.name}`, spellId: spell.id, rune: 'rune_deep_breaths', side: source.side });
+        emit({ type: 'sc', source: source.uid, text: `Rune of Deep Breaths casts ${spell.name}`, spellId: spell.id, rune: 'rune_deep_breaths', side: source.side });
       }
     }, spell.id);
   }
@@ -6009,7 +6009,7 @@ export function simulate(
     if (m.runeBorrowedFlame && !target.dead && target.health > 0 && target.side === side && isTribeOf(target, 'dragon', cards)) {
       const v = (m.runeBorrowedFlame + (carry.borrowedFlameGain ?? 0)) * flagCopiesOf(side, 'runeBorrowedFlame');
       fireTrigger('runeBorrowedFlame', side);
-      ctx.buff(target, v, v, 'Borrowed Flame');
+      ctx.buff(target, v, v, 'Rune of Borrowed Flame');
       carry.borrowedFlameGain = (carry.borrowedFlameGain ?? 0) + ctx.improveRepsFor(side);
     }
     if (m.runeSpellTempering) {

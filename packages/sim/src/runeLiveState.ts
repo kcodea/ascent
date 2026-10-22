@@ -39,7 +39,7 @@ export interface RuneLiveState {
   wheel?: { attack: number; health: number };
   /** Rune of the Baller: what the NEXT sale pays, per copy, and which stat. */
   baller?: { amount: number; stat: 'Attack' | 'Health' };
-  /** Borrowed Flame (Set 3 Dragon runes, 2026-10-21): what the NEXT Whisper cast on a Dragon gives, per copy. */
+  /** Rune of Borrowed Flame (Set 3 Dragon runes, 2026-10-21): what the NEXT Whisper cast on a Dragon gives, per copy. */
   borrowedFlame?: number;
 }
 
@@ -149,7 +149,7 @@ export function runeLiveStateInCombat(base: RuneLiveState, prog: RuneCombatProgr
   if (base.beastialSwarm != null) {
     out.beastialSwarm = base.beastialSwarm + BEASTIAL_SWARM_BASE * Math.floor(prog.deaths / BEASTIAL_SWARM_EVERY);
   }
-  // Borrowed Flame: every fire (a Whisper cast on a Dragon) improves it by +1 (Rune of Mastery's doubling is not visible
+  // Rune of Borrowed Flame: every fire (a Whisper cast on a Dragon) improves it by +1 (Rune of Mastery's doubling is not visible
   // here, so a Mastery run under-reads mid-fight until settle banks the true value).
   const bf = prog.triggers['runeBorrowedFlame'] ?? 0;
   if (bf > 0 && base.borrowedFlame != null) out.borrowedFlame = base.borrowedFlame + bf;

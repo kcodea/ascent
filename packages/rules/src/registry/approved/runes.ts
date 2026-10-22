@@ -2241,26 +2241,27 @@ export const RUNES_RULES: GameRule[] = [
     title: 'The Set 3 Basic Dragon runes: Whisper, Shop Spell and Dragon-attack triggers in both phases',
     statement:
       'The eleven Set 3 Basic Dragon runes are Dragon-gated, Set 3 only, and each copy held pays its own share. '
-      + 'Runic Primer gets 2 Runebinds when acquired and at every Start of Turn; it is a rune source, so the Whisper tier '
-      + 'gate applies. Loose Tongues pays a random Whisper (your tier and below) for every Dragon played from hand. Clear '
-      + 'Voices counts DISTINCT Whispers cast from hand this turn and pays 2 Gold on the third, once per turn. Spell-Fed '
-      + 'Scales hears every Shop Spell cast (any caster, both phases) and gives a random friendly Dragon +6/+7. Borrowed '
-      + 'Flame hears every Whisper cast that lands on a friendly Dragon (from hand, Whisp, Whaloo): the Dragon gains the '
+      + 'Rune of the Runic Primer gets 2 Runebinds when acquired and at every Start of Turn; it is a rune source, so the Whisper tier '
+      + 'gate applies. Rune of Loose Tongues pays a random Whisper (your tier and below) for every Dragon played from hand. Rune of Clear Voices'
+      + ' counts DISTINCT Whispers cast from hand this turn and pays 2 Gold on the third, once per turn. Rune of Spell-Fed Scales'
+      + ' hears every Shop Spell cast (any caster, both phases) and gives a random friendly Dragon +6/+7. Rune of Borrowed Flame'
+      + ' hears every Whisper cast that lands on a friendly Dragon (from hand, Whisp, Whaloo): the Dragon gains the '
       + 'current value, then the value improves by 1 (Mastery doubles the improve); the improve is permanent and real time. '
-      + 'Spell Tempering counts every Whisper cast in a running meter and every 4th raises your spell power +1/+1. Open '
-      + 'Treasury copies the first spell you buy each turn. Deep Breaths: each of the first 2 friendly Dragon swings each '
-      + 'combat casts Growth. Defiant Wings is a Start of Combat rune (Twilight repeats it): 2 random friendly Dragons '
-      + '+3/+6 and Ward. Final Utterance: Avenge (4), a random Whisper and a random Shop Spell. Ember Inheritance: the '
+      + 'Rune of Spell Tempering counts every Whisper cast in a running meter and every 4th raises your spell power +1/+1. Rune of the Open Treasury'
+      + ' copies the first spell you buy each turn. Rune of Deep Breaths: each of the first 2 friendly Dragon swings each '
+      + 'combat casts Growth. Rune of Defiant Wings is a Start of Combat rune (Twilight repeats it): 2 random friendly Dragons '
+      + '+3/+6 and Ward. Rune of the Final Utterance: Avenge (4), a random Whisper and a random Shop Spell. Rune of Ember Inheritance: the '
       + 'first friendly Dragon WITH an Echo to die each combat gives its Attack to the left-most living friendly Dragon. '
       + 'Buffs are permanent in the Shop and combat-only in combat.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner content ask 2026-10-21 (Set 3 Dragon runes, Basic tier)', quote: 'Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22; names take the Rune of prefix; costs come from the draft doc' },
       { kind: 'code', ref: 'packages/sim/src/dragonRunesBasic.ts (Shop halves); packages/core/src/combat/simulate.ts "SET 3 DRAGON RUNES" (combat halves); content packages/content/src/runes.ts' },
     ],
     contentIds: ['rune_runic_primer', 'rune_loose_tongues', 'rune_clear_voices', 'rune_spell_fed_scales', 'rune_borrowed_flame', 'rune_spell_tempering', 'rune_open_treasury', 'rune_deep_breaths', 'rune_defiant_wings', 'rune_final_utterance', 'rune_ember_inheritance'],
-    currentBehaviour: 'Conforms as of 2026-10-21 (new content). Interpretations listed in docs/devlog/2026-10-21-set3-dragon-runes-basic.md await owner confirmation.',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new content). The interpretations listed in docs/devlog/2026-10-21-set3-dragon-runes-basic.md: owner approved the readings 2026-10-22 (names take the "Rune of" prefix, costs follow docs/set3-dragon-rune-draft-30.md).',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/set3DragonRunesBasic.test.ts', 'packages/core/src/combat/set3DragonRunesBasic.test.ts'],

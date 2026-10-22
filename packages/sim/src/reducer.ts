@@ -2160,7 +2160,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
           if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
-          clearVoicesOnHandCast(s, def); // Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
+          clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
           checkTriples(s);
           return s;
         }
@@ -5390,7 +5390,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   if (s.questFlags?.runeBodyCounting) {
     s.runeBodyCountTick = ((s.runeBodyCountTick ?? 0) + (result.playerDeaths ?? 0)) % BODY_COUNTING_DEATHS;
   }
-  // SET 3 DRAGON RUNES (Basic): what the fight grew comes home. Borrowed Flame's improve is permanent; Spell Tempering's
+  // SET 3 DRAGON RUNES (Basic): what the fight grew comes home. Rune of Borrowed Flame's improve is permanent; Rune of Spell Tempering's
   // meter advances by the fight's Whisper casts (its payouts already landed live, through the spell-power carry).
   if (s.questFlags?.runeBorrowedFlame && result.playerShoutCarry?.borrowedFlameGain) {
     s.runeBorrowedFlame = borrowedFlameValue(s) + result.playerShoutCarry.borrowedFlameGain;
@@ -5630,9 +5630,9 @@ function advanceCombat(s: RunState): void {
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
-  s.clearVoicesIds = undefined;          // Clear Voices: the turn's distinct Whispers count afresh
+  s.clearVoicesIds = undefined;          // Rune of Clear Voices: the turn's distinct Whispers count afresh
   s.clearVoicesPaid = undefined;         // …and its "Once per turn" re-arms
-  s.openTreasuryUsed = undefined;        // Open Treasury: the first spell bought of the new turn is copied
+  s.openTreasuryUsed = undefined;        // Rune of the Open Treasury: the first spell bought of the new turn is copied
   // Batch-4 per-turn gates (Shared Pour / Aftermarket read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -6004,7 +6004,7 @@ function advanceCombat(s: RunState): void {
   // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
   // tribe filter and the count can never drift between "the turn it was taken" and every turn after.
   for (const drip of s.runeTribeDrip ?? []) recordSotBeat(s, runeSource(`rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`), () => payTribeDrip(s, drip));
-  // Runic Primer (Set 3 Dragon runes): "Repeat each turn", the tribe-drip shape (2 Runebinds per copy held).
+  // Rune of the Runic Primer (Set 3 Dragon runes): "Repeat each turn", the tribe-drip shape (2 Runebinds per copy held).
   if (s.questFlags?.runeRunicPrimer) recordSotBeat(s, runeSource('rune_runic_primer'), () => runicPrimerTurnStart(s));
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
@@ -7055,7 +7055,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 5;   // amount = Beasts per payout (5, balance 9/23)
       else if (r.flag === 'runeGraveRefreshment') s.questFlags.runeGraveRefreshment = r.amount ?? 2; // amount = Echoes per free refresh
       else s.questFlags[r.flag] = true;
-      // Runic Primer (Set 3 Dragon runes): "Get 2 Runebinds" pays NOW for the copy just acquired; every Start of Turn
+      // Rune of the Runic Primer (Set 3 Dragon runes): "Get 2 Runebinds" pays NOW for the copy just acquired; every Start of Turn
       // after pays for every copy held (`runicPrimerTurnStart`).
       if (r.flag === 'runeRunicPrimer') payRunicPrimer(s, 1);
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second

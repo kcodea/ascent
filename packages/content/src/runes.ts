@@ -1913,8 +1913,8 @@ export const RUNES: RuneDef[] = [
     // A RUNE source, so the Whisper tier gate applies (Runebind is Tier 2, Tolan's tier; R-WHISPER-TIER-01).
     id: 'rune_runic_primer',
     tribes: ['dragon'],
-    name: 'Runic Primer',
-    cost: 3,
+    name: 'Rune of the Runic Primer',
+    cost: 2,
     text: 'Get **2 Runebinds**. Repeat each turn.',
     previewCards: ['w4_runebind'],
     reward: { kind: 'combatFlag', flag: 'runeRunicPrimer' },
@@ -1925,7 +1925,7 @@ export const RUNES: RuneDef[] = [
     // below, owners in the run's set). "Play" is the Shop's from-hand play (the Actioned Beasts ruling).
     id: 'rune_loose_tongues',
     tribes: ['dragon'],
-    name: 'Loose Tongues',
+    name: 'Rune of Loose Tongues',
     cost: 3,
     text: 'Whenever you play a **Dragon**, get a random **Whisper**.',
     reward: { kind: 'runeThreshold', meter: 'playDragon', per: 1, grantRandomWhisper: 1 },
@@ -1936,8 +1936,8 @@ export const RUNES: RuneDef[] = [
     // 2 Gold per copy, once per turn. Shop-only by construction (only the Shop casts from hand).
     id: 'rune_clear_voices',
     tribes: ['dragon'],
-    name: 'Clear Voices',
-    cost: 3,
+    name: 'Rune of Clear Voices',
+    cost: 2,
     text: 'After you cast **3** different **Whispers** from hand in a turn, gain **2 Gold**. Once per turn.',
     reward: { kind: 'combatFlag', flag: 'runeClearVoices' },
     sets: ['set3'],
@@ -1947,7 +1947,7 @@ export const RUNES: RuneDef[] = [
     // Permanent in the Shop, combat-only in combat (R-BUFF-PERM).
     id: 'rune_spell_fed_scales',
     tribes: ['dragon'],
-    name: 'Spell-Fed Scales',
+    name: 'Rune of Spell-Fed Scales',
     cost: 3,
     text: 'Whenever you cast a **Shop Spell**, give a **Dragon +6/+7**.',
     reward: { kind: 'combatFlag', flag: 'runeSpellFedScales' },
@@ -1959,8 +1959,8 @@ export const RUNES: RuneDef[] = [
     // permanent and real time in both phases; the buff is permanent in the Shop, combat-only in combat.
     id: 'rune_borrowed_flame',
     tribes: ['dragon'],
-    name: 'Borrowed Flame',
-    cost: 3,
+    name: 'Rune of Borrowed Flame',
+    cost: 2,
     text: 'Whenever you cast a **Whisper** on a **Dragon**, give it **+1/+1** and improve this.',
     reward: { kind: 'combatFlag', flag: 'runeBorrowedFlame' },
     sets: ['set3'],
@@ -1970,7 +1970,7 @@ export const RUNES: RuneDef[] = [
     // +1/+1 per copy (x Rune of Mastery), the same channel every "improve your spells" uses.
     id: 'rune_spell_tempering',
     tribes: ['dragon'],
-    name: 'Spell Tempering',
+    name: 'Rune of Spell Tempering',
     cost: 3,
     text: 'After you cast **4 Whispers**, permanently improve your **Shop Spells** by **+1/+1**.',
     reward: { kind: 'combatFlag', flag: 'runeSpellTempering' },
@@ -1981,8 +1981,8 @@ export const RUNES: RuneDef[] = [
     // copy held. Buying is a Shop action.
     id: 'rune_open_treasury',
     tribes: ['dragon'],
-    name: 'Open Treasury',
-    cost: 3,
+    name: 'Rune of the Open Treasury',
+    cost: 2,
     text: 'Get a copy of the first **Shop Spell** you buy each turn.',
     reward: { kind: 'combatFlag', flag: 'runeOpenTreasury' },
     sets: ['set3'],
@@ -1991,7 +1991,7 @@ export const RUNES: RuneDef[] = [
     // Combat: each of the side's first 2 Dragon swings each fight casts Growth (a real rune cast through the attacker).
     id: 'rune_deep_breaths',
     tribes: ['dragon'],
-    name: 'Deep Breaths',
+    name: 'Rune of Deep Breaths',
     cost: 3,
     text: 'The first **2 Dragon** attacks each combat cast **Growth**.',
     previewCards: ['growth'],
@@ -2002,7 +2002,7 @@ export const RUNES: RuneDef[] = [
     // A Start-of-Combat rune (Twilight repeats it; Combat Prowess replays it in the Shop): 2 random friendly Dragons.
     id: 'rune_defiant_wings',
     tribes: ['dragon'],
-    name: 'Defiant Wings',
+    name: 'Rune of Defiant Wings',
     cost: 3,
     text: '**Start of Combat:** Give **2 Dragons +3/+6** and **Ward**.',
     reward: { kind: 'combatFlag', flag: 'runeDefiantWings' },
@@ -2012,8 +2012,8 @@ export const RUNES: RuneDef[] = [
     // Avenge runs in combat (the shared `runeAvenge`, so Rune of Fury doubles it). Both cards reach hand at settle.
     id: 'rune_final_utterance',
     tribes: ['dragon'],
-    name: 'Final Utterance',
-    cost: 3,
+    name: 'Rune of the Final Utterance',
+    cost: 2,
     text: '**Avenge (4):** Get a random **Whisper** and a **Shop Spell**.',
     reward: { kind: 'combatFlag', flag: 'runeFinalUtterance' },
     sets: ['set3'],
@@ -2023,7 +2023,7 @@ export const RUNES: RuneDef[] = [
     // living friendly Dragon (combat-only, R-BUFF-PERM). One gift per copy held.
     id: 'rune_ember_inheritance',
     tribes: ['dragon'],
-    name: 'Ember Inheritance',
+    name: 'Rune of Ember Inheritance',
     cost: 3,
     text: 'After your first **Dragon** with **Echo** dies each combat, give its **Attack** to your **left-most Dragon**.',
     reward: { kind: 'combatFlag', flag: 'runeEmberInheritance' },

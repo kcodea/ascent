@@ -1482,7 +1482,7 @@ export type QuestReward =
       /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
       grantRandomRuby?: number;
       grantSpell?: number; grantAle?: number; grantRuby?: number;
-      /** Loose Tongues (Set 3 Dragon runes, 2026-10-21): get that many RANDOM Whispers (the gated pool) when the meter trips. */
+      /** Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21): get that many RANDOM Whispers (the gated pool) when the meter trips. */
       grantRandomWhisper?: number;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
@@ -2457,21 +2457,21 @@ export interface QuestCombatMods {
    *  Sunmane Herald's spreading Rally, through Sunmane's own body. */
   runeSunpony?: boolean;
   // ── Set 3 Dragon runes, Basic (owner 2026-10-21). Copies ride `flagCopies`. ──
-  /** Spell-Fed Scales: every Shop-pool spell this side casts gives a random living friendly Dragon +6/+7 per copy. */
+  /** Rune of Spell-Fed Scales: every Shop-pool spell this side casts gives a random living friendly Dragon +6/+7 per copy. */
   runeSpellFedScales?: boolean;
-  /** Borrowed Flame: the per-copy value a Whisper cast on a Dragon gives right now (1 = unimproved). Each trigger grows
+  /** Rune of Borrowed Flame: the per-copy value a Whisper cast on a Dragon gives right now (1 = unimproved). Each trigger grows
    *  it by `improveRepsFor`; the growth is carried back (`ShoutCarry.borrowedFlameGain`). */
   runeBorrowedFlame?: number;
-  /** Spell Tempering: on, and the carried Whisper-cast meter (0-3) coming into this fight. */
+  /** Rune of Spell Tempering: on, and the carried Whisper-cast meter (0-3) coming into this fight. */
   runeSpellTempering?: boolean;
   runeSpellTemperingTick?: number;
-  /** Deep Breaths: the first 2 friendly Dragon swings each fight cast Growth (per copy). */
+  /** Rune of Deep Breaths: the first 2 friendly Dragon swings each fight cast Growth (per copy). */
   runeDeepBreaths?: boolean;
-  /** Defiant Wings: Start of Combat, 2 random friendly Dragons +3/+6 and Ward (per copy). */
+  /** Rune of Defiant Wings: Start of Combat, 2 random friendly Dragons +3/+6 and Ward (per copy). */
   runeDefiantWings?: boolean;
-  /** Final Utterance: Avenge (4), a random Whisper and a random Shop Spell to hand. */
+  /** Rune of the Final Utterance: Avenge (4), a random Whisper and a random Shop Spell to hand. */
   runeFinalUtterance?: boolean;
-  /** Ember Inheritance: the first friendly Dragon WITH an Echo to die each fight gives its Attack to the left-most
+  /** Rune of Ember Inheritance: the first friendly Dragon WITH an Echo to die each fight gives its Attack to the left-most
    *  living friendly Dragon (per copy). */
   runeEmberInheritance?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
@@ -3922,9 +3922,9 @@ export interface ShoutCarry {
   whisperImprove?: Record<string, number>;
   /** Tamby in combat: indices into `handGrants` whose arrived Whisper keeps a multiplier (a gilded copy). */
   handWhisperMults?: { idx: number; mult: number }[];
-  /** Borrowed Flame (Set 3 Dragon runes): how much the rune's per-copy value grew this fight (permanent). */
+  /** Rune of Borrowed Flame (Set 3 Dragon runes): how much the rune's per-copy value grew this fight (permanent). */
   borrowedFlameGain?: number;
-  /** Spell Tempering (Set 3 Dragon runes): Whispers this side cast this fight (settle advances the run's meter). */
+  /** Rune of Spell Tempering (Set 3 Dragon runes): Whispers this side cast this fight (settle advances the run's meter). */
   whispersCast?: number;
 }
 
@@ -4242,7 +4242,7 @@ export interface CombatContext {
    *  each combat Runebind), and the raise itself. Absent = no Whisper support (a bare harness). */
   whisperImproveFor?(side: Side, whisperId: string): number;
   addWhisperImprove?(side: Side, whisperId: string, n: number): number;
-  /** Set 3 Dragon runes (Borrowed Flame, Spell Tempering): a combat Whisper cast landed on `target` (after its own grant). */
+  /** Set 3 Dragon runes (Rune of Borrowed Flame, Rune of Spell Tempering): a combat Whisper cast landed on `target` (after its own grant). */
   onWhisperCast?(side: Side, whisperId: string, target: Minion, casterUid: string): void;
   /** Tamby in combat: a Whisper copy to `side`'s hand at multiplier `mult` (a gilded copy keeps its doubling). */
   grantWhisperToHand?(whisperId: string, side: Side, mult: number, sourceUid?: string): void;

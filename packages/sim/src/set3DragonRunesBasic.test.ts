@@ -19,10 +19,16 @@ const IDS = [
   'rune_open_treasury', 'rune_deep_breaths', 'rune_defiant_wings', 'rune_final_utterance', 'rune_ember_inheritance',
 ] as const;
 const NAMES: Record<string, string> = {
-  rune_runic_primer: 'Runic Primer', rune_loose_tongues: 'Loose Tongues', rune_clear_voices: 'Clear Voices',
-  rune_spell_fed_scales: 'Spell-Fed Scales', rune_borrowed_flame: 'Borrowed Flame', rune_spell_tempering: 'Spell Tempering',
-  rune_open_treasury: 'Open Treasury', rune_deep_breaths: 'Deep Breaths', rune_defiant_wings: 'Defiant Wings',
-  rune_final_utterance: 'Final Utterance', rune_ember_inheritance: 'Ember Inheritance',
+  rune_runic_primer: 'Rune of the Runic Primer', rune_loose_tongues: 'Rune of Loose Tongues', rune_clear_voices: 'Rune of Clear Voices',
+  rune_spell_fed_scales: 'Rune of Spell-Fed Scales', rune_borrowed_flame: 'Rune of Borrowed Flame', rune_spell_tempering: 'Rune of Spell Tempering',
+  rune_open_treasury: 'Rune of the Open Treasury', rune_deep_breaths: 'Rune of Deep Breaths', rune_defiant_wings: 'Rune of Defiant Wings',
+  rune_final_utterance: 'Rune of the Final Utterance', rune_ember_inheritance: 'Rune of Ember Inheritance',
+};
+
+// Costs from docs/set3-dragon-rune-draft-30.md (owner ruling 2026-10-22).
+const COSTS: Record<string, number> = {
+  rune_runic_primer: 2, rune_loose_tongues: 3, rune_clear_voices: 2, rune_spell_fed_scales: 3, rune_borrowed_flame: 2, rune_spell_tempering: 3,
+  rune_open_treasury: 2, rune_deep_breaths: 3, rune_defiant_wings: 3, rune_final_utterance: 2, rune_ember_inheritance: 3,
 };
 
 const bc = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -50,13 +56,13 @@ const DRAGON = 'd3_hum'; // a Tier 2 Dragon with no play trigger of its own
 const NOT_DRAGON = 'sandbag';
 
 describe('the Set 3 Dragon Basic roster (owner 2026-10-21)', () => {
-  it('eleven Basic runes: the owner\'s names, 3 Gold, Set 3 only, Dragon-gated, no em dash', () => {
+  it('eleven Basic runes: the "Rune of" names and the draft costs, Set 3 only, Dragon-gated, no em dash', () => {
     for (const id of IDS) {
       const r = RUNE_INDEX[id]!;
       expect(r, id).toBeTruthy();
       expect(RUNES.some((x) => x.id === id), `${id} is a Basic rune`).toBe(true);
       expect(EPIC_RUNES.some((x) => x.id === id), `${id} is not Epic`).toBe(false);
-      expect([r.name, r.cost, !!r.epic, r.tribes, r.sets], id).toEqual([NAMES[id], 3, false, ['dragon'], ['set3']]);
+      expect([r.name, r.cost, !!r.epic, r.tribes, r.sets], id).toEqual([NAMES[id], COSTS[id], false, ['dragon'], ['set3']]);
       expect(r.text, `${id}: no em dash`).not.toMatch(/—|--/);
     }
   });
@@ -69,7 +75,7 @@ describe('the Set 3 Dragon Basic roster (owner 2026-10-21)', () => {
   });
 });
 
-describe('Runic Primer: get 2 Runebinds, repeat each turn', () => {
+describe('Rune of the Runic Primer: get 2 Runebinds, repeat each turn', () => {
   it('pays 2 Runebinds the moment it is bought', () => {
     const s = withRune('rune_runic_primer');
     expect(whispersIn(s)).toEqual(['w4_runebind', 'w4_runebind']);
@@ -93,7 +99,7 @@ describe('Runic Primer: get 2 Runebinds, repeat each turn', () => {
   });
 });
 
-describe('Loose Tongues: whenever you play a Dragon, get a random Whisper', () => {
+describe('Rune of Loose Tongues: whenever you play a Dragon, get a random Whisper', () => {
   it('a Dragon played pays one Whisper of your tier or below; a non-Dragon pays nothing', () => {
     let s = withRune('rune_loose_tongues', { tier: 2 });
     expect(runeTally(s, 'rune_loose_tongues')).toBe('0/1');
@@ -106,7 +112,7 @@ describe('Loose Tongues: whenever you play a Dragon, get a random Whisper', () =
   });
 });
 
-describe('Clear Voices: 3 different Whispers from hand in a turn, 2 Gold, once per turn', () => {
+describe('Rune of Clear Voices: 3 different Whispers from hand in a turn, 2 Gold, once per turn', () => {
   it('pays on the third DISTINCT Whisper only, once, and the badge counts it', () => {
     let s = withRune('rune_clear_voices', { board: [bc('t', DRAGON)] });
     const gold0 = s.embers;
@@ -124,33 +130,33 @@ describe('Clear Voices: 3 different Whispers from hand in a turn, 2 Gold, once p
   });
 });
 
-describe('Spell-Fed Scales: whenever you cast a Shop Spell, give a Dragon +6/+7', () => {
+describe('Rune of Spell-Fed Scales: whenever you cast a Shop Spell, give a Dragon +6/+7', () => {
   it('a Shop Spell (any caster) gives a random friendly Dragon +6/+7; a Whisper never does', () => {
     const s = withRune('rune_spell_fed_scales', { board: [bc('d', DRAGON), bc('n', NOT_DRAGON)] });
     const growth = poolOf(s).all.find((c) => c.id === 'growth')!;
     expect(growth, 'Growth is a Set 3 Shop Spell').toBeTruthy();
     castSpell(s, growth);
-    expect(fromSource(s.board[0], 'Spell-Fed Scales')).toEqual([6, 7]);
-    expect(fromSource(s.board[1], 'Spell-Fed Scales')).toEqual([0, 0]);
+    expect(fromSource(s.board[0], 'Rune of Spell-Fed Scales')).toEqual([6, 7]);
+    expect(fromSource(s.board[1], 'Rune of Spell-Fed Scales')).toEqual([0, 0]);
     const after = play(s, bc('w', 'w4_tome'), 'd');
-    expect(fromSource(after.board[0], 'Spell-Fed Scales'), 'a Whisper is not a Shop Spell').toEqual([6, 7]);
+    expect(fromSource(after.board[0], 'Rune of Spell-Fed Scales'), 'a Whisper is not a Shop Spell').toEqual([6, 7]);
   });
   it('arms the combat half', () => {
     expect(questCombatMods(withRune('rune_spell_fed_scales')).runeSpellFedScales).toBe(true);
   });
 });
 
-describe('Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1 and improves', () => {
+describe('Rune of Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1 and improves', () => {
   it('pays the live value, then improves it; a non-Dragon target pays nothing; the text prints the value', () => {
     let s = withRune('rune_borrowed_flame', { board: [bc('d', DRAGON), bc('n', NOT_DRAGON)] });
     const text = RUNE_INDEX['rune_borrowed_flame']!.text;
     expect(liveRuneText('rune_borrowed_flame', text, runeLiveStateOfRun(s))).toContain('+1/+1');
     s = play(s, bc('w1', 'w4_tome'), 'd');
-    expect(fromSource(s.board[0], 'Borrowed Flame')).toEqual([1, 1]);
+    expect(fromSource(s.board[0], 'Rune of Borrowed Flame')).toEqual([1, 1]);
     s = play(s, bc('w2', 'w4_tome'), 'd');
-    expect(fromSource(s.board[0], 'Borrowed Flame')).toEqual([3, 3]); // +1 then +2
+    expect(fromSource(s.board[0], 'Rune of Borrowed Flame')).toEqual([3, 3]); // +1 then +2
     s = play(s, bc('w3', 'w4_tome'), 'n');
-    expect(fromSource(s.board[1], 'Borrowed Flame')).toEqual([0, 0]);
+    expect(fromSource(s.board[1], 'Rune of Borrowed Flame')).toEqual([0, 0]);
     expect(s.runeBorrowedFlame).toBe(3);
     expect(liveRuneText('rune_borrowed_flame', text, runeLiveStateOfRun(s))).toContain('+3/+3');
     expect(questCombatMods(s).runeBorrowedFlame, 'combat starts from the grown value').toBe(3);
@@ -164,14 +170,14 @@ describe('Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1 and improves
     expect(s.phase).toBe('recruit');
     {
       const d = s.board.find((c) => c.uid === 'd')!;
-      expect(fromSource(d, 'Borrowed Flame')).toEqual([1, 1]);
+      expect(fromSource(d, 'Rune of Borrowed Flame')).toEqual([1, 1]);
       expect(d.attack).toBeGreaterThanOrEqual(a - 1); // only Tome's own temporary +1 came off
       expect(d.health).toBeGreaterThanOrEqual(h - 1);
     }
   });
 });
 
-describe('Spell Tempering: after you cast 4 Whispers, your Shop Spells +1/+1', () => {
+describe('Rune of Spell Tempering: after you cast 4 Whispers, your Shop Spells +1/+1', () => {
   it('every 4th Whisper cast raises the run\'s spell power; the meter carries and the badge counts', () => {
     let s = withRune('rune_spell_tempering', { board: [bc('t', DRAGON)] });
     const sp0 = { ...(s.spellBonus ?? { attack: 0, health: 0 }) };
@@ -189,7 +195,7 @@ describe('Spell Tempering: after you cast 4 Whispers, your Shop Spells +1/+1', (
   });
 });
 
-describe('Open Treasury: a copy of the first Shop Spell you buy each turn', () => {
+describe('Rune of the Open Treasury: a copy of the first Shop Spell you buy each turn', () => {
   it('the first spell bought hands over a copy; the second the same turn does not', () => {
     let s = withRune('rune_open_treasury');
     expect(runeTally(s, 'rune_open_treasury')).toBe('1/1');
@@ -201,14 +207,14 @@ describe('Open Treasury: a copy of the first Shop Spell you buy each turn', () =
   });
 });
 
-describe('Defiant Wings: the Shop replay (Combat Prowess / Lasting Cadence)', () => {
+describe('Rune of Defiant Wings: the Shop replay (Combat Prowess / Lasting Cadence)', () => {
   it('2 distinct friendly Dragons +3/+6 and Ward, permanent; a non-Dragon never', () => {
     // Three DIFFERENT Dragons (three copies of one card would triple).
     const s = withRune('rune_defiant_wings', { board: [bc('a', DRAGON), bc('n', NOT_DRAGON), bc('b', 'd3_iggy'), bc('c', 'd3_gatherer')] });
     const replay = socRuneReplaysOf(s).find((r) => r.id === 'rune_defiant_wings');
     expect(replay).toBeTruthy();
     replay!.fire(s);
-    const hit = s.board.filter((c) => fromSource(c, 'Defiant Wings')[0] === 3);
+    const hit = s.board.filter((c) => fromSource(c, 'Rune of Defiant Wings')[0] === 3);
     expect(hit).toHaveLength(2);
     expect(hit.every((c) => c.keywords.includes('DS') && c.uid !== 'n')).toBe(true);
     expect(questCombatMods(s).runeDefiantWings).toBe(true);
@@ -216,7 +222,7 @@ describe('Defiant Wings: the Shop replay (Combat Prowess / Lasting Cadence)', ()
 });
 
 describe('combat-only runes arm their combat flags (the fights: core set3DragonRunesBasic.test.ts)', () => {
-  it('Deep Breaths, Final Utterance, Ember Inheritance', () => {
+  it('Rune of Deep Breaths, Rune of the Final Utterance, Rune of Ember Inheritance', () => {
     expect(questCombatMods(withRune('rune_deep_breaths')).runeDeepBreaths).toBe(true);
     expect(questCombatMods(withRune('rune_final_utterance')).runeFinalUtterance).toBe(true);
     expect(questCombatMods(withRune('rune_ember_inheritance')).runeEmberInheritance).toBe(true);

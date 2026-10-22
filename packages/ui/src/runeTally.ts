@@ -70,13 +70,13 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
   if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
   // ── Set 3 Dragon runes, Basic (owner 2026-10-21): the N/X integer counter convention. ──
-  // Clear Voices: distinct Whispers cast from hand this turn, toward the 3 that pay (full once paid this turn).
+  // Rune of Clear Voices: distinct Whispers cast from hand this turn, toward the 3 that pay (full once paid this turn).
   if (runeId === 'rune_clear_voices' && run.questFlags?.runeClearVoices) {
     return run.clearVoicesPaid ? `${CLEAR_VOICES_DISTINCT}/${CLEAR_VOICES_DISTINCT}` : `${Math.min(CLEAR_VOICES_DISTINCT, run.clearVoicesIds?.length ?? 0)}/${CLEAR_VOICES_DISTINCT}`;
   }
-  // Spell Tempering: Whispers cast toward the next improve (a running meter across turns and fights).
+  // Rune of Spell Tempering: Whispers cast toward the next improve (a running meter across turns and fights).
   if (runeId === 'rune_spell_tempering' && run.questFlags?.runeSpellTempering) return `${Math.min(SPELL_TEMPERING_PER, run.runeSpellTemperingTick ?? 0)}/${SPELL_TEMPERING_PER}`;
-  // Open Treasury: its one copy a turn (1 ready, 0 spent), as the Open Grave shows it.
+  // Rune of the Open Treasury: its one copy a turn (1 ready, 0 spent), as the Open Grave shows it.
   if (runeId === 'rune_open_treasury' && run.questFlags?.runeOpenTreasury) return run.openTreasuryUsed ? '0/1' : '1/1';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {

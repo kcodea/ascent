@@ -1025,7 +1025,7 @@ export interface RunState {
     meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast'; per: number; tick: number;
     /** Rune of Minted Gems (Set 3 design pass): random Rubies per trip. */
     grantRandomRuby?: number;
-    /** Loose Tongues (Set 3 Dragon runes): random Whispers (the gated pool) per trip. */
+    /** Rune of Loose Tongues (Set 3 Dragon runes): random Whispers (the gated pool) per trip. */
     grantRandomWhisper?: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
@@ -1480,15 +1480,15 @@ export interface RunState {
   /** Rune of Body Counting's running meter: friendly deaths since the last payout (0-5), across fights and Shop. */
   runeBodyCountTick?: number;
   // ── Set 3 Dragon runes, Basic (owner 2026-10-21; packages/sim/src/dragonRunesBasic.ts) ──
-  /** Borrowed Flame: the per-copy value the NEXT Whisper cast on a Dragon gives (absent = the printed 1). */
+  /** Rune of Borrowed Flame: the per-copy value the NEXT Whisper cast on a Dragon gives (absent = the printed 1). */
   runeBorrowedFlame?: number;
-  /** Spell Tempering's running meter: Whispers cast since the last payout (0-3), across turns, Shop and combat. */
+  /** Rune of Spell Tempering's running meter: Whispers cast since the last payout (0-3), across turns, Shop and combat. */
   runeSpellTemperingTick?: number;
-  /** Clear Voices: the distinct Whisper ids cast from hand THIS turn (reset at turn setup). */
+  /** Rune of Clear Voices: the distinct Whisper ids cast from hand THIS turn (reset at turn setup). */
   clearVoicesIds?: string[];
-  /** Clear Voices: paid this turn (its "Once per turn"; reset at turn setup). */
+  /** Rune of Clear Voices: paid this turn (its "Once per turn"; reset at turn setup). */
   clearVoicesPaid?: boolean;
-  /** Open Treasury: the turn's first spell buy has been copied (reset at turn setup). */
+  /** Rune of the Open Treasury: the turn's first spell buy has been copied (reset at turn setup). */
   openTreasuryUsed?: boolean;
   /** Rune of the Soul Furnace (Set 3 design pass, 2026-09-27): the slice of `undeadHealthBonus` that is the rune's
    *  DERIVED term (ceil(Aura Attack / 2) per copy). `syncSoulFurnace` keeps the two in step at every action

@@ -54,7 +54,7 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_gem_crypt: 'undead',
   // …and the Pallbearer + the Keepsake Gem: "the left-most minion in your hand" is the Spirit hand line.
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
-  // The owner's Set 3 Dragon rune list (2026-10-21) puts Open Treasury under Dragon; its text names no tribe word.
+  // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
   rune_open_treasury: 'dragon',
 };
 

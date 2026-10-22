@@ -22,6 +22,7 @@ import { pairRunLobby, type RunLobby } from './lobby/runLobby';
 import { poolOf } from './cardPool';
 import { boardStrength } from './boardModel';
 import type { CombatOddsInput } from './odds';
+import type { ReplayStream } from './replayStream';
 
 /**
  * What produced a shop frame. Derived from the `Action` union — THE §7.2 exhaustiveness guarantee: a new
@@ -226,6 +227,14 @@ export interface ReplayV2 {
    *  duplicated here — the ghost plays those from the frame's `drag`; the trail carries the hand between
    *  drags. See the cursor-trail section at the bottom of this module. */
   cursorTrail?: CursorSample[];
+  /** THE SPECTATOR STREAM (owner 2026-10-22, R-REPLAY-STREAM-01): every cursor message the live spectator sender built
+   *  while the player was in the shop (60 Hz points on the player's clock, anchored to the UI element under the
+   *  pointer, the held card and its drop gap, the aim line, the hovered element, drop outcomes), plus the overlay
+   *  minimize state and the fight's Skip, on the SAME clock as `frames[].tMs`. Recorded through the one builder the
+   *  live sender uses, so a replay can play the hand exactly as a spectator saw it. Optional and backward-compatible
+   *  (the version stays 2): older recordings have none and play their `cursorTrail` / `drag` paths as before. See
+   *  `replayStream.ts`. */
+  stream?: ReplayStream;
   /** The recorded truth about the outcome. */
   result: {
     /** Lobby finish, 1..8 (1 = won). */

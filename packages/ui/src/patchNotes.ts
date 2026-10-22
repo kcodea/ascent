@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      { category: 'Balance', text: 'Stellar Chorus, Shredder and Jumpstart Jules leave the Set 3 pool.' },
       { category: 'Systems', text: '40 more runes have their emblem art.' },
       {
         category: 'Balance',

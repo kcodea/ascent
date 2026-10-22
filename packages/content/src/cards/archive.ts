@@ -12,6 +12,46 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-22 owner ask: Shredder and Jumpstart Jules archived (both Set 3 only, so they leave every set). --
+  {
+    // ARCHIVED 2026-10-22 (owner: "archive shredder and jumpstart jules"). Moved verbatim from set3/neutral.ts; belongs
+    // to no set now (it was Set 3 only).
+    // Start of Turn (fires as the shop reopens, right after the Equipment charges are rebuilt): one bonus
+    // Equipment charge this turn, into the SHARED pool any held Equipment may spend (and spends first). The
+    // pool lives in `equipment.bonusActivations`, which the turn rebuild zeroes — a per-turn grant, never
+    // banked. Golden: two. Renamed from "Equipment Inspector" on the
+    // owner's sheet (2026-09-09: "rename Equipment Inspector -> Equipment Charger").
+    id: 'n3_charger',
+    name: 'Jumpstart Jules', // 'Equipment Charger' until 2026-09-14 (owner rename handoff; id + art unchanged)
+    tribe: 'neutral',
+    tier: 4,
+    attack: 6,
+    health: 7,
+    keywords: [],
+    effects: [{ on: 'startOfTurn', do: 'startOfTurnEquipmentCharge', params: { count: 1 } }],
+    text: '**Start of Turn:** gain an **Equipment charge**.',
+    goldenText: '**Start of Turn:** gain **2 Equipment charges**.',
+  },
+  {
+    // ARCHIVED 2026-10-22 (owner: "archive shredder and jumpstart jules"). Moved verbatim from set3/neutral.ts; belongs
+    // to no set now (it was Set 3 only).
+    // Owner handoff 2026-09-18, reworked 2026-10-13 (owner Set 3 batch; was "your left-most and right-most minions
+    // +4/+4"). End of Turn: EVERY friendly minion gains +2/+3 for EVERY Equipment the player holds whose charge was
+    // NOT spent this turn (`unusedEquipmentCount` — the per-turn `usedThisTurn` mark Rune of Amplification also
+    // reads, taken BEFORE `expireEquipmentTurn` clears it). `scope: 'all'` widens the shared factory from the two
+    // ends to the whole board. Permanent shop buff; golden +4/+6 per Equipment. The live text prints the current
+    // total (`shredderText`) on every surface.
+    id: 'n3_shredder',
+    name: 'Shredder',
+    tribe: 'neutral',
+    tier: 4,
+    attack: 8,
+    health: 4,
+    keywords: [],
+    effects: [{ on: 'endOfTurn', do: 'endOfTurnBuffEndsPerUnusedEquipment', params: { attack: 2, health: 3, scope: 'all' } }],
+    text: '**End of Turn:** give your minions **+2/+3** for every **Equipment** unused this turn.',
+    goldenText: '**End of Turn:** give your minions **+4/+6** for every **Equipment** unused this turn.',
+  },
   // -- 2026-10-15 owner Set 3 Dragon batch 2: Gravestar Seer archived (a Set 4 Celestial). --
   {
     // ARCHIVED 2026-10-15 (owner Set 3 Dragon batch 2: "archive Gravestar Seer"). Moved verbatim from set4/celestials.ts;

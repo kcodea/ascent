@@ -4834,6 +4834,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-07): both factories resolve the spell through CARD_INDEX, which includes the archive.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1007.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-ARCHIVE-SET3-1022-01',
+    title: 'Stellar Chorus, Shredder and Jumpstart Jules leave Set 3; old Set 3 saves, snapshots and replays still resolve them',
+    statement:
+      'Stellar Chorus, Shredder and Jumpstart Jules are out of Set 3: a Set 3 run never offers them in the Shop, the Spell '
+      + 'Cart, a Discover or a random grant (every draw reads the run-pinned pool). Stellar Chorus stays a Set 4 shared '
+      + 'spell. Shredder and Jumpstart Jules were Set 3 only, so they are archived and belong to no set. All three stay '
+      + 'in the global card index: an old Set 3 save still casts or buys Stellar Chorus, Jules still adds its Start of '
+      + 'Turn Equipment charge, Shredder still pays out at End of Turn, and a snapshot or replay holding them resolves.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-22', quote: 'archive stellar chorus from set 3' },
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-22 (same PR)', quote: 'archive shredder and jumpstart jules' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_SPELLS_IN_SET3 / SET4_SHARED_SPELL_IDS; packages/content/src/cards/archive.ts (the 2026-10-22 block)' },
+    ],
+    contentIds: ['stellarchorus', 'n3_shredder', 'n3_charger'],
+    currentBehaviour: 'Conforms (built 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',

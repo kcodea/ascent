@@ -185,6 +185,9 @@ export function crumbTrail(step: string, x?: Record<string, string | number>): (
   return () => { if (raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(raf); timers.forEach((t) => window.clearTimeout(t)); };
 }
 
+/** True when this page load is recording (a phone, or `?crashlog=1`). The crash upload (crashReport.ts) only runs then,
+ *  so a desktop load without the flag sends nothing, even with an old log in its storage. */
+export function crashLogActive(): boolean { return store !== null; }
 /** The crashed sessions on record, newest first. */
 export function crashedSessions(): CrashSession[] { return store?.crashes ?? readStore()?.crashes ?? []; }
 /** Forget the recorded crashes (the readout's Close). */

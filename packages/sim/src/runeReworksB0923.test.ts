@@ -156,7 +156,7 @@ describe('Rune of Reinvestment — +3/+4 per combat summon into the Shop (owner 
     expect(n).toBeGreaterThan(0);
     const s = withRune('rune_reinvestment');
     const settled = reduce({ ...s, phase: 'combat', lastCombat: r } as RunState, { type: 'settleCombat' }) as RunState;
-    expect(settled.tavernBuyBonusSources?.['Rune of Reinvestment']).toEqual({ atk: 3 * n, hp: 4 * n });
+    expect(settled.tavernBuyBonusSources?.['Reinvestment']).toEqual({ atk: 3 * n, hp: 4 * n });
   });
 });
 
@@ -285,7 +285,7 @@ describe('Rune of Beastial Swarm — a friendly Beast death gives all your Beast
     expect(r.playerBeastBuyHpGain, 'no Health carry-back').toBeUndefined();
     expect(r.playerBeastialSwarmLevel, 'Avenge (2) improved the per-death amount').toBe(4);
     const survivor = r.initial.player.find((m) => m.cardId === 'pack')!.uid;
-    const live = r.events.filter((e) => e.type === 'buff' && e.target === survivor && (e as { source?: string }).source === 'Rune of Beastial Swarm');
+    const live = r.events.filter((e) => e.type === 'buff' && e.target === survivor && (e as { source?: string }).source === 'Beastial Swarm');
     expect(live.reduce((n, e) => n + (e as { attack: number }).attack, 0), 'the living Beast gained it on the spot').toBe(4);
   });
 

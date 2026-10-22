@@ -55,7 +55,7 @@ describe('Doc Bot — combat-mod lane', () => {
   it('RIDER — summon-return parity: every mod that grows a combat summon grows a Rise / Rebirth return too (R-SUMMON-RETURN-01)', () => {
     const { violations, summonGrants } = summonReturnRider(keys);
     expect(summonGrants, 'the rider must find the summon-grant mods to be measuring anything').toEqual(expect.arrayContaining(['runeUndertow', 'runeHatchery', 'runePackcraft']));
-    expect(violations, `these "summoned in combat" mods skip a returning body — a Rise / Rebirth return IS a summon (owner 2026-10-06: Rune of the Undertow did not proc on a rising minion):\n  ${violations.join('\n  ')}`).toEqual([]);
+    expect(violations, `these "summoned in combat" mods skip a returning body — a Rise / Rebirth return IS a summon (owner 2026-10-06: Undertow did not proc on a rising minion):\n  ${violations.join('\n  ')}`).toEqual([]);
   });
 
   it('RIDER — death-return parity: every mod that hears a true death hears a Rise / Rebirth death too (R-DEATH-RETURN-01)', () => {

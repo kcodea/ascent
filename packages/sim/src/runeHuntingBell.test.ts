@@ -60,7 +60,7 @@ describe('Rune of Rallying still works after the extraction', () => {
 
 describe('the rune data', () => {
   it('ships at 4 Gold, basic, unscoped', () => {
-    const r = byName('Rune of the Hunting Bell')!;
+    const r = byName('Hunting Bell')!;
     expect(r.cost).toBe(4);
     expect(!!r.epic).toBe(false);
     expect(r.sets).toEqual(['set1', 'set2']); // Rally exists in both sets; CUT FROM SET 3 2026-09-27 (owner, design pass tranche 0)

@@ -46,7 +46,7 @@ describe('Rune of Emberline', () => {
   ];
   const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 6, health: 400 }];
   const paid = (mods: object) => sim(board, killer, mods).events
-    .filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Emberline').length;
+    .filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Emberline').length;
 
   it('the first dead Imp feeds the next Imp summoned', () => {
     expect(paid({}), 'baseline should pay nothing').toBe(0);

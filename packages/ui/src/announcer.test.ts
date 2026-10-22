@@ -1904,7 +1904,7 @@ describe('the moment catalog\'s third batch (owner 2026-09-25, group C): new tal
       [c.starform]: 'Starform', [c.yazzus]: 'Yazzus', [c.darkRuby]: 'Dark Ruby', [c.rippleRuby]: 'Ripple Ruby',
     };
     for (const [id, name] of Object.entries(names)) expect(CARD_INDEX[id]?.name, id).toBe(name);
-    expect(RUNE_INDEX[ANNOUNCER_BATCH_3_RUNES.resonance]?.name).toBe('Rune of Resonance');
+    expect(RUNE_INDEX[ANNOUNCER_BATCH_3_RUNES.resonance]?.name).toBe('Resonance');
     expect(RUNE_INDEX[ANNOUNCER_BATCH_3_RUNES.happyBirthday]?.name).toBe('Happy Birthday');
     expect(CARD_INDEX[c.darkRuby]?.rubyRider).toBe('devour');
     expect(CARD_INDEX[c.rippleRuby]?.rubyRider).toBe('ripple');

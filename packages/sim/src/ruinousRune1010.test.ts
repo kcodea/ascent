@@ -40,7 +40,7 @@ describe('Rune of the Ruinous: the roster', () => {
     const r = RUNE_INDEX['rune_ruinous']!;
     expect(RUNES[RUNES.length - 1]!.id, 'appended at the very end of RUNES').toBe('rune_ruinous');
     expect(EPIC_RUNES.some((x) => x.id === 'rune_ruinous')).toBe(false);
-    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets, r.text]).toEqual(['Rune of the Ruinous', 4, false, ['demon'], ['set2'], 'Get a **Ruinous Lord**.']);
+    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets, r.text]).toEqual(['Ruinous', 4, false, ['demon'], ['set2'], 'Get a **Ruinous Lord**.']);
     expect(r.reward).toEqual({ kind: 'grant', cards: ['dm_ruinouslord'] });
   });
   it('Ruinous Lord: a rune-only T4 4/5 Demon, never in the Shop pool, resolving globally; plain + gilded text', () => {

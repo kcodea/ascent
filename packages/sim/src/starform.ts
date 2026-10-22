@@ -298,7 +298,7 @@ export function createStarform(state: RunState, source: { cardId: string; name: 
   if (state.runeFirstLight) {
     const fl = 8 * runeStacksOf(state, 'rune_first_light');
     procRuneId(state, 'rune_first_light');
-    buffStarform(state, fl, fl, 'Rune of First Light');
+    buffStarform(state, fl, fl, 'First Light');
   }
   void source; // the creator is presentation metadata today (the content PR names it on the create cue)
   return sf;
@@ -350,7 +350,7 @@ function redGiantSpellBite(state: RunState, sf: ShopCard): void {
   const def = CARD_INDEX[eaten.cardId];
   procRuneId(state, 'rune_red_giant');
   if (def) conjureToHand(state, [def], 1);
-  buffStarform(state, RED_GIANT_GAIN.attack, RED_GIANT_GAIN.health, 'Rune of the Red Giant');
+  buffStarform(state, RED_GIANT_GAIN.attack, RED_GIANT_GAIN.health, 'Red Giant');
   recordStarformFx(state, 'consumeShop', eaten.uid, [sf.uid]);
 }
 

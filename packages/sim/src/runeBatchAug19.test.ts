@@ -138,7 +138,7 @@ describe('rune batch 2026-08-19b — Herding Horn / Bubble Crown / War Drum / Ba
     expect(tick(s)).toBe(0);
     s = reduce(s, { type: 'play', uid: 'r1', targetUid: 'm' }) as RunState; // a Ruby — no Spellstone in play
     expect(s.hand.some((c) => c.uid === 'r1'), 'the Ruby was cast').toBe(false);
-    expect(tick(s), 'a Ruby cast counts, even without Rune of the Spellstone').toBe(1);
+    expect(tick(s), 'a Ruby cast counts, even without Spellstone').toBe(1);
     s = reduce(s, { type: 'play', uid: 'g1' }) as RunState; // a Shop spell
     expect(tick(s), 'a Shop spell counts too').toBe(2);
   });
@@ -282,7 +282,7 @@ describe('Rune of the Stoked Menagerie', () => {
     combatSide({ tier: 1 }),
   );
   const runeBuffs = (r: ReturnType<typeof fight>) =>
-    r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Rune of the Stoked Menagerie') as
+    r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Stoked Menagerie') as
       { target: string; attack: number; health: number }[];
 
   it('a full house doubles exactly 3 bodies', () => {
@@ -345,7 +345,7 @@ describe('Rune of the Wild Hunt — the ATTACKER snowballs (owner rework 2026-08
     combatSide({ tier: 6, tribes: ['beast', 'demon'], questMods: { runeWildHunt: 2 } }), combatSide({ tier: 1 }),
   );
   const hunt = (r: ReturnType<typeof fight>) =>
-    r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Rune of the Wild Hunt') as
+    r.events.filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Wild Hunt') as
       { target: string; attack: number; health: number }[];
 
   it('only the attacking Beast is buffed — never the board', () => {

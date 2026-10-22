@@ -69,7 +69,7 @@ describe('the over-cap window is the acquisition itself', () => {
     expect(after.runeforgeOffer, 'the forge closed').toBeFalsy();
     const before = after.hand.length;
     payDeep(after); // a rune faucet paying later in the same turn
-    expect(after.hand.length, 'Rune of the Deep over-capped after the pick had resolved').toBe(Math.max(before, CONFIG.handMax));
+    expect(after.hand.length, 'Deep over-capped after the pick had resolved').toBe(Math.max(before, CONFIG.handMax));
   });
 
   it('cards already past the cap are kept', () => {

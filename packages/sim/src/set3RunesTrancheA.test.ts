@@ -92,8 +92,8 @@ describe('tranche A — pool membership, cost, scope and tribe gates', () => {
     expect(r.tribes).toEqual(tribes);
   });
   it('the Crown rename: the sheet\'s "Rune of the Crown" ships as Rune of the Spirit Crown beside the existing Crown', () => {
-    expect(RUNE_INDEX['rune_crown']!.name).toBe('Rune of the Crown');
-    expect(RUNE_INDEX['rune_spirit_crown']!.name).toBe('Rune of the Spirit Crown');
+    expect(RUNE_INDEX['rune_crown']!.name).toBe('Crown');
+    expect(RUNE_INDEX['rune_spirit_crown']!.name).toBe('Spirit Crown');
   });
   it('tribe drips never say "up to your Shop Tier" — the Dwarf/Kobold verbiage, and the cap is in the engine', () => {
     for (const id of ['rune_basic_spirit', 'rune_basic_celestial', 'rune_basic_undead', 'rune_epic_spirit', 'rune_epic_celestial', 'rune_epic_undead']) {

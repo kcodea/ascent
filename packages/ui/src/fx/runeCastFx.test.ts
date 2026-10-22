@@ -131,8 +131,8 @@ describe('a rune cast plays the spell\'s own effect, stemming from the rune\'s n
   it('COMBAT: a PLAYER rune\'s cast (Rune of Spellhide) stems from the rune node; an ENEMY one stays on its body', () => {
     mountRune('rune_spellhide');
     const casts = spellCastsIn({ start: 0, end: 2 }, [
-      { type: 'sc', source: 'm0', text: 'Rune of Spellhide casts Growth', spellId: 'growth', rune: 'rune_spellhide', side: 'player' },
-      { type: 'sc', source: 'm9', text: 'Rune of Spellhide casts Growth', spellId: 'growth', rune: 'rune_spellhide', side: 'enemy' },
+      { type: 'sc', source: 'm0', text: 'Spellhide casts Growth', spellId: 'growth', rune: 'rune_spellhide', side: 'player' },
+      { type: 'sc', source: 'm9', text: 'Spellhide casts Growth', spellId: 'growth', rune: 'rune_spellhide', side: 'enemy' },
     ] as CombatEvent[]);
     expect(casts.map((c) => [c.rune, c.side])).toEqual([['rune_spellhide', 'player'], ['rune_spellhide', 'enemy']]);
     expect(playCombatSpellCastFx(casts)).toBe(2);

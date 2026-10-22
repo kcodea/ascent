@@ -57,10 +57,10 @@ const BASE = { d1: [5, 3], d2: [5, 4], d3: [7, 2], v: [CARD_INDEX['venom']!.atta
 describe('the roster (Set 3 Dragon Epic B, owner 2026-10-21)', () => {
   it('four Epic Dragon runes, Set 3 only, owner text verbatim, no em dash', () => {
     const want: [string, string, string][] = [
-      ['rune_lasting_words', 'Rune of Lasting Words', 'The first **Whisper** you cast from hand on each **Dragon** each turn is permanent.'],
-      ['rune_twin_tongues', 'Rune of Twin Tongues', '**Whispers** cast from hand also cast on another friendly **Dragon**.'],
-      ['rune_opened_vault', 'Rune of the Opened Vault', 'Get a **Shush**. After you activate **Jar of Secrets**, your next **Whisper** cast from hand casts twice.'],
-      ['rune_bequeathed_secrets', 'Rune of Bequeathed Secrets', 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.'],
+      ['rune_lasting_words', 'Lasting Words', 'The first **Whisper** you cast from hand on each **Dragon** each turn is permanent.'],
+      ['rune_twin_tongues', 'Twin Tongues', '**Whispers** cast from hand also cast on another friendly **Dragon**.'],
+      ['rune_opened_vault', 'Opened Vault', 'Get a **Shush**. After you activate **Jar of Secrets**, your next **Whisper** cast from hand casts twice.'],
+      ['rune_bequeathed_secrets', 'Bequeathed Secrets', 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.'],
     ];
     for (const [id, name, text] of want) {
       const r = RUNE_INDEX[id]!;

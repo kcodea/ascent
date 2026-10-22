@@ -4039,14 +4039,14 @@ describe('Combat runes batch 6 (First Claws / Packcraft / Inheritance / Salvage)
     }
 
     // …and the board is NOT blanket-buffed: the pre-existing minions are untouched.
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Packcraft')).toBe(false);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Packcraft')).toBe(false);
   });
 
   it('Inheritance: when the leftmost minion dies, the rightmost gains its stats', () => {
     const p: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 1 }, { cardId: 'gnash', attack: 5, health: 20 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 4, health: 40 }];
     const r = simMods(p, e, 1, { runeInheritance: true });
-    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Inheritance')).toBe(true);
+    expect(r.events.some((ev) => ev.type === 'buff' && ev.source === 'Inheritance')).toBe(true);
   });
 
   it('Salvage: a friendly Mech losing its Ward puts a random Attachment in your hand', () => {
@@ -4289,7 +4289,7 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     const p: BoardMinion[] = [{ cardId: 'pack', attack: 2, health: 2 }, { cardId: 'sandbag', attack: 1, health: 40 }];
     const e: BoardMinion[] = [{ cardId: 'sandbag', attack: 5, health: 40 }];
     const r = simMods(p, e, 1, { runeAftershocks: true });
-    const shocks = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Rune of Aftershocks');
+    const shocks = r.events.filter((ev) => ev.type === 'buff' && ev.source === 'Aftershocks');
     expect(shocks.length).toBeGreaterThan(0);
     expect(shocks.every((ev) => ev.type === 'buff' && ev.attack === 4 && ev.health === 4)).toBe(true);
     // …and the Echo-summoned Pups are NOT pre-baked with +4/+4 any more (they land as vanilla 1/1s).
@@ -4300,7 +4300,7 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
       expect(ev.minion.attack).toBe(1);
     }
     const without = simMods(p, e, 1, {});
-    expect(without.events.some((ev) => ev.type === 'buff' && ev.source === 'Rune of Aftershocks')).toBe(false);
+    expect(without.events.some((ev) => ev.type === 'buff' && ev.source === 'Aftershocks')).toBe(false);
   });
 
   it('Rune of Aftershocks: a NON-Echo summon (SoC Warden) is not buffed', () => {

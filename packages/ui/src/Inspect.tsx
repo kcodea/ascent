@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react';
+import { bareRuneLabel } from '@game/content';
 import { Card } from './Card';
 import { KeywordDefs } from './KeywordDefs';
 import { resolveMech } from './mechIcon';
@@ -59,7 +60,7 @@ export function Inspect() {
             <div className="ib-title">Buffs</div>
             {inspect.buffs.map((b, i) => (
               <div className="ib-row" key={`${b.source}-${i}`}>
-                <span className="ib-src">{b.source} <em>×{b.count}</em></span>
+                <span className="ib-src">{bareRuneLabel(b.source)} <em>×{b.count}</em></span>
                 {/* A stat-less row is a granted ability (Seed's Drake Pup Echo, Set 3), not a +0/+0 buff. */}
                 <span className="ib-amt">{b.attack === 0 && b.health === 0 ? 'Echo' : `+${b.attack}/+${b.health}`}</span>
               </div>

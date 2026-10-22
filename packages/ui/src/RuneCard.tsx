@@ -166,10 +166,10 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
             <div
               className="runecard-nostack gtip"
               aria-description={RUNE_DUP_UNIQUE.has(rune.id)
-                ? 'Rune of Duplication will copy this, but a second copy of this rune has no additional effect.'
+                ? 'Duplication will copy this, but a second copy of this rune has no additional effect.'
                 : 'This rune does not stack. The Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
               data-tip={RUNE_DUP_UNIQUE.has(rune.id)
-                ? 'Rune of Duplication will copy this, but a second copy of this rune has no additional effect.'
+                ? 'Duplication will copy this, but a second copy of this rune has no additional effect.'
                 : 'This rune does not stack. The Duplication copy instead refunds half its cost in Gold plus a free refresh.'}
             >
               {RUNE_DUP_UNIQUE.has(rune.id) ? 'Does not stack' : 'Copy refunds'}

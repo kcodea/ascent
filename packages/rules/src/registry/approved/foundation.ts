@@ -1149,7 +1149,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '15 s; Recruit\x27s countdown calls observeTurnClock on every tick; shop shelf, so End Turn expires it; bypasses the '
       + 'cooldown but waits out a playing line, and is dropped if the clock reaches 0 first), BuyDrakko (the Shop minion '
       + 'named Drakko, id `drummer`, bought; the hero Drakko is never bought), BuySylus (the Shop minion Sylus bought; '
-      + 'Rune of Sylus granting one is not a buy) and CastAle (an Ale, ALE_IDS, cast from hand: spellsCast rises while '
+      + 'Sylus granting one is not a buy) and CastAle (an Ale, ALE_IDS, cast from hand: spellsCast rises while '
       + 'an Ale leaves the hand). The '
       + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
       + '(`ascent.announcervol.v2`, see R-PRESENT-13; `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
@@ -1297,7 +1297,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'Whenever a spell is CAST BY A RUNE or BY A MINION (never by the player from hand or shop), the game floats '
       + 'that spell\x27s card preview above its caster: above the rune\x27s node on the rune rail for a rune-cast, above '
-      + 'the minion\x27s card for a minion-cast (Rune of the Gilded Ledger\x27s random stat spell, Rune of the Spell '
+      + 'the minion\x27s card for a minion-cast (Gilded Ledger\x27s random stat spell, Spell '
       + 'Market\x27s Staff of Guel, Rope Wrangler\x27s Lasso, a Gemstorm Instigator\x27s Rubies, a Mirrorwing re-cast, an '
       + 'End-of-Turn cast). NOTE 2026-09-24: ONLY THE RUNE CASE IS ON for now; minion casts (shop, End of Turn and '
       + 'combat) are gated off by `CAST_PREVIEW_SOURCES` (owner: hide/disable the combat/minion side), with their code '
@@ -1348,7 +1348,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`); packages/ui/src/castPreviewConfig.ts (the tuner\x27s one config accessor: `castPreviewLook`, `castPreviewTimings`, `castPreviewCombatOncePerFight`); packages/ui/src/CastPreviewTuner.tsx (the panel + Preview test); packages/core/src/effects/factories.ts (the combat `castRepeat` verb now logs the `sc` + `spellId` announcement from the caster; `castTribeAttackSpell` stamps `spellId`)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-23. Verified live on port 5267: a Rune of the Gilded Ledger paying out floats the cast '
+      'Conforms as of 2026-09-23. Verified live on port 5267: a Gilded Ledger paying out floats the cast '
       + 'spell above its rune node; a Rope Wrangler\x27s End-of-Turn Lasso floats above the Wrangler; sampled computed '
       + 'opacity climbs through the fade-in, holds at 1 for the linger and falls through the fade-out; the rune rail '
       + 'and the warband row rects are identical before and after the preview (no layout shift). Equipment casts '
@@ -1471,7 +1471,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms as of 2026-09-24 for spell cast FX (Growth and Waking Rift are the first spells bound). Combat casts through the arena\x27s '
       + '`castRepeat` (Fatecarver / Taragosa / Hoardbreaker\x27s Growth) previously logged no `sc` announcement and '
       + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Rune casts '
-      + 'were untagged and their buffs drew nothing (sourceless); fixed 2026-09-24, and Rune of Spellhide\x27s '
+      + 'were untagged and their buffs drew nothing (sourceless); fixed 2026-09-24, and Spellhide\x27s '
       + 'Start-of-Combat re-cast now announces itself (`sc` + `rune`). Known remaining gaps: an Equipment\x27s cast '
       + 'deliberately records nothing (R-PRESENT-10). The repeat runes (Shared Pour, Astral Draft, Distillation, Shared '
       + 'Reflection, Hoardflame, Dragon Breath, the Bottomless Cask) rode the player\x27s cast path until 2026-09-24; '
@@ -1487,7 +1487,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'plays its shop-wide effect on the authoritative End of Turn (`auraChanged` `shopBuff`); a minion arriving in the '
       + 'Shop or at End of Turn from any source gets the landing dust and the summon sound, the summon clips gated per '
       + 'clip; a standalone combat Dragonflame wave no longer plays its column twice. Known gameplay gap, report only: '
-      + 'Rune of Lassoing does not pay for a Rope Wrangler Lasso (the Wrangler factory bypasses `castSpell()`). '
+      + 'Lassoing does not pay for a Rope Wrangler Lasso (the Wrangler factory bypasses `castSpell()`). '
       + 'The mechanic half of the '
       + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
       + 'phase its trigger dispatches, or a registered excuse).',
@@ -2632,7 +2632,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Keshi the Cityguard and Pop Star Keshi (Epic, keshi); King Soren (Epic) and Mastered Soren (Common) (soren); Master '
       + 'Brakkus (Epic) and Young Brakkus (Common) (brackus); Ninja Robin (Common, robin). Rarity comes from the master\x27s '
       + 'filename; the ten masters with none took the owner\x27s random draw between Common and Epic. Chimerus (the Dragon '
-      + 'quest reward) and Baal (forged by the Rune of Baal) are token-flagged cards the Shop never offers, and are the two '
+      + 'quest reward) and Baal (forged by the Baal) are token-flagged cards the Shop never offers, and are the two '
       + 'token targets a skin may name. With them in, a first crate holds 14 Common, 32 Rare, 25 Epic and 20 Legendary '
       + 'items (each Common 3.571%, Rare 0.938%, Epic 0.6%, Legendary 0.25%).',
     domain: 'foundation',
@@ -4578,7 +4578,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'fight. The replay records that batch on the fight\x27s frame (CombatFrame.eot: the batch, the moment End Turn '
       + 'was pressed, and the Lasso records), deep-cloned at capture. Playback holds the last shop frame until that '
       + 'moment, then plays the recorded batch through the SAME compiler, timeline player and presenters as a live '
-      + 'End Turn (one beat per source, so Rune of Lasting Cadence shows one beat per Rally), and renders the fight '
+      + 'End Turn (one beat per source, so Lasting Cadence shows one beat per Rally), and renders the fight '
       + 'only when the beats finish. Nothing is reduced or simulated at playback. A pause lets the beats finish and '
       + 'resume renders the fight; a seek drops them. A recording made before this existed has no batch and goes '
       + 'straight to its fight, as it always did.',
@@ -4937,7 +4937,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour:
       'PARTIAL pin (built 2026-10-08; packages/sim/src/reducer.ts godPrint / godGrantRune, packages/sim/src/godMode.ts). '
       + 'Pinned: both actions are refused outside God Mode, outside the shop and for an unknown id; a print appends a '
-      + 'fresh shop card; a rune grant is free and a second copy matches a bought second copy (Rune of the Altar). '
+      + 'fresh shop card; a rune grant is free and a second copy matches a bought second copy (Altar). '
       + 'NOT re-tested here: a printed card\'s normal price, Freeze keeping it, a roll replacing it and it counting '
       + 'toward triples (they ride the ordinary shop-card paths, since a printed card is a plain shop entry), and '
       + 'printing past the shop\'s slots is only exercised, not asserted. Printing may exceed the shop\'s slot count '
@@ -6345,7 +6345,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectating fixes)', quote: 'also, let spectators mouse over the runes themselves' },
     ],
     currentBehaviour: 'New on 2026-10-16. Before, the forge offer cards were inert for spectators (every button on the watch screen was).',
-    example: 'A spectator hovers Rune of Structure in the forge the player is browsing and reads its Attachment and Shop spell notes.',
+    example: 'A spectator hovers Structure in the forge the player is browsing and reads its Attachment and Shop spell notes.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx'], lastVerifiedAt: '2026-10-16' },
   },
   {
@@ -6759,10 +6759,10 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-SNAPSHOT-RUBY-01',
-    title: 'A served board mints its combat Rubies at the strength its owner\'s own fight used, Rune of the Spellstone included',
+    title: 'A served board mints its combat Rubies at the strength its owner\'s own fight used, Spellstone included',
     statement:
       'A recorded board\'s combat Rubies are minted at EXACTLY the Ruby strength its owner\'s own fight used: the run\'s Ruby '
-      + 'bonus plus, with Rune of the Spellstone, the run\'s spell power (`rubyStatBonus`). The snapshot stores that '
+      + 'bonus plus, with Spellstone, the run\'s spell power (`rubyStatBonus`). The snapshot stores that '
       + 'folded value as `rubyPower` beside the raw `rubyBonus` (which the "Ruby power" readout keeps showing). A board '
       + 'captured before 2026-10-17 has no `rubyPower`; it is recomputed on read from what it stored (the Spellstone flag '
       + 'in its mods plus its spell power), with no stored data edited. Every combat-side and per-minion field is held to '
@@ -6781,7 +6781,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'served Spellstone board minted its Rubies without the spell power. Three runs in the live pool (14 boards) own '
       + 'the rune; they are served correctly through the recompute-on-read.',
     example:
-      'A run with a +4/+4 Ruby bonus, +3/+3 spell power and Rune of the Spellstone mints +7/+7 Rubies in its own fight. '
+      'A run with a +4/+4 Ruby bonus, +3/+3 spell power and Spellstone mints +7/+7 Rubies in its own fight. '
       + 'Served as an opponent it now mints +7/+7 too, not +4/+4.',
     enforcement: {
       kind: 'scenario',

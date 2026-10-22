@@ -15,7 +15,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "It depends on your tavern tier: **3** at Tier 1, **4** at Tiers 2 and 3, **5** at Tiers 4 and 5, and **6** at Tier 6. On top of that there's one **spell** slot on the right.",
     aliases: ['shop slots', 'how many cards', 'offers', 'tavern size', 'more slots'],
     seeAlso: ['tavern-tier-cost', 'shop-spell-slot', 'upgrade-does-not-refresh'],
-    covers: [{ rule: 'R-SHOP-01', fp: '340af593' }],
+    covers: [{ rule: 'R-SHOP-01', fp: '04e90306' }],
   },
   {
     id: 'shop-tiers-offered',

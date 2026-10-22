@@ -130,8 +130,8 @@ describe("Rune of Gemstorm — Avenge (2): PLAY Rubies onto your Kobolds", () =>
 describe("the four runes ship as specced", () => {
   it("exist at the sheet costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Hunger', 5, false], ['Rune of Gemstorm', 2, true], // Hunger 2 → 5 (owner balance 2026-08-04)
-      ['Rune of the Shared Table', 3, true], ['Rune of Redirection', 4, true],
+      ['Hunger', 5, false], ['Gemstorm', 2, true], // Hunger 2 → 5 (owner balance 2026-08-04)
+      ['Shared Table', 3, true], ['Redirection', 4, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -142,11 +142,11 @@ describe("the four runes ship as specced", () => {
   });
 
   it("all four are set-2 scoped — each names a set-2 mechanic", () => {
-    for (const n of ['Rune of Hunger', 'Rune of Gemstorm', 'Rune of the Shared Table', 'Rune of Redirection']) {
+    for (const n of ['Hunger', 'Gemstorm', 'Shared Table', 'Redirection']) {
       // Gemstorm / Shared Table / Redirection carried into set 3 (2026-09-14); Hunger (Fodder) stays set-2 only.
       // Gemstorm + Redirection ARCHIVED everywhere 2026-10-07 (owner balance batch): `sets: []`.
-      const archived = n === 'Rune of Gemstorm' || n === 'Rune of Redirection';
-      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(archived ? [] : n === 'Rune of the Shared Table' ? ['set2', 'set3'] : ['set2']); // Redirection CUT FROM SET 3 2026-09-24 (owner); Gemstorm CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+      const archived = n === 'Gemstorm' || n === 'Redirection';
+      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(archived ? [] : n === 'Shared Table' ? ['set2', 'set3'] : ['set2']); // Redirection CUT FROM SET 3 2026-09-24 (owner); Gemstorm CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
     }
   });
 });

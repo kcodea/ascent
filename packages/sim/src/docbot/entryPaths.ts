@@ -90,7 +90,7 @@ export const ENTRY_SITES: Readonly<Record<string, EntrySiteEntry>> = {
   'reducer.ts#takeDiscoverPick#hand': { kind: 'discover', why: 'the Discover pick — every Discover (hero, rune, spell, Gift) lands through this one site' },
   'reducer.ts#buy#hand': { kind: 'shop-buy', why: 'the shop: the right-hand spell slot, a minion offer, a restored/borrowed body' },
   'reducer.ts#play#board': { kind: 'play', why: 'hand → board' },
-  'reducer.ts#rollRefrainReturn#hand': { kind: 'return-to-hand', why: 'Rune of Refrain bounces the played Shout body back to hand (the one hand write the play case had; hoisted into a helper 2026-09-18 so an aimed Shout rolls after its aim)' },
+  'reducer.ts#rollRefrainReturn#hand': { kind: 'return-to-hand', why: 'Refrain bounces the played Shout body back to hand (the one hand write the play case had; hoisted into a helper 2026-09-18 so an aimed Shout rolls after its aim)' },
   'reducer.ts#reposition#board': { kind: 'reorder', why: 'drag within the board' },
   'reducer.ts#reorderHand#hand': { kind: 'reorder', why: 'drag within the hand' },
   'reducer.ts#heroPower#board': { kind: 'hero-grant', why: 'a hero power that places a body beside its target (Gildmaster / copy powers)' },
@@ -103,7 +103,7 @@ export const ENTRY_SITES: Readonly<Record<string, EntrySiteEntry>> = {
   'reducer.ts#seedAdoptedPower#hand': { kind: 'hero-grant', why: 'an adopted hero power seeding its starting cards (Symbiotic Attachment and kin)' },
   // ── recruit.ts ──
   'recruit.ts#pushTaughtPup#hand': { kind: 'hand-mint', why: 'Mage Pup: the taught spell copy' },
-  'recruit.ts#gainGold#hand': { kind: 'rune-grant', why: 'Rune of the Golden Splinter, paid out inside the Gold-gain chokepoint: a golden tier-mate to hand' },
+  'recruit.ts#gainGold#hand': { kind: 'rune-grant', why: 'Golden Splinter, paid out inside the Gold-gain chokepoint: a golden tier-mate to hand' },
   'recruit.ts#grantMinionToHandOrBoard#hand': { kind: 'hand-mint', why: 'the shared minion grant (quest / rune / effect rewards): hand, then board, then overflow' },
   'recruit.ts#grantMinionToHandOrBoard#board': { kind: 'token-summon', why: 'the shared minion grant falling through to the board when the hand is full' },
   'recruit.ts#conjureToHand#hand': { kind: 'hand-mint', why: 'the shared conjure chokepoint — random-Gift grants, spell copies, rune grants' },

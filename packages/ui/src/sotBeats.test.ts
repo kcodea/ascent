@@ -76,7 +76,7 @@ describe("Lord of the Risen × Ancient of Time's grant rides the Start-of-Turn b
 const RECRUIT = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'Recruit.tsx'), 'utf8');
 
 describe('every Start of Turn source gets its own beat, and the turn waits for them (owner 2026-09-27)', () => {
-  const rune = { kind: 'rune' as const, id: 'rune_resonance', label: 'Rune of Resonance' };
+  const rune = { kind: 'rune' as const, id: 'rune_resonance', label: 'Resonance' };
   const minion = { kind: 'minion' as const, uid: 'fc', cardId: 'd2_felconjurer', label: 'Fel Conjurer' };
   const key = (c: SotCue): string => `${c.beat}:${c.kind}${c.kind === 'arrive' ? `:${c.zone}:${c.uid}` : ''}`;
 

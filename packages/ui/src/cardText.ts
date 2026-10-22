@@ -388,10 +388,10 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
 export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: each Vaultkeeper gain also lands on an adjacent Dragon. */ vaultkeeper?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
-  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Also gives its gains to an adjacent Dragon (Rune of the Vaultkeeper).}}';
-  if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
-  if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
-  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Rune of Living Treasure).}}';
+  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Also gives its gains to an adjacent Dragon (Vaultkeeper).}}';
+  if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Matriarch).}}';
+  if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Brokerage).}}';
+  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Living Treasure).}}';
   // (Facetwright's "gives both effects" note used to live here. It is now the general (Both) rendering below,
   // which every "does both branches" source shares — a card that does both must READ as doing both, not carry
   // a footnote under a "Choose One:" label that is no longer true.)

@@ -69,7 +69,7 @@ describe('Rune of the Procession — Avenge (4): double your right-most', () => 
       { cardId: 'sandbag', attack: 5, health: 300 },
     ];
     const buffs = (mods: object) => sim(board, killer, mods).events
-      .filter((e) => e.type === 'buff' && e.source === 'Rune of the Procession').length;
+      .filter((e) => e.type === 'buff' && e.source === 'Procession').length;
     expect(buffs({}), 'baseline should never fire the rune').toBe(0);
     expect(buffs({ runeProcession: true }), 'the rune never doubled anything').toBeGreaterThan(0);
   });
@@ -78,7 +78,7 @@ describe('Rune of the Procession — Avenge (4): double your right-most', () => 
 describe('the three runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Last Call', 2, false], ['Rune of the Cinder Ledger', 3, true], ['Rune of the Procession', 3, true],
+      ['Last Call', 2, false], ['Cinder Ledger', 3, true], ['Procession', 3, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -89,8 +89,8 @@ describe('the three runes ship as specced', () => {
   });
 
   it('only Last Call is set-2 scoped — the other two use set-1 mechanics too', () => {
-    expect(byName('Rune of Last Call')!.sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'], cut from Set 3 2026-09-24)
-    expect(byName('Rune of the Cinder Ledger')!.sets).toEqual(['set1', 'set2']); // Imps exist in both sets; // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
-    expect(byName('Rune of the Procession')!.sets).toBeUndefined();
+    expect(byName('Last Call')!.sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'], cut from Set 3 2026-09-24)
+    expect(byName('Cinder Ledger')!.sets).toEqual(['set1', 'set2']); // Imps exist in both sets; // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
+    expect(byName('Procession')!.sets).toBeUndefined();
   });
 });

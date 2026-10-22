@@ -10,7 +10,7 @@ function TooltipPreview(): JSX.Element {
       <TipPanel title="Aegis" pills={['once per turn']}>
         Give a friendly minion <b>Ward</b>, then give your minions with <b>Ward +5 Attack</b>.
       </TipPanel>
-      <TipPanel title="Rune of Ashen Payroll" pills={['Rune · active']}>
+      <TipPanel title="Ashen Payroll" pills={['Rune · active']}>
         Gain <b>1 Gold</b> next turn for each <b>Imp</b> you summon in combat.
       </TipPanel>
       <TipPanel simple arrow="up">Upgrade Shop to tier 2</TipPanel>

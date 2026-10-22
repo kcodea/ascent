@@ -119,7 +119,7 @@ export const RETRO_CATALOG: readonly RetroCatalogEntry[] = [
   },
   {
     id: '941-aftershocks-per-watcher',
-    title: 'Rune of Aftershocks pays once per death WATCHER instead of once per Echo trigger',
+    title: 'Aftershocks pays once per death WATCHER instead of once per Echo trigger',
     fixCommits: ['#941'],
     reportDate: '2026-08-09',
     patch: [{ file: SIM,

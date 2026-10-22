@@ -38,7 +38,7 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF REINVESTMENT: the badge shows what THIS rune alone has given the Shop so far, off the provenance
   // ledger (owner ask 2026-09-10). Null until it has paid once.
   if (runeId === 'rune_reinvestment') {
-    const v = run.tavernBuyBonusSources?.['Rune of Reinvestment'];
+    const v = run.tavernBuyBonusSources?.['Reinvestment'];
     return v && (v.atk > 0 || v.hp > 0) ? `+${v.atk}/+${v.hp}` : null;
   }
   // Threshold runes (Gemspam, Spending, Action, …) — `sourceId` is stamped when the meter is armed.

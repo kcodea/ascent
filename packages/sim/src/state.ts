@@ -5,7 +5,7 @@ import type { RankAtStart } from './rankAtStart';
 import type { HeroReroll } from './heroReroll';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
-import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, LEGACY_CARD_IDS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool, type PowerLatch } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -772,11 +772,18 @@ export function procRune(s: RunState, kind: string, times = 1): void {
  * entry carrying its own `sourceId`, so the id is right there — one stamp at the payout chokepoint covers all
  * eight, correctly attributed.
  */
-/** Is this buff `source` label a RUNE's? Rune buffs almost all label themselves `'Rune …'`; the handful that
- *  use a flavor label are listed explicitly. Used to drive the `rune-buff-unit` FX on any minion a rune buffs
- *  (owner ask 2026-08-19). Cheap string test — buffs carry their source label on `card.buffs`. */
+/** Every rune's display name. Rune buffs label themselves with the rune's NAME, which is bare since the owner
+ *  dropped the "Rune of" prefix (2026-10-22: "let's remove 'rune of' for all the runes, so they just show the
+ *  rune name"), so the label alone no longer says "rune": the name set does. */
+const RUNE_BUFF_LABELS: ReadonlySet<string> = new Set([...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].map((r) => r.name));
+
+/** Is this buff `source` label a RUNE's? A rune buff is labelled with the rune's display name; a save, snapshot
+ *  or fixture from before 2026-10-22 still carries the old `'Rune of …'` label, and a few generic grants label
+ *  themselves plain `'Rune'`, so the prefix stays recognised.
+ *  Used to drive the `rune-buff-unit` FX on any minion a rune buffs (owner ask 2026-08-19). Cheap string test —
+ *  buffs carry their source label on `card.buffs`. */
 export function isRuneBuffSource(source: string): boolean {
-  return source.startsWith('Rune') || source === 'Twin Sun Oath';
+  return source.startsWith('Rune') || RUNE_BUFF_LABELS.has(source) || source === 'Twin Sun Oath';
 }
 
 /** Total rune-sourced buff magnitude (Σ attack+health) on a card — the diff of this across an action is what

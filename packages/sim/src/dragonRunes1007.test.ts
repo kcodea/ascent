@@ -93,9 +93,9 @@ describe('Rune of the Echoing Shouts — every Shout gives your Dragons +3/+2', 
     expect(totalFrom(s.board.find((c) => c.uid === 'd1'), 'Rune'), 'one +3/+2 per Shout FIRE').toEqual([3 * fires, 2 * fires]);
   });
   it('COMBAT: a real-time Shout fire buffs the living Dragons +3/+2 the moment it fires (for this fight)', () => {
-    const r = shoutFight({ shoutMeters: [{ sourceId: 'rune_echoing_shouts', per: 1, tick: 0, buff: { tribe: 'dragon', attack: 3, health: 2, label: 'Rune of the Echoing Shouts' } }] },
+    const r = shoutFight({ shoutMeters: [{ sourceId: 'rune_echoing_shouts', per: 1, tick: 0, buff: { tribe: 'dragon', attack: 3, health: 2, label: 'Echoing Shouts' } }] },
       [{ cardId: 'd2_embermouth', attack: 2, health: 2, sourceUid: 'p2', keywords: [] }]);
-    const buffs = r.events.filter((e) => e.type === 'buff' && e.source === 'Rune of the Echoing Shouts');
+    const buffs = r.events.filter((e) => e.type === 'buff' && e.source === 'Echoing Shouts');
     expect(buffs.length, 'one buff per living Dragon per Shout fire').toBe(r.playerShoutFires);
     const dragonUid = r.initial.player.find((m) => m.cardId === 'd2_embermouth')!.uid;
     for (const b of buffs) expect([(b as { target: string }).target, (b as { attack: number }).attack, (b as { health: number }).health]).toEqual([dragonUid, 3, 2]);
@@ -107,7 +107,7 @@ describe('Rune of the Echoing Shouts — every Shout gives your Dragons +3/+2', 
       resolve: 999, maxResolve: 999, armor: 999, questFlags: { runeHerald: true },
     });
     const fought = act(before, { type: 'faceOmen' });
-    expect(JSON.stringify(fought.lastCombat!.events)).toContain('Rune of the Echoing Shouts');
+    expect(JSON.stringify(fought.lastCombat!.events)).toContain('Echoing Shouts');
     const settled = act(fought, { type: 'resolveCombat' });
     expect(buffsFrom(settled.board.find((c) => c.uid === 'p2'), 'Rune'), 'the combat payout is for that fight only (Drake Skull rule)').toEqual([]);
   });

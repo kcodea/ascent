@@ -11,8 +11,8 @@ const card = (uid: string, cardId: string, tribe: BoardCard['tribe'] = 'neutral'
 
 describe('isRuneBuffSource', () => {
   it('accepts Rune-labelled and the flavor labels, rejects card buffs', () => {
-    expect(isRuneBuffSource('Rune of Scales')).toBe(true);
-    expect(isRuneBuffSource("Rune of the Seller's Market")).toBe(true);
+    expect(isRuneBuffSource('Scales')).toBe(true);
+    expect(isRuneBuffSource("Seller's Market")).toBe(true);
     expect(isRuneBuffSource('Twin Sun Oath')).toBe(true); // Drake Skull
     expect(isRuneBuffSource('Ruby')).toBe(false);
     expect(isRuneBuffSource('Soulbind')).toBe(false);
@@ -23,7 +23,7 @@ describe('isRuneBuffSource', () => {
 describe('runeBuffMagnitude', () => {
   it('sums only rune-sourced buffs', () => {
     const c = card('a', 'spore');
-    c.buffs = [{ source: 'Rune of Scales', attack: 4, health: 5, count: 1 }, { source: 'Ruby', attack: 1, health: 1, count: 1 }];
+    c.buffs = [{ source: 'Scales', attack: 4, health: 5, count: 1 }, { source: 'Ruby', attack: 1, health: 1, count: 1 }];
     expect(runeBuffMagnitude(c)).toBe(9); // 4+5, the Ruby excluded
   });
 });

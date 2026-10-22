@@ -243,8 +243,19 @@ const spellsByName = new Map<string, string>();
 for (const c of Object.values(CARD_INDEX)) if (c && (c.spell || c.ruby)) spellsByName.set(norm(c.name), c.id);
 
 const runesByName = new Map<string, string>();
+/** Runes whose name never started with "Rune of", so no legacy-prefixed art file can belong to them. */
+const NEVER_PREFIXED: ReadonlySet<string> = new Set(['rune_happy_birthday', 'rune_merry_christmas']);
 for (const r of [...RUNES, ...EPIC_RUNES]) {
+  // Rune names are BARE since 2026-10-22 (owner: "let's remove 'rune of' for all the runes"), but the art folder
+  // was authored under the old names (`RuneOfTheAnvil.png`). Both spellings resolve: the bare name for new
+  // files, and the bare name re-prefixed with "Rune of" / "Rune of the" for every existing one.
+  // The two runes that never carried the prefix stay unprefixed here, so the change wires nothing new (their
+  // `RuneOf…` files stay unmatched until the owner names them; art is wired only on ask).
   runesByName.set(norm(r.name), r.id);
+  if (!NEVER_PREFIXED.has(r.id)) {
+    runesByName.set(norm(`Rune of ${r.name}`), r.id);
+    runesByName.set(norm(`Rune of the ${r.name}`), r.id);
+  }
   // The art folder is inconsistent about "Rune of X" vs "Rune of the X" — in both directions. That is a
   // systematic authoring variance across ~7 files, not seven separate typos, so it is absorbed here rather than
   // as seven alias entries. Registered only when it does not collide with a real rune name.

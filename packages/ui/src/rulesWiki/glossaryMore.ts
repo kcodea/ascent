@@ -151,7 +151,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yes. A spell a minion (or rune) casts **counts as a spell cast** everywhere: your \"whenever you cast a spell\" cards react, and it counts toward spell tallies, in the Shop, at End of Turn and in combat. It just **isn't a card played from hand**, so it doesn't count as \"played\".",
     aliases: ['cast', 'casts', 'minion casts a spell', 'does it count as a spell', 'spell cast by minion'],
     seeAlso: ['cast-multipliers-from-hand', 'what-counts-as-played'],
-    covers: [{ rule: 'R-MINIONCAST-01', fp: '5e8a4848' }, { rule: 'R-PLAY-01', fp: '55820196' }],
+    covers: [{ rule: 'R-MINIONCAST-01', fp: 'fe99a8c1' }, { rule: 'R-PLAY-01', fp: '55820196' }],
   },
   {
     id: 'cast-multipliers-from-hand',
@@ -160,7 +160,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "No. Anything that makes a spell **cast more times** only works on spells **you cast from your hand**. A spell a minion, rune or Equipment casts goes off once, and it doesn't use up your one-shot \"next spell\" bonuses either; those wait for your next spell from hand.",
     aliases: ['spell twice', 'cast twice', 'extra cast', 'spell multiplier', 'next spell casts again'],
     seeAlso: ['what-cast-means'],
-    covers: [{ rule: 'R-MULT-06', fp: 'af59f5c6' }],
+    covers: [{ rule: 'R-MULT-06', fp: 'e85f5e38' }],
   },
   {
     id: 'shop-spell-meaning',
@@ -366,7 +366,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "To make it **go off right now**, as if its condition just happened. \"Trigger your left-most Echo\" fires that minion's Echo **without it dying**. A triggered Shout, Echo or Rally counts as a real one, so cards that react to those notice it.",
     aliases: ['trigger', 'retrigger', 're-trigger', 'fire', 'activate', 'proc', 'trigger an echo'],
     seeAlso: ['trigger-your-shouts', 'trigger-twice-stacking'],
-    covers: [{ rule: 'R-RALLY-01', fp: '4f5d9f16' }],
+    covers: [{ rule: 'R-RALLY-01', fp: 'aa94d7bf' }],
   },
   {
     id: 'trigger-your-shouts',

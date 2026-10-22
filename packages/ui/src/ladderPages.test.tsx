@@ -506,7 +506,7 @@ describe('RecentGames — layout B: the game list + the selected game in full (o
     expect(text('.gs-detail .lb-row-name')).toEqual(['Nadja']);
     expect(text('.gs-detail .lb-row-record')).toEqual(['9–4']);
     expect(detail().querySelectorAll('.cv2-tile .card')).toHaveLength(7);
-    expect(text('.gs-detail .lb-rune-name').slice(0, 2)).toEqual(['Rune of Spellslinging', 'Happy Birthday']);
+    expect(text('.gs-detail .lb-rune-name').slice(0, 2)).toEqual(['Spellslinging', 'Happy Birthday']);
     expect(detail().querySelectorAll('.lb-rune-em img, .lb-rune-em svg')).toHaveLength(2);
     expect(detail().querySelector('.lb-verdict')?.className).toBe('gc-place won lb-verdict won');
     // length · rounds · board strength (only on the scored game). The lobby strength is HIDDEN for now (owner 2026-09-30).

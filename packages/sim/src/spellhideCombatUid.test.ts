@@ -41,7 +41,7 @@ describe('Rune of Spellhide: the Start-of-Combat re-cast finds its Beast through
     expect(body, 'the Beast reached combat').toBeDefined();
     expect(body.uid, 'combat renames the body, so the lookup must go through sourceUid').not.toBe('beast');
     const fired = combat.events.filter((e) => e.type === 'questTrigger' && e.flag === 'runeSpellhide' && e.side === 'player');
-    expect(fired, 'Rune of Spellhide never fired: its Beast was not found in combat').toHaveLength(1);
+    expect(fired, 'Spellhide never fired: its Beast was not found in combat').toHaveLength(1);
     const buffs = combat.events.filter((e) => e.type === 'buff' && e.target === body.uid && e.attack === 6 && e.health === 6);
     expect(buffs.length, 'the re-cast Spirit Fire (+6/+6) did not land on the Beast').toBeGreaterThanOrEqual(1);
   });

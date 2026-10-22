@@ -58,7 +58,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
     id: 'R-RAND-02',
     title: '"A random Ruby" is one of all six Ruby types at equal odds, drawn per Ruby from the seeded RNG',
     statement:
-      'Every "get a random Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Rune of Resonance, Rune of Investment) '
+      'Every "get a random Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Resonance, Investment) '
       + 'draws each Ruby SEPARATELY and uniformly from the six types: Ruby, Warding, Golden, Splintered, Ripple and '
       + 'Dark, on the run cursor in the Shop and the fight RNG in combat, so a replay draws the same Rubies. Each '
       + 'is minted at its own printed base plus the run\'s Ruby strength. A plain "get N Rubies" stays plain Rubies.',
@@ -82,7 +82,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
       + '2026-10-21: Tier-7 access alone no longer opens it). One helper owns it: legalRandomMinionPool in the Shop '
       + '(packages/sim/src/cardPool.ts) and isLegalRandomMinion in combat (packages/core/src/randomPool.ts). Bullseye '
       + 'and Menagerie Mammoth also cap at your Shop tier in the Shop, matching their combat body (owner fix '
-      + '2026-08-18). An effect whose text NAMES a tier (Rune of the Deep, "a random Tier 7 minion") is authored and '
+      + '2026-08-18). An effect whose text NAMES a tier (Deep, "a random Tier 7 minion") is authored and '
       + 'keeps its tier.',
     domain: 'randomness',
     status: 'approved',
@@ -100,13 +100,13 @@ export const RANDOMNESS_RULES: GameRule[] = [
   },
   {
     id: 'R-RANDOM-TIER7-01',
-    title: 'A random pick gives Tier 7 only while your Shop is at Tier 7, in both phases; Rune of the Foundry caps at your Shop tier',
+    title: 'A random pick gives Tier 7 only while your Shop is at Tier 7, in both phases; Foundry caps at your Shop tier',
     statement:
       'A random minion pick (summon, get, grant or Discover a random minion, including the "tier above your Shop" '
       + 'Discovers) never gives a Tier 7 minion, in the Shop or in combat, unless that player\'s Shop actually stands at '
       + 'Tier 7. Tier-7 ACCESS alone (Open Road, Summit Passage, the Summit rift) with a Tier 6 Shop does not open Tier 7 to a '
-      + 'random picker. Rune of the Foundry\'s random Dragon (every 5 minions sold) is capped at your Shop tier like every '
-      + 'other "get a random X". Effects whose text names Tier 7 are authored and keep their tier: Rune of the Deep, Beyond '
+      + 'random picker. Foundry\'s random Dragon (every 5 minions sold) is capped at your Shop tier like every '
+      + 'other "get a random X". Effects whose text names Tier 7 are authored and keep their tier: Deep, Beyond '
       + 'the Summit, Pete, Strange Revision (and the other printed "up to Tier 7" cards such as Skybound Ascendant and Golden '
       + 'Monkey). The Shop ladder itself is unchanged: access still lets you upgrade to Tier 7.',
     domain: 'randomness',
@@ -120,7 +120,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms, FIXED 2026-10-21: randomTierCeiling returned 7 for any run with Tier-7 access, so with a Tier 6 Shop the '
       + 'random grants, Choose One grants, Rally summons, Clockwork Assistant, Albus (Empowerment and the Ancient of Time '
-      + 'Discover) and the Lucky Seat prizes could reach Tier 7 in the Shop while combat (Shop tier read) could not. Rune of '
+      + 'Discover) and the Lucky Seat prizes could reach Tier 7 in the Shop while combat (Shop tier read) could not. '
       + 'the Foundry had no Shop-tier cap at all.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts', 'packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-21' },
   },

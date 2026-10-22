@@ -234,7 +234,7 @@ describe('Rune of Reinvestment shows its own contribution (owner ask 2026-09-10)
     expect(runeCombatTally('rune_reinvestment', 2, 3, 2), 'two copies pay double per summon').toBe('+18/+24');
   });
   it('in the shop: what the rune alone has given, off the provenance ledger', () => {
-    const run = { tavernBuyBonusSources: { 'Rune of Reinvestment': { atk: 4, hp: 4 }, 'Staff of Guel': { atk: 2, hp: 2 } } } as unknown as RunState;
+    const run = { tavernBuyBonusSources: { 'Reinvestment': { atk: 4, hp: 4 }, 'Staff of Guel': { atk: 2, hp: 2 } } } as unknown as RunState;
     expect(runeTally(run, 'rune_reinvestment')).toBe('+4/+4');
     expect(runeTally({} as unknown as RunState, 'rune_reinvestment'), 'nothing paid yet → no counter').toBeNull();
   });

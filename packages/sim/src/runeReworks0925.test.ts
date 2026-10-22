@@ -39,9 +39,9 @@ describe('Rune of Action — "give 3 random friendly minions +2/+2. Repeat for e
   it.each([0, 1, 3])('with %i cards played it lands 1 + n ticks, each on 3 distinct friendly minions for +2/+2', (n) => {
     const s = armed(n, five());
     applyEndOfTurn(s);
-    expect(gainOf(s, 'Rune of Action'), 'ticks × 3 picks × +2').toBe((1 + n) * 3 * 2);
+    expect(gainOf(s, 'Action'), 'ticks × 3 picks × +2').toBe((1 + n) * 3 * 2);
     for (const c of s.board) {
-      const b = c.buffs?.find((x) => x.source === 'Rune of Action');
+      const b = c.buffs?.find((x) => x.source === 'Action');
       if (!b) continue;
       expect(b.attack).toBe(b.health);
       expect(b.count, 'at most one grant per tick per minion (the 3 picks are distinct)').toBeLessThanOrEqual(1 + n);
@@ -53,7 +53,7 @@ describe('Rune of Action — "give 3 random friendly minions +2/+2. Repeat for e
   it('a nothing-played turn still pays the base tick once', () => {
     const s = armed(0, five());
     applyEndOfTurn(s);
-    expect(gainOf(s, 'Rune of Action')).toBe(6);
+    expect(gainOf(s, 'Action')).toBe(6);
   });
 
   it('fewer than 3 friendly minions: every one of them gets each tick', () => {
@@ -88,14 +88,14 @@ describe('Rune of Action — "give 3 random friendly minions +2/+2. Repeat for e
   it('a replay of your recurring End-of-Turn effects (the "trigger your End of Turn effects" path) runs every tick', () => {
     const s = armed(2, five());
     expect(replayRecurringEndOfTurn(s)).toBe(true);
-    expect(gainOf(s, 'Rune of Action')).toBe(18);
+    expect(gainOf(s, 'Action')).toBe(18);
   });
 });
 
 describe('Rune of Bulk Order — "every 10 Gold you spend, give 4 random friendly minions +4/+4"', () => {
   it('the def: text + reward', () => {
     const r = RUNE_INDEX['rune_scale']!;
-    expect(r.name).toBe('Rune of Bulk Order');
+    expect(r.name).toBe('Bulk Order');
     expect(r.text).toBe('Every **10 Gold** you spend, give **4 random friendly minions +4/+4**.');
     expect(r.reward).toEqual({ kind: 'runeScale', count: 4, attack: 4, health: 4, per: 10 });
   });
@@ -113,10 +113,10 @@ describe('Rune of Bulk Order — "every 10 Gold you spend, give 4 random friendl
     let s = armed(['a', 'b', 'c', 'd', 'e', 'f'].map(ally));
     s = roll(s, 9);
     expect(s.runeScale!.tick).toBe(9);
-    expect(gainOf(s, 'Rune of Bulk Order')).toBe(0);
+    expect(gainOf(s, 'Bulk Order')).toBe(0);
     s = roll(s, 1);
     expect(s.runeScale!.tick).toBe(0);
-    expect(gainOf(s, 'Rune of Bulk Order')).toBe(16);
+    expect(gainOf(s, 'Bulk Order')).toBe(16);
     expect(s.board.filter((c) => c.attack === 5 && c.health === 5)).toHaveLength(4);
   });
 

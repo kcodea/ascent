@@ -111,7 +111,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "You get both, one after the other. Epic forges open first, then the Basic one. Each works like a normal visit: buy one rune and the next forge opens.",
     aliases: ['double forge', 'two runeforges', 'back to back'],
     seeAlso: ['extra-runeforge-visits'],
-    covers: [{ rule: 'R-RUNE-02', fp: 'a4f4fdce' }],
+    covers: [{ rule: 'R-RUNE-02', fp: '191c6404' }],
   },
   {
     id: 'rune-lasts-whole-game',
@@ -128,7 +128,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Right away. A rune that says **Get something, repeat every Start of Turn** hands you the first one the moment you buy it, then one more each turn after. A rune that works in combat is already on for that turn's fight.",
     aliases: ['kick in', 'activate', 'first payout', 'immediately', 'next turn'],
     seeAlso: ['rune-lasts-whole-game', 'rune-counters'],
-    covers: [{ rule: 'R-RUNE-08', fp: '069cd4aa' }], // re-checked 2026-10-07 (the Deep moved to the every-2-turns cadence; the answer still holds)
+    covers: [{ rule: 'R-RUNE-08', fp: 'efaa3f4f' }], // re-checked 2026-10-07 (the Deep moved to the every-2-turns cadence; the answer still holds)
   },
   {
     id: 'where-are-my-runes',
@@ -161,7 +161,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "A rune that's built around a tribe only shows up in games where that tribe is in the shop. No Dragons in this game means no Dragon runes. Runes that don't care about tribes can show up in any game.",
     aliases: ['tribe rune', 'missing runes', 'dragon rune', 'beast rune', 'which runes', 'tribes'],
     seeAlso: ['rune-offer-fits-board'],
-    covers: [{ rule: 'R-RUNE-04', fp: '40f81b56' }],
+    covers: [{ rule: 'R-RUNE-04', fp: '15a60d57' }],
   },
   {
     id: 'rune-offer-fits-board',
@@ -205,7 +205,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yes, most runes can show up again, and a second copy stacks: it fires one more time, pays out double, or repeats one more time, depending on the rune. A handful of runes can't stack, and the forge stops offering those once you own one.",
     aliases: ['duplicate', 'double rune', 'two copies', 'stack', 'same rune'],
     seeAlso: ['rune-duplicate-no-stack'],
-    covers: [{ rule: 'R-RUNEDUP-01', fp: 'd88a3cc8' }, { rule: 'R-RUNEDUP-07', fp: '64443a7f' }],
+    covers: [{ rule: 'R-RUNEDUP-01', fp: 'bdf953ec' }, { rule: 'R-RUNEDUP-07', fp: '8adebdbc' }],
   },
   {
     id: 'rune-duplicate-no-stack',
@@ -214,7 +214,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "It's never a wasted buy. Instead of stacking you get **Gold back** (half the rune's price, rounded up) plus a **free refresh**.",
     aliases: ['duplicate refund', 'wasted rune', 'consolation', 'sweetener'],
     seeAlso: ['same-rune-twice'],
-    covers: [{ rule: 'R-RUNEDUP-06', fp: '998c334d' }],
+    covers: [{ rule: 'R-RUNEDUP-06', fp: 'c0510152' }],
   },
   {
     id: 'opponents-have-runes',

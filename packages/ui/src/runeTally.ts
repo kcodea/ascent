@@ -1,6 +1,6 @@
-import { kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
+import { CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -38,7 +38,7 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF REINVESTMENT: the badge shows what THIS rune alone has given the Shop so far, off the provenance
   // ledger (owner ask 2026-09-10). Null until it has paid once.
   if (runeId === 'rune_reinvestment') {
-    const v = run.tavernBuyBonusSources?.['Rune of Reinvestment'];
+    const v = run.tavernBuyBonusSources?.['Reinvestment'];
     return v && (v.atk > 0 || v.hp > 0) ? `+${v.atk}/+${v.hp}` : null;
   }
   // Threshold runes (Gemspam, Spending, Action, …) — `sourceId` is stamped when the meter is armed.
@@ -63,12 +63,25 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // RUNE OF THE GRIM TOAST (Set 3 design pass tranche 4): the Undead Aura your Dwarves get RIGHT NOW (the live-value rule).
   if (runeId === 'rune_grim_toast') { const g = grimToastFold(run); if (g) return `+${g.attack}/+${g.health}`; }
   // RUNE OF UNITY (tranche 5): the minion types the board controls right now, out of the active 5 (the full house is on
-  // at 5/5).
-  if (runeId === 'rune_unity' && run.questFlags?.runeUnity) { const u = unityTypeCount(run); return `${u.have}/${u.of} types`; }
+  // at 5/5). Plain integers, no "types" word (owner 2026-10-22: "we dont want to show 'refreshes' etc in our counter text").
+  if (runeId === 'rune_unity' && run.questFlags?.runeUnity) { const u = unityTypeCount(run); return `${u.have}/${u.of}`; }
   // RUNE OF THE GEM STAR: the turn's Rubies that already fed the Starform, out of the cap ("the first 4 each turn").
   if (runeId === 'rune_gem_star' && run.questFlags?.runeGemStar) return `${Math.min(GEM_STAR_CAP, run.gemStarThisTurn ?? 0)}/${GEM_STAR_CAP}`;
   // RUNE OF THE OPEN GRAVE: its one charge a turn, as the War Drum shows it (1 ready, 0 spent).
   if (runeId === 'rune_open_grave' && run.questFlags?.runeOpenGrave) return run.openGraveUsedThisTurn ? '0/1' : '1/1';
+  // ── Set 3 Dragon runes, Basic (owner 2026-10-21): the N/X integer counter convention. ──
+  // Rune of Clear Voices: distinct Whispers cast from hand this turn, toward the 3 that pay (full once paid this turn).
+  if (runeId === 'rune_clear_voices' && run.questFlags?.runeClearVoices) {
+    return run.clearVoicesPaid ? `${CLEAR_VOICES_DISTINCT}/${CLEAR_VOICES_DISTINCT}` : `${Math.min(CLEAR_VOICES_DISTINCT, run.clearVoicesIds?.length ?? 0)}/${CLEAR_VOICES_DISTINCT}`;
+  }
+  // Rune of Spell Tempering: Whispers cast toward the next improve (a running meter across turns and fights).
+  if (runeId === 'rune_spell_tempering' && run.questFlags?.runeSpellTempering) return `${Math.min(SPELL_TEMPERING_PER, run.runeSpellTemperingTick ?? 0)}/${SPELL_TEMPERING_PER}`;
+  // Rune of the Open Treasury: its one copy a turn (1 ready, 0 spent), as the Open Grave shows it.
+  if (runeId === 'rune_open_treasury' && run.questFlags?.runeOpenTreasury) return run.openTreasuryUsed ? '0/1' : '1/1';
+  // Set 3 Dragon Epics B (2026-10-21): Bequeathed Secrets' one Dragon sale a turn (the Open Grave shape), and the Opened
+  // Vault's armed double while it waits for the next Whisper cast from hand.
+  if (runeId === 'rune_bequeathed_secrets' && run.questFlags?.runeBequeathedSecrets) return run.bequeathedUsedThisTurn ? '0/1' : '1/1';
+  if (runeId === 'rune_opened_vault' && run.questFlags?.runeOpenedVault && run.openedVaultArmed) return 'next Whisper x2';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
     return `${Math.min(run.shopAuraGrow.tick, run.shopAuraGrow.per)}/${run.shopAuraGrow.per}`;
@@ -122,17 +135,17 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // Rune of the Deep (owner 2026-10-07: "Repeat every 2 turns"): turn setups since the last Tier 7 minion, of the
   // cadence. A run that bought it before the cadence existed pays every turn and shows no countdown.
   if (runeId === 'rune_deep' && run.runeDeep && (run.runeDeepEvery ?? 1) > 1) {
-    return `${Math.min(run.runeDeepTick ?? 0, run.runeDeepEvery!)}/${run.runeDeepEvery} turns`;
+    return `${Math.min(run.runeDeepTick ?? 0, run.runeDeepEvery!)}/${run.runeDeepEvery}`;
   }
   // The Gift cadences (owner balance 2026-10-10): Happy Birthday every 3 turns, Merry Christmas every 2. Turn setups
   // since the last payout, of the cadence, the Deep's shape. A Christmas bought before its cadence pays every turn and
   // shows no countdown; a Birthday bought before keeps its old 2.
   if (runeId === 'rune_happy_birthday' && run.runeHappyBirthday) {
     const every = run.giftBirthdayEvery ?? 2;
-    return `${Math.min(run.giftBirthdayTick ?? 0, every)}/${every} turns`;
+    return `${Math.min(run.giftBirthdayTick ?? 0, every)}/${every}`;
   }
   if (runeId === 'rune_merry_christmas' && run.runeMerryChristmas && (run.giftChristmasEvery ?? 1) > 1) {
-    return `${Math.min(run.giftChristmasTick ?? 0, run.giftChristmasEvery!)}/${run.giftChristmasEvery} turns`;
+    return `${Math.min(run.giftChristmasTick ?? 0, run.giftChristmasEvery!)}/${run.giftChristmasEvery}`;
   }
   // ── Set 3 batch 2, tranche B (2026-09-16) ──
   // Rune of Resonant Arms: Equipment TRIGGERS banked toward the next +8/+5 (a run-wide meter).
@@ -265,7 +278,7 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // The CADENCED grants (Clockwork Promotion / the Muckbroker / Rare Goods): turns until the next body. The
   // meter lives in a LIST (several can be held), so it is matched on the rune that armed it, not by index.
   const cadence = run.runeCadenceGrants?.find((g) => g.sourceId === runeId);
-  if (cadence) return `${Math.min(cadence.tick, cadence.everyTurns)}/${cadence.everyTurns} turns`;
+  if (cadence) return `${Math.min(cadence.tick, cadence.everyTurns)}/${cadence.everyTurns}`;
   // LIVING MAGIC / PERFECT RECALL share one budget, so the badge shows COPIES LEFT rather than an x/N —
   // "1 left" is the number that decides whether your next cast pays.
   if ((runeId === 'rune_living_magic' || runeId === 'rune_perfect_recall') && run.runeSpellEcho) {
@@ -309,6 +322,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   // 2026-08-20 batch — both Avenge (3), both improving Rubies.
   rune_shifting_facets: 3, rune_deepening_vein: 3,
   rune_soul_toll: 4, // Set 3 design pass (2026-09-27): Avenge (4) raises the Undead Aura
+  rune_final_utterance: DRAGON_RUNES_BASIC.finalUtteranceAvenge, // Set 3 Dragon runes (2026-10-21): Avenge (4), a Whisper and a Shop Spell
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

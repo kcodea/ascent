@@ -60,17 +60,17 @@ describe("the two runes ship as specced", () => {
   // the offerable lists `byName` searches. Its machinery is unchanged and still under test above, because a
   // saved run that already owns it keeps paying out; only the offer is gone.
   it("exist at the sheet costs, both basic", () => {
-    for (const [name, cost] of [['Rune of Reinvestment', 5]] as [string, number][]) {
+    for (const [name, cost] of [['Reinvestment', 5]] as [string, number][]) {
       const r = byName(name);
       expect(r, `${name} is missing`).toBeDefined();
       expect(r!.cost, `${name} cost`).toBe(cost);
       expect(!!r!.epic, `${name} should be basic`).toBe(false);
     }
-    expect(byName('Rune of the Remains'), 'the Remains is archived — never offerable').toBeUndefined();
+    expect(byName('Remains'), 'the Remains is archived — never offerable').toBeUndefined();
     expect(RUNE_INDEX['rune_remains'], 'but still resolvable for saved runs').toBeDefined();
   });
 
   it("Reinvestment is not set-scoped — summoning and the Shop exist in both sets", () => {
-    expect(byName('Rune of Reinvestment')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+    expect(byName('Reinvestment')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
   });
 });

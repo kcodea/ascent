@@ -163,7 +163,7 @@ describe('7. combat Dragonflame plays once per buffed unit on a standalone wave'
   it('the `fxDef` cue leaves an authored spell\'s buffs to `fireBuffCasts` (it used to play the column too)', () => {
     vi.useFakeTimers();
     const events = [
-      { type: 'sc', source: 'm0', text: 'Rune of Spellhide casts Dragonflame', spellId: 'sp_dragonflame', rune: 'rune_spellhide', side: 'player', step: 0 },
+      { type: 'sc', source: 'm0', text: 'Spellhide casts Dragonflame', spellId: 'sp_dragonflame', rune: 'rune_spellhide', side: 'player', step: 0 },
       { type: 'buff', target: 'm1', attack: 4, health: 4, source: 'm0', spellId: 'sp_dragonflame', step: 1 },
       { type: 'buff', target: 'm2', attack: 4, health: 4, source: 'm0', spellId: 'sp_dragonflame', step: 2 },
     ] as unknown as CombatEvent[];

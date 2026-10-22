@@ -204,7 +204,7 @@ export const TARGETING_RULES: GameRule[] = [
     id: 'R-ONE-PER-TRIBE-ALL-01',
     title: 'An All-types minion takes its own slot in every "one minion of each type" spread',
     statement:
-      'Great Pot, Rune of the Shared Table, Fatecarver and Paragon / Standard Bearer give ONE friendly minion of each type. '
+      'Great Pot, Shared Table, Fatecarver and Paragon / Standard Bearer give ONE friendly minion of each type. '
       + 'An All-types minion (printed All types, or marked All by the Anomaly Reactor) '
       + 'always gets its own buff, whatever other types are on the board. A dual-type minion fills both its slots and is '
       + 'never buffed twice; a spell-added type counts; a neutral minion has no type and is skipped.',
@@ -216,7 +216,7 @@ export const TARGETING_RULES: GameRule[] = [
     ],
     contentIds: ['greatpot', 'rune_shared_table', 'n2_paragon', 'n2_standardbearer'],
     currentBehaviour:
-      'Conforms, FIXED 2026-10-18: Great Pot and Rune of the Shared Table read only the printed tribe and second tribe, so an '
+      'Conforms, FIXED 2026-10-18: Great Pot and Shared Table read only the printed tribe and second tribe, so an '
       + 'All-types minion (printed neutral) looked typeless and was skipped. Both now share `onePerTribeTargets`, which '
       + 'follows the Fatecarver convention.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/onePerTribeAllTypes.test.ts'], lastVerifiedAt: '2026-10-18' },
@@ -263,7 +263,7 @@ export const TARGETING_RULES: GameRule[] = [
       'Conforms, FIXED 2026-10-21: about forty sites in recruit.ts, reducer.ts, spellFizzle.ts, simulate.ts, factories.ts and '
       + 'arena.ts read only the printed tribe and second tribe, so an All-types card was missing from tribe pools (Sigil of '
       + 'Kinship, the tribe rune drip, the Pantry rune, Discover and conjure by tribe, the random-tribe summons) and failed tribe '
-      + 'checks (the Dragon count of Hoardflame, Spellhide, Rune of the Last Word, Shared Reflection, Company Rate, Ancestral Roar, '
+      + 'checks (the Dragon count of Hoardflame, Spellhide, Last Word, Shared Reflection, Company Rate, Ancestral Roar, '
       + 'Candlelight Toll, Gemstorm, Shared Circuit, Salvage). All now use the shared predicates. Left as they are: type COUNTING '
       + 'sites (most common type, distinct types, the two different end types of Centerline, the archived type of Wishbone) and bot scoring.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/allTypesEverywhere.test.ts', 'packages/sim/src/docbot/tribePredicates.test.ts'], lastVerifiedAt: '2026-10-21' },

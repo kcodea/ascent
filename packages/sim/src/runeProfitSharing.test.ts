@@ -63,7 +63,7 @@ describe('Rune of Profit Sharing', () => {
 
 describe('the rune data', () => {
   it('ships at 4 Gold, epic, archived everywhere (owner 2026-10-07; was set 2 + 3)', () => {
-    const r = byName('Rune of Profit Sharing')!;
+    const r = byName('Profit Sharing')!;
     expect(r.cost).toBe(4);
     expect(!!r.epic).toBe(true);
     expect(r.sets).toEqual([]);

@@ -175,8 +175,8 @@ describe('Combat Prowess replays rune/quest Start-of-Combat effects (owner rulin
   it('each replay is its own beat, sourced on the OWNING rune (questEndOfTurnBeats names it)', () => {
     const s = run([bc('a', 'stray')], { runeCombatProwess: true, questFlags: { runeWarding: true, runeVanguard: true } } as Partial<RunState>);
     const labels = questEndOfTurnBeats(s).map((b) => b.label);
-    expect(labels).toContain('Rune of Warding');
-    expect(labels).toContain('Rune of the Vanguard');
+    expect(labels).toContain('Warding');
+    expect(labels).toContain('Vanguard');
   });
 
   it('the replays fire ONLY under Combat Prowess (the rune is the bridge)', () => {
@@ -246,7 +246,7 @@ describe('end-to-end: Rune of Combat Prowess wiring holds together', () => {
     const cardBeats = runeCombatProwessBeats(s);
     expect(cardBeats, '2 card effects × (1 + Twilight)').toHaveLength(4);
     const replays = socRuneReplaysOf(s);
-    expect(replays.map((r) => r.label)).toEqual(['Rune of the Vanguard']);
+    expect(replays.map((r) => r.label)).toEqual(['Vanguard']);
     const beats = questEndOfTurnBeats(s);
     expect(beats.filter((b) => b.effect === 'runeCombatProwess'), 'card beats + rune replays, one list').toHaveLength(5);
     const out = reduce(s, { type: 'faceOmen' }) as RunState;

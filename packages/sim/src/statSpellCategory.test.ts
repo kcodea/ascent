@@ -76,7 +76,7 @@ describe('the category: Set 2 membership, pinned per tier', () => {
     // immediately basically ... that's more a utility thing."
     const cg = CARD_INDEX['commonground']!;
     expect(isStatGrantingSpell(cg)).toBe(false);
-    expect(isStatSpell(cg), 'Rune of Thrift still discounts it (unchanged)').toBe(true);
+    expect(isStatSpell(cg), 'Thrift still discounts it (unchanged)').toBe(true);
   });
 
   it('stat MOVERS / setters / next-combat buffs are OUT', () => {

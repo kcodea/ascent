@@ -2102,12 +2102,14 @@ export const ARENA_EFFECTS = {
     for (const m of arena.friends()) if (m.uid !== arena.self.uid) arena.buff(m, ga, gh);
   },
 
-  /** Kobe — play `count` PERMANENT Rubies on itself and each adjacent same-`tribe` neighbour (× golden). */
+  /** Kobe — play `count` PERMANENT Rubies on itself and each adjacent same-`tribe` neighbour (× golden).
+   *  `adjacent: false` (Frack Attack, owner 2026-10-22: "Start of Combat: Cast 3 Rubies on this") stops at itself. */
   scPlayRubiesSelfAndAdjacentTribe(arena: EffectArena, params: Record<string, unknown>): void {
     const per = num(params.count, 1) * gold(arena);
     const permanent = params.permanent === true;
     const tribe = str(params.tribe);
     arena.playRubiesOn(arena.self, per, permanent);
+    if (params.adjacent === false) return;
     for (const adj of arena.neighboursOf(arena.self)) {
       if (tribe && !arena.isTribe(adj, tribe)) continue;
       arena.playRubiesOn(adj, per, permanent);
@@ -2401,4 +2403,23 @@ export function improvingGrant(params: Record<string, unknown>, accrued: number 
     attack: n(params.attack, fallback) + n(params.improveAttack, 0) * steps,
     health: n(params.health, fallback) + n(params.improveHealth, 0) * steps,
   };
+}
+
+/** ROSEY (Set 3 Kobold, owner 2026-10-22): "When you cast a Ruby, this gains +2/+1 permanently. Improves every 3
+ *  Refreshes." The ONE reading of what one Ruby cast pays this copy right now, shared by the Shop chokepoint
+ *  (`fireOnRubyPlayed`), the combat chokepoint (`playRubyOn`) and the live text: the printed +attack/+health x LEVEL,
+ *  LEVEL = 1 + floor(refreshes / every) (each step adds the base again, the Aspect convention), x2 gilded. `refreshes`
+ *  is the copy's own Refresh meter (`eotTick`, ticked by its `shopRefreshTallySelf`). Null for any other card. */
+export function rubyCastGainOf(
+  def: { effects?: readonly { on?: string; do: string; params?: Record<string, unknown> }[] } | undefined,
+  golden: boolean,
+  refreshes: number | undefined,
+): { attack: number; health: number; level: number } | null {
+  const eff = def?.effects?.find((e) => e.do === 'rubyCastGainSelfImproving');
+  if (!eff) return null;
+  const meter = def?.effects?.find((e) => e.do === 'shopRefreshTallySelf');
+  const every = Math.max(1, num(meter?.params?.every, 3));
+  const level = 1 + Math.floor(Math.max(0, refreshes ?? 0) / every);
+  const g = golden ? 2 : 1;
+  return { attack: num(eff.params?.attack, 2) * level * g, health: num(eff.params?.health, 1) * level * g, level };
 }

@@ -1,12 +1,12 @@
 /**
  * SET 3 SELL DWARVES, owner batch 2026-10-21:
  *
- *   Salezar Sails  T2 3/1  "Sell: Give your Dwarves +2/+3."
- *   Mark Eting     T3 2/6  "When you Sell 4 minions, get a random Shop Spell."
+ *   Sailsey  T2 3/1  "Sell: Give your Dwarves +2/+3."
+ *   Mariet     T3 2/6  "When you Sell 4 minions, get a random Shop Spell."
  *   Valyou         T5 6/9  "When you Sell a minion, gain +3/+3. Every 4 triggers also grants 2 Gold."
  *   Leeds          T6 6/8  "When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions."
  *
- * Pinned here: each card's trigger, Gilded (stats, Gold and the spell count double; Mark Eting follows Runic Archivist,
+ * Pinned here: each card's trigger, Gilded (stats, Gold and the spell count double; Mariet follows Runic Archivist,
  * two spells per payout rather than a halved counter), All-types counting as a Dwarf, and the per-instance sale meters
  * carrying across a turn boundary.
  */
@@ -41,8 +41,8 @@ it('has enough distinct plain fodder to sell', () => expect(FODDER_IDS.length).t
 
 describe('the four Sell Dwarves are new Set 3 cards with the owner stats', () => {
   it.each([
-    ['dw3_salezarsails', 'Salezar Sails', 2, 3, 1],
-    ['dw3_marketing', 'Mark Eting', 3, 2, 6],
+    ['dw3_salezarsails', 'Sailsey', 2, 3, 1],
+    ['dw3_marketing', 'Mariet', 3, 2, 6],
     ['dw3_valyou', 'Valyou', 5, 6, 9],
     ['dw3_leeds', 'Leeds', 6, 6, 8],
   ] as const)('%s', (id, name, tier, attack, health) => {
@@ -54,31 +54,31 @@ describe('the four Sell Dwarves are new Set 3 cards with the owner stats', () =>
   });
 });
 
-describe('SALEZAR SAILS: Sell: Give your Dwarves +2/+3', () => {
+describe('SAILSEY: Sell: Give your Dwarves +2/+3', () => {
   it('selling it buffs your other Dwarves (and an All-types), never a non-Dwarf, never itself', () => {
     let s = run({ board: [body('z', 'dw3_salezarsails'), body('a', 'dw_brunni'), body('u', ALL_TYPES.id), FODDER('n')] });
     s = act(s, { type: 'sell', uid: 'z' });
     expect(s.board.some((c) => c.uid === 'z')).toBe(false);
-    expect(sumFrom(at(s, 'a'), 'Salezar Sails')).toEqual({ attack: 2, health: 3 });
-    expect(sumFrom(at(s, 'u'), 'Salezar Sails'), 'All-types counts as a Dwarf').toEqual({ attack: 2, health: 3 });
-    expect(buffFrom(at(s, 'n'), 'Salezar Sails')).toHaveLength(0);
+    expect(sumFrom(at(s, 'a'), 'Sailsey')).toEqual({ attack: 2, health: 3 });
+    expect(sumFrom(at(s, 'u'), 'Sailsey'), 'All-types counts as a Dwarf').toEqual({ attack: 2, health: 3 });
+    expect(buffFrom(at(s, 'n'), 'Sailsey')).toHaveLength(0);
     expect(at(s, 'a').attack).toBe(CARD_INDEX['dw_brunni']!.attack + 2); // a permanent Shop buff
   });
 
   it('Gilded gives +4/+6', () => {
     let s = run({ board: [body('z', 'dw3_salezarsails', { golden: true }), body('a', 'dw_brunni')] });
     s = act(s, { type: 'sell', uid: 'z' });
-    expect(sumFrom(at(s, 'a'), 'Salezar Sails')).toEqual({ attack: 4, health: 6 });
+    expect(sumFrom(at(s, 'a'), 'Sailsey')).toEqual({ attack: 4, health: 6 });
   });
 
   it('selling ANOTHER minion does nothing (it is its own Sell)', () => {
     let s = run({ board: [body('z', 'dw3_salezarsails'), body('a', 'dw_brunni'), FODDER('n')] });
     s = act(s, { type: 'sell', uid: 'n' });
-    expect(buffFrom(at(s, 'a'), 'Salezar Sails')).toHaveLength(0);
+    expect(buffFrom(at(s, 'a'), 'Sailsey')).toHaveLength(0);
   });
 });
 
-describe('MARK ETING: every 4 minions you Sell, get a random Shop Spell', () => {
+describe('MARIET: every 4 minions you Sell, get a random Shop Spell', () => {
   const legal = (s: RunState) => new Set(runSpells(s).filter((c) => c.tier <= s.tier).map((c) => c.id));
 
   it('pays one legal Shop Spell on the 4th sale, not before; the meter carries across a turn', () => {
@@ -108,7 +108,7 @@ describe('MARK ETING: every 4 minions you Sell, get a random Shop Spell', () => 
     for (const h of s.hand) expect(CARD_INDEX[h.cardId]!.spell).toBe(true);
   });
 
-  it('selling Mark Eting itself does not count', () => {
+  it('selling Mariet itself does not count', () => {
     let s = run({ board: [body('m', 'dw3_marketing'), FODDER('a')] });
     s = act(s, { type: 'sell', uid: 'm' });
     expect(s.hand).toHaveLength(0);

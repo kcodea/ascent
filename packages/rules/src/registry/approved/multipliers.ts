@@ -23,7 +23,7 @@ export const MULTIPLIERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [{ kind: 'owner-handoff', ref: AVWIN_HANDOFF, quote: 'Avenge multipliers multiply resolution, not progress.' }],
     currentBehaviour:
-      'Conforms: Rune of Fury / The Sealed Vault re-run the avenge factory with the SAME payload count '
+      'Conforms: Fury / The Sealed Vault re-run the avenge factory with the SAME payload count '
       + '(a second resolution); the death tally is untouched.',
   },
   {
@@ -62,7 +62,7 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       'The composition law of R-MULT-01 applies to EVERY trigger family, not only the ones with a named '
       + 'precedent — a family needs no ruling of its own to be composed this way. So Uron (additive) and '
       + 'Chronos ("twice", a multiplier) together make End-of-Turn effects fire (1 + 1) × 2 = FOUR times; Uron '
-      + 'alone makes Start-of-Combat effects fire twice; and Rune of Twilight adds its pass on top of the fold '
+      + 'alone makes Start-of-Combat effects fire twice; and Twilight adds its pass on top of the fold '
       + '(owner reversal 2026-08-20). REVISED 2026-08-28 by the wording rule: the earlier reading '
       + 'collapsed Uron + Chronos to 2×, which was right under the all-additive model it was approved against '
       + 'and wrong under the one that replaced it the same day.',
@@ -154,20 +154,20 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       { kind: 'fix-pr', ref: 'Live spell text + Voicekeeper fix — no simulation change was needed; the doubling was already correct and only the readout was stale (packages/ui/src/liveSpellTextInCombat.test.ts pins both halves)' },
     ],
     currentBehaviour:
-      'Conforms for the totals — 2026-09-22. Probed through simulate() first: a Chorus Drake under Rune of '
+      'Conforms for the totals — 2026-09-22. Probed through simulate() first: a Chorus Drake under '
       + 'Adventuring (rallyExtraAlways) already rallied 90 times instead of 45 and banked exactly double the '
       + 'spell power, and emitted one narration per fire. The SIM was right the whole time; only the printed '
       + 'number was stale, and it was stale for the reason in R-TEXT-06. Because the readout is now a fold over '
       + 'those per-fire narrations, the doubling reaches the text with no multiplier arithmetic in the UI at all. '
       + 'Deliberately NOT folded, and not counted as a gap (review 2026-09-22): the repeating card\'s own '
       + 'per-trigger text. Chorus Drake still prints "+1 Health" under the rune, because one Rally really does '
-      + 'grant 1 and the rune already states that Rally fires twice. Contrast Rune of Mastery, which multiplies a '
+      + 'grant 1 and the rune already states that Rally fires twice. Contrast Mastery, which multiplies a '
       + 'single improve and therefore IS folded into card text through improveReps. If the owner ever rules that '
       + 'a repeat-the-trigger rune must double the repeating card\'s printed rate as well, that is its own text '
       + 'change and this statement widens with it.',
-    cardText: 'Rune of Adventuring: "Your **Rally** effects trigger **twice**."',
+    cardText: 'Adventuring: "Your **Rally** effects trigger **twice**."',
     example:
-      'Chorus Drake plus Rune of Adventuring: 45 Rallies become 90, spell power gained goes from +0/+45 to +0/+90, '
+      'Chorus Drake plus Adventuring: 45 Rallies become 90, spell power gained goes from +0/+45 to +0/+90, '
       + 'and a Front to Back in hand must print the +90 version while the fight is still running. The Drake itself '
       + 'still prints +1 Health per Rally, because that is still what one Rally grants.',
     contentIds: ['rune_adventuring', 'd2_chorus'],
@@ -182,16 +182,16 @@ export const MULTIPLIERS_RULES: GameRule[] = [
     title: 'Cast multipliers apply only to spells cast from hand, and only a hand cast spends them',
     statement:
       'Every effect that makes a spell cast more times (Yazzus, Living Grimoire, Orivax, Spell Thesis, Ancient Runes, '
-      + 'Nimbus, Comet, Edward Keg-hands, the Bottomless Cask and Bottomless Cellar, Rune of Shared Pour, Rune of '
-      + 'Hoardflame, Rune of Dragon Breath, Constellation Prime) applies ONLY to a spell the player casts from hand. A '
-      + 'spell cast by a minion (a Mage-Pup, an End-of-Turn caster), by a rune (Rune of Recurrence, a rune threshold) or '
+      + 'Nimbus, Comet, Edward Keg-hands, the Bottomless Cask and Bottomless Cellar, Shared Pour, '
+      + 'Hoardflame, Dragon Breath, Constellation Prime) applies ONLY to a spell the player casts from hand. A '
+      + 'spell cast by a minion (a Mage-Pup, an End-of-Turn caster), by a rune (Recurrence, a rune threshold) or '
       + 'by an Equipment (Pourman\'s Keg) resolves exactly once, and it never spends a one-shot multiplier: the Living '
       + 'Grimoire charge, Orivax\'s first-spell window, the Spell Thesis freebie, a Nimbus or Comet charge and the Shared '
       + 'Pour freebie all wait for the next spell cast from hand. A re-cast of the spell being cast from hand, inside '
-      + 'that same cast (Mirrorwing, Yirin\'s Reflector, Runefire, Crash Course, Rune of Shared Reflection), is that '
+      + 'that same cast (Mirrorwing, Yirin\'s Reflector, Runefire, Crash Course, Shared Reflection), is that '
       + 'hand cast happening again and keeps its multiplier; the same re-cast of a minion\'s or rune\'s cast resolves '
       + 'once. A minion\'s or rune\'s cast still counts as a spell cast for every tally and for the first/last-spell '
-      + 'memory (R-MINIONCAST-01). Rune of Resonance and the Ruby cast count are unchanged: a Ruby only multiplies when '
+      + 'memory (R-MINIONCAST-01). Resonance and the Ruby cast count are unchanged: a Ruby only multiplies when '
       + 'played from hand already.',
     domain: 'multipliers',
     status: 'approved',

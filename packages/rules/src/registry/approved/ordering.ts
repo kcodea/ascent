@@ -43,7 +43,7 @@ export const ORDERING_RULES: GameRule[] = [
     id: 'R-ORD-03',
     title: 'A right-most Consume always takes the right-most edible offer — a bonus bite never displaces it',
     statement:
-      'A card that Consumes "the right-most minion in the Shop" (Bob Blart, Grevlin & Co., Rune of Hunger) eats the '
+      'A card that Consumes "the right-most minion in the Shop" (Bob Blart, Grevlin & Co., Hunger) eats the '
       + 'right-most EDIBLE offer — the last minion in the row, skipping any spell or Ruby to its right — every time '
       + 'it fires, and the check never fails while an edible offer exists. An extra Consume granted alongside it '
       + '(Bottomless Banquet\'s "the first Consume each turn eats twice") takes ANOTHER offer and must not shift the '
@@ -84,7 +84,7 @@ export const ORDERING_RULES: GameRule[] = [
     id: 'R-ORD-05',
     title: '"Attacks immediately" cuts the line — right after its summon, before the next normal attacker, and between the swings of a Flurry',
     statement:
-      "A minion summoned to \"attack immediately\" (Rune of Living Echoes' Sunmane Herald, Kurse's Gemheart Golem, "
+      "A minion summoned to \"attack immediately\" (Living Echoes' Sunmane Herald, Kurse's Gemheart Golem, "
       + "Violet Whelp's Whelp, Tamer's whelp, Spear Warden, Charging Soldier, Trooper, …) strikes as soon as its "
       + 'summon lands and the event that summoned it has settled, BEFORE the next normal attacker is chosen. That '
       + 'holds for every summon point between attacks, including one made after the death cascade (a "while you '
@@ -179,11 +179,11 @@ export const ORDERING_RULES: GameRule[] = [
     statement:
       'Every trigger fire of a reaction gets its own tick. A wave pass (each Gasket Rally pass, each Fel Spikes volley) is '
       + 'its own beat and lands whole (every hit at once, no left-to-right sweep). Its reactions then play as one tick per '
-      + 'landed hit: every reactor that hit fired (Rad Rachel, Ruinous Lord, Impossible Todd, Leech, Axeman, Rune of Ruins) '
+      + 'landed hit: every reactor that hit fired (Rad Rachel, Ruinous Lord, Impossible Todd, Leech, Axeman, Ruins) '
       + 'plays in that tick, and every buffed minion\x27s number steps up by that one fire, never the summed lump. Ticks are '
       + 'REACTION_TICK_MS (160 ms) apart, the chain compressed to at most REACTION_CHAIN_CAP_MS (1.6 s), both one tunable '
       + 'constant in choreo/hitReactions.ts; the beat clock, the Fel Spikes spike schedule and the volley hold all wait '
-      + 'reactionChainMs(ticks). The reaction beat exists whatever else the reactors emit (a Todd Imp aura, a Rune of Ruins '
+      + 'reactionChainMs(ticks). The reaction beat exists whatever else the reactors emit (a Todd Imp aura, a Ruins '
       + 'pulse): those ride the reaction beat and never fold the reactions back into the pass. The same per-fire stepping '
       + 'applies to a stand-alone buff wave of several fires (a cleaving Demon\x27s hits) and a multiplied Rally (Gilded '
       + 'Echohorn\x27s procs). A spell\x27s buffs (Dragonflame) are never chained: its presentation is the reference. Tendrils '
@@ -199,7 +199,7 @@ export const ORDERING_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/choreo/hitReactions.ts (reactionTicks, reactionChainMs, chainTendrilPlan, REACTION_TICK_MS); packages/ui/src/choreo/clashOrder.ts (the wave partition); packages/ui/src/choreo/compile.ts (Moment.ticks); packages/ui/src/choreo/clock.ts; packages/ui/src/useCombatReplay.ts fireBuffChain / scheduleEchoVolleys / echoDeliveryLead' },
     ],
     contentIds: ['dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_leech', 'dm_chosenfiend', 'dm_gasket', 'dm_felspikes', 'b2_echohorn', 'd2_flamebeat', 'd2_warflame'],
-    currentBehaviour: 'Conforms as of 2026-10-13. Before, a Todd aura or a Rune of Ruins pulse folded the reactions into the pass (no tendril, the numbers snapped in at the next beat), and a pass\x27s reactions were one summed tendril and roll per minion.',
+    currentBehaviour: 'Conforms as of 2026-10-13. Before, a Todd aura or a Ruins pulse folded the reactions into the pass (no tendril, the numbers snapped in at the next beat), and a pass\x27s reactions were one summed tendril and roll per minion.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
   {
@@ -208,7 +208,7 @@ export const ORDERING_RULES: GameRule[] = [
     statement:
       'For a wave pass of Demon damage (each Gasket Rally pass, each Fel Spikes volley, either side), every hit of the '
       + 'pass is dealt first, then every reaction those landed hits fire (Rad Rachel, Ruinous Lord, Impossible Todd, '
-      + 'Leech, Axeman, Rune of Ruins) resolves in hit order, and only then are deaths checked. A minion the pass took to 0 '
+      + 'Leech, Axeman, Ruins) resolves in hit order, and only then are deaths checked. A minion the pass took to 0 '
       + 'or below is still on the board for those reactions and is buffed like any other: it dies only if the damage beat '
       + 'its Health after the buffs (Echohorn 4/3 hit for 4 with Rachel paying +1 Health per landed hit survives; a hit '
       + 'bigger than the buffs still kills). Echo, Rise and Avenge follow the corrected deaths. The Shop spray already '
@@ -246,12 +246,12 @@ export const ORDERING_RULES: GameRule[] = [
   },
   {
     id: 'R-EMBERS-LATE-01',
-    title: 'Rune of the Embers doubles the FINAL Health: it resolves after every other shop buff of the refresh',
+    title: 'Embers doubles the FINAL Health: it resolves after every other shop buff of the refresh',
     statement:
-      'Rune of the Embers ("When you refresh, double the Health of the right-most minion in the Shop") resolves in the '
+      'Embers ("When you refresh, double the Health of the right-most minion in the Shop") resolves in the '
       + 'POST-BUFF phase of the refresh. The refresh pins its right-most minion; the doubling runs once at the end of the '
       + 'action, after every additive shop buff that action landed (Veinstorm Rubies, slot enchants, run-wide and '
-      + 'this-turn Shop buffs, tribe buy-auras, the cast watchers of a Shop spell such as Rune of Infernal Ink, Start of Turn '
+      + 'this-turn Shop buffs, tribe buy-auras, the cast watchers of a Shop spell such as Infernal Ink, Start of Turn '
       + 'effects on the turn-start roll, the Pete contraband swap). So the right-most reads 2 x (base + buffs). A pinned offer '
       + 'replaced in its slot before the phase runs (Pete) passes the doubling to the current right-most; a kept offer '
       + 'through two refreshes in one action doubles twice. One doubling per copy held; a Starform doubles once (rule 4).',

@@ -1149,7 +1149,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + '15 s; Recruit\x27s countdown calls observeTurnClock on every tick; shop shelf, so End Turn expires it; bypasses the '
       + 'cooldown but waits out a playing line, and is dropped if the clock reaches 0 first), BuyDrakko (the Shop minion '
       + 'named Drakko, id `drummer`, bought; the hero Drakko is never bought), BuySylus (the Shop minion Sylus bought; '
-      + 'Rune of Sylus granting one is not a buy) and CastAle (an Ale, ALE_IDS, cast from hand: spellsCast rises while '
+      + 'Sylus granting one is not a buy) and CastAle (an Ale, ALE_IDS, cast from hand: spellsCast rises while '
       + 'an Ale leaves the hand). The '
       + 'announcer is its own channel: a third gain on the SFX AudioContext with its own volume and mute '
       + '(`ascent.announcervol.v2`, see R-PRESENT-13; `ascent.announcermuted`), not ducked by the Game-sounds mute; the clips '
@@ -1297,7 +1297,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'Whenever a spell is CAST BY A RUNE or BY A MINION (never by the player from hand or shop), the game floats '
       + 'that spell\x27s card preview above its caster: above the rune\x27s node on the rune rail for a rune-cast, above '
-      + 'the minion\x27s card for a minion-cast (Rune of the Gilded Ledger\x27s random stat spell, Rune of the Spell '
+      + 'the minion\x27s card for a minion-cast (Gilded Ledger\x27s random stat spell, Spell '
       + 'Market\x27s Staff of Guel, Rope Wrangler\x27s Lasso, a Gemstorm Instigator\x27s Rubies, a Mirrorwing re-cast, an '
       + 'End-of-Turn cast). NOTE 2026-09-24: ONLY THE RUNE CASE IS ON for now; minion casts (shop, End of Turn and '
       + 'combat) are gated off by `CAST_PREVIEW_SOURCES` (owner: hide/disable the combat/minion side), with their code '
@@ -1348,7 +1348,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/recruit.ts (`castActorStack`, `withCastActor`, the RECRUIT_FACTORIES wrap, the record at the top of `applyCastEffects`, `EotStepFx.casts`); packages/sim/src/state.ts (`CastFx`, `recordCastFx`, `castFx`/`castFxSeq`); packages/ui/src/castPreview.ts (the store, `placeCastPreview`); packages/ui/src/CastPreviewLayer.tsx; packages/ui/src/choreo/channels/castPreview.ts (`spellCastsIn`, `CastPreviewMemory`); packages/ui/src/choreo/score.ts (the `castPreviewFx` cue); packages/ui/src/useCombatReplay.ts (`onSpellCastPreviews`); packages/ui/src/choreographer/consequencePresenters.ts (`spellResolved`); packages/ui/src/styles.css (`.castprev`); packages/ui/src/castPreviewConfig.ts (the tuner\x27s one config accessor: `castPreviewLook`, `castPreviewTimings`, `castPreviewCombatOncePerFight`); packages/ui/src/CastPreviewTuner.tsx (the panel + Preview test); packages/core/src/effects/factories.ts (the combat `castRepeat` verb now logs the `sc` + `spellId` announcement from the caster; `castTribeAttackSpell` stamps `spellId`)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-09-23. Verified live on port 5267: a Rune of the Gilded Ledger paying out floats the cast '
+      'Conforms as of 2026-09-23. Verified live on port 5267: a Gilded Ledger paying out floats the cast '
       + 'spell above its rune node; a Rope Wrangler\x27s End-of-Turn Lasso floats above the Wrangler; sampled computed '
       + 'opacity climbs through the fade-in, holds at 1 for the linger and falls through the fade-out; the rune rail '
       + 'and the warband row rects are identical before and after the preview (no layout shift). Equipment casts '
@@ -1471,7 +1471,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'Conforms as of 2026-09-24 for spell cast FX (Growth and Waking Rift are the first spells bound). Combat casts through the arena\x27s '
       + '`castRepeat` (Fatecarver / Taragosa / Hoardbreaker\x27s Growth) previously logged no `sc` announcement and '
       + 'emitted untagged buffs, and a shop Rally\x27s inline "cast Growth" recorded no cast; both are fixed. Rune casts '
-      + 'were untagged and their buffs drew nothing (sourceless); fixed 2026-09-24, and Rune of Spellhide\x27s '
+      + 'were untagged and their buffs drew nothing (sourceless); fixed 2026-09-24, and Spellhide\x27s '
       + 'Start-of-Combat re-cast now announces itself (`sc` + `rune`). Known remaining gaps: an Equipment\x27s cast '
       + 'deliberately records nothing (R-PRESENT-10). The repeat runes (Shared Pour, Astral Draft, Distillation, Shared '
       + 'Reflection, Hoardflame, Dragon Breath, the Bottomless Cask) rode the player\x27s cast path until 2026-09-24; '
@@ -1487,7 +1487,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'plays its shop-wide effect on the authoritative End of Turn (`auraChanged` `shopBuff`); a minion arriving in the '
       + 'Shop or at End of Turn from any source gets the landing dust and the summon sound, the summon clips gated per '
       + 'clip; a standalone combat Dragonflame wave no longer plays its column twice. Known gameplay gap, report only: '
-      + 'Rune of Lassoing does not pay for a Rope Wrangler Lasso (the Wrangler factory bypasses `castSpell()`). '
+      + 'Lassoing does not pay for a Rope Wrangler Lasso (the Wrangler factory bypasses `castSpell()`). '
       + 'The mechanic half of the '
       + 'default is enforced by the Doc Bot `factoryPhase` lane (every trigger/factory pair implemented in every '
       + 'phase its trigger dispatches, or a registered excuse).',
@@ -2632,7 +2632,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Keshi the Cityguard and Pop Star Keshi (Epic, keshi); King Soren (Epic) and Mastered Soren (Common) (soren); Master '
       + 'Brakkus (Epic) and Young Brakkus (Common) (brackus); Ninja Robin (Common, robin). Rarity comes from the master\x27s '
       + 'filename; the ten masters with none took the owner\x27s random draw between Common and Epic. Chimerus (the Dragon '
-      + 'quest reward) and Baal (forged by the Rune of Baal) are token-flagged cards the Shop never offers, and are the two '
+      + 'quest reward) and Baal (forged by the Baal) are token-flagged cards the Shop never offers, and are the two '
       + 'token targets a skin may name. With them in, a first crate holds 14 Common, 32 Rare, 25 Epic and 20 Legendary '
       + 'items (each Common 3.571%, Rare 0.938%, Epic 0.6%, Legendary 0.25%).',
     domain: 'foundation',
@@ -4578,7 +4578,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'fight. The replay records that batch on the fight\x27s frame (CombatFrame.eot: the batch, the moment End Turn '
       + 'was pressed, and the Lasso records), deep-cloned at capture. Playback holds the last shop frame until that '
       + 'moment, then plays the recorded batch through the SAME compiler, timeline player and presenters as a live '
-      + 'End Turn (one beat per source, so Rune of Lasting Cadence shows one beat per Rally), and renders the fight '
+      + 'End Turn (one beat per source, so Lasting Cadence shows one beat per Rally), and renders the fight '
       + 'only when the beats finish. Nothing is reduced or simulated at playback. A pause lets the beats finish and '
       + 'resume renders the fight; a seek drops them. A recording made before this existed has no batch and goes '
       + 'straight to its fight, as it always did.',
@@ -4834,6 +4834,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (2026-10-07): both factories resolve the spell through CARD_INDEX, which includes the archive.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/balanceBatch1007.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-ARCHIVE-SET3-1022-01',
+    title: 'Stellar Chorus, Shredder and Jumpstart Jules leave Set 3; old Set 3 saves, snapshots and replays still resolve them',
+    statement:
+      'Stellar Chorus, Shredder and Jumpstart Jules are out of Set 3: a Set 3 run never offers them in the Shop, the Spell '
+      + 'Cart, a Discover or a random grant (every draw reads the run-pinned pool). Stellar Chorus stays a Set 4 shared '
+      + 'spell. Shredder and Jumpstart Jules were Set 3 only, so they are archived and belong to no set. All three stay '
+      + 'in the global card index: an old Set 3 save still casts or buys Stellar Chorus, Jules still adds its Start of '
+      + 'Turn Equipment charge, Shredder still pays out at End of Turn, and a snapshot or replay holding them resolves.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-22', quote: 'archive stellar chorus from set 3' },
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-22 (same PR)', quote: 'archive shredder and jumpstart jules' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_SPELLS_IN_SET3 / SET4_SHARED_SPELL_IDS; packages/content/src/cards/archive.ts (the 2026-10-22 block)' },
+    ],
+    contentIds: ['stellarchorus', 'n3_shredder', 'n3_charger'],
+    currentBehaviour: 'Conforms (built 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',
@@ -4917,7 +4937,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour:
       'PARTIAL pin (built 2026-10-08; packages/sim/src/reducer.ts godPrint / godGrantRune, packages/sim/src/godMode.ts). '
       + 'Pinned: both actions are refused outside God Mode, outside the shop and for an unknown id; a print appends a '
-      + 'fresh shop card; a rune grant is free and a second copy matches a bought second copy (Rune of the Altar). '
+      + 'fresh shop card; a rune grant is free and a second copy matches a bought second copy (Altar). '
       + 'NOT re-tested here: a printed card\'s normal price, Freeze keeping it, a roll replacing it and it counting '
       + 'toward triples (they ride the ordinary shop-card paths, since a printed card is a plain shop entry), and '
       + 'printing past the shop\'s slots is only exercised, not asserted. Printing may exceed the shop\'s slot count '
@@ -6325,7 +6345,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-16 (spectating fixes)', quote: 'also, let spectators mouse over the runes themselves' },
     ],
     currentBehaviour: 'New on 2026-10-16. Before, the forge offer cards were inert for spectators (every button on the watch screen was).',
-    example: 'A spectator hovers Rune of Structure in the forge the player is browsing and reads its Attachment and Shop spell notes.',
+    example: 'A spectator hovers Structure in the forge the player is browsing and reads its Attachment and Shop spell notes.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateOverlay.test.tsx'], lastVerifiedAt: '2026-10-16' },
   },
   {
@@ -6739,10 +6759,10 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-SNAPSHOT-RUBY-01',
-    title: 'A served board mints its combat Rubies at the strength its owner\'s own fight used, Rune of the Spellstone included',
+    title: 'A served board mints its combat Rubies at the strength its owner\'s own fight used, Spellstone included',
     statement:
       'A recorded board\'s combat Rubies are minted at EXACTLY the Ruby strength its owner\'s own fight used: the run\'s Ruby '
-      + 'bonus plus, with Rune of the Spellstone, the run\'s spell power (`rubyStatBonus`). The snapshot stores that '
+      + 'bonus plus, with Spellstone, the run\'s spell power (`rubyStatBonus`). The snapshot stores that '
       + 'folded value as `rubyPower` beside the raw `rubyBonus` (which the "Ruby power" readout keeps showing). A board '
       + 'captured before 2026-10-17 has no `rubyPower`; it is recomputed on read from what it stored (the Spellstone flag '
       + 'in its mods plus its spell power), with no stored data edited. Every combat-side and per-minion field is held to '
@@ -6761,7 +6781,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'served Spellstone board minted its Rubies without the spell power. Three runs in the live pool (14 boards) own '
       + 'the rune; they are served correctly through the recompute-on-read.',
     example:
-      'A run with a +4/+4 Ruby bonus, +3/+3 spell power and Rune of the Spellstone mints +7/+7 Rubies in its own fight. '
+      'A run with a +4/+4 Ruby bonus, +3/+3 spell power and Spellstone mints +7/+7 Rubies in its own fight. '
       + 'Served as an opponent it now mints +7/+7 too, not +4/+4.',
     enforcement: {
       kind: 'scenario',
@@ -7581,6 +7601,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/lobbyFloatBatch.test.ts', 'packages/ui/src/lobbyRoundDamage.test.tsx', 'packages/ui/src/lobbyKnockout.test.tsx'], lastVerifiedAt: '2026-10-20' },
   },
   {
+    id: 'R-PERF-HANDBUFF-01',
+    title: 'A hand card carries one live hand-buff cue at a time, and a chain of them shares one particle budget',
+    statement:
+      'The hand-buff cue (the pop on a hand card that just got stronger) plays at most once at a time per card. A second '
+      + 'buff on the same card within 300 ms is the same moment and plays nothing new; a later one restarts the card\x27s '
+      + 'cue instead of stacking a second copy. Every live hand-buff play together stays inside one particle budget (300): '
+      + 'a single buff, or up to three cards at once, plays exactly as authored; a wider fan shares the budget evenly, and '
+      + 'a chain of fans thins and shortens the later plays. The gild trail is held the same way (one live trail per gilded '
+      + 'card and copy, a 1,100 particle budget that one gild never reaches). While two or more whole cards pop at once, '
+      + 'each popping card is put on its own GPU layer (will-change: transform) for its pop and given back its own value '
+      + 'after, so the browser does not re-draw every popping card every frame; a lone pop is left exactly as it was.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (perf report, 240 Hz, relayed by the coordinator)', quote: 'when a cave cutter is played with both effects active it nukes performance' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22, approving the one-live-cue-per-card + shared budget plan', quote: 'yeah do it' },
+      { kind: 'code', ref: 'packages/ui/src/handBuffFx.ts (dedupeKey, HAND_BUFF_COALESCE_MS, fan intensity); packages/ui/src/fx/primitives/react.ts (PROMOTE_AT); packages/ui/src/fx/fxBudget.ts (admit: per-key dedupe, per-def live budget, defLifeScale); packages/ui/src/fx/fxBudgetConfig.ts (DEF_PARTICLE_BUDGETS); packages/ui/src/fx/fanBudget.ts; packages/ui/src/gildTrail.ts' },
+    ],
+    example: 'Cave Cutter with the Unbroken Vein rune on a hand of eight Rubies (prod bench, median of 6): the Ruby-power watcher and the shop hand diff both popped every Ruby, up to 12 hand-buff plays and 1,152 particles live, and every popping card was re-rasterised every frame (1.5 s of GPU raster in a 5 s window). Now the hand-buff total stays at or under 300, raster is 0.6 s, and frames over 6.25 ms fall from 104 to 40.',
+    currentBehaviour: 'Conforms from 2026-10-22 (perf/hand-buff-pileup). Before, every fire stacked a new 96-particle play on the card, bounded only by the 1,500 shop-wide cap.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fx/fxBudget.test.ts', 'packages/ui/src/handBuffFx.test.tsx', 'packages/ui/src/fx/reactPopLayer.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-PROG-AETHER-06',
     title: 'Announcers can never be a chest focus; they still drop from unfocused chests, and ticking every focusable category is an unfocused, free chest that can give one',
     statement:
@@ -7596,5 +7639,64 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-20 (feat/chest-shop-screen), once the owner runs 2026-10-20-announcers-not-focusable.sql after the milestone file. The client (availableFocusCategories) and the server (aether_quote) both leave announcer out of the available focus categories, so a focus naming it is refused as bad_focus and ticking every other category collapses to no focus (null, fee 0). The pool is untouched (eligibleForCrate, progression_tiered_crate_pool), so an unfocused chest still rolls Announcers. Until the SQL is run, the live server still accepts an announcer focus: the Edge Function\x27s parseFocus is deliberately unchanged, so the SQL quote is the gate.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/crateShop.test.ts', 'packages/progression/src/announcersNotFocusable.db.test.ts'], lastVerifiedAt: '2026-10-20' },
+  },
+  {
+    id: 'R-REPLAY-DRAG-SHARED-01',
+    title: 'A recorded and watched game hands the same drag path to the replay and to the spectators',
+    statement:
+      'A drop parks one drag path. Every consumer of the action that drop dispatched reads it through dragTraceOf(action): the first consumer takes the park (with the usual staleness rule) and every later consumer of the same action gets the same path. The replay recorder reads it inside the store commit and the spectator tap reads it just after, so in a ranked lobby game that is both recorded and watched the replay frame and the spectator action tag both carry the path. A non-drag action never touches the park, and a different action never inherits an earlier one.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (replay to spectating quality)', quote: 'is our replay as good as spectating is? spectating seems basically perfect now... would love to keep them both maintained' },
+    ],
+    currentBehaviour: 'Before, both consumers used a take-and-clear read: the recorder took the path first, so the spectator tag of every drag-driven action in a recorded game had no path and the stands saw the card jump instead of travel.',
+    example: 'A watched ranked player drags a shop minion onto their board: the replay frame and the spectator tag both carry the same pointer path.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/dragTraceShared.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-REPLAY-STREAM-01',
+    title: 'A replay records the same cursor messages the live spectator sender builds',
+    statement:
+      'One builder (versus/cursorSource.ts) makes the player cursor messages: 60 Hz points on the player clock, anchored to the UI element under the pointer (else the game box), the held card and the drop gap its rows open, the aim line, the hovered element, and whether a drop committed or sprang back. The live spectator sender and the replay recorder both subscribe to it and receive the same message object. While a ranked lobby or Practice run is in the shop, the recorder stores every message in the replay (ReplayV2.stream, one packed segment per round, on the frames clock), plus the shop overlays minimize state and the fight Skip. Decoding a segment returns each message exactly as the stands received it, minus the seat and the legacy window fractions. The replay version stays 2 and older replays without a stream are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (replay to spectating quality)', quote: 'is our replay as good as spectating is? spectating seems basically perfect now... would love to keep them both maintained' },
+    ],
+    currentBehaviour: 'Before, a replay recorded a thinner copy of the hand: a 20 Hz window-fraction trail and an untimed 30 Hz drag path, with no anchors, drop gap, aim, hover, overlay or Skip.',
+    example: 'A player hovers a shop card, drags it onto the board between two minions, and minimizes the Runeforge: the replay stream holds the same messages the stands received, so the replay can show the hover, the gap opening and the overlay closing at the same moments.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamParity.test.ts', 'packages/sim/src/replayStream.test.ts', 'packages/ui/src/replay/replayDraft.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-REPLAY-PLAYBACK-01',
+    title: 'A replay with a recorded spectator stream plays the hand through the live watch screen pipeline',
+    statement:
+      'When a replay carries a stream (R-REPLAY-STREAM-01), its recorded cursor messages are fed into the watch screen cursor feed on the replay frames clock, a fixed lead ahead of it, and the watch screen SpectatorCursor draws the hand, the held card with its drop gap, the aim line, the hover previews and the refused-drop spring-back. A drag frame lands at its recorded moment with no ghost flight, and the held card lands through the watch screen own drop. The recorded overlay minimize state and Skip apply at their moments. Pause and the speed slider follow the replay clock. A seek clears the feed and rebuilds the hand at the target from the last message at or before it, so the same target always gives the same hand. A replay without a stream (or with a malformed one) plays exactly as before: the cursor trail and the drag ghost.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (replay to spectating quality)', quote: 'is our replay as good as spectating is? spectating seems basically perfect now... would love to keep them both maintained' },
+    ],
+    currentBehaviour: 'Before, a replay drew a 20 Hz window-fraction cursor and flew a ghost card along an untimed drag path, with no anchoring to the UI, no drop gap during the drag, no aim line, no hover previews, no overlay minimize and no Skip.',
+    example: 'Watching a replay at 2x, the hand hovers a shop minion (its preview opens), drags it over the board while the minions slide apart, and drops it: the board settles once, as it did for a live spectator.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamPlayback.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-SKIP-TURBO-01',
+    title: 'Skip fast-forwards the fight and slows back down for the hit that decides it',
+    statement:
+      'Pressing Skip during a combat replay never jumps straight to the resolved board. The replay fast-forwards (20× by default) and eases back to the player\'s own replay speed for the hit that decides the fight: the swing (from its wind-up) or other blow that kills the last body to die. A Rise\'s first death is not that kill. Like the auto-ramp, the speed is driven by the authored time left (here, to that hit): a smooth climb from the press, then an even brake over a fixed stretch of real time (1.5 s by default) that lands exactly on the player\'s speed as that hit begins, updated every frame rather than in steps per beat. Effects play at the fight\'s speed throughout and slow down with it. Game sounds never cut back in: while it races they are silent under a fast-forward whir, and through the brake they crossfade back in as the whir winds down, reaching full level as the deciding hit begins. If the deciding hit has already played, Skip races the rest of the fight. Skip hides once pressed, a second press does nothing, and a fight with no beats still finishes. Spectators and replays that follow a Skip get the same fast-forward.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'would it be possible to speed up the game to 20x when hitting the Skip button instead of outright skipping it?' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'i want the final outcome-determining hit or interaction to be slowed back down' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'the sound effects ... come back in loud and suddenly and all at once. can we fade those in' },
+      { kind: 'code', ref: 'packages/ui/src/skipTurbo.ts (decisiveBeatIndex, skipTurboSpeed, remainingNow); useCombatReplay.ts turbo; sfx.ts setSkipTurboAudio; audio/skipWhir.ts; pixiFx.ts setTimeScale; Recruit.tsx skipCombat' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, Skip froze the fight, faded out and jumped to the resolved board. The beat on screen when Skip is pressed finishes at its current speed; the fast-forward starts on the next beat.',
+    example: 'A 4v4 that would take 14 seconds: press Skip on the second swing, the fight and its effects race at 20× under a whir, slow evenly for a second and a half while the game sounds fade back in, and the final killing swing plays at normal speed with its sound.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurbo.test.ts', 'packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-10-22' },
   },
 ];

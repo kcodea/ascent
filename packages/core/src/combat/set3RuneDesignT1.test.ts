@@ -120,7 +120,7 @@ describe('Rune of the Soul Furnace — combat', () => {
     const r = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('w', WALL.id, 0, 500)], [foe('f', 5, 900)], { runeWake: true, runeSoulFurnace: true, flagCopies: { runeWake: 2 } }, seeded);
     const pulses = triggers(r.events, 'runeSoulFurnace');
     expect(pulses).toHaveLength(1);
-    const buff = buffsOn(r.events, uid(r, 1)).find((b) => b.source === 'Rune of the Soul Furnace')!;
+    const buff = buffsOn(r.events, uid(r, 1)).find((b) => b.source === 'Soul Furnace')!;
     expect(pulses[0]!.step).toBe(buff.step);
   });
 });

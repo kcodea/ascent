@@ -270,7 +270,7 @@ describe('Rune of Resonant Arms', () => {
     expect(procs(s, 'rune_resonant_arms')).toBe(1);
     expect(s.runeResonantArms!.tick).toBe(1);
     expect([at(s, 'x').attack - a0, at(s, 'x').health - h0]).toEqual([4 * 3 + 8, 4 * 3 + 5]);
-    expect(at(s, 'h').buffs?.some((b) => b.source === 'Rune of Resonant Arms')).toBe(true);
+    expect(at(s, 'h').buffs?.some((b) => b.source === 'Resonant Arms')).toBe(true);
   });
 });
 

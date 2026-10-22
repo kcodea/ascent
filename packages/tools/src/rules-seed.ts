@@ -110,7 +110,7 @@ const rune = runeSwallowScan();
   rows.push({
     id: 'q-policy-rune-duplicates',
     title: `Rune duplicate policy: ${rune.secondSwallowed.length} runes whose second copy does nothing`,
-    statement: `The forge can offer a rune you already own, and Rune of Duplication copies any Epic — so a SECOND copy of `
+    statement: `The forge can offer a rune you already own, and Duplication copies any Epic — so a SECOND copy of `
       + `${rune.secondSwallowed.length} different runes is purchasable today and does nothing at all (you pay, nothing changes). `
       + `This needs ONE policy: what should a duplicate of a one-shot/boolean rune do by default?`
       + CLICKS('duplicates of these runes deliberately do nothing (and Claude filters owned one-shot runes from the forge so the dead buy cannot happen)',
@@ -119,7 +119,7 @@ const rune = runeSwallowScan();
     currentBehaviour: 'A second copy: Gold spent, zero effect, for every rune listed.',
     recommendation: 'Filter owned one-shot runes from forge offers; treat amount-carrying runes as stacking (they already do).',
     cardText: list.join(' · '),
-    example: 'Example: you own Rune of the Aftermarket (4g); the forge offers it again; you pay 4 Gold; nothing changes.',
+    example: 'Example: you own Aftermarket (4g); the forge offers it again; you pay 4 Gold; nothing changes.',
   });
 }
 

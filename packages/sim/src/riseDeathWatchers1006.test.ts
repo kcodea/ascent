@@ -23,7 +23,7 @@ const sim = (p: BoardMinion[], e: BoardMinion[], mods: QuestCombatMods = {}, see
 const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 3, health: 90000 }];
 const uidAt = (r: CombatResult, i: number) => r.initial.player[i]!.uid;
 const swarmBuffs = (r: CombatResult) =>
-  r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of Beastial Swarm');
+  r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Beastial Swarm');
 const swarmTriggers = (r: CombatResult) =>
   r.events.filter((e) => e.type === 'questTrigger' && e.flag === 'runeBeastialSwarm' && e.side === 'player');
 /** Index of the FIRST death event of a player body (its Rise/Rebirth death when it has one). */

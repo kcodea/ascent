@@ -126,11 +126,11 @@ describe('Rad Rachel in the SHOP: a Demon dealing damage in the Recruit phase gi
   });
 });
 
-describe('Cavern Fiend is archived (owner 2026-10-10)', () => {
-  it('lives in ARCHIVED_CARDS, in no set, and still resolves by id for old saves and replays', () => {
-    expect(ARCHIVED_CARDS.some((c) => c.id === 'k_gemgorge')).toBe(true);
+describe('Cavern Fiend: archived 2026-10-10, restored to SET 3 ONLY 2026-10-22 (owner Kobold pool call)', () => {
+  it('is out of the archive, drawable in set 3 alone, and still resolves by id', () => {
+    expect(ARCHIVED_CARDS.some((c) => c.id === 'k_gemgorge')).toBe(false);
     for (const id of Object.keys(SETS) as (keyof typeof SETS)[]) {
-      expect(poolFor(id).all.some((c) => c.id === 'k_gemgorge'), id).toBe(false);
+      expect(poolFor(id).all.some((c) => c.id === 'k_gemgorge'), id).toBe(id === 'set3');
     }
     expect(CARD_INDEX['k_gemgorge']?.name).toBe('Cavern Fiend');
   });

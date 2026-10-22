@@ -1,6 +1,6 @@
 import type { BounceProvenance, CardDef, CombatContext, EffectDef, EffectFactoryId, Keyword, Minion, Side, Tribe } from '../types';
 import { bodyIsTribe, defIsTribe } from '../combat/tribe';
-import { ARENA_EFFECTS, improvingGrant, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
+import { ARENA_EFFECTS, improvingGrant, rubyCastGainOf, pickAutoTarget, runVaultPulse, withWound, woundActive, type ArenaBody, type EffectArena } from './arena';
 import { ALE_IDS, aleGrantCount, extraTriggerFires } from '../types';
 import { combatTierCeiling, isLegalRandomCard, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
 
@@ -261,6 +261,18 @@ export function playRubyOn(ctx: CombatContext, self: Minion, target: Minion, per
       // `target` → Trouble (owner ask 2026-09-15). Presentation only — the stats above are unchanged.
       applyRubyStats(ctx, m, m, (1 + rb.attack) * reps * mult, (1 + rb.health) * reps * mult, engraved, { from: target.uid, kind: 'ruby' });
     }
+  }
+  // ROSEY (Set 3 Kobold, owner 2026-10-22): "When you cast a Ruby, this gains +2/+1 permanently." Every living friendly
+  // Rosey (the target included: "you cast" names no target) gains its live grant once PER RUBY (`per`, the Trouble
+  // ruling). PERMANENT (owner confirmed 2026-10-22): `buffPermanent` accrues `permaGain`, carried back at settle like
+  // an Engraved gain. A plain buff, never a Ruby, so no Ruby watcher hears it and nothing can loop. Hops (bounces,
+  // Rupture, the Conduit) and Trouble's self-Rubies are stats only, never casts, so they pay Rosey nothing.
+  for (const m of ctx.living(self.side)) {
+    if (m.dead) continue;
+    const gain = rubyCastGainOf(ctx.getCard(m.cardId), !!m.golden, m.eotTick);
+    if (!gain) continue;
+    const ga = gain.attack * per, gh = gain.health * per;
+    if (ga > 0 || gh > 0) combatArena(ctx, m).buffPermanent(m, ga, gh);
   }
   // Rune of the Spellstone: this Ruby ALSO counts as a spell cast — fire the trigger so per-spell improvers
   // (Groveweaver, Sovereign, Guel's combat tally) advance, exactly as the recruit path counts it.
@@ -770,7 +782,7 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   battlecryCreateStarformOrBuff: { why: 'the Starform is a Shop token (created in, and fed from, the Shop row)', line: 'feeds the Starform when the Shop opens' },
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
   battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
-  buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Rune of the Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
+  buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
   battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking a RANDOM friendly minion with an End of Turn effect (R-TARGET-07)', line: 'triggers an End of Turn when the Shop opens' },
   triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
 };
@@ -1139,7 +1151,7 @@ export function castNamedSpellInCombat(ctx: CombatContext, self: Minion, spellId
  *  - Tamby: cast on a Tamby, it hands a copy of the Whisper to hand (x its golden copies), once per fight.
  */
 let WHISP_COMBAT_ECHOING = false;
-export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: Minion, def: CardDef, mult: number, text?: string): void {
+export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: Minion, def: CardDef, mult: number, text?: string, runeId?: string): void {
   const side = caster.side;
   const m = Math.max(1, mult);
   // The multiplier is the Whisper's own (a gilded copy), never a repeat: cast through an ungilded stand-in.
@@ -1150,12 +1162,18 @@ export function castWhisperInCombat(ctx: CombatContext, caster: Minion, target: 
       const eff = def.effects.find((e) => e.do === 'whisperBuffTarget');
       const p = (eff?.params ?? {}) as Record<string, unknown>;
       const imp = ctx.whisperImproveFor?.(side, def.id) ?? 0;
-      const a = (num(p.attack, 1) + imp) * m;
       const h = (num(p.health, 1) + imp) * m;
+      // RUNE OF RUNIC TRANSPOSITION (owner 2026-10-21): a Whisper giving a Dragon Health also gives it that much
+      // Attack, on top of its own Attack, per copy held, folded into the same (combat) grant. The Shop twin is
+      // `runicTranspositionAttack` (sim/recruit.ts).
+      const tp = eff && h > 0 && combatArena(ctx, caster).isTribe(target, 'dragon') ? (ctx.runicTranspositionFor?.(side) ?? 0) : 0;
+      const a = (num(p.attack, 1) + imp) * m + h * tp;
       if (eff) ctx.buff(target, a, h, caster.uid);
       const step = num(p.improve, 0);
       const total = step > 0 ? ctx.addWhisperImprove?.(side, def.id, step * m) : undefined;
-      ctx.log({ type: 'sc', source: caster.uid, side, text: text ?? `${caster.name} casts ${def.name}`, spellId: def.id, target: target.uid, ...(total !== undefined ? { whisperImprove: total } : {}) });
+      ctx.log({ type: 'sc', source: caster.uid, side, text: text ?? `${caster.name} casts ${def.name}`, spellId: def.id, target: target.uid, ...(runeId ? { rune: runeId } : {}), ...(total !== undefined ? { whisperImprove: total } : {}) });
+      // Set 3 Dragon runes (Rune of Borrowed Flame, Rune of Spell Tempering): every resolved Whisper cast, each repetition its own.
+      ctx.onWhisperCast?.(side, def.id, target, caster.uid);
     });
   }, def.id);
   // Tamby: a Whisper cast on THIS hands back a copy, once per fight (its "(Once per turn)", combat half).
@@ -1283,6 +1301,24 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleGrantRandomSpell: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     ARENA_EFFECTS.deathrattleGrantRandomSpell(combatArena(ctx, self), params);
+  },
+
+  /** Boy Scout (Set 3 Kobold, owner 2026-10-22) — Shout: bank `count` (x gilded) free Refreshes. In combat (a Shout
+   *  replayed mid-fight) through `grantFreeRolls`, the Gryphon carry-back to the next Shop. */
+  battlecryGrantFreeRolls: (ctx, self, params) => {
+    ctx.grantFreeRolls(num(params.count, 1) * mul(self), self.side);
+  },
+
+  /** Frack Attack (Set 3 Kobold, owner 2026-10-22) — "Repeat after 3 friendly attacks": every friendly attack this
+   *  combat (each swing, Flurry swings one by one, itself included; owner confirmed 2026-10-22) ticks the per-combat
+   *  `attackSeen` meter; every `every`-th casts `count` (x gilded) plain Rubies on itself, combat-only. The meter is
+   *  fresh each fight and re-armed by a Rise / Rebirth return (`resetPerCombatLimits`). A dead body counts nothing. */
+  friendlyAttacksPlayRubiesSelf: (ctx, self, params, payload) => {
+    const { minion } = payload as MinionPayload;
+    if (self.dead || self.health <= 0 || !minion || minion.side !== self.side) return;
+    self.attackSeen = (self.attackSeen ?? 0) + 1;
+    if (self.attackSeen % Math.max(1, num(params.every, 3)) !== 0) return;
+    playRubyOn(ctx, self, self, num(params.count, 3) * mul(self));
   },
 
   /** Gryphon — when it takes damage, bank a free shop reroll (carried back). Once PER HIT, capped at
@@ -2328,7 +2364,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffStarform: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const g = params.fixed ? 1 : mul(self);
-    ctx.gainStarform(num(params.attack, 2) * g, num(params.health, 2) * g, self.side, 'Rune of Stellar Echoes');
+    ctx.gainStarform(num(params.attack, 2) * g, num(params.health, 2) * g, self.side, 'Stellar Echoes');
   },
 
   // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────
@@ -3292,6 +3328,8 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   dealtDamageSummonToken: () => {}, // Impossible Todd (2026-10-10): the same meter, a summon-an-Imp body - `noteDamageDealt` pays it
   dealtDamageGetRandomRuby: () => {}, // Kobe (2026-09-24): the same meter, a random-Ruby body — `noteDamageDealt` pays it
   dealtDamageGrantRandomTribe: () => {}, // Maestro Lux (2026-09-24): the same meter, a random-Celestial body — `noteDamageDealt` pays it
+  dealtDamageCastRubiesTribe: () => {}, // Zapdash (2026-10-22): the same meter, a cast-a-Ruby-on-your-Kobolds body - `noteDamageDealt` pays it
+  rubyCastGainSelfImproving: () => {}, // Rosey (2026-10-22): a passive marker - `playRubyOn` scans living friendlies for it, inside the Ruby it reacts to
   dealtDamageGoldNextTurn: () => {}, // Goldvein (2026-09-19): the same meter, a Gold-next-turn body — `noteDamageDealt` pays it
 
   /** Set 2 — Alchemist Brisbane (Echo half): on death, buff your Rubies +atk/+hp (× golden), carried back. */

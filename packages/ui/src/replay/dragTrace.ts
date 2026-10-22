@@ -10,9 +10,11 @@
  *   pointerup    → `endDragTrace(x, y)`                 (drop point appended; path simplified + parked)
  *   a click / cancelled spell → `cancelDragTrace()`
  *
- * The parked path is then consumed by the store's frame capture (`takeDragTrace`, take-and-clear) when the
- * drop's action commits — within the same tick for every drop path, and ~260 ms later for the magnetic-merge
- * slide. A path older than `DRAG_TRACE_STALE_MS` is discarded on take, so an aborted drag (snap-back, spell
+ * The parked path is then consumed when the drop's action commits, through `dragTraceOf(action)`: the FIRST
+ * consumer of an action takes the park (take-and-clear), and every later consumer of the SAME action object gets the
+ * same path. Two consumers read it per action (the replay recorder in the store's commit, then the spectator tap,
+ * `versus/spectateTap.ts`); a plain take in each would hand the second one null (R-REPLAY-DRAG-SHARED-01). The drop's action commits within the same tick for every drop path, and
+ * ~260 ms later for the magnetic-merge slide. A path older than `DRAG_TRACE_STALE_MS` is discarded on take, so an aborted drag (snap-back, spell
  * miss) can never mislabel a later unrelated action of the same type.
  *
  * Perf: capture is the product (DEV and prod alike), so it must be invisible on the drag hot path — one
@@ -159,4 +161,23 @@ export function takeDragTrace(atMs = now()): DragPath | null {
   pending = null;
   if (!p) return null;
   return atMs - p.at <= DRAG_TRACE_STALE_MS ? p.path : null;
+}
+
+/** The action the park was last taken for, and what it got (R-REPLAY-DRAG-SHARED-01). */
+let takenFor: object | null = null;
+let takenPath: DragPath | null = null;
+
+/**
+ * The drag path of one committed action, for EVERY consumer of it (R-REPLAY-DRAG-SHARED-01). The first call for an
+ * action object takes the park (`takeDragTrace`, so the staleness rule holds); every later call for the SAME object
+ * returns that same path, without touching the park again. A non-drag action (`DRAG_CAUSES`) gets null and leaves the
+ * park alone. The store's commit and `tapAct` receive the one action object `dispatch` built, so a game that is both
+ * recorded and watched hands the replay frame and the spectator tag the same path. One reference compare per call.
+ */
+export function dragTraceOf(action: { type: string }, atMs = now()): DragPath | null {
+  if (!DRAG_CAUSES.has(action.type)) return null;
+  if (action === takenFor) return takenPath;
+  takenFor = action;
+  takenPath = takeDragTrace(atMs);
+  return takenPath;
 }

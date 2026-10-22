@@ -259,7 +259,7 @@ export const SET3_DWARVES: CardDef[] = [
     // `onSell` fires, so it never buffs itself (`includeSelf: false` says so explicitly). The shared Shout body
     // (`battlecryBuffTribe`): All-types count through `arena.isTribe`, Gilded doubles. A Shop buff, so permanent.
     id: 'dw3_salezarsails',
-    name: 'Salezar Sails',
+    name: 'Sailsey',
     tribe: 'dwarf',
     tier: 2,
     attack: 3,
@@ -275,7 +275,7 @@ export const SET3_DWARVES: CardDef[] = [
     // spell pool (`runSpells`: set-pinned, tribe-gated, no tokens / Gifts / Rubies) at or below your Shop tier. Gilded
     // follows the Archivist: TWO spells per payout (not a halved counter). The live text counts down the sales owed.
     id: 'dw3_marketing',
-    name: 'Mark Eting',
+    name: 'Mariet',
     tribe: 'dwarf',
     tier: 3,
     attack: 2,

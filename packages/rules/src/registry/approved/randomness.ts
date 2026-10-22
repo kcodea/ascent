@@ -58,7 +58,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
     id: 'R-RAND-02',
     title: '"A random Ruby" is one of all six Ruby types at equal odds, drawn per Ruby from the seeded RNG',
     statement:
-      'Every "get a random Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Rune of Resonance, Rune of Investment) '
+      'Every "get a random Ruby" (Ruby Shipment, Kobe\'s Pummel, Gem Sage, Resonance, Investment) '
       + 'draws each Ruby SEPARATELY and uniformly from the six types: Ruby, Warding, Golden, Splintered, Ripple and '
       + 'Dark, on the run cursor in the Shop and the fight RNG in combat, so a replay draws the same Rubies. Each '
       + 'is minted at its own printed base plus the run\'s Ruby strength. A plain "get N Rubies" stays plain Rubies.',
@@ -68,7 +68,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Ruby batch handoff, 2026-09-24', quote: 'the pool is all 6 types (plain, Warding, Golden, Splintered, Ripple, Dark) at equal odds' },
       { kind: 'code', ref: 'packages/core/src/types.ts RUBY_TYPE_IDS; packages/sim/src/recruit.ts mintRandomRubies; packages/core/src/combat/simulate.ts ctx.grantRandomRubies (playerRubyGrantIds)' },
     ],
-    contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'rune_resonance', 'rune_investment'],
+    contentIds: ['rubyshipment', 'k_kobe', 'k_gemsage', 'rune_resonance', 'rune_investment', 'k3_dealski'],
     currentBehaviour: 'Conforms as of 2026-09-24.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-09-24' },
   },
@@ -82,7 +82,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
       + '2026-10-21: Tier-7 access alone no longer opens it). One helper owns it: legalRandomMinionPool in the Shop '
       + '(packages/sim/src/cardPool.ts) and isLegalRandomMinion in combat (packages/core/src/randomPool.ts). Bullseye '
       + 'and Menagerie Mammoth also cap at your Shop tier in the Shop, matching their combat body (owner fix '
-      + '2026-08-18). An effect whose text NAMES a tier (Rune of the Deep, "a random Tier 7 minion") is authored and '
+      + '2026-08-18). An effect whose text NAMES a tier (Deep, "a random Tier 7 minion") is authored and '
       + 'keeps its tier.',
     domain: 'randomness',
     status: 'approved',
@@ -100,13 +100,13 @@ export const RANDOMNESS_RULES: GameRule[] = [
   },
   {
     id: 'R-RANDOM-TIER7-01',
-    title: 'A random pick gives Tier 7 only while your Shop is at Tier 7, in both phases; Rune of the Foundry caps at your Shop tier',
+    title: 'A random pick gives Tier 7 only while your Shop is at Tier 7, in both phases; Foundry caps at your Shop tier',
     statement:
       'A random minion pick (summon, get, grant or Discover a random minion, including the "tier above your Shop" '
       + 'Discovers) never gives a Tier 7 minion, in the Shop or in combat, unless that player\'s Shop actually stands at '
       + 'Tier 7. Tier-7 ACCESS alone (Open Road, Summit Passage, the Summit rift) with a Tier 6 Shop does not open Tier 7 to a '
-      + 'random picker. Rune of the Foundry\'s random Dragon (every 5 minions sold) is capped at your Shop tier like every '
-      + 'other "get a random X". Effects whose text names Tier 7 are authored and keep their tier: Rune of the Deep, Beyond '
+      + 'random picker. Foundry\'s random Dragon (every 5 minions sold) is capped at your Shop tier like every '
+      + 'other "get a random X". Effects whose text names Tier 7 are authored and keep their tier: Deep, Beyond '
       + 'the Summit, Pete, Strange Revision (and the other printed "up to Tier 7" cards such as Skybound Ascendant and Golden '
       + 'Monkey). The Shop ladder itself is unchanged: access still lets you upgrade to Tier 7.',
     domain: 'randomness',
@@ -120,7 +120,7 @@ export const RANDOMNESS_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms, FIXED 2026-10-21: randomTierCeiling returned 7 for any run with Tier-7 access, so with a Tier 6 Shop the '
       + 'random grants, Choose One grants, Rally summons, Clockwork Assistant, Albus (Empowerment and the Ancient of Time '
-      + 'Discover) and the Lucky Seat prizes could reach Tier 7 in the Shop while combat (Shop tier read) could not. Rune of '
+      + 'Discover) and the Lucky Seat prizes could reach Tier 7 in the Shop while combat (Shop tier read) could not. '
       + 'the Foundry had no Shop-tier cap at all.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts', 'packages/sim/src/randomPoolLegal.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
@@ -142,5 +142,23 @@ export const RANDOMNESS_RULES: GameRule[] = [
     contentIds: ['elevationritual'],
     currentBehaviour: 'Conforms (2026-10-21). Before, both read maxTierFor(rift): 7 on any Summit rift run, whatever the Shop tier.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/randomTier7Ceiling.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RAND-RUBY-DISCOVER-01',
+    title: 'A Ruby DISCOVER offers only the special Ruby types, never the plain Ruby',
+    statement:
+      'Every "Discover a Ruby" (today: the Ruby branch of Prismatic Pick, from Picksy, "Discover 2 Rubies" = two separate '
+      + 'Discovers, Gilded four) offers 3 of the 5 SPECIAL Ruby types (Warding, Golden, Splintered, Ripple, Dark) and '
+      + 'never the plain Ruby. The pick is minted at the live run Ruby strength. By contrast "get / play / cast a Ruby" '
+      + 'without "random" is the plain Ruby, and "a random Ruby" draws from all six (R-RAND-02).',
+    domain: 'randomness',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Owner ruling 2026-10-22 (Set 3 Kobold pool call, \"in picksy's case\")", quote: "it's discovering a ruby which means it's of the random ruby types, this should also NOT discover a regular ruby, only the special ones" },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts discoverRuby (SPECIAL_RUBY_IDS); packages/content/src/equipment.ts PRISMATIC_PICK' },
+    ],
+    contentIds: ['k3_prismpick'],
+    currentBehaviour: 'Conforms (the pool was already special-only since 2026-09-24; pinned across seeds 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts', 'packages/sim/src/prismaticPick.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
 ];

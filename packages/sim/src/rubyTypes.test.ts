@@ -12,7 +12,7 @@ import { mintRandomRubies, mintRubies, rubyCastCount } from './recruit';
  *   odds; Ruby Shipment (2 Gold, 2 random Rubies); Kobe's Pummel (15); Shardluck; Geode + Carver Golems; Blast
  *   Pump; Prismatic Pick's Ruby Discover; Gemheart Legionnaire; and the follow-up: Rune of Investment (Epic, random
  *   Rubies), Rune of Resonance (every Ruby casts twice, a random Ruby each Start of Turn), Gem Sage (get a Ruby,
- *   also get a random one) and Dealski (a Choose One play gets 2 Rubies).
+ *   also get a random one) and Dealski (a Choose One play gets a random Ruby since 2026-10-22).
  */
 
 const body = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {
@@ -502,21 +502,25 @@ describe('Gem Sage — When you get a Ruby, also get a random Ruby', () => {
   });
 });
 
-describe('Dealski — When you play a Choose One card, get 2 Rubies', () => {
+describe('Dealski — When you play a Choose One card, get a random Ruby (rework 2026-10-22)', () => {
   it('is a Set 3 T4 6/6 Kobold in the pool', () => {
     const d = CARD_INDEX['k3_dealski']!;
     expect([d.tribe, d.tier, d.attack, d.health]).toEqual(['kobold', 4, 6, 6]);
     expect(poolFor('set3').buyable.some((c) => c.id === 'k3_dealski')).toBe(true);
   });
-  it('a Choose One play gets 2 plain Rubies (Gilded 4); a plain play gets none', () => {
+  it('a Choose One play gets 1 random Ruby (Gilded 2); a plain play gets none', () => {
     const play = (golden: boolean, cardId: string) => {
       let s = run({ board: [body('d', 'k3_dealski', { golden })], hand: [body('x', cardId)] });
       s = act(s, { type: 'play', uid: 'x' });
       if (s.chooseOne) s = act(s, { type: 'chooseOne', index: 0 });
       return rubiesInHand(s).map((c) => c.cardId);
     };
-    expect(play(false, 'k_veinbreaker')).toEqual(['ruby', 'ruby']);
-    expect(play(true, 'k_veinbreaker')).toEqual(['ruby', 'ruby', 'ruby', 'ruby']);
+    // Re-pin 2026-10-22 (owner rework): one RANDOM Ruby (any of the six types), Gilded two.
+    const plain = play(false, 'k_veinbreaker');
+    const gilded = play(true, 'k_veinbreaker');
+    expect(plain).toHaveLength(1);
+    expect(gilded).toHaveLength(2);
+    for (const id of [...plain, ...gilded]) expect(RUBY_TYPE_IDS).toContain(id);
     expect(play(false, 'k_beggy')).toEqual([]);
   });
 });

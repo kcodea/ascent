@@ -56,14 +56,135 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-22',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Counters under cards now show plain numbers like 1/3, never words. The Frack Attack counter now ticks during combat.',
+        details: [
+          'Rosey, Hellrider and Indy count Refreshes as 1/3, 2/3, 3/3 instead of "1 Refresh".',
+          'Cards that act every few turns count up as 1/2, 2/2 instead of "2 Turns".',
+          'Rune counters drop their words too: Rune of Unity reads 3/5, and the turn based runes read 1/2.',
+          'The Frack Attack 3 attack counter goes up with every friendly attack in combat and resets when it comes back.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Five new Kobolds join Set 3: Boy Scout, Gramps, Zapdash, Frack Attack and Rosey.',
+        details: [
+          'Boy Scout (Tier 2, 3/3): Shout: Gain 2 free Refreshes.',
+          'Gramps (Tier 3, 4/2): Sell: Cast a Ruby on all of your minions.',
+          'Zapdash (Tier 3, 4/4): Pummel (10): Cast a Ruby on your Kobolds. Twice per combat.',
+          'Frack Attack (Tier 4, 6/5): Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks.',
+          'Rosey (Tier 6, 2/2): When you cast a Ruby, this gains +2/+1 permanently. Improves every 3 Refreshes.',
+        ],
+      },
+      { category: 'Balance', text: 'Boy Scout, Gramps, Zapdash, Frack Attack and Rosey have their art.' },
+      {
+        category: 'Balance',
+        text: 'Kobold changes: Shardluck, Delver and Cavern Fiend are back. Kobe and Blazer leave. Dealski and Prismatic Pick are reworked.',
+        details: [
+          'Shardluck, Delver and Cavern Fiend return to the Kobold pool. Their stats and text are unchanged.',
+          'Kobe and Blazer leave the Kobold pool.',
+          'Dealski: when you play a Choose One card, get a random Ruby (was 2 Rubies).',
+          'Prismatic Pick: Choose One: Discover 2 Rubies (was 1) or your next Choose One card this turn gains both effects.',
+          'A Ruby Discover only offers the special Rubies, never a plain Ruby.',
+          'The Prismatic Pick slot now shows when a both effects charge is armed.',
+        ],
+      },
+      { category: 'Systems', text: 'The effect when a minion gets both Choose One options is remade.' },
+      { category: 'Balance', text: 'Stellar Chorus, Shredder and Jumpstart Jules leave the Set 3 pool.' },
+      { category: 'Systems', text: "Runes now show just their name, without 'Rune of'." },
+      { category: 'Systems', text: '65 more runes have their emblem art. Every rune now has one.' },
+      { category: 'Systems', text: '15 rune emblems are redrawn.' },
+      {
+        category: 'Balance',
+        text: 'Adeptus and Bicycle Bob move to Tier 3 with slightly lower stats (Adeptus 4/1, Bicycle Bob 3/7).',
+        details: [
+          'Adeptus: Tier 4 to Tier 3, 5/1 to 4/1. Its Echo is unchanged.',
+          'Bicycle Bob: Tier 4 to Tier 3, 3/9 to 3/7. Its Overflow is unchanged.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Skip now fast-forwards the rest of a fight instead of cutting straight to the result, then slows back down so you see the hit that decides it.',
+        details: [
+          'The fight and its effects race at 20 times speed after you press Skip, under a fast-forward whir.',
+          'It slows down smoothly to your normal replay speed for the final deciding blow.',
+          'The game sounds fade back in as it slows, so the final blow plays with its sound.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Replays now show the recorded hand exactly as spectators see it live.',
+        details: [
+          'The cursor moves smoothly at the full rate and lands on the same card or button on any screen shape.',
+          'A dragged card travels in the hand, the board opens its gap as it passes, and a refused drop springs back.',
+          'Aim lines, hover previews, minimized overlays and a skipped fight all play back as they happened.',
+          'Speed, pause and scrubbing work as before. Replays recorded before this update play as they always did.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-21',
     changes: [
+      {
+        category: 'Balance',
+        text: '"When you have room" summons now wait for a free slot instead of giving up at the start of combat.',
+        details: [
+          'Rune of the Mirror March, Rune of the Warden and Rune of the Waking Reserve now summon the first time a slot opens in that fight, not only when your board has room at the start.',
+          'A minion that Rises or Rebirths takes its own slot back, so it does not count as room.',
+          'If several are waiting, they land in order, one per free slot. Mirror March copies your left-most minion as it is at that moment.',
+          'A summon that never gets room is gone at the end of that fight.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Set 3 adds eleven new Basic Dragon runes.',
+        details: [
+          'Rune of the Runic Primer: get 2 Runebinds, and 2 more each turn.',
+          'Rune of Loose Tongues: whenever you play a Dragon, get a random Whisper.',
+          'Rune of Clear Voices: cast 3 different Whispers from hand in a turn to gain 2 Gold, once per turn.',
+          'Rune of Spell-Fed Scales: whenever you cast a Shop Spell, a Dragon gets +6/+7.',
+          'Rune of Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1, and the rune grows each time.',
+          'Rune of Spell Tempering: every 4 Whispers you cast make your Shop Spells +1/+1 for good.',
+          'Rune of the Open Treasury: get a copy of the first Shop Spell you buy each turn.',
+          'Rune of Deep Breaths: your first 2 Dragon attacks each combat cast Growth.',
+          'Rune of Defiant Wings: Start of Combat, 2 Dragons get +3/+6 and Ward.',
+          'Rune of the Final Utterance: Avenge (4), get a random Whisper and a Shop Spell.',
+          'Rune of Ember Inheritance: your first Dragon with Echo to die each combat gives its Attack to your left-most Dragon.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Seven new Epic Dragon runes join the Set 3 Runeforge.',
+        details: [
+          'Rune of the War Council (5 Gold): at Start of Combat, cast Runebind on 3 random Dragons.',
+          'Rune of the Growing Inferno (5 Gold): every Dragon attack in combat casts Growth.',
+          'Rune of the Secret Exchange (4 Gold): every 3 Whispers you cast from hand, Discover a Shop spell.',
+          'Rune of the Runebound Brood (4 Gold): Drake Pups you summon cast Runebind on themselves, in combat and in the Shop.',
+          'Rune of Unbroken Scales (5 Gold): the first 2 times your Dragons lose Ward each combat, that Dragon gets +10/+10 and Ward back.',
+          'Rune of Runic Transposition (4 Gold): a Whisper that gives a Dragon Health also gives it that much Attack. A +2/+3 Whisper gives +5/+3.',
+          "Rune of the Wyrm's Hoard (4 Gold): every 3 Shop spells you cast from hand, your Shop spells get +1/+1 for the rest of the game.",
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Four new Epic Dragon runes for Whispers: Lasting Words, Twin Tongues, the Opened Vault and Bequeathed Secrets.',
+        details: [
+          'Rune of Lasting Words: the first Whisper you cast from hand on each Dragon each turn is permanent.',
+          'Rune of Twin Tongues: Whispers cast from hand also cast on another random friendly Dragon.',
+          'Rune of the Opened Vault: get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts twice.',
+          'Rune of Bequeathed Secrets: the first Dragon you sell each turn gives its Whisper stats to your left-most Dragon for good.',
+        ],
+      },
       {
         category: 'Systems',
         text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
         details: [
           'The tip now explains both meanings: selling a minion for Gold, and "Sell:" effects that trigger when that minion is sold.',
-          'Mark Eting, Valyou and Leeds show how close they are with the number counter under the card, and their text stays as printed. Leeds still shows its current buff.',
+          'Mariet, Valyou and Leeds show how close they are with the number counter under the card, and their text stays as printed. Leeds still shows its current buff.',
         ],
       },
       {
@@ -84,17 +205,18 @@ export const PATCH_NOTES: PatchNote[] = [
           'The fight recap shows what was kept, for example "+Ward".',
         ],
       },
+      { category: 'Balance', text: 'Mark Eting is now Mariet and Salezar Sails is now Sailsey; both have their art.' },
       { category: 'Balance', text: 'Valyou and Leeds have their art.' },
       { category: 'Balance', text: 'The Indy minion has new art.' },
       {
         category: 'Balance',
-        text: 'Four new Dwarves join Set 3, all built around selling: Salezar Sails, Mark Eting, Valyou and Leeds. Sell is now written as a keyword on every card.',
+        text: 'Four new Dwarves join Set 3, all built around selling: Sailsey, Mariet, Valyou and Leeds. Sell is now written as a keyword on every card.',
         details: [
-          'Salezar Sails (Tier 2, 3/1): Sell: give your Dwarves +2/+3.',
-          'Mark Eting (Tier 3, 2/6): when you Sell 4 minions, get a random Shop Spell. Gilded gets 2.',
+          'Sailsey (Tier 2, 3/1): Sell: give your Dwarves +2/+3.',
+          'Mariet (Tier 3, 2/6): when you Sell 4 minions, get a random Shop Spell. Gilded gets 2.',
           'Valyou (Tier 5, 6/9): when you Sell a minion, gain +3/+3. Every 4th time, also gain 2 Gold.',
           'Leeds (Tier 6, 6/8): when you play a Dwarf, give your Dwarves +2/+2. It goes up by +2/+2 every time you Sell 4 minions.',
-          'The sell counts on Mark Eting, Valyou and Leeds carry over between turns and show on the card.',
+          'The sell counts on Mariet, Valyou and Leeds carry over between turns and show on the card.',
           'Sell now reads as a capitalised keyword in all card, rune, hero and Equipment text. Nothing about how selling works has changed.',
         ],
       },

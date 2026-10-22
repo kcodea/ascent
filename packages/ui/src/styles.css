@@ -5164,6 +5164,60 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
 }
 .card.plated:hover .plateglow { opacity: 1; }
 body.hglow-preview .card.plated .plateglow { opacity: 1; }
+
+/* (BOTH) MARKER (remade 2026-10-22, owner: "it's really sloppy right now"). A Choose One that will resolve as BOTH
+   branches glows along its OWN silhouette in its tribe colour, the same colour as its "(Both)" label (`.descboth`),
+   so the text and the marker read as one cue. Replaces the old looping Pixi ring (`choose-one-both`, ~215 blurred
+   teal/magenta particles per card on a 230 px circle that spilled over neighbouring cards and the felt).
+   Built on the hover-glow layers: `.bothglow` is an extra `.plateglow` (hand / Discover / Inspect) or `.cglow`
+   (Shop frames) copy rendered by Card.tsx, so it inherits their exact geometry, sits BEHIND the opaque art and plate
+   (only the outward halo ever shows), and leaves the white hover glow alone.
+   ARRIVAL: one-shot `bothin`, the silhouette closes in from both sides (`scale` on X, the individual transform
+   property, so it composes with the layers' own `transform`) while it brightens, then settles.
+   HOLD: `bothbreathe` animates OPACITY ONLY over a STATIC drop-shadow (the kwglow rule): compositor-only, no
+   per-frame paint. Animations beat the hover / will-play `opacity` rules, so hovering a (Both) card keeps its glow. */
+.card .bothglow {
+  will-change: opacity, transform;
+  animation: bothin 0.7s cubic-bezier(0.2, 0.8, 0.25, 1) backwards, bothbreathe 2.8s ease-in-out 0.7s infinite;
+}
+.card.plated .plateglow.bothglow {
+  /* The plate copy already owns `transform` (translateX(-50%) + the plate nudge), and the individual `scale` property
+     would apply AFTER that translate and pull the glow sideways, so its arrival re-states the whole transform. */
+  animation: bothin-plate 0.7s cubic-bezier(0.2, 0.8, 0.25, 1) backwards, bothbreathe 2.8s ease-in-out 0.7s infinite;
+  /* A crisp warm-white rim on the plate's edge, then the tribe colour stacked outward (a single drop-shadow reads
+     soft; stacking compounds it, the same trick as the hover glow's `--hg-bloom-filter`). Static: painted once. */
+  filter: drop-shadow(0 0 1.5px #fff4cf) drop-shadow(0 0 1.5px #fff4cf)
+    drop-shadow(0 0 4px var(--c, var(--t-neutral))) drop-shadow(0 0 4px var(--c, var(--t-neutral)))
+    drop-shadow(0 0 12px var(--c, var(--t-neutral)));
+}
+.card.compact.stdframe .cglow.bothglow,
+.card.compact.spellframe .cglow.bothglow,
+.card.compact.taunt .cglow.bothglow {
+  /* A touch wider than the hover rim so the warm line clears the frame's metal edge on the pale Shop felt. */
+  transform: scale(1.075, 1.055);
+  filter: drop-shadow(0 0 2px var(--c, var(--t-neutral))) drop-shadow(0 0 3px var(--c, var(--t-neutral)))
+    drop-shadow(0 0 3px var(--c, var(--t-neutral))) drop-shadow(0 0 10px var(--c, var(--t-neutral)));
+}
+.cglow.bothglow .cglow-rim { background: #fff4cf; filter: none; }
+/* A plated card rings its PLATE (the card's outer edge); its inner frame copy would read as a second, floating halo. */
+.card.plated .cglow.bothglow { display: none; }
+@keyframes bothin {
+  0% { opacity: 0; scale: 1.45 1; }
+  60% { opacity: 1; scale: 1 1; }
+  100% { opacity: 1; scale: 1 1; }
+}
+@keyframes bothin-plate {
+  0% { opacity: 0; transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)) scaleX(1.45); }
+  60% { opacity: 1; transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
+  100% { opacity: 1; transform: translateX(-50%) translate(calc(var(--ccw) * var(--plate-frame-x, 0)), calc(var(--ccw) * var(--plate-frame-y, 0))) scale(var(--plate-art-s, 1)); }
+}
+@keyframes bothstill { from, to { opacity: 0.9; } }
+@keyframes bothbreathe { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+@media (prefers-reduced-motion: reduce) {
+  /* No arrival, no breathing: the glow simply holds. Done as a zero-length filled animation rather than a plain
+     `opacity`, because an animation outranks the hover layers' own `opacity: 0` whatever their specificity. */
+  .card .bothglow, .card.plated .plateglow.bothglow { animation: bothstill 0s both; }
+}
 /* …and the frame's own glow steps aside. FOUR classes so this beats the 3-class
    `.card.compact.stdframe:hover .cglow { opacity: 1 }` on specificity rather than source order. */
 .card.compact.plated.stdframe:hover .cglow,
@@ -5656,11 +5710,6 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 .app.combatin .pixifx,
 .app.combatin .combatctl { animation: boardfadein 0.26s ease both; }
 @keyframes boardfadein { from { opacity: 0; } to { opacity: 1; } }
-/* Skip-combat freeze: while the replay is frozen (GSAP + both Pixi tickers are paused in JS), also stop every
-   CSS-driven combat animation — the units' idle pulses etc. — so LITERALLY everything holds still as it fades.
-   (End Combat never sets this — it has no live FX to stop.) */
-.app.combatfrozen .zone .row,
-.app.combatfrozen .zone .row * { animation-play-state: paused !important; }
 /* The loose transient overlays (SoC bolts, damage/death floats) drive their OWN opacity keyframes — a transition
    can't fade a property that's mid-animation, so we hard-hide them the instant the fade begins (`!important`
    beats the running animation). They're sub-second anyway, so they simply vanish with the rest. */

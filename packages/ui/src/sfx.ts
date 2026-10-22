@@ -35,6 +35,7 @@ import { getBuffFxConfig } from './buffFxConfig';
 import { buildAudioFilterChain, curveVaries, applyAudioCurve, reverbImpulse, type FxFilterCtx } from './fx/audioFilters';
 import { getGoodLuckIntroConfig, goodLuckTail } from './goodLuck/goodLuckIntroConfig';
 import { masterOutput } from './audio/master';
+import { createSkipWhir, type SkipWhir } from './audio/skipWhir';
 import { scheduleTailFade, scheduleSkipFade, SKIP_FADE_S, type TailOpts } from './audio/tailFade';
 
 export { SCENES };
@@ -168,8 +169,54 @@ export function stopAllAudio(): void {
 export function audioContext(): AudioContext | null {
   return audio();
 }
+/* ── SKIP TURBO AUDIO (R-SKIP-TURBO-01, owner 2026-10-22) ──────────────────────────────────────────────────────
+   A Skip fast-forwards the fight instead of cutting it. The game's sounds would pile into noise at 20×, so they
+   CROSSFADE with a fast-forward whir (audio/skipWhir.ts) on one dial, the turbo amount (0 = the player's speed,
+   1 = full Skip speed): the mute bus follows `turboSfxGain(amount)` and the whir follows `amount`. So as the
+   Skip brakes for the deciding hit the whir winds down and the game fades back in, instead of snapping back
+   loud and all at once ("they come back in loud and suddenly and all at once", owner 2026-10-22). New sounds
+   stay blocked only while the race is fast enough that they would be noise (`TURBO_SFX_BLOCK`). */
+let skipWhir: SkipWhir | null = null;
+/** Above this turbo amount new game sounds are not scheduled at all (they would be a wall of noise). */
+export const TURBO_SFX_BLOCK = 0.45;
+/** The game-sounds bus level at a turbo amount: silent at and above `TURBO_SFX_BLOCK`, easing back up to full as
+ *  the speed comes down (squared, so the last stretch of the brake brings most of the level back). */
+export function turboSfxGain(amount: number): number {
+  if (amount >= TURBO_SFX_BLOCK) return 0;
+  const t = 1 - Math.max(0, amount) / TURBO_SFX_BLOCK;
+  return t * t;
+}
+/** Start a Skip's audio: cancel the announcer (its lines would land out of step), start the whir silent. */
+export function beginSkipTurboAudio(): void {
+  for (const cb of stopHooks) { try { cb(); } catch { /* a hook must never break the skip */ } }
+  const a = audio();
+  if (!a || skipWhir) return;
+  const out = a.createGain();
+  // The game-sounds volume and the sound mute, but NOT the mute bus: the whir is what plays while that is ducked.
+  out.gain.value = muted ? 0 : cfg.masterGain;
+  out.connect(masterOutput(a));
+  skipWhir = createSkipWhir(a, out);
+}
+/** Per frame while a Skip races: crossfade the game sounds against the whir. */
+export function setSkipTurboAudio(amount: number): void {
+  audioSuspended = amount >= TURBO_SFX_BLOCK;
+  skipWhir?.set(amount);
+  const a = audio();
+  if (a && bus) bus.gain.setTargetAtTime(turboSfxGain(amount), a.currentTime, 0.08);
+}
+/** The Skip landed (or the fight was left): the whir stops, the game sounds finish fading in (never a snap). */
+export function endSkipTurboAudio(): void {
+  skipWhir?.stop();
+  skipWhir = null;
+  audioSuspended = false;
+  const a = audio();
+  if (a && bus) bus.gain.setTargetAtTime(1, a.currentTime, 0.12);
+}
+
 /** Un-mute the master bus + allow sounds again (called when the fight is left / a new fight begins). */
 export function resumeAudio(): void {
+  skipWhir?.stop(); // a fight left mid-Skip never leaves the whir running
+  skipWhir = null;
   audioSuspended = false;
   const a = audio();
   if (a && bus) { bus.gain.cancelScheduledValues(a.currentTime); bus.gain.setTargetAtTime(1, a.currentTime, 0.008); }

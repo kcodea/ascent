@@ -15,7 +15,7 @@ import { offerBuyStats } from './recruit';
 
 const isMinion = (o: ShopCard): boolean => { const d = CARD_INDEX[o.cardId]; return !!d && !d.spell && !d.ruby; };
 const rightmost = (s: RunState): ShopCard => { const m = s.shop.filter(isMinion); return m[m.length - 1]!; };
-const embersHp = (o: ShopCard): number => o.buffs?.find((b) => b.source === 'Rune of the Embers')?.health ?? 0;
+const embersHp = (o: ShopCard): number => o.buffs?.find((b) => b.source === 'Embers')?.health ?? 0;
 const rubyHp = (o: ShopCard): number => o.buffs?.find((b) => b.source === 'Ruby')?.health ?? 0;
 const spell = (uid: string, cardId: string): BoardCard => ({ uid, cardId, tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false });
 

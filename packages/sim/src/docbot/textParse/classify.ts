@@ -57,6 +57,8 @@ export const KNOWN_TEXT_MISMATCH: Readonly<Record<string, KnownTextMismatch>> = 
   // get a Ruby, also get a random Ruby", which parses.)
   // Set 4 (2026-10-13): the lexicon reads "When you cast a Whisper on ..." as the generic `spellCast` trigger.
   d4_tamby: { taxonomy: 'wrong-trigger', kind: 'parser-limitation', why: '"When you cast a Whisper on this" is the targeted `spellCastOnThis` trigger (filtered to Whispers by the factory); the parser maps any "When you cast" to `spellCast`' },
+  // Set 3 Kobolds (2026-10-22): Rosey's "When you cast a Ruby" is the same parser limit.
+  k3_rosey: { taxonomy: 'wrong-trigger', kind: 'parser-limitation', why: '"When you cast a Ruby" is a passive marker the Ruby-cast chokepoints scan (`rubyPlayedAnywhere` / `rubyCastGainSelfImproving`: `fireOnRubyPlayed` in the Shop, `playRubyOn` in combat), not a `spellCast` watcher; the parser maps any "When you cast" to `spellCast`' },
   d4_whisp: { taxonomy: 'wrong-trigger', kind: 'parser-limitation', why: '"When you cast a Whisper on a Dragon" is a passive marker the Shop cast path reads (`whisperEchoOnDragons` in castSpell), not a `spellCast` watcher; the parser maps any "When you cast" to `spellCast`' },
 };
 

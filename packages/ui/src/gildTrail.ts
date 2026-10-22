@@ -52,7 +52,10 @@ export function playGildTrail(sources: readonly Pt[], card: HTMLElement, goldUid
   let played = 0;
   sources.forEach((source, index) => {
     // `onDone` is the safety net: every play retires, so the card is shown even if the timer below is lost.
-    const retire = playDef('gild-trail', { source, target, camera }, { uids: { target: goldUid }, index, onDone: show });
+    // `dedupeKey`: one live trail per (gilded card, copy), the same per-target dedupe as the hand-buff cue. The trail's
+    // particle total is held by the def's live budget (`DEF_PARTICLE_BUDGETS`): one gild plays as authored, a second
+    // gild landing on top of it is thinned (perf 2026-10-22).
+    const retire = playDef('gild-trail', { source, target, camera }, { uids: { target: goldUid }, index, onDone: show, dedupeKey: `${goldUid}:${index}` });
     if (retire) played++;
   });
   // Nothing could play (budget, no renderer): never leave the gilded card invisible.

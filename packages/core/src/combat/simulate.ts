@@ -20,15 +20,15 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
 import { rollableWhisperIds } from '../whisperTier'; // R-WHISPER-TIER-01
 import { combatTierCeiling, isLegalRandomMinion } from '../randomPool'; // R-RANDOM-POOL-01
-import { FACTORIES, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
+import { FACTORIES, castWhisperInCombat, playRubyOn, castInCombat, combatCastable, resolveCombatSpellCast, replayCombatBattlecry, drakkoRepeats, fireShout, livingNeighbours, triggerEcho, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth } from '../effects/factories';
 import { pickAutoTarget } from '../effects/arena'; // R-TARGET-07: the one un-aimed target pick
-import { addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
+import { SEED_TOKEN_ID, addedSecondTribe, instantiate, resetPerCombatLimits, seedEchoCount, type CardIndex } from './minion';
 import { defIsTribe } from './tribe';
 import { EMPTY_SIDE } from './side';
 import { applyBankedOpeners, openingEvents, BANKED_CAST_KEY, BANKED_SPELL_OF } from './bankedOpeners';
@@ -363,6 +363,9 @@ export function simulate(
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
   // (the `flag` maps to the quest/rune id via content). Purely cosmetic; zero effect on resolution.
   const fireTrigger = (flag: string, side: Side): void => emit({ type: 'questTrigger', flag, side });
+  /** Rune of Unbroken Scales: fires per side per combat, and the presentation key its re-formed Ward carries. */
+  const UNBROKEN_SCALES_PER_COMBAT = 2;
+  const UNBROKEN_SCALES_KEY = 'rune:runeUnbrokenScales';
   const bus = new CombatBus();
   // Fire the Avenge bus with `inAvenge` set, so every event the handlers emit (buff / improve / maxGold /
   // shieldUp / summon / …) is stamped `avenge:true`. try/finally guarantees the flag clears even if a handler
@@ -744,6 +747,9 @@ export function simulate(
   const deferredBattlecries = perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => []);
   /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
   const shoutCarry = perSide<ShoutCarry>(() => ({}));
+  /** Set 3 Dragon runes (Basic): Rune of Deep Breaths' Dragon swings used, and Rune of Ember Inheritance's once-per-fight latch. */
+  const deepBreathsUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  const emberInheritanceUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Squirl Scout's snowball, live: the side's run value, grown by every combat re-fire this fight. */
   const scoutBuff: Record<Side, number> = { player: playerState.squirlScoutBuff ?? 0, enemy: enemyState.squirlScoutBuff ?? 0 };
   // Declared up here (not beside the functions that use them, further down) because a Start-of-Combat cast can
@@ -1283,7 +1289,7 @@ export function simulate(
         if (dwarves.length > 0) {
           fireTrigger('runeSatchel', side);
           const n = flagCopiesOf(side, 'runeSatchel');
-          for (const m of dwarves) ctx.buff(m, n, n, 'Rune of the Satchel');
+          for (const m of dwarves) ctx.buff(m, n, n, 'Satchel');
         }
       }
     } finally { gainCardDepth--; }
@@ -1448,7 +1454,7 @@ export function simulate(
       // Health-only, so the nested buff never emits `onGainAttack` again: no loop.
       if (attack > 0 && !target.dead && modsFor(target.side).runeAnvil && isTribeOf(target, 'dwarf', cards)) {
         fireTrigger('runeAnvil', target.side);
-        ctx.buff(target, 0, attack * flagCopiesOf(target.side, 'runeAnvil'), 'Rune of the Anvil');
+        ctx.buff(target, 0, attack * flagCopiesOf(target.side, 'runeAnvil'), 'Anvil');
       }
       // Sable's Soulbind: a stat gain on one bound body is gained by the other, in full and ONCE. The mirrored
       // grant re-enters this very function, so `soulbindMirroring` is the load-bearing guard — without it the
@@ -1764,11 +1770,19 @@ export function simulate(
     // combat Runebind). The running totals ride `shoutCarry.whisperImprove` so settle can raise the run to them; the
     // enemy's are tracked the same way (R-SYMMETRY-01) and simply have no run to land on.
     whisperImproveFor: (side, whisperId) => shoutCarry[side].whisperImprove?.[whisperId] ?? stateOf(side).whisperImprove?.[whisperId] ?? 0,
+    // RUNE OF RUNIC TRANSPOSITION (owner 2026-10-21): asked only when a Whisper's Health is landing on a Dragon, so the
+    // badge pulses exactly when the rune adds Attack.
+    runicTranspositionFor: (side) => {
+      if (!modsFor(side).runeRunicTransposition) return 0;
+      fireTrigger('runeRunicTransposition', side);
+      return flagCopiesOf(side, 'runeRunicTransposition');
+    },
     addWhisperImprove: (side, whisperId, n) => {
       const map = (shoutCarry[side].whisperImprove ??= { ...(stateOf(side).whisperImprove ?? {}) });
       map[whisperId] = (map[whisperId] ?? 0) + n;
       return map[whisperId]!;
     },
+    onWhisperCast: (side, whisperId, target, casterUid) => dragonRunesWhisperCast(side, whisperId, target, casterUid), // Set 3 Dragon runes
     grantWhisperToHand: (whisperId, side, mult, sourceUid) => {
       // UNGATED on purpose (R-WHISPER-TIER-01): its callers are Tamby's copy (exempt: "tamby should always copy a whisper
       // cast on it, even above tier") and `grantRandomWhispers`, whose pool is already tier-gated. A NEW gated combat
@@ -1949,7 +1963,7 @@ export function simulate(
         fireTrigger('runeEnchantment', side); // burst on the combat cast too, like every other combat rune
         // +6/+8 per copy held (the mods field carries the copy count; a legacy `true` reads as 1).
         const en = typeof ench === 'number' ? Math.max(1, ench) : 1;
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Rune of Enchantment');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Enchantment');
       }
       // ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3."
       // Every combat cast (one per repetition), right after the counter beat: the left-most and right-most LIVING
@@ -1971,7 +1985,7 @@ export function simulate(
       if (ALE_IDS.includes(spellId) && modsFor(side).runeStarTap) {
         fireTrigger('runeStarTap', side);
         const n = 3 * flagCopiesOf(side, 'runeStarTap');
-        ctx.gainStarform(n, n, side, 'Rune of the Star Tap');
+        ctx.gainStarform(n, n, side, 'Star Tap');
       }
       // CHAMPION INU (owner 2026-10-21): "After you cast a Dwarven Ale, give your Dwarves +2/+2." The Ale watchers
       // (`spellCastBuffAll` with `aleOnly`) need the spell's identity, which only this per-repetition hook carries;
@@ -2000,6 +2014,15 @@ export function simulate(
       if (modsFor(side).runeRubywire) {
         fireTrigger('runeRubywire', side);
         for (let k = 0; k < flagCopiesOf(side, 'runeRubywire'); k++) rubyOnRandomKobolds(side, 2, false);
+      }
+      // SPELL-FED SCALES (Set 3 Dragon runes, owner 2026-10-21): the same Shop-spell test; a random living friendly Dragon
+      // +6/+7 per copy, a combat buff (R-BUFF-PERM). No Dragon: nothing.
+      if (modsFor(side).runeSpellFedScales && living(side).some((m) => isTribeOf(m, 'dragon', cards))) {
+        fireTrigger('runeSpellFedScales', side);
+        for (let k = 0; k < flagCopiesOf(side, 'runeSpellFedScales'); k++) {
+          const pick = pickAutoTarget(rng, living(side).filter((m) => isTribeOf(m, 'dragon', cards)));
+          if (pick) ctx.buff(pick, DRAGON_RUNES_BASIC.spellFedScales.attack, DRAGON_RUNES_BASIC.spellFedScales.health, 'Spell-Fed Scales');
+        }
       }
       // BOARD: the living bodies' own factories (permanent self-growth), in board order.
       for (const m of living(side)) {
@@ -2440,7 +2463,7 @@ export function simulate(
       const ov = modsFor(side).runeOverflow ?? 0;
       if (ov > 0) {
         nextStep(); fireTrigger('runeOverflow', side);
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Rune of Overflow');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Overflow');
         boardBuffGain[side].attack += ov; boardBuffGain[side].health += ov;
       }
       // ANCIENT OF GENESIS x Lord of the Risen (owner 2026-09-26: "make sure these count as overflows"): the extra
@@ -2501,7 +2524,7 @@ export function simulate(
         if (others.length === 0) break;
         const t = others[ctx.rng.int(others.length)]!;
         nextStep(); fireTrigger('runeOpenHand', side);
-        ctx.buff(t, minion.attack, minion.health, 'Rune of the Open Hand');
+        ctx.buff(t, minion.attack, minion.health, 'Open Hand');
       }
     }
     summonEntryEffects(minion, side);
@@ -2602,7 +2625,7 @@ export function simulate(
         const remains = modsFor(side).runeRemains ?? 0;
         if (remains > 0 && summonCount[side] % 5 === 0) {
           fireTrigger('runeRemains', side);
-          ctx.gainTavernBuy(remains, remains, side, undefined, 'Rune of Remains');
+          ctx.gainTavernBuy(remains, remains, side, undefined, 'Remains');
         }
       }
       if (cards[minion.cardId]?.imp) { impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
@@ -2630,7 +2653,7 @@ export function simulate(
       fireTrigger('runeEmberline', side);
       // The banked stats land once per copy held (boolean-flag family, owner 2026-08-27).
       const el = flagCopiesOf(side, 'runeEmberline');
-      ctx.buff(minion, bank.attack * el, bank.health * el, 'Rune of Emberline');
+      ctx.buff(minion, bank.attack * el, bank.health * el, 'Emberline');
     }
     // ── ORDER (owner ruling 2026-08-12) ──────────────────────────────────────────────────────────────────
     // AURAS FIRST: the "wherever they are" buffs (Grim / Kennelmaster / Solaris) are always-present state, so
@@ -2641,6 +2664,16 @@ export function simulate(
     // …THEN the augmenting onSummon watchers, in CURRENT board order left→right (bus order was registration
     // order, which drifts from the visible board as bodies re-slot and summon).
     emitOnSummonOrdered(minion, side);
+    // RUNE OF THE RUNEBOUND BROOD (owner 2026-10-21): "Drake Pups you summon cast Runebind on themselves." Every Drake
+    // Pup arriving on this side (a Seed Echo, a copy, a return) casts Runebind on itself once per copy held, after its
+    // own arrival watchers. The Shop twin is `runeboundBroodShop` (sim/recruit.ts).
+    if (minion.cardId === SEED_TOKEN_ID && minion.side === side && modsFor(side).runeRuneboundBrood) {
+      for (let k = 0; k < flagCopiesOf(side, 'runeRuneboundBrood'); k++) {
+        if (minion.dead || minion.health <= 0) break;
+        nextStep(); fireTrigger('runeRuneboundBrood', side);
+        runeCastRunebind(minion, 'rune_runebound_brood', 'Runebound Brood');
+      }
+    }
     // ANCIENT OF DEATH × Robin: "Summoned minions gain +3/+2 for every count of Spoils this turn." Every friendly summon
     // (this chokepoint: a token, a Rise, a resummon) gains the turn's live amount, after its own watchers (the Shop's
     // Den Marker order), a combat buff.
@@ -2689,7 +2722,7 @@ export function simulate(
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       fireTrigger('runeSavagery', side);
       // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Attack.
-      for (let k = 0; k < flagCopiesOf(side, 'runeSavagery'); k++) ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
+      for (let k = 0; k < flagCopiesOf(side, 'runeSavagery'); k++) ctx.buff(minion, minion.attack, 0, 'Savagery');
     }
     // RUNE OF THE JUNGLE: a Beast summoned in combat doubles its Health. Sibling of Savagery (Attack), applied
     // here so it composes with the summon payoffs; `minion.health` (current) is added again to double it.
@@ -2697,7 +2730,7 @@ export function simulate(
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       fireTrigger('runeJungle', side);
       // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Health.
-      for (let k = 0; k < flagCopiesOf(side, 'runeJungle'); k++) ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
+      for (let k = 0; k < flagCopiesOf(side, 'runeJungle'); k++) ctx.buff(minion, 0, minion.health, 'Jungle');
     }
     // WOLVIE (Echo): a queued next-summon buff pays this body if its tribe matches. Applied after auras/Savagery
     // so it stacks on the final body.
@@ -2723,7 +2756,7 @@ export function simulate(
       if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(flagCopiesOf(side, 'runeBurrow'), side); }
       // RUNE OF THE WAKE (Set 3 design pass): an Undead Echo TRIGGER raises the Undead Aura +1 Attack per copy, live
       // (the living Undead feel it now) and carried back (R-AURA-02). Forced Echoes reach this chokepoint too.
-      if (source && modsFor(side).runeWake && isUndeadMinion(source)) { fireTrigger('runeWake', side); raiseUndeadAura(side, flagCopiesOf(side, 'runeWake'), 'Rune of the Wake'); }
+      if (source && modsFor(side).runeWake && isUndeadMinion(source)) { fireTrigger('runeWake', side); raiseUndeadAura(side, flagCopiesOf(side, 'runeWake'), 'Wake'); }
       // RUNE OF THE GUIDING STAR (Set 3 design pass): a Celestial Echo TRIGGER casts a Star Crash on a random living
       // friendly Celestial, once per copy (a real combat cast: spell counters and cast watchers hear it).
       if (source && modsFor(side).runeGuidingStar && isTribeOf(source, 'celestial', cards)) {
@@ -2754,7 +2787,7 @@ export function simulate(
         fireTrigger('runeAftershocks', side); // pulse the rune's badge when its Echo grant fires
         // +4/+4 per copy held (boolean-flag family, owner 2026-08-27).
         const as4 = 4 * flagCopiesOf(side, 'runeAftershocks');
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, as4, as4, 'Rune of Aftershocks');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, as4, as4, 'Aftershocks');
       }
     }
   };
@@ -2839,7 +2872,7 @@ export function simulate(
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *
-   * Called after each attack's death cascade settles (beside `flushResummons`) — the moment a slot actually
+   * Called after each attack's death cascade settles (beside `flushSpaceQueue`) — the moment a slot actually
    * frees up. BOUNDED per combat: an unbounded version refills every slot the instant it empties, so a board
    * can never shrink and the fight stops resolving.
    */
@@ -2878,7 +2911,8 @@ export function simulate(
    * THE BETWEEN-ATTACKS SETTLE: everything an attack set off resolves before the next normal attacker is chosen.
    *
    *   1. `flushImmediateAttacks` — tokens the death cascade summoned to "attack immediately" land and strike.
-   *   2. `flushResummons` — a Reclaimer waiting in the wings reclaims a freed slot.
+   *   2. `flushSpaceQueue` — every "when you have space" summon still waiting (the Reclaimer's bodies, Brackus x
+   *      War's copies, Warden / Mirror March / Waking Reserve) takes a freed slot, first queued first (R-SPACE-PENDING-01).
    *   3. `fillFreeSlots` — Brood / Living Echoes / Decoy Sigil fill what is still free.
    *
    * and REPEATS while step 3 (or anything else) left an immediate attacker queued. The repeat is the fix for the
@@ -2894,7 +2928,7 @@ export function simulate(
     let rounds = 0;
     do {
       flushImmediateAttacks();
-      flushResummons();
+      flushSpaceQueue();
       fillFreeSlots();
     } while (pendingAttackOnSummon.length > 0 && rounds++ < IMMEDIATE_ATTACK_GUARD);
   }
@@ -3298,6 +3332,23 @@ export function simulate(
       }
       return;
     }
+    if (eff.do === 'dealtDamageCastRubiesTribe') {
+      // Zapdash (owner 2026-10-22): "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)". Each payout casts
+      // `count` (x2 gilded) PLAIN Rubies (owner confirmed 2026-10-22: "a Ruby" without "random" is the plain one) on
+      // every living friendly `tribe` body, Zapdash included, through the one combat Ruby primitive (`playRubyOn`:
+      // Ruby strength, Paragon, every Ruby watcher). Dual tribes and All-types count (`isTribeOf`). Combat Rubies are
+      // combat-only. The cap is `maxPerCombat` (2) on `pummelFires`, re-armed by a Rise / Rebirth return.
+      const named = p.tribe;
+      const tribe = typeof named === 'string' && named ? named : 'kobold';
+      for (let k = 0; k < pays; k++) {
+        fired();
+        for (const m of [...boards[dealer.side]]) {
+          if (m.dead || m.health <= 0 || !isTribeOf(m, tribe, cards)) continue;
+          playRubyOn(ctx, dealer, m, count);
+        }
+      }
+      return;
+    }
     if (eff.do === 'dealtDamageGetRandomRuby') {
       // Kobe (owner Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)" — each payout
       // hands over `count` (x2 gilded) Rubies, each a random type, through the combat Ruby carry-back.
@@ -3474,7 +3525,7 @@ export function simulate(
       // death's, at least) reached only the living. "All Friendly and summoned Beasts" includes a returning one, so it
       // takes them now, as its own buff beat. (A Rise return gets the same through `applyAuras`' Beast pool.)
       const swarmOwed = beastialGiven[minion.side] - swarmBefore;
-      if (swarmOwed > 0 && (isBeast(minion) || !!cards[minion.cardId]?.universalTribe)) { nextStep(); ctx.buff(minion, swarmOwed, swarmOwed, 'Rune of Beastial Swarm'); }
+      if (swarmOwed > 0 && (isBeast(minion) || !!cards[minion.cardId]?.universalTribe)) { nextStep(); ctx.buff(minion, swarmOwed, swarmOwed, 'Beastial Swarm'); }
       if (rbGrant.attackNow && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, interrupts: true, seq: immediateSummonSeq++ });
       summonEntryEffects(minion, minion.side);
       summonReturnExtras(minion); // ANCIENT OF GENESIS × Lord of the Risen: a Rebirth return is a summon too
@@ -3844,7 +3895,7 @@ export function simulate(
         nextStep(); fireTrigger('runeRubyShrapnel', minion.side);
         for (let i = 0; i < survivors.length; i++) {
           const sh = share[i]!;
-          if (sh.attack > 0 || sh.health > 0) ctx.buff(survivors[i]!, sh.attack, sh.health, 'Rune of Ruby Shrapnel');
+          if (sh.attack > 0 || sh.health > 0) ctx.buff(survivors[i]!, sh.attack, sh.health, 'Ruby Shrapnel');
         }
       }
     }
@@ -3888,7 +3939,7 @@ export function simulate(
         beastAtkAuraFor[side] += bs;
         beastialGiven[side] += bs; // what a Rebirth body dead at this moment is owed on its return
         beastHpAuraFor[side] += bs;
-        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
+        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Beastial Swarm');
       }
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
@@ -4062,84 +4113,100 @@ export function simulate(
   const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 };
   const undertowWarded = new WeakSet<Minion>();
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
-  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side; reclaim?: { gain?: number; bonds?: boolean; label: string } }[] = [];
-  // ANCIENT OF WAR × Brackus: Start-of-Combat Tier 7 copies waiting for room. Summoned from the source's body as it
-  // stands when the slot opens, or from its Start-of-Combat body (`kws` / `stats`) if it has died since.
-  const pendingSummitCopies: { side: Side; src: Minion; kws: Keyword[]; stats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } }[] = [];
-  function flushSummitCopies(): void {
-    for (let i = 0; i < pendingSummitCopies.length; ) {
-      const p = pendingSummitCopies[i]!;
+  /**
+   * THE "WHEN YOU HAVE SPACE" QUEUE (R-SPACE-PENDING-01, owner bug 2026-10-21: *"a 'when you have space' mechanic
+   * should fire whenever the player truly has a slot for the minion to summon"*). ONE queue for both sides holds every
+   * summon that is WAITING for room: Rune of the Warden, Rune of the Mirror March, Rune of the Waking Reserve, the
+   * Reclaimer's resummons (Soren and its Ancients) and Brackus x War's Tier 7 copies. Each entry lands the moment its
+   * side has a free slot:
+   *   - at Start of Combat, straight away, when the board already has room (`queueSpaceSummon` flushes on enqueue);
+   *   - otherwise at the first settle after a friendly minion dies or leaves (`settleBetweenAttacks` runs
+   *     `flushSpaceQueue` after every attack's death cascade, and once before round 1).
+   * ORDER: first queued, first landed (FIFO, by enqueue time, across both sides). A side with no room is skipped and
+   * its entries keep their place, so within a side the order is strictly FIFO. Start of Combat enqueues in its normal
+   * order: the Reclaimer's bodies, then Brackus x War, then the rune pass (Warden, Mirror March, Waking Reserve), the
+   * first side before the second. Each landing is its own beat (`nextStep`) and emits its own trigger + `summon`.
+   * LIFETIME: combat-only. Whatever is still waiting when the fight ends is dropped (no text says it carries over).
+   * `occupied` (living bodies) is the room test, so a slot held through a Rise is not room.
+   */
+  const spaceQueue: { side: Side; land: () => void }[] = [];
+  function flushSpaceQueue(): void {
+    for (let i = 0; i < spaceQueue.length; ) {
+      const p = spaceQueue[i]!;
       if (occupied(p.side) >= 7) { i++; continue; }
-      pendingSummitCopies.splice(i, 1);
-      nextStep(); // the copy landing is its own moment
-      if (!p.src.dead && p.src.health > 0) xeroxCopy(p.side, p.src);
-      else {
-        const def = cards[p.src.cardId];
-        if (def) summonMinion(p.side, def, p.src.uid, p.kws, p.src.golden, false, p.stats);
-      }
+      spaceQueue.splice(i, 1);
+      p.land();
     }
   }
-  function flushResummons(): void {
-    // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the
-    // enemy side, exactly like the player's Reclaimer). FIFO within a side.
-    for (let i = 0; i < pendingResummons.length; ) {
-      const { anchor, board, side, reclaim } = pendingResummons[i]!;
-      if (occupied(side) >= 7) { i++; continue; }
-      pendingResummons.splice(i, 1);
-      nextStep(); // each reclaimed body re-entering is its own moment
-      const copy = instantiate(board, side, cards, mkUid);
-      applyCombatGains(copy); // re-apply per-card stacks banked this fight (either side)
-      // A RECLAIMED body IS a combat summon (owner 2026-10-16: "rune of the food chain should work with soren's hero
-      // power resummon, and anything that summons a minion in combat basically"; R-SUMMON-RECLAIM-01). This path
-      // inserts the copy directly rather than through `summonMinion` / `placeSummon`, so it used to skip the whole
-      // "summoned in combat" grant helper (Food Chain, Hatchery, Packcraft, Spare Chair, Undertow, the Ancient of
-      // War summon-attack) plus Solid Ground and Containment. Run here, in the placed summon's order (grants before
-      // the slot, Solid Ground + Containment after), all before the `summon` snapshot so the replay shows the real
-      // body from its first frame, and the rune pulses share this beat. Room was just checked above, so the cap is
-      // judged here (`capJudgedElsewhere`): the copy always lands. Run before the splice, so Food Chain's left-most
-      // Demon is never the copy itself.
-      const reclaimGrant = applyCombatSummonGrants(copy, side, true);
-      if (reclaimGrant.ward) {
-        copy.divineShield = true;
-        if (!copy.keywords.includes('DS')) copy.keywords.push('DS');
-      }
-      const at = boards[side].indexOf(anchor);
-      boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
-      // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
-      // entry starts at zero"; docs/GAME-RULES.md: progress restarts "as any body placed mid-combat"). This path
-      // inserts the copy directly rather than through `placeSummon`, so it missed the stamp that every other
-      // summon, Rise and Rebirth gets: a Reclaimed Kennelmaster counted its OWN Start-of-Combat destruction and
-      // paid its Avenge (4) at the side's 4th death instead of the 4th after its return. `killOrReborn` tallied
-      // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
-      // the combat card prints (computeFrame stamps the same floor on every `summon` event).
-      copy.avengeBaseline = deaths[side];
-      applySolidGround(copy, side);
-      applyContainment(copy, side);
-      registerEffects(copy);
-      emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
-      // The single summon-entry suite (R-SUMMON-RECLAIM-01), as every placed summon and every Rise runs it: tribe
-      // auras FIRST, then the onSummon watchers left→right (both were called by hand here before), plus everything
-      // else that counts a combat summon (quest tallies, Remains / Reinvestment, Returning Pack, Emberline, Unity,
-      // Summoning Bulwark's Taunts, Robin's Spoils gain).
-      summonEntryEffects(copy, side);
-      // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
-      // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
-      if (reclaim && !copy.dead && copy.health > 0) {
-        // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
-        if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
-        // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
-        if (reclaim.bonds && copy.attack > 0) {
-          const near = livingNeighbours(ctx, copy);
-          if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
-        }
-      }
-      // Spare Chair / Ancient of War on a reclaimed body: it strikes the instant it lands, riding the same single
-      // interrupting queue item a Rise return uses.
-      if (reclaimGrant.attackNow && !copy.dead && copy.health > 0) {
-        pendingAttackOnSummon.push({ minion: copy, interrupts: true, seq: immediateSummonSeq++ });
+  /** Queue a "when you have space" summon and land it now if its side already has room (FIFO behind older waiters). */
+  function queueSpaceSummon(side: Side, land: () => void): void {
+    spaceQueue.push({ side, land });
+    flushSpaceQueue();
+  }
+  // ANCIENT OF WAR x Brackus: a Start-of-Combat Tier 7 copy waiting for room. Summoned from the source's body as it
+  // stands when the slot opens, or from its Start-of-Combat body (`kws` / `stats`) if it has died since.
+  function landSummitCopy(side: Side, src: Minion, kws: Keyword[], stats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): void {
+    nextStep(); // the copy landing is its own moment
+    if (!src.dead && src.health > 0) xeroxCopy(side, src);
+    else {
+      const def = cards[src.cardId];
+      if (def) summonMinion(side, def, src.uid, kws, src.golden, false, stats);
+    }
+  }
+  /** The Reclaimer: one queued body re-enters (called by the space queue once its side has room). */
+  function landResummon(anchor: Minion, board: BoardMinion, side: Side, reclaim?: { gain?: number; bonds?: boolean; label: string }): void {
+    nextStep(); // each reclaimed body re-entering is its own moment
+    const copy = instantiate(board, side, cards, mkUid);
+    applyCombatGains(copy); // re-apply per-card stacks banked this fight (either side)
+    // A RECLAIMED body IS a combat summon (owner 2026-10-16: "rune of the food chain should work with soren's hero
+    // power resummon, and anything that summons a minion in combat basically"; R-SUMMON-RECLAIM-01). This path
+    // inserts the copy directly rather than through `summonMinion` / `placeSummon`, so it used to skip the whole
+    // "summoned in combat" grant helper (Food Chain, Hatchery, Packcraft, Spare Chair, Undertow, the Ancient of
+    // War summon-attack) plus Solid Ground and Containment. Run here, in the placed summon's order (grants before
+    // the slot, Solid Ground + Containment after), all before the `summon` snapshot so the replay shows the real
+    // body from its first frame, and the rune pulses share this beat. Room was just checked above, so the cap is
+    // judged here (`capJudgedElsewhere`): the copy always lands. Run before the splice, so Food Chain's left-most
+    // Demon is never the copy itself.
+    const reclaimGrant = applyCombatSummonGrants(copy, side, true);
+    if (reclaimGrant.ward) {
+      copy.divineShield = true;
+      if (!copy.keywords.includes('DS')) copy.keywords.push('DS');
+    }
+    const at = boards[side].indexOf(anchor);
+    boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
+    // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
+    // entry starts at zero"; docs/GAME-RULES.md: progress restarts "as any body placed mid-combat"). This path
+    // inserts the copy directly rather than through `placeSummon`, so it missed the stamp that every other
+    // summon, Rise and Rebirth gets: a Reclaimed Kennelmaster counted its OWN Start-of-Combat destruction and
+    // paid its Avenge (4) at the side's 4th death instead of the 4th after its return. `killOrReborn` tallied
+    // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
+    // the combat card prints (computeFrame stamps the same floor on every `summon` event).
+    copy.avengeBaseline = deaths[side];
+    applySolidGround(copy, side);
+    applyContainment(copy, side);
+    registerEffects(copy);
+    emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
+    // The single summon-entry suite (R-SUMMON-RECLAIM-01), as every placed summon and every Rise runs it: tribe
+    // auras FIRST, then the onSummon watchers left→right (both were called by hand here before), plus everything
+    // else that counts a combat summon (quest tallies, Remains / Reinvestment, Returning Pack, Emberline, Unity,
+    // Summoning Bulwark's Taunts, Robin's Spoils gain).
+    summonEntryEffects(copy, side);
+    // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
+    // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
+    if (reclaim && !copy.dead && copy.health > 0) {
+      // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
+      if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
+      // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
+      if (reclaim.bonds && copy.attack > 0) {
+        const near = livingNeighbours(ctx, copy);
+        if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
       }
     }
-    flushSummitCopies(); // Brackus × War's waiting copies, after Reclaim's (queued first, so they keep their place)
+    // Spare Chair / Ancient of War on a reclaimed body: it strikes the instant it lands, riding the same single
+    // interrupting queue item a Rise return uses.
+    if (reclaimGrant.attackNow && !copy.dead && copy.health > 0) {
+      pendingAttackOnSummon.push({ minion: copy, interrupts: true, seq: immediateSummonSeq++ });
+    }
   }
 
   /**
@@ -4159,7 +4226,7 @@ export function simulate(
       fireTrigger('runeRuins', poisoner.side);
       // The buff lands once per copy held (boolean-flag family, owner 2026-08-27).
       const rr = RUNE_RUINS_BUFF * flagCopiesOf(poisoner.side, 'runeRuins');
-      for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Rune of Ruins');
+      for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Ruins');
     }
   }
 
@@ -4410,6 +4477,19 @@ export function simulate(
         fireTrigger('runeSunpony', attacker.side);
         FACTORIES.rallySpreadTribeBuff?.(ctx, attacker, { tribe: 'beast', attack: flagCopiesOf(attacker.side, 'runeSunpony'), fixed: true, includeSelf: true }, { minion: attacker, side: attacker.side });
       }
+      // DEEP BREATHS (Set 3 Dragon runes, owner 2026-10-21): each of the side's first 2 Dragon swings this fight casts
+      // Growth, once per copy (a real rune cast through the attacker; Windfury swings count as attacks, as for Rallies).
+      if (modsFor(attacker.side).runeDeepBreaths && !attacker.dead && isTribeOf(attacker, 'dragon', cards)
+          && deepBreathsUsed[attacker.side] < DRAGON_RUNES_BASIC.deepBreathsAttacks) {
+        deepBreathsUsed[attacker.side] += 1;
+        fireTrigger('runeDeepBreaths', attacker.side);
+        for (let k = 0; k < flagCopiesOf(attacker.side, 'runeDeepBreaths'); k++) runeCastGrowth(attacker);
+      }
+      // RUNE OF THE GROWING INFERNO (owner 2026-10-21): "Dragon attacks in combat cast Growth." Every friendly Dragon
+      // swing casts Growth once per copy held, after the attacker's own Rally (the Sunpony slot), the rune as caster.
+      if (modsFor(attacker.side).runeGrowingInferno && !attacker.dead && isTribeOf(attacker, 'dragon', cards)) {
+        runeGrowingInferno(attacker);
+      }
       // RUNE OF THE CHEF: an attacking Chef Gary Toast buffs ANOTHER random friendly Dwarf by the combined
       // stats it handed out last shop turn. The tally rides on the INSTANCE (`chefGrantedLast`), so two Chefs
       // each pay their own, and a Chef bought this turn has banked nothing and pays nothing.
@@ -4533,7 +4613,7 @@ export function simulate(
       const wildStep = modsFor(attacker.side).runeWildHunt ?? 0;
       if (wildStep > 0 && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
         wildHuntGrown[attacker.side] += wildStep;
-        ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
+        ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Wild Hunt');
         fireTrigger('runeWildHunt', attacker.side);
       }
       // GORUN — BLADE MASTERY. Every friendly attack grants the ATTACKER +3 Attack, and the grant improves by
@@ -4989,14 +5069,17 @@ export function simulate(
     reclaimEchoUid = rc?.echoExtra ? minion.uid : undefined; // DEATH: this destroy's Echo fires extra times
     try { killOrReborn(minion); } finally { reclaimEchoUid = undefined; } // tokens summon now and may overflow the board
     const reclaim = rc && (rc.gain || rc.bonds) ? { gain: rc.gain, bonds: rc.bonds, label: rc.label } : undefined;
-    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+    // Pushed straight onto the space queue (no flush yet): every marked body is destroyed first, then the flush below.
+    const anchor = minion, rside = minion.side;
+    spaceQueue.push({ side: rside, land: () => landResummon(anchor, copyBoard, rside, reclaim) });
     // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
     // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
     for (let k = 1; k < (rc?.copies ?? 1); k++) {
-      pendingResummons.push({ anchor: minion, board: { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined }, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+      const extra: BoardMinion = { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined };
+      spaceQueue.push({ side: rside, land: () => landResummon(anchor, extra, rside, reclaim) });
     }
   }
-  flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
+  flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
 
   // --- CLOSED CASKET (spell): a marked body is DESTROYED at the start of combat (owner ruling 2026-08-15).
   //     Deliberately a REAL death through the normal kill path rather than a bespoke "fire its Echo" hook:
@@ -5080,7 +5163,7 @@ export function simulate(
     }
     // ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
     // minion." The left-most living Tier 7; an exact copy (`xeroxCopy`) right now when there is room, else it waits in
-    // `pendingSummitCopies` for the first open slot (flushed with Reclaim's queue).
+    // the shared space queue for the first open slot (R-SPACE-PENDING-01).
     if (smods.ancientSummitCopy) {
       const src = boards[scSide].find((m) => !m.dead && m.health > 0 && cards[m.cardId]?.tier === 7 && !cards[m.cardId]?.spell);
       if (src) {
@@ -5088,11 +5171,9 @@ export function simulate(
         emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
         if (occupied(scSide) < 7) xeroxCopy(scSide, src);
         else {
-          pendingSummitCopies.push({
-            side: scSide, src,
-            kws: src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable)),
-            stats: { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable },
-          });
+          const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
+          const stats = { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable };
+          spaceQueue.push({ side: scSide, land: () => landSummitCopy(scSide, src, kws, stats) });
         }
       }
     }
@@ -5238,28 +5319,39 @@ export function simulate(
   const runRuneStartOfCombat = (rside: Side, pass: number): void => {
     const rmods = modsFor(rside);
     const base = pass === 0;
-    // Rune of the Warden: if the board has room (< 7), summon a Spear Warden. Base pass only: its text is "when
-    // you have room in combat", not a Start-of-Combat effect.
-    if (base && rmods.runeWarden && boards[rside].length < 7) {
-      const knit = cards['knit'];
-      if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
+    // THE "WHEN YOU HAVE SPACE" RUNES (R-SPACE-PENDING-01, owner bug 2026-10-21). Each one QUEUES its summon on the
+    // shared space queue (`queueSpaceSummon`): it lands right now when the side has room, else the first time a slot
+    // frees up later in the fight. Everything a summon reads (the left-most minion, the best hand card) is read when
+    // it LANDS, because that is when it happens (real-time by default). One queue entry per rune copy held, so each
+    // copy is its own beat and waits for its own slot. They used to check for room once at Start of Combat and give
+    // up when the board was full.
+    //
+    // Rune of the Warden: "When you have room in combat, summon a Spear Warden." Base pass only: its text is not a
+    // Start-of-Combat effect, so Twilight does not repeat it.
+    if (base && rmods.runeWarden) {
+      queueSpaceSummon(rside, () => {
+        const knit = cards['knit'];
+        if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
+      });
     }
-    // Rune of the Mirror March: if the board has room, summon an EXACT copy of the leftmost minion (current
-    // combat stats + shield/Rise, the Mirrorhide `copyStats` path), placed to its right.
-    if (rmods.runeMirrorMarch && boards[rside].length < 7) {
-      const lead = boards[rside].find((m) => !m.dead && m.health > 0);
-      const leadDef = lead ? cards[lead.cardId] : undefined;
-      if (lead && leadDef) {
-        nextStep();
-        twilightPulse(rside, pass);
-        fireTrigger('runeMirrorMarch', rside);
-        // One copy per rune copy held (boolean-flag family, owner 2026-08-27) — room permitting.
-        for (let k = 0; k < flagCopiesOf(rside, 'runeMirrorMarch') && boards[rside].length < 7; k++) {
+    // Rune of the Mirror March: "Start of Combat: when you have room, summon a copy of your left-most minion." An
+    // EXACT copy of the left-most living minion AT LANDING (current combat stats + shield/Rise, the Mirrorhide
+    // `copyStats` path), placed to its right. No living minion when it lands: nothing (the entry is spent).
+    if (rmods.runeMirrorMarch) {
+      // One copy per rune copy held (boolean-flag family, owner 2026-08-27).
+      for (let k = 0; k < flagCopiesOf(rside, 'runeMirrorMarch'); k++) {
+        queueSpaceSummon(rside, () => {
+          const lead = boards[rside].find((m) => !m.dead && m.health > 0);
+          const leadDef = lead ? cards[lead.cardId] : undefined;
+          if (!lead || !leadDef) return;
+          nextStep();
+          twilightPulse(rside, pass);
+          fireTrigger('runeMirrorMarch', rside);
           summonMinion(rside, leadDef, lead.uid, undefined, lead.golden, false, {
             attack: lead.attack, health: lead.health, maxHealth: lead.maxHealth,
             divineShield: lead.divineShield, rebornAvailable: lead.rebornAvailable,
           });
-        }
+        });
       }
     }
     // RUNE OF THE WAKING RESERVE (set 3 batch 2, tranche D, 2026-09-16): with room on the board, summon a COPY of
@@ -5267,25 +5359,25 @@ export function simulate(
     // keywords and gilding, the Mirror March `copyStats` path. It IS a hand-summon (`pendingHandSummon`: Dreamed
     // Graves / the Open Hand hear it) but the card is NOT marked — neither `handCopiedUids` nor `fromHandUid`
     // — so a Spirit may still summon it later this fight and the replay does not grey it. One copy per rune copy
-    // held, room re-checked each time. `occupied`, not length: a slot held through a Rise is not room.
-    if (rmods.runeWakingReserve && occupied(rside) < 7) {
-      const rawHand = stateOf(rside).handMinions ?? [];
-      const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
-      if (pool.length > 0) {
-        const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
-        const raw = rawHand.find((h) => h.uid === top.uid);
-        const def = cards[top.cardId];
-        if (raw && def) {
+    // held. The hand is read when the copy LANDS; an empty (or spell-only / all-locked) hand then gives nothing.
+    if (rmods.runeWakingReserve) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve'); k++) {
+        queueSpaceSummon(rside, () => {
+          const rawHand = stateOf(rside).handMinions ?? [];
+          const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
+          if (pool.length === 0) return;
+          const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+          const raw = rawHand.find((h) => h.uid === top.uid);
+          const def = cards[top.cardId];
+          if (!raw || !def) return;
           nextStep();
           twilightPulse(rside, pass);
           fireTrigger('runeWakingReserve', rside);
-          for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve') && occupied(rside) < 7; k++) {
-            pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
-            summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
-              { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
-            pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
-          }
-        }
+          pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
+          summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
+            { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
+          pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
+        });
       }
     }
     // Rune of Twilight, MINION half: the board's Start-of-Combat effects trigger an ADDITIONAL time — extra
@@ -5412,7 +5504,7 @@ export function simulate(
       // silently. `rune` names the caster — the Beast is only the body the cast resolves through — so the
       // effect stems from the rune's node; `side` scopes that to the side that owns the rune.
       if (resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined)) {
-        emit({ type: 'sc', source: onto.uid, text: `Rune of Spellhide casts ${def.name}`, spellId: def.id, rune: 'rune_spellhide', side: rside });
+        emit({ type: 'sc', source: onto.uid, text: `Spellhide casts ${def.name}`, spellId: def.id, rune: 'rune_spellhide', side: rside });
       }
     }
     if (rmods.runeFiveBanners) {
@@ -5434,7 +5526,21 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeFiveBanners', rside);
         // +6/+6 per copy held (boolean-flag family, owner 2026-08-27: "+6/+6 twice").
         const fb = 6 * flagCopiesOf(rside, 'runeFiveBanners');
-        for (const m of recipients) ctx.buff(m, fb, fb, 'Rune of the Five Banners');
+        for (const m of recipients) ctx.buff(m, fb, fb, 'Five Banners');
+      }
+    }
+    // RUNE OF THE WAR COUNCIL (owner 2026-10-21): "Start of Combat: Cast Runebind on 3 random Dragons." Three DIFFERENT
+    // living friendly Dragons (all of them when fewer), seeded draws off the fight's stream, one cast each; again
+    // per copy held (re-drawn). Each cast reads the live Runebind value, so later casts land bigger. A Start of Combat
+    // rune, so Twilight repeats it with the other passes.
+    if (rmods.runeWarCouncil) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeWarCouncil'); k++) {
+        const pool = boards[rside].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards));
+        if (pool.length === 0) break;
+        const picks: Minion[] = [];
+        while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeWarCouncil', rside);
+        for (const t of picks) { if (t !== picks[0]) nextStep(); runeCastRunebind(t, 'rune_war_council', 'War Council'); }
       }
     }
     if (base && rmods.unitedFront && rmods.unitedFront > 0) {
@@ -5490,7 +5596,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeTemperedTime', rside);
         // The grant lands once per copy held (boolean-flag family, owner 2026-08-27).
         const tt = flagCopiesOf(rside, 'runeTemperedTime');
-        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2) * tt, 'Rune of Tempered Time');
+        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2) * tt, 'Tempered Time');
       }
     }
     if (rmods.runeHerald) {
@@ -5566,7 +5672,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeUnderdog', rside);
         // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown body.
         for (let k = 0; k < flagCopiesOf(rside, 'runeUnderdog'); k++) {
-          for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
+          for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Underdog');
         }
       }
     }
@@ -5591,7 +5697,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeStokedMenagerie', rside);
         // One doubling per copy held (boolean-flag family, owner 2026-08-27) — same three bodies.
         for (let k = 0; k < flagCopiesOf(rside, 'runeStokedMenagerie'); k++) {
-          for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
+          for (const m of picked) ctx.buff(m, m.attack, m.health, 'Stoked Menagerie');
         }
       }
     }
@@ -5601,6 +5707,23 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeVanguard', rside);
         for (const m of front) {
           if (!m.keywords.includes('CR')) m.keywords.push('CR');
+          if (!m.divineShield) {
+            m.divineShield = true;
+            if (!m.keywords.includes('DS')) m.keywords.push('DS');
+            emit({ type: 'shieldUp', target: m.uid });
+          }
+        }
+      }
+    }
+    // DEFIANT WINGS (Set 3 Dragon runes, owner 2026-10-21): "Start of Combat:" (so Twilight repeats it). Per copy, 2
+    // distinct random living friendly Dragons +3/+6 (a combat buff) and Ward. Fewer Dragons: all of them.
+    if (rmods.runeDefiantWings && boards[rside].some((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards))) {
+      nextStep(); twilightPulse(rside, pass); fireTrigger('runeDefiantWings', rside);
+      for (let k = 0; k < flagCopiesOf(rside, 'runeDefiantWings'); k++) {
+        const pool = boards[rside].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards));
+        for (let i = 0; i < DRAGON_RUNES_BASIC.defiantWings.count && pool.length > 0; i++) {
+          const m = pool.splice(rng.int(pool.length), 1)[0]!;
+          ctx.buff(m, DRAGON_RUNES_BASIC.defiantWings.attack, DRAGON_RUNES_BASIC.defiantWings.health, 'Defiant Wings');
           if (!m.divineShield) {
             m.divineShield = true;
             if (!m.keywords.includes('DS')) m.keywords.push('DS');
@@ -5640,7 +5763,7 @@ export function simulate(
       if (ends.length > 0) {
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeHeldStrength', rside);
         const reps = Math.max(1, hs.copies ?? 1);
-        for (const m of ends) ctx.buff(m, hs.attack * reps, hs.health * reps, 'Rune of Held Strength');
+        for (const m of ends) ctx.buff(m, hs.attack * reps, hs.health * reps, 'Held Strength');
       }
     }
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them).
@@ -5752,7 +5875,7 @@ export function simulate(
     ua.health += delta;
     // R-RUNE-COMBAT-FLASH-01: the rune paid out right now, so its badge pulses on this beat. A marker event only.
     fireTrigger('runeSoulFurnace', side);
-    for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Rune of the Soul Furnace');
+    for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Soul Furnace');
     grimToastLive(side, 0, delta);
   }
   /** "Give your Undead Aura +N Attack" in combat: the living Undead feel it now, the side's Aura rises for later
@@ -5772,7 +5895,7 @@ export function simulate(
       const n = 2 * flagCopiesOf(side, 'runeSecondWind');
       nextStep();
       fireTrigger('runeSecondWind', side);
-      ctx.buff(minion, n, n, 'Rune of the Second Wind');
+      ctx.buff(minion, n, n, 'Second Wind');
       if (!minion.keywords.includes('EG')) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + n, health: (minion.permaGain?.health ?? 0) + n };
       // R-RISE-06 x R-SET3RUNE-08: the risen copy's gains stay in combat, but this one is ABOUT the Rise and prints
       // "permanently", so it is booked onto the original's frozen carry-back and reaches the board card.
@@ -5834,7 +5957,7 @@ export function simulate(
       // later hit or buff re-based them. The opening pass is in the `initial` snapshot already. Presentation only: a
       // `buff` event the replay folds, never `ctx.buff` (this is an aura, not a gain, so no stat-gain reactor or
       // carry-back may hear it).
-      if (!opening) for (const s of shown) emit({ type: 'buff', target: s.uid, attack: s.attack, health: s.health, source: 'Rune of Unity' });
+      if (!opening) for (const s of shown) emit({ type: 'buff', target: s.uid, attack: s.attack, health: s.health, source: 'Unity' });
     } else if (granted.size > 0) {
       for (const m of granted) m.universalTribe = undefined;
       granted.clear();
@@ -5852,7 +5975,7 @@ export function simulate(
     if (dwarves.length === 0) return;
     // R-RUNE-COMBAT-FLASH-01: the rune buffed someone right now, so its badge pulses on this beat. A marker event only.
     fireTrigger('runeGrimToast', side);
-    for (const m of dwarves) ctx.buff(m, attack, health, 'Rune of the Grim Toast');
+    for (const m of dwarves) ctx.buff(m, attack, health, 'Grim Toast');
   }
   /** A combat Ruby cast landed `per` Rubies (`attack`/`health` in total) on `target`. The Keepsake Gem lands the same on
    *  the left-most hand minion (a hand buff, permanent, per copy; an empty hand = nothing). The Gem Star gives the
@@ -5882,7 +6005,7 @@ export function simulate(
       gemStarUsed[side] += k;
       const n = flagCopiesOf(side, 'runeGemStar');
       fireTrigger('runeGemStar', side);
-      ctx.gainStarform(Math.round((attack / per) * k) * n, Math.round((health / per) * k) * n, side, 'Rune of the Gem Star');
+      ctx.gainStarform(Math.round((attack / per) * k) * n, Math.round((health / per) * k) * n, side, 'Gem Star');
     }
     void target;
   }
@@ -5914,10 +6037,45 @@ export function simulate(
         if (pool.length === 0) break;
         const pick = pickAutoTarget(rng, pool)!; // R-TARGET-07
         castInCombat(ctx, shim, () => {
-          if (resolveCombatSpellCast(ctx, shim, spell, [pick])) emit({ type: 'sc', source: caster.uid, text: `Rune of the Meteor Storm casts ${spell.name} again`, spellId: spell.id, rune: 'rune_meteor_storm', side });
+          if (resolveCombatSpellCast(ctx, shim, spell, [pick])) emit({ type: 'sc', source: caster.uid, text: `Meteor Storm casts ${spell.name} again`, spellId: spell.id, rune: 'rune_meteor_storm', side });
         }, spell.id);
       }
     } finally { meteorEchoing = false; }
+  }
+  /** DEEP BREATHS: one rune cast of Growth through the attacking Dragon (an ungilded stand-in, so a Gilded attacker does
+   *  not double it). `castInCombat` counts it as a real spell cast (counters, Queen Morro, watchers). */
+  function runeCastGrowth(source: Minion): void {
+    const spell = cards['growth'];
+    if (!spell?.spell || !combatCastable(spell)) return;
+    const caster = { ...source, golden: false } as Minion;
+    nextStep();
+    castInCombat(ctx, caster, () => {
+      if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
+        emit({ type: 'sc', source: source.uid, text: `Deep Breaths casts ${spell.name}`, spellId: spell.id, rune: 'rune_deep_breaths', side: source.side });
+      }
+    }, spell.id);
+  }
+  /** SET 3 DRAGON RUNES (owner 2026-10-21): one resolved combat Whisper cast (Whaloo, Whisp's echo), each repetition.
+   *  BORROWED FLAME: a cast on a living friendly Dragon gives it the side's live value (per copy; a combat buff), then
+   *  the value improves now (real time) and the gain carries home. SPELL TEMPERING: the carried meter ticks; every 4th
+   *  cast raises the side's spell power +1/+1 per copy (live, carried home through the spell-power channel). */
+  function dragonRunesWhisperCast(side: Side, _whisperId: string, target: Minion, casterUid: string): void {
+    const m = modsFor(side);
+    const carry = shoutCarry[side];
+    if (m.runeBorrowedFlame && !target.dead && target.health > 0 && target.side === side && isTribeOf(target, 'dragon', cards)) {
+      const v = (m.runeBorrowedFlame + (carry.borrowedFlameGain ?? 0)) * flagCopiesOf(side, 'runeBorrowedFlame');
+      fireTrigger('runeBorrowedFlame', side);
+      ctx.buff(target, v, v, 'Borrowed Flame');
+      carry.borrowedFlameGain = (carry.borrowedFlameGain ?? 0) + ctx.improveRepsFor(side);
+    }
+    if (m.runeSpellTempering) {
+      carry.whispersCast = (carry.whispersCast ?? 0) + 1;
+      if (((m.runeSpellTemperingTick ?? 0) + carry.whispersCast) % DRAGON_RUNES_BASIC.spellTemperingPer === 0) {
+        fireTrigger('runeSpellTempering', side);
+        const n = ctx.improveRepsFor(side) * flagCopiesOf(side, 'runeSpellTempering');
+        ctx.grantSpellPower(n, n, side, casterUid);
+      }
+    }
   }
   /** RUNE OF THE GUIDING STAR: one rune cast of Star Crash from a Celestial Echo, aimed at a random living friendly
    *  Celestial (none = no cast). The rune is the caster: an ungilded stand-in for the Echo body, so a Gilded Celestial
@@ -5934,9 +6092,36 @@ export function simulate(
       if (pool.length === 0) return;
       const target = pickAutoTarget(rng, pool)!; // R-TARGET-07
       if (resolveCombatSpellCast(ctx, caster, spell, [target])) {
-        emit({ type: 'sc', source: source.uid, text: `Rune of the Guiding Star casts ${spell.name}`, spellId: spell.id, rune: 'rune_guiding_star', side });
+        emit({ type: 'sc', source: source.uid, text: `Guiding Star casts ${spell.name}`, spellId: spell.id, rune: 'rune_guiding_star', side });
       }
     }, spell.id);
+  }
+  /** RUNE OF THE GROWING INFERNO (owner 2026-10-21): one rune cast of Growth per copy held, through the attacking
+   *  Dragon's body as an UNGILDED stand-in (a Gilded Dragon does not double it; the rune is the caster). A real cast:
+   *  `castInCombat` counts it (spell tallies, Queen Morro's extra casts, watchers) and `resolveCombatSpellCast` pays
+   *  Growth's live value (spell power, Rune of Living Growth). Combat buffs only (R-BUFF-PERM). */
+  function runeGrowingInferno(attacker: Minion): void {
+    const spell = cards['growth'];
+    if (!spell?.spell) return;
+    const side = attacker.side;
+    const caster = { ...attacker, golden: false } as Minion;
+    for (let k = 0; k < flagCopiesOf(side, 'runeGrowingInferno'); k++) {
+      nextStep();
+      fireTrigger('runeGrowingInferno', side);
+      castInCombat(ctx, caster, () => {
+        if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
+          emit({ type: 'sc', source: attacker.uid, text: `Growing Inferno casts ${spell.name}`, spellId: spell.id, rune: 'rune_growing_inferno', side });
+        }
+      }, spell.id);
+    }
+  }
+  /** RUNEBIND FROM A RUNE (War Council, the Runebound Brood; owner 2026-10-21): one real combat Whisper cast of Runebind
+   *  on `target` (`castWhisperInCombat`: counted, Morro-repeated, Whisp-echoed, Tamby-copied; its stats combat-only,
+   *  its improve permanent and real time), the rune as the caster (the `sc` carries `rune`), at the plain value. */
+  function runeCastRunebind(target: Minion, runeId: string, runeName: string): void {
+    const def = cards['w4_runebind'];
+    if (!def?.whisper || target.dead || target.health <= 0) return;
+    castWhisperInCombat(ctx, target, target, def, 1, `${runeName} casts ${def.name}`, runeId);
   }
   /** RUNE OF CALL AND ANSWER, combat half: the left-most minion in this side's hand (the fight's hand snapshot, minus
    *  any summoned out) +2/+2 per copy, through `buffHand` (permanent, R-HAND-02; either side's hand). */
@@ -5967,7 +6152,7 @@ export function simulate(
     if (m.shoutEdgeTribeBuff) {
       const t = m.shoutEdgeTribeBuff;
       const ends = edges(living(side).filter((c) => isTribeOf(c, t.tribe, cards)));
-      if (ends.length) { fireTrigger('runeDrakeSkull', side); for (const e of ends) ctx.buff(e, t.attack, t.health, 'Rune of the Drake Skull'); }
+      if (ends.length) { fireTrigger('runeDrakeSkull', side); for (const e of ends) ctx.buff(e, t.attack, t.health, 'Drake Skull'); }
     }
   });
   // RUNE OF THE HERALDING STAR / THE STARSONG (Set 3 design pass): every friendly CELESTIAL Shout fire. The Heralding
@@ -5980,12 +6165,12 @@ export function simulate(
     if (m.runeHeraldingStar) {
       const n = 3 * flagCopiesOf(side, 'runeHeraldingStar');
       fireTrigger('runeHeraldingStar', side);
-      ctx.gainStarform(n, n, side, 'Rune of the Heralding Star');
+      ctx.gainStarform(n, n, side, 'Heralding Star');
     }
     if (m.runeStarsong) {
       const n = 2 * flagCopiesOf(side, 'runeStarsong');
       fireTrigger('runeStarsong', side);
-      for (const c of living(side)) if (isTribeOf(c, 'celestial', cards)) ctx.buff(c, n, n, 'Rune of the Starsong');
+      for (const c of living(side)) if (isTribeOf(c, 'celestial', cards)) ctx.buff(c, n, n, 'Starsong');
     }
   });
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
@@ -6204,7 +6389,29 @@ export function simulate(
     lvl.attack += 2; lvl.health += 2;
   });
   // RUNE OF THE SOUL TOLL (Set 3 design pass, owner 2026-09-27): Avenge (4) raises the Undead Aura +1 Attack.
-  runeAvenge(4, 'runeSoulToll', (m) => !!m.runeSoulToll, (side) => { nextStep(); raiseUndeadAura(side, 1, 'Rune of the Soul Toll'); });
+  runeAvenge(4, 'runeSoulToll', (m) => !!m.runeSoulToll, (side) => { nextStep(); raiseUndeadAura(side, 1, 'Soul Toll'); });
+  // FINAL UTTERANCE (Set 3 Dragon runes, owner 2026-10-21): Avenge (4), a random Whisper (the gated pool: your tier and
+  // below, owners in your set) and a random Shop Spell (the side's pool at its tier), both to hand at settle.
+  runeAvenge(4, 'runeFinalUtterance', (m) => !!m.runeFinalUtterance, (side) => {
+    nextStep();
+    ctx.grantRandomWhispers?.(1, side, 1, undefined);
+    ctx.grantRandomSpell(1, side, undefined);
+  });
+  // EMBER INHERITANCE (Set 3 Dragon runes, owner 2026-10-21): the side's FIRST friendly Dragon with an Echo to die this
+  // fight gives its Attack at death to the left-most living friendly Dragon, once per copy (a combat buff). The latch
+  // is spent by that first death even when no Dragon is left to inherit.
+  bus.on('avenge', (payload) => {
+    const { side, victim } = payload as { side: Side; count: number; victim?: Minion };
+    if (!victim || emberInheritanceUsed[side] || !modsFor(side).runeEmberInheritance) return;
+    if (!isTribeOf(victim, 'dragon', cards) || !victim.effects.some((e) => e.on === 'onDeath')) return;
+    emberInheritanceUsed[side] = true;
+    const heir = living(side).find((m) => m !== victim && isTribeOf(m, 'dragon', cards));
+    const atk = Math.max(0, victim.attack);
+    if (!heir || atk <= 0) return;
+    nextStep();
+    fireTrigger('runeEmberInheritance', side);
+    ctx.buff(heir, atk * flagCopiesOf(side, 'runeEmberInheritance'), 0, victim.uid);
+  });
   runeAvenge(4, 'runeSpearline', (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
@@ -6315,7 +6522,7 @@ export function simulate(
     const tail = living[living.length - 1];
     if (!tail) return;
     nextStep();
-    ctx.buff(tail, tail.attack, tail.health, 'Rune of the Procession');
+    ctx.buff(tail, tail.attack, tail.health, 'Procession');
   });
   runeAvenge(4, 'runeSoulTaxes', (m) => !!m.runeSoulTaxes, (side) => ctx.grantMaxGold(1, side), true); // +1 max Gold
   // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
@@ -6353,7 +6560,7 @@ export function simulate(
       const right = [...boards[side]].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
       // The stats land once per copy held (boolean-flag family, owner 2026-08-27).
       const ih = flagCopiesOf(side, 'runeInheritance');
-      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack * ih, minion.maxHealth * ih, 'Rune of Inheritance'); }
+      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack * ih, minion.maxHealth * ih, 'Inheritance'); }
     });
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
@@ -6386,6 +6593,27 @@ export function simulate(
         for (let k = 0; k < flagCopiesOf(sside, 'runeSalvage'); k++) ctx.grantToHand(magnetics[draw.int(magnetics.length)]!.id, sside, minion.uid);
       });
     }
+  }
+  // RUNE OF UNBROKEN SCALES (owner 2026-10-21): "The first 2 times your Dragons lose Ward each combat, give it +10/+10
+  // and Ward." A SIDE-WIDE budget of 2 per fight across every friendly Dragon (not per body, so a Rise / Rebirth return
+  // does not refill it; R-RETURN-RESET-01 covers per-body limits only). Each fire: the +10/+10 (x copies held, a combat
+  // buff, R-BUFF-PERM) then the Ward re-forms. The re-formed Ward's `shieldUp` carries the rune's key, so the replay
+  // plays Foamguard's three beats (R-DWARF-1021-03): the break, the buff, the Ward coming back.
+  for (const uside of SIDES) {
+    if (!modsFor(uside).runeUnbrokenScales) continue;
+    let left = UNBROKEN_SCALES_PER_COMBAT;
+    bus.on('onLoseDivineShield', (payload) => {
+      const { minion, side } = payload as { minion: Minion; side: Side };
+      if (side !== uside || left <= 0 || minion.dead || minion.health <= 0 || !isTribeOf(minion, 'dragon', cards)) return;
+      left--;
+      fireTrigger('runeUnbrokenScales', uside);
+      const n = 10 * flagCopiesOf(uside, 'runeUnbrokenScales');
+      ctx.buff(minion, n, n, 'Unbroken Scales');
+      if (minion.dead || minion.health <= 0 || minion.divineShield) return;
+      minion.divineShield = true;
+      if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
+      emit({ type: 'shieldUp', target: minion.uid, key: UNBROKEN_SCALES_KEY });
+    });
   }
   // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
   // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)
@@ -6568,7 +6796,7 @@ export function simulate(
       const h = reinvest.health * summonCount[side];
       tavernBuyGain[side].attack += a;
       tavernBuyGain[side].health += h;
-      creditTavern(side, 'Rune of Reinvestment', a, h);
+      creditTavern(side, 'Reinvestment', a, h);
     }
   }
   // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still

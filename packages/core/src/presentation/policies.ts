@@ -94,6 +94,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:battlecryGrantSpell:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Gemling -> Ruby Transfer (2026-10-13; the row it held until 2026-10-10)
   'factory:battlecryGrantSpellPowerRun:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryGrantSpellPowerRun:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' }, // Drunk Daniel (2026-10-10)
+  'factory:battlecryGrantFreeRolls:onPlay': { policy: 'ownBeat', family: 'shout' }, // Boy Scout (2026-10-22): Shout, free Refreshes
   'factory:battlecryPlayRubiesAll:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryScoutSpread:onPlay': { policy: 'ownBeat', family: 'shout' },
   'factory:battlecryConductorAdjacent:onPlay': { policy: 'ownBeat', family: 'shout' },
@@ -241,7 +242,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:getRandomRubies:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' }, // Prospector: plain Rubies again (balance 2026-10-20; was getRandomRubies from 2026-10-10)
   'factory:onGetRubyRandomRuby:onGetRuby': { policy: 'foldedCue', family: 'economyReact' }, // Gem Sage (2026-09-24)
-  'factory:getRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' },    // Dealski (2026-09-24): Ruby Roach's trigger, a plain mint   // Ruby Shipment (2026-09-24): the same mint, random types
+  'factory:getRandomRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' }, // Dealski (rework 2026-10-22: a random Ruby; was getRubies, 2 plain): Ruby Roach's trigger
   'factory:battlecryPlayRubiesRandomTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shardluck (2026-09-24)
   'factory:onSummonCardPlayRubiesSelf:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Gemheart Legionnaire (2026-09-24)
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
@@ -262,7 +263,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:minionSoldBuffRandomTribeOthers:minionSold': { policy: 'ownBeat', family: 'economy' }, // Hank Pepe (set 3, 2026-10-21)
   'factory:minionSoldTally:minionSold': { policy: 'passive', family: 'economy' }, // Leeds (set 3, 2026-10-21): the improve meter, no visible change
   'factory:tribePlayedBuffTribeSellImproving:onTribePlayed': { policy: 'ownBeat', family: 'economy' }, // Leeds (set 3, 2026-10-21)
-  'factory:battlecryBuffTribe:onSell': { policy: 'ownBeat', family: 'economy' }, // Salezar Sails (set 3, 2026-10-21): Sell, give your Dwarves +2/+3
+  'factory:battlecryPlayRubiesAll:onSell': { policy: 'ownBeat', family: 'economy' }, // Gramps (set 3, 2026-10-22): Sell, cast a Ruby on all of your minions
+  'factory:battlecryBuffTribe:onSell': { policy: 'ownBeat', family: 'economy' }, // Sailsey (set 3, 2026-10-21): Sell, give your Dwarves +2/+3
+  'factory:friendlyAttacksPlayRubiesSelf:onAttack': { policy: 'ownBeat', family: 'rally' }, // Frack Attack (2026-10-22): every 3 friendly attacks, 3 Rubies on itself
   'factory:onAllyAttackBuffAll:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyAttackCastGrowth:onAttack': { policy: 'ownBeat', family: 'rally' },
   'factory:onAllyTribeAttackBuffSelf:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -316,6 +319,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:onRallyProcLeftmostEcho:onAttack': { policy: 'ownBeat', family: 'rally' }, // Hawkus
   'factory:onSellDiscover:onSell': { policy: 'ownBeat', family: 'economy' },
   'factory:onSellGainGold:onSell': { policy: 'foldedCue', family: 'economyReact' },
+  'factory:shopRefreshTallySelf:shopRefreshed': { policy: 'foldedCue', family: 'economyReact' }, // Rosey (2026-10-22): a Refresh ticks its Improves meter (the step counter shows it)
   'factory:onShopRefreshGainRightmostShopStats:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Hellrider (2026-08-14)
   'factory:onShopRefreshAddToShop:shopRefreshed': { policy: 'ownBeat', family: 'economy' }, // Indy (2026-10-13): a Golden Monkey joins the Shop
   'factory:onSpellCastBuffOnePerTribe:spellCast': { policy: 'foldedCue', family: 'castReact' },
@@ -409,6 +413,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   // — and the family matters beyond presentation: convention clusters are keyed on the trigger GROUP, so
   // filing this under `passive` put a ruby-trigger card in a cluster of `passive`-trigger cards and
   // dissolved the owner-approved `q-conv-family-passive` question by making that cluster incoherent.
+  'factory:rubyCastGainSelfImproving:rubyPlayedAnywhere': { policy: 'foldedCue', family: 'economyReact' }, // Rosey (2026-10-22): its gain rides the Ruby cast's own beat
   'factory:rubySelfCastPerOtherRuby:rubyPlayedAnywhere': { policy: 'foldedCue', family: 'economyReact' },
   // Flagrunner's Rally grant and Prismpick's first branch — a card arriving in hand is its own moment.
   'factory:grantRandomChooseOne:onAttack': { policy: 'ownBeat', family: 'rally' },
@@ -434,6 +439,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:scBeastAura:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scBuffAlliesPctSelf:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scBuffSelf:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
+  'factory:scPlayRubiesSelfAndAdjacentTribe:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' }, // Frack Attack (2026-10-22): Start of Combat, 3 Rubies on itself
   'factory:scCastLeftmostHandSpell:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scDamage:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
   'factory:scEngraveAll:startOfCombat': { policy: 'ownBeat', family: 'startOfCombat' },
@@ -746,6 +752,26 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_actioned_beasts:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 5 Beasts played: a random Beast
   'rune:rune_gators_bite:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every Beast played: your board Beasts +6/+6
   'rune:rune_sunpony:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Beast attacks: your Beasts +1 Attack + the spread Rally
+  // ── Set 3 Dragon runes, Basic (owner 2026-10-21) ──
+  'rune:rune_runic_primer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // 2 Runebinds now + every Start of Turn (Shop)
+  'rune:rune_loose_tongues:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // a Dragon played: a random Whisper
+  'rune:rune_clear_voices:combat': { policy: 'foldedCue', family: 'combatModifier' }, // 3 distinct Whispers from hand: 2 Gold (Shop)
+  'rune:rune_spell_fed_scales:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Shop Spell cast: a Dragon +6/+7
+  'rune:rune_borrowed_flame:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a Dragon: +N/+N, improve
+  'rune:rune_spell_tempering:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every 4th Whisper: spell power +1/+1
+  'rune:rune_open_treasury:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first spell bought: a copy (Shop)
+  'rune:rune_deep_breaths:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first 2 Dragon attacks cast Growth
+  'rune:rune_defiant_wings:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: 2 Dragons +3/+6 and Ward
+  'rune:rune_final_utterance:combat': { policy: 'ownBeat', family: 'avenge' }, // Avenge (4): a Whisper and a Shop Spell
+  'rune:rune_ember_inheritance:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first Echo Dragon death: its Attack left-most
+  // Set 3 Dragon runes, Epic A (owner 2026-10-21)
+  'rune:rune_war_council:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: Runebind on 3 random Dragons (each cast its own sc beat)
+  'rune:rune_growing_inferno:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dragon attacks: the rune casts Growth
+  'rune:rune_secret_exchange:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Whispers cast from hand: Discover a Shop spell
+  'rune:rune_runebound_brood:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Drake Pup arrives: it casts Runebind on itself (both phases)
+  'rune:rune_unbroken_scales:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dragon loses Ward (2 per combat): +10/+10, then the Ward re-forms
+  'rune:rune_runic_transposition:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a Dragon: its Health also as Attack (both phases)
+  'rune:rune_wyrms_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Shop spells cast from hand: spell power +1/+1
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },
@@ -936,6 +962,11 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_soul_furnace:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_restless:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_open_grave:combat': { policy: 'foldedCue', family: 'combatModifier' },
+  // ── Set 3 Dragon runes, Epic B (owner 2026-10-21): Shop-only Whisper hooks; the flag name keys them like the Open Grave ──
+  'rune:rune_lasting_words:combat': { policy: 'foldedCue', family: 'combatModifier' },        // a from-hand Whisper on a Dragon kept (folded into the cast)
+  'rune:rune_twin_tongues:combat': { policy: 'foldedCue', family: 'combatModifier' },         // the copy is a cast with its own spell cue
+  'rune:rune_opened_vault:combat': { policy: 'foldedCue', family: 'combatModifier' },         // the extra cast rides the Whisper's cast
+  'rune:rune_bequeathed_secrets:combat': { policy: 'foldedCue', family: 'combatModifier' },   // the inheritance rides the sale (a spell-kind buff descend)
   // ── tranche 2: Celestial ──
   'rune:rune_heralding_star:combat': { policy: 'foldedCue', family: 'combatModifier' },
   'rune:rune_stellar_echoes:combat': { policy: 'foldedCue', family: 'combatModifier' },
@@ -1207,6 +1238,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:dealtDamageGrantRandomTribe:passive': { policy: 'foldedCue', family: 'react' },        // Maestro Lux (Pummel (12), 2026-09-24) — the same meter; the fire flashes on the hit, the Celestial flies on its own `toHand` beat
   'factory:dealtDamageGetRandomSpell:passive': { policy: 'foldedCue', family: 'react' },           // Tauntbreaker (Pummel (25), 2026-10-03) — the same meter; the fire flashes on the hit, each spell flies on its own `toHand` beat
   'factory:dealtDamageSummonToken:passive': { policy: 'foldedCue', family: 'react' },              // Impossible Todd (Pummel (20), 2026-10-10) - the same meter; the fire flashes on the hit, the Imp lands on its own `summon` beat
+  'factory:dealtDamageCastRubiesTribe:passive': { policy: 'foldedCue', family: 'react' },          // Zapdash (Pummel (10), 2026-10-22) - the same meter; the fire flashes on the hit, each Ruby lands on its own `buff` beat
   'factory:dealtDamageGetRandomRuby:passive': { policy: 'foldedCue', family: 'react' },            // Kobe (Pummel (15), 2026-09-24) — the same meter; the fire flashes on the hit, each Ruby flies on its own `toHand` beat
   'factory:dealtDamageGoldNextTurn:passive': { policy: 'foldedCue', family: 'react' },            // Goldvein (Pummel (6), 2026-09-19) — the same meter; the fire flashes on the hit, the Gold lands at settle
   'factory:buffShopOffersThisTurn:onBuy': { policy: 'foldedCue', family: 'economyReact' },        // Night Market Horror — cf. buffBoardOnBuy

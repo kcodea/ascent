@@ -57,11 +57,11 @@ describe('Rune of the Anvil — combat', () => {
     const r = fight([bm('e', ECHO_BUFF.id, 1, 1), bm('d', DWARF.id, 1, 400)], [foe('f', 5, 3000)], { runeAnvil: true });
     const d = uid(r, 1);
     expect(buffsOn(r.events, d).some((b) => b.attack === 2 && b.health === 0)).toBe(true);
-    const anvil = buffsOn(r.events, d).filter((b) => b.source === 'Rune of the Anvil');
+    const anvil = buffsOn(r.events, d).filter((b) => b.source === 'Anvil');
     expect(anvil).toHaveLength(1);
     expect([anvil[0]!.attack, anvil[0]!.health]).toEqual([0, 2]);
     const off = fight([bm('e', ECHO_BUFF.id, 1, 1), bm('d', DWARF.id, 1, 400)], [foe('f', 5, 3000)], {});
-    expect(buffsOn(off.events, uid(off, 1)).filter((b) => b.source === 'Rune of the Anvil')).toHaveLength(0);
+    expect(buffsOn(off.events, uid(off, 1)).filter((b) => b.source === 'Anvil')).toHaveLength(0);
   });
 });
 
@@ -69,6 +69,6 @@ describe('Rune of the Satchel — combat', () => {
   it('a card reaching the hand mid-fight (a Ruby from an Echo) gives the living Dwarves +1/+1', () => {
     const r = fight([bm('e', ECHO_RUBY.id, 1, 1), bm('d', DWARF.id, 1, 400)], [foe('f', 5, 3000)], { runeSatchel: true });
     expect(triggers(r.events, 'runeSatchel').length).toBeGreaterThanOrEqual(1);
-    expect(buffsOn(r.events, uid(r, 1)).some((b) => b.source === 'Rune of the Satchel' && b.attack === 1 && b.health === 1)).toBe(true);
+    expect(buffsOn(r.events, uid(r, 1)).some((b) => b.source === 'Satchel' && b.attack === 1 && b.health === 1)).toBe(true);
   });
 });

@@ -66,7 +66,7 @@ describe('the tranche 4 roster (owner 2026-09-27)', () => {
     expect(RUNE_INDEX['rune_grim_toast']!.text).toBe('Your **Dwarves** also get your **Undead Aura**.');
     expect(RUNE_INDEX['rune_closing_time']!.text).toBe('When you **Sell** a **Reveler**, get a **Dwarven Ale**.');
     expect(RUNE_INDEX['rune_keepsake_gem']!.text).toBe('Your **Rubies** also cast on the left-most minion in your hand.');
-    expect(RUNE_INDEX['rune_last_call']!.sets, 'the old Rune of Last Call still resolves (archived everywhere 2026-10-07)').toEqual([]);
+    expect(RUNE_INDEX['rune_last_call']!.sets, 'the old Last Call still resolves (archived everywhere 2026-10-07)').toEqual([]);
   });
 });
 

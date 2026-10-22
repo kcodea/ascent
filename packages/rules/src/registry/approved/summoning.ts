@@ -81,15 +81,15 @@ export const SUMMONING_RULES: GameRule[] = [
     statement:
       'A minion that returns by Rise or Rebirth in combat counts as a minion SUMMONED in combat for every effect that '
       + 'keys on a summon, not only for the summon-entry watchers and tallies (R-RUNE-06 already said a Rise return '
-      + 'counts once). That includes the body grants that land on the arriving minion: the Ward of Rune of the Undertow '
+      + 'counts once). That includes the body grants that land on the arriving minion: the Ward of Undertow '
       + '(within its 4-Ward allowance, shared with ordinary summons, and free when the return already has a Ward), '
-      + 'Rune of the Hatchery, Rune of Packcraft, Rune of the Food Chain (never fed by the returning Demon itself), '
-      + 'Rune of the Spare Chair (Ward + an immediate attack), Solid Ground and the Containment Rune of the foe. A Rise '
+      + 'Hatchery, Packcraft, Food Chain (never fed by the returning Demon itself), '
+      + 'Spare Chair (Ward + an immediate attack), Solid Ground and the Containment Rune of the foe. A Rise '
       + 'returns at its printed body first (R-RISE-01) and then takes these grants, exactly as a fresh summon would; a '
       + 'Rebirth returns its full body and then takes them. Each return is ONE summon: it spends one charge of a '
       + 'counted grant and fires its rune once. A return that does not fit (an overflow, R-RISE-05) takes nothing. '
-      + 'Excluded by their own text: grants scoped to a named token or summoner (Rune of the Wrangler, Rune of the '
-      + 'Living Geode, Heart of the Mountain), and Rune of Living Treasure, whose Rebirth on a returning Golem would '
+      + 'Excluded by their own text: grants scoped to a named token or summoner (Wrangler, '
+      + 'Living Geode, Heart of the Mountain), and Living Treasure, whose Rebirth on a returning Golem would '
       + 'make the return endless (R-RUNE-09: "returns once"). The DEATH side of the same rule (the death before a '
       + 'return is a real death for every death listener) is R-DEATH-RETURN-01.',
     domain: 'summoning',
@@ -113,9 +113,9 @@ export const SUMMONING_RULES: GameRule[] = [
   },
   {
     id: 'R-UNDERTOW-LANDED-01',
-    title: 'Rune of the Undertow wards the first N bodies that LAND, with a fresh allowance every combat, on both sides',
+    title: 'Undertow wards the first N bodies that LAND, with a fresh allowance every combat, on both sides',
     statement:
-      'Rune of the Undertow ("The first 4 minions summoned in combat gain Ward") gives Ward to the first 4 friendly '
+      'Undertow ("The first 4 minions summoned in combat gain Ward") gives Ward to the first 4 friendly '
       + 'bodies that actually enter play in EACH combat, every round, for whichever side holds it (your own run or a '
       + 'served snapshot / ghost). The allowance is per fight and per side; it never carries between fights. Copies stack '
       + 'their allowances (two copies = 8 a combat). A summon that does not fit on a full board (an overflow) was never '
@@ -141,9 +141,9 @@ export const SUMMONING_RULES: GameRule[] = [
   },
   {
     id: 'R-FOODCHAIN-LANDED-01',
-    title: 'Rune of the Food Chain feeds the first summon that LANDS, never an overflow',
+    title: 'Food Chain feeds the first summon that LANDS, never an overflow',
     statement:
-      'Rune of the Food Chain ("The first minion you summon in combat gains the stats of your left-most Demon") is '
+      'Food Chain ("The first minion you summon in combat gains the stats of your left-most Demon") is '
       + 'spent only by the first friendly body that actually lands on the board in that combat. A summon lost to the '
       + '7-slot cap (an overflow) is not the first summon: it takes nothing and spends nothing. An attack-on-summon body '
       + 'that took the chance when it queued and then overflows when it lands hands the chance back, so the next body '
@@ -159,8 +159,8 @@ export const SUMMONING_RULES: GameRule[] = [
     contentIds: ['rune_food_chain'],
     currentBehaviour:
       'Conforms as of 2026-10-08. Before: the chance was spent in applyCombatSummonGrants, before the board-cap check, '
-      + 'so a summon onto a full board used it up and the first body that really landed came in plain. Rune of '
-      + 'Packcraft (an overflow still grows its level) and Rune of the Hatchery (an overflow still pulses) keep their '
+      + 'so a summon onto a full board used it up and the first body that really landed came in plain. '
+      + 'Packcraft (an overflow still grows its level) and Hatchery (an overflow still pulses) keep their '
       + 'behaviour by owner ruling ("this is fine").',
     enforcement: {
       kind: 'scenario',
@@ -174,8 +174,8 @@ export const SUMMONING_RULES: GameRule[] = [
     statement:
       "The copy Soren's Reclaim brings back (at Start of Combat, or later when room opens) counts as a minion SUMMONED in "
       + 'combat for every effect that keys on a summon, exactly like any other combat summon (an Echo token, a Rise or '
-      + 'Rebirth return, a hand-summon, a resummon). It takes the body grants on its first frame (Rune of the Food Chain '
-      + 'when it is the first summon, Rune of the Hatchery, Rune of Packcraft, Rune of the Undertow, Rune of the Spare '
+      + 'Rebirth return, a hand-summon, a resummon). It takes the body grants on its first frame (Food Chain '
+      + 'when it is the first summon, Hatchery, Packcraft, Undertow, Spare '
       + 'Chair, Solid Ground, the Containment Rune of the foe) and runs the summon-entry suite (onSummon watchers, tribe '
       + 'auras, summon tallies and quests). Each copy is ONE summon. It applies to whichever side holds Soren (a served '
       + 'snapshot too). Every combat summon path now runs these: `summonMinion` / `placeSummon` (tokens, Echo, Rally, '
@@ -195,6 +195,37 @@ export const SUMMONING_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/core/src/combat/foodChainEverySummon.test.ts'],
       lastVerifiedAt: '2026-10-16',
+    },
+  },
+  {
+    id: 'R-SPACE-PENDING-01',
+    title: '"When you have space / room" is a pending summon: it lands the first time a real slot opens in that fight',
+    statement:
+      'A summon whose text says "when you have room / space" (or "as soon as you have room", "when there is room") is '
+      + 'PENDING. It lands at Start of Combat when the board has a free slot; otherwise it waits on ONE shared per-combat '
+      + 'queue and lands at the first settle after a slot truly frees up (a friendly minion dies or leaves), before the '
+      + 'next attacker swings, with its own beat (trigger + summon). A Rise or Rebirth return keeps its slot, so it is '
+      + 'not room. Several waiting summons land first queued, first landed, one per free slot (Start of Combat queues '
+      + 'the Reclaimer bodies, then Brackus x War, then Warden, Mirror March, Waking Reserve; one entry per '
+      + 'rune copy held). The summon reads the board WHEN IT LANDS (Mirror March copies the left-most minion then; the '
+      + 'Waking Reserve the best hand minion then). Pending summons are combat-only and are dropped at the end of the '
+      + 'fight. Both sides, identically. An effect that checks room at a single moment ("if there is room") is not '
+      + 'pending.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-21 (Rune of the Mirror March)', quote: "rune of the mirror march is bugged, and probably most 'when you have space' things - mirror march only works if you have room at start of combat, but a 'when you have space' mechanic should fire whenever the player truly has a slot for the minion to summon." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts spaceQueue / queueSpaceSummon / flushSpaceQueue (flushed by settleBetweenAttacks)' },
+    ],
+    contentIds: ['rune_mirror_march', 'rune_warden', 'rune_waking_reserve'],
+    currentBehaviour:
+      'Conforms as of 2026-10-21. Before: Warden, Mirror March and the Waking Reserve checked for room once '
+      + 'at Start of Combat and gave up on a full board. The Reclaimer and Brackus x War already waited, on two separate '
+      + 'queues; all five now share the one queue.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/whenYouHaveSpace.test.ts'],
+      lastVerifiedAt: '2026-10-21',
     },
   },
 ];

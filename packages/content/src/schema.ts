@@ -619,6 +619,12 @@ export const EffectFactoryIdSchema = z.enum([
   'dealtDamageSummonToken',       // Impossible Todd (2026-10-10): Pummel (20) - the same meter, a summon-a-token body (an Imp), once per combat
   'endOfTurnDemonsConsumeShop',   // Hydraskus (2026-10-10): End of Turn, EVERY friendly Demon consumes a random Shop minion, left to right
   'dealtDamageGetRandomSpell',    // Tauntbreaker (2026-10-03): Pummel (25) — the same meter, a random-Shop-Spell body, once per combat
+  // ── Set 3 Kobolds, owner batch 2026-10-22 ──
+  'battlecryGrantFreeRolls',      // Boy Scout: Shout, gain N free Refreshes (x2 gilded)
+  'dealtDamageCastRubiesTribe',   // Zapdash: Pummel (10), cast a Ruby on your Kobolds, twice per combat
+  'friendlyAttacksPlayRubiesSelf', // Frack Attack: every 3 friendly attacks, cast 3 Rubies on this
+  'rubyCastGainSelfImproving',    // Rosey: when you cast a Ruby, gain +2/+1 permanently (improving)
+  'shopRefreshTallySelf',         // Rosey: its Improves meter, one tick per Refresh pressed
   'dealtDamageGetRandomRuby',     // Kobe (2026-09-24): Pummel (15) — the same meter, a random-Ruby body
   'dealtDamageGrantRandomTribe',  // Maestro Lux (2026-09-24): Pummel (N) — the same meter, a random-tribe-minion body
   'dealtDamageGoldNextTurn',      // Goldvein: Pummel (N) — Han Gover's damage-dealt meter with a Gold-next-turn body, once per combat
@@ -795,7 +801,14 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // tranche 5: Menagerie + neutral
   'runeHeavyHand', 'runeUnity',
   // owner batch 2026-10-07: the Beast runes
-  'runeSunpony']);
+  'runeSunpony',
+  // Set 3 Dragon runes, Basic (owner 2026-10-21)
+  'runeRunicPrimer', 'runeClearVoices', 'runeSpellFedScales', 'runeBorrowedFlame', 'runeSpellTempering', 'runeOpenTreasury',
+  'runeDeepBreaths', 'runeDefiantWings', 'runeFinalUtterance', 'runeEmberInheritance',
+  // Set 3 Dragon runes, Epic A (owner 2026-10-21)
+  'runeWarCouncil', 'runeGrowingInferno', 'runeRuneboundBrood', 'runeUnbrokenScales', 'runeRunicTransposition',
+  // Set 3 Dragon runes, Epic B (owner 2026-10-21): the Whisper Epics (Shop-only hooks)
+  'runeLastingWords', 'runeTwinTongues', 'runeOpenedVault', 'runeBequeathedSecrets']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -935,8 +948,10 @@ z.object({ kind: z.literal('runeTranscription'), count: z.number().int().positiv
 z.object({ kind: z.literal('runeTreasureMap'), turns: z.number().int().positive(), gold: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
-z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'anySpell', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit', 'playBeast']), per: z.number().int().positive(),
+z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'anySpell', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit', 'playBeast', 'whisperFromHand', 'shopSpellFromHand']), per: z.number().int().positive(),
+  discoverSpell: z.number().int().positive().optional(), // Set 3 Dragon runes (2026-10-21): Rune of the Secret Exchange
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
+  grantRandomWhisper: z.number().int().positive().optional(), // Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21)
   grantCards: z.array(z.string().min(1)).min(1).optional(),
   castStatSpell: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),

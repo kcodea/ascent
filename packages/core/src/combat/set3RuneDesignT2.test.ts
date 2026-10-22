@@ -38,7 +38,7 @@ describe('Rune of the Heralding Star — combat', () => {
     const fires = shouts(r.events, uid(r, 0)).length;
     expect(fires).toBeGreaterThan(0);
     expect(triggers(r.events, 'runeHeraldingStar')).toHaveLength(fires);
-    expect(gain(r, 'Rune of the Heralding Star')).toEqual({ source: 'Rune of the Heralding Star', attack: 3 * fires, health: 3 * fires });
+    expect(gain(r, 'Heralding Star')).toEqual({ source: 'Heralding Star', attack: 3 * fires, health: 3 * fires });
     const n = fight([bm('s', NEUTRAL_SHOUTER.id, 1, 400)], [foe('f', 1, 3000)], { runeHeraldingStar: true });
     expect(n.playerStarformGain).toBeUndefined();
   });
@@ -62,9 +62,9 @@ describe('Rune of Stellar Echoes — combat', () => {
   const GRAFT = { on: 'onDeath' as const, do: 'deathrattleBuffStarform' as const, params: { attack: 2, health: 2, fixed: true } };
   it('a board Celestial carrying the Shop graft banks +2/+2 when it dies; a Gilded one the same', () => {
     const r = fight([bm('a', FRAIL_CEL.id, 1, 1, { grantedEffects: [GRAFT] } as never)], [foe('f', 10, 100)], { runeStellarEchoes: true });
-    expect(gain(r, 'Rune of Stellar Echoes')).toMatchObject({ attack: 2, health: 2 });
+    expect(gain(r, 'Stellar Echoes')).toMatchObject({ attack: 2, health: 2 });
     const g = fight([bm('a', FRAIL_CEL.id, 2, 2, { golden: true, grantedEffects: [GRAFT] } as never)], [foe('f', 10, 100)], { runeStellarEchoes: true });
-    expect(gain(g, 'Rune of Stellar Echoes')).toMatchObject({ attack: 2, health: 2 });
+    expect(gain(g, 'Stellar Echoes')).toMatchObject({ attack: 2, health: 2 });
   });
   it('without the graft or the flag, nothing is banked', () => {
     const r = fight([bm('a', FRAIL_CEL.id, 1, 1)], [foe('f', 10, 100)], {});

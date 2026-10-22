@@ -102,7 +102,7 @@ describe('family 5 — boolean combat flags fire once per copy (the LEGACY Five 
     const r = simulate(player, [{ cardId: 'sandbag', attack: 0, health: 50 }], makeRng(5), CARD_INDEX,
       combatSide({ tier: 6, questMods: mods }), combatSide({ tier: 6 }));
     return r.events
-      .filter((e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && (e as { source?: string }).source === 'Rune of the Five Banners')
+      .filter((e): e is Extract<typeof e, { type: 'buff' }> => e.type === 'buff' && (e as { source?: string }).source === 'Five Banners')
       .reduce((n, e) => n + (e as { attack: number }).attack, 0);
   };
 
@@ -199,7 +199,7 @@ describe('Rune of Held Strength — the owner\'s embedded rework (Start of Comba
       const r = simulate(player, [{ cardId: 'sandbag', attack: 0, health: 50 }], makeRng(9), CARD_INDEX,
         combatSide({ tier: 6, questMods: mods }), combatSide({ tier: 6 }));
       return r.events
-        .filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Rune of Held Strength')
+        .filter((e) => e.type === 'buff' && (e as { source?: string }).source === 'Held Strength')
         .reduce((n, e) => n + (e as { attack: number }).attack, 0);
     };
     expect(run(1), 'both ends gain the held Attack').toBe(10);

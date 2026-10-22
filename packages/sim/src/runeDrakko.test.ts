@@ -37,7 +37,7 @@ const withRune = (extra: Partial<RunState> = {}, setId: 'set2' | 'set3' = 'set3'
 describe('Rune of Drakko: the def', () => {
   it('is an Epic 4-cost Set 2 + Set 3 rune, gated on Dragon OR Spirit, that grants a REGULAR Drakko and re-types it', () => {
     const r = RUNE_INDEX['rune_drakko']!;
-    expect(r.name).toBe('Rune of Drakko');
+    expect(r.name).toBe('Drakko');
     expect([r.cost, r.epic]).toEqual([4, true]);
     expect(EPIC_RUNES.some((x) => x.id === 'rune_drakko')).toBe(true);
     expect(RUNES.some((x) => x.id === 'rune_drakko'), 'Epic pool only').toBe(false);

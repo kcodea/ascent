@@ -101,12 +101,12 @@ const KNOWN_UNATTRIBUTED: readonly UnattributedPin[] = [
   },
   {
     action: 'play',
-    why: '`fireBattlecryTriggered` + `fire(onSummon)` + Den Marker dispatch bare after the played Shout (Embermouth reacts to a Shout with no scope); rune spell-cast procs (Rune of Scales) and a Ruby from hand (reducer.ts `def.ruby`) buff with no scope',
+    why: '`fireBattlecryTriggered` + `fire(onSummon)` + Den Marker dispatch bare after the played Shout (Embermouth reacts to a Shout with no scope); rune spell-cast procs (Scales) and a Ruby from hand (reducer.ts `def.ruby`) buff with no scope',
     repro: () => ({ state: withState('warden', { board: [mk('b1', 'd2_embermouth')], hand: [mk('h1', 'dw_ironlung')] }), action: { type: 'play', uid: 'h1' } }),
   },
   {
     action: 'chooseOne',
-    why: 'the pick REPLAYS the deferred `play` (reducer `chooseOnePick`), so it inherits every bare site of `play` — here a rune spell-cast proc (Rune of Scales, recruit.ts `castSpell`) buffing Dragons with no scope',
+    why: 'the pick REPLAYS the deferred `play` (reducer `chooseOnePick`), so it inherits every bare site of `play` — here a rune spell-cast proc (Scales, recruit.ts `castSpell`) buffing Dragons with no scope',
     repro: () => ({
       state: withState('warden', { runeScales: true, ownedRunes: ['rune_scales'], board: [mk('b1', 'd2_runefire')], hand: [mk('h1', 'crestclimb')], chooseOne: { uid: 'h1', cardId: 'crestclimb', spell: true, targetUid: 'b1' } }),
       action: { type: 'chooseOne', index: 1 },
@@ -135,7 +135,7 @@ const KNOWN_UNATTRIBUTED: readonly UnattributedPin[] = [
   },
   {
     action: 'buyRune',
-    why: 'a reward that consumes a body (Rune of the Altar) leaves the board with no `cardDestroyed` — `withQuestRewardBeat` diffs stats / hand / Gold, not departures',
+    why: 'a reward that consumes a body (Altar) leaves the board with no `cardDestroyed` — `withQuestRewardBeat` diffs stats / hand / Gold, not departures',
     repro: () => ({ state: withState('warden', { embers: 50, board: [mk('b1', 'pup'), mk('b2', 'dw_pimm')], runeforgeOffer: ['rune_altar'] }), action: { type: 'buyRune', index: 0 } }),
   },
   {

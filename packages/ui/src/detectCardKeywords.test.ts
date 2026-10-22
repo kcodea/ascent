@@ -114,6 +114,6 @@ describe('detectCardKeywords', () => {
     expect(ids({ keywords: [], text: '**Sell:** get **6 Gold**. **End of Turn:** get a random Tier 1 Spell or Minion.' })).toEqual(['endofturn', 'sell']);
     // Lower case is ordinary text (and "Seller" / "Sellsword"-style words are not the keyword).
     expect(ids({ keywords: [], text: 'The next minion you sell this turn sells for 3 Gold. 2 minions sold.' })).toEqual([]);
-    expect(ids({ keywords: [], text: "Rune of the Seller's Market." })).toEqual([]);
+    expect(ids({ keywords: [], text: "Seller's Market." })).toEqual([]);
   });
 });

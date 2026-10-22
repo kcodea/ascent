@@ -12,10 +12,11 @@ import { getRubyPowerFxConfig, floatRubyPowerNumber } from './rubyPowerFxConfig'
 import { fireHandBuff, fireHandBuffOnHandSpells, fireHandBuffOnHandRubies } from './handBuffFx';
 import { useGame } from './store'; // `useGame.getState()` — read the live hand for the mid-combat spell/Ruby buff cue
 import { pixiFx } from './pixiFx';
-import { sfx } from './sfx';
+import { sfx, setSkipTurboAudio, endSkipTurboAudio } from './sfx';
 import { getChoreoConfig } from './choreo/choreoConfig';
 import { applyFloatSpeed, setLiveCombatSpeed, speedVars } from './floatConfig';
 import { buildAuthoredTimeline, getCombatRampConfig, rampSpeed } from './combatRampConfig';
+import { decisiveBeatIndex, remainingNow, skipTurboSpeed, turboAmount } from './skipTurbo';
 import { RESULT_TYPES, attackerOfImpact, meleePairOfImpact, type Beat } from './combatBeats';
 import { holdMs } from './choreo/clock';
 import { finalHoldMs, pummelReadMs, pummelRemainingMs, type PummelFire } from './choreo/finalHold';
@@ -275,6 +276,18 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });
 
+/** Frack Attack (`friendlyAttacksPlayRubiesSelf`): a body whose `attackSeen` meter counts every FRIENDLY swing. Cached
+ *  per cardId: `computeFrame` folds the whole log every beat, so the def scan runs once per card, not per attack. */
+const friendlyAttackMeter = new Map<string, boolean>();
+export function countsFriendlyAttacks(cardId: string): boolean {
+  let v = friendlyAttackMeter.get(cardId);
+  if (v === undefined) {
+    v = !!CARD_INDEX[cardId]?.effects.some((x) => x.do === 'friendlyAttacksPlayRubiesSelf');
+    friendlyAttackMeter.set(cardId, v);
+  }
+  return v;
+}
+
 /** Merge one buff into a per-source breakdown (find-and-sum by source, else push) — the combat counterpart
  *  of sim's recruit `bumpBuff`, used to fold `buff` events into a unit's inspect breakdown. */
 function recordBuff(buffs: MinionBuff[], source: string, attack: number, health: number): void {
@@ -391,7 +404,16 @@ export function computeFrame(
   const overkill = new Map<string, number>();
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
-    if (e.type === 'attack') { attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1); }
+    if (e.type === 'attack') {
+      attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1);
+      // FRACK ATTACK's meter (owner report 2026-10-22: "frack attack's counter isnt working in combat"). The sim ticks
+      // `attackSeen` on every living Frack on the attacker's side per swing (`friendlyAttacksPlayRubiesSelf`, the onAttack
+      // bus fires once per `attack` event, Flurry swings included), but nothing crossed the event boundary, so the
+      // combat counter sat on the snapshot's value all fight. Mirror the same rule off the log: the N/3 under the card
+      // ticks on the swing's beat, and the Ruby repeat lands on its own `ownBeat` right after.
+      const arr = player.some((u) => u.uid === e.attacker) ? player : enemy.some((u) => u.uid === e.attacker) ? enemy : null;
+      if (arr) for (const u of arr) if (u.alive && u.health > 0 && countsFriendlyAttacks(u.cardId)) u.attackSeen = (u.attackSeen ?? 0) + 1;
+    }
     if (e.type === 'spellcast') spellCasts[e.side]++;
     if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
       // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
@@ -467,6 +489,9 @@ export function computeFrame(
         // live "N left this combat" counters (Whaloo's casts, Immune Iggy / Bounty Bot's immune swings) restart.
         whisperCasts.delete(u.uid);
         attacksBy.delete(u.uid);
+        // Frack Attack's 3-attack meter starts over on a return too (`resetPerCombatLimits`, R-KOBOLD-1022-02). Crypt
+        // Drake's `attackSeen` is a cadence, not a limit, and keeps running in the sim, so it keeps running here.
+        if (countsFriendlyAttacks(u.cardId)) u.attackSeen = undefined;
         // A RISE returns the fresh printed copy (R-RISE-01): mirror the sim's per-instance reset so the combat card
         // text prints the risen body's reset value, not the original's stacks. Combat only: the Shop card keeps
         // the original's stacks (R-RISE-06). A Rebirth is the full body and keeps them.
@@ -914,6 +939,15 @@ export interface CombatReplay {
   /** Quest ids that COMPLETED mid-replay — QuestBadges renders + lights these before the quest formally settles. */
   completedQuests: string[];
   skip: () => void;
+  /**
+   * SKIP TURBO (R-SKIP-TURBO-01): fast-forward the rest of the fight and ease back to the player's speed for the
+   * hit that decides it (skipTurbo.ts). `onLand` runs once, when the replay reaches that hit (or the end of the
+   * fight, when the deciding hit already played). A second call while one runs is ignored. A fight with no beats
+   * falls back to `skip`.
+   */
+  turbo: (onLand?: () => void) => void;
+  /** True from a `turbo` call until the next fight starts. */
+  turboing: boolean;
   /**
    * DEV (proc harness): jump the replay to `index`, clearing per-beat transient state as a fresh fight would,
    * then continue forward on the normal clock.
@@ -1375,9 +1409,13 @@ export function useCombatReplay(
   // here makes that window impossible; the `[combat]` effect keeps the imperative cleanup (GSAP kills, roll
   // cancellation, summon-hold release) it always did.
   const [renderedCombat, setRenderedCombat] = useState(combat);
+  // A Skip's fast-forward (R-SKIP-TURBO-01): the beat it eases back down for + the once-only landing callback.
+  // Reset with the beat index, so it never carries into the next fight.
+  const [turbo, setTurbo] = useState<null | { anchor: number; onLand?: () => void; landed?: boolean }>(null);
   if (combat !== renderedCombat) {
     setRenderedCombat(combat);
     setBeatIdx(0);
+    setTurbo(null);
   }
   // Mirrors read by the rAF ramp loop WITHOUT making it a React dep (so pause / beat advance don't re-arm it).
   const beatIdxRef = useRef(0);
@@ -1734,7 +1772,8 @@ export function useCombatReplay(
   const combatSpeedRef = useRef(combatSpeed);
   // When NOT ramping, the ref tracks the base slider every render (today's behavior). While the ramp loop is
   // live it owns this ref; a stray render can only clobber it for a single frame before the loop reasserts.
-  if (!(rampEnabled && active)) combatSpeedRef.current = combatSpeed;
+  // A Skip's turbo owns it the same way (R-SKIP-TURBO-01).
+  if (!((rampEnabled || turbo) && active)) combatSpeedRef.current = combatSpeed;
 
   // AUTO-RAMP (owner ask 2026-08-18): while a fight plays with the toggle on, ease the effective speed up from
   // the base slider to the ceiling after a grace hold, then back down to base as the fight's estimated time
@@ -1742,27 +1781,58 @@ export function useCombatReplay(
   // `setLiveCombatSpeed`). Off-path costs nothing.
   useEffect(() => {
     const root = typeof document !== 'undefined' ? document.documentElement.style : null;
-    if (!active || !rampEnabled) return; // off / not fighting → base drives everything (see the gated ref write)
+    if (!active || (!rampEnabled && !turbo)) return; // off / not fighting → base drives everything (see the gated ref write)
     let raf = 0;
     let elapsed = 0;
-    let last = performance.now();
+    // Clocked off the frame timestamps alone (the first frame seeds it), never mixed with performance.now().
+    let last = -1;
+    // "Landed" lives on the turbo itself, not this closure: the loop re-arms on a slider change, and a landing
+    // must fire once.
+    let landNow = false;
+    // Where the replay is INSIDE the current hold (authored ms since `beatIdx` was armed), so the turbo's speed
+    // moves every frame instead of stepping once per beat (skipTurbo.ts `remainingNow`).
+    let heldBeat = -1;
+    let heldMs = 0;
+    let lastSpd = combatSpeedRef.current;
     const tick = (now: number): void => {
-      const dt = now - last;
+      const dt = last < 0 ? 0 : now - last;
       last = now;
       if (!pausedRef.current) elapsed += dt;
       const cfg = getCombatRampConfig();
       const ceiling = Math.min(cfg.ceiling, 5); // never exceed the store's 5× cap
       const remaining = authored.remainingAt(beatIdxRef.current);
-      const spd = rampSpeed(combatSpeed, elapsed, remaining, { ...cfg, ceiling });
+      let spd = rampEnabled ? rampSpeed(combatSpeed, elapsed, remaining, { ...cfg, ceiling }) : combatSpeed;
+      // SKIP TURBO (R-SKIP-TURBO-01): the same curve, aimed at the deciding hit. This loop is re-armed when the
+      // turbo starts, so `elapsed` counts from the Skip press. The faster of the two curves wins, so a Skip
+      // never slows an auto-ramp that is already ahead of it.
+      if (turbo && !turbo.landed) {
+        const k = beatIdxRef.current;
+        if (k !== heldBeat) { heldBeat = k; heldMs = 0; } else if (!pausedRef.current) heldMs += dt * lastSpd;
+        const toAnchor = remainingNow(authored, k, heldMs, turbo.anchor, beats.length);
+        spd = Math.max(spd, skipTurboSpeed(combatSpeed, elapsed, toAnchor, cfg));
+        if (k >= turbo.anchor) { turbo.landed = true; landNow = true; spd = Math.max(spd, combatSpeed); }
+        // The game's sounds crossfade against the whir, and the FX clock races and brakes with the fight. Both
+        // read the turbo relative to the player's own speed, so they are back at normal exactly as it lands.
+        const amt = turbo.landed ? 0 : turboAmount(spd, combatSpeed, cfg);
+        setSkipTurboAudio(amt);
+        pixiFx.setTimeScale(turbo.landed ? 1 : spd / combatSpeed);
+      }
+      lastSpd = spd;
       combatSpeedRef.current = spd;
       // NO :root write here: a root custom property restyles the whole document, and this runs every frame of
       // the ramp. The live speed is stamped by whatever starts an animation (floatConfig.ts `speedVars`).
       setLiveCombatSpeed(spd);
+      if (landNow) {
+        landNow = false;
+        endSkipTurboAudio(); // the last stretch of the fade-in, never a snap
+        turbo?.onLand?.(); // after the speed is back, so the hit starts at it
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => {
       cancelAnimationFrame(raf);
+      if (turbo && !turbo.landed) { pixiFx.setTimeScale(1); endSkipTurboAudio(); } // a fight left (or a re-arm) mid-Skip
       // Restore base on teardown so the post-combat UI + the next fight start from the slider value.
       combatSpeedRef.current = combatSpeed;
       setLiveCombatSpeed(combatSpeed);
@@ -1773,7 +1843,7 @@ export function useCombatReplay(
     };
     // combat in deps → new fight rebuilds `authored` and resets `elapsed`. `paused`/`beatIdx` intentionally
     // excluded (read via refs) so they never re-arm the loop.
-  }, [active, rampEnabled, combat, combatSpeed, authored]);
+  }, [active, rampEnabled, combat, combatSpeed, authored, turbo, beats.length]);
   // Mirror of the per-beat `frame` (declared far below via useMemo) so the cue effect can look up a target's
   // live stats WITHOUT depending on `frame` directly (which would reorder/re-trigger the effect). Assigned
   // right after the `frame` useMemo.
@@ -3761,6 +3831,14 @@ export function useCombatReplay(
     framePulseUids: framePulse,
     done, beatIdx, result: combat ? combat.result : null, shaking, critShaking,
     beatCount: beats.length, replayEvents: events, processedEnd, enemyDeaths, combatBuffs, combatPreviews, questDelta, triggeredQuests, playerRuneProgress, enemyRuneProgress, completedQuests, skip: () => { setBeatIdx(beats.length); setEndNonce((n) => n + 1); },
+    turbo: (onLand?: () => void) => {
+      if (turbo) return;
+      if (beats.length === 0) { setBeatIdx(beats.length); setEndNonce((n) => n + 1); onLand?.(); return; }
+      // Ease down for the deciding hit when it is still ahead; once it has played, run the rest out to the end.
+      const decisive = decisiveBeatIndex(beats, events);
+      setTurbo({ anchor: beatIdxRef.current < decisive ? decisive : beats.length, onLand });
+    },
+    turboing: turbo !== null,
     // Clamped here rather than at the call site: an out-of-range seek from a stale moment list (the fight
     // was re-staged while the harness still showed the old one) must land somewhere valid, not wedge the
     // replay past its end. The outer `max` also floors the no-combat case (`beats.length === 0`, where the

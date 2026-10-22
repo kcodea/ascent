@@ -80,12 +80,12 @@ describe('the Aug-20 batch — pool membership, cost, and the three renames', ()
 
   it('the three renamed runes did NOT displace the existing runes that owned those names', () => {
     // Each owner name was already taken by a DIFFERENT, live rune. The originals must be untouched.
-    expect(rune('rune_muster').name).toBe('Rune of the Muster');
-    expect(rune('rune_muster_general').name).toBe('Rune of the Muster General');
-    expect(rune('rune_living_geode').name).toBe('Rune of the Living Geode');
-    expect(rune('rune_deepening_vein').name).toBe('Rune of the Deepening Vein');
-    expect(rune('rune_evolution').name).toBe('Rune of Evolution');
-    expect(rune('rune_abomination').name).toBe('Rune of the Abomination');
+    expect(rune('rune_muster').name).toBe('Muster');
+    expect(rune('rune_muster_general').name).toBe('Muster General');
+    expect(rune('rune_living_geode').name).toBe('Living Geode');
+    expect(rune('rune_deepening_vein').name).toBe('Deepening Vein');
+    expect(rune('rune_evolution').name).toBe('Evolution');
+    expect(rune('rune_abomination').name).toBe('Abomination');
   });
 
   it('every rune in the batch does something when bought (no silently inert data)', () => {
@@ -274,9 +274,9 @@ describe('the every-2-turns runes — one shared `everyTurns` cadence, not three
 
   it('the badge counts the turns down', () => {
     const s = armed('rune_rare_goods');
-    expect(runeTally(s, 'rune_rare_goods')).toBe('0/2 turns');
+    expect(runeTally(s, 'rune_rare_goods')).toBe('0/2');
     s.runeCadenceGrants![0]!.tick = 1;
-    expect(runeTally(s, 'rune_rare_goods')).toBe('1/2 turns');
+    expect(runeTally(s, 'rune_rare_goods')).toBe('1/2');
   });
 });
 
@@ -609,7 +609,7 @@ describe('Rune of Lasting Cadence — the board-wide Rune of Rallying, now at En
       );
       return r.events.filter((e) => e.type === 'sc' && (e as { text?: string }).text === 'Rally').length;
     };
-    expect(rallies({ runeRallying: true }), 'Rune of Rallying still fires the left-most').toBe(1);
+    expect(rallies({ runeRallying: true }), 'Rallying still fires the left-most').toBe(1);
     expect(rallies({}), 'unarmed, none').toBe(0);
     // Lasting Cadence's own coverage now lives in `rallyDispatch.test.ts` (End of Turn + one beat per rally).
   });

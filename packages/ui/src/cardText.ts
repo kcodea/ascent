@@ -1,4 +1,4 @@
-import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, shopSpellGrowth, type Tribe } from '@game/core';
+import { aleGrantCount, damageMeterOf, damageMeterReading, improvingGrant, rubyCastGainOf, shopSpellGrowth, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { chooseOneBranchText, hatcherTier, whisperSpellsToNext, whisperValue } from '@game/sim';
 
@@ -233,7 +233,7 @@ export function attackGrantImproveText(cardId: string, summonBonus: number, gold
   return src.replace(/\*\*\+\d+ Attack\*\*/, `{{+${a} Attack}}`);
 }
 
-// Runic Archivist / Mark Eting (`minionSoldGrantSpell`) and Valyou (`minionSoldBuffSelf` with a Gold payout) have
+// Runic Archivist / Mariet (`minionSoldGrantSpell`) and Valyou (`minionSoldBuffSelf` with a Gold payout) have
 // NO live-text helper on purpose (owner 2026-10-21: "i dont think we use text for this, just integers"). Their only
 // moving number is an every-N countdown, and every every-N card in the game shows that as its integer counter under
 // the card (`stepProgress`'s minions-SOLD branch, N/4), never as prose in the text: the convention Astral Spellcore
@@ -260,6 +260,21 @@ export function sellImproveText(cardId: string, golden: boolean, soldProgress: n
   const a = Number(p?.attack ?? 2) * level * g, h = Number(p?.health ?? 2) * level * g;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
   return src.replace(/\+\d+\/\+\d+/, `{{+${a}/+${h}}}`);
+}
+
+/**
+ * Rosey (set 3 Kobold, owner 2026-10-22): "When you cast a Ruby, this gains +2/+1 permanently. Improves every 3
+ * Refreshes." The grant per Ruby is core's `rubyCastGainOf` (the SAME reading the Shop and combat chokepoints pay),
+ * from this copy's Refresh meter (`eotTick`). Surface the CURRENT grant (green) in place of the printed one; the
+ * Refreshes owed to the next step are the integer counter under the card (`stepProgress`'s refresh branch), not
+ * prose. Null while the printed grant is still the current one.
+ */
+export function rubyCastGainText(cardId: string, golden: boolean, refreshes: number): string | null {
+  const def = CARD_INDEX[cardId];
+  const gain = rubyCastGainOf(def, golden, refreshes);
+  if (!def || !gain || gain.level <= 1) return null;
+  const src = golden ? (def.goldenText ?? def.text) : def.text;
+  return src.replace(/\+\d+\/\+\d+/, `{{+${gain.attack}/+${gain.health}}}`);
 }
 
 /**
@@ -388,10 +403,10 @@ export function asymSummonBuffText(cardId: string, summonBonus: number, golden =
 export interface RuneTextFlags { matriarch?: boolean; brokerage?: boolean; livingTreasure?: boolean; /** Rune of Gambling: Gamble prints "minion AND spell". */ gambling?: boolean; /** Rune of the Vaultkeeper: each Vaultkeeper gain also lands on an adjacent Dragon. */ vaultkeeper?: boolean }
 export function runeModifiedNote(cardId: string, flags: RuneTextFlags | undefined): string | null {
   if (!flags) return null;
-  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Also gives its gains to an adjacent Dragon (Rune of the Vaultkeeper).}}';
-  if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Rune of the Matriarch).}}';
-  if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Rune of Brokerage).}}';
-  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Rune of Living Treasure).}}';
+  if (flags.vaultkeeper && cardId === 'd2_herzog') return '{{Also gives its gains to an adjacent Dragon (Vaultkeeper).}}';
+  if (flags.matriarch && cardId === 'b2_runebloom') return '{{Triggers twice (Matriarch).}}';
+  if (flags.brokerage && cardId === 'k_rubybroker') return '{{No per-turn limit (Brokerage).}}';
+  if (flags.livingTreasure && cardId === 'gemheart-shard') return '{{Rebirth (Living Treasure).}}';
   // (Facetwright's "gives both effects" note used to live here. It is now the general (Both) rendering below,
   // which every "does both branches" source shares — a card that does both must READ as doing both, not carry
   // a footnote under a "Choose One:" label that is no longer true.)
@@ -1266,7 +1281,8 @@ export function castSpellPerGoldText(cardId: string, goldSpentThisTurn: number, 
 export interface StepProgress {
   current: number;
   total: number;
-  /** When set, the counter renders THIS text instead of "current/total" (e.g. cadence → "2 Turns"). `current`
+  /** When set, the counter renders THIS text instead of "current/total". Must stay a plain integer reading, never a word
+   *  (owner 2026-10-22: "we dont want to show 'refreshes' etc in our counter text"). `current`
    *  still drives the keyed re-bump + the shop hide-at-0 gate, so keep it the value that changes per tick. */
   label?: string;
 }
@@ -1333,6 +1349,9 @@ export function stepProgress(
   if (tribeEvery) return cyc(p.spiritTally ?? 0, Math.max(1, n((tribeEvery.params as { every?: number })?.every, 3)));
   const monk = def.effects.find((e) => e.do === 'overflowBuffRandom');
   if (monk) return cyc(p.summonBonus ?? 0, Math.max(1, n((monk.params as { improveEvery?: number })?.improveEvery, 5)));
+  // Frack Attack (owner 2026-10-22): its "Repeat after 3 friendly attacks" meter (`attackSeen`, per combat), N/3.
+  const frack = def.effects.find((e) => e.do === 'friendlyAttacksPlayRubiesSelf');
+  if (frack) return cyc(p.attackSeen ?? 0, Math.max(1, n((frack.params as { every?: number })?.every, 3)));
   const crypt = def.effects.find((e) => e.do === 'onAllyAttackBuffAll');
   if (crypt) return cyc(p.attackSeen ?? 0, Math.max(1, n((crypt.params as { every?: number })?.every, 2)));
   // Frontdrake / Money Maker / Vineweaver: cadence ticks at END OF TURN, so it's a SHOP-phase counter —
@@ -1341,12 +1360,9 @@ export function stepProgress(
   const cadence = def.effects.find((e) => e.on === 'endOfTurn' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (cadence) {
     if (p.eotTick === undefined) return null; // combat: cadence is irrelevant, no counter
-    const every = Math.max(1, n((cadence.params as { every?: number })?.every, 3));
-    // Countdown of TURNS until the effect next fires (not an X/N progress bar): every=2 reads "2 Turns" fresh,
-    // ticks to "1 Turn" at end of turn, fires, resets to "2 Turns". `toNext` is 1..every (never 0), so the shop
-    // hide-at-0 gate always shows it. Keyed re-bump rides `current = toNext` (flips each turn).
-    const toNext = every - (p.eotTick % every);
-    return { current: toNext, total: every, label: `${toNext} Turn${toNext === 1 ? '' : 's'}` };
+    // The plain integer N/every, counting the turns UP like every other meter (owner 2026-10-22: "we dont want to show
+    // 'refreshes' etc in our counter text"). This was a worded "2 Turns" countdown; now it is 1/2, 2/2 (fired), 1/2.
+    return cyc(p.eotTick, Math.max(1, n((cadence.params as { every?: number })?.every, 3)));
   }
   // CELESTIAL Orbit (N) / "after N Orbits" (audit 2026-08-06 — Star Cartographer, Worldseed Gardener,
   // Orrery, Astral Shopkeeper shipped with a bare cadence and no counter). `orbitTick` is the per-instance
@@ -1395,9 +1411,9 @@ export function stepProgress(
   const refreshed = def.effects.find((e) => e.on === 'shopRefreshed' && (e.params as { every?: number } | undefined)?.every !== undefined);
   if (refreshed) {
     if (p.eotTick === undefined) return null; // combat: refreshes are irrelevant
-    const every = Math.max(1, n((refreshed.params as { every?: number })?.every, 4));
-    const toNext = every - (p.eotTick % every);
-    return { current: toNext, total: every, label: `${toNext} Refresh${toNext === 1 ? '' : 'es'}` };
+    // Rosey / Hellrider: the plain integer N/every, counting Refreshes UP (owner 2026-10-22: "change rosey to our typical
+    // x/3 setup. we dont want to show 'refreshes' etc in our counter text"). Was a worded "1 Refresh" countdown.
+    return cyc(p.eotTick, Math.max(1, n((refreshed.params as { every?: number })?.every, 4)));
   }
   // Runic Archivist: the minions-SOLD meter. Its tally already rides the card as `soldProgress`, and the
   // printed text already counts down — but with no counter the card gave no at-a-glance read of how close the

@@ -41,7 +41,8 @@ const BOOL_FLAGS = (
   + 'runeSharedScripture runeBroodmaster runeMoonhowl runeFloodedVault runeBattleRefraction runeWrangler runeLivingGeode '
   + 'runeDawnclaw runeSylus runeGroveweaver runeTemperedTime runeSavagery runeJungle runeBurrow runeBeastialSwarm runeZoo '
   + 'runeRuins runeGolems runeEngravingGems runeHerdingHorn runeDeathtouchedApple runeStokedMenagerie runeHerald runeMirrorMarch '
-  + 'runeTrophy oldPack'
+  + 'runeTrophy oldPack runeWarCouncil runeGrowingInferno runeRuneboundBrood runeUnbrokenScales runeRunicTransposition '
+  + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance' // Set 3 Dragon runes, Basic + Epic A
 ).split(' ');
 
 /** Every non-boolean combat mod, with a value of its real shape (labels are display-only). */
@@ -119,6 +120,8 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ runeShiftingFacets: 'attack' as const }),
   () => ({ runeCombatativeRubies: true, runeCombatativeTick: 1 }),
   () => ({ runeBodyCounting: true, runeBodyCountTick: 2 }),
+  () => ({ runeBorrowedFlame: 3 }), // Set 3 Dragon runes, Basic
+  () => ({ runeSpellTempering: true, runeSpellTemperingTick: 3 }),
   () => ({ runeGemStar: true, gemStarLeft: 2 }),
   () => ({ starCrashBonus: { attack: 1, health: 1 } }),
   () => ({ warDrumExtra: 1 }),

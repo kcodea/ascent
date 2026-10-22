@@ -118,6 +118,54 @@ const SPECS = {
 
 type ReactParams = ParamsOf<typeof SPECS>;
 
+/**
+ * CONCURRENT CARD POPS GET THEIR OWN LAYER (perf 2026-10-22, the Cave Cutter hand-buff pile-up).
+ *
+ * The pop's playhead is written from JS every frame (see the module header), so Chrome cannot run it on the
+ * compositor, and a scale that changes from the main thread makes Chrome RE-RASTER the element at the new scale
+ * every frame. One card doing that is cheap; eight hand cards doing it at once cost 1.3 s of GPU-process raster in a
+ * 2.8 s window and blocked the main thread ~680 ms waiting on the GPU (prod bench, 78 frames over 6.25 ms; the same
+ * particles with the pops removed: 3). `will-change: transform` pins each card's raster for the pop, so the GPU only
+ * re-composites it: 9 frames over 6.25 ms, 20 ms of raster.
+ *
+ * Only while TWO OR MORE whole cards are popping at once (`PROMOTE_AT`): a lone pop is left exactly as it was (a
+ * pinned raster is scaled, not re-drawn, so at the peak it is a hair softer), and a pile-up is when the raster cost
+ * is real. The previous inline value is restored when the card's pop ends. Badge parts (`plate` / `value`) are small
+ * and keep their crisp per-frame raster.
+ */
+export const PROMOTE_AT = 2;
+
+interface PopClaim { refs: number; prev: string; promoted: boolean }
+const popping = new Map<HTMLElement, PopClaim>();
+
+function promoteAll(): void {
+  for (const [el, c] of popping) {
+    if (c.promoted) continue;
+    c.prev = el.style.willChange;
+    el.style.willChange = 'transform';
+    c.promoted = true;
+  }
+}
+
+function claimPop(el: HTMLElement): void {
+  let c = popping.get(el);
+  if (!c) { c = { refs: 0, prev: '', promoted: false }; popping.set(el, c); }
+  c.refs++;
+  if (popping.size >= PROMOTE_AT) promoteAll();
+}
+
+function releasePop(el: HTMLElement): void {
+  const c = popping.get(el);
+  if (!c || --c.refs > 0) return;
+  popping.delete(el);
+  if (c.promoted) el.style.willChange = c.prev;
+}
+
+/** Test/diagnostic: how many whole cards are mid-pop right now. */
+export function poppingCardCount(): number {
+  return popping.size;
+}
+
 /** A withheld stat change this layer will deliver, and when. */
 interface Release {
   uid: string;
@@ -138,6 +186,11 @@ interface Beat {
   /** Milliseconds from the effect's start at which this element's own animation begins. */
   at: number;
   duration: number;
+  /** The playhead last written (NaN = never). A seek that lands on the same clamped time writes nothing, so a beat
+   *  waiting for its turn or already finished costs no style invalidation per frame (perf 2026-10-22). */
+  last: number;
+  /** The whole card this beat pops, while its pop holds a `claimPop` (released when the pop ends). */
+  claimed: HTMLElement | null;
 }
 
 /**
@@ -202,7 +255,9 @@ class ReactInstance implements FxInstance<ReactParams> {
         // reaction in Chrome.
         const anim = el.animate(frames, { duration: p.hold, fill: 'none', composite: 'add' });
         anim.pause(); // the player owns the clock — see the module header
-        this.beats.push({ anim, at: land.at, duration: p.hold });
+        const whole = p.part === 'card' ? el : null;
+        if (whole) claimPop(whole);
+        this.beats.push({ anim, at: land.at, duration: p.hold, last: Number.NaN, claimed: whole });
       }
       if (p.carries) {
         // CLAIM before scheduling, because from here on this layer is the only clock allowed on that
@@ -223,7 +278,11 @@ class ReactInstance implements FxInstance<ReactParams> {
   /** Write every animation's playhead from the effect's own clock, and deliver any number due by now. */
   private seek(): void {
     for (const b of this.beats) {
-      b.anim.currentTime = Math.min(Math.max(this.localMs - b.at, 0), b.duration);
+      const t = Math.min(Math.max(this.localMs - b.at, 0), b.duration);
+      if (t === b.last) continue;
+      b.last = t;
+      b.anim.currentTime = t;
+      if (t >= b.duration && b.claimed) { releasePop(b.claimed); b.claimed = null; }
     }
     // The counter. A 0-length spin is the original single release; anything longer walks the reveal so the
     // digits step from the old value to the new one on this same clock — which means combat speed and
@@ -242,7 +301,10 @@ class ReactInstance implements FxInstance<ReactParams> {
   }
 
   private cancelAll(): void {
-    for (const b of this.beats) b.anim.cancel();
+    for (const b of this.beats) {
+      b.anim.cancel();
+      if (b.claimed) { releasePop(b.claimed); b.claimed = null; }
+    }
   }
 
   update(dtMs: number): void {

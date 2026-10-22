@@ -47,7 +47,7 @@ describe('the tranche 2 roster (owner 2026-09-27)', () => {
     expect(RUNE_INDEX['rune_event_horizon']).toBeUndefined();
     // The owner's pick for the Event Horizon slot (2026-09-27), renamed: "Meteor Shower" is an existing Set 3 rune's name.
     expect([RUNE_INDEX['rune_meteor_storm']!.cost, RUNE_INDEX['rune_meteor_storm']!.epic, RUNE_INDEX['rune_meteor_storm']!.tribes]).toEqual([5, true, ['celestial']]);
-    expect(RUNE_INDEX['rune_meteor_shower']!.name).toBe('Rune of the Meteor Shower'); // the existing E2, untouched
+    expect(RUNE_INDEX['rune_meteor_shower']!.name).toBe('Meteor Shower'); // the existing E2, untouched
   });
 });
 
@@ -89,7 +89,7 @@ describe('Rune of Stellar Echoes — the graft, Shop and settle', () => {
     const foes: BoardSnapshot = { v: 1, wave: s.wave, heroId: 'indy', resolve: 30, tier: 1, triples: 0, tribes: [], threat: 'glass', power: 1, minions: [{ cardId: 'sandbag', attack: 50, health: 500, keywords: [] }], seed: 1, origin: 'self' };
     s = reduce({ ...s, servedBoards: { [s.wave]: foes } }, { type: 'faceOmen' });
     s = reduce(s, { type: 'resolveCombat' });
-    expect(s.lastCombat?.playerStarformGain).toEqual([{ source: 'Rune of Stellar Echoes', attack: 2, health: 2 }]);
+    expect(s.lastCombat?.playerStarformGain).toEqual([{ source: 'Stellar Echoes', attack: 2, health: 2 }]);
     expect(sf(s)).toEqual([before[0] + 2, before[1] + 2]);
   });
 });

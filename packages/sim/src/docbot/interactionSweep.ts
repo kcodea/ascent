@@ -459,7 +459,7 @@ export function runInteractionSweep(opts: InteractionSweepOptions): InteractionS
     push({
       family: 'rune-x-minion', tier: 'pair', members: [watcher.contentId, 'rune_fury'],
       verdict: base === armed ? 'covered' : 'failed',
-      evidence: `combat: first avenge fire at side-death ${base} without vs ${armed} with Rune of Fury (R-AVWIN-07: resolution doubles, progress never moves)`,
+      evidence: `combat: first avenge fire at side-death ${base} without vs ${armed} with Fury (R-AVWIN-07: resolution doubles, progress never moves)`,
       comboKeys: [combinationKey(['rune:multiplier', 'trigger:avenge'])],
       measurement: { base, variant: armed, expectedFactor: 1 },
     });
@@ -598,7 +598,7 @@ export function runInteractionSweep(opts: InteractionSweepOptions): InteractionS
       push({
         family: 'gilding+progress-counters+duplicate-effect', tier: 'triple', members: [watcher.contentId, 'rune_fury'],
         verdict: base === stacked ? 'covered' : 'failed',
-        evidence: `combat: first avenge fire at side-death ${base} plain vs ${stacked} gilded+Rune of Fury — stacked resolution multipliers must never advance progress`,
+        evidence: `combat: first avenge fire at side-death ${base} plain vs ${stacked} gilded+Fury — stacked resolution multipliers must never advance progress`,
         comboKeys: [combinationKey(['gild', 'counter:avenge-progress', 'rune:multiplier'])],
         measurement: { base, variant: stacked, expectedFactor: 1 },
       });

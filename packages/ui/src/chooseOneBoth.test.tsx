@@ -9,10 +9,10 @@
  *   1. TEXT — the leading label becomes a coloured (Both) and BOTH option texts print after it, on EVERY
  *      render chain: shop offer (minion and spell), hand/board (`instView`), Discover, Compendium and combat
  *      (`Unit`). Swept by mounting the real `Card`, so a marker that stopped styling would fail here.
- *   2. MARKER — the owner-authored `choose-one-both` loop rides qualifying cards through the
- *      `data-choose-both` hook, and RETIRES cleanly (a looping player never stops on its own).
+ *   2. MARKER — a card carrying `chooseBothKey` renders its own silhouette glow (`.bothglow`, remade
+ *      2026-10-22), compositor-only, and nothing plays the retired Pixi ring.
  */
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, afterEach } from 'vitest';
 import { act } from 'react';
 import type { Keyword } from '@game/core';
 import { CARD_INDEX } from '@game/content';
@@ -28,7 +28,7 @@ import { descTextOf, mount, plainOf } from './renderedText.mount';
  *  third until 2026-10-07, when Orivax became a board aura with no Choose One. */
 const SOURCES = [
   { what: "Facetwright under its rune", id: 'facetwright', run: { runeFacetwright: true } as Partial<RunState>, golden: false },
-  { what: 'Veinbreaker under the Rune of the Unbroken Vein', id: 'k_veinbreaker', run: { runeUnbrokenVein: true } as Partial<RunState>, golden: false },
+  { what: 'Veinbreaker under the Unbroken Vein', id: 'k_veinbreaker', run: { runeUnbrokenVein: true } as Partial<RunState>, golden: false },
 ] as const;
 
 const runFor = (over: Partial<RunState>): RunState => ({ ...createRun(21, 'drakko'), setId: 'set2', ...over } as RunState);
@@ -154,81 +154,63 @@ describe('(Both) — every render chain agrees', () => {
   });
 });
 
-/* ─────────────────────────────────────────── the marker FX ──────────────────────────────────────────────── */
+/* ─────────────────────────────────────────── the marker ──────────────────────────────────────────────── */
 
-const disposers: (() => void)[] = [];
-let plays: string[] = [];
-vi.mock('./fx/playDef', () => ({
-  playDef: (id: string) => {
-    plays.push(id);
-    const d = vi.fn();
-    disposers.push(d);
-    return d;
-  },
-}));
-
-describe('(Both) — the looping marker', () => {
-  beforeEach(() => { plays = []; disposers.length = 0; });
-
-  /** A mounted card element carrying the `data-choose-both` hook the marker binds to. */
-  const stubCard = (key: string): HTMLElement => {
-    const el = document.createElement('div');
-    el.className = 'card';
-    el.setAttribute('data-choose-both', key);
-    el.getBoundingClientRect = () => ({ left: 10, top: 10, width: 100, height: 140, right: 110, bottom: 150, x: 10, y: 10, toJSON: () => ({}) }) as DOMRect;
-    document.body.appendChild(el);
-    return el;
-  };
-
-  it('mounts one loop per qualifying card, and none for a card with no hook', async () => {
-    const { useChooseBothFx } = await import('./useChooseBothFx');
-    stubCard('a'); stubCard('b');
-    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
-    const h = mount(<Harness keys={['a', 'b']} />);
-    expect(plays).toEqual(['choose-one-both', 'choose-one-both']);
-    // A key with no card in the DOM starts nothing — no orphan player.
-    plays = [];
-    h.render(<Harness keys={['a', 'b', 'ghost']} />);
-    expect(plays).toEqual([]);
-    h.unmount();
+/**
+ * (BOTH) MARKER, remade 2026-10-22 (owner: "it's really sloppy right now"). The old marker was a looping Pixi ring
+ * (`choose-one-both`, ~215 blurred particles per card on a 230 px circle) followed by rect every frame and capped at
+ * four cards. It is now a glow on the card's OWN silhouette, rendered by `Card` itself whenever the card carries a
+ * `chooseBothKey`: no particles, no per-frame layout read, no cap, and it can never be on a card that is not (Both).
+ */
+describe('(Both) — the silhouette marker', () => {
+  const m = mount(<div />);
+  afterEach(() => m.render(<div />));
+  const def = CARD_INDEX['k_veinbreaker']!;
+  const view = (over: Partial<CardView> = {}): CardView => ({
+    name: def.name, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health,
+    keywords: [] as Keyword[], golden: false, text: chooseBothText(def.id, false)!, tier: def.tier, ...over,
   });
 
-  it('retires the loop the moment the card stops qualifying — no leaked player', async () => {
-    const { useChooseBothFx } = await import('./useChooseBothFx');
-    stubCard('a'); stubCard('b');
-    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
-    const h = mount(<Harness keys={['a', 'b']} />);
-    const [da, db] = disposers;
-    h.render(<Harness keys={['a']} />); // 'b' un-qualified (rune sold, card played, predicate flipped)
-    expect(db, 'the dropped card must be retired').toHaveBeenCalledTimes(1);
-    expect(da, 'the surviving card keeps looping').not.toHaveBeenCalled();
-    h.unmount();
-    expect(da, 'unmount tears the rest down').toHaveBeenCalledTimes(1);
+  it('a (Both) card renders its marker layer; a card without the key renders none', () => {
+    m.render(<Card card={view({ chooseBothKey: 'u-1' })} forceFull />);
+    const root = m.container.querySelector('.card') as HTMLElement;
+    expect(root.dataset.chooseBoth).toBe('u-1');
+    expect(m.container.querySelectorAll('.bothglow').length, 'the marker rides the card itself').toBeGreaterThan(0);
+    m.render(<Card card={view()} forceFull />);
+    expect(m.container.querySelectorAll('.bothglow')).toHaveLength(0);
   });
 
-  it('an empty list (combat, a covering overlay) is the PAUSE — every loop is torn down', async () => {
-    const { useChooseBothFx } = await import('./useChooseBothFx');
-    stubCard('a');
-    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
-    const h = mount(<Harness keys={['a']} />);
-    h.render(<Harness keys={[]} />);
-    expect(disposers[0]).toHaveBeenCalledTimes(1);
-    h.unmount();
+  it('the marker sits BEHIND the art and is never a hover target', () => {
+    m.render(<Card card={view({ chooseBothKey: 'u-1' })} forceFull />);
+    for (const el of m.container.querySelectorAll('.bothglow')) {
+      expect(el.getAttribute('aria-hidden')).toBe('true');
+    }
   });
 
-  it('caps how many loops can run at once, however many cards qualify', async () => {
-    const { useChooseBothFx, CHOOSE_BOTH_FX_CAP } = await import('./useChooseBothFx');
-    const keys = Array.from({ length: CHOOSE_BOTH_FX_CAP + 3 }, (_, i) => `k${i}`);
-    for (const k of keys) stubCard(k);
-    const Harness = (): null => { useChooseBothFx(keys); return null; };
-    const h = mount(<Harness />);
-    expect(plays).toHaveLength(CHOOSE_BOTH_FX_CAP);
-    h.unmount();
+  it('every marker layer animates only compositor properties, the loop is opacity only, and reduced motion stills it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join, dirname } = await import('node:path');
+    const { fileURLToPath } = await import('node:url');
+    const css = readFileSync(join(dirname(fileURLToPath(import.meta.url)), 'styles.css'), 'utf8');
+    const frames = (name: string): string => {
+      const at = css.indexOf(`@keyframes ${name} {`);
+      expect(at, `@keyframes ${name} exists`).toBeGreaterThan(-1);
+      let depth = 0; let i = css.indexOf('{', at);
+      const start = i;
+      for (; i < css.length; i++) { if (css[i] === '{') depth++; else if (css[i] === '}' && --depth === 0) break; }
+      return css.slice(start, i + 1);
+    };
+    const props = (block: string): string[] => [...block.matchAll(/([a-z-]+)\s*:/g)].map((x) => x[1]!);
+    for (const name of ['bothin', 'bothin-plate']) {
+      expect(props(frames(name)).every((p) => ['opacity', 'scale', 'transform'].includes(p)), `${name}: transform/opacity only`).toBe(true);
+    }
+    expect([...new Set(props(frames('bothbreathe')))], 'the LOOP touches opacity and nothing else').toEqual(['opacity']);
+    // Reduced motion: the glow HOLDS (a still, opacity-only fill) with no arrival and no breathing.
+    expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[^@]*\.card \.bothglow[^{]*\{ animation: bothstill 0s both; \}/);
+    expect([...new Set(props(frames('bothstill')))]).toEqual(['opacity']);
   });
 
-  it('is a MARKER only — playing the card never fires it (no play-moment binding exists)', async () => {
-    // The owner will author a resolution effect separately. The guard is structural: nothing outside the
-    // marker hook may call the def, so the FX cannot start riding a beat by accident.
+  it('nothing plays the retired Pixi ring any more: one cue, no second marker on top of the glow', async () => {
     const { readFileSync, readdirSync, statSync } = await import('node:fs');
     const { join, dirname } = await import('node:path');
     const { fileURLToPath } = await import('node:url');
@@ -242,54 +224,7 @@ describe('(Both) — the looping marker', () => {
       }
     };
     walk(root);
-    const callers = files.filter((f) => readFileSync(f, 'utf8').includes("'choose-one-both'") || readFileSync(f, 'utf8').includes('"choose-one-both"'));
-    expect(callers.map((f) => f.split(/[\\/]/).pop()).sort(), 'only the marker hook (and the FX call-site registry) may name the def')
-      .toEqual(['directCalls.ts', 'useChooseBothFx.ts']);
-  });
-});
-
-/**
- * A CARD THAT HAS NOT PAINTED YET STILL GETS ITS MARKER (owner report 2026-08-31: *"there are random times
- * where it seems to bug out and not be shown in hand"*, and the right-most card missing it).
- *
- * `sync` runs when the KEY LIST changes. A card added to hand on that same commit may not be in the DOM yet,
- * so the element lookup finds nothing — and before the retry, that card was simply skipped forever: there is
- * no later sync unless the list changes again. The newest card is the one most likely to lose that race,
- * which is why it read as "the right-most slot".
- */
-describe('(Both) — a card that mounts a frame late', () => {
-  beforeEach(() => { plays = []; disposers.length = 0; });
-
-  const stubLate = (key: string): HTMLElement => {
-    const el = document.createElement('div');
-    el.className = 'card';
-    el.setAttribute('data-choose-both', key);
-    el.getBoundingClientRect = () => ({ left: 10, top: 10, width: 100, height: 140, right: 110, bottom: 150, x: 10, y: 10, toJSON: () => ({}) }) as DOMRect;
-    document.body.appendChild(el);
-    return el;
-  };
-
-  it('is picked up on a later frame instead of being dropped', async () => {
-    const { useChooseBothFx } = await import('./useChooseBothFx');
-    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
-    // The key arrives BEFORE the element — the exact race.
-    const h = mount(<Harness keys={['late']} />);
-    expect(plays, 'nothing to bind to yet').toEqual([]);
-    stubLate('late');
-    // Two frames is well inside the retry budget.
-    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
-    expect(plays, 'the marker found the card once it painted').toEqual(['choose-one-both']);
-    h.unmount();
-  });
-
-  it('gives up eventually — a key that never appears must not retry forever', async () => {
-    const { useChooseBothFx, RETRY_FRAMES } = await import('./useChooseBothFx');
-    const Harness = ({ keys }: { keys: string[] }): null => { useChooseBothFx(keys); return null; };
-    const h = mount(<Harness keys={['never']} />);
-    for (let i = 0; i < RETRY_FRAMES + 3; i++) {
-      await new Promise((r) => requestAnimationFrame(r));
-    }
-    expect(plays, 'a card that left before it could be marked starts nothing').toEqual([]);
-    h.unmount();
+    const callers = files.filter((f) => /['"]choose-one-both['"]/.test(readFileSync(f, 'utf8')));
+    expect(callers.map((f) => f.split(/[\/]/).pop())).toEqual([]);
   });
 });

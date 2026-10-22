@@ -12,7 +12,7 @@ import { pixiFx } from './pixiFx';
  * The CALLER decides that (StatusBar derives it off `run.equipment`, the same reads that paint the charge number
  * blue); this hook only turns `active` into exactly one live loop, and turns it off again.
  *
- * Built on the same rails as `useChooseBothFx` / `useCiaEnchantedFx`, for the same reasons:
+ * Built on the same rails as `useCiaEnchantedFx` (and the retired Pixi (Both) ring), for the same reasons:
  *  - `loop: true` runs the def continuously, so THE CALLER OWNS TEARDOWN — a looping player never retires on
  *    its own. The loop here is disposed the moment `active` goes false (used, swapped to an unamplified
  *    Equipment, the turn ends, the phase leaves the shop, the slot is gone, an overlay covers the board), when

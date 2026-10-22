@@ -131,7 +131,7 @@ describe('BEATS — every rally gets its own animation window', () => {
     const beats = questEndOfTurnBeats(s).filter((b) => b.effect === 'runeLastingCadence');
     expect(beats).toHaveLength(3);
     expect(beats.map((b) => b.uid), 'source attribution: the triggering minion pulses').toEqual(['a', 'b', 'c']);
-    expect(new Set(beats.map((b) => b.label))).toEqual(new Set(['Rune of Lasting Cadence']));
+    expect(new Set(beats.map((b) => b.label))).toEqual(new Set(['Lasting Cadence']));
   });
 
   it('N rallies → N steps in the PROJECTION, so the animation actually reserves the time', () => {

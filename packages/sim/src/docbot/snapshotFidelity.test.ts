@@ -153,6 +153,8 @@ function boardCardExemplar(): Required<BoardCard> {
     seedEchoes: 2, // Seed (Set 3): permanent Drake Pup Echo stacks
     seedEchoesTemp: 1, // Seed: this turn's temporary stacks (summed into the captured seedEchoes)
     whisperKeptThisTurn: 1, // Hum's per-turn keep count
+    lastingWordsUsedThisTurn: true, // Rune of Lasting Words' per-Dragon per-turn latch
+    whisperKept: { attack: 2, health: 2 }, // kept Whisper stats (already IN attack/health), Bequeathed Secrets' record
     whisperKeywords: ['T'], // Bait's temporary Taunt (already in keywords)
     whisperTick: 2, // Hatcher's tier progression
     tempGrants: [{ label: 'Rise', keyword: 'R' }],

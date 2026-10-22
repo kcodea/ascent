@@ -51,15 +51,15 @@ export interface FxBudgetConfig {
    * The DISCOVER SCENE ceiling on live def particles — in force while the Discover overlay is open
    * (`fxBudget.ts`'s `setFxScene('discover')`, wired from `Game.tsx`), and always the LOWER of this and
    * `maxParticles`. Same trim policy: the oldest same-def play first, never the incoming one, never a
-   * looping / following / `onDone` play (so the (Both) marker loops on Discover cards are untouchable).
+   * looping / following / `onDone` play.
    *
    * ── why a scene cap, and why 2,000 (perf handoff 2026-09-17, PR 3) ──────────────────────────────────
    * The 238 s capture peaked at 2,673 live particles in a Discover second with `fx:tick` at 22 ms; outside
    * the Discover the FX layer sat at 0.2 ms/frame. The Discover overlay itself plays NO defs (its golden
    * burst is `discoverFx.discoverBurst`, 67 hand-written sprites on its own canvas); what stacks is the
    * moment that OPENED it (a triple's `shop-tier-up` 506, `prismatic-pick` 364, a hero power's spark 124)
-   * on top of whatever the shop was already playing, plus up to four protected `choose-one-both` loops
-   * (217 each) on the offered cards. Measured on the dev build with a manual ticker (death-dissolve fans,
+   * on top of whatever the shop was already playing, plus (until 2026-10-22, when the (Both) marker became a CSS
+   * silhouette glow) up to four protected `choose-one-both` loops (217 each) on the offered cards. Measured on the dev build with a manual ticker (death-dissolve fans,
    * 4.17 ms steps): the def sim + render costs ≈ 0.66 µs per live particle — ≈ 0.27 ms at 794, 0.93 ms at
    * 1,588, 1.87 ms at 2,779, 2.64 ms at 3,970 (means; p95 climbs past 3 ms from ~1,600 up). The "`fx:tick`
    * stays under 2 ms" line lands near 3,000 by the mean; 2,000 keeps the mean near 1.3 ms with headroom for
@@ -164,3 +164,23 @@ export function resetFxBudgetConfig(): void {
   cfg = base();
   try { localStorage.removeItem(KEY); } catch { /* ignore */ }
 }
+
+/**
+ * PER-DEF LIVE PARTICLE BUDGETS (owner perf report 2026-10-22: "when a cave cutter is played with both effects
+ * active it nukes performance"). A ceiling on how many particles ONE def may have live at once, ACROSS calls, on top
+ * of the global caps above. `fanBudget.ts`'s fan budgets keep a single fan-out even; these keep a CHAIN of fan-outs
+ * (one per beat, one per state change) from piling up. Over it, the incoming play is THINNED to the headroom left
+ * (and its particles live shorter, see `fxBudget.ts`'s `defLifeScale`), never below `MIN_DEF_SCALE` of authored; only
+ * when even that floor does not fit is the oldest same-def play retired.
+ *
+ * Sized so ONE ordinary moment plays exactly as authored and only a pile-up gets lighter:
+ *   - `hand-buff` is 96 particles a play (67 + 29). 300 is three full plays at once, which a 1-3 card buff never
+ *     passes. The measured pile-up (Cave Cutter with both effects on a hand of Rubies) put 12 plays / 1,152
+ *     particles of it live at once.
+ *   - `gild-trail` is 344 a copy (72 + 136 + 136), 1,032 for a three-copy gild. 1,100 keeps one gild as authored;
+ *     a second gild landing on top of it is thinned instead of doubling the load.
+ */
+export const DEF_PARTICLE_BUDGETS: Readonly<Record<string, number>> = {
+  'hand-buff': 300,
+  'gild-trail': 1100,
+};

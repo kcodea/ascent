@@ -170,7 +170,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       'ancient-reveal-spark',
       // 'ancient-slam-sparks' joined on 2026-09-26: the reveal slams' turbulent spark blast (`ancients/ancientsSmoke.ts`).
       'ancient-slam-sparks',
-      'auctioneer-hp', 'choose-one-both', 'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
+      'auctioneer-hp',
+      // 'choose-one-both' left on 2026-10-22: the (Both) marker was remade as the card's own silhouette glow (`.bothglow`).
+      'cia-hp', 'click-puff', 'coin', 'coins', 'consume-pull', 'damage-burst', 'death-dissolve',
       // 'dice-land' joined on 2026-09-17: the landing burst of the shared 3D die (`DiceRoll.tsx`), fired at the anchor.
       'dice-land',
       // 'discover-arrive' / 'discover-glint' joined on 2026-09-25: the Discover entrance (`discoverEntrance/entrance.ts`),

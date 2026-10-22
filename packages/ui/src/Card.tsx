@@ -339,10 +339,9 @@ export interface CardView {
    *  (default art even if you own a skin for it); absent = resolve from the scope as usual. Set ONLY by `Card`'s
    *  inspect open (`inspectViewOf`); never recorded into a replay (store.ts strips it). R-PROG-SKINS-17. */
   skinArt?: string;
-  /** (BOTH) FX HOOK: a stable key stamped on the card root as `data-choose-both` when this card's Choose One
-   *  will resolve as BOTH branches (see `chooseBothActive`). It is the ONLY contract the looping marker FX
-   *  binds to (`useChooseBothFx` follows `[data-choose-both="<key>"]`), so the effect can be re-authored,
-   *  retargeted or removed without touching card rendering. Absent = the card does not qualify. */
+  /** (BOTH) MARKER: a stable key stamped on the card root as `data-choose-both` when this card's Choose One
+   *  will resolve as BOTH branches (see `chooseBothActive`). Present = the card renders its (Both) silhouette
+   *  glow (`.bothglow`, see styles.css "(BOTH) MARKER"). Absent = the card does not qualify. */
   chooseBothKey?: string;
   tribe: Tribe;
   /** Second tribe for dual-type minions — splits the card into both hues. */
@@ -720,8 +719,8 @@ export const Card = memo(function Card({
   //      tick one at a time so they rarely skip; Avenge skips constantly.
   // The `prev !== total` guard on (2) is what stops a double-fire: the ordinary 4/4 → 1/4 reset AFTER a proc is
   // a wrap too, but that proc already fired on the landing. Count-up counters (Spirit Pup, Tara) clamp at
-  // `total` and never wrap, and the cadence counter counts DOWN and resets UP to `total` on its firing turn —
-  // both land on `total`, so rule (1) covers them.
+  // `total` and never wrap, and the cadence / Refresh counters are ordinary cyclic meters since 2026-10-22 (no
+  // worded countdowns) — all land on `total`, so rule (1) covers them.
   //
   // Transition-only (never on mount) so a card entering play already full doesn't burst.
   //
@@ -920,6 +919,14 @@ export const Card = memo(function Card({
     : plateLook ? plateLook.plate
     : STANDARD_PLATE_SRC;
   const plateFade = useArtFade(usePlate ? plateSrc : undefined);
+  // (BOTH) MARKER (remade 2026-10-22, owner: "it's really sloppy right now"). A card whose Choose One will resolve as
+  // BOTH branches wears a glow that traces its OWN silhouette (the plate in hand / Discover / Inspect, the frame in
+  // the Shop), in the same tribe colour as its "(Both)" label, so the marker and the text read as one cue. It
+  // CONVERGES onto the card once when it appears (the two sides closing in), then breathes on opacity only. A copy of
+  // the existing hover-glow layers (`.cglow` / `.plateglow`), so it sits behind the opaque art and can never wash over
+  // the card, and costs no particles. Styles: "(BOTH) MARKER" in styles.css.
+  const bothGlow = !!card.chooseBothKey;
+  const bothFrameGlow = bothGlow ? <div className="cglow bothglow" aria-hidden="true"><span className="cglow-rim" /></div> : null;
   return (
     <div
       className={`card compact${showText ? ' showtext' : ''}${popin ? ' popin' : ''}${popDelay ? ' popdelay' : ''}${highlight ? ' armed' : ''}${targeted ? ' targeted' : ''}${card.golden ? ' golden' : ''}${dimmed ? ' dragsrc' : ''}${spent ? ' spent' : ''}${battlecry ? ' bcasting' : ''}${card.keywords.includes('T') ? ' taunt' : ''}${card.keywords.includes('ST') ? ' stealth' : ''}${card.keywords.includes('DS') ? ' dscard' : ''}${card.keywords.includes('R') ? ` reborncard${card.riseTint ? ` risetint-${card.riseTint}` : ''}` : ''}${card.keywords.includes('RB') ? ' rebirthcard' : ''}${card.keywords.includes('V') ? ' venomcard' : ''}${card.keywords.includes('W') ? ' flurrycard' : ''}${spellLike ? ' spellcard' : ''}${card.ruby ? ' rubycard' : ''}${useStdFrame ? ' stdframe' : ''}${(useStdFrame && hasTribeOval(card.tribe)) || (isTaunt && frameOk && hasTribeTaunt(card.tribe)) ? ' tribeframe' : ''}${useSpellFrame ? ' spellframe' : ''}${electrify ? ' electrify' : ''}${tripleReady ? ' tripready' : ''}${contraband ? ' contraband' : ''}${enchanted ? ' enchanted' : ''}${card.starform ? ' starform' : ''}${card.tribe2 ? ' dual' : ''}${locked ? ' locked' : ''}${card.onLoanKey ? ' onloan' : ''}${whisperLook ? ' whispercard' : ''}${usePlate ? ` plated plate-txt-${txtBucket}` : ''}${dissipate !== undefined ? ' whisperdissipate' : ''}`}
@@ -1000,6 +1007,9 @@ export const Card = memo(function Card({
               static drop-shadow halo. Only its OPACITY animates (compositor-only), exactly how `.cglow`
               handles the frame; the real plate is opaque, so only the outward halo is ever visible. Same
               src, so the browser serves it from cache — no second decode. */}
+          {/* (BOTH) MARKER, plate edition: see `bothFrameGlow` below. Its own copy of the plate behind the real
+              one, so the white hover glow above keeps working untouched on a (Both) card. */}
+          {bothGlow && <img decoding="sync" className={`plateglow bothglow${plateLook?.frame ? ' plate-framed' : ''}${plateFade.cls}`} src={plateLook?.frame ?? plateSrc} alt="" aria-hidden="true" draggable={false} />}
           <img decoding="sync" className={`plateglow${plateLook?.frame ? ' plate-framed' : ''}${plateFade.cls}`} src={plateLook?.frame ?? plateSrc} alt="" aria-hidden="true" draggable={false} />
           <img decoding="sync"
             className={`cardplate${plateLook?.frame ? ' plate-interior' : ''}${plateLook?.frosted ? ' plate-frosted' : ''}${plateFade.cls}`}
@@ -1188,7 +1198,7 @@ export const Card = memo(function Card({
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
-            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
+            {bothFrameGlow}<div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
               className={`tframe tframe-img${frameFade.cls}`}
               src={tauntFrameSrcFor(card.tribe, !!card.golden)}
@@ -1238,7 +1248,7 @@ export const Card = memo(function Card({
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
-            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
+            {bothFrameGlow}<div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
               className={`cframe cframe-img${frameFade.cls}`}
               src={stdFrameSrcFor(card.tribe, !!card.golden)}
@@ -1267,7 +1277,7 @@ export const Card = memo(function Card({
             {/* hover glow (see styles.css ".cglow"): a pure-teal SILHOUETTE of the frame seated behind the art
                 (z0) — a masked child (the bright rim) inside a parent that casts the soft bloom. Not a frame-PNG
                 copy, so it's always teal and W/H-scalable with no gold/silver frame ever showing. */}
-            <div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
+            {bothFrameGlow}<div className="cglow" aria-hidden="true"><span className="cglow-rim" /></div>
             <img decoding="sync"
               className={`cframe cframe-img${frameFade.cls}`}
               src={spellFrameSrc}

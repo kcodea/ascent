@@ -226,7 +226,7 @@ function driveDeathSummon(c: ContentContract, plan: CasePlan, ctx: DriverCtx): v
     // §9.3 law 2 — non-applicable rune: rune_fury multiplies AVENGE resolution only; an onDeath summon
     // must not move under it.
     ctx.metamorphic.push(checkMetamorphic('non-applicable-rune-no-op', c.contentId,
-      'summon count with Rune of Fury (avenge-family multiplier) armed vs absent',
+      'summon count with Fury (avenge-family multiplier) armed vs absent',
       () => measure(false),
       () => measure(false, { runeFury: true })));
   }
@@ -362,7 +362,7 @@ function driveAvengeThreshold(c: ContentContract, plan: CasePlan, ctx: DriverCtx
       if (templates.has('trigger-multiplier')) {
         // R-AVWIN-07: rune_fury doubles RESOLUTION, never progress — the first-fire ordinal must not move.
         ctx.metamorphic.push(checkMetamorphic('multiplier-resolution-only', c.contentId,
-          'first avenge-fire ordinal with Rune of Fury armed vs absent (resolution doubles, progress must not)',
+          'first avenge-fire ordinal with Fury armed vs absent (resolution doubles, progress must not)',
           () => measure() ?? -1, () => measure({ runeFury: true }) ?? -1, { kind: 'equal' }, ['R-AVWIN-07']));
         ctx.executed.push({ contractId: c.contentId, template: 'trigger-multiplier', driver: 'avenge-threshold', evidence: 'rune_fury ordinal-invariance diff' });
       }

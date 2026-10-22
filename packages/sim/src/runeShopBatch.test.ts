@@ -112,8 +112,8 @@ describe('Rune of Resonance — both halves', () => {
 describe('the five runes ship as specced', () => {
   it("exist at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Resonance', 1, false], ['Rune of Investment', 5, true], // balance 9/23: Resonance 3 → 1, Investment 3 → 5 (2026-08-18 / 2026-08-04 had 1 → 3 each); Investment is EPIC since the owner Ruby batch 2026-09-24
-      ['Rune of Runic Exchange', 2, true],
+      ['Resonance', 1, false], ['Investment', 5, true], // balance 9/23: Resonance 3 → 1, Investment 3 → 5 (2026-08-18 / 2026-08-04 had 1 → 3 each); Investment is EPIC since the owner Ruby batch 2026-09-24
+      ['Runic Exchange', 2, true],
       // Rune of the Open Market moved to the RUNE ARCHIVE 2026-09-23 (Balance 9/23) — out of the forge, still in RUNE_INDEX.
       // Rune of the Brokerage moved to the RUNE ARCHIVE 2026-08-04 (with Ruby Broker) — asserted below.
     ];
@@ -126,9 +126,9 @@ describe('the five runes ship as specced', () => {
   });
 
   it('all five are set-2 scoped — each names a set-2 mechanic', () => {
-    for (const n of ['Rune of Resonance', 'Rune of Investment', 'Rune of Runic Exchange']) { // Open Market archived 2026-09-23
+    for (const n of ['Resonance', 'Investment', 'Runic Exchange']) { // Open Market archived 2026-09-23
       // + set3 2026-09-14 (rune roster carryover); Runic Exchange CUT FROM SET 3 2026-09-24 (owner)
-      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(n === 'Rune of Runic Exchange' ? ['set2'] : ['set2', 'set3']);
+      expect(byName(n)!.sets, `${n} leaks into set 1`).toEqual(n === 'Runic Exchange' ? ['set2'] : ['set2', 'set3']);
     }
   });
 });

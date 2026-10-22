@@ -255,7 +255,7 @@ export function StatusBar() {
   // The wording for the version this player actually holds — a Gilded source prints the Gilded rule, and an
   // Amplified clock-window Equipment prints the doubled window it will really open (owner 2026-09-22).
   const equipRule = selectedEquipDef && selectedEquip
-    ? equipmentText(selectedEquipDef, selectedEquip.version, { amplified: equipAmplified > 0 })
+    ? equipmentText(selectedEquipDef, selectedEquip.version, { amplified: equipAmplified > 0, chooseBothCharges: run.chooseBothCharges ?? 0 })
     : '';
   const equipArt = equipmentArtFor(selectedEquipDef?.id);
   // The HOUSING look (owner ask 2026-10-03): Classic draws the bronze bitmap frame; the CSS looks need no image.
@@ -346,9 +346,8 @@ export function StatusBar() {
    *  - UI-store overlays (`uiCovering`): the Compendium (Tab), the Inspect view, the Ctrl+B bug reporter, the
    *    ladder / balance pages and the title. Every one is a fixed full-viewport backdrop above that canvas too
    *    (review finding 2026-09-22: the Book left the ring burning behind its blur). The set is the one Recruit
-   *    folds into `overlayOpen`, which pauses the shop clock, the combat replay and the sibling `useChooseBothFx`
-   *    loop, PLUS the Inspect view: Recruit exempts that one only because the inspected card is exactly where a
-   *    "(Both)" ring wants to be, and nothing on it wants this glow. Keep the two lists in step. ONE boolean
+   *    folds into `overlayOpen`, which pauses the shop clock and the combat replay,
+   *    PLUS the Inspect view, which nothing on it wants this glow behind. Keep the two lists in step. ONE boolean
    *    selector, so the bar re-renders when the answer flips and not when any one flag does. (`showTitle` is
    *    here for parity: today `isPreRun` unmounts this bar with the title and the unmount teardown catches it.)
    */

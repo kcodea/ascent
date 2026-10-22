@@ -39,7 +39,7 @@ describe('Rope Wrangler + Rune of Lassoing (the pinned known gap, flipped)', () 
     applyEndOfTurn(s);
     expect((s.castFx ?? []).filter((c) => c.spellId === 'lasso' && c.source.kind === 'minion')).toHaveLength(1);
     expect(at(s, 'a')).toMatchObject({ attack: 4, health: 4 });
-    expect(buffFrom(at(s, 'a'), 'Rune of Lassoing')).toMatchObject({ attack: 2, health: 2 });
+    expect(buffFrom(at(s, 'a'), 'Lassoing')).toMatchObject({ attack: 2, health: 2 });
     expect(s.spellsCast - before, 'one cast, counted once').toBe(1);
   });
 
@@ -70,8 +70,8 @@ describe.each([
     expect(s.spellsCast - before.cast, 'spellsCast +n').toBe(n);
     expect(s.spellsThisTurn - before.turn, 'spellsThisTurn +n').toBe(n);
     expect(at(s, 'r').spellProgress ?? 0, 'Runescale heard each cast once').toBe(n);
-    expect(buffFrom(at(s, 'c'), 'Rune of Kindling'), 'the left-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
-    expect(buffFrom(at(s, 'x'), 'Rune of Kindling'), 'the right-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
+    expect(buffFrom(at(s, 'c'), 'Kindling'), 'the left-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
+    expect(buffFrom(at(s, 'x'), 'Kindling'), 'the right-most end').toMatchObject({ attack: 4 * n, health: 6 * n });
     expect(s.lastSpellCastId, 'the copy memory saw it too').toBeDefined();
   });
 });

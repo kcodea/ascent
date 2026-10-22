@@ -43,7 +43,7 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     const r = sim([v(1, 1), v(2, 2), v(10, 10)], wall, 1, { runeTwilight: true, runeUnderdog: true });
     const [m0, m1] = r.initial.player.map((m) => m.uid);
     expect(triggers(r, 'runeUnderdog')).toHaveLength(2);
-    expect(runeBuffs(r, 'Rune of the Underdog')).toEqual([[m0, 1, 1], [m1, 2, 2], [m0, 2, 2], [m1, 4, 4]]);
+    expect(runeBuffs(r, 'Underdog')).toEqual([[m0, 1, 1], [m1, 2, 2], [m0, 2, 2], [m1, 4, 4]]);
     // ONE badge pulse, on the beat of the FIRST extra effect — here the second Underdog trigger (no minion SoC on this board).
     const tw = triggers(r, 'runeTwilight');
     expect(tw).toHaveLength(1);
@@ -57,14 +57,14 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     // are now m0 (2) and m2 (9): m0 -> 4/16, m2 -> 18/18. The 5/8 body is doubled once, the 9/9 once.
     const r = sim([v(1, 4), v(5, 8), v(9, 9)], wall, 1, { runeTwilight: true, runeUnderdog: true });
     const [m0, m1, m2] = r.initial.player.map((m) => m.uid);
-    expect(runeBuffs(r, 'Rune of the Underdog')).toEqual([[m0, 1, 4], [m1, 5, 8], [m0, 2, 8], [m2, 9, 9]]);
+    expect(runeBuffs(r, 'Underdog')).toEqual([[m0, 1, 4], [m1, 5, 8], [m0, 2, 8], [m2, 9, 9]]);
   });
 
   it('Twilight multiplies PASSES, rune copies multiply WITHIN a pass (two Underdog copies + Twilight)', () => {
     const r = sim([v(1, 1), v(2, 2), v(100, 100)], wall, 1, { runeTwilight: true, runeUnderdog: true, flagCopies: { runeUnderdog: 2 } });
     const [m0, m1] = r.initial.player.map((m) => m.uid);
     expect(triggers(r, 'runeUnderdog')).toHaveLength(2);
-    expect(runeBuffs(r, 'Rune of the Underdog')).toEqual([
+    expect(runeBuffs(r, 'Underdog')).toEqual([
       [m0, 1, 1], [m1, 2, 2], [m0, 2, 2], [m1, 4, 4], // pass 1: two doublings -> 4/4, 8/8
       [m0, 4, 4], [m1, 8, 8], [m0, 8, 8], [m1, 16, 16], // pass 2: two more -> 16/16, 32/32
     ]);
@@ -215,7 +215,7 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     const body: Record<string, string> = { beast: 'trailforager', undead: 'footman', mech: 'beatboxer', dragon: 'mauron', demon: 'godfodder' };
     const r = sim(ALL_TRIBES.map((t) => v(2, 2, body[t]!)), wall, 11, { runeTwilight: true, runeStokedMenagerie: true });
     expect(triggers(r, 'runeStokedMenagerie')).toHaveLength(2);
-    const buffs = runeBuffs(r, 'Rune of the Stoked Menagerie');
+    const buffs = runeBuffs(r, 'Stoked Menagerie');
     expect(buffs).toHaveLength(6);
     // Each doubling reads the body as it stands: the first hit on a body is +2/+2, a second hit on the same body +4/+4.
     const seen = new Map<string, number>();
@@ -233,7 +233,7 @@ describe('Rune of Twilight repeats RUNE Start-of-Combat effects (owner ruling 20
     expect(w.events.filter((ev) => ev.type === 'shieldUp')).toHaveLength(1);
     const t = sim([v(4, 4)], wall, 1, { runeTwilight: true, runeTemperedTime: true });
     const t0 = t.initial.player[0]!.uid;
-    expect(runeBuffs(t, 'Rune of Tempered Time')).toEqual([[t0, 0, 2], [t0, 0, 2]]);
+    expect(runeBuffs(t, 'Tempered Time')).toEqual([[t0, 0, 2], [t0, 0, 2]]);
     const g = sim([v(2, 2), v(2, 2), v(2, 2)], wall, 1, { runeTwilight: true, runeVanguard: true });
     expect(triggers(g, 'runeVanguard')).toHaveLength(2);
     expect(g.events.filter((ev) => ev.type === 'shieldUp')).toHaveLength(3); // one Ward each, granted once

@@ -140,6 +140,22 @@ against *today's* code, so any content change silently breaks every old replay.
   `inspectTrail`, the `cursorTrail` (`[tMs, x, y]` viewport fractions, ≤20 Hz, capped at 6,000 per run) and a
   combat frame's stamped `odds` (`stampReplayOdds` after the deferred probe — absent at `faceOmen` time). The
   viewer backfills a missing Win % from the recorded rosters in idle time and marks it `~`.
+- **The spectator stream** (`ReplayV2.stream`, R-REPLAY-STREAM-01, 2026-10-22; version still 2): the replay records the
+  SAME cursor messages the live spectator sender broadcasts. One builder, `ui/versus/cursorSource.ts`, makes them;
+  `spectateTap.ts` (the live sender) and `replay/streamRecorder.ts` (the recorder) both subscribe, so they cannot drift.
+  Never add a second builder or a recorder-only field: change the message in `cursorSource.ts` and both get it. Storage is
+  `sim/replayStream.ts`: one segment per round, delta-coded integers packed as zigzag varints in a base64 string (a JSON
+  number array would cost several bytes per integer in jsonb), held card / aim only on change, overlay + Skip as events.
+  Recorded for ranked lobby and Practice shops only (never combat, sandbox, tutorial, gauntlet or versus), on the frames
+  clock (`replayClockAt`), in the per-round draft chunks (`chunk.stream`), shifted on a resume (`prependStream`).
+- **Stream playback** (R-REPLAY-PLAYBACK-01): a replay WITH a stream plays the hand through the watch screen's own
+  pipeline: `replay/replayStreamPlayer.ts` feeds the recorded messages into `spectate.ts`'s cursor feed (`ingestCursor`)
+  on the replay clock (`setCursorFeedClock(replayClockMs)`), a fixed lead ahead, and `SpectatorCursor` draws it (mounted
+  in `Game.tsx` while `replaySession.hasStream`). Drag frames land at their recorded tMs with NO ghost flight, through the
+  watch screen's drop (`presentHeldDrop`); overlays and Skip go through `useReplayStream` into Recruit. Every seek calls
+  `seekStream(t)` (clear the feed, rebuild from the last message at or before t). A replay WITHOUT a stream keeps the old
+  path (cursor trail sprite + drag ghost). A new spectator feature must be added to the shared feed, never to the replay
+  only, or the two drift again. Since PR 3 the uploaded replay leaves out `cursorTrail` when it has a stream.
 - Playback fires the live `actionSfx` per APPLIED shop frame (never on a seek) and lifts a ghost's source card
   through the live `dragStore.drag` slice flagged `ghost` — never a parallel "held" state.
 

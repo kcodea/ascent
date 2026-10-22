@@ -118,12 +118,12 @@ describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
 
   it("ships the six new runes at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Recollection', 2, false], // 3 → 2 (balance 9/23)
-      ['Rune of the First Round', 5, false], // 5 → 4 (balance 9/23) → 5 (owner 2026-09-27, Set 3 rune design pass)
-      ['Rune of the Motherlode', 4, true], // 5 → 4 (balance 9/23)
-      ['Rune of Adventuring', 5, true], // 6 → 5 (balance 9/23)
-      ['Rune of the Choir', 4, true],
-      ['Rune of the High King', 4, true],
+      ['Recollection', 2, false], // 3 → 2 (balance 9/23)
+      ['First Round', 5, false], // 5 → 4 (balance 9/23) → 5 (owner 2026-09-27, Set 3 rune design pass)
+      ['Motherlode', 4, true], // 5 → 4 (balance 9/23)
+      ['Adventuring', 5, true], // 6 → 5 (balance 9/23)
+      ['Choir', 4, true],
+      ['High King', 4, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -135,8 +135,8 @@ describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
 
   it('Rune of Mykel and Rune of the High King grant DIFFERENT Dwarf kings', () => {
     // The sheet lists both; the game had only one. Confusing them would silently make one rune a duplicate.
-    const mykel = byName('Rune of Mykel')!.reward as { cards?: string[] };
-    const high = byName('Rune of the High King')!.reward as { cards?: string[] };
+    const mykel = byName('Mykel')!.reward as { cards?: string[] };
+    const high = byName('High King')!.reward as { cards?: string[] };
     expect(mykel.cards).toEqual(['dw_brisbane']);
     expect(high.cards).toEqual(['dw_brill']);
     expect(CARD_INDEX['dw_brill']).toBeDefined();
@@ -144,7 +144,7 @@ describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
 
   it('the Motherlode RUNE is untribed where the QUEST is Kobold-scoped', () => {
     // One primitive, two scopes — the rune hits any friendly minion, the quest only Kobolds.
-    const rune = byName('Rune of the Motherlode')!.reward as { tribe?: string; count: number };
+    const rune = byName('Motherlode')!.reward as { tribe?: string; count: number };
     const quest = questById('q_motherlode').reward as { tribe?: string };
     expect(rune.tribe, 'the rune should not be tribe-filtered').toBeUndefined();
     expect(rune.count).toBe(2);
@@ -152,8 +152,8 @@ describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
   });
 
   it('reuses existing primitives rather than inventing new reward kinds', () => {
-    expect((byName('Rune of Recollection')!.reward as { effect?: string }).effect).toBe('copyFirstSpell');
-    expect((byName('Rune of the First Round')!.reward as { effect?: string }).effect).toBe('grantAles');
-    expect((byName('Rune of Adventuring')!.reward as { scope?: string }).scope).toBe('always');
+    expect((byName('Recollection')!.reward as { effect?: string }).effect).toBe('copyFirstSpell');
+    expect((byName('First Round')!.reward as { effect?: string }).effect).toBe('grantAles');
+    expect((byName('Adventuring')!.reward as { scope?: string }).scope).toBe('always');
   });
 });

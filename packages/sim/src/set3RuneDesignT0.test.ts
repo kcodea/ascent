@@ -30,7 +30,7 @@ describe('tranche 0: reprices, rename, wording (owner 2026-09-27)', () => {
     expect(RUNE_INDEX['rune_body_counting']!.text).toBe('When **6** friendly minions die, get a random **Undead** minion.');
   });
   it('the Grand Procession rune is renamed (id kept) and the War Drum says which Shout', () => {
-    expect(RUNE_INDEX['rune_grand_procession']!.name).toBe('Rune of the Second Showing');
+    expect(RUNE_INDEX['rune_grand_procession']!.name).toBe('Second Showing');
     expect(RUNE_INDEX['rune_war_drum']!.text).toBe('The first **Shout** you trigger each turn triggers **2** more times.');
   });
 });

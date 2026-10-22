@@ -129,7 +129,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     id: 'R-RALLY-01',
     title: 'A free Rally is a triggered Rally — the "when a Rally is triggered" watchers fire on it',
     statement:
-      'A Rally fired without a swing (Rune of Rallying at Start of Combat, Backbeat, Hunting Bell) is a Rally '
+      'A Rally fired without a swing (Rallying at Start of Combat, Backbeat, Hunting Bell) is a Rally '
       + 'TRIGGERED, so every watcher whose text says "when a Rally is triggered" / "whenever you trigger a Rally" '
       + '(Hawkus → your left-most Echo, Paragon, Rubies-on-Rally) fires on it exactly as on a swing\'s Rally. No '
       + 'attack happens and no on-attack bus event is emitted — the watchers are reached directly.',
@@ -309,8 +309,8 @@ export const TRIGGERS_RULES: GameRule[] = [
     id: 'R-RUBY-01',
     title: 'A bounced Ruby is the whole Ruby: its keyword rider lands on the hop destination',
     statement:
-      'A Ruby that a minion bounces onward (Resonance Idol, a Candle Conduit or Rune of the Conduit extra hop, '
-      + 'the Rune of Redirection second landing) resolves on its destination exactly as if it had been cast there: '
+      'A Ruby that a minion bounces onward (Resonance Idol, a Candle Conduit or Conduit extra hop, '
+      + 'the Redirection second landing) resolves on its destination exactly as if it had been cast there: '
       + 'the Ruby\'s current stats (base plus every Ruby improvement in force) AND its keyword rider (a Warding '
       + 'Ruby\'s Ward). The rider keeps its own landing gate on every hop: Ward is granted only to a Kobold, and '
       + 'never twice. A Gilded Idol\'s repeated hop stacks the stats and lands the keyword once. The hop is still '
@@ -326,7 +326,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms as of 2026-09-23. Before the fix the Warding Ruby\'s Ward was a trailing grant in the reducer\'s '
       + 'hand-play branch, applied to the direct target only AFTER fireOnRubyPlayed had already bounced the stats on: '
-      + 'a Resonance Idol hop, a Candle Conduit hop and the Rune of Redirection\'s right-most landing all carried '
+      + 'a Resonance Idol hop, a Candle Conduit hop and the Redirection\'s right-most landing all carried '
       + '+1/+1 and no Ward. The keyword now rides the landing primitive as part of the Ruby\'s payload, so every '
       + 'hop resolves the whole Ruby. No combat Ruby source casts a keyworded Ruby today (playRubyOn plays the plain '
       + 'Ruby), so the combat adapter\'s rider path is wired for parity and reachable only through a payload that '
@@ -462,7 +462,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     title: 'A repeating End-of-Turn effect ACCELERATES: every repeat keeps its own tick, the whole chain is capped',
     statement:
       'An End-of-Turn effect that repeats (a "Repeat for every ..." tick of Kringle, Striker, Mother Moss, Rope Wrangler '
-      + 'or Rune of Action, and any Chronos or rune repeat of an End-of-Turn trigger) still plays every repeat as its own '
+      + 'or Action, and any Chronos or rune repeat of an End-of-Turn trigger) still plays every repeat as its own '
       + 'tick and beat (R-REPEAT-01), but the chain speeds up: the first three ticks play near-normal (100%, 70% and 45% '
       + 'of the beat), the next shrink quickly to a floor of about one frame, and once the count outruns the cap several '
       + 'ticks share one visual slot. The whole chain for one source never takes longer than 2.5 seconds, whatever the '
@@ -532,10 +532,10 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'by a Gilded target); Dark consumes the Shop minion with the highest Health (ties: the leftmost; the '
       + 'Starform counts, as it does for every Shop consume) and adds its stats to the target as Rubies, or does '
       + 'nothing more with no Shop minion; Ripple casts the Ruby again on the same target, a real second cast that '
-      + 'counts for every Ruby and spell tally but never ripples a third time. A cast multiplier (Rune of '
+      + 'counts for every Ruby and spell tally but never ripples a third time. A cast multiplier ('
       + 'Resonance, Prismcaster, Yazzus, a Comet charge) repeats the whole cast, rider included: under Resonance a '
       + 'Ripple lands four times, a Golden pays 4 Gold, a Splintered bounces twice, a Dark eats twice. A HOP (a '
-      + 'Splintered bounce, a Resonance Idol or Candle Conduit hop, Rune of Redirection / Distillation) carries '
+      + 'Splintered bounce, a Resonance Idol or Candle Conduit hop, Redirection / Distillation) carries '
       + 'the stats and the Ward rider only, never the Gold, bounce, ripple or consume.',
     domain: 'triggers',
     status: 'approved',
@@ -579,13 +579,13 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Beefy, any End-of-Turn or Shop caster), the cast behaves exactly like the same spell cast from hand, once per '
       + 'repetition: it counts for every spell tally and quest, updates the first/last-spell memory the copy effects read, '
       + 'wakes every "when you cast a spell" card and rune (board and hand watchers alike), pays the per-cast spell runes '
-      + '(Kindling, Scales, Flagship, Summoning, Might) and the cast-specific runes (Rune of Lassoing\x27s +2/+2 on a Lasso, '
-      + 'Rune of Spellweaving, and for a spell cast ON a minion Lorekeeping and Spellhide). Each cast is counted exactly '
+      + '(Kindling, Scales, Flagship, Summoning, Might) and the cast-specific runes (Lassoing\x27s +2/+2 on a Lasso, '
+      + 'Spellweaving, and for a spell cast ON a minion Lorekeeping and Spellhide). Each cast is counted exactly '
       + 'once. A targeted spell lands on the caster\x27s chosen friend (Arnold: itself; the others: the highest-Attack other '
       + 'friend); an untargeted spell (Lasso, Staff of Guel) is cast on nobody. Cast multipliers never multiply a '
       + 'minion\x27s cast and a minion\x27s cast never spends one (R-MULT-06: they apply only to spells cast from hand). '
       + 'Because it IS a spell cast, an End-of-Turn Lasso or Staff of Guel can be the turn\x27s first or last spell, so '
-      + 'Rune of Recurrence, Mushy, Steward of Spells and Runesnout Archivist can remember one.',
+      + 'Recurrence, Mushy, Steward of Spells and Runesnout Archivist can remember one.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
@@ -596,10 +596,10 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['ropewrangler', 'dm_curator', 'dw_arnold', 'rune_lassoing', 'rune_spellweaving', 'dw3_goldilox'],
     currentBehaviour:
       'Conforms — FIXED 2026-09-24 (fix/minion-casts-full-path). Before, the three End-of-Turn cast factories called '
-      + '`applyCastEffects` and bumped `spellsCast` / `spellsThisTurn` by hand, so Rune of Lassoing never paid for a '
+      + '`applyCastEffects` and bumped `spellsCast` / `spellsThisTurn` by hand, so Lassoing never paid for a '
       + 'Rope Wrangler Lasso and no `spellCast` watcher or per-cast rune heard these casts (only Goldilox, via a narrow '
       + 'hook). The shop `castRepeat` path already counted through `noteSpellCast` but skipped Spellweaving. Combat '
-      + 'minion casts were audited and already funnel through `castInCombat` (ctx.castSpell + spellResolved). Rune of '
+      + 'minion casts were audited and already funnel through `castInCombat` (ctx.castSpell + spellResolved). '
       + 'Might\x27s own Might of Aeon cast deliberately stays a bare `applyCastEffects` behind its recursion guard.',
     enforcement: {
       kind: 'scenario',
@@ -659,7 +659,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     id: 'R-REALTIME-03',
     title: 'Every Shout triggered in combat resolves in real time, whatever it does',
     statement:
-      'A Shout triggered during combat (Dawnclaw / Ryme, a Rally re-fire, Parting Cry, an Ancient of Time, Rune of Shared '
+      'A Shout triggered during combat (Dawnclaw / Ryme, a Rally re-fire, Parting Cry, an Ancient of Time, Shared '
       + 'Scripture, the War Chorus, Ancestral Roar) resolves AT THE MOMENT it fires, whatever it does. Cards it gives reach '
       + 'your hand in the fight (a live toHand) and wake the hand-grant watchers then (Gangplank, Kegheart); a Discover '
       + 'resolves as a random pick of its offer, to hand, live (the combat Discover rule, owner 2026-08-08); hand buffs, '
@@ -690,7 +690,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Ancient of Death (Aegis) or Auctioneer x Ancient of Death, or the two-step death of Cage Breaker / a '
       + 'Deathfibrillator / a loan), its Rise return fires the Shop onRise dispatch exactly once, at that moment, '
       + 'with the risen body as the payload (the same payload as the combat `onRise`). Every Rise watcher hears it: Revenant, Rising '
-      + 'Tide (board and hand), Rune of the Endless March, and Lord of the Risen x Ancient of Bonds. A later settle never '
+      + 'Tide (board and hand), Endless March, and Lord of the Risen x Ancient of Bonds. A later settle never '
       + 'fires it again. A Rebirth return is not a Rise and stays silent.',
     domain: 'triggers',
     status: 'approved',
@@ -827,22 +827,22 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'an Echo, a Rally) still IS that ability, for every listener: every multiplier, charge, tally, watcher and rune '
       + 'that reads the trigger reads it, in every phase. FOR SHOUTS, every Shout trigger counts the same, however it '
       + 'was fired: a Shout played from hand; the Auctioneer\'s Pulse; every other Shop re-trigger (Echoing Roar, '
-      + 'Resonance, Ryme, Rune of the Last Word, Crucible Choir, Moira); and every Shout triggered in combat (Ryme / '
-      + 'Dawnclaw, Thunderous Sovereign, Chorus Drake, Parting Cry, Rune of Shared Scripture, Rune of Ancestral Roar, '
-      + 'Rune of the War Chorus, Ancient of Time). On each such trigger: '
-      + '(1) the STANDING extras add fires: Rune of the Choir, Hoardwake Ritual, Resonant Path, the legacy Orivax '
-      + 'Chorus run mode (+1 each), Rune of Blasting Voices (+2), Demand an Encore (+1 this turn), and Orivax on the board '
+      + 'Resonance, Ryme, Last Word, Crucible Choir, Moira); and every Shout triggered in combat (Ryme / '
+      + 'Dawnclaw, Thunderous Sovereign, Chorus Drake, Parting Cry, Shared Scripture, Ancestral Roar, '
+      + 'War Chorus, Ancient of Time). On each such trigger: '
+      + '(1) the STANDING extras add fires: Choir, Hoardwake Ritual, Resonant Path, the legacy Orivax '
+      + 'Chorus run mode (+1 each), Blasting Voices (+2), Demand an Encore (+1 this turn), and Orivax on the board '
       + '(+2 each copy, +4 golden; a board aura since 2026-10-07, R-AURA-ONBOARD-02); '
       + '(2) the ONE-PER-TURN CHARGES are spent by the first Shout TRIGGERED, not only the first played: Warm Embers / '
-      + 'Opening Act (+1; per phase, so each fight has its own, R-SHOUT-01) and Rune of the War Drum (+2; an unspent '
+      + 'Opening Act (+1; per phase, so each fight has its own, R-SHOUT-01) and War Drum (+2; an unspent '
       + 'Shop charge carries to the first combat Shout, owner 2026-08-26); '
       + '(3) Drakko\'s repeats apply, and all extras ADD (one fold, never multiplied); '
       + '(4) EVERY fire, extras included, is a Shout for every listener: the Shout objectives and tallies (quests, Bane\'s '
-      + 'Presence, Rune of Ancestral Roar\'s count, Merchant\'s Chorus, Hoardcalling), the "whenever you trigger a Shout" '
+      + 'Presence, Ancestral Roar\'s count, Merchant\'s Chorus, Hoardcalling), the "whenever you trigger a Shout" '
       + 'watchers (Karwind, Bane, Embermouth Whelp, Reconfigured Combinator, the Celestial and Spirit Shout runes, '
-      + 'the Ancients), and Twin Sun Oath / Rune of the Drake Skull, which now hear combat Shouts too (a combat buff '
+      + 'the Ancients), and Twin Sun Oath / Drake Skull, which now hear combat Shouts too (a combat buff '
       + 'for that fight). Each fire is its own counted beat. '
-      + 'SPECIFIC CASE: the Auctioneer with Rune of the Choir. Pulse on a minion fires its Shout twice (three times with '
+      + 'SPECIFIC CASE: the Auctioneer with Choir. Pulse on a minion fires its Shout twice (three times with '
       + 'Drakko; five with an unspent Warm Embers and War Drum, which the Pulse then spends), and the Choir\'s badge '
       + 'pulses. REASONING: the runes say "your Shouts" and "the first Shout you trigger", and the Pulse says "trigger a '
       + 'Shout"; Drakko already followed the trigger into every re-fire, so everything else skipping them was an '
@@ -873,9 +873,9 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'rune-fired combat Shouts heard nothing and drew only a narration line. Behaviour change to note: a triggered '
       + 'Shout now SPENDS the Warm Embers / War Drum charge, so a Pulse or an End-of-Turn re-trigger can use it before a '
       + 'Shout played later that turn.',
-    cardText: 'Rune of the Choir: "Your **Shouts** trigger an **additional time**. Get a **Shout** minion." Auctioneer, Pulse: "Trigger a friendly minion\'s **Shout**."',
+    cardText: 'Choir: "Your **Shouts** trigger an **additional time**. Get a **Shout** minion." Auctioneer, Pulse: "Trigger a friendly minion\'s **Shout**."',
     example:
-      'Auctioneer owns Rune of the Choir and Rune of the War Drum. Board: a Whelpling and a Hoard Cleric ("Shout: give your '
+      'Auctioneer owns Choir and War Drum. Board: a Whelpling and a Hoard Cleric ("Shout: give your '
       + 'other Dragons +3/+3"). The first Pulse of the turn gives the Whelpling +12/+12 (four fires: 1 + Choir + War Drum 2); '
       + 'a Cleric played afterwards fires twice. In combat, Ryme dying beside a Pennycat with the Choir summons two Strays, '
       + 'and both fires count toward Bane\'s Presence and pulse the Choir\'s badge.',
@@ -892,14 +892,14 @@ export const TRIGGERS_RULES: GameRule[] = [
     statement:
       'When a minion dies and then returns by Rise or Rebirth, that death is a REAL death for every effect that listens '
       + 'for a friendly death, in combat and in the Shop. It is ONE death: each listener hears it once, and the dying '
-      + 'body\'s own Echo fires once as before. That covers Rune of Beastial Swarm (the payout and its Avenge (2) '
-      + 'improvement) and every other death listener: Avenge counts, The Bone Throne, Assembly Line, Rune of Blood and '
-      + 'Coin, Rune of Backbeat, Rune of Moonhowl, Rune of Ancestral Roar, Rune of Ruby Shrapnel, Rune of Emberline, '
-      + 'Candlelight Toll, Rune of the Gem Golem and Parting Cry. A returning Beast is also one of the "summoned Beasts" '
+      + 'body\'s own Echo fires once as before. That covers Beastial Swarm (the payout and its Avenge (2) '
+      + 'improvement) and every other death listener: Avenge counts, The Bone Throne, Assembly Line, Blood and '
+      + 'Coin, Backbeat, Moonhowl, Ancestral Roar, Ruby Shrapnel, Emberline, '
+      + 'Candlelight Toll, Gem Golem and Parting Cry. A returning Beast is also one of the "summoned Beasts" '
       + 'Beastial Swarm buffs: a Rise return takes the swarm through the Beast pool every summon inherits, and a Rebirth '
       + 'return (which kept its body) takes the payouts that landed while it was dead, its own death\'s included. '
-      + 'Excluded by their own scope: graveyards (Mossmemory Colossus, Rune of the Final Gate) record only bodies that '
-      + 'stay dead, and the "your last minion died" checks (Pit Without End, Rune of Finality, Rune of the Crucible) '
+      + 'Excluded by their own scope: graveyards (Mossmemory Colossus, Final Gate) record only bodies that '
+      + 'stay dead, and the "your last minion died" checks (Pit Without End, Finality, Crucible) '
       + 'do not fire for a body that is about to return. The summon side of the same rule is R-SUMMON-RETURN-01.',
     domain: 'triggers',
     status: 'approved',
@@ -917,7 +917,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'on the Nth death paid nothing), and the rune-granted Echoes. The Shop half already heard a returning death; '
       + 'only its Rebirth return missed its own death\'s Beastial Swarm buff.',
     example:
-      'You own Rune of Beastial Swarm. A 1-Health Pennycat with Rise dies in combat beside another Pennycat: the other '
+      'You own Beastial Swarm. A 1-Health Pennycat with Rise dies in combat beside another Pennycat: the other '
       + 'gains +2/+2 at once, and the Pennycat returns as its printed body plus +2/+2. With Rebirth it returns with its '
       + 'whole body and then gains +2/+2. Two Rise deaths in one fight improve the rune to +4/+4.',
     contentIds: ['rune_beastial_swarm', 'q_the_bone_throne', 'q_assembly_line', 'rune_blood_and_coin', 'rune_backbeat', 'rune_moonhowl', 'rune_ancestral_roar', 'rune_ruby_shrapnel', 'rune_emberline', 'q_candlelight_toll', 'rune_gem_golem', 'sp_partingcry'],
@@ -931,12 +931,12 @@ export const TRIGGERS_RULES: GameRule[] = [
     id: 'R-RALLY-FORCED-01',
     title: 'A Rally fired without an attack is boosted by every Rally doubler, in the Shop and in combat',
     statement:
-      'A forced Rally, fired by something other than the rallier\'s own attack (Rune of Rallying, Backbeat, the Hunting '
-      + 'Bell, a "trigger a Rally" effect in combat; Rune of Lasting Cadence and every other Shop Rally), is boosted by '
+      'A forced Rally, fired by something other than the rallier\'s own attack (Rallying, Backbeat, the Hunting '
+      + 'Bell, a "trigger a Rally" effect in combat; Lasting Cadence and every other Shop Rally), is boosted by '
       + 'the Rally doublers exactly as a swing\'s Rally is. In combat: the card multipliers on the side\'s board (Uron, '
-      + 'Elderhorn for a Beast) and the additive doublers (Law of Teeth, War Council, Rallying Offensive, Rune of '
+      + 'Elderhorn for a Beast) and the additive doublers (Law of Teeth, War Council, Rallying Offensive, '
       + 'Adventuring, Spark Permit\'s first Rally of the fight). In the Shop: Uron, Elderhorn for a Beast, Law of Teeth, '
-      + 'War Council and Rune of Adventuring; Rallying Offensive ("next combat") and Spark Permit ("each combat") stay '
+      + 'War Council and Adventuring; Rallying Offensive ("next combat") and Spark Permit ("each combat") stay '
       + 'in combat, as their own text says. Each extra fire re-runs the rallier\'s own Rally effects and the '
       + '"whenever you trigger a Rally" watchers, is its own Rally line, and counts as a Rally for every tally. A welded '
       + 'Rally (Better Bot, Perfect Core) pays once, as it does on a swing.',
@@ -949,7 +949,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['b2_elderhorn', 'uron', 'rune_rallying', 'rune_lasting_cadence', 'rune_adventuring', 'rune_backbeat', 'rune_hunting_bell'],
     currentBehaviour:
       'Conforms as of 2026-10-07. Before, no Rally multiplier applied to a forced Rally in either phase: Uron, Law of Teeth, '
-      + 'Rune of Adventuring and the Elderhorn modes boosted only a Rally fired by an attack.',
+      + 'Adventuring and the Elderhorn modes boosted only a Rally fired by an attack.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
   {
@@ -1033,7 +1033,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       'Vaultkeeper: "When this gains Attack, give adjacent Dragons +3/+4." Every separate Attack buff on a Vaultkeeper on '
       + 'your board is one gain and fires one pulse, in the Shop and in combat alike: a gilded Karwind\x27s "+4/+4 twice" '
       + 'is two gains and two pulses in both phases (the Shop no longer folds an action\x27s gains into one). A pulse buffs '
-      + 'the adjacent Dragons, never the Vaultkeeper itself; with Rune of the Vaultkeeper it buffs every other friendly '
+      + 'the adjacent Dragons, never the Vaultkeeper itself; with Vaultkeeper it buffs every other friendly '
       + 'Dragon instead. LOOP GUARD: while any Vaultkeeper pulse is resolving, no Vaultkeeper reacts to a gain, so two '
       + 'adjacent Vaultkeepers each pay the other once per outside gain and then stop. A Vaultkeeper in hand never pulses.',
     domain: 'triggers',
@@ -1045,7 +1045,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts runVaultPulse + onGainAttackBuffAdjacentTribe; packages/core/src/effects/factories.ts onGainAttackBuffAdjacentTribe; packages/sim/src/recruit.ts addBuff -> vaultkeeperShopPulse' },
     ],
     contentIds: ['karwind'],
-    currentBehaviour: 'DORMANT since 2026-10-13: the owner reworked Vaultkeeper again (R-VAULT-02), so no card in the pool carries this effect and Rune of the Vaultkeeper no longer widens it. The factory (onGainAttackBuffAdjacentTribe), its per-gain-instance Shop dispatch through the addBuff chokepoint and its loop guard are unchanged engine code and conform; they are pinned through a probe def that is the 2026-10-10 card. The combat-side rune wiring (QuestCombatMods.runeVaultkeeper -> all) is still connected to the dormant factory and is a cleanup candidate.',
+    currentBehaviour: 'DORMANT since 2026-10-13: the owner reworked Vaultkeeper again (R-VAULT-02), so no card in the pool carries this effect and Vaultkeeper no longer widens it. The factory (onGainAttackBuffAdjacentTribe), its per-gain-instance Shop dispatch through the addBuff chokepoint and its loop guard are unchanged engine code and conform; they are pinned through a probe def that is the 2026-10-10 card. The combat-side rune wiring (QuestCombatMods.runeVaultkeeper -> all) is still connected to the dormant factory and is a cleanup candidate.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/dragonBatch1010.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
   {
@@ -1161,7 +1161,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     id: 'R-RUINOUS-01',
     title: 'Ruinous Lord: every landed friendly-Demon hit gives your living Demons +1/+1 for this combat only',
     statement:
-      'Ruinous Lord (granted only by Rune of the Ruinous) watches the same trigger as Impossible Todd (R-DEALT-01): it '
+      'Ruinous Lord (granted only by Ruinous) watches the same trigger as Impossible Todd (R-DEALT-01): it '
       + 'fires once for every instance of damage a FRIENDLY Demon lands in combat, its own swings included; a Ward-absorbed '
       + 'hit dealt nothing and does not count, and an enemy Demon never fires it. Each fire gives every living friendly '
       + 'Demon (the Lord itself included) +1/+1, gilded +2/+2. Fired in combat the gain lasts THIS COMBAT ONLY, except on '
@@ -1189,7 +1189,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'in the Shop, and each 4 counted raise the gain of EVERY Vaultkeeper by +3/+3 (+3/+3, then +6/+6, then +9/+9), so '
       + "a copy bought late arrives already improved. A body that is both types is one play, and a Vaultkeeper's own "
       + 'play counts (it never pays itself for its own arrival). A summoned token is not a play, and a Vaultkeeper in '
-      + 'hand never gains. Gilded doubles the gain. With Rune of the Vaultkeeper, each gain is also given to an adjacent '
+      + 'hand never gains. Gilded doubles the gain. With Vaultkeeper, each gain is also given to an adjacent '
       + 'Dragon. Every surface (Shop, Discover, hand, board, combat, a served opponent) prints the current gain and the '
       + 'N/4 counter from the run-wide count.',
     domain: 'triggers',
@@ -1203,7 +1203,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/runTally.ts + recruit.ts countTribeUnionPlay / tribePlayedGainSelfImproving; packages/sim/src/snapshot.ts cleanBoard (served tally); packages/content/src/cards/set2/dragons.ts d2_herzog; packages/ui/src/instView.ts + Recruit.tsx + Unit.tsx (runTallyFor)' },
     ],
     contentIds: ['d2_herzog', 'rune_herzog'],
-    currentBehaviour: 'Conforms as of 2026-10-20 (the run-wide tally `RunState.tribeUnionPlays`, keyed `dragon+dwarf`, bumped in `playCard` after the play watchers fire). Was per copy and every 3 from 2026-10-13. ORDER is a lead assumption, not an owner ruling: the gain is paid first and the play counted second, so the play that completes a set of 4 still pays the old value. A run saved before 2026-10-20 starts its count at 0 from then. The rune picks one adjacent Dragon, seeded when both neighbours are Dragons. Rune of Mastery does not speed the count. Shop only: nothing is played from hand in combat.',
+    currentBehaviour: 'Conforms as of 2026-10-20 (the run-wide tally `RunState.tribeUnionPlays`, keyed `dragon+dwarf`, bumped in `playCard` after the play watchers fire). Was per copy and every 3 from 2026-10-13. ORDER is a lead assumption, not an owner ruling: the gain is paid first and the play counted second, so the play that completes a set of 4 still pays the old value. A run saved before 2026-10-20 starts its count at 0 from then. The rune picks one adjacent Dragon, seeded when both neighbours are Dragons. Mastery does not speed the count. Shop only: nothing is played from hand in combat.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultkeeperRunTally1020.test.ts', 'packages/sim/src/vaultBrisbane1013.test.ts', 'packages/ui/src/vaultBrisbaneText.test.ts'], lastVerifiedAt: '2026-10-20' },
   },
   {
@@ -1225,7 +1225,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/core/src/effects/arena.ts improvingGrant + rallyRubyStatGain; packages/core/src/effects/factories.ts rubyStatGain; packages/sim/src/recruit.ts rubyStatGain + goldSpentImproveSelf; packages/content/src/cards/set2/kobolds.ts k_alchemist; packages/ui/src/cardText.ts improvingRubyGrantText' },
     ],
     contentIds: ['k_alchemist'],
-    currentBehaviour: 'Conforms as of 2026-10-20 (Echo leg removed, 30 -> 40 Gold, +2/+2 -> +1/+1 base and step; Shout, Echo and Rally at +2/+2 per 30 from 2026-10-13). The improvements ride the copy (summonBonus), so they go into combat with it and a re-fired Shout and every Rally read them. Rune of Mastery doubles each improvement earned, like every other improve. A Brisbane in hand earns nothing: the Gold meter runs on board bodies only.',
+    currentBehaviour: 'Conforms as of 2026-10-20 (Echo leg removed, 30 -> 40 Gold, +2/+2 -> +1/+1 base and step; Shout, Echo and Rally at +2/+2 per 30 from 2026-10-13). The improvements ride the copy (summonBonus), so they go into combat with it and a re-fired Shout and every Rally read them. Mastery doubles each improvement earned, like every other improve. A Brisbane in hand earns nothing: the Gold meter runs on board bodies only.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/vaultBrisbane1013.test.ts'], lastVerifiedAt: '2026-10-20' },
   },
   {
@@ -1256,10 +1256,10 @@ export const TRIGGERS_RULES: GameRule[] = [
     title: 'Amplification Agnus Amplifies every Equipment activation while it is on your board, spending nothing',
     statement:
       'Amplification Agnus: "All Equipment is Amplified." While Agnus is on your board, every Equipment you activate '
-      + 'from the slot triggers twice. It spends nothing: an Amplified stack banked by Rune of Amplification or the Grand '
+      + 'from the slot triggers twice. It spends nothing: an Amplified stack banked by Amplification or the Grand '
       + 'Workshop, and a pending Calibration Wrench charge, stay for a later activation. Amplified is twice at most, so '
       + 'two Agnus, a gilded Agnus, or Agnus plus a stack still trigger twice. Off the board (sold, or still in hand) it '
-      + 'does nothing. Rune of Dismantling and Counterrotation re-fires are not activations and are not Amplified.',
+      + 'does nothing. Dismantling and Counterrotation re-fires are not activations and are not Amplified.',
     domain: 'triggers',
     status: 'approved',
     evidence: [
@@ -1307,7 +1307,7 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms, FIXED 2026-10-14. The audit (simulate probe vs computeFrame over the replay order, every set, random '
       + 'boards, contexts and rune / quest / hero mods) found five defects: (1) a risen body kept the overkill debt of the '
-      + 'blow that killed it, so its first Health buffs never showed (every Rise minion); (2) Rune of Unity gave the Undead '
+      + 'blow that killed it, so its first Health buffs never showed (every Rise minion); (2) Unity gave the Undead '
       + 'Aura with no event; (3) the clash reorder slid a Health buff past a later hit on the same body, whose absolute '
       + 'remaining Health already held it, so the gain showed twice for the rest of the fight (Chosen Fiend, Ruinous Lord, '
       + 'Rad Rachel); (4) a grant on a body before it is placed (Solid Ground, an Avenge grant) was slid past its own '
@@ -1409,10 +1409,10 @@ export const TRIGGERS_RULES: GameRule[] = [
   },
   {
     id: 'R-DWARF-1021-05',
-    title: 'Set 3 Sell Dwarves 2026-10-21: Salezar Sails, Mark Eting, Valyou, Leeds',
+    title: 'Set 3 Sell Dwarves 2026-10-21: Sailsey, Mariet, Valyou, Leeds',
     statement:
-      'Salezar Sails (T2 3/1) "Sell: Give your Dwarves +2/+3": its OWN sale buffs every Dwarf left on the board (All-types '
-      + 'count; never itself, it has left). Mark Eting (T3 2/6) "When you Sell 4 minions, get a random Shop Spell": a '
+      'Sailsey (T2 3/1) "Sell: Give your Dwarves +2/+3": its OWN sale buffs every Dwarf left on the board (All-types '
+      + 'count; never itself, it has left). Mariet (T3 2/6) "When you Sell 4 minions, get a random Shop Spell": a '
       + 'per-instance meter of the minions you Sell while it is on the board, carried round to round; every 4 pays one '
       + 'random Shop Spell from the run\'s legal spell pool (set-pinned, tribe-gated, no tokens) at or below your Shop tier; '
       + 'Gilded pays TWO spells per payout (the Runic Archivist convention), not a halved counter. Valyou (T5 6/9) "When you '
@@ -1422,7 +1422,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'Dwarf on the board, Leeds and the played one included, gains base x (1 + floor(sales / 4)), the sales being those '
       + 'made while this Leeds was on the board, carried round to round. Each improve adds the base grant again (+2/+2, '
       + '+4/+4, +6/+6), the game\'s "Improves" convention (Aspect, Flowing Monk, Archmagus Guel). Gilded doubles the base and '
-      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every sold meter (Mark Eting, Valyou, Leeds) '
+      + 'every step. All four are Shop buffs and permanent (R-BUFF-PHASE-01). Every sold meter (Mariet, Valyou, Leeds) '
       + 'shows its countdown as the game\'s standard integer counter under the card (N/4, like Avenge and every every-N card), '
       + 'never as prose in the text (owner 2026-10-21): the printed sentence stays authored, and Leeds prints its CURRENT '
       + 'grant in place of +2/+2 once it has improved.',
@@ -1430,12 +1430,157 @@ export const TRIGGERS_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-21 (four new Set 3 Dwarves)', quote: 'Leeds: When you play a Dwarf, give your Dwarves +2/+2. Improves when you Sell 4 minions.' },
-      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (countdown prose on Mark Eting / Valyou / Leeds)', quote: 'i dont think we use text for this, just integers' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-21 (countdown prose on Mariet / Valyou / Leeds)', quote: 'i dont think we use text for this, just integers' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldBuffSelf (count/gold) / minionSoldTally / tribePlayedBuffTribeSellImproving / minionSoldGrantSpell; battlecryBuffTribe on onSell; packages/ui/src/cardText.ts sellImproveText (Leeds grant) + stepProgress minions-SOLD counter' },
     ],
     cardText: 'When you play a **Dwarf**, give your **Dwarves +2/+2**. Improves when you **Sell** **4 minions**.',
     contentIds: ['dw3_salezarsails', 'dw3_marketing', 'dw3_valyou', 'dw3_leeds'],
     currentBehaviour: 'Conforms (built 2026-10-21; the countdown prose of the first cut replaced by the integer counter the same day).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3SellDwarves1021.test.ts', 'packages/ui/src/sellDwarvesText.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-KOBOLD-1022-01',
+    title: 'Set 3 Kobold pool 2026-10-22: Kobe and Blazer out; Shardluck, Delver, Cavern Fiend back; Dealski gets a random Ruby; Prismatic Pick Discovers 2 Rubies',
+    statement:
+      'Kobe and Blazer are out of the Set 3 pool (still Set 2 cards; old Set 3 saves, snapshots and replays resolve them '
+      + 'by id). Shardluck and Delver (archived 2026-10-13) and Cavern Fiend (the old Gemgorge Fiend, archived from every '
+      + 'set 2026-10-10) are buyable Set 3 Kobolds again at their existing tier, stats and text; Set 2 does not regain '
+      + 'Cavern Fiend. Delver and Shardluck still name Veinstorm, which is granted or cast by id even though Set 3 does '
+      + 'not sell it. Dealski: "When you play a Choose One card, get a random Ruby" (one of all six types, R-RAND-02; '
+      + 'Gilded 2), on the shared chooseOnePlayed trigger. Prismatic Pick: "Choose One: Discover 2 Rubies or your next '
+      + 'Choose One card gains both effects": the Ruby branch is TWO Ruby Discovers (Gilded four, special types only, '
+      + 'R-RAND-RUBY-DISCOVER-01); the Both branch arms one shared Choose-Both charge (Gilded two), spent by the next '
+      + 'Choose One played and cleared at the turn boundary, and the Equipment slot prints how many charges are armed.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content changes for Set 3 Kobolds, 2026-10-22', quote: 'Dealski becomes: "When you play a Choose One card, get a random Ruby."' },
+      { kind: 'owner-handoff', ref: 'Owner content changes for Set 3 Kobolds, 2026-10-22', quote: 'Choose One: Discover 2 Rubies or your next Choose One card gains both effects.' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET2_KOBOLDS_IN_SET3; packages/content/src/cards/set3/kobolds.ts; packages/content/src/equipment.ts PRISMATIC_PICK; packages/sim/src/equipment.ts equipmentText' },
+    ],
+    cardText: 'When you play a **Choose One** card, get a random **Ruby**.',
+    contentIds: ['k_kobe', 'k_blazer', 'k3_veinchant', 'k3_facetbound', 'k_gemgorge', 'k3_dealski', 'k3_prismpick'],
+    currentBehaviour: 'Conforms (built 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldPool1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-02',
+    title: 'Set 3 Kobolds 2026-10-22: Boy Scout, Gramps, Zapdash, Frack Attack, Rosey',
+    statement:
+      'Boy Scout (T2 3/3) "Shout: Gain 2 free Refreshes": banks 2 free Refreshes in the run\'s free-refresh bank (spent '
+      + 'before Gold on a roll); Gilded 4; a combat Shout replay banks through the Gryphon carry-back. Gramps (T3 4/2) '
+      + '"Sell: Cast a Ruby on all of your minions" (the sheet\'s "Play" printed as "Cast", the 2026-08-30 one-verb ruling): '
+      + 'its own sale casts one Ruby on every minion left on the board, any tribe, never itself (it has left); Gilded casts 2 '
+      + 'on each, each its own landing. Zapdash (T3 4/4) "Pummel (10): Cast a Ruby on your Kobolds. (Twice per combat)": a '
+      + 'Pummel marker on the shared lifetime damage meter; each payout casts a Ruby on every living friendly Kobold, itself, '
+      + 'dual tribes and All-types included; at most 2 payouts per combat, re-armed by a Rise / Rebirth return '
+      + '(R-RETURN-RESET-01); Gilded casts 2 Rubies per Kobold per payout (owner). Frack Attack (T4 6/5) "Start of Combat: '
+      + 'Cast 3 Rubies on this. Repeat after 3 friendly attacks": 3 Rubies on itself at Start of Combat, then 3 more on every '
+      + '3rd friendly attack this combat (repeating); the meter is per combat, counts only while Frack lives, and starts over on a '
+      + 'Rise / Rebirth return (resetPerCombatLimits); Gilded 6. Combat Rubies from Zapdash and Frack Attack are combat-only '
+      + '(R-BUFF-PHASE-01). Rosey (T6 2/2) "When you cast a Ruby, this gains +2/+1 permanently. Improves every 3 Refreshes": '
+      + 'per Ruby cast by you, from any source, on any minion (Rosey and a Shop minion included), in the Shop and in combat; a '
+      + 'bounce hop is not a cast and pays nothing; each step adds the base again (+2/+1, +4/+2, ...) every 3 Refreshes the '
+      + 'player presses while it is on the board (Indy\'s meter); Gilded doubles base and steps. Live text: Rosey prints its '
+      + 'current grant in place; every countdown is the integer counter under the card (Rosey N/3, Zapdash the Pummel '
+      + 'badge, Frack Attack N/3), never prose.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (five new Set 3 Kobolds)', quote: 'Frack Attack: Start of Combat: Cast 3 Rubies on this. Repeat after 3 friendly attacks.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/kobolds.ts; packages/core/src/combat/simulate.ts noteDamageDealt (dealtDamageCastRubiesTribe); packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf / battlecryGrantFreeRolls / playRubyOn (Rosey); packages/core/src/combat/minion.ts resetPerCombatLimits; packages/sim/src/recruit.ts roseyHearsRubies / shopRefreshTallySelf; packages/core/src/effects/arena.ts rubyCastGainOf' },
+    ],
+    cardText: '**Pummel (10):** Cast a **Ruby** on your **Kobolds**. (Twice per combat)',
+    contentIds: ['k3_boyscout', 'k3_gramps', 'k3_zapdash', 'k3_frackattack', 'k3_rosey'],
+    currentBehaviour: 'Conforms (built 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts', 'packages/ui/src/set3Kobolds1022Text.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-03',
+    title: '"A Ruby" without "random" is the plain Ruby (Gramps, Zapdash, Frack Attack)',
+    statement:
+      'A card that casts "a Ruby" / "N Rubies" without the word "random" casts the PLAIN Ruby (+1/+1 plus the run\'s Ruby '
+      + 'improvements, no Kobold rider), never a random special type. Gramps, Zapdash and Frack Attack all cast plain Rubies. '
+      + 'A Ruby DISCOVER is the different case: it offers special types only, never the plain one.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner confirmed 2026-10-22 (via the coordinator)', quote: '"A Ruby" without "random" means the plain Ruby (Gramps, Zapdash, Frack Attack).' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (plain Ruby); packages/core/src/effects/arena.ts battlecryPlayRubiesAll / scPlayRubiesSelfAndAdjacentTribe' },
+    ],
+    contentIds: ['k3_gramps', 'k3_zapdash', 'k3_frackattack'],
+    currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-04',
+    title: 'Rosey\'s "permanently" carries combat gains back to the Shop',
+    statement:
+      'Rosey\'s per-Ruby gain is PERMANENT in every phase: a gain earned in combat carries back to the Shop board at settle, '
+      + 'the way an Engraved minion keeps its combat gains (the printed "permanently" overrides the combat-only default of '
+      + 'R-BUFF-PHASE-01).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner confirmed 2026-10-22 (via the coordinator)', quote: 'Rosey\'s "permanently" carries combat gains back to the Shop, like Engraved.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (Rosey: combatArena.buffPermanent, permaGain)' },
+    ],
+    contentIds: ['k3_rosey'],
+    currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-05',
+    title: 'Frack Attack counts every friendly attack, each Flurry swing included',
+    statement:
+      'Frack Attack\'s "Repeat after 3 friendly attacks" meter counts EVERY attack a friendly minion makes, Frack itself '
+      + 'included, and a Flurry minion\'s swings count one by one.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner confirmed 2026-10-22 (via the coordinator)', quote: 'Frack Attack\'s 3-attack counter counts every friendly attack, including each Flurry swing.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf (the onAttack bus fires per swing)' },
+    ],
+    contentIds: ['k3_frackattack'],
+    currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-06',
+    title: 'Counters under a card are plain integers N/M, never words (Rosey\'s Refresh meter first)',
+    statement:
+      'Every step counter under a card reads as the plain integer N/M and counts UP (1/3, 2/3, 3/3 when it pays, then 1/3), '
+      + 'like Avenge. No counter prints a word. Rosey\'s "Improves every 3 Refreshes" meter (shared with Hellrider and Indy) '
+      + 'read "1 Refresh" and now reads N/3; the End-of-Turn "every N turns" cadences read "2 Turns" and now read N/M. The '
+      + 'rune meters dropped theirs too: Rune of Unity "3/5 types" is 3/5, and the turn cadences (Rune of the Deep, Happy '
+      + 'Birthday, Merry Christmas, the cadenced grants) "1/2 turns" are 1/2. Value readouts that are not a progress meter '
+      + '(a rune\'s "+3 Health", "N left", a hero power\'s "2t") are out of scope.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22 (Rosey screenshot, "1 Refresh")', quote: 'change rosey to our typical x/3 setup. we dont want to show \'refreshes\' etc in our counter text' },
+      { kind: 'code', ref: 'packages/ui/src/cardText.ts stepProgress (the refresh + cadence branches); packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['k3_rosey', 'n3_indy'],
+    currentBehaviour: 'Conforms (fixed 2026-10-22). Rosey, Hellrider and Indy printed "N Refreshes" and the turn cadences "N Turns".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stepProgress.test.ts', 'packages/ui/src/set3Kobolds1022Text.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-07',
+    title: 'Frack Attack\'s N/3 counter ticks live in combat on every friendly swing',
+    statement:
+      'In combat, Frack Attack\'s counter under the card follows the sim\'s attackSeen meter: it climbs one per friendly '
+      + 'attack (each Flurry swing included, never an enemy swing) while Frack lives, lands on 3/3 on the swing whose Ruby '
+      + 'repeat follows (that repeat plays on its own beat, the ownBeat policy), and starts over at 0/3 on a Rise / Rebirth '
+      + 'return. The combat replay mirrors the rule from the attack events, so the card never sits on a stale 0/3.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22', quote: 'frack attack\'s counter isnt working in combat, please fix that' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts computeFrame (the attack branch + countsFriendlyAttacks; reset in the reborn branch); packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf' },
+    ],
+    contentIds: ['k3_frackattack'],
+    currentBehaviour: 'Conforms (fixed 2026-10-22). The replay only re-derived Crypt Drake\'s attackSeen, so Frack\'s combat counter never moved; the repeats themselves fired correctly.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/frackCombatCounter.test.ts', 'packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
 ];

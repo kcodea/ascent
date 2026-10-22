@@ -28,7 +28,7 @@ import {
   equipmentChargesOf, equipmentCostOf, expireEquipmentTurn, rebuildEquipment, spendEquipmentCharge,
   selectEquipment, selectedEquipment, amplifyAllHeld, amplifyUnactivated, consumeAmplified, EQUIPMENT_AMPLIFIED_COUNTER, equipmentAmplifiedOf,
 } from './equipment';
-import { applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget } from './recruit';
+import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpellCast, applyCastEffects, makeContext, discoverSpecFor, heroPowerCostOf, commissionOffer, aegisGrantOf, allInPayoutOf, threeDistinctTypes, exhibitionGrantOf, stampSableBond, stampSharedSpoils, stampXeroxBond, stampVaultkeeper, battlecryTargetAllowed, exactBoardCopy, heroOfferPrice, addBuff, addOfferBuff, applyBattlecryTarget, applyCardsBought, applyCardsPlayed, applyChooseOne, applyChooseOneTarget, chooseBothActive, chooseOneNeedsChoice, applyEndOfTurn, applyStartOfTurn, applyOnBuy, applyGoldSpent, advanceRuneThresholds, applySecondLife, effectiveTargetTribe, dominantBoardTribe, uncontrolledTribes, gainGold, applyRunShopBuff, applyShoutsForEndlessVerse, applyShoutsForShopBuff, auraFxTargets, boardManaBonus, buffImpsRunWide, buffUndeadAttackEverywhere, buffCardTypeRunWide, buffFodderRunWide, cardBuff, captureBuffFx, conjuredStats, castSpell, castSpellOnOffer, conjureToHand, consumeTavernFodder, fireGravetwinEchoes, fireOnGainAttack, fireOnRubyCast, fireOnRubyPlayed, roseyHearsRubies, applyRubyRiderAction, mintRandomRubies, recordRubyRiderFx, fireOnMinionSold, fireOnSell, fireOnGainCard, fireSummonBuffs, fireDemonPlayRunes, foldOfferBuffs, creditShopBuffSource, gildMinion, grantMinionToHandOrBoard, grantTopTypeMinion, hasBattlecry, isTribe, mintRubies, modalOpen, openDiscover, playCard, queueDiscover, replayBattlecry, replayEconomyBattlecry, applyShopSpellHalf, replayEndOfTurn, restoreHeldOffer, replayRecurringEndOfTurn, withEotDiscoverGrantBeat, sellValueOf, sellValueWithBonus, rubyCastCount, giftCastCount, rubyStatBonus, yazzusExtraCasts, consumeGrimoireCharge, countRubyAsShopSpell, fireSpellCastWatchersForRuby, spellAttackBonus, spellCasts, spellCostReduction, spellHealthBonus, stampImproveReps, swapWithTavern, applySpellBought, applyShopRefreshed, resolveRefreshMultipliers, taughtAimSpell, triggerBorrowedEcho, landBorrowed, settlePendingDeath, stampEquipFx, equipmentFxMark, buffedFxTargets, fireEquipmentTriggers, fireEquipmentActivated, buyHealthAura, undeadBuyBonus, weldMagnetic, defIsTribe, handCardLocked, fireStatGainReactors, fireEquipmentFree, applyRuneGrafts, noteSpellForCountRunes, settleMinionSale, distillationEdges, fireRunicHoard, applyLorekeeping, runeExtraCasts, castWithRuneRepeats, withCastActor, withHandCast, fireSoldChoice, noteGilded, destroyMinionInShop, refireTarget } from './recruit';
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
@@ -40,7 +40,8 @@ import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starfor
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
 import { withWhisperMult } from './recruit';
-import { HUM_PER_TURN, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
+import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
+import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 
 /** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
@@ -128,7 +129,7 @@ function spendGold(s: RunState, amount: number): void {
         const picks = [...pool];
         for (let i = 0; i < count && picks.length > 0; i++) {
           const pick = picks.splice(rng.int(picks.length), 1)[0]!;
-          addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
+          addBuff(pick, 'Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
         }
       }
     });
@@ -1926,6 +1927,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (dop.spell) {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def, card);
           withHandCast(def.id, () => { for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
+          noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
           if (!def.singleCast) s.nextSpellExtraCasts = undefined;
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
@@ -1958,6 +1960,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // why Sprout didn't trigger Runebloom Matriarch or Groveweaver (owner report 2026-07-27). Once per
         // cast, so a multiplied Discover counts each time, exactly like a multiplied ordinary spell.
         withHandCast(def.id, () => { for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
+        noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
         if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
@@ -2025,6 +2028,9 @@ function reduceCore(state: RunState, action: Action): RunState {
           }
         } else if (offer) {
           for (let n = 0; n < landings; n++) addOfferBuff(offer, 'Ruby', card.attack, card.health);
+          // ROSEY (owner 2026-10-22): a Ruby cast on a Shop minion is still a Ruby YOU cast (a board landing hears it in
+          // `fireOnRubyPlayed`; an offer landing has no such call, so it is counted here, once per resolved cast).
+          roseyHearsRubies(s, landings);
           // Golden Ruby on a Kobold OFFER still pays (its target is `any`): the Gold is the rider, not the body's.
           if (riderKobold && def.rubyRider === 'gold') for (let n = 0; n < casts; n++) { gainGold(s, 2); recordRubyRiderFx(s, offer.uid, 'gold'); }
           // Rune of Distillation says "Spells", not "Shop Spells" (owner 2026-08-04) — a RUBY cast on a Shop
@@ -2149,16 +2155,28 @@ function reduceCore(state: RunState, action: Action): RunState {
           // Ripple (Falx, 2026-10-14) only fires on a minion with a Shout: any other target is refused, kept in hand (the
           // Resonance precedent above, and the aim UI's `whisperTargetLegal`).
           if (whisperTarget && !whisperTargetLegal(def, whisperTarget)) return state;
-          const whisperCasts = giftCastCount(s, def, !!whisperTarget);
+          // RUNE OF THE OPENED VAULT (Set 3 Dragon Epic, owner 2026-10-21): a Jar of Secrets activation armed "your next
+          // Whisper cast from hand casts twice": this cast spends it and resolves once more (once per copy held) on the
+          // same target, on top of any Yazzus repeat. Spent here, after every refusal above, so a fizzle keeps it.
+          let vaultExtra = 0;
+          if (s.openedVaultArmed && s.questFlags?.runeOpenedVault) {
+            s.openedVaultArmed = undefined;
+            vaultExtra = runeStacksOf(s, 'rune_opened_vault');
+            procRuneId(s, 'rune_opened_vault');
+          }
+          const whisperCasts = giftCastCount(s, def, !!whisperTarget) + vaultExtra;
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withWhisperMult(card.whisperMult ?? 1, () => {
             for (let n = 0; n < whisperCasts; n++) {
               if (whisperTarget && !s.board.includes(whisperTarget)) break;
-              castSpell(s, def, whisperTarget);
+              // Every cast here is a cast FROM HAND: Lasting Words and Twin Tongues hook it (sim/whisper.ts).
+              castWhisperFromHand(s, def, whisperTarget);
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
           if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
+          clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
+          noteHandCastPlay(s, def); // Rune of the Secret Exchange: one Whisper cast from hand (a Yazzus repeat is not another)
           checkTriples(s);
           return s;
         }
@@ -2264,6 +2282,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
+        noteHandCastPlay(s, def); // Rune of the Wyrm's Hoard: one Shop spell cast from hand (multi-casts are one play)
         // Rune of Contraband: the FIRST Dwarven Ale cast each turn smuggles back a Ruby.
         if (s.runeContraband && !s.contrabandAleUsed && ALE_IDS.includes(card.cardId)) {
           procRune(s, 'runeContraband');
@@ -2593,6 +2612,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           withHandCast(spellDef.id, () => castSpell(s, spellDef, second)); // factory averages `second` with `pt.spellFirstUid` BEFORE we clear pt; a cast from hand
           s.hand.splice(hi, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), pt.cardId]; // counts as a card played (Rune of Action)
+          noteHandCastPlay(s, spellDef); // the from-hand meters (Wyrm's Hoard)
         }
         s.pendingTarget = undefined;
         checkTriples(s);
@@ -2942,6 +2962,13 @@ function reduceCore(state: RunState, action: Action): RunState {
       // `equipmentActivated` watchers (Rig, set 3 Neutrals 2026-09-18): the player USED an Equipment — once per
       // activation, after its own triggers, before any Counterrotation re-fire (which is not the player pressing).
       fireEquipmentActivated(s, def.id);
+      // RUNE OF THE OPENED VAULT (Set 3 Dragon Epic, owner 2026-10-21): activating Jar of Secrets arms the next Whisper
+      // cast from hand to cast twice. One charge at most ("your next Whisper"): a second activation before it is spent
+      // changes nothing. Only a real activation arms it (a free fire, such as Rune of Dismantling's, is not one).
+      if (def.id === 'jar_of_secrets' && s.questFlags?.runeOpenedVault && !s.openedVaultArmed) {
+        s.openedVaultArmed = true;
+        procRuneId(s, 'rune_opened_vault');
+      }
       // RUNE OF COUNTERROTATION (Set 3 batch 2): three DIFFERENT Equipment activated this turn → every one of them
       // triggers again (targeted → a random friendly minion, a Choose One → a random branch), then the set resets so
       // the next three can pay again. The Star Destroyer never joins the set (owner note 2026-09-16).
@@ -4053,6 +4080,7 @@ function resolveChooseOneSpell(
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
   s.hand.splice(hi, 1);
   s.playedThisTurn = [...(s.playedThisTurn ?? []), def.id]; // counts as a card played (Rune of Action)
+  noteHandCastPlay(s, def); // the from-hand meters (Wyrm's Hoard)
   // Ruby Roach — AFTER the branch has been cast (owner 2026-08-31), so anything the spell put on the board
   // is standing to receive the Roach's Ruby. The minion half fires at its own resolution site.
   applyChooseOnePlayed(s, def);
@@ -4449,7 +4477,7 @@ function endRecruitTurn(s: RunState): void {
     else {
       const handle = collector.beginTrigger({
         phase: 'endOfTurn',
-        source: { kind: 'rune', id: 'rune_amplification', label: 'Rune of Amplification', side: 'player' },
+        source: { kind: 'rune', id: 'rune_amplification', label: 'Amplification', side: 'player' },
         trigger: 'endOfTurn',
         ...beatIdentity('rune:rune_amplification:endOfTurn'),
       });
@@ -5157,7 +5185,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // hand as well as board — a body you were about to play earned it too.
   if (result.playerBoardBuffGain) {
     const g = result.playerBoardBuffGain;
-    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Rune of Overflow', g.attack, g.health);
+    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Overflow', g.attack, g.health);
   }
   if (result.playerImpBuffGain) {
     // REPLACED, not mutated — same reason as `buffImpsRunWide`: the UI's live-text memos key on `impBuff` by
@@ -5346,7 +5374,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     if (rose > 0 && hasStarform(s)) {
       procRuneId(s, 'rune_grave_orbit');
       const go = runeStacksOf(s, 'rune_grave_orbit');
-      buffStarform(s, s.runeGraveOrbit.attack * rose * go, s.runeGraveOrbit.health * rose * go, 'Rune of the Grave Orbit');
+      buffStarform(s, s.runeGraveOrbit.attack * rose * go, s.runeGraveOrbit.health * rose * go, 'Grave Orbit');
     }
   }
   // RUNE OF THE LAST TOOL: the graft's combat Echo logged a `questTrigger` carry-back per Equip minion that died
@@ -5387,6 +5415,14 @@ function settleCombat(s: RunState, result: CombatResult): void {
   }
   if (s.questFlags?.runeBodyCounting) {
     s.runeBodyCountTick = ((s.runeBodyCountTick ?? 0) + (result.playerDeaths ?? 0)) % BODY_COUNTING_DEATHS;
+  }
+  // SET 3 DRAGON RUNES (Basic): what the fight grew comes home. Rune of Borrowed Flame's improve is permanent; Rune of Spell Tempering's
+  // meter advances by the fight's Whisper casts (its payouts already landed live, through the spell-power carry).
+  if (s.questFlags?.runeBorrowedFlame && result.playerShoutCarry?.borrowedFlameGain) {
+    s.runeBorrowedFlame = borrowedFlameValue(s) + result.playerShoutCarry.borrowedFlameGain;
+  }
+  if (s.questFlags?.runeSpellTempering && result.playerShoutCarry?.whispersCast) {
+    s.runeSpellTemperingTick = ((s.runeSpellTemperingTick ?? 0) + result.playerShoutCarry.whispersCast) % SPELL_TEMPERING_PER;
   }
   if (s.questFlags?.runeSlaying && result.playerQuestTally?.slaughter) {
     s.runeSlayingKills = (s.runeSlayingKills ?? 0) + result.playerQuestTally.slaughter;
@@ -5601,6 +5637,7 @@ function advanceCombat(s: RunState): void {
     if (c.namedSpreadUsedThisTurn) c.namedSpreadUsedThisTurn = false; // Crash Course: "the first Star Crash on this each turn"
     if (c.whisperCopiedThisTurn) c.whisperCopiedThisTurn = false; // Tamby: "(Once per turn)" re-arms
     if (c.whisperKeptThisTurn && HUM_PER_TURN) c.whisperKeptThisTurn = 0; // Hum: "the first Whisper ... each turn" re-arms
+    if (c.lastingWordsUsedThisTurn) c.lastingWordsUsedThisTurn = undefined; // Rune of Lasting Words: "each Dragon each turn" re-arms
     // The per-instance "spells since placed" counter (Spellkeeper Drake, Ashscribe Whelp) is per-turn too
     // — clear both halves.
     if (c.boardSpellCount) c.boardSpellCount = 0;
@@ -5620,6 +5657,9 @@ function advanceCombat(s: RunState): void {
   s.openGraveUsedThisTurn = undefined;   // Rune of the Open Grave: the first Shop destroy of the new turn gains Rise
   s.encoreUsedThisTurn = undefined;      // Rune of the Encore: the first Reveler sale of the new turn pays the hand
   s.gemStarThisTurn = undefined;         // Rune of the Gem Star: the first 4 Rubies of the new turn feed the Starform
+  s.clearVoicesIds = undefined;          // Rune of Clear Voices: the turn's distinct Whispers count afresh
+  s.clearVoicesPaid = undefined;         // …and its "Once per turn" re-arms
+  s.openTreasuryUsed = undefined;        // Rune of the Open Treasury: the first spell bought of the new turn is copied
   // Batch-4 per-turn gates (Shared Pour / Aftermarket read "the first … each turn").
   s.sharedPourUsedThisTurn = undefined;
   s.aftermarketUsedThisTurn = undefined;
@@ -5665,6 +5705,7 @@ function advanceCombat(s: RunState): void {
   s.rememberedThisTurn = false; // Runesnout Archivist may record one entry again next turn
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
+  s.bequeathedUsedThisTurn = false;  // Rune of Bequeathed Secrets: the first Dragon sold each turn
   // Set 3 batch 2 (2026-09-16) — the tranche-A per-turn gates. `nextCardFree` is deliberately NOT cleared: an
   // armed free card carries until it is spent (an earned reward is never dropped).
   s.revelersSoldThisTurn = 0;          // Festival Wages / the Festival Circuit: "after you sell 3 Revelers" counts afresh
@@ -5991,6 +6032,8 @@ function advanceCombat(s: RunState): void {
   // `payTribeDrip` is THE payout — shared verbatim with the immediate one at purchase, so the tier cap, the
   // tribe filter and the count can never drift between "the turn it was taken" and every turn after.
   for (const drip of s.runeTribeDrip ?? []) recordSotBeat(s, runeSource(`rune_${drip.count >= 2 ? 'epic' : 'basic'}_${drip.tribe}`), () => payTribeDrip(s, drip));
+  // Rune of the Runic Primer (Set 3 Dragon runes): "Repeat each turn", the tribe-drip shape (2 Runebinds per copy held).
+  if (s.questFlags?.runeRunicPrimer) recordSotBeat(s, runeSource('rune_runic_primer'), () => runicPrimerTurnStart(s));
   // Rune of the Pendant: gild a random friendly minion at or below the armed tier. Seeded off the run cursor
   // like every other random pick, and a no-op when nothing on the board qualifies (or it is already gilded).
   if (s.runePendant) recordSotBeat(s, runeSource('rune_pendant'), () => {
@@ -6068,7 +6111,7 @@ function advanceCombat(s: RunState): void {
   ancientStartOfTurn(s);
   // RUNE OF FIRST LIGHT (Set 3 batch 2): Start of Turn — no Starform out → create one (it arrives with the rune's
   // +8/+8 like every creation, and eats the right-most minion when the row is full, as any create does).
-  if (s.runeFirstLight && !hasStarform(s)) recordSotBeat(s, runeSource('rune_first_light'), () => createStarform(s, { cardId: 'rune_first_light', name: 'Rune of First Light' }), { always: true });
+  if (s.runeFirstLight && !hasStarform(s)) recordSotBeat(s, runeSource('rune_first_light'), () => createStarform(s, { cardId: 'rune_first_light', name: 'First Light' }), { always: true });
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
   if (s.runeStrangeCaravan) recordSotBeat(s, runeKindSource('runeStrangeCaravan'), () => {
     procRune(s, 'runeStrangeCaravan');
@@ -7040,6 +7083,9 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       else if (r.flag === 'runeReturningPack') s.questFlags.runeReturningPack = r.amount ?? 5;   // amount = Beasts per payout (5, balance 9/23)
       else if (r.flag === 'runeGraveRefreshment') s.questFlags.runeGraveRefreshment = r.amount ?? 2; // amount = Echoes per free refresh
       else s.questFlags[r.flag] = true;
+      // Rune of the Runic Primer (Set 3 Dragon runes): "Get 2 Runebinds" pays NOW for the copy just acquired; every Start of Turn
+      // after pays for every copy held (`runicPrimerTurnStart`).
+      if (r.flag === 'runeRunicPrimer') payRunicPrimer(s, 1);
       // Every flag records how many copies are held; the boolean ones are the reason it exists (a second
       // `true` says nothing), and the amount ones carry it harmlessly for the badge/live-text layer.
       s.flagCopies[r.flag] = (s.flagCopies[r.flag] ?? 0) + 1;
@@ -7125,7 +7171,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).
@@ -7154,7 +7200,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Rune of the Wheel: the base +A/+H lands ONCE, now — it's a standing aura, so it rides the permanent
       // `tavernBuyBonus` channel (current AND future offers inherit it). The meter then improves it by
       // +step/+step every `per`-th refresh — see `applyShopRefreshQuestBuff`.
-      applyRunShopBuff(s, r.attack, r.health, 'Rune of the Wheel');
+      applyRunShopBuff(s, r.attack, r.health, 'Wheel');
       s.shopAuraGrow = { step: r.step, per: r.per, tick: 0, grown: 0 };
       break;
     case 'aleExtraCasts':
@@ -8162,6 +8208,21 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeHeavyHand: f?.runeHeavyHand,                 // friendly damage counts double toward Pummel
     runeUnity: f?.runeUnity,                         // all 5 types controlled → every minion counts as every type
     runeSunpony: f?.runeSunpony,                     // Rune of the Sunpony: a Beast attack spreads +1 Attack + Sunmane's Rally
+    // ── Set 3 Dragon runes, Basic (owner 2026-10-21) ──
+    runeSpellFedScales: f?.runeSpellFedScales,       // a Shop Spell cast: a random Dragon +6/+7
+    runeBorrowedFlame: f?.runeBorrowedFlame ? borrowedFlameValue(s) : undefined, // the per-copy value right now
+    runeSpellTempering: f?.runeSpellTempering,       // every 4th Whisper cast: spell power +1/+1
+    runeSpellTemperingTick: f?.runeSpellTempering ? (s.runeSpellTemperingTick ?? 0) : undefined, // the carried meter
+    runeDeepBreaths: f?.runeDeepBreaths,             // the first 2 Dragon attacks cast Growth
+    runeDefiantWings: f?.runeDefiantWings,           // SoC: 2 Dragons +3/+6 and Ward
+    runeFinalUtterance: f?.runeFinalUtterance,       // Avenge (4): a Whisper and a Shop Spell
+    runeEmberInheritance: f?.runeEmberInheritance,   // the first Echo Dragon death gives its Attack left-most
+    // ── Set 3 Dragon runes, Epic A (owner 2026-10-21) ──
+    runeWarCouncil: f?.runeWarCouncil,               // Start of Combat: Runebind on 3 random Dragons
+    runeGrowingInferno: f?.runeGrowingInferno,       // a Dragon attack casts Growth
+    runeRuneboundBrood: f?.runeRuneboundBrood,       // a summoned Drake Pup casts Runebind on itself
+    runeUnbrokenScales: f?.runeUnbrokenScales,       // the first 2 Dragon Ward losses each combat: +10/+10 and Ward
+    runeRunicTransposition: f?.runeRunicTransposition, // a Whisper's Health on a Dragon also gives that much Attack
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

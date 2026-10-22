@@ -395,13 +395,15 @@ function pump(): void {
   land(item, prevRun);
 }
 
-function land(item: Pending, prevRun: RunState): void {
-  // The card in the hand that let go of it (the flight's ghost, or the live drag's): where its plate dissolves from.
-  const plate = document.querySelector<HTMLElement>('.replay-dragghost .ghostcardwrap .card')?.getBoundingClientRect() ?? null;
-  // THE LIVE DROP (R-SPECTATE-SMOOTH-01): the card the watched hand is holding (or parked where it was let go) is the
-  // one this action moved. The rows are snapshotted with its gap still open and the card slides home from where it
-  // is, exactly as the player's own drop does, so the board settles once instead of closing the gap and re-opening it.
-  for (const a of item.acts) {
+/**
+ * THE LIVE DROP (R-SPECTATE-SMOOTH-01): the card the watched hand is holding (or parked where it was let go) is the one
+ * this action moved. The rows are snapshotted with its gap still open and the card slides home from where it is,
+ * exactly as the player's own drop does, so the board settles once instead of closing the gap and re-opening it. Call
+ * it BEFORE the next view renders. Shared by the watch screen (`land`) and the replay viewer, which plays a recorded
+ * stream through this same feed (R-REPLAY-PLAYBACK-01). Returns true when a drop was presented.
+ */
+export function presentHeldDrop(acts: readonly { t: string; uid?: string }[], prevRun: RunState, nextView: { hand?: { uid: string }[]; triplesMade?: number }): boolean {
+  for (const a of acts) {
     if (!a.uid) continue;
     const held = takeLanding(a.uid);
     const drop = DROP_OF[a.t];
@@ -410,12 +412,19 @@ function land(item: Pending, prevRun: RunState): void {
     const def = card ? CARD_INDEX[card.cardId] : undefined;
     if (a.t === 'play' && (!def || playsAsSpell(def) || def.ruby)) continue; // a spell is cast, not placed
     // A buy's hand copy is a new uid: the one card the next hand has that this one lacked (none if a triple took it).
-    const nextHand = (item.view as { hand?: { uid: string }[] }).hand ?? [];
-    const bought = drop === 'buy' && (item.view as { triplesMade?: number }).triplesMade === prevRun.triplesMade
+    const nextHand = nextView.hand ?? [];
+    const bought = drop === 'buy' && nextView.triplesMade === prevRun.triplesMade
       ? nextHand.filter((c) => !prevRun.hand.some((h) => h.uid === c.uid)) : [];
     presentAction({ kind: 'dropping', uid: a.uid, drop, from: held.rect, ...(bought.length === 1 ? { boughtUid: bought[0]!.uid } : {}) });
-    break;
+    return true;
   }
+  return false;
+}
+
+function land(item: Pending, prevRun: RunState): void {
+  // The card in the hand that let go of it (the flight's ghost, or the live drag's): where its plate dissolves from.
+  const plate = document.querySelector<HTMLElement>('.replay-dragghost .ghostcardwrap .card')?.getBoundingClientRect() ?? null;
+  presentHeldDrop(item.acts, prevRun, item.view as { hand?: { uid: string }[]; triplesMade?: number });
   // ONE ACTION, ONE PRESENTATION (`actionPresenter.ts`): what the player's input showed before its dispatch...
   const pre = item.acts.map((a) => presentBefore(a, prevRun));
   releaseGhostHold();
@@ -510,8 +519,22 @@ const cursorListeners = new Set<() => void>();
 export function onCursorFeed(fn: () => void): () => void { cursorListeners.add(fn); return () => { cursorListeners.delete(fn); }; }
 const notifyCursor = (): void => { cursorFeed.version += 1; for (const fn of cursorListeners) fn(); };
 
+/**
+ * THE REPLAY'S CLOCK (R-REPLAY-PLAYBACK-01): a replay plays its recorded stream through this same feed, on the replay
+ * frames' clock instead of a network clock. While set, the hand is drawn at `feedClock(now)` (the recorded messages
+ * carry that clock), and no delivery jitter is measured: recorded data has none.
+ */
+let feedClock: ((now: number) => number) | null = null;
+/** Whether a pick-up plays its touch sound (a replay's Sounds toggle; always on the watch screen). */
+let pickupSound: () => boolean = () => true;
+export function setCursorFeedClock(clock: ((now: number) => number) | null, sound?: () => boolean): void {
+  feedClock = clock;
+  pickupSound = clock && sound ? sound : () => true;
+}
+
 /** The PLAYER-clock moment the hand is drawn at, local time `now`. */
 export function cursorPlayback(now: number): number {
+  if (feedClock) return feedClock(now);
   return cursorFeed.legacy ? now - LEGACY_BUFFER_MS : playbackTime(cursorFeed.clock, now);
 }
 
@@ -519,10 +542,19 @@ export function cursorPlayback(now: number): number {
 export function receiveSpectatorCursor(payload: unknown): void {
   const c = payload as CursorSample;
   if (!c || c.seat !== useSpectate.getState().seat || !useSpectate.getState().active) return;
-  const now = performance.now();
+  ingestCursor(c, performance.now());
+}
+
+/**
+ * One cursor message into the feed: its points land on THIS screen and its state waits for playback to reach it. The
+ * watch screen calls it per received message; the replay viewer per recorded message (R-REPLAY-PLAYBACK-01), the same
+ * message the live sender built (`cursorSource.ts`). `atOnce`: apply the state now, with no pick-up cue and no drop
+ * verdict (a replay seek rebuilding the hand at its target, never replaying a pick-up or a drop).
+ */
+export function ingestCursor(c: Omit<CursorSample, 'seat' | 'x' | 'y'> & { x?: number; y?: number }, now: number, atOnce = false): void {
   const stamped = typeof c.ts === 'number' && Number.isFinite(c.ts);
   if (stamped !== !cursorFeed.legacy) { cursorFeed.legacy = !stamped; cursorFeed.pts = []; cursorFeed.clock = newRemoteClock(); }
-  if (stamped) noteDelivery(cursorFeed.clock, c.ts!, now);
+  if (stamped && !feedClock) noteDelivery(cursorFeed.clock, c.ts!, now);
   const s = stamped ? c.ts! : now;
   cursorFeed.lastAt = now;
   // Landed on THIS screen: on the same element, else the same spot of the game box (R-SPECTATE-CURSOR-01). One rect
@@ -535,7 +567,7 @@ export function receiveSpectatorCursor(payload: unknown): void {
       const at = decodePoint({ x: 0, y: 0, gx: t[1], gy: t[2], ...(typeof t[3] === 'string' ? { an: { k: t[3], fx: t[4] as number, fy: t[5] as number } } : {}) }, document, rects);
       addPoint(cursorFeed.pts, { s: s - t[0], x: at.x, y: at.y });
     }
-    const at = decodePoint(c, document, rects);
+    const at = decodePoint({ x: c.x ?? 0, y: c.y ?? 0, gx: c.gx, gy: c.gy, an: c.an }, document, rects);
     addPoint(cursorFeed.pts, { s, x: at.x, y: at.y });
     const from = c.aim ? decodePoint(c.aim, document, rects) : null;
     // The aim's END snaps to the minion the player's aim is on (R-SPECTATE-AIM-01): its centre on this screen.
@@ -554,8 +586,10 @@ export function receiveSpectatorCursor(payload: unknown): void {
     hover: c.hide ? c.an?.k ?? null : !c.drag && !c.aim ? c.an?.k ?? null : null,
     ...(c.de ? { de: c.de } : {}),
   };
-  // An older player's state applies on arrival, as it always did; a stamped one waits for playback to reach it.
-  if (cursorFeed.legacy) applyFeedState(state, now);
+  // An older player's state applies on arrival, as it always did; a stamped one waits for playback to reach it. A seek's
+  // state applies now, without its drop verdict (the hand is simply where it was).
+  if (atOnce) { delete state.de; cursorFeed.pending = []; applyFeedState(state, now, true); }
+  else if (cursorFeed.legacy) applyFeedState(state, now);
   else {
     // In player-clock order (one socket keeps them in order; a reconnect might not).
     const q = cursorFeed.pending;
@@ -578,7 +612,7 @@ export function advanceCursorFeed(now: number): boolean {
   return any;
 }
 
-function applyFeedState(e: FeedState, now: number): void {
+function applyFeedState(e: FeedState, now: number, quiet = false): void {
   const prev = cursorFeed.drag;
   if (e.hidden) {
     cursorFeed.hidden = true;
@@ -589,7 +623,7 @@ function applyFeedState(e: FeedState, now: number): void {
   }
   cursorFeed.hidden = false;
   if (e.drag && e.drag.uid !== prev?.uid) {
-    presentAction({ kind: 'touch' }); // the pick-up
+    if (!quiet && pickupSound()) presentAction({ kind: 'touch' }); // the pick-up (a seek lands mid-drag silently)
     // A new pick-up ends whatever the last drop left behind.
     cursorFeed.landing = null;
     cursorFeed.spring = null;
@@ -668,6 +702,11 @@ function setAimTarget(uid: string | null): void {
   if (uid === aimLit) return;
   aimLit = uid;
   dragStore.set({ aimTargetUid: uid });
+}
+
+/** Clear the hand (a replay seek or a replay ending; the watch screen's own seat switch and exit). */
+export function resetCursorFeed(): void {
+  resetCursor();
 }
 
 function resetCursor(): void {

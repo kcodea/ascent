@@ -169,7 +169,9 @@ const SET1_SPELLS_IN_SET2: readonly CardDef[] = SPELLS.filter((s) => !s.token &&
  */
 const SET2_KOBOLDS_IN_SET3: readonly CardDef[] = SET2_KOBOLDS.filter((c) =>
   [
-    /* k_geode: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 card */ 'k_blazer', 'k_gemheart', 'k_kobe',
+    /* k_geode: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 card */
+    /* k_blazer + k_kobe: left set 3 2026-10-22 (owner Set 3 Kobold pool call, "archive"); both stay set-2 cards and
+       resolve globally for old set-3 saves and replays */ 'k_gemheart',
     'k_boulderdash', 'k_kobabyboldies', // Chipwick Prospector left 2026-09-19 (owner handoff); it stays in set 2
     /* k_beggy: back in set 3 2026-09-24, left again 2026-10-13 (owner Set 3 batch); still a set-2 card */
   ].includes(c.id),
@@ -201,6 +203,14 @@ const SET2_DWARVES_IN_SET3: readonly CardDef[] = SET2_DWARVES.filter((c) =>
  * (`SET3_DWARVES_IN_SET2`), and old set-3 saves and replays resolve it through `CARD_INDEX`.
  */
 const SET3_DWARVES_IN_SET3: readonly CardDef[] = SET3_DWARVES.filter((c) => c.id !== 'dw3_striker');
+
+/**
+ * Set 3's OWN spells, less the ones that have left set 3. Stellar Chorus (`stellarchorus`) left on 2026-10-22 (owner:
+ * "archive stellar chorus from set 3"). Its definition stays in `SET3_SPELLS` because set 4 still draws it as a shared
+ * spell (`SET4_SHARED_SPELL_IDS` resolves against `SET3_SPELLS`), and old set-3 saves, replays and snapshots resolve it
+ * through `CARD_INDEX`.
+ */
+const SET3_SPELLS_IN_SET3: readonly CardDef[] = SET3_SPELLS.filter((c) => c.id !== 'stellarchorus');
 
 /**
  * DWARF KING, BRILL joins set 3's Dwarf pool as a BUYABLE Tier 6 (owner 2026-10-21: "add dwarf king brill to set 3's
@@ -414,7 +424,7 @@ export const SETS: Record<SetId, SetDef> = {
     // Then the WHISPER DRAGONS (2026-10-14, from Set 4), in the slot the Celestials held (appended 2026-09-11, moved to
     // Set 4 the same day the Dragons arrived), so every earlier minion keeps its position. Their Whispers (Tome,
     // Runebind) are granted Gift-class spells and stay OUT of the manifest. Then (2026-10-15) the three carried Set 2 Dragons.
-    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES_IN_SET3, ...SET2_DWARVES_IN_SET3, ...SET2_BRILL_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET2_DRAGONS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10) // → packages/content/src/cards/set3/*.ts
+    own: [...SET3_CARDS, ...SET2_KOBOLDS_IN_SET3, ...SET3_DWARVES_IN_SET3, ...SET2_DWARVES_IN_SET3, ...SET2_BRILL_IN_SET3, ...SET3_UNDEAD, ...SET1_UNDEAD_IN_SET3, ...SET3_NEUTRAL, ...YAZZUS_IN_SET3, ...SET1_NEUTRALS_IN_SET3, ...SET2_NEUTRALS_IN_SET3, ...SET3_SPIRITS, ...SET3_DRAGONS, ...SET2_DRAGONS_IN_SET3, ...SET3_SHARED_SPELLS, ...SET2_ALES_IN_SET3, ...SET3_SPELLS_IN_SET3], // set 3's OWN spells last, after the shared toolkit + Ales (2026-09-10); Stellar Chorus left 2026-10-22 // → packages/content/src/cards/set3/*.ts
   },
   set4: {
     id: 'set4',

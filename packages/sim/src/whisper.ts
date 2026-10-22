@@ -1,7 +1,8 @@
 import { CARD_INDEX } from '@game/content';
-import type { CardDef } from '@game/core';
-import { hatcherTier, instanceEffects, mintWhisper } from './recruit';
-import type { BoardCard, RunState } from './state';
+import { makeRng, type CardDef } from '@game/core';
+import { castSpell, hatcherTier, instanceEffects, isTribe, keepWhisperCastDelta, mintWhisper, whisperMarksOf, withCastActor } from './recruit';
+import { runeStacksOf } from './runeDup';
+import { procRuneId, recordBounceFx, type BoardCard, type RunState } from './state';
 
 /**
  * ── WHISPERS (Set 3 since 2026-10-14) — the lifecycle (owner 2026-10-13) ──────────────────────────────────────────────────────
@@ -121,7 +122,7 @@ export function mergeWhisperBuffs(cards: readonly BoardCard[]): BoardCard['whisp
 export const HUM_PER_TURN = true;
 
 /** A triple's Seed stacks and Hum latch: the SUM of every copy's stacks per lane, the highest keep count. */
-export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'seedEchoes' | 'seedEchoesTemp' | 'whisperKeptThisTurn' | 'whisperKeywords' | 'whisperTick'> {
+export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'seedEchoes' | 'seedEchoesTemp' | 'whisperKeptThisTurn' | 'whisperKeywords' | 'whisperTick' | 'whisperKept' | 'lastingWordsUsedThisTurn'> {
   // Whisper keywords: a keyword is temporary on the golden only if every copy that carried it had it from a Whisper.
   const tempKw = [...new Set(cards.flatMap((c) => c.whisperKeywords ?? []))]
     .filter((k) => cards.every((c) => !c.keywords.includes(k) || (c.whisperKeywords ?? []).includes(k)));
@@ -129,7 +130,14 @@ export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'see
   const perm = cards.reduce((n, c) => n + (c.seedEchoes ?? 0), 0);
   const temp = cards.reduce((n, c) => n + (c.seedEchoesTemp ?? 0), 0);
   const kept = Math.max(0, ...cards.map((c) => c.whisperKeptThisTurn ?? 0));
+  // Kept Whisper stats (Bequeathed Secrets' record): the golden SUMS the copies', as it sums their stats. Lasting Words'
+  // per-turn latch: spent on the golden if it was spent on any copy (one body, one first Whisper this turn).
+  const wkA = cards.reduce((n, c) => n + (c.whisperKept?.attack ?? 0), 0);
+  const wkH = cards.reduce((n, c) => n + (c.whisperKept?.health ?? 0), 0);
+  const lasting = cards.some((c) => c.lastingWordsUsedThisTurn);
   return {
+    ...(wkA !== 0 || wkH !== 0 ? { whisperKept: { attack: wkA, health: wkH } } : {}),
+    ...(lasting ? { lastingWordsUsedThisTurn: true } : {}),
     ...(perm > 0 ? { seedEchoes: perm } : {}),
     ...(temp > 0 ? { seedEchoesTemp: temp } : {}),
     ...(kept > 0 ? { whisperKeptThisTurn: kept } : {}),
@@ -138,5 +146,42 @@ export function seedEchoMerge(cards: readonly BoardCard[]): Pick<BoardCard, 'see
   };
 }
 
+// ── SET 3 DRAGON RUNES, EPIC B (owner 2026-10-21): the from-hand Whisper hooks ────────────────────────────────────────
+/**
+ * ONE Whisper cast FROM HAND (the reducer's Whisper branch calls this once per cast: the first, every Yazzus repeat and
+ * the Opened Vault's extra cast each count as one cast from hand). Around the shared `castSpell`:
+ *
+ *  - RUNE OF LASTING WORDS: the first such cast on each Dragon each turn is permanent. Snapshot the Dragon's Whisper
+ *    marks, cast, then keep whatever this cast added (`keepWhisperCastDelta`, Hum's body). The latch is per Dragon
+ *    (`lastingWordsUsedThisTurn`) and is spent by that first cast whatever it added (a Ripple has nothing to keep).
+ *  - RUNE OF TWIN TONGUES: a TARGETED Whisper is then cast again on a random OTHER friendly Dragon it may legally land
+ *    on (the run cursor), once per copy held. The copy is a full cast (counted, watcher-visible, at the same
+ *    multiplier: it runs inside the reducer's `withWhisperMult`) cast BY the rune, so it is not from hand: Lasting
+ *    Words never keeps it, and it never asks for another copy. No other Dragon: no copy.
+ */
+export function castWhisperFromHand(state: RunState, def: CardDef, target: BoardCard | undefined): void {
+  const lasting = !!state.questFlags?.runeLastingWords && !!target && isTribe(target, 'dragon') && !target.lastingWordsUsedThisTurn;
+  const before = lasting && target ? whisperMarksOf(target) : undefined;
+  castSpell(state, def, target);
+  if (before && target && state.board.includes(target)) {
+    target.lastingWordsUsedThisTurn = true;
+    if (keepWhisperCastDelta(target, before)) procRuneId(state, 'rune_lasting_words'); // the badge flashes only when it kept something
+  }
+  if (state.questFlags?.runeTwinTongues && target) twinTonguesCopy(state, def, target);
+}
+
+function twinTonguesCopy(state: RunState, def: CardDef, target: BoardCard): void {
+  for (let k = 0; k < runeStacksOf(state, 'rune_twin_tongues'); k++) {
+    const pool = state.board.filter((c) => c !== target && isTribe(c, 'dragon') && whisperTargetLegal(def, c));
+    if (pool.length === 0) return;
+    const rng = makeRng(state.rngCursor);
+    const pick = pool[rng.int(pool.length)]!;
+    state.rngCursor = rng.state();
+    procRuneId(state, 'rune_twin_tongues');
+    recordBounceFx(state, 'spell', target.uid, pick.uid); // the hop: the Whisper's target -> the twin Dragon
+    withCastActor({ kind: 'rune', id: 'rune_twin_tongues' }, () => castSpell(state, def, pick));
+  }
+}
+
 // Re-exported so the presentation can read a Whisper's live value without reaching into recruit internals.
-export { whisperValue, whisperSpellsToNext, allSpellsCastThisGame, whisperMarksOf, humKeepCap, keepWhispersOnHum, hatcherTier, HATCHER_MAX_TIER } from './recruit';
+export { whisperValue, whisperSpellsToNext, allSpellsCastThisGame, whisperMarksOf, humKeepCap, keepWhispersOnHum, hatcherTier, HATCHER_MAX_TIER, whisperStatBonusesOf } from './recruit';

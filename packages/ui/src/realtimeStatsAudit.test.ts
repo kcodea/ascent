@@ -158,7 +158,7 @@ describe('R-REALTIME-STATS-01: the combat screen shows every stat change on the 
     const { res, probes } = probed(A, B, combatSide(), combatSide({ questMods: { runeSecondWind: true } }), 3);
     const ev = replayOrder(res.events);
     const reborn = ev.findIndex((e) => e.type === 'reborn');
-    const buff = ev.findIndex((e, i) => i > reborn && e.type === 'buff' && e.source === 'Rune of the Second Wind');
+    const buff = ev.findIndex((e, i) => i > reborn && e.type === 'buff' && e.source === 'Second Wind');
     expect(reborn).toBeGreaterThan(-1);
     expect(buff).toBeGreaterThan(reborn);
     const target = (ev[buff] as Extract<CombatEvent, { type: 'buff' }>).target;
@@ -173,7 +173,7 @@ describe('R-REALTIME-STATS-01: the combat screen shows every stat change on the 
     for (const set of SET_IDS) {
       for (let seed = 1; seed <= SEEDS; seed++) {
         const { res, probes } = fight(set, seed);
-        if (!res.events.some((e) => e.type === 'buff' && e.source === 'Rune of Unity')) continue;
+        if (!res.events.some((e) => e.type === 'buff' && e.source === 'Unity')) continue;
         seen++;
         expect(foldMismatches(res, probes), `${set} seed ${seed}`).toEqual([]);
       }

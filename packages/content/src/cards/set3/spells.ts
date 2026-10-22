@@ -14,6 +14,8 @@ export const SET3_SPELLS: readonly CardDef[] = [
     // T4, aimed (board or tavern minion): +2/+2, improved by +3/+3 for EACH spell cast this turn before it — any spell:
     // Shop spells, Rubies, Gifts (Tower Shield, Clue) all count (owner 2026-09-10). The cast itself is not counted
     // (the tally is read while the effect resolves, before the cast is noted). Spell power folds into the base.
+    // LEFT THE SET 3 POOL 2026-10-22 (owner: "archive stellar chorus from set 3"): `sets.ts` filters it out of set 3's
+    // manifest. The def stays here because set 4 still shares it by reference, and old set-3 saves resolve it by id.
     id: 'stellarchorus',
     name: 'Stellar Chorus',
     tribe: 'neutral',

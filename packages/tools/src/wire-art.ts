@@ -12,7 +12,7 @@
  * script — those four are exactly the parts that would drift apart if copied, and three of them were bugs
  * found the hard way on the minion pass (devlog 2026-07-30).
  */
-import { readdirSync, existsSync } from 'node:fs';
+import { readdirSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { CARD_INDEX, EPIC_RUNES, EQUIPMENT, QUEST_DEFS, RUNES, poolFor } from '@game/content';
@@ -34,6 +34,28 @@ const ONLY = (() => {
   if (!arg) return null;
   return new Set(arg.slice('--only='.length).split(',').map((x) => x.trim().toLowerCase()).filter(Boolean));
 })();
+/**
+ * `--ids=<id>[,<id>]` — wire only matches that land on these output ids (e.g. `--ids=rune_wake,rune_anvil`).
+ *
+ * Added 2026-10-22: wiring a handful of NEW emblems with a full `--only=runes --apply` re-encodes every existing
+ * rune too. This keeps a targeted wire inside the same pipeline (same matcher, resize and report) while the
+ * diff stays limited to the ids actually being added. Combine with `--only=` to pick the job.
+ */
+const IDS = (() => {
+  const arg = process.argv.find((a) => a.startsWith('--ids='));
+  if (!arg) return null;
+  return new Set(arg.slice('--ids='.length).split(',').map((x) => x.trim()).filter(Boolean));
+})();
+/**
+ * `--prefer-newest` — when several source files target one id, the most recently MODIFIED file wins, and a
+ * generator export is no longer superseded by an OLDER curated twin.
+ *
+ * Added 2026-10-22: the owner redrew 15 existing rune emblems, and the new art arrived as generator exports
+ * beside the months-old curated `RuneOf….png` twins. The 2026-09-11 rule ("the curated twin wins") then
+ * picked the OLD art every time. A redraw is the one case where the newer file is the choice, so it is an
+ * opt-in flag for that pass (combine with `--ids=`), not a change to the default precedence.
+ */
+const PREFER_NEWEST = process.argv.includes('--prefer-newest');
 /** Every art file already in the repo is 512x512 — the card frame never shows more. */
 const ART_PX = 512;
 
@@ -231,8 +253,19 @@ const spellsByName = new Map<string, string>();
 for (const c of Object.values(CARD_INDEX)) if (c && (c.spell || c.ruby)) spellsByName.set(norm(c.name), c.id);
 
 const runesByName = new Map<string, string>();
+/** Runes whose name never started with "Rune of", so no legacy-prefixed art file can belong to them. */
+const NEVER_PREFIXED: ReadonlySet<string> = new Set(['rune_happy_birthday', 'rune_merry_christmas']);
 for (const r of [...RUNES, ...EPIC_RUNES]) {
+  // Rune names are BARE since 2026-10-22 (owner: "let's remove 'rune of' for all the runes"), but the art folder
+  // was authored under the old names (`RuneOfTheAnvil.png`). Both spellings resolve: the bare name for new
+  // files, and the bare name re-prefixed with "Rune of" / "Rune of the" for every existing one.
+  // The two runes that never carried the prefix stay unprefixed here, so the change wires nothing new (their
+  // `RuneOf…` files stay unmatched until the owner names them; art is wired only on ask).
   runesByName.set(norm(r.name), r.id);
+  if (!NEVER_PREFIXED.has(r.id)) {
+    runesByName.set(norm(`Rune of ${r.name}`), r.id);
+    runesByName.set(norm(`Rune of the ${r.name}`), r.id);
+  }
   // The art folder is inconsistent about "Rune of X" vs "Rune of the X" — in both directions. That is a
   // systematic authoring variance across ~7 files, not seven separate typos, so it is absorbed here rather than
   // as seven alias entries. Registered only when it does not collide with a real rune name.
@@ -494,7 +527,7 @@ for (const job of JOBS) {
       if (gen) {
         const embedded = gen[1]!.replace(/-/g, ' ');
         const target = resolveId(norm(embedded), embedded);
-        if (target && curatedIds.has(target)) { superseded.push(`${dir === '.' ? file : `${dir}/${file}`}  (curated twin wins: ${embedded})`); continue; }
+        if (target && curatedIds.has(target) && !PREFER_NEWEST) { superseded.push(`${dir === '.' ? file : `${dir}/${file}`}  (curated twin wins: ${embedded})`); continue; }
       }
       // Strip a trailing GENERATOR INDEX (`Motherlode_00001_.png`): it is an export artifact of the art tool,
       // not part of the name, so removing it is normalisation rather than the guessing the matcher forbids —
@@ -522,7 +555,23 @@ for (const job of JOBS) {
   // the folder — and whichever copied last used to win by directory-listing luck. Alias matches copy FIRST so
   // an exact current-name match always lands on top of them.
   matches.sort((a, b) => Number(a.exact) - Number(b.exact));
+  if (PREFER_NEWEST) {
+    // Keep only the most recently modified source per id, so the overwrite is decided by date, not by order.
+    const newest = new Map<string, { src: string; t: number }>();
+    for (const m of matches) {
+      const t = statSync(m.src).mtimeMs;
+      const cur = newest.get(m.id);
+      if (!cur || t > cur.t) newest.set(m.id, { src: m.src, t });
+    }
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const m = matches[i]!;
+      if (newest.get(m.id)!.src === m.src) continue;
+      superseded.push(`${m.label}  (older than the newest source under --prefer-newest)`);
+      matches.splice(i, 1);
+    }
+  }
   for (const m of matches) {
+    if (IDS && !IDS.has(m.id)) continue; // `--ids=`: a targeted wire leaves every other id untouched
     wired.push(`${m.label}  ->  ${m.id}.png`);
     if (!APPLY) continue;
     // Both outputs are written RESIZED, never copied. `indexArt` in @game/ui resolves `.webp` over `.png` for

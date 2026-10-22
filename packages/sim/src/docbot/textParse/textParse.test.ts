@@ -172,9 +172,24 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // (new phrasings: a keyword granted with stats until your next turn, a tier that climbs every turn, a placeholder-named Whisper).
 // 2026-10-21 (Set 3 Sell Dwarves): 141 -> 142, CONSCIOUSLY. Two new texts have no grammar rule yet: Leeds' sale-driven
 // improve ("Improves when you Sell 4 minions.") and Valyou's every-N-triggers Gold tail ("Every 4 triggers also grants 2
-// Gold."); Salezar Sails and Mark Eting parse. The same PR capitalised Sell as a keyword (R-TEXT-SELL-CAPS-01) and grew
+// Gold."); Sailsey and Mariet parse. The same PR capitalised Sell as a keyword (R-TEXT-SELL-CAPS-01) and grew
 // the sell grammar to read "Sells for" / "Sell for" / "you Sell" in either case, so no existing text regressed.
-const UNRESOLVED_CAP = 142;
+// 2026-10-21 (Set 3 Dragon runes, Basic): 142 -> 145, CONSCIOUSLY. Three new rune texts have no grammar rule yet (the
+// distinct-Whispers-from-hand Gold meter, the Whisper-count spell-power improve, the first-Echo-Dragon Attack gift).
+// 2026-10-21 (Set 3 Dragon runes, Epic A): 145 -> 148, CONSCIOUSLY (on top of Basic's +3). Seven new runes; three texts have no grammar rule
+// yet: Growing Inferno ("Dragon attacks in combat cast Growth."), the Runebound Brood ("cast Runebind on themselves")
+// and Runic Transposition ("also give it that much Attack"). War Council, Secret Exchange, Unbroken Scales and the
+// Wyrm's Hoard parse.
+// 2026-10-21 (Set 3 Dragon Epic runes B: Lasting Words, Twin Tongues, the Opened Vault, Bequeathed Secrets): 148 -> 152,
+// CONSCIOUSLY (on top of Basic's and Epic A's +3 each). All four are Whisper-lifecycle rules (a from-hand cast made permanent, a cast copied onto another Dragon, an
+// Equipment activation arming a double cast, a sale handing on Whisper stats) that no grammar rule reads yet.
+// 2026-10-22 (Set 3 Kobold pool call): 152 -> 153, CONSCIOUSLY. Shardluck came back from the archive and its Choose One
+// ("Play 3 Rubies on your Kobolds or cast Veinstorm 3 times") has no grammar rule yet. Delver, Cavern Fiend and the
+// reworked Dealski parse.
+// 2026-10-22 (Set 3 Kobolds: Boy Scout, Gramps, Zapdash, Frack Attack, Rosey): 153 -> 155, CONSCIOUSLY (on top of the pool call's +1). Two texts have no
+// grammar rule yet: Boy Scout's "Gain 2 free Refreshes." and Frack Attack's "Repeat after 3 friendly attacks." Gramps and
+// Zapdash parse; Rosey parses but is pinned in KNOWN_TEXT_MISMATCH ("When you cast a Ruby" reads as `spellCast`).
+const UNRESOLVED_CAP = 155;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

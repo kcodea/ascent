@@ -14,7 +14,8 @@ import { createRun, runTribesForSeed, type RunState } from './state';
 
 const WORD: Record<Exclude<Tribe, 'neutral'>, RegExp> = {
   // Imps and Fodder ARE Demon content (owner 2026-09-10), so an Imp rune counts as naming Demons.
-  dragon: /\bDragons?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b|\bAttachments?\b/i, undead: /\bUndead\b/i,
+  // Whispers (and Runebind, one of them) are Dragon content: every Whisper is granted by a Dragon (Set 3 Dragon runes, 2026-10-21).
+  dragon: /\bDragons?\b|\bWhispers?\b|\bRunebinds?\b/i, beast: /\bBeasts?\b/i, demon: /\bDemons?\b|\bImps?\b|\bFodder\b/i, mech: /\bMechs?\b|\bAttachments?\b/i, undead: /\bUndead\b/i,
   // The Starform is the Celestials' token (set 3, 2026-09-12) and Star Crash is their own spell, so a Starform or Star Crash rune
   // counts as naming Celestials — the Imp rule; the three Revelers ARE Spirit content (Set 3 batch 2, 2026-09-16), so a Reveler rune names Spirits.
   // Rubies are the Kobolds' currency, Dwarven Ales the Dwarves', Attachments the Mechs' (owner tag pass 2026-09-18).
@@ -34,6 +35,8 @@ const BODY_GRANT_ONLY = new Set<string>(['rune_lazarus', 'rune_ascension']);
  *  here needs an owner call. */
 const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_deathtouched_apple: 'undead', rune_hoardcalling: 'dragon',
+  // Set 3 Dragon runes, Epic A (owner 2026-10-21): listed under Dragon; Whispers are the Set 3 Dragon line.
+  rune_secret_exchange: 'dragon', rune_runebound_brood: 'dragon', rune_wyrms_hoard: 'dragon',
   // The owner's Set 3 rune list (2026-09-25): "see here in this list how spearline and waking dreams are not
   // "neutral" tagged and are tagged to tribes?" Each rune takes the tribe it is listed under, in every set.
   rune_sellers_market: 'dwarf', rune_spearline: 'undead',
@@ -53,6 +56,8 @@ const OWNER_TRIBE_RULINGS: Readonly<Record<string, Tribe>> = {
   rune_gem_crypt: 'undead',
   // …and the Pallbearer + the Keepsake Gem: "the left-most minion in your hand" is the Spirit hand line.
   rune_pallbearer: 'spirit', rune_keepsake_gem: 'spirit',
+  // The owner's Set 3 Dragon rune list (2026-10-21) puts Rune of the Open Treasury under Dragon; its text names no tribe word.
+  rune_open_treasury: 'dragon',
 };
 
 /** The tribes of the bodies a reward GRANTS (Rune of Lazarus → Lazarus is Undead) — the 2026-09-10 ruling's

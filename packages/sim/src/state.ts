@@ -5,7 +5,7 @@ import type { RankAtStart } from './rankAtStart';
 import type { HeroReroll } from './heroReroll';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
-import { CARD_INDEX, LEGACY_CARD_IDS, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, LEGACY_CARD_IDS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
 import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool, type PowerLatch } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
@@ -347,6 +347,13 @@ export interface BoardCard {
   /** HUM (Set 3, 2026-10-15): Whispers cast on this this turn that it has already made permanent (its cap is 1, 2
    *  Gilded). Cleared at the turn flip with the other per-turn counters (`HUM_PER_TURN`). */
   whisperKeptThisTurn?: number;
+  /** RUNE OF LASTING WORDS (Set 3 Dragon Epic, owner 2026-10-21): this Dragon has already had the turn's first Whisper
+   *  cast FROM HAND on it made permanent. Per Dragon, per turn: cleared at the turn flip with Hum's count. */
+  lastingWordsUsedThisTurn?: boolean;
+  /** The Whisper STATS this body has kept for good (a Hum keep, a Lasting Words keep), so a later reader can tell them
+   *  apart from every other permanent buff: Rune of Bequeathed Secrets hands them on when this Dragon is sold
+   *  (`whisperStatBonusesOf`, sim/whisper.ts). Lifetime, never cleared; a triple sums the copies'. Absent = none. */
+  whisperKept?: { attack: number; health: number };
   /** WHISPER KEYWORDS (Bait's Taunt, Warding Call's Ward / Resilient Ward; Set 3 2026-10-15): the keywords a Whisper ADDED
    *  to this body (only ones it did not already have), stripped at the next Start of Turn with the stats
    *  (`expireWhisperBuffs`). A Hum keeps them (they leave this list and stay in `keywords`). */
@@ -765,11 +772,18 @@ export function procRune(s: RunState, kind: string, times = 1): void {
  * entry carrying its own `sourceId`, so the id is right there — one stamp at the payout chokepoint covers all
  * eight, correctly attributed.
  */
-/** Is this buff `source` label a RUNE's? Rune buffs almost all label themselves `'Rune …'`; the handful that
- *  use a flavor label are listed explicitly. Used to drive the `rune-buff-unit` FX on any minion a rune buffs
- *  (owner ask 2026-08-19). Cheap string test — buffs carry their source label on `card.buffs`. */
+/** Every rune's display name. Rune buffs label themselves with the rune's NAME, which is bare since the owner
+ *  dropped the "Rune of" prefix (2026-10-22: "let's remove 'rune of' for all the runes, so they just show the
+ *  rune name"), so the label alone no longer says "rune": the name set does. */
+const RUNE_BUFF_LABELS: ReadonlySet<string> = new Set([...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].map((r) => r.name));
+
+/** Is this buff `source` label a RUNE's? A rune buff is labelled with the rune's display name; a save, snapshot
+ *  or fixture from before 2026-10-22 still carries the old `'Rune of …'` label, and a few generic grants label
+ *  themselves plain `'Rune'`, so the prefix stays recognised.
+ *  Used to drive the `rune-buff-unit` FX on any minion a rune buffs (owner ask 2026-08-19). Cheap string test —
+ *  buffs carry their source label on `card.buffs`. */
 export function isRuneBuffSource(source: string): boolean {
-  return source.startsWith('Rune') || source === 'Twin Sun Oath';
+  return source.startsWith('Rune') || RUNE_BUFF_LABELS.has(source) || source === 'Twin Sun Oath';
 }
 
 /** Total rune-sourced buff magnitude (Σ attack+health) on a card — the diff of this across an action is what
@@ -1022,9 +1036,13 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand'; per: number; tick: number;
+    /** Rune of the Secret Exchange (owner 2026-10-21): Shop-spell Discovers opened when the meter trips. */
+    discoverSpell?: number;
     /** Rune of Minted Gems (Set 3 design pass): random Rubies per trip. */
     grantRandomRuby?: number;
+    /** Rune of Loose Tongues (Set 3 Dragon runes): random Whispers (the gated pool) per trip. */
+    grantRandomWhisper?: number;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of the Deep Feast: exact card ids handed over when the meter trips. */
@@ -1477,6 +1495,17 @@ export interface RunState {
   runeCombatativeTick?: number;
   /** Rune of Body Counting's running meter: friendly deaths since the last payout (0-5), across fights and Shop. */
   runeBodyCountTick?: number;
+  // ── Set 3 Dragon runes, Basic (owner 2026-10-21; packages/sim/src/dragonRunesBasic.ts) ──
+  /** Rune of Borrowed Flame: the per-copy value the NEXT Whisper cast on a Dragon gives (absent = the printed 1). */
+  runeBorrowedFlame?: number;
+  /** Rune of Spell Tempering's running meter: Whispers cast since the last payout (0-3), across turns, Shop and combat. */
+  runeSpellTemperingTick?: number;
+  /** Rune of Clear Voices: the distinct Whisper ids cast from hand THIS turn (reset at turn setup). */
+  clearVoicesIds?: string[];
+  /** Rune of Clear Voices: paid this turn (its "Once per turn"; reset at turn setup). */
+  clearVoicesPaid?: boolean;
+  /** Rune of the Open Treasury: the turn's first spell buy has been copied (reset at turn setup). */
+  openTreasuryUsed?: boolean;
   /** Rune of the Soul Furnace (Set 3 design pass, 2026-09-27): the slice of `undeadHealthBonus` that is the rune's
    *  DERIVED term (ceil(Aura Attack / 2) per copy). `syncSoulFurnace` keeps the two in step at every action
    *  boundary, so every existing reader of `undeadHealthBonus` folds the term without knowing the rune exists. */
@@ -1727,7 +1756,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean; runeOpenHand?: boolean; runeWakingReserve?: boolean; runeEchoingKobolds?: boolean; runeRubywire?: boolean; runeCombatativeRubies?: boolean; runeBodyCounting?: boolean; runeAggressiveGolems?: boolean; runeRupturedRubies?: boolean; runeWake?: boolean; runeSecondWind?: boolean; runeSoulToll?: boolean; runeGravedigger?: boolean; runeSoulFurnace?: boolean; runeRestless?: boolean; runeOpenGrave?: boolean; runeHeraldingStar?: boolean; runeStellarEchoes?: boolean; runeScatteredLight?: boolean; runeAfterglow?: boolean; runeStarsong?: boolean; runeGuidingStar?: boolean; runeGravity?: boolean; runeMeteorStorm?: boolean; runeCallAndAnswer?: boolean; runeEncore?: boolean; runeKindredHand?: boolean; runeWhetstone?: boolean; runeAnvil?: boolean; runeSatchel?: boolean; runeGemCrypt?: boolean; runePallbearer?: boolean; runeStarTap?: boolean; runeClosingTime?: boolean; runeGrimToast?: boolean; runeGemStar?: boolean; runeKeepsakeGem?: boolean; runeHeavyHand?: boolean; runeUnity?: boolean; runeSunpony?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean; runeOpenHand?: boolean; runeWakingReserve?: boolean; runeEchoingKobolds?: boolean; runeRubywire?: boolean; runeCombatativeRubies?: boolean; runeBodyCounting?: boolean; runeAggressiveGolems?: boolean; runeRupturedRubies?: boolean; runeWake?: boolean; runeSecondWind?: boolean; runeSoulToll?: boolean; runeGravedigger?: boolean; runeSoulFurnace?: boolean; runeRestless?: boolean; runeOpenGrave?: boolean; runeHeraldingStar?: boolean; runeStellarEchoes?: boolean; runeScatteredLight?: boolean; runeAfterglow?: boolean; runeStarsong?: boolean; runeGuidingStar?: boolean; runeGravity?: boolean; runeMeteorStorm?: boolean; runeCallAndAnswer?: boolean; runeEncore?: boolean; runeKindredHand?: boolean; runeWhetstone?: boolean; runeAnvil?: boolean; runeSatchel?: boolean; runeGemCrypt?: boolean; runePallbearer?: boolean; runeStarTap?: boolean; runeClosingTime?: boolean; runeGrimToast?: boolean; runeGemStar?: boolean; runeKeepsakeGem?: boolean; runeHeavyHand?: boolean; runeUnity?: boolean; runeSunpony?: boolean; runeRunicPrimer?: boolean; runeClearVoices?: boolean; runeSpellFedScales?: boolean; runeBorrowedFlame?: boolean; runeSpellTempering?: boolean; runeOpenTreasury?: boolean; runeDeepBreaths?: boolean; runeDefiantWings?: boolean; runeFinalUtterance?: boolean; runeEmberInheritance?: boolean; runeWarCouncil?: boolean; runeGrowingInferno?: boolean; runeRuneboundBrood?: boolean; runeUnbrokenScales?: boolean; runeRunicTransposition?: boolean; runeLastingWords?: boolean; runeTwinTongues?: boolean; runeOpenedVault?: boolean; runeBequeathedSecrets?: boolean };
   // ── Runeforge ──
   /** A Runeforge is open: a pending offer of rune ids to buy for their Gold cost. Like `questOffer`, while set
    *  the reducer blocks every non-`buyRune`/`skipRuneforge`/`rerollRuneforge` action and the UI pauses the
@@ -2067,6 +2096,13 @@ export interface RunState {
   /** Rune of the Last Word: the turn's first sold Dragon-with-a-Shout triggers it on the way out. */
   runeLastWord?: boolean;
   lastWordUsedThisTurn?: boolean;
+  /** RUNE OF BEQUEATHED SECRETS (Set 3 Dragon Epic, owner 2026-10-21): the turn's first Dragon sale has been spent
+   *  (whether or not that Dragon had Whisper stats to give). Cleared at the turn flip. */
+  bequeathedUsedThisTurn?: boolean;
+  /** RUNE OF THE OPENED VAULT (Set 3 Dragon Epic, owner 2026-10-21): a Jar of Secrets activation armed the double; the
+   *  next Whisper cast from hand spends it. One charge at most ("your next Whisper"); it waits across turns until
+   *  spent, like every earned one-shot. */
+  openedVaultArmed?: boolean;
   /** Rune of the Runic Hoard: a Shop spell copied to hand gives your Dragons +1/+1. */
   runeRunicHoard?: boolean;
   /** Rune of the Banquet Hall (owner 2026-09-23): the turn's first buy hands its stats to 2 random friendly minions. */

@@ -65,7 +65,7 @@ handoff's **A.3** combat-resolution rules; step numbers below reference those co
 2. **The Reclaimer's marked-minion destruction.** Any player minion flagged `resummon` is destroyed
    FIRST — its Deathrattle fires now (may overflow the board) — and an exact copy is queued to
    reclaim its slot the next time the board has room (never mid-summon-cascade; its own tokens win
-   the immediate scramble). `flushResummons()` runs right after — a non-full board gets it back
+   the immediate scramble). `flushSpaceQueue()` runs right after — a non-full board gets it back
    immediately, a full board makes it wait.
 3. **Start-of-Combat casts (A.3 step 1).** Player minions left→right first, then the enemy's (an
    enemy Taurus engraves its line too — captured boards' SoC effects are live). Effects reading
@@ -82,8 +82,9 @@ handoff's **A.3** combat-resolution rules; step numbers below reference those co
    - `performAttack` resolves the exchange (§3).
    - **Flush order after every attack, always in this sequence:** `flushImmediateAttacks()` (Whelps
      spawned by this attack's death cascade strike immediately, out of turn order — bounded by
-     `IMMEDIATE_ATTACK_GUARD`, since a Whelp kill can chain into another Whelp) → `flushResummons()`
-     (a Reclaimer body waiting in the wings reclaims a slot freed by this attack's deaths, never
+     `IMMEDIATE_ATTACK_GUARD`, since a Whelp kill can chain into another Whelp) → `flushSpaceQueue()`
+     (every "when you have space" summon still waiting, first queued first: a Reclaimer body, Brackus x War's
+     copy, Rune of the Warden / Mirror March / Waking Reserve, takes a slot freed by this attack's deaths, never
      interleaved mid-cascade) → `flushAscensions()` (a threshold crossed this attack transforms now,
      between actions).
    - A minion that Reborns off a retaliation keeps its place in the rotation (attacks again next for

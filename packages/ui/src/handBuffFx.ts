@@ -3,6 +3,7 @@ import { effectFoldsSpellPower, spellDisplayText } from '@game/sim';
 import { canPlayDefs, playDef } from './fx/playDef';
 import { cascade, scheduleLands } from './fx/land';
 import { RUBY_GAP_MS } from './choreo/channels/rubyLanded';
+import { fanIntensityFor } from './fx/fanBudget';
 
 /**
  * The HAND BUFF cue's fire-from-anywhere bus (owner ask 2026-09-15).
@@ -33,6 +34,16 @@ export const HAND_BUFF_DEF_ID = 'hand-buff';
 /** Spacing between successive hand cards buffed by ONE event. The shop's cascade gap, reused not re-tuned. */
 export const HAND_BUFF_GAP_MS = RUBY_GAP_MS;
 
+/**
+ * ONE LIVE CUE PER CARD (perf 2026-10-22, owner: "when a cave cutter is played with both effects active it nukes
+ * performance"). Every play is keyed by its hand card's uid (`PlayDefOptions.dedupeKey`): a second buff landing on a
+ * card whose cue started less than this long ago is the SAME moment (the Ruby-power watcher and the shop hand diff
+ * both announce one Cave Cutter) and plays nothing new; a later one refreshes the card's cue instead of stacking a
+ * second 96-particle copy on it. Just past the pop's peak (`hold` 640 x `peak` 0.35 = 224 ms), so a refresh never
+ * cuts a pop before it has visibly landed.
+ */
+export const HAND_BUFF_COALESCE_MS = 300;
+
 /** Every pending staggered land, so a torn-down board can cancel the ones still queued. */
 const pending = new Set<ReturnType<typeof setTimeout>>();
 
@@ -44,29 +55,36 @@ export function handCardElement(uid: string): HTMLElement | null {
 }
 
 /** Play `hand-buff` on ONE hand card, now. Exported for the beat presenters that already own their timing. */
-export function playHandBuffOn(uid: string): void {
+export function playHandBuffOn(uid: string, intensity = 1): void {
   const el = handCardElement(uid);
   if (!el) return;
   const r = el.getBoundingClientRect();
   const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   // Literal id (not HAND_BUFF_DEF_ID) so the directCalls scanner — a text pass over literal `playDef` calls,
-  // see fx/directCallScan.ts — can attribute this site.
-  playDef('hand-buff', { source: at, target: at }, { uids: { source: uid, target: uid } });
+  // see fx/directCallScan.ts — can attribute this site. `intensity` is the fan share (1 = as authored, omitted).
+  playDef('hand-buff', { source: at, target: at }, {
+    uids: { source: uid, target: uid }, dedupeKey: uid, coalesceMs: HAND_BUFF_COALESCE_MS,
+    ...(intensity < 1 ? { intensity } : {}),
+  });
 }
 
 /**
  * Play the hand-buff cue on these hand cards — one play per card, cascaded left→right in the order given.
- * Safe to call from any phase, any surface, and as often as you like: a second buff landing mid-cue simply
- * plays a second instance over the first (every trigger reads as its own hit — owner 2026-07-24).
+ * Safe to call from any phase, any surface, and as often as you like: a card carries ONE live cue at a time. A
+ * second buff within `HAND_BUFF_COALESCE_MS` of the first is the same hit and plays nothing new; a later one
+ * restarts the card's cue (perf 2026-10-22, superseding "a second instance over the first" from 2026-07-24).
  *
  * Returns a teardown that cancels the lands still queued; fire-and-forget callers may ignore it.
  */
 export function fireHandBuff(uids: readonly string[]): () => void {
   if (uids.length === 0 || !canPlayDefs()) return () => {};
   const timers: ReturnType<typeof setTimeout>[] = [];
+  // The fan share: N cards split the def's fan budget evenly (`fanBudget.ts`), so a whole hand reads as one even
+  // wave rather than full bursts on the left and wisps on the right. 1 for up to three cards (as authored).
+  const intensity = fanIntensityFor(HAND_BUFF_DEF_ID, new Set(uids).size);
   for (const land of scheduleLands(cascade(uids.map((uid) => ({ uid }))), { gap: HAND_BUFF_GAP_MS })) {
-    if (land.at <= 0) { playHandBuffOn(land.uid); continue; }
-    const t = setTimeout(() => { pending.delete(t); playHandBuffOn(land.uid); }, land.at);
+    if (land.at <= 0) { playHandBuffOn(land.uid, intensity); continue; }
+    const t = setTimeout(() => { pending.delete(t); playHandBuffOn(land.uid, intensity); }, land.at);
     pending.add(t);
     timers.push(t);
   }

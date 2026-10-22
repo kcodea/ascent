@@ -148,7 +148,7 @@ export function probeSlice(semanticRevision?: string): SliceProbeReport {
     const fury = fight(board, [bm('sandbag', 2, 4000)], { runeFury: true });
     const furyAt3 = avengeBuffsBy(fury, plainUid).filter((f) => f.deaths === 3).length;
     const furyBefore3 = avengeBuffsBy(fury, plainUid).filter((f) => f.deaths < 3).length;
-    obs('rune_fury', 'multiplier.extra', furyAt3 / plainAt3 - 1, `with Rune of Fury armed the plain drake resolved ${furyAt3} grants at death 3 (plain run: ${plainAt3})`);
+    obs('rune_fury', 'multiplier.extra', furyAt3 / plainAt3 - 1, `with Fury armed the plain drake resolved ${furyAt3} grants at death 3 (plain run: ${plainAt3})`);
     obs('rune_fury', 'multiplier.resolutionOnly', furyBefore3 === 0, `no early fire under the rune (fires before death 3: ${furyBefore3}) — progress is not doubled`);
   }
 

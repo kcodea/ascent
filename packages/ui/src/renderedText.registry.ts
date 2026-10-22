@@ -54,6 +54,8 @@ export const RENDER_EXCUSED: Readonly<Record<string, RenderExcuse>> = {
   // Kobe (Ruby batch 2026-09-24): "Pummel (15): Get a random Ruby. (Twice per combat)". Became a subject when the
   // Pummel badge gate was derived from core's registry (R-PUMMEL-BADGE-01, 2026-10-03); same reading as its peers.
   k_kobe: { kind: 'accurate-at-any-value', why: 'Kobe (Pummel (15)): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  k3_zapdash: { kind: 'accurate-at-any-value', why: 'Zapdash (Pummel (10), 2026-10-22): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
+  k3_frackattack: { kind: 'accurate-at-any-value', why: 'Frack Attack (2026-10-22): the printed 3 Rubies and the 3-attack cadence never scale; the per-combat attack meter is the attackSeen step counter (stepProgress, N/3)' },
   tauntbreaker: { kind: 'accurate-at-any-value', why: 'Tauntbreaker (Pummel (25), 2026-10-03): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },
   dm_todd: { kind: 'accurate-at-any-value', why: 'Impossible Todd (Pummel (20), owner balance 2026-10-10): the Imp grant is a fixed +2/+1 per instance and the threshold never scales; the damage meter is the damageDealt step counter (stepProgress)' },
   ce3_starcharter: { kind: 'accurate-at-any-value', why: 'Maestro Lux (Pummel (12), 2026-09-24): no scaling number in the text; the damage meter is the damageDealt step counter (stepProgress)' },

@@ -5,7 +5,8 @@
  *  - ACTION TAGS: each committed shop action becomes a tiny tag (`{ t, uid, index, drag }`) that rides the next
  *    spectator delta, so the spectator plays the same animation and cue instead of guessing from a diff. A drag-driven
  *    action carries the drag's recorded path (the replay recorder's own trace, `replay/dragTrace.ts`).
- *  - THE CURSOR: the pointer ANCHORED to the UI element under it, with game-box (design-space) fractions as the
+ *  - THE CURSOR (built once in `cursorSource.ts`, for this sender and the replay recorder alike, R-REPLAY-STREAM-01):
+ *    the pointer ANCHORED to the UI element under it, with game-box (design-space) fractions as the
  *    fallback and the old window fractions for older spectators (`cursorSpace.ts`, R-SPECTATE-CURSOR-01), plus the card
  *    being dragged, on the room's broadcast channel at 20 Hz, coalesced to the latest sample per tick. The
  *    pointer and its target are taken from the move event (no layout read per move); the one anchor rect read happens on
@@ -18,11 +19,14 @@
  *  - THE FIGHT'S BEAT: the beat the player's fight is on (`notePlayerBeat`) rides every spectator keyframe while in
  *    combat (`cb`), so a spectator who joins or comes back mid-fight seeks to it (R-SPECTATE-JOIN-01).
  */
-import type { Action, CombatOdds, DragPath, EotRecord, VersusSeat } from '@game/sim';
-import { liveAim } from '../aimState';
-import { dragStore } from '../dragStore';
-import { DRAG_CAUSES, takeDragTrace } from '../replay/dragTrace';
-import { encodePoint, type CursorAnchor } from './cursorSpace';
+import type { Action, CombatOdds, DragPath, EotRecord, StreamCursorBody, StreamDecision, StreamTrailPoint, VersusSeat } from '@game/sim';
+import { dragTraceOf } from '../replay/dragTrace';
+import { noteStreamOverlay, noteStreamSkip } from '../replay/streamRecorder';
+import { CURSOR_IDLE_MS, CURSOR_POINT_MS, CURSOR_TICK_MS, noteCursorAct, subscribeCursor, wireDecisionOf } from './cursorSource';
+
+// The cursor message itself is built ONCE, in `cursorSource.ts`, for this sender and the replay recorder alike
+// (R-REPLAY-STREAM-01). Re-exported so the wire's constants and helpers keep their old home.
+export { CURSOR_IDLE_MS, CURSOR_POINT_MS, CURSOR_TICK_MS, wireDecisionOf };
 
 export const SPECTATE_CURSOR_EVENT = 'spectate_cursor';
 /** A live-game watcher leaving (its game recounts the stands at once; R-SPECTATE-WATCHERS-01). An older player ignores it. */
@@ -46,37 +50,13 @@ export interface SpectatorAct {
   ts?: number;
 }
 
-/** One cursor sample. `hide` = the player's tab went to the background or the hand went idle. */
-export interface CursorSample {
-  seat: VersusSeat;
-  /** Window fractions (the original wire form; an older spectator reads only these). */
-  x: number;
-  y: number;
-  /** Game-box (design-space) fractions (`cursorSpace.ts`). Optional: an older sender has none. */
-  gx?: number;
-  gy?: number;
-  /** The UI element under the pointer and the point within it; its key is also the hovered target. Optional. */
-  an?: CursorAnchor | null;
-  /** The card in the player's hand right now (its uid, the zone it was picked from, its card id), and the drop gap
-   *  the player's rows are opening for it (`g`, R-SPECTATE-DRAGGAP-01; optional, an older sender has none). */
-  drag?: { uid: string; source: string; cardId: string; g?: WireDecision } | null;
-  /** A live AIM LINE on the player's screen (a spell cast, the hero power, Equipment, a Battlecry): where it starts
-   *  (window fractions), whether it is on a target, and its effect when not the default. */
-  aim?: { x: number; y: number; gx?: number; gy?: number; an?: CursorAnchor | null; on: boolean; def?: string; t?: string } | null;
-  hide?: true;
-  /** THE PLAYER'S CLOCK (R-SPECTATE-SMOOTH-01): when the pointer was at this point (`performance.now()`, ms). The stands
-   *  map it onto their own clock and play the hand back at an even pace, whatever the network did to the messages. */
-  ts?: number;
-  /** The earlier points of this message, oldest first, ~16 ms apart: `[ms before ts, gx, gy, anchor key?, fx?, fy?]`.
-   *  A 60 Hz path at 20 messages a second. */
-  tr?: TrailPoint[];
-  /** A held card was just let go: `c` = it was played / bought / sold / moved (an action follows, keep it in place until
-   *  that lands), `x` = the drop was refused or cancelled (it springs back). Only on the first sample after the drag. */
-  de?: 'c' | 'x';
-}
+/** One cursor sample: the message `cursorSource.ts` builds (`StreamCursorBody`: window and game-box fractions, the
+ *  anchor, the held card and its drop gap `g` (R-SPECTATE-DRAGGAP-01), the aim, `hide`, the player's clock `ts` and
+ *  trail `tr` (R-SPECTATE-SMOOTH-01), the drop outcome `de`), plus the seat it is from. */
+export type CursorSample = StreamCursorBody & { seat: VersusSeat };
 
-/** An earlier point of a cursor message (`CursorSample.tr`). */
-export type TrailPoint = [number, number, number] | [number, number, number, string, number, number];
+/** An earlier point of a cursor message (`CursorSample.tr`): `[ms before ts, gx, gy, anchor key?, fx?, fy?]`. */
+export type TrailPoint = StreamTrailPoint;
 
 /**
  * The player's live DRAG DECISION as it travels (owner 2026-10-15: "spectating live is also doing that old replay issue
@@ -84,28 +64,8 @@ export type TrailPoint = [number, number, number] | [number, number, number, str
  * R-SPECTATE-DRAGGAP-01): the zone under the card and the gap indices the rows open (the replay's ghost-hold fix,
  * `holdGhostCard`, fed live). Short keys, defaults omitted; it changes a few times per drag, and only a change sends.
  */
-export interface WireDecision {
-  z?: 'tavern' | 'warband' | 'hand' | null;
-  gi?: number;
-  sg?: number;
-  hg?: number;
-  ow?: 1;
-  cl?: 1;
-  mg?: 1;
-}
+export type WireDecision = StreamDecision;
 
-/** The drag decision on the wire (pure; tested). */
-export function wireDecisionOf(overZone: WireDecision['z'], d: { gapIndex: number; shopGapIndex: number; handGapIndex: number; overWarband: boolean; collapsedLift: boolean; wouldMagnetize: boolean }): WireDecision {
-  return {
-    ...(overZone ? { z: overZone } : {}),
-    ...(d.gapIndex >= 0 ? { gi: d.gapIndex } : {}),
-    ...(d.shopGapIndex >= 0 ? { sg: d.shopGapIndex } : {}),
-    ...(d.handGapIndex >= 0 ? { hg: d.handGapIndex } : {}),
-    ...(d.overWarband ? { ow: 1 as const } : {}),
-    ...(d.collapsedLift ? { cl: 1 as const } : {}),
-    ...(d.wouldMagnetize ? { mg: 1 as const } : {}),
-  };
-}
 
 /** The actions a spectator replays (everything else is bookkeeping it does not need to see). */
 const TAGGED: ReadonlySet<string> = new Set([
@@ -113,23 +73,23 @@ const TAGGED: ReadonlySet<string> = new Set([
   'activateEquipment', 'discover', 'chooseOne', 'buyRune', 'pickPower', 'battlecryTarget', 'faceOmen',
 ]);
 const MAX_ACTS = 24;
-/** The cursor message rate: 20 a second while the hand moves (each carrying up to three points, a 60 Hz path). */
-export const CURSOR_TICK_MS = 50;
-/** One point per this many ms of pointer motion (the newest move in each slot wins). */
-export const CURSOR_POINT_MS = 16;
 /** An action goes out at most this long after it happened (the ordinary publish waits for idle time, up to 250 ms; an
  *  action's landing is what the stands are waiting for, R-SPECTATE-SMOOTH-01). */
 export const ACT_FLUSH_MS = 40;
-export const CURSOR_IDLE_MS = 4000;
 
 let watching = false;
 let acts: SpectatorAct[] = [];
 
 /** Record a committed action for the stands (a no-op when nobody watches). */
 export function tapAct(action: Action): void {
-  if (!watching || !TAGGED.has(action.type)) return;
+  if (!TAGGED.has(action.type)) return;
+  // Counted even with nobody watching: the replay recorder's drop outcomes read it too (R-REPLAY-STREAM-01).
+  noteCursorAct();
+  if (!watching) return;
   const a = action as { uid?: unknown; index?: unknown; targetUid?: unknown };
-  const drag = DRAG_CAUSES.has(action.type) ? takeDragTrace() : null;
+  // The same path the replay recorder attached to this action's frame (R-REPLAY-DRAG-SHARED-01): the recorder reads
+  // it first, in the commit, so a plain take here would find nothing in a recorded game.
+  const drag = dragTraceOf(action);
   acts.push({
     t: action.type,
     ts: Math.round(performance.now()),
@@ -139,7 +99,6 @@ export function tapAct(action: Action): void {
     ...(drag ? { drag } : {}),
   });
   if (acts.length > MAX_ACTS) acts.splice(0, acts.length - MAX_ACTS);
-  actSerial += 1;
   wake?.();
   hurry();
 }
@@ -159,6 +118,7 @@ export function tapEndTurn(eot: Pick<EotRecord, 'batch' | 'lassoFx'> | null): vo
  *  result, nothing is dispatched), so the stands would never see it: the tag rides the next message and the spectator's
  *  replay skips with it. An older spectator ignores the unknown tag. */
 export function tapSkipCombat(): void {
+  noteStreamSkip(); // the replay records it too (R-REPLAY-STREAM-01; a no-op when the run records none)
   if (!watching) return;
   acts.push({ t: 'skipCombat' });
   if (acts.length > MAX_ACTS) acts.splice(0, acts.length - MAX_ACTS);
@@ -184,6 +144,7 @@ export function tapOverlay(min: { discover: boolean; power: boolean; quest: bool
   const next: WireOverlay = { ...(min.discover ? { d: 1 } : {}), ...(min.power ? { p: 1 } : {}), ...(min.quest ? { q: 1 } : {}), ...(min.forge ? { f: 1 } : {}) };
   if (JSON.stringify(next) === JSON.stringify(overlayWire)) return;
   overlayWire = next;
+  noteStreamOverlay(min); // the replay records it too (R-REPLAY-STREAM-01; a no-op when the run records none)
   if (!watching) return;
   overlayDirty = true;
   wake?.();
@@ -234,105 +195,17 @@ let wake: (() => void) | null = null;
 /** The publisher's flush (send what is pending now), for an action the stands are waiting on. */
 let flush: (() => void) | null = null;
 let flushTimer: number | null = null;
-/** Every tagged action bumps this: a drag that ends with it moved is a COMMITTED drop (`de: 'c'`). */
-let actSerial = 0;
 let seat: VersusSeat | null = null;
-let timer: number | null = null;
-let cx = 0;
-let cy = 0;
-let movedAt = 0;
-let lastDragKey = '';
-let hidden = false;
-/** The element the pointer is over (the move event's own target: no hit test). */
-let overEl: Element | null = null;
-/** The pointer's points since the last message (one per `CURSOR_POINT_MS`, the newest move in each slot). */
-interface MovePoint { t: number; x: number; y: number; el: Element | null; slot: number }
-let trail: MovePoint[] = [];
-/** The card the last message showed in hand, and the action serial when it was picked up. */
-let heldUid: string | null = null;
-let heldMark = 0;
-/** Points stay unanchored until this time: a drop just re-laid the rows out, so the element a point was over may have
- *  moved (an anchor to it would land the stands' hand on its OLD slot, a jump across the board). */
-let unanchoredUntil = 0;
-/** How long after a drop the rows are still settling (the commit FLIP and the place slide). */
-const SETTLE_MS = 450;
-
-const onMove = (e: PointerEvent): void => {
-  cx = e.clientX; cy = e.clientY; overEl = e.target as Element | null;
-  // The event's own timestamp is on the `performance.now()` clock; a synthetic event may carry 0.
-  const t = e.timeStamp > 0 ? e.timeStamp : performance.now();
-  movedAt = performance.now();
-  const last = trail[trail.length - 1];
-  if (last && t - last.slot < CURSOR_POINT_MS) { last.x = cx; last.y = cy; last.el = overEl; last.t = t; }
-  else { trail.push({ t, x: cx, y: cy, el: overEl, slot: t }); if (trail.length > 6) trail.shift(); }
+/** The cursor subscription while someone watches (`cursorSource.ts` builds the message; this adds the seat and sends). */
+let unsubCursor: (() => void) | null = null;
+const sendCursor = (body: StreamCursorBody): void => {
+  if (send && seat) send(SPECTATE_CURSOR_EVENT, { seat, ...body } satisfies CursorSample);
 };
 
 /** An action happened: the publish goes out within `ACT_FLUSH_MS` instead of waiting for idle time. */
 function hurry(): void {
   if (!flush || flushTimer != null) return;
   flushTimer = window.setTimeout(() => { flushTimer = null; flush?.(); }, ACT_FLUSH_MS);
-}
-
-/** Where an aim line starts, as it travels: the element it starts from is the one under that point, if any. */
-function aimFrom(x: number, y: number): Pick<NonNullable<CursorSample['aim']>, 'x' | 'y' | 'gx' | 'gy' | 'an'> {
-  const target = typeof document !== 'undefined' && document.elementFromPoint ? document.elementFromPoint(x, y) : null;
-  return encodePoint(x, y, target);
-}
-/** The aim start last anchored (re-anchored only when it moves). */
-let aimKey: { x: number; y: number; wire: ReturnType<typeof aimFrom> } = { x: NaN, y: NaN, wire: { x: 0, y: 0 } };
-
-function tick(): void {
-  if (!send || !seat) return;
-  const ds = dragStore.get();
-  const drag = ds.drag;
-  // A refused drop springs back on the player's screen (`snapping`): to the stands it is let go already.
-  const dragNow = drag && drag.active && !drag.ghost && !ds.snapping ? { uid: drag.uid, source: drag.source, cardId: drag.view.cardId ?? '', g: wireDecisionOf(ds.overZone, ds.decision) } : null;
-  const a = liveAim.current;
-  // The aim's start point is re-anchored only when it moves (one hit test then, not per tick).
-  if (a && (a.from.x !== aimKey.x || a.from.y !== aimKey.y)) aimKey = { x: a.from.x, y: a.from.y, wire: aimFrom(a.from.x, a.from.y) };
-  // The minion the aim is on (the hero power / Battlecry pick, or the spell drag's cast target): the stands snap the
-  // line's end to it and light it (R-SPECTATE-AIM-01).
-  const aimOn = a ? ds.aimTargetUid ?? ds.decision.castTargetUid ?? null : null;
-  const aimNow = a ? { ...aimKey.wire, on: a.onTarget, ...(a.defId ? { def: a.defId } : {}), ...(aimOn ? { t: aimOn } : {}) } : null;
-  const dragKey = `${dragNow ? `${dragNow.uid}|${dragNow.source}|${JSON.stringify(dragNow.g)}` : ''}|${aimNow ? `${aimNow.x},${aimNow.y},${aimNow.on},${aimNow.def ?? ''},${aimNow.t ?? ''}` : ''}`;
-  // The drop: the card the last message held is gone from the hand. Committed if an action was tagged since it was
-  // picked up (the drop's own dispatch), else refused / cancelled.
-  let de: CursorSample['de'];
-  if (heldUid && dragNow?.uid !== heldUid) { de = actSerial > heldMark ? 'c' : 'x'; heldUid = null; unanchoredUntil = performance.now() + SETTLE_MS; }
-  if (dragNow && dragNow.uid !== heldUid) { heldUid = dragNow.uid; heldMark = actSerial; }
-  const idle = !dragNow && !aimNow && !de && performance.now() - movedAt > CURSOR_IDLE_MS;
-  if (document.visibilityState === 'hidden' || idle) {
-    trail = [];
-    if (!hidden) {
-      hidden = true;
-      // An IDLE hand still over a card keeps that card's hover open in the stands (the player is reading it); a
-      // backgrounded tab hovers nothing.
-      const still = document.visibilityState !== 'hidden' && overEl?.isConnected ? encodePoint(cx, cy, overEl).an : null;
-      send(SPECTATE_CURSOR_EVENT, { seat, x: 0, y: 0, hide: true, ts: Math.round(performance.now()), ...(still ? { an: still } : {}) } satisfies CursorSample);
-    }
-    return;
-  }
-  if (!trail.length && dragKey === lastDragKey && !hidden && !de) return;
-  hidden = false;
-  lastDragKey = dragKey;
-  // While a card is held or an aim is out, and while the rows settle after a drop, points travel in design space only
-  // (the rows under them slide). A sample with no fresh move (a state change only) is never anchored either: its
-  // element is the one from the last move, which the action may have moved since.
-  const anchored = !dragNow && !aimNow && performance.now() >= unanchoredUntil && trail.length > 0;
-  const pts: MovePoint[] = trail.length ? trail : [{ t: performance.now(), x: cx, y: cy, el: overEl, slot: 0 }];
-  trail = [];
-  const rects = new Map<Element, DOMRect>();
-  const newest = pts[pts.length - 1]!;
-  const at = encodePoint(newest.x, newest.y, newest.el && newest.el.isConnected ? newest.el : null, rects, anchored);
-  const tr: TrailPoint[] = [];
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p = pts[i]!;
-    const w = encodePoint(p.x, p.y, p.el && p.el.isConnected ? p.el : null, rects, anchored);
-    const back = Math.max(0, Math.round(newest.t - p.t));
-    tr.push(w.an ? [back, w.gx ?? 0, w.gy ?? 0, w.an.k, w.an.fx, w.an.fy] : [back, w.gx ?? 0, w.gy ?? 0]);
-  }
-  const sample: CursorSample = { seat, ...at, drag: dragNow, aim: aimNow, ts: Math.round(newest.t), ...(tr.length ? { tr } : {}), ...(de ? { de } : {}) };
-  send(SPECTATE_CURSOR_EVENT, sample);
 }
 
 // ── the fight's beat ───────────────────────────────────────────────────────────────────────────────────────
@@ -360,25 +233,16 @@ export function setSpectatorTap(on: boolean, mySeat: VersusSeat | null, sender: 
   if (want === watching) return;
   watching = want;
   if (want) {
-    movedAt = performance.now();
-    window.addEventListener('pointermove', onMove, { passive: true });
-    timer = window.setInterval(tick, CURSOR_TICK_MS);
+    unsubCursor = subscribeCursor(sendCursor);
   } else {
-    window.removeEventListener('pointermove', onMove);
-    if (timer != null) window.clearInterval(timer);
-    timer = null;
+    unsubCursor?.();
+    unsubCursor = null;
     acts = [];
-    trail = [];
-    heldUid = null;
-    unanchoredUntil = 0;
     if (flushTimer != null) window.clearTimeout(flushTimer);
     flushTimer = null;
     odds = null;
     oddsDirty = false;
     overlayDirty = false;
-    hidden = false;
-    lastDragKey = '';
-    overEl = null;
   }
 }
 

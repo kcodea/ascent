@@ -250,7 +250,7 @@ describe('Doc Bot — conservation laws (shop)', () => {
   });
 
   it('LAW 4 sabotage: an unattributed shop buff, and a catch-all source, both alarm', () => {
-    const clean = { ...createRun(3), tavernBuyBonus: { atk: 3, hp: 2 }, tavernBuyBonusSources: { 'Rune of Reinvestment': { atk: 2, hp: 1 }, 'Contract Butcher': { atk: 1, hp: 1 } } } as RunState;
+    const clean = { ...createRun(3), tavernBuyBonus: { atk: 3, hp: 2 }, tavernBuyBonusSources: { 'Reinvestment': { atk: 2, hp: 1 }, 'Contract Butcher': { atk: 1, hp: 1 } } } as RunState;
     expect(shopProvenanceViolation(clean)).toBeNull();
     const bypassed = { ...clean, tavernBuyBonus: { atk: 5, hp: 2 } } as RunState; // +2 Attack nobody credited
     expect(shopProvenanceViolation(bypassed)).toMatch(/bypassed/);

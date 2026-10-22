@@ -84,7 +84,7 @@ export const LANGUAGE_GUIDE: LanguageGuideEntry[] = [
     id: 'LG-TWICE-01',
     topic: 'multiplier-wording',
     rule: 'A NON-STACKING effect that fires something one extra time prints "Twice" / "twice" — never "an additional time", which reads as if copies stack. Stacking multipliers may print "+1 more time" per copy.',
-    example: 'Rune of Fury: "Your Avenge effects trigger twice." (compliant). Zyff: "Your Battlecries and Deathrattles trigger an additional time." (the flagged non-stacker shape — the wording-recommendation exemplar).',
+    example: 'Fury: "Your Avenge effects trigger twice." (compliant). Zyff: "Your Battlecries and Deathrattles trigger an additional time." (the flagged non-stacker shape — the wording-recommendation exemplar).',
     evidence: [
       { kind: 'owner-chat', ref: 'docs/docbot2/vertical-slice-report.md', quote: 'owner flag: non-stackers should say "Twice"' },
       { kind: 'docbot-scan', ref: 'verticalSlice wording-recommendation finding (zyff)' },
@@ -203,7 +203,7 @@ export const LANGUAGE_GUIDE: LanguageGuideEntry[] = [
     id: 'LG-SCOPE-01',
     topic: 'scope-wording',
     rule: 'A grant that reaches a tribe/class beyond the board — board, hand, Shop and future copies — names an AURA: "your <Tribe> Aura" (singular attributive noun + "Aura"). The retired scope tails "wherever they are" / "wherever it is" / "everywhere" never appear in printed text; the Aura noun carries the reach. Mechanics are unchanged by the vocabulary — an Aura grant is the same run-wide grant it always was.',
-    example: 'Lantern of Souls: "Give your Undead Aura +5 Attack." · Rune of Summoning: "Whenever you cast a Shop spell, improve your Imp Aura by +2/+2." · Deathswarmer: "Battlecry: Give your Undead Aura +1 Attack." (was "…your Undead +1 Attack wherever they are").',
+    example: 'Lantern of Souls: "Give your Undead Aura +5 Attack." · Summoning: "Whenever you cast a Shop spell, improve your Imp Aura by +2/+2." · Deathswarmer: "Battlecry: Give your Undead Aura +1 Attack." (was "…your Undead +1 Attack wherever they are").',
     evidence: [
       { kind: 'owner-chat', ref: 'decision q-word-lg-scope-01 (REVISE, 2026-08-28)', quote: "this is correct, however we want to re-brand the 'wherever they are' vocabulary to Aura's instead. i.e. Buff your Undead Army Aura +4/+1, or Buff your Imp Aura +4/+4 etc." },
       survey('the pre-rebrand split: wherever-they-are ×15 texts vs everywhere ×3 texts — all 18 rewritten to the Aura noun'),

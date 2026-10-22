@@ -60,7 +60,7 @@ describe('Rune of the Wild Hunt: the live value (R-RUNE-LIVE-TEXT-01)', () => {
     const fires = progressOf(r).triggers['runeWildHunt'] ?? 0;
     expect(fires, 'the Beasts really attacked (the fixture must exercise the rune)').toBeGreaterThan(0);
     // The engine's buffs: the k-th Beast attack gained 2k Attack.
-    const grants = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Wild Hunt').map((e) => e.attack);
+    const grants = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Wild Hunt').map((e) => e.attack);
     expect(grants).toEqual(Array.from({ length: fires }, (_, k) => 2 * (k + 1)));
     // Settled: the run banks the growth ("permanently").
     const settled = reduce(after, { type: 'settleCombat' }) as RunState;
@@ -71,7 +71,7 @@ describe('Rune of the Wild Hunt: the live value (R-RUNE-LIVE-TEXT-01)', () => {
     expect(live).toBe(2 * fires + 2);
     // …and the next fight resumes from it.
     const next = fight(reduce(settled, { type: 'resolveCombat' }) as RunState);
-    const first = next.lastCombat!.events.find((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Wild Hunt');
+    const first = next.lastCombat!.events.find((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Wild Hunt');
     if (first) expect(first.attack).toBe(live);
   });
 

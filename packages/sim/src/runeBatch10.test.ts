@@ -103,7 +103,7 @@ describe('Rune of the War Chorus', () => {
 describe('the three runes ship as specced', () => {
   it('exist at the sheet costs and tiers', () => {
     const want: [string, number, boolean][] = [
-      ['Rune of the Brood', 3, false], ['Rune of the War Chorus', 3, false], ['Rune of Living Echoes', 5, true],
+      ['Brood', 3, false], ['War Chorus', 3, false], ['Living Echoes', 5, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -114,8 +114,8 @@ describe('the three runes ship as specced', () => {
   });
 
   it('only Living Echoes is set-scoped — the Sunmane Herald is a set-2 Beast', () => {
-    expect(byName('Rune of Living Echoes')!.sets).toEqual(['set2']);
-    expect(byName('Rune of the Brood')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
-    expect(byName('Rune of the War Chorus')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+    expect(byName('Living Echoes')!.sets).toEqual(['set2']);
+    expect(byName('Brood')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
+    expect(byName('War Chorus')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
   });
 });

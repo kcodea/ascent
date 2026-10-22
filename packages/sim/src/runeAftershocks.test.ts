@@ -26,8 +26,8 @@ describe('Rune of Aftershocks fires once per Echo TRIGGER', () => {
     // times (one per watcher on the bus); now one death = one trigger = one grant.
     const board: BoardMinion[] = Array.from({ length: 5 }, () => ({ cardId: 'pack', attack: 0, health: 1 }));
     const armed = sim(board, killer, { runeAftershocks: true });
-    const grantEvents = armed.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Aftershocks').length;
-    const baseline = sim(board, killer, {}).events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Aftershocks').length;
+    const grantEvents = armed.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Aftershocks').length;
+    const baseline = sim(board, killer, {}).events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Aftershocks').length;
     expect(baseline, 'unarmed, the rune must grant nothing').toBe(0);
     expect(grantEvents, 'the rune never fired at all').toBeGreaterThan(0);
     // The board is 5 bodies (plus the Pups their Echoes summon). Five deaths, each ONE trigger, each buffing
@@ -39,7 +39,7 @@ describe('Rune of Aftershocks fires once per Echo TRIGGER', () => {
   it('does not fire at all on a board with no Echo', () => {
     const board: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 1 }, { cardId: 'sandbag', attack: 0, health: 40 }];
     const r = sim(board, killer, { runeAftershocks: true });
-    const grants = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Aftershocks').length;
+    const grants = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Aftershocks').length;
     expect(grants, 'a rattle-less board triggered no Echo, so the rune must stay silent').toBe(0);
   });
 
@@ -52,7 +52,7 @@ describe('Rune of Aftershocks fires once per Echo TRIGGER', () => {
       { cardId: 'brood', attack: 0, health: 400 },
     ];
     const r = sim(board, killer, { runeAftershocks: true });
-    const grants = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Aftershocks').length;
+    const grants = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Aftershocks').length;
     expect(grants, 'the Matron observing a death is not an Echo trigger').toBe(0);
   });
 });
@@ -71,7 +71,7 @@ describe('a FORCED Echo trigger pays the rune, with no death involved', () => {
   // trigger, never from a death. `pack` (Wolf Pack) carries a real onDeath effect — it is the Echo body.
   const wall: BoardMinion[] = [{ cardId: 'sandbag', attack: 0, health: 40000 }];
   const grantsOf = (r: ReturnType<typeof sim>) =>
-    r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Aftershocks').length;
+    r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Aftershocks').length;
 
   it('ECHOHORN STAG — its Rally-proc’d Echo fires the rune', () => {
     const board: BoardMinion[] = [

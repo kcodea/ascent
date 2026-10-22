@@ -6,7 +6,7 @@ import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
   abhorrentHorrorText, ascendProgressText, asymSummonBuffText, cadenceProgressText, cardTypeTallyText, chefRaagText, clingProgressText,
   cryptDrakeText, drunkenOafText, aleTierText, sellDiscoverTierText, shredderText, karthusText, engraveTallyText, escalatingCastText, guelProgressText, hunterText, vaultkeeperText, improvingRubyGrantText, monkProgressText, overflowPerPlayedText, packLeaderText, runescaleText, scTribeBuffPerPlayedText,
-  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
+  archivistText, ashenHeirText, chooseBothText, attackGrantImproveText, castSpellPerGoldText, copyCastSpellText, runeModifiedNote, type RuneTextFlags, improvingSummonText, perCardPlayedText, rougeRogueText, perGoldSpentText, rallySpreadText, shopBuffImproveText, spellThresholdText, ritualistText, sergeantText, soulsmanText, squirlScoutText, conductorText, perPlayedTargetText, stepProgress, sporebatText, stewardText, thundeerText, summonBuffText, summonEscalatingText, summonFlatZooText, summonImproveText, sellImproveText, rubyCastGainText, summitTierText, summonScalingText, shootingStarText, echoTallyText,
   ancientWandererText, musterTrooperText, shopSpellGrowthText,
   taughtSpellText, trailForagerText, transformProgressText, watcherText, withGrantedRise, withImpStats, spiritText, whisperGranterText, whisperCasterText, attackImmuneText, humKeepText, seedEchoNote } from './cardText';
 
@@ -257,8 +257,9 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             sellDiscoverTierText(c.id, p.golden, p.tier) ?? // Golden Monkey: the Tier its Sell Discover offers right now
             summonImproveText(c.id, p.summonBonus ?? 0, p.golden) ??
             attackGrantImproveText(c.id, p.summonBonus ?? 0, p.golden, p.runeMammoth) ?? // Menagerie Mammoth: escalating grant (+Health with the rune)
-            // Runic Archivist / Mark Eting / Valyou: no text helper, their countdown is the N/4 counter (owner 2026-10-21)
+            // Runic Archivist / Mariet / Valyou: no text helper, their countdown is the N/4 counter (owner 2026-10-21)
             sellImproveText(c.id, p.golden, p.soldProgress ?? 0) ?? // Leeds: the current grant (its countdown is the counter)
+            rubyCastGainText(c.id, p.golden, p.eotTick ?? 0) ?? // Rosey: the current per-Ruby grant (its countdown is the counter)
             hunterText(c.id, p.summonBonus ?? 0, p.golden) ??
             vaultkeeperText(c.id, p.golden, p.spiritTally ?? 0) ?? // Vaultkeeper: its current per-Dragon gain
             improvingRubyGrantText(c.id, p.golden, p.summonBonus ?? 0) ?? // Alchemist Brisbane: its current Ruby grant

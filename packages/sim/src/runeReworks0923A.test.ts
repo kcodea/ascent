@@ -168,13 +168,13 @@ describe('Rune of the Drake Skull — every Shout buffs your left- and right-mos
     expect(s.shoutEdgeTribeBuff).toEqual({ tribe: 'dragon', attack: 6, health: 6 });
     expect(s.shoutEdgeBuff, 'the untribed Twin Sun Oath channel is untouched').toBeUndefined();
     s = shout(s, 'sh');
-    for (const uid of ['d1', 'd2']) expect(buffsOf(s.board.find((c) => c.uid === uid)!, 'Rune of the Drake Skull')).toEqual([[6, 6]]);
-    for (const uid of ['b1', 'b2']) expect(buffsOf(s.board.find((c) => c.uid === uid)!, 'Rune of the Drake Skull')).toEqual([]);
+    for (const uid of ['d1', 'd2']) expect(buffsOf(s.board.find((c) => c.uid === uid)!, 'Drake Skull')).toEqual([[6, 6]]);
+    for (const uid of ['b1', 'b2']) expect(buffsOf(s.board.find((c) => c.uid === uid)!, 'Drake Skull')).toEqual([]);
   });
   it('one Dragon is both ends — buffed once, not twice', () => {
     let s = withRune('rune_drake_skull', { board: [bc('b1', 'stray'), bc('d1', 'emissary')] });
     s = shout(s, 'sh');
-    expect(buffsOf(s.board.find((c) => c.uid === 'd1')!, 'Rune of the Drake Skull')).toHaveLength(1);
+    expect(buffsOf(s.board.find((c) => c.uid === 'd1')!, 'Drake Skull')).toHaveLength(1);
   });
 });
 
@@ -187,13 +187,13 @@ describe('Rune of Ancestral Roar — End of Turn: Dragons +6/+6 for every Shout 
     expect(runeTally(s, 'rune_ancestral_roar'), 'the badge prints the live count and lump').toBe('2 Shouts · +12/+12');
     applyEndOfTurn(s);
     const d = s.board.find((c) => c.uid === 'd1')!;
-    expect(buffsOf(d, 'Rune of Ancestral Roar'), 'LUMP: one +12/+12, not two +6/+6').toEqual([[12, 12]]);
-    expect(buffsOf(s.board.find((c) => c.uid === 'b1')!, 'Rune of Ancestral Roar'), 'Dragons only').toEqual([]);
+    expect(buffsOf(d, 'Ancestral Roar'), 'LUMP: one +12/+12, not two +6/+6').toEqual([[12, 12]]);
+    expect(buffsOf(s.board.find((c) => c.uid === 'b1')!, 'Ancestral Roar'), 'Dragons only').toEqual([]);
   });
   it('no Shouts this turn → nothing; the count resets at the rollover', () => {
     const s = withRune('rune_ancestral_roar', { board: [bc('d1', 'emissary')] });
     applyEndOfTurn(s);
-    expect(buffsOf(s.board[0]!, 'Rune of Ancestral Roar')).toEqual([]);
+    expect(buffsOf(s.board[0]!, 'Ancestral Roar')).toEqual([]);
     let t = shout(withRune('rune_ancestral_roar', { board: [bc('d1', 'emissary', 1, 30)], resolve: 999, maxResolve: 999, armor: 999 }), 'a');
     t = reduce(reduce(t, { type: 'faceOmen' }), { type: 'resolveCombat' }) as RunState;
     expect(t.shoutFiresThisTurn ?? 0).toBe(0);
@@ -204,15 +204,15 @@ describe('Rune of the Runic Hoard — every spell cast gives 3 random Dragons +3
   it('an untargeted Shop spell: exactly three of four Dragons take +3/+4', () => {
     const s = withRune('rune_runic_hoard', { board: [bc('d1', 'emissary'), bc('d2', 'cleric'), bc('d3', 'weaver'), bc('d4', 'frontdrake'), bc('b', 'stray')] });
     castSpell(s, CARD_INDEX['growth']!);
-    const hit = s.board.filter((c) => buffsOf(c, 'Rune of the Runic Hoard').length > 0);
+    const hit = s.board.filter((c) => buffsOf(c, 'Runic Hoard').length > 0);
     expect(hit).toHaveLength(3);
-    for (const c of hit) expect(buffsOf(c, 'Rune of the Runic Hoard')).toEqual([[3, 4]]);
-    expect(buffsOf(s.board.find((c) => c.uid === 'b')!, 'Rune of the Runic Hoard'), 'never a non-Dragon').toEqual([]);
+    for (const c of hit) expect(buffsOf(c, 'Runic Hoard')).toEqual([[3, 4]]);
+    expect(buffsOf(s.board.find((c) => c.uid === 'b')!, 'Runic Hoard'), 'never a non-Dragon').toEqual([]);
   });
   it('a Ruby is a spell too — it pays without the Spellstone', () => {
     let s = withRune('rune_runic_hoard', { board: [bc('d1', 'emissary'), bc('b', 'stray')], hand: [bc('r', RUBY_ID, 1, 1)] });
     s = reduce(s, { type: 'play', uid: 'r', targetUid: 'b' }) as RunState;
-    expect(buffsOf(s.board.find((c) => c.uid === 'd1')!, 'Rune of the Runic Hoard')).toEqual([[3, 4]]);
+    expect(buffsOf(s.board.find((c) => c.uid === 'd1')!, 'Runic Hoard')).toEqual([[3, 4]]);
   });
   it('a copied spell no longer pays (the old trigger is gone)', () => {
     const s = withRune('rune_runic_hoard', { board: [bc('d1', 'emissary')] });
@@ -239,29 +239,29 @@ describe('Rune of Lorekeeping — ANY spell cast on a friendly minion gives it +
   it('a targeted Shop spell', () => {
     let s = lore({ hand: [bc('sp', 'spiritfire', 0, 1)] });
     s = reduce(s, { type: 'play', uid: 'sp', targetUid: 't' }) as RunState;
-    expect(buffsOf(t(s), 'Rune of Lorekeeping')).toEqual([[3, 3]]);
+    expect(buffsOf(t(s), 'Lorekeeping')).toEqual([[3, 3]]);
     expect([t(s).attack, t(s).health]).toEqual([2 + 6 + 3, 2 + 6 + 3]); // Spirit Fire +6/+6 (owner spell batch 2026-10-10)
   });
   it('a Clue (a Gift)', () => {
     let s = lore({ setId: 'set3', hand: [bc('cl', 'clue', 0, 1)] } as Partial<RunState>);
     s = reduce(s, { type: 'play', uid: 'cl', targetUid: 't' }) as RunState;
-    expect(buffsOf(t(s), 'Rune of Lorekeeping')).toEqual([[3, 3]]);
+    expect(buffsOf(t(s), 'Lorekeeping')).toEqual([[3, 3]]);
   });
   it('a Ruby', () => {
     let s = lore({ hand: [bc('r', RUBY_ID, 1, 1)] });
     s = reduce(s, { type: 'play', uid: 'r', targetUid: 't' }) as RunState;
-    expect(buffsOf(t(s), 'Rune of Lorekeeping')).toEqual([[3, 3]]);
-    expect(buffsOf(s.board.find((c) => c.uid === 'u')!, 'Rune of Lorekeeping'), 'only the minion it was cast on').toEqual([]);
+    expect(buffsOf(t(s), 'Lorekeeping')).toEqual([[3, 3]]);
+    expect(buffsOf(s.board.find((c) => c.uid === 'u')!, 'Lorekeeping'), 'only the minion it was cast on').toEqual([]);
   });
   it('an UNTARGETED spell (Growth) pays nothing — it was not cast ON a minion', () => {
     const s = lore();
     castSpell(s, CARD_INDEX['growth']!);
-    expect(buffsOf(t(s), 'Rune of Lorekeeping')).toEqual([]);
+    expect(buffsOf(t(s), 'Lorekeeping')).toEqual([]);
   });
   it('a Ruby on a SHOP offer pays nothing there, but its Distillation echo onto your minion does', () => {
     let s = withRune('rune_lorekeeping', { board: [bc('t', 'stray', 2, 2)], hand: [bc('r', RUBY_ID, 1, 1)], shop: [{ uid: 'o1', cardId: 'sandbag' }], runeDistillation: true });
     s = reduce(s, { type: 'play', uid: 'r', targetUid: 'o1' }) as RunState;
-    expect(buffsOf(s.board[0]!, 'Rune of Lorekeeping')).toEqual([[3, 3]]);
+    expect(buffsOf(s.board[0]!, 'Lorekeeping')).toEqual([[3, 3]]);
   });
 });
 
@@ -296,7 +296,7 @@ describe('Rune of Enchantment — combat casts only, +6/+8', () => {
   it('a SHOP cast gives the board nothing', () => {
     const s = withRune('rune_enchantment', { board: [bc('t', 'stray', 2, 2)] });
     castSpell(s, CARD_INDEX['growth']!);
-    expect(buffsOf(s.board[0]!, 'Rune of Enchantment')).toEqual([]);
+    expect(buffsOf(s.board[0]!, 'Enchantment')).toEqual([]);
     expect([s.board[0]!.attack, s.board[0]!.health], 'Growth alone').toEqual([4, 4]);
   });
   it('a COMBAT cast (a Spellstone Ruby from Attacking Gems) gives every minion +6/+8', () => {
@@ -304,7 +304,7 @@ describe('Rune of Enchantment — combat casts only, +6/+8', () => {
     const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 60, sourceUid: 'e0', keywords: [] }];
     const r = simulate(player, enemy, makeRng(3), CARD_INDEX,
       combatSide({ tier: 6, tribes: ['beast', 'kobold'] as never, questMods: { runeAttackingGems: 1, runeSpellstone: true, runeEnchantment: 1 } }), combatSide());
-    const ench = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Enchantment') as { attack: number; health: number }[];
+    const ench = r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Enchantment') as { attack: number; health: number }[];
     expect(ench.length, 'the combat cast fired the rune').toBeGreaterThan(0);
     expect([ench[0]!.attack, ench[0]!.health]).toEqual([6, 8]);
   });
@@ -432,12 +432,12 @@ describe('AUDIT — Rune of the Spellstone reaches every Shop-spell trigger', ()
       return s;
     };
     const on = run(true);
-    expect(buffsOf(on.board[0]!, 'Rune of the Flagship'), 'the Dwarf took the Flagship grant').toEqual([[2, 2]]);
-    expect(buffsOf(on.board[0]!, 'Rune of Kindling'), 'Kindling hit the left end').toHaveLength(1);
+    expect(buffsOf(on.board[0]!, 'Flagship'), 'the Dwarf took the Flagship grant').toEqual([[2, 2]]);
+    expect(buffsOf(on.board[0]!, 'Kindling'), 'Kindling hit the left end').toHaveLength(1);
     expect(on.runeThresholds![0]!.tick, 'the spellCast meter ticked').toBe(1);
     expect(on.spellsCast).toBe(1);
     const off = run(false);
-    expect(buffsOf(off.board[0]!, 'Rune of the Flagship'), 'without the rune a Ruby is not a Shop spell').toEqual([]);
+    expect(buffsOf(off.board[0]!, 'Flagship'), 'without the rune a Ruby is not a Shop spell').toEqual([]);
     expect(off.runeThresholds![0]!.tick).toBe(0);
   });
   it('in combat, a Spellstone Ruby is a spell cast (Enchantment fires) — pinned above', () => {
@@ -474,7 +474,7 @@ describe('AUDIT — Rune of Thrift discounts every Shop spell that grants stats 
       try { castSpell(s, c, c.target ? s.board[0] : undefined); } catch { continue; }
       if (statSum(s) > before && !isStatSpell(c)) missing.push(`${c.id} (${c.effects.map((e) => e.do).join(',')})`);
     }
-    expect(missing, 'a Shop spell grew a stat but Rune of Thrift would not discount it — add its factory to STAT_SPELL_EXTRAS').toEqual([]);
+    expect(missing, 'a Shop spell grew a stat but Thrift would not discount it — add its factory to STAT_SPELL_EXTRAS').toEqual([]);
   });
 });
 
@@ -521,9 +521,9 @@ describe('AUDIT — Rune of Combat Prowess replays every rune / quest Start of C
     });
     applyEndOfTurn(s);
     const at = (uid: string) => s.board.find((c) => c.uid === uid)!;
-    expect(buffsOf(at('a'), 'Rune of Held Strength')).toEqual([[3, 4]]);
-    expect(buffsOf(at('z'), 'Rune of Held Strength')).toEqual([[3, 4]]);
-    expect(buffsOf(at('m'), 'Rune of Held Strength')).toEqual([]);
+    expect(buffsOf(at('a'), 'Held Strength')).toEqual([[3, 4]]);
+    expect(buffsOf(at('z'), 'Held Strength')).toEqual([[3, 4]]);
+    expect(buffsOf(at('m'), 'Held Strength')).toEqual([]);
     expect(s.hand, 'the held card stays in hand').toHaveLength(1);
   });
   it('the board pass still fires every minion Start of Combat (the existing dispatcher, unchanged)', () => {

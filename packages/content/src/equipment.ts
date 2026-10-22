@@ -211,8 +211,8 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   // regular ruby, only the special ones"). Gilded doubles it to 4. The Both branch is unchanged and still expires at
   // the turn boundary like every Choose-Both charge, so "this turn" stays printed (the 2026-09-24 quote omitted it
   // too, and the card has always said it).
-  text: 'Choose One: **Discover 2 Rubies** or your next **Choose One** card this turn gains **both** effects.',
-  goldenText: 'Choose One: **Discover 4 Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
+  text: 'Choose One: **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.',
+  goldenText: 'Choose One: **Discover 4 special Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
   baseCost: 1,
   targetMode: 'none',
   effectId: 'grantChooseBothCharges',
@@ -228,8 +228,8 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   chooseOne: [
     {
       // Owner Ruby batch 2026-09-24 (was "Discover a Choose One card"): Discover one of the special Rubies.
-      text: '**Discover 2 Rubies**.',
-      goldenText: '**Discover 4 Rubies**.',
+      text: '**Discover 2 special Rubies**.',
+      goldenText: '**Discover 4 special Rubies**.',
       effectId: 'discoverRuby',
       params: { count: 2 }, // owner 2026-10-22: 2 Discovers (was 1)
       gildedParams: { count: 4 },

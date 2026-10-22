@@ -21,7 +21,7 @@
 import type { Action, CombatOdds, DragPath, EotRecord, VersusSeat } from '@game/sim';
 import { liveAim } from '../aimState';
 import { dragStore } from '../dragStore';
-import { DRAG_CAUSES, takeDragTrace } from '../replay/dragTrace';
+import { dragTraceOf } from '../replay/dragTrace';
 import { encodePoint, type CursorAnchor } from './cursorSpace';
 
 export const SPECTATE_CURSOR_EVENT = 'spectate_cursor';
@@ -129,7 +129,9 @@ let acts: SpectatorAct[] = [];
 export function tapAct(action: Action): void {
   if (!watching || !TAGGED.has(action.type)) return;
   const a = action as { uid?: unknown; index?: unknown; targetUid?: unknown };
-  const drag = DRAG_CAUSES.has(action.type) ? takeDragTrace() : null;
+  // The same path the replay recorder attached to this action's frame (R-REPLAY-DRAG-SHARED-01): the recorder reads
+  // it first, in the commit, so a plain take here would find nothing in a recorded game.
+  const drag = dragTraceOf(action);
   acts.push({
     t: action.type,
     ts: Math.round(performance.now()),

@@ -7597,4 +7597,18 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-20 (feat/chest-shop-screen), once the owner runs 2026-10-20-announcers-not-focusable.sql after the milestone file. The client (availableFocusCategories) and the server (aether_quote) both leave announcer out of the available focus categories, so a focus naming it is refused as bad_focus and ticking every other category collapses to no focus (null, fee 0). The pool is untouched (eligibleForCrate, progression_tiered_crate_pool), so an unfocused chest still rolls Announcers. Until the SQL is run, the live server still accepts an announcer focus: the Edge Function\x27s parseFocus is deliberately unchanged, so the SQL quote is the gate.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/crateShop.test.ts', 'packages/progression/src/announcersNotFocusable.db.test.ts'], lastVerifiedAt: '2026-10-20' },
   },
+  {
+    id: 'R-REPLAY-DRAG-SHARED-01',
+    title: 'A recorded and watched game hands the same drag path to the replay and to the spectators',
+    statement:
+      'A drop parks one drag path. Every consumer of the action that drop dispatched reads it through dragTraceOf(action): the first consumer takes the park (with the usual staleness rule) and every later consumer of the same action gets the same path. The replay recorder reads it inside the store commit and the spectator tap reads it just after, so in a ranked lobby game that is both recorded and watched the replay frame and the spectator action tag both carry the path. A non-drag action never touches the park, and a different action never inherits an earlier one.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (replay to spectating quality)', quote: 'is our replay as good as spectating is? spectating seems basically perfect now... would love to keep them both maintained' },
+    ],
+    currentBehaviour: 'Before, both consumers used a take-and-clear read: the recorder took the path first, so the spectator tag of every drag-driven action in a recorded game had no path and the stands saw the card jump instead of travel.',
+    example: 'A watched ranked player drags a shop minion onto their board: the replay frame and the spectator tag both carry the same pointer path.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/dragTraceShared.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

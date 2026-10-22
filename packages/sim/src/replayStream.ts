@@ -32,6 +32,8 @@
  *  - `dgx, dgy`: the newest point in game-box thousandths, minus the previous message's.
  *  - a trail point: `back` (ms before the newest point; stored as `-(back + 1)` when anchored), `dgx, dgy` against the
  *    newest point, then `key, fx, fy` when anchored.
+ *  - every anchored `fx, fy` (the newest point's and the trail's, in that order) is a delta from the previous anchored
+ *    point's: the hand mostly stays on one element, so these are usually one byte.
  */
 
 /** A point anchored to a UI element: its key and the point as a fraction of the element's box. */
@@ -134,6 +136,9 @@ export interface StreamEncoder {
   lastT: number;
   gx: number;
   gy: number;
+  /** The previous anchored point's fx / fy (thousandths), the base of the next one's delta. */
+  afx: number;
+  afy: number;
   dragKey: string;
   aimKey: string;
 }
@@ -141,7 +146,7 @@ export interface StreamEncoder {
 /** Start a segment for `wave` whose clock begins at frames-clock `t0`. */
 export function newStreamEncoder(wave: number, t0: number): StreamEncoder {
   const t = Math.round(t0);
-  return { seg: { w: wave, t0: t, t1: t, n: 0, k: [] }, ints: [], keys: new Map(), lastT: t, gx: 0, gy: 0, dragKey: '', aimKey: '' };
+  return { seg: { w: wave, t0: t, t1: t, n: 0, k: [] }, ints: [], keys: new Map(), lastT: t, gx: 0, gy: 0, afx: 0, afy: 0, dragKey: '', aimKey: '' };
 }
 
 function keyIndex(enc: StreamEncoder, k: string): number {
@@ -196,13 +201,19 @@ export function encodeStreamMessage(enc: StreamEncoder, body: StreamCursorBody, 
     enc.gx = gx;
     enc.gy = gy;
   }
-  if (an) m.push(keyIndex(enc, an.k), q(an.fx), q(an.fy));
+  const anchor = (k: string, fx: number, fy: number): void => {
+    const x = q(fx), y = q(fy);
+    m.push(keyIndex(enc, k), x - enc.afx, y - enc.afy);
+    enc.afx = x;
+    enc.afy = y;
+  };
+  if (an) anchor(an.k, an.fx, an.fy);
   if (tr) {
     m.push(tr.length);
     for (const p of tr) {
       const anchored = p.length === 6;
       m.push(anchored ? -(p[0] + 1) : p[0], q(p[1]) - gx, q(p[2]) - gy);
-      if (anchored) m.push(keyIndex(enc, p[3] as string), q(p[4] as number), q(p[5] as number));
+      if (anchored) anchor(p[3] as string, p[4] as number, p[5] as number);
     }
   }
   seg.n += 1;
@@ -285,9 +296,17 @@ export function decodeStreamSegment(seg: StreamSegment): RecordedCursorBody[] {
   let t = seg.t0;
   let gx = 0;
   let gy = 0;
+  let afx = 0;
+  let afy = 0;
   let drag: StreamHeld | null = null;
   let aim: StreamAim | null = null;
   const d3 = (v: number): number => v / 1000;
+  const anchor = (): StreamAnchor => {
+    const key = k[m[i++]!]!;
+    afx += m[i++]!;
+    afy += m[i++]!;
+    return { k: key, fx: d3(afx), fy: d3(afy) };
+  };
   while (i < m.length) {
     t += m[i++]!;
     const flags = m[i++]!;
@@ -305,7 +324,7 @@ export function decodeStreamSegment(seg: StreamSegment): RecordedCursorBody[] {
       body.gy = d3(gy);
     }
     if (flags & F_ANCHOR) {
-      body.an = { k: k[m[i++]!]!, fx: d3(m[i++]!), fy: d3(m[i++]!) };
+      body.an = anchor();
     }
     if (hide) body.hide = true;
     else {
@@ -319,7 +338,7 @@ export function decodeStreamSegment(seg: StreamSegment): RecordedCursorBody[] {
         const b = m[i++]!;
         const px = d3(gx + m[i++]!);
         const py = d3(gy + m[i++]!);
-        if (b < 0) tr.push([-b - 1, px, py, k[m[i++]!]!, d3(m[i++]!), d3(m[i++]!)]);
+        if (b < 0) { const a = anchor(); tr.push([-b - 1, px, py, a.k, a.fx, a.fy]); }
         else tr.push([b, px, py]);
       }
       body.tr = tr;

@@ -58,18 +58,16 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // END OF MATCH (owner 2026-10-13): his tone for a 5th to 8th place finish, at the same level as the gate's cues;
   // and, for a 1st to 4th, the gate's cinematic hit (the `gateintro` clip) at that cue's own level.
   placelow: 0.6, placehigh: 0.72,
-  // THE FALLING GATE (owner 2026-10-22): the shop <-> combat transition's own recordings, one fader each. The impact
-  // layers four thuds at once, so each starts lower (the wooden door is the hottest file, -3 dB peak); tune by ear.
-  // wipedrop 0.55 -> 0.7 the same day (owner: "up the woosh to .7").
-  wipedrop: 0.7, wipethudwood: 0.4, wipethudground: 0.6, wipethudheavy: 0.6, wipethudgrit: 0.5,
-  // wipegroan 0.45 -> 0.7 the same day (owner: "increase metal groan to .7"); then crank, gears and groan all down 25%
-  // (owner: "reduce the cranking sounds (except the gate cranking sound) by 25%"): 0.5 -> 0.375, 0.45 -> 0.3375, 0.7 -> 0.525.
-  wipecrank: 0.375, wipegears: 0.3375, wipegroan: 0.525,
-  // The poster's page flap: a quiet recording (-26 dB peak), so it starts high.
-  wipeposter: 0.85,
-  // The ranked gate's grinding open, layered back on the crank (owner 2026-10-22: "just have it a bit lowered"):
-  // its own fader. 0.35 -> 0.5 the same day (owner: "up it to .5").
-  wipegateopen: 0.5,
+  // THE FALLING GATE (owner 2026-10-22): the shop <-> combat transition's own recordings, one fader each, tuned by ear the
+  // same day. Last pass (owner: "lets reduce the gears sound by 25%, then the entire crank category by another 25%, then
+  // reduce the entire sfx for this whole animation by 20%"): gears x0.75, every crank layer x0.75, everything x0.8.
+  // The drop and the impact (the impact layers four thuds at once; the wooden door is the hottest file).
+  wipedrop: 0.56, wipethudwood: 0.32, wipethudground: 0.48, wipethudheavy: 0.48, wipethudgrit: 0.4,
+  // The poster's page flap: a quiet recording (-26 dB peak), so it sits high.
+  wipeposter: 0.68,
+  // The crank: the crank recording, gears, metal groan, and the ranked gate's grinding open on its own fader.
+  wipecrank: 0.225, wipegears: 0.1519, wipegroan: 0.315,
+  wipegateopen: 0.3,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,

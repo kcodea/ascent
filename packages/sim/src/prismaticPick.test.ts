@@ -53,6 +53,8 @@ describe('Prismatic Pick', () => {
     expect(done.hand.length, 'nothing is handed over — you choose').toBe(0);
     expect(done.discover?.length, 'three Rubies to pick from').toBe(3);
     for (const id of done.discover ?? []) expect(SPECIAL_RUBY_IDS, `${id} is a special Ruby`).toContain(id);
+    // Owner rework 2026-10-22: "Discover 2 Rubies" = two Discovers, the second queued behind the first.
+    expect(done.discoverQueue?.length, 'a second Ruby Discover waits behind it').toBe(1);
     expect(s.embers - done.embers, 'the Pick costs 1, charged once').toBe(1); // 2 → 1, owner balance pass 2026-09-18
     expect(equipmentUsesLeft(done), 'one allowance, not two').toBe(equipmentUsesLeft(s) - 1);
     expect(done.chooseOnePick, 'the pick was consumed').toBeUndefined();
@@ -65,11 +67,11 @@ describe('Prismatic Pick', () => {
     expect(s.embers - done.embers, 'still charged once').toBe(1); // 2 → 1, owner balance pass 2026-09-18
   });
 
-  it('a GILDED Artificer opens the Discover twice — the second queued behind the first', () => {
+  it('a GILDED Artificer opens the Discover four times (owner rework 2026-10-22: 2, doubled), queued in order', () => {
     const s = armed({}, true);
     const done = act(act(s, { type: 'activateEquipment' }), { type: 'chooseOne', index: 0 });
     expect(done.discover?.length, 'the first Discover is open').toBe(3);
-    expect(done.discoverQueue?.length, 'and a second waits behind it').toBe(1);
+    expect(done.discoverQueue?.length, 'and three more wait behind it').toBe(3);
     expect(done.hand.length, 'still nothing handed over').toBe(s.hand.length);
   });
 

@@ -255,7 +255,7 @@ export function StatusBar() {
   // The wording for the version this player actually holds — a Gilded source prints the Gilded rule, and an
   // Amplified clock-window Equipment prints the doubled window it will really open (owner 2026-09-22).
   const equipRule = selectedEquipDef && selectedEquip
-    ? equipmentText(selectedEquipDef, selectedEquip.version, { amplified: equipAmplified > 0 })
+    ? equipmentText(selectedEquipDef, selectedEquip.version, { amplified: equipAmplified > 0, chooseBothCharges: run.chooseBothCharges ?? 0 })
     : '';
   const equipArt = equipmentArtFor(selectedEquipDef?.id);
   // The HOUSING look (owner ask 2026-10-03): Classic draws the bronze bitmap frame; the CSS looks need no image.

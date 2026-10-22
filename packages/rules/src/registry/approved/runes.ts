@@ -2282,12 +2282,13 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'Start of Combat: Cast Runebind on 3 random Dragons.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the Start of Combat rune pass, runeCastRunebind); packages/core/src/effects/factories.ts castWhisperInCombat' },
     ],
     contentIds: ['rune_war_council', 'w4_runebind'],
     cardText: '**Start of Combat:** Cast **Runebind** on **3** random **Dragons**.',
-    currentBehaviour: 'Conforms (2026-10-21, new).',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2301,12 +2302,13 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'Dragon attacks in combat cast Growth.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts performAttack (runeGrowingInferno) + runeGrowingInferno()' },
     ],
     contentIds: ['rune_growing_inferno', 'growth'],
     cardText: '**Dragon** attacks in combat cast **Growth**.',
-    currentBehaviour: 'Conforms (2026-10-21, new).',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2322,13 +2324,14 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'After you cast 3 Whispers from hand, Discover a Shop spell.' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'After you cast 3 Shop spells from hand, permanently improve your Shop spells by +1/+1.' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts noteHandCastPlay + payRuneThresholdInner (discoverSpell); packages/sim/src/reducer.ts hand-play paths' },
     ],
     contentIds: ['rune_secret_exchange', 'rune_wyrms_hoard'],
     cardText: 'After you cast **3 Whispers** from hand, **Discover** a **Shop spell**.',
-    currentBehaviour: 'Conforms (2026-10-21, new). "Every 3" (repeating) is the agent reading of "After you cast 3", flagged to the owner.',
+    currentBehaviour: 'Conforms (2026-10-21, new). "Every 3" (repeating) is the agent reading of "After you cast 3"; owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2342,12 +2345,13 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'Drake Pups you summon cast Runebind on themselves.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts summonEntryEffects (runeRuneboundBrood); packages/sim/src/recruit.ts runeboundBroodShop' },
     ],
     contentIds: ['rune_runebound_brood', 'd3_drakepup', 'w4_runebind'],
     cardText: '**Drake Pups** you summon cast **Runebind** on themselves.',
-    currentBehaviour: 'Conforms (2026-10-21, new).',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2362,13 +2366,14 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'The first 2 times your Dragons loses Ward each combat, give it +10/+10 and Ward.' },
       { kind: 'owner-chat', ref: 'Owner brief 2026-10-21', quote: 'a side-wide counter, 2 per combat across all your Dragons (not per Dragon)' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (the runeUnbrokenScales onLoseDivineShield listener, UNBROKEN_SCALES_KEY); packages/ui/src/choreo/clashOrder.ts isWardReform' },
     ],
     contentIds: ['rune_unbroken_scales'],
     cardText: 'The first **2** times your **Dragons** lose **Ward** each combat, give it **+10/+10** and **Ward**.',
-    currentBehaviour: 'Conforms (2026-10-21, new). Copies multiply the buff, not the budget (agent call, flagged to the owner).',
+    currentBehaviour: 'Conforms (2026-10-21, new). Copies multiply the buff, not the budget (agent call; owner approved the readings 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
@@ -2382,12 +2387,13 @@ export const RUNES_RULES: GameRule[] = [
     domain: 'runes',
     status: 'approved',
     evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (Set 3 Dragon rune PRs #2212-#2215)', quote: 'owner approved the readings 2026-10-22' },
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon rune batch 2026-10-21 (Epic)', quote: 'if it already gives attack it still gains the health as attack bonus' },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts runicTranspositionAttack (whisperBuffTarget); packages/core/src/effects/factories.ts castWhisperInCombat' },
     ],
     contentIds: ['rune_runic_transposition'],
     cardText: '**Whispers** that give a **Dragon** Health also give it that much **Attack**.',
-    currentBehaviour: 'Conforms (2026-10-21, new).',
+    currentBehaviour: 'Conforms (2026-10-21, new). Flagged readings (devlog 2026-10-21-set3-dragon-runes-epic-a): owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicA.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

@@ -43,7 +43,7 @@ All `sets: ['set3']`, `tribes: ['dragon']`, in `EPIC_RUNES`, no art (glyph fallb
   `isWardReform` (it needs a keyed `shieldUp` in the break's slice) plays Foamguard's three beats: break, +10/+10, Ward
   back. No presentation code changed.
 
-## Interpretations (flagged to the owner)
+## Interpretations (owner approved the readings 2026-10-22)
 
 1. **Secret Exchange and Wyrm's Hoard repeat every 3** ("After you cast 3" read as the counting-rune convention, like
    Hoardcalling, Runic Exchange, the Whelps), and bank the remainder across turns.

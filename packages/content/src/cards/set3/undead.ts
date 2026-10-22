@@ -69,8 +69,10 @@ export const SET3_UNDEAD: CardDef[] = [
     id: 'u3_adeptus',
     name: 'Adeptus',
     tribe: 'undead',
-    tier: 4, // 3 → 4, and the Echo grants both stats (owner handoff 2026-09-18; was +1 Attack only)
-    attack: 5,
+    // 3 → 4, and the Echo grants both stats (owner handoff 2026-09-18; was +1 Attack only). Back to 4 → 3 at 5/1 → 4/1
+    // (owner balance ask 2026-10-22: "move adeptus and bicycle bob to tier 3, reduce their stats slightly").
+    tier: 3,
+    attack: 4,
     health: 1,
     keywords: [],
     effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 1 } }],
@@ -198,9 +200,9 @@ export const SET3_UNDEAD: CardDef[] = [
     id: 'u3_bicyclebob',
     name: 'Bicycle Bob',
     tribe: 'undead',
-    tier: 4,
+    tier: 3, // 4 → 3 at 3/9 → 3/7 (owner balance ask 2026-10-22)
     attack: 3,
-    health: 9,
+    health: 7,
     keywords: [],
     effects: [{ on: 'summonOverflow', do: 'overflowBuffRandomTribePerPlayed', params: { tribe: 'undead', attack: 1, health: 1 } }],
     text: '**Overflow:** give a random **Undead +1/+1**. Improves for every Undead played this turn.',

@@ -5489,9 +5489,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onGainCardBuffTribe(shopArena(ctx.state, self), params);
   },
 
-  /** Set 2 — Grevlin & Co. (a minion was sold): every `count` minions you sell, this Demon consumes the
-   *  right-most Shop minion (golden: the 2 right-most). The tally is per-instance (`soldProgress`, the same
-   *  meter Runic Archivist uses) and carries round to round. Fired board-wide by `fireOnMinionSold`. */
+  /** Set 2 — Grevlin & Co. (a minion was sold): every `count` minions you sell, a RANDOM friendly Demon consumes
+   *  the right-most Shop minion (golden: the 2 right-most, each bite its own random eater). The tally is
+   *  per-instance (`soldProgress`, the same meter Runic Archivist uses) and carries round to round. Fired
+   *  board-wide by `fireOnMinionSold`. Selling is a shop action, so this is shop-only.
+   *
+   *  Owner bug fix 2026-10-22 (R-TARGET-GREVLIN-01): "grevlin & co shouldnt be him consuming 100% of the time, it
+   *  should be a random friendly demon. (himself included)". The eater is drawn from every friendly Demon
+   *  (`isTribe`, so All-types count) PLUS Grevlin himself, an owner exemption from R-TARGET-03. One draw off the
+   *  run cursor per bite, and only when there is a real choice: Grevlin as the lone Demon draws nothing, so a
+   *  solo Grevlin plays and replays exactly as before. The gains, `onConsume` and the `shopEaten` record (the
+   *  consume presentation) all land on the chosen eater through `consumeShopMinion`. */
   minionSoldConsumeRightmost: (ctx, self, params) => {
     const every = Math.max(1, num(params.count, 3));
     const progress = (self.soldProgress ?? 0) + 1;
@@ -5501,7 +5509,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let e = 0; e < eats; e++) {
       const i = rightmostShopMinion(ctx.state);
       if (i < 0) return;
-      consumeShopMinion(ctx.state, self, i, 1);
+      consumeShopMinion(ctx.state, grevlinEater(ctx.state, self), i, 1);
     }
   },
 
@@ -13488,6 +13496,17 @@ export function consumeShopOffer(
  *  alternating each turn. Shared by the effect and the printed text so the two can never disagree. */
 export function alternateModeOf(card: { eotTick?: number }): 'attack' | 'health' {
   return ((card.eotTick ?? 0) % 2) === 0 ? 'attack' : 'health';
+}
+
+/** Grevlin & Co.'s eater (owner 2026-10-22): a random friendly Demon, Grevlin himself included. Board order is the
+ *  pool order (deterministic); a pool of one draws nothing, so the run cursor only moves when there is a choice. */
+export function grevlinEater(state: RunState, self: BoardCard): BoardCard {
+  const pool = state.board.filter((c) => c.uid === self.uid || isTribe(c, 'demon'));
+  if (pool.length <= 1) return pool[0] ?? self;
+  const rng = makeRng(state.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
 }
 
 export function rightmostShopMinion(state: RunState): number {

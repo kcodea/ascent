@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-22',
     changes: [
       {
+        category: 'Balance',
+        text: 'Grevlin & Co. no longer always eats by himself. A random friendly Demon now does the eating, and Grevlin can still be picked.',
+        details: [
+          'Every 3rd minion you sell, one random friendly Demon (Grevlin included) consumes the right-most minion in the Shop and gains its stats.',
+          'Cards that count as every type can be picked too.',
+          'Gilded Grevlin eats twice, and each bite picks its own random Demon.',
+          'With no other Demon on your board, Grevlin eats, as before.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Counters under cards now show plain numbers like 1/3, never words. The Frack Attack counter now ticks during combat.',
         details: [

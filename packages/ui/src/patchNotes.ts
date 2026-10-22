@@ -84,8 +84,7 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: 'The effect when a minion gets both Choose One options is remade.' },
       { category: 'Balance', text: 'Stellar Chorus, Shredder and Jumpstart Jules leave the Set 3 pool.' },
       { category: 'Systems', text: "Runes now show just their name, without 'Rune of'." },
-      { category: 'Systems', text: '40 more runes have their emblem art.' },
-      { category: 'Systems', text: '17 more runes have their emblem art.' },
+      { category: 'Systems', text: '65 more runes have their emblem art. Every rune now has one.' },
       {
         category: 'Balance',
         text: 'Adeptus and Bicycle Bob move to Tier 3 with slightly lower stats (Adeptus 4/1, Bicycle Bob 3/7).',

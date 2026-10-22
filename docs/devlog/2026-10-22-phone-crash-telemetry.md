@@ -21,8 +21,8 @@ session on the next load. New `packages/ui/src/crashReport.ts` sends each such c
   diagnostics switches, build date). Trimmed from the middle to stay under 48 KB of JSON.
 - No new per-frame or boot work; crashLog.ts only gained a one-line getter.
 
-**Migration (NOT applied, the lead applies it):** `supabase/migrations/2026-10-22-client-crash-reports.sql` (also
-appended to `schema.sql`). Insert-only for `anon` + `authenticated` (column grants + one insert policy; no select,
+**Migration (NOT applied, the lead applies it):** `supabase/migrations/2026-10-22-client-crash-reports.sql` (not
+appended to `schema.sql`: the progression parity tests require it to end with the announcers file). Insert-only for `anon` + `authenticated` (column grants + one insert policy; no select,
 update or delete), `user_id default auth.uid()` and may only be the caller, `pg_column_size(payload) < 65536`, short
 text caps. `packages/ui/src/crashReports.db.test.ts` runs it on PGlite (twice, idempotent) and checks the policy.
 Until it is applied the inserts fail quietly and each crash keeps up to 3 tries for later loads.

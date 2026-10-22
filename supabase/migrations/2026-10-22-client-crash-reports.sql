@@ -3,7 +3,8 @@
 -- ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 --
 -- Paste into the Supabase SQL Editor and Run (or `supabase db query --linked -f` this file). Independent of every
--- other file. Idempotent: safe to re-run. The same block is appended to schema.sql; keep the two identical.
+-- other file. Idempotent: safe to re-run. NOT appended to schema.sql: the progression parity tests pin schema.sql to
+-- END with the announcers file (2026-10-20-announcers-not-focusable.sql).
 -- Devlog: docs/devlog/2026-10-22-phone-crash-telemetry.md.
 --
 -- WHY (owner 2026-10-22: "I still can't even play it because of the crashing, but I want to make this mobile experience

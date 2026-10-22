@@ -21,7 +21,7 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Rune duplicates: recurring & per-event runes stack',
     statement:
       'A second copy of a recurring or per-event rune makes the effect fire once more each time it recurs: '
-      + 'two Rune of the Coffers = +2 max Gold at End of Turn; two Rune of the Flagship = Dwarves get +4/+4 '
+      + 'two Coffers = +2 max Gold at End of Turn; two Flagship = Dwarves get +4/+4 '
       + 'per Shop spell. Each additional copy adds one more fire per recurrence.',
     domain: 'runes',
     status: 'approved',
@@ -34,7 +34,7 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Rune duplicates: threshold runes double the payoff, not the meter',
     statement:
       'A second copy of a threshold/meter rune doubles the OUTPUT paid when the threshold is reached — the '
-      + 'threshold itself is unchanged: two Rune of the Returning Pack = every 6 Beast summons yields 2 '
+      + 'threshold itself is unchanged: two Returning Pack = every 6 Beast summons yields 2 '
       + 'random Beasts. (Not parallel meters, and never a naive threshold sum.)',
     domain: 'runes',
     status: 'approved',
@@ -50,7 +50,7 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Rune duplicates: repeat runes gain +1 repetition per copy',
     statement:
       'Each copy of a repeat rune (extra Shout/Rally/Echo/spell/hero-power/Improve/Triple-Reward fires) adds '
-      + 'one more repetition: two Rune of the Wishbone = the hero power fires 3 times; two Rune of '
+      + 'one more repetition: two Wishbone = the hero power fires 3 times; two '
       + 'Adventuring = Rallies trigger 3 times. Rides the existing extraTriggerFires / per-family folds.',
     domain: 'runes',
     status: 'approved',
@@ -63,9 +63,9 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Rune duplicates: one-shots re-grant, banking when immediate value is impossible',
     statement:
       'A duplicate one-shot rune fires its reward again immediately; when the immediate re-fire would still '
-      + 'give no value, the effect banks and fires next turn (a second Rune of the Armory grants its 10 '
-      + 'Attachments next turn — hand cap). Rune of the Muster with 2 copies covers the first 2 refreshes '
-      + 'that turn. Rune of the Ornate Clock is unique — a duplicate does nothing. Rune of Held Strength is '
+      + 'give no value, the effect banks and fires next turn (a second Armory grants its 10 '
+      + 'Attachments next turn — hand cap). Muster with 2 copies covers the first 2 refreshes '
+      + 'that turn. Ornate Clock is unique — a duplicate does nothing. Held Strength is '
       + 'to be redesigned from a one-shot into a "Start of Combat: give xyz" rune.',
     domain: 'runes',
     status: 'approved',
@@ -73,7 +73,7 @@ export const RUNES_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-runedup-oneshot (triage round 2, 2026-08-27)',
       quote: 'this should re-fire the one-shot reward again, but in the case where they would still get no value if done immediately, it should stack the effect for next turn. … rune of the ornate clock should do nothing if duplicated, that one is unique. rune of the held strength should not be a one-shot rune and should be a "Start of Combat: give xyz" rune so fix that too.',
     }],
-    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): one-shots re-grant or bank, Ornate Clock stays unique, and Rune of Held Strength is now a Start-of-Combat grant (the left and right-most minions gain the stats of the left-most card held in hand when the combat was built).',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): one-shots re-grant or bank, Ornate Clock stays unique, and Held Strength is now a Start-of-Combat grant (the left and right-most minions gain the stats of the left-most card held in hand when the combat was built).',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -82,12 +82,12 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'Every boolean combat flag whose effect can meaningfully repeat fires once per copy — flagCopies '
       + 'becomes live for the whole family, exactly as the rune-granted Avenge dispatchers already consume '
-      + 'it (two Rune of Rallying = the left-most Rally triggers twice at Start of Combat). A flag that '
+      + 'it (two Rallying = the left-most Rally triggers twice at Start of Combat). A flag that '
       + 'genuinely cannot repeat falls back to the universal sweetener (R-RUNEDUP-06).',
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-boolean-flags (triage round 2, 2026-08-27)', quote: 'APPROVE — fire-once-per-copy for repeatable boolean flags, sweetener for the true one-offs.' }],
-    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): `flagCopiesOf` is consulted by every repeatable boolean flag (Rune of Warding triples once per copy, Rune of Rallying fires the left-most Rally once per copy, …).',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27): `flagCopiesOf` is consulted by every repeatable boolean flag (Warding triples once per copy, Rallying fires the left-most Rally once per copy, …).',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
@@ -96,7 +96,7 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'A duplicate rune purchase is NEVER a dead buy. Any duplicate that cannot meaningfully stack instead '
       + 'grants an immediate consolation: Gold equal to half the rune\'s cost rounded up, plus a free Shop '
-      + 'refresh. This is the fallback for every non-stacking duplicate, including via Rune of Duplication.',
+      + 'refresh. This is the fallback for every non-stacking duplicate, including via Duplication.',
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-sweetener-floor (triage round 2, 2026-08-27)', quote: 'APPROVE — half cost rounded up in Gold + a free refresh.' }],
@@ -109,7 +109,7 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'The Runeforge stops offering a rune the player already owns when its duplicate would only pay the '
       + 'sweetener (no real stacking behaviour). Runes whose duplicates stack (R-RUNEDUP-01..05, 08) stay '
-      + 'offerable. Rune of Duplication still reaches everything; the sweetener backstops that path.',
+      + 'offerable. Duplication still reaches everything; the sweetener backstops that path.',
     domain: 'runes',
     status: 'approved',
     evidence: [{ kind: 'owner-chat', ref: 'decisions.json q-runedup-forge-filter (triage round 2, 2026-08-27)', quote: 'APPROVE — filter non-stacking owned runes out of forge offers; ship with the sweetener.' }],
@@ -120,8 +120,8 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-RUNEDUP-08',
     title: 'Rune duplicates: unique engines double their output where possible',
     statement:
-      'Duplicates of bespoke-engine runes double the effect when a doubling reading exists: two Rune of '
-      + 'Structure = 2 random Shop spells per trigger; two Rune of Summoning = Imps get +4/+4; two Rune of '
+      'Duplicates of bespoke-engine runes double the effect when a doubling reading exists: two '
+      + 'Structure = 2 random Shop spells per trigger; two Summoning = Imps get +4/+4; two '
       + 'Contraband = double the Ale/Ruby output per trigger. Engines with no sensible doubling fall back '
       + 'to the universal sweetener (R-RUNEDUP-06).',
     domain: 'runes',
@@ -130,15 +130,15 @@ export const RUNES_RULES: GameRule[] = [
       kind: 'owner-chat', ref: 'decisions.json q-runedup-unique-engines (triage round 2, 2026-08-27)',
       quote: 'generally, try and double the effect when possible. rune of structure = you get 2 random shop spells. rune of summoning = your imps get +4/+4, rune of contraband doubles the output of the ale/ruby per trigger etc.',
     }],
-    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27); the doubled Rune of Summoning step is also why #1285 fixed the SINGLE copy to its printed +2/+2 (R-RUNE-SUM-01).',
+    currentBehaviour: 'Conforms — shipped in #1264 (2026-08-27); the doubled Summoning step is also why #1285 fixed the SINGLE copy to its printed +2/+2 (R-RUNE-SUM-01).',
     enforcement: { kind: 'oracle', refs: ['runeSwallowScan'], lastVerifiedAt: '2026-08-27' },
   },
   {
     id: 'R-RUNE-SUM-01',
-    title: 'Rune of Summoning pays the +2/+2 it prints — the text is the contract',
+    title: 'Summoning pays the +2/+2 it prints — the text is the contract',
     statement:
-      'When a rune\'s printed step and its factory disagree, the PRINTED step is the contract: Rune of Summoning '
-      + 'improves your Imps by +2/+2 per spell cast (the factory paid +1/+1). Rune of Mastery and a second copy '
+      'When a rune\'s printed step and its factory disagree, the PRINTED step is the contract: Summoning '
+      + 'improves your Imps by +2/+2 per spell cast (the factory paid +1/+1). Mastery and a second copy '
       + 'multiply that step (+4/+4), which is how the owner\'s duplicate ruling fixed which side was right.',
     domain: 'runes',
     status: 'approved',
@@ -152,10 +152,10 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-01',
-    title: 'Rune of the Ornate Clock pays its printed 2 Gold on resolve, exactly once',
+    title: 'Ornate Clock pays its printed 2 Gold on resolve, exactly once',
     statement:
       'A `scheduleRuneforge` reward that carries `gold` pays it when the reward RESOLVES on the Epic branch: '
-      + 'Rune of the Ornate Clock ("Gain 2 Gold. Visit the Epic Runeforge next turn instead of turn 9") adds 2 Gold '
+      + 'Ornate Clock ("Gain 2 Gold. Visit the Epic Runeforge next turn instead of turn 9") adds 2 Gold '
       + 'to the run the moment it is bought, arms one deferred Epic forge for the next turn and stands the turn-9 '
       + 'visit down. The Gold is paid once: nothing is banked for the turn the forge opens, and a duplicate Clock '
       + '(a ruled-unique rune) pays nothing. The Basic branch (The Runeforge quest) keeps paying its Gold on the turn '
@@ -184,7 +184,7 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'Epic Runeforge bookings are COUNTED, not flagged. `epicForgeWave` names the turn and `epicForgeCount` how '
       + 'many forges are booked for it; `pendingEpicRuneforge` is the number waiting to open. A Guardian (Runeguard, '
-      + 'turn 8 booked at run creation) who buys Rune of the Epic Forge (turn 8) gets TWO Epic forges on turn 8, '
+      + 'turn 8 booked at run creation) who buys Epic Forge (turn 8) gets TWO Epic forges on turn 8, '
       + 'opened one after the other: the second opens the moment the first is bought or skipped, on the same turn, '
       + 'ahead of the Basic forge and any Discover in the start-of-turn order (power pick, Epic forges, Basic forge, '
       + 'Discovers). Each forge draws its own offer from its own seeded stream (run seed, turn, and the forge\'s '
@@ -250,9 +250,9 @@ export const RUNES_RULES: GameRule[] = [
       + 'set) includes the run\'s PINNED set, and the rune\'s `tribes` (absent = untagged) shares at least one tribe '
       + 'with the run\'s rolled `tribes`. A run rolls its tribes from its set\'s `SETS[set].tribes` roster only, so '
       + 'tagging a rune with a tribe a set does not field is a complete exclusion from that set — no `sets` edit '
-      + 'needed. Rune of the Deathtouched Apple ("When a minion Rises, give it Rise") is tagged Undead (Rise is the '
+      + 'needed. Deathtouched Apple ("When a minion Rises, give it Rise") is tagged Undead (Rise is the '
       + 'Undead keyword): it can never appear in a Set 2 run (Set 2 fields no Undead) and still appears in a Set 1 or '
-      + 'Set 3 run that rolled Undead. Rune of Hoardcalling ("get a Hoardflame or Dragonflame") is tagged Dragon by '
+      + 'Set 3 run that rolled Undead. Hoardcalling ("get a Hoardflame or Dragonflame") is tagged Dragon by '
       + 'owner ruling (its rewards are Dragon spells): it is offered only in a run that rolled Dragons, never in Set 3. '
       + 'A tag is honest only when the text names the tribe or its keyword / content '
       + '(`tribeGate.test.ts` audits every tag; a keyword-only naming needs an owner ruling recorded there). '
@@ -281,14 +281,14 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-05',
-    title: 'Rune of the Bubble Crown counts EVERY spell cast (Rubies, Gifts, Shop spells), not only Shop spells',
+    title: 'Bubble Crown counts EVERY spell cast (Rubies, Gifts, Shop spells), not only Shop spells',
     statement:
-      'Rune of the Bubble Crown ("When you cast N spells, your spells gain +6/+6. (Once)") advances on EVERY spell '
-      + 'cast: a Shop spell, a Gift (a Clue included) and a Ruby each count once per cast, whether or not Rune of the '
+      'Bubble Crown ("When you cast N spells, your spells gain +6/+6. (Once)") advances on EVERY spell '
+      + 'cast: a Shop spell, a Gift (a Clue included) and a Ruby each count once per cast, whether or not '
       + 'Spellstone is held. It rides the `anySpell` threshold meter, which the every-spell chokepoint '
       + '(`noteSpellForCountRunes`) advances once per cast on both the Shop-spell path and the Ruby reducer branch; '
       + 'it is distinct from the `spellCast` meter, which only Shop-spell casts (and a Spellstone Ruby) advance and '
-      + 'which Rune of Infernal Ink ("Whenever you cast a Shop Spell") still reads. The threshold is 9 (balance 9/23, '
+      + 'which Infernal Ink ("Whenever you cast a Shop Spell") still reads. The threshold is 9 (balance 9/23, '
       + 'was 12) and the rune pays once, then parks its x/9 counter at 9/9.',
     domain: 'runes',
     status: 'approved',
@@ -299,7 +299,7 @@ export const RUNES_RULES: GameRule[] = [
     contentIds: ['rune_bubble_crown'],
     currentBehaviour:
       'Conforms as of 2026-09-23. Until then the rune read the `spellCast` meter, which a Ruby only advanced through '
-      + 'Rune of the Spellstone, so a Ruby-heavy run could cast a dozen Rubies and never move the Crown.',
+      + 'Spellstone, so a Ruby-heavy run could cast a dozen Rubies and never move the Crown.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/runeBatchAug19.test.ts'],
@@ -312,11 +312,11 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Combat-summon rune triggers pay per summon, and their "permanently" carries back into the run',
     statement:
       'A rune whose text begins "When you summon a minion in combat" fires once per friendly body placed in combat '
-      + '(a token, a Rise return and a resummon each count once, at the single summon chokepoint). Rune of Packcraft '
+      + '(a token, a Rise return and a resummon each count once, at the single summon chokepoint). Packcraft '
       + 'gives THAT body the current level (starting +2/+1) and then raises the level by the printed step; the grown '
       + 'level is written back to the run (`packcraftLevel`) so the next fight\'s first summon starts from it, and the '
-      + 'rune badge prints the current grant. Rune of Reinvestment pulses on every friendly summon and pays the Shop '
-      + '+3/+4 per summon (× copies held) ONCE at settle, on the permanent run-wide Shop channel. Rune of Beastial '
+      + 'rune badge prints the current grant. Reinvestment pulses on every friendly summon and pays the Shop '
+      + '+3/+4 per summon (× copies held) ONCE at settle, on the permanent run-wide Shop channel. Beastial '
       + 'Swarm (R-AURA-03, 2026-09-28): on every friendly Beast death it gives all your Beasts the current per-death '
       + 'amount. In combat the living Beasts gain it on the spot, later Beast summons that fight inherit it, and NOTHING '
       + 'carries back; a Shop Beast death buffs the warband Beasts permanently. Avenge (2) (combat deaths) still raises '
@@ -342,9 +342,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-07',
-    title: 'Rune of Slaying banks kills across combats and pays every 5, with a live countdown',
+    title: 'Slaying banks kills across combats and pays every 5, with a live countdown',
     statement:
-      'Rune of Slaying counts enemy kills (the Slaughter tally) across every combat of the run. Every '
+      'Slaying counts enemy kills (the Slaughter tally) across every combat of the run. Every '
       + 'SLAYING_KILLS (5) kills pays ONE minion of the board\'s most common type into hand at settle, the leftover '
       + 'kills carry to the next fight, and a fight that crosses the threshold twice pays twice. The badge prints the '
       + 'banked count as x/5 off the same constant the settle reads, so the number the player watches is the number '
@@ -374,7 +374,7 @@ export const RUNES_RULES: GameRule[] = [
       + 'follow it, each keeping its second half (the Attack grant, the any-type aim, both Choose One effects, the '
       + 'left-most Shop enchant). The Muckbroker\'s "Get a Muckslinger. Repeat every 2 turns" is the same shape on '
       + 'the 2-turn cadence: one now, then one every second turn setup, and so is the Deep since 2026-10-07 (a random '
-      + 'Tier 7 minion; R-DEEP-EVERY-01). Rune of Copies copies at that same turn setup '
+      + 'Tier 7 minion; R-DEEP-EVERY-01). Copies copies at that same turn setup '
       + 'and is printed "Start of Turn".',
     domain: 'runes',
     status: 'approved',
@@ -394,17 +394,17 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-RUNE-09',
     title: 'Rune reworks B: the board and token runes (Five Banners, Living Treasure, Gem Golem, Food Chain, Banquet Hall, Lassoing, Finality, Hatchery)',
     statement:
-      'Rune of the Five Banners is an END OF TURN grant: one friendly minion of each type gains +5/+4 (universal-'
+      'Five Banners is an END OF TURN grant: one friendly minion of each type gains +5/+4 (universal-'
       + 'tribe bodies always collect; every other body claims the first type nobody has claimed), once per copy held; '
-      + 'its old Start-of-Combat flag is no longer authored but still resolves for pinned replays. Rune of Living '
+      + 'its old Start-of-Combat flag is no longer authored but still resolves for pinned replays. Living '
       + 'Treasure gives every friendly Gemheart Golem REBIRTH (at the bell for the ones on board, at the summon for the '
-      + 'ones that land mid-fight), so a grown Golem returns once with its full body. Rune of the Gem Golem summons a '
+      + 'ones that land mid-fight), so a grown Golem returns once with its full body. Gem Golem summons a '
       + 'real Gemheart Golem (its printed 1/1) carrying the dying Kobold\'s Rubies on top, with or without Rubies, and '
-      + 'a dying Golem itself never chains another. Rune of the Food Chain reads the left-most LIVING Demon\'s current '
+      + 'a dying Golem itself never chains another. Food Chain reads the left-most LIVING Demon\'s current '
       + 'stats when the side\'s first summon lands (no Start-of-Combat capture, so it left the Start-of-Combat rune '
-      + 'pass). Rune of the Banquet Hall: the turn\'s first buy, Shop-buffed or not, hands its current stats in full to 2 '
-      + 'random other friendly board minions, once per turn. Rune of Lassoing hands over a Rope Wrangler and gives '
-      + 'your minions +2/+2 whenever Lasso is cast in the shop by anyone. Rune of Finality summons 3 Warded Imps; Rune '
+      + 'pass). Banquet Hall: the turn\'s first buy, Shop-buffed or not, hands its current stats in full to 2 '
+      + 'random other friendly board minions, once per turn. Lassoing hands over a Rope Wrangler and gives '
+      + 'your minions +2/+2 whenever Lasso is cast in the shop by anyone. Finality summons 3 Warded Imps; Rune '
       + 'of the Hatchery gives combat summons +5/+5 and Taunt.',
     domain: 'runes',
     status: 'approved',
@@ -424,7 +424,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-RUNE-10',
     title: 'A "when you trigger N Shouts" rune meter is ONE counter across shop and combat',
     statement:
-      'A rune whose payout is metered on Shouts triggered (Rune of the Chorus: 3 Shouts, a random Shop spell; Rune of '
+      'A rune whose payout is metered on Shouts triggered (Chorus: 3 Shouts, a random Shop spell; '
       + 'Hoardcalling: 3 Shouts, a Hoardflame or a Dragonflame) keeps ONE tick across both halves of the turn. Shop Shout '
       + 'FIRES advance it at the reducer boundary; the fight receives the meter with its shop tick (`QuestCombatMods.shoutMeters`), '
       + 'every combat Shout fire (`battlecryTriggered`: re-fires, parting cries, Drakko repeats, Start-of-Combat Shouts included) '
@@ -450,9 +450,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-11',
-    title: 'Rune of Lorekeeping pays on EVERY targeted cast on a friendly minion',
+    title: 'Lorekeeping pays on EVERY targeted cast on a friendly minion',
     statement:
-      'Rune of Lorekeeping ("When you cast a spell on a minion, give it an additional +3/+3") pays +3/+3 (per copy held) '
+      'Lorekeeping ("When you cast a spell on a minion, give it an additional +3/+3") pays +3/+3 (per copy held) '
       + 'to the friendly minion a spell is cast ON, whatever the spell is: a Shop spell, a Gift (a Clue, a Tower Shield) or a '
       + 'Ruby, including a Ruby that lands through Redirection, Distillation, Motherlode or the Lapidary. One site pays it '
       + '(`applyLorekeeping`), called from the Shop-spell cast, the Gift play and the Ruby landing (`fireOnRubyPlayed`). It pays '
@@ -475,11 +475,11 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-12',
-    title: 'Rune of Distillation casts a Shop-minion spell on BOTH your edge minions',
+    title: 'Distillation casts a Shop-minion spell on BOTH your edge minions',
     statement:
-      'Rune of Distillation ("Targeted spells cast on Shop minions also cast on your left and right-most minion") gives a '
+      'Distillation ("Targeted spells cast on Shop minions also cast on your left and right-most minion") gives a '
       + 'spell or Ruby cast on a Shop offer a real extra cast on your LEFT-most AND your RIGHT-most board minion (per copy '
-      + 'held), the same `castSpell` / Ruby-landing path, so each target\'s own watchers and Rune of Lorekeeping see it. A '
+      + 'held), the same `castSpell` / Ruby-landing path, so each target\'s own watchers and Lorekeeping see it. A '
       + 'one-minion board is both ends and takes ONE extra cast, never two; an empty board takes none. The offer still takes '
       + 'its own cast.',
     domain: 'runes',
@@ -501,11 +501,11 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-RUNE-13',
     title: 'A Spellstone Ruby fires every per-cast Shop-spell rune',
     statement:
-      'With Rune of the Spellstone ("Rubies you cast count as Shop spells"), every resolved Ruby cast reaches the whole '
+      'With Spellstone ("Rubies you cast count as Shop spells"), every resolved Ruby cast reaches the whole '
       + 'Shop-spell trigger surface: the cast counters and `spellCast` thresholds, the board\'s `spellCast` watchers, spell '
-      + 'power on the Ruby\'s stats, the combat spell-cast trigger (Rune of Enchantment fires on a combat Ruby), AND the '
+      + 'power on the Ruby\'s stats, the combat spell-cast trigger (Enchantment fires on a combat Ruby), AND the '
       + 'per-cast Shop-spell runes (Summoning, Might, Kindling, the Flagship, Scales), which live in ONE function '
-      + '(`fireShopSpellCastRunes`) called by both the Shop-spell cast and the Spellstone Ruby count. Rune of the Runic Hoard '
+      + '(`fireShopSpellCastRunes`) called by both the Shop-spell cast and the Spellstone Ruby count. Runic Hoard '
       + 'fires on a Ruby with or without the Spellstone ("a spell").',
     domain: 'runes',
     status: 'approved',
@@ -524,14 +524,14 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-14',
-    title: 'Rune of Combat Prowess replays every rune / quest Start-of-Combat block, Held Strength included; Rune of Thrift discounts every stat granter',
+    title: 'Combat Prowess replays every rune / quest Start-of-Combat block, Held Strength included; Thrift discounts every stat granter',
     statement:
       'Every run-level Start-of-Combat block `simulate()` fires from a rune, quest or hero flag has an End-of-Turn shop '
-      + 'replay under Rune of Combat Prowess (`socRuneReplaysOf`), or a documented combat-only reason (an enemy-facing or '
-      + 'combat-bank effect: Weaken, the Food Chain, the Crucible, Empty Graves). Rune of Held Strength ("Start of Combat: give '
+      + 'replay under Combat Prowess (`socRuneReplaysOf`), or a documented combat-only reason (an enemy-facing or '
+      + 'combat-bank effect: Weaken, the Food Chain, the Crucible, Empty Graves). Held Strength ("Start of Combat: give '
       + 'your left and right-most minions the stats of the left-most minion card in your hand") replays: the board\'s two ends '
       + 'gain the held card\'s live stats, permanently, per copy held; the card stays in hand; no held minion means nothing. '
-      + 'Rune of Thrift discounts every Shop spell that grants stats in any way: the `spellBuff*` family plus the extras the '
+      + 'Thrift discounts every Shop spell that grants stats in any way: the `spellBuff*` family plus the extras the '
       + 'empirical sweep found (Great Pot, Perfect Vision, Ruby Excavation, Ruby Transfer, Cupcakes).',
     domain: 'runes',
     status: 'approved',
@@ -553,13 +553,13 @@ export const RUNES_RULES: GameRule[] = [
     title: 'A "cast a random stat-granting spell" effect draws from ONE category that includes targeted spells, aimed at a random legal friendly minion',
     statement:
       'The stat-granting spell category (`isStatGrantingSpell`) is the one pool every "cast a random stat-granting '
-      + 'Shop spell" effect reads (Rune of the Gilded Ledger). It holds every drawable Shop spell whose cast GIVES '
+      + 'Shop spell" effect reads (Gilded Ledger). It holds every drawable Shop spell whose cast GIVES '
       + 'your minions stats IMMEDIATELY: board-wide buffs (Growth, Might of Aeon, Great Pot, Waking Rift, '
       + 'Dragonflame), TARGETED stat spells (Bulwark, Lantern Light, Crest of the Climb, Spirit Fire, Shatter, Patch '
       + 'Job, Front to Back, Hoardflame, Blessing, Flutter, Beefy) and the stat Ales (Champion\'s, Defensive, '
       + 'Bloody). A spell that redistributes, swaps or sets existing stats is a utility, not a grant, and is OUT: '
       + 'Common Ground (averaging), Turnabout, Perfect Vision. The shop-buff spells (Apples, Staff of Guel, '
-      + 'Facetwright\'s Choice, Veinstorm, Picnic) are OUT pending an owner ruling; Rune of Thrift still discounts '
+      + 'Facetwright\'s Choice, Veinstorm, Picnic) are OUT pending an owner ruling; Thrift still discounts '
       + 'them and Common Ground. A targeted pick is cast through the shared '
       + 'no-aim cast (`castSpellWithoutAim`): a Choose One takes one seeded-random branch, and the spell lands on a '
       + 'seeded-random friendly minion the player\'s aim could have chosen (the spell\'s tribe restriction honoured, '
@@ -585,9 +585,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-16',
-    title: 'Rune of Spellhide\'s Start-of-Combat re-cast finds its Beast by the RUN uid (combat `sourceUid`), through the real pipeline',
+    title: 'Spellhide\'s Start-of-Combat re-cast finds its Beast by the RUN uid (combat `sourceUid`), through the real pipeline',
     statement:
-      'Rune of Spellhide ("The first stat-granting Shop spell you cast on a Beast each turn is cast on it again at Start '
+      'Spellhide ("The first stat-granting Shop spell you cast on a Beast each turn is cast on it again at Start '
       + 'of Combat") records `{ spellId, uid }` with the RUN board card\'s uid. Combat bodies get fresh uids (`m0`, `m1`, ...) '
       + 'and carry the run uid on `sourceUid`, so the Start-of-Combat re-cast matches the Beast by `sourceUid` (with the '
       + 'combat `uid` only as a fallback for a hand-built side). Through the reducer bridge (buy the rune, cast on a Beast, '
@@ -672,9 +672,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-19',
-    title: 'Rune of Action is the REPEAT form: 3 random friendly minions +2/+2, once, then once more per card played, each its own tick',
+    title: 'Action is the REPEAT form: 3 random friendly minions +2/+2, once, then once more per card played, each its own tick',
     statement:
-      'Rune of Action reads "End of Turn: give 3 random friendly minions +2/+2. Repeat for every card played this turn" and '
+      'Action reads "End of Turn: give 3 random friendly minions +2/+2. Repeat for every card played this turn" and '
       + 'resolves by R-REPEAT-01: the base tick lands once, then once more for every card played this turn, 1 + count ticks, '
       + 'each its own state delta, root trigger and beat. Each tick picks 3 DISTINCT friendly minions at random, re-rolled '
       + 'per tick off the run cursor; with fewer than 3 on the board every one of them gets the tick. A turn with nothing '
@@ -700,9 +700,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-20',
-    title: 'Rune of Bulk Order pays 4 random friendly minions +4/+4 per 10 Gold spent, banking the remainder across spends and turns',
+    title: 'Bulk Order pays 4 random friendly minions +4/+4 per 10 Gold spent, banking the remainder across spends and turns',
     statement:
-      'Rune of Bulk Order reads "Every 10 Gold you spend, give 4 random friendly minions +4/+4". Gold spent feeds one running '
+      'Bulk Order reads "Every 10 Gold you spend, give 4 random friendly minions +4/+4". Gold spent feeds one running '
       + 'counter that never resets at the turn boundary. Every time it reaches 10 it pays once and keeps the remainder, so a '
       + 'single 20-Gold spend pays twice. Each payout picks 4 distinct friendly minions at random, or all of them when fewer '
       + 'are on the board. The badge shows the countdown to the next payout (x/10g).',
@@ -723,9 +723,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-21',
-    title: 'Rune of the Bargain Bin fills its refresh with Shout minions only',
+    title: 'Bargain Bin fills its refresh with Shout minions only',
     statement:
-      'Rune of the Bargain Bin reads "Your first Refresh each turn fills the Shop with Shout minions that cost 1 Gold. They sell '
+      'Bargain Bin reads "Your first Refresh each turn fills the Shop with Shout minions that cost 1 Gold. They sell '
       + 'for 0 Gold". The binned row draws only minions with a Shout from the run pool at the Tavern tier or below (never a '
       + 'spell, a Ruby or the Starform). When no Shout minion is reachable the refresh stays an ordinary one and the rune use '
       + 'for the turn is not spent. One binned refresh per turn per copy held.',
@@ -775,7 +775,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-23',
-    title: 'Rune of Gemmed Decisions: every Choose One card played gets a Ruby',
+    title: 'Gemmed Decisions: every Choose One card played gets a Ruby',
     statement:
       "After you play a Choose One card (a minion or a spell), you get a Ruby at the run's current Ruby strength, "
       + 'once the chosen branch (or both) has resolved. One Ruby per copy held. A card that is not a Choose One pays '
@@ -797,7 +797,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-24',
-    title: 'Rune of Echoing Kobolds grafts "Echo: get a Ruby" on every friendly Kobold, now and later, one Ruby even when Gilded',
+    title: 'Echoing Kobolds grafts "Echo: get a Ruby" on every friendly Kobold, now and later, one Ruby even when Gilded',
     statement:
       'Every friendly Kobold (All-types bodies included) carries "Echo: get a Ruby": the ones on the board and in '
       + 'hand when the rune is taken, every Kobold that arrives later, and every Kobold summoned in combat. It is a '
@@ -822,7 +822,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-25',
-    title: 'Rune of the Red Storm: a Veinstorm on pickup; every Veinstorm cast also casts a Ruby on 2 friendly Kobolds',
+    title: 'Red Storm: a Veinstorm on pickup; every Veinstorm cast also casts a Ruby on 2 friendly Kobolds',
     statement:
       'Taking the rune gets you a Veinstorm. From then on every Veinstorm cast, whoever casts it and however many '
       + 'times it repeats, also casts a Ruby on 2 random friendly Kobolds (distinct; one when only one Kobold is out; '
@@ -845,7 +845,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-26',
-    title: 'Rune of Rubywire: a Shop spell cast by anyone, in any phase, casts a Ruby on 2 friendly Kobolds',
+    title: 'Rubywire: a Shop spell cast by anyone, in any phase, casts a Ruby on 2 friendly Kobolds',
     statement:
       "Whenever a Shop spell is cast (the R-SHOPSPELL-01 definition: a spell from the set's Shop-spell pool, Dwarven "
       + 'Ales included; never a Ruby, a Clue or other Gift, or a token spell), a Ruby is cast on 2 random friendly '
@@ -869,7 +869,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-27',
-    title: 'Rune of Choices: the first Choose One card each turn gains both effects, re-armed every Shop turn',
+    title: 'Choices: the first Choose One card each turn gains both effects, re-armed every Shop turn',
     statement:
       'Your first Choose One card each turn resolves both branches with no prompt. It is the Prismatic Pick '
       + 'mechanism: a Choose-Both charge armed at every turn setup (after the per-turn clear) and one on the turn the '
@@ -892,7 +892,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-28',
-    title: 'Rune of Combatative Rubies: every 3rd friendly attack, on a running meter, casts a permanent Ruby on 2 friendly Kobolds',
+    title: 'Combatative Rubies: every 3rd friendly attack, on a running meter, casts a permanent Ruby on 2 friendly Kobolds',
     statement:
       'Friendly attacks in combat feed one running meter that carries across fights. Every 3rd attack casts a '
       + 'PERMANENT Ruby (it carries back to the run board) on 2 random friendly Kobolds. The progress left at the end '
@@ -915,13 +915,13 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-29',
-    title: 'Rune of Body Counting: every 6th friendly death, Shop or combat, gets a random Undead at or below your tier',
+    title: 'Body Counting: every 6th friendly death, Shop or combat, gets a random Undead at or below your tier',
     statement:
       'Friendly deaths feed one running meter shared by combat and the Shop. A Shop destroy, a Shop devour and a '
       + 'Shop damage death count; a sale is not a death and never counts. Every 6th death (8th before the 2026-09-27 reprice) gets a random Undead minion '
       + "from the run's pool at or below your Tavern tier (in combat it reaches the hand after the fight). The "
       + 'progress carries across fights and turns, and the badge shows the countdown (x/6). It is not an Avenge, so '
-      + 'Rune of Fury does not double it. One Undead per copy held.',
+      + 'Fury does not double it. One Undead per copy held.',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -939,7 +939,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-30',
-    title: 'Rune of Storming Veins: a Veinstorm on pickup; a Veinstorm cast from hand casts 3 times in total',
+    title: 'Storming Veins: a Veinstorm on pickup; a Veinstorm cast from hand casts 3 times in total',
     statement:
       'Taking the rune gets you a Veinstorm. A Veinstorm cast FROM HAND casts 2 additional times (3 in total), added '
       + 'like every "additional time" source and stacking with the other from-hand multipliers. A Veinstorm cast by a '
@@ -961,7 +961,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-31',
-    title: 'Rune of Sold Choices: selling a Choose One minion repeats the option it chose when played',
+    title: 'Sold Choices: selling a Choose One minion repeats the option it chose when played',
     statement:
       'Selling a Choose One minion from the board repeats the option it chose when it was played, at its own gilding '
       + '(a Gilded body repeats its Gilded branch). A body that resolved both branches repeats both. A branch that '
@@ -984,7 +984,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-32',
-    title: 'Rune of Aggressive Golems: every Gemheart Golem has "Rally: give this minion\'s Attack to the minion to the right"',
+    title: 'Aggressive Golems: every Gemheart Golem has "Rally: give this minion\'s Attack to the minion to the right"',
     statement:
       'Every friendly Gemheart Golem (on the board, in hand, arriving later, or summoned in combat) gains the Rally '
       + 'keyword and "give this minion\'s Attack to the minion to the right". When it attacks, the next living friendly '
@@ -1008,7 +1008,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-33',
-    title: 'Rune of Ruptured Rubies: every Ruby cast in combat bounces twice after it lands',
+    title: 'Ruptured Rubies: every Ruby cast in combat bounces twice after it lands',
     statement:
       "Every Ruby cast in combat, from any source, bounces twice after it lands: each bounce carries the Ruby's "
       + 'stats to a random other living friendly minion (the R-RUBY-02 hop: stats only, and a hop never bounces again) '
@@ -1041,7 +1041,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
     ],
     contentIds: ['rune_rubywire', 'rune_living_magic', 'rune_recurrence', 'rune_astral_draft', 'rune_refrain', 'rune_hunting_bell', 'rune_sylus', 'rune_pair', 'rune_quick_release', 'rune_grave_refreshment', 'rune_golden_splinter', 'rune_deep_feast'],
-    cardText: 'Rune of the Pair: Get **2 random Tier 4 minions**. (One of the ten cut from Set 3.)',
+    cardText: 'Pair: Get **2 random Tier 4 minions**. (One of the ten cut from Set 3.)',
     currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
     enforcement: {
       kind: 'scenario',
@@ -1061,7 +1061,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
     ],
     contentIds: ['rune_open_constellation', 'rune_festival_circuit', 'rune_five_banners', 'rune_strange_caravan', 'rune_wishbone'],
-    cardText: 'Rune of the Strange Caravan: **Start of Turn:** get a random minion from a type you **do not control**.',
+    cardText: 'Strange Caravan: **Start of Turn:** get a random minion from a type you **do not control**.',
     currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
     enforcement: {
       kind: 'scenario',
@@ -1081,7 +1081,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
     ],
     contentIds: ['rune_living_treasure', 'rune_rising_echoes', 'rune_crowded_crypt', 'rune_overflow', 'rune_dreamed_graves'],
-    cardText: 'Rune of Overflow: **Overflow:** give your minions **+4/+4 permanently**.',
+    cardText: 'Overflow: **Overflow:** give your minions **+4/+4 permanently**.',
     currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
     enforcement: {
       kind: 'scenario',
@@ -1101,7 +1101,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/content/src/runes.ts (the rune defs: sets / tribes / cost / name / text)' },
     ],
     contentIds: ['rune_spearline', 'rune_bartering', 'rune_spirit_crown', 'rune_eventide', 'rune_body_counting', 'rune_first_round', 'rune_long_shift'],
-    cardText: 'Rune of Body Counting: When **6** friendly minions die, get a random **Undead** minion.',
+    cardText: 'Body Counting: When **6** friendly minions die, get a random **Undead** minion.',
     currentBehaviour: 'Conforms (built with the tranche, 2026-09-27).',
     enforcement: {
       kind: 'scenario',
@@ -1111,9 +1111,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-05',
-    title: 'Rune of the Second Showing (was the Grand Procession) and the War Drum wording',
+    title: 'Second Showing (was the Grand Procession) and the War Drum wording',
     statement:
-      'Rune of the Grand Procession is renamed Rune of the Second Showing, so it no longer shares a name with the T7 minion Grand Procession; its id and behaviour are unchanged. The War Drum reads "The first Shout you trigger each turn triggers 2 more times.", which is what it already did (one per-turn charge, the first Shout, Shop or combat).',
+      'Grand Procession is renamed Second Showing, so it no longer shares a name with the T7 minion Grand Procession; its id and behaviour are unchanged. The War Drum reads "The first Shout you trigger each turn triggers 2 more times.", which is what it already did (one per-turn charge, the first Shout, Shop or combat).',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -1131,9 +1131,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-BASICDWARF-01',
-    title: 'Rune of Basic Dwarves reads "Get a Dwarf" and is tagged Dwarf for the Runeforge board-fit',
+    title: 'Basic Dwarves reads "Get a Dwarf" and is tagged Dwarf for the Runeforge board-fit',
     statement:
-      'Rune of Basic Dwarves reads "Get a Dwarf. Repeat every Start of Turn." like the other Basic tribe runes, and its '
+      'Basic Dwarves reads "Get a Dwarf. Repeat every Start of Turn." like the other Basic tribe runes, and its '
       + 'text carries the Dwarf word the board-fit matcher reads, so it counts as fitting a Dwarf board.',
     domain: 'runes',
     status: 'approved',
@@ -1147,7 +1147,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 1: Undead ──
   {
     id: 'R-SET3RUNE-06',
-    title: "Rune of the Lantern Keeper: a Lantern of Souls now, then every 2 turns",
+    title: "Lantern Keeper: a Lantern of Souls now, then every 2 turns",
     statement:
       "Taking the rune gets a Lantern of Souls at once, then another every 2 turn setups (the Rare Goods cadence). The badge counts the turns toward the next one.",
     domain: 'runes',
@@ -1167,7 +1167,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-07',
-    title: "Rune of the Wake: every friendly Undead Echo trigger gives the Undead Aura +1 Attack",
+    title: "Wake: every friendly Undead Echo trigger gives the Undead Aura +1 Attack",
     statement:
       "Every time a friendly Undead triggers its Echo, in the Shop, at End of Turn or in combat, the Undead Aura gains +1 Attack (per copy held). Each extra trigger (Sylus, a forced Echo, the Restless) counts on its own. In combat the living Undead feel it at once and the gain is permanent (R-AURA-02).",
     domain: 'runes',
@@ -1187,7 +1187,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-08',
-    title: "Rune of the Second Wind: a risen minion gains +2/+2 permanently",
+    title: "Second Wind: a risen minion gains +2/+2 permanently",
     statement:
       "After a friendly minion Rises (Shop or combat), it gains +2/+2. The gain is permanent: a Shop buff is, and a combat gain is carried back to its board card.",
     domain: 'runes',
@@ -1207,9 +1207,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-09',
-    title: "Rune of the Soul Toll: Avenge (4) gives the Undead Aura +1 Attack",
+    title: "Soul Toll: Avenge (4) gives the Undead Aura +1 Attack",
     statement:
-      "Every 4th friendly death in a fight gives the Undead Aura +1 Attack: the living Undead feel it at once and the gain is permanent (R-AURA-02). It is an Avenge, so Rune of Fury doubles it. Built instead of the design doc's Rune of the Unquiet.",
+      "Every 4th friendly death in a fight gives the Undead Aura +1 Attack: the living Undead feel it at once and the gain is permanent (R-AURA-02). It is an Avenge, so Fury doubles it. Built instead of the design doc's Unquiet.",
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -1227,7 +1227,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-10',
-    title: "Rune of the Gravedigger: a friendly Shop destroy gives your Undead +2/+2",
+    title: "Gravedigger: a friendly Shop destroy gives your Undead +2/+2",
     statement:
       "After you destroy a friendly minion in the Shop (either destroy path, End of Turn included), every other Undead on your board gains +2/+2 (per copy held).",
     domain: 'runes',
@@ -1247,7 +1247,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-11',
-    title: "Rune of the Soul Furnace: the Undead Aura also gives Health equal to half its Attack",
+    title: "Soul Furnace: the Undead Aura also gives Health equal to half its Attack",
     statement:
       "The Undead Aura (the Lantern channel plus the buy channel) also gives every Undead Health equal to half its Attack, rounded up, per copy. The term lives in the run's Undead Aura Health, so it shows on the board, in hand, in the Shop and in combat, and it rises the moment the Aura's Attack rises, mid-fight included. The mid-fight rise is not carried back; the run re-derives it from the Aura's Attack.",
     domain: 'runes',
@@ -1267,7 +1267,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-12',
-    title: "Rune of the Restless: a risen minion triggers its Echo",
+    title: "Restless: a risen minion triggers its Echo",
     statement:
       "After a friendly minion Rises (Shop or combat), its Echo triggers once per copy held, through the shared Echo path: every Echo multiplier applies and every rune that hears an Echo (the Wake) counts it.",
     domain: 'runes',
@@ -1287,7 +1287,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-13',
-    title: "Rune of the Open Grave: the first friendly Shop destroy each turn gains Rise first",
+    title: "Open Grave: the first friendly Shop destroy each turn gains Rise first",
     statement:
       "The first friendly minion you destroy in the Shop each turn gains Rise before it dies, so it Rises. A minion that already has Rise does not use up the turn's charge. The charge comes back at the start of each turn.",
     domain: 'runes',
@@ -1308,7 +1308,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 2: Celestial (the Event Horizon slot is left empty) ──
   {
     id: 'R-SET3RUNE-14',
-    title: "Rune of the Heralding Star: a friendly Celestial Shout gives your Starform +3/+3",
+    title: "Heralding Star: a friendly Celestial Shout gives your Starform +3/+3",
     statement:
       "Every time a friendly Celestial triggers its Shout (a play, a re-fire, each extra fire), your Starform gains +3/+3 per copy. With no Starform nothing happens. In combat the gain is banked and lands on the Starform when the Shop opens (the Starform is a Shop token), after any Shop-only Shout that creates one.",
     domain: 'runes',
@@ -1328,7 +1328,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-15',
-    title: "Rune of Stellar Echoes: your Celestials have \"Echo: give your Starform +2/+2\"",
+    title: "Stellar Echoes: your Celestials have \"Echo: give your Starform +2/+2\"",
     statement:
       "Every friendly Celestial (board, hand, later arrivals, combat summons) carries \"Echo: give your Starform +2/+2\" (per copy). A Gilded Celestial pays the same. In the Shop the Starform grows at once; in combat the gain is banked and lands when the Shop opens.",
     domain: 'runes',
@@ -1348,7 +1348,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-16',
-    title: "Rune of Scattered Light: buying your Starform Collapses it instead",
+    title: "Scattered Light: buying your Starform Collapses it instead",
     statement:
       "When you buy your Starform, it Collapses instead of being consumed by your left-most Celestial: half its stats, rounded up, to 3 unique random Celestials plus any extra Collapse hits. The price is still paid and it still counts as a buy; the Collapse listeners (Zenith, Eventide) hear a Collapse.",
     domain: 'runes',
@@ -1368,7 +1368,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-17',
-    title: "Rune of Gravity: each minion your Starform consumes gives your Celestials +2/+2",
+    title: "Gravity: each minion your Starform consumes gives your Celestials +2/+2",
     statement:
       "Every Shop minion your Starform consumes (a full-row creation, Accretion, extra bites) gives the Celestials on your board +2/+2 per copy. Only the Starform's own consumes count (a Demon's does not).",
     domain: 'runes',
@@ -1388,7 +1388,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-18',
-    title: "Rune of the Afterglow: your Starform leaving the Shop gets a Star Crash",
+    title: "Afterglow: your Starform leaving the Shop gets a Star Crash",
     statement:
       "When your Starform leaves the Shop by a buy, a Collapse or a consume, you get a Star Crash (per copy). The Star Destroyer's silent exit does not count.",
     domain: 'runes',
@@ -1408,7 +1408,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-19',
-    title: "Rune of the Starsong: a friendly Celestial Shout gives your Celestials +2/+2",
+    title: "Starsong: a friendly Celestial Shout gives your Celestials +2/+2",
     statement:
       "Every time a friendly Celestial triggers its Shout, your Celestials gain +2/+2 (per copy): the board in the Shop (permanent), the living Celestials in combat (for that fight).",
     domain: 'runes',
@@ -1428,7 +1428,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-20',
-    title: "Rune of the Guiding Star: a friendly Celestial Echo casts a Star Crash on a random friendly Celestial",
+    title: "Guiding Star: a friendly Celestial Echo casts a Star Crash on a random friendly Celestial",
     statement:
       "Every time a friendly Celestial triggers its Echo (Shop, End of Turn or combat, each extra trigger included), the rune casts a Star Crash (per copy) on a random other friendly Celestial. It is a real cast: spell counters and cast watchers hear it. A Gilded Echo body does not double it. No other Celestial: no cast.",
     domain: 'runes',
@@ -1450,7 +1450,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-SET3RUNE-21',
     title: "Star Crash resolves in combat",
     statement:
-      "A Star Crash cast in combat (the Guiding Star, or any combat re-cast) gives the aimed Celestial +5/+7 plus spell power, then the same on a random living friendly minion (the target may be picked again), with Rune of Falling Embers' bonus folded into both, exactly as in the Shop. It used to fizzle in combat.",
+      "A Star Crash cast in combat (the Guiding Star, or any combat re-cast) gives the aimed Celestial +5/+7 plus spell power, then the same on a random living friendly minion (the target may be picked again), with Falling Embers' bonus folded into both, exactly as in the Shop. It used to fizzle in combat.",
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -1468,7 +1468,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-22',
-    title: "Rune of the Meteor Storm: every Star Crash you cast is cast again on a different friendly Celestial",
+    title: "Meteor Storm: every Star Crash you cast is cast again on a different friendly Celestial",
     statement:
       "Whenever you cast a Star Crash (Shop, End of Turn or combat, any caster, a cast on the Starform included), it is cast again (per copy) on a different random friendly Celestial. The extra cast is a real cast but never repeats itself (no loop). With no other friendly Celestial nothing happens. It fills the Celestial Epic slot the Event Horizon left; it is named the Meteor Storm because the owner's name, Meteor Shower, is already the Set 3 Celestial Epic rune_meteor_shower.",
     domain: 'runes',
@@ -1489,7 +1489,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 3: Spirit + Dwarf ──
   {
     id: 'R-SET3RUNE-23',
-    title: "Rune of Call and Answer: a friendly Spirit Shout or Rally gives the left-most minion in your hand +2/+2",
+    title: "Call and Answer: a friendly Spirit Shout or Rally gives the left-most minion in your hand +2/+2",
     statement:
       "Every time a friendly Spirit triggers a Shout or a Rally (Shop, End of Turn or combat, each extra fire included), the left-most minion in your hand (spells skipped) gains +2/+2 per copy. A hand buff is permanent (R-HAND-02); in combat it lands live on the hand card. An empty hand: nothing.",
     domain: 'runes',
@@ -1509,7 +1509,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-24',
-    title: "Rune of the Encore: the first Reveler you sell each turn also pays the left-most minion in your hand",
+    title: "Encore: the first Reveler you sell each turn also pays the left-most minion in your hand",
     statement:
       "The first Reveler you sell each turn also gives the bonus it just paid your board (the Traveling Festival's extra included) to the left-most minion in your hand, per copy. Only a real sale counts; a Reveler re-fire (Shared Revelry) does not. The charge returns each turn.",
     domain: 'runes',
@@ -1529,7 +1529,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-25',
-    title: "Rune of the Overture: a Crescendo now, then every 2 turns",
+    title: "Overture: a Crescendo now, then every 2 turns",
     statement:
       "Taking the rune gets a Crescendo at once, then another every 2 turn setups. The badge counts the turns toward the next one.",
     domain: 'runes',
@@ -1549,7 +1549,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-26',
-    title: "Rune of the Kindred Hand: a Spirit played gives the left-most minion in your hand +1/+1 per Spirit you control",
+    title: "Kindred Hand: a Spirit played gives the left-most minion in your hand +1/+1 per Spirit you control",
     statement:
       "After you play a Spirit, the left-most minion in your hand (spells skipped) gains +1/+1 for each Spirit on your board, the played one included (per copy). The badge prints what the next Spirit you play will pay. Replaces the Beckoning in the Spirit Basic slot.",
     domain: 'runes',
@@ -1569,7 +1569,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-27',
-    title: "Rune of the Whetstone: a Dwarf played gives your other Dwarves +1 Attack",
+    title: "Whetstone: a Dwarf played gives your other Dwarves +1 Attack",
     statement:
       "Whenever you play a Dwarf, your other Dwarves on the board gain +1 Attack (per copy). Each is a \"gains Attack\" event for Kneel, Tankerchief and the Anvil.",
     domain: 'runes',
@@ -1589,7 +1589,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-28',
-    title: "Rune of the Anvil: a friendly Dwarf's Attack gain also gives that much Health",
+    title: "Anvil: a friendly Dwarf's Attack gain also gives that much Health",
     statement:
       "Whenever a friendly Dwarf on the board gains Attack (Shop, End of Turn or combat, per gain), it also gains that much Health (per copy). A Health gain never re-fires it, so it cannot loop with Kneel or Tankerchief.",
     domain: 'runes',
@@ -1609,7 +1609,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-29',
-    title: "Rune of the Satchel: a card added to your hand gives your Dwarves +1/+1",
+    title: "Satchel: a card added to your hand gives your Dwarves +1/+1",
     statement:
       "Whenever a card is added to your hand, from any source, your Dwarves gain +1/+1 (per copy): the board in the Shop (permanent), the living Dwarves in combat (for that fight). A card that reaches the hand in combat arrives in the run at settle, and that arrival pays the board too, exactly as the other \"card added to hand\" reactors (Gangplank) do.",
     domain: 'runes',
@@ -1630,7 +1630,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 4: hybrids ──
   {
     id: 'R-SET3RUNE-30',
-    title: "Rune of Minted Gems: every 8 Gold you spend gets a random Ruby",
+    title: "Minted Gems: every 8 Gold you spend gets a random Ruby",
     statement:
       "The Gold-spent meter (every spend, any phase that spends Gold) trips every 8 Gold; each trip gets one random Ruby, drawn from all six Ruby types on the run cursor, into your hand (hand cap respected, like every meter grant). The badge prints the meter (x/8).",
     domain: 'runes',
@@ -1650,7 +1650,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-31',
-    title: "Rune of the Gem Crypt: a friendly minion that Rises keeps its Rubies",
+    title: "Gem Crypt: a friendly minion that Rises keeps its Rubies",
     statement:
       "When a friendly minion Rises (Shop or combat), the returned printed body also gets back the Ruby stats it carried when it died: its Shop Ruby ledger, plus in combat the Ruby stats it gained that fight. A body with no Rubies returns as printed (R-RISE-01).",
     domain: 'runes',
@@ -1670,7 +1670,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-32',
-    title: "Rune of the Pallbearer: a friendly Undead death gives the left-most minion in your hand +2/+2",
+    title: "Pallbearer: a friendly Undead death gives the left-most minion in your hand +2/+2",
     statement:
       "Every friendly Undead death (a Shop destroy or a combat death, never a sale) gives the left-most minion in your hand (spells and Rubies skipped) +2/+2 per copy. A hand buff is permanent (R-HAND-02); in combat it lands live on the hand card. An empty hand: nothing.",
     domain: 'runes',
@@ -1690,7 +1690,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-33',
-    title: "Rune of the Star Tap: a Dwarven Ale cast gives your Starform +3/+3",
+    title: "Star Tap: a Dwarven Ale cast gives your Starform +3/+3",
     statement:
       "Every Dwarven Ale cast (Shop, End of Turn or combat) gives your Starform +3/+3 per copy. A combat gain is banked and lands when the Shop exists again (the Starform deferral). No Starform: nothing.",
     domain: 'runes',
@@ -1710,9 +1710,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-34',
-    title: "Rune of Closing Time (the owner's Last Call): selling a Reveler gets a Dwarven Ale",
+    title: "Closing Time (the owner's Last Call): selling a Reveler gets a Dwarven Ale",
     statement:
-      "Every Reveler you sell gets a random Dwarven Ale per copy (hand cap overflow-safe, like every earned grant). Shipped as \"Rune of Closing Time\" because the Set 2 Dwarf rune rune_last_call already owns the name \"Rune of Last Call\".",
+      "Every Reveler you sell gets a random Dwarven Ale per copy (hand cap overflow-safe, like every earned grant). Shipped as \"Closing Time\" because the Set 2 Dwarf rune rune_last_call already owns the name \"Last Call\".",
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -1730,7 +1730,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-35',
-    title: "Rune of the Grim Toast: your Dwarves also get your Undead Aura (the whole live Aura)",
+    title: "Grim Toast: your Dwarves also get your Undead Aura (the whole live Aura)",
     statement:
       "A non-Undead Dwarf gets the full live Undead Aura: its Attack (the Lantern channel and the buy channel) and its Health (the Soul Furnace term included), through the same Aura fold the Undead use: board, hand, Shop offers, combat seeding, and every live mid-fight Aura rise. An Undead Dwarf already has the Aura and is never paid twice. It is the Aura itself, not a mirror of Attack gains.",
     domain: 'runes',
@@ -1750,7 +1750,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-36',
-    title: "Rune of the Gem Star: the first 4 Rubies you cast each turn also give your Starform their stats",
+    title: "Gem Star: the first 4 Rubies you cast each turn also give your Starform their stats",
     statement:
       "The first 4 Rubies cast each turn (Shop, End of Turn, then that turn's combat, one shared count reset at turn setup) also give your Starform the stats that Ruby gave, per copy. A bounce or relay is not a cast and does not count. In the Shop it needs a Starform; a combat gain is banked. The badge prints this turn's count out of 4.",
     domain: 'runes',
@@ -1770,7 +1770,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-37',
-    title: "Rune of the Keepsake Gem: every Ruby also casts on the left-most minion in your hand",
+    title: "Keepsake Gem: every Ruby also casts on the left-most minion in your hand",
     statement:
       "Every Ruby cast on a minion (Shop, End of Turn or combat, every Ruby, not only the first each turn) also gives its stats (and in the Shop its Ruby rider) to the left-most minion in your hand, per copy. The relay is a plain stat grant, never a Ruby cast, so no Ruby-cast trigger hears it and it cannot loop. An empty hand: nothing.",
     domain: 'runes',
@@ -1791,7 +1791,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── Set 3 rune design pass (owner 2026-09-27), tranche 5: Menagerie + neutral ──
   {
     id: 'R-SET3RUNE-38',
-    title: "Rune of the Menagerie (Set 3): get a random Kobold, Dwarf, Undead, Spirit and Celestial",
+    title: "Menagerie (Set 3): get a random Kobold, Dwarf, Undead, Spirit and Celestial",
     statement:
       "Taking the rune gets one random minion of each Set 3 tribe at or below your tier (the set-1 and set-2 Menageries' shape, this set's tribes). A second copy re-grants.",
     domain: 'runes',
@@ -1811,7 +1811,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-39',
-    title: "Rune of Unity: while you control all 5 minion types, your minions count as every type",
+    title: "Unity: while you control all 5 minion types, your minions count as every type",
     statement:
       "While your board NATURALLY controls every active minion type (printed tribes and All-types cards; Unity's own grant never counts, so it cannot hold itself up), every board minion counts as every type: in the Shop through isTribe (re-read at every action boundary and at a play, a sale, a Shop death and End of Turn), in combat through universalTribe on the living minions, re-read after every death and summon. When the full house breaks, the grant is withdrawn at once. Hand cards are not \"your minions\". A Unity body counts as Undead and so takes the whole Undead Aura (Lantern and buy Attack, Health) as a fold, never baked; in combat once, and not taken back mid-fight.",
     domain: 'runes',
@@ -1831,7 +1831,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SET3RUNE-40',
-    title: "Rune of the Heavy Hand: damage your minions deal counts double toward Pummel",
+    title: "Heavy Hand: damage your minions deal counts double toward Pummel",
     statement:
       "Every landed hit a friendly minion deals advances its Pummel meter by double the damage (one extra share per copy). The tally carries over as every Pummel tally does; the per-combat payout cap still binds. Damage is dealt only in combat, so the rune acts only there.",
     domain: 'runes',
@@ -1870,9 +1870,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-35',
-    title: 'Rune of Drakko: get a Drakko, and every Drakko is a Dragon AND a Spirit for the rest of the game',
+    title: 'Drakko: get a Drakko, and every Drakko is a Dragon AND a Spirit for the rest of the game',
     statement:
-      "Rune of Drakko (Epic, 4 Gold, Set 2 and Set 3) grants a regular Drakko and makes EVERY Drakko of the run a "
+      "Drakko (Epic, 4 Gold, Set 2 and Set 3) grants a regular Drakko and makes EVERY Drakko of the run a "
       + "Dragon and a Spirit, on top of its own type: Shop offers, hand, board, Gilded copies, Discover options and "
       + "combat bodies, including Drakkos already held and ones gained later. It is the same card, so it triples with "
       + "regular Drakkos and the Gilded copy keeps the types. It counts for every tribe check, tally, aura and synergy "
@@ -1894,9 +1894,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNESLOT-02',
-    title: 'Rune of Duplication copies the first Epic rune you select, and says so',
+    title: 'Duplication copies the first Epic rune you select, and says so',
     statement:
-      'Rune of Duplication reads "Copy the first Epic Rune you select." The next Epic rune the player buys after '
+      'Duplication reads "Copy the first Epic Rune you select." The next Epic rune the player buys after '
       + 'owning it is applied a second time and held as a second rune; Duplication is spent on that buy. A Basic buy '
       + 'never spends it, and later Epic buys are not copied. The Duplication badge stays in the rack; it does not turn '
       + 'into the copy.',
@@ -1913,13 +1913,13 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-COFFERS-EVERY-EOT-01',
-    title: 'Rune of the Coffers raises max Gold on EVERY End of Turn, above the cap',
+    title: 'Coffers raises max Gold on EVERY End of Turn, above the cap',
     statement:
-      'Rune of the Coffers reads "End of Turn: increase your maximum Gold by 1." Every End of Turn adds +1 max Gold '
+      'Coffers reads "End of Turn: increase your maximum Gold by 1." Every End of Turn adds +1 max Gold '
       + 'per copy on top of the natural curve, so after N End of Turns the player has exactly N more max Gold than a '
       + 'run without it, before and after the natural 10. A raise is never eaten by the turn-start growth toward the '
       + 'cap. Its Gold-pill beat plays each End of Turn and its badge prints the running total. The same holds for '
-      + 'every other "raise your maximum Gold" grant (Bone Taxer, Soulsman, Rune of Soul Taxes): all of them land in '
+      + 'every other "raise your maximum Gold" grant (Bone Taxer, Soulsman, Soul Taxes): all of them land in '
       + 'the above-the-cap channel (`maxGoldBonus`), never the natural `maxEmbers` curve.',
     domain: 'runes',
     status: 'approved',
@@ -1938,9 +1938,9 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-DEEP-EVERY-01',
-    title: 'Rune of the Deep pays a Tier 7 minion on purchase, then again every 2 turns, with a live countdown',
+    title: 'Deep pays a Tier 7 minion on purchase, then again every 2 turns, with a live countdown',
     statement:
-      'Rune of the Deep reads "Get a random Tier 7 minion. Repeat every 2 turns." The first minion lands the moment '
+      'Deep reads "Get a random Tier 7 minion. Repeat every 2 turns." The first minion lands the moment '
       + 'the rune is bought; the next turn setup pays nothing, and the one after pays again (one per copy held). The '
       + 'cadence is the `every` param on the reward, counted from the purchase; the Runeforge badge shows the x/2 turns '
       + 'countdown. A run that armed the Deep before the cadence existed keeps paying every turn.',
@@ -1959,7 +1959,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-RUNE-EQUIP-01',
     title: 'A rune can own an Equipment: held for the rest of the run, with no body behind it',
     statement:
-      "A `runeEquip` rune (Rune of the Dragon's Egg, Rune of the Wise Armory) grants its Equipment the moment it is "
+      "A `runeEquip` rune (Dragon's Egg, Wise Armory) grants its Equipment the moment it is "
       + "bought, with its own charge ready, and the Start-of-Turn rebuild re-grants it every turn after the board's "
       + "Equipment (`RunState.runeEquipment`, `sourceKind: 'rune'`, empty `sourceUids`). It obeys every Equipment rule "
       + 'unchanged: one own activation a turn, the shared bonus pool, the cost reductions, Amplified. A rune is never '
@@ -1980,10 +1980,10 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-SHOUT-METER-PAYLOADS-01',
     title: 'Shout-meter runes that buff a tribe or grant a named card pay on combat Shouts too',
     statement:
-      'The "when you trigger N Shouts" meters are one counter across both phases. Rune of the Echoing Shouts (every '
+      'The "when you trigger N Shouts" meters are one counter across both phases. Echoing Shouts (every '
       + 'Shout: your Dragons +3/+2) pays your Dragons on the board and in hand, permanently, in the Shop; on a combat '
       + 'Shout fire it pays the living Dragons +3/+2 for that fight, the moment the Shout fires (the Drake Skull '
-      + 'and Starsong combat rule). Rune of the Whelps (3 Shouts: a Brood Whelp) pays the Whelp into the hand mid-fight '
+      + 'and Starsong combat rule). Whelps (3 Shouts: a Brood Whelp) pays the Whelp into the hand mid-fight '
       + 'like the Chorus. A triggered Shout counts as a Shout (each fire ticks the meter once).',
     domain: 'runes',
     status: 'approved',
@@ -1999,11 +1999,11 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-VOICEKEEPER-COPY-01',
-    title: 'Rune of the Voicekeeper: every third Dragon sold returns a PLAIN copy of one of those three',
+    title: 'Voicekeeper: every third Dragon sold returns a PLAIN copy of one of those three',
     statement:
       'Each Dragon sold (board or hand; All-types bodies count) ticks the meter. On the third, one of the three sold '
       + 'since the last payout is picked off the run cursor and a plain copy (base stats, never gilded) goes to hand, '
-      + 'the copy rule of the Voicekeeper minion and Rune of the Collector. A second copy of the rune pays one more copy.',
+      + 'the copy rule of the Voicekeeper minion and Collector. A second copy of the rune pays one more copy.',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -2038,7 +2038,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-BEAST-PLAY-METER-01',
     title: "The Beast-play runes count Beasts PLAYED from hand; Gator's Bite buffs board Beasts only",
     statement:
-      "Rune of Actioned Beasts and Rune of the Gator's Bite share the `playBeast` threshold meter, ticked only at the "
+      "Actioned Beasts and Gator's Bite share the `playBeast` threshold meter, ticked only at the "
       + '`playCard` chokepoint: a Beast played from hand (Gilded included) is one tick; a Beast summoned by a Shout, a '
       + 'token, or a card reaching the hand is not a play. Play is a Shop action, so there is no combat half. Actioned '
       + 'Beasts pays every 5th play with a random buyable Beast at or below the shop tier, and the remainder banks '
@@ -2060,7 +2060,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SUNPONY-SPREAD-01',
-    title: "Rune of the Sunpony is Sunmane Herald's spreading Rally with the rune as the source",
+    title: "Sunpony is Sunmane Herald's spreading Rally with the rune as the source",
     statement:
       'Combat only (an attack is a combat event). Whenever a friendly Beast attacks (each swing), after its own Rally, '
       + 'ALL your Beasts, the attacker included, gain +1 Attack per copy held for this fight, bank it as spread-Rally '
@@ -2085,7 +2085,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-SCRIPTURE-01',
-    title: 'Rune of Shared Scripture: the first Shop spell your side casts in combat, from ANY caster, fires the left-most Shout and Rally',
+    title: 'Shared Scripture: the first Shop spell your side casts in combat, from ANY caster, fires the left-most Shout and Rally',
     statement:
       'Combat only, once per fight per side (the latch resets every combat). The first Shop spell (R-SHOPSPELL-01: a '
       + "spell from the set's Shop-spell pool; never a Ruby, a Clue or other Gift, or a token spell) cast by your side "
@@ -2114,7 +2114,7 @@ export const RUNES_RULES: GameRule[] = [
       + 'forge, All types count as one of every tribe), the ONE guaranteed offer slot is a rune of one of those '
       + 'tribes whenever the eligible pool has one. A rune that only shares a MECHANIC tag (a Demon rune whose text '
       + 'says "summon") does not satisfy it. The tribe of a rune is its tribe gate (`tribes`) plus any tribe word in its '
-      + 'text, so a gated rune that never prints the tribe word (Rune of Baal, Rune of Chimerus, Rune of the Whelps) '
+      + 'text, so a gated rune that never prints the tribe word (Baal, Chimerus, Whelps) '
       + 'counts, both for the guarantee and for the pivot discount (a fitting rune is never discounted). A board with '
       + 'no tribe at the threshold keeps the mechanic guarantee unchanged.',
     domain: 'runes',
@@ -2129,13 +2129,13 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-CONDUIT-COMBAT-01',
-    title: 'Rune of the Conduit bounces combat Rubies too; a permanent Ruby bounces permanently, with the ruby-bounce cue',
+    title: 'Conduit bounces combat Rubies too; a permanent Ruby bounces permanently, with the ruby-bounce cue',
     statement:
-      'Rune of the Conduit ("Your Rubies all bounce an additional time") is cross-phase: every Ruby CAST in combat on a side '
+      'Conduit ("Your Rubies all bounce an additional time") is cross-phase: every Ruby CAST in combat on a side '
       + 'holding it (either side, a served enemy board included) hops once more per copy held to a random OTHER living '
       + 'friendly minion, carrying the whole cast (one hop per cast, the same granularity as the Shop half). The hop is '
       + 'stats only (no watchers, so it never re-bounces) and INHERITS the permanence of the landing Ruby: a Boulderdash / Korn / '
-      + 'Blazer "permanent Ruby" (or any Ruby made permanent by Rune of Engraving Gems) bounces PERMANENTLY and carries back '
+      + 'Blazer "permanent Ruby" (or any Ruby made permanent by Engraving Gems) bounces PERMANENTLY and carries back '
       + 'to the Shop card of the hop target as a Ruby at settle, while the hop of a plain combat Ruby stays combat-only. Every hop is a '
       + '`buff` event stamped `ruby` + `bounce`, so combat plays the same `ruby-bounce` ribbon the Shop plays, in the beat the '
       + 'hop happens, and the rune badge bursts off a `questTrigger` (`runeConduit`).',
@@ -2160,7 +2160,7 @@ export const RUNES_RULES: GameRule[] = [
     statement:
       'A rune whose text improves ITSELF prints the number it will produce right now, in place of the authored base, '
       + 'wherever its text shows: the rack badge and the hero-slot rune in the Shop, the same badge in combat (advancing '
-      + 'with each trigger the replay has shown, so Rune of the Wild Hunt reads +2 more after every Beast attack), the '
+      + 'with each trigger the replay has shown, so Wild Hunt reads +2 more after every Beast attack), the '
       + 'Runeforge offer, the foe\'s badge (its snapshot value, advanced by its own triggers), the scout card, a spectated '
       + 'seat, and the stored records (match details, Career, Recent Games, the leaderboard, Versus match stats) at the '
       + 'value the run had. The base reads only when nothing has grown (or on a record older than the value). Wild Hunt\'s '
@@ -2241,16 +2241,16 @@ export const RUNES_RULES: GameRule[] = [
     title: 'The Set 3 Basic Dragon runes: Whisper, Shop Spell and Dragon-attack triggers in both phases',
     statement:
       'The eleven Set 3 Basic Dragon runes are Dragon-gated, Set 3 only, and each copy held pays its own share. '
-      + 'Rune of the Runic Primer gets 2 Runebinds when acquired and at every Start of Turn; it is a rune source, so the Whisper tier '
-      + 'gate applies. Rune of Loose Tongues pays a random Whisper (your tier and below) for every Dragon played from hand. Rune of Clear Voices'
-      + ' counts DISTINCT Whispers cast from hand this turn and pays 2 Gold on the third, once per turn. Rune of Spell-Fed Scales'
-      + ' hears every Shop Spell cast (any caster, both phases) and gives a random friendly Dragon +6/+7. Rune of Borrowed Flame'
+      + 'Runic Primer gets 2 Runebinds when acquired and at every Start of Turn; it is a rune source, so the Whisper tier '
+      + 'gate applies. Loose Tongues pays a random Whisper (your tier and below) for every Dragon played from hand. Clear Voices'
+      + ' counts DISTINCT Whispers cast from hand this turn and pays 2 Gold on the third, once per turn. Spell-Fed Scales'
+      + ' hears every Shop Spell cast (any caster, both phases) and gives a random friendly Dragon +6/+7. Borrowed Flame'
       + ' hears every Whisper cast that lands on a friendly Dragon (from hand, Whisp, Whaloo): the Dragon gains the '
       + 'current value, then the value improves by 1 (Mastery doubles the improve); the improve is permanent and real time. '
-      + 'Rune of Spell Tempering counts every Whisper cast in a running meter and every 4th raises your spell power +1/+1. Rune of the Open Treasury'
-      + ' copies the first spell you buy each turn. Rune of Deep Breaths: each of the first 2 friendly Dragon swings each '
-      + 'combat casts Growth. Rune of Defiant Wings is a Start of Combat rune (Twilight repeats it): 2 random friendly Dragons '
-      + '+3/+6 and Ward. Rune of the Final Utterance: Avenge (4), a random Whisper and a random Shop Spell. Rune of Ember Inheritance: the '
+      + 'Spell Tempering counts every Whisper cast in a running meter and every 4th raises your spell power +1/+1. Open Treasury'
+      + ' copies the first spell you buy each turn. Deep Breaths: each of the first 2 friendly Dragon swings each '
+      + 'combat casts Growth. Defiant Wings is a Start of Combat rune (Twilight repeats it): 2 random friendly Dragons '
+      + '+3/+6 and Ward. Final Utterance: Avenge (4), a random Whisper and a random Shop Spell. Ember Inheritance: the '
       + 'first friendly Dragon WITH an Echo to die each combat gives its Attack to the left-most living friendly Dragon. '
       + 'Buffs are permanent in the Shop and combat-only in combat.',
     domain: 'runes',
@@ -2261,7 +2261,7 @@ export const RUNES_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/dragonRunesBasic.ts (Shop halves); packages/core/src/combat/simulate.ts "SET 3 DRAGON RUNES" (combat halves); content packages/content/src/runes.ts' },
     ],
     contentIds: ['rune_runic_primer', 'rune_loose_tongues', 'rune_clear_voices', 'rune_spell_fed_scales', 'rune_borrowed_flame', 'rune_spell_tempering', 'rune_open_treasury', 'rune_deep_breaths', 'rune_defiant_wings', 'rune_final_utterance', 'rune_ember_inheritance'],
-    currentBehaviour: 'Conforms as of 2026-10-21 (new content). The interpretations listed in docs/devlog/2026-10-21-set3-dragon-runes-basic.md: owner approved the readings 2026-10-22 (names take the "Rune of" prefix, costs follow docs/set3-dragon-rune-draft-30.md).',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new content). The interpretations listed in docs/devlog/2026-10-21-set3-dragon-runes-basic.md: owner approved the readings 2026-10-22 (costs follow docs/set3-dragon-rune-draft-30.md). The same day the owner reversed the "Rune of" prefix for every rune (R-RUNE-NAME-01), so these names are bare too.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/sim/src/set3DragonRunesBasic.test.ts', 'packages/core/src/combat/set3DragonRunesBasic.test.ts'],
@@ -2271,7 +2271,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── Set 3 Dragon runes, Epic A (owner 2026-10-21) ──
   {
     id: 'R-DRAGONRUNE-A-01',
-    title: 'Rune of the War Council: Start of Combat, Runebind on 3 different random Dragons',
+    title: 'War Council: Start of Combat, Runebind on 3 different random Dragons',
     statement:
       'Combat only (a Start of Combat rune; Twilight repeats it with the other passes). Three DIFFERENT random living '
       + 'friendly Dragons (every Dragon when there are fewer; none = nothing), seeded draws, each takes one real combat '
@@ -2293,11 +2293,11 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-DRAGONRUNE-A-02',
-    title: 'Rune of the Growing Inferno: every friendly Dragon attack casts Growth',
+    title: 'Growing Inferno: every friendly Dragon attack casts Growth',
     statement:
       'Combat only (the text says "in combat"). Every swing of a friendly Dragon, after its own Rally, casts Growth once '
       + 'per copy held, the rune as the caster (an ungilded stand-in for the attacker, so a Gilded Dragon does not double '
-      + 'it). A real cast: counted, repeated by Queen Morro, at Growth\'s live value (spell power, Rune of Living Growth). '
+      + 'it). A real cast: counted, repeated by Queen Morro, at Growth\'s live value (spell power, Living Growth). '
       + 'The buffs are combat-only (R-BUFF-PERM). No cap.',
     domain: 'runes',
     status: 'approved',
@@ -2319,7 +2319,7 @@ export const RUNES_RULES: GameRule[] = [
       + 'a Whisper, `shopSpellFromHand` for a Shop spell (never a Whisper, Gift, Ruby, token or reward spell). A Yazzus or '
       + 'Nimbus repeat is the same play; a rune\'s, minion\'s, Equipment\'s or Whisp\'s cast is not a hand cast. Both bank '
       + 'their remainder across turns and pay EVERY 3 (the counting-rune convention), each copy held its own meter. Rune '
-      + 'of the Secret Exchange opens a Shop-spell Discover (the run\'s Shop spells up to your tier); Rune of the Wyrm\'s '
+      + 'of the Secret Exchange opens a Shop-spell Discover (the run\'s Shop spells up to your tier); Wyrm\'s '
       + 'Hoard raises spell power +1/+1 for the rest of the run. Shop only: nothing is cast from hand in combat.',
     domain: 'runes',
     status: 'approved',
@@ -2336,7 +2336,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-DRAGONRUNE-A-04',
-    title: 'Rune of the Runebound Brood: every Drake Pup you summon casts Runebind on itself, both phases',
+    title: 'Runebound Brood: every Drake Pup you summon casts Runebind on itself, both phases',
     statement:
       'A Drake Pup arriving on your side (a Seed Echo, a copy, a return; combat or Shop) casts Runebind on itself once per '
       + 'copy held, after its own arrival watchers, the rune as the caster: a real Whisper cast (counted, Whisp-echoed, '
@@ -2356,7 +2356,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-DRAGONRUNE-A-05',
-    title: 'Rune of Unbroken Scales: a side-wide 2 per combat; each Dragon Ward loss pays +10/+10, then the Ward re-forms',
+    title: 'Unbroken Scales: a side-wide 2 per combat; each Dragon Ward loss pays +10/+10, then the Ward re-forms',
     statement:
       'Combat only. The first 2 times any friendly Dragon loses Ward in a fight (a SIDE-WIDE budget across all your '
       + 'Dragons, not per body, so a Rise or Rebirth return does not refill it; R-RETURN-RESET-01 resets per-body limits '
@@ -2378,7 +2378,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-DRAGONRUNE-A-06',
-    title: "Rune of Runic Transposition: a Whisper's Health on a Dragon also lands as Attack, on top of its own Attack",
+    title: "Runic Transposition: a Whisper's Health on a Dragon also lands as Attack, on top of its own Attack",
     statement:
       'Both phases. A Whisper cast on a Dragon (from any source: hand, Whisp, a rune, Whaloo) that gives Health also '
       + 'gives Attack equal to that Health, ADDED to the Attack it already gives (a +2/+3 Whisper gives +5/+3), per copy '
@@ -2399,7 +2399,7 @@ export const RUNES_RULES: GameRule[] = [
   // ── SET 3 DRAGON RUNES, EPIC B (owner 2026-10-21): the four Whisper Epics. ──
   {
     id: 'R-RUNE-LASTING-WORDS-01',
-    title: 'Rune of Lasting Words: the first Whisper cast from hand on each Dragon each turn is permanent',
+    title: 'Lasting Words: the first Whisper cast from hand on each Dragon each turn is permanent',
     statement:
       'The first Whisper you cast FROM HAND on each Dragon each turn keeps everything that cast added: its stats, its '
       + 'Whisper keyword (Bait\'s Taunt, Warding Call\'s Ward) and its Seed stacks, exactly as Hum keeps one. Each Dragon '
@@ -2421,7 +2421,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-TWIN-TONGUES-01',
-    title: 'Rune of Twin Tongues: a Whisper cast from hand also casts on one random other friendly Dragon',
+    title: 'Twin Tongues: a Whisper cast from hand also casts on one random other friendly Dragon',
     statement:
       'Each TARGETED Whisper cast from hand (the cast itself and each Yazzus or Opened Vault repeat) is cast again on one '
       + 'random other friendly Dragon it may legally land on, picked from the run seed, once per copy of the rune held. The '
@@ -2437,17 +2437,17 @@ export const RUNES_RULES: GameRule[] = [
     ],
     contentIds: ['rune_twin_tongues'],
     cardText: '**Whispers** cast from hand also cast on another friendly **Dragon**.',
-    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22. The copy is a real Whisper cast, so Rune of Runic Transposition (Epic A) applies to it too (tested 2026-10-22).',
+    currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22. The copy is a real Whisper cast, so Runic Transposition (Epic A) applies to it too (tested 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
   {
     id: 'R-RUNE-OPENED-VAULT-01',
-    title: 'Rune of the Opened Vault: a Jar of Secrets activation makes the next Whisper cast from hand cast twice',
+    title: 'Opened Vault: a Jar of Secrets activation makes the next Whisper cast from hand cast twice',
     statement:
       'Buying it gets a Shush (whose Equip is Jar of Secrets). Each real Jar of Secrets activation arms one charge; only '
       + 'one can wait at a time, and it waits across turns until spent. The next Whisper cast from hand (targeted or not) '
       + 'spends it and resolves one more time on the same target, once per copy of the rune held, on top of any Yazzus '
-      + 'repeat. A refused cast (no legal target) keeps the charge. A free Equipment fire (Rune of Dismantling) is not an activation.',
+      + 'repeat. A refused cast (no legal target) keeps the charge. A free Equipment fire (Dismantling) is not an activation.',
     domain: 'runes',
     status: 'approved',
     evidence: [
@@ -2462,7 +2462,7 @@ export const RUNES_RULES: GameRule[] = [
   },
   {
     id: 'R-RUNE-BEQUEATHED-SECRETS-01',
-    title: 'Rune of Bequeathed Secrets: the first Dragon sold each turn gives its Whisper stats to the left-most Dragon',
+    title: 'Bequeathed Secrets: the first Dragon sold each turn gives its Whisper stats to the left-most Dragon',
     statement:
       'The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most remaining Dragon as a permanent '
       + 'buff, once per copy of the rune held. Its Whisper stat bonuses are the Whisper stats it carries right now: this '
@@ -2481,5 +2481,24 @@ export const RUNES_RULES: GameRule[] = [
     cardText: 'The first **Dragon** you **Sell** each turn gives its **Whisper** stat bonuses to your left-most **Dragon** permanently.',
     currentBehaviour: 'Conforms as of 2026-10-21 (new). The flagged readings in docs/devlog/2026-10-21-set3-dragon-runes-epic-b.md: owner approved the readings 2026-10-22.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DragonRunesEpicB.test.ts'], lastVerifiedAt: '2026-10-21' },
+  },
+  {
+    id: 'R-RUNE-NAME-01',
+    title: 'Rune names are bare: no "Rune of" prefix',
+    statement:
+      'Every rune shows just its name, with no leading "Rune of" or "Rune of the": Borrowed Flame, War Council, Anvil, '
+      + 'Unity. The rule covers every set and every surface that names a rune: the Runeforge, the rune book, tooltips, '
+      + 'buff lines, cast lines, card and rune texts, and the guides. Rune ids are unchanged, so saves, replays, '
+      + 'snapshots and stats keyed by id keep working; a buff label stored before the change ("Rune of the Anvil") '
+      + 'still reads as a rune buff and displays bare. It reverses the morning ruling the same day that the Set 3 '
+      + 'Dragon runes take the prefix.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (rune naming)', quote: "let's remove 'rune of' for all the runes, so they just show the rune name, like Borrowed Time. etc" },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (names + bareRuneLabel); packages/sim/src/state.ts isRuneBuffSource (RUNE_BUFF_LABELS); packages/tools/src/wire-art.ts (legacy RuneOf… art files still match)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-22: every rune name is bare; the Menagerie keeps one name across its three set twins, which never share a set.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeNamesBare.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
 ];

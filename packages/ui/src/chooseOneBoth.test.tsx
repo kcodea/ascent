@@ -28,7 +28,7 @@ import { descTextOf, mount, plainOf } from './renderedText.mount';
  *  third until 2026-10-07, when Orivax became a board aura with no Choose One. */
 const SOURCES = [
   { what: "Facetwright under its rune", id: 'facetwright', run: { runeFacetwright: true } as Partial<RunState>, golden: false },
-  { what: 'Veinbreaker under the Rune of the Unbroken Vein', id: 'k_veinbreaker', run: { runeUnbrokenVein: true } as Partial<RunState>, golden: false },
+  { what: 'Veinbreaker under the Unbroken Vein', id: 'k_veinbreaker', run: { runeUnbrokenVein: true } as Partial<RunState>, golden: false },
 ] as const;
 
 const runFor = (over: Partial<RunState>): RunState => ({ ...createRun(21, 'drakko'), setId: 'set2', ...over } as RunState);

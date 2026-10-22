@@ -49,7 +49,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yes. Some cards and runes **trigger your Shouts again**, in the shop, at End of Turn, or even during a fight. The re-fired Shout does its full effect again right away.",
     aliases: ['retrigger battlecry', 'battlecry twice', 'replay shout', 'shout again'],
     seeAlso: ['shout-refire-target', 'shout-in-combat-stats', 'trigger-twice-stacking'],
-    covers: [{ rule: 'R-REALTIME-03', fp: 'c7ae3fde' }],
+    covers: [{ rule: 'R-REALTIME-03', fp: '44ad2095' }],
   },
   {
     id: 'shout-refire-target',
@@ -242,7 +242,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "It does the effect **once, then once more for each** thing it counts this turn. With zero it still goes once. A Gilded one makes each repeat bigger, not more repeats. Long chains speed up so you're never stuck watching for ages.",
     aliases: ['repeat for every', 'end of turn repeat', 'ticks'],
     seeAlso: ['end-of-turn'],
-    covers: [{ rule: 'R-REPEAT-01', fp: '88688c67' }, { rule: 'R-REPEAT-04', fp: 'ebd399a1' }],
+    covers: [{ rule: 'R-REPEAT-01', fp: '88688c67' }, { rule: 'R-REPEAT-04', fp: '138ed798' }],
   },
   {
     id: 'end-of-turn-multiple',
@@ -251,7 +251,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yes. Some cards make your **End of Turn effects trigger extra times**. They stack the same way other \"trigger twice\" and \"additional time\" cards do.",
     aliases: ['double end of turn', 'eot twice'],
     seeAlso: ['trigger-twice-stacking', 'end-of-turn'],
-    covers: [{ rule: 'R-MULT-02', fp: '76497371' }],
+    covers: [{ rule: 'R-MULT-02', fp: 'bb428d1e' }],
   },
 
   // ── Avenge ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -392,7 +392,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yes. Some cards and runes **trigger a Rally directly** (for example at Start of Combat). No attack happens, but it still counts as a Rally triggered, so your Rally watchers fire too.",
     aliases: ['trigger rally', 'rally at start of combat', 'rally without attacking'],
     seeAlso: ['rally', 'rally-watchers'],
-    covers: [{ rule: 'R-RALLY-01', fp: '4f5d9f16' }],
+    covers: [{ rule: 'R-RALLY-01', fp: 'aa94d7bf' }],
   },
 
   // ── Slaughter ─────────────────────────────────────────────────────────────────────────────────────────────

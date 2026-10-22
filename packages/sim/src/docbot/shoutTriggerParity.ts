@@ -49,7 +49,7 @@ export const SHOP_SHOUT_FIRE_SCOPES: Readonly<Record<string, { counter: ShoutCou
   playCard: { counter: 'fold', why: 'a Shout played from hand' },
   applyBattlecryTarget: { counter: 'fold', why: 'an aimed Shout resolving after its target pick' },
   triggerBorrowedEcho: { counter: 'fold', why: 'Funeral on Loan PLAYS the borrowed card (owner 2026-07-24)' },
-  replayBattlecry: { counter: 'fold', why: 'THE shared Shop re-trigger: the Auctioneer Pulse, Echoing Roar, Resonance, Ryme in the Shop, Rune of the Last Word, Crucible Choir, Moira, the arena replayShout' },
+  replayBattlecry: { counter: 'fold', why: 'THE shared Shop re-trigger: the Auctioneer Pulse, Echoing Roar, Resonance, Ryme in the Shop, Last Word, Crucible Choir, Moira, the arena replayShout' },
   replayEconomyBattlecry: { counter: 'settle', why: "the settle half of a COMBAT Shout fire: called once per fire the combat loop already counted (every extra, charge and notify happened in combat), so folding here would pay them twice" },
 };
 
@@ -158,11 +158,11 @@ export interface ShoutModifier {
 
 export const SHOUT_MODIFIERS: readonly ShoutModifier[] = [
   { id: 'none', label: 'no modifier (control)', shop: {}, combat: {}, fires: 1 },
-  { id: 'choir', label: 'Rune of the Choir / Hoardwake / Resonant Path / legacy Orivax Chorus mode (+1 each)', shop: { shoutExtraAlways: 1 }, combat: { shoutExtraAlways: 1 }, fires: 2 },
-  { id: 'blasting', label: 'Rune of Blasting Voices (+2)', shop: { shoutExtraAlways: 2 }, combat: { shoutExtraAlways: 2 }, fires: 3 },
+  { id: 'choir', label: 'Choir / Hoardwake / Resonant Path / legacy Orivax Chorus mode (+1 each)', shop: { shoutExtraAlways: 1 }, combat: { shoutExtraAlways: 1 }, fires: 2 },
+  { id: 'blasting', label: 'Blasting Voices (+2)', shop: { shoutExtraAlways: 2 }, combat: { shoutExtraAlways: 2 }, fires: 3 },
   { id: 'encore', label: 'Demand an Encore (this turn)', shop: { shoutExtraTurn: 1 }, combat: { encoreExtra: 1 }, fires: 2 },
   { id: 'warmEmbers', label: 'Warm Embers / Opening Act (first Shout each turn / phase)', shop: { shoutFirstDoubleEachRound: true, shoutFirstUsedThisTurn: false }, combat: { warmEmbersFirst: 1 }, fires: 2, latch: 'shoutFirstUsedThisTurn' },
-  { id: 'warDrum', label: 'Rune of the War Drum (first Shout each turn, +2)', shop: { runeWarDrum: 2, runeWarDrumUsedThisTurn: false }, combat: { warDrumExtra: 2 }, fires: 3, latch: 'runeWarDrumUsedThisTurn' },
+  { id: 'warDrum', label: 'War Drum (first Shout each turn, +2)', shop: { runeWarDrum: 2, runeWarDrumUsedThisTurn: false }, combat: { warDrumExtra: 2 }, fires: 3, latch: 'runeWarDrumUsedThisTurn' },
 ];
 
 /** What one entry path measured under one modifier. Every count is per ONE Shout trigger. */
@@ -219,7 +219,7 @@ function shopCell(path: string, mod: ShoutModifier): ShoutCell {
   const after = p.fire(base);
   const at = (s: RunState, uid: string): BoardCard => s.board.find((c) => c.uid === uid)!;
   // Drake Skull hits the left- and right-most Dragon: `w` (left) every fire, the Cleric (right) every fire.
-  const skull = (s: RunState): number => (at(s, 'w').buffs ?? []).filter((b) => b.source === 'Rune of the Drake Skull').reduce((a, b) => a + b.attack, 0);
+  const skull = (s: RunState): number => (at(s, 'w').buffs ?? []).filter((b) => b.source === 'Drake Skull').reduce((a, b) => a + b.attack, 0);
   const edge = skull(after) / 6;
   const fires = (at(after, 'w').attack - at(base, 'w').attack - skull(after)) / 3;
   const watcher = (at(after, 'e').attack - at(base, 'e').attack) - 3 * fires;
@@ -241,11 +241,11 @@ const shoutCard = (): string => Object.values(CARD_INDEX).find((c) => c?.effects
 const COMBAT_PATHS: Record<string, (mods: QuestCombatMods) => CombatResult> = {
   'combat: Ryme Echo (fireShout)': (m) => fight([bm('alley', 'p0', 1, 30), bm('ryme', 'p1', 1, 1)], [bm('cryptwolf', 'e0', 5, 60)], m),
   'combat: Parting Cry': (m) => fight([bm('alley', 'p0', 1, 1, { partingCry: true }), bm('whelpling', 'p1', 0, 400)], [bm('cryptwolf', 'e0', 5, 60)], m),
-  'combat: Rune of Shared Scripture': (m) => fight(
+  'combat: Shared Scripture': (m) => fight(
     [bm('emissary', 'p0', 1, 60), bm('badgington', 'p1', 1, 60), bm('sporebat', 'p2', 1, 1)], [bm('sandbag', 'e0', 9, 400)],
     { ...m, runeSharedScripture: true }, { lastSpellCastId: 'growth' }, 5),
-  'combat: Rune of Ancestral Roar': (m) => fight([bm('emissary', 'p0', 2, 1), bm('whelpling', 'p1', 0, 400)], [bm('sandbag', 'e0', 9, 400)], { ...m, runeAncestralRoar: true }, {}, 7),
-  'combat: Rune of the War Chorus': (m) => fight([bm(shoutCard(), 'p0', 1, 300), bm(rallyCard(), 'p1', 2, 300)], [bm('sandbag', 'e0', 9, 400)], { ...m, runeWarChorus: true }, {}, 5),
+  'combat: Ancestral Roar': (m) => fight([bm('emissary', 'p0', 2, 1), bm('whelpling', 'p1', 0, 400)], [bm('sandbag', 'e0', 9, 400)], { ...m, runeAncestralRoar: true }, {}, 7),
+  'combat: War Chorus': (m) => fight([bm(shoutCard(), 'p0', 1, 300), bm(rallyCard(), 'p1', 2, 300)], [bm('sandbag', 'e0', 9, 400)], { ...m, runeWarChorus: true }, {}, 5),
 };
 
 function combatCell(path: string, mod: ShoutModifier): ShoutCell {

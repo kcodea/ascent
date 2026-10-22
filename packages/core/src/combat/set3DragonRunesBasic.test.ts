@@ -142,7 +142,7 @@ describe('Rune of Borrowed Flame + Rune of Spell Tempering: combat Whisper casts
     const fires = triggers(r.events, 'runeBorrowedFlame').length;
     expect(fires).toBe(3); // Whaloo's 3 casts per combat, every one on an attacking Dragon
     expect(r.playerShoutCarry?.borrowedFlameGain).toBe(3);
-    const flame = [0, 1].flatMap((i) => buffsOn(r.events, uid(r, i))).filter((b) => b.attack === b.health && b.attack >= 1 && b.attack <= 3 && b.source === 'Rune of Borrowed Flame');
+    const flame = [0, 1].flatMap((i) => buffsOn(r.events, uid(r, i))).filter((b) => b.attack === b.health && b.attack >= 1 && b.attack <= 3 && b.source === 'Borrowed Flame');
     expect(flame.map((b) => b.attack).sort()).toEqual([1, 2, 3]); // one cast each at 1, 2, 3 (grouped by body here)
   });
   it('Rune of Spell Tempering: the carried meter ticks per Whisper cast and the 4th pays +1/+1 spell power live', () => {

@@ -77,7 +77,7 @@ describe('Rune of Ruby Shrapnel', () => {
   const killer: BoardMinion[] = [{ cardId: 'sandbag', attack: 9, health: 400 }];
   /** The stats the rune actually scattered, summed across every share it handed out. */
   const scattered = (board: BoardMinion[], mods: object) => sim(board, killer, { questMods: mods })
-    .events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of Ruby Shrapnel')
+    .events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Ruby Shrapnel')
     .reduce((n, e) => n + ((e as { attack: number }).attack + (e as { health: number }).health), 0);
 
   it('splits a dying Ruby body’s Ruby stats across the survivors', () => {

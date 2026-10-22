@@ -222,7 +222,7 @@ describe('Match History', () => {
   it('the run\'s rune selections: real rune art + name per pick, in pick order; "No runes recorded" otherwise', () => {
     const rows = [0, 1, 2].map(rowAt);
     const runes = [...rows[0]!.querySelectorAll('.cv2-rune')];
-    expect(runes.map((r) => r.querySelector('.cv2-rune-name')?.textContent)).toEqual(['Rune of the Broodpit', 'Rune of the Epic Forge']);
+    expect(runes.map((r) => r.querySelector('.cv2-rune-name')?.textContent)).toEqual(['Broodpit', 'Epic Forge']);
     expect(runes[0]!.classList.contains('epic')).toBe(true);   // Broodpit is an Epic rune
     expect(runes[1]!.classList.contains('epic')).toBe(false);
     for (const r of runes) {
@@ -245,7 +245,7 @@ describe('Match History', () => {
       const tip = document.querySelector('.cv2-rune-tip');
       expect(tip).not.toBeNull();
       expect(tip!.parentElement).toBe(stageHost()); // portalled into the scaled stage (stage.ts)
-      expect(tip!.querySelector('.cv2-rune-tip-name')?.textContent).toContain('Rune of the Broodpit');
+      expect(tip!.querySelector('.cv2-rune-tip-name')?.textContent).toContain('Broodpit');
       expect(tip!.querySelector('.cv2-rune-tip-kind')?.textContent).toBe('Epic Rune');
       expect(tip!.querySelector('.cv2-rune-tip-body')?.textContent).toMatch(/Avenge \(4\):.*summon.*2 Imps with Taunt/);
       act(() => { rune.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: document.body })); });

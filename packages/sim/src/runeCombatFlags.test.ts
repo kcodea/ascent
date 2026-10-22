@@ -93,8 +93,8 @@ describe('Rune of Warding — the sheet says TRIPLE', () => {
 describe('the five runes ship at the sheet\'s costs', () => {
   it('exists with the right cost and tier', () => {
     const want: [string, number, boolean][] = [
-      ['Rune of the Stampede', 4, false], ['Rune of the Hatchery', 4, false], // Stampede 5 → 4 (balance 9/23)
-      ['Rune of the Vanguard', 1, true], ['Rune of Finality', 6, true],
+      ['Stampede', 4, false], ['Hatchery', 4, false], // Stampede 5 → 4 (balance 9/23)
+      ['Vanguard', 1, true], ['Finality', 6, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -105,6 +105,6 @@ describe('the five runes ship at the sheet\'s costs', () => {
   });
 
   it('the Stampede reuses rallyRepeat rather than a new flag', () => {
-    expect(byName('Rune of the Stampede')!.reward).toEqual({ kind: 'rallyRepeat', scope: 'firstEachCombat' });
+    expect(byName('Stampede')!.reward).toEqual({ kind: 'rallyRepeat', scope: 'firstEachCombat' });
   });
 });

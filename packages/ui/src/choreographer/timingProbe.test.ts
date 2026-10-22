@@ -134,7 +134,7 @@ describe.skipIf(process.env.PROBE !== '1')('timing probe', () => {
     dump('Gasket + Rachel, a victim has a Ward', fight(
       [bm('dm_gasket', 7, 3, { keywords: ['RL'] }), bm('dm_radrachel', 0, 40), bm('trainingdummy', 0, 40)],
       [bm('trainingdummy', 0, 40, { keywords: ['DS'] }), ...wall(4)]), attackBy('m0'), 5);
-    dump('Gasket + Rachel + Rune of Ruins (questTrigger per hit)', simulate(
+    dump('Gasket + Rachel + Ruins (questTrigger per hit)', simulate(
       [bm('dm_gasket', 7, 3, { keywords: ['RL'] }), bm('dm_radrachel', 0, 40), bm('trainingdummy', 0, 40)],
       wall(5), makeRng(7), CARD_INDEX, combatSide({ tier: 6, questMods: { runeRuins: true } }), combatSide({ tier: 6 })), attackBy('m0'), 4);
     dump('Gasket + Rachel, a victim is Void Panther-like Echo summoner (deaths + summons)', fight(

@@ -156,7 +156,7 @@ describe('R-SHOUT-TRIGGER-01 — every Shout modifier reaches combat Shouts (own
     const trig = (flag: string): number => r.events.filter((e) => e.type === 'questTrigger' && (e as { flag: string }).flag === flag).length;
     expect(trig('twinSunOath'), 'two fires → two Twin Sun payouts').toBe(2);
     expect(trig('runeDrakeSkull'), 'the Pennycat is a Beast: two fires → two Drake Skull payouts').toBe(2);
-    expect(r.events.some((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of the Drake Skull')).toBe(true);
+    expect(r.events.some((e) => e.type === 'buff' && (e as { source: string }).source === 'Drake Skull')).toBe(true);
     const run = (patch: Partial<RunState>): RunState => ({ ...createRun(3, 'myra'), ...patch } as RunState);
     const m = questCombatMods(run({ shoutEdgeBuff: { attack: 5, health: 5 }, shoutEdgeTribeBuff: { tribe: 'dragon', attack: 6, health: 6 } }));
     expect(m.shoutEdgeBuff).toEqual({ attack: 5, health: 5 });

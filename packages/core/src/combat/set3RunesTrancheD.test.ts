@@ -34,7 +34,7 @@ type Summon = Extract<CombatEvent, { type: 'summon' }>;
 type Buff = Extract<CombatEvent, { type: 'buff' }>;
 const summons = (evs: CombatEvent[], side: 'player' | 'enemy' = 'player'): Summon[] => evs.filter((e): e is Summon => e.type === 'summon' && e.side === side);
 const fromHandSummons = (evs: CombatEvent[]): Summon[] => summons(evs).filter((e) => !!(e as { fromHandUid?: string }).fromHandUid);
-const openHandBuffs = (evs: CombatEvent[]): Buff[] => evs.filter((e): e is Buff => e.type === 'buff' && e.source === 'Rune of the Open Hand');
+const openHandBuffs = (evs: CombatEvent[]): Buff[] => evs.filter((e): e is Buff => e.type === 'buff' && e.source === 'Open Hand');
 const triggers = (evs: CombatEvent[], flag: string) => evs.filter((e) => e.type === 'questTrigger' && e.flag === flag);
 /** Where the SoC summons end: the index of the first `attack` event. */
 const firstAttackAt = (evs: CombatEvent[]): number => { const i = evs.findIndex((e) => e.type === 'attack'); return i < 0 ? evs.length : i; };

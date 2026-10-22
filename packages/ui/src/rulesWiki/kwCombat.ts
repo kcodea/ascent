@@ -105,7 +105,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Yes. If the first attack causes a minion to be summoned that **attacks immediately**, that minion strikes between the two attacks. Then the Flurry minion takes its second attack, if it's still alive.",
     aliases: ['windfury interrupt', 'attack immediately flurry'],
     seeAlso: ['flurry', 'attack-immediately'],
-    covers: [{ keyword: 'flurry', fp: '2f6e1d15' }, { rule: 'R-ORD-05', fp: '657ce940' }],
+    covers: [{ keyword: 'flurry', fp: '2f6e1d15' }, { rule: 'R-ORD-05', fp: '3feee7e9' }],
   },
 
   // ── Critical Strike ────────────────────────────────────────────────────────────────────────────────────
@@ -447,7 +447,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "That minion **cuts the line**: it attacks as soon as it's summoned, before the next normal attacker (even between the two attacks of a Flurry). It doesn't use up anyone's turn, and it still takes its own regular turn later.",
     aliases: ['charge', 'rush', 'attack right away', 'immediate attack'],
     seeAlso: ['flurry-interrupted', 'summon-slot'],
-    covers: [{ rule: 'R-ORD-05', fp: '657ce940' }],
+    covers: [{ rule: 'R-ORD-05', fp: '3feee7e9' }],
   },
   {
     id: 'ward-still-hits-back',

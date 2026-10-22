@@ -76,7 +76,7 @@ export function spellFedScalesOnCast(state: RunState, spellDef: CardDef): void {
   captureBuffFx(state, undefined, 'spell', () => {
     for (let k = 0; k < runeStacksOf(state, 'rune_spell_fed_scales'); k++) {
       const d = randomBoardDragon(state);
-      if (d) addBuff(d, 'Rune of Spell-Fed Scales', SPELL_FED_SCALES.attack, SPELL_FED_SCALES.health);
+      if (d) addBuff(d, 'Spell-Fed Scales', SPELL_FED_SCALES.attack, SPELL_FED_SCALES.health);
     }
   });
 }
@@ -97,7 +97,7 @@ export function whisperCastShop(state: RunState, def: CardDef, target: BoardCard
   if (f?.runeBorrowedFlame && target && state.board.includes(target) && isTribe(target, 'dragon')) {
     const v = borrowedFlameValue(state) * runeStacksOf(state, 'rune_borrowed_flame');
     procRuneId(state, 'rune_borrowed_flame');
-    captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Rune of Borrowed Flame', v, v));
+    captureBuffFx(state, undefined, 'spell', () => addBuff(target, 'Borrowed Flame', v, v));
     state.runeBorrowedFlame = borrowedFlameValue(state) + improveReps(state);
   }
   // SPELL TEMPERING: one tick per Whisper cast; every 4th raises the run's spell power.
@@ -133,7 +133,7 @@ export function defiantWingsShop(state: RunState): void {
     for (let i = 0; i < DEFIANT_WINGS.count && pool.length > 0; i++) picks.push(...pool.splice(rng.int(pool.length), 1));
     state.rngCursor = rng.state();
     for (const m of picks) {
-      addBuff(m, 'Rune of Defiant Wings', DEFIANT_WINGS.attack, DEFIANT_WINGS.health);
+      addBuff(m, 'Defiant Wings', DEFIANT_WINGS.attack, DEFIANT_WINGS.health);
       if (!m.keywords.includes('DS')) m.keywords = [...m.keywords, 'DS'];
     }
   }

@@ -51,7 +51,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
       'Engrave (the EG keyword, and the Transcendant adjacency aura "while alive and adjacent") is resolved at the '
       + 'moment stats are gained, inside the single combat buff path. So EVERY combat stat gain — rune grants at '
       + 'Start of Combat included — must go through that path; a gain applied by direct assignment is invisible to '
-      + 'Engrave and evaporates at carry-back. Rune of Warding\'s tripled Health on a warded Dragon beside a '
+      + 'Engrave and evaporates at carry-back. Warding\'s tripled Health on a warded Dragon beside a '
       + 'Transcendant carries back like any other gain. Ordering is not the question: there is no "before the '
       + 'Engrave" — the aura is read live on each gain.',
     domain: 'persistence',
@@ -96,7 +96,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
     title: 'Every stat names its source — runes included; the shop channel is never anonymous',
     statement:
       'Every stat a minion carries beyond its printed base names the individual source that granted it — the card, '
-      + 'the spell, or the specific RUNE ("Rune of Reinvestment: +4/+4"), never a catch-all ("Tavern", "Shop Stats", '
+      + 'the spell, or the specific RUNE ("Reinvestment: +4/+4"), never a catch-all ("Tavern", "Shop Stats", '
       + '"Staff of Guel" standing in for the whole channel). The run-wide shop channel keeps a per-source ledger that '
       + 'sums to the channel exactly; a bought minion\'s buff breakdown prints one line per source; a rune that feeds '
       + 'the channel can show what it alone has given. Doc Bot holds the ledger to the channel after every action.',
@@ -811,7 +811,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
       + 'or resets after the Rise reaches the board card, on every per-instance carry-back: the summon Improve count '
       + '(Kennelmaster, Flo Rida, Beardsley, Pack Leader...), the Sergey grant, a spell tally (Guel, Spirit Pup), '
       + 'the Tara ascend tally, permanent and Engraved stat gains, and a copied Echo (Gravetwin). Two exceptions: the '
-      + '"+2/+2 permanently" of Rune of the Second Wind is about the Rise itself, so it still reaches the board card (R-SET3RUNE-08); '
+      + '"+2/+2 permanently" of Second Wind is about the Rise itself, so it still reaches the board card (R-SET3RUNE-08); '
       + 'and a Pummel tally is LIFETIME and kept through a Rise by R-PUMMEL-01, so the hits of the risen body still count. '
       + 'The same single carry-back path serves the enemy seat, so lobby snapshots match. A Rebirth is NOT a fresh copy (it '
       + 'returns the full body with every counter) and is unchanged; a Shop-phase Rise is out of scope here.',

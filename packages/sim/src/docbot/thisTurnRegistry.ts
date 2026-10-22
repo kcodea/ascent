@@ -63,7 +63,7 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   ropewrangler: { kind: 'conforms', why: 'EoT casts Lasso, repeated per 10 Gold spent this turn — resolves at EoT with the full tally' },
   dw_foreman: { kind: 'conforms', why: 'EoT buffs per card played this turn — resolves at EoT with the full tally' },
   dw3_striker: { kind: 'conforms', why: 'Kringle-shaped (set 3): EoT buffs its neighbours per card played this turn — resolves at EoT with the full tally' },
-  n3_shredder: { kind: 'conforms', why: 'Shredder (set 3, 2026-09-18): EoT buffs the ends per held Equipment UNUSED this turn — resolves at EoT reading the per-Equipment usedThisTurn marks BEFORE expireEquipmentTurn clears them (the Rune of Amplification ordering); nothing to carry into combat' },
+  n3_shredder: { kind: 'conforms', why: 'Shredder (set 3, 2026-09-18): EoT buffs the ends per held Equipment UNUSED this turn — resolves at EoT reading the per-Equipment usedThisTurn marks BEFORE expireEquipmentTurn clears them (the Amplification ordering); nothing to carry into combat' },
   d2_runefire: { kind: 'conforms', why: 'ARCHIVED. EoT re-casts the last Shop spell cast this turn — resolves at EoT while the record is live' },
   d2_spellvault: { kind: 'conforms', why: 'ARCHIVED. EoT copies the first Shop spell cast this turn — resolves at EoT while the record is live' },
   rune_spending: { kind: 'conforms', why: 'EoT buffs per Gold spent this turn — resolves at EoT with the full tally' },
@@ -86,5 +86,5 @@ export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassificatio
   'hero:mimic': { kind: 'conforms', why: 'the adopted power is the run\'s power until the next turn-start Discover replaces it, so it is live through this turn\'s combat' },
 
   // ── Set 3 batch 2, tranche B (2026-09-16) ──
-  rune_quick_release: { kind: 'no-combat-meaning', why: 'Rune of Quick Release: "your next Equipment activation costs 0 this turn" — an Equipment PRICE, and Equipment activates only in the shop; the arm (`quickReleaseArmed`) is spent by the next activation or cleared at the rollover (R-TURN-01 conform)' },
+  rune_quick_release: { kind: 'no-combat-meaning', why: 'Quick Release: "your next Equipment activation costs 0 this turn" — an Equipment PRICE, and Equipment activates only in the shop; the arm (`quickReleaseArmed`) is spent by the next activation or cleared at the rollover (R-TURN-01 conform)' },
 };

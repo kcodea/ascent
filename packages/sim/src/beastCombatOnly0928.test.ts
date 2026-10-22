@@ -253,7 +253,7 @@ describe('The Old Hunt and Rune of Beastial Swarm: the same rule', () => {
   it('Beastial Swarm IN COMBAT: buffs for the fight, keeps only the Avenge level', () => {
     const r = sim([bm('alley', 'x', 0, 1), bm('alley', 'y', 0, 1), bm('pack', 'S', 0, 9999999)],
       [{ cardId: 'sandbag', attack: 60, health: 40000 }], { runeBeastialSwarm: true, beastialSwarmLevel: 2 });
-    expect(buffs(r).some((b) => b.target === uidAt(r, 2) && b.source === 'Rune of Beastial Swarm')).toBe(true);
+    expect(buffs(r).some((b) => b.target === uidAt(r, 2) && b.source === 'Beastial Swarm')).toBe(true);
     expect(r.playerBeastBuyAtkGain).toBeUndefined();
     expect(r.playerBeastialSwarmLevel).toBe(4);
   });

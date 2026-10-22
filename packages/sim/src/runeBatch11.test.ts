@@ -114,7 +114,7 @@ describe('Rune of Attacking Gems', () => {
 
 describe('the two runes ship as specced', () => {
   it('exist at the sheet costs, both epic', () => {
-    for (const [name, cost] of [['Rune of the Food Chain', 5], ['Rune of Attacking Gems', 4]] as [string, number][]) {
+    for (const [name, cost] of [['Food Chain', 5], ['Attacking Gems', 4]] as [string, number][]) {
       const r = byName(name);
       expect(r, `${name} is missing`).toBeDefined();
       expect(r!.cost).toBe(cost);
@@ -123,7 +123,7 @@ describe('the two runes ship as specced', () => {
   });
 
   it('only Attacking Gems is set-2 scoped — Rubies are a set-2 mechanic', () => {
-    expect(byName('Rune of Attacking Gems')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    expect(byName('Rune of the Food Chain')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
+    expect(byName('Attacking Gems')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(byName('Food Chain')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Demon rune)
   });
 });

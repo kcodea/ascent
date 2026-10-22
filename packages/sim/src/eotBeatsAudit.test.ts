@@ -21,7 +21,7 @@ describe('Rune of the Lapidary — End-of-Turn beats + Ruby FX', () => {
 
   it('gets a labeled beat in the UI beat list', () => {
     const beats = questEndOfTurnBeats(armed());
-    expect(beats.some((b) => b.effect === 'runeLapidary' && b.label === 'Rune of the Lapidary')).toBe(true);
+    expect(beats.some((b) => b.effect === 'runeLapidary' && b.label === 'Lapidary')).toBe(true);
   });
 
   it('the projection carries its Rubies as per-beat ruby FX (3 cards → 3 Rubies)', () => {
@@ -46,7 +46,7 @@ describe('Rune of the Crucible Choir — End-of-Turn beat', () => {
   it('gets a labeled beat (it used to be a silent hardcoded block)', () => {
     const s: RunState = { ...createRun(3, 'warden'), phase: 'recruit', runeCrucibleChoir: true };
     const beats = questEndOfTurnBeats(s);
-    expect(beats.some((b) => b.effect === 'runeCrucibleChoir' && b.label === 'Rune of the Crucible Choir')).toBe(true);
+    expect(beats.some((b) => b.effect === 'runeCrucibleChoir' && b.label === 'Crucible Choir')).toBe(true);
   });
 });
 
@@ -57,7 +57,7 @@ describe('turn-limited recurrences — included in projection + beat list', () =
       questRecurringLimited: [{ effect: 'quickStudy', turnsLeft: 2 }],
     } as RunState;
     const beats = questEndOfTurnBeats(s);
-    expect(beats.some((b) => b.effect === 'quickStudy' && b.label === 'Rune of Quick Study')).toBe(true);
+    expect(beats.some((b) => b.effect === 'quickStudy' && b.label === 'Quick Study')).toBe(true);
     const { steps } = projectEndOfTurnSteps(s);
     expect(steps.length, 'the limited recurrence produced a projected beat').toBeGreaterThan(0);
   });

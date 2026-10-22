@@ -60,7 +60,7 @@ describe('Rune of the Five Banners', () => {
   const gain = (board: BoardMinion[], mods: object) => {
     const r = sim(board, enemy, mods);
     // A `buff` event carries no `side`, so the rune's own source label is what identifies its payouts.
-    return r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Rune of the Five Banners')
+    return r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === 'Five Banners')
       .reduce((n, e) => n + ((e as { attack: number }).attack + (e as { health: number }).health), 0);
   };
 

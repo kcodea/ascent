@@ -389,7 +389,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCALBUS-03',
     title: 'Albus × Ancient of War: a hero-level Pummel (80) over all your minions pays 2 Strange Revisions, once per combat, mid-fight',
     statement:
-      "With the Ancient of War, every hit a friendly minion lands in combat (the same hits the Pummel keyword counts: not a popped Ward, not Immune, not 0) adds to ONE hero-level tally, with Rune of the Heavy Hand's extra share. The tally follows the Pummel keyword: it is lifetime (carried across combats), and the hit that crosses a multiple of 80 gets 2 Strange Revisions to hand right then, mid-fight (a live toHand), at most once per combat; crossings past that are spent. The power text prints the live progress toward the next 80 and ticks with each hit during a fight (R-REALTIME-01).",
+      "With the Ancient of War, every hit a friendly minion lands in combat (the same hits the Pummel keyword counts: not a popped Ward, not Immune, not 0) adds to ONE hero-level tally, with Heavy Hand's extra share. The tally follows the Pummel keyword: it is lifetime (carried across combats), and the hit that crosses a multiple of 80 gets 2 Strange Revisions to hand right then, mid-fight (a live toHand), at most once per combat; crossings past that are spent. The power text prints the live progress toward the next 80 and ticks with each hit during a fight (R-REALTIME-01).",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -445,7 +445,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCHUNCH-01',
     title: 'Hunch × Ancient of Death: Avenge (4), improve your spells by +1/+1',
     statement:
-      'With the Ancient of Death, every 4th friendly death in a combat improves your spells by +1/+1 (spell power, permanent), the moment the 4th death lands, through the same channel as Rune of Appraisal: Rune of Mastery multiplies the improvement and Rune of Fury fires it again. Avenge is a combat keyword, so this counts combat deaths only. The power text prints the Avenge progress and the total improvement so far, live during the fight. The hero power shows the deaths still needed in its centre, counting down live and back to 4 after each trigger, and the +1/+1 plays at the hero power, never on the board (owner 2026-09-30).',
+      'With the Ancient of Death, every 4th friendly death in a combat improves your spells by +1/+1 (spell power, permanent), the moment the 4th death lands, through the same channel as Appraisal: Mastery multiplies the improvement and Fury fires it again. Avenge is a combat keyword, so this counts combat deaths only. The power text prints the Avenge progress and the total improvement so far, live during the fight. The hero power shows the deaths still needed in its centre, counting down live and back to 4 after each trigger, and the +1/+1 plays at the hero power, never on the board (owner 2026-09-30).',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -572,7 +572,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCFRANK-03',
     title: 'Frantic Frank × Ancient of War: Avenge (3) gains a Clearance stack; each stack is one more Clearance use',
     statement:
-      "With the Ancient of War, every 3rd friendly death in a combat (the Avenge count, a hero-level Avenge like Cindara's Hoard; Rune of Fury fires it again) gains one Clearance stack right then, mid-fight (a questTrigger the replay counts, so the power text's banked count ticks live, R-REALTIME-01). Stacks are banked and kept across turns until used. Once the turn's own Clearance is spent, each further Clearance that turn takes one stack (and still costs its Gold); with no charge and no stack it is refused. Avenge is a combat trigger, so Shop deaths do not count. While 2 or more uses are available (the turn's own use + banked stacks + stacks gained so far in the fight on screen) the power shows that count in RED at its top centre (owner 2026-09-30), re-keyed so each change bumps, and each stack gained mid-fight pops the power with the one-shot hero-power spark; the tooltip then says how many uses are left instead of \"once per turn\". The Avenge (3) countdown (friendly deaths still needed for the next stack: 3 in the Shop, counting down with the fight's deaths, back to 3 after each stack) sits in the CENTRE of the power on a dark disc, live (owner 2026-09-30).",
+      "With the Ancient of War, every 3rd friendly death in a combat (the Avenge count, a hero-level Avenge like Cindara's Hoard; Fury fires it again) gains one Clearance stack right then, mid-fight (a questTrigger the replay counts, so the power text's banked count ticks live, R-REALTIME-01). Stacks are banked and kept across turns until used. Once the turn's own Clearance is spent, each further Clearance that turn takes one stack (and still costs its Gold); with no charge and no stack it is refused. Avenge is a combat trigger, so Shop deaths do not count. While 2 or more uses are available (the turn's own use + banked stacks + stacks gained so far in the fight on screen) the power shows that count in RED at its top centre (owner 2026-09-30), re-keyed so each change bumps, and each stack gained mid-fight pops the power with the one-shot hero-power spark; the tooltip then says how many uses are left instead of \"once per turn\". The Avenge (3) countdown (friendly deaths still needed for the next stack: 3 in the Shop, counting down with the fight's deaths, back to 3 after each stack) sits in the CENTRE of the power on a dark disc, live (owner 2026-09-30).",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -630,7 +630,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCXEROX-01',
     title: 'Xerox × Ancient of Death: Avenge (5) summons a copy of your highest Attack minion, Shop and combat',
     statement:
-      "With the Ancient of Death, Xerox has a hero-level Avenge (5) on ONE running count of friendly deaths across the Shop and combat (the Rune of Body Counting meter shape: Shop deaths tick it at fireOnFriendDeath, combat carries it in and settle adds the fight's deaths). Every 5th death summons an exact copy (Copy Machine's meaning: current stats, keywords, gilding; in combat the body's current stats with its Ward and Rise state) of your highest-Attack living minion, ties to the left-most, beside it. A full board copies nothing. In combat it fires mid-fight on the death that completes the count, and Rune of Fury fires it again like every hero Avenge. The power prints the deaths still needed, live through a fight, and the countdown sits in the centre of the power.",
+      "With the Ancient of Death, Xerox has a hero-level Avenge (5) on ONE running count of friendly deaths across the Shop and combat (the Body Counting meter shape: Shop deaths tick it at fireOnFriendDeath, combat carries it in and settle adds the fight's deaths). Every 5th death summons an exact copy (Copy Machine's meaning: current stats, keywords, gilding; in combat the body's current stats with its Ward and Rise state) of your highest-Attack living minion, ties to the left-most, beside it. A full board copies nothing. In combat it fires mid-fight on the death that completes the count, and Fury fires it again like every hero Avenge. The power prints the deaths still needed, live through a fight, and the countdown sits in the centre of the power.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -715,7 +715,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCTRADES-01',
     title: 'Tradesman × Ancient of Death: Avenge (3) gains a free Refresh, one count across Shop and combat',
     statement:
-      "With the Ancient of Death, Tradesman has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (AncientsState.tradesDeaths, the Xerox Death convention). Every Shop death path ticks it once (a sale never); combat carries the count in and settle adds the fight's deaths. Every 3rd death banks a free Refresh (RunState.freeRolls, spent by the next roll at 0 Gold) the moment it happens: in combat through grantFreeRolls, the free-roll carry-back, so it is usable from the next Shop. Rune of Fury fires the combat half again. The power prints the countdown (live through a fight) and the banked free Refreshes, and the countdown takes the shared centre disc.",
+      "With the Ancient of Death, Tradesman has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (AncientsState.tradesDeaths, the Xerox Death convention). Every Shop death path ticks it once (a sale never); combat carries the count in and settle adds the fight's deaths. Every 3rd death banks a free Refresh (RunState.freeRolls, spent by the next roll at 0 Gold) the moment it happens: in combat through grantFreeRolls, the free-roll carry-back, so it is usable from the next Shop. Fury fires the combat half again. The power prints the countdown (live through a fight) and the banked free Refreshes, and the countdown takes the shared centre disc.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -760,7 +760,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCTRADES-04',
     title: 'Tradesman × Ancient of Genesis: every 2 Refreshes casts Lasso',
     statement:
-      "With the Ancient of Genesis, every Shop Refresh (paid, free, or a power's; never the turn-start roll) ticks a running count since the pick (AncientsState.tradesRefreshes, across turns). Every 2nd casts Lasso through castSpell, the real Shop cast pipeline (spell counters, spell watchers, Rune of Lassoing), right after the new row is rolled, so it steals from the fresh Shop. Its lasso beam leaves the hero power. The power prints the Refreshes still needed.",
+      "With the Ancient of Genesis, every Shop Refresh (paid, free, or a power's; never the turn-start roll) ticks a running count since the pick (AncientsState.tradesRefreshes, across turns). Every 2nd casts Lasso through castSpell, the real Shop cast pipeline (spell counters, spell watchers, Lassoing), right after the new row is rolled, so it steals from the fresh Shop. Its lasso beam leaves the hero power. The power prints the Refreshes still needed.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -775,7 +775,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCTRADES-05',
     title: 'Tradesman × Ancient of Time: End of Turn, the Shop upgrade costs 3 less',
     statement:
-      "With the Ancient of Time, End of Turn (a virtual recurring entry, ancientTradesUpgrade, so End-of-Turn repeats and replays follow the one rule) knocks 3 off the FINAL upgrade price, Frugal's +2 surcharge included, down to 0: the running upgrade cost goes first (the Rune of Shopkeep mechanism, floored at CONFIG.upgradeCostFloor), and what is left over eats into the surcharge for the current tier (AncientsState.tradesSurchargeOff, capped at the surcharge, ignored once the tier changes, so the next tier pays the full +2 again). upgradeCostOf folds it in, so the button, the bots and the charge agree. The price never goes below 0. The power prints the live upgrade price.",
+      "With the Ancient of Time, End of Turn (a virtual recurring entry, ancientTradesUpgrade, so End-of-Turn repeats and replays follow the one rule) knocks 3 off the FINAL upgrade price, Frugal's +2 surcharge included, down to 0: the running upgrade cost goes first (the Shopkeep mechanism, floored at CONFIG.upgradeCostFloor), and what is left over eats into the surcharge for the current tier (AncientsState.tradesSurchargeOff, capped at the surcharge, ignored once the tier changes, so the next tier pays the full +2 again). upgradeCostOf folds it in, so the button, the bots and the charge agree. The price never goes below 0. The power prints the live upgrade price.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1062,7 +1062,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCGORR-01',
     title: 'Gorr × Ancient of Death: Avenge (6) on one running count across Shop and combat gets a plain copy of a minion bought last turn',
     statement:
-      "With the Ancient of Death, Gorr has a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gets a plain copy of a random minion bought LAST turn (the bodied minion buys of wave - 1; the Starform is never one) to hand, mid-fight as a live toHand in combat. Nothing bought last turn: nothing (the count still moves). Rune of Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
+      "With the Ancient of Death, Gorr has a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gets a plain copy of a random minion bought LAST turn (the bodied minion buys of wave - 1; the Starform is never one) to hand, mid-fight as a live toHand in combat. Nothing bought last turn: nothing (the count still moves). Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1090,7 +1090,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCGORR-03',
     title: 'Gorr × Ancient of War: a repeating hero Pummel (200) sends a plain copy of a random living friendly minion to hand per 200 damage',
     statement:
-      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Rune of the Heavy Hand's share). Every multiple of 200 crossed sends a plain copy of a random LIVING friendly minion to hand, mid-fight (a live toHand). It repeats with no once-per-combat cap. The power prints the progress, live through a fight.",
+      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Heavy Hand's share). Every multiple of 200 crossed sends a plain copy of a random LIVING friendly minion to hand, mid-fight (a live toHand). It repeats with no once-per-combat cap. The power prints the progress, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1146,7 +1146,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRAUM-01',
     title: 'Braum × Ancient of Death: Investment turns passive; every 16 friendly deaths (Shop and combat, one count) get a random Gilded minion',
     statement:
-      "With the Ancient of Death, Investment can no longer be used. One running count of friendly deaths across the Shop and combat pays a random Gilded minion (Investment's own payout: up to your Shop tier) on every 16th death, repeating. In combat it flies to hand the moment the 16th minion dies and arrives Gilded. It is not an Avenge, so Rune of Fury does not repeat it. The power prints the deaths still needed, live through a fight.",
+      "With the Ancient of Death, Investment can no longer be used. One running count of friendly deaths across the Shop and combat pays a random Gilded minion (Investment's own payout: up to your Shop tier) on every 16th death, repeating. In combat it flies to hand the moment the 16th minion dies and arrives Gilded. It is not an Avenge, so Fury does not repeat it. The power prints the deaths still needed, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1160,7 +1160,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRAUM-02',
     title: 'Braum × Ancient of Fortune: Investment costs 0 Gold; every Triple Reward you get also gains 3 Gold',
     statement:
-      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (5 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Rune of the Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
+      'With the Ancient of Fortune, Investment costs 0 Gold and still banks one count per use (5 uses pay out, once per turn). Every Triple Reward you get (a Gilded play, Keshi, a fortress reward; each extra from Corrupted Tome too) gains 3 Gold right then. A reward the hand cap drops pays nothing. The power prints the Gold Triple Rewards have given.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1290,7 +1290,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCAYSE-04',
     title: 'Ayse × Ancient of Genesis: completing Lucky Seat gets a plain copy of one of the Enchanted minions bought for it',
     statement:
-      'With the Ancient of Genesis, the buy that completes Lucky Seat (its 3rd Enchanted card) also gets a plain copy of a random minion among the Enchanted cards bought in that cycle, picked with the seeded run RNG, hand first, the board when the hand is full. Spells and the Starform are never copied; a cycle with no minion gets nothing. Each extra Lucky Seat trigger (Rune of the Wishbone) gets one more copy, picked again.',
+      'With the Ancient of Genesis, the buy that completes Lucky Seat (its 3rd Enchanted card) also gets a plain copy of a random minion among the Enchanted cards bought in that cycle, picked with the seeded run RNG, hand first, the board when the hand is full. Spells and the Starform are never copied; a cycle with no minion gets nothing. Each extra Lucky Seat trigger (Wishbone) gets one more copy, picked again.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1318,7 +1318,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCAYSE-06',
     title: 'Ayse × Ancient of Bonds: each Lucky Seat trigger gives your left-most and right-most minions +5/+6',
     statement:
-      'With the Ancient of Bonds, each time Lucky Seat triggers (its 3rd Enchanted buy) the left-most and right-most board minions gain +5/+6 permanently, once when they are the same minion; an empty board gets nothing. Each extra Lucky Seat trigger (Rune of the Wishbone) fires it again.',
+      'With the Ancient of Bonds, each time Lucky Seat triggers (its 3rd Enchanted buy) the left-most and right-most board minions gain +5/+6 permanently, once when they are the same minion; an empty board gets nothing. Each extra Lucky Seat trigger (Wishbone) fires it again.',
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1360,7 +1360,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCDARAH-03',
     title: 'Darah × Ancient of War: a once-per-combat hero Pummel (140) banks a charge of Swap',
     statement:
-      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Rune of the Heavy Hand's share). The first multiple of 140 crossed in a fight banks ONE charge of Swap, shown live mid-fight; later crossings that fight are spent. A charge is one more Swap once the turn's own is used, kept across turns until used. The power prints the Pummel progress and the banked charges, live through a fight.",
+      "With the Ancient of War, every hit a friendly minion lands in combat adds to a hero-level Pummel tally (Albus' tally: lifetime, carried across fights, Heavy Hand's share). The first multiple of 140 crossed in a fight banks ONE charge of Swap, shown live mid-fight; later crossings that fight are spent. A charge is one more Swap once the turn's own is used, kept across turns until used. The power prints the Pummel progress and the banked charges, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1416,7 +1416,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCNADJA-01',
     title: 'Nadja × Ancient of Death: Goldspring turns passive; Avenge (6) on one running count across Shop and combat gives +1 max Gold',
     statement:
-      "With the Ancient of Death, Nadja's Goldspring becomes passive (a click does nothing and spends nothing). It is a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat (carried into each fight, advanced at settle by the fight's deaths). Each fire gives +1 max Gold, permanently (the maxGoldBonus channel: above the natural cap, no ceiling): a Shop death pays right then; a combat fire shows a +1 max Gold float the moment it happens and pays at settle. Rune of Fury fires the combat half again. The power and the shared Avenge disc print the deaths left and the max Gold given so far, live through a fight.",
+      "With the Ancient of Death, Nadja's Goldspring becomes passive (a click does nothing and spends nothing). It is a hero Avenge (6) on ONE running count of friendly deaths across the Shop and combat (carried into each fight, advanced at settle by the fight's deaths). Each fire gives +1 max Gold, permanently (the maxGoldBonus channel: above the natural cap, no ceiling): a Shop death pays right then; a combat fire shows a +1 max Gold float the moment it happens and pays at settle. Fury fires the combat half again. The power and the shared Avenge disc print the deaths left and the max Gold given so far, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1458,7 +1458,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCNADJA-04',
     title: 'Nadja × Ancient of Genesis: Goldspring also gets a random minion of your Shop tier or lower',
     statement:
-      "With the Ancient of Genesis, every Goldspring use gives its +1 max Gold and also puts a random minion in hand: the run's pool, your Shop tier or lower, your types (the random-minion Shout pick), seeded off the run. Hand full: no minion. Rune of Wishbone / Empowerment repeat it along with the Gold.",
+      "With the Ancient of Genesis, every Goldspring use gives its +1 max Gold and also puts a random minion in hand: the run's pool, your Shop tier or lower, your types (the random-minion Shout pick), seeded off the run. Hand full: no minion. Wishbone / Empowerment repeat it along with the Gold.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1500,7 +1500,7 @@ export const HEROES_RULES: GameRule[] = [
     id: 'R-ANCBRACKUS-01',
     title: 'Brackus × Ancient of Death: Avenge (3) on one running count across Shop and combat gives every Tier 7 minion +6/+6, in the warband, the hand and the Shop',
     statement:
-      "With the Ancient of Death, Brackus has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gives EVERY Tier 7 minion +6/+6 permanently: the warband, the hand and the Shop offers. In combat the living Tier 7 bodies gain it the moment it fires (a permanent gain carried home), and each fire is counted so the hand and the Shop are paid at settle. Rune of Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
+      "With the Ancient of Death, Brackus has a hero Avenge (3) on ONE running count of friendly deaths across the Shop and combat (the Xerox Death shape: carried into each fight, advanced at settle by the fight's deaths). Each fire gives EVERY Tier 7 minion +6/+6 permanently: the warband, the hand and the Shop offers. In combat the living Tier 7 bodies gain it the moment it fires (a permanent gain carried home), and each fire is counted so the hand and the Shop are paid at settle. Fury fires it again in combat. The power and the shared Avenge disc print the deaths left, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1586,10 +1586,10 @@ export const HEROES_RULES: GameRule[] = [
     statement:
       "The rune a hero's OWN Runeforge sells (Runesmith's turn-5 forge, Guardian's turn-8 Epic forge) is shown in the "
       + "hero-power slot for the rest of the run, and that slot is never re-stamped by a later forge: the universal "
-      + "turn-6 Basic and turn-9 Epic forges, quest/rune-opened forges, and any Epic forge before turn 8 (Rune of the "
+      + "turn-6 Basic and turn-9 Epic forges, quest/rune-opened forges, and any Epic forge before turn 8 ("
       + "Ornate Clock) leave it alone. The rune rack beside the hero shows every OTHER owned rune and leaves out one "
       + "copy of the power-slot rune, so no rune is drawn twice and no badge ever sits outside the rack's three "
-      + "sockets. A second copy of that rune (Rune of Duplication's copy, or the same rune bought again) is a rune of "
+      + "sockets. A second copy of that rune (Duplication's copy, or the same rune bought again) is a rune of "
       + "its own and keeps a rack socket. Rune FX that start from or land on a rune (procs, End-of-Turn tendrils, "
       + "cast flourishes, the lock-in arrival) use the power slot when that is where the rune sits.",
     domain: 'heroes',
@@ -1602,10 +1602,10 @@ export const HEROES_RULES: GameRule[] = [
     contentIds: ['rune_duplication'],
     currentBehaviour:
       "Conforms since 2026-10-06. Before: every Epic forge stamped Guardian's power slot, so the turn-9 pick replaced "
-      + "the turn-8 rune there, and the rack drew all owned runes, so Guardian or Runesmith with Rune of Duplication "
+      + "the turn-8 rune there, and the rack drew all owned runes, so Guardian or Runesmith with Duplication "
       + "showed a 4th badge floating beside the 3rd socket. PARTIAL: a Guardian who leaves his turn-8 forge without "
       + "buying has the turn-9 pick land in the power slot; the opponent duel frame still draws every rune of a "
-      + "snapshot (it carries no power-slot grant); and a Runesmith holding Duplication AND Rune of the Epic Forge can "
+      + "snapshot (it carries no power-slot grant); and a Runesmith holding Duplication AND Epic Forge can "
       + "still own more rack runes than the three sockets.",
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeforgePowerSlot.test.ts', 'packages/ui/src/heroSlotRune.test.ts'], lastVerifiedAt: '2026-10-06' },
   },
@@ -1613,7 +1613,7 @@ export const HEROES_RULES: GameRule[] = [
     id: "R-ANCRAYSE-01",
     title: "Rayse × Ancient of Death: Avenge (4) on one running count across Shop and combat summons a growing Sprout",
     statement:
-      "With the Ancient of Death, Rayse has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire summons a Sprout (a NEW 1/1 neutral token, `raysesprout`, not the Sprout spell) at the current size, then every later Sprout is +1/+1 bigger (1/1, 2/2, 3/3, ...). A combat Sprout is a real combat summon, so Empowering Vines gives it +2/+3 and Taunt; a Shop Sprout lands on the board as a Shop summon (a full board overflows, the size still grows). Rune of Fury fires the combat half again. The power prints the next Sprout's size and the deaths left, live through a fight.",
+      "With the Ancient of Death, Rayse has a hero Avenge (4) on ONE running count of friendly deaths across the Shop and combat. Each fire summons a Sprout (a NEW 1/1 neutral token, `raysesprout`, not the Sprout spell) at the current size, then every later Sprout is +1/+1 bigger (1/1, 2/2, 3/3, ...). A combat Sprout is a real combat summon, so Empowering Vines gives it +2/+3 and Taunt; a Shop Sprout lands on the board as a Shop summon (a full board overflows, the size still grows). Fury fires the combat half again. The power prints the next Sprout's size and the deaths left, live through a fight.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1795,9 +1795,9 @@ export const HEROES_RULES: GameRule[] = [
   },
   {
     id: "R-ANCDRAKKO-01",
-    title: "Drakko × Ancient of Death: your Drakkos become Undead and Beast (Rune of Drakko still adds Dragon / Spirit)",
+    title: "Drakko × Ancient of Death: your Drakkos become Undead and Beast (Drakko still adds Dragon / Spirit)",
     statement:
-      "With the Ancient of Death, every Drakko (the `drummer` card) in the run is Undead and Beast, everywhere (Shop, hand, board, combat, snapshots), through the run-level type override. Drakko has no printed type, so these replace it rather than sit beside one. A Rune of Drakko still adds Dragon and Spirit on top.",
+      "With the Ancient of Death, every Drakko (the `drummer` card) in the run is Undead and Beast, everywhere (Shop, hand, board, combat, snapshots), through the run-level type override. Drakko has no printed type, so these replace it rather than sit beside one. A Drakko still adds Dragon and Spirit on top.",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1922,9 +1922,9 @@ export const HEROES_RULES: GameRule[] = [
   },
   {
     id: "R-ANCFLASH-04",
-    title: "Flash × Ancient of Genesis: First or Last's claim grants 2 copies (times Rune of Wishbone's)",
+    title: "Flash × Ancient of Genesis: First or Last's claim grants 2 copies (times Wishbone's)",
     statement:
-      "With the Ancient of Genesis, First or Last's claim grants 2 copies. Rune of Wishbone multiplies it (2 copies per Wishbone repeat).",
+      "With the Ancient of Genesis, First or Last's claim grants 2 copies. Wishbone multiplies it (2 copies per Wishbone repeat).",
     domain: 'heroes',
     status: 'approved',
     evidence: [
@@ -1966,7 +1966,7 @@ export const HEROES_RULES: GameRule[] = [
     id: "R-ANCGILD-01",
     title: "Gildmaster × Ancient of Death: Avenge (14) on one running count gets a Goldcrafter",
     statement:
-      "With the Ancient of Death, Gildmaster has a hero Avenge (14) on ONE running count of friendly deaths across the Shop and combat. Each fire gets a Goldcrafter (the spell token), to hand: in the Shop right then, in combat mid-fight. Rune of Fury fires the combat half again.",
+      "With the Ancient of Death, Gildmaster has a hero Avenge (14) on ONE running count of friendly deaths across the Shop and combat. Each fire gets a Goldcrafter (the spell token), to hand: in the Shop right then, in combat mid-fight. Fury fires the combat half again.",
     domain: 'heroes',
     status: 'approved',
     evidence: [

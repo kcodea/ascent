@@ -39,7 +39,7 @@ const fullHouse = () => [card(K.id, 'k'), card(D.id, 'd'), card(U.id, 'u'), card
 describe('the tranche 5 roster (owner 2026-09-27)', () => {
   it('the Set 3 Menagerie, Unity and the Heavy Hand at the doc costs, Set 3 only; the Wishbone stays restored', () => {
     const m = RUNE_INDEX['rune_menagerie_set3']!;
-    expect([m.cost, !!m.epic, m.sets, m.tribes, m.name]).toEqual([5, false, ['set3'], SET3, 'Rune of the Menagerie']);
+    expect([m.cost, !!m.epic, m.sets, m.tribes, m.name]).toEqual([5, false, ['set3'], SET3, 'Menagerie']);
     expect(m.text).toBe('Get a random **Kobold, Dwarf, Undead, Spirit, and Dragon**.'); // Celestial -> Dragon with the 2026-10-14 swap
     const u = RUNE_INDEX['rune_unity']!;
     expect([u.cost, !!u.epic, u.sets, u.tribes ?? []]).toEqual([6, true, ['set3'], []]);

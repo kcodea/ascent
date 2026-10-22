@@ -150,10 +150,10 @@ describe('Rune of the Jungle — a summoned Beast doubles its Health', () => {
     const withRune = sim([bm('pack', 'P', 2, 1)], { runeJungle: true });
     const pup = (withRune.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
     expect(pup, 'a Pup spawned').toBeDefined();
-    expect(buffsOn(withRune, pup!.minion.uid, 'Rune of the Jungle').map((b) => [b.attack, b.health])).toContainEqual([0, 1]);
+    expect(buffsOn(withRune, pup!.minion.uid, 'Jungle').map((b) => [b.attack, b.health])).toContainEqual([0, 1]);
     const without = sim([bm('pack', 'P', 2, 1)]);
     const pup2 = (without.events.filter((e) => e.type === 'summon') as { minion: { uid: string; cardId: string } }[]).find((e) => e.minion.cardId === 'pup');
-    expect(buffsOn(without, pup2!.minion.uid, 'Rune of the Jungle')).toHaveLength(0);
+    expect(buffsOn(without, pup2!.minion.uid, 'Jungle')).toHaveLength(0);
   });
 });
 
@@ -182,7 +182,7 @@ describe('Rune of Beastial Swarm — per-death buff + Avenge(2) improvement', ()
     const r = sim([
       bm('alley', 'x', 0, 1), bm('alley', 'y', 0, 1), bm('pack', 'S', 0, 9999999),
     ], { runeBeastialSwarm: true, beastialSwarmLevel: 2 });
-    const got = buffsOn(r, uidOf(r, 'pack'), 'Rune of Beastial Swarm');
+    const got = buffsOn(r, uidOf(r, 'pack'), 'Beastial Swarm');
     const total = got.reduce((n, b) => n + b.attack, 0);
     expect(total, 'the survivor gained +2 per Beast death (two deaths → +4)').toBe(4);
     expect(r.playerBeastialSwarmLevel, 'the Avenge(2) improvement carries back as level 4').toBe(4);
@@ -192,7 +192,7 @@ describe('Rune of Beastial Swarm — per-death buff + Avenge(2) improvement', ()
     const r = sim([
       bm('alley', 'x', 0, 1), bm('alley', 'y', 0, 1), bm('pack', 'S', 0, 9999999),
     ], { runeBeastialSwarm: true, beastialSwarmLevel: 6 });
-    const total = buffsOn(r, uidOf(r, 'pack'), 'Rune of Beastial Swarm').reduce((n, b) => n + b.attack, 0);
+    const total = buffsOn(r, uidOf(r, 'pack'), 'Beastial Swarm').reduce((n, b) => n + b.attack, 0);
     expect(total, 'two deaths at level 6').toBe(12);
     expect(r.playerBeastialSwarmLevel, 'level 6 → 8 after the Avenge(2)').toBe(8);
   });
@@ -251,7 +251,7 @@ describe('summon-entry order — auras land before the augmenting triggers', () 
       .find((e) => e.minion.cardId === 'sabercub');
     expect(cub).toBeDefined();
     // Cub 0/2 + Grim +8/+8 → 8/10 → the Jungle doubles the post-aura 10 Health, not the 2.
-    expect(buffsOn(r, cub!.minion.uid, 'Rune of the Jungle').some((b) => b.health === 10), 'doubled 10, not 2').toBe(true);
+    expect(buffsOn(r, cub!.minion.uid, 'Jungle').some((b) => b.health === 10), 'doubled 10, not 2').toBe(true);
   });
 
   it('onSummon watchers fire in CURRENT board order, left→right (Beardsley vs Oona)', () => {
@@ -306,7 +306,7 @@ describe('Rise fires the full summon-entry suite', () => {
     const r = sim([bm('alley', 'A', 3, 1, { keywords: ['R'] })], { runeJungle: true });
     const risen = uidOf(r, 'alley');
     const got = (r.events.filter((e) => e.type === 'buff') as { target: string; source: string; health: number }[])
-      .some((b) => b.target === risen && b.source === 'Rune of the Jungle' && b.health === 1);
+      .some((b) => b.target === risen && b.source === 'Jungle' && b.health === 1);
     expect(got, 'the risen body doubled its 1 Health').toBe(true);
   });
 });

@@ -28,7 +28,7 @@ describe('Aug-11 rune + minion batch — new content ships', () => {
   it('the two new minions exist with the owner stats/tiers', () => {
     expect(CARD_INDEX['d2_herzog']).toMatchObject({ name: 'Vaultkeeper', tribe: 'dwarf', tribe2: 'dragon', tier: 6, attack: 6, health: 10 }); // owner balance 2026-08-18
     expect(CARD_INDEX['k_kobabyboldies']).toMatchObject({ tribe: 'kobold', tier: 5, attack: 3, health: 3 });
-    expect(RUNE_INDEX['rune_herzog']!.name).toBe('Rune of the Vaultkeeper');
+    expect(RUNE_INDEX['rune_herzog']!.name).toBe('Vaultkeeper');
   });
 });
 

@@ -75,7 +75,7 @@ An "extra trigger" effect applies wherever its trigger fires, not only in the ph
 every multiplier through the same shared function so combat and shop cannot drift. Apply it at exactly ONE
 boundary — if both the caller and the resolver multiply, the effect fires twice as often as printed.
 
-Rune of Twilight (`socTwilightExtraFires`) multiplies BOTH halves of combat's Start of Combat: the minion pass
+Twilight (`socTwilightExtraFires`) multiplies BOTH halves of combat's Start of Combat: the minion pass
 and the rune pass (`runRuneStartOfCombat` in `simulate.ts`, owner ruling 2026-09-21). Membership of the rune
 pass is by PRINTED TEXT — a rune whose text begins "Start of Combat:" repeats, and so does a rune whose GRANTED
 minion ability is printed "Start of Combat:" (Sylus, review call 2026-09-21 pending owner confirmation); a block

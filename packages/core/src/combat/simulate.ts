@@ -1289,7 +1289,7 @@ export function simulate(
         if (dwarves.length > 0) {
           fireTrigger('runeSatchel', side);
           const n = flagCopiesOf(side, 'runeSatchel');
-          for (const m of dwarves) ctx.buff(m, n, n, 'Rune of the Satchel');
+          for (const m of dwarves) ctx.buff(m, n, n, 'Satchel');
         }
       }
     } finally { gainCardDepth--; }
@@ -1454,7 +1454,7 @@ export function simulate(
       // Health-only, so the nested buff never emits `onGainAttack` again: no loop.
       if (attack > 0 && !target.dead && modsFor(target.side).runeAnvil && isTribeOf(target, 'dwarf', cards)) {
         fireTrigger('runeAnvil', target.side);
-        ctx.buff(target, 0, attack * flagCopiesOf(target.side, 'runeAnvil'), 'Rune of the Anvil');
+        ctx.buff(target, 0, attack * flagCopiesOf(target.side, 'runeAnvil'), 'Anvil');
       }
       // Sable's Soulbind: a stat gain on one bound body is gained by the other, in full and ONCE. The mirrored
       // grant re-enters this very function, so `soulbindMirroring` is the load-bearing guard — without it the
@@ -1963,7 +1963,7 @@ export function simulate(
         fireTrigger('runeEnchantment', side); // burst on the combat cast too, like every other combat rune
         // +6/+8 per copy held (the mods field carries the copy count; a legacy `true` reads as 1).
         const en = typeof ench === 'number' ? Math.max(1, ench) : 1;
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Rune of Enchantment');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ENCHANTMENT_COMBAT.attack * en, ENCHANTMENT_COMBAT.health * en, 'Enchantment');
       }
       // ANCIENT OF BONDS × Hunch (owner 2026-09-30): "Casting spells grants your left and right-most minion +2/+3."
       // Every combat cast (one per repetition), right after the counter beat: the left-most and right-most LIVING
@@ -1985,7 +1985,7 @@ export function simulate(
       if (ALE_IDS.includes(spellId) && modsFor(side).runeStarTap) {
         fireTrigger('runeStarTap', side);
         const n = 3 * flagCopiesOf(side, 'runeStarTap');
-        ctx.gainStarform(n, n, side, 'Rune of the Star Tap');
+        ctx.gainStarform(n, n, side, 'Star Tap');
       }
       // CHAMPION INU (owner 2026-10-21): "After you cast a Dwarven Ale, give your Dwarves +2/+2." The Ale watchers
       // (`spellCastBuffAll` with `aleOnly`) need the spell's identity, which only this per-repetition hook carries;
@@ -2021,7 +2021,7 @@ export function simulate(
         fireTrigger('runeSpellFedScales', side);
         for (let k = 0; k < flagCopiesOf(side, 'runeSpellFedScales'); k++) {
           const pick = pickAutoTarget(rng, living(side).filter((m) => isTribeOf(m, 'dragon', cards)));
-          if (pick) ctx.buff(pick, DRAGON_RUNES_BASIC.spellFedScales.attack, DRAGON_RUNES_BASIC.spellFedScales.health, 'Rune of Spell-Fed Scales');
+          if (pick) ctx.buff(pick, DRAGON_RUNES_BASIC.spellFedScales.attack, DRAGON_RUNES_BASIC.spellFedScales.health, 'Spell-Fed Scales');
         }
       }
       // BOARD: the living bodies' own factories (permanent self-growth), in board order.
@@ -2463,7 +2463,7 @@ export function simulate(
       const ov = modsFor(side).runeOverflow ?? 0;
       if (ov > 0) {
         nextStep(); fireTrigger('runeOverflow', side);
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Rune of Overflow');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, ov, ov, 'Overflow');
         boardBuffGain[side].attack += ov; boardBuffGain[side].health += ov;
       }
       // ANCIENT OF GENESIS x Lord of the Risen (owner 2026-09-26: "make sure these count as overflows"): the extra
@@ -2524,7 +2524,7 @@ export function simulate(
         if (others.length === 0) break;
         const t = others[ctx.rng.int(others.length)]!;
         nextStep(); fireTrigger('runeOpenHand', side);
-        ctx.buff(t, minion.attack, minion.health, 'Rune of the Open Hand');
+        ctx.buff(t, minion.attack, minion.health, 'Open Hand');
       }
     }
     summonEntryEffects(minion, side);
@@ -2625,7 +2625,7 @@ export function simulate(
         const remains = modsFor(side).runeRemains ?? 0;
         if (remains > 0 && summonCount[side] % 5 === 0) {
           fireTrigger('runeRemains', side);
-          ctx.gainTavernBuy(remains, remains, side, undefined, 'Rune of Remains');
+          ctx.gainTavernBuy(remains, remains, side, undefined, 'Remains');
         }
       }
       if (cards[minion.cardId]?.imp) { impsSummoned[side] += 1; questEventsFor[side].push({ step: stepN, kind: 'summonImp', tribes: [] }); } // Imp Census / Implosion / Pit Without End
@@ -2653,7 +2653,7 @@ export function simulate(
       fireTrigger('runeEmberline', side);
       // The banked stats land once per copy held (boolean-flag family, owner 2026-08-27).
       const el = flagCopiesOf(side, 'runeEmberline');
-      ctx.buff(minion, bank.attack * el, bank.health * el, 'Rune of Emberline');
+      ctx.buff(minion, bank.attack * el, bank.health * el, 'Emberline');
     }
     // ── ORDER (owner ruling 2026-08-12) ──────────────────────────────────────────────────────────────────
     // AURAS FIRST: the "wherever they are" buffs (Grim / Kennelmaster / Solaris) are always-present state, so
@@ -2671,7 +2671,7 @@ export function simulate(
       for (let k = 0; k < flagCopiesOf(side, 'runeRuneboundBrood'); k++) {
         if (minion.dead || minion.health <= 0) break;
         nextStep(); fireTrigger('runeRuneboundBrood', side);
-        runeCastRunebind(minion, 'rune_runebound_brood', 'Rune of the Runebound Brood');
+        runeCastRunebind(minion, 'rune_runebound_brood', 'Runebound Brood');
       }
     }
     // ANCIENT OF DEATH × Robin: "Summoned minions gain +3/+2 for every count of Spoils this turn." Every friendly summon
@@ -2722,7 +2722,7 @@ export function simulate(
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       fireTrigger('runeSavagery', side);
       // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Attack.
-      for (let k = 0; k < flagCopiesOf(side, 'runeSavagery'); k++) ctx.buff(minion, minion.attack, 0, 'Rune of Savagery');
+      for (let k = 0; k < flagCopiesOf(side, 'runeSavagery'); k++) ctx.buff(minion, minion.attack, 0, 'Savagery');
     }
     // RUNE OF THE JUNGLE: a Beast summoned in combat doubles its Health. Sibling of Savagery (Attack), applied
     // here so it composes with the summon payoffs; `minion.health` (current) is added again to double it.
@@ -2730,7 +2730,7 @@ export function simulate(
         && (minion.tribe === 'beast' || minion.tribe2 === 'beast' || (!!minion.universalTribe || !!cards[minion.cardId]?.universalTribe))) {
       fireTrigger('runeJungle', side);
       // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown Health.
-      for (let k = 0; k < flagCopiesOf(side, 'runeJungle'); k++) ctx.buff(minion, 0, minion.health, 'Rune of the Jungle');
+      for (let k = 0; k < flagCopiesOf(side, 'runeJungle'); k++) ctx.buff(minion, 0, minion.health, 'Jungle');
     }
     // WOLVIE (Echo): a queued next-summon buff pays this body if its tribe matches. Applied after auras/Savagery
     // so it stacks on the final body.
@@ -2756,7 +2756,7 @@ export function simulate(
       if (source && modsFor(side).runeBurrow && isBeast(source)) { fireTrigger('runeBurrow', side); ctx.grantFreeRolls(flagCopiesOf(side, 'runeBurrow'), side); }
       // RUNE OF THE WAKE (Set 3 design pass): an Undead Echo TRIGGER raises the Undead Aura +1 Attack per copy, live
       // (the living Undead feel it now) and carried back (R-AURA-02). Forced Echoes reach this chokepoint too.
-      if (source && modsFor(side).runeWake && isUndeadMinion(source)) { fireTrigger('runeWake', side); raiseUndeadAura(side, flagCopiesOf(side, 'runeWake'), 'Rune of the Wake'); }
+      if (source && modsFor(side).runeWake && isUndeadMinion(source)) { fireTrigger('runeWake', side); raiseUndeadAura(side, flagCopiesOf(side, 'runeWake'), 'Wake'); }
       // RUNE OF THE GUIDING STAR (Set 3 design pass): a Celestial Echo TRIGGER casts a Star Crash on a random living
       // friendly Celestial, once per copy (a real combat cast: spell counters and cast watchers hear it).
       if (source && modsFor(side).runeGuidingStar && isTribeOf(source, 'celestial', cards)) {
@@ -2787,7 +2787,7 @@ export function simulate(
         fireTrigger('runeAftershocks', side); // pulse the rune's badge when its Echo grant fires
         // +4/+4 per copy held (boolean-flag family, owner 2026-08-27).
         const as4 = 4 * flagCopiesOf(side, 'runeAftershocks');
-        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, as4, as4, 'Rune of Aftershocks');
+        for (const m of boards[side]) if (!m.dead && m.health > 0) ctx.buff(m, as4, as4, 'Aftershocks');
       }
     }
   };
@@ -3508,7 +3508,7 @@ export function simulate(
       // death's, at least) reached only the living. "All Friendly and summoned Beasts" includes a returning one, so it
       // takes them now, as its own buff beat. (A Rise return gets the same through `applyAuras`' Beast pool.)
       const swarmOwed = beastialGiven[minion.side] - swarmBefore;
-      if (swarmOwed > 0 && (isBeast(minion) || !!cards[minion.cardId]?.universalTribe)) { nextStep(); ctx.buff(minion, swarmOwed, swarmOwed, 'Rune of Beastial Swarm'); }
+      if (swarmOwed > 0 && (isBeast(minion) || !!cards[minion.cardId]?.universalTribe)) { nextStep(); ctx.buff(minion, swarmOwed, swarmOwed, 'Beastial Swarm'); }
       if (rbGrant.attackNow && !minion.dead && minion.health > 0) pendingAttackOnSummon.push({ minion, interrupts: true, seq: immediateSummonSeq++ });
       summonEntryEffects(minion, minion.side);
       summonReturnExtras(minion); // ANCIENT OF GENESIS × Lord of the Risen: a Rebirth return is a summon too
@@ -3878,7 +3878,7 @@ export function simulate(
         nextStep(); fireTrigger('runeRubyShrapnel', minion.side);
         for (let i = 0; i < survivors.length; i++) {
           const sh = share[i]!;
-          if (sh.attack > 0 || sh.health > 0) ctx.buff(survivors[i]!, sh.attack, sh.health, 'Rune of Ruby Shrapnel');
+          if (sh.attack > 0 || sh.health > 0) ctx.buff(survivors[i]!, sh.attack, sh.health, 'Ruby Shrapnel');
         }
       }
     }
@@ -3922,7 +3922,7 @@ export function simulate(
         beastAtkAuraFor[side] += bs;
         beastialGiven[side] += bs; // what a Rebirth body dead at this moment is owed on its return
         beastHpAuraFor[side] += bs;
-        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Rune of Beastial Swarm');
+        for (const m of living(side)) if (m.tribe === 'beast' || m.tribe2 === 'beast' || (!!m.universalTribe || !!cards[m.cardId]?.universalTribe)) ctx.buff(m, bs, bs, 'Beastial Swarm');
       }
     }
     // Candlelight Toll: your Kobolds have "Echo: get a Ruby". Implemented as a run-wide rule rather than by
@@ -4209,7 +4209,7 @@ export function simulate(
       fireTrigger('runeRuins', poisoner.side);
       // The buff lands once per copy held (boolean-flag family, owner 2026-08-27).
       const rr = RUNE_RUINS_BUFF * flagCopiesOf(poisoner.side, 'runeRuins');
-      for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Rune of Ruins');
+      for (const m of living(poisoner.side)) ctx.buff(m, rr, rr, 'Ruins');
     }
   }
 
@@ -4596,7 +4596,7 @@ export function simulate(
       const wildStep = modsFor(attacker.side).runeWildHunt ?? 0;
       if (wildStep > 0 && isBeast(attacker) && !attacker.dead && attacker.health > 0) {
         wildHuntGrown[attacker.side] += wildStep;
-        ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Rune of the Wild Hunt');
+        ctx.buff(attacker, wildHuntGrown[attacker.side], 0, 'Wild Hunt');
         fireTrigger('runeWildHunt', attacker.side);
       }
       // GORUN — BLADE MASTERY. Every friendly attack grants the ATTACKER +3 Attack, and the grant improves by
@@ -5487,7 +5487,7 @@ export function simulate(
       // silently. `rune` names the caster — the Beast is only the body the cast resolves through — so the
       // effect stems from the rune's node; `side` scopes that to the side that owns the rune.
       if (resolveCombatSpellCast(ctx, onto, def, def.target ? [onto] : undefined)) {
-        emit({ type: 'sc', source: onto.uid, text: `Rune of Spellhide casts ${def.name}`, spellId: def.id, rune: 'rune_spellhide', side: rside });
+        emit({ type: 'sc', source: onto.uid, text: `Spellhide casts ${def.name}`, spellId: def.id, rune: 'rune_spellhide', side: rside });
       }
     }
     if (rmods.runeFiveBanners) {
@@ -5509,7 +5509,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeFiveBanners', rside);
         // +6/+6 per copy held (boolean-flag family, owner 2026-08-27: "+6/+6 twice").
         const fb = 6 * flagCopiesOf(rside, 'runeFiveBanners');
-        for (const m of recipients) ctx.buff(m, fb, fb, 'Rune of the Five Banners');
+        for (const m of recipients) ctx.buff(m, fb, fb, 'Five Banners');
       }
     }
     // RUNE OF THE WAR COUNCIL (owner 2026-10-21): "Start of Combat: Cast Runebind on 3 random Dragons." Three DIFFERENT
@@ -5523,7 +5523,7 @@ export function simulate(
         const picks: Minion[] = [];
         while (picks.length < 3 && pool.length > 0) picks.push(pool.splice(rng.int(pool.length), 1)[0]!);
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeWarCouncil', rside);
-        for (const t of picks) { if (t !== picks[0]) nextStep(); runeCastRunebind(t, 'rune_war_council', 'Rune of the War Council'); }
+        for (const t of picks) { if (t !== picks[0]) nextStep(); runeCastRunebind(t, 'rune_war_council', 'War Council'); }
       }
     }
     if (base && rmods.unitedFront && rmods.unitedFront > 0) {
@@ -5579,7 +5579,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeTemperedTime', rside);
         // The grant lands once per copy held (boolean-flag family, owner 2026-08-27).
         const tt = flagCopiesOf(rside, 'runeTemperedTime');
-        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2) * tt, 'Rune of Tempered Time');
+        for (const m of gains) ctx.buff(m, 0, Math.floor(m.attack / 2) * tt, 'Tempered Time');
       }
     }
     if (rmods.runeHerald) {
@@ -5655,7 +5655,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeUnderdog', rside);
         // One doubling per copy held (boolean-flag family, owner 2026-08-27) — each reads the grown body.
         for (let k = 0; k < flagCopiesOf(rside, 'runeUnderdog'); k++) {
-          for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Rune of the Underdog');
+          for (const m of lowest) ctx.buff(m, m.attack, m.health, 'Underdog');
         }
       }
     }
@@ -5680,7 +5680,7 @@ export function simulate(
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeStokedMenagerie', rside);
         // One doubling per copy held (boolean-flag family, owner 2026-08-27) — same three bodies.
         for (let k = 0; k < flagCopiesOf(rside, 'runeStokedMenagerie'); k++) {
-          for (const m of picked) ctx.buff(m, m.attack, m.health, 'Rune of the Stoked Menagerie');
+          for (const m of picked) ctx.buff(m, m.attack, m.health, 'Stoked Menagerie');
         }
       }
     }
@@ -5706,7 +5706,7 @@ export function simulate(
         const pool = boards[rside].filter((m) => !m.dead && m.health > 0 && isTribeOf(m, 'dragon', cards));
         for (let i = 0; i < DRAGON_RUNES_BASIC.defiantWings.count && pool.length > 0; i++) {
           const m = pool.splice(rng.int(pool.length), 1)[0]!;
-          ctx.buff(m, DRAGON_RUNES_BASIC.defiantWings.attack, DRAGON_RUNES_BASIC.defiantWings.health, 'Rune of Defiant Wings');
+          ctx.buff(m, DRAGON_RUNES_BASIC.defiantWings.attack, DRAGON_RUNES_BASIC.defiantWings.health, 'Defiant Wings');
           if (!m.divineShield) {
             m.divineShield = true;
             if (!m.keywords.includes('DS')) m.keywords.push('DS');
@@ -5746,7 +5746,7 @@ export function simulate(
       if (ends.length > 0) {
         nextStep(); twilightPulse(rside, pass); fireTrigger('runeHeldStrength', rside);
         const reps = Math.max(1, hs.copies ?? 1);
-        for (const m of ends) ctx.buff(m, hs.attack * reps, hs.health * reps, 'Rune of Held Strength');
+        for (const m of ends) ctx.buff(m, hs.attack * reps, hs.health * reps, 'Held Strength');
       }
     }
     // Echoing Coop: trigger every minion's Echo once, without killing the body (Sylus doubles them).
@@ -5858,7 +5858,7 @@ export function simulate(
     ua.health += delta;
     // R-RUNE-COMBAT-FLASH-01: the rune paid out right now, so its badge pulses on this beat. A marker event only.
     fireTrigger('runeSoulFurnace', side);
-    for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Rune of the Soul Furnace');
+    for (const m of living(side)) if (isUndeadMinion(m)) ctx.buff(m, 0, delta, 'Soul Furnace');
     grimToastLive(side, 0, delta);
   }
   /** "Give your Undead Aura +N Attack" in combat: the living Undead feel it now, the side's Aura rises for later
@@ -5878,7 +5878,7 @@ export function simulate(
       const n = 2 * flagCopiesOf(side, 'runeSecondWind');
       nextStep();
       fireTrigger('runeSecondWind', side);
-      ctx.buff(minion, n, n, 'Rune of the Second Wind');
+      ctx.buff(minion, n, n, 'Second Wind');
       if (!minion.keywords.includes('EG')) minion.permaGain = { attack: (minion.permaGain?.attack ?? 0) + n, health: (minion.permaGain?.health ?? 0) + n };
       // R-RISE-06 x R-SET3RUNE-08: the risen copy's gains stay in combat, but this one is ABOUT the Rise and prints
       // "permanently", so it is booked onto the original's frozen carry-back and reaches the board card.
@@ -5940,7 +5940,7 @@ export function simulate(
       // later hit or buff re-based them. The opening pass is in the `initial` snapshot already. Presentation only: a
       // `buff` event the replay folds, never `ctx.buff` (this is an aura, not a gain, so no stat-gain reactor or
       // carry-back may hear it).
-      if (!opening) for (const s of shown) emit({ type: 'buff', target: s.uid, attack: s.attack, health: s.health, source: 'Rune of Unity' });
+      if (!opening) for (const s of shown) emit({ type: 'buff', target: s.uid, attack: s.attack, health: s.health, source: 'Unity' });
     } else if (granted.size > 0) {
       for (const m of granted) m.universalTribe = undefined;
       granted.clear();
@@ -5958,7 +5958,7 @@ export function simulate(
     if (dwarves.length === 0) return;
     // R-RUNE-COMBAT-FLASH-01: the rune buffed someone right now, so its badge pulses on this beat. A marker event only.
     fireTrigger('runeGrimToast', side);
-    for (const m of dwarves) ctx.buff(m, attack, health, 'Rune of the Grim Toast');
+    for (const m of dwarves) ctx.buff(m, attack, health, 'Grim Toast');
   }
   /** A combat Ruby cast landed `per` Rubies (`attack`/`health` in total) on `target`. The Keepsake Gem lands the same on
    *  the left-most hand minion (a hand buff, permanent, per copy; an empty hand = nothing). The Gem Star gives the
@@ -5988,7 +5988,7 @@ export function simulate(
       gemStarUsed[side] += k;
       const n = flagCopiesOf(side, 'runeGemStar');
       fireTrigger('runeGemStar', side);
-      ctx.gainStarform(Math.round((attack / per) * k) * n, Math.round((health / per) * k) * n, side, 'Rune of the Gem Star');
+      ctx.gainStarform(Math.round((attack / per) * k) * n, Math.round((health / per) * k) * n, side, 'Gem Star');
     }
     void target;
   }
@@ -6020,7 +6020,7 @@ export function simulate(
         if (pool.length === 0) break;
         const pick = pickAutoTarget(rng, pool)!; // R-TARGET-07
         castInCombat(ctx, shim, () => {
-          if (resolveCombatSpellCast(ctx, shim, spell, [pick])) emit({ type: 'sc', source: caster.uid, text: `Rune of the Meteor Storm casts ${spell.name} again`, spellId: spell.id, rune: 'rune_meteor_storm', side });
+          if (resolveCombatSpellCast(ctx, shim, spell, [pick])) emit({ type: 'sc', source: caster.uid, text: `Meteor Storm casts ${spell.name} again`, spellId: spell.id, rune: 'rune_meteor_storm', side });
         }, spell.id);
       }
     } finally { meteorEchoing = false; }
@@ -6034,7 +6034,7 @@ export function simulate(
     nextStep();
     castInCombat(ctx, caster, () => {
       if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
-        emit({ type: 'sc', source: source.uid, text: `Rune of Deep Breaths casts ${spell.name}`, spellId: spell.id, rune: 'rune_deep_breaths', side: source.side });
+        emit({ type: 'sc', source: source.uid, text: `Deep Breaths casts ${spell.name}`, spellId: spell.id, rune: 'rune_deep_breaths', side: source.side });
       }
     }, spell.id);
   }
@@ -6048,7 +6048,7 @@ export function simulate(
     if (m.runeBorrowedFlame && !target.dead && target.health > 0 && target.side === side && isTribeOf(target, 'dragon', cards)) {
       const v = (m.runeBorrowedFlame + (carry.borrowedFlameGain ?? 0)) * flagCopiesOf(side, 'runeBorrowedFlame');
       fireTrigger('runeBorrowedFlame', side);
-      ctx.buff(target, v, v, 'Rune of Borrowed Flame');
+      ctx.buff(target, v, v, 'Borrowed Flame');
       carry.borrowedFlameGain = (carry.borrowedFlameGain ?? 0) + ctx.improveRepsFor(side);
     }
     if (m.runeSpellTempering) {
@@ -6075,7 +6075,7 @@ export function simulate(
       if (pool.length === 0) return;
       const target = pickAutoTarget(rng, pool)!; // R-TARGET-07
       if (resolveCombatSpellCast(ctx, caster, spell, [target])) {
-        emit({ type: 'sc', source: source.uid, text: `Rune of the Guiding Star casts ${spell.name}`, spellId: spell.id, rune: 'rune_guiding_star', side });
+        emit({ type: 'sc', source: source.uid, text: `Guiding Star casts ${spell.name}`, spellId: spell.id, rune: 'rune_guiding_star', side });
       }
     }, spell.id);
   }
@@ -6093,7 +6093,7 @@ export function simulate(
       fireTrigger('runeGrowingInferno', side);
       castInCombat(ctx, caster, () => {
         if (resolveCombatSpellCast(ctx, caster, spell, undefined)) {
-          emit({ type: 'sc', source: attacker.uid, text: `Rune of the Growing Inferno casts ${spell.name}`, spellId: spell.id, rune: 'rune_growing_inferno', side });
+          emit({ type: 'sc', source: attacker.uid, text: `Growing Inferno casts ${spell.name}`, spellId: spell.id, rune: 'rune_growing_inferno', side });
         }
       }, spell.id);
     }
@@ -6135,7 +6135,7 @@ export function simulate(
     if (m.shoutEdgeTribeBuff) {
       const t = m.shoutEdgeTribeBuff;
       const ends = edges(living(side).filter((c) => isTribeOf(c, t.tribe, cards)));
-      if (ends.length) { fireTrigger('runeDrakeSkull', side); for (const e of ends) ctx.buff(e, t.attack, t.health, 'Rune of the Drake Skull'); }
+      if (ends.length) { fireTrigger('runeDrakeSkull', side); for (const e of ends) ctx.buff(e, t.attack, t.health, 'Drake Skull'); }
     }
   });
   // RUNE OF THE HERALDING STAR / THE STARSONG (Set 3 design pass): every friendly CELESTIAL Shout fire. The Heralding
@@ -6148,12 +6148,12 @@ export function simulate(
     if (m.runeHeraldingStar) {
       const n = 3 * flagCopiesOf(side, 'runeHeraldingStar');
       fireTrigger('runeHeraldingStar', side);
-      ctx.gainStarform(n, n, side, 'Rune of the Heralding Star');
+      ctx.gainStarform(n, n, side, 'Heralding Star');
     }
     if (m.runeStarsong) {
       const n = 2 * flagCopiesOf(side, 'runeStarsong');
       fireTrigger('runeStarsong', side);
-      for (const c of living(side)) if (isTribeOf(c, 'celestial', cards)) ctx.buff(c, n, n, 'Rune of the Starsong');
+      for (const c of living(side)) if (isTribeOf(c, 'celestial', cards)) ctx.buff(c, n, n, 'Starsong');
     }
   });
   // Rune-granted run-wide AVENGE effects (no minion source): a bus handler fires every N friendly deaths. Rune of
@@ -6372,7 +6372,7 @@ export function simulate(
     lvl.attack += 2; lvl.health += 2;
   });
   // RUNE OF THE SOUL TOLL (Set 3 design pass, owner 2026-09-27): Avenge (4) raises the Undead Aura +1 Attack.
-  runeAvenge(4, 'runeSoulToll', (m) => !!m.runeSoulToll, (side) => { nextStep(); raiseUndeadAura(side, 1, 'Rune of the Soul Toll'); });
+  runeAvenge(4, 'runeSoulToll', (m) => !!m.runeSoulToll, (side) => { nextStep(); raiseUndeadAura(side, 1, 'Soul Toll'); });
   // FINAL UTTERANCE (Set 3 Dragon runes, owner 2026-10-21): Avenge (4), a random Whisper (the gated pool: your tier and
   // below, owners in your set) and a random Shop Spell (the side's pool at its tier), both to hand at settle.
   runeAvenge(4, 'runeFinalUtterance', (m) => !!m.runeFinalUtterance, (side) => {
@@ -6505,7 +6505,7 @@ export function simulate(
     const tail = living[living.length - 1];
     if (!tail) return;
     nextStep();
-    ctx.buff(tail, tail.attack, tail.health, 'Rune of the Procession');
+    ctx.buff(tail, tail.attack, tail.health, 'Procession');
   });
   runeAvenge(4, 'runeSoulTaxes', (m) => !!m.runeSoulTaxes, (side) => ctx.grantMaxGold(1, side), true); // +1 max Gold
   // Deep Hunger (Demon capstone, reworked 2026-07-21): Avenge (3) → add 2 Fodder to your next shop. Was "the
@@ -6543,7 +6543,7 @@ export function simulate(
       const right = [...boards[side]].reverse().find((m) => !m.dead && m.health > 0 && m !== minion);
       // The stats land once per copy held (boolean-flag family, owner 2026-08-27).
       const ih = flagCopiesOf(side, 'runeInheritance');
-      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack * ih, minion.maxHealth * ih, 'Rune of Inheritance'); }
+      if (right) { fireTrigger('runeInheritance', side); ctx.buff(right, minion.attack * ih, minion.maxHealth * ih, 'Inheritance'); }
     });
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
@@ -6591,7 +6591,7 @@ export function simulate(
       left--;
       fireTrigger('runeUnbrokenScales', uside);
       const n = 10 * flagCopiesOf(uside, 'runeUnbrokenScales');
-      ctx.buff(minion, n, n, 'Rune of Unbroken Scales');
+      ctx.buff(minion, n, n, 'Unbroken Scales');
       if (minion.dead || minion.health <= 0 || minion.divineShield) return;
       minion.divineShield = true;
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
@@ -6779,7 +6779,7 @@ export function simulate(
       const h = reinvest.health * summonCount[side];
       tavernBuyGain[side].attack += a;
       tavernBuyGain[side].health += h;
-      creditTavern(side, 'Rune of Reinvestment', a, h);
+      creditTavern(side, 'Reinvestment', a, h);
     }
   }
   // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still

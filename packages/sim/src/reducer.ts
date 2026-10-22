@@ -129,7 +129,7 @@ function spendGold(s: RunState, amount: number): void {
         const picks = [...pool];
         for (let i = 0; i < count && picks.length > 0; i++) {
           const pick = picks.splice(rng.int(picks.length), 1)[0]!;
-          addBuff(pick, 'Rune of Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
+          addBuff(pick, 'Bulk Order', attack, health); // renamed 2026-07-29; label is player-visible in the buff breakdown
         }
       }
     });
@@ -4474,7 +4474,7 @@ function endRecruitTurn(s: RunState): void {
     else {
       const handle = collector.beginTrigger({
         phase: 'endOfTurn',
-        source: { kind: 'rune', id: 'rune_amplification', label: 'Rune of Amplification', side: 'player' },
+        source: { kind: 'rune', id: 'rune_amplification', label: 'Amplification', side: 'player' },
         trigger: 'endOfTurn',
         ...beatIdentity('rune:rune_amplification:endOfTurn'),
       });
@@ -5182,7 +5182,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // hand as well as board — a body you were about to play earned it too.
   if (result.playerBoardBuffGain) {
     const g = result.playerBoardBuffGain;
-    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Rune of Overflow', g.attack, g.health);
+    for (const c of [...s.board, ...s.hand]) addBuff(c, 'Overflow', g.attack, g.health);
   }
   if (result.playerImpBuffGain) {
     // REPLACED, not mutated — same reason as `buffImpsRunWide`: the UI's live-text memos key on `impBuff` by
@@ -5371,7 +5371,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     if (rose > 0 && hasStarform(s)) {
       procRuneId(s, 'rune_grave_orbit');
       const go = runeStacksOf(s, 'rune_grave_orbit');
-      buffStarform(s, s.runeGraveOrbit.attack * rose * go, s.runeGraveOrbit.health * rose * go, 'Rune of the Grave Orbit');
+      buffStarform(s, s.runeGraveOrbit.attack * rose * go, s.runeGraveOrbit.health * rose * go, 'Grave Orbit');
     }
   }
   // RUNE OF THE LAST TOOL: the graft's combat Echo logged a `questTrigger` carry-back per Equip minion that died
@@ -6108,7 +6108,7 @@ function advanceCombat(s: RunState): void {
   ancientStartOfTurn(s);
   // RUNE OF FIRST LIGHT (Set 3 batch 2): Start of Turn — no Starform out → create one (it arrives with the rune's
   // +8/+8 like every creation, and eats the right-most minion when the row is full, as any create does).
-  if (s.runeFirstLight && !hasStarform(s)) recordSotBeat(s, runeSource('rune_first_light'), () => createStarform(s, { cardId: 'rune_first_light', name: 'Rune of First Light' }), { always: true });
+  if (s.runeFirstLight && !hasStarform(s)) recordSotBeat(s, runeSource('rune_first_light'), () => createStarform(s, { cardId: 'rune_first_light', name: 'First Light' }), { always: true });
   // Rune of the Strange Caravan: Start of Turn, get a random minion from a type you do NOT control.
   if (s.runeStrangeCaravan) recordSotBeat(s, runeKindSource('runeStrangeCaravan'), () => {
     procRune(s, 'runeStrangeCaravan');
@@ -7197,7 +7197,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // Rune of the Wheel: the base +A/+H lands ONCE, now — it's a standing aura, so it rides the permanent
       // `tavernBuyBonus` channel (current AND future offers inherit it). The meter then improves it by
       // +step/+step every `per`-th refresh — see `applyShopRefreshQuestBuff`.
-      applyRunShopBuff(s, r.attack, r.health, 'Rune of the Wheel');
+      applyRunShopBuff(s, r.attack, r.health, 'Wheel');
       s.shopAuraGrow = { step: r.step, per: r.per, tick: 0, grown: 0 };
       break;
     case 'aleExtraCasts':

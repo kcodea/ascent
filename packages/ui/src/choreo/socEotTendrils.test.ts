@@ -67,7 +67,7 @@ describe('START OF COMBAT — one tendril per recipient, from the buffer, before
 
   it('Rune of the Five Banners: one buff event per banner-bearer, rune-labelled — the per-recipient `rune-buff-unit` sparkle is its cue', () => {
     const { r, moments, uidOf } = socWaves([bm('venom'), bm('dw_brakka'), bm('k_veinbreaker')], { questMods: { runeFiveBanners: true } });
-    const grants = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Five Banners');
+    const grants = r.events.filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Five Banners');
     expect(grants.map((e) => e.target).sort(), 'one banner per body with a type').toEqual([uidOf('dw_brakka'), uidOf('k_veinbreaker')].sort());
     for (const g of grants) expect(isRuneBuffSource(g.source), 'the replay keys the sparkle on this').toBe(true);
     // The rune's own badge beat (`questTrigger`) lands before the wave, and both precede the first attack.

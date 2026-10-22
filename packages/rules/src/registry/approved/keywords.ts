@@ -407,7 +407,7 @@ export const KEYWORDS_RULES: GameRule[] = [
       + 'cap, Whaloo\'s Runebind casts, Immune Iggy and Bounty Bot\'s immune swings (the immune shield shows again on the '
       + 'fresh swings), Gryphon\'s free refreshes, Yeti\'s reflection and Foamguard (R-DWARF-1021-02). The Pummel damage '
       + 'tally itself is not a limit and keeps counting (R-PUMMEL-01). Unchanged: side-wide budgets (Deathtouched Apple, '
-      + 'Rune of Dragonscale, Author\'s Hand, the hero Pummel latch), per-TURN limits (Candleback Bulwark, Tamby, Reflector) '
+      + 'Dragonscale, Author\'s Hand, the hero Pummel latch), per-TURN limits (Candleback Bulwark, Tamby, Reflector) '
       + 'and Lord of the Risen\'s once-per-combat Rise regain. Bounded: a reset needs a spent Rise or Rebirth, and nothing '
       + 'reset grants either back to its own body, so it cannot loop. The live "left this combat" card text restarts too.',
     domain: 'keywords',

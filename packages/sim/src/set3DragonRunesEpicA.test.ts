@@ -51,13 +51,13 @@ const buffs = (events: readonly CombatEvent[], spellId: string) => events.filter
 describe('the roster', () => {
   it('seven Epic Dragon runes, Set 3 only, Dragon-gated, the draft costs, no em dash, owner texts', () => {
     const want: Record<string, [string, number]> = {
-      rune_war_council: ['Rune of the War Council', 5],
-      rune_growing_inferno: ['Rune of the Growing Inferno', 5],
-      rune_secret_exchange: ['Rune of the Secret Exchange', 4],
-      rune_runebound_brood: ['Rune of the Runebound Brood', 4],
-      rune_unbroken_scales: ['Rune of Unbroken Scales', 5],
-      rune_runic_transposition: ['Rune of Runic Transposition', 4],
-      rune_wyrms_hoard: ["Rune of the Wyrm's Hoard", 4],
+      rune_war_council: ['War Council', 5],
+      rune_growing_inferno: ['Growing Inferno', 5],
+      rune_secret_exchange: ['Secret Exchange', 4],
+      rune_runebound_brood: ['Runebound Brood', 4],
+      rune_unbroken_scales: ['Unbroken Scales', 5],
+      rune_runic_transposition: ['Runic Transposition', 4],
+      rune_wyrms_hoard: ["Wyrm's Hoard", 4],
     };
     for (const id of IDS) {
       const r = RUNE_INDEX[id]!;
@@ -190,7 +190,7 @@ describe('R-DRAGONRUNE-A-05: Rune of Unbroken Scales', () => {
     const breaks = r.events.filter((e) => e.type === 'shield' && e.target === g);
     expect(breaks).toHaveLength(3); // break, re-form, break, re-form, break (budget spent)
     expect(reforms(r.events)).toHaveLength(2);
-    const runeBuffs = r.events.filter((e): e is Buff => e.type === 'buff' && e.target === g && e.source === 'Rune of Unbroken Scales');
+    const runeBuffs = r.events.filter((e): e is Buff => e.type === 'buff' && e.target === g && e.source === 'Unbroken Scales');
     expect(runeBuffs.map((b) => [b.attack, b.health])).toEqual([[10, 10], [10, 10]]);
     // Order inside each fire: the break, then the buff, then the Ward back.
     const i = r.events.indexOf(breaks[0]!), j = r.events.indexOf(runeBuffs[0]!), k = r.events.indexOf(reforms(r.events)[0]!);
@@ -207,7 +207,7 @@ describe('R-DRAGONRUNE-A-05: Rune of Unbroken Scales', () => {
   it('two copies: still 2 fires, each +20/+20', () => {
     const r = fight([m('d4_galas', { attack: 0, health: 200, keywords: ['DS'] })], { runeUnbrokenScales: true, flagCopies: { runeUnbrokenScales: 2 } }, 5, wall(1));
     expect(reforms(r.events)).toHaveLength(2);
-    expect(r.events.filter((e): e is Buff => e.type === 'buff' && e.source === 'Rune of Unbroken Scales').map((b) => b.attack)).toEqual([20, 20]);
+    expect(r.events.filter((e): e is Buff => e.type === 'buff' && e.source === 'Unbroken Scales').map((b) => b.attack)).toEqual([20, 20]);
   });
 });
 

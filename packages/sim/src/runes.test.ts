@@ -583,7 +583,7 @@ describe('Basic runes — moved-in effects (Rallying / Scale / Action)', () => {
     const beats = questEndOfTurnBeats(s);
     // No warband EoT minions here, so the ONLY steps are the rune's: ONE PER TICK (the REPEAT form, owner
     // 2026-09-25) — the base plus one per card played — and the last must match the real applyEndOfTurn.
-    expect(beats).toEqual(Array.from({ length: 4 }, () => ({ effect: 'runeAction', label: 'Rune of Action' })));
+    expect(beats).toEqual(Array.from({ length: 4 }, () => ({ effect: 'runeAction', label: 'Action' })));
     expect(steps).toHaveLength(4);
     const committed = structuredClone(s);
     applyEndOfTurn(committed);

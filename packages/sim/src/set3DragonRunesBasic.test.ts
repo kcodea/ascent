@@ -19,10 +19,10 @@ const IDS = [
   'rune_open_treasury', 'rune_deep_breaths', 'rune_defiant_wings', 'rune_final_utterance', 'rune_ember_inheritance',
 ] as const;
 const NAMES: Record<string, string> = {
-  rune_runic_primer: 'Rune of the Runic Primer', rune_loose_tongues: 'Rune of Loose Tongues', rune_clear_voices: 'Rune of Clear Voices',
-  rune_spell_fed_scales: 'Rune of Spell-Fed Scales', rune_borrowed_flame: 'Rune of Borrowed Flame', rune_spell_tempering: 'Rune of Spell Tempering',
-  rune_open_treasury: 'Rune of the Open Treasury', rune_deep_breaths: 'Rune of Deep Breaths', rune_defiant_wings: 'Rune of Defiant Wings',
-  rune_final_utterance: 'Rune of the Final Utterance', rune_ember_inheritance: 'Rune of Ember Inheritance',
+  rune_runic_primer: 'Runic Primer', rune_loose_tongues: 'Loose Tongues', rune_clear_voices: 'Clear Voices',
+  rune_spell_fed_scales: 'Spell-Fed Scales', rune_borrowed_flame: 'Borrowed Flame', rune_spell_tempering: 'Spell Tempering',
+  rune_open_treasury: 'Open Treasury', rune_deep_breaths: 'Deep Breaths', rune_defiant_wings: 'Defiant Wings',
+  rune_final_utterance: 'Final Utterance', rune_ember_inheritance: 'Ember Inheritance',
 };
 
 // Costs from docs/set3-dragon-rune-draft-30.md (owner ruling 2026-10-22).
@@ -136,10 +136,10 @@ describe('Rune of Spell-Fed Scales: whenever you cast a Shop Spell, give a Drago
     const growth = poolOf(s).all.find((c) => c.id === 'growth')!;
     expect(growth, 'Growth is a Set 3 Shop Spell').toBeTruthy();
     castSpell(s, growth);
-    expect(fromSource(s.board[0], 'Rune of Spell-Fed Scales')).toEqual([6, 7]);
-    expect(fromSource(s.board[1], 'Rune of Spell-Fed Scales')).toEqual([0, 0]);
+    expect(fromSource(s.board[0], 'Spell-Fed Scales')).toEqual([6, 7]);
+    expect(fromSource(s.board[1], 'Spell-Fed Scales')).toEqual([0, 0]);
     const after = play(s, bc('w', 'w4_tome'), 'd');
-    expect(fromSource(after.board[0], 'Rune of Spell-Fed Scales'), 'a Whisper is not a Shop Spell').toEqual([6, 7]);
+    expect(fromSource(after.board[0], 'Spell-Fed Scales'), 'a Whisper is not a Shop Spell').toEqual([6, 7]);
   });
   it('arms the combat half', () => {
     expect(questCombatMods(withRune('rune_spell_fed_scales')).runeSpellFedScales).toBe(true);
@@ -152,11 +152,11 @@ describe('Rune of Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1 and 
     const text = RUNE_INDEX['rune_borrowed_flame']!.text;
     expect(liveRuneText('rune_borrowed_flame', text, runeLiveStateOfRun(s))).toContain('+1/+1');
     s = play(s, bc('w1', 'w4_tome'), 'd');
-    expect(fromSource(s.board[0], 'Rune of Borrowed Flame')).toEqual([1, 1]);
+    expect(fromSource(s.board[0], 'Borrowed Flame')).toEqual([1, 1]);
     s = play(s, bc('w2', 'w4_tome'), 'd');
-    expect(fromSource(s.board[0], 'Rune of Borrowed Flame')).toEqual([3, 3]); // +1 then +2
+    expect(fromSource(s.board[0], 'Borrowed Flame')).toEqual([3, 3]); // +1 then +2
     s = play(s, bc('w3', 'w4_tome'), 'n');
-    expect(fromSource(s.board[1], 'Rune of Borrowed Flame')).toEqual([0, 0]);
+    expect(fromSource(s.board[1], 'Borrowed Flame')).toEqual([0, 0]);
     expect(s.runeBorrowedFlame).toBe(3);
     expect(liveRuneText('rune_borrowed_flame', text, runeLiveStateOfRun(s))).toContain('+3/+3');
     expect(questCombatMods(s).runeBorrowedFlame, 'combat starts from the grown value').toBe(3);
@@ -170,7 +170,7 @@ describe('Rune of Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1 and 
     expect(s.phase).toBe('recruit');
     {
       const d = s.board.find((c) => c.uid === 'd')!;
-      expect(fromSource(d, 'Rune of Borrowed Flame')).toEqual([1, 1]);
+      expect(fromSource(d, 'Borrowed Flame')).toEqual([1, 1]);
       expect(d.attack).toBeGreaterThanOrEqual(a - 1); // only Tome's own temporary +1 came off
       expect(d.health).toBeGreaterThanOrEqual(h - 1);
     }
@@ -214,7 +214,7 @@ describe('Rune of Defiant Wings: the Shop replay (Combat Prowess / Lasting Caden
     const replay = socRuneReplaysOf(s).find((r) => r.id === 'rune_defiant_wings');
     expect(replay).toBeTruthy();
     replay!.fire(s);
-    const hit = s.board.filter((c) => fromSource(c, 'Rune of Defiant Wings')[0] === 3);
+    const hit = s.board.filter((c) => fromSource(c, 'Defiant Wings')[0] === 3);
     expect(hit).toHaveLength(2);
     expect(hit.every((c) => c.keywords.includes('DS') && c.uid !== 'n')).toBe(true);
     expect(questCombatMods(s).runeDefiantWings).toBe(true);

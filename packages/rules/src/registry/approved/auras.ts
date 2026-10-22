@@ -60,7 +60,7 @@ export const AURAS_RULES: GameRule[] = [
       + 'Give all Friendly and summoned Beasts +1 Attack. Avenge (4): Improve this." (the improvement is permanent per instance, on its '
       + 'summonBonus; one earned mid-fight is used from the NEXT Start of Combat; since the owner balance of 2026-10-10 it reads '
       + '"+2 Attack. Avenge (3): Improve this." and each improvement adds +2, gilded +4 improving +4). Grim: "Echo: Give all Friendly and summoned '
-      + 'Beasts +8/+8." (gilded +16/+16). The same pattern covers Armadiyo, Trophy Stalker, Rune of Beastial Swarm (a Shop '
+      + 'Beasts +8/+8." (gilded +16/+16). The same pattern covers Armadiyo, Trophy Stalker, Beastial Swarm (a Shop '
       + 'Beast death also pays it; its Avenge level persists), Pack Mentality (a Start of Combat grant whose level '
       + 'improves and persists; a served seat applies its snapshot level and, since R-SYMMETRY-01, grows it live in the fight exactly like yours) and The Old Hunt. Every surface prints the '
       + 'current value.',
@@ -77,7 +77,7 @@ export const AURAS_RULES: GameRule[] = [
     contentIds: ['kennel', 'grim', 'b2_armadiyo', 'trophystalker', 'rune_beastial_swarm', 'q_pack_mentality', 'q_the_old_hunt'],
     currentBehaviour:
       'Conforms as of 2026-09-28. Until then the Beast Aura was a run-wide channel (`beastBuyAtk` / `beastBuyHp`) fed by '
-      + 'Pack Mentality, The Old Hunt and Rune of Beastial Swarm and baked into every Beast everywhere. The legacy channel '
+      + 'Pack Mentality, The Old Hunt and Beastial Swarm and baked into every Beast everywhere. The legacy channel '
       + 'is still READ, so an older in-flight run or recorded snapshot keeps what it banked; nothing feeds it any more.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/beastCombatOnly0928.test.ts', 'packages/ui/src/beastCombatOnlyText.test.ts'], lastVerifiedAt: '2026-09-29' },
   },
@@ -139,7 +139,7 @@ export const AURAS_RULES: GameRule[] = [
       'Orivax: "Your Shouts trigger 2 additional times." It is an AURA that works only while Orivax is on your board, like '
       + 'normal card text; playing it installs nothing permanent, and selling it or its death ends it. Every Shout that '
       + 'side triggers, played or triggered, in the Shop or in real time mid-combat (R-SHOUT-TRIGGER-01), fires 2 more '
-      + 'times. Golden gives 4, every copy stacks. It ADDS to the run-wide Shout extras (Rune of the Choir, Blasting '
+      + 'times. Golden gives 4, every copy stacks. It ADDS to the run-wide Shout extras (Choir, Blasting '
       + 'Voices, Hoardwake, Demand an Encore, the legacy Orivax Chorus mode): Orivax plus the Choir is 1 + 2 + 1 = 4 fires, '
       + 'in both phases. Each fire is its own counted Shout for every listener. A served board carries it with the body.',
     domain: 'auras',

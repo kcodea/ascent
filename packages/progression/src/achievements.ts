@@ -65,7 +65,7 @@ export const RUN_METRICS = {
   epicRunesForged: { cap: 100, doc: 'Epic Runes forged this game.' },
   runeTriggers: { cap: 100_000, doc: 'Rune payouts this game (every rune, summed).' },
   runesFivePlus: { cap: 100, doc: 'Different Runes that paid out 5+ times this game.' },
-  menagerieRuneFinalTribes: { cap: 20, doc: 'Final-board tribes when holding Rune of the Menagerie (0 without it).' },
+  menagerieRuneFinalTribes: { cap: 20, doc: 'Final-board tribes when holding Menagerie (0 without it).' },
   // mechanics
   shoutsTurnMax: { cap: 10_000, doc: 'Most Shout triggers in one turn.' },
   eotFiresMax: { cap: 10_000, doc: 'Most End of Turn triggers in one End of Turn.' },
@@ -117,8 +117,8 @@ export const RUN_METRICS = {
   // Set 2: runes
   epicFitWin: { cap: 1, doc: '1 when an Epic Rune forged for a tribe with 3+ minions on the board was followed by a won combat.' },
   tribalRunePair: { cap: 1, doc: '1 when the game ended holding a Basic and an Epic Rune of the same tribe.' },
-  overtimeProcs: { cap: 10_000, doc: 'Rune of Overtime payouts this game.' },
-  blartProcs: { cap: 10_000, doc: 'Rune of Blart payouts this game.' },
+  overtimeProcs: { cap: 10_000, doc: 'Overtime payouts this game.' },
+  blartProcs: { cap: 10_000, doc: 'Blart payouts this game.' },
   // Achievements 150 (owner 2026-10-03): heroes and combat feats. Same trust as every run metric (O).
   heroPowerUses: { cap: 1_000, doc: 'Hero power uses this game (an accepted heroPower action).' },
   flawlessWins: { cap: 100, doc: 'Combats won this game with no friendly minion dying.' },
@@ -402,7 +402,7 @@ const RUNES: AchievementDef[] = [
   def({ id: 'rune.first_epic', name: 'Epic Inscription', requirement: 'Forge an Epic Rune.', category: 'runes', mode: 'any', metric: 'epicRunesForged', target: 1, xp: 50 }),
   def({ id: 'rune.triggers_20', name: 'Runic Engine', requirement: 'Have your Runes trigger 20 times in one game.', category: 'runes', mode: 'any', metric: 'runeTriggers', target: 20, xp: 100 }),
   def({ id: 'rune.triggers_50', name: 'Written Everywhere', requirement: 'Have your Runes trigger 50 times in one game.', category: 'runes', mode: 'any', metric: 'runeTriggers', target: 50, xp: 250 }),
-  def({ id: 'rune.menagerie_win', name: 'Common Cause', requirement: 'Finish 1st in Ranked holding Rune of the Menagerie, with 4 or more tribes on your final board.', category: 'runes', mode: 'ranked', metric: 'menagerieRuneFinalTribes', placementMax: 1, target: 4, xp: 250 }),
+  def({ id: 'rune.menagerie_win', name: 'Common Cause', requirement: 'Finish 1st in Ranked holding Menagerie, with 4 or more tribes on your final board.', category: 'runes', mode: 'ranked', metric: 'menagerieRuneFinalTribes', placementMax: 1, target: 4, xp: 250 }),
 ];
 
 // Set 2 ──────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -458,8 +458,8 @@ const SET2: AchievementDef[] = [
   // Runes
   s2('rune', { id: 's2.rune.epic_fit', name: 'Right Tool', requirement: 'Forge an Epic Rune for a tribe with 3 or more minions on your board, then win the next combat.', mode: 'any', metric: 'epicFitWin', target: 1, xp: 75 }),
   s2('rune', { id: 's2.rune.tribal_pair', name: 'Tribal Inscription', requirement: 'Finish Top 4 in Ranked holding a Basic and an Epic Rune of the same tribe.', mode: 'ranked', metric: 'tribalRunePair', placementMax: 4, target: 1, xp: 150 }),
-  s2('rune', { id: 's2.rune.overtime_5', name: 'Overtime Pay', requirement: 'Have Rune of Overtime pay out 5 times in one game.', mode: 'any', metric: 'overtimeProcs', target: 5, xp: 125 }),
-  s2('rune', { id: 's2.rune.blart_10', name: 'Seconds, Please', requirement: 'Have Rune of Blart share its stats 10 times in one game.', mode: 'any', metric: 'blartProcs', target: 10, xp: 125 }),
+  s2('rune', { id: 's2.rune.overtime_5', name: 'Overtime Pay', requirement: 'Have Overtime pay out 5 times in one game.', mode: 'any', metric: 'overtimeProcs', target: 5, xp: 125 }),
+  s2('rune', { id: 's2.rune.blart_10', name: 'Seconds, Please', requirement: 'Have Blart share its stats 10 times in one game.', mode: 'any', metric: 'blartProcs', target: 10, xp: 125 }),
   s2('rune', { id: 's2.rune.three_engines', name: 'Three Engines', requirement: 'Have 3 different Runes each trigger 5 times in one game.', mode: 'any', metric: 'runesFivePlus', target: 3, xp: 150 }),
 ];
 

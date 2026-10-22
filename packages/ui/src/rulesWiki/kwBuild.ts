@@ -89,7 +89,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Only **minions in the Shop**. Spells and Rubies sitting in the Shop row are never eaten, and your own board minions are never on the menu. A card that says \"the right-most minion\" skips over spells to find the last minion, and one that just says \"a minion\" picks a random one.",
     aliases: ['consume target', 'eat spell', 'right-most minion', 'random shop minion'],
     seeAlso: ['consume', 'consume-gilded'],
-    covers: [{ rule: 'R-ORD-03', fp: '47052a67' }, { rule: 'R-RAND-01', fp: '3d89d2c5' }],
+    covers: [{ rule: 'R-ORD-03', fp: 'a1d4ec62' }, { rule: 'R-RAND-01', fp: '3d89d2c5' }],
   },
   {
     id: 'consume-gilded',
@@ -345,7 +345,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "There are six: plain, Warding, Golden, Splintered, Ripple and Dark. They all give stats, and the special ones do something extra **if the target is a Kobold** (Ward, 2 Gold, a bounce, a second cast, or eating a Shop minion). \"Get a random Ruby\" picks any of the six evenly.",
     aliases: ['warding ruby', 'golden ruby', 'splintered ruby', 'ripple ruby', 'dark ruby', 'random ruby'],
     seeAlso: ['ruby'],
-    covers: [{ rule: 'R-RAND-02', fp: '68b20e45' }],
+    covers: [{ rule: 'R-RAND-02', fp: '0baf397b' }],
   },
   {
     id: 'ruby-gilded',

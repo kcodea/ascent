@@ -134,7 +134,7 @@ const PATHS: Path[] = [
     },
   },
   {
-    name: 'Rune of Open Enrollment (replaces the right-most)', rightmostIsNew: true,
+    name: 'Open Enrollment (replaces the right-most)', rightmostIsNew: true,
     run: (s) => {
       const after = reduce({ ...s, runeOpenEnrollment: true }, { type: 'roll' });
       expect(after.shop.length).toBe(6); // a full T6 row: the right-most was replaced, not appended

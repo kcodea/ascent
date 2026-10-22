@@ -34,7 +34,7 @@ describe("the owner's case: two Rune of the Procession trigger twice", () => {
     ];
     const r = simulate(player, [{ cardId: 'sandbag', attack: 40, health: 4000 }], makeRng(3), CARD_INDEX,
       combatSide({ tier: 6, questMods: questCombatMods(s) }), combatSide({ tier: 6 }));
-    return r.events.filter((e) => e.type === 'buff' && e.source === 'Rune of the Procession').length;
+    return r.events.filter((e) => e.type === 'buff' && e.source === 'Procession').length;
   };
 
   it('one copy fires once per Avenge crossing; TWO copies fire twice', () => {

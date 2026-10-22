@@ -44,7 +44,7 @@ const PLAIN_BEASTS = ['b2_packstrider', 'b2_trex', 'b2_echohorn', 'b2_raven', 'b
 /** Play the i-th plain Beast onto an emptied board (the meter tests only care about the play, not the board). */
 const playBeast = (s: RunState, i: number): RunState => play({ ...s, board: [] }, bc(`b${i}`, PLAIN_BEASTS[i % PLAIN_BEASTS.length]!));
 const tick = (s: RunState, id: string): number => s.runeThresholds!.find((t) => t.sourceId === id)!.tick;
-const GATOR = "Rune of the Gator's Bite";
+const GATOR = "Gator's Bite";
 const gatorFrom = (c: BoardCard | undefined): number[] =>
   (c?.buffs ?? []).filter((b) => b.source === GATOR).reduce((t, b) => [t[0]! + b.attack, t[1]! + b.health], [0, 0]);
 const isBeastDef = (id: string): boolean => { const d = CARD_INDEX[id]!; return d.tribe === 'beast' || d.tribe2 === 'beast'; };

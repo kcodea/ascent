@@ -24,7 +24,7 @@ describe('Rune of Spellhide: the Start-of-Combat re-cast', () => {
     const r = simulate([beast], wall, makeRng(3), CARD_INDEX, combatSide({ tier: 3, spellhide: [{ spellId: 'spiritfire', uid: 'm0' }] }), combatSide({ tier: 1 }));
     const sc = scs(r.events).filter((e) => e.rune === 'rune_spellhide');
     expect(sc).toHaveLength(1);
-    expect(sc[0]).toMatchObject({ spellId: 'spiritfire', rune: 'rune_spellhide', side: 'player', text: 'Rune of Spellhide casts Spirit Fire' });
+    expect(sc[0]).toMatchObject({ spellId: 'spiritfire', rune: 'rune_spellhide', side: 'player', text: 'Spellhide casts Spirit Fire' });
     const buffs = r.events.filter((e) => e.type === 'buff' && e.target === sc[0]!.source);
     expect(buffs.length, 'the re-cast buffed the Beast').toBeGreaterThan(0);
     expect(buffs.every((e) => e.type === 'buff' && e.spellId === 'spiritfire')).toBe(true);

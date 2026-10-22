@@ -76,9 +76,9 @@ describe('Rune of the Star Tap — combat', () => {
     const r = fight([bm('a', ALE_RALLY.id, 1, 400)], [foe('f', 1, 3000)], { runeStarTap: true });
     const fires = triggers(r.events, 'runeStarTap').length;
     expect(fires).toBeGreaterThan(0);
-    expect(gain(r, 'Rune of the Star Tap')).toEqual({ source: 'Rune of the Star Tap', attack: 3 * fires, health: 3 * fires });
+    expect(gain(r, 'Star Tap')).toEqual({ source: 'Star Tap', attack: 3 * fires, health: 3 * fires });
     const off = fight([bm('a', ALE_RALLY.id, 1, 400)], [foe('f', 1, 3000)], {});
-    expect(gain(off, 'Rune of the Star Tap')).toBeUndefined();
+    expect(gain(off, 'Star Tap')).toBeUndefined();
   });
 });
 
@@ -97,13 +97,13 @@ describe('Rune of the Grim Toast — combat', () => {
   it('a live Aura rise (the Wake off an Undead Echo) reaches the living Dwarves mid-fight', () => {
     const r = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('d', DWARF.id, 2, 400)], [foe('f', 5, 900)], { runeGrimToast: true, runeWake: true });
     expect(triggers(r.events, 'runeWake')).toHaveLength(1);
-    expect(buffsOn(r.events, uid(r, 1)).filter((b) => b.source === 'Rune of the Grim Toast').map((b) => [b.attack, b.health])).toEqual([[1, 0]]);
+    expect(buffsOn(r.events, uid(r, 1)).filter((b) => b.source === 'Grim Toast').map((b) => [b.attack, b.health])).toEqual([[1, 0]]);
   });
   it('R-RUNE-COMBAT-FLASH-01: the live rise pulses the rune badge on the SAME step as the Dwarf buff; no Dwarf, no pulse', () => {
     const r = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('d', DWARF.id, 2, 400)], [foe('f', 5, 900)], { runeGrimToast: true, runeWake: true });
     const pulses = triggers(r.events, 'runeGrimToast');
     expect(pulses).toHaveLength(1);
-    const buff = buffsOn(r.events, uid(r, 1)).find((b) => b.source === 'Rune of the Grim Toast')!;
+    const buff = buffsOn(r.events, uid(r, 1)).find((b) => b.source === 'Grim Toast')!;
     expect(pulses[0]!.step).toBe(buff.step);
     const none = fight([bm('e', ECHO_UNDEAD.id, 1, 1), bm('w', NEUTRAL.id, 2, 400)], [foe('f', 5, 900)], { runeGrimToast: true, runeWake: true });
     expect(triggers(none.events, 'runeGrimToast'), 'nobody to buff: the rune did nothing').toHaveLength(0);
@@ -114,9 +114,9 @@ describe('Rune of the Gem Star — combat', () => {
   it('a combat Ruby feeds the Starform its stats, only while the turn has casts left', () => {
     const r = fight([bm('k', RUBY_RALLY.id, 1, 400)], [foe('f', 1, 3000)], { runeGemStar: true, gemStarLeft: 2 });
     expect(triggers(r.events, 'runeGemStar')).toHaveLength(2);
-    expect(gain(r, 'Rune of the Gem Star')).toEqual({ source: 'Rune of the Gem Star', attack: 2, health: 2 });
+    expect(gain(r, 'Gem Star')).toEqual({ source: 'Gem Star', attack: 2, health: 2 });
     const spent = fight([bm('k', RUBY_RALLY.id, 1, 400)], [foe('f', 1, 3000)], { runeGemStar: true, gemStarLeft: 0 });
-    expect(gain(spent, 'Rune of the Gem Star'), 'the Shop already used all 4').toBeUndefined();
+    expect(gain(spent, 'Gem Star'), 'the Shop already used all 4').toBeUndefined();
   });
 });
 

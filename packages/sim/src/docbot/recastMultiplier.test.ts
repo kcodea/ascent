@@ -88,7 +88,7 @@ describe('Doc Bot — every spell re-cast is a FULL cast', () => {
     expect(/castSpell\(/.test(spread), 'the rune spread should still cast').toBe(true);
     expect(
       MULT_READ.test(spread),
-      'Rune of Shared Reflection spreads a flat cast while the printed cards spread a full one',
+      'Shared Reflection spreads a flat cast while the printed cards spread a full one',
     ).toBe(true);
   });
 });

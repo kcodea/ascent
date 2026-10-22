@@ -36,7 +36,7 @@ describe("Rune of the Wild Hunt — the ATTACKER's Attack escalates (owner rewor
   const beasts: BoardMinion[] = [{ cardId: 'pack', attack: 3, health: 300 }, { cardId: 'pack', attack: 3, health: 300 }];
   const enemy: BoardMinion[] = [{ cardId: 'sandbag', attack: 1, health: 400 }];
   const hunts = (mods: object) => sim(beasts, enemy, mods).events
-    .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Wild Hunt');
+    .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Wild Hunt');
 
   it("grows the grant with each Beast attack rather than paying a flat rate", () => {
     expect(hunts({}).length, 'baseline should never fire').toBe(0);
@@ -50,7 +50,7 @@ describe("Rune of the Wild Hunt — the ATTACKER's Attack escalates (owner rewor
   it("the DEF ships at 2 Attack per attack (owner rework 2026-08-19)", () => {
     // The engine tests above pass an explicit mod value, so they can't catch a def drift — this pins the
     // shipped number. `amount` is both the grant and the escalation step.
-    const r = byName('Rune of the Wild Hunt')!.reward as { amount?: number };
+    const r = byName('Wild Hunt')!.reward as { amount?: number };
     expect(r.amount).toBe(2);
   });
 
@@ -75,7 +75,7 @@ describe("Rune of the Wild Hunt — the ATTACKER's Attack escalates (owner rewor
       combatSide({ tier: 3, tribes: ['beast'], questMods: { runeWildHunt: 3 }, wildHuntGrown: grown }),
       combatSide({ tier: 1 }));
     const grants = second.events
-      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Rune of the Wild Hunt');
+      .filter((e): e is Extract<CombatEvent, { type: 'buff' }> => e.type === 'buff' && e.source === 'Wild Hunt');
     expect(grants.length).toBeGreaterThan(0);
     expect(grants[0]!.attack, 'the first grant must continue from the carried escalation').toBe(grown + 3);
     expect(second.playerWildHuntGrown ?? 0, 'the carry-out keeps accumulating').toBeGreaterThan(grown);
@@ -85,7 +85,7 @@ describe("Rune of the Wild Hunt — the ATTACKER's Attack escalates (owner rewor
 describe("Rune of Living Treasure — Gemheart Golems gain Rebirth (owner rework 2026-09-23)", () => {
   it("is still the runeLivingTreasure combat flag", () => {
     expect(CARD_INDEX['gemheart-shard'], 'the Gemheart Golem token is missing').toBeDefined();
-    const r = byName('Rune of Living Treasure')!.reward as { flag?: string };
+    const r = byName('Living Treasure')!.reward as { flag?: string };
     expect(r.flag).toBe('runeLivingTreasure');
   });
 
@@ -120,7 +120,7 @@ describe("Rune of Living Treasure — Gemheart Golems gain Rebirth (owner rework
 describe("the three runes ship as specced", () => {
   it("exist at the sheet costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Rune of Blood and Coin', 3, false], ['Rune of the Wild Hunt', 3, true], ['Rune of Living Treasure', 4, true],
+      ['Blood and Coin', 3, false], ['Wild Hunt', 3, true], ['Living Treasure', 4, true],
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);
@@ -131,8 +131,8 @@ describe("the three runes ship as specced", () => {
   });
 
   it("only Living Treasure is set-2 scoped — Gemheart Golems are a set-2 token", () => {
-    expect(byName('Rune of Living Treasure')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
-    expect(byName('Rune of Blood and Coin')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
-    expect(byName('Rune of the Wild Hunt')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Beast rune)
+    expect(byName('Living Treasure')!.sets).toEqual(['set2', 'set3']); // + set3 2026-09-14 (rune roster carryover)
+    expect(byName('Blood and Coin')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-25 (owner's Set 3 rune list)
+    expect(byName('Wild Hunt')!.sets).toEqual(['set1', 'set2']); // CUT FROM SET 3 2026-09-24 (owner) (Beast rune)
   });
 });

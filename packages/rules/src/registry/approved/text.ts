@@ -431,7 +431,7 @@ export const TEXT_RULES: GameRule[] = [
       'Conforms, FIXED 2026-10-08: each surface placed its popup from an estimated width (the rune card used 0.82 of '
       + 'its own width per previewed card), which ran far short of the plated cards, so the chain never flipped and '
       + 'the Lasso spell ran off the right edge.',
-    example: 'At 1440 wide, hovering the Rune of Lassoing in the rightmost forge slot shows Rope Wrangler and Lasso to its left.',
+    example: 'At 1440 wide, hovering the Lassoing in the rightmost forge slot shows Rope Wrangler and Lasso to its left.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/refPreview.placement.test.ts'], lastVerifiedAt: '2026-10-08' },
   },
   {
@@ -615,8 +615,8 @@ export const TEXT_RULES: GameRule[] = [
     currentBehaviour:
       'Conforms, FIXED 2026-10-14. The Shop spell slot built its own opts and dropped the Tavern Tier (Lantern Light read '
       + '"+1/+1 for each Tavern Tier" there and its live total in hand), the Shop spell branch built its own extras (no '
-      + 'Falling Embers on Star Crash, no Rune of Gambling note), the hover preview passed a partial subset, the Shop row '
-      + 'dropped the rune rule notes and the run-wide Gold spent, and the hand dropped Rune of Living Growth on a Growth.',
+      + 'Falling Embers on Star Crash, no Gambling note), the hover preview passed a partial subset, the Shop row '
+      + 'dropped the rune rule notes and the run-wide Gold spent, and the hand dropped Living Growth on a Growth.',
     example: 'At Tavern Tier 4 with +2/+3 spell power, Lantern Light reads "Give a minion +6/+7." in the Shop spell slot, the Shop row, hand and Discover.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/liveTextAudit.test.ts', 'packages/ui/src/shopSpellLiveText.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
@@ -687,7 +687,7 @@ export const TEXT_RULES: GameRule[] = [
     ],
     contentIds: ['dw3_shiftbroker', 'dw3_hankpepe', 'dm_behemoth', 'rune_baller', 'rune_sellers_market'],
     currentBehaviour: 'Conforms (swept 2026-10-21).',
-    example: 'Rune of the Seller\'s Market reads "Whenever you **Sell** a minion, give your minions +6/+8."; Quick Sale reads "The next minion you **Sell** this turn **Sells** for 2 additional Gold."',
+    example: 'Seller\'s Market reads "Whenever you **Sell** a minion, give your minions +6/+8."; Quick Sale reads "The next minion you **Sell** this turn **Sells** for 2 additional Gold."',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/sellKeywordText.test.ts', 'packages/ui/src/detectCardKeywords.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
 ];

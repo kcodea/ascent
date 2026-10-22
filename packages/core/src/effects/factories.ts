@@ -770,7 +770,7 @@ export const SHOP_ONLY_SHOUTS: Readonly<Record<string, { why: string; line: stri
   battlecryCreateStarformOrBuff: { why: 'the Starform is a Shop token (created in, and fed from, the Shop row)', line: 'feeds the Starform when the Shop opens' },
   battlecryStarformConsumeShop: { why: 'the Starform (a Shop token) eats a Shop minion', line: 'feeds the Starform when the Shop opens' },
   battlecryTargetConsumesShop: { why: 'the meal is a random Shop minion; no Shop stands mid-fight', line: 'feeds a Demon from the Shop when it opens' },
-  buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Rune of the Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
+  buffRightmostSlotPermanent: { why: 'enchants a Shop SLOT (and, with Display Case, the left-most slot too), landing on the offer standing there', line: 'enchants the Shop when it opens' },
   battlecryReplayTargetEndOfTurn: { why: 'Roomworks triggers an End of Turn effect, and End of Turn resolves in the Shop; settle replays it as the body run card, auto-picking a RANDOM friendly minion with an End of Turn effect (R-TARGET-07)', line: 'triggers an End of Turn when the Shop opens' },
   triggerAdjacentOrbits: { why: "Orbit is a Shop mechanic (TRIGGER_PHASES.orbit = recruit); the neighbours' Orbit text runs on the Shop board", line: "wakes its neighbours' Orbits when the Shop opens" },
 };
@@ -2334,7 +2334,7 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
   deathrattleBuffStarform: (ctx, self, params, payload) => {
     if ((payload as MinionPayload).minion !== self) return;
     const g = params.fixed ? 1 : mul(self);
-    ctx.gainStarform(num(params.attack, 2) * g, num(params.health, 2) * g, self.side, 'Rune of Stellar Echoes');
+    ctx.gainStarform(num(params.attack, 2) * g, num(params.health, 2) * g, self.side, 'Stellar Echoes');
   },
 
   // ── Set 3 Undead (owner roster 2026-09-09) ──────────────────────────────────────────────────────────────

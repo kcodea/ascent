@@ -15,7 +15,7 @@ export const ECONOMY_RULES: GameRule[] = [
     id: 'R-SHOP-01',
     title: 'The Shop never overflows its capacity',
     statement:
-      'The Shop row is sized by its tier and nothing grows it past that: an effect that adds an offer (Rune of '
+      'The Shop row is sized by its tier and nothing grows it past that: an effect that adds an offer ('
       + 'Open Enrollment, Pete\'s dominant-type offer, any future "add a minion to the Shop") fills a FREE slot '
       + 'when the row is short and otherwise REPLACES an existing offer, returning the displaced card to the pool. '
       + 'A seventh card at Tier 6 is a defect.',
@@ -75,7 +75,7 @@ export const ECONOMY_RULES: GameRule[] = [
       + 'actually growing, so a sale that grants nothing leaves loose copies alone. The gate decides whether the '
       + 'check RUNS, not what it may combine: checkTriples is board-wide, exactly as it is on every other '
       + 'hand-growth path, so a sale that does grant something also combines any other id already sitting at the '
-      + 'threshold. Every other sale route (Dissipate, Parting Gifts, Rune of the Altar) already ran the check '
+      + 'threshold. Every other sale route (Dissipate, Parting Gifts, Altar) already ran the check '
       + 'through the spell-play or rune-buy path, and checkTriples is idempotent, so nothing combines twice.',
     cardText: 'Voicekeeper: "Get a **plain copy** of the first Dragon you sell each turn."',
     example:
@@ -139,7 +139,7 @@ export const ECONOMY_RULES: GameRule[] = [
     ],
     currentBehaviour:
       'Conforms — 2026-10-21. The bonus lives in sellValueOf, the helper every sale path calls (the sell action, '
-      + 'Dissipate, Parting Gifts, Fodder Treatment, Feed the Alpha, Rune of the Altar) and the sell float reads, so '
+      + 'Dissipate, Parting Gifts, Fodder Treatment, Feed the Alpha, Altar) and the sell float reads, so '
       + 'the Gold shown is the Gold paid. It adds on top of an overridden sell value too (a Bargain Bin minion sells '
       + 'for 1 while the window is open).',
     cardText: 'Thymepiece: "Cards sell for **+1** Gold for the next **8 seconds**." Gilded: "…for the next **16 seconds**."',
@@ -202,7 +202,7 @@ export const ECONOMY_RULES: GameRule[] = [
     ],
     contentIds: ['rune_shopkeep', 'rune_coffers', 'scrapvendor', 'c3_nym'],
     currentBehaviour:
-      'Conforms as of 2026-10-02. Before it Rune of Shopkeep compiled a beat whose resourceChanged presenter was a no-op '
+      'Conforms as of 2026-10-02. Before it Shopkeep compiled a beat whose resourceChanged presenter was a no-op '
       + 'and the Tier button read the committed run, so the price only changed after the Shop had left the screen; '
       + 'Tradesman x Time, Robin x Time and Xerox x Fortune compiled EMPTY beats (the End-of-Turn scope diff never '
       + 'looked at the economy); Scrap Vendor and Starbroker Nym banked next-turn Gold with no consequence.',
@@ -210,9 +210,9 @@ export const ECONOMY_RULES: GameRule[] = [
   },
   {
     id: 'R-EOT-AMPLIFY-01',
-    title: 'Rune of Amplification gets its own End-of-Turn beat on the Equipment slot, and the slot turns Amplified on that beat',
+    title: 'Amplification gets its own End-of-Turn beat on the Equipment slot, and the slot turns Amplified on that beat',
     statement:
-      'When Rune of Amplification Amplifies Equipment at End of Turn, it plays its OWN beat: the authored self-buff-burst '
+      'When Amplification Amplifies Equipment at End of Turn, it plays its OWN beat: the authored self-buff-burst '
       + 'def plays on the Equipment slot, and the slot\'s charge turns to its Amplified (blue) state at that moment, not '
       + 'before and not only at the commit. One counterChanged consequence (equipmentAmplified:<id>) rides the beat per '
       + 'Equipment Amplified. When nothing is Amplified (every Equipment was used, or already at the maximum) no beat '
@@ -255,13 +255,13 @@ export const ECONOMY_RULES: GameRule[] = [
     title: 'Every new Shop offer carries the Shop buffs, whatever served it',
     statement:
       'A minion that enters the Shop carries the same Shop buffs whichever path put it there: an ordinary or turn-start '
-      + 'refresh, a frozen top-up, Sigil of Kinship, Elevation Ritual, Spell Cart, Grand Larceny, Rune of the Muster, '
-      + 'Membrance, the Bargain Bin, Open Enrollment, Pete, Rune of Restocking, Albus, or an "add a card to the Shop" '
+      + 'refresh, a frozen top-up, Sigil of Kinship, Elevation Ritual, Spell Cart, Grand Larceny, Muster, '
+      + 'Membrance, the Bargain Bin, Open Enrollment, Pete, Restocking, Albus, or an "add a card to the Shop" '
       + 'effect such as the Golden Monkey from Indy. Per-offer stamps (the Veinstorm Rubies, the Attachment Issues price, the '
       + 'Enchanted roll) run through ONE function, `stampNewShopOffers`. A new offer that REPLACES the enchanted '
       + 'right-most or left-most offer takes the enchant of that slot (Market Tormentor, Picnic, Display Case). A spell '
       + 'that says "Refresh" (Sigil of Kinship, Spell Cart, Grand Larceny) is a refresh: it runs the same refresh tail '
-      + '(slot enchants, Rune of the Embers, Endless Inventory, refresh watchers) and keeps Layaway offers. Run-wide '
+      + '(slot enchants, Embers, Endless Inventory, refresh watchers) and keeps Layaway offers. Run-wide '
       + 'Shop buffs are read live by every offer, so they need no stamp.',
     domain: 'economy',
     status: 'approved',

@@ -151,7 +151,7 @@ medal + division — see *Ranked ladder* below).
   the boards it was serving, whatever the new session's pool sample holds and whatever code the client now runs. A
   recorded seat that still cannot be resolved (a save from before this) is served by a generated stand-in, and that is
   counted in the run telemetry (`standIns`), never silent. A served board also mints its combat Rubies at its owner's
-  own strength, Rune of the Spellstone's spell power included (R-SNAPSHOT-RUBY-01).
+  own strength, Spellstone's spell power included (R-SNAPSHOT-RUBY-01).
 - **A lobby that seats player runs waits for the opponent pool** (owner 2026-09-28, R-LOBBY-06). A rated lobby
   or Practice against players is not built until the shared pool has loaded: instantly when it already has,
   otherwise behind a cancellable "Finding opponents..." wait while it retries. Only a genuine failure (offline)
@@ -1156,7 +1156,7 @@ combat-time effects (Start of Combat, Echoes/Deathrattles, on-kill, etc.) and em
 **Both sides of a fight follow the same rules, 1:1** (owner ruling 2026-10-13, R-SYMMETRY-01: *"it's imperative that
 both sides are equal in what's captured, represented, buffed etc. they should be 1:1 exact"*). Whatever works for your
 board works identically for the opponent's: live spell power, auras (the Undead Aura from the first frame), tallies,
-per-card stacks, Pack Mentality growth, Blood Trail, quests completing mid-fight, Echo Warden, Rune of the Herald's
+per-card stacks, Pack Mentality growth, Blood Trail, quests completing mid-fight, Echo Warden, Herald's
 Echo multipliers, bonds, cards gained or buffed in hand (logged for that side), rune and hero triggers, and every
 carry-back. Fighting A against B or B against A is the same fight with the sides swapped. The only thing that is not
 symmetric is a deterministic tie-break for things that happen to both sides at once (whose Start of Combat resolves
@@ -1187,8 +1187,8 @@ Playing the minion grants it at once; selling the minion does **not** revoke it 
 every Start of Turn the collection is rebuilt from the surviving board, so keeping it means keeping an Equip
 minion alive. Duplicates collapse into one entry; a single Gilded source upgrades the entry for everyone.
 
-**Rune-owned Equipment (owner batch 2026-10-07).** A rune can grant Equipment too (Rune of the Dragon's Egg →
-Dragon's Egg, Rune of the Wise Armory → Spell Generator). It arrives the moment the rune is bought, with its own
+**Rune-owned Equipment (owner batch 2026-10-07).** A rune can grant Equipment too (Dragon's Egg →
+Dragon's Egg, Wise Armory → Spell Generator). It arrives the moment the rune is bought, with its own
 charge ready, and is held **for the rest of the run**: every Start-of-Turn rebuild re-grants it after the board's
 Equipment, with no body behind it. Everything else is unchanged (one own charge a turn, the shared pool, cost
 reductions, Amplified). A rune is never gilded, so it is always the plain version; a second copy of the rune
@@ -1225,8 +1225,8 @@ collapses into the one entry. Engine: `RunState.runeEquipment` + `sim/equipment.
   *"An Amplified Equipment will trigger its effect twice for no additional gold."* An Amplified Equipment's next
   activation runs **twice** — the whole activation, extra triggers
   included, so `(1 + extra) × 2` — and the stack is **consumed** by it. One stack per Equipment, never more.
-  Written by **Rune of Amplification** (Basic 4: at End of Turn every held Equipment you did not activate this
-  turn — through the pool or its own charge — gains a stack) and **Rune of the Grand Workshop** (Epic 6: every
+  Written by **Amplification** (Basic 4: at End of Turn every held Equipment you did not activate this
+  turn — through the pool or its own charge — gains a stack) and **Grand Workshop** (Epic 6: every
   held Equipment now, and again every Start of Turn). The stack **survives the Start-of-Turn rebuild** for every
   Equipment still held (it is the one piece of Equipment state meant to carry) and is pruned for one whose
   sources all left. Presentation: the Equipment's **charge number turns BLUE** while Amplified (over the pool's
@@ -1268,7 +1268,7 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    minion simply leaves and the token takes its slot in place — no pull, no row shift — while the owner's
    `starform-create` cue plays on the token (it plays on every creation, open slot or not). Mechanically the
    meal is still a real Shop consume.
-4. **Refresh-time slot buffs land on it ONCE.** Market Tormentor's right-most enchant, Rune of the Embers'
+4. **Refresh-time slot buffs land on it ONCE.** Market Tormentor's right-most enchant, Embers'
    doubling, the Display Case's left-most enchant and Veinstorm's per-refresh Ruby stamp each land on a
    Starform the first refresh it sits in the slot and **never again** on later refreshes (they are gated,
    not redirected to the next minion). Right-most buffs from a *play* (a Shout, a hero power) apply as
@@ -1297,7 +1297,7 @@ in; the shop never rolls it. Engine: `packages/sim/src/starform.ts`; every rule 
    `collapseExtraTargets` counter, 0 today and reserved for future cards) are drawn **with replacement** —
    an extra may land on a Celestial that already took a hit, so with two Celestials one can take 3 and the
    other 1. One Celestial: 1 original + every extra on it. None: the token still collapses and the stats go
-   nowhere. With no Starform both do nothing. **Under Rune of Soul Script** (owner 2026-09-16) your **Undead are
+   nowhere. With no Starform both do nothing. **Under Soul Script** (owner 2026-09-16) your **Undead are
    Collapse receivers beside your Celestials** — originals, extras and the Supernova's "all your Celestials" alike —
    and any Undead whose text Consumes may eat the token (the shared Shop-consume chokepoint takes any eater).
 8. Two board-wide watcher moments: **"whenever your Starform gains stats"** (the gain's amount rides along)
@@ -1482,6 +1482,10 @@ Dwarf tribe gate (`HeroDef.tribes`): he is offered only in a run whose tribes in
 
 ## Runes (the Runeforge)
 
+**Rune names are bare** (owner ruling 2026-10-22, R-RUNE-NAME-01): a rune shows just its name, with no
+"Rune of" / "Rune of the" prefix (Borrowed Flame, War Council, Anvil, Unity), on every surface. Rune ids are
+unchanged. The three Menagerie twins share one name; they live in different sets, so no run sees two.
+
 Runes are run-long permanent buffs bought at a **Runeforge** (never in the regular shop / Discover /
 quest pool). Every hero visits the forge; some visit it more. Current rules (rewritten 2026-09-23 from the
 code — `advanceCombat`, `openNextStartOfTurnModal`, `runeforgePool`, `drawRuneOffer` in
@@ -1501,13 +1505,13 @@ card's kicker.
   (Runesmith and Guardian are ARCHIVED heroes since 2026-09-24, see *Heroes: archived*; their forges still run
   for a stored run or a Scene Builder sandbox on them.)
 - **Guardian** (Runeguard): an extra Epic forge on **turn 8**, booked at run creation (`epicForgeWave`).
-- **Rune of the Epic Forge** (Basic 4): books an extra Epic forge for **turn 8** (next turn, if 8 has
+- **Epic Forge** (Basic 4): books an extra Epic forge for **turn 8** (next turn, if 8 has
   passed). A Guardian holding it gets **TWO Epic forges on turn 8**, opened one after the other — the second
   opens the moment the first is bought or skipped, before the turn's Basic forge or Discovers (owner
   2026-09-22: "can we just book 2 runeforges here"). Bookings are COUNTED (`epicForgeCount`,
   `pendingEpicRuneforge` is a count), so two forges booked for one turn are both opened, never dropped and
   never slid to a later turn.
-- **Rune of the Ornate Clock** (Basic 2): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
+- **Ornate Clock** (Basic 2): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
   **next turn** (`epicForgeClaimed` stands the turn-9 visit down). Bought late it still opens next turn.
 - A quest reward can also schedule a forge (The Runeforge: a Basic forge next turn with +4 Gold; The Epic
   Runeforge: an Epic forge next turn) — those quests are archived, but the reward path still resolves.
@@ -1515,7 +1519,7 @@ card's kicker.
   pops on the turn it was earned.
 
 **What a forge can offer** (`runeforgePool`, in order): the forge's pool (Basic / Epic) → a rune that
-`requiresDoublePower` only for a hero whose power can double (Rune of Empowerment) → the run's PINNED
+`requiresDoublePower` only for a hero whose power can double (Empowerment) → the run's PINNED
 set (`sets` absent = every set; a scoped rune only where its mechanics exist) → the **tribe gate**: a rune
 with a `tribes` list is offered only when **any one** of those tribes is among the run's rolled tribes →
 owned runes whose duplicate would only pay the sweetener (or, for the ruled-unique Ornate Clock, nothing)
@@ -1526,8 +1530,8 @@ weighted **equally**: no rarity tiers, no pity timer.
 it should be at least 3 of a tribe type. make sure all types count as 1 of everything"). A rune's synergy
 tags come from its printed text (`packages/content/src/runeSynergy.ts`: the tribes it names plus the named
 mechanics — Rally, Echo, Shout, Avenge, Consume, Ruby, Ale, spells, Gold, summon) PLUS its tribe gate
-(`tribes`, via `runeFitTags` in the reducer), so a gated rune that never prints the tribe word (Rune of Baal,
-Rune of Chimerus, Rune of the Whelps) is still that tribe's rune (2026-10-08). The board's tags come from
+(`tribes`, via `runeFitTags` in the reducer), so a gated rune that never prints the tribe word (Baal,
+Chimerus, Whelps) is still that tribe's rune (2026-10-08). The board's tags come from
 its cards (`boardSynergyTags`):
 - A **tribe** tag needs at least **2** minions of that tribe on the board at a **Basic** forge and at
   least **3** at an **Epic** forge (`BASIC_FORGE_TRIBE_FIT` / `EPIC_FORGE_TRIBE_FIT`). Only the **7 board
@@ -1565,15 +1569,15 @@ SECOND Epic forge on the same turn adds its index — so a replay reproduces eve
 both turn-8 forges.
 
 Each rune's effect reuses the quest `QuestReward` application engine — it just takes effect with no
-objective. Rune of Duplication copies the FIRST Epic rune forged after it and is spent on that buy.
+objective. Duplication copies the FIRST Epic rune forged after it and is spent on that buy.
 
 **Set scoping (`sets`) is MECHANICAL COMPATIBILITY, not set of origin.** A rune with no `sets` is offered in
 every set; a scoped rune is offered only where its mechanics exist. Since the **Set 3 rune roster handoff
 (2026-09-14)** set 3 draws **115 Basic / 97 Epic** from carryovers: the 85 + 64 unscoped baseline plus 63
 carryovers (30 Basic + 33 Epic) from sets 1/2 — the Ruby, Ale, Dwarf, Kobold, Undead and Shop-consume packages —
 each of which KEPT its original scope (set 1 = 105/90 and set 2 = 135/126 are unchanged). (98 Epic at the
-handoff; Rune of Frontline Glory was dropped from set 3 by the owner on 2026-09-16 and is a set-1 rune again.) Attachment, Mech, Fodder and
-absent-tribe packages stay off set 3. (Rune of the Night Market and Rune of Baal were once deliberate off-tribe
+handoff; Frontline Glory was dropped from set 3 by the owner on 2026-09-16 and is a set-1 rune again.) Attachment, Mech, Fodder and
+absent-tribe packages stay off set 3. (Night Market and Baal were once deliberate off-tribe
 bridges; both left set 3 in the 2026-09-24 cut below.) The rolled-tribe gate still applies on top:
 a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 
@@ -1581,7 +1585,7 @@ a "your Dwarves" rune reaches a set-3 run only when Dwarf rolled.
 (an unscoped rune became `sets: ['set1', 'set2']`), stays in `RUNES` / `EPIC_RUNES` and resolves through
 `RUNE_INDEX`, so saves and replays that own one keep working. Two lists: 20 runes the owner named (Kobold, Dwarf,
 Undead, Spirit and Aftershocks), and all 34 runes whose `tribes` gate names only tribes set 3 does not field
-(Dragon, Beast, Demon/Imp, Mech). Rune of the Grave Orbit and Rune of the Full Hand were set-3-only, so they are
+(Dragon, Beast, Demon/Imp, Mech). Grave Orbit and Full Hand were set-3-only, so they are
 now `sets: []` — and the owner then ARCHIVED both the same day ("remove them"; `ARCHIVED_RUNES`, still resolvable
 by id). Set 3's static pool is now **120 Basic / 107 Epic** (both counts
 include the set-3 originals). Full list: `docs/devlog/2026-09-24-set3-rune-cuts.md`; pinned by
@@ -1627,7 +1631,7 @@ Ruptured Rubies hops every combat Ruby twice (stats only), the Shop unaffected. 
 - *Repriced:* Spearline 7 -> 6, Bartering 6 -> 4, the Spirit Crown 6 -> 4, Eventide 4 -> 3, the First Round 4 -> 5, the
   Long Shift 2 -> 3; Body Counting now pays every **6th** friendly death (was 8th). Costs are global, so Bartering, the
   First Round and the Long Shift change in Set 2 too.
-- *Renamed / reworded:* Rune of the Grand Procession is now **Rune of the Second Showing** (id unchanged); the War
+- *Renamed / reworded:* Grand Procession is now **Second Showing** (id unchanged); the War
   Drum reads "The first Shout you trigger each turn triggers 2 more times." (behaviour unchanged).
 
 Oracle R-SET3RUNE-01..05; details in `docs/devlog/2026-09-27-set3-runes-t0.md`; ids pinned in `set3RuneList.test.ts`.
@@ -1659,7 +1663,7 @@ friendly Celestial). Rules worth knowing:
 - *Starform growth earned in combat* is banked per source and lands on the Starform when the Shop opens (the Starform
   is a Shop token; `playerStarformGain`), after any Shop-only Shout that creates one. No Starform = nothing.
 - *Star Crash now resolves in combat* (it used to fizzle): the aimed Celestial and a random living friendly minion
-  each take +5/+7 plus spell power plus Rune of Falling Embers' bonus.
+  each take +5/+7 plus spell power plus Falling Embers' bonus.
 - *Gravity* counts only the Starform's own consumes, on the board.
 Oracle R-SET3RUNE-14..22; details in `docs/devlog/2026-09-27-set3-runes-t2.md`.
 
@@ -1679,7 +1683,7 @@ runes, 107 Basic / 93 Epic**; with the restored Festival Circuit and Soul Script
 Basic: Minted Gems (Kobold + Dwarf: every 8 Gold spent gets a random Ruby), the Gem Crypt (Kobold + Undead: a friendly
 minion that Rises comes back with the Ruby stats it had), the Pallbearer (Undead + Spirit: a friendly Undead death gives
 the left-most minion in your hand +2/+2), the Star Tap (Dwarf + Celestial: a Dwarven Ale cast gives your Starform
-+3/+3), **Closing Time** (Dwarf + Spirit, the owner's "Last Call", renamed because Set 2's Rune of Last Call owns that
++3/+3), **Closing Time** (Dwarf + Spirit, the owner's "Last Call", renamed because Set 2's Last Call owns that
 name: selling a Reveler gets a Dwarven Ale). Epic: the **Grim Toast** (Dwarf + Undead: your non-Undead Dwarves get the
 whole live Undead Aura, Attack and Health, through the same Aura fold; an Undead Dwarf is never paid twice), the Gem Star
 (Kobold + Celestial: the first 4 Rubies cast each turn, Shop through that turn's combat, also give your Starform their
@@ -1700,21 +1704,21 @@ details in `docs/devlog/2026-09-27-set3-runes-t5.md`.
 **Set 3-original runes (batch 2, 2026-09-16).** Set 3 now also has runes of its own — `sets: ['set3']` alone,
 no origin scope — starting with tranche A's 24 Spirit / Celestial / Undead runes (11 Basic + 13 Epic, taking the
 set-3 static pool to **126 Basic / 111 Epic**), plus the rune-exclusive **Handy Flame** token. The two combat-side
-runes of that sheet shipped in tranche D: **Rune of the Open Hand** (Epic 5 — when you summon a minion from your
-hand, another random friendly minion gains its current stats; every landed hand-summon, both phases) and **Rune of
-the Waking Reserve** (Epic 6 — Start of Combat: a copy of your highest-stat hand minion when the board has room;
+runes of that sheet shipped in tranche D: **Open Hand** (Epic 5 — when you summon a minion from your
+hand, another random friendly minion gains its current stats; every landed hand-summon, both phases) and **Waking
+Reserve** (Epic 6 — Start of Combat: a copy of your highest-stat hand minion when the board has room;
 the hand card is NOT marked, so a Spirit may still summon it later that fight; it IS a hand-summon for Dreamed
 Graves / the Open Hand). Both shipped untribed (the text names no tribe) and are Spirit-gated since the owner's
 Set 3 rune list (2026-09-25). The tribe
-faucets (Rune of Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
+faucets (Basic/Epic Spirits, Celestials, Undead) are capped at the shop tier by the engine, like the
 Dwarf/Kobold ones. See `docs/devlog/2026-09-16-set3-runes-tranche-a.md` and `…-tranche-d.md` for the rulings and
-interpretations. **Rune of the Traveling Festival**'s "+2/+2 more" is applied ONCE per Reveler trigger (owner
+interpretations. **Traveling Festival**'s "+2/+2 more" is applied ONCE per Reveler trigger (owner
 2026-09-16: *"the 2/2 is 1 time"*) — a second copy pays its Reveler drip again but never raises the extra.
 
 **Set 3-original runes (batch 2, 2026-09-16).** On top of the carryovers, set 3 now draws its OWN runes, scoped
 `sets: ['set3']` alone: tranche B ships 8 Basic + 11 Epic Starform / Equipment / Undead runes (see
 `docs/devlog/2026-09-16-set3-runes-tranche-b.md` for where each fires). Two engine facts they rest on: a
-**grafted Echo** (`grantedEffects` — Contract Rewrite, Rune of Rebirth, Rune of the Last Tool) fires on a SHOP
+**grafted Echo** (`grantedEffects` — Contract Rewrite, Rebirth, Last Tool) fires on a SHOP
 death exactly as it does in combat; and a Starform rune is gated on Celestials (the token IS Celestial content),
 the way an Imp rune is gated on Demons.
 
@@ -1724,7 +1728,7 @@ went when the owner ruled there is **one Yazzus** (2026-09-16) — `yazzus` (Tie
 cast from hand cast an additional time": Shop spells, Rubies, Tower Shields and Clues alike) is the same card in every set that
 carries him, and the retired `n3_yazzus` id still resolves to it for saved runs and replays (`LEGACY_CARD_IDS`).
 The Open Market's "first Shop consume each turn" hears the Starform's consumes (they ride the one Shop-consume
-chokepoint) — Rune of the Open Market was archived 2026-09-23 (Balance 9/23), so only a run that already holds
+chokepoint) — Open Market was archived 2026-09-23 (Balance 9/23), so only a run that already holds
 it still does.
 
 **Duplicates always do something** (owner rulings 2026-08-27, decisions `q-runedup-*`). Rune ownership is
@@ -1734,10 +1738,10 @@ add +1 repetition per copy; one-shots simply grant again (banked to next turn wh
 impossible); engine runes double their output where a sensible doubling exists. A duplicate that genuinely
 cannot stack pays the universal sweetener — Gold equal to half the rune's printed cost rounded up, plus a
 free refresh — and the Runeforge stops OFFERING owned runes whose duplicate would only pay that sweetener
-(Rune of Duplication still reaches them deliberately). Rune of the Ornate Clock is ruled unique: a duplicate
+(Duplication still reaches them deliberately). Ornate Clock is ruled unique: a duplicate
 does nothing. Classification lives in `packages/sim/src/runeDup.ts`.
 
-**Rune of Twilight repeats RUNE Start-of-Combat effects too** (owner ruling 2026-09-21; it used to repeat only
+**Twilight repeats RUNE Start-of-Combat effects too** (owner ruling 2026-09-21; it used to repeat only
 your minions' Start-of-Combat effects, so Underdog + Twilight paid ×2 while two Underdog copies paid ×4). Every
 rune whose printed text begins "Start of Combat:" fires one extra time per Twilight copy held, in the same
 order as the first pass, after the whole first pass (minions and runes) for that side. Each extra pass reads the
@@ -1746,12 +1750,12 @@ pair), Forthcoming / First Claws strike again with the living front / end Beasts
 skip bodies that already carry the keyword, and the Crucible destroys the NEXT three (all of them return
 together). On a board of six or fewer the Crucible's second pass empties the board, so everything returns at
 once at Start of Combat and the return is spent (no later comeback); seven bodies leave one survivor and the
-six return when it dies. Rune copies still multiply WITHIN a pass. **Rune of Sylus is IN**: the ability it grants
+six return when it dies. Rune copies still multiply WITHIN a pass. **Sylus is IN**: the ability it grants
 is printed on the Sylus as "Start of Combat: double this minion's Health", so Twilight doubles it again (×4
 Health) — a review call of 2026-09-21 pending the owner's confirmation. Runes whose text merely mentions Start
 of Combat (Warden, Dawnclaw) and quest / hero Start-of-Combat grants fire once.
 
-**Shop vs combat under Twilight (a stated rule, not a comment).** Rune of Combat Prowess replays your Start-of-
+**Shop vs combat under Twilight (a stated rule, not a comment).** Combat Prowess replays your Start-of-
 Combat effects at End of Turn in the shop. Its MINION replays fold Twilight (one extra fire per Twilight copy,
 the shared `socTwilightExtraFires`); its RUNE replays do NOT: each rune Start-of-Combat block replays once per
 Prowess copy × Chronos repeat, Twilight or not. So Prowess + Twilight + Underdog is ×2 per turn in the shop and
@@ -1827,7 +1831,7 @@ counts as **every tribe and never as neutral**, in both phases:
 - **Pools.** In any pool of cards of a tribe (a random grant, a summon, an offer, a Discover, a Shop refill such as
   Sigil of Kinship, the Basic and Epic tribe rune drips), an All-types card belongs to every tribe's pool. The pool
   keeps its seeded order; the All-types cards just pass the filter.
-- **Counts and checks.** A count or check of a tribe (Hoardflame's Dragons played, Rune of Spellhide's Beast,
+- **Counts and checks.** A count or check of a tribe (Hoardflame's Dragons played, Spellhide's Beast,
   Company Rate's Dwarf price, Ancestral Roar's dying Dragon, Candlelight Toll and Gemstorm's Kobolds, the Mech shield
   runes) sees an All-types minion as that tribe.
 - **Not changed:** sites that count *distinct* types (the most common type, how many types you control, Centerline's
@@ -1843,7 +1847,7 @@ Code: `defIsTribe` / `isTribe` / `isTribeNatural` / `offerIsTribe` (`packages/si
 places."*
 
 A card **arriving in your hand** is an event in its own right, and every effect that watches for it
-(Gangplank, Kegheart Dwarf, the Rune of Heavy Payroll) fires **wherever the card arrives from**:
+(Gangplank, Kegheart Dwarf, the Heavy Payroll) fires **wherever the card arrives from**:
 
 - **Any source counts.** Buying a minion or a Shop spell, taking a Discover pick, a triple's golden, an Ale,
   a minted Ruby, a conjure, a rune or hero grant, restoring a displaced minion — all of them. There is no
@@ -1871,8 +1875,8 @@ live opponent has one.)
 A random minion pick (summon, get, grant or Discover a random minion, including the "tier above your Shop" Discovers)
 never gives a **Tier 7** minion, in the Shop or in combat, unless that player's Shop actually stands at Tier 7. Tier-7
 *access* (Open Road, Summit Passage, the Summit rift) still opens the Tier 7 upgrade, but with a Tier 6 Shop it does not
-open Tier 7 to random picks. **Rune of the Foundry** (a random Dragon every 5 minions sold) is capped at your Shop tier,
-like every other "get a random X". Effects whose text names Tier 7 keep it: Rune of the Deep, Beyond the Summit, Pete,
+open Tier 7 to random picks. **Foundry** (a random Dragon every 5 minions sold) is capped at your Shop tier,
+like every other "get a random X". Effects whose text names Tier 7 keep it: Deep, Beyond the Summit, Pete,
 Strange Revision, and the printed "up to Tier 7" cards (Skybound Ascendant, Golden Monkey).
 
 Code: one rule for both phases, `combatTierCeiling(shopTier)` in `packages/core/src/randomPool.ts`; the Shop's
@@ -1973,7 +1977,7 @@ carry it back from combat."*
   before the next attacker swings, with its own beat.
 - **A Rise or Rebirth return is not room.** The body comes straight back into its slot, so the summon keeps waiting.
 - **One queue per fight, first queued first landed.** Several waiting summons land in the order they were queued (the
-  Reclaimer's bodies, then Brackus x War's copy, then Rune of the Warden, Mirror March and the Waking Reserve, one
+  Reclaimer's bodies, then Brackus x War's copy, then Warden, Mirror March and the Waking Reserve, one
   entry per rune copy held). Each takes its own slot; a second one waits for a second slot.
 - **It reads the board when it lands.** Mirror March copies your left-most minion as it stands at that moment (placed
   to its right); the Waking Reserve copies the best minion in your hand at that moment.
@@ -1982,8 +1986,8 @@ carry it back from combat."*
 - Both sides follow it (R-SYMMETRY-01). An effect that checks for room at a single moment is not pending: no room
   then, no summon. That covers Soren x Ancient of Fortune's Shop Reclaim ("resummon a copy right away, if there is room") (owner: "if no room
   then it is lost") and The Burning Legion's Imp copy, made as the Imp attacks. An ordinary summon onto a full board is still lost (and pays Overflow where a card says so).
-- Covered today: Rune of the Warden, Rune of the Mirror March, Rune of the Waking Reserve, Soren's Reclaim (and its
-  Ancient forms), Brackus x Ancient of War. Rune of the Brood, Rune of Living Echoes and the Decoy (Training Dummy)
+- Covered today: Warden, Mirror March, Waking Reserve, Soren's Reclaim (and its
+  Ancient forms), Brackus x Ancient of War. Brood, Living Echoes and the Decoy (Training Dummy)
   spell were already real-time and are unchanged.
 
 ### A combat Rise is a fresh copy, for that fight only (owner ruling 2026-10-12, R-RISE-06)
@@ -1998,7 +2002,7 @@ original copy with all its stacks."*
   its pre-fight stacks plus anything it earned in that fight before dying. What the risen copy earns or resets after
   the Rise never reaches the board card, on every per-instance carry-back (Improve counts, Sergey's grant, spell
   tallies, Tara's ascend tally, permanent and Engraved stat gains, a copied Echo).
-- **Two exceptions:** Rune of the Second Wind's +2/+2 "permanently" is about the Rise itself and still reaches the
+- **Two exceptions:** Second Wind's +2/+2 "permanently" is about the Rise itself and still reaches the
   board card (R-SET3RUNE-08); and a Pummel tally is lifetime and kept through a Rise (R-PUMMEL-01), so the risen
   body's hits still count toward it.
 - **Rebirth is not a fresh copy** (it returns the full body with every counter), so it carries back as before.
@@ -2008,7 +2012,7 @@ original copy with all its stacks."*
 ### "Attacks immediately" cuts the line (owner rule 2026-09-26, R-ORD-05)
 
 *"a "attacks immediately" mechanic cuts the line. this doesn't interrupt a flurry attack, but it does interrupt
-other attack orderings if something is summoned to attack immediately."* Every source (Rune of Living Echoes'
+other attack orderings if something is summoned to attack immediately."* Every source (Living Echoes'
 Sunmane, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear Warden, Charging Soldier, Trooper):
 
 - The minion **lands, then strikes at once**, after the event that summoned it has settled (a death cascade, an
@@ -2034,7 +2038,7 @@ A minion with **Rise** (or **Rebirth**) that dies resolves in this order, in **c
    bodies **in the freed slot**, where the minion died;
 3. **THEN** the minion **attempts** to return — to the right of what its Echo summoned. If the board is full
    by then (the Echo's summons took the room), the return **finds no room**: it counts as an **overflow**
-   (Squatimus / Flowing Monk / Rune of the Crowded Crypt pay off) and the body stays dead. Its Rise is spent.
+   (Squatimus / Flowing Monk / Crowded Crypt pay off) and the body stays dead. Its Rise is spent.
 
    **Overflow** is a printed keyword (owner 2026-09-19): every card or rune that reacts to a summon finding no
    room reads "**Overflow:** …", and the glossary defines it as *"When a minion is summoned, but does not have
@@ -2057,8 +2061,8 @@ path discounts it), then `riseReturn` / `rebirthReturn` gate on the board cap. P
 **Rebirth** (`RB`): when the minion dies it returns **once with its FULL current body** — stats (Health refilled
 to its max), granted buffs, keywords, effects and every per-instance counter. *"A Warded 50/50 dies and comes
 back a Warded 50/50."* **Rise**, by contrast, returns the **printed** body at 1 Health. Not the Rise → Rebirth
-rename (that stays reserved); a second keyword beside it. Granted by **Rune of Rebirth** (Basic 3, changed: Start
-of Combat — a random friendly minion gains Rebirth) and **Rune of Dreamed Graves** (Epic 4: the first minion
+rename (that stays reserved); a second keyword beside it. Granted by **Rebirth** (Basic 3, changed: Start
+of Combat — a random friendly minion gains Rebirth) and **Dreamed Graves** (Epic 4: the first minion
 summoned from your hand each combat gains Rebirth).
 
 **Rebirth acts like Rise** (owner 2026-09-16: *"it acts like rise, so copy that"*). Its combat rules are
@@ -2081,7 +2085,7 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
   next removal and return. Side-wide budgets and per-turn limits do not reset.
 - **A body that dies to retaliation on its own swing and returns is next to attack again** — the Rise rewind
   in the attack rotation applies to a Rebirth return too.
-- **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Rune of the Deathtouched
+- **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Deathtouched
   Apple (a Rise re-arm) does not touch it — those two are Rise's own.
 - **It IS a summon in full** (the owner's Rise ruling 2026-08-12): the summon-entry suite runs on the return.
 - **A full board at the return = an overflow**; the body stays dead (the Rise rule). The body holds NO slot
@@ -2206,12 +2210,12 @@ Turn cast) in every phase: +3/+2 on the board, +6/+4 in the hand, doubled when g
 too, and those stats are permanent: a board Goldilox keeps them after the fight, and a hand Goldilox takes them as a
 hand buff (R-HAND-02), shown live during the replay. Only your own casts count.
 
-### Rune of the Embers doubles the final Health of a refresh (owner report 2026-10-18, R-EMBERS-LATE-01)
+### Embers doubles the final Health of a refresh (owner report 2026-10-18, R-EMBERS-LATE-01)
 
-**Rune of the Embers** (*"When you refresh, double the Health of the right-most minion in the Shop."*) resolves
+**Embers** (*"When you refresh, double the Health of the right-most minion in the Shop."*) resolves
 LAST. The refresh picks its right-most minion, and the doubling waits until everything else that move did has
 landed: Veinstorm Rubies, slot enchants, run-wide and this-turn Shop buffs, tribe buy-auras, a Shop spell's cast
-watchers (Rune of Infernal Ink after a Sigil of Kinship), Start of Turn effects after the turn-start roll, and Pete's
+watchers (Infernal Ink after a Sigil of Kinship), Start of Turn effects after the turn-start roll, and Pete's
 contraband. So the minion ends at 2 x (base + buffs). If the picked minion was swapped out in its slot first (Pete),
 the minion now right-most takes the doubling. A buff that lands on a LATER move (casting a spell after the refresh)
 is not doubled: the rune doubles at the refresh, it is not a standing multiplier.
@@ -2221,13 +2225,13 @@ is not doubled: the rune doubles at the refresh, it is not a standing multiplier
 Every effect that makes a spell cast more times applies only to a spell **you cast from hand**: Yazzus, Living
 Grimoire, Orivax, Nimbus, Comet (Cometius), Edward Keg-hands, Constellation Prime, Spell Thesis, Ancient Runes, the
 Bottomless Cellar, The Endless Verse, and the Shared Pour, Bottomless Cask, Hoardflame and Dragon Breath runes. A
-spell cast by a minion (a Mage-Pup, an End-of-Turn caster), a rune (Rune of Recurrence, a rune threshold) or an
+spell cast by a minion (a Mage-Pup, an End-of-Turn caster), a rune (Recurrence, a rune threshold) or an
 Equipment (Pourman's Keg) casts once, and it never uses up a one-shot multiplier: the Grimoire charge,
 Orivax's first spell, the Spell Thesis freebie, a Nimbus or Comet charge and Shared Pour's first Ale all wait for your
 next spell from hand. A re-cast of the spell you are casting from hand (Mirrorwing, Yirin's Reflector, Runefire,
-Crash Course, Rune of Shared Reflection) is that same cast happening again and keeps its multiplier. A minion's or
+Crash Course, Shared Reflection) is that same cast happening again and keeps its multiplier. A minion's or
 rune's cast is still a spell cast for every tally and for first/last-spell memory (R-MINIONCAST-01). Rubies were
-already multiplied only from hand (Rune of Resonance, Prismcaster); that is unchanged.
+already multiplied only from hand (Resonance, Prismcaster); that is unchanged.
 
 ### An Aura-affecting spell is permanent from any phase (owner rule 2026-09-09, R-AURA-02)
 
@@ -2275,7 +2279,7 @@ The cards:
 - **Kennelmaster**: *Start of Combat: Give all Friendly and summoned Beasts +2 Attack. Avenge (3): Improve this.* Each improvement adds +2 (gilded +4 improving +4). The improvement is
   permanent on that Kennelmaster (its `summonBonus`). One earned mid-fight is used from its **next** Start of Combat.
 - **Grim**: *Echo: Give all Friendly and summoned Beasts +8/+8.* (gilded +16/+16). The 2026-09-24 per-game Echo tally is gone.
-- **Armadiyo**, **Trophy Stalker**, **Rune of Beastial Swarm** (a Shop Beast death also pays it; its Avenge level
+- **Armadiyo**, **Trophy Stalker**, **Beastial Swarm** (a Shop Beast death also pays it; its Avenge level
   persists), **Pack Mentality** (a Start of Combat grant whose level improves and persists) and **The Old Hunt**
   follow the same pattern.
 
@@ -2314,9 +2318,9 @@ rider that fires only when the Ruby's **target is a Kobold** (dual-tribe and All
 | Dark Ruby | +1/+1 | it consumes the Shop minion with the highest Health (ties: leftmost; the Starform counts) and gains its stats as Rubies; no Shop minion, no consume |
 
 - **"A random Ruby"** is any of the six at equal odds, each Ruby drawn separately (Ruby Shipment, Kobe, Gem Sage,
-  Rune of Resonance, Rune of Investment). "Get N Rubies" without "random" stays plain Rubies.
-- A rider resolves **once per cast** on the direct target; a cast multiplier repeats the whole cast (under Rune of
-  Resonance a Ripple lands four times). A **hop** (a bounce, Rune of Redirection / Distillation) carries the
+  Resonance, Investment). "Get N Rubies" without "random" stays plain Rubies.
+- A rider resolves **once per cast** on the direct target; a cast multiplier repeats the whole cast (under
+  Resonance a Ripple lands four times). A **hop** (a bounce, Redirection / Distillation) carries the
   stats and the Ward only.
 - **Gem Sage** pays a random Ruby for every Ruby that reaches your hand; a Sage's own Rubies never re-trigger a
   Sage. A Ruby won in combat reaches the hand at settle, so the Sage pays there.
@@ -2341,8 +2345,8 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   pool, and never copied by the spell-copy effects. It aims at a friendly minion.
 - **Its stats are temporary** unless a card says otherwise: kept for the rest of the turn and through that turn's
   combat, removed at the start of your next turn. **Engraved does not keep them** (it keeps stats gained in combat).
-  Hum and Rune of Lasting Words keep a cast for good; every Whisper stat a body keeps is recorded on it (Rune of
-  Bequeathed Secrets reads that record).
+  Hum and Lasting Words keep a cast for good; every Whisper stat a body keeps is recorded on it
+  (Bequeathed Secrets reads that record).
 - **Live values.** Tome grants +1/+1 plus +1/+1 for every 4 spells cast this game, counted retroactively (60 spells
   by turn 10 makes it +16/+16). Runebind grants +2/+2 and then improves EVERY Runebind for the rest of the run by
   +2/+2 (each cast, each repeat; a later Tolan's Runebind starts at the improved value). The Whisper in hand, its
@@ -2365,16 +2369,16 @@ All four act in the Shop, where Whispers are cast from hand. "Cast from hand" me
 card, and each Yazzus or Opened Vault repeat of it; a copy cast by a rune or a minion (Twin Tongues, Whisp, Tamby) or
 a combat cast (Whaloo) is not from hand.
 
-- **Rune of Lasting Words**: "The first Whisper you cast from hand on each Dragon each turn is permanent." Hum's keep,
+- **Lasting Words**: "The first Whisper you cast from hand on each Dragon each turn is permanent." Hum's keep,
   per Dragon: stats, the Whisper's keyword and Seed stacks all stay. Each Dragon re-arms at the turn flip; a repeat is a
   second cast and is not kept. The first cast spends the latch even if it had nothing to keep (Ripple).
-- **Rune of Twin Tongues**: "Whispers cast from hand also cast on another friendly Dragon." Each targeted cast from
+- **Twin Tongues**: "Whispers cast from hand also cast on another friendly Dragon." Each targeted cast from
   hand is cast again on one random other friendly Dragon it may land on (seeded), once per copy of the rune. A full
   cast (counted, Tamby / Whisp / Runebind see it). No other Dragon, or an untargeted Whisper: no copy.
-- **Rune of the Opened Vault**: "Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts
+- **Opened Vault**: "Get a Shush. After you activate Jar of Secrets, your next Whisper cast from hand casts
   twice." Each Jar activation arms one charge (one at most), which waits across turns. The next Whisper cast from hand
   resolves once more on the same target, on top of Yazzus. A refused cast keeps the charge.
-- **Rune of Bequeathed Secrets**: "The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most
+- **Bequeathed Secrets**: "The first Dragon you sell each turn gives its Whisper stat bonuses to your left-most
   Dragon permanently." The Whisper stats it carries now (this turn's temporary ones plus every one it kept) go to the
   left-most remaining Dragon as a permanent buff. The first Dragon sale spends the turn's charge even with nothing to
   give. The received stats are a rune buff, not Whisper stats.
@@ -2447,17 +2451,17 @@ copy held pays its own share. Buffs are permanent in the Shop and last the fight
 
 | Rune | Text | How it resolves |
 | --- | --- | --- |
-| Rune of the Runic Primer | Get 2 Runebinds. Repeat each turn. | 2 Runebinds when you take it (over the hand cap only at that moment) and at every Start of Turn. A rune source, so nothing below Shop Tier 2 (Runebind's tier). |
-| Rune of Loose Tongues | Whenever you play a Dragon, get a random Whisper. | A Dragon played from hand (the Shop's play); the Whisper is from your tier and below. |
-| Rune of Clear Voices | After you cast 3 different Whispers from hand in a turn, gain 2 Gold. Once per turn. | Counts distinct Whisper names; repeats of the same Whisper count once. |
-| Rune of Spell-Fed Scales | Whenever you cast a Shop Spell, give a Dragon +6/+7 | Any caster, both phases (R-SHOPSPELL-01). A random friendly Dragon. |
-| Rune of Borrowed Flame | Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this. | Every cast that lands on a friendly Dragon (hand, Whisp, Whaloo in combat). The value improves by 1 per trigger, permanently and in real time; the text prints the current value. |
-| Rune of Spell Tempering | After you cast 4 Whispers, permanently improve your Shop Spells by +1/+1. | A running meter over every Whisper cast (both phases); every 4th raises spell power. The badge counts x/4. |
-| Rune of the Open Treasury | Get a copy of the first Shop Spell you buy each turn. | Either buy path (the spell slot or a spell in the row). |
-| Rune of Deep Breaths | The first 2 Dragon attacks each combat cast Growth. | Per side, per fight; each swing counts. |
-| Rune of Defiant Wings | Start of Combat: Give 2 Dragons +3/+6 and Ward. | 2 different random friendly Dragons. Twilight repeats it; Combat Prowess replays it in the Shop. |
-| Rune of the Final Utterance | Avenge (4): Get a random Whisper and a Shop Spell | Combat only (Avenge). Rune of Fury doubles it. |
-| Rune of Ember Inheritance | After your first Dragon with Echo dies each combat, give its Attack to your left-most Dragon. | The first friendly Dragon carrying an Echo to die; its Attack at death goes to the left-most living friendly Dragon. |
+| Runic Primer | Get 2 Runebinds. Repeat each turn. | 2 Runebinds when you take it (over the hand cap only at that moment) and at every Start of Turn. A rune source, so nothing below Shop Tier 2 (Runebind's tier). |
+| Loose Tongues | Whenever you play a Dragon, get a random Whisper. | A Dragon played from hand (the Shop's play); the Whisper is from your tier and below. |
+| Clear Voices | After you cast 3 different Whispers from hand in a turn, gain 2 Gold. Once per turn. | Counts distinct Whisper names; repeats of the same Whisper count once. |
+| Spell-Fed Scales | Whenever you cast a Shop Spell, give a Dragon +6/+7 | Any caster, both phases (R-SHOPSPELL-01). A random friendly Dragon. |
+| Borrowed Flame | Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this. | Every cast that lands on a friendly Dragon (hand, Whisp, Whaloo in combat). The value improves by 1 per trigger, permanently and in real time; the text prints the current value. |
+| Spell Tempering | After you cast 4 Whispers, permanently improve your Shop Spells by +1/+1. | A running meter over every Whisper cast (both phases); every 4th raises spell power. The badge counts x/4. |
+| Open Treasury | Get a copy of the first Shop Spell you buy each turn. | Either buy path (the spell slot or a spell in the row). |
+| Deep Breaths | The first 2 Dragon attacks each combat cast Growth. | Per side, per fight; each swing counts. |
+| Defiant Wings | Start of Combat: Give 2 Dragons +3/+6 and Ward. | 2 different random friendly Dragons. Twilight repeats it; Combat Prowess replays it in the Shop. |
+| Final Utterance | Avenge (4): Get a random Whisper and a Shop Spell | Combat only (Avenge). Fury doubles it. |
+| Ember Inheritance | After your first Dragon with Echo dies each combat, give its Attack to your left-most Dragon. | The first friendly Dragon carrying an Echo to die; its Attack at death goes to the left-most living friendly Dragon. |
 
 ### Set 3 Dragon runes, Epic A (owner 2026-10-21; R-DRAGONRUNE-A-01..06)
 

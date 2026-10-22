@@ -418,11 +418,11 @@ describe('Set 2 runes — the grant-shaped ones', () => {
   });
 
   it.each([
-    ['Rune of Yazzus', 'yazzus'],
-    ['Rune of Lazarus', 'lazarus'],
-    ['Rune of the High King', 'dw_brill'],
-    ['Rune of Exgalloper', 'dw_exgalloper'],
-    ['Rune of Mykel', 'dw_brisbane'], // renamed to match the owner's sheet (2026-07-30)
+    ['Yazzus', 'yazzus'],
+    ['Lazarus', 'lazarus'],
+    ['High King', 'dw_brill'],
+    ['Exgalloper', 'dw_exgalloper'],
+    ['Mykel', 'dw_brisbane'], // renamed to match the owner's sheet (2026-07-30)
   ])('%s grants %s', (name, cardId) => {
     const rune = all.find((r) => r.name === name);
     expect(rune, `${name} is missing`).toBeDefined();
@@ -431,7 +431,7 @@ describe('Set 2 runes — the grant-shaped ones', () => {
 
   it('Rune of Gemcutting mints 6 Rubies at a FIXED 4/4 (balance 9/23; owner balance 2026-08-18 had 5 at 3/3)', () => {
     // ARCHIVED everywhere 2026-10-07; the def (and its reward) still resolve through the archive.
-    const rune = ARCHIVED_RUNES.find((r) => r.name === 'Rune of Gemcutting')!;
+    const rune = ARCHIVED_RUNES.find((r) => r.name === 'Gemcutting')!;
     expect(rune.reward).toMatchObject({ kind: 'mintRubies', count: 6, attack: 4, health: 4 });
     // And through the reducer: six 4/4 Rubies land in hand — NOT the run's 1/1 + rubyBonus line.
     let st: RunState = { ...createRun(3), phase: 'recruit', hand: [], rubyBonus: { attack: 0, health: 0 } };
@@ -445,7 +445,7 @@ describe('Set 2 runes — the grant-shaped ones', () => {
   it('Rune of Double Fisting grants Edward, and 2 random Ales EVERY TURN (owner rework 2026-08-11)', () => {
     // The Ales recur — a recurringEndOfTurn reward, not a one-shot trio. The recurring grant dropped from 3
     // ('grantAles3') to 2 ('grantAles').
-    const rune = all.find((r) => r.name === 'Rune of Double Fisting')!;
+    const rune = all.find((r) => r.name === 'Double Fisting')!;
     const multi = rune.reward as { kind: string; rewards: { kind: string; cards?: string[]; effect?: string }[] };
     expect(multi.kind).toBe('multi');
     expect(multi.rewards.some((r2) => r2.kind === 'grant' && r2.cards?.includes('dw_edward'))).toBe(true);

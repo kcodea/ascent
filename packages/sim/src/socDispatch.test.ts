@@ -155,7 +155,7 @@ describe('BEATS — every Start-of-Combat effect gets its own animation window',
     const beats = questEndOfTurnBeats(s).filter((b) => b.effect === 'runeCombatProwess');
     expect(beats).toHaveLength(3);
     expect(beats.map((b) => b.uid), 'source attribution: the acting minion pulses').toEqual(['sd', 'k', 'w']);
-    expect(new Set(beats.map((b) => b.label))).toEqual(new Set(['Rune of Combat Prowess']));
+    expect(new Set(beats.map((b) => b.label))).toEqual(new Set(['Combat Prowess']));
   });
 
   it('N effects → N steps in the PROJECTION, so the animation actually reserves the time', () => {

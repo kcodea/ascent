@@ -73,6 +73,16 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
       'dreamed graves': 'rune_dreamed_graves', // re-tagged Neutral -> Spirit (2026-09-27 design pass)
     },
   },
+  // DRAGON (owner 2026-10-21): the Set 3 Dragon runes. Every one is Set-3-only and Dragon-gated.
+  dragon: {
+    basic: {
+      'runic primer': 'rune_runic_primer', 'loose tongues': 'rune_loose_tongues', 'clear voices': 'rune_clear_voices',
+      'spell-fed scales': 'rune_spell_fed_scales', 'borrowed flame': 'rune_borrowed_flame', 'spell tempering': 'rune_spell_tempering',
+      'open treasury': 'rune_open_treasury', 'deep breaths': 'rune_deep_breaths', 'defiant wings': 'rune_defiant_wings',
+      'final utterance': 'rune_final_utterance', 'ember inheritance': 'rune_ember_inheritance',
+    },
+    epic: {},
+  },
   // CELESTIAL: the whole group MOVED to Set 4 with the tribe on 2026-10-14 (owner swap) — see CELESTIAL_TO_SET4 below.
   // HYBRIDS (2026-09-27 design pass): one per natural tribe pair, each gated to BOTH its tribes (HYBRID_TRIBES).
   // Soul Script predates the group and stays listed under Undead (owner 2026-09-25).
@@ -161,7 +171,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
     // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
-    expect(LISTED).toHaveLength(175); // 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
+    expect(LISTED).toHaveLength(186); // 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);
@@ -186,7 +196,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   });
 
   it('counts: 109 Basic / 94 Epic, after Profit Sharing left 2026-10-07 (91 / 83 on 2026-09-25; 2026-09-27 tranche 0: 87 / 82; tranche 1: + 5 / + 3 Undead; tranche 2: + 5 / + 3 Celestial; tranche 3: + 5 / + 2 Spirit + Dwarf; tranche 4: + 5 / + 3 hybrids; tranche 5: + 2 / + 1 Menagerie + Heavy Hand)', () => {
-    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(95); // 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
+    expect(LISTED.filter((id) => RUNES.some((r) => r.id === id))).toHaveLength(106); // 95 → 106 on 2026-10-21 (Set 3 Dragon runes, Basic); 107 → 95 on 2026-10-14 (Celestial swap); 109 → 107 on 2026-10-13 (Red Storm archived, Living Geode left set 3)
     expect(LISTED.filter((id) => EPIC_RUNES.some((r) => r.id === id))).toHaveLength(80); // 81 → 80 on 2026-10-21 (Rune of the High King left set 3); 93 → 81 on 2026-10-14 (Celestial swap); 94 → 93 on 2026-10-13 (Storming Veins archived) // 95 → 94 on 2026-10-07 (Profit Sharing archived); 94 → 95 on 2026-10-03 (Rune of Drakko)
   });
 

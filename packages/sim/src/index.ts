@@ -48,6 +48,7 @@ export * from './versus'; // VERSUS (2026-10-13): the real-time 1v1 mode's resol
 export * from './runTelemetry';
 export * from './rankAtStart'; // R-TELEMETRY-RANK-01: the rank a rated game started at, pinned on the run + stamped into telemetry
 export * from './godMode'; // GOD MODE (owner 2026-10-08): the practice playground's run stamp, fixed config + gates
+export { CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, borrowedFlameValue } from './dragonRunesBasic'; // Set 3 Dragon runes, Basic (2026-10-21): the badge tallies + live text
 export * from './runeLiveState'; // R-RUNE-LIVE-TEXT-01 (owner 2026-10-16): a self-improving rune's CURRENT value, folded into its text
 export * from './runeDup'; // rune duplicate stacking (owner rulings 2026-08-27): stack counts + sweetener/unique/forge-filter sets
 export * from './runDerive';

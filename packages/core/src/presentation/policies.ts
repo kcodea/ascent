@@ -746,6 +746,18 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_actioned_beasts:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 5 Beasts played: a random Beast
   'rune:rune_gators_bite:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // every Beast played: your board Beasts +6/+6
   'rune:rune_sunpony:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Beast attacks: your Beasts +1 Attack + the spread Rally
+  // ── Set 3 Dragon runes, Basic (owner 2026-10-21) ──
+  'rune:rune_runic_primer:combat': { policy: 'foldedCue', family: 'combatModifier' }, // 2 Runebinds now + every Start of Turn (Shop)
+  'rune:rune_loose_tongues:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // a Dragon played: a random Whisper
+  'rune:rune_clear_voices:combat': { policy: 'foldedCue', family: 'combatModifier' }, // 3 distinct Whispers from hand: 2 Gold (Shop)
+  'rune:rune_spell_fed_scales:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Shop Spell cast: a Dragon +6/+7
+  'rune:rune_borrowed_flame:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a Dragon: +N/+N, improve
+  'rune:rune_spell_tempering:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every 4th Whisper: spell power +1/+1
+  'rune:rune_open_treasury:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first spell bought: a copy (Shop)
+  'rune:rune_deep_breaths:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first 2 Dragon attacks cast Growth
+  'rune:rune_defiant_wings:combat': { policy: 'foldedCue', family: 'combatModifier' }, // SoC: 2 Dragons +3/+6 and Ward
+  'rune:rune_final_utterance:combat': { policy: 'ownBeat', family: 'avenge' }, // Avenge (4): a Whisper and a Shop Spell
+  'rune:rune_ember_inheritance:combat': { policy: 'foldedCue', family: 'combatModifier' }, // the first Echo Dragon death: its Attack left-most
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

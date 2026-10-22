@@ -472,61 +472,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
    to be replaced: re-measure then): the paper's centre is 50.4% across and 46.5% down, turned about 3 degrees with
    its right side higher. The art is drawn with background: cover, so on a screen that is not 16:9 the paper is not
    at those percentages of the SCREEN: the offsets below are scaled by the size the art is actually drawn at (the
-   larger of the screen and its cover-fit), which keeps the announcement on the paper at any aspect ratio.
-   NO TRANSFORM, OPACITY OR ROTATE ON THE BOX ITSELF: any of those would make it its own stacking context, and the
-   brand's multiply below could then not reach the paper. So the box is a full-size flex centre whose edges are moved
-   instead (shifting `left` by 2d moves its centre by d), and the tilt is applied to each piece; the label and name are
-   nudged sideways by the amount a -3 degree turn of the whole stack would move them. */
+   larger of the screen and its cover-fit), which keeps the announcement on the paper at any aspect ratio. `rotate` is
+   its own property, so it composes with the translate centring and the fade-in instead of being overwritten. */
 .wipecurtain .wipevs {
-  left: calc(0.008 * max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7768))); right: 0; top: 0;
-  bottom: calc(0.07 * max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7768)));
-  justify-content: center; transform: none; animation: none; }
-.wipecurtain .wipevs-label, .wipecurtain .wipevs-name, .wipecurtain .wipebrand > * { rotate: -3deg; }
-.wipecurtain .wipevs-label { translate: calc(-10 * var(--u, 1px)) 0; }
-.wipecurtain .wipevs-name { translate: calc(10 * var(--u, 1px)) 0; }
-/* BRANDED ON IMPACT (owner 2026-10-22: "the portrait is branded onto the parchment on impact, with a quick ember glow
-   that cools to a dark scorch"). The parchment is BLANK while the gate falls. The moment it lands (`full settle`) the
-   announcement sears in: an ember-hot copy flashes up over it with a hot glow behind, and cools away over about half a
-   second, leaving the SCORCH: the portrait in dark burnt brown MULTIPLIED into the paper (its grain and stains show
-   through), a soft singed ring bleeding into the paper around it, and the words in the same burnt brown. It stays
-   through the hold and rides the crank out. Every layer is static (its filter and gradients are drawn once); only
-   OPACITY animates, one shot per landing (CLAUDE.md perf rules). Phones drop the ember layers (touchUi.css). */
-.wipecurtain.full:not(.settle) .wipevs { opacity: 0; }
-.wipebrand { position: relative; display: block; }
-.wipebrand-scorch { display: block; mix-blend-mode: multiply;
-  filter: grayscale(1) sepia(1) saturate(1.7) hue-rotate(-10deg) brightness(0.62) contrast(1.45); }
-.wipebrand-ember { position: absolute; inset: 0; display: block; opacity: 0; mix-blend-mode: screen; will-change: opacity;
-  filter: grayscale(1) sepia(1) saturate(7) hue-rotate(-18deg) brightness(1.5) contrast(1.2); }
-/* The hot glow behind the ember, and the singed ring the cooled brand leaves in the paper. */
-.wipebrand::before, .wipebrand::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; }
-.wipebrand::before { inset: -22%; opacity: 0; mix-blend-mode: screen; will-change: opacity;
-  background: radial-gradient(closest-side, rgba(255, 214, 140, 0.95), rgba(255, 122, 30, 0.6) 48%, rgba(255, 80, 0, 0) 100%); }
-.wipebrand::after { inset: -10%; mix-blend-mode: multiply;
-  background: radial-gradient(closest-side, rgba(92, 48, 18, 0) 66%, rgba(92, 48, 18, 0.5) 80%, rgba(120, 66, 28, 0.22) 90%, rgba(120, 66, 28, 0) 100%); }
-/* The words: burnt brown, with an ember twin of their own text (`data-text`) that glows and cools with the portrait. */
-.wipecurtain .wipevs-label, .wipecurtain.exit .wipevs-label, .wipecurtain .wipevs-name {
-  position: relative; color: rgba(58, 30, 12, 0.9); opacity: 1;
-  text-shadow: 0 0 calc(3 * var(--u, 1px)) rgba(120, 60, 20, 0.35); }
-.wipecurtain .wipevs-label::after, .wipecurtain .wipevs-name::after { content: attr(data-text); position: absolute; inset: 0;
-  color: #ffc069; opacity: 0; will-change: opacity; pointer-events: none;
-  text-shadow: 0 0 calc(8 * var(--u, 1px)) rgba(255, 150, 50, 0.95), 0 0 calc(22 * var(--u, 1px)) rgba(255, 90, 0, 0.7); }
-/* The timing (all from the landing): the scorch sears in over 120 ms under the ember; the ember and its glow are at full
-   heat by 40 ms, hold it to 110 ms, and cool away by 650 ms. */
-.wipecurtain.full.settle .wipebrand-scorch, .wipecurtain.full.settle .wipebrand::after,
-.wipecurtain.full.settle .wipevs-label, .wipecurtain.full.settle .wipevs-name { animation: brandsear 120ms ease-out both; }
-.wipecurtain.full.settle .wipebrand-ember, .wipecurtain.full.settle .wipebrand::before,
-.wipecurtain.full.settle .wipevs-label::after, .wipecurtain.full.settle .wipevs-name::after { animation: brandcool 650ms both; }
-@keyframes brandsear { from { opacity: 0; } to { opacity: 1; } }
-@keyframes brandcool {
-  0% { opacity: 0; animation-timing-function: ease-out; }
-  6% { opacity: 1; }
-  17% { opacity: 1; animation-timing-function: cubic-bezier(.3, 0, .6, 1); }
-  100% { opacity: 0; } }
+  left: calc(50% + 0.004 * max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7768)));
+  top: calc(50% - 0.035 * max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7768)));
+  rotate: -3deg; }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */
 .wipevs-label { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 700); font-size: calc(38 * var(--u, 1px));
   letter-spacing: 0.34em; text-transform: uppercase; color: #9fc0f5; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
+/* On the lighter exit blue the pale label washes out — RETURNING TO SHOP goes full white (owner ask
+   2026-08-30). */
+.wipecurtain.exit .wipevs-label { color: #ffffff; opacity: 1; }
 .wipevs-face { width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); border-radius: 50%; /* matches the in-combat foe portrait: 116u x its 2.5 wrapper scale */
   object-fit: cover; border: calc(4 * var(--u, 1px)) solid #c9a35c;
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(10, 23, 48, 0.9), 0 14px 40px -10px rgba(0, 0, 0, 0.7); }

@@ -138,9 +138,9 @@ describe('Prismatic Pick: "Choose One: Discover 2 Rubies or your next Choose One
 
   it('prints the new text on the Equipment, its branch and Picksy', () => {
     const eq = EQUIPMENT_INDEX['prismatic_pick']!;
-    expect(eq.text).toBe('Choose One: **Discover 2 Rubies** or your next **Choose One** card this turn gains **both** effects.');
-    expect(eq.chooseOne![0]!.text).toBe('**Discover 2 Rubies**.');
-    expect(CARD_INDEX['k3_prismpick']!.text).toContain('**Discover 2 Rubies**');
+    expect(eq.text).toBe('Choose One: **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.');
+    expect(eq.chooseOne![0]!.text).toBe('**Discover 2 special Rubies**.');
+    expect(CARD_INDEX['k3_prismpick']!.text).toContain('**Discover 2 special Rubies**');
   });
 
   it('branch 1 is TWO Ruby Discovers, and NEITHER ever offers the plain Ruby (owner ruling 2026-10-22), across seeds', () => {

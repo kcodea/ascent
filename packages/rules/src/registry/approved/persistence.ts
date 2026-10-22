@@ -912,6 +912,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22 (Uron, Gilded, BUFFS "Rad Rachel x401 +1604/+802" over 16 Health)', quote: 'why did the HP bug out here?' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (should Shop damage to your own minions stay permanent?)', quote: 'Shop damage -> yes it should.' },
       { kind: 'code', ref: 'packages/sim/src/state.ts recordShopDamage / isShopDamageRow; packages/sim/src/recruit.ts shopSprayExceptTribe + shopArena damageAll / woundAll; packages/ui/src/Inspect.tsx signed ledger amounts' },
     ],
     contentIds: ['dm_felspikes', 'dm_gasket', 'dm_radrachel'],

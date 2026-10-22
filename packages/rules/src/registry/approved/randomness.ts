@@ -147,14 +147,15 @@ export const RANDOMNESS_RULES: GameRule[] = [
     id: 'R-RAND-RUBY-DISCOVER-01',
     title: 'A Ruby DISCOVER offers only the special Ruby types, never the plain Ruby',
     statement:
-      'Every "Discover a Ruby" (today: the Ruby branch of Prismatic Pick, from Picksy, "Discover 2 Rubies" = two separate '
-      + 'Discovers, Gilded four) offers 3 of the 5 SPECIAL Ruby types (Warding, Golden, Splintered, Ripple, Dark) and '
+      'Every Ruby Discover is WORDED "Discover N special Rubies" (today: the Ruby branch of Prismatic Pick, from Picksy, '
+      + '"Discover 2 special Rubies" = two separate Discovers, Gilded four) and offers 3 of the 5 SPECIAL Ruby types (Warding, Golden, Splintered, Ripple, Dark) and '
       + 'never the plain Ruby. The pick is minted at the live run Ruby strength. By contrast "get / play / cast a Ruby" '
       + 'without "random" is the plain Ruby, and "a random Ruby" draws from all six (R-RAND-02).',
     domain: 'randomness',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: "Owner ruling 2026-10-22 (Set 3 Kobold pool call, \"in picksy's case\")", quote: "it's discovering a ruby which means it's of the random ruby types, this should also NOT discover a regular ruby, only the special ones" },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (wording)', quote: "In fact let's change it to discover a special Ruby instead just to further clarify that" },
       { kind: 'code', ref: 'packages/sim/src/recruit.ts discoverRuby (SPECIAL_RUBY_IDS); packages/content/src/equipment.ts PRISMATIC_PICK' },
     ],
     contentIds: ['k3_prismpick'],

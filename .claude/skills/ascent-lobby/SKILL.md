@@ -148,6 +148,14 @@ against *today's* code, so any content change silently breaks every old replay.
   number array would cost several bytes per integer in jsonb), held card / aim only on change, overlay + Skip as events.
   Recorded for ranked lobby and Practice shops only (never combat, sandbox, tutorial, gauntlet or versus), on the frames
   clock (`replayClockAt`), in the per-round draft chunks (`chunk.stream`), shifted on a resume (`prependStream`).
+- **Stream playback** (R-REPLAY-PLAYBACK-01): a replay WITH a stream plays the hand through the watch screen's own
+  pipeline: `replay/replayStreamPlayer.ts` feeds the recorded messages into `spectate.ts`'s cursor feed (`ingestCursor`)
+  on the replay clock (`setCursorFeedClock(replayClockMs)`), a fixed lead ahead, and `SpectatorCursor` draws it (mounted
+  in `Game.tsx` while `replaySession.hasStream`). Drag frames land at their recorded tMs with NO ghost flight, through the
+  watch screen's drop (`presentHeldDrop`); overlays and Skip go through `useReplayStream` into Recruit. Every seek calls
+  `seekStream(t)` (clear the feed, rebuild from the last message at or before t). A replay WITHOUT a stream keeps the old
+  path (cursor trail sprite + drag ghost). A new spectator feature must be added to the shared feed, never to the replay
+  only, or the two drift again. Since PR 3 the uploaded replay leaves out `cursorTrail` when it has a stream.
 - Playback fires the live `actionSfx` per APPLIED shop frame (never on a seek) and lifts a ghost's source card
   through the live `dragStore.drag` slice flagged `ghost` — never a parallel "held" state.
 

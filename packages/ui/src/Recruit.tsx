@@ -148,7 +148,7 @@ import { FreezeButton } from './FreezeButton';
 import { TavernUpButton } from './TavernUpButton';
 import { GoldPill } from './GoldPill';
 import { Icon } from './Icon';
-import { sfx, stopAllAudio, resumeAudio, stopTurnCharge, turnTickLevel } from './sfx';
+import { sfx, resumeAudio, beginSkipTurboAudio, stopTurnCharge, turnTickLevel } from './sfx';
 import { presentAction, setActionPresenter, type PresentedAction } from './actionPresenter';
 import { observeCombatBoard, observeCombatMoments, observeTurnClock } from './announcer';
 import { pixiFx, discoverFx, RUBY_AIM_DEF_ID } from './pixiFx';
@@ -2467,13 +2467,9 @@ export function Recruit() {
   // 'in' fades the recruit board + survivors back together — one synchronized two-beat transition (see the CSS
   // `.app.combatout`/`.combatin`), so nothing snaps or staggers when you leave the arena.
   // RETIRED as End Combat's exit (owner ask 2026-08-29 — the curtain covers the leave; see `endCombat`).
-  // The `.combatout`/`.combatin` classes live on, driven only by `skipFade` (Skip stays in combat and still
-  // crossfades). Kept as a const so the className derivation below reads unchanged.
+  // Skip used to drive these classes too (a freeze + crossfade to the resolved board); it fast-forwards the
+  // replay now (R-SKIP-TURBO-01). Kept as a const so the className derivation below reads unchanged.
   const combatOutro: null | 'out' | 'in' = null;
-  // Skip-combat uses the SAME crossfade (everything fades out together), but instead of swapping to the shop it
-  // freezes the replay, kills all audio, jumps to the resolved board under cover of opacity 0, then fades that
-  // final board back in. A replacement one-shot will play in its place later (owner).
-  const [skipFade, setSkipFade] = useState<null | 'out' | 'in'>(null);
   const [showLog, setShowLog] = useState(false); // the post-combat Combat Summary overlay
   // DEFERRED odds (perf audit 2026-08-01, owner call): faceOmen no longer runs the 200-sim probe on the End
   // Turn click — it stashes `lastCombat.oddsInput` and this effect runs the probe in idle time once the
@@ -3153,10 +3149,10 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [inCombat, wipe]);
 
-  // A Skip mutes ALL audio (stopAllAudio) and leaves it muted through the resolved-combat screen; un-mute once
-  // the fight is left (back to the shop) so the next fight — and the shop — has sound again.
+  // Leaving the fight is the backstop for a Skip's audio + FX (R-SKIP-TURBO-01): a fight left mid-Skip still
+  // gets its sound, its whir stopped and its FX clock back to normal for the shop and the next fight.
   useEffect(() => {
-    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true, 0); } // restore the FX layer after a Skip
+    if (!inCombat) { resumeAudio(); pixiFx.setVisible(true, 0); pixiFx.setTimeScale(1); } // restore audio + FX after a Skip
   }, [inCombat]);
 
   // Once the combat replay finishes, settle the outcome (damage + carry-backs) right here in the combat
@@ -3209,7 +3205,7 @@ export function Recruit() {
   // cover sweep IMMEDIATELY, while the phase is still combat; the actual resolve is deferred to the moment
   // the curtain reaches full cover (`coveredOut` — see the wipe hold effect), so the combat→shop swap always
   // happens out of sight. `wipeExitRef` carries the pending exit across that gap and doubles as the
-  // double-click guard. (`skipFade` still uses the old crossfade classes — Skip stays in combat.)
+  // double-click guard.
   //
   // THE END-GAME GATE (owner 2026-10-13: "when a player either loses or wins, when they hit the gem to end the
   // combat phase, i want the doors to slide closed and slam for a moment and then reopen to the end game stats
@@ -3286,37 +3282,18 @@ export function Recruit() {
     if (!sandboxReplay) playPlacementTone(useGame.getState().run);
   }, [wipe, dispatch, sandboxReplay, exitReplay]);
 
-  // Skip the replay — the same synchronized fade as End Combat, but it stays IN combat: freeze all motion
-  // (GSAP) + kill all audio, hold a beat so everything visibly pauses and fades out together, then jump the
-  // replay to the resolved board under cover of opacity 0 and fade that back in. Audio stays muted (a
-  // replacement one-shot goes here later); it un-mutes when the fight is left / the next fight begins.
+  // SKIP fast-forwards the replay (R-SKIP-TURBO-01, owner ask 2026-10-22) instead of jumping to the resolved
+  // board: it climbs to the turbo speed (20×) and brakes back to the player's own speed for the hit that decides
+  // the fight (skipTurbo.ts), so the outcome still reads. The replay hook drives the rest frame by frame: the
+  // game's sounds crossfade against a fast-forward whir, and the Pixi FX clock races and brakes with the fight.
+  // Leaving the fight mid-Skip restores both (the hook's teardown + the [inCombat] effect above).
   const skipCombat = useCallback((): void => {
+    const r = replayRef.current;
+    if (r.turboing || r.done) return;
     // The stands skip with the player (R-SPECTATE-SKIP-01): a no-op with nobody watching, and never from a viewer.
     if (!useGame.getState().replaying) tapSkipCombat();
-    setSkipFade((s) => {
-      if (s) return s; // already skipping
-      const FADE = 260, HOLD = 900, IN = 300;
-      // Just fade the FX canvas out, jump to the resolved board under cover of opacity 0, then fade the canvas
-      // back in. Auras are CSS (Card.tsx `.ward` / `.reborn`), so they come and go with their cards — nothing to
-      // reconcile here. Tickers stay live (a paused ticker stalls a particle's alpha → a pop). GSAP freezes the
-      // unit lunges; audio is killed (replacement one-shot TBD).
-      stopAllAudio();
-      gsap.globalTimeline.pause();
-      pixiFx.clearParticles();
-      pixiFx.setVisible(false, FADE); // fade the FX canvas out with the board
-      window.setTimeout(() => {
-        gsap.globalTimeline.resume();
-        replayRef.current.skip(); // resolved board; its auras reconcile (dead clear, survivors persist) invisibly during the hold
-        pixiFx.clearParticles();
-      }, FADE);
-      window.setTimeout(() => {
-        pixiFx.clearParticles();
-        pixiFx.setVisible(true, IN); // fade the settled board's auras back in with it
-        setSkipFade('in');
-      }, FADE + HOLD);
-      window.setTimeout(() => setSkipFade(null), FADE + HOLD + IN);
-      return 'out';
-    });
+    beginSkipTurboAudio();
+    r.turbo();
   }, []);
 
   // Loss-damage sequence — runs ONCE when a defeat's replay finishes. Surviving enemy tiers + the
@@ -3331,10 +3308,8 @@ export function Recruit() {
     const run0 = useGame.getState().run;
     if (run0.combatSettled) return;
     lossSeqRef.current = true;
-    // A SKIP mutes all audio to cut the replay short (stopAllAudio), and it stays muted until the fight is left
-    // — which used to silence THIS whole post-combat sequence too (owner report 2026-08-25: skipped combat has
-    // no duel sound). The replay is over by here, so its purpose is served: un-mute so the tally / pill / lunge
-    // SFX play whether or not the fight was skipped. A no-op when nothing suspended it.
+    // Sound must be on for this sequence (owner report 2026-08-25: a skipped combat had no duel sound). A Skip's
+    // fade-in has normally finished by here (R-SKIP-TURBO-01); this is the backstop. A no-op when nothing ducked it.
     resumeAudio();
 
     // The blow comes from the WINNER's surviving board: theirs on a loss, YOURS on a win (owner ask 2026-08-25: a win
@@ -8096,9 +8071,7 @@ export function Recruit() {
     <div
       className={`app${run.lobby ? ' lobby' : ''}${compactCards ? ' compactui' : ''}${inCombat ? ' combat' : ''}${combatBgShown ? ' staged' : ''}${fighting ? ' fighting' : ''}${replay.shaking ? ' shaking' : ''}${replay.critShaking ? ' shaking-crit' : ''}${
         inCombat && replay.done ? ` done ${replay.result}` : ''
-      }${combatOutro === 'out' || skipFade === 'out' ? ' combatout' : combatOutro === 'in' || skipFade === 'in' ? ' combatin' : ''}${
-        skipFade === 'out' ? ' combatfrozen' : ''
-      }${viewing ? ' viewing' : ''}${spectatorOn ? ' spectating' : ''}`}
+      }${combatOutro === 'out' ? ' combatout' : combatOutro === 'in' ? ' combatin' : ''}${viewing ? ' viewing' : ''}${spectatorOn ? ' spectating' : ''}`}
       onPointerDown={onBoardPointerDown}
     >
       {/* Board art on a full-viewport layer behind the 16:9 stage — extends into the margins on off-16:9 monitors
@@ -8209,7 +8182,7 @@ export function Recruit() {
       )}
       <ShopControls
         fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked}
-        replayDone={replay.done} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
+        replayDone={replay.done} replayTurboing={replay.turboing} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
         refreshCost={(eotRes?.freeRefresh ?? 0) > 0 ? 0 : nextRefreshCostOf(run)} freeRolls={run.freeRolls + (eotRes?.freeRefresh ?? 0)} tier={run.tier} maxTier={maxTierFor(run.rift)}
@@ -8548,12 +8521,12 @@ export function Recruit() {
  *  between the HUD and the drag zones. Memoized on primitives + stable handlers (perf 2026-09-16: a drag
  *  tick or an overlay toggle no longer reconciles seven buttons and the timer for nothing). */
 const ShopControls = memo(function ShopControls({
-  fighting, inCombat, mode, sandbox, godMode, replayDone, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
+  fighting, inCombat, mode, sandbox, godMode, replayDone, replayTurboing, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
   onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked,
 }: {
-  fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean;
+  fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean; replayTurboing: boolean;
   /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
   godMode: boolean;
   /** The gold-spend clock's threshold this turn (`goldClockOf(run)?.gold`), null for the standard clock. */
@@ -8713,7 +8686,8 @@ const ShopControls = memo(function ShopControls({
 
       {/* Skip the combat replay — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11; it was
           a top-centre HUD, and the replay-speed slider moved to the Esc menu's Combat section). */}
-      {inCombat && !replayDone && (
+      {/* Hidden once pressed: the fight is already fast-forwarding to its deciding hit (R-SKIP-TURBO-01). */}
+      {inCombat && !replayDone && !replayTurboing && (
         <button className="combathud-skip" onClick={onSkip} aria-description="Skip the combat replay">
           <Icon name="sword" /> Skip
         </button>

@@ -817,6 +817,14 @@ class FxController {
   /** Register a per-frame callback driven by the overlay ticker. Returns a disposer. Note: each frame iterates
    *  a snapshot of the updater list, so if one updater's callback disposes ANOTHER updater during the same
    *  frame, the disposed one still runs that frame — it drops out starting next frame, not immediately. */
+  /** The FX clock's rate (R-SKIP-TURBO-01): 1 normally. A Skip's fast-forward raises it with the replay's speed so
+   *  every effect (authored defs and the stock particles, including ones already in flight) races with the fight and
+   *  slows back down with its brake, instead of playing at 1× over a 20× fight. One number read per tick: free. */
+  private timeScale = 1;
+  setTimeScale(n: number): void {
+    this.timeScale = Number.isFinite(n) && n > 0 ? n : 1;
+  }
+
   addUpdater(fn: (dtMs: number) => void): () => void {
     this.extraUpdaters.push(fn);
     this.wake(); // an idled controller must wake while an external updater is live
@@ -870,7 +878,7 @@ class FxController {
       const now = performance.now();
       const dtMs = Math.min(100, Math.max(0, now - this.detachedLast)); // a stalled tab must not leap a def
       this.detachedLast = now;
-      this.runExtraUpdaters(dtMs);
+      this.runExtraUpdaters(dtMs * this.timeScale);
       this.renderAbove();
       if (this.extraUpdaters.length > 0 || this.aboveShowing) this.detachedRaf = requestAnimationFrame(loop);
     };
@@ -3116,7 +3124,7 @@ class FxController {
   };
 
   private updateInner(ticker: Ticker): void {
-    const dtMs = ticker.deltaMS;
+    const dtMs = ticker.deltaMS * this.timeScale;
     this.runExtraUpdaters(dtMs);
     const dt = dtMs / 1000;
     // THE SPRITE-PARTICLE CAP (2026-09-30): the oldest particles past `MAX_SPRITE_PARTICLES` are recycled before

@@ -7659,4 +7659,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Watching a replay at 2x, the hand hovers a shop minion (its preview opens), drags it over the board while the minions slide apart, and drops it: the board settles once, as it did for a live spectator.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamPlayback.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-SKIP-TURBO-01',
+    title: 'Skip fast-forwards the fight and slows back down for the hit that decides it',
+    statement:
+      'Pressing Skip during a combat replay never jumps straight to the resolved board. The replay fast-forwards (20× by default) and eases back to the player\'s own replay speed for the hit that decides the fight: the swing (from its wind-up) or other blow that kills the last body to die. A Rise\'s first death is not that kill. Like the auto-ramp, the speed is driven by the authored time left (here, to that hit): a smooth climb from the press, then an even brake over a fixed stretch of real time (1.5 s by default) that lands exactly on the player\'s speed as that hit begins, updated every frame rather than in steps per beat. Effects play at the fight\'s speed throughout and slow down with it. Game sounds never cut back in: while it races they are silent under a fast-forward whir, and through the brake they crossfade back in as the whir winds down, reaching full level as the deciding hit begins. If the deciding hit has already played, Skip races the rest of the fight. Skip hides once pressed, a second press does nothing, and a fight with no beats still finishes. Spectators and replays that follow a Skip get the same fast-forward.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'would it be possible to speed up the game to 20x when hitting the Skip button instead of outright skipping it?' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'i want the final outcome-determining hit or interaction to be slowed back down' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'the sound effects ... come back in loud and suddenly and all at once. can we fade those in' },
+      { kind: 'code', ref: 'packages/ui/src/skipTurbo.ts (decisiveBeatIndex, skipTurboSpeed, remainingNow); useCombatReplay.ts turbo; sfx.ts setSkipTurboAudio; audio/skipWhir.ts; pixiFx.ts setTimeScale; Recruit.tsx skipCombat' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, Skip froze the fight, faded out and jumped to the resolved board. The beat on screen when Skip is pressed finishes at its current speed; the fast-forward starts on the next beat.',
+    example: 'A 4v4 that would take 14 seconds: press Skip on the second swing, the fight and its effects race at 20× under a whir, slow evenly for a second and a half while the game sounds fade back in, and the final killing swing plays at normal speed with its sound.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurbo.test.ts', 'packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

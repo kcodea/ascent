@@ -17,6 +17,13 @@ export interface CombatRampConfig {
   ceiling: number;
   /** Begin easing ceiling → base once estimated authored time-left drops below this. */
   tailMs: number;
+  /** SKIP TURBO (skipTurbo.ts): the speed a Skip fast-forwards at. Its own cap, above the slider's 5×. */
+  turboCeiling: number;
+  /** SKIP TURBO: how long (real ms) the climb from the base speed up to `turboCeiling` takes after Skip. */
+  turboRampUpMs: number;
+  /** SKIP TURBO: how long (real ms) the BRAKE from `turboCeiling` down to the base speed takes. It slows
+   *  evenly over this long and lands on the base speed exactly as the DECIDING hit starts. */
+  turboBrakeMs: number;
 }
 
 export const COMBAT_RAMP_DEFAULTS: CombatRampConfig = {
@@ -24,6 +31,9 @@ export const COMBAT_RAMP_DEFAULTS: CombatRampConfig = {
   rampUpMs: 10000,
   ceiling: 3,
   tailMs: 10000,
+  turboCeiling: 20,
+  turboRampUpMs: 300,
+  turboBrakeMs: 1500,
 };
 
 /** Smooth ease-in-out on [0,1]. */
@@ -41,7 +51,10 @@ function lerp(base: number, ceiling: number, t: number): number {
  * with no per-fight-length special-casing: a short fight's down-curve is low from frame one so it never
  * speeds up; a long fight climbs, cruises, then eases back down.
  */
-export function rampSpeed(base: number, elapsedMs: number, remainingMs: number, cfg: CombatRampConfig): number {
+/** The four numbers that shape one ramp curve (the auto-ramp's, or a Skip turbo's via skipTurbo.ts). */
+export type RampCurve = Pick<CombatRampConfig, 'graceMs' | 'rampUpMs' | 'ceiling' | 'tailMs'>;
+
+export function rampSpeed(base: number, elapsedMs: number, remainingMs: number, cfg: RampCurve): number {
   const ceiling = cfg.ceiling;
   if (base >= ceiling) return base; // slider already at/above target → nothing to ramp
   // Up-curve: base during grace, then ease to ceiling over rampUpMs.
@@ -101,6 +114,9 @@ const RANGES: Record<keyof CombatRampConfig, [number, number, number]> = {
   rampUpMs: [500, 10000, 100],
   ceiling: [1, 5, 0.1],
   tailMs: [0, 10000, 100],
+  turboCeiling: [5, 30, 1],
+  turboRampUpMs: [0, 2000, 50],
+  turboBrakeMs: [200, 4000, 50],
 };
 
 let cfg: CombatRampConfig = (() => {
@@ -132,12 +148,15 @@ const controls: TunerControl<Extract<keyof CombatRampConfig, string>>[] = [
   { key: 'rampUpMs', label: 'Ramp-up', unit: 'ms', hint: 'How long the climb from starting speed up to the ceiling takes, after the grace hold.', group: 'Speed ramp', min: RANGES.rampUpMs[0], max: RANGES.rampUpMs[1], step: RANGES.rampUpMs[2] },
   { key: 'ceiling', label: 'Ceiling', unit: '×', hint: 'The top speed the ramp climbs to. Capped at 5×; ignored if the slider is already above it.', group: 'Speed ramp', min: RANGES.ceiling[0], max: RANGES.ceiling[1], step: RANGES.ceiling[2] },
   { key: 'tailMs', label: 'Ease-down tail', unit: 'ms', hint: 'When estimated time-left in the fight drops below this, ease back to the starting speed for the finish.', group: 'Speed ramp', min: RANGES.tailMs[0], max: RANGES.tailMs[1], step: RANGES.tailMs[2] },
+  { key: 'turboCeiling', label: 'Skip speed', unit: '×', hint: 'How fast a Skip fast-forwards the fight.', group: 'Skip turbo', min: RANGES.turboCeiling[0], max: RANGES.turboCeiling[1], step: RANGES.turboCeiling[2] },
+  { key: 'turboRampUpMs', label: 'Skip ramp-up', unit: 'ms', hint: 'How long a Skip takes to climb up to the Skip speed.', group: 'Skip turbo', min: RANGES.turboRampUpMs[0], max: RANGES.turboRampUpMs[1], step: RANGES.turboRampUpMs[2] },
+  { key: 'turboBrakeMs', label: 'Skip slowdown', unit: 'ms', hint: 'How long a Skip takes to slow from the Skip speed back to the starting speed. It slows evenly and arrives exactly as the deciding hit begins.', group: 'Skip turbo', min: RANGES.turboBrakeMs[0], max: RANGES.turboBrakeMs[1], step: RANGES.turboBrakeMs[2] },
 ];
 
 export const SPEC: TunerSpec<CombatRampConfig> = {
   id: 'combatramp',                // FROZEN — indexes this panel's dragged position in localStorage
   title: 'Speed Ramp',
-  note: 'dev · live · needs auto-ramp ON',
+  note: 'dev · live · ramp needs auto-ramp ON; Skip turbo is always live',
   read: getCombatRampConfig,
   write: (key, value) => setCombatRampValue(key, value as number),
   reset: resetCombatRampConfig,

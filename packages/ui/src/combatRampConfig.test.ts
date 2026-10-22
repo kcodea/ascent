@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { buildAuthoredTimeline, rampSpeed, type CombatRampConfig } from './combatRampConfig';
+import { buildAuthoredTimeline, rampSpeed, type RampCurve } from './combatRampConfig';
 import { loadCombatRampUp } from './store';
 
-const CFG: CombatRampConfig = { graceMs: 2000, rampUpMs: 4000, ceiling: 3, tailMs: 5000 };
+const CFG: RampCurve = { graceMs: 2000, rampUpMs: 4000, ceiling: 3, tailMs: 5000 };
 const FAR = 1_000_000; // "lots of time left" — keeps the down-curve pinned at ceiling
 
 describe('rampSpeed', () => {

@@ -39,8 +39,8 @@ export const GIFTS_RULES: GameRule[] = [
       'Merry Christmas reads "Discover a Gift. Repeat every 2 turns." and Happy Birthday "Get a random Gift. Repeat every 3 '
       + 'turns." Each pays the moment it is bought, then counts turn setups since its last payout and pays again when the '
       + 'count reaches its cadence (the `every` on the reward, armed onto the run at purchase: `giftChristmasEvery` / '
-      + '`giftBirthdayEvery`, with `giftChristmasTick` / `giftBirthdayTick`). The Runeforge badge prints the "x/N turns" '
-      + 'countdown for both. A run that bought either rune before the cadence change keeps its old rhythm (Christmas '
+      + '`giftBirthdayEvery`, with `giftChristmasTick` / `giftBirthdayTick`). The Runeforge badge prints the plain "x/N" '
+      + 'meter for both (no "turns" word since 2026-10-22, R-KOBOLD-1022-06). A run that bought either rune before the cadence change keeps its old rhythm (Christmas '
       + 'every turn, Birthday every 2).',
     domain: 'gifts',
     status: 'approved',

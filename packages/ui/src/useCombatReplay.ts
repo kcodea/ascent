@@ -276,6 +276,18 @@ const fromSnap = (s: MinionSnapshot): UnitFrame => ({
   buffs: s.buffs ? s.buffs.map((b) => ({ ...b })) : undefined,
 });
 
+/** Frack Attack (`friendlyAttacksPlayRubiesSelf`): a body whose `attackSeen` meter counts every FRIENDLY swing. Cached
+ *  per cardId: `computeFrame` folds the whole log every beat, so the def scan runs once per card, not per attack. */
+const friendlyAttackMeter = new Map<string, boolean>();
+export function countsFriendlyAttacks(cardId: string): boolean {
+  let v = friendlyAttackMeter.get(cardId);
+  if (v === undefined) {
+    v = !!CARD_INDEX[cardId]?.effects.some((x) => x.do === 'friendlyAttacksPlayRubiesSelf');
+    friendlyAttackMeter.set(cardId, v);
+  }
+  return v;
+}
+
 /** Merge one buff into a per-source breakdown (find-and-sum by source, else push) — the combat counterpart
  *  of sim's recruit `bumpBuff`, used to fold `buff` events into a unit's inspect breakdown. */
 function recordBuff(buffs: MinionBuff[], source: string, attack: number, health: number): void {
@@ -392,7 +404,16 @@ export function computeFrame(
   const overkill = new Map<string, number>();
   for (let i = 0; i < Math.min(upto, events.length); i++) {
     const e = events[i];
-    if (e.type === 'attack') { attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1); }
+    if (e.type === 'attack') {
+      attackCount++; attacksBy.set(e.attacker, (attacksBy.get(e.attacker) ?? 0) + 1);
+      // FRACK ATTACK's meter (owner report 2026-10-22: "frack attack's counter isnt working in combat"). The sim ticks
+      // `attackSeen` on every living Frack on the attacker's side per swing (`friendlyAttacksPlayRubiesSelf`, the onAttack
+      // bus fires once per `attack` event, Flurry swings included), but nothing crossed the event boundary, so the
+      // combat counter sat on the snapshot's value all fight. Mirror the same rule off the log: the N/3 under the card
+      // ticks on the swing's beat, and the Ruby repeat lands on its own `ownBeat` right after.
+      const arr = player.some((u) => u.uid === e.attacker) ? player : enemy.some((u) => u.uid === e.attacker) ? enemy : null;
+      if (arr) for (const u of arr) if (u.alive && u.health > 0 && countsFriendlyAttacks(u.cardId)) u.attackSeen = (u.attackSeen ?? 0) + 1;
+    }
     if (e.type === 'spellcast') spellCasts[e.side]++;
     if (e.type === 'sc' && e.spellId && e.target && CARD_INDEX[e.spellId]?.whisper) {
       // One TRIGGER per (caster, step): a Queen Morro repeat is the same trigger cast again (same step), so Whaloo's
@@ -468,6 +489,9 @@ export function computeFrame(
         // live "N left this combat" counters (Whaloo's casts, Immune Iggy / Bounty Bot's immune swings) restart.
         whisperCasts.delete(u.uid);
         attacksBy.delete(u.uid);
+        // Frack Attack's 3-attack meter starts over on a return too (`resetPerCombatLimits`, R-KOBOLD-1022-02). Crypt
+        // Drake's `attackSeen` is a cadence, not a limit, and keeps running in the sim, so it keeps running here.
+        if (countsFriendlyAttacks(u.cardId)) u.attackSeen = undefined;
         // A RISE returns the fresh printed copy (R-RISE-01): mirror the sim's per-instance reset so the combat card
         // text prints the risen body's reset value, not the original's stacks. Combat only: the Shop card keeps
         // the original's stacks (R-RISE-06). A Rebirth is the full body and keeps them.

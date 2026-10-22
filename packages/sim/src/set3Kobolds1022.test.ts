@@ -169,6 +169,28 @@ describe('FRACK ATTACK: Start of Combat: Cast 3 Rubies on this. Repeat after 3 f
     expect(r.events.some((e) => e.type === 'attack' && e.attacker === k && e.swing === 1)).toBe(true);
   });
 
+  it('the repeat fires exactly on the 3rd, 6th and 9th friendly attack, each on its own swing and beat (owner 2026-10-22)', () => {
+    // "frack attack's counter isnt working in combat, please fix that": the engine half. A friendly sandbag swings
+    // alongside Frack, so the 3rd / 6th / 9th attacks are made by different bodies.
+    const r = fight([bm('f', 'k3_frackattack', { health: 5000 }), wall(1, 'n')], [wall(1, 'x')], 2);
+    const f = uidOf(r, 'k3_frackattack');
+    const mine = new Set(r.initial.player.map((m) => m.uid));
+    let seen = 0;
+    const firedAt: number[] = [];
+    for (const e of r.events) {
+      if (e.type === 'attack' && mine.has(e.attacker)) seen++;
+      if (e.type === 'buff' && e.ruby && e.source === f && e.target === f && !e.bounce && seen > 0) {
+        firedAt.push(seen);
+        // Its own beat: the repeat carries the presentation key that the policy table gives `ownBeat`.
+        expect((e as { key?: string }).key).toBe('factory:friendlyAttacksPlayRubiesSelf:onAttack');
+        expect(e).toMatchObject({ attack: 3, health: 3 });
+      }
+    }
+    expect(seen).toBeGreaterThanOrEqual(9);
+    expect(firedAt.slice(0, 3)).toEqual([3, 6, 9]);
+    expect(firedAt.every((n) => n % 3 === 0), 'never off the 3-attack cadence').toBe(true);
+  });
+
   it('Gilded casts 6 each time', () => {
     const r = fight([bm('f', 'k3_frackattack', { health: 5000, golden: true })], [wall(1)], 2);
     const f = uidOf(r, 'k3_frackattack');

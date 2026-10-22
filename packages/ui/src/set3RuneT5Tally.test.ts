@@ -11,7 +11,7 @@ describe('Rune of Unity badge', () => {
   it('counts the naturally controlled types out of the active five', () => {
     const tribes = ['kobold', 'dwarf', 'undead', 'spirit', 'celestial'];
     const run = { questFlags: { runeUnity: true }, tribes, board: tribes.slice(0, 3).map(card) } as unknown as RunState;
-    expect(runeTally(run, 'rune_unity')).toBe('3/5 types');
-    expect(runeTally({ ...run, board: tribes.map(card) } as RunState, 'rune_unity')).toBe('5/5 types');
+    expect(runeTally(run, 'rune_unity')).toBe('3/5');
+    expect(runeTally({ ...run, board: tribes.map(card) } as RunState, 'rune_unity')).toBe('5/5');
   });
 });

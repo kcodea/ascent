@@ -274,9 +274,9 @@ describe('the every-2-turns runes — one shared `everyTurns` cadence, not three
 
   it('the badge counts the turns down', () => {
     const s = armed('rune_rare_goods');
-    expect(runeTally(s, 'rune_rare_goods')).toBe('0/2 turns');
+    expect(runeTally(s, 'rune_rare_goods')).toBe('0/2');
     s.runeCadenceGrants![0]!.tick = 1;
-    expect(runeTally(s, 'rune_rare_goods')).toBe('1/2 turns');
+    expect(runeTally(s, 'rune_rare_goods')).toBe('1/2');
   });
 });
 

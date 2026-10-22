@@ -1482,7 +1482,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       + 'per Ruby cast by you, from any source, on any minion (Rosey and a Shop minion included), in the Shop and in combat; a '
       + 'bounce hop is not a cast and pays nothing; each step adds the base again (+2/+1, +4/+2, ...) every 3 Refreshes the '
       + 'player presses while it is on the board (Indy\'s meter); Gilded doubles base and steps. Live text: Rosey prints its '
-      + 'current grant in place; every countdown is the integer counter under the card (Rosey N Refreshes, Zapdash the Pummel '
+      + 'current grant in place; every countdown is the integer counter under the card (Rosey N/3, Zapdash the Pummel '
       + 'badge, Frack Attack N/3), never prose.',
     domain: 'triggers',
     status: 'approved',
@@ -1544,5 +1544,43 @@ export const TRIGGERS_RULES: GameRule[] = [
     contentIds: ['k3_frackattack'],
     currentBehaviour: 'Conforms (owner confirmed 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-06',
+    title: 'Counters under a card are plain integers N/M, never words (Rosey\'s Refresh meter first)',
+    statement:
+      'Every step counter under a card reads as the plain integer N/M and counts UP (1/3, 2/3, 3/3 when it pays, then 1/3), '
+      + 'like Avenge. No counter prints a word. Rosey\'s "Improves every 3 Refreshes" meter (shared with Hellrider and Indy) '
+      + 'read "1 Refresh" and now reads N/3; the End-of-Turn "every N turns" cadences read "2 Turns" and now read N/M. The '
+      + 'rune meters dropped theirs too: Rune of Unity "3/5 types" is 3/5, and the turn cadences (Rune of the Deep, Happy '
+      + 'Birthday, Merry Christmas, the cadenced grants) "1/2 turns" are 1/2. Value readouts that are not a progress meter '
+      + '(a rune\'s "+3 Health", "N left", a hero power\'s "2t") are out of scope.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22 (Rosey screenshot, "1 Refresh")', quote: 'change rosey to our typical x/3 setup. we dont want to show \'refreshes\' etc in our counter text' },
+      { kind: 'code', ref: 'packages/ui/src/cardText.ts stepProgress (the refresh + cadence branches); packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['k3_rosey', 'n3_indy'],
+    currentBehaviour: 'Conforms (fixed 2026-10-22). Rosey, Hellrider and Indy printed "N Refreshes" and the turn cadences "N Turns".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stepProgress.test.ts', 'packages/ui/src/set3Kobolds1022Text.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-1022-07',
+    title: 'Frack Attack\'s N/3 counter ticks live in combat on every friendly swing',
+    statement:
+      'In combat, Frack Attack\'s counter under the card follows the sim\'s attackSeen meter: it climbs one per friendly '
+      + 'attack (each Flurry swing included, never an enemy swing) while Frack lives, lands on 3/3 on the swing whose Ruby '
+      + 'repeat follows (that repeat plays on its own beat, the ownBeat policy), and starts over at 0/3 on a Rise / Rebirth '
+      + 'return. The combat replay mirrors the rule from the attack events, so the card never sits on a stale 0/3.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22', quote: 'frack attack\'s counter isnt working in combat, please fix that' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts computeFrame (the attack branch + countsFriendlyAttacks; reset in the reborn branch); packages/core/src/effects/factories.ts friendlyAttacksPlayRubiesSelf' },
+    ],
+    contentIds: ['k3_frackattack'],
+    currentBehaviour: 'Conforms (fixed 2026-10-22). The replay only re-derived Crypt Drake\'s attackSeen, so Frack\'s combat counter never moved; the repeats themselves fired correctly.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/frackCombatCounter.test.ts', 'packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
 ];

@@ -719,8 +719,8 @@ export const Card = memo(function Card({
   //      tick one at a time so they rarely skip; Avenge skips constantly.
   // The `prev !== total` guard on (2) is what stops a double-fire: the ordinary 4/4 → 1/4 reset AFTER a proc is
   // a wrap too, but that proc already fired on the landing. Count-up counters (Spirit Pup, Tara) clamp at
-  // `total` and never wrap, and the cadence counter counts DOWN and resets UP to `total` on its firing turn —
-  // both land on `total`, so rule (1) covers them.
+  // `total` and never wrap, and the cadence / Refresh counters are ordinary cyclic meters since 2026-10-22 (no
+  // worded countdowns) — all land on `total`, so rule (1) covers them.
   //
   // Transition-only (never on mount) so a card entering play already full doesn't burst.
   //

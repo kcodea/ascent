@@ -56,7 +56,7 @@ opens its own **resolution step** (`nextStep()`) — the unit the UI groups even
    Combat-time effects are registered on every minion.
 1. **The Reclaimer pre-pass.** Any marked player minion is destroyed now — its Deathrattle fires
    (tokens may overflow a full board) — and the exact body is queued to reclaim its slot later.
-   `flushResummons()` rejoins it at once if there's room.
+   `flushSpaceQueue()` rejoins it at once if there's room (the shared "when you have space" queue, below).
 2. **Start of Combat.** Quest marks & buffs first (Blood Trail / Deep Hunger marks, Rulebreaker's
    Crown, Umbral Energy, Contract Rewrite), then Taurus's `scEngraveAll` priority pass, then the main
    casts:
@@ -72,7 +72,8 @@ opens its own **resolution step** (`nextStep()`) — the unit the UI groups even
    minion is skipped). Per turn:
    - `performAttack()` — the exchange (see §3)
    - `flushImmediateAttacks()` — Whelps & other out-of-turn strikes
-   - `flushResummons()` — a Reclaimer body reclaims a freed slot
+   - `flushSpaceQueue()` — every summon waiting for room (a Reclaimer body, Brackus x War's copy, Rune of the
+     Warden / Mirror March / Waking Reserve) takes a freed slot, first queued first landed (R-SPACE-PENDING-01)
    - `flushAscensions()` — a unit over its threshold transforms (`ascend`)
 6. **Outcome.** Loops until a side has no minion that can attack. Result = win / lose / draw; loss
    damage = the opponent's tier + the summed tiers of their survivors; run carry-backs settle.
@@ -156,7 +157,8 @@ Each fallen body runs `killOrReborn` as its own step. Two paths:
       it exists — which also keeps the buff/summon event order consistent for the replay's frame fold.
     - **A queued strike** (Bloodlust, Solaris Fang's Avenge — `shieldUp` then strike, Feeding Line).
 
-11. **`flushResummons()`** — a Reclaimer body reclaims a slot freed this exchange.
+11. **`flushSpaceQueue()`** — a summon waiting for room (Reclaimer, Brackus x War, Warden, Mirror March, Waking
+    Reserve) takes a slot freed this exchange, first queued first landed (R-SPACE-PENDING-01).
 12. **`flushAscensions()`** — a unit that crossed its threshold transforms → `ascend`.
 
 ---

@@ -174,7 +174,10 @@ describe('Rune of the Waking Reserve — Start of Combat: a copy of the highest-
     expect(summons(r.events).filter((e) => e.minion.health === 6)).toHaveLength(2);
     const six = Array.from({ length: 6 }, () => bm('sandbag'));
     const r2 = fight(six, [foe(0, 500)], { runeWakingReserve: true, flagCopies: { runeWakingReserve: 2 } }, hand3());
-    expect(summons(r2.events), 'one slot → one copy').toHaveLength(1);
+    // One slot at Start of Combat → one copy then. The second copy WAITS (R-SPACE-PENDING-01) and lands the moment a
+    // slot frees up mid-fight (the first copy swings into the growing sandbag and dies).
+    expect(summons(r2.events).filter((e) => r2.events.indexOf(e) < firstAttackAt(r2.events)), 'one slot → one copy at Start of Combat').toHaveLength(1);
+    expect(summons(r2.events), 'the waiting copy lands once a slot frees up').toHaveLength(2);
   });
 
   it('the copy takes the summon suite: Rune of the Undertow wards it', () => {

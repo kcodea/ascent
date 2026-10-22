@@ -4331,10 +4331,16 @@ describe('Batch 7a combat runes (Rebirth / Aftershocks / Undertow / Mirror March
     const r = simMods(p, e, 1, { runeMirrorMarch: true });
     const copy = r.events.find((ev) => ev.type === 'summon' && ev.minion?.cardId === 'gnash');
     expect(copy && copy.type === 'summon' ? [copy.minion.attack, copy.minion.health] : []).toEqual([9, 13]);
-    // Full board: no copy.
+    // Full board: no copy at Start of Combat. It WAITS for room (R-SPACE-PENDING-01): the growing sandbag kills a
+    // Pennycat, and the copy lands at that settle, a copy of the left-most minion as it stands THEN.
     const full: BoardMinion[] = Array.from({ length: 7 }, () => ({ cardId: 'alley', attack: 2, health: 2 }));
     const r2 = simMods(full, e, 1, { runeMirrorMarch: true });
-    expect(r2.events.filter((ev) => ev.type === 'summon').length).toBe(0);
+    const firstAttack = r2.events.findIndex((ev) => ev.type === 'attack');
+    expect(r2.events.slice(0, firstAttack).filter((ev) => ev.type === 'summon').length).toBe(0);
+    const firstDeath = r2.events.findIndex((ev) => ev.type === 'death' && ev.side === 'player');
+    const late = r2.events.findIndex((ev) => ev.type === 'summon');
+    expect(firstDeath).toBeGreaterThan(0);
+    expect(late, 'the waiting copy lands after the first friendly death').toBeGreaterThan(firstDeath);
   });
 
   it('Rune of the Trophy: records the FIRST minion you KILL as playerSlaughterCopy (the victim, once)', () => {

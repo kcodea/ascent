@@ -1,4 +1,4 @@
-import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -2362,8 +2362,9 @@ export function Recruit() {
     // Warm the exit splash's shop vignette too (the foe face is boot-loaded by the title screen; this one
     // has no other loader, and a first-exit pop-in on the blue would read as a blip).
     new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
-    // …and the sliding panel's own art (2026-10-21), so the first End Turn never slides in a bare colour.
-    new Image().src = `${import.meta.env.BASE_URL}transition-vortex.webp`;
+    // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
+    new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
+    sfx.warmGate();
   }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
@@ -2371,8 +2372,15 @@ export function Recruit() {
     if (!o) return;
     const c = getScreenWipeConfig();
     // The gem's charge-up tell stays. The bloom stardust and the exit inhale rode the retired radial bloom's seam;
-    // the sliding panel (2026-10-21) has no seam for them to follow, so they no longer play.
+    // the falling gate (2026-10-21) has no seam for them to follow, so they no longer play.
     if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
+  }, [wipe]);
+  // THE FALLING GATE's sounds (owner 2026-10-21: "lands at the bottom of the screen with a bang ... then it quickly
+  // cranks back up"): the ranked gate's slam as it lands (the hold begins the moment it touches down), and its
+  // grinding open as it is winched back up.
+  useEffect(() => {
+    if (wipe === 'coveredIn' || wipe === 'coveredOut') sfx.gate('slam');
+    else if (wipe === 'revealIn' || wipe === 'revealOut') sfx.gate('open');
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
@@ -2459,8 +2467,15 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
-    // The panel SLIDES (transform; 2026-10-21). Only the panel's own transition counts, not a child's.
+    // The gate FALLS on a transform transition (2026-10-21). Only the gate's own transition counts, not a child's.
     if (e.propertyName !== 'transform' || e.target !== e.currentTarget) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
+  // …and is CRANKED back up by a keyframe animation (`wipecrank`), whose end finishes the reveal. (The landing bounce,
+  // `wipeslam`, plays inside the hold, which its own timer ends.)
+  const onWipeAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
+    if (e.animationName !== 'wipecrank' || e.target !== e.currentTarget) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);
@@ -8122,7 +8137,7 @@ export function Recruit() {
           curtainLadder.test.ts); only the wipe FX canvas rides on it. The curtain's clip-path transition is the
           sanctioned one-shot kind. */}
       {createPortal(<>
-      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
+      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} onAnimationEnd={onWipeAnimEnd} style={wipeVars}>
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
             away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only
@@ -8147,9 +8162,12 @@ export function Recruit() {
                 // the tuner's opponent ring (`foeFrame` also keeps this subscribed to tuner writes). With a frame on,
                 // the face sits in a disc-sized host that carries the ring; without one the markup is unchanged.
                 const ring = gFace ? foeFrame : resolvePortraitFrame('opp', frameIdOf(opponentSkins(showOppSkins, seatCosmetics(foe.seat, foe.board))));
-                return ring ? (
-                  <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span>
-                ) : face;
+                // CARVED into the falling gate (2026-10-21): the carve wrapper sinks the whole disc (ring included) into the stone.
+                return (
+                  <span className="wipevs-carve">
+                    {ring ? <span className="wipevs-facewrap pf-on" style={ring.hostStyle}>{face}<PortraitFrame frame={ring} /></span> : face}
+                  </span>
+                );
               })()}
               <div className="wipevs-name">{foe.seat.label}</div>
             </div>
@@ -8160,7 +8178,7 @@ export function Recruit() {
         {wipeIsExiting && (
           <div className="wipevs">
             <div className="wipevs-label">Returning to Shop</div>
-            <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
+            <span className="wipevs-carve"><img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} /></span>
           </div>
         )}
       </div>

@@ -241,6 +241,7 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+import { wipeSmoke } from './wipeSmoke';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
@@ -2349,6 +2350,10 @@ export function Recruit() {
     document.body.classList.toggle('wipe-up', wipeOnScreen);
   }, [wipeOnScreen]);
   useEffect(() => () => document.body.classList.remove('wipe-up'), []);
+  // The panel's smoke warp (wipeSmoke.ts) animates only while the curtain is up.
+  useEffect(() => { if (wipeOnScreen) wipeSmoke.start(); else wipeSmoke.stop(); }, [wipeOnScreen]);
+  const wipeSmokeRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { wipeSmoke.attach(wipeSmokeRef.current); return () => wipeSmoke.release(); }, []);
   useEffect(() => {
     if (!wipeOnScreen) return undefined;
     window.addEventListener('resize', measureWipeOrigin);
@@ -8123,6 +8128,8 @@ export function Recruit() {
           sanctioned one-shot kind. */}
       {createPortal(<>
       <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
+        {/* The smoke warp's canvas lives here, FIRST, so the announcement paints over it (wipeSmoke.ts). */}
+        <div className="wipesmoke" ref={wipeSmokeRef} />
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
             away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only

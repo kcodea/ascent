@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX } from '@game/content';
 import { createRun, isShopDamageRow, type BoardCard, type RunState } from './state';
-import { fireRallies, fireRecruitDeathrattlesForTest } from './recruit';
+import { fireRallies, fireRecruitDeathrattlesForTest, roseyHearsRubies } from './recruit';
 
 /**
  * SHOP DAMAGE IN THE LEDGER (owner report 2026-10-22, R-LEDGER-SHOP-DAMAGE-01): "why did the HP bug out here?"
@@ -51,5 +51,18 @@ describe('Shop damage is itemised in the buff ledger (R-LEDGER-SHOP-DAMAGE-01)',
     const hawkus = s.board.find((c) => c.uid === 'h')!;
     const dmg = hawkus.buffs?.find((b) => b.source === 'Gasket (damage)');
     expect(dmg && dmg.health < 0 && dmg.count > 0).toBe(true);
+  });
+
+  it("Rosey's Garden's +4/+5 is a buff row beside the damage row, never folded into it", () => {
+    const s = shopRun([gilded('f', 'dm_felspikes'), gilded('u', 'uron')]);
+    s.questFlags = { ...(s.questFlags ?? {}), runeRoseysGarden: true };
+    fireRecruitDeathrattlesForTest(s, s.board[0]!);
+    roseyHearsRubies(s, 4);
+    for (const c of s.board) expect(ledgerTotal(c), c.cardId).toEqual([c.attack, c.health]);
+    const rows = s.board.flatMap((c) => c.buffs ?? []);
+    const garden = rows.filter((b) => b.source === "Rosey's Garden");
+    expect(garden.length, 'the Garden paid someone').toBeGreaterThan(0);
+    expect(garden.every((b) => !isShopDamageRow(b.source) && b.attack > 0 && b.health > 0)).toBe(true);
+    expect(s.board.find((c) => c.uid === 'u')!.buffs?.find((b) => b.source === 'Fel Spikes (damage)')?.health).toBe(-8);
   });
 });

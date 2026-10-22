@@ -7129,6 +7129,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneGpuMemory.test.ts', 'packages/ui/src/phoneFxLayer.test.tsx', 'packages/ui/src/phoneFxLayerDesktop.test.tsx'], lastVerifiedAt: '2026-10-18' },
   },
   {
+    id: 'R-TOUCH-CRASH-REPORT-01',
+    title: 'A phone crash reaches us by itself, once, without slowing the game',
+    statement:
+      'When the crash log is recording (a phone, or ?crashlog=1) and it finds a crashed session on load, the page sends '
+      + 'that session (its breadcrumb trail, last step, duration, memory and WebGL readings, the user agent, screen size and '
+      + 'pixel ratio, Home Screen app or browser, and the build) to the client_crash_reports table: a few seconds after the '
+      + 'game mounts, on idle, never on the boot path and never per frame. Each crashed session is sent once (it is marked '
+      + 'sent only after the insert succeeds) and tried at most 3 times across loads. Without a backend, offline or when '
+      + 'the table is missing, nothing breaks and nothing throws. Clients may only insert into the table; a desktop load '
+      + 'without the flag sends nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (still crashing on an iPhone; no Mac for Safari Web Inspector)', quote: 'I still can\x27t even play it because of the crashing, but I want to make this mobile experience flawless end to end' },
+      { kind: 'code', ref: 'packages/ui/src/crashReport.ts (pendingReports, buildReport, uploadCrashReports, scheduleCrashReportUpload); Game.tsx (the mount effect); supabase/migrations/2026-10-22-client-crash-reports.sql' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-22 (feat/phone-crash-telemetry), once the migration is applied. Before, a crash was only visible on the phone itself, in the crash log readout.',
+    example: 'An iPhone Home Screen app dies after "hero picked"; on the next open, about 6 s after the title shows, one row lands with last_step "hero picked", standalone true and the build id; later opens send nothing more for it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crashReport.test.ts', 'packages/ui/src/crashReportDesktop.test.ts', 'packages/ui/src/crashReports.db.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:

@@ -574,7 +574,9 @@ const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
     { clip: 'wipegroan', offset: 2.9, duration: 1.1, fadeMs: 260 },
     // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
     // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
-    { clip: 'gateopen', category: 'wipegateopen' },
+    // Its grind runs about 2 s, so it is cut off sharply just after the 0.45 s crank (owner: "it lingers for a long time
+    // after its done cranking up"): 0.55 s, the last 0.1 s faded.
+    { clip: 'gateopen', category: 'wipegateopen', duration: 0.55, fadeMs: 100 },
   ],
 };
 /** One layer: from its offset, for its duration (or to the end), its last `fadeMs` eased away on the audio clock. */

@@ -60,13 +60,14 @@ export const CATEGORY_GAINS: Record<string, number> = {
   placelow: 0.6, placehigh: 0.72,
   // THE FALLING GATE (owner 2026-10-22): the shop <-> combat transition's own recordings, one fader each. The impact
   // layers four thuds at once, so each starts lower (the wooden door is the hottest file, -3 dB peak); tune by ear.
-  wipedrop: 0.55, wipethudwood: 0.4, wipethudground: 0.6, wipethudheavy: 0.6, wipethudgrit: 0.5,
+  // wipedrop 0.55 -> 0.7 the same day (owner: "up the woosh to .7").
+  wipedrop: 0.7, wipethudwood: 0.4, wipethudground: 0.6, wipethudheavy: 0.6, wipethudgrit: 0.5,
   wipecrank: 0.5, wipegears: 0.45, wipegroan: 0.45,
   // The poster's page flap: a quiet recording (-26 dB peak), so it starts high.
   wipeposter: 0.85,
   // The ranked gate's grinding open, layered back on the crank (owner 2026-10-22: "just have it a bit lowered"):
-  // its own fader at a bit over half the ranked gate's 0.6.
-  wipegateopen: 0.35,
+  // its own fader. 0.35 -> 0.5 the same day (owner: "up it to .5").
+  wipegateopen: 0.5,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,

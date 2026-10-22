@@ -559,7 +559,8 @@ const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
  *  - crank:  as it is winched up: a slice of the crank recording, the gears, and the loud part of the metal groan,
  *            the long ones cut short with a fade (`duration` / `fadeMs`) so they end with the 0.45 s crank
  */
-interface WipeLayer { clip: string; offset?: number; duration?: number; fadeMs?: number }
+/** `category`: the fader a layer plays on (default: the clip's own). */
+interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number }
 type WipeGateCue = 'drop' | 'impact' | 'crank';
 const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   drop: [{ clip: 'wipedrop' }],
@@ -571,12 +572,15 @@ const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   crank: [
     { clip: 'wipecrank', offset: 0.9, duration: 0.75, fadeMs: 160 }, { clip: 'wipegears' },
     { clip: 'wipegroan', offset: 2.9, duration: 1.1, fadeMs: 260 },
+    // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
+    // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
+    { clip: 'gateopen', category: 'wipegateopen' },
   ],
 };
 /** One layer: from its offset, for its duration (or to the end), its last `fadeMs` eased away on the audio clock. */
 function playWipeLayer(l: WipeLayer): void {
   const slice = l.offset !== undefined || l.duration !== undefined ? { offset: l.offset ?? 0, duration: l.duration ?? 60 } : undefined;
-  playSample(l.clip, l.clip, 0, l.fadeMs && l.duration ? (({ src, gain }) => {
+  playSample(l.clip, l.category ?? l.clip, 0, l.fadeMs && l.duration ? (({ src, gain }) => {
     const a = ctx;
     if (!a) return;
     try {
@@ -2108,7 +2112,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
   wipedrop: () => sfx.wipeGate('drop'), wipethudwood: () => playWipeLayer(WIPE_GATE_LAYERS.impact[0]!), wipethudground: () => playWipeLayer(WIPE_GATE_LAYERS.impact[1]!),
   wipethudheavy: () => playWipeLayer(WIPE_GATE_LAYERS.impact[2]!), wipethudgrit: () => playWipeLayer(WIPE_GATE_LAYERS.impact[3]!), wipeposter: () => playWipeLayer(WIPE_GATE_LAYERS.impact[4]!),
-  wipecrank: () => playWipeLayer(WIPE_GATE_LAYERS.crank[0]!), wipegears: () => playWipeLayer(WIPE_GATE_LAYERS.crank[1]!), wipegroan: () => playWipeLayer(WIPE_GATE_LAYERS.crank[2]!),
+  wipecrank: () => playWipeLayer(WIPE_GATE_LAYERS.crank[0]!), wipegears: () => playWipeLayer(WIPE_GATE_LAYERS.crank[1]!), wipegroan: () => playWipeLayer(WIPE_GATE_LAYERS.crank[2]!), wipegateopen: () => playWipeLayer(WIPE_GATE_LAYERS.crank[3]!),
   gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'), gateintro: () => sfx.gate('intro'), gateform: () => sfx.gate('form'), gateshatter: () => sfx.gate('shatter'),
   gatehum: () => { sfx.gateHum(true); window.setTimeout(() => sfx.gateHum(false), 2600); },
   placelow: () => sfx.placementTone(8), placehigh: () => sfx.placementTone(1),

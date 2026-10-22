@@ -64,6 +64,9 @@ export const CATEGORY_GAINS: Record<string, number> = {
   wipecrank: 0.5, wipegears: 0.45, wipegroan: 0.45,
   // The poster's page flap: a quiet recording (-26 dB peak), so it starts high.
   wipeposter: 0.85,
+  // The ranked gate's grinding open, layered back on the crank (owner 2026-10-22: "just have it a bit lowered"):
+  // its own fader at a bit over half the ranked gate's 0.6.
+  wipegateopen: 0.35,
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -101,7 +104,7 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
   gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui', gatehum: 'ui', placelow: 'ui', placehigh: 'ui',
-  wipedrop: 'ui', wipethudwood: 'ui', wipethudground: 'ui', wipethudheavy: 'ui', wipethudgrit: 'ui', wipecrank: 'ui', wipegears: 'ui', wipegroan: 'ui', wipeposter: 'ui',
+  wipedrop: 'ui', wipethudwood: 'ui', wipethudground: 'ui', wipethudheavy: 'ui', wipethudgrit: 'ui', wipecrank: 'ui', wipegears: 'ui', wipegroan: 'ui', wipeposter: 'ui', wipegateopen: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',

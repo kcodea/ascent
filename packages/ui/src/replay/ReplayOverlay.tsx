@@ -235,7 +235,7 @@ export function ReplayOverlay(): JSX.Element | null {
       >
         {s.sounds === false ? '🔇' : '🔊'}
       </button>
-      {s.hasCursorTrail && (
+      {(s.hasCursorTrail || s.hasStream) && (
         <button
           className={`replaybtn toggle pressable${s.cursor === false ? ' off' : ''}`}
           onClick={() => setReplayCursor(s.cursor === false)}

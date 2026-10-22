@@ -342,6 +342,9 @@ export interface ReplaySession {
   cursor?: boolean;
   /** Whether this recording carries a cursor trail at all (the Cursor toggle hides itself otherwise). */
   hasCursorTrail?: boolean;
+  /** Whether this recording plays its recorded spectator stream (R-REPLAY-PLAYBACK-01): the hand is the watch screen's
+   *  `SpectatorCursor`, not the old cursor trail and drag ghost. */
+  hasStream?: boolean;
   /** Bumped when the idle-time odds backfill lands a round's Win % — the rail re-reads `replayRoundInfo()`. */
   roundInfoTick?: number;
 }
@@ -1435,8 +1438,9 @@ function assembleReplayV2(next: RunState, o: {
     frames: o.frames,
     // The inspect trail (open/close events of the card-inspect overlay, same clock as the frames).
     ...(o.inspectTrail.length ? { inspectTrail: o.inspectTrail } : {}),
-    // The free-cursor trail (2026-09-19) — optional, the version stays 2.
-    ...(o.cursorTrail.length ? { cursorTrail: o.cursorTrail } : {}),
+    // The free-cursor trail (2026-09-19) — optional, the version stays 2. Left out when the spectator stream is recorded:
+    // the stream carries the same hand at 60 Hz and the viewer plays it instead (R-REPLAY-PLAYBACK-01).
+    ...(o.cursorTrail.length && !o.stream ? { cursorTrail: o.cursorTrail } : {}),
     // The spectator stream (2026-10-22, R-REPLAY-STREAM-01) — optional, the version stays 2.
     ...(o.stream ? { stream: o.stream } : {}),
     result: {

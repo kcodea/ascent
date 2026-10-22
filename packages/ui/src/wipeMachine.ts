@@ -59,7 +59,8 @@ export function curtainClassFor(w: WipeState): string {
   const shape = w === 'chargeIn' || w === 'primeOut' ? ' settle'
     : w === 'coveredIn' || w === 'coveredOut' ? ' full settle'
     : w === 'coverIn' || w === 'coverOut' ? ' full'
-    : w === 'revealIn' || w === 'combat' ? ' gone'
+    : w === 'revealIn' ? ' gone'
+    : w === 'combat' ? ' gone parked' // parked: the falling gate's crank plays only on the reveal, never on a resume
     : w === 'revealOut' ? ' gone rtl' : '';
   return `wipecurtain${shape}${wipeExiting(w) ? ' exit' : ''}`;
 }

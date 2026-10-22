@@ -379,6 +379,33 @@ class GateFxController {
     });
   }
 
+  /**
+   * THE LANDING (owner 2026-10-21, the shop/combat falling gate: "create the dust from the bottom"): a slab that hits
+   * the floor across the whole screen width. Stone dust bursts up and out along its bottom edge, pushed away from the
+   * middle, with a low, wide bank that rolls sideways along the floor. `bottom` / `left` / `right` are screen px.
+   */
+  land(edge: { left: number; right: number; bottom: number }): void {
+    this.run(() => {
+      const w = Math.max(1, edge.right - edge.left);
+      const k = Math.max(0.5, window.innerHeight / 1080); // tuned at 1080 tall, like the slam
+      const mid = edge.left + w / 2;
+      // The burst: all along the edge, thrown up and outward (harder towards the sides).
+      for (let i = 0, n = amount(70); i < n; i++) {
+        const x = edge.left + Math.random() * w;
+        const out = (x - mid) / (w / 2); // -1 at the left edge, +1 at the right
+        this.puff(x, edge.bottom - Math.random() * 24 * k, k, out * (60 + Math.random() * 240), -90 - Math.random() * 230,
+          2.4 + Math.random() * 3.4, 0.24 + Math.random() * 0.22, 1200 + Math.random() * 900, Math.random() * 90);
+      }
+      // The rolling bank: low and wide, sliding sideways along the floor and only slowly rising.
+      for (let i = 0, n = amount(40); i < n; i++) {
+        const side = i % 2 ? -1 : 1;
+        const x = edge.left + Math.random() * w;
+        this.puff(x, edge.bottom - Math.random() * 10 * k, k, side * (180 + Math.random() * 380), -15 - Math.random() * 55,
+          3.2 + Math.random() * 3, 0.2 + Math.random() * 0.18, 1400 + Math.random() * 900, 30 + Math.random() * 120);
+      }
+    });
+  }
+
   /** THE SHUDDER: dust shaken loose from the top of the doors, and a few sparks spat from the seam. */
   shudder(seam: GateSeam, ms: number): void {
     this.run(() => {

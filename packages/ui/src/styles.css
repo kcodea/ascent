@@ -399,27 +399,59 @@ canvas.spr { image-rendering: pixelated; display: block; }
    empty parked states snap back to the zero circle invisibly (both cover nothing — Recruit's `primeOut`
    guarantees the exit bloom launches from the zero circle, not the parked sliver). `.snap` is unused on
    the curtain and kept only for the fronts. */
+/* THE FALLING GATE (owner 2026-10-21: "something that falls from the ceiling of the screen and lands at the bottom of the
+   screen with a bang, like a big stone gate ... then it quickly cranks back up to reveal the combat. same goes for
+   shop"). One full-screen slab of painted art (`transition-gate.webp`, the owner's "wood gate": a wooden plank gate with
+   two iron straps, trimmed to its edges with its see-through gaps backed in dark wood; the poster on it is its own layer) that moves by `transform`
+   ALONE, like the ranked gate's doors: a clip-path animation is recomputed every frame and could drop a frame on the
+   busy End Turn swap, which read as game elements popping in over the blue curtain it replaces.
+   The path, by the machine's classes (wipeMachine.curtainClassFor), the same in both directions:
+     idle / chargeIn / primeOut   parked ABOVE the screen (-100%)
+     coverIn / coverOut (`full`)  drops, accelerating hard like a falling weight, onto the floor
+     coveredIn / coveredOut (`full settle`) the SLAM (owner 2026-10-22: "land hard and wait a little bit longer"): a deep
+                                  rebound and a few shrinking jolts (+ the slam sound and the floor dust, Recruit), then it
+                                  holds while the scene swaps behind it, NOW FACING (or RETURNING TO SHOP) on the parchment
+     revealIn / revealOut (`gone`) the CRANK ("when its cranked up, have it also slightly askew and wobbly slightly as its
+                                  raised"): winched up in jerky pulls, hanging from its top and swaying side to side
+     combat (`gone parked`)       parked above again (no crank: a run resumed mid-combat starts here)
+   Every hop between parked states is between identical positions, so nothing ever jumps on screen. */
 .wipecurtain { position: fixed; inset: 0; z-index: 3000; pointer-events: none;
-  background: radial-gradient(ellipse 60% 60% at 50% 50%, #24468a 0%, #0a1730 100%);
-  clip-path: ellipse(0px 0px at var(--wipe-cx, 84%) var(--wipe-cy, 62%));
-  /* Hint the clip transition onto the compositor (Chromium composites basic-shape clip-path animations when
-     the element is promoted) — without it the near-fullscreen gradient repaints every frame of the bloom. */
-  will-change: clip-path;
-  transition: clip-path var(--wipe-dur, 450ms) var(--wipe-ease, cubic-bezier(.4, 0, .2, 1)); }
-/* The EXIT curtain wears a lighter, daylight-sky blue (owner ask 2026-08-30 — matched to the sky in the
-   Returning-to-Shop vignette, sampled ≈#2390f5→#61b6f9). The class flips while the curtain is parked
-   empty (primeOut) and clears at idle, so the gradient swap is never on screen. */
-.wipecurtain.exit { background: radial-gradient(ellipse 60% 60% at 50% 50%, #4a9be8 0%, #16406f 100%); }
-/* The bloom: an ELLIPSE (round 2 of the ultrawide fix, owner 2026-09-24 "smoother/wider/cleaner"). Its radii come
-   from wipeGeometry.ts via Recruit: the farthest corner, stretched sideways by how much wider than 16:9 the screen
-   is (a circle on 16:9). The easing is the Screen wipe tuner's; by default it leaves the screen still moving. */
-.wipecurtain.full { clip-path: ellipse(var(--wipe-rx, 150vmax) var(--wipe-ry, 150vmax) at var(--wipe-cx, 84%) var(--wipe-cy, 62%)); }
-/* The covered hold: same full cover, INSET shape — the invisible switch that lets the reveal run linear. */
-.wipecurtain.full.settle { clip-path: inset(0 0 0 0); }
-/* Entry reveal (R→L retreat; parked here through combat) / exit reveal (`.rtl`, L→R retreat). The reveals run
-   their own duration and keep the original ease-in-out. */
-.wipecurtain.gone { clip-path: inset(0 100% 0 0); transition-duration: var(--wipe-reveal-dur, 450ms); transition-timing-function: cubic-bezier(.4, 0, .2, 1); }
-.wipecurtain.gone.rtl { clip-path: inset(0 0 0 100%); }
+  background: #5a3a22 url('/transition-gate.webp') 50% 50% / cover no-repeat;
+  transform: translateY(-100%); will-change: transform; transform-origin: 50% 0;
+  transition: transform var(--wipe-dur, 450ms) cubic-bezier(.62, 0, 1, .4); }
+/* The gate's FOOT: a strip below its bottom edge (its bottom beam, mirrored), so the slam's rebound lifts the gate
+   without ever opening a gap at the floor while the scene swaps behind it. Shown only while it falls and holds, so a
+   parked gate never hangs a sliver into the top of the screen. */
+.wipecurtain::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 6%; display: none; pointer-events: none;
+  background: url('/transition-gate.webp') 50% 100% / max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7777)) auto no-repeat;
+  transform: scaleY(-1); transform-origin: 50% 0; }
+.wipecurtain.full::after { display: block; }
+.wipecurtain.full { transform: translateY(0); }
+.wipecurtain.full.settle { animation: wipeslam 600ms both; }
+/* Land HARD: a fast deep rebound, then three smaller, quicker jolts as it settles. */
+@keyframes wipeslam {
+  0% { transform: translateY(0); animation-timing-function: cubic-bezier(.1, .8, .3, 1); }
+  9% { transform: translateY(-3.4%); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
+  20% { transform: translateY(0); animation-timing-function: cubic-bezier(.1, .8, .3, 1); }
+  28% { transform: translateY(-1.1%); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
+  37% { transform: translateY(0); animation-timing-function: cubic-bezier(.1, .8, .3, 1); }
+  43% { transform: translateY(-0.35%); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
+  50% { transform: translateY(0); }
+  100% { transform: translateY(0); } }
+.wipecurtain.gone { transform: translateY(-100%); animation: wipecrank var(--wipe-reveal-dur, 450ms) both; }
+.wipecurtain.gone.parked { animation: none; }
+/* Four pulls on the winch, each catching with a small drop. It hangs from its top edge (`transform-origin`), so a
+   positive turn lifts its LEFT side: the left lifts first, the right catches up and overshoots, and it keeps swaying,
+   less each pull, leaving the screen still a touch askew. */
+@keyframes wipecrank {
+  0% { transform: translateY(0) rotate(0deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
+  14% { transform: translateY(-15%) rotate(2.6deg); animation-timing-function: ease-in; }
+  19% { transform: translateY(-13.5%) rotate(1.7deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
+  35% { transform: translateY(-34%) rotate(-1.6deg); animation-timing-function: ease-in; }
+  40% { transform: translateY(-32.5%) rotate(-0.9deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
+  58% { transform: translateY(-56%) rotate(1.3deg); animation-timing-function: ease-in; }
+  63% { transform: translateY(-54.5%) rotate(0.6deg); animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
+  100% { transform: translateY(-100%) rotate(-0.8deg); } }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
    advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
@@ -435,21 +467,63 @@ canvas.spr { image-rendering: pixelated; display: block; }
   display: flex; flex-direction: column; align-items: center; gap: calc(14 * var(--u, 1px));
   animation: wipevsin 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: 120ms; }
 @keyframes wipevsin { from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); } }
+/* THE POSTER (owner 2026-10-22: "have the gate slam down while the poster sort of wiggles separately, because the nail
+   holding it isnt perfectly tight. and the opponent card will follow the movement of that poster"). Its own image
+   (`transition-poster.webp`, the paper trimmed to its edges, transparent around them) laid on the gate between its two
+   iron straps, hanging from its TOP-CENTRE NAIL (`transform-origin`, measured off the art at 48.4% across, 9.8% down).
+   It is sized and placed by the size the gate art is actually drawn at (`--gate-hi`, the cover-fit height), so it stays
+   on the same spot of the wood on any screen shape: 49% of the gate's height, centred across, its middle 48.4% down
+   (the clear wood between the straps). NOW FACING / RETURNING TO SHOP sits on it, centred on the paper and turned with
+   it (-3.3 degrees, measured off its edges), so every swing carries the opponent with it. Transform-only, one shot per
+   slam and per crank (CLAUDE.md perf rules). */
+.wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }
+.wipeposter { position: absolute; left: 50%; top: calc(50% - 0.016 * var(--gate-hi));
+  width: calc(0.49 * 1.8012 * var(--gate-hi)); height: calc(0.49 * var(--gate-hi)); translate: -50% -50%;
+  background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
+  transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
+.wipeposter .wipevs { rotate: -3.3deg; }
+/* THE SLAM: the gate stops dead and the paper doesn't. It is knocked down and crooked on its loose nail, swings back
+   and forth a few times, less each time, and comes to rest a little crooked (0.8 degrees). */
+.wipecurtain.full.settle .wipeposter { animation: posterslam 1300ms both; }
+@keyframes posterslam {
+  0% { transform: rotate(0deg) translateY(0); animation-timing-function: cubic-bezier(.1, .7, .3, 1); }
+  7% { transform: rotate(4deg) translateY(1.6%); animation-timing-function: ease-in-out; }
+  18% { transform: rotate(-1.6deg) translateY(-0.5%); animation-timing-function: ease-in-out; }
+  30% { transform: rotate(2.5deg) translateY(0); animation-timing-function: ease-in-out; }
+  43% { transform: rotate(-0.3deg); animation-timing-function: ease-in-out; }
+  57% { transform: rotate(1.5deg); animation-timing-function: ease-in-out; }
+  72% { transform: rotate(0.45deg); animation-timing-function: ease-in-out; }
+  86% { transform: rotate(1deg); animation-timing-function: ease-in-out; }
+  100% { transform: rotate(0.8deg); } }
+/* THE CRANK: as the gate is winched up and sways (`wipecrank`), the paper lags behind each tilt and swings the other
+   way, so the poster wobbles on its own all the way out. */
+.wipecurtain.gone .wipeposter { animation: postercrank var(--wipe-reveal-dur, 450ms) both; }
+.wipecurtain.gone.parked .wipeposter { animation: none; }
+@keyframes postercrank {
+  0% { transform: rotate(0.8deg); animation-timing-function: ease-in-out; }
+  12% { transform: rotate(-1.5deg); animation-timing-function: ease-in-out; }
+  24% { transform: rotate(2.2deg); animation-timing-function: ease-in-out; }
+  38% { transform: rotate(3deg); animation-timing-function: ease-in-out; }
+  50% { transform: rotate(-1.2deg); animation-timing-function: ease-in-out; }
+  62% { transform: rotate(-2.4deg); animation-timing-function: ease-in-out; }
+  78% { transform: rotate(1.6deg); animation-timing-function: ease-in-out; }
+  100% { transform: rotate(0.4deg); } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */
 .wipevs-label { font-family: var(--title-font, 'Cinzel Decorative', 'Outfit', sans-serif); font-weight: var(--title-weight, 700); font-size: calc(38 * var(--u, 1px));
-  letter-spacing: 0.34em; text-transform: uppercase; color: #9fc0f5; text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5); }
-/* On the lighter exit blue the pale label washes out — RETURNING TO SHOP goes full white (owner ask
-   2026-08-30). */
-.wipecurtain.exit .wipevs-label { color: #ffffff; opacity: 1; }
+  letter-spacing: 0.34em; text-transform: uppercase; color: #fff; }
 .wipevs-face { width: calc(290 * var(--u, 1px)); height: calc(290 * var(--u, 1px)); border-radius: 50%; /* matches the in-combat foe portrait: 116u x its 2.5 wrapper scale */
   object-fit: cover; border: calc(4 * var(--u, 1px)) solid #c9a35c;
   box-shadow: 0 0 0 calc(2 * var(--u, 1px)) rgba(10, 23, 48, 0.9), 0 14px 40px -10px rgba(0, 0, 0, 0.7); }
 /* The player NAME stays in the UI face (owner ask 2026-08-29) — only the announcement label wears the
    title font. */
 .wipevs-name { font-family: var(--font-ui); font-weight: 900; font-size: calc(34 * var(--u, 1px));
-  color: #fff; text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6); }
+  color: #fff; }
+/* ALL the announcement text is white with a 2px black outline (owner 2026-10-22: "make all the text white with black
+   2px stroke around it"), readable on the gate's wood and parchment alike. The stroke is drawn UNDER the fill
+   (`paint-order`), so its inner half is covered and a full 2px shows outside each letter. */
+.wipevs-label, .wipevs-name { -webkit-text-stroke: 4px #000; paint-order: stroke fill; text-shadow: none; }
 /* The glowing wipe FRONT — now a blue-white energy RING riding the bloom's seam. A circle div centred on
    the gem (same `--wipe-cx/--wipe-cy/--wipe-r` vars as the curtain) whose ring gradient sits at its outer
    edge; scaling it 0→1 with the SAME duration + easing as the curtain's clip transition keeps the ring
@@ -500,6 +574,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipebar.rtl.go { transform: translateX(0); }
 .wipebar.sweeping { opacity: 1; }
 .wipebar.snap { transition: none; }
+/* The sliding panel (2026-10-21) carries its own edge light, so the ring (which rode the retired radial bloom) and the
+   bar (the old linear reveal's seam) are not shown. Their rules and markup stay so the Screen wipe tuner still loads. */
+.wipefront, .wipebar { display: none; }
 /* The ABOVE-CURTAIN Pixi canvas (wipeFx.ts). Hidden + ticker stopped when idle. Its base z255 is for the Ancients
    awakening, which plays the same motes over its own z105 gate; while the combat curtain is up (`body.wipe-up`)
    it rises to z3005 so the motes/runes ride ON the z3000 blue. */
@@ -526,6 +603,8 @@ body.wipe-up .cardref, body.wipe-up .castprev-layer { visibility: hidden !import
 body.wipe-up .gtip[data-tip]::after { visibility: hidden !important; }
 body.wipe-up .lobbydmg-float { z-index: 240; }
 body.wipe-up .fxflash { z-index: 2990; }
+/* The falling gate's landing dust (gateFx.land) rides the ranked gate's particle canvas, lifted over the curtain while it is up. */
+body.wipe-up .gatefx-canvas { z-index: 3005; }
 body.wipe-up .escov, body.wipe-up .pnov, body.wipe-up .inspect-ov { z-index: 3100; }
 body.wipe-up .disc-toggle.disc-peek.inspect-act { z-index: 3101; }
 body.wipe-up .replay-cursor { z-index: 3135; }

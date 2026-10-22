@@ -595,6 +595,65 @@ const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
   intro: { offset: 0.045, duration: 60 },
   shatter: { offset: 0.024, duration: 60 },
 };
+/**
+ * THE FALLING GATE (owner 2026-10-22: "i have new impact sounds i want to use so they are different from the gate
+ * sounds"): the shop <-> combat transition's own recorded cues, `audio/wipe*.mp3`, every clip on its own desk fader.
+ * Each moment LAYERS clips (all start together), and each layer skips its file's silent lead-in (`offset`, measured
+ * off the recordings) so every hit lands on the frame:
+ *  - drop:   the door whoosh as the gate starts to fall (it swells to its peak at 0.4 s, just before the 0.45 s fall lands)
+ *  - impact: four thuds as one hit (wooden door, ground body, heavy object fall, body grit), and the poster's page
+ *            flap as it is knocked swinging on its nail (its peak lands on the poster's first swing)
+ *  - crank:  as it is winched up: a slice of the crank recording, the gears, the loud part of the metal groan and the
+ *            ranked gate's grind, every one cut at 1.5 s with a 0.2 s fade-out (`duration` / `fadeMs`)
+ */
+/** `category`: the fader a layer plays on (default: the clip's own). `reverb`: a wet send of that much (0 to 1) into a
+ *  short convolution tail, through the soft-tail voice (`playTailedSample`). */
+interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number; reverb?: number }
+/** The crank's reverb tail length (owner 2026-10-22: "a slight amount of reverb ... specifically the cranking part").
+ *  Pre-built once audio starts (`warmWipeGate`), so the first crank never builds an impulse on its own frame. */
+const WIPE_CRANK_REVERB_SEC = 1.2;
+type WipeGateCue = 'drop' | 'impact' | 'crank';
+const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
+  drop: [{ clip: 'wipedrop' }],
+  impact: [
+    { clip: 'wipethudwood', offset: 0.27 }, { clip: 'wipethudground', offset: 0.07 },
+    { clip: 'wipethudheavy', offset: 0.07 }, { clip: 'wipethudgrit', offset: 0.2 },
+    { clip: 'wipeposter', offset: 0.05 },
+  ],
+  crank: [
+    // EVERY crank layer is cut at 1.5 s with a 0.2 s fade-out (owner 2026-10-22: a 0.55 s cut was too sharp; "change the
+    // cut to .85 seconds with a .2 second fade out", then "lets increase the cut to 1.5 seconds"): full level to 1.3 s,
+    // silent by 1.5 s. (The gears clip is only 1.3 s, so it simply plays out.) And a 20% reverb on every crank layer
+    // (owner: "lets add a slight amount of reverb to it too. specifically the cranking part ... im talking a mix of 20%"),
+    // raised to 40% the same day (owner: "increase the reverb to 40%").
+    { clip: 'wipecrank', offset: 0.9, duration: 1.5, fadeMs: 200, reverb: 0.4 }, { clip: 'wipegears', duration: 1.5, fadeMs: 200, reverb: 0.4 },
+    { clip: 'wipegroan', offset: 2.9, duration: 1.5, fadeMs: 200, reverb: 0.4 },
+    // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
+    // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
+    // Its grind runs about 2 s (owner: "it lingers for a long time after its done cranking up"): it takes the same
+    // 1.5 s cut and 0.2 s fade as the rest of the crank.
+    { clip: 'gateopen', category: 'wipegateopen', duration: 1.5, fadeMs: 200, reverb: 0.4 },
+  ],
+};
+/** One layer: from its offset, for its duration (or to the end), its last `fadeMs` eased away on the audio clock. */
+function playWipeLayer(l: WipeLayer): void {
+  const slice = l.offset !== undefined || l.duration !== undefined ? { offset: l.offset ?? 0, duration: l.duration ?? 60 } : undefined;
+  if (l.reverb) {
+    playTailedSample(l.clip, l.category ?? l.clip, 1, 0, { fadeOutMs: l.fadeMs ?? 0, reverbMix: l.reverb, reverbSec: WIPE_CRANK_REVERB_SEC }, slice);
+    return;
+  }
+  playSample(l.clip, l.category ?? l.clip, 0, l.fadeMs && l.duration ? (({ src, gain }) => {
+    const a = ctx;
+    if (!a) return;
+    try {
+      const fade = l.fadeMs! / 1000;
+      const from = a.currentTime + Math.max(0, l.duration! - fade);
+      gain.gain.setValueAtTime(gain.gain.value, from);
+      gain.gain.linearRampToValueAtTime(0.0001, from + fade);
+      src.stop(from + fade + 0.02);
+    } catch { /* the fade is a nicety: the slice then simply ends */ }
+  }) : undefined, slice);
+}
 /** A tailed play with every dial off: the clip's own end, no reverb (the old behaviour, for bare calls). */
 const NO_TAIL: TailOpts = { fadeOutMs: 0, reverbMix: 0, reverbSec: 0 };
 
@@ -1713,6 +1772,13 @@ export const sfx = {
   },
   /** Fetch + decode the four gate cues NOW (the ranked confirmation calls this as it opens), so the first gate of a
    *  session is never silent: `playSample` on a clip that is not decoded yet only starts its load. */
+  /** The falling gate's cues (`WIPE_GATE_LAYERS`): every layer of the moment at once. */
+  wipeGate: (cue: WipeGateCue): void => { for (const l of WIPE_GATE_LAYERS[cue]) playWipeLayer(l); },
+  /** Fetch + decode the falling gate's clips now (Recruit, on mount), so the first End Turn of a session is not silent. */
+  warmWipeGate: (): void => {
+    for (const ls of Object.values(WIPE_GATE_LAYERS)) for (const l of ls) loadSample(l.clip);
+    onAudioContextReady((a) => { reverbImpulse(a, WIPE_CRANK_REVERB_SEC, 0.55); }); // the crank's tail, built once now
+  },
   warmGate: (): void => { for (const clip of [...Object.values(GATE_CLIP), 'combatStart', 'gatehum', 'placelow']) loadSample(clip); }, // + the End Turn cue "Yes" plays, the hum, and the end-of-match tone
   /**
    * THE PLACEMENT TONES (owner 2026-10-13): the sound of the result. 1st to 4th plays the gate's cinematic hit;
@@ -2109,6 +2175,9 @@ const SFX_PREVIEW: Record<string, () => void> = {
   runeArrival: () => sfx.runeSelectImplosion(),
   goodLuckShine: () => { sfx.goodLuckShine(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'shine')); },
   goodLuckSpark: () => { sfx.goodLuckSpark(1, 0, goodLuckTail(getGoodLuckIntroConfig(), 'spark')); },
+  wipedrop: () => sfx.wipeGate('drop'), wipethudwood: () => playWipeLayer(WIPE_GATE_LAYERS.impact[0]!), wipethudground: () => playWipeLayer(WIPE_GATE_LAYERS.impact[1]!),
+  wipethudheavy: () => playWipeLayer(WIPE_GATE_LAYERS.impact[2]!), wipethudgrit: () => playWipeLayer(WIPE_GATE_LAYERS.impact[3]!), wipeposter: () => playWipeLayer(WIPE_GATE_LAYERS.impact[4]!),
+  wipecrank: () => playWipeLayer(WIPE_GATE_LAYERS.crank[0]!), wipegears: () => playWipeLayer(WIPE_GATE_LAYERS.crank[1]!), wipegroan: () => playWipeLayer(WIPE_GATE_LAYERS.crank[2]!), wipegateopen: () => playWipeLayer(WIPE_GATE_LAYERS.crank[3]!),
   gateclose: () => sfx.gate('close'), gateslam: () => sfx.gate('slam'), gaterattle: () => sfx.gate('rattle'), gateopen: () => sfx.gate('open'), gateintro: () => sfx.gate('intro'), gateform: () => sfx.gate('form'), gateshatter: () => sfx.gate('shatter'),
   gatehum: () => { sfx.gateHum(true); window.setTimeout(() => sfx.gateHum(false), 2600); },
   placelow: () => sfx.placementTone(8), placehigh: () => sfx.placementTone(1),

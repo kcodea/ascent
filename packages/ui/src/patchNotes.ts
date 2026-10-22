@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A new transition between the Shop and combat: a heavy wooden gate slams down, shows who you are facing on a nailed-up poster, then cranks back up.',
+        details: [
+          'Replaces the blue curtain, and nothing from the game flashes through it any more.',
+          'The poster swings on its loose nail as the gate lands and as it is winched up.',
+          'Its own sounds: a whoosh as it drops, a heavy thud with a cloud of dust on landing, and a winch and gears as it rises.',
+          'Coming back to the Shop plays the same gate, with Returning to Shop on the poster.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Counters under cards now show plain numbers like 1/3, never words. The Frack Attack counter now ticks during combat.',
         details: [
           'Rosey, Hellrider and Indy count Refreshes as 1/3, 2/3, 3/3 instead of "1 Refresh".',

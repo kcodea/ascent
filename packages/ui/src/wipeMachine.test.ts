@@ -52,9 +52,46 @@ describe('the wipe machine', () => {
       expect(curtainClassFor(pass[iHold]!)).toContain(' full settle');
       expect(curtainClassFor(pass[iHold + 1]!)).toMatch(/ gone/);
     }
-    // ...and the CSS agrees: the hold's clip is the full inset with the transition off.
-    expect(css).toMatch(/\.wipecurtain\.full\.settle \{ clip-path: inset\(0 0 0 0\); \}/);
+    // ...and the CSS agrees: covering is the gate at rest on the floor, and the holds snap (transition off).
+    expect(css).toMatch(/\.wipecurtain\.full \{ transform: translateY\(0\); \}/);
     expect(css).toMatch(/\.wipecurtain\.settle \{ transition: none; \}/);
+  });
+
+  // Owner 2026-10-21: "something that falls from the ceiling of the screen and lands at the bottom of the screen with a
+  // bang, like a big stone gate ... then it quickly cranks back up". It moves by transform ONLY (a clip-path bloom could
+  // drop a frame and let the game pop through).
+  it('the gate only moves by transform: no clip-path, the stone art on a transform-only transition', () => {
+    const rule = /\.wipecurtain \{ position: fixed; inset: 0; z-index: \d+; pointer-events: none;([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(rule).toContain("url('/transition-gate.webp')");
+    expect(rule).toMatch(/transition: transform /);
+    expect(rule).not.toMatch(/clip-path/);
+    expect(css).not.toMatch(/\.wipecurtain[^{]*\{[^}]*clip-path/);
+    // (…and the poster swinging on its nail, owner 2026-10-22: "the poster sort of wiggles separately".)
+    expect(css).toMatch(/\.wipecurtain\.gone\.parked \.wipeposter \{ animation: none; \}/);
+    for (const k of ['wipeslam', 'wipecrank', 'posterslam', 'postercrank']) {
+      const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
+      expect(frames, k).toMatch(/transform/);
+      expect(frames.replace(/transform: [^;]*;|animation-timing-function: [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);
+    }
+  });
+
+  it('the gate drops from above and is cranked back up, the same both ways, never jumping on screen', () => {
+    // Where each state's class puts the gate, as a share of its height (mirrors the transform rules, asserted below).
+    const y = (w: WipeState): number => (curtainClassFor(w).includes(' full') ? 0 : -100);
+    expect(css).toMatch(/\.wipecurtain \{[^}]*transform: translateY\(-100%\);/);
+    expect(css).toMatch(/\.wipecurtain\.gone \{ transform: translateY\(-100%\); animation: wipecrank /);
+    expect(WIPE_ENTRY.map(y)).toEqual([-100, -100, 0, 0, -100, -100]);
+    expect(WIPE_EXIT.map(y)).toEqual([-100, -100, 0, 0, -100, -100]);
+    // Every hop that does NOT animate (into a tell, a hold or a parked state) is between equal positions.
+    for (const pass of [WIPE_ENTRY, WIPE_EXIT]) {
+      for (let i = 1; i < pass.length; i++) {
+        if (!wipeSweeping(pass[i]!)) expect(y(pass[i]!), `${pass[i - 1]} -> ${pass[i]}`).toBe(y(pass[i - 1]!));
+      }
+    }
+    // The crank plays on the reveals only: parked in combat (e.g. a run resumed mid-fight) it never replays.
+    expect(curtainClassFor('combat')).toContain(' parked');
+    expect(curtainClassFor('revealIn')).not.toContain(' parked');
+    expect(css).toMatch(/\.wipecurtain\.gone\.parked \{ animation: none; \}/);
   });
 
   it('the tells snap (settle), so the bloom never slides its centre in from the last origin', () => {
@@ -105,7 +142,9 @@ describe('screen wipe config', () => {
 
   it('writes every var the curtain, ring and bar read', () => {
     const v = wipeCssVars(WIPE_DEFAULTS, wipeOriginFor(3440, 1440, null, { ellipse: 1, ringLine: WIPE_DEFAULTS.ringLine }));
-    for (const k of ['--wipe-dur', '--wipe-reveal-dur', '--wipe-ease', '--wipe-cx', '--wipe-cy', '--wipe-rx', '--wipe-ry',
+    // (`--wipe-rx` / `--wipe-ry` are still written, but only the retired clip-path bloom read them: the curtain slides
+    // since 2026-10-21.)
+    for (const k of ['--wipe-dur', '--wipe-reveal-dur', '--wipe-ease', '--wipe-cx', '--wipe-cy',
       '--wipe-front-sx', '--wipe-front-sy', '--wf-in0', '--wf-in1', '--wf-line', '--wf-out1', '--wf-glow', '--wf-halo']) {
       expect(v[k], k).toBeTruthy();
       expect(css.includes(`var(${k}`), `${k} is read by styles.css`).toBe(true);

@@ -1,4 +1,4 @@
-import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -241,6 +241,8 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+import { gateFx } from './rankedGate/gateFx';
+import { PHONE_GPU } from './phoneDiag';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
@@ -2363,16 +2365,35 @@ export function Recruit() {
     // Warm the exit splash's shop vignette too (the foe face is boot-loaded by the title screen; this one
     // has no other loader, and a first-exit pop-in on the blue would read as a blip).
     new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
+    // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
+    new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
+    new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
+    sfx.warmGate();
+    sfx.warmWipeGate();
+    if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
     if (!o) return;
     const c = getScreenWipeConfig();
-    const ease: [number, number, number, number] = [c.easeX1, c.easeY1, c.easeX2, c.easeY2];
+    // The gem's charge-up tell stays. The bloom stardust and the exit inhale rode the retired radial bloom's seam;
+    // the falling gate (2026-10-21) has no seam for them to follow, so they no longer play.
     if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
-    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease);
-    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease); wipeFx.inhale(o.cx, o.cy, o.r, c.coverMs + 200); }
+  }, [wipe]);
+  // THE FALLING GATE's sounds: its OWN recordings since 2026-10-22 (owner: "i have new impact sounds i want to use so
+  // they are different from the gate sounds"; sfx.wipeGate): the door whoosh as it starts to fall, the layered thuds
+  // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
+  // groan as it is winched back up.
+  useEffect(() => {
+    if (wipe === 'coverIn' || wipe === 'coverOut') sfx.wipeGate('drop');
+    else if (wipe === 'coveredIn' || wipe === 'coveredOut') {
+      sfx.wipeGate('impact');
+      // …and the dust it knocks up from the floor (owner 2026-10-21: "create the dust from the bottom"), on the ranked
+      // gate's particle layer (lifted over the curtain while it is up). Desktop only: phones keep no extra FX context.
+      if (!PHONE_GPU) gateFx.land({ left: 0, right: window.innerWidth, bottom: window.innerHeight });
+    }
+    else if (wipe === 'revealIn' || wipe === 'revealOut') sfx.wipeGate('crank');
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
@@ -2459,7 +2480,15 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
-    if (e.propertyName !== 'clip-path') return;
+    // The gate FALLS on a transform transition (2026-10-21). Only the gate's own transition counts, not a child's.
+    if (e.propertyName !== 'transform' || e.target !== e.currentTarget) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
+  // …and is CRANKED back up by a keyframe animation (`wipecrank`), whose end finishes the reveal. (The landing bounce,
+  // `wipeslam`, plays inside the hold, which its own timer ends.)
+  const onWipeAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
+    if (e.animationName !== 'wipecrank' || e.target !== e.currentTarget) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);
@@ -8089,7 +8118,10 @@ export function Recruit() {
           curtainLadder.test.ts); only the wipe FX canvas rides on it. The curtain's clip-path transition is the
           sanctioned one-shot kind. */}
       {createPortal(<>
-      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
+      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} onAnimationEnd={onWipeAnimEnd} style={wipeVars}>
+        {/* THE POSTER (owner 2026-10-22): a separate parchment nailed to the gate by one loose nail, which swings on it when
+            the gate slams and as it is cranked up. The announcement rides on it, so it swings too (`.wipeposter`). */}
+        <div className="wipeposter">
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
             away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only
@@ -8130,6 +8162,7 @@ export function Recruit() {
             <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
           </div>
         )}
+        </div>
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the

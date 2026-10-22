@@ -70,6 +70,18 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Balance',
+        text: "Five new Kobold runes join Set 3: Refreshing Rubies, Ruby Sales, Goleming, Red Start and Rosey's Garden.",
+        details: [
+          'Refreshing Rubies (Basic, 2 Gold): every 4 Refreshes you press, free ones included, get a random Ruby.',
+          'Ruby Sales (Basic, 1 Gold): every 3 minions you Sell, get a random Ruby.',
+          'Goleming (Basic, 3 Gold): Avenge (5) summons a Gemheart Golem and casts 6 Rubies on it. It needs a free slot.',
+          'Red Start (Epic, 3 Gold): at Start of Combat, cast a permanent Ruby on each of your Kobolds. Those stats stay after the fight.',
+          "Rosey's Garden (Epic, 4 Gold): every Ruby you cast gives a random friendly minion +4/+5 for good, in the Shop and in combat.",
+          'The two counting runes show their progress as a plain counter on the rune.',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Five new Kobolds join Set 3: Boy Scout, Gramps, Zapdash, Frack Attack and Rosey.',
         details: [
           'Boy Scout (Tier 2, 3/3): Shout: Gain 2 free Refreshes.',

@@ -2495,6 +2495,27 @@ Seven Epic runes, Set 3 only, offered when Dragon is one of the run's tribes.
 - **Runic Transposition** (4): a Whisper that gives a Dragon Health also gives it that much Attack, on top of its own
   Attack (+2/+3 becomes +5/+3), part of the Whisper's own grant (temporary with it; a Hum keeps it).
 
+### Set 3 Kobold runes (owner 2026-10-22; R-KOBOLD-RUNES-1022-01..04)
+
+Five runes, Set 3 only, offered when Kobold is one of the run's tribes. Each copy held pays its own share.
+
+- **Refreshing Rubies** (Basic, 2): "When you Refresh 4 times, get a random Ruby." Counts every Refresh you press, a free
+  one included (the Rosey / Indy meter); the new turn's Shop and rune, hero or spell refreshes do not count. A running
+  meter: it carries across turns and repeats. The rune shows a plain N/4 counter.
+- **Ruby Sales** (Basic, 1): "When you Sell 3 minions, get a random Ruby." Every minion you Sell counts (board or hand,
+  a spell that Sells included). A running meter with a plain N/3 counter.
+- Both pay one random Ruby (any of the six types, R-RAND-02). They respect the hand cap: a full hand gets nothing.
+- **Goleming** (Basic, 3): "Avenge (5): summon a Gemheart Golem and cast 6 Rubies on it." Combat only (Avenge); Fury
+  repeats it. A plain summon: on a full board the Golem is lost, and its Rubies with it. The Golem casts 6 plain Rubies
+  on itself (real casts: your Ruby strength, Rosey and Rosey's Garden all count them). The Golem lasts the fight.
+- **Red Start** (Epic, 3): "Start of Combat: cast a permanent Ruby on your Kobolds." One Ruby on each living friendly
+  Kobold (All-types counts). A **permanent Ruby** keeps its stats after the fight: they carry back to the Shop board
+  (the Combatative Rubies rule). Twilight repeats it. No Shop replay.
+- **Rosey's Garden** (Epic, 4): "When you cast a Ruby, give a random minion +4/+5 permanently." Once per Ruby cast
+  (two Rubies is two), in the Shop and in combat, to a random friendly minion. Permanent in combat too (it carries back).
+  Bounces and Double Trouble's self-Rubies are not casts. The +4/+5 is a plain buff, so it never triggers a Ruby effect:
+  Rosey and the Garden cannot loop.
+
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 
 The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:

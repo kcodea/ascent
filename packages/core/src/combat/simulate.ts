@@ -20,7 +20,7 @@ import type {
   Side,
   Tribe,
 } from '../types';
-import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
+import { ALE_IDS, DRAGON_RUNES_BASIC, ENGRAVE_KEEPS_KEYWORDS, RUBY_TYPE_IDS, damageMeterOf, alignAllows, extraTriggerFires, boardShoutExtras, foldEchoExtraFires, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, GOLEMING_AVENGE, GOLEMING_RUBIES, ROSEYS_GARDEN_GAIN, RUPTURED_RUBY_BOUNCES, soulFurnaceHealth } from '../types';
 import { makeRng, type Rng } from '../rng';
 import { CombatBus } from '../events';
 import { inRunTribes } from '../tribeGate';
@@ -2453,6 +2453,7 @@ export function simulate(
       // Rune of the Undertow: a deferred body that took a Ward at queue time but never landed gives it back
       // (R-UNDERTOW-LANDED-01) — the allowance counts bodies that were really summoned.
       if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
+      rubiesOnLanding.delete(minion); // Goleming: an overflowed Golem takes its Rubies with it
       // Rune of the Food Chain: likewise, a deferred body that never landed was not the first summon
       // (R-FOODCHAIN-LANDED-01) — the chance re-opens for the next body that does land.
       if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
@@ -2528,6 +2529,9 @@ export function simulate(
       }
     }
     summonEntryEffects(minion, side);
+    // GOLEMING: a deferred Golem's owed Rubies are cast as it lands (before its strike), on their own beat.
+    const owed = rubiesOnLanding.get(minion);
+    if (owed) { rubiesOnLanding.delete(minion); nextStep(); playRubyOn(ctx, minion, minion, owed); }
     // Attack-on-summon (Whelp) / `attackNow` (Spear Warden): the immediate strike is NOT queued here. We only
     // reach placeSummon for these tokens from flushImmediateAttacks (they defer in summonMinion), which strikes
     // the placed body inline right after this returns — so the token summons, then swings, before the next
@@ -3074,6 +3078,10 @@ export function simulate(
     // summon, so for R-ORD-05 it interrupts like one (the between-swings and wind-up flushes pick it up by `seq`).
     | { minion: Minion; interrupts: true; seq: number; shieldFirst?: undefined; forcedTarget?: undefined; summon?: undefined }
   )[] = [];
+  /** GOLEMING (Set 3 Kobold rune, owner 2026-10-22): Rubies owed to a summoned body whose landing was DEFERRED (an
+   *  attacks-immediately Golem rides `pendingAttackOnSummon`). Cast in `placeSummon` the moment it lands; dropped when it
+   *  overflows (no body, no Rubies). A body placed inline never enters this map: its Rubies are cast right away. */
+  const rubiesOnLanding = new Map<Minion, number>();
   /** Monotonic stamp on each deferred summon, so a swing's wind-up flush drains ONLY what its own wind-up queued
    *  (an earlier Flurry swing's summon strikes between the swings instead; see `performAttack`). */
   let immediateSummonSeq = 0;
@@ -5543,6 +5551,18 @@ export function simulate(
         for (const t of picks) { if (t !== picks[0]) nextStep(); runeCastRunebind(t, 'rune_war_council', 'War Council'); }
       }
     }
+    // RED START (Set 3 Kobold rune, owner 2026-10-22): "Start of Combat: Cast a Permanent Ruby on your Kobolds." One
+    // PERMANENT Ruby (`playRubyOn(..., permanent)`, the Combatative Rubies permanence: it carries back to the Shop
+    // board) on EACH living friendly Kobold, All-types bodies included, each its own caster. Again per copy held. A
+    // Start of Combat rune, so Twilight repeats it with the other passes.
+    if (rmods.runeRedStart) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeRedStart'); k++) {
+        const kobolds = living(rside).filter((m) => isTribeOf(m, 'kobold', cards));
+        if (kobolds.length === 0) break;
+        nextStep(); twilightPulse(rside, pass); fireTrigger('runeRedStart', rside);
+        for (const kb of kobolds) playRubyOn(ctx, kb, kb, 1, true);
+      }
+    }
     if (base && rmods.unitedFront && rmods.unitedFront > 0) {
       // Emissary (United Front), a hero power (base pass only): the Five Banners rule — one friendly of each
       // type gains +N/+N, where N is the number of spells cast this GAME (owner respec 2026-08-17; it was the
@@ -6007,6 +6027,22 @@ export function simulate(
       fireTrigger('runeGemStar', side);
       ctx.gainStarform(Math.round((attack / per) * k) * n, Math.round((health / per) * k) * n, side, 'Gem Star');
     }
+    // ROSEY'S GARDEN (Set 3 Kobold rune, owner 2026-10-22): "When you cast a Ruby, give a random minion +4/+5
+    // permanently." Once PER RUBY (`per`, the Trouble / Rosey ruling) and per copy held, each a fresh seeded pick among
+    // the side's living minions. PERMANENT: `permaGain`, carried back at settle like Rosey's own gain. A plain buff,
+    // never a Ruby, so no Ruby watcher (Rosey, this rune, a bounce) hears it: no loop.
+    if (m.runeRoseysGarden && per > 0) {
+      const copies = flagCopiesOf(side, 'runeRoseysGarden');
+      let fired = false;
+      for (let r = 0; r < per * copies; r++) {
+        const pool = living(side);
+        if (pool.length === 0) break;
+        if (!fired) { fireTrigger('runeRoseysGarden', side); fired = true; }
+        const pick = pool[rng.int(pool.length)]!;
+        ctx.buff(pick, ROSEYS_GARDEN_GAIN.attack, ROSEYS_GARDEN_GAIN.health, "Rosey's Garden");
+        if (!pick.keywords.includes('EG')) pick.permaGain = { attack: (pick.permaGain?.attack ?? 0) + ROSEYS_GARDEN_GAIN.attack, health: (pick.permaGain?.health ?? 0) + ROSEYS_GARDEN_GAIN.health };
+      }
+    }
     void target;
   }
   // RUNE OF THE PALLBEARER (Set 3 design pass): every friendly UNDEAD death gives the left-most hand minion +2/+2 per copy.
@@ -6415,6 +6451,19 @@ export function simulate(
   runeAvenge(4, 'runeSpearline', (m) => !!m.runeSpearline, (side) => { // summon a Spear Warden that attacks immediately
     const knit = cards['knit'];
     if (knit) { nextStep(); summonMinion(side, knit, undefined, undefined, false, true); }
+  });
+  // GOLEMING (Set 3 Kobold rune, owner 2026-10-22): "Avenge (5): Summon a Gemheart Golem and cast 6 Rubies on it." A PLAIN
+  // summon of the printed token (not a "when you have space" queue): a full board loses the Golem, and the Rubies with
+  // it. The 6 plain Rubies go through `playRubyOn` (the Golem casts them on itself), so the side's Ruby strength, the
+  // Paragon, Rosey / Rosey's Garden and every Ruby watcher see real casts. A Golem whose landing is deferred (it attacks
+  // immediately) gets them as it lands (`rubiesOnLanding`). Combat-only: the Golem and its Rubies last the fight.
+  runeAvenge(GOLEMING_AVENGE, 'runeGoleming', (m) => !!m.runeGoleming, (side) => {
+    const golemDef = cards['gemheart-shard'];
+    if (!golemDef) return;
+    nextStep();
+    const golem = summonMinion(side, golemDef, undefined);
+    if (boards[side].includes(golem)) { nextStep(); playRubyOn(ctx, golem, golem, GOLEMING_RUBIES); }
+    else if (pendingAttackOnSummon.some((p) => p.summon?.minion === golem)) rubiesOnLanding.set(golem, GOLEMING_RUBIES);
   });
   // Economy avenge runes — the payoff is RUN state (spell power / max Gold / a hand card / Fodder). The player's
   // fires as always; the enemy's fires silently into `enemyCarry` (see `runeAvenge`'s `economy` flag).

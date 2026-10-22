@@ -1,6 +1,6 @@
 import { CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -323,6 +323,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_shifting_facets: 3, rune_deepening_vein: 3,
   rune_soul_toll: 4, // Set 3 design pass (2026-09-27): Avenge (4) raises the Undead Aura
   rune_final_utterance: DRAGON_RUNES_BASIC.finalUtteranceAvenge, // Set 3 Dragon runes (2026-10-21): Avenge (4), a Whisper and a Shop Spell
+  rune_goleming: GOLEMING_AVENGE, // Set 3 Kobold runes (2026-10-22): Avenge (5), a Gemheart Golem with 6 Rubies cast on it
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

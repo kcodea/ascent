@@ -29,6 +29,8 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
       // Set 3 rune batch 3 (owner 2026-09-25): the new Kobold Basics JOIN the list.
       'gemmed decisions': 'rune_gemmed_decisions', 'echoing kobolds': 'rune_echoing_kobolds', /* 'red storm' archived 2026-10-13 (owner Set 3 batch) */
       choices: 'rune_choices', 'combatative rubies': 'rune_combatative_rubies',
+      // Set 3 Kobold runes (owner 2026-10-22): three Basics JOIN the list.
+      'refreshing rubies': 'rune_refreshing_rubies', 'ruby sales': 'rune_ruby_sales', goleming: 'rune_goleming',
     },
     epic: {
       'epic kobolds': 'rune_epic_kobold', 'attacking gems': 'rune_attacking_gems', investment: 'rune_investment', 'gem golem': 'rune_gem_golem', motherlode: 'rune_motherlode',
@@ -36,6 +38,8 @@ const OWNER_LIST: Record<string, { basic: Record<string, string>; epic: Record<s
       /* 'storming veins' archived 2026-10-13 (owner Set 3 batch) */ 'sold choices': 'rune_sold_choices', 'aggressive golems': 'rune_aggressive_golems', 'ruptured rubies': 'rune_ruptured_rubies',
       // Set 3 rune design pass (owner 2026-09-27): re-tagged Neutral -> Kobold.
       'living treasure': 'rune_living_treasure',
+      // Set 3 Kobold runes (owner 2026-10-22): two Epics JOIN the list.
+      'red start': 'rune_red_start', 'roseys garden': 'rune_roseys_garden',
     },
   },
   dwarf: {
@@ -176,7 +180,7 @@ describe("the owner's Set 3 rune list (2026-09-25)", () => {
   it('names 203 distinct runes, every one a live (non-archived) rune def', () => {
     // 163 + 11 from Set 3 rune batch 3 (2026-09-25) = 174; the 2026-09-27 design pass: tranche 0 cut 10, restored 5 (169);
     // tranche 1 added 8 Undead (177); tranche 2 added 8 Celestial (185); tranche 3 added 4 Spirit + 3 Dwarf (192); tranche 4 added 8 hybrids (200); tranche 5 added the Set 3 Menagerie, Unity and the Heavy Hand (203); Rune of Drakko 2026-10-03 (204); Profit Sharing archived everywhere 2026-10-07 (203).
-    expect(LISTED).toHaveLength(197); // 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
+    expect(LISTED).toHaveLength(202); // 197 → 202 on 2026-10-22 (Set 3 Kobold runes: + 3 Basic, + 2 Epic); 193 → 197 on 2026-10-21 (Set 3 Dragon runes, Epic B: + 4); 186 → 193 on 2026-10-21 (Set 3 Dragon runes, Epic A: + 7); 175 → 186 on 2026-10-21 (Set 3 Dragon runes, Basic: + 11); 176 → 175 on 2026-10-21 (Rune of the High King left set 3: Brill is buyable there); 200 → 176 on 2026-10-14 (owner swap: 20 Celestial runes to Set 4, 4 Celestial hybrids parked); 203 → 200 on 2026-10-13 (owner Set 3 batch: Red Storm + Storming Veins archived, Living Geode left set 3)
     expect(new Set(LISTED).size, 'no rune named twice').toBe(LISTED.length);
     for (const id of LISTED) {
       expect(LIVE.some((r) => r.id === id), `${id} is a live rune`).toBe(true);

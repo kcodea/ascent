@@ -258,6 +258,11 @@ export function boardShoutExtras(
 export const COMBATATIVE_RUBIES_ATTACKS = 3;
 export const BODY_COUNTING_DEATHS = 6; // owner 2026-09-27 (Set 3 rune design pass): was 8
 export const RUPTURED_RUBY_BOUNCES = 2;
+/** Set 3 Kobold runes (owner 2026-10-22): the printed numbers both phases and the badge read. Goleming: "Avenge (5):
+ *  Summon a Gemheart Golem and cast 6 Rubies on it." Rosey's Garden: "give a random minion +4/+5 permanently". */
+export const GOLEMING_AVENGE = 5;
+export const GOLEMING_RUBIES = 6;
+export const ROSEYS_GARDEN_GAIN = { attack: 4, health: 5 } as const;
 /** Set 3 Dragon runes, Basic (owner 2026-10-21): the printed numbers both phases read (the Shop module
  *  `packages/sim/src/dragonRunesBasic.ts` and simulate), so the two halves cannot drift. */
 export const DRAGON_RUNES_BASIC = {
@@ -1484,7 +1489,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand' | 'refresh' | 'sell'; per: number;
       /** Rune of the Secret Exchange (Set 3 Dragon runes, owner 2026-10-21): open that many Shop-spell Discovers. */
       discoverSpell?: number;
       /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
@@ -2002,7 +2007,11 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Whisper cast from hand on each Dragon each turn is permanent; twinTongues = a Whisper cast from hand also casts on
   // another friendly Dragon; openedVault = after a Jar of Secrets activation the next Whisper cast from hand casts twice;
   // bequeathedSecrets = the first Dragon sold each turn gives its Whisper stats to the left-most Dragon permanently.
-  | 'runeLastingWords' | 'runeTwinTongues' | 'runeOpenedVault' | 'runeBequeathedSecrets';
+  | 'runeLastingWords' | 'runeTwinTongues' | 'runeOpenedVault' | 'runeBequeathedSecrets'
+  // Set 3 Kobold runes (owner 2026-10-22): goleming = Avenge (5) summon a Gemheart Golem and cast 6 Rubies on it;
+  // redStart = Start of Combat, a permanent Ruby on each friendly Kobold; roseysGarden = every Ruby cast gives a random
+  // friendly minion +4/+5 permanently.
+  | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2504,6 +2513,13 @@ export interface QuestCombatMods {
   runeUnbrokenScales?: boolean;
   /** Rune of Runic Transposition: a Whisper cast on a friendly Dragon also gives it Attack equal to the Health it gives. */
   runeRunicTransposition?: boolean;
+  // ── Set 3 Kobold runes (owner 2026-10-22) ──
+  /** Goleming: Avenge (5), summon a Gemheart Golem and cast 6 Rubies on it (per copy). */
+  runeGoleming?: boolean;
+  /** Red Start: Start of Combat, cast a PERMANENT Ruby on each friendly Kobold (per copy). */
+  runeRedStart?: boolean;
+  /** Rosey's Garden: every Ruby cast gives a random friendly minion +4/+5 PERMANENTLY (per Ruby, per copy). */
+  runeRoseysGarden?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —

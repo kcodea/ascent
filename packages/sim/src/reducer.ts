@@ -2744,6 +2744,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away. `playerRoll`:
       // this is the player pressing Refresh (Indy counts only these, owner 2026-10-13).
       applyShopRefreshed(s, { playerRoll: true });
+      // Refreshing Rubies (Set 3 Kobold rune, owner 2026-10-22): the `refresh` threshold ticks on the player's press only
+      // (a free one included), the same meter Indy and Rosey read.
+      advanceRuneThresholds(s, 'refresh', 1);
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type per copy held
       // (owner 2026-08-27, unique-engine doubling).
       if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); for (let k = 0; k < runeStacksOf(s, 'rune_open_enrollment'); k++) appendDominantTypeOffer(s); }
@@ -8223,6 +8226,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRuneboundBrood: f?.runeRuneboundBrood,       // a summoned Drake Pup casts Runebind on itself
     runeUnbrokenScales: f?.runeUnbrokenScales,       // the first 2 Dragon Ward losses each combat: +10/+10 and Ward
     runeRunicTransposition: f?.runeRunicTransposition, // a Whisper's Health on a Dragon also gives that much Attack
+    // ── Set 3 Kobold runes (owner 2026-10-22) ──
+    runeGoleming: f?.runeGoleming,                   // Avenge (5): a Gemheart Golem with 6 Rubies cast on it
+    runeRedStart: f?.runeRedStart,                   // Start of Combat: a permanent Ruby on each friendly Kobold
+    runeRoseysGarden: f?.runeRoseysGarden,           // every Ruby cast: a random friendly minion +4/+5 permanently
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

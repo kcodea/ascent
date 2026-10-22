@@ -1607,6 +1607,45 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeCombatativeRubies' },
     sets: ['set3'],
   },
+  // ── Set 3 Kobold runes (owner 2026-10-22): Basic ──────────────────────────────────────────────────────────────
+  {
+    // A `refresh` THRESHOLD: one tick per Refresh the player PRESSES (the reducer's `roll` action, a free one
+    // included: the Rosey / Indy meter); the turn's fresh row and rune / hero / spell refreshes never tick it. Every
+    // 4th pays a random Ruby (all six types, `mintRandomRubies`). The meter carries across turns and repeats.
+    id: 'rune_refreshing_rubies',
+    tribes: ['kobold'],
+    name: 'Refreshing Rubies',
+    cost: 2,
+    text: 'When you **Refresh 4 times**, get a random **Ruby**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'refresh', per: 4, grantRandomRuby: 1 },
+    sets: ['set3'],
+  },
+  {
+    // A `sell` THRESHOLD: one tick per minion you Sell (board or hand, any sale path through `settleMinionSale`, so a
+    // spell that Sells counts too). Every 3rd pays a random Ruby. The meter carries across turns and repeats.
+    id: 'rune_ruby_sales',
+    tribes: ['kobold'],
+    name: 'Ruby Sales',
+    cost: 1,
+    text: 'When you **Sell 3 minions**, get a random **Ruby**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'runeThreshold', meter: 'sell', per: 3, grantRandomRuby: 1 },
+    sets: ['set3'],
+  },
+  {
+    // A combat Avenge (5) rune (`runeAvenge`, so Rune of Fury repeats it): summon a Gemheart Golem (the printed token,
+    // a plain summon: a full board loses it, and its Rubies with it), then cast 6 plain Rubies on it through
+    // `playRubyOn` (the Golem is the caster and the target). Combat-only, like every Golem and Ruby a fight makes.
+    id: 'rune_goleming',
+    tribes: ['kobold'],
+    name: 'Goleming',
+    cost: 3,
+    text: '**Avenge (5):** summon a **Gemheart Golem** and cast **6 Rubies** on it.',
+    previewCards: ['gemheart-shard', 'ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeGoleming' },
+    sets: ['set3'],
+  },
   {
     // A RUNNING meter over friendly DEATHS (`runeBodyCountTick`), shared by combat and the Shop: every 6th (owner 2026-09-27; was 8th) pays a
     // random Undead from the run's pool at or below your tier. Sales are not deaths; Shop destroys and devours are.
@@ -3806,6 +3845,35 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** cast in combat bounce **twice**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeRupturedRubies' },
+    sets: ['set3'],
+  },
+  // ── Set 3 Kobold runes (owner 2026-10-22): Epic ───────────────────────────────────────────────────────────────
+  {
+    // A Start of Combat rune (Twilight repeats it): one PERMANENT Ruby on each living friendly Kobold (All-types bodies
+    // count), through `playRubyOn(..., permanent)`, the Combatative Rubies permanence: the Ruby's stats carry back to
+    // the Shop board. Each Kobold is its own caster (the Gemstorm convention: a rune has no body).
+    id: 'rune_red_start',
+    tribes: ['kobold'],
+    name: 'Red Start',
+    cost: 3,
+    epic: true,
+    text: '**Start of Combat:** cast a **permanent Ruby** on your **Kobolds**.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRedStart' },
+    sets: ['set3'],
+  },
+  {
+    // Heard at each phase's one Ruby-CAST chokepoint, beside Rosey (`roseyHearsRubies` in the Shop, `onRubyCast` in
+    // combat), once PER RUBY (the Trouble ruling). Each Ruby gives a seeded-random friendly minion +4/+5 PERMANENTLY
+    // (combat: `permaGain`, carried back like Rosey's). A plain buff no Ruby watcher hears, so it cannot loop.
+    id: 'rune_roseys_garden',
+    tribes: ['kobold'],
+    name: "Rosey's Garden",
+    cost: 4,
+    epic: true,
+    text: 'When you cast a **Ruby**, give a random minion **+4/+5** permanently.',
+    previewCards: ['ruby'],
+    reward: { kind: 'combatFlag', flag: 'runeRoseysGarden' },
     sets: ['set3'],
   },
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27), tranche 1: Undead Epics. All Set-3-only, Undead-gated. ──

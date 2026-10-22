@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, rubyCastGainOf, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -2121,7 +2121,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand' | 'refresh' | 'sell', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -12113,11 +12113,28 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
  *  watcher hears (so it cannot loop). Bounce hops never come through here, so they pay nothing (they are not casts). */
 export function roseyHearsRubies(state: RunState, rubies: number): void {
   if (rubies <= 0) return;
+  roseysGardenHearsRubies(state, rubies); // the rune half of the same Ruby-cast moment
   for (const m of state.board) {
     const gain = rubyCastGainOf(CARD_INDEX[m.cardId], !!m.golden, m.eotTick);
     if (!gain) continue;
     const a = gain.attack * rubies, h = gain.health * rubies;
     if (a > 0 || h > 0) captureBuffFx(state, m, 'minion', () => addBuff(m, nameOf(m), a, h));
+  }
+}
+
+/** ROSEY'S GARDEN (Set 3 Kobold rune, owner 2026-10-22): "When you cast a Ruby, give a random minion +4/+5 permanently."
+ *  Heard beside Rosey (`roseyHearsRubies`, so every Shop Ruby CAST reaches it and no bounce hop does): once PER RUBY and
+ *  per copy held, a seeded-random board minion gains +4/+5. A Shop buff is permanent already. A plain buff no Ruby
+ *  watcher hears, so it cannot loop with Rosey or any Ruby trigger. */
+function roseysGardenHearsRubies(state: RunState, rubies: number): void {
+  if (!state.questFlags?.runeRoseysGarden || rubies <= 0 || state.board.length === 0) return;
+  const n = rubies * runeStacksOf(state, 'rune_roseys_garden');
+  procRuneId(state, 'rune_roseys_garden');
+  for (let i = 0; i < n && state.board.length > 0; i++) {
+    const rng = makeRng(state.rngCursor);
+    const pick = state.board[rng.int(state.board.length)]!;
+    state.rngCursor = rng.state();
+    captureBuffFx(state, undefined, 'spell', () => addBuff(pick, "Rosey's Garden", ROSEYS_GARDEN_GAIN.attack, ROSEYS_GARDEN_GAIN.health));
   }
 }
 
@@ -12233,6 +12250,9 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   // so a stamp there would fire on every render rather than on the sale.
   if (state.runeBartering && hasBattlecry(CARD_INDEX[sold.cardId])) procRune(state, 'runeBartering');
   gainGold(state, sellValueWithBonus(sold, state));
+  // Ruby Sales (Set 3 Kobold rune, owner 2026-10-22): the `sell` threshold ticks once per minion sold, from any sale
+  // path (the manual Sell and a spell that Sells both settle here).
+  advanceRuneThresholds(state, 'sell', 1);
   // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
   // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
   // tavern) → nothing to give.

@@ -15,7 +15,7 @@ Decide them in the DEV MENU → Rulebook board (clicks write to decisions.json),
 
 - **q-watch-gravebody** — Grave Body: never reacts to things played past it — confirm the reading
 
-## Doc Bot verification backlog (106) — NOT owner questions
+## Doc Bot verification backlog (113) — NOT owner questions
 
 Items Doc Bot could not yet verify with a staged scenario. Claude works these; they reach the board only if a
 staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
@@ -89,6 +89,13 @@ staged scenario CONFIRMS a mismatch or exposes a genuine design fork.
 - combat mod gemStarLeft — Rune of the Gem Star: how many more Rubies may still feed the Starform this turn (4 minus the Shop's).
 - combat mod runeKeepsakeGem (Rune of the Keepsake Gem: "Your Rubies also cast on the left-most minion in your hand.") — Rune of the Keepsake Gem: every Ruby cast also lands its stats on the left-most hand minion (a hand buff).
 - combat mod runeUnity (Rune of Unity: "While you control all 5 minion types, your minions count as every type.") — Rune of Unity: while this side controls every active minion type (naturally), its minions count as every type.
+- combat mod runeSpellFedScales (Spell-Fed Scales: "Whenever you cast a Shop Spell, give a Dragon +6/+7.") — Spell-Fed Scales: every Shop-pool spell this side casts gives a random living friendly Dragon +6/+7 per copy.
+- combat mod runeBorrowedFlame (Borrowed Flame: "Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this.") — Borrowed Flame: the per-copy value a Whisper cast on a Dragon gives right now (1 = unimproved). Each trigger grows it by `improveRepsFor`; the growth is carried back (`ShoutCarry.borrowedFlameGain`).
+- combat mod runeSpellTempering (Spell Tempering: "After you cast 4 Whispers, permanently improve your Shop Spells by +1/+1.") — Spell Tempering: on, and the carried Whisper-cast meter (0-3) coming into this fight.
+- combat mod runeSpellTemperingTick
+- combat mod runeDeepBreaths (Deep Breaths: "The first 2 Dragon attacks each combat cast Growth.") — Deep Breaths: the first 2 friendly Dragon swings each fight cast Growth (per copy).
+- combat mod runeDefiantWings (Defiant Wings: "Start of Combat: Give 2 Dragons +3/+6 and Ward.") — Defiant Wings: Start of Combat, 2 random friendly Dragons +3/+6 and Ward (per copy).
+- combat mod runeEmberInheritance (Ember Inheritance: "After your first Dragon with Echo dies each combat, give its Attack to your left-most Dragon.") — Ember Inheritance: the first friendly Dragon WITH an Echo to die each fight gives its Attack to the left-most living friendly Dragon (per copy).
 - combat mod starCrashBonus — Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too.
 - combat mod candlelightToll (Candlelight Toll: "") — Rune of Lasting Cadence: at Start of Combat, EVERY rally-capable friendly fires its Rally once (the board-wide sibling of `runeRallying`, which fires only the left-most). */ /** Candlelight Toll: a friendly Kobold dying grants a Ruby to hand (carried back like any hand grant).
 - combat mod gemheartCharge (Heart of the Mountain: "") — Heart of the Mountain: Gemheart Golems attack immediately when summoned.

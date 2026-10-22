@@ -69,6 +69,23 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Balance',
+        text: 'Set 3 adds eleven new Basic Dragon runes.',
+        details: [
+          'Runic Primer: get 2 Runebinds, and 2 more each turn.',
+          'Loose Tongues: whenever you play a Dragon, get a random Whisper.',
+          'Clear Voices: cast 3 different Whispers from hand in a turn to gain 2 Gold, once per turn.',
+          'Spell-Fed Scales: whenever you cast a Shop Spell, a Dragon gets +6/+7.',
+          'Borrowed Flame: a Whisper cast on a Dragon gives it +1/+1, and the rune grows each time.',
+          'Spell Tempering: every 4 Whispers you cast make your Shop Spells +1/+1 for good.',
+          'Open Treasury: get a copy of the first Shop Spell you buy each turn.',
+          'Deep Breaths: your first 2 Dragon attacks each combat cast Growth.',
+          'Defiant Wings: Start of Combat, 2 Dragons get +3/+6 and Ward.',
+          'Final Utterance: Avenge (4), get a random Whisper and a Shop Spell.',
+          'Ember Inheritance: your first Dragon with Echo to die each combat gives its Attack to your left-most Dragon.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
         details: [

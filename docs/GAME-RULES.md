@@ -2419,6 +2419,25 @@ Owner additions the same day (R-WHISPER-12..14):
 - **Whispwarder** (T5 7/5): "**Whisper:** Give a minion **Ward**." Its Whisper, **Warding Call**: Ward until your next
   turn; a Hum keeps it. Gilded: Resilient Ward instead.
 
+### Set 3 Dragon runes, Basic (owner 2026-10-21; R-DRAGON-RUNES-BASIC-01)
+
+Eleven Basic Runeforge runes, Set 3 only, offered only when Dragons are in the run (All-types counts as a Dragon). Each
+copy held pays its own share. Buffs are permanent in the Shop and last the fight in combat.
+
+| Rune | Text | How it resolves |
+| --- | --- | --- |
+| Runic Primer | Get 2 Runebinds. Repeat each turn. | 2 Runebinds when you take it (over the hand cap only at that moment) and at every Start of Turn. A rune source, so nothing below Shop Tier 2 (Runebind's tier). |
+| Loose Tongues | Whenever you play a Dragon, get a random Whisper. | A Dragon played from hand (the Shop's play); the Whisper is from your tier and below. |
+| Clear Voices | After you cast 3 different Whispers from hand in a turn, gain 2 Gold. Once per turn. | Counts distinct Whisper names; repeats of the same Whisper count once. |
+| Spell-Fed Scales | Whenever you cast a Shop Spell, give a Dragon +6/+7 | Any caster, both phases (R-SHOPSPELL-01). A random friendly Dragon. |
+| Borrowed Flame | Whenever you cast a Whisper on a Dragon, give it +1/+1 and improve this. | Every cast that lands on a friendly Dragon (hand, Whisp, Whaloo in combat). The value improves by 1 per trigger, permanently and in real time; the text prints the current value. |
+| Spell Tempering | After you cast 4 Whispers, permanently improve your Shop Spells by +1/+1. | A running meter over every Whisper cast (both phases); every 4th raises spell power. The badge counts x/4. |
+| Open Treasury | Get a copy of the first Shop Spell you buy each turn. | Either buy path (the spell slot or a spell in the row). |
+| Deep Breaths | The first 2 Dragon attacks each combat cast Growth. | Per side, per fight; each swing counts. |
+| Defiant Wings | Start of Combat: Give 2 Dragons +3/+6 and Ward. | 2 different random friendly Dragons. Twilight repeats it; Combat Prowess replays it in the Shop. |
+| Final Utterance | Avenge (4): Get a random Whisper and a Shop Spell | Combat only (Avenge). Rune of Fury doubles it. |
+| Ember Inheritance | After your first Dragon with Echo dies each combat, give its Attack to your left-most Dragon. | The first friendly Dragon carrying an Echo to die; its Attack at death goes to the left-most living friendly Dragon. |
+
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 
 The Set 4 Beasts hurt your own Beasts, in the Shop and in combat alike. **That self-damage never kills a Beast**:

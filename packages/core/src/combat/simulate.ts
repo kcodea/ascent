@@ -2839,7 +2839,7 @@ export function simulate(
   /**
    * Rune of the Brood / Rune of Living Echoes: while a side has an empty board slot, fill it.
    *
-   * Called after each attack's death cascade settles (beside `flushResummons`) — the moment a slot actually
+   * Called after each attack's death cascade settles (beside `flushSpaceQueue`) — the moment a slot actually
    * frees up. BOUNDED per combat: an unbounded version refills every slot the instant it empties, so a board
    * can never shrink and the fight stops resolving.
    */
@@ -2878,7 +2878,8 @@ export function simulate(
    * THE BETWEEN-ATTACKS SETTLE: everything an attack set off resolves before the next normal attacker is chosen.
    *
    *   1. `flushImmediateAttacks` — tokens the death cascade summoned to "attack immediately" land and strike.
-   *   2. `flushResummons` — a Reclaimer waiting in the wings reclaims a freed slot.
+   *   2. `flushSpaceQueue` — every "when you have space" summon still waiting (the Reclaimer's bodies, Brackus x
+   *      War's copies, Warden / Mirror March / Waking Reserve) takes a freed slot, first queued first (R-SPACE-PENDING-01).
    *   3. `fillFreeSlots` — Brood / Living Echoes / Decoy Sigil fill what is still free.
    *
    * and REPEATS while step 3 (or anything else) left an immediate attacker queued. The repeat is the fix for the
@@ -2894,7 +2895,7 @@ export function simulate(
     let rounds = 0;
     do {
       flushImmediateAttacks();
-      flushResummons();
+      flushSpaceQueue();
       fillFreeSlots();
     } while (pendingAttackOnSummon.length > 0 && rounds++ < IMMEDIATE_ATTACK_GUARD);
   }
@@ -4062,84 +4063,100 @@ export function simulate(
   const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 };
   const undertowWarded = new WeakSet<Minion>();
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
-  const pendingResummons: { anchor: Minion; board: BoardMinion; side: Side; reclaim?: { gain?: number; bonds?: boolean; label: string } }[] = [];
-  // ANCIENT OF WAR × Brackus: Start-of-Combat Tier 7 copies waiting for room. Summoned from the source's body as it
-  // stands when the slot opens, or from its Start-of-Combat body (`kws` / `stats`) if it has died since.
-  const pendingSummitCopies: { side: Side; src: Minion; kws: Keyword[]; stats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } }[] = [];
-  function flushSummitCopies(): void {
-    for (let i = 0; i < pendingSummitCopies.length; ) {
-      const p = pendingSummitCopies[i]!;
+  /**
+   * THE "WHEN YOU HAVE SPACE" QUEUE (R-SPACE-PENDING-01, owner bug 2026-10-21: *"a 'when you have space' mechanic
+   * should fire whenever the player truly has a slot for the minion to summon"*). ONE queue for both sides holds every
+   * summon that is WAITING for room: Rune of the Warden, Rune of the Mirror March, Rune of the Waking Reserve, the
+   * Reclaimer's resummons (Soren and its Ancients) and Brackus x War's Tier 7 copies. Each entry lands the moment its
+   * side has a free slot:
+   *   - at Start of Combat, straight away, when the board already has room (`queueSpaceSummon` flushes on enqueue);
+   *   - otherwise at the first settle after a friendly minion dies or leaves (`settleBetweenAttacks` runs
+   *     `flushSpaceQueue` after every attack's death cascade, and once before round 1).
+   * ORDER: first queued, first landed (FIFO, by enqueue time, across both sides). A side with no room is skipped and
+   * its entries keep their place, so within a side the order is strictly FIFO. Start of Combat enqueues in its normal
+   * order: the Reclaimer's bodies, then Brackus x War, then the rune pass (Warden, Mirror March, Waking Reserve), the
+   * first side before the second. Each landing is its own beat (`nextStep`) and emits its own trigger + `summon`.
+   * LIFETIME: combat-only. Whatever is still waiting when the fight ends is dropped (no text says it carries over).
+   * `occupied` (living bodies) is the room test, so a slot held through a Rise is not room.
+   */
+  const spaceQueue: { side: Side; land: () => void }[] = [];
+  function flushSpaceQueue(): void {
+    for (let i = 0; i < spaceQueue.length; ) {
+      const p = spaceQueue[i]!;
       if (occupied(p.side) >= 7) { i++; continue; }
-      pendingSummitCopies.splice(i, 1);
-      nextStep(); // the copy landing is its own moment
-      if (!p.src.dead && p.src.health > 0) xeroxCopy(p.side, p.src);
-      else {
-        const def = cards[p.src.cardId];
-        if (def) summonMinion(p.side, def, p.src.uid, p.kws, p.src.golden, false, p.stats);
-      }
+      spaceQueue.splice(i, 1);
+      p.land();
     }
   }
-  function flushResummons(): void {
-    // Reclaim each pending body the moment ITS side has room again (an enemy Soren board resummons on the
-    // enemy side, exactly like the player's Reclaimer). FIFO within a side.
-    for (let i = 0; i < pendingResummons.length; ) {
-      const { anchor, board, side, reclaim } = pendingResummons[i]!;
-      if (occupied(side) >= 7) { i++; continue; }
-      pendingResummons.splice(i, 1);
-      nextStep(); // each reclaimed body re-entering is its own moment
-      const copy = instantiate(board, side, cards, mkUid);
-      applyCombatGains(copy); // re-apply per-card stacks banked this fight (either side)
-      // A RECLAIMED body IS a combat summon (owner 2026-10-16: "rune of the food chain should work with soren's hero
-      // power resummon, and anything that summons a minion in combat basically"; R-SUMMON-RECLAIM-01). This path
-      // inserts the copy directly rather than through `summonMinion` / `placeSummon`, so it used to skip the whole
-      // "summoned in combat" grant helper (Food Chain, Hatchery, Packcraft, Spare Chair, Undertow, the Ancient of
-      // War summon-attack) plus Solid Ground and Containment. Run here, in the placed summon's order (grants before
-      // the slot, Solid Ground + Containment after), all before the `summon` snapshot so the replay shows the real
-      // body from its first frame, and the rune pulses share this beat. Room was just checked above, so the cap is
-      // judged here (`capJudgedElsewhere`): the copy always lands. Run before the splice, so Food Chain's left-most
-      // Demon is never the copy itself.
-      const reclaimGrant = applyCombatSummonGrants(copy, side, true);
-      if (reclaimGrant.ward) {
-        copy.divineShield = true;
-        if (!copy.keywords.includes('DS')) copy.keywords.push('DS');
-      }
-      const at = boards[side].indexOf(anchor);
-      boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
-      // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
-      // entry starts at zero"; docs/GAME-RULES.md: progress restarts "as any body placed mid-combat"). This path
-      // inserts the copy directly rather than through `placeSummon`, so it missed the stamp that every other
-      // summon, Rise and Rebirth gets: a Reclaimed Kennelmaster counted its OWN Start-of-Combat destruction and
-      // paid its Avenge (4) at the side's 4th death instead of the 4th after its return. `killOrReborn` tallied
-      // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
-      // the combat card prints (computeFrame stamps the same floor on every `summon` event).
-      copy.avengeBaseline = deaths[side];
-      applySolidGround(copy, side);
-      applyContainment(copy, side);
-      registerEffects(copy);
-      emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
-      // The single summon-entry suite (R-SUMMON-RECLAIM-01), as every placed summon and every Rise runs it: tribe
-      // auras FIRST, then the onSummon watchers left→right (both were called by hand here before), plus everything
-      // else that counts a combat summon (quest tallies, Remains / Reinvestment, Returning Pack, Emberline, Unity,
-      // Summoning Bulwark's Taunts, Robin's Spoils gain).
-      summonEntryEffects(copy, side);
-      // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
-      // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
-      if (reclaim && !copy.dead && copy.health > 0) {
-        // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
-        if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
-        // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
-        if (reclaim.bonds && copy.attack > 0) {
-          const near = livingNeighbours(ctx, copy);
-          if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
-        }
-      }
-      // Spare Chair / Ancient of War on a reclaimed body: it strikes the instant it lands, riding the same single
-      // interrupting queue item a Rise return uses.
-      if (reclaimGrant.attackNow && !copy.dead && copy.health > 0) {
-        pendingAttackOnSummon.push({ minion: copy, interrupts: true, seq: immediateSummonSeq++ });
+  /** Queue a "when you have space" summon and land it now if its side already has room (FIFO behind older waiters). */
+  function queueSpaceSummon(side: Side, land: () => void): void {
+    spaceQueue.push({ side, land });
+    flushSpaceQueue();
+  }
+  // ANCIENT OF WAR x Brackus: a Start-of-Combat Tier 7 copy waiting for room. Summoned from the source's body as it
+  // stands when the slot opens, or from its Start-of-Combat body (`kws` / `stats`) if it has died since.
+  function landSummitCopy(side: Side, src: Minion, kws: Keyword[], stats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean }): void {
+    nextStep(); // the copy landing is its own moment
+    if (!src.dead && src.health > 0) xeroxCopy(side, src);
+    else {
+      const def = cards[src.cardId];
+      if (def) summonMinion(side, def, src.uid, kws, src.golden, false, stats);
+    }
+  }
+  /** The Reclaimer: one queued body re-enters (called by the space queue once its side has room). */
+  function landResummon(anchor: Minion, board: BoardMinion, side: Side, reclaim?: { gain?: number; bonds?: boolean; label: string }): void {
+    nextStep(); // each reclaimed body re-entering is its own moment
+    const copy = instantiate(board, side, cards, mkUid);
+    applyCombatGains(copy); // re-apply per-card stacks banked this fight (either side)
+    // A RECLAIMED body IS a combat summon (owner 2026-10-16: "rune of the food chain should work with soren's hero
+    // power resummon, and anything that summons a minion in combat basically"; R-SUMMON-RECLAIM-01). This path
+    // inserts the copy directly rather than through `summonMinion` / `placeSummon`, so it used to skip the whole
+    // "summoned in combat" grant helper (Food Chain, Hatchery, Packcraft, Spare Chair, Undertow, the Ancient of
+    // War summon-attack) plus Solid Ground and Containment. Run here, in the placed summon's order (grants before
+    // the slot, Solid Ground + Containment after), all before the `summon` snapshot so the replay shows the real
+    // body from its first frame, and the rune pulses share this beat. Room was just checked above, so the cap is
+    // judged here (`capJudgedElsewhere`): the copy always lands. Run before the splice, so Food Chain's left-most
+    // Demon is never the copy itself.
+    const reclaimGrant = applyCombatSummonGrants(copy, side, true);
+    if (reclaimGrant.ward) {
+      copy.divineShield = true;
+      if (!copy.keywords.includes('DS')) copy.keywords.push('DS');
+    }
+    const at = boards[side].indexOf(anchor);
+    boards[side].splice(at >= 0 ? at + 1 : boards[side].length, 0, copy);
+    // A RECLAIMED body is a body placed mid-combat, so its Avenge counts from its return (rule R-AVWIN-01 "Late
+    // entry starts at zero"; docs/GAME-RULES.md: progress restarts "as any body placed mid-combat"). This path
+    // inserts the copy directly rather than through `placeSummon`, so it missed the stamp that every other
+    // summon, Rise and Rebirth gets: a Reclaimed Kennelmaster counted its OWN Start-of-Combat destruction and
+    // paid its Avenge (4) at the side's 4th death instead of the 4th after its return. `killOrReborn` tallied
+    // that destruction before we got here, so stamping now leaves the copy reading 0 on arrival, exactly what
+    // the combat card prints (computeFrame stamps the same floor on every `summon` event).
+    copy.avengeBaseline = deaths[side];
+    applySolidGround(copy, side);
+    applyContainment(copy, side);
+    registerEffects(copy);
+    emit({ type: 'summon', minion: snapshot(copy), side, index: boards[side].indexOf(copy), source: anchor.uid });
+    // The single summon-entry suite (R-SUMMON-RECLAIM-01), as every placed summon and every Rise runs it: tribe
+    // auras FIRST, then the onSummon watchers left→right (both were called by hand here before), plus everything
+    // else that counts a combat summon (quest tallies, Remains / Reinvestment, Returning Pack, Emberline, Unity,
+    // Summoning Bulwark's Taunts, Robin's Spoils gain).
+    summonEntryEffects(copy, side);
+    // ANCIENTS × Soren, on the return. Both are ordinary COMBAT buffs through `ctx.buff` (owner 2026-10-02: "fight
+    // only, but engraving etc would carry it back"; Bonds "That fight only"), so Engraved and every other keeper apply.
+    if (reclaim && !copy.dead && copy.health > 0) {
+      // WAR: the returned copy gains +X/+X (X = the run's live, improving amount).
+      if ((reclaim.gain ?? 0) > 0) { nextStep(); ctx.buff(copy, reclaim.gain!, reclaim.gain!, reclaim.label); }
+      // BONDS: the minions next to it gain Attack equal to its Attack (read after War, so it is the body that landed).
+      if (reclaim.bonds && copy.attack > 0) {
+        const near = livingNeighbours(ctx, copy);
+        if (near.length > 0) { nextStep(); for (const n of near) ctx.buff(n, copy.attack, 0, reclaim.label); }
       }
     }
-    flushSummitCopies(); // Brackus × War's waiting copies, after Reclaim's (queued first, so they keep their place)
+    // Spare Chair / Ancient of War on a reclaimed body: it strikes the instant it lands, riding the same single
+    // interrupting queue item a Rise return uses.
+    if (reclaimGrant.attackNow && !copy.dead && copy.health > 0) {
+      pendingAttackOnSummon.push({ minion: copy, interrupts: true, seq: immediateSummonSeq++ });
+    }
   }
 
   /**
@@ -4989,14 +5006,17 @@ export function simulate(
     reclaimEchoUid = rc?.echoExtra ? minion.uid : undefined; // DEATH: this destroy's Echo fires extra times
     try { killOrReborn(minion); } finally { reclaimEchoUid = undefined; } // tokens summon now and may overflow the board
     const reclaim = rc && (rc.gain || rc.bonds) ? { gain: rc.gain, bonds: rc.bonds, label: rc.label } : undefined;
-    pendingResummons.push({ anchor: minion, board: copyBoard, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+    // Pushed straight onto the space queue (no flush yet): every marked body is destroyed first, then the flush below.
+    const anchor = minion, rside = minion.side;
+    spaceQueue.push({ side: rside, land: () => landResummon(anchor, copyBoard, rside, reclaim) });
     // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
     // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
     for (let k = 1; k < (rc?.copies ?? 1); k++) {
-      pendingResummons.push({ anchor: minion, board: { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined }, side: minion.side, ...(reclaim ? { reclaim } : {}) });
+      const extra: BoardMinion = { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined };
+      spaceQueue.push({ side: rside, land: () => landResummon(anchor, extra, rside, reclaim) });
     }
   }
-  flushResummons(); // non-full board → the original rejoins immediately; full board → it waits
+  flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
 
   // --- CLOSED CASKET (spell): a marked body is DESTROYED at the start of combat (owner ruling 2026-08-15).
   //     Deliberately a REAL death through the normal kill path rather than a bespoke "fire its Echo" hook:
@@ -5080,7 +5100,7 @@ export function simulate(
     }
     // ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
     // minion." The left-most living Tier 7; an exact copy (`xeroxCopy`) right now when there is room, else it waits in
-    // `pendingSummitCopies` for the first open slot (flushed with Reclaim's queue).
+    // the shared space queue for the first open slot (R-SPACE-PENDING-01).
     if (smods.ancientSummitCopy) {
       const src = boards[scSide].find((m) => !m.dead && m.health > 0 && cards[m.cardId]?.tier === 7 && !cards[m.cardId]?.spell);
       if (src) {
@@ -5088,11 +5108,9 @@ export function simulate(
         emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
         if (occupied(scSide) < 7) xeroxCopy(scSide, src);
         else {
-          pendingSummitCopies.push({
-            side: scSide, src,
-            kws: src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable)),
-            stats: { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable },
-          });
+          const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
+          const stats = { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable };
+          spaceQueue.push({ side: scSide, land: () => landSummitCopy(scSide, src, kws, stats) });
         }
       }
     }
@@ -5238,28 +5256,39 @@ export function simulate(
   const runRuneStartOfCombat = (rside: Side, pass: number): void => {
     const rmods = modsFor(rside);
     const base = pass === 0;
-    // Rune of the Warden: if the board has room (< 7), summon a Spear Warden. Base pass only: its text is "when
-    // you have room in combat", not a Start-of-Combat effect.
-    if (base && rmods.runeWarden && boards[rside].length < 7) {
-      const knit = cards['knit'];
-      if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
+    // THE "WHEN YOU HAVE SPACE" RUNES (R-SPACE-PENDING-01, owner bug 2026-10-21). Each one QUEUES its summon on the
+    // shared space queue (`queueSpaceSummon`): it lands right now when the side has room, else the first time a slot
+    // frees up later in the fight. Everything a summon reads (the left-most minion, the best hand card) is read when
+    // it LANDS, because that is when it happens (real-time by default). One queue entry per rune copy held, so each
+    // copy is its own beat and waits for its own slot. They used to check for room once at Start of Combat and give
+    // up when the board was full.
+    //
+    // Rune of the Warden: "When you have room in combat, summon a Spear Warden." Base pass only: its text is not a
+    // Start-of-Combat effect, so Twilight does not repeat it.
+    if (base && rmods.runeWarden) {
+      queueSpaceSummon(rside, () => {
+        const knit = cards['knit'];
+        if (knit) { nextStep(); fireTrigger('runeWarden', rside); summonMinion(rside, knit, undefined); }
+      });
     }
-    // Rune of the Mirror March: if the board has room, summon an EXACT copy of the leftmost minion (current
-    // combat stats + shield/Rise, the Mirrorhide `copyStats` path), placed to its right.
-    if (rmods.runeMirrorMarch && boards[rside].length < 7) {
-      const lead = boards[rside].find((m) => !m.dead && m.health > 0);
-      const leadDef = lead ? cards[lead.cardId] : undefined;
-      if (lead && leadDef) {
-        nextStep();
-        twilightPulse(rside, pass);
-        fireTrigger('runeMirrorMarch', rside);
-        // One copy per rune copy held (boolean-flag family, owner 2026-08-27) — room permitting.
-        for (let k = 0; k < flagCopiesOf(rside, 'runeMirrorMarch') && boards[rside].length < 7; k++) {
+    // Rune of the Mirror March: "Start of Combat: when you have room, summon a copy of your left-most minion." An
+    // EXACT copy of the left-most living minion AT LANDING (current combat stats + shield/Rise, the Mirrorhide
+    // `copyStats` path), placed to its right. No living minion when it lands: nothing (the entry is spent).
+    if (rmods.runeMirrorMarch) {
+      // One copy per rune copy held (boolean-flag family, owner 2026-08-27).
+      for (let k = 0; k < flagCopiesOf(rside, 'runeMirrorMarch'); k++) {
+        queueSpaceSummon(rside, () => {
+          const lead = boards[rside].find((m) => !m.dead && m.health > 0);
+          const leadDef = lead ? cards[lead.cardId] : undefined;
+          if (!lead || !leadDef) return;
+          nextStep();
+          twilightPulse(rside, pass);
+          fireTrigger('runeMirrorMarch', rside);
           summonMinion(rside, leadDef, lead.uid, undefined, lead.golden, false, {
             attack: lead.attack, health: lead.health, maxHealth: lead.maxHealth,
             divineShield: lead.divineShield, rebornAvailable: lead.rebornAvailable,
           });
-        }
+        });
       }
     }
     // RUNE OF THE WAKING RESERVE (set 3 batch 2, tranche D, 2026-09-16): with room on the board, summon a COPY of
@@ -5267,25 +5296,25 @@ export function simulate(
     // keywords and gilding, the Mirror March `copyStats` path. It IS a hand-summon (`pendingHandSummon`: Dreamed
     // Graves / the Open Hand hear it) but the card is NOT marked — neither `handCopiedUids` nor `fromHandUid`
     // — so a Spirit may still summon it later this fight and the replay does not grey it. One copy per rune copy
-    // held, room re-checked each time. `occupied`, not length: a slot held through a Rise is not room.
-    if (rmods.runeWakingReserve && occupied(rside) < 7) {
-      const rawHand = stateOf(rside).handMinions ?? [];
-      const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
-      if (pool.length > 0) {
-        const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
-        const raw = rawHand.find((h) => h.uid === top.uid);
-        const def = cards[top.cardId];
-        if (raw && def) {
+    // held. The hand is read when the copy LANDS; an empty (or spell-only / all-locked) hand then gives nothing.
+    if (rmods.runeWakingReserve) {
+      for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve'); k++) {
+        queueSpaceSummon(rside, () => {
+          const rawHand = stateOf(rside).handMinions ?? [];
+          const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
+          if (pool.length === 0) return;
+          const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
+          const raw = rawHand.find((h) => h.uid === top.uid);
+          const def = cards[top.cardId];
+          if (!raw || !def) return;
           nextStep();
           twilightPulse(rside, pass);
           fireTrigger('runeWakingReserve', rside);
-          for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve') && occupied(rside) < 7; k++) {
-            pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
-            summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
-              { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
-            pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
-          }
-        }
+          pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
+          summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
+            { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
+          pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
+        });
       }
     }
     // Rune of Twilight, MINION half: the board's Start-of-Combat effects trigger an ADDITIONAL time — extra

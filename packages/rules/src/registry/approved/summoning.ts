@@ -197,4 +197,35 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-16',
     },
   },
+  {
+    id: 'R-SPACE-PENDING-01',
+    title: '"When you have space / room" is a pending summon: it lands the first time a real slot opens in that fight',
+    statement:
+      'A summon whose text says "when you have room / space" (or "as soon as you have room", "when there is room") is '
+      + 'PENDING. It lands at Start of Combat when the board has a free slot; otherwise it waits on ONE shared per-combat '
+      + 'queue and lands at the first settle after a slot truly frees up (a friendly minion dies or leaves), before the '
+      + 'next attacker swings, with its own beat (trigger + summon). A Rise or Rebirth return keeps its slot, so it is '
+      + 'not room. Several waiting summons land first queued, first landed, one per free slot (Start of Combat queues '
+      + 'the Reclaimer bodies, then Brackus x War, then Rune of the Warden, Mirror March, Waking Reserve; one entry per '
+      + 'rune copy held). The summon reads the board WHEN IT LANDS (Mirror March copies the left-most minion then; the '
+      + 'Waking Reserve the best hand minion then). Pending summons are combat-only and are dropped at the end of the '
+      + 'fight. Both sides, identically. An effect that checks room at a single moment ("if there is room") is not '
+      + 'pending.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report, 2026-10-21 (Rune of the Mirror March)', quote: "rune of the mirror march is bugged, and probably most 'when you have space' things - mirror march only works if you have room at start of combat, but a 'when you have space' mechanic should fire whenever the player truly has a slot for the minion to summon." },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts spaceQueue / queueSpaceSummon / flushSpaceQueue (flushed by settleBetweenAttacks)' },
+    ],
+    contentIds: ['rune_mirror_march', 'rune_warden', 'rune_waking_reserve'],
+    currentBehaviour:
+      'Conforms as of 2026-10-21. Before: Rune of the Warden, Mirror March and the Waking Reserve checked for room once '
+      + 'at Start of Combat and gave up on a full board. The Reclaimer and Brackus x War already waited, on two separate '
+      + 'queues; all five now share the one queue.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/core/src/combat/whenYouHaveSpace.test.ts'],
+      lastVerifiedAt: '2026-10-21',
+    },
+  },
 ];

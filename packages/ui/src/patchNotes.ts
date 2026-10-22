@@ -59,6 +59,16 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-21',
     changes: [
       {
+        category: 'Balance',
+        text: '"When you have room" summons now wait for a free slot instead of giving up at the start of combat.',
+        details: [
+          'Rune of the Mirror March, Rune of the Warden and Rune of the Waking Reserve now summon the first time a slot opens in that fight, not only when your board has room at the start.',
+          'A minion that Rises or Rebirths takes its own slot back, so it does not count as room.',
+          'If several are waiting, they land in order, one per free slot. Mirror March copies your left-most minion as it is at that moment.',
+          'A summon that never gets room is gone at the end of that fight.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'The Sell keyword tip now shows on every card that mentions Sell, not only on "Sell:" cards.',
         details: [

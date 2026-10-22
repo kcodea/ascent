@@ -1963,6 +1963,29 @@ carry it back from combat."*
 - The kept keyword is on the Shop card (its keyword pill) from then on ("3. Yes"), the fight recap shows it as
   "+Ward", and a Gild keeps it ("4. Yes"). The opponent's side follows the same rule (lobby snapshots, Versus).
 
+### "When you have space" waits for a real slot (owner bug 2026-10-21, R-SPACE-PENDING-01)
+
+*"a 'when you have space' mechanic should fire whenever the player truly has a slot for the minion to summon."*
+
+- A summon whose text says **when you have room / space** (or "as soon as you have room", "when there is room") is a
+  **pending summon**. If the board has a free slot at Start of Combat it lands then. If the board is full it waits,
+  and lands the first time a slot truly frees up later in that fight: right after the attack whose deaths opened it,
+  before the next attacker swings, with its own beat.
+- **A Rise or Rebirth return is not room.** The body comes straight back into its slot, so the summon keeps waiting.
+- **One queue per fight, first queued first landed.** Several waiting summons land in the order they were queued (the
+  Reclaimer's bodies, then Brackus x War's copy, then Rune of the Warden, Mirror March and the Waking Reserve, one
+  entry per rune copy held). Each takes its own slot; a second one waits for a second slot.
+- **It reads the board when it lands.** Mirror March copies your left-most minion as it stands at that moment (placed
+  to its right); the Waking Reserve copies the best minion in your hand at that moment.
+- **Lifetime: that fight only.** A summon that never gets room is dropped at the end of combat. None of the current
+  texts carry over to the next fight or into the Shop.
+- Both sides follow it (R-SYMMETRY-01). An effect that checks for room at a single moment is not pending: no room
+  then, no summon. That covers Soren x Ancient of Fortune's Shop Reclaim ("resummon a copy right away, if there is room") (owner: "if no room
+  then it is lost") and The Burning Legion's Imp copy, made as the Imp attacks. An ordinary summon onto a full board is still lost (and pays Overflow where a card says so).
+- Covered today: Rune of the Warden, Rune of the Mirror March, Rune of the Waking Reserve, Soren's Reclaim (and its
+  Ancient forms), Brackus x Ancient of War. Rune of the Brood, Rune of Living Echoes and the Decoy (Training Dummy)
+  spell were already real-time and are unchanged.
+
 ### A combat Rise is a fresh copy, for that fight only (owner ruling 2026-10-12, R-RISE-06)
 
 *"rise rises a 'fresh copy' of something, but that is a combat only thing. the recruit phase would still have the

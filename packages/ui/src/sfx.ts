@@ -557,7 +557,7 @@ const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
  *  - impact: four thuds as one hit (wooden door, ground body, heavy object fall, body grit), and the poster's page
  *            flap as it is knocked swinging on its nail (its peak lands on the poster's first swing)
  *  - crank:  as it is winched up: a slice of the crank recording, the gears, the loud part of the metal groan and the
- *            ranked gate's grind, every one cut at 0.85 s with a 0.2 s fade-out (`duration` / `fadeMs`)
+ *            ranked gate's grind, every one cut at 1.5 s with a 0.2 s fade-out (`duration` / `fadeMs`)
  */
 /** `category`: the fader a layer plays on (default: the clip's own). */
 interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number }
@@ -570,15 +570,16 @@ const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
     { clip: 'wipeposter', offset: 0.05 },
   ],
   crank: [
-    // EVERY crank layer is cut at 0.85 s with a 0.2 s fade-out (owner 2026-10-22, after a too-sharp 0.55 s cut: "change
-    // the cut to .85 seconds with a .2 second fade out"): full level to 0.65 s, silent by 0.85 s.
-    { clip: 'wipecrank', offset: 0.9, duration: 0.85, fadeMs: 200 }, { clip: 'wipegears', duration: 0.85, fadeMs: 200 },
-    { clip: 'wipegroan', offset: 2.9, duration: 0.85, fadeMs: 200 },
+    // EVERY crank layer is cut at 1.5 s with a 0.2 s fade-out (owner 2026-10-22: a 0.55 s cut was too sharp; "change the
+    // cut to .85 seconds with a .2 second fade out", then "lets increase the cut to 1.5 seconds"): full level to 1.3 s,
+    // silent by 1.5 s. (The gears clip is only 1.3 s, so it simply plays out.)
+    { clip: 'wipecrank', offset: 0.9, duration: 1.5, fadeMs: 200 }, { clip: 'wipegears', duration: 1.5, fadeMs: 200 },
+    { clip: 'wipegroan', offset: 2.9, duration: 1.5, fadeMs: 200 },
     // …and the ranked gate's own grinding open, back on top (owner 2026-10-22: "add the gate crank sound back on top of
     // everything else? just have it a bit lowered"), on its OWN fader so lowering it here leaves the ranked gate alone.
     // Its grind runs about 2 s (owner: "it lingers for a long time after its done cranking up"): it takes the same
-    // 0.85 s cut and 0.2 s fade as the rest of the crank.
-    { clip: 'gateopen', category: 'wipegateopen', duration: 0.85, fadeMs: 200 },
+    // 1.5 s cut and 0.2 s fade as the rest of the crank.
+    { clip: 'gateopen', category: 'wipegateopen', duration: 1.5, fadeMs: 200 },
   ],
 };
 /** One layer: from its offset, for its duration (or to the end), its last `fadeMs` eased away on the audio clock. */

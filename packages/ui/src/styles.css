@@ -401,8 +401,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the curtain and kept only for the fronts. */
 /* THE FALLING GATE (owner 2026-10-21: "something that falls from the ceiling of the screen and lands at the bottom of the
    screen with a bang, like a big stone gate ... then it quickly cranks back up to reveal the combat. same goes for
-   shop"). One full-screen slab of painted art (`transition-gate.webp`, the owner's "Blank Parchment Gate Board": a
-   wooden plank gate with a torn parchment nailed to its middle; the art will be replaced) that moves by `transform`
+   shop"). One full-screen slab of painted art (`transition-gate.webp`, the owner's "wood gate": a wooden plank gate with
+   two iron straps, trimmed to its edges with its see-through gaps backed in dark wood; the poster on it is its own layer) that moves by `transform`
    ALONE, like the ranked gate's doors: a clip-path animation is recomputed every frame and could drop a frame on the
    busy End Turn swap, which read as game elements popping in over the blue curtain it replaces.
    The path, by the machine's classes (wipeMachine.curtainClassFor), the same in both directions:
@@ -423,7 +423,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    without ever opening a gap at the floor while the scene swaps behind it. Shown only while it falls and holds, so a
    parked gate never hangs a sliver into the top of the screen. */
 .wipecurtain::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 6%; display: none; pointer-events: none;
-  background: url('/transition-gate.webp') 50% 100% / max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7768)) auto no-repeat;
+  background: url('/transition-gate.webp') 50% 100% / max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7802)) auto no-repeat;
   transform: scaleY(-1); transform-origin: 50% 0; }
 .wipecurtain.full::after { display: block; }
 .wipecurtain.full { transform: translateY(0); }
@@ -467,17 +467,47 @@ canvas.spr { image-rendering: pixelated; display: block; }
   display: flex; flex-direction: column; align-items: center; gap: calc(14 * var(--u, 1px));
   animation: wipevsin 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards; animation-delay: 120ms; }
 @keyframes wipevsin { from { opacity: 0; transform: translate(-50%, -46%) scale(0.94); } }
-/* On the falling gate the announcement sits ON THE PARCHMENT, tilted with it (owner 2026-10-22: "make the portrait
-   slightly angled to match the slightly askew parchment"). Measured off the art ("Blank Parchment Gate Board", 1672x941,
-   to be replaced: re-measure then): the paper's centre is 50.4% across and 46.5% down, turned about 3 degrees with
-   its right side higher. The art is drawn with background: cover, so on a screen that is not 16:9 the paper is not
-   at those percentages of the SCREEN: the offsets below are scaled by the size the art is actually drawn at (the
-   larger of the screen and its cover-fit), which keeps the announcement on the paper at any aspect ratio. `rotate` is
-   its own property, so it composes with the translate centring and the fade-in instead of being overwritten. */
-.wipecurtain .wipevs {
-  left: calc(50% + 0.004 * max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7768)));
-  top: calc(50% - 0.035 * max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7768)));
-  rotate: -3deg; }
+/* THE POSTER (owner 2026-10-22: "have the gate slam down while the poster sort of wiggles separately, because the nail
+   holding it isnt perfectly tight. and the opponent card will follow the movement of that poster"). Its own image
+   (`transition-poster.webp`, the paper trimmed to its edges, transparent around them) laid on the gate between its two
+   iron straps, hanging from its TOP-CENTRE NAIL (`transform-origin`, measured off the art at 48.4% across, 9.8% down).
+   It is sized and placed by the size the gate art is actually drawn at (`--gate-hi`, the cover-fit height), so it stays
+   on the same spot of the wood on any screen shape: 49% of the gate's height, centred across, its middle 48.2% down
+   (the clear wood between the straps). NOW FACING / RETURNING TO SHOP sits on it, centred on the paper and turned with
+   it (-3.3 degrees, measured off its edges), so every swing carries the opponent with it. Transform-only, one shot per
+   slam and per crank (CLAUDE.md perf rules). */
+.wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7802)); }
+.wipeposter { position: absolute; left: 50%; top: calc(50% - 0.018 * var(--gate-hi));
+  width: calc(0.49 * 1.8012 * var(--gate-hi)); height: calc(0.49 * var(--gate-hi)); translate: -50% -50%;
+  background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
+  transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
+.wipeposter .wipevs { rotate: -3.3deg; }
+/* THE SLAM: the gate stops dead and the paper doesn't. It is knocked down and crooked on its loose nail, swings back
+   and forth a few times, less each time, and comes to rest a little crooked (0.8 degrees). */
+.wipecurtain.full.settle .wipeposter { animation: posterslam 1300ms both; }
+@keyframes posterslam {
+  0% { transform: rotate(0deg) translateY(0); animation-timing-function: cubic-bezier(.1, .7, .3, 1); }
+  7% { transform: rotate(4deg) translateY(1.6%); animation-timing-function: ease-in-out; }
+  18% { transform: rotate(-1.6deg) translateY(-0.5%); animation-timing-function: ease-in-out; }
+  30% { transform: rotate(2.5deg) translateY(0); animation-timing-function: ease-in-out; }
+  43% { transform: rotate(-0.3deg); animation-timing-function: ease-in-out; }
+  57% { transform: rotate(1.5deg); animation-timing-function: ease-in-out; }
+  72% { transform: rotate(0.45deg); animation-timing-function: ease-in-out; }
+  86% { transform: rotate(1deg); animation-timing-function: ease-in-out; }
+  100% { transform: rotate(0.8deg); } }
+/* THE CRANK: as the gate is winched up and sways (`wipecrank`), the paper lags behind each tilt and swings the other
+   way, so the poster wobbles on its own all the way out. */
+.wipecurtain.gone .wipeposter { animation: postercrank var(--wipe-reveal-dur, 450ms) both; }
+.wipecurtain.gone.parked .wipeposter { animation: none; }
+@keyframes postercrank {
+  0% { transform: rotate(0.8deg); animation-timing-function: ease-in-out; }
+  12% { transform: rotate(-1.5deg); animation-timing-function: ease-in-out; }
+  24% { transform: rotate(2.2deg); animation-timing-function: ease-in-out; }
+  38% { transform: rotate(3deg); animation-timing-function: ease-in-out; }
+  50% { transform: rotate(-1.2deg); animation-timing-function: ease-in-out; }
+  62% { transform: rotate(-2.4deg); animation-timing-function: ease-in-out; }
+  78% { transform: rotate(1.6deg); animation-timing-function: ease-in-out; }
+  100% { transform: rotate(0.4deg); } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */

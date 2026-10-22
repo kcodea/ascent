@@ -2366,6 +2366,7 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
     // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
+    new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     sfx.warmGate();
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
@@ -8146,6 +8147,9 @@ export function Recruit() {
           sanctioned one-shot kind. */}
       {createPortal(<>
       <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} onAnimationEnd={onWipeAnimEnd} style={wipeVars}>
+        {/* THE POSTER (owner 2026-10-22): a separate parchment nailed to the gate by one loose nail, which swings on it when
+            the gate slams and as it is cranked up. The announcement rides on it, so it swings too (`.wipeposter`). */}
+        <div className="wipeposter">
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
             away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only
@@ -8186,6 +8190,7 @@ export function Recruit() {
             <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
           </div>
         )}
+        </div>
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the

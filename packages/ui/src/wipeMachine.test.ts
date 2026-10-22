@@ -66,7 +66,9 @@ describe('the wipe machine', () => {
     expect(rule).toMatch(/transition: transform /);
     expect(rule).not.toMatch(/clip-path/);
     expect(css).not.toMatch(/\.wipecurtain[^{]*\{[^}]*clip-path/);
-    for (const k of ['wipeslam', 'wipecrank']) {
+    // (…and the poster swinging on its nail, owner 2026-10-22: "the poster sort of wiggles separately".)
+    expect(css).toMatch(/\.wipecurtain\.gone\.parked \.wipeposter \{ animation: none; \}/);
+    for (const k of ['wipeslam', 'wipecrank', 'posterslam', 'postercrank']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       expect(frames, k).toMatch(/transform/);
       expect(frames.replace(/transform: [^;]*;|animation-timing-function: [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);

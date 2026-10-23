@@ -528,7 +528,7 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   voice, owned or not.
 - **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18, eight slots + Comms 2026-10-22; R-PROG-EMOTE-01, R-PROG-EMOTE-02, R-EMOTE-01).** An emote is a painted speech bubble your
   hero says in a game. Right-click YOUR hero portrait (shop or combat) for your emote menu; pick one and it pops up
-  beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
+  beside your portrait. **8 seconds between emotes** (20 before 2026-10-22), shown on the menu; no per-turn cap; no muting yet.
   **Zen Brian and the five Comms emotes are everyone's** (STARTER emotes, guests included, never in a chest; owner
   2026-10-22: "give all players the 5 comms emotes for free, but others im going to continue to add will go into the
   skins lootboxes"): **Hi**, **Good Choice**, **Too Nasty**, **It's Beasts**, **Lemon Approved**, each flagged free on
@@ -1087,7 +1087,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   three, then "+N" (hover it for the names). It stays while they watch and goes when they leave. The same applies to
   a ranked game watched from Live Games.
 - **Spectators can emote** (owner 2026-10-16; R-SPECTATE-EMOTE-01). A spectator opens their own emotes from their
-  plate at the top left of the watch screen: their equipped emotes, the same 20 s cooldown. The player sees the emote
+  plate at the top left of the watch screen: their equipped emotes, the same 8 s cooldown. The player sees the emote
   pop from that spectator's plate in their "Spectating" list; other spectators of the game see it too. A player can
   right-click a spectator to mute them, or turn "Spectator emotes" off in the Esc menu (on by default).
 - **The spectator's screen** (owner 2026-10-16; R-SPECTATE-HUD-01, R-SPECTATE-LOCAL-01). Top left: the spectator

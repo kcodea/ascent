@@ -69,7 +69,7 @@ describe('R-SPECTATE-EMOTE-01: a spectator emotes to the player', () => {
     expect(rt.canEmoteNow()).toBe(true); // a spectator (render-only watch screen) may emote
     expect(rt.sayEmote(ZEN, 1000)).toBe(true);
     expect(sent).toEqual([{ event: se.SPECTATOR_EMOTE_EVENT, payload: { e: ZEN, from: 'spec-me' } }]); // no timestamp
-    expect(rt.sayEmote(ZEN, 1000 + rt.EMOTE_COOLDOWN_MS - 1)).toBe(false); // the player's own 20 s cooldown
+    expect(rt.sayEmote(ZEN, 1000 + rt.EMOTE_COOLDOWN_MS - 1)).toBe(false); // the player's own 8 s cooldown
     expect(rt.sayEmote('emote_flirty_midas', 1000 + rt.EMOTE_COOLDOWN_MS)).toBe(false); // not equipped: refused
     expect(sent).toHaveLength(1);
     se.uninstallSpectatorEmotes();

@@ -61,6 +61,7 @@ describe('set 3 scaffold', () => {
       'u3_poochy', 'u3_noggin', 'u3_robinson', 'u3_adeptus', 'u3_ems', 'u3_cagebreaker', 'u3_revenant',
       'u3_risingtide', 'u3_squatimus', 'u3_rodrick', 'u3_hierophant',
       'u3_bicyclebob', // the twelfth new Undead (owner handoff 2026-09-18), appended after the file's token
+      'u3_ending', // the T7 Summit Undead (owner 2026-10-23), appended
       'profgreg', 'knit', 'deathlesshand', 'deathsayer', 'deathswarmer', 'mumi', 'sergeant',
       'forsakenweaver', 'wolvesden', 'soulsman', // Anubis left set 3 2026-10-13 (owner Set 3 batch)
       // …then the NEUTRALS (owner roster 2026-09-09, tranche 1): set 3's own — Blaster back from the archive,
@@ -84,6 +85,7 @@ describe('set 3 scaffold', () => {
       'd3_whaloo', 'd3_falx', 'd3_morro', 'd3_shush', // the first Set 3-authored Dragons (owner 2026-10-14), appended after the swapped-in four
       'd3_gatherer', 'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener', // Dragon batch 2 (owner 2026-10-15)
       'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', // owner additions on #2097 (2026-10-15)
+      'd3_vellum', // the T7 Summit Dragon (owner 2026-10-23), appended after the file's token
       'd2_chorus', 'd2_transcendence', 'd2_flutterdrake', // the three carried Set 2 Dragons (2026-10-15), by reference
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.

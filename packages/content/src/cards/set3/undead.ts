@@ -208,4 +208,21 @@ export const SET3_UNDEAD: CardDef[] = [
     text: '**Overflow:** give a random **Undead +1/+1**. Improves for every Undead played this turn.',
     goldenText: '**Overflow:** give a random **Undead +2/+2**. Improves for every Undead played this turn.',
   },
+  {
+    // ENDING (owner 2026-10-23), T7 Summit Undead 1/1: "When you Overflow a minion, give your Undead Aura +4 Health."
+    // Squatimus' / Bicycle Bob's `summonOverflow` watcher, Lantern of Souls' channel (`grantUndeadAura`): the run-wide
+    // Undead Aura, raised in BOTH phases. In the shop the aura is the run channel the board already reads; in combat
+    // the living Undead feel it now and the gain carries home at settle (the Lantern / Wick Mortis ritual), so the
+    // Aura is permanent from either phase. Not a spell, so spell power does not fold in. Gilded: +8 Health.
+    id: 'u3_ending',
+    name: 'Ending',
+    tribe: 'undead',
+    tier: 7,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'summonOverflow', do: 'overflowGrowUndeadAura', params: { attack: 0, health: 4 } }],
+    text: 'When you **Overflow** a minion, give your **Undead Aura** **+4 Health**.',
+    goldenText: 'When you **Overflow** a minion, give your **Undead Aura** **+8 Health**.',
+  },
 ];

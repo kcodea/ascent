@@ -189,7 +189,9 @@ const SWEEP = runTextSweep({ contracts: CONTRACTS });
 // 2026-10-22 (Set 3 Kobolds: Boy Scout, Gramps, Zapdash, Frack Attack, Rosey): 153 -> 155, CONSCIOUSLY (on top of the pool call's +1). Two texts have no
 // grammar rule yet: Boy Scout's "Gain 2 free Refreshes." and Frack Attack's "Repeat after 3 friendly attacks." Gramps and
 // Zapdash parse; Rosey parses but is pinned in KNOWN_TEXT_MISMATCH ("When you cast a Ruby" reads as `spellCast`).
-const UNRESOLVED_CAP = 155;
+// 2026-10-23 (Set 3 T7: Vellum, Ending): 155 -> 156, CONSCIOUSLY. Ending's owner-verbatim "When you Overflow a minion, give
+// your Undead Aura +4 Health." has no grammar rule yet (the trigger phrase and the Aura target). Vellum's Equip parses.
+const UNRESOLVED_CAP = 156;
 /** Collapse floor: the parser fully consuming fewer objects than this means a grammar regression. */
 const PARSED_FLOOR = 900;
 /** The HARD ceiling (2026-09-11): the unresolved share of active objects may never reach this fraction again. A

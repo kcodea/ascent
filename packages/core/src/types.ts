@@ -442,6 +442,7 @@ export type EffectFactoryId =
   | 'onRiseBuffSelfWard' // Set 3 Undead — Revenant: after a friendly minion Rises, this gains Ward and +a/+h (stacks)
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
   | 'overflowBuffAllPermanent' // Set 3 Undead — Squatimus: a summon that does not fit → your minions +a/+h PERMANENTLY (both phases)
+  | 'overflowGrowUndeadAura' // Set 3 Undead T7 — Ending (2026-10-23): a summon that does not fit → your run-wide Undead Aura +a/+h (both phases; combat carries it home)
   | 'overflowBuffRandomTribePerPlayed' // Set 3 Undead — Bicycle Bob: a summon that does not fit → a random OTHER friendly <tribe> +(a·(1+played))/+(h·(1+played)) PERMANENTLY, `played` = that tribe played this turn (both phases, 2026-09-18)
   | 'deathrattleBuffRandomTribe' // Set 3 Undead — Noggin: Echo — a random friendly <tribe> +a/+h (both phases)
   | 'onRiseSelfSummonToken' // Set 3 batch 2 — Rune of the Endless March graft: when THIS body Rises, summon a token (both phases)
@@ -884,6 +885,7 @@ export type EffectFactoryId =
   | 'spellCastEveryNBuffTribe' // Set 3 Celestials — Astral Spellcore: every N Shop spells cast while it is on the board, buff your `tribe` (recruit; per-copy `spellProgress` meter)
   | 'onSpellCastOnThisRecastNamed' // Set 3 Celestials — Crash Course: the first NAMED spell on this each turn casts N additional times on this, full re-casts (recruit)
   | 'rallyGrantFirstSpellCopy' // Set 3 Celestials — Comet Conductor: Rally — copy of the first spell cast this turn, once per combat (combat)
+  | 'equipmentRoyalEdict' // Set 3 Dragons T7 — Royal Edict (Vellum's Equipment, 2026-10-23): spell power +a/+h, then `count` edict charges (each next hand-cast spell this turn casts `extra` more times) (recruit)
   | 'equipmentExtraNextSpellCasts' // Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank N extra casts for the next spell (recruit)
   // ── Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12); the token engine is `packages/sim/src/starform.ts` ──
   | 'battlecryCreateStarformOrBuff' // Star Seed: Shout — create the Starform, or give the existing one +A/+H (recruit)

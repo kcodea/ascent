@@ -960,6 +960,17 @@ export const ARENA_EFFECTS = {
     for (const f of arena.friends()) arena.buffPermanent(f, a, h);
   },
 
+  /** Ending (Set 3 Undead T7, owner 2026-10-23): "When you Overflow a minion, give your Undead Aura +4 Health." A summon
+   *  that does not fit raises the run-wide Undead Aura through `grantUndeadAura`, Lantern of Souls' channel: the shop
+   *  raises the run figure the board already reads; combat buffs the living Undead now and carries the gain home, so
+   *  the Aura is permanent from either phase. Not a spell: no spell power. Gilded doubles. */
+  overflowGrowUndeadAura(arena: EffectArena, params: Record<string, unknown>): void {
+    const g = arena.self.golden ? 2 : 1;
+    const a = num(params.attack, 0) * g;
+    const h = num(params.health, 4) * g;
+    if (a > 0 || h > 0) arena.grantUndeadAura(a, h);
+  },
+
   /** Bicycle Bob (Set 3 Undead, 2026-09-18) — a summon that does not fit: give ONE random OTHER friendly `tribe`
    *  minion +a/+h, where a/h are the printed base × (1 + `tribe` minions PLAYED this turn) × golden — "improves for
    *  every Undead played this turn". PERMANENT in both phases (`buffPermanent`: the shop buff is, combat carries it

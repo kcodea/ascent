@@ -58,6 +58,14 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Two new Tier 7 minions: Vellum (Dragon) and Ending (Undead).',
+        details: [
+          'Vellum is a 12/8 Dragon. Equip Royal Edict (2): Improve your Shop spells by +2/+2. Your next 3 spells cast from hand this turn cast an additional time.',
+          'Ending is a 1/1 Undead. When you Overflow a minion, give your Undead Aura +4 Health.',
+        ],
+      },
       { category: 'Systems', text: 'Rune and quest hovers now show each card they grant only once. Lantern Keeper shows one Lantern of Souls.' },
       { category: 'Systems', text: "Traveling Festival no longer shows a growing number. Each Reveler's text now includes the rune's extra +2/+2." },
     ],

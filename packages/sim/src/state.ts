@@ -959,6 +959,12 @@ export interface RunState {
    *  Read by `spellCasts` (added to the multiplied total), spent by the reducer on the next real
    *  (non-singleCast) spell cast; persists across turns until used (NOT cleared at settle). */
   nextSpellExtraCasts?: number;
+  /** ROYAL EDICT (Vellum's Equipment, Set 3 T7, owner 2026-10-23): "your next 3 spells cast from hand this turn cast an
+   *  additional time". `edictCharges` = hand casts still covered; each covered cast adds `edictExtra` casts (ADDED, like
+   *  Nimbus). Read by `nextSpellExtra` beside `nextSpellExtraCasts`, spent one charge per hand cast by
+   *  `spendNextSpellCharge` at every site that spends Comet's charge. Cleared at the turn boundary ("this turn"). */
+  edictCharges?: number;
+  edictExtra?: number;
   /** Starpath Vendor: +A/+H banked for the NEXT Shop spell. Folded into `spellAttackBonus` / `spellHealthBonus`
    *  (so every stat spell and its preview read it like spell power) and spent by the reducer on the next real
    *  Shop-spell cast. Gifts and Rubies are not Shop spells: `castSpell` hides it from a Gift, `rubyStatBonus`

@@ -1868,16 +1868,32 @@ export function rubyCastCount(state: RunState): number {
   // Comet / Nimbus: "your NEXT SPELL casts N additional times" — a Ruby is a spell (owner 2026-09-18: "this effect
   // says spell, which means ALL spells should count"). Added last, like `spellCasts` adds it, and spent by the
   // Ruby cast site the same way the Shop-spell sites spend it.
-  return (1 + extra) * grimoireMultActive(state) + (state.nextSpellExtraCasts ?? 0);
+  return (1 + extra) * grimoireMultActive(state) + nextSpellExtra(state);
 }
 
 /** How many times a GIFT-class hand spell resolves. A Gift resolves exactly once (owner design 2026-08-26) — except a
  *  card-minted TARGETED hand spell (`giftMulticast`: Clue, Tower Shield), which the "next spell" charges reach:
  *  Yazzus ("your targeted spells", 2026-09-09) and Comet / Nimbus ("your next spell" — a Clue is a spell, owner
  *  2026-09-18). Side-effect free; shared by the reducer's gift cast site and the UI's ×N badge so they never drift. */
-export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
+export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts' | 'edictCharges' | 'edictExtra'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
   if (!def.giftMulticast || !aimed) return 1;
-  return 1 + yazzusExtraCasts(state as RunState) + (state.nextSpellExtraCasts ?? 0);
+  return 1 + yazzusExtraCasts(state as RunState) + nextSpellExtra(state);
+}
+
+/** The "next spell cast from hand" extras on the NEXT hand cast: Comet / Nimbus' banked charge (`nextSpellExtraCasts`)
+ *  plus one Royal Edict charge's extra while any remain this turn. Read-only (the badge previews it); spent by
+ *  `spendNextSpellCharge` at the same cast sites. */
+export function nextSpellExtra(state: Pick<RunState, 'nextSpellExtraCasts' | 'edictCharges' | 'edictExtra'>): number {
+  return (state.nextSpellExtraCasts ?? 0) + ((state.edictCharges ?? 0) > 0 ? (state.edictExtra ?? 0) : 0);
+}
+
+/** Spend the next-spell charges on one hand cast: Comet / Nimbus' whole bank, and ONE Royal Edict charge. */
+export function spendNextSpellCharge(state: RunState): void {
+  state.nextSpellExtraCasts = undefined;
+  if ((state.edictCharges ?? 0) > 0) {
+    state.edictCharges = state.edictCharges! - 1;
+    if (state.edictCharges <= 0) { state.edictCharges = undefined; state.edictExtra = undefined; }
+  }
 }
 
 export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts' | 'castMult'>): number {
@@ -2003,7 +2019,7 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
   // whatever the spell would otherwise do.
   // …and a per-INSTANCE extra (Rune of the Astral Draft stamps its Discover pick `extraCasts: 1`) — added, like
   // Nimbus, because it reads "casts an additional time". Only the cast sites that hold the hand card pass it.
-  return mult + (state.nextSpellExtraCasts ?? 0) + (off.has('rune_astral_draft') ? 0 : (card?.extraCasts ?? 0));
+  return mult + nextSpellExtra(state) + (off.has('rune_astral_draft') ? 0 : (card?.extraCasts ?? 0));
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -5911,6 +5927,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
   },
 
+  /** Ending (shop half): a shop summon that found no room → the run's Undead Aura +a/+h (permanent; the board reads it). */
+  overflowGrowUndeadAura: (ctx, self, params) => {
+    ARENA_EFFECTS.overflowGrowUndeadAura(shopArena(ctx.state, self), params);
+  },
+
   /** Bicycle Bob (shop half): a shop summon that found no room → a random OTHER friendly <tribe> gains the printed
    *  buff × (1 + <tribe> played this turn). A shop buff is permanent. One body in arena.ts serves both phases. */
   overflowBuffRandomTribePerPlayed: (ctx, self, params) => {
@@ -7613,6 +7634,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank `extra` additional casts for the next Shop
    *  spell — Nimbus' own charge (`nextSpellExtraCasts`), additive, so it stacks with a Nimbus and with Yazzus. A
    *  gilded Artificer's Comet passes its `gildedParams` (4). */
+  /** Royal Edict (Vellum's Equipment, Set 3 T7, owner 2026-10-23): improve your Shop spells by +attack/+health (the
+   *  run's spell power, `spellBonus`), then arm `count` edict charges: each of your next `count` hand casts THIS TURN
+   *  casts `extra` additional times. Charges ADD (an Amplified / Calibrated second trigger arms 3 more); the extra per
+   *  charge keeps the larger value (a Gilded Edict's 2 over a plain 1). Params only (the Equipment channel). */
+  equipmentRoyalEdict: (ctx, _self, params) => {
+    const a = num(params.attack, 2);
+    const h = num(params.health, 2);
+    ctx.state.spellBonus = { attack: (ctx.state.spellBonus?.attack ?? 0) + a, health: (ctx.state.spellBonus?.health ?? 0) + h };
+    ctx.state.edictCharges = (ctx.state.edictCharges ?? 0) + Math.max(1, num(params.count, 3));
+    ctx.state.edictExtra = Math.max(ctx.state.edictExtra ?? 0, num(params.extra, 1));
+  },
+
   equipmentExtraNextSpellCasts: (ctx, _self, params) => {
     ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + num(params.extra, 2);
   },

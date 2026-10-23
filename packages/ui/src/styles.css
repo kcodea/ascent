@@ -473,28 +473,29 @@ canvas.spr { image-rendering: pixelated; display: block; }
    (`transition-poster.webp`, the paper trimmed to its edges, transparent around them) laid on the gate between its two
    iron straps, hanging from its TOP-CENTRE NAIL (`transform-origin`, measured off the art at 48.4% across, 9.8% down).
    It is sized and placed by the size the gate art is actually drawn at (`--gate-hi`, the cover-fit height), so it stays
-   on the same spot of the wood on any screen shape: 60% of the gate's height (49% until the owner asked for it larger,
+   on the same spot of the wood on any screen shape: 55% of the gate's height (49% until the owner asked for it larger,
    2026-10-23: "can we make the paper sheet larger first and foremost"; its edges now overlap the straps a little, as if nailed
-   over them), centred across, its middle 48.4% down
+   over them; 60% -> 55% the same day, "reduce the size of the paper slightly"), centred across, its middle 48.4% down
    (the clear wood between the straps). NOW FACING / RETURNING TO SHOP sits on it, centred on the paper and turned with
    it (-3.3 degrees, measured off its edges), so every swing carries the opponent with it. Transform-only, one shot per
    slam and per crank (CLAUDE.md perf rules). */
 .wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }
 .wipeposter { position: absolute; left: 50%; top: calc(50% - 0.016 * var(--gate-hi));
-  width: calc(0.6 * 1.8012 * var(--gate-hi)); height: calc(0.6 * var(--gate-hi)); translate: -50% -50%;
+  width: calc(0.55 * 1.8012 * var(--gate-hi)); height: calc(0.55 * var(--gate-hi)); translate: -50% -50%;
   background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
   transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
 .wipeposter .wipevs { rotate: -3.3deg; }
 /* INKED INTO THE POSTER (owner 2026-10-23: "how can we edit the text to look more burned into the paper? like this?", with a
    reference of brown serif lettering and ruled flourishes). On the gate's poster the announcement is dark burnt-brown ink, no
    white fill or black outline, with a soft darker bleed at its edges as if scorched or inked into the paper: NOW FACING in
-   plain Cinzel over a tapered rule, the name in bold Fraunces over a rule with a diamond in its middle. (The return trip's sky
+   plain Cinzel over a tapered rule, the name in bold Fraunces over a rule with a diamond in its middle. (Sizes 46 / 40 at first,
+   then 56 / 50: owner 2026-10-23, "increase the size of the font for both now facing and player name".) (The return trip's sky
    text keeps the white lettering; this is the poster only.) All static: nothing here animates. */
 .wipeposter .wipevs-label, .wipeposter .wipevs-name { position: relative; color: #3a2210; -webkit-text-stroke: 0; opacity: 0.92;
   text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
 .wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 700;
-  font-size: calc(46 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px)); }
-.wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(40 * var(--u, 1px));
+  font-size: calc(56 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px)); }
+.wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));
   padding-bottom: calc(12 * var(--u, 1px)); }
 /* The rules: a thin brown line, tapered to points at both ends, under each line of text. */
 .wipeposter .wipevs-label::after, .wipeposter .wipevs-name::after { content: ''; position: absolute; left: -6%; right: -6%; bottom: 0;

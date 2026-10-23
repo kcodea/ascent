@@ -1607,6 +1607,21 @@ export const RUNES: RuneDef[] = [
     reward: { kind: 'combatFlag', flag: 'runeCombatativeRubies' },
     sets: ['set3'],
   },
+  // ── Set 3 Dwarf runes (owner 2026-10-23): Basic ──────────────────────────────────────────────────────────────────
+  {
+    // A `sell` THRESHOLD (Ruby Sales' meter: one tick per minion you Sell, every sale path through `settleMinionSale`;
+    // the meter carries across turns and repeats) whose trip ARMS the next Dwarven Ale cast from hand to cast an
+    // additional time (`lastCallArmed`, spent by `spendLastCall`; one charge waiting at most, the Opened Vault shape; +1
+    // extra cast per copy held). The id carries the `_set3` twin suffix: `rune_last_call` is the archived Set 2 Avenge
+    // rune of the same name.
+    id: 'rune_last_call_set3',
+    tribes: ['dwarf'],
+    name: 'Last Call',
+    cost: 3,
+    text: 'After you **Sell 3 minions**, your next **Dwarven Ale** casts twice.',
+    reward: { kind: 'runeThreshold', meter: 'sell', per: 3, armAleRepeat: true },
+    sets: ['set3'],
+  },
   // ── Set 3 Kobold runes (owner 2026-10-22): Basic ──────────────────────────────────────────────────────────────
   {
     // A `refresh` THRESHOLD: one tick per Refresh the player PRESSES (the reducer's `roll` action, a free one
@@ -3845,6 +3860,20 @@ export const EPIC_RUNES: RuneDef[] = [
     text: 'Your **Rubies** cast in combat bounce **twice**.',
     previewCards: ['ruby'],
     reward: { kind: 'combatFlag', flag: 'runeRupturedRubies' },
+    sets: ['set3'],
+  },
+  // ── Set 3 Dwarf runes (owner 2026-10-23): Epic ───────────────────────────────────────────────────────────────────
+  {
+    // Heard on every sale path (`fireOnMinionSold`): the first 2 Dwarves Sold each turn (All-types bodies count) each
+    // return a PLAIN copy (fresh, non-gilded, printed stats) to your hand, hand cap respected, one copy per rune copy
+    // held. The per-turn count (`returnCustomersThisTurn`) resets at the turn flip. Shop-only (selling is a Shop action).
+    id: 'rune_return_customers',
+    tribes: ['dwarf'],
+    name: 'Return Customers',
+    cost: 3,
+    epic: true,
+    text: 'The first **2 Dwarves** you **Sell** each turn return a plain copy to your hand.',
+    reward: { kind: 'combatFlag', flag: 'runeReturnCustomers' },
     sets: ['set3'],
   },
   // ── Set 3 Kobold runes (owner 2026-10-22): Epic ───────────────────────────────────────────────────────────────

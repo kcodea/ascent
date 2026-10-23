@@ -1412,10 +1412,10 @@ export const TRIGGERS_RULES: GameRule[] = [
     title: 'Set 3 Sell Dwarves 2026-10-21: Sailsey, Mariet, Valyou, Leeds',
     statement:
       'Sailsey (T2 3/1) "Sell: Give your Dwarves +2/+3": its OWN sale buffs every Dwarf left on the board (All-types '
-      + 'count; never itself, it has left). Mariet (T3 2/6) "When you Sell 4 minions, get a random Shop Spell": a '
-      + 'per-instance meter of the minions you Sell while it is on the board, carried round to round; every 4 pays one '
-      + 'random Shop Spell from the run\'s legal spell pool (set-pinned, tribe-gated, no tokens) at or below your Shop tier; '
-      + 'Gilded pays TWO spells per payout (the Runic Archivist convention), not a halved counter. Valyou (T5 6/9) "When you '
+      + 'count; never itself, it has left). Mariet (T3 2/6) "When you Sell 4 minions, get a Dwarven Ale" (a random Shop '
+      + 'Spell until the owner\'s 2026-10-23 change): a per-instance meter of the minions you Sell while it is on the board, '
+      + 'carried round to round; every 4 pays one random Dwarven Ale from the run\'s Ale pool (a set without Ales grants '
+      + 'nothing); Gilded pays TWO Ales per payout (the Runic Archivist convention), not a halved counter. Valyou (T5 6/9) "When you '
       + 'Sell a minion, gain +3/+3. Every 4 triggers also grants 2 Gold": +3/+3 per sale, permanent, and every 4th trigger '
       + 'also pays 2 Gold now; Gilded doubles both (+6/+6, 4 Gold). Leeds (T6 6/8) "When you play a Dwarf, give your '
       + 'Dwarves +2/+2. Improves when you Sell 4 minions": on a real Dwarf play (All-types count; not its own arrival) every '

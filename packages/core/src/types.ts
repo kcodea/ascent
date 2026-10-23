@@ -1500,6 +1500,9 @@ export type QuestReward =
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       /** Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21): get that many RANDOM Whispers (the gated pool) when the meter trips. */
       grantRandomWhisper?: number;
+      /** Last Call (Set 3 Dwarf rune, owner 2026-10-23): ARM the next Dwarven Ale you cast from hand to cast an
+       *  additional time (one charge waiting at most, the Opened Vault shape; +1 extra cast per copy held). */
+      armAleRepeat?: boolean;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
       grantCards?: string[];
@@ -2014,7 +2017,10 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Set 3 Kobold runes (owner 2026-10-22): goleming = Avenge (5) summon a Gemheart Golem and cast 6 Rubies on it;
   // redStart = Start of Combat, a permanent Ruby on each friendly Kobold; roseysGarden = every Ruby cast gives a random
   // friendly minion +4/+5 permanently.
-  | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden';
+  | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
+  // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
+  // Dwarves you Sell each turn return a plain copy to your hand.
+  | 'runeReturnCustomers';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {

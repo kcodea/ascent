@@ -2618,4 +2618,65 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-23: display only; the engine already paid value + 2 (unchanged).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/spiritText.test.ts', 'packages/ui/src/renderedText.test.tsx', 'packages/sim/src/set3RunesTrancheA.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  // ── Set 3 Dwarf runes + minion changes (owner 2026-10-23) ──
+  {
+    id: 'R-DWARF-RUNES-1023-01',
+    title: 'Last Call: every 3rd minion Sold arms the next Dwarven Ale cast from hand to cast twice (one charge waiting at most)',
+    statement:
+      'Last Call (Basic, 3; id rune_last_call_set3, the Set 3 twin of the archived Set 2 Avenge rune of the same name) '
+      + 'counts every minion you Sell on the `sell` meter (the Ruby Sales meter: every sale path that settles a sale); every '
+      + '3rd sale ARMS a charge. The next Dwarven Ale you cast from hand spends it and casts one additional time (twice in '
+      + 'all; +1 per copy held), folded into the one cast count so the hand Ale previews x2 while armed. Only a hand cast '
+      + 'reads it (an Ale cast by Equipment, a minion or a rune does not spend it), a non-Ale spell never spends it, and '
+      + 'the charge waits across turns until an Ale uses it. At most one charge waits: further trips while armed add '
+      + 'nothing. The meter repeats, carries across turns and shows the plain N/3 badge.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (new Basic rune)', quote: 'Last Call - 3g - After you Sell 3 minions, your next Dwarven Ale casts twice.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts advanceRuneThresholds (`sell`, armAleRepeat) / spellCastsWithout (lastCallArmed) / runeExtraCasts / spendLastCall; packages/sim/src/reducer.ts hand-cast sites' },
+    ],
+    contentIds: ['rune_last_call_set3'],
+    currentBehaviour: 'Conforms as of 2026-10-23 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-DWARF-RUNES-1023-02',
+    title: 'Return Customers: the first 2 Dwarves Sold each turn each return a plain copy to your hand',
+    statement:
+      'Return Customers (Epic, 3) hears every sale path. The first 2 Dwarves you Sell each turn (All-types bodies count as '
+      + 'Dwarves; a non-Dwarf sale neither returns anything nor uses a slot) each return a PLAIN copy to your hand: a fresh, '
+      + 'non-gilded body at its printed stats, whatever the sold one had gained or been gilded. One copy per rune copy held. '
+      + 'It respects the hand cap: a full hand gets nothing, and that sale still spends one of the two for the turn. The '
+      + 'count resets at the turn flip and shows as a plain N/2 badge counting up. Shop only (selling is a Shop action).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (new Epic rune)', quote: 'Return Customers - 3g - The first 2 Dwarves you Sell each turn return a plain copy to your hand' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts runeReturnCustomers (fireOnMinionSold); packages/sim/src/reducer.ts turn-flip reset; packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_return_customers'],
+    currentBehaviour: 'Conforms as of 2026-10-23 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-SET3-CHANGES-1023-01',
+    title: 'Set 3 minion changes 2026-10-23: Mariet gets an Ale, Adeptus T2 +1 Attack, Gravus T6 10/3 Taunt, Shardluck T5 8/4 with 2 and 2, Thymes T5 5/7',
+    statement:
+      'Mariet: every 4 minions Sold get a random Dwarven Ale (Gilded 2) instead of a Shop spell; the meter is unchanged. '
+      + 'Adeptus: Tier 2 (stats 4/1 unchanged); its Echo gives your Shop spells +1 Attack (Gilded +2), through the run spell '
+      + 'power channel, from a combat death (carried back) and from a Shop Echo alike. Gravus: Tier 6, 10/3, gains Taunt; '
+      + 'its Echo and both tribes are unchanged. Shardluck: Tier 5, 8/4; Choose One casts 2 Rubies on your Kobolds (2 in '
+      + 'all, each on a random other friendly Kobold) or casts Veinstorm 2 times; Gilded 4 and 4. Thymes: Tier 5, 5/7, its '
+      + 'Thymepiece unchanged.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (minion changes)', quote: 'Shardluck -> T5 8/4 Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/{dwarves,undead,dragons,kobolds}.ts; packages/sim/src/recruit.ts minionSoldGrantSpell (`ale`)' },
+    ],
+    contentIds: ['dw3_marketing', 'u3_adeptus', 'd3_gravus', 'k3_facetbound', 'dw3_thymes'],
+    currentBehaviour: 'Conforms as of 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts', 'packages/sim/src/set3SellDwarves1021.test.ts', 'packages/sim/src/set3Undead.test.ts', 'packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

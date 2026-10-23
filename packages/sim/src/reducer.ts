@@ -39,7 +39,7 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
-import { withWhisperMult, spendNextSpellCharge } from './recruit';
+import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
@@ -1932,6 +1932,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true;
+          spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
           return s;
         }
         // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
@@ -1966,6 +1967,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+        spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
         return s;
       }
 
@@ -2280,6 +2282,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+        spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
         noteHandCastPlay(s, def); // Rune of the Wyrm's Hoard: one Shop spell cast from hand (multi-casts are one play)
@@ -4081,6 +4084,7 @@ function resolveChooseOneSpell(
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+  spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
   s.hand.splice(hi, 1);
   s.playedThisTurn = [...(s.playedThisTurn ?? []), def.id]; // counts as a card played (Rune of Action)
   noteHandCastPlay(s, def); // the from-hand meters (Wyrm's Hoard)
@@ -5717,6 +5721,7 @@ function advanceCombat(s: RunState): void {
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
   s.bequeathedUsedThisTurn = false;  // Rune of Bequeathed Secrets: the first Dragon sold each turn
+  s.returnCustomersThisTurn = 0;      // Return Customers: the first 2 Dwarves sold each turn
   // Set 3 batch 2 (2026-09-16) — the tranche-A per-turn gates. `nextCardFree` is deliberately NOT cleared: an
   // armed free card carries until it is spent (an earned reward is never dropped).
   s.revelersSoldThisTurn = 0;          // Festival Wages / the Festival Circuit: "after you sell 3 Revelers" counts afresh
@@ -7183,7 +7188,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell, armAleRepeat: r.armAleRepeat });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).

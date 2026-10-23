@@ -779,6 +779,9 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_ruby_sales:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 minions Sold: a random Ruby
   'rune:rune_goleming:combat': { policy: 'ownBeat', family: 'avenge' }, // Avenge (5): a Gemheart Golem, then 6 Rubies cast on it
   'rune:rune_red_start:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: a permanent Ruby on each Kobold
+  // ── Set 3 Dwarf runes (owner 2026-10-23) ──
+  'rune:rune_last_call_set3:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 minions Sold arm the next Ale; the Ale's repeat cast is the rune's
+  'rune:rune_return_customers:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dwarf Sold returns a plain copy to hand (first 2 each turn; rides the sale)
   'rune:rune_roseys_garden:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every Ruby cast: a random minion +4/+5 permanently (both phases)
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },

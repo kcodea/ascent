@@ -67,7 +67,7 @@ describe('Shardluck, Delver and Cavern Fiend return to Set 3', () => {
       expect(ARCHIVED_CARDS.some((c) => c.id === id), `${id} not archived`).toBe(false);
     }
     expect(CARD_INDEX['k3_veinchant']).toMatchObject({ name: 'Delver', tribe: 'kobold', tier: 2, attack: 4, health: 3, text: '**Echo:** get a **Veinstorm**.' });
-    expect(CARD_INDEX['k3_facetbound']).toMatchObject({ name: 'Shardluck', tribe: 'kobold', tier: 6, attack: 8, health: 5 });
+    expect(CARD_INDEX['k3_facetbound']).toMatchObject({ name: 'Shardluck', tribe: 'kobold', tier: 5, attack: 8, health: 4 }); // T6 8/5 -> T5 8/4 (owner 2026-10-23)
     expect(CARD_INDEX['k_gemgorge']).toMatchObject({ name: 'Cavern Fiend', tribe: 'kobold', tribe2: 'demon', tier: 6, attack: 6, health: 6 });
   });
 

@@ -2452,7 +2452,7 @@ cards. New Dragons:
 
 - **Gatherer** (T4 5/4): "**Rally:** Get a random **Dragon**." From the run's set pool, up to your tier, in both phases
   (a combat swing hands it over mid-fight). Gilded: 2.
-- **Gravus** (T5 8/3, Dragon and Undead): "**Echo:** Give this minion's **Attack** to **2** friendly minions." Its
+- **Gravus** (T6 10/3 Taunt since 2026-10-23, Dragon and Undead): "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions." Its
   Attack at death, to 2 different other friendlies. A combat buff in combat; permanent from a Shop Echo. Gilded: twice.
 - **Well Watcher** (T5 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no
   target. A Gilded Well Watcher's Well opens two Discovers.
@@ -2543,6 +2543,20 @@ Five runes, Set 3 only, offered when Kobold is one of the run's tribes. Each cop
   (two Rubies is two), in the Shop and in combat, to a random friendly minion. Permanent in combat too (it carries back).
   Bounces and Double Trouble's self-Rubies are not casts. The +4/+5 is a plain buff, so it never triggers a Ruby effect:
   Rosey and the Garden cannot loop.
+
+### Set 3 Dwarf runes (owner 2026-10-23; R-DWARF-RUNES-1023-01..02)
+
+Two runes, Set 3 only, offered when Dwarf is one of the run's tribes.
+
+- **Last Call** (Basic, 3): "After you Sell 3 minions, your next Dwarven Ale casts twice." Every minion you Sell counts
+  (the Ruby Sales meter). Every 3rd sale arms a charge; the next Dwarven Ale you cast from hand spends it and casts one
+  more time (one more per copy held). An Ale in hand shows the x2 while armed. Only a hand cast spends it; a non-Ale
+  spell never does; the charge waits across turns. At most one charge waits at a time. A running meter with a plain N/3
+  counter. Its id is `rune_last_call_set3`: the archived Set 2 Avenge rune `rune_last_call` keeps the old id.
+- **Return Customers** (Epic, 3): "The first 2 Dwarves you Sell each turn return a plain copy to your hand." Each of
+  the turn's first 2 Dwarf sales (All-types counts; other sales do not use a slot) returns a fresh copy: not gilded, at
+  its printed stats. One copy per rune copy held. A full hand gets nothing (the sale still uses its slot). Resets each
+  turn; the rune shows a plain N/2 counter counting up.
 
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 

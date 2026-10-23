@@ -41,12 +41,14 @@ const skeletonsSummoned = (r: CombatResult, side: 'player' | 'enemy'): number =>
 describe('Overflowing Crypt: the card', () => {
   it('is a Set 3 Shop spell, Tier 2, 3 Gold, untargeted, with the owner text and no Gilded text', () => {
     const d = CARD_INDEX[CRYPT]!;
-    expect([d.name, d.spell, d.tier, d.cost, d.tribe, d.target]).toEqual(['Overflowing Crypt', true, 2, 3, 'neutral', undefined]);
+    expect([d.name, d.spell, d.tier, d.cost, d.tribe, d.target]).toEqual(['Overflowing Crypt', true, 2, 3, 'undead', undefined]);
     expect(d.text).toBe('**Start of Combat:** summon **2 Skeletons**.');
     expect(d.goldenText).toBeUndefined();
     expect(/—|--/.test(d.text)).toBe(false);
     expect(poolFor('set3').spells.some((c) => c.id === CRYPT)).toBe(true);
     expect(runSpells({ setId: 'set3', tribes: [...SETS.set3.tribes] }).some((c) => c.id === CRYPT)).toBe(true);
+    // An Undead spell (owner 2026-10-23): tribe-gated, so a Set 3 run without Undead never offers it.
+    expect(runSpells({ setId: 'set3', tribes: SETS.set3.tribes.filter((t) => t !== 'undead') }).some((c) => c.id === CRYPT)).toBe(false);
     expect(CARD_INDEX['u3_skeleton']).toMatchObject({ name: 'Skeleton', tribe: 'undead', attack: 1, health: 1, token: true });
   });
 });

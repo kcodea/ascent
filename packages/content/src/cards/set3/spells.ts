@@ -150,10 +150,11 @@ export const SET3_SPELLS: readonly CardDef[] = [
     // A next-combat bank (Weaken's shape): the cast arms `pendingSkeletons`, which rides `questMods.bankedSkeletons`
     // so a served snapshot carries it, and `simulate` summons the Skeletons (`u3_skeleton`, the Set 3 Undead token)
     // at Start of Combat for whichever side holds it. Real summons: board cap, Overflow payoffs, Undead Aura.
-    // Neutral (the owner named no tribe). Spells are never Gilded, so no goldenText.
+    // An UNDEAD spell (owner 2026-10-23: "It's an undead spell"): TRIBE-GATED, offered only in runs with Undead.
+    // Art = CrowdedCrypt.png (owner: "Crowded crypt is supposed to be for overflowing crypt"). Spells are never Gilded.
     id: 'sp_overflowingcrypt',
     name: 'Overflowing Crypt',
-    tribe: 'neutral',
+    tribe: 'undead',
     tier: 2,
     attack: 0,
     health: 1,

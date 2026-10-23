@@ -4895,6 +4895,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-23).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/picnic.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-ARCHIVE-SET3-1023-02',
+    title: 'Whisp and Gatherer leave Set 3 (archived); old Set 3 saves, snapshots and replays still resolve them',
+    statement:
+      'Whisp and Gatherer are out of Set 3: a Set 3 run never offers them in the Shop, a Discover or a random grant '
+      + '(every draw reads the run-pinned pool). Both were Set 3 only, so they are archived and belong to no set. Both stay '
+      + 'in the global card index: on an old Set 3 save Whisp still echoes a Whisper cast on a Dragon and Gatherer still '
+      + 'gets a random Dragon on Rally, and a snapshot or replay holding them resolves. Whispwarder is a different card '
+      + 'and stays in Set 3.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'archive these dragons from set 3: * gatherer * whisp' },
+      { kind: 'code', ref: 'packages/content/src/cards/archive.ts (the 2026-10-23 block)' },
+    ],
+    contentIds: ['d4_whisp', 'd3_gatherer'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',

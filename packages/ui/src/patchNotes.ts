@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      { category: 'Balance', text: 'Whisp and Gatherer leave Set 3.' },
       {
         category: 'Systems',
         text: 'Career Heroes: click a hero to see its games in Match History and watch them back.',

@@ -54,7 +54,7 @@ describe('the emote catalog', () => {
       ['emote_sly_oona', 'Sly Oona', 'epic', 'crate', 'SlyOona.png'],
       ['emote_dead_elder', 'Dead Elder', 'epic', 'crate', 'DeadElder.png'],
       ['emote_gambler', 'Gambler', 'epic', 'crate', 'GamblerEmote.png'],
-      ['emote_sexy_darah', 'Sexy Darah', 'epic', 'crate', 'SexyDarahEmote.png'],
+      ['emote_sexy_darah', 'Darahling', 'epic', 'crate', 'SexyDarahEmote.png'],
       ['emote_angry_deathswarmer', 'Angry Deathswarmer', 'epic', 'crate', 'AngryDeathswarmer.png'],
       ['emote_rich_pimm', 'Rich Pimm', 'legendary', 'crate', 'RichPimm.png'],
       ['emote_baby_rubies', 'Baby Rubies', 'legendary', 'crate', 'BabyRubies.png'],

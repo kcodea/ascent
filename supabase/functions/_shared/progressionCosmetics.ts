@@ -423,7 +423,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_anvilshade_1', 'minion_skin', 'Anvilshade', 'rare', 'dw_anvilshade', 'Anvilshade.png'),
   skin('skin_bellringer_2', 'minion_skin', 'Liberty Voss', 'rare', 'n2_bellringer', 'LibertyVoss.png'),
   skin('skin_radrachel_1', 'minion_skin', 'Metal Rachel', 'rare', 'dm_radrachel', 'MetalRachel.png'),
-  skin('skin_scalefeather_1', 'minion_skin', 'Mushy Pee', 'rare', 'd2_scalefeather', 'MushyPee.png'),
+  skin('skin_scalefeather_1', 'minion_skin', 'Mushy River', 'rare', 'd2_scalefeather', 'MushyPee.png'),
   skin('skin_scalefeather_2', 'minion_skin', 'Cosmic Mushy', 'epic', 'd2_scalefeather', 'CosmicMushy.png'),
   skin('skin_kennel_1', 'minion_skin', 'Gilded Kennelmaster', 'epic', 'kennel', 'GoldenKennelmaster.png'),
   skin('skin_jenkins_2', 'minion_skin', 'Jensen & Fi Sky', 'epic', 'jenkins', 'JensenFiSky.png'),
@@ -671,7 +671,7 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   emote('emote_sly_oona', 'Sly Oona', 'epic', 'SlyOona.png'),
   emote('emote_dead_elder', 'Dead Elder', 'epic', 'DeadElder.png'),
   emote('emote_gambler', 'Gambler', 'epic', 'GamblerEmote.png'), // 2026-10-18
-  emote('emote_sexy_darah', 'Sexy Darah', 'epic', 'SexyDarahEmote.png'), // 2026-10-18
+  emote('emote_sexy_darah', 'Darahling', 'epic', 'SexyDarahEmote.png'), // 2026-10-18; 'Sexy Darah' until 2026-10-22 (owner rename)
   emote('emote_angry_deathswarmer', 'Angry Deathswarmer', 'epic', 'AngryDeathswarmer.png'), // 2026-10-18
   // Legendary: the busiest, loudest bubbles.
   emote('emote_rich_pimm', 'Rich Pimm', 'legendary', 'RichPimm.png'),

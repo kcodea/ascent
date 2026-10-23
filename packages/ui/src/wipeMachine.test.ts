@@ -160,9 +160,20 @@ describe('the return trip is the vista, not the gate', () => {
     for (const w of WIPE_EXIT.slice(1, -1)) expect(curtainClassFor(w), w).toContain(' exit');
   });
 
+  it('sizes the poster contents and the sky title off their own art, so they scale with it as one piece', () => {
+    // Owner 2026-10-23: "lock the text and portrait to the poster so they scale as one piece" (windowed and fullscreen
+    // looked different because the paper is cover-fit while --u follows the 16:9 UI).
+    expect(css).toContain('.wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }');
+    expect(css).toContain('.wipeposter { --u: calc(var(--gate-hi) * 0.00089333); }');
+    expect(css).toContain('.wipevista { --vista-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778)); }');
+    expect(css).toContain('.wipevista .wipevista-title { --u: calc(var(--vista-hi) * 0.00089333);');
+    // the constant is the old --u at a 16:9 screen: 1.34px x 0.96 (--ui-scale) per 1440 px of stage height
+    expect(Math.abs((1.34 * 0.96) / 1440 - 0.00089333)).toBeLessThan(1e-8);
+  });
+
   it('moves by opacity and transform only', () => {
     // (…and the portal: the doorway's interior fading open, owner 2026-10-23.)
-    for (const k of ['vistaflash', 'vistacut', 'vistapullback', 'vistarisefar', 'vistarisemid', 'vistariseshop', 'vistarisefore', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistadoordark', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+    for (const k of ['vistaflash', 'vistacut', 'vistapullback', 'vistarisefar', 'vistarisemid', 'vistariseshop', 'vistarisefore', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistadoordark', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore', 'vistatitlepop']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       // (`translate` is the individual transform property: compositor-only like `transform`.)
       expect(frames, k).toMatch(/transform|translate|opacity/);

@@ -479,6 +479,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
   background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
   transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
 .wipeposter .wipevs { rotate: -3.3deg; }
+/* ONE PIECE (owner 2026-10-23: "lock the text and portrait to the poster so they scale as one piece"). Everything on the
+   poster (lettering, rules, portrait, spacing) is sized in --u, which normally follows the game's 16:9 UI size, while the
+   paper follows the gate art's cover-fit size; the two only agree on an exact 16:9 window, so windowed and fullscreen
+   looked different. Here --u is taken from the art's own drawn height instead: identical to the old --u on a 16:9 screen
+   (1.34px x 0.96 per 1440 px of height), and it moves with the paper on every other shape. */
+.wipeposter { --u: calc(var(--gate-hi) * 0.00089333); }
 /* INKED INTO THE POSTER (owner 2026-10-23: "how can we edit the text to look more burned into the paper? like this?", with a
    reference of brown serif lettering and ruled flourishes). On the gate's poster the announcement is dark burnt-brown ink, no
    white fill or black outline, with a soft darker bleed at its edges as if scorched or inked into the paper: NOW FACING in
@@ -546,6 +552,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* With the portal the dive carries the picture past every edge of the screen, so this last fade is only a backstop for an
    odd screen shape: the picture holds to 85% of the dive, then goes. */
 @keyframes vistafade { 0% { opacity: 1; } 85% { opacity: 1; animation-timing-function: ease-in; } 100% { opacity: 0; } }
+/* The vista picture's drawn height (the stage below is cover-fit to the window): the sky title is sized off it, so it
+   scales with the picture as one piece on any window shape (same rule as the gate's poster, owner 2026-10-23). */
+.wipevista { --vista-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778)); }
 .wipevista-stage { position: absolute; left: 50%; top: 50%; translate: -50% -50%;
   width: max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7778)); height: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778));
   transform-origin: 47.7% 74%; }
@@ -670,7 +679,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
   white-space: nowrap; font-size: calc(64 * var(--u, 1px)); line-height: 1.15; }
 /* …in the MAGIC GLOW lettering (owner 2026-10-23, mock-up C: "lets do C magic glow"): heavy Cinzel, white, lit from
    within by the gem's turquoise, no black outline. Out-specifies `.wipevs-label`, whose 38u size had been winning. */
-.wipevista .wipevista-title { top: 15.5%; font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
+.wipevista .wipevista-title { --u: calc(var(--vista-hi) * 0.00089333); top: 15.5%; font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
   font-size: calc(98 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
   text-shadow: 0 0 calc(6 * var(--u, 1px)) #9ff7ef, 0 0 calc(18 * var(--u, 1px)) #36cfd6, 0 0 calc(40 * var(--u, 1px)) rgba(54, 207, 214, 0.8),
     0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(10, 40, 80, 0.5); }
@@ -678,14 +687,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    partway through the transition"): early in the hold, once the land has settled, the title swells, springs back past
    its size and settles. Scale only (compositor); the selector spans the dive too so the class change never restarts it. */
 .wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.75s linear 0.2s both; }
-@keyframes vistatitlepop {
-  0% { transform: scale(1); animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
-  30% { transform: scale(1.2); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
-  50% { transform: scale(0.93); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
-  67% { transform: scale(1.045); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
-  84% { transform: scale(0.988); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
-  100% { transform: scale(1); }
-}
+@keyframes vistatitlepop { 0% { transform: scale(1); animation-timing-function: cubic-bezier(.2, .8, .3, 1); } 30% { transform: scale(1.2); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 50% { transform: scale(0.93); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 67% { transform: scale(1.045); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 84% { transform: scale(0.988); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 100% { transform: scale(1); } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */

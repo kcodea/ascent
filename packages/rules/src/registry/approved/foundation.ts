@@ -7997,4 +7997,31 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'materialises; its Seedling Spirit\'s Rally lifts a copy out of the second card, which greys.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentHand.test.tsx'], lastVerifiedAt: '2026-10-23' },
   },
+  // ── A transition never shows a picture before it is ready (owner clip 2026-10-23, the vista's 4-frame blank) ──────
+  {
+    id: 'R-PRESENT-36',
+    title: 'A transition only uses art that is already loaded and decoded, so no piece of it blanks out mid-play',
+    statement:
+      'Every picture a screen transition draws or cuts with (its layers, masks and overlays) is fetched and decoded before '
+      + 'the transition can start, and a piece that is still not ready when its moment comes is left out for that play '
+      + 'rather than switched on half-loaded. No part of a transition may disappear and come back while it plays.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-23 (Medal clip of the return trip)',
+        quote: 'you can see  briefly that part of the image disappears and returns',
+      },
+      { kind: 'fix-pr', ref: 'feat/vista-return' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (vistaArtRef / vistaMaskReadyRef / vistaMaskTrip, the maskok class); packages/ui/src/styles.css .wipevista.maskok.held .wipevista-masked' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the return trip’s door cut-out (vista-doormask.png) was the one vista picture '
+      + 'never preloaded; when the mask switched on as the land settled, the browser hid the whole masked group (sky, hills, '
+      + 'title, shop) until it decoded, and for four frames the fight showed through behind the flowers. Now every vista '
+      + 'picture is decoded on mount and kept referenced, and each trip uses the cut-out only if it was decoded before the '
+      + 'trip began. PARTIAL as a general rule: the test pins the vista’s mask, not every transition’s art.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

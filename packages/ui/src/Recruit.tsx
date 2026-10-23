@@ -2373,6 +2373,19 @@ export function Recruit() {
     window.addEventListener('resize', measureWipeOrigin);
     return () => window.removeEventListener('resize', measureWipeOrigin);
   }, [wipeOnScreen, measureWipeOrigin]);
+  // THE DOOR'S CUT-OUT MUST BE READY BEFORE IT IS USED (owner clip 2026-10-23: "part of the image disappears and
+  // returns"). `.wipevista-masked` (sky, hills, title, shop) wears `vista-doormask.png` as a CSS mask once the land has
+  // settled; a mask whose image is not decoded yet hides the WHOLE group, so for four frames the fight showed through
+  // everything but the flowers. It was the one vista picture never preloaded. Now it is fetched and DECODED on mount
+  // (kept referenced, like the layers), and each trip decides at its start whether to cut the door (`maskok`): only if
+  // the cut-out is already decoded, so it can never switch on half-ready or mid-flight. Without it the trip simply dives
+  // without the hole once (the doorway's painted interior and the end fade still carry it): never a blank scene.
+  const vistaArtRef = useRef<HTMLImageElement[]>([]);
+  const vistaMaskReadyRef = useRef(false);
+  const [vistaMaskTrip, setVistaMaskTrip] = useState(false);
+  useEffect(() => {
+    if (wipe === 'coverOut') setVistaMaskTrip(vistaMaskReadyRef.current);
+  }, [wipe]);
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
   // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
@@ -2385,7 +2398,16 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
-    for (const n of PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
+    // Decoded up front and kept referenced, so the first trip never waits on a decode; the door's cut-out among them.
+    const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
+    vistaArtRef.current = [...art, 'vista-doormask.png'].map((f) => {
+      const img = new Image();
+      img.src = `${import.meta.env.BASE_URL}${f}`;
+      const decoded = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
+      if (f === 'vista-doormask.png') decoded.then(() => { vistaMaskReadyRef.current = true; }, () => { /* no hole this session */ });
+      else decoded.catch(() => { /* a background still loads on its own */ });
+      return img;
+    });
     sfx.warmGate();
     sfx.warmWipeGate();
     // Plain Cinzel (the poster's inked lettering, 700, and the return trip's sky title, 900): fetched now so neither swaps fonts on screen.
@@ -8274,7 +8296,7 @@ export function Recruit() {
       {/* THE RETURN TRIP (owner 2026-10-23): the exit pass's own transition, the shop's VISTA (six parallax layers; one
           flattened picture on phones), RETURNING TO SHOP in its sky (`vistaClassFor`, `.wipevista` in styles.css). The
           fade in and the dive out drive the machine like the gate does (`onVistaEnd` / `onVistaAnimEnd`). */}
-      <div className={vistaClassFor(wipe)} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
+      <div className={vistaClassFor(wipe) + (vistaMaskTrip ? ' maskok' : '')} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
         {/* The Shop seen through the door starts in shadow and brightens as you go through (`.wipevista-dusk`). */}
         <div className="wipevista-dusk" />
         <div className="wipevista-stage">

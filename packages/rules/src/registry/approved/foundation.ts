@@ -7878,4 +7878,30 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'NOW FACING swinging on its own nail (transform only).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-STAGE-OPP-HUD-01',
+    title: 'The opponent\'s hero block stays on the board at every window shape, like the player\'s',
+    statement:
+      'The opponent\'s hero block (portrait, name, Health and Armor, the Shop Tier pill, the rune slots and the hero '
+      + 'power) is placed in the 16:9 game area, exactly like the player\'s own block. On any window shape (wide, tall, '
+      + 'a phone in landscape, an iPad in portrait, the phone stage zoom) it keeps its spot at the board\'s top-right; '
+      + 'it never hangs off the top of the window. A 16:9 desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-10-23 (screenshot of a tall, narrow window in combat: the foe block at the window\'s top-right, far above the board)',
+        quote: 'everything in the game works/stays in place seemingly except for opponent information. can you fix it so these locations are baked in the viewport in the same way as other ui elements?',
+      },
+      { kind: 'fix-pr', ref: 'fix/opponent-hud-stage-anchor' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css .combatopp / .heropowerbtn.opp-power / .herotip.opp-power-tip (top starts from var(--bar-y))' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the block\'s top was measured from the top of the layout viewport, not the 16:9 '
+      + 'box, so whenever the window was taller than 16:9 (the stage letterboxed, --bar-y above 0) it sat at the window\'s '
+      + 'top while the board sat in the middle. At 16:9 --bar-y is 0, so a desktop never showed it.',
+    example: 'A 483 x 898 browser window in combat: the foe portrait sits beside the board\'s top-right corner, mirroring the player\'s at its bottom-left.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatOpponentStageAnchor.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

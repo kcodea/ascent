@@ -277,11 +277,12 @@ html { background: #0a1730; }
    2026-08-29), still above the statusbar (z40). Scale/opacity from the ⚔️ Hero Duel tuner. The `passive`
    class on the element is what defeats the player-button 'can't afford' dim: it breaks that rule's :not()
    chain at match level instead of fighting its specificity. */
-.heropowerbtn.opp-power { position: fixed; top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale));
+.heropowerbtn.opp-power { position: fixed; top: calc(var(--bar-y) + 20 * var(--u) + var(--hd-power-y, 191px) * var(--scale));
   /* Anchored to the STAGE's right edge, not the viewport's (owner ask 2026-08-29): 50% - gw/2 is the
      letterbox margin, so the icon holds its spot beside the board on any monitor width. The --hd-power-x/y
      offsets are REFERENCE px × --scale (like every other pinned element), so the icon shrinks/moves WITH the
-     board on a non-fullscreen stage instead of skewing off it (owner report 2026-08-29). */
+     board on a non-fullscreen stage instead of skewing off it (owner report 2026-08-29). `top` starts from
+     `var(--bar-y)`, the 16:9 box's top edge, so a window taller than 16:9 keeps it on the board (R-STAGE-OPP-HUD-01). */
   right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale)); z-index: 41; pointer-events: none;
   transform: scale(var(--hd-power-s, 0.87)); transform-origin: top right; opacity: var(--hd-power-alpha, 1); }
 /* Hover tooltip (owner ask 2026-08-29): pointer-events back ON for hover only — there is no .hpb-glow child
@@ -294,7 +295,7 @@ html { background: #0a1730; }
    vars the icon uses: horizontally centred on the icon's box, 12px below it. Shown via the adjacent-sibling
    hover combinator, same 0.35s delay as the player's tip. */
 .herotip.opp-power-tip { position: fixed; z-index: 101; bottom: auto;
-  top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + 128 * var(--u) * var(--hd-power-s, 0.87) + 12px * var(--scale));
+  top: calc(var(--bar-y) + 20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + 128 * var(--u) * var(--hd-power-s, 0.87) + 12px * var(--scale));
   left: auto; right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) + 64 * var(--u) * var(--hd-power-s, 0.87));
   transform: translateX(50%); }
 .heropowerbtn.opp-power:hover + .herotip.opp-power-tip, .heropowerbtn.opp-power.tt-on + .herotip.opp-power-tip { opacity: 1; transition-delay: 0.35s; }
@@ -12414,7 +12415,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
      other pinned element (positive X = rightward, positive Y = down). */
   left: auto;
   right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 176px) * var(--scale));
-  top: calc(20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale));
+  /* `var(--bar-y)` = the 16:9 box's top edge (R-STAGE-OPP-HUD-01, owner 2026-10-23): without it the block hung off the
+     top of the WINDOW on a window taller than 16:9 while the board sat in the middle. 0 at 16:9, so desktop is unchanged. */
+  top: calc(var(--bar-y) + 20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale));
   /* The ⚔️ Hero Duel tuner's placement rides the WRAPPER, never the body — the body is what GSAP lunges.
      translate(50%,-50%) centres the portrait on the right/top anchor point. */
   transform: translate(50%, -50%) scale(var(--hd-opp-s, 2.4));

@@ -81,8 +81,8 @@ describe('2026-10-07 archives: out of every set, still resolvable', () => {
 
 describe('2026-10-07 rune numbers', () => {
   const rune = (id: string) => RUNE_INDEX[id]!;
-  it('costs: Stormcalling 3, Foundry 3, Summit 5, Deep 5, Summoning 1', () => {
-    expect(['rune_stormcalling', 'rune_foundry', 'rune_summit', 'rune_deep', 'rune_summoning'].map((id) => rune(id).cost)).toEqual([3, 3, 5, 5, 1]);
+  it('costs: Stormcalling 3, Foundry 3, Summit 4, Deep 4, Summoning 1', () => {
+    expect(['rune_stormcalling', 'rune_foundry', 'rune_summit', 'rune_deep', 'rune_summoning'].map((id) => rune(id).cost)).toEqual([3, 3, 4, 4, 1]); // owner 2026-10-23: Summit + Deep were 5
   });
 
   it('Rune of Ascension is neutral (no tribe gate)', () => {

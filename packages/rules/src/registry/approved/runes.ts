@@ -2525,7 +2525,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-KOBOLD-RUNES-1022-02',
     title: 'Goleming: Avenge (5), a plain Gemheart Golem summon, then 6 plain Rubies cast on it (combat-only)',
     statement:
-      'Goleming (Basic, 3) is a combat Avenge (5) rune (Rune of Fury repeats it; each copy held is its own fire). It summons '
+      'Goleming (Basic, 2) is a combat Avenge (5) rune (Rune of Fury repeats it; each copy held is its own fire). It summons '
       + 'the printed Gemheart Golem token as a PLAIN summon, not a "when you have space" queue: on a full board the Golem is '
       + 'lost and so are its Rubies. The Golem then casts 6 plain Rubies on itself through the one combat Ruby primitive, so '
       + 'the Ruby strength of the side and every Ruby watcher (Rosey, the Garden, the Gemheart summon trigger) see real '
@@ -2564,7 +2564,7 @@ export const RUNES_RULES: GameRule[] = [
     id: 'R-KOBOLD-RUNES-1022-04',
     title: "Rosey's Garden: every Ruby cast gives a seeded-random friendly minion +4/+5 permanently, and cannot loop",
     statement:
-      "Rosey's Garden (Epic, 4) hears every Ruby CAST at the same chokepoints as Rosey (the Shop's Ruby landing and Shop-offer "
+      "Rosey's Garden (Epic, 3) hears every Ruby CAST at the same chokepoints as Rosey (the Shop's Ruby landing and Shop-offer "
       + 'cast; `playRubyOn` in combat), once PER RUBY (two Rubies cast is two) and per copy held. Each payout gives a '
       + 'seeded-random friendly minion (Shop: the board; combat: the living side) +4/+5. Permanent in both phases: in combat '
       + 'it is recorded as `permaGain` and carried back to the Shop. Bounce hops and the Double Trouble self-Rubies are stats '
@@ -2679,5 +2679,27 @@ export const RUNES_RULES: GameRule[] = [
     contentIds: ['dw3_marketing', 'u3_adeptus', 'd3_gravus', 'k3_facetbound', 'dw3_thymes'],
     currentBehaviour: 'Conforms as of 2026-10-23.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts', 'packages/sim/src/set3SellDwarves1021.test.ts', 'packages/sim/src/set3Undead.test.ts', 'packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-RUNE-COSTS-1023-01',
+    title: 'Rune cost pass 2026-10-23: Basic 3-5 cost 1 less and 6+ cost 2 less; Epic 4-7 cost 1 less and 8+ cost 2 less',
+    statement:
+      'Every rune definition (Basic pool, Epic pool and archived, all sets) was repriced from its printed cost on main: a '
+      + 'Basic rune at 3, 4 or 5 Gold costs 1 less and at 6 or more costs 2 less (1 and 2 unchanged); an Epic rune at 4, 5, 6 '
+      + 'or 7 Gold costs 1 less and at 8 or more costs 2 less (1 to 3 unchanged). 325 runes changed: Basic 85 (3 to 2), 63 '
+      + '(4 to 3), 22 (5 to 4), 1 (6 to 4); Epic 63 (4 to 3), 61 (5 to 4), 24 (6 to 5), 4 (7 to 6), 2 (8 to 6); 36 of them '
+      + 'archived. Only printed base costs moved: the hero forge discount (clamped at 0), the duplicate sweetener (half the '
+      + 'printed cost rounded up) and every other rune price mechanic read the new printed cost unchanged. After the pass no '
+      + 'Basic rune costs more than 4 and no Epic rune more than 6.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass)', quote: "let's reduce the cost of all 3,4,5 cost basic runes by 1, and reduce the cost of all 4,5,6,7 cost epic runes by 1 across all sets" },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass, 8+)', quote: 'if there are any 8+ reduce those by 2' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass, Basic 6+)', quote: 'if there are any basic runes a 6+ gold, reduce their cost by 2' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (each changed `cost:` annotated "owner 2026-10-23"); docs/devlog/2026-10-23-rune-costs.md (full table)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/content/src/runeCosts1023.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
 ];

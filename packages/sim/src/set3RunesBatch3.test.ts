@@ -39,14 +39,15 @@ const nextTurn = (s: RunState): RunState => {
 };
 
 // ── roster ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Basic 6+ -2; Epic 4-7 -1, Epic 8+ -2); rows below 3 / Epic below 4 kept their cost.
 const BASIC: [string, number, Tribe][] = [
   // Rubywire was CUT FROM SET 3 on 2026-09-27 (owner, design pass tranche 0): it is now `sets: []`, pinned in set3RuneDesignT0.test.ts.
   // Red Storm + Storming Veins ARCHIVED 2026-10-13 (owner Set 3 batch: Veinstorm left set 3); pinned below.
-  ['rune_gemmed_decisions', 3, 'kobold'], ['rune_echoing_kobolds', 3, 'kobold'],
-  ['rune_choices', 3, 'kobold'], ['rune_combatative_rubies', 3, 'kobold'], ['rune_body_counting', 3, 'undead'],
+  ['rune_gemmed_decisions', 2, 'kobold'], ['rune_echoing_kobolds', 2, 'kobold'],
+  ['rune_choices', 2, 'kobold'], ['rune_combatative_rubies', 2, 'kobold'], ['rune_body_counting', 2, 'undead'],
 ];
 const EPIC: [string, number, Tribe][] = [
-  ['rune_sold_choices', 5, 'kobold'], ['rune_aggressive_golems', 5, 'kobold'], ['rune_ruptured_rubies', 6, 'kobold'],
+  ['rune_sold_choices', 4, 'kobold'], ['rune_aggressive_golems', 4, 'kobold'], ['rune_ruptured_rubies', 5, 'kobold'],
 ];
 
 describe('batch 3 roster — pool, cost, Set 3 only, tribe gate', () => {

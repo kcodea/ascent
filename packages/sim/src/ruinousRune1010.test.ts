@@ -7,7 +7,7 @@ import { runeforgePool } from './reducer';
 import { fireRecruitDeathrattlesForTest } from './recruit';
 
 /**
- * OWNER ADD 2026-10-10 — Rune of the Ruinous (Basic, 4 Gold, Set 2, Demon-gated): "Get a Ruinous Lord."
+ * OWNER ADD 2026-10-10 — Rune of the Ruinous (Basic, 4 Gold, Set 2, Demon-gated; owner 2026-10-23: now 3 Gold): "Get a Ruinous Lord."
  * Ruinous Lord (rune-only T4 4/5 Demon): "When a Demon deals damage, give your Demons +1/+1." OWNER RULING: the buff
  * lasts for THIS COMBAT ONLY. Gilded +2/+2. The trigger is Impossible Todd's (`friendlyDemonDealtDamage`), so
  * "deals damage" means a LANDED hit by a friendly Demon, the Lord's own hits included. Every block runs the real
@@ -36,11 +36,11 @@ type Buff = Extract<CombatEvent, { type: 'buff' }>;
 type Dmg = Extract<CombatEvent, { type: 'dmg' }>;
 
 describe('Rune of the Ruinous: the roster', () => {
-  it('a Basic (RUNES, appended last), 4 Gold, Set 2 only, Demon-gated, granting Ruinous Lord', () => {
+  it('a Basic (RUNES, appended last), 3 Gold, Set 2 only, Demon-gated, granting Ruinous Lord', () => {
     const r = RUNE_INDEX['rune_ruinous']!;
     expect(RUNES[RUNES.length - 1]!.id, 'appended at the very end of RUNES').toBe('rune_ruinous');
     expect(EPIC_RUNES.some((x) => x.id === 'rune_ruinous')).toBe(false);
-    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets, r.text]).toEqual(['Ruinous', 4, false, ['demon'], ['set2'], 'Get a **Ruinous Lord**.']);
+    expect([r.name, r.cost, !!r.epic, r.tribes, r.sets, r.text]).toEqual(['Ruinous', 3, false, ['demon'], ['set2'], 'Get a **Ruinous Lord**.']);
     expect(r.reward).toEqual({ kind: 'grant', cards: ['dm_ruinouslord'] });
   });
   it('Ruinous Lord: a rune-only T4 4/5 Demon, never in the Shop pool, resolving globally; plain + gilded text', () => {

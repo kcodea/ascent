@@ -70,9 +70,9 @@ describe('the five runes as content', () => {
     const rows: [string, string, number, boolean, string][] = [
       ['rune_refreshing_rubies', 'Refreshing Rubies', 2, false, 'When you **Refresh 4 times**, get a random **Ruby**.'],
       ['rune_ruby_sales', 'Ruby Sales', 1, false, 'When you **Sell 3 minions**, get a random **Ruby**.'],
-      ['rune_goleming', 'Goleming', 3, false, '**Avenge (5):** summon a **Gemheart Golem** and cast **6 Rubies** on it.'],
+      ['rune_goleming', 'Goleming', 2, false, '**Avenge (5):** summon a **Gemheart Golem** and cast **6 Rubies** on it.'],
       ['rune_red_start', 'Red Start', 3, true, '**Start of Combat:** cast a **permanent Ruby** on your **Kobolds**.'],
-      ['rune_roseys_garden', "Rosey's Garden", 4, true, 'When you cast a **Ruby**, give a random minion **+4/+5** permanently.'],
+      ['rune_roseys_garden', "Rosey's Garden", 3, true, 'When you cast a **Ruby**, give a random minion **+4/+5** permanently.'],
     ];
     for (const [id, name, cost, epic, text] of rows) {
       const r = RUNE_INDEX[id]!;

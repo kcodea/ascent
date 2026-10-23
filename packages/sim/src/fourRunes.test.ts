@@ -120,11 +120,11 @@ describe('the four defs are wired', () => {
   it('exist at the owner costs, with the right tier of forge', () => {
     expect(RUNE_INDEX['rune_distillation']!.cost).toBe(2);
     expect(RUNE_INDEX['rune_distillation']!.epic).toBeUndefined(); // basic
-    expect(RUNE_INDEX['rune_liquidation']!.cost).toBe(4);
+    expect(RUNE_INDEX['rune_liquidation']!.cost).toBe(3); // owner 2026-10-23: was 4
     expect(RUNE_INDEX['rune_liquidation']!.epic).toBe(true);
-    expect(RUNE_INDEX['rune_warpath']!.cost).toBe(5);
+    expect(RUNE_INDEX['rune_warpath']!.cost).toBe(4); // owner 2026-10-23: was 5
     expect(RUNE_INDEX['rune_warpath']!.epic).toBe(true);
-    expect(RUNE_INDEX['rune_gemspam']!.cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
+    expect(RUNE_INDEX['rune_gemspam']!.cost).toBe(3); // owner balance 2026-08-11 (5 → 4); owner 2026-10-23 (4 → 3)
     expect(RUNE_INDEX['rune_gemspam']!.epic).toBe(true);
   });
 });

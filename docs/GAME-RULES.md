@@ -1517,13 +1517,13 @@ card's kicker.
   (Runesmith and Guardian are ARCHIVED heroes since 2026-09-24, see *Heroes: archived*; their forges still run
   for a stored run or a Scene Builder sandbox on them.)
 - **Guardian** (Runeguard): an extra Epic forge on **turn 8**, booked at run creation (`epicForgeWave`).
-- **Epic Forge** (Basic 4): books an extra Epic forge for **turn 8** (next turn, if 8 has
+- **Epic Forge** (Basic 2): books an extra Epic forge for **turn 8** (next turn, if 8 has
   passed). A Guardian holding it gets **TWO Epic forges on turn 8**, opened one after the other — the second
   opens the moment the first is bought or skipped, before the turn's Basic forge or Discovers (owner
   2026-09-22: "can we just book 2 runeforges here"). Bookings are COUNTED (`epicForgeCount`,
   `pendingEpicRuneforge` is a count), so two forges booked for one turn are both opened, never dropped and
   never slid to a later turn.
-- **Ornate Clock** (Basic 2): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
+- **Ornate Clock** (Basic 1): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
   **next turn** (`epicForgeClaimed` stands the turn-9 visit down). Bought late it still opens next turn.
 - A quest reward can also schedule a forge (The Runeforge: a Basic forge next turn with +4 Gold; The Epic
   Runeforge: an Epic forge next turn) — those quests are archived, but the reward path still resolves.
@@ -2548,13 +2548,13 @@ Five runes, Set 3 only, offered when Kobold is one of the run's tribes. Each cop
 - **Ruby Sales** (Basic, 1): "When you Sell 3 minions, get a random Ruby." Every minion you Sell counts (board or hand,
   a spell that Sells included). A running meter with a plain N/3 counter.
 - Both pay one random Ruby (any of the six types, R-RAND-02). They respect the hand cap: a full hand gets nothing.
-- **Goleming** (Basic, 3): "Avenge (5): summon a Gemheart Golem and cast 6 Rubies on it." Combat only (Avenge); Fury
+- **Goleming** (Basic, 2): "Avenge (5): summon a Gemheart Golem and cast 6 Rubies on it." Combat only (Avenge); Fury
   repeats it. A plain summon: on a full board the Golem is lost, and its Rubies with it. The Golem casts 6 plain Rubies
   on itself (real casts: your Ruby strength, Rosey and Rosey's Garden all count them). The Golem lasts the fight.
 - **Red Start** (Epic, 3): "Start of Combat: cast a permanent Ruby on your Kobolds." One Ruby on each living friendly
   Kobold (All-types counts). A **permanent Ruby** keeps its stats after the fight: they carry back to the Shop board
   (the Combatative Rubies rule). Twilight repeats it. No Shop replay.
-- **Rosey's Garden** (Epic, 4): "When you cast a Ruby, give a random minion +4/+5 permanently." Once per Ruby cast
+- **Rosey's Garden** (Epic, 3): "When you cast a Ruby, give a random minion +4/+5 permanently." Once per Ruby cast
   (two Rubies is two), in the Shop and in combat, to a random friendly minion. Permanent in combat too (it carries back).
   Bounces and Double Trouble's self-Rubies are not casts. The +4/+5 is a plain buff, so it never triggers a Ruby effect:
   Rosey and the Garden cannot loop.
@@ -2563,7 +2563,7 @@ Five runes, Set 3 only, offered when Kobold is one of the run's tribes. Each cop
 
 Two runes, Set 3 only, offered when Dwarf is one of the run's tribes.
 
-- **Last Call** (Basic, 3): "After you Sell 3 minions, your next Dwarven Ale casts twice." Every minion you Sell counts
+- **Last Call** (Basic, 2): "After you Sell 3 minions, your next Dwarven Ale casts twice." Every minion you Sell counts
   (the Ruby Sales meter). Every 3rd sale arms a charge; the next Dwarven Ale you cast from hand spends it and casts one
   more time (one more per copy held). An Ale in hand shows the x2 while armed. Only a hand cast spends it; a non-Ale
   spell never does; the charge waits across turns. At most one charge waits at a time. A running meter with a plain N/3

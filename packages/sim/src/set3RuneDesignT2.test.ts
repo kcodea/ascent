@@ -35,9 +35,10 @@ const at = (s: RunState, uid: string) => s.board.find((c) => c.uid === uid)!;
 
 describe('the tranche 2 roster (owner 2026-09-27)', () => {
   it('seven Celestial runes at the doc costs, Set 4 only since the 2026-10-14 swap (were Set 3 only), Celestial-gated; no Event Horizon', () => {
+    // Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Epic 4-7 -1); each was 1 higher before.
     const want: [string, number, boolean][] = [
-      ['rune_heralding_star', 3, false], ['rune_stellar_echoes', 3, false], ['rune_scattered_light', 3, false], ['rune_gravity', 4, false],
-      ['rune_afterglow', 3, false], ['rune_starsong', 4, true], ['rune_guiding_star', 5, true],
+      ['rune_heralding_star', 2, false], ['rune_stellar_echoes', 2, false], ['rune_scattered_light', 2, false], ['rune_gravity', 3, false],
+      ['rune_afterglow', 2, false], ['rune_starsong', 3, true], ['rune_guiding_star', 4, true],
     ];
     for (const [id, cost, epic] of want) {
       const r = RUNE_INDEX[id]!;
@@ -46,7 +47,7 @@ describe('the tranche 2 roster (owner 2026-09-27)', () => {
     }
     expect(RUNE_INDEX['rune_event_horizon']).toBeUndefined();
     // The owner's pick for the Event Horizon slot (2026-09-27), renamed: "Meteor Shower" is an existing Set 3 rune's name.
-    expect([RUNE_INDEX['rune_meteor_storm']!.cost, RUNE_INDEX['rune_meteor_storm']!.epic, RUNE_INDEX['rune_meteor_storm']!.tribes]).toEqual([5, true, ['celestial']]);
+    expect([RUNE_INDEX['rune_meteor_storm']!.cost, RUNE_INDEX['rune_meteor_storm']!.epic, RUNE_INDEX['rune_meteor_storm']!.tribes]).toEqual([4, true, ['celestial']]); // owner 2026-10-23 rune reprice: was 5
     expect(RUNE_INDEX['rune_meteor_shower']!.name).toBe('Meteor Shower'); // the existing E2, untouched
   });
 });

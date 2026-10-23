@@ -2410,6 +2410,14 @@ export function Recruit() {
   // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
   // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
   // crashed the shop screen (owner report 2026-10-23).
+  // THE ARRIVAL'S EDGE SPARKS (owner 2026-10-23): as each piece of the vista flies in, sparks spray in off the edge it comes
+  // from, on the same beats as the edge-light pulses in styles.css (left 0 / 120 / 220 ms, right 60 / 180 / 260 ms).
+  useEffect(() => {
+    if (wipe !== 'coverOut' || PHONE_GPU) return undefined;
+    const beats: Array<[number, 'left' | 'right']> = [[0, 'left'], [60, 'right'], [120, 'left'], [180, 'right'], [220, 'left'], [260, 'right']];
+    const ts = beats.map(([ms, side]) => window.setTimeout(() => gateFx.edgeSparks(side), ms));
+    return () => { for (const t of ts) window.clearTimeout(t); };
+  }, [wipe]);
   useEffect(() => {
     if (wipe === 'coverOut') sfx.vistaTrip('arrive');
     else if (wipe === 'revealOut') sfx.vistaTrip('dive');
@@ -8280,6 +8288,9 @@ export function Recruit() {
           <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
           <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>
+        {/* The screen edges flare with light as the pieces fly in (`.wipevista-edge`). */}
+        <div className="wipevista-edge wipevista-edge-left" />
+        <div className="wipevista-edge wipevista-edge-right" />
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the

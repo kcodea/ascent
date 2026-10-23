@@ -204,5 +204,5 @@ html[data-touch-ui][data-phone-gpu] .wipevista-layer:not(.wipevista-flat) { disp
 html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }
 /* …and on phones the one flattened picture flies in from the left as the backdrop does on desktop, with the door's
    interior and glow flying in with it (styles.css, "THE ARRIVAL"). */
-html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-flat { animation: vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0s both; }
-html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0s both; }
+html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-flat { animation: vistaflyleft 0.55s cubic-bezier(.18, 1.12, .32, 1) 0s both; }
+html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistaflyleft 0.55s cubic-bezier(.18, 1.12, .32, 1) 0s both; }

@@ -488,7 +488,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipeposter .wipevs-label, .wipeposter .wipevs-name { position: relative; color: #3a2210; -webkit-text-stroke: 0; opacity: 0.92;
   text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
 .wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 700;
-  font-size: calc(56 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px)); }
+  font-size: calc(56 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px));
+  top: calc(-18 * var(--u, 1px)); } /* raised a touch on the page, the portrait and name unmoved (owner 2026-10-23) */
 .wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));
   padding-bottom: calc(12 * var(--u, 1px)); }
 /* The rules: a thin brown line, tapered to points at both ends, under each line of text. */
@@ -574,12 +575,12 @@ canvas.spr { image-rendering: pixelated; display: block; }
    hole only exists from then on (`.held` / `.dive`), so nothing can show through it while the pieces are still flying.
    These ride the individual `translate` property (the title, centred by `translate`, uses `transform`), so they stack with
    the push and the dive. Transform only. */
-.wipevista.on .wipevista-dive-sky { animation: vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0s both; }
-.wipevista.on .wipevista-dive-far { animation: vistaflyright 0.55s cubic-bezier(.16, .84, .3, 1) 0.06s both; }
-.wipevista.on .wipevista-dive-mid { animation: vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0.12s both; }
-.wipevista.on .wipevista-shop { animation: vistaflyright 0.55s cubic-bezier(.16, .84, .3, 1) 0.18s both; }
-.wipevista.on .wipevista-dive-fore { animation: vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0.22s both; }
-.wipevista.on .wipevista-title { animation: vistaslidetitle 0.54s cubic-bezier(.16, .84, .3, 1) 0.26s both; }
+.wipevista.on .wipevista-dive-sky { animation: vistaflyleft 0.55s cubic-bezier(.18, 1.12, .32, 1) 0s both; }
+.wipevista.on .wipevista-dive-far { animation: vistaflyright 0.55s cubic-bezier(.18, 1.12, .32, 1) 0.06s both; }
+.wipevista.on .wipevista-dive-mid { animation: vistaflyleft 0.55s cubic-bezier(.18, 1.12, .32, 1) 0.12s both; }
+.wipevista.on .wipevista-shop { animation: vistaflyright 0.55s cubic-bezier(.18, 1.12, .32, 1) 0.18s both; }
+.wipevista.on .wipevista-dive-fore { animation: vistaflyleft 0.55s cubic-bezier(.18, 1.12, .32, 1) 0.22s both; }
+.wipevista.on .wipevista-title { animation: vistaslidetitle 0.54s cubic-bezier(.18, 1.12, .32, 1) 0.26s both; }
 @keyframes vistaflyleft { 0% { translate: -105% 0; } 100% { translate: 0 0; } }
 @keyframes vistaflyright { 0% { translate: 105% 0; } 100% { translate: 0 0; } }
 @keyframes vistaslidetitle { 0% { transform: translateX(var(--lvw, 100vw)); } 100% { transform: translateX(0); } }
@@ -616,6 +617,28 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the open door starts in shadow and brightens to full as you fly through. Opacity only. */
 .wipevista-dusk { position: absolute; inset: 0; background: #04060c; opacity: 0; pointer-events: none; will-change: opacity; }
 .wipevista.dive .wipevista-dusk { animation: vistadusk var(--wipe-reveal-dur, 450ms) both; }
+/* EASING THE ARRIVAL (owner 2026-10-23: "perhaps we have both sides of the player's screen pulse and flash with light and
+   sparks as the pieces come in? how can we ease the transition?"):
+   - the fight DIMS as the return trip starts (the shadow veil behind the picture, raised to 55% over 0.3 s), so the bright
+     pieces flying in over it read as arriving, not popping;
+   - the two SCREEN EDGES pulse with light in rhythm with the arrivals, the left one as each piece flies in from the left
+     (sky, midground, flowers) and the right one for the right (distance, shop, the sky text). Static gradients, opacity
+     only, screen-blended over the picture;
+   - sparks spray in off the same edge at each arrival (gateFx.edgeSparks, Recruit);
+   - each piece overshoots its spot a touch and settles (a back-out ease) instead of stopping dead. */
+.wipevista.in .wipevista-dusk { animation: vistadim 0.3s ease-out both; }
+@keyframes vistadim { 0% { opacity: 0; } 100% { opacity: 0.55; } }
+.wipevista-edge { position: absolute; top: 0; bottom: 0; width: calc(22 * var(--vw, 1vw)); pointer-events: none; opacity: 0;
+  mix-blend-mode: screen; will-change: opacity; }
+.wipevista-edge-left { left: 0; background:
+  linear-gradient(to right, rgba(255, 252, 235, 0.95) 0, rgba(190, 245, 240, 0.6) 4%, rgba(120, 220, 230, 0.28) 32%, rgba(90, 200, 230, 0) 100%); }
+.wipevista-edge-right { right: 0; background:
+  linear-gradient(to left, rgba(255, 252, 235, 0.95) 0, rgba(190, 245, 240, 0.6) 4%, rgba(120, 220, 230, 0.28) 32%, rgba(90, 200, 230, 0) 100%); }
+.wipevista.in .wipevista-edge-left { animation: vistaedgeleft 0.8s linear both; }
+.wipevista.in .wipevista-edge-right { animation: vistaedgeright 0.8s linear both; }
+/* pulses (0.8 s): left at 0, 0.12 and 0.22 s; right at 0.06, 0.18 and 0.26 s, each a quick flare that fades */
+@keyframes vistaedgeleft { 0% { opacity: 0; } 5% { opacity: 1; } 15% { opacity: 0.35; } 20% { opacity: 0.9; } 27.5% { opacity: 0.5; } 32.5% { opacity: 1; } 55% { opacity: 0.25; } 100% { opacity: 0; } }
+@keyframes vistaedgeright { 0% { opacity: 0; } 7.5% { opacity: 0; } 12.5% { opacity: 1; } 22.5% { opacity: 0.4; } 27.5% { opacity: 0.95; } 32.5% { opacity: 0.55; } 37.5% { opacity: 1; } 62% { opacity: 0.2; } 100% { opacity: 0; } }
 @keyframes vistadusk { 0% { opacity: 0.78; } 25% { opacity: 0.72; animation-timing-function: ease-in-out; } 100% { opacity: 0; } }
 .wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
 /* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door
@@ -630,7 +653,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
 .wipevista.on .wipevista-masked { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
 /* The door's interior and glow fly in WITH the shop (same flight, same moment), then push with it. */
-.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistaflyright 0.55s cubic-bezier(.16, .84, .3, 1) 0.18s both; }
+.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistaflyright 0.55s cubic-bezier(.18, 1.12, .32, 1) 0.18s both; }
 .wipevista.on .wipevista-sky { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-far { animation: vistapushfar 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-mid { animation: vistapushmid 2s cubic-bezier(.25, .6, .35, 1) both; }

@@ -489,7 +489,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
   text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
 .wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 700;
   font-size: calc(56 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px));
-  top: calc(-18 * var(--u, 1px)); } /* raised a touch on the page, the portrait and name unmoved (owner 2026-10-23) */
+  top: calc(-40 * var(--u, 1px)); } /* raised on the page (owner 2026-10-23: "a bit", then "needs to go up more") */
+/* …and the portrait a little too ("then move the portrait up slightly as well"); the name stays put. */
+.wipeposter .wipevs > .wipevs-face, .wipeposter .wipevs > .wipevs-facewrap { position: relative; top: calc(-14 * var(--u, 1px)); }
 .wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));
   padding-bottom: calc(12 * var(--u, 1px)); }
 /* The rules: a thin brown line, tapered to points at both ends, under each line of text. */

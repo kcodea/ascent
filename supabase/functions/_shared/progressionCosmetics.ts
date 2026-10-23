@@ -88,7 +88,8 @@ export const COSMETIC_CATEGORY_DEFS: Readonly<Record<CosmeticCategory, CosmeticC
   portrait_frame: { id: 'portrait_frame', label: 'Portrait Frames', weight: 10, enabled: true, target: 'global' },
   // Owner 2026-10-13: "Emotes are a new COSMETIC type in Collections". A painted speech bubble your hero says in a game,
   // seen by you and by the players who meet your recorded run. Account-wide (no hero or card target); the loadout
-  // holds FOUR of them, one row per menu position (`EMOTE_SLOT_COUNT`). Weight 10 like titles (kept for later).
+  // holds EIGHT of them since 2026-10-22 (four before), one row per menu position (`EMOTE_SLOT_COUNT`). Weight 10 like
+  // titles (kept for later).
   emote:       { id: 'emote',       label: 'Emotes',            weight: 10, enabled: true,  target: 'global' },
   // Owner 2026-10-14: "i want to test a new cosmetic: card plates", then "Turn Aquarium Rocks into a real equippable card
   // plate cosmetic". The plate behind YOUR minion cards, account-wide, seen by the players you meet. Weight 10 like
@@ -640,6 +641,16 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   // THE STARTER (owner 2026-10-15, after the crate move: "all emotes are crate only except give all players the zen brian
   // emote"). Owned and in the menu for every account, guests included; never in a crate. Common, like the old starters.
   emote('emote_zen_brian', 'Zen Brian', 'common', 'ZenBrian.png', { type: 'starter' }),
+  // THE COMMS EMOTES (owner 2026-10-22: "we'll use emotes for quickchat options, then. let's add 4 more emote slots, and
+  // give everyone the communication emotes"; then "give all players the 5 comms emotes for free, but others im going to
+  // continue to add will go into the skins lootboxes"). Quick-chat bubbles, FREE for every account (guests included):
+  // each row is flagged `starter` ON ITS OWN, so the free set is exactly these five plus Zen Brian, never a blanket rule.
+  // A new emote added with no flag is a crate drop (the `emote` helper's default). Masters in Emotes/Comms/.
+  emote('emote_hi', 'Hi', 'common', 'Comms/Hi.png', { type: 'starter' }),
+  emote('emote_good_choice', 'Good Choice', 'common', 'Comms/Good Choice.png', { type: 'starter' }),
+  emote('emote_too_nasty', 'Too Nasty', 'common', 'Comms/TooNasty.png', { type: 'starter' }),
+  emote('emote_its_beasts', "It's Beasts", 'common', "Comms/it's beasts.png", { type: 'starter' }),
+  emote('emote_lemon_approved', 'Lemon Approved', 'common', 'Comms/lemon approved.png', { type: 'starter' }),
   // Rare: one face, one feeling.
   emote('emote_nervous_jensen', 'Nervous Jensen', 'rare', 'NervousJensen.png'),
   emote('emote_depressed_hank', 'Depressed Hank', 'rare', 'DepressedHank.png'),
@@ -1108,7 +1119,7 @@ export interface RunCosmeticSnapshot {
   /** The equipped ANNOUNCER (account-wide, owner 2026-10-11). LIVE LOADOUT ONLY: only the wearer hears it, so
    *  `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent = the default announcer. */
   announcer?: string;
-  /** The EMOTES placed in the menu (owner 2026-10-13), keyed by menu position '0'..'3' (`EMOTE_SLOT_COUNT`). LIVE
+  /** The EMOTES placed in the menu (owner 2026-10-13), keyed by menu position '0'..'7' (`EMOTE_SLOT_COUNT`). LIVE
    *  LOADOUT ONLY: a run records the emotes its player actually USED, on each round's board (`BoardSnapshot.emotes`),
    *  never this menu, so `snapshotForRun` and `parseCosmeticSnapshot` never carry it. Absent or partial =
    *  the player's owned emotes fill the empty positions (`emoteSlotsOf`). */
@@ -1180,7 +1191,7 @@ export function loadoutFromRows(rows: unknown): RunCosmeticSnapshot {
       if (slot === 'announcer') { if (target === '' || target === undefined) voice = id; continue; }
       // And the card plate (2026-10-14).
       if (slot === 'card_plate') { if (target === '' || target === undefined) plate = id; continue; }
-      // The emote slot (2026-10-13) keys by menu position.
+      // The emote slot (2026-10-13) keys by menu position ('0'..'7' since 2026-10-22).
       if (slot === 'emote') { if (typeof target === 'string' && EMOTE_POSITION_RE.test(target)) emotes[target] = id; continue; }
       if (typeof target !== 'string' || !ID_RE.test(target)) continue;
       if (slot === 'hero_skin') hero[target] = id;
@@ -1263,18 +1274,26 @@ export function announcerOf(loadout: RunCosmeticSnapshot | null | undefined): Co
   return c && c.category === 'announcer' && isCosmeticLive(c.id) ? c : null;
 }
 
-// ── Emotes: the four-position menu (owner 2026-10-13) ─────────────────────────────────────────────────────
+// ── Emotes: the eight-position menu (owner 2026-10-13; eight since 2026-10-22) ─────────────────────────────
 
-/** How many emotes the in-game menu holds (owner 2026-10-13: "showing their 4 equipped emotes"). */
-export const EMOTE_SLOT_COUNT = 4;
-/** A menu position, as the loadout row's target: '0'..'3'. */
-export const EMOTE_POSITION_RE = /^[0-3]$/;
+/** How many emotes the in-game menu holds (owner 2026-10-13: "showing their 4 equipped emotes"; owner 2026-10-22:
+ *  "let's add 4 more emote slots"). The SQL position check (2026-10-22-emote-eight-slots.sql) matches it. */
+export const EMOTE_SLOT_COUNT = 8;
+/** A menu position, as the loadout row's target: '0'..'7'. */
+export const EMOTE_POSITION_RE = /^[0-7]$/;
+/** The menu positions that existed before 2026-10-22. A player's DEFAULT menu keeps them exactly as they were. */
+const LEGACY_EMOTE_SLOTS = 4;
+
+/** THE COMMS EMOTES (owner 2026-10-22), the free quick-chat bubbles, in menu order. Starters like Zen Brian. */
+export const COMMS_EMOTE_IDS: readonly string[] = Object.freeze(['emote_hi', 'emote_good_choice', 'emote_too_nasty', 'emote_its_beasts', 'emote_lemon_approved']);
+/** Is this emote one of the free Comms emotes? */
+export const isCommsEmote = (id: string | null | undefined): boolean => !!id && COMMS_EMOTE_IDS.includes(id);
 
 /** Is this item a STARTER (every player owns it from the start, no ownership row)? */
 export const isStarterCosmetic = (id: string | null | undefined): boolean => cosmeticOf(id)?.acquisition.type === 'starter';
 
-/** The ACTIVE starter emotes in catalog order: since 2026-10-15 just Zen Brian (Angry Mushy, the other starter row, is
- *  retired), so a fresh account's menu is Zen Brian and three empty slots. */
+/** The ACTIVE starter emotes in catalog order: Zen Brian (since 2026-10-15; Angry Mushy, the other old starter row, is
+ *  retired) and the five Comms emotes (2026-10-22), so a fresh account's menu is those six and two empty slots. */
 export const STARTER_EMOTE_IDS: readonly string[] = Object.freeze(COSMETICS.filter((c) => c.category === 'emote' && c.acquisition.type === 'starter' && c.active).map((c) => c.id));
 
 /** Every owned id, plus the ACTIVE starter items everyone owns (a guest and an offline player included). A retired
@@ -1299,9 +1318,11 @@ export function emoteOf(id: string | null | undefined): CosmeticDef | null {
  * An explicit row wins its position (a duplicate keeps only its lowest position; a retired, unknown or unowned id is
  * dropped). Every empty position then takes, from the player's DEFAULT emotes (every usable owned emote and starter,
  * in catalog order): its own default when that is not already shown, else one pushed out of its own position, else
- * the first not shown yet. So owned emotes appear in the menu without being placed (up to four), putting one in another
- * position SWAPS it with the one that was there, and a fresh account shows the one starter, Zen Brian, then empty
- * positions (2026-10-15).
+ * the first not shown yet. So owned emotes appear in the menu without being placed (up to eight), putting one in another
+ * position SWAPS it with the one that was there, and a fresh account shows Zen Brian, the five Comms emotes, then two
+ * empty positions. THE DEFAULT ORDER (2026-10-22): the first four non-Comms defaults keep positions 1-4 exactly as the
+ * four-slot menu showed them, then the Comms emotes, then the rest of the owned emotes, so the new positions are where
+ * the quick-chat lands and nobody's old menu moves.
  */
 export function emoteSlotsOf(loadout: RunCosmeticSnapshot | null | undefined, owned?: readonly string[] | null): (string | null)[] {
   const have = owned == null ? null : new Set(owned);
@@ -1312,9 +1333,11 @@ export function emoteSlotsOf(loadout: RunCosmeticSnapshot | null | undefined, ow
     const id = loadout?.emotes?.[String(i)];
     if (id && !used.has(id) && usable(id)) { slots[i] = id; used.add(id); }
   }
-  const defaults = COSMETICS
+  const pool = COSMETICS
     .filter((c) => c.category === 'emote' && usable(c.id) && (c.acquisition.type === 'starter' || (have?.has(c.id) ?? false)))
     .map((c) => c.id);
+  const others = pool.filter((id) => !isCommsEmote(id));
+  const defaults = [...others.slice(0, LEGACY_EMOTE_SLOTS), ...pool.filter(isCommsEmote), ...others.slice(LEGACY_EMOTE_SLOTS)];
   // The defaults pushed out of their own position by an explicit emote go first into the gaps (the swap).
   const displaced = defaults.filter((id, k) => !used.has(id) && k < EMOTE_SLOT_COUNT && slots[k] !== null);
   for (let i = 0; i < EMOTE_SLOT_COUNT; i++) {
@@ -1331,7 +1354,7 @@ export function emoteLoadoutOf(loadout: RunCosmeticSnapshot | null | undefined, 
   return emoteSlotsOf(loadout, owned).filter((x): x is string => !!x);
 }
 
-/** The menu position (0..3) an emote sits in under this loadout, or -1. */
+/** The menu position (0..7) an emote sits in under this loadout, or -1. */
 export const emotePositionOf = (loadout: RunCosmeticSnapshot | null | undefined, id: string, owned?: readonly string[] | null): number => emoteSlotsOf(loadout, owned).indexOf(id);
 
 /** A loadout with one emote put in `position` (the SQL's move: the same emote leaves any other position). Pure. */

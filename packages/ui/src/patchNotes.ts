@@ -71,6 +71,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "Emote menu now has 8 slots. Everyone gets 5 new chat emotes: Hi, Good Choice, Too Nasty, It's Beasts and Lemon Approved.",
+        details: [
+          'The new emotes are free for every player, guests too. They never drop from chests.',
+          'They fill your empty slots on their own. Change the order in Collections.',
+          'Your first 4 slots stay as they were.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: fixed a crash when starting a game.',
         details: [
           'Hero select, the ranked gate and the game itself now use far less graphics memory on a phone. The look is the same.',

@@ -19,7 +19,7 @@ import { StrictMode, act } from 'react';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { BuyCrateResult, CrateRow, OpenCrateResult, ProgressionProfile } from '@game/progression';
-import { crateLabel } from '@game/progression';
+import { COMMS_EMOTE_IDS as COMMS_IDS, crateLabel } from '@game/progression';
 import { mount, type Mounted } from '../renderedText.mount';
 import type { CrateFx } from './crateFx/crateFxPixi';
 
@@ -142,7 +142,7 @@ describe('the Collection screen: the album', () => {
     // "N / M collected" counts every live item: 16 titles + the 6 skins + 8 hero attacks (2026-09-28: Quake made it 24,
     // Arcana and Phantom Blades 26, Enraged Strike 27, Venom Volley 28, Frost Nova 29, Consecration 30; skins batch 2 +13 minion skins, 43)
     // + 33 hero titles (2026-09-29; each hero's golden master replaces its title once owned, so it never adds a slot), 76; Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; the Epics Card Shark and Storm Call (2026-09-29), 83; skins batch 3 (2026-09-29, +4 minion skins and a Frantic Frank hero skin) +5; skins batch 4 (2026-09-30, +16 minion and +16 hero skins) +32; skins batch 5 (2026-09-30, +11 minion skins and Influencer Indy) +12; skins batch 6 (2026-10-01, +9 minion skins) +9; skins + frames batch 3 (2026-10-01, +3 hero skins and +10 portrait frames) +13; frames batch 4 (2026-10-01, +5 portrait frames) +5; frames batch 5 (2026-10-02, Simple Ring and Void) +2; frames batch 6 (2026-10-02, Cherry Blossom) +1; Rayse's hero title (2026-10-02, un-archived) +1; the six Ancient frames (2026-10-02) +6; skins batch 8 + frames batch 7 (2026-10-03, +11 hero skins and +7 portrait frames) +18; frames batch 8 (2026-10-06, Cosmic Glass) +1; skins batch 9 (2026-10-07, Canyon Drake and Thunderchorus Drake) +2; frames batch 9 (2026-10-07, Blossom, Neonpunk, Solar Flare, Color Doodle, Neon Ring) +5
-    expect(text('.colls-meter-num')).toBe('3 / 332'); // 2026-10-21: skins batch 10 (fourteen skins) made it 332. 2026-10-18: nine more crate emotes made it 299. 2026-10-17: Phoenix removed made it 290; Goop made it 291; three more card plates made it 290; thirteen before that made it 287. 2026-10-16: the Chrome card plate made it 274. 2026-10-16: seven more card plates made it 273. 2026-10-15: Sad Wrangler retired made it 266. 2026-10-15: thirteen more card plates made it 267. 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
+    expect(text('.colls-meter-num')).toBe('8 / 337'); // 2026-10-22: the five Comms emotes, owned by everyone, made it 8 / 337. 2026-10-21: skins batch 10 (fourteen skins) made it 332. 2026-10-18: nine more crate emotes made it 299. 2026-10-17: Phoenix removed made it 290; Goop made it 291; three more card plates made it 290; thirteen before that made it 287. 2026-10-16: the Chrome card plate made it 274. 2026-10-16: seven more card plates made it 273. 2026-10-15: Sad Wrangler retired made it 266. 2026-10-15: thirteen more card plates made it 267. 2026-10-15: Zen Brian back as the one starter emote, owned by all, 3 / 254. 2026-10-15: emotes became crate drops (no starters owned; thirteen crate emotes in the total) and Angry Mushy retired, 2 / 254. 2026-10-15: the six Legendary card plates made it 245. 2026-10-15: six re-enabled heroes' titles made it 6 / 239. 2026-10-13: the four starter emotes, owned by everyone, made it 6 / 233. 2026-10-11: the first announcer (Lemon) made the total 227
     expect(text('.colls-tab.on .colls-tab-count')).toBe('2/58');
     clean();
   });
@@ -188,7 +188,7 @@ describe('hero titles in the Collection (owner 2026-09-29: "the master title sho
     expect(warded.className).toMatch(/\bworn\b/);
     expect(tileNames()).toHaveLength(58); // the master took the title's slot
     expect(tileNames().slice(0, 2)).toEqual(['The Unbroken', 'Warded']); // the Legendaries lead the album
-    expect(text('.colls-meter-num')).toBe('3 / 332'); // Alpha Tester + Warded (the master stands for both tiers) + Zen Brian, the one starter emote (2026-10-15)
+    expect(text('.colls-meter-num')).toBe('8 / 337'); // Alpha Tester + Warded (the master stands for both tiers) + Zen Brian (2026-10-15) + the five Comms emotes (2026-10-22)
     // the detail panel's nameplate and the preview under your name are the plate too
     expect($('.colls-plate-name .titlebadge.tb-master')?.textContent).toBe('Warded');
     expect($('.colls-preview-title .titlebadge.tb-master')?.textContent).toBe('Warded');
@@ -447,33 +447,34 @@ describe('the Collection screen: NEW', () => {
   // tiers between rare and legendary", then "all emotes are crate only except give all players the zen brian emote and
   // show the empty emote slots", then "remove the sad wrangler". The Emotes tab lists the twenty-one, rarest first; only owned
   // ones are bright. A retired emote the player OWNS (Sad Wrangler here) is hidden and left out of the counts.
-  it('the Emotes tab: twenty-one emotes, rarest first; Zen Brian owned by everyone; Angry Mushy and an owned Sad Wrangler gone', () => {
+  it('the Emotes tab: twenty-six emotes, rarest first; Zen Brian and the five Comms owned by everyone; Angry Mushy and an owned Sad Wrangler gone', () => {
     open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'emote_sad_wrangler'] });
     act(() => tab('Emotes').click());
-    expect(tileNames()).toHaveLength(21);
+    expect(tileNames()).toHaveLength(26);
     expect(tileNames()).not.toContain('Angry Mushy');
     expect(tileNames()).not.toContain('Sad Wrangler');
     expect(tileNames().slice(0, 3)).toEqual(['Rich Pimm', 'Baby Rubies', 'Mad Tormentor']);
-    expect(text('.colls-tab.on .colls-tab-count')).toBe('1/21');
+    expect(text('.colls-tab.on .colls-tab-count')).toBe('6/26');
     expect(tile('Zen Brian').className).toMatch(/\bowned\b/);
+    for (const n of ['Hi', 'Good Choice', 'Too Nasty', "It's Beasts", 'Lemon Approved']) expect(tile(n).className, n).toMatch(/\bowned\b/);
     expect(tile('Flirty Midas').className).toMatch(/\bmissing\b/);
   });
 
-  it('an emote\x27s detail shows YOUR four menu slots: Zen Brian in slot 1, three visibly EMPTY slots', () => {
+  it('an emote\x27s detail shows YOUR eight menu slots: Zen Brian in slot 1, the Comms after your own, an EMPTY slot 8', () => {
     open({ titles: ['alpha_tester'], cosmetics: ['alpha_tester', 'emote_nervous_jensen'] });
     act(() => tab('Emotes').click());
     act(() => tile('Nervous Jensen').click());
-    // Owned emotes fill the menu without placing: Zen Brian (the starter), then Nervous Jensen, then two empty slots.
+    // Owned emotes fill the menu without placing: Zen Brian (the starter), Nervous Jensen, the five Comms, then one empty slot.
     const slots = (): HTMLElement[] => $$('.colls-emote-slots .emote-pick');
-    expect(slots()).toHaveLength(4);
-    expect(slots().map((b) => b.classList.contains('emote-slot-empty'))).toEqual([false, false, true, true]);
-    expect(slots().map((b) => b.getAttribute('aria-label'))).toEqual(['Put Nervous Jensen in slot 1', 'Nervous Jensen is in slot 2', 'Put Nervous Jensen in slot 3', 'Put Nervous Jensen in slot 4']);
-    expect(slots()[2]!.textContent).toBe('3Empty');
+    expect(slots()).toHaveLength(8);
+    expect(slots().map((b) => b.classList.contains('emote-slot-empty'))).toEqual([false, false, false, false, false, false, false, true]);
+    expect(slots().map((b) => b.getAttribute('aria-label'))).toEqual(['Put Nervous Jensen in slot 1', 'Nervous Jensen is in slot 2', ...[3, 4, 5, 6, 7, 8].map((n) => `Put Nervous Jensen in slot ${n}`)]);
+    expect(slots()[7]!.textContent).toBe('8Empty');
     // An emote you do not own: the same row, read-only (no buttons); the empty slots carry the crates hint.
     act(() => tile('Flirty Midas').click());
     expect($$('.colls-emote-slots button')).toHaveLength(0);
     const empty = $$('.colls-emote-slots .emote-slot-empty');
-    expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 3 is empty', 'Slot 4 is empty']);
+    expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 8 is empty']);
     expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in chests.');
     expect(empty[0]!.hasAttribute('title')).toBe(false);
   });
@@ -488,7 +489,7 @@ describe('the Collection screen: NEW', () => {
     expect($$('.colls-tile.fresh')).toHaveLength(0); // the open tab: gone now, not on the next visit
     expect($$('.colls-tab-new')).toHaveLength(0); // and every other tab's count
     expect(button('Mark all as seen')).toBeUndefined();
-    expect(seenList().sort()).toEqual(['alpha_tester', 'emote_zen_brian', 'skin_albus_1', 'title_star_chaser']); // Zen Brian, the one starter emote, is everyone's (2026-10-15)
+    expect(seenList().sort()).toEqual([...COMMS_IDS, 'alpha_tester', 'emote_zen_brian', 'skin_albus_1', 'title_star_chaser'].sort()); // Zen Brian (2026-10-15) and the five Comms emotes (2026-10-22) are everyone's
     act(() => tab('Heroes').click());
     expect($$('.colls-tile.fresh')).toHaveLength(0);
     ui!.unmount();
@@ -563,7 +564,7 @@ describe('the Collection screen: NEW', () => {
       expect(markCosmeticsSeenRemote).not.toHaveBeenCalled(); // Titles holds nothing new; the skins are on other tabs
       act(() => button('Mark all as seen')!.click());
       expect(markCosmeticsSeenRemote).toHaveBeenCalledTimes(1);
-      expect([...markCosmeticsSeenRemote.mock.calls[0]![0]].sort()).toEqual(['emote_zen_brian', 'skin_albus_1', 'skin_blackbelt_1']); // + Zen Brian, the one starter emote everyone owns (2026-10-15)
+      expect([...markCosmeticsSeenRemote.mock.calls[0]![0]].sort()).toEqual([...COMMS_IDS, 'emote_zen_brian', 'skin_albus_1', 'skin_blackbelt_1'].sort()); // + Zen Brian (2026-10-15) and the five Comms emotes (2026-10-22), everyone's
       expect($$('.colls-tab-new')).toHaveLength(0);
     });
 

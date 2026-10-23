@@ -13,7 +13,10 @@ import { parseProgressionProfile } from './rules';
  * and the retired Angry Mushy and Sad Wrangler) and drives `equip_cosmetic` on the four-position `emote` slot: Zen Brian equips with no
  * ownership row, a crate emote needs one; a position is '0'..'3'; an emote MOVES (it leaves its other position); every
  * older slot still works; a re-run changes nothing; clients can never call it. It also syncs over the #2099 catalog
- * (Zen Brian a crate item) to prove the move back needs no SQL.
+ * (Zen Brian a crate item) to prove the move back needs no SQL. 2026-10-22 (owner: "let's add 4 more emote slots, and give
+ * everyone the communication emotes"; "give all players the 5 comms emotes for free, but others im going to continue to
+ * add will go into the skins lootboxes"): the five Comms emotes sync as STARTERS (free, never in a crate), and
+ * 2026-10-22-emote-eight-slots.sql (run after the card plates file) widens the position to '0'..'7'.
  */
 const root = join(__dirname, '../../..');
 const read = (f: string): string => readFileSync(join(root, 'supabase/migrations', f), 'utf8');
@@ -26,6 +29,8 @@ const FRAMES = read('2026-10-01-portrait-frames.sql');
 const ANNOUNCER = read('2026-10-11-announcer-slot.sql');
 const ANCIENT_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 1. The pick')))(read('2026-10-02-ancient-rarity.sql'));
 const EMOTES = read('2026-10-13-emotes.sql');
+const PLATES = read('2026-10-14-card-plates.sql');
+const EIGHT = read('2026-10-22-emote-eight-slots.sql');
 /** Angry Mushy was a starter until the owner retired it on 2026-10-15 ("remove the angry mushy emote"). */
 const RETIRED = 'emote_angry_mushy';
 /** Sad Wrangler was a Rare crate emote until the owner retired it on 2026-10-15 ("remove the sad wrangler"). */
@@ -33,6 +38,8 @@ const RETIRED_CRATE = 'emote_sad_wrangler';
 /** Two crate emotes (Epic, Rare) and THE starter. */
 const [A, B] = ['emote_flirty_midas', 'emote_nervous_jensen'];
 const Z = 'emote_zen_brian';
+/** The five free Comms emotes (2026-10-22). */
+const K = ['emote_hi', 'emote_good_choice', 'emote_too_nasty', 'emote_its_beasts', 'emote_lemon_approved'];
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -111,7 +118,8 @@ describe('the emote catalog (2026-10-15: Zen Brian the one starter, crate emotes
     expect(rows.find((r) => r.cosmetic_id === RETIRED)).toEqual({ cosmetic_id: RETIRED, acquisition_source: 'starter', rarity: 'common', active: false });
     expect(rows.find((r) => r.cosmetic_id === Z)).toEqual({ cosmetic_id: Z, acquisition_source: 'starter', rarity: 'common', active: true });
     expect(rows.find((r) => r.cosmetic_id === RETIRED_CRATE)).toEqual({ cosmetic_id: RETIRED_CRATE, acquisition_source: 'crate', rarity: 'rare', active: false });
-    const crate = rows.filter((r) => r.active && r.cosmetic_id !== Z);
+    for (const id of K) expect(rows.find((r) => r.cosmetic_id === id), id).toEqual({ cosmetic_id: id, acquisition_source: 'starter', rarity: 'common', active: true });
+    const crate = rows.filter((r) => r.active && r.cosmetic_id !== Z && !K.includes(r.cosmetic_id));
     expect(crate).toHaveLength(20);
     expect(crate.every((r) => r.acquisition_source === 'crate')).toBe(true);
     expect(crate.map((r) => r.rarity).sort()).toEqual([...Array(7).fill('epic'), ...Array(5).fill('legendary'), ...Array(8).fill('rare')]);
@@ -123,6 +131,7 @@ describe('the emote catalog (2026-10-15: Zen Brian the one starter, crate emotes
     for (const id of [A, B, 'emote_baby_rubies', 'emote_mad_tormentor', 'emote_iggy', 'emote_pup_pup']) expect(pool).toContain(id);
     expect(pool.filter((id) => id.startsWith('emote_'))).toHaveLength(20);
     expect(pool).not.toContain(Z);
+    for (const id of K) expect(pool, id).not.toContain(id); // nobody ever rolls a free Comms emote
     expect(pool).not.toContain(RETIRED);
     expect(pool).not.toContain(RETIRED_CRATE);
     const owner = await player([A]);
@@ -139,7 +148,7 @@ describe('equip_cosmetic: the four-position emote slot', () => {
     const u = await player([A, B]);
     const p = await equip(u, 'emote', '0', A);
     expect(p.loadout).toEqual({ emotes: { 0: A } });
-    expect(emoteLoadoutOf(p.loadout, p.cosmetics)).toEqual([A, B, Z]); // Z pushed out of slot 1 takes the gap; B its own
+    expect(emoteLoadoutOf(p.loadout, p.cosmetics)).toEqual([A, B, Z, ...K]); // Z pushed out of slot 1 takes the gap; B its own
   });
 
   it('an emote MOVES: put in another position, it leaves the first; null clears a position', async () => {
@@ -205,7 +214,7 @@ describe('retiring an OWNED crate emote (2026-10-15: "remove the sad wrangler"),
     expect(await rowsOf(u)).toEqual([{ target_id: '1', cosmetic_id: RETIRED_CRATE }]); // the row survives, ignored
     const p = parseProgressionProfile((await one<{ j: unknown }>('select public.progression_profile_json($1) as j', [u])).j)!;
     expect(p.loadout?.emotes).toBeUndefined();
-    expect(emoteLoadoutOf(p.loadout, p.cosmetics)).toEqual([Z, A]); // the client never shows it, owned or not
+    expect(emoteLoadoutOf(p.loadout, p.cosmetics)).toEqual([Z, A, ...K]); // the client never shows it, owned or not
     expect(await raises(EQUIP, [u, 'emote', '2', RETIRED_CRATE])).toContain('not_equippable');
     const fresh = await player();
     expect((await db.query<{ pool_cosmetic_id: string }>('select pool_cosmetic_id from public.progression_crate_pool($1)', [fresh])).rows.map((r) => r.pool_cosmetic_id)).not.toContain(RETIRED_CRATE);
@@ -225,10 +234,10 @@ describe('the move back (2026-10-15): Zen Brian a starter again, by the catalog 
     }
     expect((await equip(u, 'emote', '0', Z)).loadout).toEqual({ emotes: { 0: Z } });
     expect((await db.query<{ pool_cosmetic_id: string }>('select pool_cosmetic_id from public.progression_crate_pool($1)', [u])).rows.map((r) => r.pool_cosmetic_id)).not.toContain(Z);
-    // A fresh account's menu: Zen Brian, then three empty slots.
+    // A fresh account's menu: Zen Brian and the five Comms emotes (2026-10-22), then empty slots.
     const fresh = await player();
     const f = parseProgressionProfile((await one<{ j: unknown }>('select public.progression_profile_json($1) as j', [fresh])).j)!;
-    expect(emoteLoadoutOf(f.loadout, f.cosmetics)).toEqual([Z]);
+    expect(emoteLoadoutOf(f.loadout, f.cosmetics)).toEqual([Z, ...K]);
   });
 
   it('is idempotent: re-running the emote file changes no loadout, ownership or catalog row', async () => {
@@ -240,6 +249,46 @@ describe('the move back (2026-10-15): Zen Brian a starter again, by the catalog 
   });
 
   it('clients can never call it', async () => {
+    const acl = await one<{ anon: boolean; auth: boolean; svc: boolean }>(
+      "select has_function_privilege('anon', 'public.equip_cosmetic(uuid, text, text, text)', 'execute') as anon, has_function_privilege('authenticated', 'public.equip_cosmetic(uuid, text, text, text)', 'execute') as auth, has_function_privilege('service_role', 'public.equip_cosmetic(uuid, text, text, text)', 'execute') as svc");
+    expect(acl).toEqual({ anon: false, auth: false, svc: true });
+  });
+});
+
+describe('eight positions (2026-10-22-emote-eight-slots.sql, R-PROG-EMOTE-02)', () => {
+  beforeAll(async () => {
+    // Before the new file the old check still refuses the new positions.
+    const u = await player();
+    expect(await raises(EQUIP, [u, 'emote', '4', Z])).toContain('bad_target');
+    for (const f of [PLATES, EIGHT]) { await db.exec(f); await db.exec(API_GRANTS); }
+  });
+
+  it('positions 0 to 7 equip; 8 and anything else is refused', async () => {
+    const u = await player([A]);
+    for (const t of ['4', '7']) expect((await equip(u, 'emote', t, A)).loadout).toEqual({ emotes: { [t]: A } });
+    for (const t of ['', '8', '07', '-1', 'albus']) expect(await raises(EQUIP, [u, 'emote', t, A]), t).toContain('bad_target');
+  });
+
+  it('a Comms emote equips with NO ownership row, anywhere in the eight; an emote still MOVES', async () => {
+    const u = await player();
+    await equip(u, 'emote', '7', K[0]!);
+    await equip(u, 'emote', '5', K[4]!);
+    expect(await rowsOf(u)).toEqual([{ target_id: '5', cosmetic_id: K[4] }, { target_id: '7', cosmetic_id: K[0] }]);
+    await equip(u, 'emote', '0', K[0]!);
+    expect(await rowsOf(u)).toEqual([{ target_id: '0', cosmetic_id: K[0] }, { target_id: '5', cosmetic_id: K[4] }]);
+    expect((await db.query("select 1 from public.player_cosmetics where user_id = $1 and cosmetic_id like 'emote_%'", [u])).rows).toHaveLength(0);
+    expect(await raises(EQUIP, [u, 'emote', '6', A])).toContain('not_owned'); // a crate emote still needs owning
+  });
+
+  it('every older slot still works, the card plate included; a re-run changes nothing', async () => {
+    const u = await player(['frame_water', 'plate_aquarium_rocks']);
+    await equip(u, 'portrait_frame', '', 'frame_water');
+    const p = await equip(u, 'card_plate', '', 'plate_aquarium_rocks');
+    expect(p.loadout).toMatchObject({ portraitFrame: 'frame_water', cardPlate: 'plate_aquarium_rocks' });
+    const before = (await db.query('select user_id, slot, target_id, cosmetic_id from public.cosmetic_loadouts order by 1, 2, 3')).rows;
+    await db.exec(EIGHT);
+    await db.exec(EIGHT);
+    expect((await db.query('select user_id, slot, target_id, cosmetic_id from public.cosmetic_loadouts order by 1, 2, 3')).rows).toEqual(before);
     const acl = await one<{ anon: boolean; auth: boolean; svc: boolean }>(
       "select has_function_privilege('anon', 'public.equip_cosmetic(uuid, text, text, text)', 'execute') as anon, has_function_privilege('authenticated', 'public.equip_cosmetic(uuid, text, text, text)', 'execute') as auth, has_function_privilege('service_role', 'public.equip_cosmetic(uuid, text, text, text)', 'execute') as svc");
     expect(acl).toEqual({ anon: false, auth: false, svc: true });

@@ -526,22 +526,27 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
   voice, owned or not.
-- **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18; R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your
+- **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18, eight slots + Comms 2026-10-22; R-PROG-EMOTE-01, R-PROG-EMOTE-02, R-EMOTE-01).** An emote is a painted speech bubble your
   hero says in a game. Right-click YOUR hero portrait (shop or combat) for your emote menu; pick one and it pops up
   beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
-  **Zen Brian is everyone's** (the one STARTER emote, guests included). **Every other emote comes from chests**
+  **Zen Brian and the five Comms emotes are everyone's** (STARTER emotes, guests included, never in a chest; owner
+  2026-10-22: "give all players the 5 comms emotes for free, but others im going to continue to add will go into the
+  skins lootboxes"): **Hi**, **Good Choice**, **Too Nasty**, **It's Beasts**, **Lemon Approved**, each flagged free on
+  its own row. **Every other emote comes from chests**, and so does any emote added later unless it is flagged free
   (owner 2026-10-15; nine more 2026-10-18): Rare **Nervous Jensen**, **Depressed Hank**, **Nervous Voss**, **Tara Sad**,
   **Chronos Mad**, **Rascal Broke**, **Skeleton Wave**, **Pup Pup**; Epic **Flirty Midas**, **Happy Urchin**, **Sly Oona**,
   **Dead Elder**, **Gambler**, **Sexy Darah**, **Angry Deathswarmer**; Legendary **Rich Pimm**, **Baby Rubies**,
-  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal chest odds (rarity first, then an equal share). The menu **always shows four slots**:
-  the emotes you placed, then your other owned emotes in catalog order (a new emote is usable at once), and every slot
+  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal chest odds (rarity first, then an equal share). The menu **always shows eight slots** (four
+  before 2026-10-22), two rows of four: the emotes you placed, then your defaults (slots 1 to 4 as the four-slot menu
+  showed them: Zen Brian, then owned emotes in catalog order; then the Comms emotes; then the rest of your owned
+  emotes; a new emote is usable at once), and every slot
   left over is a visibly EMPTY slot (a dashed frame reading "Empty", not clickable; hovering it says "Empty slot. Find
-  more emotes in chests."). A fresh account sees Zen Brian and three empty slots. The chest reveal shows a won emote's
+  more emotes in chests."). A fresh account sees Zen Brian, the five Comms emotes and two empty slots. The chest reveal shows a won emote's
   bubble. **Angry Mushy**, once a starter, was RETIRED on 2026-10-15: gone from the Collection, the menu and chests,
   and an old recording of it plays nothing. **Sad Wrangler**, once a Rare chest emote, was RETIRED the same way later
   that day: a player who already owns it keeps it on the account, but it is never shown, placed, dropped or played. The
-  Collection shows the same four slots on an emote's page; its Emotes
-  tab puts an emote in menu slot 1 to 4 (the one already there swaps places). **In the snapshot lobby** each emote you
+  Collection shows the same eight slots on an emote's page; its Emotes
+  tab puts an emote in menu slot 1 to 8 (the one already there swaps places). **In the snapshot lobby** each emote you
   use is recorded on that round's board with its time into the phase (since the shop turn started, or since the combat
   started), and whenever that recorded run is served to another player, the emote plays at the same time into THEIR
   shop turn / combat beside that seat's rail portrait (in combat the rail is away, so only the foe you fight can be

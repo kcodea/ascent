@@ -103,7 +103,7 @@ export function validateInventoryBody(body: unknown): InventoryValidation {
   if (b.action === 'equip_cosmetic') {
     if (typeof b.slot !== 'string' || !(EQUIP_SLOTS as readonly string[]).includes(b.slot)) return { ok: false, status: 400, error: 'bad_slot' };
     // A hero attack is account-wide: its target is always '' (the global slot). A skin names its hero or card. An
-    // emote (2026-10-13) names its menu position, '0'..'3'.
+    // emote (2026-10-13) names its menu position, '0'..'7' (eight since 2026-10-22).
     if (typeof b.targetId !== 'string' || (b.slot === 'emote' ? !EMOTE_POSITION_RE.test(b.targetId) : (GLOBAL_EQUIP_SLOTS as readonly string[]).includes(b.slot) ? b.targetId !== '' : !TARGET_ID.test(b.targetId))) return { ok: false, status: 400, error: 'bad_target' };
     if (b.cosmeticId !== null && (typeof b.cosmeticId !== 'string' || !COSMETIC_ID.test(b.cosmeticId))) return { ok: false, status: 400, error: 'bad_cosmetic_id' };
     return { ok: true, request: { action: 'equip_cosmetic', slot: b.slot as EquipSlot, targetId: b.targetId, cosmeticId: b.cosmeticId as string | null } };

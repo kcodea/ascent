@@ -17083,7 +17083,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "extractor": "contracts-extract@1",
       "confidence": "medium",
       "unparsed": [
-        "battlecryPlayRubiesRandomTribe.tribe"
+        "battlecryPlayRubiesAll.tribe"
       ]
     },
     "setIds": [
@@ -17106,11 +17106,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "effects": [
       {
-        "kind": "battlecryPlayRubiesRandomTribe",
+        "kind": "battlecryPlayRubiesAll",
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 2
+            "rubies": 2
           }
         },
         "note": "Choose One branch 1: \"Cast 2 Rubies on your Kobolds.\""

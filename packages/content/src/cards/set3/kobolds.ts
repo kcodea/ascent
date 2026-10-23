@@ -341,7 +341,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
     // Owner 2026-10-23 ("Shardluck -> T5 8/4 Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times"):
-    // T6 8/5 -> T5 8/4, both branches 3 -> 2 (Gilded 4 / 4). Same primitives: each Ruby on a random other friendly Kobold.
+    // T6 8/5 -> T5 8/4, both branches 3 -> 2 (Gilded 4 / 4). Owner 2026-10-23: "shardluck should cast 2 rubies on all
+    // kobold not 2 random get 1": the Ruby branch casts 2 Rubies on EACH friendly Kobold (itself included; Gilded 4 each).
     tier: 5,
     attack: 8,
     health: 4,
@@ -349,7 +350,7 @@ export const SET3_KOBOLDS: CardDef[] = [
     effects: [],
     chooseOne: [
       { text: 'Cast **2 Rubies** on your **Kobolds**.', goldenText: 'Cast **4 Rubies** on your **Kobolds**.',
-        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesRandomTribe', params: { count: 2, tribe: 'kobold' } }] },
+        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 2, tribe: 'kobold' } }] },
       { text: 'Cast **Veinstorm** 2 times.', goldenText: 'Cast **Veinstorm** 4 times.',
         effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 2 } }] },
     ],

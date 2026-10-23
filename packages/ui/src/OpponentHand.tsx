@@ -30,7 +30,7 @@ import {
  *    (`handSummonFx` 'enemy' source, registered here while mounted) and lands with the shared lift-and-land.
  *
  * PERF: one memo'd component; it re-renders when the hand changes (the list is interned by signature, so a beat that
- * changes nothing hands the cards the same array), each card a memo'd node with one decoded `<img>` (the same src for
+ * changes nothing hands the cards the same array), each card a memo'd node with one decoded image element (the same src for
  * every card, decoded once). Positions are the independent `translate` / `rotate` properties, so a re-fan on a grant
  * eases on the compositor. Rects are read only when a summon launches or a grant lands, never per frame. Nothing loops.
  */

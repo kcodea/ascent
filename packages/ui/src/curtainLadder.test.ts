@@ -47,6 +47,7 @@ const ABOVE_CURTAIN: Record<string, string> = {
   '.wipecurtain': 'the curtain itself',
   '.wipefront': 'the ring riding the bloom (same layer, later in the tree)',
   '.wipebar': 'the bar riding the reveal (same layer, later in the tree)',
+  '.wipevista': 'the vista of the return trip (the curtain coming back to the Shop, 2026-10-23)',
   '.wipecurtain.preview': 'the Screen wipe tuner preview (DEV), plays over any screen',
   '.wipefront.preview': 'the Screen wipe tuner preview (DEV)',
   '.wipebar.preview': 'the Screen wipe tuner preview (DEV)',

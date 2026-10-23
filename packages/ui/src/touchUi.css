@@ -197,3 +197,13 @@ html[data-touch-ui][data-phone-gpu] .hsc-ring { opacity: 1; animation-fill-mode:
 html[data-touch-ui][data-phone-gpu] .hsc-flash { animation-fill-mode: backwards; }
 html[data-touch-ui][data-phone-gpu] :is(.hsc-plate, .hsc-name, .hsc-power, .hsc-start) { opacity: 1; animation-fill-mode: backwards; }
 html[data-touch-ui][data-phone-gpu][data-launch-covered] .heroselect { visibility: hidden; }
+
+/* THE RETURN TRIP'S VISTA on phones (2026-10-23): one flattened picture instead of six full-screen parallax layers (six
+   composited layers at stage size are too much GPU memory for a phone). It still fades in, pushes in and dives. */
+html[data-touch-ui][data-phone-gpu] .wipevista-layer:not(.wipevista-flat) { display: none; }
+html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }
+/* …and on phones the one flattened picture (sky and land in one) gets the flash and the pull back out of the sky, but no
+   rise (styles.css, "THE ARRIVAL"): its door's interior and glow just push with it. */
+html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
+/* Phones draw the vista as ONE flattened picture (the shop baked in), so the title stays in FRONT of it there. */
+html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }

@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   WIPE_ENTRY, WIPE_EXIT, WIPE_STATES, afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor,
-  frontClassFor, wipeCovered, wipeSweeping, wipeUp, type WipeState,
+  frontClassFor, vistaClassFor, wipeCovered, wipeSweeping, wipeUp, type WipeState,
 } from './wipeMachine';
 import { WIPE_DEFAULTS, sanitizeWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { wipeOriginFor } from './wipeGeometry';
@@ -109,6 +109,92 @@ describe('the wipe machine', () => {
 
   it('body.wipe-up spans the whole wipe, tell to reveal', () => {
     for (const w of WIPE_STATES) expect(wipeUp(w)).toBe(w !== 'idle' && w !== 'combat');
+  });
+});
+
+// Owner 2026-10-23: "i want to separate the returnn to shop experience from the door and gate". The exit pass is the
+// shop's vista: it fades in, pushes in, and dives through the door, by opacity + transform only.
+describe('the return trip is the vista, not the gate', () => {
+  it('shows the vista across the exit pass only, fully covering at the hold where the shop swaps in', () => {
+    for (const w of WIPE_STATES) {
+      const on = w === 'coverOut' || w === 'coveredOut' || w === 'revealOut';
+      expect(vistaClassFor(w).includes(' on'), w).toBe(on);
+    }
+    expect(vistaClassFor('coveredOut')).toContain(' held');
+    // The Shop swaps in (the backdrop flips) only while the vista is held fully opaque.
+    expect(combatBackdropShown('coverOut')).toBe(true);
+    expect(combatBackdropShown('coveredOut')).toBe(false);
+    // No fade (owner 2026-10-23): the vista is shown at once and its layers fly in from off the screen.
+    expect(css).toContain('.wipevista.in { opacity: 1; }');
+    expect(css).toMatch(/\.wipevista\.held \{ transition: none; \}/);
+  });
+
+  // Owner 2026-10-23: "its really these hard lines im trying to get rid of" (the sideways fly-in showed each layer's cut
+  // edges). The arrival is a flash into the sky, a pull back, and the land rising from below.
+  it('arrives out of the sky: a flash hides the cut, the camera pulls back, the land rises with no cut edge showing', () => {
+    expect(css).toContain('@keyframes vistapullback { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }');
+    expect(css).toMatch(/\.wipevista\.in \.wipevista-flash \{ animation: vistaflash /);
+    // The sky never moves (it fills the screen from the first frame), so nothing behind the rising land can show.
+    expect(css).not.toMatch(/\.wipevista\.on \.wipevista-dive-sky \{/);
+    // The rise distances that keep every flat bottom edge behind the flowers' grass or below the screen (see styles.css).
+    const rise = (n: string): number => Number(new RegExp(`@keyframes vistarise${n} \\{ 0% \\{ translate: 0 (\\d+)%; \\}`).exec(css)?.[1]);
+    expect([rise('far'), rise('mid'), rise('shop'), rise('fore')]).toEqual([58, 64, 80, 40]);
+    // The art bounds (fractions of 1440) and the flowers' solid grass top: each layer's bottom edge stays covered or off-screen.
+    const fore = { solidTop: 0.82, bottom: 1, d: 0.4 };
+    for (const [n, bottom] of [['far', 0.924], ['mid', 0.984], ['shop', 0.964]] as const) {
+      const d = rise(n) / 100;
+      for (let x = 0; x <= 1; x += 0.05) {
+        const edge = bottom + d * x, solid = fore.solidTop + fore.d * x, foreEnd = fore.bottom + fore.d * x;
+        expect(edge >= solid && (edge <= foreEnd || edge >= 1), `${n} at ${x.toFixed(2)}`).toBe(true);
+      }
+    }
+    // The shop and the door's interior + glow rise together (same rise, same delay), and the hole opens only after landing.
+    const flight = /\.wipevista\.on \.wipevista-shop \{ animation: (vistariseshop [^;]*?) both; \}/.exec(css)?.[1];
+    expect(flight).toBeTruthy();
+    expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
+    // (…and only on a trip whose cut-out was decoded before it began: a mask still loading blanks the group.)
+    expect(css).toContain(".wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
+    expect(css).not.toMatch(/^\.wipevista\.(held|dive) \.wipevista-masked[^{]*\{[^}]*mask/m);
+  });
+
+  it("keeps the floor covered through the gate's landing bounce, on any screen shape", () => {
+    // R-PRESENT-35. The bounce lifts the gate up to 3.4% of its height; the strip under it (6%) must hang BELOW its
+    // edge. Flipped about its top edge it folded up inside the gate, and the fight showed through at the bounce's peak
+    // (found 2026-10-23 rendering the gate for the owner's ultrawide check).
+    const foot = /\.wipecurtain::after \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(foot).toContain('top: 100%; height: 6%;');
+    expect(foot).toContain('transform: scaleY(-1); transform-origin: 50% 50%;');
+    expect(Number(/translateY\(-([\d.]+)%\)/.exec(/@keyframes wipeslam \{([\s\S]*?)\} \}/.exec(css)?.[1] ?? '')?.[1])).toBeLessThan(6);
+    // …and it mirrors the rows above the gate's VISIBLE bottom edge (a wide window crops the cover-fit art).
+    expect(foot).toContain('50% calc(0.06 * var(--lvh, 100dvh) - (var(--lvh, 100dvh) + var(--gate-hi)) / 2)');
+  });
+
+  it('keeps the gate parked and silent on the exit pass', () => {
+    expect(css).toMatch(/\.wipecurtain\.exit \{ visibility: hidden; transform: translateY\(-100%\) !important; transition: none !important; animation: none !important; \}/);
+    for (const w of WIPE_EXIT.slice(1, -1)) expect(curtainClassFor(w), w).toContain(' exit');
+  });
+
+  it('sizes the poster contents and the sky title off their own art, so they scale with it as one piece', () => {
+    // Owner 2026-10-23: "lock the text and portrait to the poster so they scale as one piece" (windowed and fullscreen
+    // looked different because the paper is cover-fit while --u follows the 16:9 UI).
+    expect(css).toContain('.wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }');
+    expect(css).toContain('.wipeposter { --u: calc(var(--gate-hi) * 0.00089333); }');
+    expect(css).toContain('.wipevista { --vista-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778)); }');
+    // (the sky title is sized by the VISIBLE height and kept below the screen's top edge: a wide window crops the sky)
+    expect(css).toContain('.wipevista .wipevista-title { --u: calc(var(--lvh, 100dvh) * 0.00089333);');
+    expect(css).toContain('top: max(15.5%, calc((var(--vista-hi) - var(--lvh, 100dvh)) / 2 + 140 * var(--u)));');
+    // the constant is the old --u at a 16:9 screen: 1.34px x 0.96 (--ui-scale) per 1440 px of stage height
+    expect(Math.abs((1.34 * 0.96) / 1440 - 0.00089333)).toBeLessThan(1e-8);
+  });
+
+  it('moves by opacity and transform only', () => {
+    // (…and the portal: the doorway's interior fading open, owner 2026-10-23.)
+    for (const k of ['vistaflash', 'vistacut', 'vistapullback', 'vistarisefar', 'vistarisemid', 'vistariseshop', 'vistarisefore', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistadoordark', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore', 'vistatitlepop']) {
+      const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
+      // (`translate` is the individual transform property: compositor-only like `transform`.)
+      expect(frames, k).toMatch(/transform|translate|opacity/);
+      expect(frames.replace(/(transform|translate|opacity|animation-timing-function): [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);
+    }
   });
 });
 

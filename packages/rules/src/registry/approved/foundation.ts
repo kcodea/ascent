@@ -7925,7 +7925,13 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Claude Code session, 2026-10-21 (the redesign)',
         quote: 'i want to do something that falls from the "ceiling" of the screen and lands at the bottom of the screen with a bang, like a big stone gate or something',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-23 (the ultrawide check that found the gap at the bounce)',
+        quote: 'can you verify that the wood door transition works on ultrawide too?',
+      },
       { kind: 'fix-pr', ref: 'feat/panel-transition' },
+      { kind: 'fix-pr', ref: 'feat/vista-return' },
       { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts curtainClassFor; packages/ui/src/styles.css .wipecurtain / .wipecurtain::after (the foot) / .wipeposter / @keyframes wipeslam, wipecrank, posterslam, postercrank; packages/ui/src/Recruit.tsx (the curtain markup + its sounds)' },
     ],
     currentBehaviour:
@@ -7935,8 +7941,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'With the ranked gate (doors that only slide) standing in, the owner saw none. Now the curtain is the owner\'s '
       + 'wooden gate: transform-only motion (fall, slam bounce, a swaying crank), a hidden strip of its bottom beam below '
       + 'its edge so the landing bounce never opens a gap at the floor while the scene swaps, and the poster carrying '
-      + 'NOW FACING swinging on its own nail (transform only).',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-22' },
+      + 'NOW FACING swinging on its own nail (transform only). FIXED 2026-10-23: the strip under the gate was flipped about '
+      + 'its top edge, so it folded up inside the gate and the landing bounce (up to 3.4%) opened a gap at the floor on every '
+      + 'screen; found rendering the gate for the owner’s ultrawide check. It now flips in place and mirrors the rows above '
+      + 'the gate’s visible bottom edge, so a window wider than 16:9 (which crops the art) stays seamless too.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
     id: 'R-STAGE-OPP-HUD-01',
@@ -7996,5 +8005,32 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A foe holding 3 minions and 2 spells shows 5 face-down Galaxy plates; its Herald of Doom attacks and a sixth '
       + 'materialises; its Seedling Spirit\'s Rally lifts a copy out of the second card, which greys.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentHand.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
+  // ── A transition never shows a picture before it is ready (owner clip 2026-10-23, the vista's 4-frame blank) ──────
+  {
+    id: 'R-PRESENT-36',
+    title: 'A transition only uses art that is already loaded and decoded, so no piece of it blanks out mid-play',
+    statement:
+      'Every picture a screen transition draws or cuts with (its layers, masks and overlays) is fetched and decoded before '
+      + 'the transition can start, and a piece that is still not ready when its moment comes is left out for that play '
+      + 'rather than switched on half-loaded. No part of a transition may disappear and come back while it plays.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-23 (Medal clip of the return trip)',
+        quote: 'you can see  briefly that part of the image disappears and returns',
+      },
+      { kind: 'fix-pr', ref: 'feat/vista-return' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (vistaArtRef / vistaMaskReadyRef / vistaMaskTrip, the maskok class); packages/ui/src/styles.css .wipevista.maskok.held .wipevista-masked' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the return trip’s door cut-out (vista-doormask.png) was the one vista picture '
+      + 'never preloaded; when the mask switched on as the land settled, the browser hid the whole masked group (sky, hills, '
+      + 'title, shop) until it decoded, and for four frames the fight showed through behind the flowers. Now every vista '
+      + 'picture is decoded on mount and kept referenced, and each trip uses the cut-out only if it was decoded before the '
+      + 'trip began. PARTIAL as a general rule: the test pins the vista’s mask, not every transition’s art.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
 ];

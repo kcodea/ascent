@@ -246,7 +246,7 @@ import { wipeFx } from './wipeFx';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
-import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
+import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
@@ -270,6 +270,20 @@ const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ 
  *  multi-cast Golden Ruby pays several times in one action. */
 const GOLDEN_RUBY_COIN_DELAY_MS = 180;
 const GOLDEN_RUBY_COIN_GAP_MS = 220;
+/** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
+ *  "lets actually not use the floating islands layer", so five). */
+const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
+/** The return trip's arrival, ms: the land finishes rising 0.15 + 0.7 s in (styles.css, "THE ARRIVAL"); its sweep backstop. */
+const VISTA_ARRIVAL_MS = 850;
+/** The vista's turquoise GEM (on the medallion over the shop door) on SCREEN at the end of the push (screen px, for the
+ *  portal burst): measured off the 2560x1440 art (centre 1167, 871; about 14 px across), through the art's cover-fit and
+ *  the 1.12 push about (47.7%, 83%), as styles.css lays them out. */
+function vistaGemOnScreen(): { x: number; y: number; r: number } {
+  const A = 2560 / 1440, W = window.innerWidth, H = window.innerHeight;
+  const wi = Math.max(W, H * A), hi = Math.max(H, W / A), left = (W - wi) / 2, top = (H - hi) / 2;
+  const push = (u: number, o: number): number => o + (u - o) * 1.12;
+  return { x: left + push(1167 / 2560, 0.477) * wi, y: top + push(871 / 1440, 0.83) * hi, r: (14 / 2560) * 1.12 * wi };
+}
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
  *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
@@ -2359,6 +2373,19 @@ export function Recruit() {
     window.addEventListener('resize', measureWipeOrigin);
     return () => window.removeEventListener('resize', measureWipeOrigin);
   }, [wipeOnScreen, measureWipeOrigin]);
+  // THE DOOR'S CUT-OUT MUST BE READY BEFORE IT IS USED (owner clip 2026-10-23: "part of the image disappears and
+  // returns"). `.wipevista-masked` (sky, hills, title, shop) wears `vista-doormask.png` as a CSS mask once the land has
+  // settled; a mask whose image is not decoded yet hides the WHOLE group, so for four frames the fight showed through
+  // everything but the flowers. It was the one vista picture never preloaded. Now it is fetched and DECODED on mount
+  // (kept referenced, like the layers), and each trip decides at its start whether to cut the door (`maskok`): only if
+  // the cut-out is already decoded, so it can never switch on half-ready or mid-flight. Without it the trip simply dives
+  // without the hole once (the doorway's painted interior and the end fade still carry it): never a blank scene.
+  const vistaArtRef = useRef<HTMLImageElement[]>([]);
+  const vistaMaskReadyRef = useRef(false);
+  const [vistaMaskTrip, setVistaMaskTrip] = useState(false);
+  useEffect(() => {
+    if (wipe === 'coverOut') setVistaMaskTrip(vistaMaskReadyRef.current);
+  }, [wipe]);
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
   // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
@@ -2370,8 +2397,22 @@ export function Recruit() {
     // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
+    // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
+    // Decoded up front and kept referenced, so the first trip never waits on a decode; the door's cut-out among them.
+    const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
+    vistaArtRef.current = [...art, 'vista-doormask.png'].map((f) => {
+      const img = new Image();
+      img.src = `${import.meta.env.BASE_URL}${f}`;
+      const decoded = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
+      if (f === 'vista-doormask.png') decoded.then(() => { vistaMaskReadyRef.current = true; }, () => { /* no hole this session */ });
+      else decoded.catch(() => { /* a background still loads on its own */ });
+      return img;
+    });
     sfx.warmGate();
     sfx.warmWipeGate();
+    // Plain Cinzel (the poster's inked lettering, 700, and the return trip's sky title, 900): fetched now so neither swaps fonts on screen.
+    void document.fonts?.load('700 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
+    void document.fonts?.load('900 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {
@@ -2387,15 +2428,54 @@ export function Recruit() {
   // they are different from the gate sounds"; sfx.wipeGate): the door whoosh as it starts to fall, the layered thuds
   // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
   // groan as it is winched back up.
+  // THE PORTAL (owner 2026-10-23): just before the return trip dives through the shop's door, the doorway charges and
+  // bursts with sparks and energy (gateFx.portal, on the ranked gate's particle layer, lifted over the curtain while it is
+  // up). Timed off the hold so the burst lands right as the dive starts. Desktop only, like the gate's dust.
+  // Its SOUNDS (owner 2026-10-23, bank clips; sfx.vistaTrip): a whoosh and a shimmer as it fades in, the energy burst and a
+  // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
+  // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
+  // crashed the shop screen (owner report 2026-10-23).
+  // THE TITLE'S WOOSH (owner 2026-10-23: "add a subtle woosh sound to the return to shop text springing out", then
+  // "start the woosh sound for the title text .3 seconds earlier", then "delay the woosh by .1 seconds and it should be
+  // perfect"): as the hold begins, 0.2 s ahead of the title's entrance (0.2 s into the hold, `vistatitlepop`). Timed off the trip's start (the land settles at
+  // VISTA_ARRIVAL_MS) and held in a ref, so the step into the hold does not cancel it; only leaving the trip does.
+  const titleWooshRef = useRef(0);
   useEffect(() => {
-    if (wipe === 'coverIn' || wipe === 'coverOut') sfx.wipeGate('drop');
-    else if (wipe === 'coveredIn' || wipe === 'coveredOut') {
+    if (wipe === 'coverOut') {
+      window.clearTimeout(titleWooshRef.current);
+      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), VISTA_ARRIVAL_MS);
+    } else if (wipe === 'idle' || wipe === 'chargeIn' || wipe === 'combat') window.clearTimeout(titleWooshRef.current);
+  }, [wipe]);
+  useEffect(() => () => window.clearTimeout(titleWooshRef.current), []);
+  // THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
+  // fluttery sparks bloom out from all four sides of the player screen"): once the dive has the doorway filling the
+  // screen (82% of it, just before the vista fades off the shop), the portal's sparks bloom in off every edge.
+  useEffect(() => {
+    if (wipe !== 'revealOut' || PHONE_GPU) return undefined;
+    const t = window.setTimeout(() => gateFx.edgeBloom(), getScreenWipeConfig().revealMs * 0.82);
+    return () => window.clearTimeout(t);
+  }, [wipe]);
+  useEffect(() => {
+    if (wipe === 'coverOut') sfx.vistaTrip('arrive');
+    else if (wipe === 'revealOut') sfx.vistaTrip('dive');
+    if (wipe !== 'coveredOut') return undefined;
+    const charge = 160;
+    const t = window.setTimeout(() => {
+      sfx.vistaTrip('portal');
+      if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
+    }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
+    return () => window.clearTimeout(t);
+  }, [wipe]);
+  useEffect(() => {
+    // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
+    if (wipe === 'coverIn') sfx.wipeGate('drop');
+    else if (wipe === 'coveredIn') {
       sfx.wipeGate('impact');
       // …and the dust it knocks up from the floor (owner 2026-10-21: "create the dust from the bottom"), on the ranked
       // gate's particle layer (lifted over the curtain while it is up). Desktop only: phones keep no extra FX context.
       if (!PHONE_GPU) gateFx.land({ left: 0, right: window.innerWidth, bottom: window.innerHeight });
     }
-    else if (wipe === 'revealIn' || wipe === 'revealOut') sfx.wipeGate('crank');
+    else if (wipe === 'revealIn') sfx.wipeGate('crank');
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
@@ -2416,7 +2496,8 @@ export function Recruit() {
     }
     if (!wipeIsSweeping) return undefined;
     const c = getScreenWipeConfig();
-    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverIn' || wipe === 'coverOut' ? c.coverMs : c.revealMs) + 400);
+    // (The return trip's arrival runs its own length, VISTA_ARRIVAL_MS: the flash, the pull back and the rise.)
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverOut' ? VISTA_ARRIVAL_MS : wipe === 'coverIn' ? c.coverMs : c.revealMs) + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
   }, [wipe, wipeIsSweeping, advanceWipe]);
   useEffect(() => {
@@ -2489,6 +2570,19 @@ export function Recruit() {
   }, [advanceWipe]);
   // …and is CRANKED back up by a keyframe animation (`wipecrank`), whose end finishes the reveal. (The landing bounce,
   // `wipeslam`, plays inside the hold, which its own timer ends.)
+  // The return trip's vista: its fade IN ends the cover (opacity transition), its fade OUT ends the reveal (`vistafade`).
+  const onVistaEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
+    if (e.propertyName !== 'opacity' || e.target !== e.currentTarget) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
+  const onVistaAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
+    // The cover ends when the last layer has risen into place (`vistarisefore`, the flowers); the reveal when the vista fades out.
+    const ends = e.animationName === 'vistarisefore' || (e.animationName === 'vistafade' && e.target === e.currentTarget);
+    if (!ends) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
   const onWipeAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
     if (e.animationName !== 'wipecrank' || e.target !== e.currentTarget) return;
     window.clearTimeout(wipeTimeoutRef.current);
@@ -8209,15 +8303,37 @@ export function Recruit() {
             </div>
           );
         })()}
-        {/* The exit curtain's own announcement (owner ask 2026-08-28; shop vignette added 2026-08-30) —
-            the same format as NOW FACING, with the shop art in the circle instead of a foe portrait. */}
-        {wipeIsExiting && (
-          <div className="wipevs">
-            <div className="wipevs-label">Returning to Shop</div>
-            <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
-          </div>
-        )}
         </div>
+      </div>
+      {/* THE RETURN TRIP (owner 2026-10-23): the exit pass's own transition, the shop's VISTA (six parallax layers; one
+          flattened picture on phones), RETURNING TO SHOP in its sky (`vistaClassFor`, `.wipevista` in styles.css). The
+          fade in and the dive out drive the machine like the gate does (`onVistaEnd` / `onVistaAnimEnd`). */}
+      <div className={vistaClassFor(wipe) + (vistaMaskTrip ? ' maskok' : '')} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
+        {/* The Shop seen through the door starts in shadow and brightens as you go through (`.wipevista-dusk`). */}
+        <div className="wipevista-dusk" />
+        <div className="wipevista-stage">
+          {/* THE PORTAL (owner 2026-10-23): everything BEHIND the shop's doorway is cut away there (`.wipevista-masked`),
+              the doorway's own painted interior sits in the hole (`.wipevista-doorfill`) and fades out as the dive
+              starts, so the dive flies through an open door onto the real Shop. The flowers stay in front of it all. */}
+          <div className="wipevista-masked">
+            {/* The layers behind the house each sit in a dive wrapper that slows their zoom (parallax in the dive). */}
+            {/* RETURNING TO SHOP sits just BEHIND the shop (owner 2026-10-23: "put it behind the shop layer, so the shop
+                roof may clip over it slightly"), moving with the sky (`.wipevista-dive-title` / `.wipevista-titlebox`). */}
+            {VISTA_LAYERS.filter((n) => n !== 'fore').map((n) => n === 'shop'
+              ? <Fragment key={n}>
+                <div className="wipevista-dive wipevista-dive-title"><div className="wipevista-titlebox">
+                  <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
+                </div></div>
+                <div className="wipevista-layer wipevista-shop" />
+              </Fragment>
+              : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
+            <div className="wipevista-layer wipevista-flat" />
+          </div>
+          <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div><div className="wipevista-doorglow" /></div>
+          <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
+        </div>
+        {/* The flash that hides the cut from the fight into the sky (`.wipevista-flash`). */}
+        <div className="wipevista-flash" />
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the

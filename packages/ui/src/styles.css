@@ -424,8 +424,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
    without ever opening a gap at the floor while the scene swaps behind it. Shown only while it falls and holds, so a
    parked gate never hangs a sliver into the top of the screen. */
 .wipecurtain::after { content: ''; position: absolute; left: 0; right: 0; top: 100%; height: 6%; display: none; pointer-events: none;
-  background: url('/transition-gate.webp') 50% 100% / max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7777)) auto no-repeat;
-  transform: scaleY(-1); transform-origin: 50% 0; }
+  background: url('/transition-gate.webp') 50% calc(0.06 * var(--lvh, 100dvh) - (var(--lvh, 100dvh) + var(--gate-hi)) / 2) / max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7777)) auto no-repeat;
+  transform: scaleY(-1); transform-origin: 50% 50%; }
+/* (Two fixes, 2026-10-23, found rendering the gate at the owner's ask, "can you verify that the wood door transition works
+   on ultrawide too?": the strip was flipped about its TOP edge, which folded it up INSIDE the gate, so at the bounce's
+   peak nothing covered the floor and the fight showed through; it now flips in place. And it showed the art's very
+   bottom, while a window wider than 16:9 crops the art (cover), so it now mirrors the rows just above the gate's
+   VISIBLE bottom edge: the image top sits at (strip height - (screen height + drawn art height) / 2).) */
 .wipecurtain.full::after { display: block; }
 .wipecurtain.full { transform: translateY(0); }
 .wipecurtain.full.settle { animation: wipeslam 600ms both; }
@@ -439,20 +444,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
   43% { transform: translateY(-0.35%); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
   50% { transform: translateY(0); }
   100% { transform: translateY(0); } }
-.wipecurtain.gone { transform: translateY(-100%); animation: wipecrank var(--wipe-reveal-dur, 450ms) both; }
+.wipecurtain.gone { transform: translateY(-100%); animation: wipecrank var(--wipe-reveal-dur, 450ms) linear both; }
 .wipecurtain.gone.parked { animation: none; }
-/* Four pulls on the winch, each catching with a small drop. It hangs from its top edge (`transform-origin`), so a
-   positive turn lifts its LEFT side: the left lifts first, the right catches up and overshoots, and it keeps swaying,
-   less each pull, leaving the screen still a touch askew. */
-@keyframes wipecrank {
-  0% { transform: translateY(0) rotate(0deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
-  14% { transform: translateY(-15%) rotate(2.6deg); animation-timing-function: ease-in; }
-  19% { transform: translateY(-13.5%) rotate(1.7deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
-  35% { transform: translateY(-34%) rotate(-1.6deg); animation-timing-function: ease-in; }
-  40% { transform: translateY(-32.5%) rotate(-0.9deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
-  58% { transform: translateY(-56%) rotate(1.3deg); animation-timing-function: ease-in; }
-  63% { transform: translateY(-54.5%) rotate(0.6deg); animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
-  100% { transform: translateY(-100%) rotate(-0.8deg); } }
+/* THE CRANK, SMOOTH (owner 2026-10-23: "can we make the crank up movement smoother"; it was four jerky winch pulls): one
+   continuous lift, slow to start and accelerating out of sight, with a gentle sway as it rises. It hangs from its top edge
+   (`transform-origin`), so a positive turn lifts its LEFT side. Generated every 5% from smooth curves and played LINEAR
+   between them, so the curve itself is the motion and no per-step easing reintroduces a stutter. */
+@keyframes wipecrank { 0% { transform: translateY(0%) rotate(0deg); } 5% { transform: translateY(-0.169%) rotate(0.062deg); } 10% { transform: translateY(-0.695%) rotate(0.227deg); } 15% { transform: translateY(-1.608%) rotate(0.443deg); } 20% { transform: translateY(-2.938%) rotate(0.646deg); } 25% { transform: translateY(-4.72%) rotate(0.773deg); } 30% { transform: translateY(-6.989%) rotate(0.778deg); } 35% { transform: translateY(-9.779%) rotate(0.644deg); } 40% { transform: translateY(-13.125%) rotate(0.382deg); } 45% { transform: translateY(-17.06%) rotate(0.034deg); } 50% { transform: translateY(-21.612%) rotate(-0.342deg); } 55% { transform: translateY(-26.805%) rotate(-0.68deg); } 60% { transform: translateY(-32.651%) rotate(-0.923deg); } 65% { transform: translateY(-39.153%) rotate(-1.036deg); } 70% { transform: translateY(-46.296%) rotate(-1.019deg); } 75% { transform: translateY(-54.053%) rotate(-0.885deg); } 80% { transform: translateY(-62.379%) rotate(-0.657deg); } 85% { transform: translateY(-71.213%) rotate(-0.368deg); } 90% { transform: translateY(-80.483%) rotate(-0.056deg); } 95% { transform: translateY(-90.106%) rotate(0.24deg); } 100% { transform: translateY(-100%) rotate(0.485deg); } }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
    advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
@@ -473,16 +471,52 @@ canvas.spr { image-rendering: pixelated; display: block; }
    (`transition-poster.webp`, the paper trimmed to its edges, transparent around them) laid on the gate between its two
    iron straps, hanging from its TOP-CENTRE NAIL (`transform-origin`, measured off the art at 48.4% across, 9.8% down).
    It is sized and placed by the size the gate art is actually drawn at (`--gate-hi`, the cover-fit height), so it stays
-   on the same spot of the wood on any screen shape: 49% of the gate's height, centred across, its middle 48.4% down
+   on the same spot of the wood on any screen shape: 60% of the gate's height (49% until the owner asked for it larger,
+   2026-10-23: "can we make the paper sheet larger first and foremost"; its edges now overlap the straps a little, as if nailed
+   over them; 60% -> 55% the same day, "reduce the size of the paper slightly", then back to 60%, "make the paper larger
+   again, as it was before"), centred across, its middle 48.4% down
    (the clear wood between the straps). NOW FACING / RETURNING TO SHOP sits on it, centred on the paper and turned with
    it (-3.3 degrees, measured off its edges), so every swing carries the opponent with it. Transform-only, one shot per
    slam and per crank (CLAUDE.md perf rules). */
 .wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }
 .wipeposter { position: absolute; left: 50%; top: calc(50% - 0.016 * var(--gate-hi));
-  width: calc(0.49 * 1.8012 * var(--gate-hi)); height: calc(0.49 * var(--gate-hi)); translate: -50% -50%;
+  width: calc(0.6 * 1.8012 * var(--gate-hi)); height: calc(0.6 * var(--gate-hi)); translate: -50% -50%;
   background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
   transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
 .wipeposter .wipevs { rotate: -3.3deg; }
+/* ONE PIECE (owner 2026-10-23: "lock the text and portrait to the poster so they scale as one piece"). Everything on the
+   poster (lettering, rules, portrait, spacing) is sized in --u, which normally follows the game's 16:9 UI size, while the
+   paper follows the gate art's cover-fit size; the two only agree on an exact 16:9 window, so windowed and fullscreen
+   looked different. Here --u is taken from the art's own drawn height instead: identical to the old --u on a 16:9 screen
+   (1.34px x 0.96 per 1440 px of height), and it moves with the paper on every other shape. */
+.wipeposter { --u: calc(var(--gate-hi) * 0.00089333); }
+/* INKED INTO THE POSTER (owner 2026-10-23: "how can we edit the text to look more burned into the paper? like this?", with a
+   reference of brown serif lettering and ruled flourishes). On the gate's poster the announcement is dark burnt-brown ink, no
+   white fill or black outline, with a soft darker bleed at its edges as if scorched or inked into the paper: NOW FACING in
+   plain Cinzel over a tapered rule, the name in bold Fraunces over a rule with a diamond in its middle. (Sizes 46 / 40 at first,
+   then 56 / 50: owner 2026-10-23, "increase the size of the font for both now facing and player name".) (The return trip's sky
+   text keeps the white lettering; this is the poster only.) All static: nothing here animates. */
+.wipeposter .wipevs-label, .wipeposter .wipevs-name { position: relative; color: #3a2210; -webkit-text-stroke: 0; opacity: 0.92;
+  text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
+.wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
+  font-size: calc(67 * var(--u, 1px)); /* 56 -> 67 and bold (owner 2026-10-23: "scale up the now facing text by 20% and make it bold") */ letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px));
+  top: calc(-12 * var(--u, 1px)); } /* raised on the page (owner 2026-10-23: "a bit", then "needs to go up more"; -40 -> -30 once it scaled with the poster: "needs to come down a little bit now", then -18: "needs to come down further", then -12: "lower the now facing text a nudge") */
+/* …and the portrait a little too ("then move the portrait up slightly as well"); the name stays put. */
+.wipeposter .wipevs > .wipevs-face, .wipeposter .wipevs > .wipevs-facewrap { position: relative; top: calc(-14 * var(--u, 1px)); }
+.wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));
+  padding-bottom: calc(12 * var(--u, 1px)); top: calc(-10 * var(--u, 1px)); } /* raised a bit (owner 2026-10-23: "raise the player name text a bit as well") */
+/* The rules: a thin brown line, tapered to points at both ends, under each line of text. */
+.wipeposter .wipevs-label::after, .wipeposter .wipevs-name::after { content: ''; position: absolute; left: -6%; right: -6%; bottom: 0;
+  height: calc(3 * var(--u, 1px)); border-radius: 50%; opacity: 0.85;
+  background: linear-gradient(to right, rgba(58, 34, 16, 0), #3a2210 18%, #3a2210 82%, rgba(58, 34, 16, 0)); }
+/* …NOW FACING's rule sits a touch higher, closer to its letters (owner 2026-10-23: "slightly raise the underline underneath the NOW FACING text"). */
+.wipeposter .wipevs-label::after { bottom: calc(14 * var(--u, 1px)); } /* 3 -> 6: "raise the underline beneath it slightly as well", then 10: "further raise the underline", then 14: "raise the now facing underline a bit more" */
+/* …and the name's rule and its diamond, raised together (owner 2026-10-23: "raise the player name underline a bit"). */
+.wipeposter .wipevs-name::after { bottom: calc(5 * var(--u, 1px)); }
+/* …and the small diamond at the middle of the name's rule. */
+.wipeposter .wipevs-name::before { content: ''; position: absolute; left: 50%; bottom: calc(1.5 * var(--u, 1px));
+  width: calc(9 * var(--u, 1px)); height: calc(9 * var(--u, 1px)); background: #3a2210; opacity: 0.9;
+  transform: translateX(-50%) rotate(45deg); }
 /* THE SLAM: the gate stops dead and the paper doesn't. It is knocked down and crooked on its loose nail, swings back
    and forth a few times, less each time, and comes to rest a little crooked (0.8 degrees). */
 .wipecurtain.full.settle .wipeposter { animation: posterslam 1300ms both; }
@@ -496,19 +530,184 @@ canvas.spr { image-rendering: pixelated; display: block; }
   72% { transform: rotate(0.45deg); animation-timing-function: ease-in-out; }
   86% { transform: rotate(1deg); animation-timing-function: ease-in-out; }
   100% { transform: rotate(0.8deg); } }
-/* THE CRANK: as the gate is winched up and sways (`wipecrank`), the paper lags behind each tilt and swings the other
-   way, so the poster wobbles on its own all the way out. */
-.wipecurtain.gone .wipeposter { animation: postercrank var(--wipe-reveal-dur, 450ms) both; }
+/* THE CRANK: as the gate rises and sways (`wipecrank`), the paper lags behind its tilt and swings the other way, smoothly
+   (generated with the gate's, played linear), so the poster sways on its own all the way out. */
+.wipecurtain.gone .wipeposter { animation: postercrank var(--wipe-reveal-dur, 450ms) linear both; }
 .wipecurtain.gone.parked .wipeposter { animation: none; }
-@keyframes postercrank {
-  0% { transform: rotate(0.8deg); animation-timing-function: ease-in-out; }
-  12% { transform: rotate(-1.5deg); animation-timing-function: ease-in-out; }
-  24% { transform: rotate(2.2deg); animation-timing-function: ease-in-out; }
-  38% { transform: rotate(3deg); animation-timing-function: ease-in-out; }
-  50% { transform: rotate(-1.2deg); animation-timing-function: ease-in-out; }
-  62% { transform: rotate(-2.4deg); animation-timing-function: ease-in-out; }
-  78% { transform: rotate(1.6deg); animation-timing-function: ease-in-out; }
-  100% { transform: rotate(0.4deg); } }
+@keyframes postercrank { 0% { transform: rotate(0.8deg); } 5% { transform: rotate(0.655deg); } 10% { transform: rotate(0.664deg); } 15% { transform: rotate(0.831deg); } 20% { transform: rotate(1.12deg); } 25% { transform: rotate(1.462deg); } 30% { transform: rotate(1.774deg); } 35% { transform: rotate(1.975deg); } 40% { transform: rotate(2.003deg); } 45% { transform: rotate(1.83deg); } 50% { transform: rotate(1.467deg); } 55% { transform: rotate(0.962deg); } 60% { transform: rotate(0.39deg); } 65% { transform: rotate(-0.162deg); } 70% { transform: rotate(-0.612deg); } 75% { transform: rotate(-0.901deg); } 80% { transform: rotate(-1.011deg); } 85% { transform: rotate(-0.942deg); } 90% { transform: rotate(-0.716deg); } 95% { transform: rotate(-0.369deg); } 100% { transform: rotate(0.046deg); } }
+/* THE GATE IS FOR THE ENTRY PASS ONLY (owner 2026-10-23: "i want to separate the returnn to shop experience from the door
+   and gate"). On the exit pass the machine still walks the same states, but the gate stays parked out of sight, with no
+   motion or events of its own; the return trip is the vista below. */
+.wipecurtain.exit { visibility: hidden; transform: translateY(-100%) !important; transition: none !important; animation: none !important; }
+.wipecurtain.exit .wipeposter { animation: none !important; }
+/* THE RETURN TRIP: the shop's VISTA (owner 2026-10-23, "ascent_fantasy_shop" in parallax layers: sky, distance, midground, shop, flowers; the floating
+   islands layer was dropped the same day). It FADES IN over the
+   fight (`in`), and while RETURNING TO SHOP sits in its clear sky, a slow push towards the shop runs, each layer scaling a
+   little more the nearer it is, which reads as depth. At full cover the fade is snapped home (`held`) and the Shop swaps in
+   behind it. Then it DIVES through the shop's door (`dive`: the whole picture zooms in on the doorway while it fades),
+   landing in the Shop. Opacity + transform only, one shot per return (CLAUDE.md perf rules), so like the gate it is never
+   see-through while the scene behind it changes (R-PRESENT-35).
+   The picture is laid out in `.wipevista-stage`, a box at the art's own 16:9 cover-fit, so every position inside it (the
+   door, the sky text, the push centre) stays on the same spot of the painting at any screen shape.
+   The layers (the owner's second set, 2026-10-23) are each painted in full behind what sits in front of them, so the push
+   can show real depth: 3% (sky) to 16% (flowers) over 2 s (the fade-in plus the 1.5 s hold), centred on the doorway at ground level so the flowers' top
+   edge barely moves against the midground behind it. The shop is baked into its layer at 75% of its painted size,
+   shrunk around the foot of its steps so it stays on the path (owner: "i like 75% better"). */
+.wipevista { position: fixed; inset: 0; z-index: 3000; pointer-events: none; overflow: hidden; opacity: 0; visibility: hidden; }
+.wipevista.on { visibility: visible; }
+.wipevista.in { opacity: 1; } /* no fade: the layers fly in (THE ARRIVAL, below) */
+.wipevista.held { transition: none; }
+.wipevista.dive { opacity: 1; animation: vistafade var(--wipe-reveal-dur, 450ms) both; }
+/* With the portal the dive carries the picture past every edge of the screen, so this last fade is only a backstop for an
+   odd screen shape: the picture holds to 85% of the dive, then goes. */
+@keyframes vistafade { 0% { opacity: 1; } 85% { opacity: 1; animation-timing-function: ease-in; } 100% { opacity: 0; } }
+/* The vista picture's drawn height (the stage below is cover-fit to the window): the sky title is sized off it, so it
+   scales with the picture as one piece on any window shape (same rule as the gate's poster, owner 2026-10-23). */
+.wipevista { --vista-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778)); }
+.wipevista-stage { position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+  width: max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7778)); height: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778));
+  transform-origin: 47.7% 74%; }
+/* THE DIVE THROUGH THE DOOR (owner 2026-10-23: "zooms in so far that going through the door ends up being the screen wipe
+   effect"): the doorway's painted interior fades out (from 25% to 65% of the dive), opening it onto the real Shop behind, while the
+   whole picture zooms 18x on the doorway (its lower middle, where it sits after the push) so the open door grows past
+   every edge of the screen: flying through it IS the wipe. 13x already clears a 16:9 screen; 18x is margin. */
+.wipevista.dive .wipevista-stage { transform-origin: 47.7% 76%; animation: vistadive var(--wipe-reveal-dur, 450ms) cubic-bezier(.55, 0, .85, .35) both; }
+@keyframes vistadive { 0% { transform: scale(1); } 100% { transform: scale(18); } }
+.wipevista.dive .wipevista-doorfill { animation: vistadooropen var(--wipe-reveal-dur, 450ms) both; }
+/* It waits, then fades a little slower (owner 2026-10-23: "have the masks fade wait a bit and fade slightly slower", then
+   "wait slightly longer still"): held to 30% of the dive, gone by 65%. */
+@keyframes vistadooropen { 0% { opacity: 1; } 30% { opacity: 1; animation-timing-function: ease-in-out; } 65% { opacity: 0; } 100% { opacity: 0; } }
+/* THE DOORWAY DARKENS (owner 2026-10-23: "as the zoom begins, can we have the inside of the doorway also darken? then as
+   its dark, it fades to the darkened board that lightens up as it goes through"): the SAME veil as the Shop's dusk (its
+   colour, at its 0.78), cut to the door's shape, darkens the painted interior over the dive's first 28%. It lives INSIDE
+   the interior, so the two fade out as one: a darkened doorway crossfading into an equally darkened Shop. Opacity only. */
+.wipevista-doordark { position: absolute; inset: 0; background: #04060c; opacity: 0; will-change: opacity;
+  -webkit-mask: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; mask: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; }
+.wipevista.dive .wipevista-doordark { animation: vistadoordark var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistadoordark { 0% { opacity: 0; animation-timing-function: ease-out; } 28% { opacity: 0.78; } 100% { opacity: 0.78; } }
+/* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
+   The stage zooms 18x (the house, its doorway and the hole through everything behind it, which must stay locked to the
+   doorway). Each layer behind the house sits in a WRAPPER that scales it back down, so its NET zoom is slower: sky 2.5x,
+   distance 4x, midground 8x. The flowers' wrapper scales them UP, to 26x, rushing past. Every wrapper is keyframed so
+   the net zoom follows the stage's own ease (1 + (N - 1) x ease), so nothing ever dips back (generated, see the devlog).
+   They all scale about the same point on screen, the doorway: (47.7%, 76%) on the stage, which is (47.7%, 76.75%) inside
+   the masked group (the group carries the 1.12 push about 83%). Transform only. */
+.wipevista-dive { position: absolute; inset: 0; will-change: transform; transform-origin: 47.7% 76.75%; }
+.wipevista-dive.wipevista-dive-fore { transform-origin: 47.7% 76%; }
+/* THE ARRIVAL: OUT OF THE SKY, AND THE LAND RISES (owner 2026-10-23: "its really these hard lines im trying to get rid of ...
+   lets try ... 1 (rise into view) ... 2 (pull back from the sky)"; the sideways fly-in showed each layer's cut edges).
+   A quick turquoise-white FLASH hides the cut from the fight: under its peak the picture appears (`vistacut`), already in
+   the SKY, the camera zoomed in on the sky text (the stage at 1.6x about 50%, 20%), and it PULLS BACK to the whole scene
+   (`vistapullback`). As it does, the land RISES into view from below, back to front: the distance, the midground, the shop
+   (with the door's interior and glow, which rise with it) and the flowers, each starting just off the bottom of the screen.
+   NO CUT EDGE EVER SHOWS: the sky fills the screen from the first frame, a rising layer only ever shows its natural top
+   outline, and the distances (58 / 64 / 80 / 40%, on one ease) keep every layer's flat bottom edge either behind the
+   flowers' solid grass or below the screen at every moment (checked against the art's bounds). The machine moves on, to
+   the covered hold where the Shop swaps in behind, when the LAST layer lands (`vistarisefore`'s animationend, Recruit), and
+   the door's see-through hole only exists from then on. Transform + opacity only. */
+.wipevista-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; will-change: opacity;
+  background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #eafffb 35%, #9ff3ea 100%); }
+.wipevista.in .wipevista-flash { animation: vistaflash 0.5s ease-out both; }
+@keyframes vistaflash { 0% { opacity: 0; animation-timing-function: ease-in; } 20% { opacity: 1; } 100% { opacity: 0; } }
+.wipevista.in .wipevista-stage { transform-origin: 50% 20%;
+  animation: vistacut 0.1s linear both, vistapullback 0.95s cubic-bezier(.2, .7, .3, 1) 0.1s both; }
+@keyframes vistacut { 0% { opacity: 0; } 99% { opacity: 0; } 100% { opacity: 1; } }
+@keyframes vistapullback { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
+.wipevista.on .wipevista-dive-far { animation: vistarisefar 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
+.wipevista.on .wipevista-dive-mid { animation: vistarisemid 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
+.wipevista.on .wipevista-shop { animation: vistariseshop 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
+.wipevista.on .wipevista-dive-fore { animation: vistarisefore 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
+@keyframes vistarisefar { 0% { translate: 0 58%; } 100% { translate: 0 0; } }
+@keyframes vistarisemid { 0% { translate: 0 64%; } 100% { translate: 0 0; } }
+@keyframes vistariseshop { 0% { translate: 0 80%; } 100% { translate: 0 0; } }
+@keyframes vistarisefore { 0% { translate: 0 40%; } 100% { translate: 0 0; } }
+.wipevista.dive .wipevista-dive-sky, .wipevista.dive .wipevista-dive-title { animation: vistadivesky var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-far { animation: vistadivefar var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-mid { animation: vistadivemid var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-fore { animation: vistadivefore var(--wipe-reveal-dur, 450ms) linear both; }
+@keyframes vistadivesky { 0% { transform: scale(1.0000); } 10% { transform: scale(0.9410); } 20% { transform: scale(0.7932); } 30% { transform: scale(0.6236); } 40% { transform: scale(0.4780); } 50% { transform: scale(0.3681); } 60% { transform: scale(0.2890); } 70% { transform: scale(0.2326); } 80% { transform: scale(0.1920); } 90% { transform: scale(0.1620); } 100% { transform: scale(0.1389); } }
+@keyframes vistadivefar { 0% { transform: scale(1.0000); } 10% { transform: scale(0.9467); } 20% { transform: scale(0.8132); } 30% { transform: scale(0.6600); } 40% { transform: scale(0.5286); } 50% { transform: scale(0.4293); } 60% { transform: scale(0.3578); } 70% { transform: scale(0.3069); } 80% { transform: scale(0.2702); } 90% { transform: scale(0.2431); } 100% { transform: scale(0.2222); } }
+@keyframes vistadivemid { 0% { transform: scale(1.0000); } 10% { transform: scale(0.9619); } 20% { transform: scale(0.8666); } 30% { transform: scale(0.7572); } 40% { transform: scale(0.6633); } 50% { transform: scale(0.5923); } 60% { transform: scale(0.5413); } 70% { transform: scale(0.5049); } 80% { transform: scale(0.4787); } 90% { transform: scale(0.4593); } 100% { transform: scale(0.4444); } }
+@keyframes vistadivefore { 0% { transform: scale(1.0000); } 10% { transform: scale(1.0305); } 20% { transform: scale(1.1067); } 30% { transform: scale(1.1943); } 40% { transform: scale(1.2694); } 50% { transform: scale(1.3261); } 60% { transform: scale(1.3670); } 70% { transform: scale(1.3961); } 80% { transform: scale(1.4170); } 90% { transform: scale(1.4325); } 100% { transform: scale(1.4444); } }
+
+/* The hole moves WITH THE SHOP: the masked group and the door's wrapper carry the shop's push, and the layers inside the
+   group push RELATIVE to it (sky 1.03 / 1.12 and so on), so each layer still ends at the same scale as before while the
+   hole stays exactly on the shop's doorway the whole way. The mask (`vista-doormask.png`: the whole picture, minus the
+   doorway the OWNER PAINTED, his soft edge kept, 2026-10-23) is static, so it is drawn once and only carried by the transform. */
+.wipevista-masked, .wipevista-doorwrap { position: absolute; inset: 0; transform-origin: 47.7% 83%; will-change: transform; }
+/* The hole exists only once every piece has landed (the hold and the dive), so nothing shows through it mid-flight. */
+/* …only on a trip that started with the cut-out already decoded (`maskok`, Recruit.tsx): a mask still loading hides
+   the whole group (owner clip 2026-10-23: the fight showed through for four frames). */
+.wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; }
+/* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
+   hairline can show), at its box. */
+.wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
+  background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
+/* THE DOORWAY GLOWS (owner 2026-10-23: "use the shape of the mask to create a glow along the edge of it so it looks like the
+   doorway begins glowing as it zooms into the door after the gem flash"): a turquoise-white line along the edge of the
+   owner's door shape with a soft halo (`vista-doorglow.webp`, made from his shape), carried with the door. It lights up as
+   the dive starts, just after the gem's flash, and stays lit as the doorway grows past the screen. */
+.wipevista-doorglow { position: absolute; left: 39.6094%; top: 58.125%; width: 16.1328%; height: 32.9861%;
+  background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity; }
+.wipevista.dive .wipevista-doorglow { animation: vistadoorglow var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistadoorglow { 0% { opacity: 0; animation-timing-function: ease-out; } 18% { opacity: 1; } 100% { opacity: 1; } }
+/* THE SHOP COMES OUT OF SHADOW (owner 2026-10-23: "at the moment the board is revealed, it would be nice if it started darker
+   and brightened as we got through the door"): a dark veil BEHIND the picture, over the real Shop, so the Shop seen through
+   the open door starts in shadow and brightens to full as you fly through. Opacity only. */
+.wipevista-dusk { position: absolute; inset: 0; background: #04060c; opacity: 0; pointer-events: none; will-change: opacity; }
+.wipevista.dive .wipevista-dusk { animation: vistadusk var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistadusk { 0% { opacity: 0.78; } 35% { opacity: 0.74; animation-timing-function: ease-in-out; } 100% { opacity: 0; } }
+/* The title's own sky-motion box (it rides the sky's push and dive, just behind the shop). */
+.wipevista-titlebox { position: absolute; inset: 0; transform-origin: 47.7% 83%; will-change: transform; }
+.wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
+/* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door
+   hole cuts through it too: a backing colour behind the group showed through the open door as plain blue instead of the
+   Shop (owner 2026-10-23: "i see just blue from the mask currently. not the shop"). */
+.wipevista-sky { background-color: #3f8fe6; background-image: url('/vista-sky.webp'); }
+.wipevista-far { background-image: url('/vista-far.webp'); }
+.wipevista-mid { background-image: url('/vista-mid.webp'); }
+.wipevista-shop { background-image: url('/vista-shop.webp'); }
+.wipevista-fore { background-image: url('/vista-fore.webp'); }
+/* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
+.wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
+.wipevista.on .wipevista-masked { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
+/* The door's interior and glow rise WITH the shop (same rise, same moment), then push with it. */
+.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
+.wipevista.on .wipevista-sky, .wipevista.on .wipevista-titlebox { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-far { animation: vistapushfar 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-mid { animation: vistapushmid 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-fore { animation: vistapushfore 2s cubic-bezier(.25, .6, .35, 1) both; }
+/* Net scales at the end of the push: sky 1.03, distance 1.05, midground 1.08, shop 1.12 (the group itself), flowers 1.16.
+   The three inside the group are written relative to its 1.12. */
+@keyframes vistapushsky { 0% { transform: scale(1); } 100% { transform: scale(0.9196); } }
+@keyframes vistapushfar { 0% { transform: scale(1); } 100% { transform: scale(0.9375); } }
+@keyframes vistapushmid { 0% { transform: scale(1); } 100% { transform: scale(0.9643); } }
+@keyframes vistapushshop { 0% { transform: scale(1); } 100% { transform: scale(1.12); } }
+@keyframes vistapushfore { 0% { transform: scale(1); } 100% { transform: scale(1.16); } }
+/* RETURNING / TO SHOP on two rows (owner 2026-10-23), in the clear sky above the spire (centred 50% across, 11.5% down;
+   the spire tip is 25% down), in the announcement's own lettering (white, 2px black outline), bigger for the open sky. */
+.wipevista-title { position: absolute; left: 50%; top: 11.5%; translate: -50% -50%; display: flex; flex-direction: column; align-items: center;
+  white-space: nowrap; font-size: calc(64 * var(--u, 1px)); line-height: 1.15; }
+/* …in the MAGIC GLOW lettering (owner 2026-10-23, mock-up C: "lets do C magic glow"): heavy Cinzel, white, lit from
+   within by the gem's turquoise, no black outline. Out-specifies `.wipevs-label`, whose 38u size had been winning. */
+/* SIZED BY THE SCREEN, KEPT ON IT (owner 2026-10-23, a windowed screenshot and Kevin's ultrawide: the title ran off the
+   top). The picture is cover-fit, so any window wider than 16:9 crops its top and bottom, and the title lives in that
+   sky. So it is sized off the VISIBLE height (identical to before on a 16:9 screen, smaller on a wider one, where there
+   is less sky), and it never sits higher than 140u below the screen's top edge (its two rows are 100u either side of
+   the centre; the rest covers its glow, the pop's overshoot and the sky's push). */
+.wipevista .wipevista-title { --u: calc(var(--lvh, 100dvh) * 0.00089333);
+  top: max(15.5%, calc((var(--vista-hi) - var(--lvh, 100dvh)) / 2 + 140 * var(--u))); font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
+  font-size: calc(98 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
+  text-shadow: 0 0 calc(6 * var(--u, 1px)) #9ff7ef, 0 0 calc(18 * var(--u, 1px)) #36cfd6, 0 0 calc(40 * var(--u, 1px)) rgba(54, 207, 214, 0.8),
+    0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(10, 40, 80, 0.5); }
+/* THE ENTRANCE (owner 2026-10-23: first "have it grow and pop out and spring back into place with a little settle ...
+   partway through the transition", then "i want [it] to grow from zero, not bounce midway through. where the current bounce
+   is, is where the text should first come in"): the title is not there while the land rises; early in the hold it grows
+   in from nothing, overshoots, springs back and settles. Scale + opacity only (compositor); the selector spans the dive
+   too so the class change never restarts it. */
+.wipevista .wipevista-title { transform: scale(0); opacity: 0; }
+.wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.7s linear 0.2s both; }
+@keyframes vistatitlepop { 0% { transform: scale(0); opacity: 0; animation-timing-function: cubic-bezier(.2, .8, .3, 1); } 15% { opacity: 1; } 45% { transform: scale(1.14); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 64% { transform: scale(0.95); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 82% { transform: scale(1.02); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 100% { transform: scale(1); opacity: 1; } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */

@@ -58,6 +58,12 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      {
+        category: 'Systems',
+        text: 'A new trip back to the Shop: after each fight the camera drops into a sunny valley, RETURNING TO SHOP pops up in the sky, and you fly through the glowing doorway of the Shop.',
+      },
+      { category: 'Systems', text: 'The Now Facing poster is easier to read, and it and the return trip fit every screen shape, including ultrawide and windowed.' },
+      { category: 'Systems', text: 'Fixed a split-second gap at the bottom of the screen as the gate lands.' },
       { category: 'Systems', text: 'Match History and Recent Games show bigger minions.' },
       { category: 'Systems', text: 'Compendium: the Runes tab can filter Basic or Epic runes.' },
       { category: 'Balance', text: 'Whisp and Gatherer leave Set 3.' },

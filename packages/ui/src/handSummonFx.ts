@@ -118,6 +118,12 @@ export function formScale(formFrom: number, overshoot: number): (u: number) => n
   return (u: number) => 1 + g(q1, Math.min(1, Math.max(0, u)));
 }
 
+/** Pure: which way a hand card lifts (screen y): +1 = up, out of your hand at the bottom; -1 = down, out of the foe's
+ *  face-down hand at the top, so both lift toward their own board. */
+export function liftSign(side: Side | undefined): 1 | -1 {
+  return side === 'enemy' ? -1 : 1;
+}
+
 /** Pure: how long (1x ms) one flight runs from launch to a settled minion. */
 export function handSummonDurationMs(c: HandSummonConfig = getHandSummonConfig()): number {
   return Math.max(c.pathMs, c.appearAt + c.settleMs);
@@ -396,7 +402,9 @@ function launchOne(f: HandSummonFlight, from: HandSummonOrigin, card: HTMLElemen
   const total = Math.max(path, appear + settle * solidAt);
   const fadeFrom = Math.min(0.95, (appear + settle * 0.08) / total);
   const fadeTo = Math.min(1, (appear + settle * solidAt) / total);
-  const samples = copyPath({ x: from.cx, y: from.cy }, tc, toScreen(h) * c.riseHeight, c, fadeFrom, fadeTo);
+  // The lift goes TOWARD the board: up out of your hand, DOWN out of the foe's (its hand sits above its row, R-OPP-HAND-01).
+  const lift = toScreen(h) * c.riseHeight * liftSign(f.side);
+  const samples = copyPath({ x: from.cx, y: from.cy }, tc, lift, c, fadeFrom, fadeTo);
   const kf: Keyframe[] = samples.map((p) => ({
     offset: p.t,
     opacity: +p.opacity.toFixed(4),
@@ -404,7 +412,7 @@ function launchOne(f: HandSummonFlight, from: HandSummonOrigin, card: HTMLElemen
     transform: `translate(${(toStage(p.x) - w / 2).toFixed(2)}px, ${(toStage(p.y) - h / 2).toFixed(2)}px) rotate(${(from.rotateDeg * (1 - smooth(0, 0.35, p.t))).toFixed(3)}deg) scale(${p.scale.toFixed(4)})`,
   }));
   track(ghost.animate(kf, { duration: total, delay, fill: 'both', easing: 'linear' }), () => { ghosts.delete(ghost); ghost.remove(); });
-  if (c.liftGlow > 0) later(delay, () => pixiFx.flashBloom(from.cx, from.cy - toScreen(h) * c.riseHeight * 0.6, { ...GLOW, flashAlpha: c.liftGlow, flashMs: 320 / spd, flashSize: toScreen(w) * 0.6 }));
+  if (c.liftGlow > 0) later(delay, () => pixiFx.flashBloom(from.cx, from.cy - lift * 0.6, { ...GLOW, flashAlpha: c.liftGlow, flashMs: 320 / spd, flashSize: toScreen(w) * 0.6 }));
 
   // The card LEAVES its hand slot: the real hand card is hidden under the copy and fades back in (greyed in combat)
   // as the copy clears it, so the two are never seen half-transparent on top of each other.

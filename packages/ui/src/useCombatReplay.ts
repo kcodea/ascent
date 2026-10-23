@@ -365,8 +365,10 @@ export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], b
 /** The foe's recorded starting hand minions (the served board's snapshot), for matching its hand-summons to a
  *  face-down card. Empty outside a lobby, for a bot / authored seat, or an older recording. */
 function foeHandMinions(): readonly HandCardLike[] {
-  const lobby = useGame.getState().run.lobby;
-  const foe = lobby ? playerOpponent(lobby) : null;
+  const run = useGame.getState().run;
+  // A Scene Builder rig's AUTHORED board for this wave wins over the paired seat's, as it does for the fight itself.
+  if (run.sandboxFoeWave === run.wave) return run.servedBoards?.[run.wave]?.handMinions ?? [];
+  const foe = run.lobby ? playerOpponent(run.lobby) : null;
   return foe?.board.snapshot?.handMinions ?? [];
 }
 

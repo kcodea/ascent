@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import type { CombatEvent } from '@game/core';
-import { playerOpponent } from '@game/sim';
+import { playerOpponent, type BoardSnapshot } from '@game/sim';
 import { useGame } from './store';
 import { opponentSkins, seatCosmetics } from './skins/skins';
 import { cardPlateLookOf } from './cardPlate/cardPlateLook';
@@ -37,9 +37,10 @@ import {
 
 const STANDARD_BACK = publicArt('frames/cardplate-standard.webp');
 /** The fan, in stage px at the reference scale (CSS multiplies by `--scale`). Ten cards span `MAX_SPAN`. */
-export const OPP_HAND_FAN = { cardW: 46, maxSpan: 200, maxStep: 26, tiltDeg: 9, arcPx: 6 } as const;
+export const OPP_HAND_FAN = { cardW: 62, maxSpan: 270, maxStep: 34, tiltDeg: 9, arcPx: 6 } as const;
 /** At most this many grant coalesces per commit (a Skip or a big batch just pops the rest in). */
 const COALESCE_PER_COMMIT = 2;
+const NO_SUMMONS: ReadonlySet<string> = new Set();
 
 /** The mounted face-down cards by key: the 'enemy' hand-summon source resolves through this, never a DOM attribute. */
 const cardEls = new Map<string, HTMLElement>();
@@ -110,7 +111,12 @@ export const OpponentHand = memo(function OpponentHand({ events, through, summon
   if (live0?.seat) cached.current = live0;
   const foe = (inCombat || preview) ? live0 : cached.current;
 
-  const snapshot = foe?.board.snapshot;
+  // The board the fight is really against: a Scene Builder rig pins an AUTHORED board for this wave over the paired
+  // seat's (`sandboxFoeWave`), else the paired seat's served board. Cached with the foe.
+  const authored = useGame((s) => (s.run.sandboxFoeWave === s.run.wave ? s.run.servedBoards?.[s.run.wave] ?? null : null));
+  const snapRef = useRef<BoardSnapshot | undefined>(undefined);
+  if (inCombat || preview) snapRef.current = authored ?? live0?.board.snapshot;
+  const snapshot = snapRef.current;
   const start = useMemo(() => forcedStartHand() ?? (snapshot ? oppStartHand(snapshot) : EMPTY_START_HAND), [snapshot]);
   // A full hand takes nothing more: the snapshot's own room when it recorded one, else the hand cap.
   const room = (snapshot as { handRoom?: number } | undefined)?.handRoom;
@@ -118,13 +124,13 @@ export const OpponentHand = memo(function OpponentHand({ events, through, summon
 
   const sigRef = useRef<{ sig: string; cards: OppHandCard[] }>({ sig: '', cards: [] });
   const cards = useMemo(() => {
-    const next = opponentHandCards(start, events, live ? through : 0, live ? summoned : new Set(), handMax);
+    const next = opponentHandCards(start, events, live ? through : 0, live ? summoned : NO_SUMMONS, handMax);
     const sig = oppHandSignature(next);
     if (sig !== sigRef.current.sig) sigRef.current = { sig, cards: next };
     return sigRef.current.cards;
   }, [start, events, through, summoned, live, handMax]);
 
-  const plate = cardPlateLookOf(opponentSkins(showOppSkins, seatCosmetics(foe?.seat, foe?.board)));
+  const plate = cardPlateLookOf(opponentSkins(showOppSkins, seatCosmetics(foe?.seat, snapshot ? { snapshot } : foe?.board)));
   const back = oppHandBackSrc(plate, STANDARD_BACK);
 
   // The 'enemy' hand-summon source lives exactly as long as the hand is on screen.

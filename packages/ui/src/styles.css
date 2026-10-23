@@ -12531,9 +12531,9 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
    takes the pointer (the in-game hover bubble, `.gtip`); the cards are inert. Default cursor: no cursor rule here. */
 .opphand {
   position: fixed; z-index: 41; pointer-events: auto;
-  --ohw: calc(46px * var(--oh-s, 1) * var(--scale)); --ohh: calc(var(--ohw) * 1.555);
-  width: calc(200px * var(--oh-s, 1) * var(--scale)); height: calc(var(--ohh) + 12px * var(--scale));
-  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 176px) * var(--scale) + var(--oh-x, 470px) * var(--scale));
+  --ohw: calc(62px * var(--oh-s, 1) * var(--scale)); --ohh: calc(var(--ohw) * 1.555);
+  width: calc(270px * var(--oh-s, 1) * var(--scale)); height: calc(var(--ohh) + 12px * var(--scale));
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 176px) * var(--scale) + var(--oh-x, 505px) * var(--scale));
   top: calc(var(--bar-y) + 20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale) + var(--oh-y, -60px) * var(--scale));
   transform: translateY(-50%);
   animation: combatoppdrop 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards;

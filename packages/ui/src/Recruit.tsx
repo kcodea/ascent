@@ -2436,14 +2436,14 @@ export function Recruit() {
   // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
   // crashed the shop screen (owner report 2026-10-23).
   // THE TITLE'S WOOSH (owner 2026-10-23: "add a subtle woosh sound to the return to shop text springing out", then
-  // "start the woosh sound for the title text .3 seconds earlier"): 0.1 s BEFORE the hold begins, so 0.3 s ahead of the
-  // title's entrance (0.2 s into the hold, `vistatitlepop`). Timed off the trip's start (the land settles at
+  // "start the woosh sound for the title text .3 seconds earlier", then "delay the woosh by .1 seconds and it should be
+  // perfect"): as the hold begins, 0.2 s ahead of the title's entrance (0.2 s into the hold, `vistatitlepop`). Timed off the trip's start (the land settles at
   // VISTA_ARRIVAL_MS) and held in a ref, so the step into the hold does not cancel it; only leaving the trip does.
   const titleWooshRef = useRef(0);
   useEffect(() => {
     if (wipe === 'coverOut') {
       window.clearTimeout(titleWooshRef.current);
-      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), Math.max(0, VISTA_ARRIVAL_MS - 100));
+      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), VISTA_ARRIVAL_MS);
     } else if (wipe === 'idle' || wipe === 'chargeIn' || wipe === 'combat') window.clearTimeout(titleWooshRef.current);
   }, [wipe]);
   useEffect(() => () => window.clearTimeout(titleWooshRef.current), []);

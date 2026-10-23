@@ -500,7 +500,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
   text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
 .wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
   font-size: calc(67 * var(--u, 1px)); /* 56 -> 67 and bold (owner 2026-10-23: "scale up the now facing text by 20% and make it bold") */ letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px));
-  top: calc(-18 * var(--u, 1px)); } /* raised on the page (owner 2026-10-23: "a bit", then "needs to go up more"; -40 -> -30 once it scaled with the poster: "needs to come down a little bit now", then -18: "needs to come down further") */
+  top: calc(-12 * var(--u, 1px)); } /* raised on the page (owner 2026-10-23: "a bit", then "needs to go up more"; -40 -> -30 once it scaled with the poster: "needs to come down a little bit now", then -18: "needs to come down further", then -12: "lower the now facing text a nudge") */
 /* …and the portrait a little too ("then move the portrait up slightly as well"); the name stays put. */
 .wipeposter .wipevs > .wipevs-face, .wipeposter .wipevs > .wipevs-facewrap { position: relative; top: calc(-14 * var(--u, 1px)); }
 .wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));
@@ -510,7 +510,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
   height: calc(3 * var(--u, 1px)); border-radius: 50%; opacity: 0.85;
   background: linear-gradient(to right, rgba(58, 34, 16, 0), #3a2210 18%, #3a2210 82%, rgba(58, 34, 16, 0)); }
 /* …NOW FACING's rule sits a touch higher, closer to its letters (owner 2026-10-23: "slightly raise the underline underneath the NOW FACING text"). */
-.wipeposter .wipevs-label::after { bottom: calc(6 * var(--u, 1px)); } /* 3 -> 6: "raise the underline beneath it slightly as well" */
+.wipeposter .wipevs-label::after { bottom: calc(10 * var(--u, 1px)); } /* 3 -> 6: "raise the underline beneath it slightly as well", then 10: "further raise the underline" */
 /* …and the small diamond at the middle of the name's rule. */
 .wipeposter .wipevs-name::before { content: ''; position: absolute; left: 50%; bottom: calc(-3.5 * var(--u, 1px));
   width: calc(9 * var(--u, 1px)); height: calc(9 * var(--u, 1px)); background: #3a2210; opacity: 0.9;

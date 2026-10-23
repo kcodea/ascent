@@ -42,25 +42,25 @@ export interface CritFxConfig {
   colorTextEdge: string;
 }
 
-// Owner-tuned on the preview rig (2026-07-15) — "this is perfect".
+// Owner-tuned on the preview rig (2026-07-15), retuned 2026-10-23.
 const DEFAULTS: CritFxConfig = {
   critPower: 2.1,
-  flashSize: 10.7,
-  shockwaveSize: 7.9,
+  flashSize: 12,
+  shockwaveSize: 9.9,
   ringSize: 310,
   ringWidth: 14,
   ringMs: 380,
-  sparkCount: 51,
-  sparkSpeed: 1260,
-  sparkLife: 640,
-  sparkSize: 17,
-  sparkSpread: 220,
+  sparkCount: 80,
+  sparkSpeed: 1040,
+  sparkLife: 850,
+  sparkSize: 8,
+  sparkSpread: 265,
   textSize: 45,
   textRise: 92,
   textMs: 1520, // owner: show the "CRIT!" pop for 100% longer (was 760)
   textPop: 2.45,
-  cardFlashAlpha: 0.56,
-  cardFlashMs: 470,
+  cardFlashAlpha: 0,
+  cardFlashMs: 100,
   shakePx: 13,
   shakeMs: 280,
   colorCore: '#fff0c0',

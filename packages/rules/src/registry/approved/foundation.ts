@@ -7921,4 +7921,37 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A 483 x 898 browser window in combat: the foe portrait sits beside the board\'s top-right corner, mirroring the player\'s at its bottom-left.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatOpponentStageAnchor.test.tsx'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-OPP-HAND-01',
+    title: 'The opponent\'s hand shows face down beside their runes: their card plate, the count only, live through the fight',
+    statement:
+      'In every fight (the player\'s own, a spectator, Versus, a replay) the opponent\'s hand is drawn face down to the left '
+      + 'of their runes: one card per card held, each the opponent\'s equipped card plate (the standard plate when they have '
+      + 'none, for bots, or with opponent cosmetics off) with no art, name, text or stats, and no card identity anywhere in '
+      + 'the page. It starts from the hand their recorded board carried in (minions, then spells; none for an older '
+      + 'recording). A card the opponent gains mid-fight joins it the moment it arrives. A minion they summon from hand '
+      + 'lifts out of that face-down card with the shared lift-and-land (R-HANDSUMMON-FX-01); a copy summon greys the card '
+      + 'for the fight, as the player\'s does, and a consuming summon removes it. Presentation only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-10-23',
+        quote: 'it should show their card plate they have equipped, but without the minions text or art, so it is \'hidden.\'',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-10-23',
+        quote: 'i\'d like it to show when opponents get cards added to hand in real time as well',
+      },
+      { kind: 'code', ref: 'packages/ui/src/OpponentHand.tsx + oppHandModel.ts; handSummonFx.ts (the enemy source, liftSign); useCombatReplay.ts (enemy flights + enemyHandSummonedShown)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the opponent\'s hand was not drawn at all: its mid-fight grants were only logged, '
+      + 'and its hand-summons popped in like any summon.',
+    example: 'A foe holding 3 minions and 2 spells shows 5 face-down Galaxy plates; its Herald of Doom attacks and a sixth '
+      + 'materialises; its Seedling Spirit\'s Rally lifts a copy out of the second card, which greys.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentHand.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

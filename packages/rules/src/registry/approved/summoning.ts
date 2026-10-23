@@ -253,8 +253,8 @@ export const SUMMONING_RULES: GameRule[] = [
     contentIds: ['sp3_seedling', 'sp3_dreamtide', 'rune_waking_reserve'],
     currentBehaviour:
       'Conforms as of 2026-10-23. Before, a hand-summoned minion popped in like any other summon; only the greyed hand '
-      + 'card hinted where it came from. Opponent hand-summons have no hand on screen yet: the flight takes a per-side '
-      + 'source, so an opponent hand area can register one later.',
+      + 'card hinted where it came from. Opponent hand-summons lift out of the face-down opponent hand (R-OPP-HAND-01), '
+      + 'which registers the enemy source; they lift DOWN, toward the opponent board.',
     enforcement: {
       kind: 'scenario',
       refs: ['packages/ui/src/handSummonFx.test.ts'],

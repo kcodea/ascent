@@ -118,6 +118,12 @@ export function formScale(formFrom: number, overshoot: number): (u: number) => n
   return (u: number) => 1 + g(q1, Math.min(1, Math.max(0, u)));
 }
 
+/** Pure: which way a hand card lifts (screen y): +1 = up, out of your hand at the bottom; -1 = down, out of the foe's
+ *  face-down hand at the top, so both lift toward their own board. */
+export function liftSign(side: Side | undefined): 1 | -1 {
+  return side === 'enemy' ? -1 : 1;
+}
+
 /** Pure: how long (1x ms) one flight runs from launch to a settled minion. */
 export function handSummonDurationMs(c: HandSummonConfig = getHandSummonConfig()): number {
   return Math.max(c.pathMs, c.appearAt + c.settleMs);
@@ -127,7 +133,7 @@ export function handSummonDurationMs(c: HandSummonConfig = getHandSummonConfig()
  * WHERE A FLIGHT STARTS. A source resolves a hand uid to the element the ghost is cloned from, its screen centre, its
  * LAYOUT size (stage px, unaffected by transforms) and its resting tilt. Null = not on screen: no flight, the stock
  * summon plays. Registered per side: the player's hand is the default; the enemy has none yet (an opponent hand area
- * can register one with `setHandSummonSource('enemy', …)`).
+ * registers one with `setHandSummonSource('enemy', …)` while it is mounted: `OpponentHand.tsx`).
  */
 export interface HandSummonOrigin {
   el: HTMLElement; cx: number; cy: number; w: number; h: number; rotateDeg: number;
@@ -136,9 +142,41 @@ export interface HandSummonOrigin {
 }
 export type HandSummonSource = (handUid: string) => HandSummonOrigin | null;
 
-/** The player's hand: the mounted hand card with that uid. */
-export const playerHandSource: HandSummonSource = (uid) => {
+/**
+ * The player's combat-grant uids, in hand-preview order (R-HAND-GRANT-SUMMON-01: a minion granted mid-fight is in the
+ * combat hand under the uid its `toHand` carries, and a Spirit may summon a copy of it that same fight). The preview
+ * card of a grant has no `data-uid` (it is not a run card yet), so the source finds it by position: preview i is the
+ * i-th entry here. Recruit publishes the list for the fight on screen; empty outside combat.
+ */
+let playerGrantUids: readonly (string | undefined)[] = [];
+export function setPlayerGrantUids(uids: readonly (string | undefined)[]): void {
+  playerGrantUids = uids;
+}
+
+/** Pure: the player's grant uids for a fight, in the order the hand previews them (every player `toHand` whose card
+ *  the client knows, as `handPreviews` filters them). A grant that carries no uid keeps its slot as undefined. */
+export function playerGrantUidsOf(events: readonly CombatEvent[], known: (cardId: string) => boolean): (string | undefined)[] {
+  const out: (string | undefined)[] = [];
+  for (const e of events) {
+    if (e.type !== 'toHand' || e.side !== 'player' || !known(e.cardId)) continue;
+    const uid = (e as { uid?: unknown }).uid;
+    out.push(typeof uid === 'string' && uid ? uid : undefined);
+  }
+  return out;
+}
+
+/** The hand card for a uid: a run card by its `data-uid`, else a combat grant's preview card by its position. */
+export function playerHandCardElement(uid: string): HTMLElement | null {
   const el = handCardElement(uid);
+  if (el || typeof document === 'undefined') return el;
+  const i = playerGrantUids.indexOf(uid);
+  if (i < 0) return null;
+  return document.querySelectorAll<HTMLElement>('[data-zone="hand"] .card:not([data-uid])')[i] ?? null;
+}
+
+/** The player's hand: the mounted hand card with that uid (a run card, or a combat grant's preview). */
+export const playerHandSource: HandSummonSource = (uid) => {
+  const el = playerHandCardElement(uid);
   if (!el) return null;
   const r = el.getBoundingClientRect(); // the tilted card's bounding box: its centre IS the card's centre
   if (r.width <= 0) return null;
@@ -164,7 +202,8 @@ export function setHandSummonSource(side: Side, src: HandSummonSource | null): H
 const WAKING_LOOKBACK = 6;
 
 /**
- * Pure: player-side combat summons that came OUT OF THE HAND, board uid → the hand card uid it came from.
+ * Pure: one side's combat summons that came OUT OF THE HAND, board uid → the hand card uid it came from (`side`
+ * defaults to the player; the enemy's are matched against the foe's recorded starting hand, R-OPP-HAND-01).
  *
  *  - A Spirit's hand-summon stamps `fromHandUid` on its `summon` (the same field that greys the hand card).
  *  - Rune of the Waking Reserve copies the highest-stat hand minion but deliberately leaves the card UNMARKED (no
@@ -172,19 +211,19 @@ const WAKING_LOOKBACK = 6;
  *    hand card with the summoned body's id (gilding matched first, then the highest Attack + Health, the rune's own
  *    pick rule). No hand card of that id on screen → no ghost, the stock summon plays.
  *
- * The enemy's hand is never drawn, so only the player side has an origin.
+ * The enemy's hand is drawn face down (`OpponentHand`), which registers the `'enemy'` source.
  */
-export function combatHandSummonOrigins(events: readonly CombatEvent[], hand: readonly HandCardLike[]): Map<string, string> {
+export function combatHandSummonOrigins(events: readonly CombatEvent[], hand: readonly HandCardLike[], side: Side = 'player'): Map<string, string> {
   const out = new Map<string, string>();
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
-    if (e?.type !== 'summon' || e.side !== 'player') continue;
+    if (e?.type !== 'summon' || e.side !== side) continue;
     if (e.fromHandUid) { out.set(e.minion.uid, e.fromHandUid); continue; }
     let waking = false;
     for (let j = i - 1; j >= 0 && j >= i - WAKING_LOOKBACK; j--) {
       const p = events[j];
       if (!p || p.type === 'summon') break;
-      if (p.type === 'questTrigger' && p.flag === 'runeWakingReserve' && p.side === 'player') { waking = true; break; }
+      if (p.type === 'questTrigger' && p.flag === 'runeWakingReserve' && p.side === side) { waking = true; break; }
     }
     if (!waking) continue;
     const same = hand.filter((h) => h.cardId === e.minion.cardId);
@@ -395,7 +434,9 @@ function launchOne(f: HandSummonFlight, from: HandSummonOrigin, card: HTMLElemen
   const total = Math.max(path, appear + settle * solidAt);
   const fadeFrom = Math.min(0.95, (appear + settle * 0.08) / total);
   const fadeTo = Math.min(1, (appear + settle * solidAt) / total);
-  const samples = copyPath({ x: from.cx, y: from.cy }, tc, toScreen(h) * c.riseHeight, c, fadeFrom, fadeTo);
+  // The lift goes TOWARD the board: up out of your hand, DOWN out of the foe's (its hand sits above its row, R-OPP-HAND-01).
+  const lift = toScreen(h) * c.riseHeight * liftSign(f.side);
+  const samples = copyPath({ x: from.cx, y: from.cy }, tc, lift, c, fadeFrom, fadeTo);
   const kf: Keyframe[] = samples.map((p) => ({
     offset: p.t,
     opacity: +p.opacity.toFixed(4),
@@ -403,7 +444,7 @@ function launchOne(f: HandSummonFlight, from: HandSummonOrigin, card: HTMLElemen
     transform: `translate(${(toStage(p.x) - w / 2).toFixed(2)}px, ${(toStage(p.y) - h / 2).toFixed(2)}px) rotate(${(from.rotateDeg * (1 - smooth(0, 0.35, p.t))).toFixed(3)}deg) scale(${p.scale.toFixed(4)})`,
   }));
   track(ghost.animate(kf, { duration: total, delay, fill: 'both', easing: 'linear' }), () => { ghosts.delete(ghost); ghost.remove(); });
-  if (c.liftGlow > 0) later(delay, () => pixiFx.flashBloom(from.cx, from.cy - toScreen(h) * c.riseHeight * 0.6, { ...GLOW, flashAlpha: c.liftGlow, flashMs: 320 / spd, flashSize: toScreen(w) * 0.6 }));
+  if (c.liftGlow > 0) later(delay, () => pixiFx.flashBloom(from.cx, from.cy - lift * 0.6, { ...GLOW, flashAlpha: c.liftGlow, flashMs: 320 / spd, flashSize: toScreen(w) * 0.6 }));
 
   // The card LEAVES its hand slot: the real hand card is hidden under the copy and fades back in (greyed in combat)
   // as the copy clears it, so the two are never seen half-transparent on top of each other.

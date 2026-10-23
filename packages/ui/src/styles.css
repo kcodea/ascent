@@ -12523,6 +12523,40 @@ body.duel-attacker-opp .combatopp-hp { opacity: 0; }
   from { transform: none; }
   to   { transform: translateY(34px) scale(0.9); }
 }
+/* THE OPPONENT'S HAND, face down (owner ask 2026-10-23, R-OPP-HAND-01; OpponentHand.tsx). To the LEFT of the foe's
+   runes, pinned off the SAME stage anchor as `.combatopp` (the foe hero power's top-right corner, `top` from
+   `var(--bar-y)` like R-STAGE-OPP-HUD-01), then nudged by `--oh-x` / `--oh-y` (reference px x --scale; + = right/down).
+   The box is the fan's span; each card is positioned from the box centre with the independent `translate` / `rotate`
+   properties, so a re-fan on a grant eases on the compositor and the trigger animations never fight it. Only the box
+   takes the pointer (the in-game hover bubble, `.gtip`); the cards are inert. Default cursor: no cursor rule here. */
+.opphand {
+  position: fixed; z-index: 41; pointer-events: auto;
+  --ohw: calc(62px * var(--oh-s, 1) * var(--scale)); --ohh: calc(var(--ohw) * 1.555);
+  width: calc(270px * var(--oh-s, 1) * var(--scale)); height: calc(var(--ohh) + 12px * var(--scale));
+  right: calc(50% - var(--gw) / 2 + 20 * var(--u) - var(--hd-power-x, -386px) * var(--scale) - var(--hd-opp-x, 176px) * var(--scale) + var(--oh-x, 505px) * var(--scale));
+  top: calc(var(--bar-y) + 20 * var(--u) + var(--hd-power-y, 191px) * var(--scale) + var(--hd-opp-y, 41px) * var(--scale) + var(--oh-y, -60px) * var(--scale));
+  transform: translateY(-50%);
+  animation: combatoppdrop 460ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+/* A card on its own (the hand-summon's lifting copy clones it out of the fan): fills its box. */
+.opphand-card { position: relative; width: 100%; height: 100%; pointer-events: none; }
+.opphand-card > img { display: block; width: 100%; height: 100%; object-fit: fill;
+  filter: drop-shadow(0 calc(2px * var(--scale)) calc(3px * var(--scale)) rgba(0, 0, 0, 0.55)); }
+.opphand > .opphand-card {
+  position: absolute; left: 50%; top: 0; width: var(--ohw); height: var(--ohh); margin-left: calc(var(--ohw) / -2);
+  translate: calc(var(--ohx, 0) * 1px * var(--oh-s, 1) * var(--scale)) calc(var(--ohy, 0) * 1px * var(--scale));
+  rotate: var(--fan-rot, 0deg); transform-origin: 50% 120%;
+  transition: translate 240ms cubic-bezier(0.2, 0.8, 0.3, 1), rotate 240ms cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+/* Greyed for the fight once a copy was summoned from it: the player's `.card.spent` look. Static, not animated. */
+.opphand-card.spent > img { filter: grayscale(0.72) brightness(0.82) drop-shadow(0 calc(2px * var(--scale)) calc(3px * var(--scale)) rgba(0, 0, 0, 0.55)); }
+/* A grant past the per-commit coalesce cap pops in (one-shot, scale + opacity only). */
+.opphand > .opphand-card.ohpop { animation: ohpop 260ms cubic-bezier(0.2, 1.4, 0.4, 1) backwards; }
+@keyframes ohpop { from { opacity: 0; scale: 0.6; } to { opacity: 1; scale: 1; } }
+/* Phones (the phone GPU flag): the per-card shadow goes (FX budget); the fan is already scaled with the stage. */
+html[data-phone-gpu] .opphand-card > img { filter: none; }
+html[data-phone-gpu] .opphand-card.spent > img { filter: grayscale(0.72) brightness(0.82); }
+
 .combatopp-portrait {
   width: calc(116 * var(--u)); height: calc(116 * var(--u)); border-radius: 50%; overflow: hidden;
   border: calc(3 * var(--u)) solid var(--gold);

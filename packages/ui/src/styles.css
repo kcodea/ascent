@@ -439,20 +439,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
   43% { transform: translateY(-0.35%); animation-timing-function: cubic-bezier(.7, 0, 1, .5); }
   50% { transform: translateY(0); }
   100% { transform: translateY(0); } }
-.wipecurtain.gone { transform: translateY(-100%); animation: wipecrank var(--wipe-reveal-dur, 450ms) both; }
+.wipecurtain.gone { transform: translateY(-100%); animation: wipecrank var(--wipe-reveal-dur, 450ms) linear both; }
 .wipecurtain.gone.parked { animation: none; }
-/* Four pulls on the winch, each catching with a small drop. It hangs from its top edge (`transform-origin`), so a
-   positive turn lifts its LEFT side: the left lifts first, the right catches up and overshoots, and it keeps swaying,
-   less each pull, leaving the screen still a touch askew. */
-@keyframes wipecrank {
-  0% { transform: translateY(0) rotate(0deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
-  14% { transform: translateY(-15%) rotate(2.6deg); animation-timing-function: ease-in; }
-  19% { transform: translateY(-13.5%) rotate(1.7deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
-  35% { transform: translateY(-34%) rotate(-1.6deg); animation-timing-function: ease-in; }
-  40% { transform: translateY(-32.5%) rotate(-0.9deg); animation-timing-function: cubic-bezier(.3, .7, .4, 1); }
-  58% { transform: translateY(-56%) rotate(1.3deg); animation-timing-function: ease-in; }
-  63% { transform: translateY(-54.5%) rotate(0.6deg); animation-timing-function: cubic-bezier(.4, 0, .9, .6); }
-  100% { transform: translateY(-100%) rotate(-0.8deg); } }
+/* THE CRANK, SMOOTH (owner 2026-10-23: "can we make the crank up movement smoother"; it was four jerky winch pulls): one
+   continuous lift, slow to start and accelerating out of sight, with a gentle sway as it rises. It hangs from its top edge
+   (`transform-origin`), so a positive turn lifts its LEFT side. Generated every 5% from smooth curves and played LINEAR
+   between them, so the curve itself is the motion and no per-step easing reintroduces a stutter. */
+@keyframes wipecrank { 0% { transform: translateY(0%) rotate(0deg); } 5% { transform: translateY(-0.169%) rotate(0.062deg); } 10% { transform: translateY(-0.695%) rotate(0.227deg); } 15% { transform: translateY(-1.608%) rotate(0.443deg); } 20% { transform: translateY(-2.938%) rotate(0.646deg); } 25% { transform: translateY(-4.72%) rotate(0.773deg); } 30% { transform: translateY(-6.989%) rotate(0.778deg); } 35% { transform: translateY(-9.779%) rotate(0.644deg); } 40% { transform: translateY(-13.125%) rotate(0.382deg); } 45% { transform: translateY(-17.06%) rotate(0.034deg); } 50% { transform: translateY(-21.612%) rotate(-0.342deg); } 55% { transform: translateY(-26.805%) rotate(-0.68deg); } 60% { transform: translateY(-32.651%) rotate(-0.923deg); } 65% { transform: translateY(-39.153%) rotate(-1.036deg); } 70% { transform: translateY(-46.296%) rotate(-1.019deg); } 75% { transform: translateY(-54.053%) rotate(-0.885deg); } 80% { transform: translateY(-62.379%) rotate(-0.657deg); } 85% { transform: translateY(-71.213%) rotate(-0.368deg); } 90% { transform: translateY(-80.483%) rotate(-0.056deg); } 95% { transform: translateY(-90.106%) rotate(0.24deg); } 100% { transform: translateY(-100%) rotate(0.485deg); } }
 /* HOLD states wear `.settle` (owner bug report 2026-08-28: brief combat-board flashes during the covered
    beat). The state machine's backstop timer can outrun the real sweep on a hitchy combat-entry frame —
    advancing to the covered state (which swaps the board) while the clip transition is still mid-flight.
@@ -518,19 +511,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
   72% { transform: rotate(0.45deg); animation-timing-function: ease-in-out; }
   86% { transform: rotate(1deg); animation-timing-function: ease-in-out; }
   100% { transform: rotate(0.8deg); } }
-/* THE CRANK: as the gate is winched up and sways (`wipecrank`), the paper lags behind each tilt and swings the other
-   way, so the poster wobbles on its own all the way out. */
-.wipecurtain.gone .wipeposter { animation: postercrank var(--wipe-reveal-dur, 450ms) both; }
+/* THE CRANK: as the gate rises and sways (`wipecrank`), the paper lags behind its tilt and swings the other way, smoothly
+   (generated with the gate's, played linear), so the poster sways on its own all the way out. */
+.wipecurtain.gone .wipeposter { animation: postercrank var(--wipe-reveal-dur, 450ms) linear both; }
 .wipecurtain.gone.parked .wipeposter { animation: none; }
-@keyframes postercrank {
-  0% { transform: rotate(0.8deg); animation-timing-function: ease-in-out; }
-  12% { transform: rotate(-1.5deg); animation-timing-function: ease-in-out; }
-  24% { transform: rotate(2.2deg); animation-timing-function: ease-in-out; }
-  38% { transform: rotate(3deg); animation-timing-function: ease-in-out; }
-  50% { transform: rotate(-1.2deg); animation-timing-function: ease-in-out; }
-  62% { transform: rotate(-2.4deg); animation-timing-function: ease-in-out; }
-  78% { transform: rotate(1.6deg); animation-timing-function: ease-in-out; }
-  100% { transform: rotate(0.4deg); } }
+@keyframes postercrank { 0% { transform: rotate(0.8deg); } 5% { transform: rotate(0.655deg); } 10% { transform: rotate(0.664deg); } 15% { transform: rotate(0.831deg); } 20% { transform: rotate(1.12deg); } 25% { transform: rotate(1.462deg); } 30% { transform: rotate(1.774deg); } 35% { transform: rotate(1.975deg); } 40% { transform: rotate(2.003deg); } 45% { transform: rotate(1.83deg); } 50% { transform: rotate(1.467deg); } 55% { transform: rotate(0.962deg); } 60% { transform: rotate(0.39deg); } 65% { transform: rotate(-0.162deg); } 70% { transform: rotate(-0.612deg); } 75% { transform: rotate(-0.901deg); } 80% { transform: rotate(-1.011deg); } 85% { transform: rotate(-0.942deg); } 90% { transform: rotate(-0.716deg); } 95% { transform: rotate(-0.369deg); } 100% { transform: rotate(0.046deg); } }
 /* THE GATE IS FOR THE ENTRY PASS ONLY (owner 2026-10-23: "i want to separate the returnn to shop experience from the door
    and gate"). On the exit pass the machine still walks the same states, but the gate stays parked out of sight, with no
    motion or events of its own; the return trip is the vista below. */

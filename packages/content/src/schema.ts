@@ -116,6 +116,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastEveryNBuffTribe',
   'rallyGrantFirstSpellCopy',
   'equipmentExtraNextSpellCasts',
+  'equipmentRoyalEdict', // Vellum's Royal Edict (Set 3 T7, 2026-10-23): spell power + next-N-hand-spells extra-cast charges
   'battlecryCreateStarformOrBuff',
   'onBuyBuffStarform', 'goldSpentCreateStarformOrBuff',
   'buffThisShop',
@@ -263,6 +264,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleSummonGolemsWithRuby',
   'rallyCastShopBuffSpell',
   'spellWeakenNextCombat',
+  'spellSkeletonsNextCombat', // Overflowing Crypt (Set 3, 2026-10-23)
   'rallyBuffSelfPerTribe',
   'avengeCopyLeftmostHandSpell',
   'avengeBuffSpellPower',
@@ -561,6 +563,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',
+  'overflowGrowUndeadAura', // Ending (Set 3 T7, 2026-10-23): overflow → your Undead Aura +a/+h (both phases)
   'overflowBuffRandomTribePerPlayed', // Bicycle Bob (2026-09-18): overflow → a random other <tribe> +(a·(1+played))/+(h·(1+played)), permanent
   // Set 3 batch 2, tranche B (2026-09-16) — rune grafts
   'onRiseSelfSummonToken', 'deathrattleEquipmentFreeNextTurn',
@@ -808,7 +811,11 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 Dragon runes, Epic A (owner 2026-10-21)
   'runeWarCouncil', 'runeGrowingInferno', 'runeRuneboundBrood', 'runeUnbrokenScales', 'runeRunicTransposition',
   // Set 3 Dragon runes, Epic B (owner 2026-10-21): the Whisper Epics (Shop-only hooks)
-  'runeLastingWords', 'runeTwinTongues', 'runeOpenedVault', 'runeBequeathedSecrets']);
+  'runeLastingWords', 'runeTwinTongues', 'runeOpenedVault', 'runeBequeathedSecrets',
+  // Set 3 Kobold runes (owner 2026-10-22)
+  'runeGoleming', 'runeRedStart', 'runeRoseysGarden',
+  // Set 3 Dwarf rune, Epic (owner 2026-10-23)
+  'runeReturnCustomers']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -948,10 +955,11 @@ z.object({ kind: z.literal('runeTranscription'), count: z.number().int().positiv
 z.object({ kind: z.literal('runeTreasureMap'), turns: z.number().int().positive(), gold: z.number().int().positive() }).strict(),
 z.object({ kind: z.literal('runeGoldenSplinter'), at: z.number().int().positive(), tier: z.number().int().min(1).max(7) }).strict(),
 z.object({ kind: z.literal('endlessVerse'), per: z.number().int().positive() }).strict(),
-z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'anySpell', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit', 'playBeast', 'whisperFromHand', 'shopSpellFromHand']), per: z.number().int().positive(),
+z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast', 'anySpell', 'spellCastNonAle', 'castRuby', 'cardsBought', 'cardsPlayed', 'playDragon', 'shout', 'consume', 'playSpirit', 'playBeast', 'whisperFromHand', 'shopSpellFromHand', 'refresh', 'sell']), per: z.number().int().positive(),
   discoverSpell: z.number().int().positive().optional(), // Set 3 Dragon runes (2026-10-21): Rune of the Secret Exchange
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
   grantRandomWhisper: z.number().int().positive().optional(), // Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21)
+  armAleRepeat: z.boolean().optional(), // Last Call (Set 3 Dwarf rune, 2026-10-23): arm the next Ale cast from hand to cast twice
   grantCards: z.array(z.string().min(1)).min(1).optional(),
   castStatSpell: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),

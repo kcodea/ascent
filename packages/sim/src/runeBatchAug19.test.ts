@@ -25,7 +25,7 @@ describe('rune batch 2026-08-19 — the four reworks', () => {
     // `runeforgePool` reads ARRAY membership, so moving a rune between tiers means moving the DEF — dropping
     // or adding `epic: true` alone would leave it in the wrong forge while presenting as the other. It went
     // basic on 2026-08-19 and back to Epic the same day; this pins where it actually is.
-    expect(rune('rune_blart').cost).toBe(4);
+    expect(rune('rune_blart').cost).toBe(3); // owner 2026-10-23: was 4
     expect(EPIC_RUNES.some((r) => r.id === 'rune_blart'), 'must be in the EPIC pool').toBe(true);
     expect(RUNES.some((r) => r.id === 'rune_blart'), 'must have left the basic pool').toBe(false);
   });
@@ -547,7 +547,7 @@ describe('Rune of the Embers', () => {
 
   it('it is a live Epic', () => {
     expect(EPIC_RUNES.some((r) => r.id === 'rune_embers')).toBe(true);
-    expect(RUNE_INDEX['rune_embers']!.cost).toBe(4);
+    expect(RUNE_INDEX['rune_embers']!.cost).toBe(3); // owner 2026-10-23: was 4
   });
 });
 

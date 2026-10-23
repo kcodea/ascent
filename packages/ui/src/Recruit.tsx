@@ -1,4 +1,4 @@
-import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent } from 'react';
+import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -86,6 +86,7 @@ import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
 import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult, shopClockInfinite } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
+import { OpponentHand } from './OpponentHand';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
 import { heroBlastPreviewSpeed } from './heroBlast/heroBlastConfig';
@@ -184,6 +185,7 @@ import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
+import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, playerGrantUidsOf, setPlayerGrantUids, shopHandSummonFlights } from './handSummonFx';
 import { fireBuffFx } from './buffFxRender';
 import { planShoutChain } from './choreo/shoutChain';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
@@ -241,8 +243,10 @@ import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
+import { gateFx } from './rankedGate/gateFx';
+import { PHONE_GPU } from './phoneDiag';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
-import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
+import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
@@ -266,6 +270,20 @@ const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ 
  *  multi-cast Golden Ruby pays several times in one action. */
 const GOLDEN_RUBY_COIN_DELAY_MS = 180;
 const GOLDEN_RUBY_COIN_GAP_MS = 220;
+/** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
+ *  "lets actually not use the floating islands layer", so five). */
+const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
+/** The return trip's arrival, ms: the land finishes rising 0.15 + 0.7 s in (styles.css, "THE ARRIVAL"); its sweep backstop. */
+const VISTA_ARRIVAL_MS = 850;
+/** The vista's turquoise GEM (on the medallion over the shop door) on SCREEN at the end of the push (screen px, for the
+ *  portal burst): measured off the 2560x1440 art (centre 1167, 871; about 14 px across), through the art's cover-fit and
+ *  the 1.12 push about (47.7%, 83%), as styles.css lays them out. */
+function vistaGemOnScreen(): { x: number; y: number; r: number } {
+  const A = 2560 / 1440, W = window.innerWidth, H = window.innerHeight;
+  const wi = Math.max(W, H * A), hi = Math.max(H, W / A), left = (W - wi) / 2, top = (H - hi) / 2;
+  const push = (u: number, o: number): number => o + (u - o) * 1.12;
+  return { x: left + push(1167 / 2560, 0.477) * wi, y: top + push(871 / 1440, 0.83) * hi, r: (14 / 2560) * 1.12 * wi };
+}
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
  *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
@@ -888,7 +906,7 @@ interface ShopViewOpts {
   rubyBonus?: { attack: number; health: number };
   clueBonus?: number;
   starCrashBonus?: { attack: number; health: number };
-  revelerX?: number;
+  revelerX?: number; revelerExtra?: { attack: number; health: number };
   /** Festival Treasurer's banked Spirit discount (shop only) — its live text names it. */
   spiritDiscount?: number;
   spiritsPlayed?: number;
@@ -924,7 +942,7 @@ interface ShopViewOpts {
  * audit (`liveTextSurfaces.test.ts`) builds the hand exactly as the screen does.
  */
 export function handLiveOf(run: RunState, cardBuffsLive: Record<string, { attack: number; health: number }>, sellState: SellTextState) {
-  return { grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, cardTribes: run.cardTribes /* Rune of Drakko: a re-typed card counts for its run tribes in hand too */, growthBonus: run.growthBonus /* Rune of Living Growth: the hand's Growth starved it (R-TEXT-SURFACES-01) */, impAura: run.impBuff, rubyCasts: run.rubyCasts, tribeUnionPlays: run.tribeUnionPlays ?? {} /* Vaultkeeper: the run-wide improve tally ({} = none yet, never the copy's own) */, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: spellEscalationLive(run).health, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: runeTextFlagsOf(run), chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ };
+  return { grimToast: grimToastFold(run), unityAura: unityAuraFold(run), undeadBuyAtk: run.undeadBuyAtk, soulsmanGold: run.soulsmanGold ?? 0, nextSpellBonus: run.nextSpellBonus, cardBuffs: cardBuffsLive, cardTribes: run.cardTribes /* Rune of Drakko: a re-typed card counts for its run tribes in hand too */, growthBonus: run.growthBonus /* Rune of Living Growth: the hand's Growth starved it (R-TEXT-SURFACES-01) */, impAura: run.impBuff, rubyCasts: run.rubyCasts, tribeUnionPlays: run.tribeUnionPlays ?? {} /* Vaultkeeper: the run-wide improve tally ({} = none yet, never the copy's own) */, goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue, playedThisTurn: run.playedThisTurn, squirlScoutBuff: squirlScoutBuffLive(run), conductorBuff: run.conductorBuff, alesThisTurn: run.alesCastThisTurn, unusedEquipment: unusedEquipmentCount(run), lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined, firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined, lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined, topTribe: dominantBoardTribe(run), frontToBackBonusH: spellEscalationLive(run).health, improveReps: run.runeMastery ? 1 + runeStacksOf(run, 'rune_mastery') : 1, rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run) /* Stellar Chorus's live total in HAND — the shop chain threaded it, this one starved it (owner report 2026-09-12) */, tier7Access: hasTier7Access(run), grimoireCharged: (run.grimoireMult ?? 0) > 1, runeMammoth: !!run.questFlags?.runeMammoth, runeFlags: runeTextFlagsOf(run), chooseBothState: chooseBothStateOf(run), sellState, whisperImprove: run.whisperImprove /* Set 4: Runebind's run-wide improvement (Whisper + Tolan text) */ };
 }
 
 /** One HAND card's view, exactly as the hand row builds it (spells carry their cast count, minions the in-hand flag). */
@@ -956,7 +974,7 @@ export function liveOptsFromRun(run: RunState): ShopViewOpts { // exported for t
     lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
     firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,
     lastSpellThisTurnName: run.lastSpellThisTurnId ? CARD_INDEX[run.lastSpellThisTurnId]?.name : undefined,
-    topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
+    topTribe: dominantBoardTribe(run), rubyBonus: rubyStatBonus(run), clueBonus: run.clueBonus, starCrashBonus: run.starCrashBonus, revelerX: run.revelerX, revelerExtra: run.revelerExtra, spiritDiscount: run.spiritDiscount, spiritsPlayed: spiritsPlayedThisTurn(run), anySpellsThisTurn: anySpellsCastThisTurn(run), tier7Access: hasTier7Access(run),
     tier: run.tier,
     chooseBothState: chooseBothStateOf(run),
     whisperImprove: run.whisperImprove, // Set 4: Tolan's live Runebind value on a Discover / fly-in
@@ -1037,7 +1055,7 @@ function offerLiveTextParams(golden: boolean, o: ShopViewOpts, cardId?: string):
     // Set 3: the shared Reveler value, Spirits played this turn, the Clue value — `ShopViewOpts` carried them but
     // this builder dropped them, so a Reveler read its printed "+1" in the shop, on Discover and on a conjured
     // fly-in (owner report 2026-09-10: "Revelers' text needs to show their buff anywhere you find them").
-    revelerX: o.revelerX, spiritDiscount: o.spiritDiscount, spiritsPlayed: o.spiritsPlayed, clueBonus: o.clueBonus, starCrashBonus: o.starCrashBonus, anySpellsThisTurn: o.anySpellsThisTurn,
+    revelerX: o.revelerX, revelerExtra: o.revelerExtra, spiritDiscount: o.spiritDiscount, spiritsPlayed: o.spiritsPlayed, clueBonus: o.clueBonus, starCrashBonus: o.starCrashBonus, anySpellsThisTurn: o.anySpellsThisTurn,
     // Vaultkeeper: an offer owns no per-copy tally, but its improve is RUN-WIDE (owner 2026-10-20), so it prints the run's.
     spiritTally: cardId ? runTallyFor(cardId, o.tribeUnionPlays) : undefined,
     chooseBoth: cardId ? offerChoosesBoth(cardId, golden, o) : false,
@@ -2355,6 +2373,19 @@ export function Recruit() {
     window.addEventListener('resize', measureWipeOrigin);
     return () => window.removeEventListener('resize', measureWipeOrigin);
   }, [wipeOnScreen, measureWipeOrigin]);
+  // THE DOOR'S CUT-OUT MUST BE READY BEFORE IT IS USED (owner clip 2026-10-23: "part of the image disappears and
+  // returns"). `.wipevista-masked` (sky, hills, title, shop) wears `vista-doormask.png` as a CSS mask once the land has
+  // settled; a mask whose image is not decoded yet hides the WHOLE group, so for four frames the fight showed through
+  // everything but the flowers. It was the one vista picture never preloaded. Now it is fetched and DECODED on mount
+  // (kept referenced, like the layers), and each trip decides at its start whether to cut the door (`maskok`): only if
+  // the cut-out is already decoded, so it can never switch on half-ready or mid-flight. Without it the trip simply dives
+  // without the hole once (the doorway's painted interior and the end fade still carry it): never a blank scene.
+  const vistaArtRef = useRef<HTMLImageElement[]>([]);
+  const vistaMaskReadyRef = useRef(false);
+  const [vistaMaskTrip, setVistaMaskTrip] = useState(false);
+  useEffect(() => {
+    if (wipe === 'coverOut') setVistaMaskTrip(vistaMaskReadyRef.current);
+  }, [wipe]);
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
   // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
@@ -2363,16 +2394,88 @@ export function Recruit() {
     // Warm the exit splash's shop vignette too (the foe face is boot-loaded by the title screen; this one
     // has no other loader, and a first-exit pop-in on the blue would read as a blip).
     new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
+    // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
+    new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
+    new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
+    // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
+    // Decoded up front and kept referenced, so the first trip never waits on a decode; the door's cut-out among them.
+    const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
+    vistaArtRef.current = [...art, 'vista-doormask.png'].map((f) => {
+      const img = new Image();
+      img.src = `${import.meta.env.BASE_URL}${f}`;
+      const decoded = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
+      if (f === 'vista-doormask.png') decoded.then(() => { vistaMaskReadyRef.current = true; }, () => { /* no hole this session */ });
+      else decoded.catch(() => { /* a background still loads on its own */ });
+      return img;
+    });
+    sfx.warmGate();
+    sfx.warmWipeGate();
+    // Plain Cinzel (the poster's inked lettering, 700, and the return trip's sky title, 900): fetched now so neither swaps fonts on screen.
+    void document.fonts?.load('700 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
+    void document.fonts?.load('900 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
+    if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {
     const o = wipeOriginRef.current;
     if (wipe === 'idle') { wipeFx.clear(); return; }
     if (!o) return;
     const c = getScreenWipeConfig();
-    const ease: [number, number, number, number] = [c.easeX1, c.easeY1, c.easeX2, c.easeY2];
+    // The gem's charge-up tell stays. The bloom stardust and the exit inhale rode the retired radial bloom's seam;
+    // the falling gate (2026-10-21) has no seam for them to follow, so they no longer play.
     if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
-    else if (wipe === 'coverIn') wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease);
-    else if (wipe === 'coverOut') { wipeFx.bloom(o.cx, o.cy, o.rx, o.ry, c.coverMs, ease); wipeFx.inhale(o.cx, o.cy, o.r, c.coverMs + 200); }
+  }, [wipe]);
+  // THE FALLING GATE's sounds: its OWN recordings since 2026-10-22 (owner: "i have new impact sounds i want to use so
+  // they are different from the gate sounds"; sfx.wipeGate): the door whoosh as it starts to fall, the layered thuds
+  // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
+  // groan as it is winched back up.
+  // THE PORTAL (owner 2026-10-23): just before the return trip dives through the shop's door, the doorway charges and
+  // bursts with sparks and energy (gateFx.portal, on the ranked gate's particle layer, lifted over the curtain while it is
+  // up). Timed off the hold so the burst lands right as the dive starts. Desktop only, like the gate's dust.
+  // Its SOUNDS (owner 2026-10-23, bank clips; sfx.vistaTrip): a whoosh and a shimmer as it fades in, the energy burst and a
+  // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
+  // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
+  // crashed the shop screen (owner report 2026-10-23).
+  // THE TITLE'S WOOSH (owner 2026-10-23: "add a subtle woosh sound to the return to shop text springing out", then
+  // "start the woosh sound for the title text .3 seconds earlier", then "delay the woosh by .1 seconds and it should be
+  // perfect"): as the hold begins, 0.2 s ahead of the title's entrance (0.2 s into the hold, `vistatitlepop`). Timed off the trip's start (the land settles at
+  // VISTA_ARRIVAL_MS) and held in a ref, so the step into the hold does not cancel it; only leaving the trip does.
+  const titleWooshRef = useRef(0);
+  useEffect(() => {
+    if (wipe === 'coverOut') {
+      window.clearTimeout(titleWooshRef.current);
+      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), VISTA_ARRIVAL_MS);
+    } else if (wipe === 'idle' || wipe === 'chargeIn' || wipe === 'combat') window.clearTimeout(titleWooshRef.current);
+  }, [wipe]);
+  useEffect(() => () => window.clearTimeout(titleWooshRef.current), []);
+  // THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
+  // fluttery sparks bloom out from all four sides of the player screen"): once the dive has the doorway filling the
+  // screen (82% of it, just before the vista fades off the shop), the portal's sparks bloom in off every edge.
+  useEffect(() => {
+    if (wipe !== 'revealOut' || PHONE_GPU) return undefined;
+    const t = window.setTimeout(() => gateFx.edgeBloom(), getScreenWipeConfig().revealMs * 0.82);
+    return () => window.clearTimeout(t);
+  }, [wipe]);
+  useEffect(() => {
+    if (wipe === 'coverOut') sfx.vistaTrip('arrive');
+    else if (wipe === 'revealOut') sfx.vistaTrip('dive');
+    if (wipe !== 'coveredOut') return undefined;
+    const charge = 160;
+    const t = window.setTimeout(() => {
+      sfx.vistaTrip('portal');
+      if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
+    }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
+    return () => window.clearTimeout(t);
+  }, [wipe]);
+  useEffect(() => {
+    // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
+    if (wipe === 'coverIn') sfx.wipeGate('drop');
+    else if (wipe === 'coveredIn') {
+      sfx.wipeGate('impact');
+      // …and the dust it knocks up from the floor (owner 2026-10-21: "create the dust from the bottom"), on the ranked
+      // gate's particle layer (lifted over the curtain while it is up). Desktop only: phones keep no extra FX context.
+      if (!PHONE_GPU) gateFx.land({ left: 0, right: window.innerWidth, bottom: window.innerHeight });
+    }
+    else if (wipe === 'revealIn') sfx.wipeGate('crank');
   }, [wipe]);
   const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
@@ -2393,7 +2496,8 @@ export function Recruit() {
     }
     if (!wipeIsSweeping) return undefined;
     const c = getScreenWipeConfig();
-    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverIn' || wipe === 'coverOut' ? c.coverMs : c.revealMs) + 400);
+    // (The return trip's arrival runs its own length, VISTA_ARRIVAL_MS: the flash, the pull back and the rise.)
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverOut' ? VISTA_ARRIVAL_MS : wipe === 'coverIn' ? c.coverMs : c.revealMs) + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
   }, [wipe, wipeIsSweeping, advanceWipe]);
   useEffect(() => {
@@ -2459,7 +2563,28 @@ export function Recruit() {
     return () => window.clearTimeout(t);
   }, [discoverOpen, deathHoldPendingUid, postDeathHold]);
   const onWipeEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
-    if (e.propertyName !== 'clip-path') return;
+    // The gate FALLS on a transform transition (2026-10-21). Only the gate's own transition counts, not a child's.
+    if (e.propertyName !== 'transform' || e.target !== e.currentTarget) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
+  // …and is CRANKED back up by a keyframe animation (`wipecrank`), whose end finishes the reveal. (The landing bounce,
+  // `wipeslam`, plays inside the hold, which its own timer ends.)
+  // The return trip's vista: its fade IN ends the cover (opacity transition), its fade OUT ends the reveal (`vistafade`).
+  const onVistaEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
+    if (e.propertyName !== 'opacity' || e.target !== e.currentTarget) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
+  const onVistaAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
+    // The cover ends when the last layer has risen into place (`vistarisefore`, the flowers); the reveal when the vista fades out.
+    const ends = e.animationName === 'vistarisefore' || (e.animationName === 'vistafade' && e.target === e.currentTarget);
+    if (!ends) return;
+    window.clearTimeout(wipeTimeoutRef.current);
+    advanceWipe();
+  }, [advanceWipe]);
+  const onWipeAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
+    if (e.animationName !== 'wipecrank' || e.target !== e.currentTarget) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);
@@ -3191,11 +3316,13 @@ export function Recruit() {
     window.addEventListener('pointermove', onMove, { passive: true });
     return () => window.removeEventListener('pointermove', onMove);
   }, [spectating, inCombat]);
-  // REPLAY V2 SPECTATOR STREAM (owner 2026-10-22, R-REPLAY-STREAM-01): while a run that keeps a replay is in the shop,
+  // REPLAY V2 SPECTATOR STREAM (owner 2026-10-22, R-REPLAY-STREAM-01): while a run that keeps a replay is on screen,
   // the recorder takes the SAME cursor messages the live spectator sender builds (`versus/cursorSource.ts`), so the
-  // replay can play the hand as the stands saw it. Off in combat, during playback and on the watch screen.
+  // replay can play the hand as the stands saw it. In the shop AND the fight (R-SPECTATE-COMBATCURSOR-01), with the
+  // emotes shown (R-REPLAY-EMOTE-01); off during playback and on the watch screen. One subscription across the
+  // phase change (not re-made per phase).
   const recordsStream = useGame(recordsStreamNow);
-  useEffect(() => (recordsStream && !spectating && !inCombat ? startStreamCapture() : undefined), [recordsStream, spectating, inCombat]);
+  useEffect(() => (recordsStream && !spectating ? startStreamCapture() : undefined), [recordsStream, spectating]);
 
   // Leaving the arena: fade EVERYTHING out together (units + FX) for one beat, THEN swap to the shop and fade
   // the recruit board + survivors back in together — a single synchronized crossfade instead of an abrupt
@@ -4114,7 +4241,7 @@ export function Recruit() {
       return handViewCache.current;
     }),
     // `handStatOverride` is a per-render closure over `eotAnimStats` + `combatHandBuffs`; both are listed below.
-    [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
+    [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts, run.edictCharges, run.edictExtra],
   );
   // The hand row's views: a dissipating Whisper the commit already removed keeps the view it last showed.
   const handRowViews = useMemo(() => {
@@ -5255,10 +5382,32 @@ export function Recruit() {
     if (!prev || inCombat || run.phase !== 'recruit') return;
     const fresh = run.board.filter((c) => !prev.has(c.uid) && !placed.has(c.uid) && !(tripled && c.golden));
     for (const c of fresh) {
+      // A body summoned FROM THE HAND lands with its own dust and sound, on its landing (R-HANDSUMMON-FX-01).
+      if (isHandSummonInFlight(c.uid)) continue;
       puffOnBoard(c.uid);
       sfx.summon(c.cardId);
     }
   }, [run.board, inCombat]);
+
+  // SUMMONED FROM HAND, Shop half (owner ask 2026-10-23, R-HANDSUMMON-FX-01): a Spirit's hand-summon fired in the
+  // Shop (`summonCopyFromHandShop`) grows `handCopiedThisTurn` in the same commit that puts the copy on the board, so
+  // the pair is exact: the hand card lifts out and travels to the new body, which crossfades in. The
+  // same flight combat plays (`useCombatReplay`). A LAYOUT effect, so the body is hidden on its first painted frame.
+  // Bodies End-of-Turn playback already drew (`eotSummons`) are on screen: nothing to fly.
+  const eotShownRef = useRef<Set<string>>(new Set());
+  useEffect(() => { for (const e of eotSummons) eotShownRef.current.add(e.uid); }, [eotSummons]);
+  const handSummonPrevRef = useRef<{ copied: readonly string[]; board: Set<string> } | null>(null);
+  useLayoutEffect(() => {
+    const prev = handSummonPrevRef.current;
+    const copied = run.handCopiedThisTurn ?? [];
+    handSummonPrevRef.current = { copied, board: new Set(run.board.map((c) => c.uid)) };
+    if (inCombat) { eotShownRef.current.clear(); return; }
+    if (!prev || run.phase !== 'recruit') return;
+    launchHandSummonFlights(shopHandSummonFlights(prev.copied, copied, prev.board, run.board, run.hand, eotShownRef.current), findEl);
+    // (the Shop's landing rings its own summon sound: the arrival effect below stands down for these bodies)
+  }, [run.board, run.handCopiedThisTurn, inCombat]);
+  useEffect(() => () => clearHandSummonFx(), []);
+
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher
@@ -8066,6 +8215,35 @@ export function Recruit() {
     () => handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)),
     [handPreviews, run, cardBuffsLive],
   );
+  // R-HAND-GRANT-SUMMON-01 (owner 2026-10-23): a minion granted mid-fight is in the combat hand under the uid its
+  // `toHand` carries. The combat previews follow the player's `toHand` order, so preview i is the i-th uid here:
+  // a hand buff on it grows the preview, and a copy summoned from it greys it, exactly like a starting hand card.
+  const combatGrantUids = useMemo(
+    () => (inCombat && !run.combatSettled ? playerGrantUidsOf(replay.replayEvents, (id) => !!CARD_INDEX[id]) : null),
+    [inCombat, run.combatSettled, replay.replayEvents],
+  );
+  // The same list is where a hand-summon of a GRANTED card lifts from: the grant's preview has no `data-uid`, so the
+  // player source finds it by this position (`setPlayerGrantUids`, R-HANDSUMMON-FX-01). Without it the lift found no
+  // origin and the minion just popped in.
+  useEffect(() => { setPlayerGrantUids(combatGrantUids ?? []); }, [combatGrantUids]);
+  useEffect(() => () => setPlayerGrantUids([]), []);
+  const handPreviewShown = useMemo(() => {
+    if (!combatGrantUids || !combatHandBuffs) return handPreviewViews;
+    let changed = false;
+    const out = handPreviewViews.map((v, i) => {
+      const uid = combatGrantUids[i];
+      const d = uid ? combatHandBuffs[uid] : undefined;
+      if (!d) return v;
+      changed = true;
+      return { ...v, attack: v.attack + d.attack, health: v.health + d.health };
+    });
+    return changed ? out : handPreviewViews;
+  }, [handPreviewViews, combatGrantUids, combatHandBuffs]);
+  const handPreviewSpent = useMemo(() => {
+    if (!combatGrantUids || !combatHandSummoned || combatHandSummoned.size === 0) return null;
+    const out = handPreviewViews.map((_, i) => { const uid = combatGrantUids[i]; return !!uid && combatHandSummoned.has(uid); });
+    return out.some(Boolean) ? out : null;
+  }, [handPreviewViews, combatGrantUids, combatHandSummoned]);
 
   return (
     <div
@@ -8089,7 +8267,10 @@ export function Recruit() {
           curtainLadder.test.ts); only the wipe FX canvas rides on it. The curtain's clip-path transition is the
           sanctioned one-shot kind. */}
       {createPortal(<>
-      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} style={wipeVars}>
+      <div className={curtainClass} aria-hidden="true" onTransitionEnd={onWipeEnd} onAnimationEnd={onWipeAnimEnd} style={wipeVars}>
+        {/* THE POSTER (owner 2026-10-22): a separate parchment nailed to the gate by one loose nail, which swings on it when
+            the gate slams and as it is cranked up. The announcement rides on it, so it swings too (`.wipeposter`). */}
+        <div className="wipeposter">
         {/* NOW FACING — the versus announcement on the blue (owner ask 2026-08-28). A child of the curtain,
             so its clip-path carries it: the cover sweep reveals the splash and the reveal sweep wipes it
             away, no timing of its own. Entry only (the exit curtain is a plain blue beat), lobby runs only
@@ -8122,14 +8303,37 @@ export function Recruit() {
             </div>
           );
         })()}
-        {/* The exit curtain's own announcement (owner ask 2026-08-28; shop vignette added 2026-08-30) —
-            the same format as NOW FACING, with the shop art in the circle instead of a foe portrait. */}
-        {wipeIsExiting && (
-          <div className="wipevs">
-            <div className="wipevs-label">Returning to Shop</div>
-            <img decoding="sync" className="wipevs-face" src={`${import.meta.env.BASE_URL}return-to-shop.webp`} alt="" draggable={false} />
+        </div>
+      </div>
+      {/* THE RETURN TRIP (owner 2026-10-23): the exit pass's own transition, the shop's VISTA (six parallax layers; one
+          flattened picture on phones), RETURNING TO SHOP in its sky (`vistaClassFor`, `.wipevista` in styles.css). The
+          fade in and the dive out drive the machine like the gate does (`onVistaEnd` / `onVistaAnimEnd`). */}
+      <div className={vistaClassFor(wipe) + (vistaMaskTrip ? ' maskok' : '')} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
+        {/* The Shop seen through the door starts in shadow and brightens as you go through (`.wipevista-dusk`). */}
+        <div className="wipevista-dusk" />
+        <div className="wipevista-stage">
+          {/* THE PORTAL (owner 2026-10-23): everything BEHIND the shop's doorway is cut away there (`.wipevista-masked`),
+              the doorway's own painted interior sits in the hole (`.wipevista-doorfill`) and fades out as the dive
+              starts, so the dive flies through an open door onto the real Shop. The flowers stay in front of it all. */}
+          <div className="wipevista-masked">
+            {/* The layers behind the house each sit in a dive wrapper that slows their zoom (parallax in the dive). */}
+            {/* RETURNING TO SHOP sits just BEHIND the shop (owner 2026-10-23: "put it behind the shop layer, so the shop
+                roof may clip over it slightly"), moving with the sky (`.wipevista-dive-title` / `.wipevista-titlebox`). */}
+            {VISTA_LAYERS.filter((n) => n !== 'fore').map((n) => n === 'shop'
+              ? <Fragment key={n}>
+                <div className="wipevista-dive wipevista-dive-title"><div className="wipevista-titlebox">
+                  <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
+                </div></div>
+                <div className="wipevista-layer wipevista-shop" />
+              </Fragment>
+              : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
+            <div className="wipevista-layer wipevista-flat" />
           </div>
-        )}
+          <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div><div className="wipevista-doorglow" /></div>
+          <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
+        </div>
+        {/* The flash that hides the cut from the fight into the sky (`.wipevista-flash`). */}
+        <div className="wipevista-flash" />
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the
@@ -8172,6 +8376,8 @@ export function Recruit() {
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
+      {/* The foe's hand, face down, left of its runes (R-OPP-HAND-01): the count, the mid-fight grants, the greys. */}
+      <OpponentHand events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat && !run.combatSettled} />
       {run.mode === 'versus' && <VersusHud />}
       {/* Who is watching this player (Versus or a live ranked lobby game): top left, R-SPECTATE-WATCHERS-01. */}
       <WatchersBadge />
@@ -8224,7 +8430,7 @@ export function Recruit() {
       <HandRow
         gambleHand={handRow} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
         handViews={handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
-        onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
+        onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewShown} handPreviewSpent={handPreviewSpent}
       />
       </PerfProfiler>
 
@@ -8971,7 +9177,7 @@ const WarbandRow = memo(function WarbandRow({
  *  measured slot spacing passed as a value (it was read off a ref at render). */
 const HandRow = memo(function HandRow({
   gambleHand, handOrder, goldSpentRun, tier, wave, handViews, fadeDelays, refViewsByUid, combatHandSummoned,
-  onCardPointerDown, handPreviewViews,
+  onCardPointerDown, handPreviewViews, handPreviewSpent,
 }: {
   /** Whispers dissipating at End of Turn: uid -> fade delay ms (`whisperDissipate.ts`). */
   fadeDelays: ReadonlyMap<string, number> | null;
@@ -8982,6 +9188,8 @@ const HandRow = memo(function HandRow({
   handViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
   combatHandSummoned: ReadonlySet<string> | null;
   onCardPointerDown: (e: ReactPointerEvent) => void; handPreviewViews: CardView[];
+  /** Per preview: a copy was summoned from this mid-fight grant (greyed for the fight, R-HAND-GRANT-SUMMON-01). */
+  handPreviewSpent: readonly boolean[] | null;
 }) {
   const { dragActive, viewerDrag, dragUid, dragSource, handGapIndex, handSlotW, canDropHand } = useDragSlice(selectHandDrag);
   const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
@@ -9054,7 +9262,7 @@ const HandRow = memo(function HandRow({
           {handPreviewViews.map((view, i) => (
             /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
                and an unplated preview made that swap read as a flicker. */
-            <Card key={`grant-${i}`} card={view} suppressPop forceFull plated />
+            <Card key={`grant-${i}`} card={view} spent={handPreviewSpent?.[i] ?? false} suppressPop forceFull plated />
           ))}
         </div>
       </div>

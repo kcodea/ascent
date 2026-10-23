@@ -43,7 +43,8 @@ const SET3_SHARED_SPELL_IDS: readonly string[] = [
   'rubyshipment', 'facetwright', /* veinstorm: left set 3 2026-10-13 (owner Set 3 batch); still a set-2 spell */ 'rubytransfer', 'lanternofsouls', 'undeadarmy', 'onthehouse',
   // Appended AFTER the tribe spells so no existing position moves (owner add 2026-09-18):
   /* sp_dissipate: archived everywhere 2026-10-10 (owner balance batch); it was the owner add of 2026-09-18 */
-  'sp_picnic', // owner add 2026-09-23: right-most Shop minion +8/+8 permanently (set 2's own spell, shared here)
+  /* sp_picnic: owner add 2026-09-23, LEFT set 3 2026-10-23 (owner: "remove picnic from set 3"); still a set-2 spell and a
+     set-4 shared spell, and old set-3 saves and replays resolve it through CARD_INDEX */
 ];
 const SET3_SPELL_SOURCES: readonly CardDef[] = [...SPELLS, ...SET2_SPELLS];
 const SET3_SHARED_SPELLS: readonly CardDef[] = SET3_SHARED_SPELL_IDS.map((id) => {
@@ -74,7 +75,8 @@ const SET4_SHARED_SPELL_IDS: readonly string[] = [
   'stellarchorus', 'splitdecision', 'aspectsblessing', 'sharedspirit', 'graverobbery', 'handsoap',
 ];
 const SET4_SHARED_SPELLS: readonly CardDef[] = SET4_SHARED_SPELL_IDS.map((id) => {
-  const def = [...SET3_SHARED_SPELLS, ...SET3_SPELLS].find((c) => c.id === id);
+  // SET3_SPELL_SOURCES too: Picnic left set 3 on 2026-10-23 but set 4 still shares it.
+  const def = [...SET3_SHARED_SPELLS, ...SET3_SPELLS, ...SET3_SPELL_SOURCES].find((c) => c.id === id);
   if (!def) throw new Error(`SET4_SHARED_SPELL_IDS names '${id}', which Set 3's spell lists do not provide`);
   return def;
 });

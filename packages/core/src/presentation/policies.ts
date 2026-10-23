@@ -243,7 +243,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' }, // Prospector: plain Rubies again (balance 2026-10-20; was getRandomRubies from 2026-10-10)
   'factory:onGetRubyRandomRuby:onGetRuby': { policy: 'foldedCue', family: 'economyReact' }, // Gem Sage (2026-09-24)
   'factory:getRandomRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' }, // Dealski (rework 2026-10-22: a random Ruby; was getRubies, 2 plain): Ruby Roach's trigger
-  'factory:battlecryPlayRubiesRandomTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shardluck (2026-09-24)
   'factory:onSummonCardPlayRubiesSelf:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Gemheart Legionnaire (2026-09-24)
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)
@@ -361,6 +360,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:orbitSellValue:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:overflowBuffRandom:summonOverflow': { policy: 'foldedCue', family: 'react' },
   'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
+  'factory:overflowGrowUndeadAura:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Ending (set 3 T7, 2026-10-23)
   'factory:overflowBuffRandomTribePerPlayed:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Bicycle Bob (set 3, 2026-09-18)
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onLoseWardOnceBuffSelfRegain:onLoseDivineShield': { policy: 'foldedCue', family: 'react' }, // Foamguard (set 3, 2026-10-21)
@@ -563,6 +563,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellTransformTierUp:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellTriggerEcho:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellWeakenNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellSkeletonsNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:stealTavernMinion:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:summonBuffSelfTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:summonBuffTribeAsym:onSummon': { policy: 'foldedCue', family: 'summonReact' },
@@ -772,6 +773,15 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'rune:rune_unbroken_scales:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dragon loses Ward (2 per combat): +10/+10, then the Ward re-forms
   'rune:rune_runic_transposition:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Whisper on a Dragon: its Health also as Attack (both phases)
   'rune:rune_wyrms_hoard:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 Shop spells cast from hand: spell power +1/+1
+  // ── Set 3 Kobold runes (owner 2026-10-22) ──
+  'rune:rune_refreshing_rubies:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 4 Refreshes pressed: a random Ruby
+  'rune:rune_ruby_sales:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 minions Sold: a random Ruby
+  'rune:rune_goleming:combat': { policy: 'ownBeat', family: 'avenge' }, // Avenge (5): a Gemheart Golem, then 6 Rubies cast on it
+  'rune:rune_red_start:combat': { policy: 'foldedCue', family: 'combatModifier' }, // Start of Combat: a permanent Ruby on each Kobold
+  // ── Set 3 Dwarf runes (owner 2026-10-23) ──
+  'rune:rune_last_call_set3:recruit': { policy: 'ownBeat', family: 'runeMechanic' }, // 3 minions Sold arm the next Ale; the Ale's repeat cast is the rune's
+  'rune:rune_return_customers:combat': { policy: 'foldedCue', family: 'combatModifier' }, // a Dwarf Sold returns a plain copy to hand (first 2 each turn; rides the sale)
+  'rune:rune_roseys_garden:combat': { policy: 'foldedCue', family: 'combatModifier' }, // every Ruby cast: a random minion +4/+5 permanently (both phases)
   'rune:rune_hunger:endOfTurn': { policy: 'ownBeat', family: 'endOfTurn' },
   'rune:rune_hunting_bell:combat': { policy: 'ownBeat', family: 'avenge' },
   'rune:rune_infernal_ink:recruit': { policy: 'ownBeat', family: 'runeMechanic' },

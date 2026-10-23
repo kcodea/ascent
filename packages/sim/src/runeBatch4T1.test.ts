@@ -30,13 +30,13 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the nine defs ship as specced', () => {
   it('costs, and only the Ruby/Ale ones are Set-2 scoped', () => {
     expect(rune('rune_empty_plate').cost).toBe(2); // owner balance 2026-08-11 (3 → 2)
-    expect(rune('rune_gem_dividend').cost).toBe(3);
-    expect(rune('rune_carrion_coin').cost).toBe(3);
-    expect(rune('rune_five_banners').cost).toBe(4);
+    expect(rune('rune_gem_dividend').cost).toBe(2); // owner 2026-10-23: was 3
+    expect(rune('rune_carrion_coin').cost).toBe(2); // owner 2026-10-23: was 3
+    expect(rune('rune_five_banners').cost).toBe(3); // owner 2026-10-23: was 4
     // rune_centerline + rune_second_litter archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — no longer in the active pool.
     expect(rune('rune_shared_pour').cost).toBe(2); // balance 9/23 (3 → 2; owner 2026-08-11 had 4 → 3)
-    expect(rune('rune_aftermarket').cost).toBe(3); // balance 9/23 (4 → 3)
-    expect(rune('rune_hoardcalling').cost).toBe(4); // owner balance 2026-08-11 (5 → 4)
+    expect(rune('rune_aftermarket').cost).toBe(2); // balance 9/23 (4 → 3); owner 2026-10-23 (3 → 2)
+    expect(rune('rune_hoardcalling').cost).toBe(3); // owner balance 2026-08-11 (5 → 4); owner 2026-10-23 (4 → 3)
     // Gem Dividend needs Rubies and Shared Pour needs Ales, so both are Set-2 only. The rest work in either.
     expect(rune('rune_gem_dividend').sets).toEqual([]); // ARCHIVED everywhere 2026-10-07 (was ['set2'])
     expect(rune('rune_shared_pour').sets).toEqual(['set2']); // CUT FROM SET 3 2026-09-24 (owner)

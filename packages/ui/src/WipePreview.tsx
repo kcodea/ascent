@@ -54,7 +54,7 @@ export function WipePreview(): JSX.Element | null {
   }, [wipe, origin]);
 
   const onEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
-    if (e.propertyName !== 'clip-path') return;
+    if (e.propertyName !== 'transform' || e.target !== e.currentTarget) return; // the panel slides (2026-10-21)
     window.clearTimeout(backstop.current);
     setWipe((w) => (w ? afterSweep(w) : w));
   }, []);

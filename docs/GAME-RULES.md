@@ -526,22 +526,27 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   often, with the same lines. Nothing equipped is the default announcer. Only the wearer hears it (opponents and replays
   never do). If a voice lacks a line, the default voice says it. The Collection's Announcers tab plays a sample of any
   voice, owned or not.
-- **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18; R-PROG-EMOTE-01, R-EMOTE-01).** An emote is a painted speech bubble your
+- **Emotes (2026-10-13, reworked 2026-10-15, nine more 2026-10-18, eight slots + Comms 2026-10-22; R-PROG-EMOTE-01, R-PROG-EMOTE-02, R-EMOTE-01).** An emote is a painted speech bubble your
   hero says in a game. Right-click YOUR hero portrait (shop or combat) for your emote menu; pick one and it pops up
-  beside your portrait. **20 seconds between emotes**, shown on the menu; no per-turn cap; no muting yet.
-  **Zen Brian is everyone's** (the one STARTER emote, guests included). **Every other emote comes from chests**
+  beside your portrait. **8 seconds between emotes** (20 before 2026-10-22), shown on the menu; no per-turn cap; no muting yet.
+  **Zen Brian and the five Comms emotes are everyone's** (STARTER emotes, guests included, never in a chest; owner
+  2026-10-22: "give all players the 5 comms emotes for free, but others im going to continue to add will go into the
+  skins lootboxes"): **Hi**, **Good Choice**, **Too Nasty**, **It's Beasts**, **Lemon Approved**, each flagged free on
+  its own row. **Every other emote comes from chests**, and so does any emote added later unless it is flagged free
   (owner 2026-10-15; nine more 2026-10-18): Rare **Nervous Jensen**, **Depressed Hank**, **Nervous Voss**, **Tara Sad**,
   **Chronos Mad**, **Rascal Broke**, **Skeleton Wave**, **Pup Pup**; Epic **Flirty Midas**, **Happy Urchin**, **Sly Oona**,
   **Dead Elder**, **Gambler**, **Sexy Darah**, **Angry Deathswarmer**; Legendary **Rich Pimm**, **Baby Rubies**,
-  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal chest odds (rarity first, then an equal share). The menu **always shows four slots**:
-  the emotes you placed, then your other owned emotes in catalog order (a new emote is usable at once), and every slot
+  **Mad Tormentor**, **Dan the Man**, **Iggy**, at the normal chest odds (rarity first, then an equal share). The menu **always shows eight slots** (four
+  before 2026-10-22), two rows of four: the emotes you placed, then your defaults (slots 1 to 4 as the four-slot menu
+  showed them: Zen Brian, then owned emotes in catalog order; then the Comms emotes; then the rest of your owned
+  emotes; a new emote is usable at once), and every slot
   left over is a visibly EMPTY slot (a dashed frame reading "Empty", not clickable; hovering it says "Empty slot. Find
-  more emotes in chests."). A fresh account sees Zen Brian and three empty slots. The chest reveal shows a won emote's
+  more emotes in chests."). A fresh account sees Zen Brian, the five Comms emotes and two empty slots. The chest reveal shows a won emote's
   bubble. **Angry Mushy**, once a starter, was RETIRED on 2026-10-15: gone from the Collection, the menu and chests,
   and an old recording of it plays nothing. **Sad Wrangler**, once a Rare chest emote, was RETIRED the same way later
   that day: a player who already owns it keeps it on the account, but it is never shown, placed, dropped or played. The
-  Collection shows the same four slots on an emote's page; its Emotes
-  tab puts an emote in menu slot 1 to 4 (the one already there swaps places). **In the snapshot lobby** each emote you
+  Collection shows the same eight slots on an emote's page; its Emotes
+  tab puts an emote in menu slot 1 to 8 (the one already there swaps places). **In the snapshot lobby** each emote you
   use is recorded on that round's board with its time into the phase (since the shop turn started, or since the combat
   started), and whenever that recorded run is served to another player, the emote plays at the same time into THEIR
   shop turn / combat beside that seat's rail portrait (in combat the rail is away, so only the foe you fight can be
@@ -1063,7 +1068,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   the hover previews the player opens (cards, minions, runes, quests, the hero power, the game's tips) open for the
   spectator too; the board opens the same gap while the player drags a minion over it; a targeting arrow follows the
   player's aim and ends on their target, and the spectator's own mouse never moves it. Joining or coming back in the
-  middle of a fight starts it from the player's current moment, never from its first beat.
+  middle of a fight starts it from the player's current moment, never from its first beat. The cursor and its hover
+  previews carry on through combat (owner 2026-10-22; R-SPECTATE-COMBATCURSOR-01): pointing at a minion in the fight
+  points at it for the spectator, and its preview opens.
+- **Spectators see the player's emotes** (owner 2026-10-22; R-SPECTATE-EMOTE-02). In shop and combat, the watched
+  player's emote pops from their portrait on the spectator's screen at once, as it does on theirs. Versus spectators
+  see both players' emotes (the other player's beside the opponent). Replays recorded from 2026-10-22 show the
+  player's emotes and the emotes of the seats they faced at the moment they popped, and the cursor through combat
+  (R-REPLAY-EMOTE-01); older replays play as before.
 - **The watched hand plays back smoothly, and drops land as they happen** (owner 2026-10-20; R-SPECTATE-SMOOTH-01).
   The player's hand is drawn at an even pace a short, self-adjusting moment behind them (about a tenth to a fifth of a
   second, by how steady the connection is), so it never stalls and jumps. What the hand does (picking a card up, the
@@ -1075,7 +1087,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   three, then "+N" (hover it for the names). It stays while they watch and goes when they leave. The same applies to
   a ranked game watched from Live Games.
 - **Spectators can emote** (owner 2026-10-16; R-SPECTATE-EMOTE-01). A spectator opens their own emotes from their
-  plate at the top left of the watch screen: their equipped emotes, the same 20 s cooldown. The player sees the emote
+  plate at the top left of the watch screen: their equipped emotes, the same 8 s cooldown. The player sees the emote
   pop from that spectator's plate in their "Spectating" list; other spectators of the game see it too. A player can
   right-click a spectator to mute them, or turn "Spectator emotes" off in the Esc menu (on by default).
 - **The spectator's screen** (owner 2026-10-16; R-SPECTATE-HUD-01, R-SPECTATE-LOCAL-01). Top left: the spectator
@@ -1505,13 +1517,13 @@ card's kicker.
   (Runesmith and Guardian are ARCHIVED heroes since 2026-09-24, see *Heroes: archived*; their forges still run
   for a stored run or a Scene Builder sandbox on them.)
 - **Guardian** (Runeguard): an extra Epic forge on **turn 8**, booked at run creation (`epicForgeWave`).
-- **Epic Forge** (Basic 4): books an extra Epic forge for **turn 8** (next turn, if 8 has
+- **Epic Forge** (Basic 2): books an extra Epic forge for **turn 8** (next turn, if 8 has
   passed). A Guardian holding it gets **TWO Epic forges on turn 8**, opened one after the other — the second
   opens the moment the first is bought or skipped, before the turn's Basic forge or Discovers (owner
   2026-09-22: "can we just book 2 runeforges here"). Bookings are COUNTED (`epicForgeCount`,
   `pendingEpicRuneforge` is a count), so two forges booked for one turn are both opened, never dropped and
   never slid to a later turn.
-- **Ornate Clock** (Basic 2): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
+- **Ornate Clock** (Basic 1): pays **2 Gold on resolve** and MOVES the turn-9 Epic forge to
   **next turn** (`epicForgeClaimed` stands the turn-9 visit down). Bought late it still opens next turn.
 - A quest reward can also schedule a forge (The Runeforge: a Basic forge next turn with +4 Gold; The Epic
   Runeforge: an Epic forge next turn) — those quests are archived, but the reward path still resolves.
@@ -1865,6 +1877,36 @@ live opponent has one.)
 (so a new `hand.push` site cannot forget to fire it), combat emits from `ctx.grantToHand` / `ctx.grantRubies` /
 `ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
+
+**A minion added mid-fight can be summoned from hand in that same fight** (owner ruling 2026-10-23,
+R-HAND-GRANT-SUMMON-01: *"a minion added to hand CAN be summoned that same fight."*). The moment a MINION reaches
+a hand mid-fight it joins that side's combat hand, after the cards the fight started with, with the stats it would
+have as a hand card right then: printed stats plus every run-wide buff a new copy gets (its per-card run buff, the
+Undead / Beast / Attachment buy auras; Gilded, or an exact copy, when the grant says so). Owner, same day: *"a new card
+would get its printed stats plus any potential aura/run-wide buffs. like an undead card granted to hand mid fight
+would still inherit undead aura buffs etc."* Any card summoned from hand (granted or held from the start) also takes
+the auras a board body takes, the Undead Aura above all, the same as it shows in the Shop; baked buffs are never added
+twice. The card arrives after the fight with the stats the fight showed, plus any hand buff it took. Every summon-from-hand effect (the Spirits' copy
+summons, the Waking Reserve, Dreamed Graves / Open Hand hearing the summon) can then pick it under the
+usual rules: a copy greys it for the fight and the card still arrives after combat; hand buffs grow it and stay on
+it. It is a candidate only while it would really fit the hand after combat: the hand cap counts every held card,
+the fight's Rubies land first, then the granted cards in the order they arrived. Spells are never candidates.
+Both sides, identically (a recorded board carries its owner's free hand slots as `handRoom`; an older capture
+without it assumes 10 minus the minions and spells it lists).
+
+### The opponent's hand, face down (owner ask 2026-10-23, R-OPP-HAND-01)
+
+In every fight (your own, a spectator's view, Versus, replays) the opponent's hand shows **face down** to the left of
+their runes: one card per card they hold, each drawn as their equipped **card plate** (the standard plate when they
+have none, for bots, or with opponent cosmetics off), with no art, name, text or stats. It reveals the **count** only.
+
+- It starts from the hand their recorded board carried into the fight (its minions, then its spells; an older
+  recording without a hand shows none).
+- A card the opponent gains mid-fight joins it **the moment it arrives**, as yours do (R-HAND-01).
+- A minion they summon from hand lifts out of **that** card and lands with the shared lift-and-land
+  (R-HANDSUMMON-FX-01); a copy summon greys the card for the fight, exactly as yours does.
+
+Presentation only: nothing here changes the fight.
 
 ---
 
@@ -2365,7 +2407,8 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   granter's text and the hover preview all print the current value.
 - **Whisper reactors.** Tamby: "When you cast a Whisper on this, get a copy of it. (Once per turn)" (Gilded: 2
   copies). Whisp: "When you cast a Whisper on a Dragon, also cast it on this." (Gilded: twice). Whisp's cast is a
-  full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again.
+  full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again. Whisp was
+  archived 2026-10-23 (no longer in Set 3; only old saves, snapshots and replays still hold it).
 - **Whisper tiers** (owner 2026-10-16, R-WHISPER-TIER-01). Every Whisper has the tier of the Whisper minion that owns
   it (derived from data: Tome 1, Seed 1, Runebind 2, Bait 2, Clutch 4, Ripple 5, Well of Dragons 5, Warding Call 5;
   the lowest if several minions own one, Tier 1 if none does). A Whisper minion granting its **own** Whisper is never
@@ -2423,8 +2466,8 @@ Gravestar Seer is archived. Chorus Drake, Flutterbutter and Transcendant (Set 2 
 cards. New Dragons:
 
 - **Gatherer** (T4 5/4): "**Rally:** Get a random **Dragon**." From the run's set pool, up to your tier, in both phases
-  (a combat swing hands it over mid-fight). Gilded: 2.
-- **Gravus** (T5 8/3, Dragon and Undead): "**Echo:** Give this minion's **Attack** to **2** friendly minions." Its
+  (a combat swing hands it over mid-fight). Gilded: 2. Archived 2026-10-23 (no longer in Set 3; old saves still resolve it).
+- **Gravus** (T6 10/3 Taunt since 2026-10-23, Dragon and Undead): "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions." Its
   Attack at death, to 2 different other friendlies. A combat buff in combat; permanent from a Shop Echo. Gilded: twice.
 - **Well Watcher** (T5 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no
   target. A Gilded Well Watcher's Well opens two Discovers.
@@ -2494,6 +2537,41 @@ Seven Epic runes, Set 3 only, offered when Dragon is one of the run's tribes.
   fires, +20/+20 each.
 - **Runic Transposition** (4): a Whisper that gives a Dragon Health also gives it that much Attack, on top of its own
   Attack (+2/+3 becomes +5/+3), part of the Whisper's own grant (temporary with it; a Hum keeps it).
+
+### Set 3 Kobold runes (owner 2026-10-22; R-KOBOLD-RUNES-1022-01..04)
+
+Five runes, Set 3 only, offered when Kobold is one of the run's tribes. Each copy held pays its own share.
+
+- **Refreshing Rubies** (Basic, 2): "When you Refresh 4 times, get a random Ruby." Counts every Refresh you press, a free
+  one included (the Rosey / Indy meter); the new turn's Shop and rune, hero or spell refreshes do not count. A running
+  meter: it carries across turns and repeats. The rune shows a plain N/4 counter.
+- **Ruby Sales** (Basic, 1): "When you Sell 3 minions, get a random Ruby." Every minion you Sell counts (board or hand,
+  a spell that Sells included). A running meter with a plain N/3 counter.
+- Both pay one random Ruby (any of the six types, R-RAND-02). They respect the hand cap: a full hand gets nothing.
+- **Goleming** (Basic, 2): "Avenge (5): summon a Gemheart Golem and cast 6 Rubies on it." Combat only (Avenge); Fury
+  repeats it. A plain summon: on a full board the Golem is lost, and its Rubies with it. The Golem casts 6 plain Rubies
+  on itself (real casts: your Ruby strength, Rosey and Rosey's Garden all count them). The Golem lasts the fight.
+- **Red Start** (Epic, 3): "Start of Combat: cast a permanent Ruby on your Kobolds." One Ruby on each living friendly
+  Kobold (All-types counts). A **permanent Ruby** keeps its stats after the fight: they carry back to the Shop board
+  (the Combatative Rubies rule). Twilight repeats it. No Shop replay.
+- **Rosey's Garden** (Epic, 3): "When you cast a Ruby, give a random minion +4/+5 permanently." Once per Ruby cast
+  (two Rubies is two), in the Shop and in combat, to a random friendly minion. Permanent in combat too (it carries back).
+  Bounces and Double Trouble's self-Rubies are not casts. The +4/+5 is a plain buff, so it never triggers a Ruby effect:
+  Rosey and the Garden cannot loop.
+
+### Set 3 Dwarf runes (owner 2026-10-23; R-DWARF-RUNES-1023-01..02)
+
+Two runes, Set 3 only, offered when Dwarf is one of the run's tribes.
+
+- **Last Call** (Basic, 2): "After you Sell 3 minions, your next Dwarven Ale casts twice." Every minion you Sell counts
+  (the Ruby Sales meter). Every 3rd sale arms a charge; the next Dwarven Ale you cast from hand spends it and casts one
+  more time (one more per copy held). An Ale in hand shows the x2 while armed. Only a hand cast spends it; a non-Ale
+  spell never does; the charge waits across turns. At most one charge waits at a time. A running meter with a plain N/3
+  counter. Its id is `rune_last_call_set3`: the archived Set 2 Avenge rune `rune_last_call` keeps the old id.
+- **Return Customers** (Epic, 3): "The first 2 Dwarves you Sell each turn return a plain copy to your hand." Each of
+  the turn's first 2 Dwarf sales (All-types counts; other sales do not use a slot) returns a fresh copy: not gilded, at
+  its printed stats. One copy per rune copy held. A full hand gets nothing (the sale still uses its slot). Resets each
+  turn; the rune shows a plain N/2 counter counting up.
 
 ### Set 4 Beasts: self-damage that never kills (owner 2026-10-13, R-WOUND-01)
 

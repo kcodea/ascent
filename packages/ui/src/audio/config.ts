@@ -58,6 +58,21 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // END OF MATCH (owner 2026-10-13): his tone for a 5th to 8th place finish, at the same level as the gate's cues;
   // and, for a 1st to 4th, the gate's cinematic hit (the `gateintro` clip) at that cue's own level.
   placelow: 0.6, placehigh: 0.72,
+  // THE FALLING GATE (owner 2026-10-22): the shop <-> combat transition's own recordings, one fader each, tuned by ear the
+  // same day. Last pass (owner: "lets reduce the gears sound by 25%, then the entire crank category by another 25%, then
+  // reduce the entire sfx for this whole animation by 20%"): gears x0.75, every crank layer x0.75, everything x0.8. Then
+  // ("lets reduce by another 20%, and the crank by and additional 20%"): everything x0.8 again, the crank layers x0.8 more.
+  // The drop and the impact (the impact layers four thuds at once; the wooden door is the hottest file).
+  wipedrop: 0.448, wipethudwood: 0.256, wipethudground: 0.384, wipethudheavy: 0.384, wipethudgrit: 0.32,
+  // The poster's page flap: a quiet recording (-26 dB peak), so it sits high.
+  wipeposter: 0.544,
+  // The crank: the crank recording, gears, metal groan, and the ranked gate's grinding open on its own fader.
+  wipecrank: 0.144, wipegears: 0.0972, wipegroan: 0.2016,
+  wipegateopen: 0.192,
+  // THE RETURN TRIP (owner 2026-10-23): bank clips reused on faders of their own. Starting levels, to tune by ear.
+  vistawhoosh: 0.45, vistashimmer: 0.35, vistaportal: 0.5, vistadive: 0.45, vistasparkle: 0.4,
+  // …and the owner's own clips through the portal (2026-10-23): the long cartoon woosh and the magic spell.
+  vistawoosh: 0.5, vistatitle: 0.54, vistaspell: 0.35, // the title woosh +50%, then +20% (owner 2026-10-23) // the spell -30% (owner 2026-10-23: "lower the level of the magic sound ... by about 30 percent")
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,
@@ -95,6 +110,8 @@ export const CATEGORY_BUS: Record<string, BusName> = {
   rank: 'ui',
   goodLuckShine: 'ui', goodLuckSpark: 'ui',
   gateclose: 'ui', gateslam: 'ui', gaterattle: 'ui', gateopen: 'ui', gateintro: 'ui', gateform: 'ui', gateshatter: 'ui', gatehum: 'ui', placelow: 'ui', placehigh: 'ui',
+  wipedrop: 'ui', wipethudwood: 'ui', wipethudground: 'ui', wipethudheavy: 'ui', wipethudgrit: 'ui', wipecrank: 'ui', wipegears: 'ui', wipegroan: 'ui', wipeposter: 'ui', wipegateopen: 'ui',
+  vistawhoosh: 'ui', vistashimmer: 'ui', vistaportal: 'ui', vistadive: 'ui', vistasparkle: 'ui', vistawoosh: 'ui', vistaspell: 'ui', vistatitle: 'ui',
   discoverWhoosh: 'ui', discoverArrive: 'ui', discoverSparkle: 'ui',
   crateHum: 'ui', crateCharge: 'ui', crateBurst: 'ui', crateReveal: 'ui', crateStamp: 'ui', crateSting: 'ui',
   cratePulse: 'ui', crateWhoosh: 'ui', crateCoin: 'ui',

@@ -86,11 +86,11 @@ describe('Rune of Duplication', () => {
 });
 
 describe('the two runes ship as specced', () => {
-  it('exist at 4 Gold, both basic', () => {
+  it('exist at 3 Gold, both basic', () => {
     for (const n of ['Facetwright', 'Duplication']) {
       const r = byName(n);
       expect(r, `${n} is missing`).toBeDefined();
-      expect(r!.cost).toBe(4);
+      expect(r!.cost).toBe(3); // owner 2026-10-23: was 4
       expect(!!r!.epic).toBe(false);
     }
   });

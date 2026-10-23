@@ -28,6 +28,8 @@ import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { CrashLogReadout } from './CrashLogReadout';
+import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
+import { supabaseClient } from './remoteBoards';
 import { PHONE_GPU } from './phoneDiag';
 import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
@@ -185,6 +187,12 @@ export function Game() {
   // LIVE RANKED LOBBY GAMES (2026-10-15): list the player's ranked lobby game and publish to its watchers (only while
   // someone watches; see live/livePublisher.ts).
   useEffect(() => installLivePublisher(), []);
+  // PHONE CRASH REPORTS (R-TOUCH-CRASH-REPORT-01): a crash the crash log found on this load is sent to Supabase once, on
+  // idle a few seconds after mount. A no-op on desktop (unless ?crashlog=1) and without a backend.
+  useEffect(() => scheduleCrashReportUpload(() => {
+    const c = supabaseClient();
+    return c ? (row) => c.from(CRASH_REPORT_TABLE).insert([row]) : null;
+  }), []);
 
   // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second
   // carries what was happening (a spike is only actionable if you know the phase + wave it landed in).

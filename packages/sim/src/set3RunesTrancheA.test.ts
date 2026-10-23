@@ -48,19 +48,20 @@ const setsAfterSwap = (id: string, otherwise: readonly string[]): readonly strin
 
 // ── the roster ───────────────────────────────────────────────────────────────────────────────────────────
 // tribes: undefined = no gate — the text names no tribe (owner rule: gate only where the text names a tribe on the board)
+// Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Basic 6+ -2; Epic 4-7 -1, Epic 8+ -2); rows below 3 / Epic below 4 kept their cost.
 const BASIC: [string, number, string[] | undefined][] = [
-  ['rune_basic_spirit', 3, ['spirit']], ['rune_basic_celestial', 3, ['celestial']], ['rune_basic_undead', 3, ['undead']],
-  ['rune_full_hand', 4, ['spirit']], ['rune_chosen_vessel', 3, ['spirit']], ['rune_deep_currents', 4, ['spirit']],
-  ['rune_traveling_festival', 4, ['spirit']], ['rune_growing_chorus', 4, ['spirit']], ['rune_charted_skies', 2, undefined], // 4 → 2 (2026-09-18)
-  ['rune_falling_embers', 4, ['celestial']], ['rune_festival_wages', 3, ['spirit']],
+  ['rune_basic_spirit', 2, ['spirit']], ['rune_basic_celestial', 2, ['celestial']], ['rune_basic_undead', 2, ['undead']],
+  ['rune_full_hand', 3, ['spirit']], ['rune_chosen_vessel', 2, ['spirit']], ['rune_deep_currents', 3, ['spirit']],
+  ['rune_traveling_festival', 3, ['spirit']], ['rune_growing_chorus', 3, ['spirit']], ['rune_charted_skies', 2, undefined], // 4 → 2 (2026-09-18)
+  ['rune_falling_embers', 3, ['celestial']], ['rune_festival_wages', 2, ['spirit']],
 ];
 const EPIC: [string, number, string[] | undefined][] = [
   ['rune_epic_celestial', 3, ['celestial']], ['rune_epic_spirit', 3, ['spirit']], ['rune_epic_undead', 3, ['undead']],
-  ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 5, undefined], ['rune_astral_draft', 4, undefined], // Draft 6 → 4 (2026-09-18)
-  ['rune_dream_mirror', 5, ['spirit']], ['rune_waking_dreams', 5, ['spirit']], // Spirit-gated 2026-09-25 (owner Set 3 rune list)
-  ['rune_shared_revelry', 5, ['spirit']],
-  ['rune_grand_procession', 6, ['spirit']], ['rune_festival_circuit', 4, ['spirit', 'celestial']], // Circuit 5 → 4 (2026-09-18)
-  ['rune_spirit_crown', 4, ['spirit']], /* 6 → 4 (owner 2026-09-27, design pass) */ ['rune_handy_flame', 5, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
+  ['rune_meteor_shower', 2, ['celestial']], ['rune_astral_refrain', 4, undefined], ['rune_astral_draft', 3, undefined], // Draft 6 → 4 (2026-09-18) → 3 (owner 2026-10-23: was 4)
+  ['rune_dream_mirror', 4, ['spirit']], ['rune_waking_dreams', 4, ['spirit']], // Spirit-gated 2026-09-25 (owner Set 3 rune list)
+  ['rune_shared_revelry', 4, ['spirit']],
+  ['rune_grand_procession', 5, ['spirit']], ['rune_festival_circuit', 3, ['spirit', 'celestial']], // Circuit 5 → 4 (2026-09-18) → 3 (owner 2026-10-23: was 4)
+  ['rune_spirit_crown', 3, ['spirit']], /* 6 → 4 (owner 2026-09-27, design pass) → 3 (owner 2026-10-23: was 4) */ ['rune_handy_flame', 4, ['spirit']], // Handy Flame is a Spirit body → gated (tag pass 2026-09-18)
 ];
 
 describe('tranche A — pool membership, cost, scope and tribe gates', () => {
@@ -175,11 +176,12 @@ describe('Rune of the Traveling Festival', () => {
     let s = armed('rune_traveling_festival', { board: [body('k', 'sp3_kindled'), body('f', 'sp3_flamereveler')] });
     expect(s.hand).toHaveLength(1);
     expect(REVELER_IDS).toContain(s.hand[0]!.cardId);
-    expect(runeTally(s, 'rune_traveling_festival'), 'what a sale pays right now: 1 + 2').toBe('+3/+3');
+    // Owner 2026-10-23: the rune does not grow, so it carries no tally (the Reveler's text prints the live grant).
+    expect(runeTally(s, 'rune_traveling_festival'), 'a flat rune: no growing readout').toBeNull();
     s = sell(s, 'f');
     expect(stats(at(s, 'k')), 'Flame: value 1 + the rune\'s 2 extra Attack, no Health').toEqual([1 + 3, 3]);
     expect(revelerValue(s), 'the shared value still rises by one').toBe(2);
-    expect(runeTally(s, 'rune_traveling_festival')).toBe('+4/+4');
+    expect(runeTally(s, 'rune_traveling_festival'), 'still no tally after the Reveler value rose').toBeNull();
     s = nextTurn(s);
     expect(s.hand.filter((c) => REVELER_IDS.includes(c.cardId))).toHaveLength(2);
   });

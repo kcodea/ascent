@@ -1858,6 +1858,27 @@ export async function fetchMyRuns(
   }
 }
 
+/**
+ * The detailed `run_history` rows (final board, runes, match details) for specific runs of a career — the Match
+ * History HERO FILTER (owner 2026-10-23) upgrades the light rows it lists (a hero's games older than the newest
+ * `CAREER_DETAIL_ROWS`) with ONE read per hero pick, never one per row or per hover. Null = couldn't ask.
+ */
+export async function fetchRunDetails(userId: string, ids: readonly number[]): Promise<RunHistoryRowLike[] | null> {
+  const c = client();
+  if (!c || !userId || ids.length === 0) return null;
+  try {
+    const res = await Promise.race([
+      // rows: one per id asked for, and the caller asks for at most MATCH_ROWS (50) ids
+      Promise.resolve(c.from('run_history').select('id, created_at, hero_id, placement, mode, entry').eq('user_id', userId).in('id', [...ids])),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS)),
+    ]);
+    if (!res || res.error || !res.data) return null;
+    return res.data as unknown as RunHistoryRowLike[];
+  } catch {
+    return null;
+  }
+}
+
 /** Assemble the page's rows from the three raw result sets: the light rows are the list; a detailed row
  *  with the same id upgrades its entry (board + every field read straight off the jsonb); the telemetry
  *  probe joins by seed. Exported pure for the fetch tests. */

@@ -214,12 +214,13 @@ export const GIFTS_RULES: GameRule[] = [
     id: 'R-DRAGON-GRAVUS-01',
     title: "Gravus (Dragon and Undead): \"Echo: Give this minion's Attack to 2 friendly minions.\" Its Attack at death, 2 different others; combat-only in combat",
     statement:
-      "Gravus (Set 3, T5 8/3; Tier 6 until the owner moved it on 2026-10-15) is a Dragon AND an Undead (the tribe2 dual). Its Echo hands its Attack at death to 2 DIFFERENT random other friendly minions (never itself; Lieutenant Thane's spread body). In combat the gain is a combat buff (the buff-permanence rule); an Echo fired in the Shop is permanent. Gilded: the whole spread twice.",
+      "Gravus (Set 3, T6 10/3 with Taunt since the owner's 2026-10-23 change; T5 8/3 from 2026-10-15, T6 8/3 before) is a Dragon AND an Undead (the tribe2 dual). Its Echo hands its Attack at death to 2 DIFFERENT random other friendly minions (never itself; Lieutenant Thane's spread body). In combat the gain is a combat buff (the buff-permanence rule); an Echo fired in the Shop is permanent. Gilded: the whole spread twice.",
     domain: 'gifts',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner Set 3 Dragon batch 2 (2026-10-15)', quote: "Gravus, Dragon AND Undead, T6 8/3: \"Echo: Give this minion's Attack to 2 friendly minions.\" (its Attack at death, random 2 other friendly minions; combat-only per the buff-permanence rule)." },
       { kind: 'owner-chat', ref: 'Owner change 2026-10-15 (PR #2097)', quote: 'move gravus & well watcher to t5' },
+      { kind: 'owner-chat', ref: 'Owner Set 3 changes 2026-10-23', quote: "Gravis -> T6, 10/3 Taunt. Echo: Give this minion's Attack to 2 friendly minions." },
       { kind: 'code', ref: "packages/core/src/effects/factories.ts deathrattleGiveAttackToOthers; packages/core/src/effects/arena.ts rallyGiveAttackToOthers; packages/sim/src/recruit.ts deathrattleGiveAttackToOthers" },
     ],
     contentIds: ["d3_gravus"],

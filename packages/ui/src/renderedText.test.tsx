@@ -262,6 +262,10 @@ const CROSS: CrossExemplar[] = [
   { id: 'n2_wanderer', run: { goldSpent: 13 }, foe: false }, // run-lifetime Gold meter — NOT in the snapshot (by design)
   { id: 'sp3_flamereveler', run: { revelerX: 4 } }, //   run-scoped shared Reveler value (owner 2026-09-10)
   { id: 'sp3_luminary', run: { revelerX: 3 } },
+  // Rune of the Traveling Festival's flat +2/+2 on every Reveler grant (owner 2026-10-23), with and without a grown
+  // value. Player-side only: a foe Reveler is never sold mid-fight and the snapshot does not carry the rune's extra.
+  { id: 'sp3_flamereveler', run: { revelerX: 4, revelerExtra: { attack: 2, health: 2 } }, foe: false },
+  { id: 'sp3_grovereveler', run: { revelerExtra: { attack: 2, health: 2 } }, foe: false },
   { id: 'sp3_kindled', run: { playedThisTurn: ['sp3_tidebud', 'sp3_nurturer'] } }, // Spirits played this turn
   { id: 'u3_bicyclebob', run: { playedThisTurn: ['u3_noggin', 'mumi'] } }, // Undead played this turn — the per-tribe map rides the snapshot to the foe side (2026-09-18)
   { id: 'stewardofspells', run: { lastSpellCastId: 'growth' } }, // run-lifetime last spell: the " (X)" suffix (owner 2026-10-09)
@@ -304,6 +308,14 @@ const renderUnit = (u: UnitFrame, run: RunState): string => {
 };
 
 describe('rendered-text reconciliation — combat chain + cross-chain drift', () => {
+  it('Traveling Festival: a Reveler prints its grant WITH the rune +2/+2 in the shop AND in combat (owner 2026-10-23)', () => {
+    const x: CrossExemplar = { id: 'sp3_flamereveler', run: { revelerX: 4, revelerExtra: { attack: 2, health: 2 } } };
+    expect(plainOf(liveBoardView(boardCardFor(x), runFor(x)).text)).toContain('+6 Attack');
+    expect(renderUnit(frameFor(x), runFor(x))).toContain('+6 Attack');
+    const bare: CrossExemplar = { id: 'sp3_flamereveler', run: { revelerX: 4 } };
+    expect(renderUnit(frameFor(bare), runFor(bare)), 'no rune: the shared value alone').toContain('+4 Attack');
+  });
+
   it('each exemplar actually arms on the shop chain (sanity: the comparison below is not vacuous)', () => {
     for (const x of CROSS) {
       const shopText = liveBoardView(boardCardFor(x), runFor(x)).text;

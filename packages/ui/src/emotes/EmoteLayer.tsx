@@ -26,8 +26,9 @@ import './emotes.css';
  *  - THE REPLAY: at each phase start, the recorded emotes of every seat that is a real player's run are scheduled at
  *    their recorded offsets (`seatEmoteSchedule`), off the transition frame; the next phase start cancels what is left.
  *    In combat only the foe you are fighting can be seen, so only its emotes are scheduled. Bots and generated seats
- *    never emote. Nothing is scheduled while a replay is being watched.
- *  - THE MENU: your four emotes, opened by right-clicking your portrait (StatusBar), with the 20 s cooldown.
+ *    never emote. Nothing is scheduled while a replay is being watched (the replay's stream delivers what the player
+ *    saw, R-REPLAY-EMOTE-01); the fight's foe is still named so those bubbles find the foe portrait.
+ *  - THE MENU: your eight emotes (four before 2026-10-22), opened by right-clicking your portrait (StatusBar), with the 8 s cooldown (20 s before 2026-10-22).
  */
 export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
   useEffect(() => {
@@ -42,7 +43,10 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
       setEmoteFoe(null);
       const st = useGame.getState();
       const lobby: RunLobby | undefined = st.run.lobby ?? undefined;
-      if (!lobby || st.replaySession || st.run.godMode) return;
+      if (!lobby || st.run.godMode) return;
+      // A REPLAY plays the emotes its stream recorded (R-REPLAY-EMOTE-01, `replayStreamPlayer.ts`), never the seats'
+      // schedules; it still names the fight's foe so a recorded foe emote lands beside the foe portrait.
+      const replay = !!st.replaySession;
       // Off the phase transition's frame: a snapshot seat's board is a lookup, but the transition is busy enough.
       timers.push(window.setTimeout(() => {
         const cur = useGame.getState().run.lobby;
@@ -52,8 +56,10 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
           const foe = playerOpponent(cur);
           if (!foe || foe.ghost) return;
           setEmoteFoe(foe.seat.id);
+          if (replay) return;
           seats = [foe.seat.id];
         } else {
+          if (replay) return;
           seats = cur.seats.filter((s) => s.id !== PLAYER_SEAT && s.kind === 'snapshot' && s.alive).map((s) => s.id);
         }
         for (const seat of seats) {
@@ -93,7 +99,7 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
   return menu ? <EmoteMenu at={menu} /> : null;
 });
 
-/** The right-click menu: your four emotes, and the cooldown while it runs. Portaled to the stage host. */
+/** The right-click menu: your eight emotes, and the cooldown while it runs. Portaled to the stage host. */
 function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean; anchor?: { top: number; bottom: number } } }): JSX.Element {
   const slots = useEmoteSlots();
   const ref = useRef<HTMLDivElement>(null);
@@ -145,7 +151,7 @@ function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean; anchor
       onContextMenu={(e) => { e.preventDefault(); }}
     >
       <b className="atip-title">Emotes</b>
-      {/* ALL FOUR slots, always (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"):
+      {/* ALL EIGHT slots, always (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"):
           an empty one is the dashed empty-slot frame, never clickable, its hover pointing at crates. */}
       <div className="emote-grid">
         {slots.map((id, i) => {

@@ -1,9 +1,9 @@
 /**
- * YOUR EMOTE MENU (owner 2026-10-13: "Players equip up to 4 in Collections"). The four emotes the in-game menu shows,
+ * YOUR EMOTE MENU (owner 2026-10-13: "Players equip up to 4 in Collections"; eight since 2026-10-22). The emotes the in-game menu shows,
  * resolved from the live loadout by `emoteSlotsOf` (@game/progression): explicit positions first, the player's other
- * OWNED emotes filling the rest. Since 2026-10-15 every emote is a crate drop except the one starter, Zen Brian, so a
- * guest or a fresh account has Zen Brian and three EMPTY slots (the menu draws them), and a position only ever shows an
- * emote the account owns.
+ * OWNED emotes filling the rest. Every emote is a crate drop except the starters (Zen Brian since 2026-10-15, the five
+ * Comms emotes since 2026-10-22), so a guest or a fresh account has those six and two EMPTY slots (the menu draws
+ * them), and a position only ever shows an emote the account owns.
  *
  * THE LOCAL LAYER. Emotes must work locally and offline, and until the owner runs 2026-10-13-emotes.sql (and deploys
  * progression-inventory) the server refuses the `emote` slot. So an equip the server does not take (signed out, the
@@ -12,7 +12,7 @@
  * The emotes you USE are recorded on your boards either way (that path needs no server change at all).
  */
 import { useMemo } from 'react';
-import { EMOTE_SLOT_COUNT, emoteSlotsOf, withEmoteAt, type ProgressionProfile, type RunCosmeticSnapshot } from '@game/progression';
+import { EMOTE_POSITION_RE, EMOTE_SLOT_COUNT, emoteSlotsOf, withEmoteAt, type ProgressionProfile, type RunCosmeticSnapshot } from '@game/progression';
 import { create } from 'zustand';
 import { currentUserId } from '../identity';
 import { mirrorFor, useProgression } from '../progression/progressionStore';
@@ -21,11 +21,15 @@ const LOCAL_KEY = 'ascent.emoteLoadout';
 type LocalEmotes = Readonly<Record<string, string>>;
 
 function readLocal(): LocalEmotes | null {
+  try { return parseLocalEmotes(localStorage.getItem(LOCAL_KEY)); } catch { return null; }
+}
+/** The device layer's stored JSON, validated: positions '0'..'7' (EMOTE_POSITION_RE) to emote-shaped ids, else dropped. */
+export function parseLocalEmotes(raw: string | null): LocalEmotes | null {
   try {
-    const o = JSON.parse(localStorage.getItem(LOCAL_KEY) ?? 'null') as unknown;
+    const o = JSON.parse(raw ?? 'null') as unknown;
     if (!o || typeof o !== 'object' || Array.isArray(o)) return null;
     const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(o as Record<string, unknown>)) if (/^[0-3]$/.test(k) && typeof v === 'string' && /^[a-z0-9_]{1,64}$/.test(v)) out[k] = v;
+    for (const [k, v] of Object.entries(o as Record<string, unknown>)) if (EMOTE_POSITION_RE.test(k) && typeof v === 'string' && /^[a-z0-9_]{1,64}$/.test(v)) out[k] = v;
     return Object.keys(out).length ? out : null;
   } catch {
     return null;

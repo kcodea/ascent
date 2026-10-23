@@ -270,6 +270,8 @@ export interface PulseCfg {
   style: 'ring' | 'shard' | 'nova';
   blend: 'add' | 'normal' | 'screen';
   ringCount: number; ringSize: number; ringWidth: number; ringSpeed: number; ringMs: number; ringStaggerMs: number;
+  /** Peak ring opacity (default 0.85, the value every caller had before it was a field). */
+  ringAlpha?: number;
   coreFlashSize: number; coreFlashMs: number;
   sparkCount: number; sparkSpeed: number; sparkLife: number; sparkSize: number;
   holdMs: number;
@@ -1666,7 +1668,7 @@ class FxController {
       x: p.x, y: p.y, vx: 0, vy: 0, drag: 1,
       life: cfg.ringMs / (cfg.ringSpeed > 0 ? cfg.ringSpeed : 1),
       fromScale: 0.15, toScale, spin: 0,
-      tint: hexNum(cfg.colorRing), blend: cfg.blend, peakAlpha: 0.85,
+      tint: hexNum(cfg.colorRing), blend: cfg.blend, peakAlpha: cfg.ringAlpha ?? 0.85,
     });
   }
 

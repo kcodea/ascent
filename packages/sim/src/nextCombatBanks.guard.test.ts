@@ -38,6 +38,7 @@ const LOOKS_LIKE_A_BANK = /^pending|^next[A-Z]|Next/;
 interface Bank { arm: Partial<RunState>; modKey: keyof QuestCombatMods; spellId: string }
 const NEXT_COMBAT_BANKS: Record<string, Bank> = {
   pendingWeaken: { arm: { pendingWeaken: 1 }, modKey: 'weakenTargets', spellId: 'weaken' },
+  pendingSkeletons: { arm: { pendingSkeletons: 2 }, modKey: 'bankedSkeletons', spellId: 'sp_overflowingcrypt' },
   pendingDecoys: { arm: { pendingDecoys: 1 }, modKey: 'decoySigils', spellId: 'decoysigil' },
   summonTauntsNextCombat: { arm: { summonTauntsNextCombat: 2 }, modKey: 'summonTaunts', spellId: 'summoningbulwark' },
   rallyDoubleNext: { arm: { rallyDoubleNext: true }, modKey: 'rallyDouble', spellId: 'rallyoffensive' },

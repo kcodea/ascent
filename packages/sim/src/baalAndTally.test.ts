@@ -18,10 +18,10 @@ describe('Baal', () => {
     expect(def.token, 'forge-only — must never be drawable from a shop').toBe(true);
   });
 
-  it('Rune of Baal is an Epic costing 6 that grants exactly Baal', () => {
+  it('Rune of Baal is an Epic costing 5 that grants exactly Baal', () => {
     const rune = RUNE_INDEX['rune_baal']!;
     expect(rune).toBeDefined();
-    expect(rune.cost).toBe(6);
+    expect(rune.cost).toBe(5); // owner 2026-10-23: was 6
     expect(rune.epic).toBe(true);
     expect(rune.sets).toEqual(['set2']); // + set3 2026-09-14 (rune roster carryover); // CUT FROM SET 3 2026-09-24 (owner)
     expect(rune.reward).toMatchObject({ kind: 'grant', cards: ['dw_baal'] });

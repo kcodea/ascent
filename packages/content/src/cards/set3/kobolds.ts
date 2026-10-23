@@ -193,8 +193,8 @@ export const SET3_KOBOLDS: CardDef[] = [
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'prismatic_pick' } }],
     // Owner rework 2026-10-22: the Ruby branch Discovers 2 Rubies (was 1); the Equipment's own text says the same.
-    text: '**Equip Prismatic Pick (1): Choose One.** **Discover 2 Rubies** or your next **Choose One** card this turn gains **both** effects.',
-    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover 4 Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
+    text: '**Equip Prismatic Pick (1): Choose One.** **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.',
+    goldenText: '**Equip Prismatic Pick (1): Choose One.** **Discover 4 special Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
   },
   {
     // Set 3 — the SPELL-reactive Kobold. "Shop spell" is load-bearing (owner vocabulary rule): a Ruby is not
@@ -340,19 +340,22 @@ export const SET3_KOBOLDS: CardDef[] = [
     id: 'k3_facetbound',
     name: 'Shardluck', // 'Facetbound Martyr' until 2026-09-14 (owner rename handoff; id + art unchanged)
     tribe: 'kobold',
-    tier: 6,
+    // Owner 2026-10-23 ("Shardluck -> T5 8/4 Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times"):
+    // T6 8/5 -> T5 8/4, both branches 3 -> 2 (Gilded 4 / 4). Owner 2026-10-23: "shardluck should cast 2 rubies on all
+    // kobold not 2 random get 1": the Ruby branch casts 2 Rubies on EACH friendly Kobold (itself included; Gilded 4 each).
+    tier: 5,
     attack: 8,
-    health: 5,
+    health: 4,
     keywords: [],
     effects: [],
     chooseOne: [
-      { text: 'Play **3 Rubies** on your **Kobolds**.', goldenText: 'Play **6 Rubies** on your **Kobolds**.',
-        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesRandomTribe', params: { count: 3, tribe: 'kobold' } }] },
-      { text: 'Cast **Veinstorm** 3 times.', goldenText: 'Cast **Veinstorm** 6 times.',
-        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 3 } }] },
+      { text: 'Cast **2 Rubies** on your **Kobolds**.', goldenText: 'Cast **4 Rubies** on your **Kobolds**.',
+        effects: [{ on: 'onPlay', do: 'battlecryPlayRubiesAll', params: { rubies: 2, tribe: 'kobold' } }] },
+      { text: 'Cast **Veinstorm** 2 times.', goldenText: 'Cast **Veinstorm** 4 times.',
+        effects: [{ on: 'onPlay', do: 'battlecryCastNamedSpell', params: { spellId: 'veinstorm', count: 2 } }] },
     ],
-    text: '**Choose One:** Play **3 Rubies** on your **Kobolds** or cast **Veinstorm** 3 times.',
-    goldenText: '**Choose One:** Play **6 Rubies** on your **Kobolds** or cast **Veinstorm** 6 times.',
+    text: '**Choose One:** Cast **2 Rubies** on your **Kobolds** or cast **Veinstorm** 2 times.',
+    goldenText: '**Choose One:** Cast **4 Rubies** on your **Kobolds** or cast **Veinstorm** 4 times.',
   },
   {
     // RESTORED 2026-10-22 as a SET 3 card (owner Set 3 Kobold pool call: "add Gemgorge Fiend back into Set 3"). Archived from every set 2026-10-10; moved back verbatim and unchanged into set 3 only (set 2 does not regain it). Its Demon second tribe stays: Set 3 fields no Demon tribe, so it plays as a Kobold there.

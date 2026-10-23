@@ -37,24 +37,24 @@ const QUIET = Array.from({ length: 6 }, (_, i) => board('Quiet', 'warden', 5252,
 
 beforeAll(() => { registerOpponents([...CHATTY, ...QUIET]); });
 
-describe('the cooldown (owner: "20 seconds between emotes ... No per-turn cap")', () => {
-  it('is 20 s; ready before any use, cooling for exactly 20 s after one, ready again after', () => {
-    expect(EMOTE_COOLDOWN_MS).toBe(20_000);
+describe('the cooldown (owner: "drop the emote cooldown from 20s to 8s"; no per-turn cap)', () => {
+  it('is 8 s (owner 2026-10-22, was 20 s); ready before any use, cooling for exactly 8 s after one, ready again after', () => {
+    expect(EMOTE_COOLDOWN_MS).toBe(8_000);
     expect(emoteCooldownLeft(null, 1000)).toBe(0);
     expect(emoteReady(null, 1000)).toBe(true);
-    expect(emoteCooldownLeft(1000, 1000)).toBe(20_000);
-    expect(emoteCooldownLeft(1000, 13_000)).toBe(8_000);
-    expect(emoteReady(1000, 20_999)).toBe(false);
-    expect(emoteReady(1000, 21_000)).toBe(true);
-    // no cap: any number of emotes, one per 20 s
+    expect(emoteCooldownLeft(1000, 1000)).toBe(8_000);
+    expect(emoteCooldownLeft(1000, 7_000)).toBe(2_000);
+    expect(emoteReady(1000, 8_999)).toBe(false);
+    expect(emoteReady(1000, 9_000)).toBe(true);
+    // no cap: any number of emotes, one per 8 s
     let last: number | null = null;
     let said = 0;
     for (let t = 0; t <= 200_000; t += 1000) if (emoteReady(last, t)) { last = t; said++; }
-    expect(said).toBe(11);
+    expect(said).toBe(26);
   });
 
   it('a clock that went backwards never locks longer than one cooldown', () => {
-    expect(emoteCooldownLeft(50_000, 0)).toBe(20_000);
+    expect(emoteCooldownLeft(50_000, 0)).toBe(8_000);
   });
 });
 

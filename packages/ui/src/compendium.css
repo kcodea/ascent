@@ -227,8 +227,12 @@ body:has(.book-ov) .cardref { z-index: 490; }
 .book-chart:has(.book-runetribes) { position: static; transform: none; margin: 0 auto; }
 .book-chart:has(.book-runetribes) + .book-tiers-end { margin-left: 0; }
 .book-runetribes { display: flex; align-items: center; justify-content: center; gap: 7px; align-self: center; }
-.book-runetribe { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px 0 9px; border-radius: 7px; font-size: 13px; letter-spacing: 0.01em; }
+.book-runetribe { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 12px; border-radius: 7px; font-size: 13px; letter-spacing: 0.01em; }
 .book-runetribe svg { width: 15px; height: 15px; color: var(--c); filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6)); }
+/* A tribe chip carries no icon (owner 2026-10-22): its name is printed in the tribe colour instead (the All chip keeps its book icon). */
+.book-runetribe > span { color: var(--c); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+/* The Runes tab's forge pills sit after the tribe pills, set apart by their own caption. */
+.book-runeforge-cap { margin-left: 10px; }
 /* A lit tribe pill keeps the gold halo and adds its tribe colour as the inner ring. */
 .book-runetribe.on { box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), inset 0 0 0 2px color-mix(in srgb, var(--c) 70%, transparent), 0 0 0 1px color-mix(in srgb, var(--ui-title) 30%, transparent), 0 0 14px -2px color-mix(in srgb, var(--c) 60%, transparent); }
 

@@ -1,5 +1,5 @@
 /**
- * EMOTES IN A GAME (owner spec 2026-10-13): the menu's state, the 20 s cooldown, the phase clock and "say it".
+ * EMOTES IN A GAME (owner spec 2026-10-13): the menu's state, the 8 s cooldown, the phase clock and "say it".
  *
  * THE PHASE CLOCK. An emote's offset is measured from the start of the phase it was used in: the shop TURN (the run
  * entering `recruit` for a wave) or the COMBAT (the run entering `combat`). The same clock times your own emotes (what

@@ -42,7 +42,8 @@ const BOOL_FLAGS = (
   + 'runeDawnclaw runeSylus runeGroveweaver runeTemperedTime runeSavagery runeJungle runeBurrow runeBeastialSwarm runeZoo '
   + 'runeRuins runeGolems runeEngravingGems runeHerdingHorn runeDeathtouchedApple runeStokedMenagerie runeHerald runeMirrorMarch '
   + 'runeTrophy oldPack runeWarCouncil runeGrowingInferno runeRuneboundBrood runeUnbrokenScales runeRunicTransposition '
-  + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance' // Set 3 Dragon runes, Basic + Epic A
+  + 'runeSpellFedScales runeDeepBreaths runeDefiantWings runeFinalUtterance runeEmberInheritance ' // Set 3 Dragon runes, Basic + Epic A
+  + 'runeGoleming runeRedStart runeRoseysGarden' // Set 3 Kobold runes (2026-10-22)
 ).split(' ');
 
 /** Every non-boolean combat mod, with a value of its real shape (labels are display-only). */
@@ -134,6 +135,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ burningLegionUses: 1 }),
   () => ({ decoySigils: 1 }),
   () => ({ weakenTargets: 1 }),
+  () => ({ bankedSkeletons: 2 }),
   () => ({ runePackcraft: true, packcraftLevel: { attack: 3, health: 2 } }),
   () => ({ runeCarrionCoin: 1 }),
   () => ({ solidGroundLeft: 2, solidGroundStat: 3 }),

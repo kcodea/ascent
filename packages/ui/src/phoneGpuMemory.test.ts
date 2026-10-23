@@ -56,7 +56,7 @@ describe('phone diagnostics switches', () => {
     expect(parseDiagQuery('res1, litebd,nope')).toEqual({ res1: 1, litebd: 1 });
     expect(parseDiagQuery('0')).toEqual({});
     expect(activeDiagLabel({ litebd: 1, nofx: 1 })).toBe('nofx+litebd');
-    expect(PHONE_DIAG_FLAGS.map((f) => f.id)).toEqual(['nofx', 'res1', 'noanim', 'zoom', 'nozoom', 'litebd']);
+    expect(PHONE_DIAG_FLAGS.map((f) => f.id)).toEqual(['nofx', 'res1', 'noanim', 'zoom', 'nozoom', 'gamexf', 'litebd']);
   });
 
   it('Settings offers them on a phone only', () => {
@@ -69,7 +69,7 @@ describe('the stage zoom', () => {
   it('zooms only on a phone: its menus by default, everywhere with zoom, never with nozoom on the menus', () => {
     expect(zoomedStage(false, true, { zoom: 1 })).toBe(false); // desktop: never
     expect(zoomedStage(true, true, {})).toBe(true);
-    expect(zoomedStage(true, false, {})).toBe(false); // hero select / a run keep the transform
+    expect(zoomedStage(true, false, {})).toBe(false); // hero select / a run keep the transform unless the zoom probe passes (R-TOUCH-RUN-MEMORY-01)
     expect(zoomedStage(true, false, { zoom: 1 })).toBe(true);
     expect(zoomedStage(true, true, { nozoom: 1 })).toBe(false);
   });

@@ -17,8 +17,8 @@ const bm = (uid: string, cardId: string, a = 2, h = 2): BoardCard =>
 const win = { events: [], result: 'win' as const, playerDamage: 0, playerDeathrattles: 0, enemyDeaths: 0, initial: { player: [], enemy: [] } };
 
 describe('the def', () => {
-  it('is Epic, 5 (balance 9/23, was 6), and archived everywhere (owner 2026-10-07; was set-2 scoped)', () => {
-    expect([rune().cost, rune().epic, rune().sets]).toEqual([5, true, []]);
+  it('is Epic, 4 (owner 2026-10-23; balance 9/23 was 5, before that 6), and archived everywhere (owner 2026-10-07; was set-2 scoped)', () => {
+    expect([rune().cost, rune().epic, rune().sets]).toEqual([4, true, []]);
     expect([...RUNES, ...EPIC_RUNES].some((r) => r.id === 'rune_chef'), 'in no forge stock').toBe(false);
   });
 });

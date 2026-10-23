@@ -69,7 +69,7 @@ describe('the Heroes and Minions tabs', () => {
     expect(tab('Heroes').querySelector('.colls-tab-count')?.textContent).toBe('1/41'); // skins batch 10 (2026-10-21): seven hero skins (was 1/34); skins batch 8 (2026-10-03): eleven hero skins (was 1/23); skins batch 7 (2026-10-01): Goth Merrin, Iron Guardian, Robin Hood (was 1/20)
     // 2026-09-28: three Black Belt Brian skins and one Bellringer Voss skin, so Minions is 1/4 and the album 22 items (30 with the eight hero attacks, 2026-09-28); skins batch 2 (2026-09-28) adds 13 minion skins: Minions 1/17, the album 43; the 33 hero titles (2026-09-29) make it 76; the ninth hero attack, Inferno (2026-09-29), 77; Grave Call (2026-09-29), 78; the Stampede (2026-09-29), 79; Oona's Banana Cannon (2026-09-29), 80; Hemorrhage (2026-09-29), 81; skins batch 3 (2026-09-29) adds 4 minion skins (Minions 1/21) and a Frantic Frank hero skin (Heroes 1/3), +5; skins batch 4 (2026-09-30) adds 16 minion skins (Minions 1/37) and 16 hero skins (Heroes 1/19), +32; skins batch 5 (2026-09-30) adds 11 minion skins (Minions 1/48) and Influencer Indy (Heroes 1/20), +12; skins batch 6 (2026-10-01) adds 9 minion skins (Minions 1/57), +9; skins batch 9 (2026-10-07) adds Canyon Drake and Thunderchorus Drake (Minions 1/59), +2; frames batch 9 (2026-10-07) adds 5 portrait frames, +5
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('1/67'); // + seven skins batch 10 (2026-10-21); + Astral Fatecarver (2026-10-10)
-    expect(text('.colls-meter-num')).toBe('4 / 332'); // 2026-10-18: nine more crate emotes (+9). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
+    expect(text('.colls-meter-num')).toBe('9 / 337'); // 2026-10-22: the five Comms emotes, owned by all (+5 / +5). 2026-10-18: nine more crate emotes (+9). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
   });
 
   it('tiles show the art and the target; unowned are dimmed + blurred (missing) with a lock', () => {
@@ -94,7 +94,7 @@ describe('the Heroes and Minions tabs', () => {
       // the Fatecarver skin (2026-10-10)
       'Astral Fatecarver',
       // skins batch 10 (2026-10-21)
-      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy Pee', 'Cosmic Mushy', 'Gilded Kennelmaster', 'Jensen & Fi Sky',
+      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy River', 'Cosmic Mushy', 'Gilded Kennelmaster', 'Jensen & Fi Sky',
     ].sort());
     const owned = tile('Sheriff Brian');
     expect(owned.className).toMatch(/\bskin\b/);
@@ -172,15 +172,15 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
       'Sketchbook Brian', 'Crowd Surf Drakko', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Stencil Sylus', 'Blown Glass Recaller', 'Crimson Chimerus',
       'Epic Baal', 'Smog Nimbus', 'Lightblade Sword', 'Mascot Scalefeather', 'Mime Joker', 'Quartet Chorusdrake', 'Star Urchin',
       'Sea Dragon Wayfinder', 'Timeworn Spellsword', 'Frost Commander', 'Canyon Drake', 'Thunderchorus Drake', 'Astral Fatecarver',
-      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy Pee',
+      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy River',
       'Joyride Jensen & Fi', 'Potion Stand Steward', 'Double Agent Zyff', 'Beefy Arnold', 'Starform Recaller', 'Bouncer Pimm', 'Mecha Scalefeather', 'Lavish Date',
       'Soul Surf Wayfinder', 'Hexhunter Wardkeeper', 'Amber Deepvein', 'Static Deepvein', 'Frost Wardkeeper', 'Infernal Wayfinder',
     ]);
     expect(tab('Minions').querySelector('.colls-tab-count')?.textContent).toBe('0/66');
-    expect(text('.colls-meter-num')).toBe('3 / 331');
+    expect(text('.colls-meter-num')).toBe('8 / 336');
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: [] }));
     expect(tile('Sheriff Brian').className).toMatch(/\bowned\b/);
-    expect(text('.colls-meter-num')).toBe('4 / 332'); // 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
+    expect(text('.colls-meter-num')).toBe('9 / 337'); // 2026-10-22: the five Comms emotes (+5 / +5). 2026-10-17: Phoenix removed (-1), Goop (+1), three more card plates (+3), after thirteen (+13). 2026-10-16: the Chrome card plate (+1). 2026-10-16: seven more card plates (+7). 2026-10-15: Sad Wrangler retired (-1). 2026-10-15: Zen Brian, the one starter emote, owned by all (+1). 2026-10-15: no starter emotes (owned -4), thirteen crate emotes in the total (+10 net, Angry Mushy retired). + the six card plates (2026-10-14/15), + the four starter emotes (2026-10-13), + six hero titles (2026-10-15)
   });
 
   it('a disabled CATEGORY becomes a locked Soon tab', () => {
@@ -188,6 +188,6 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
     act(() => applyServerCatalogState({ retiredIds: [], disabledCategories: ['hero_skin'] }));
     expect(tab('Heroes').className).toMatch(/\blocked\b/);
     expect(tab('Heroes').textContent).toContain('Soon');
-    expect(text('.colls-meter-num')).toBe('3 / 291');
+    expect(text('.colls-meter-num')).toBe('8 / 296');
   });
 });

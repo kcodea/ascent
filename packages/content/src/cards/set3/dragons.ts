@@ -4,7 +4,7 @@ import type { CardDef } from '@game/core';
  * SET 3 — DRAGONS (owner 2026-10-13, authored for Set 4; MOVED to Set 3 2026-10-14, owner: "move our current set 4
  * dragons to set 3"): the WHISPER Dragons. Ids unchanged (`d4_*` records where they were first authored). Galas and Tolan GRANT a Whisper (`grantWhisper`: a Start of
  * Turn effect while on the board, and the reducer's minion play reads the same marker to hand one over the moment
- * the minion is played from hand, see `sim/whisper.ts`); Tamby and Whisp react to Whispers being cast on minions. No art yet (missing-art convention).
+ * the minion is played from hand, see `sim/whisper.ts`); Tamby and Whisp react to Whispers being cast on minions (Whisp and Gatherer archived 2026-10-23, now in `cards/archive.ts`). No art yet (missing-art convention).
  */
 export const SET3_DRAGONS: readonly CardDef[] = [
   {
@@ -45,19 +45,6 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     effects: [{ on: 'spellCastOnThis', do: 'whisperCastOnThisCopy', params: { count: 1 } }],
     text: 'When you cast a **Whisper** on this, get a copy of it. (Once per turn)',
     goldenText: 'When you cast a **Whisper** on this, get **2** copies of it. (Once per turn)',
-  },
-  {
-    // T6 7/6. A Whisper cast on a Dragon is ALSO cast on this (a full cast). Gilded: twice.
-    id: 'd4_whisp',
-    name: 'Whisp',
-    tribe: 'dragon',
-    tier: 6,
-    attack: 7,
-    health: 6,
-    keywords: [],
-    effects: [{ on: 'passive', do: 'whisperEchoOnDragon', params: { count: 1 } }],
-    text: 'When you cast a **Whisper** on a Dragon, also cast it on this.',
-    goldenText: 'When you cast a **Whisper** on a Dragon, also cast it on this twice.',
   },
   {
     // T6 9/10 (owner 2026-10-14). "When a Dragon attacks, cast Runebind on it. (3 times per combat)". A COMBAT cast of the
@@ -123,22 +110,6 @@ export const SET3_DRAGONS: readonly CardDef[] = [
   },
   // -- Owner Set 3 Dragon batch 2 (2026-10-15). Appended after Shush so no earlier Set 3 pool position moves. --
   {
-    // T4 5/4: "Rally: Get a random Dragon." A random Dragon from the RUN's set pool (tier-capped, every Dragon-counting
-    // body: dual tribes and All-types), to hand. Cross-phase (`rallyGrantRandomTribeMinion`, one arena body): a combat
-    // swing hands it over mid-fight through `grantRandomMinion`; a Shop-phase Rally (a forced Rally) mints it at once.
-    // Gilded: 2 Dragons.
-    id: 'd3_gatherer',
-    name: 'Gatherer',
-    tribe: 'dragon',
-    tier: 4,
-    attack: 5,
-    health: 4,
-    keywords: ['RL'],
-    effects: [{ on: 'onAttack', do: 'rallyGrantRandomTribeMinion', params: { tribe: 'dragon', count: 1 } }],
-    text: '**Rally:** Get a random **Dragon**.',
-    goldenText: '**Rally:** Get **2** random **Dragons**.',
-  },
-  {
     // T5 8/3 (T6 until the owner's 2026-10-15 move: "move gravus & well watcher to t5"), Dragon AND Undead (the `tribe2` dual): "Echo: Give this minion's Attack to 2 friendly minions." Its Attack
     // at death, to 2 DIFFERENT random other friendly minions (Lieutenant Thane's Rally body, reused by
     // `deathrattleGiveAttackToOthers`). Combat: a combat buff (R-BUFF-PERM); a Shop Echo is permanent. Gilded: the whole
@@ -147,13 +118,15 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     name: 'Gravus',
     tribe: 'dragon',
     tribe2: 'undead',
-    tier: 5,
-    attack: 8,
+    // Owner 2026-10-23 ("Gravis -> T6, 10/3 Taunt. Echo: Give this minion's Attack to 2 friendly minions."): T5 8/3 ->
+    // T6 10/3 and gains Taunt; the Echo and both tribes are unchanged.
+    tier: 6,
+    attack: 10,
     health: 3,
-    keywords: [],
+    keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleGiveAttackToOthers', params: { count: 2 } }],
-    text: "**Echo:** Give this minion's **Attack** to **2** friendly minions.",
-    goldenText: "**Echo:** Give this minion's **Attack** to **2** friendly minions twice.",
+    text: "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions.",
+    goldenText: "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions twice.",
   },
   {
     // T5 8/8 (T6 until the owner's 2026-10-15 move): "Whisper: Discover a Dragon." Grants the Whisper Well of Dragons (on play from hand + every Start of Turn
@@ -304,5 +277,20 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     effects: [],
     token: true,
     text: '',
+  },
+  {
+    // VELLUM (owner 2026-10-23), T7 Summit Dragon 12/8: "Equip Royal Edict (2): Improve your Shop spells by +2/+2. Your
+    // next 3 spells cast from hand this turn cast an additional time." The Equip convention (Alchemist Frank / Shush):
+    // the card names its Equipment by id; "(2)" is the Gold cost. Both halves live on `ROYAL_EDICT`.
+    id: 'd3_vellum',
+    name: 'Vellum',
+    tribe: 'dragon',
+    tier: 7,
+    attack: 12,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'royal_edict' } }],
+    text: '**Equip Royal Edict (2):** Improve your **Shop spells** by **+2/+2**. Your next **3** spells cast from hand this turn cast an additional time.',
+    goldenText: '**Equip Royal Edict (2):** Improve your **Shop spells** by **+4/+4**. Your next **3** spells cast from hand this turn cast **2** additional times.',
   },
 ];

@@ -899,4 +899,43 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-13. A triple keeps the kept copies\' marks, so the golden sheds them too.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set4.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
+  {
+    id: 'R-LEDGER-SHOP-DAMAGE-01',
+    title: 'Permanent Shop damage is its own row in the buff ledger, so the breakdown adds up to the stats shown',
+    statement:
+      'Damage your own minions take in the Shop (a Shop-fired Fel Spikes Echo or Gasket Rally spraying your non-Demons, '
+      + 'a Shop damage-all, a Set 4 wound) is permanent, so the inspect buff ledger records it as a negative row labelled '
+      + '"<source> (damage)", one count per hit. Printed stats plus every ledger row equal the stats the card shows. A '
+      + 'damage row is not a buff stack: Celestial Crucible and the build-tag buff tally skip it, and no gain mirror '
+      + '(Soulbind, Xerox, Shared Spoils) sees it.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-22 (Uron, Gilded, BUFFS "Rad Rachel x401 +1604/+802" over 16 Health)', quote: 'why did the HP bug out here?' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-22 (should Shop damage to your own minions stay permanent?)', quote: 'Shop damage -> yes it should.' },
+      { kind: 'code', ref: 'packages/sim/src/state.ts recordShopDamage / isShopDamageRow; packages/sim/src/recruit.ts shopSprayExceptTribe + shopArena damageAll / woundAll; packages/ui/src/Inspect.tsx signed ledger amounts' },
+    ],
+    contentIds: ['dm_felspikes', 'dm_gasket', 'dm_radrachel'],
+    currentBehaviour: 'Conforms as of 2026-10-22. Before it, Shop damage lowered Health correctly but was missing from the ledger, so a non-Demon beside Rad Rachel showed +802 Health buffs over a Health that had not moved.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/shopDamageLedger.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-MATCH-MINION-SIZE-01',
+    title: 'The selected game board and lobby minis in Match History and Recent Games grow with the window',
+    statement:
+      'The selected game card (Career Match History and Recent Games) shows its board at ONE card size for both pages, '
+      + 'derived from the layout viewport: the width the narrower host (the Career centre column) gives seven cards and '
+      + 'their pill gaps, capped at 200px and by the window height so the Career still fits without scrolling. It is '
+      + 'about 100px at 1920 x 1080 (the width there allows no more) and grows on larger windows (about 177px at '
+      + '2560 x 1440), never a fixed 100px card in a huge panel. The host width still bounds it (a phone). The lobby '
+      + 'seat tiles mini board portraits fill their tile up to 72px (was 40px). Display only.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (screenshot of Career Match History detail + lobby, ~2000px wide)', quote: 'minion sizes are really small here and in recent games. can you fix that?' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.gc.gc-detail .gc-board .cv2-team.cv2-team --tw; .lp-mini-m max-width)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchHistoryMinionSize.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

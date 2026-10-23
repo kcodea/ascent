@@ -23,7 +23,7 @@ const body = (uid: string, cardId: string, attack: number, health: number, over:
 const inHand = (uid = 'pic'): BoardCard => body(uid, 'sp_picnic', 0, 1);
 
 describe('Picnic', () => {
-  it('is a T5, 1-Gold untargeted spell that exists in set 2 and set 3', () => {
+  it('is a T5, 1-Gold untargeted spell that exists in set 2 (it left set 3 on 2026-10-23)', () => {
     const def = CARD_INDEX['sp_picnic']!;
     expect(def.spell).toBe(true);
     expect(def.tier).toBe(5);
@@ -31,7 +31,7 @@ describe('Picnic', () => {
     expect(def.target).toBeUndefined();
     expect(def.text).toBe('Give the right-most Shop minion **+8/+8** permanently.');
     expect(SETS.set2.own.some((c) => c.id === 'sp_picnic')).toBe(true);
-    expect(SETS.set3.own.some((c) => c.id === 'sp_picnic')).toBe(true);
+    expect(SETS.set3.own.some((c) => c.id === 'sp_picnic')).toBe(false); // owner 2026-10-23: "remove picnic from set 3"
     // Rune of Thrift discounts it (a stat spell); the Gilded Ledger never casts it (an offer buff, not a board grant).
     expect(isStatSpell(def)).toBe(true);
     expect(isStatGrantingSpell(def)).toBe(false);

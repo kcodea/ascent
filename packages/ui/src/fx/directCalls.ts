@@ -97,7 +97,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   'immune-shield-deflect': ['choreo/channels/immuneShield.ts'],
   'immune-shield-dissipate': ['choreo/channels/immuneShield.ts'],
   'immune-shield-form': ['choreo/channels/immuneShield.ts'],
-  'landing-dust': ['Recruit.tsx', 'useCombatReplay.ts', 'versus/useSeatDrag.tsx'],
+  'landing-dust': ['Recruit.tsx', 'handSummonFx.ts', 'useCombatReplay.ts', 'versus/useSeatDrag.tsx'],
   // THE LOBBY KNOCKOUT (owner ask 2026-10-02): a soft smoke veil (and a few motes) over a rail seat's row as the player is knocked out.
   'lobby-knockout': ['lobbyKnockoutFx.ts'],
   // THE LASSO (owner-authored 2026-09-22): stealing a Shop minion throws a rope at it — from the spell's drop

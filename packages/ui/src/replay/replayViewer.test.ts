@@ -10,7 +10,7 @@ import {
 } from '@game/sim';
 import {
   endReplay, frameAction, ghostHoldFor, replayRoundInfo, replayRoundMarks, roundInfoOf, seekReplayPhase, startReplay,
-  setReplaySounds, replayClockMs, replayCursorAt, setReplayCursor,
+  setReplaySounds, replayClockMs, replayCursorAt, setReplayCursor, pauseReplay, resumeReplay,
 } from './replayPlayer';
 import { useGame } from '../store';
 import { dragStore } from '../dragStore';
@@ -276,6 +276,33 @@ describe('the recorded cursor on the replay clock', () => {
     setReplayCursor(false);
     expect(replayCursorAt()).toBeNull();
     setReplayCursor(true);
+  });
+});
+
+describe('R-SPECTATE-COMBATCURSOR-01: the replay clock runs through a fight', () => {
+  it('a fight frame advances the clock (capped at the next frame), holds while paused, resumes where it was', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date', 'performance'] });
+    const cap = captureBotRun(4242, 'brackus', 3);
+    startReplay(replayOf(cap.frames));
+    seekReplayPhase(1, 'combat');
+    const idx = useGame.getState().replaySession!.index;
+    const f = cap.frames[idx]!;
+    const next = cap.frames[idx + 1]!;
+    expect(f.kind).toBe('combat');
+    resumeReplay();
+    const c0 = replayClockMs();
+    expect(c0).toBe(f.tMs);
+    vi.advanceTimersByTime(30);
+    expect(replayClockMs(), 'the fight clock moves (the recorded hand plays along it)').toBeCloseTo(f.tMs + 30, 0);
+    pauseReplay();
+    const held = replayClockMs();
+    vi.advanceTimersByTime(40);
+    expect(replayClockMs(), 'paused: held').toBe(held);
+    resumeReplay();
+    vi.advanceTimersByTime(20);
+    expect(replayClockMs()).toBeCloseTo(held + 20, 0);
+    vi.advanceTimersByTime(10_000);
+    expect(replayClockMs()).toBeLessThanOrEqual(Math.max(next.tMs, cap.frames.at(-1)!.tMs));
   });
 });
 

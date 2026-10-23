@@ -1,4 +1,4 @@
-import { soulFurnaceHealth, rubyCastGainOf, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
+import { soulFurnaceHealth, rubyCastGainOf, ROSEYS_GARDEN_GAIN, isLegalRandomCard, ALE_IDS, aleGrantCount, RUBY_TYPE_IDS, SPECIAL_RUBY_IDS, TRIBES, runVaultPulse, improvingGrant, vaultPulseActive, inRunTribes, alignAllows, makeRng, SILENT_ONPLAY, isShopPoolSpell, shopSpellGrowth, COMBAT_REPLAYABLE_BATTLECRIES, NO_COPY_SPELL_IDS, extraTriggerFires, boardShoutExtras, RALLY_WATCHER_EFFECTS, foldEchoExtraFires, socTwilightExtraFires, BODY_COUNTING_DEATHS, ARENA_EFFECTS, pickAutoTarget, beatIdentity, seedEchoEffects, SEED_TOKEN_ID, rollableWhisperIds, whisperAllowedAtTier, type EffectArena, type PresentationCollector, type PresentationPhase, type PresentationPolicy, type Rng, type CardDef, type EffectDef, type Keyword, type TriggerFamily, type TriggerSourceRef, type Tribe } from '@game/core';
 import { ancientGorrShopDeath, ancientGorrEotCopyLive, ancientRunGorrEotCopy, ancientOnRobinSale, ancientOnShopSummon, ancientRobinMaxGoldLive, ancientRunRobinMaxGold, ancientRunXeroxPairs, ancientXeroxPairsLive, ancientRunTradesUpgrade, ancientTradesUpgradeLive, ancientTradesShopDeath, tradesUpgradeCost, ancientRallyGoldGraft, rallyGoldGraftEffect, noteTradesRallyGold, ancientXeroxBondValidate, ancientXeroxShopDeath, ancientOnSale, ancientOnShopDeath, ancientOnShopShout, ancientOnShopRise, ancientPowerText, ancientEotWardBuff, ancientRunEotWardBuff, ancientBondsReact, ancientOnPlay, ancientOnSpellCast, ANCIENTS, ancientClearanceSellValue } from './ancients';
 import { ancientBramShopDeath } from './ancients'; // Braum
 import { ancientAyseTimeLive, ancientRunAyseTime } from './ancients'; // Ayse
@@ -16,7 +16,7 @@ import { lobbyOpponentBoard } from './lobby/runLobby';
 import { discoverElevateCeiling, legalRandomMinionPool, poolOf, randomTierCeiling } from './cardPool';
 import { CONFIG, hasTier7Access, maxTierFor, SHIFTER_OPTIONS } from './config';
 import { getHero, type HeroPower, spellAmplifyBonus, hasPower, activePowers, primaryPower, powerDiscoverPool, swapPowerLatch } from './heroes';
-import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude } from './state';
+import { handCap, runeGrantOverflow, recordBounceFx, recordCastFx, reservedHandSlots, mixSeed, TAG, type AuraFxTribe, type BoardCard, type BuffFxEvent, type CardBuff, type CiaSuit, type CommissionKind, type DiscoverSpec, type EquipFx, type RunState, type ShopCard, type ShopDeathFx, type CastFxSource, gateUses, procRune, procRuneId, runeBuffMagnitude, recordShopDamage, isShopDamageRow } from './state';
 export { ALE_IDS };
 import { returnToPool, rollShop, rollSpellShop, takeFromPool, refillShopFiltered, elevateShop, tierSlots, stampNewShopOffers, landRightmostSlotBuff, landLeftmostSlotBuff, rollCiaEnchants } from './shop';
 import { runeStacksOf } from './runeDup';
@@ -397,6 +397,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
       // too — removed, its own Echo firing, the same cascade combat runs.
       for (const c of [...state.board]) {
         c.health -= amount;
+        recordShopDamage(c, nameOf(self), amount); // the ledger adds up to the Health shown (R-LEDGER-SHOP-DAMAGE-01)
         // A landed hit on a friendly body: the Shop's damage-taken watchers answer it (Apua / Alan, R-WOUND-01's
         // "damage-taken triggers fire in both phases"). Only effects with a Shop body run, so nothing older moves.
         if (amount > 0) fireShopDamaged(state, c, amount);
@@ -552,6 +553,7 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
         const hitWave = nextShopWave(state);
         for (const c of live) {
           c.health -= damage;
+          recordShopDamage(c, nameOf(self), damage); // R-LEDGER-SHOP-DAMAGE-01
           state.recruitBuffFx.push({
             sourceUid: self.uid, targetUid: c.uid, attack: 0, health: 0, damage,
             sourceCardId: self.cardId, sourceTribe: self.tribe, kind, fxWave: hitWave,
@@ -1866,16 +1868,32 @@ export function rubyCastCount(state: RunState): number {
   // Comet / Nimbus: "your NEXT SPELL casts N additional times" — a Ruby is a spell (owner 2026-09-18: "this effect
   // says spell, which means ALL spells should count"). Added last, like `spellCasts` adds it, and spent by the
   // Ruby cast site the same way the Shop-spell sites spend it.
-  return (1 + extra) * grimoireMultActive(state) + (state.nextSpellExtraCasts ?? 0);
+  return (1 + extra) * grimoireMultActive(state) + nextSpellExtra(state);
 }
 
 /** How many times a GIFT-class hand spell resolves. A Gift resolves exactly once (owner design 2026-08-26) — except a
  *  card-minted TARGETED hand spell (`giftMulticast`: Clue, Tower Shield), which the "next spell" charges reach:
  *  Yazzus ("your targeted spells", 2026-09-09) and Comet / Nimbus ("your next spell" — a Clue is a spell, owner
  *  2026-09-18). Side-effect free; shared by the reducer's gift cast site and the UI's ×N badge so they never drift. */
-export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
+export function giftCastCount(state: Pick<RunState, 'board' | 'nextSpellExtraCasts' | 'edictCharges' | 'edictExtra'>, def: Pick<CardDef, 'giftMulticast'>, aimed: boolean): number {
   if (!def.giftMulticast || !aimed) return 1;
-  return 1 + yazzusExtraCasts(state as RunState) + (state.nextSpellExtraCasts ?? 0);
+  return 1 + yazzusExtraCasts(state as RunState) + nextSpellExtra(state);
+}
+
+/** The "next spell cast from hand" extras on the NEXT hand cast: Comet / Nimbus' banked charge (`nextSpellExtraCasts`)
+ *  plus one Royal Edict charge's extra while any remain this turn. Read-only (the badge previews it); spent by
+ *  `spendNextSpellCharge` at the same cast sites. */
+export function nextSpellExtra(state: Pick<RunState, 'nextSpellExtraCasts' | 'edictCharges' | 'edictExtra'>): number {
+  return (state.nextSpellExtraCasts ?? 0) + ((state.edictCharges ?? 0) > 0 ? (state.edictExtra ?? 0) : 0);
+}
+
+/** Spend the next-spell charges on one hand cast: Comet / Nimbus' whole bank, and ONE Royal Edict charge. */
+export function spendNextSpellCharge(state: RunState): void {
+  state.nextSpellExtraCasts = undefined;
+  if ((state.edictCharges ?? 0) > 0) {
+    state.edictCharges = state.edictCharges! - 1;
+    if (state.edictCharges <= 0) { state.edictCharges = undefined; state.edictExtra = undefined; }
+  }
 }
 
 export function spellCasts(state: RunState, def: CardDef, card?: Pick<BoardCard, 'extraCasts' | 'castMult'>): number {
@@ -1914,6 +1932,7 @@ export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardC
   if (ALE_IDS.includes(def.id)) {
     if ((state.ownedRunes ?? []).includes('rune_bottomless_cask') && (state.aleExtraCasts ?? 0) > 0) runes.push('rune_bottomless_cask');
     if (state.runeSharedPour && !state.sharedPourUsedThisTurn) runes.push('rune_shared_pour');
+    if (state.lastCallArmed) runes.push(LAST_CALL_ID);
   }
   if ((card?.extraCasts ?? 0) > 0 && (state.ownedRunes ?? []).includes('rune_astral_draft')) runes.push('rune_astral_draft');
   if (def.id === 'veinstorm' && (state.runeStormingVeins ?? 0) > 0) runes.push('rune_storming_veins');
@@ -1992,6 +2011,10 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
     // in the UI can't spend it.
     // +1 extra cast per Shared Pour copy held (repeat family, owner 2026-08-27).
     if (state.runeSharedPour && !state.sharedPourUsedThisTurn && !off.has('rune_shared_pour')) mult += runeStacksOf(state, 'rune_shared_pour');
+    // LAST CALL (Set 3 Dwarf rune, owner 2026-10-23): an ARMED charge makes the next Ale cast from hand cast once more
+    // per copy held ("casts twice" with one copy). READ-ONLY here, like Shared Pour: the cast site spends the charge
+    // (`spendLastCall`) after its whole loop, so the UI's x N badge previews it without side effects.
+    if (state.lastCallArmed && !off.has(LAST_CALL_ID)) mult += Math.max(1, runeStacksOf(state, LAST_CALL_ID));
   }
   // RUNE OF STORMING VEINS (owner 2026-09-25): "Veinstorms cast 2 additional times from hand" — ADDED, like every
   // "additional time" source, after the multipliers above (R-MULT-06: only the hand-cast path reads `spellCasts`).
@@ -2001,7 +2024,7 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
   // whatever the spell would otherwise do.
   // …and a per-INSTANCE extra (Rune of the Astral Draft stamps its Discover pick `extraCasts: 1`) — added, like
   // Nimbus, because it reads "casts an additional time". Only the cast sites that hold the hand card pass it.
-  return mult + (state.nextSpellExtraCasts ?? 0) + (off.has('rune_astral_draft') ? 0 : (card?.extraCasts ?? 0));
+  return mult + nextSpellExtra(state) + (off.has('rune_astral_draft') ? 0 : (card?.extraCasts ?? 0));
 }
 
 /** Implosion's cast count: once by default, plus one more per Demon you control (so 1 + your Demons). Shared by
@@ -2121,7 +2144,7 @@ export function applyShoutsForShopBuff(state: RunState, n: number): void {
  * separate hooks would drift on the parts that must NOT differ — banking the remainder, and paying every
  * threshold a single large transaction crosses (a 12-Gold buy pays a 5-Gold rune twice).
  */
-export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand', amount: number): void {
+export function advanceRuneThresholds(state: RunState, meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand' | 'refresh' | 'sell', amount: number): void {
   if (amount <= 0 || !state.runeThresholds?.length) return;
   for (const t of state.runeThresholds) {
     if (t.meter !== meter) continue;
@@ -2155,6 +2178,19 @@ export function noteHandCastPlay(state: RunState, def: CardDef): void {
   advanceRuneThresholds(state, 'shopSpellFromHand', 1);
 }
 
+/** Last Call's id (Set 3 Dwarf rune, owner 2026-10-23). `rune_last_call` is the archived Set 2 Avenge rune of the same
+ *  name, so the new one carries the `_set3` twin suffix (the Menagerie convention). */
+export const LAST_CALL_ID = 'rune_last_call_set3';
+
+/** LAST CALL: spend the armed charge on a Dwarven Ale cast from hand. Called by every hand-cast site beside the Shared
+ *  Pour spend, AFTER the cast loop (the charge was already folded into the cast count by `spellCastsWithout`). A
+ *  `singleCast` spell never multiplies, so it never spends the charge. */
+export function spendLastCall(state: RunState, def: CardDef): void {
+  if (!state.lastCallArmed || def.singleCast || !ALE_IDS.includes(def.id)) return;
+  state.lastCallArmed = undefined;
+  procRuneId(state, LAST_CALL_ID);
+}
+
 function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThresholds']>[number]): void {
   // THE RUNE IS THE CASTER (owner ask 2026-09-23): any spell a threshold reward casts (Rune of the Gilded Ledger's
   // random stat spell, a Spell Market's Staff of Guel) previews above THIS rune's badge.
@@ -2172,6 +2208,8 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   if (t.grantRuby) mintRubies(state, t.grantRuby);
   if (t.grantRandomRuby) mintRandomRubies(state, t.grantRandomRuby); // Rune of Minted Gems (Set 3 design pass)
   if (t.grantRandomWhisper) mintRandomWhispers(state, t.grantRandomWhisper); // Rune of Loose Tongues (Set 3 Dragon runes): the gated Whisper pool
+  // Last Call (Set 3 Dwarf rune, owner 2026-10-23): arm the next Ale cast from hand. One charge waiting at most.
+  if (t.armAleRepeat) state.lastCallArmed = true;
   // Rune of the Secret Exchange (owner 2026-10-21): Discover a Shop spell (the Rift-Sunk Codex spec: the run's Shop
   // spells up to your tier), queued behind any open Discover.
   for (let i = 0; i < (t.discoverSpell ?? 0); i++) queueDiscover(state, { kind: 'spell' });
@@ -5489,9 +5527,17 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ARENA_EFFECTS.onGainCardBuffTribe(shopArena(ctx.state, self), params);
   },
 
-  /** Set 2 — Grevlin & Co. (a minion was sold): every `count` minions you sell, this Demon consumes the
-   *  right-most Shop minion (golden: the 2 right-most). The tally is per-instance (`soldProgress`, the same
-   *  meter Runic Archivist uses) and carries round to round. Fired board-wide by `fireOnMinionSold`. */
+  /** Set 2 — Grevlin & Co. (a minion was sold): every `count` minions you sell, a RANDOM friendly Demon consumes
+   *  the right-most Shop minion (golden: the 2 right-most, each bite its own random eater). The tally is
+   *  per-instance (`soldProgress`, the same meter Runic Archivist uses) and carries round to round. Fired
+   *  board-wide by `fireOnMinionSold`. Selling is a shop action, so this is shop-only.
+   *
+   *  Owner bug fix 2026-10-22 (R-TARGET-GREVLIN-01): "grevlin & co shouldnt be him consuming 100% of the time, it
+   *  should be a random friendly demon. (himself included)". The eater is drawn from every friendly Demon
+   *  (`isTribe`, so All-types count) PLUS Grevlin himself, an owner exemption from R-TARGET-03. One draw off the
+   *  run cursor per bite, and only when there is a real choice: Grevlin as the lone Demon draws nothing, so a
+   *  solo Grevlin plays and replays exactly as before. The gains, `onConsume` and the `shopEaten` record (the
+   *  consume presentation) all land on the chosen eater through `consumeShopMinion`. */
   minionSoldConsumeRightmost: (ctx, self, params) => {
     const every = Math.max(1, num(params.count, 3));
     const progress = (self.soldProgress ?? 0) + 1;
@@ -5501,7 +5547,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     for (let e = 0; e < eats; e++) {
       const i = rightmostShopMinion(ctx.state);
       if (i < 0) return;
-      consumeShopMinion(ctx.state, self, i, 1);
+      consumeShopMinion(ctx.state, grevlinEater(ctx.state, self), i, 1);
     }
   },
 
@@ -5899,6 +5945,11 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Squatimus (shop half): a shop summon that found no room → your minions +a/+h. A shop buff is permanent. */
   overflowBuffAllPermanent: (ctx, self, params) => {
     ARENA_EFFECTS.overflowBuffAllPermanent(shopArena(ctx.state, self), params);
+  },
+
+  /** Ending (shop half): a shop summon that found no room → the run's Undead Aura +a/+h (permanent; the board reads it). */
+  overflowGrowUndeadAura: (ctx, self, params) => {
+    ARENA_EFFECTS.overflowGrowUndeadAura(shopArena(ctx.state, self), params);
   },
 
   /** Bicycle Bob (shop half): a shop summon that found no room → a random OTHER friendly <tribe> gains the printed
@@ -7603,6 +7654,18 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank `extra` additional casts for the next Shop
    *  spell — Nimbus' own charge (`nextSpellExtraCasts`), additive, so it stacks with a Nimbus and with Yazzus. A
    *  gilded Artificer's Comet passes its `gildedParams` (4). */
+  /** Royal Edict (Vellum's Equipment, Set 3 T7, owner 2026-10-23): improve your Shop spells by +attack/+health (the
+   *  run's spell power, `spellBonus`), then arm `count` edict charges: each of your next `count` hand casts THIS TURN
+   *  casts `extra` additional times. Charges ADD (an Amplified / Calibrated second trigger arms 3 more); the extra per
+   *  charge keeps the larger value (a Gilded Edict's 2 over a plain 1). Params only (the Equipment channel). */
+  equipmentRoyalEdict: (ctx, _self, params) => {
+    const a = num(params.attack, 2);
+    const h = num(params.health, 2);
+    ctx.state.spellBonus = { attack: (ctx.state.spellBonus?.attack ?? 0) + a, health: (ctx.state.spellBonus?.health ?? 0) + h };
+    ctx.state.edictCharges = (ctx.state.edictCharges ?? 0) + Math.max(1, num(params.count, 3));
+    ctx.state.edictExtra = Math.max(ctx.state.edictExtra ?? 0, num(params.extra, 1));
+  },
+
   equipmentExtraNextSpellCasts: (ctx, _self, params) => {
     ctx.state.nextSpellExtraCasts = (ctx.state.nextSpellExtraCasts ?? 0) + num(params.extra, 2);
   },
@@ -8063,7 +8126,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
    *  reward for playing something you have INVESTED in rather than for playing at all. */
   orbitBuffCelestialsPerBuffStack: (ctx, self, params, { minion, noArriver }) => {
     if (noArriver) return;
-    const stacks = (minion.buffs ?? []).reduce((n, b) => n + b.count, 0);
+    const stacks = (minion.buffs ?? []).reduce((n, b) => n + (isShopDamageRow(b.source) ? 0 : b.count), 0); // damage is not a buff stack
     if (stacks <= 0) return;
     const a = num(params.attack, 1) * stacks * gold(self);
     const h = num(params.health, 1) * stacks * gold(self);
@@ -8499,7 +8562,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const progress = (self.soldProgress ?? 0) + 1;
     self.soldProgress = progress % every;
     if (progress < every) return;
-    const spells = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
+    // `ale` (Mariet, owner 2026-10-23: "When you sell 4 minions, get a Dwarven Ale"): the payout is a random Dwarven
+    // Ale from the run's pool (the `grantAle` recipe: every Ale the set sells, no tier gate; a set without Ales grants
+    // nothing). Otherwise a random Shop spell at or below your tier (Runic Archivist).
+    const spells = params.ale
+      ? runSpells(ctx.state).filter((c) => ALE_IDS.includes(c.id))
+      : runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
     conjureToHand(ctx.state, spells, Math.floor(progress / every) * gold(self));
   },
 
@@ -9117,6 +9185,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   /** Weaken — cast: bank a next-combat Start-of-Combat "set a random enemy's Health to 1". Stacks per cast. */
   spellWeakenNextCombat: (ctx, _self, params) => {
     ctx.state.pendingWeaken = (ctx.state.pendingWeaken ?? 0) + num(params.count, 1);
+  },
+
+  /** Overflowing Crypt (Set 3, owner 2026-10-23) — cast: bank `count` Skeletons for the NEXT combat's Start of
+   *  Combat (`questMods.bankedSkeletons`, summoned by `simulate` for whichever side holds it). Stacks per cast. */
+  spellSkeletonsNextCombat: (ctx, _self, params) => {
+    ctx.state.pendingSkeletons = (ctx.state.pendingSkeletons ?? 0) + num(params.count, 2);
   },
 
   /** Ruby Excavation — cast: play `rubies` Rubies on EVERY friendly minion (each worth 1/1 + the run's
@@ -11834,6 +11908,9 @@ function shopSprayExceptTribe(state: RunState, amount: number, exc: string, sour
     for (const c of victims) {
       if (c.health <= 0 || !state.board.includes(c)) continue;
       c.health -= amount;
+      // Permanent Shop damage is itemised in the ledger BEFORE the reactions it wakes, so a Rad Rachel heal and the
+      // hit that caused it both show (owner report 2026-10-22, R-LEDGER-SHOP-DAMAGE-01).
+      recordShopDamage(c, source ? nameOf(source) : 'Shop', amount);
       if (demonSource) fireShopDemonDealtDamage(state, source!, p);
       fireShopDamaged(state, c, amount); // Set 4: a landed hit wakes the Shop's damage-taken watchers (Apua / Alan)
     }
@@ -12113,11 +12190,28 @@ export function fireOnRubyPlayed(state: RunState, card: BoardCard, rubyAttack: n
  *  watcher hears (so it cannot loop). Bounce hops never come through here, so they pay nothing (they are not casts). */
 export function roseyHearsRubies(state: RunState, rubies: number): void {
   if (rubies <= 0) return;
+  roseysGardenHearsRubies(state, rubies); // the rune half of the same Ruby-cast moment
   for (const m of state.board) {
     const gain = rubyCastGainOf(CARD_INDEX[m.cardId], !!m.golden, m.eotTick);
     if (!gain) continue;
     const a = gain.attack * rubies, h = gain.health * rubies;
     if (a > 0 || h > 0) captureBuffFx(state, m, 'minion', () => addBuff(m, nameOf(m), a, h));
+  }
+}
+
+/** ROSEY'S GARDEN (Set 3 Kobold rune, owner 2026-10-22): "When you cast a Ruby, give a random minion +4/+5 permanently."
+ *  Heard beside Rosey (`roseyHearsRubies`, so every Shop Ruby CAST reaches it and no bounce hop does): once PER RUBY and
+ *  per copy held, a seeded-random board minion gains +4/+5. A Shop buff is permanent already. A plain buff no Ruby
+ *  watcher hears, so it cannot loop with Rosey or any Ruby trigger. */
+function roseysGardenHearsRubies(state: RunState, rubies: number): void {
+  if (!state.questFlags?.runeRoseysGarden || rubies <= 0 || state.board.length === 0) return;
+  const n = rubies * runeStacksOf(state, 'rune_roseys_garden');
+  procRuneId(state, 'rune_roseys_garden');
+  for (let i = 0; i < n && state.board.length > 0; i++) {
+    const rng = makeRng(state.rngCursor);
+    const pick = state.board[rng.int(state.board.length)]!;
+    state.rngCursor = rng.state();
+    captureBuffFx(state, undefined, 'spell', () => addBuff(pick, "Rosey's Garden", ROSEYS_GARDEN_GAIN.attack, ROSEYS_GARDEN_GAIN.health));
   }
 }
 
@@ -12130,6 +12224,28 @@ export function roseyHearsRubies(state: RunState, rubies: number): void {
  *  in its reward (`count`). Lives here, not in the reward data, because the Wages kind carries no amount — the card
  *  text is the contract; keep the two in lockstep. */
 export const REVELER_METER = 3;
+
+/** Return Customers' per-turn allowance: "The first 2 Dwarves you Sell each turn" (owner 2026-10-23). */
+export const RETURN_CUSTOMERS_PER_TURN = 2;
+
+/**
+ * RETURN CUSTOMERS (Set 3 Dwarf Epic, owner 2026-10-23): "The first 2 Dwarves you Sell each turn return a plain copy to
+ * your hand." Heard on every sale path (`fireOnMinionSold`, after the body has left). A Dwarf is the shared tribe
+ * read (`defIsTribe` on the def, so an All-types body counts; `isTribeNatural` for a run-retyped body). The copy is
+ * PLAIN: a fresh, non-gilded body at its printed stats (plus the run-wide card buffs every fresh copy gets, the
+ * `conjureToHand` mint), so a gilded or buffed sale returns the base card. It respects the hand cap (a full hand gets
+ * nothing, and the sale still spends one of the turn's two). One copy per rune copy held (repeat family).
+ */
+function runeReturnCustomers(state: RunState, sold: BoardCard): void {
+  if (!state.questFlags?.runeReturnCustomers) return;
+  if ((state.returnCustomersThisTurn ?? 0) >= RETURN_CUSTOMERS_PER_TURN) return;
+  const def = CARD_INDEX[sold.cardId];
+  if (!def || def.spell || def.ruby) return;
+  if (!(defIsTribe(def, 'dwarf', state) || isTribeNatural(sold, 'dwarf'))) return; // R-ALL-TYPES-EVERYWHERE-01
+  state.returnCustomersThisTurn = (state.returnCustomersThisTurn ?? 0) + 1;
+  procRuneId(state, 'rune_return_customers');
+  conjureToHand(state, [def], runeStacksOf(state, 'rune_return_customers'), runeGrantOverflow());
+}
 
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   syncUnity(state); // Rune of Unity: a sale can break the full house
@@ -12160,6 +12276,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
       if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, runeStacksOf(state, 'rune_festival_circuit'), runeGrantOverflow()); }
     }
   }
+  runeReturnCustomers(state, sold);
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
   // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.
@@ -12233,6 +12350,9 @@ export function settleMinionSale(state: RunState, sold: BoardCard): void {
   // so a stamp there would fire on every render rather than on the sale.
   if (state.runeBartering && hasBattlecry(CARD_INDEX[sold.cardId])) procRune(state, 'runeBartering');
   gainGold(state, sellValueWithBonus(sold, state));
+  // Ruby Sales (Set 3 Kobold rune, owner 2026-10-22): the `sell` threshold ticks once per minion sold, from any sale
+  // path (the manual Sell and a spell that Sells both settle here).
+  advanceRuneThresholds(state, 'sell', 1);
   // Rune of Liquidation: the sold minion's FULL (live) stats transfer to the right-most Shop minion
   // (owner 2026-08-11; was BONUS-above-base only). No shop minion (all spells/Rubies, or an empty
   // tavern) → nothing to give.
@@ -13488,6 +13608,17 @@ export function consumeShopOffer(
  *  alternating each turn. Shared by the effect and the printed text so the two can never disagree. */
 export function alternateModeOf(card: { eotTick?: number }): 'attack' | 'health' {
   return ((card.eotTick ?? 0) % 2) === 0 ? 'attack' : 'health';
+}
+
+/** Grevlin & Co.'s eater (owner 2026-10-22): a random friendly Demon, Grevlin himself included. Board order is the
+ *  pool order (deterministic); a pool of one draws nothing, so the run cursor only moves when there is a choice. */
+export function grevlinEater(state: RunState, self: BoardCard): BoardCard {
+  const pool = state.board.filter((c) => c.uid === self.uid || isTribe(c, 'demon'));
+  if (pool.length <= 1) return pool[0] ?? self;
+  const rng = makeRng(state.rngCursor);
+  const pick = pool[rng.int(pool.length)]!;
+  state.rngCursor = rng.state();
+  return pick;
 }
 
 export function rightmostShopMinion(state: RunState): number {

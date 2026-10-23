@@ -59,7 +59,8 @@ export function curtainClassFor(w: WipeState): string {
   const shape = w === 'chargeIn' || w === 'primeOut' ? ' settle'
     : w === 'coveredIn' || w === 'coveredOut' ? ' full settle'
     : w === 'coverIn' || w === 'coverOut' ? ' full'
-    : w === 'revealIn' || w === 'combat' ? ' gone'
+    : w === 'revealIn' ? ' gone'
+    : w === 'combat' ? ' gone parked' // parked: the falling gate's crank plays only on the reveal, never on a resume
     : w === 'revealOut' ? ' gone rtl' : '';
   return `wipecurtain${shape}${wipeExiting(w) ? ' exit' : ''}`;
 }
@@ -91,3 +92,17 @@ export function afterBeat(w: WipeState): WipeState {
 /** The two full passes, in order, for tests and the preview. */
 export const WIPE_ENTRY: readonly WipeState[] = ['idle', 'chargeIn', 'coverIn', 'coveredIn', 'revealIn', 'combat'];
 export const WIPE_EXIT: readonly WipeState[] = ['combat', 'primeOut', 'coverOut', 'coveredOut', 'revealOut', 'idle'];
+
+/**
+ * THE RETURN TRIP (owner 2026-10-23: "i want to separate the returnn to shop experience from the door and gate"): the
+ * exit pass no longer drops the gate. It fades in a VISTA of the shop and its landscape (six parallax layers), writes
+ * RETURNING TO SHOP in its sky, pushes slowly in towards the shop, then dives through the shop's door into the Shop.
+ *   primeOut   hidden (the gem's tell)
+ *   coverOut   `on in`: fades in (and the parallax push starts)
+ *   coveredOut `on in held`: fully opaque, the fade snapped home (the shop swaps in behind it)
+ *   revealOut  `on dive`: dives through the door while fading away, onto the Shop
+ * Every other state: hidden. The gate keeps the entry pass only (`.wipecurtain.exit` is hidden in styles.css).
+ */
+export function vistaClassFor(w: WipeState): string {
+  return `wipevista${w === 'coverOut' ? ' on in' : w === 'coveredOut' ? ' on in held' : w === 'revealOut' ? ' on dive' : ''}`;
+}

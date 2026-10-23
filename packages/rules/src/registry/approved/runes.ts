@@ -2501,4 +2501,206 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-22: every rune name is bare; the Menagerie keeps one name across its three set twins, which never share a set.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/runeNamesBare.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  // ── Set 3 Kobold runes (owner 2026-10-22) ──
+  {
+    id: 'R-KOBOLD-RUNES-1022-01',
+    title: 'Refreshing Rubies and Ruby Sales: running meters (4 Refreshes pressed / 3 minions Sold) that each get a random Ruby',
+    statement:
+      'Refreshing Rubies (Basic, 2) counts every Refresh the player presses, a free one included (the Rosey / Indy meter: '
+      + 'the `roll` action only; the fresh Shop of a new turn and rune / hero / spell refreshes never count); every 4th gets a '
+      + 'random Ruby. Ruby Sales (Basic, 1) counts every minion you Sell (board or hand, a spell that Sells included); every '
+      + '3rd gets a random Ruby. A random Ruby is one of all six types (R-RAND-02). Both meters carry across turns, repeat, '
+      + 'print a plain N/M badge, respect the hand cap (they never pay at the acquire moment), and each copy held runs its own meter.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'When you Refresh 4 times, get a Random Ruby. / When you Sell 3 minions, get a Random Ruby.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts advanceRuneThresholds (`refresh` / `sell` meters); reducer `roll`; recruit settleMinionSale' },
+    ],
+    contentIds: ['rune_refreshing_rubies', 'rune_ruby_sales'],
+    currentBehaviour: 'Conforms as of 2026-10-22 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-RUNES-1022-02',
+    title: 'Goleming: Avenge (5), a plain Gemheart Golem summon, then 6 plain Rubies cast on it (combat-only)',
+    statement:
+      'Goleming (Basic, 2) is a combat Avenge (5) rune (Rune of Fury repeats it; each copy held is its own fire). It summons '
+      + 'the printed Gemheart Golem token as a PLAIN summon, not a "when you have space" queue: on a full board the Golem is '
+      + 'lost and so are its Rubies. The Golem then casts 6 plain Rubies on itself through the one combat Ruby primitive, so '
+      + 'the Ruby strength of the side and every Ruby watcher (Rosey, the Garden, the Gemheart summon trigger) see real '
+      + 'casts. A Golem whose landing is deferred (it attacks immediately) gets its Rubies as it lands. The Golem and its '
+      + 'Rubies last the fight only (buff permanence by phase).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'Avenge (5): Summon a Gemheart Golem and cast 6 Rubies on it.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts runeAvenge(GOLEMING_AVENGE, runeGoleming) + rubiesOnLanding' },
+    ],
+    contentIds: ['rune_goleming'],
+    currentBehaviour: 'Conforms as of 2026-10-22 (new content). The plain-summon (lost on a full board) reading is flagged for owner confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-RUNES-1022-03',
+    title: 'A "permanent Ruby" cast in combat keeps its stats: they carry back to the Shop board (Red Start)',
+    statement:
+      'A Ruby the card text calls "permanent" (Red Start, Combatative Rubies, Gemheart, Korn) is cast in combat through '
+      + '`playRubyOn(..., permanent)`: the Ruby stats land now and are recorded as a permanent Ruby gain that settle '
+      + 'carries back to the run card, like Engraved. Red Start (Epic, 3): at Start of Combat, one permanent Ruby on EACH '
+      + 'living friendly Kobold (All-types bodies count), each Kobold its own caster; again per copy held; Twilight repeats it '
+      + '(a Start of Combat rune). No Kobold: nothing. Combat-only: the Shop has no Start of Combat replay of it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'Start of Combat: Cast a Permanent Ruby on your Kobolds.' },
+      { kind: 'code', ref: 'packages/core/src/effects/factories.ts playRubyOn (permanent); simulate.ts runRuneStartOfCombat "RED START"' },
+    ],
+    contentIds: ['rune_red_start', 'rune_combatative_rubies'],
+    currentBehaviour: 'Conforms as of 2026-10-22: Red Start reuses the existing permanent-Ruby path (no new primitive).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-KOBOLD-RUNES-1022-04',
+    title: "Rosey's Garden: every Ruby cast gives a seeded-random friendly minion +4/+5 permanently, and cannot loop",
+    statement:
+      "Rosey's Garden (Epic, 3) hears every Ruby CAST at the same chokepoints as Rosey (the Shop's Ruby landing and Shop-offer "
+      + 'cast; `playRubyOn` in combat), once PER RUBY (two Rubies cast is two) and per copy held. Each payout gives a '
+      + 'seeded-random friendly minion (Shop: the board; combat: the living side) +4/+5. Permanent in both phases: in combat '
+      + 'it is recorded as `permaGain` and carried back to the Shop. Bounce hops and the Double Trouble self-Rubies are stats '
+      + 'only (never casts), so they pay nothing, and the +4/+5 is a plain buff no Ruby watcher hears: Rosey, the Garden and '
+      + 'every Ruby trigger together always settle.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner content ask 2026-10-22 (Set 3 Kobold runes)', quote: 'When you Cast a Ruby, give a random minion +4/+5 permanently.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts roseysGardenHearsRubies; packages/core/src/combat/simulate.ts runeRubyCastCombat (the Garden block)' },
+    ],
+    contentIds: ['rune_roseys_garden'],
+    currentBehaviour: 'Conforms as of 2026-10-22 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-RUNE-PREVIEW-1023-01',
+    title: 'A rune (or quest) hover previews each card it grants or names ONCE',
+    statement:
+      'The hover beside a rune lists the cards its reward grants (gilded grants marked) and then its `previewCards`, '
+      + 'one card each. A card granted twice by the same reward (a `grant` now plus a `recurringGrant` of it, the Rare '
+      + 'Goods shape: Lantern Keeper, Overture) or granted and also named in `previewCards` shows a single preview. '
+      + 'A gilded grant of a card is a different-looking card and keeps its own preview. Quest hovers follow the same rule.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (Lantern Keeper hover showed two Lantern of Souls)', quote: 'this doesnt need both previews' },
+      { kind: 'code', ref: 'packages/ui/src/RuneCard.tsx previewIdsOf; packages/ui/src/QuestCard.tsx rewardCards' },
+    ],
+    contentIds: ['rune_lantern_keeper', 'rune_overture'],
+    currentBehaviour: 'Conforms as of 2026-10-23: the collector dedupes by id + gilding (was a plain flatMap of every grant).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeCardPreview.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-RUNE-FESTIVAL-1023-02',
+    title: 'Traveling Festival adds a flat +2/+2 to every Reveler grant: no growing rune tally, and each Reveler prints the sum',
+    statement:
+      'Rune of the Traveling Festival does not grow. Its "+2/+2" is added once to what each Reveler pays on Sell (Flame: '
+      + 'Attack, Tide: Health, Grove: both), on top of the shared Reveler value; golden doubles the value, never the +2/+2, '
+      + 'and a second copy does not raise it (`revelerExtra` takes the max). So the rune shows NO tally (it used to show '
+      + 'the value plus 2, which read as the rune growing), and every Reveler text (shop, board, hand, Discover and the '
+      + 'combat Unit) prints its live grant WITH the +2/+2 folded in. Festival Luminary is not a Reveler and never gets it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (Traveling Festival readout)', quote: "this rune doesn't grow, it just gives +2 to the bonus of the revelers" },
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (Reveler text)', quote: 'their value should just gain that one-time +2 to it basically' },
+      { kind: 'code', ref: 'packages/ui/src/runeTally.ts (no Festival branch); packages/ui/src/cardText.ts spiritText (revelerExtra); packages/sim/src/recruit.ts revelerSell' },
+    ],
+    contentIds: ['rune_traveling_festival', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    currentBehaviour: 'Conforms as of 2026-10-23: display only; the engine already paid value + 2 (unchanged).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/spiritText.test.ts', 'packages/ui/src/renderedText.test.tsx', 'packages/sim/src/set3RunesTrancheA.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  // ── Set 3 Dwarf runes + minion changes (owner 2026-10-23) ──
+  {
+    id: 'R-DWARF-RUNES-1023-01',
+    title: 'Last Call: every 3rd minion Sold arms the next Dwarven Ale cast from hand to cast twice (one charge waiting at most)',
+    statement:
+      'Last Call (Basic, 3; id rune_last_call_set3, the Set 3 twin of the archived Set 2 Avenge rune of the same name) '
+      + 'counts every minion you Sell on the `sell` meter (the Ruby Sales meter: every sale path that settles a sale); every '
+      + '3rd sale ARMS a charge. The next Dwarven Ale you cast from hand spends it and casts one additional time (twice in '
+      + 'all; +1 per copy held), folded into the one cast count so the hand Ale previews x2 while armed. Only a hand cast '
+      + 'reads it (an Ale cast by Equipment, a minion or a rune does not spend it), a non-Ale spell never spends it, and '
+      + 'the charge waits across turns until an Ale uses it. At most one charge waits: further trips while armed add '
+      + 'nothing. The meter repeats, carries across turns and shows the plain N/3 badge.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (new Basic rune)', quote: 'Last Call - 3g - After you Sell 3 minions, your next Dwarven Ale casts twice.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts advanceRuneThresholds (`sell`, armAleRepeat) / spellCastsWithout (lastCallArmed) / runeExtraCasts / spendLastCall; packages/sim/src/reducer.ts hand-cast sites' },
+    ],
+    contentIds: ['rune_last_call_set3'],
+    currentBehaviour: 'Conforms as of 2026-10-23 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-DWARF-RUNES-1023-02',
+    title: 'Return Customers: the first 2 Dwarves Sold each turn each return a plain copy to your hand',
+    statement:
+      'Return Customers (Epic, 3) hears every sale path. The first 2 Dwarves you Sell each turn (All-types bodies count as '
+      + 'Dwarves; a non-Dwarf sale neither returns anything nor uses a slot) each return a PLAIN copy to your hand: a fresh, '
+      + 'non-gilded body at its printed stats, whatever the sold one had gained or been gilded. One copy per rune copy held. '
+      + 'It respects the hand cap: a full hand gets nothing, and that sale still spends one of the two for the turn. The '
+      + 'count resets at the turn flip and shows as a plain N/2 badge counting up. Shop only (selling is a Shop action).',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (new Epic rune)', quote: 'Return Customers - 3g - The first 2 Dwarves you Sell each turn return a plain copy to your hand' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts runeReturnCustomers (fireOnMinionSold); packages/sim/src/reducer.ts turn-flip reset; packages/ui/src/runeTally.ts' },
+    ],
+    contentIds: ['rune_return_customers'],
+    currentBehaviour: 'Conforms as of 2026-10-23 (new content).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-SET3-CHANGES-1023-01',
+    title: 'Set 3 minion changes 2026-10-23: Mariet gets an Ale, Adeptus T2 +1 Attack, Gravus T6 10/3 Taunt, Shardluck T5 8/4 with 2 and 2, Thymes T5 5/7',
+    statement:
+      'Mariet: every 4 minions Sold get a random Dwarven Ale (Gilded 2) instead of a Shop spell; the meter is unchanged. '
+      + 'Adeptus: Tier 2 (stats 4/1 unchanged); its Echo gives your Shop spells +1 Attack (Gilded +2), through the run spell '
+      + 'power channel, from a combat death (carried back) and from a Shop Echo alike. Gravus: Tier 6, 10/3, gains Taunt; '
+      + 'its Echo and both tribes are unchanged. Shardluck: Tier 5, 8/4; Choose One casts 2 Rubies on EACH of your Kobolds '
+      + '(itself included; owner 2026-10-23) or casts Veinstorm 2 times; Gilded 4 on each and 4 casts. Thymes: Tier 5, 5/7, its '
+      + 'Thymepiece unchanged.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (minion changes)', quote: 'Shardluck -> T5 8/4 Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times.' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (Shardluck reading)', quote: 'shardluck should cast 2 rubies on all kobold not 2 random get 1' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/{dwarves,undead,dragons,kobolds}.ts; packages/sim/src/recruit.ts minionSoldGrantSpell (`ale`)' },
+    ],
+    contentIds: ['dw3_marketing', 'u3_adeptus', 'd3_gravus', 'k3_facetbound', 'dw3_thymes'],
+    currentBehaviour: 'Conforms as of 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3DwarfChanges1023.test.ts', 'packages/sim/src/set3SellDwarves1021.test.ts', 'packages/sim/src/set3Undead.test.ts', 'packages/sim/src/rubyTypes.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-RUNE-COSTS-1023-01',
+    title: 'Rune cost pass 2026-10-23: Basic 3-5 cost 1 less and 6+ cost 2 less; Epic 4-7 cost 1 less and 8+ cost 2 less',
+    statement:
+      'Every rune definition (Basic pool, Epic pool and archived, all sets) was repriced from its printed cost on main: a '
+      + 'Basic rune at 3, 4 or 5 Gold costs 1 less and at 6 or more costs 2 less (1 and 2 unchanged; Top Hat, the only Basic at 6, was kept at 6 by owner follow-up); an Epic rune at 4, 5, 6 '
+      + 'or 7 Gold costs 1 less and at 8 or more costs 2 less (1 to 3 unchanged). 324 runes changed: Basic 85 (3 to 2), 63 '
+      + '(4 to 3), 22 (5 to 4); Epic 63 (4 to 3), 61 (5 to 4), 24 (6 to 5), 4 (7 to 6), 2 (8 to 6); 36 of them '
+      + 'archived. Only printed base costs moved: the hero forge discount (clamped at 0), the duplicate sweetener (half the '
+      + 'printed cost rounded up) and every other rune price mechanic read the new printed cost unchanged. After the pass no '
+      + 'Basic rune but Top Hat (6) costs more than 4 and no Epic rune more than 6.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass)', quote: "let's reduce the cost of all 3,4,5 cost basic runes by 1, and reduce the cost of all 4,5,6,7 cost epic runes by 1 across all sets" },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass, 8+)', quote: 'if there are any 8+ reduce those by 2' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass, Basic 6+)', quote: 'if there are any basic runes a 6+ gold, reduce their cost by 2' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (Top Hat exception)', quote: 'actually put top hat back to 6 cost' },
+      { kind: 'code', ref: 'packages/content/src/runes.ts (each changed `cost:` annotated "owner 2026-10-23"); docs/devlog/2026-10-23-rune-costs.md (full table)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/content/src/runeCosts1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

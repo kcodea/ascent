@@ -24,8 +24,8 @@ describe('the eight defs ship as specced', () => {
   it('costs, all Basic, none set-scoped (Spellhide archived 2026-08-12)', () => {
     const costs: Record<string, number> = {
       // rune_emberline + rune_spare_chair archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — no longer in the active pool.
-      rune_ashen_payroll: 2, rune_backbeat: 4, // Ashen Payroll 4 → 2 (balance 9/23)
-      rune_spellmarket: 4, rune_last_word: 2, rune_runic_hoard: 4, // Last Word 4 → 2 (balance 9/23)
+      rune_ashen_payroll: 2, rune_backbeat: 3, // Ashen Payroll 4 → 2 (balance 9/23); Backbeat 3 (owner 2026-10-23: was 4)
+      rune_spellmarket: 3, rune_last_word: 2, rune_runic_hoard: 3, // Last Word 4 → 2 (balance 9/23); Spellmarket + Runic Hoard 3 (owner 2026-10-23: was 4)
     };
     for (const [id, cost] of Object.entries(costs)) {
       expect(rune(id).cost, `${id} cost`).toBe(cost);

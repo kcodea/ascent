@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -39,7 +39,7 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
-import { withWhisperMult } from './recruit';
+import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
@@ -1928,10 +1928,11 @@ function reduceCore(state: RunState, action: Action): RunState {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def, card);
           withHandCast(def.id, () => { for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
           noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
-          if (!def.singleCast) s.nextSpellExtraCasts = undefined;
+          if (!def.singleCast) spendNextSpellCharge(s);
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true;
+          spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
           return s;
         }
         // A triple-reward Discover carries the tier it was GRANTED at (`grantedTier`) so its "one tier up" is
@@ -1961,11 +1962,12 @@ function reduceCore(state: RunState, action: Action): RunState {
         // cast, so a multiplied Discover counts each time, exactly like a multiplied ordinary spell.
         withHandCast(def.id, () => { for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
         noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
-        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+        spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
         return s;
       }
 
@@ -1986,7 +1988,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // below so the next cast of either kind is single.
         // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
         const casts = rubyCastCount(s);
-        s.nextSpellExtraCasts = undefined; // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
+        spendNextSpellCharge(s); // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
         // Warding Ruby: its keyword rider (Ward = DS) rides EVERY landing through `fireOnRubyPlayed` — the direct
         // target, the Redirection tail, and every bounce off it — granted only to a KOBOLD (owner spec 2026-07-31:
         // "give it Ward if it is a Kobold"; the stat half lands on anyone). It used to be a trailing grant on the
@@ -2174,7 +2176,7 @@ function reduceCore(state: RunState, action: Action): RunState {
               castWhisperFromHand(s, def, whisperTarget);
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
-          if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
+          if (def.giftMulticast && whisperTarget) spendNextSpellCharge(s); // Comet / Nimbus charge spent (folded into the count)
           clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
           noteHandCastPlay(s, def); // Rune of the Secret Exchange: one Whisper cast from hand (a Yazzus repeat is not another)
           checkTriples(s);
@@ -2193,7 +2195,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // a minion" — owner: "works with all spells, rubies, clues etc". Per cast, like the Shop-spell path.
             if (giftTarget) applyLorekeeping(s, giftTarget);
           }
-          if (def.giftMulticast && giftTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into `giftCasts`)
+          if (def.giftMulticast && giftTarget) spendNextSpellCharge(s); // Comet / Nimbus charge spent (folded into `giftCasts`)
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withHandCast(def.id, () => noteSpellCast(s, def)); // counts as a spell CAST from hand (but never as a Shop spell — see the flag's doc)
@@ -2275,11 +2277,12 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (spellFizzles(s, def)) return state;
           withHandCast(def.id, () => castWithRuneRepeats(casts, runeExtraCasts(s, def, card), () => castSpell(s, def, undefined))); // untargeted run spell (Growth, Ember Pouch), cast from hand
         }
-        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+        spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
         s.hand.splice(i, 1);
         s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId]; // one card played, even if it multi-cast (Rune of Action)
         noteHandCastPlay(s, def); // Rune of the Wyrm's Hoard: one Shop spell cast from hand (multi-casts are one play)
@@ -2744,6 +2747,9 @@ function reduceCore(state: RunState, action: Action): RunState {
       // watcher that eats a Shop minion sees the NEW row rather than the one that just rolled away. `playerRoll`:
       // this is the player pressing Refresh (Indy counts only these, owner 2026-10-13).
       applyShopRefreshed(s, { playerRoll: true });
+      // Refreshing Rubies (Set 3 Kobold rune, owner 2026-10-22): the `refresh` threshold ticks on the player's press only
+      // (a free one included), the same meter Indy and Rosey read.
+      advanceRuneThresholds(s, 'refresh', 1);
       // Rune of Open Enrollment: after a refresh, add ONE extra offer of your most common type per copy held
       // (owner 2026-08-27, unique-engine doubling).
       if (s.runeOpenEnrollment) { procRune(s, 'runeOpenEnrollment'); for (let k = 0; k < runeStacksOf(s, 'rune_open_enrollment'); k++) appendDominantTypeOffer(s); }
@@ -4073,11 +4079,12 @@ function resolveChooseOneSpell(
     if (offer) castSpellOnOffer(s, synthetic, offer);
     else castSpell(s, synthetic, target);
   }));
-  if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+  if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent (already folded into `casts`)
   if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true; // Shared Pour freebie spent
+  spendLastCall(s, def); // Last Call: the armed Ale repeat spent (already folded into the cast count)
   s.hand.splice(hi, 1);
   s.playedThisTurn = [...(s.playedThisTurn ?? []), def.id]; // counts as a card played (Rune of Action)
   noteHandCastPlay(s, def); // the from-hand meters (Wyrm's Hoard)
@@ -4766,6 +4773,9 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     handMinions: s.hand
       .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
       .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden, ...(handCardLocked(s, c) ? { locked: true } : {}) })),
+    // R-HAND-GRANT-SUMMON-01: the free hand slots, so a minion granted mid-fight is summonable only while it would
+    // fit the real hand at settle (every held card counts: spells and Rubies too).
+    handRoom: Math.max(0, handCap(s) - s.hand.length),
     // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
     beastHuntExtra: s.beastHuntExtra ?? 0,
     beastRitualExtra: s.beastRitualExtra ?? 0,
@@ -5052,6 +5062,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin
   // / Black Belt Brian — the `toHand` event showed the real card flying). Each carries the run's per-card
   // enchant + Undead bond and leaves the shared pool (both no-ops for spells), matching a normal conjure.
+  // R-HAND-GRANT-SUMMON-01: the run card each landed grant became, by the uid the fight's combat hand knew it as —
+  // so a mid-fight hand buff on a granted card (below) lands on the card that arrived.
+  const landedGrants = new Map<string, BoardCard>();
   if (result.playerHandGrants) {
     // Crypt Broker (R-REALTIME-03): the grants at these indices arrived mid-fight; their Echo fires now, out of
     // combat, on the arrived card (the Shop half's "trigger it"). A grant the hand cap refused triggers nothing.
@@ -5075,6 +5088,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
         golden: false,
       };
       s.hand.push(card);
+      landedGrants.set(handGrantUid(i), card);
       takeFromPool(s, cardId);
       if (gildAt.has(i) && !def.spell) gildMinion(card, s);
       const exact = exactAt.get(i);
@@ -5091,7 +5105,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // uid resolves against the fight's initial snapshot, else the generic 'Combat'.
   if (result.playerHandBuffs) {
     for (const b of result.playerHandBuffs) {
-      const card = s.hand.find((c) => c.uid === b.uid);
+      const card = s.hand.find((c) => c.uid === b.uid) ?? landedGrants.get(b.uid);
       if (!card) continue;
       // A hand card that grew ITSELF (Goldilox: source = its own uid) names itself (R-PROV-01).
       const srcId = b.source ? (b.source === b.uid ? card.cardId : result.initial.player.find((m) => m.uid === b.source)?.cardId) : undefined;
@@ -5342,6 +5356,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Decoy Sigil / Weaken were spent on the fight that just resolved — clear the banks.
   s.pendingDecoys = undefined;
   s.pendingWeaken = undefined;
+  s.pendingSkeletons = undefined; // Overflowing Crypt: one fight only
   // Rune of Slaying (owner change 2026-07-31, second pass): kills BANK across combats — every 6th pays a
   // minion of the board's dominant type into hand (the same resolver Reinforcing Ale uses). Replaces the
   // max-Gold-per-Slaughter shape entirely; the leftover progress carries in `runeSlayingKills`.
@@ -5706,6 +5721,7 @@ function advanceCombat(s: RunState): void {
   s.spellhideUsedThisTurn = false;  // Rune of Spellhide records one spell per turn
   s.lastWordUsedThisTurn = false;    // Rune of the Last Word triggers one sold Dragon's Shout per turn
   s.bequeathedUsedThisTurn = false;  // Rune of Bequeathed Secrets: the first Dragon sold each turn
+  s.returnCustomersThisTurn = 0;      // Return Customers: the first 2 Dwarves sold each turn
   // Set 3 batch 2 (2026-09-16) — the tranche-A per-turn gates. `nextCardFree` is deliberately NOT cleared: an
   // armed free card carries until it is spent (an earned reward is never dropped).
   s.revelersSoldThisTurn = 0;          // Festival Wages / the Festival Circuit: "after you sell 3 Revelers" counts afresh
@@ -5749,6 +5765,7 @@ function advanceCombat(s: RunState): void {
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
+  s.edictCharges = undefined; s.edictExtra = undefined; // Royal Edict: "your next 3 spells ... this turn" never outlives the turn
   // Choose-One BOTH charges are per-turn — cleared here, then Forked Crown's start-of-turn effect (below in
   // the same advance) re-grants its own. Clearing FIRST is what makes "the first Choose One each turn" true
   // rather than letting an unspent charge accumulate.
@@ -7171,7 +7188,7 @@ function applyQuestRewardInner(s: RunState, def: QuestDef, allowRepeat: boolean)
       // `buff` is CLONED, never shared with the (frozen, module-level) rune def: an escalating threshold
       // (Compounding Wages' `step`) mutates its own grant in place, and writing through to the def would
       // grow the printed rune for every future run in the process.
-      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell });
+      (s.runeThresholds ??= []).push({ sourceId: def.id, meter: r.meter, per: r.per, tick: 0, grantSpell: r.grantSpell, grantAle: r.grantAle, grantRuby: r.grantRuby, grantCards: r.grantCards ? [...r.grantCards] : undefined, castStatSpell: r.castStatSpell, buff: r.buff ? { ...r.buff, step: r.buff.step ? { ...r.buff.step } : undefined } : undefined, rubyAll: r.rubyAll, oncePerTurn: r.oncePerTurn, once: r.once, grantGoldNextTurn: r.grantGoldNextTurn, resetEachTurn: r.resetEachTurn, grantGold: r.grantGold, improveRuby: r.improveRuby ? { ...r.improveRuby } : undefined, grantOneOf: r.grantOneOf ? [...r.grantOneOf] : undefined, grantRandomTribe: r.grantRandomTribe, castCards: r.castCards ? [...r.castCards] : undefined, grantRandomRuby: r.grantRandomRuby, grantRandomWhisper: r.grantRandomWhisper, discoverSpell: r.discoverSpell, armAleRepeat: r.armAleRepeat });
       break;
     case 'motherlode':
       // ACCUMULATES: two Motherlodes play each incoming Ruby on 4 random minions (recurring family, owner 2026-08-27).
@@ -8039,6 +8056,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     burningLegionUses: f?.burningLegion, // The Burning Legion: bounded Imp self-copies
     decoySigils: s.pendingDecoys || undefined, // Decoy Sigil: next-combat Training Dummy slot-fillers
     weakenTargets: s.pendingWeaken || undefined, // Weaken: SoC set N random enemies to 1 Health
+    bankedSkeletons: s.pendingSkeletons || undefined, // Overflowing Crypt: SoC summon N Skeletons
     runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
     runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
     // Rune of the Hatchery and Rayse's Empowering Vines share one channel — both are "bodies summoned in
@@ -8223,6 +8241,10 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     runeRuneboundBrood: f?.runeRuneboundBrood,       // a summoned Drake Pup casts Runebind on itself
     runeUnbrokenScales: f?.runeUnbrokenScales,       // the first 2 Dragon Ward losses each combat: +10/+10 and Ward
     runeRunicTransposition: f?.runeRunicTransposition, // a Whisper's Health on a Dragon also gives that much Attack
+    // ── Set 3 Kobold runes (owner 2026-10-22) ──
+    runeGoleming: f?.runeGoleming,                   // Avenge (5): a Gemheart Golem with 6 Rubies cast on it
+    runeRedStart: f?.runeRedStart,                   // Start of Combat: a permanent Ruby on each friendly Kobold
+    runeRoseysGarden: f?.runeRoseysGarden,           // every Ruby cast: a random friendly minion +4/+5 permanently
     starCrashBonus: s.starCrashBonus && (s.starCrashBonus.attack || s.starCrashBonus.health) ? { ...s.starCrashBonus } : undefined, // Falling Embers, for a combat Star Crash
     // SHOP→COMBAT CARRY-OVER (owner ruling 2026-08-26): "war drum should have a 1/1 use, and that use resets
     // at start of turn, therefore if it is not used in shop, then the first shout triggered in combat should

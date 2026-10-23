@@ -15,6 +15,19 @@ describe('spiritText — the Spirits print what they do now', () => {
     expect(spiritText('sp3_flamereveler', true, { revelerX: 1 }), 'golden base is 2, the printed golden text').toBeNull();
   });
 
+  it('Rune of the Traveling Festival: each Reveler prints its grant plus the flat +2/+2, never doubled by golden (owner 2026-10-23)', () => {
+    const ex = { attack: 2, health: 2 };
+    // "their value should just gain that one-time +2 to it" — even at the base value the text now moves.
+    expect(spiritText('sp3_flamereveler', false, { revelerX: 1, revelerExtra: ex })).toContain('{{+3 Attack}}');
+    expect(spiritText('sp3_flamereveler', false, { revelerX: 4, revelerExtra: ex })).toContain('{{+6 Attack}}');
+    expect(spiritText('sp3_tidereveler', false, { revelerX: 4, revelerExtra: ex })).toContain('{{+6 Health}}');
+    expect(spiritText('sp3_grovereveler', false, { revelerX: 4, revelerExtra: ex })).toContain('{{+6/+6}}');
+    // revelerSell pays x * golden + extra: the extra is not doubled.
+    expect(spiritText('sp3_flamereveler', true, { revelerX: 4, revelerExtra: ex })).toContain('{{+10 Attack}}');
+    // Festival Luminary is not a Reveler: the rune's extra never reaches it (battlecryBuffRandomTribePlusReveler).
+    expect(spiritText('sp3_luminary', false, { revelerX: 3, revelerExtra: ex })).toContain('{{+4/+4}}');
+  });
+
   it('Festival Luminary prints +(1 + X) on both stats', () => {
     expect(spiritText('sp3_luminary', false, { revelerX: 1 })).toContain('{{+2/+2}}');
     expect(spiritText('sp3_luminary', false, { revelerX: 3 })).toContain('{{+4/+4}}');

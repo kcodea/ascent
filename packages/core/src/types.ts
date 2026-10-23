@@ -258,6 +258,11 @@ export function boardShoutExtras(
 export const COMBATATIVE_RUBIES_ATTACKS = 3;
 export const BODY_COUNTING_DEATHS = 6; // owner 2026-09-27 (Set 3 rune design pass): was 8
 export const RUPTURED_RUBY_BOUNCES = 2;
+/** Set 3 Kobold runes (owner 2026-10-22): the printed numbers both phases and the badge read. Goleming: "Avenge (5):
+ *  Summon a Gemheart Golem and cast 6 Rubies on it." Rosey's Garden: "give a random minion +4/+5 permanently". */
+export const GOLEMING_AVENGE = 5;
+export const GOLEMING_RUBIES = 6;
+export const ROSEYS_GARDEN_GAIN = { attack: 4, health: 5 } as const;
 /** Set 3 Dragon runes, Basic (owner 2026-10-21): the printed numbers both phases read (the Shop module
  *  `packages/sim/src/dragonRunesBasic.ts` and simulate), so the two halves cannot drift. */
 export const DRAGON_RUNES_BASIC = {
@@ -437,6 +442,7 @@ export type EffectFactoryId =
   | 'onRiseBuffSelfWard' // Set 3 Undead — Revenant: after a friendly minion Rises, this gains Ward and +a/+h (stacks)
   | 'onRiseBuffBoardAndHand' // Set 3 Undead — Rising Tide: when a friendly minion Rises, your minions on board AND in hand +a/+h
   | 'overflowBuffAllPermanent' // Set 3 Undead — Squatimus: a summon that does not fit → your minions +a/+h PERMANENTLY (both phases)
+  | 'overflowGrowUndeadAura' // Set 3 Undead T7 — Ending (2026-10-23): a summon that does not fit → your run-wide Undead Aura +a/+h (both phases; combat carries it home)
   | 'overflowBuffRandomTribePerPlayed' // Set 3 Undead — Bicycle Bob: a summon that does not fit → a random OTHER friendly <tribe> +(a·(1+played))/+(h·(1+played)) PERMANENTLY, `played` = that tribe played this turn (both phases, 2026-09-18)
   | 'deathrattleBuffRandomTribe' // Set 3 Undead — Noggin: Echo — a random friendly <tribe> +a/+h (both phases)
   | 'onRiseSelfSummonToken' // Set 3 batch 2 — Rune of the Endless March graft: when THIS body Rises, summon a token (both phases)
@@ -603,6 +609,7 @@ export type EffectFactoryId =
   | 'spellTargetConsumesShop' // Cupcakes: the targeted Demon Consumes N random Shop minions
   | 'deathrattleSummonGolemsWithRuby' // Geode Guardian: summon N Gemheart Golems with Taunt + play Rubies on them
   | 'rallyCastShopBuffSpell' // Ashen Broodlord: Rally casts a Staff of Guel (permanent tavern-buy buff)
+  | 'spellSkeletonsNextCombat' // Overflowing Crypt (Set 3, 2026-10-23): bank a next-combat "Start of Combat: summon N Skeletons"
   | 'spellWeakenNextCombat' // Weaken: bank a next-combat "set a random enemy to 1 Health" // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
@@ -879,6 +886,7 @@ export type EffectFactoryId =
   | 'spellCastEveryNBuffTribe' // Set 3 Celestials — Astral Spellcore: every N Shop spells cast while it is on the board, buff your `tribe` (recruit; per-copy `spellProgress` meter)
   | 'onSpellCastOnThisRecastNamed' // Set 3 Celestials — Crash Course: the first NAMED spell on this each turn casts N additional times on this, full re-casts (recruit)
   | 'rallyGrantFirstSpellCopy' // Set 3 Celestials — Comet Conductor: Rally — copy of the first spell cast this turn, once per combat (combat)
+  | 'equipmentRoyalEdict' // Set 3 Dragons T7 — Royal Edict (Vellum's Equipment, 2026-10-23): spell power +a/+h, then `count` edict charges (each next hand-cast spell this turn casts `extra` more times) (recruit)
   | 'equipmentExtraNextSpellCasts' // Set 3 Celestials — Comet (Orrery Artificer's Equipment): bank N extra casts for the next spell (recruit)
   // ── Set 3 Celestials — THE STARFORM ROSTER (owner spec 2026-09-12); the token engine is `packages/sim/src/starform.ts` ──
   | 'battlecryCreateStarformOrBuff' // Star Seed: Shout — create the Starform, or give the existing one +A/+H (recruit)
@@ -1484,7 +1492,7 @@ export type QuestReward =
    * The remainder BANKS across transactions, like every other threshold in the game. `oncePerTurn` caps payouts
    * at one per turn (the Merchant's Chorus).
    */
-  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand'; per: number;
+  | { kind: 'runeThreshold'; meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand' | 'refresh' | 'sell'; per: number;
       /** Rune of the Secret Exchange (Set 3 Dragon runes, owner 2026-10-21): open that many Shop-spell Discovers. */
       discoverSpell?: number;
       /** Rune of Minted Gems (Set 3 design pass): get that many RANDOM Rubies (all six types) when the meter trips. */
@@ -1492,6 +1500,9 @@ export type QuestReward =
       grantSpell?: number; grantAle?: number; grantRuby?: number;
       /** Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21): get that many RANDOM Whispers (the gated pool) when the meter trips. */
       grantRandomWhisper?: number;
+      /** Last Call (Set 3 Dwarf rune, owner 2026-10-23): ARM the next Dwarven Ale you cast from hand to cast an
+       *  additional time (one charge waiting at most, the Opened Vault shape; +1 extra cast per copy held). */
+      armAleRepeat?: boolean;
       /** Rune of the Deep Feast: hand over these exact card ids when the meter trips (the `grant` reward's
        *  `cards`, on a meter). Overflow-safe like every other earned reward. */
       grantCards?: string[];
@@ -2002,7 +2013,14 @@ export type QuestCombatFlag = 'bloodTrail' | 'echoingCoop' | 'lawOfTeeth' | 'old
   // Whisper cast from hand on each Dragon each turn is permanent; twinTongues = a Whisper cast from hand also casts on
   // another friendly Dragon; openedVault = after a Jar of Secrets activation the next Whisper cast from hand casts twice;
   // bequeathedSecrets = the first Dragon sold each turn gives its Whisper stats to the left-most Dragon permanently.
-  | 'runeLastingWords' | 'runeTwinTongues' | 'runeOpenedVault' | 'runeBequeathedSecrets';
+  | 'runeLastingWords' | 'runeTwinTongues' | 'runeOpenedVault' | 'runeBequeathedSecrets'
+  // Set 3 Kobold runes (owner 2026-10-22): goleming = Avenge (5) summon a Gemheart Golem and cast 6 Rubies on it;
+  // redStart = Start of Combat, a permanent Ruby on each friendly Kobold; roseysGarden = every Ruby cast gives a random
+  // friendly minion +4/+5 permanently.
+  | 'runeGoleming' | 'runeRedStart' | 'runeRoseysGarden'
+  // Set 3 Dwarf rune, Epic (owner 2026-10-23), Shop-only (selling is a Shop action): returnCustomers = the first 2
+  // Dwarves you Sell each turn return a plain copy to your hand.
+  | 'runeReturnCustomers';
 /** Quest-armed combat modifiers threaded into `simulate()` (one trailing options arg). Beast quest capstones +
  *  greaters live here so the pure combat engine can honor them without new positional params per flag. */
 export interface QuestCombatMods {
@@ -2504,6 +2522,13 @@ export interface QuestCombatMods {
   runeUnbrokenScales?: boolean;
   /** Rune of Runic Transposition: a Whisper cast on a friendly Dragon also gives it Attack equal to the Health it gives. */
   runeRunicTransposition?: boolean;
+  // ── Set 3 Kobold runes (owner 2026-10-22) ──
+  /** Goleming: Avenge (5), summon a Gemheart Golem and cast 6 Rubies on it (per copy). */
+  runeGoleming?: boolean;
+  /** Red Start: Start of Combat, cast a PERMANENT Ruby on each friendly Kobold (per copy). */
+  runeRedStart?: boolean;
+  /** Rosey's Garden: every Ruby cast gives a random friendly minion +4/+5 PERMANENTLY (per Ruby, per copy). */
+  runeRoseysGarden?: boolean;
   /** Rune of Falling Embers' Star Crash bonus (the run's `starCrashBonus`), so a combat Star Crash pays it too. */
   starCrashBonus?: { attack: number; health: number };
   /** Rune of the War Drum's UNSPENT shop charge (owner ruling 2026-08-26: "1/1 use, resets at start of turn —
@@ -2558,6 +2583,9 @@ export interface QuestCombatMods {
   decoySigils?: number;
   /** Weaken (next-combat spell): at Start of Combat, set this many random living enemies to 1 Health. */
   weakenTargets?: number;
+  /** Overflowing Crypt (next-combat spell, Set 3 2026-10-23): at Start of Combat, summon this many Skeletons
+   *  (`u3_skeleton`) for this side. Real summons: the board cap applies and a body that does not fit Overflows. */
+  bankedSkeletons?: number;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
   runeRisingGraves?: boolean;
   /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */
@@ -3250,7 +3278,11 @@ export type CombatEvent = (
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
-  | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'toHand'; cardId: string; side: Side; source?: string;
+      /** A MINION recorded as a hand grant that fits the hand joins the side's combat hand pool under this uid
+       *  (`handGrantUid`), so a summon-from-hand later this fight can pick it and the replay can grey it
+       *  (R-HAND-GRANT-SUMMON-01, owner 2026-10-23). Absent on every other `toHand` (spells, Rubies, visual-only). */
+      uid?: string } // a combat effect adds a card to your hand (Arcane Weaver)
   | { type: 'handBuff'; uid: string; cardId: string; side: Side; attack: number; health: number; source?: string } // a combat effect buffs a card IN YOUR HAND — permanent (R-HAND-02, owner 2026-09-09), carried back via `playerHandBuffs`; the replay grows the hand card live
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
@@ -3393,6 +3425,10 @@ export interface CombatSideState {
     /** Locked in hand (Disco Dan's tier lock, Brackus's Gold lock, the Hourglass next-turn lock): buffable and
      *  readable, but no summon-from-hand may put it on the board (owner 2026-09-10). */
     locked?: boolean }[];
+  /** FREE hand slots at combat start (the run's hand cap minus every card held: minions, spells AND Rubies). A
+   *  minion granted to hand mid-fight joins `handMinions` for this fight only while it would fit the real hand at
+   *  settle (R-HAND-GRANT-SUMMON-01). Absent (older captures): the cap of 10 minus the minions + spells listed. */
+  handRoom?: number;
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
    *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
    *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */

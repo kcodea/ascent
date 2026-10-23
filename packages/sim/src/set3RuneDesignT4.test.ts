@@ -47,11 +47,12 @@ const playRuby = (s: RunState, target: string): RunState => {
 
 describe('the tranche 4 roster (owner 2026-09-27)', () => {
   it('eight hybrid runes at the doc costs, Set 3 only, gated to both tribes; no Tavern Tab', () => {
+    // Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Epic 4-7 -1); each was 1 higher before, except Minted Gems (Basic 2, unchanged).
     const want: [string, number, boolean, string[]][] = [
-      ['rune_minted_gems', 2, false, ['kobold', 'dwarf']], ['rune_gem_crypt', 3, false, ['kobold', 'undead']],
-      ['rune_pallbearer', 4, false, ['undead', 'spirit']], ['rune_star_tap', 3, false, ['dwarf', 'celestial']],
-      ['rune_closing_time', 3, false, ['dwarf', 'spirit']], ['rune_grim_toast', 4, true, ['dwarf', 'undead']],
-      ['rune_gem_star', 4, true, ['kobold', 'celestial']], ['rune_keepsake_gem', 4, true, ['kobold', 'spirit']],
+      ['rune_minted_gems', 2, false, ['kobold', 'dwarf']], ['rune_gem_crypt', 2, false, ['kobold', 'undead']],
+      ['rune_pallbearer', 3, false, ['undead', 'spirit']], ['rune_star_tap', 2, false, ['dwarf', 'celestial']],
+      ['rune_closing_time', 2, false, ['dwarf', 'spirit']], ['rune_grim_toast', 3, true, ['dwarf', 'undead']],
+      ['rune_gem_star', 3, true, ['kobold', 'celestial']], ['rune_keepsake_gem', 3, true, ['kobold', 'spirit']],
     ];
     for (const [id, cost, epic, tribes] of want) {
       const r = RUNE_INDEX[id]!;

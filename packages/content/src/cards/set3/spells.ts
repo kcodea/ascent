@@ -145,4 +145,23 @@ export const SET3_SPELLS: readonly CardDef[] = [
     effects: [{ on: 'cast', do: 'spellBuffAllPerTribePlayed', params: { tribe: 'spirit', attack: 2, health: 2 } }], // +1/+1 until 2026-09-14
     text: 'Give your minions **+2/+2** for every **Spirit** you played this turn.',
   },
+  {
+    // OVERFLOWING CRYPT (owner add 2026-10-23: "Overflowing Crypt - T2 - 3g Start of Combat: Summon 2 Skeletons.").
+    // A next-combat bank (Weaken's shape): the cast arms `pendingSkeletons`, which rides `questMods.bankedSkeletons`
+    // so a served snapshot carries it, and `simulate` summons the Skeletons (`u3_skeleton`, the Set 3 Undead token)
+    // at Start of Combat for whichever side holds it. Real summons: board cap, Overflow payoffs, Undead Aura.
+    // An UNDEAD spell (owner 2026-10-23: "It's an undead spell"): TRIBE-GATED, offered only in runs with Undead.
+    // Art = CrowdedCrypt.png (owner: "Crowded crypt is supposed to be for overflowing crypt"). Spells are never Gilded.
+    id: 'sp_overflowingcrypt',
+    name: 'Overflowing Crypt',
+    tribe: 'undead',
+    tier: 2,
+    attack: 0,
+    health: 1,
+    keywords: [],
+    spell: true,
+    cost: 3,
+    effects: [{ on: 'cast', do: 'spellSkeletonsNextCombat', params: { count: 2 } }],
+    text: '**Start of Combat:** summon **2 Skeletons**.',
+  },
 ];

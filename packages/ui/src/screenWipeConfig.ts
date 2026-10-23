@@ -60,8 +60,11 @@ export const WIPE_DEFAULTS: ScreenWipeConfig = {
   coverMs: 450,
   revealMs: 450,
   chargeMs: 260,
-  holdInMs: 900,
-  holdOutMs: 700,
+  // The falling gate's hold (owner 2026-10-22): +0.3 s each way ("land hard and wait a little bit longer"), then doubled
+  // ("we need the hold to be twice as long").
+  holdInMs: 2400,
+  // The return trip's hold (the vista, 2026-10-23): 2.0 s -> 1.5 s (owner: "can we have the overall animation a bit shorter").
+  holdOutMs: 1500,
   easeX1: 0.45,
   easeY1: 0,
   easeX2: 0.7,

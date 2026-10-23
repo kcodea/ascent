@@ -2148,6 +2148,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/practiceGames.test.ts', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-09-27' },
   },
   {
+    id: 'R-CAREER-HERO-GAMES-01',
+    title: 'Career Heroes: no hover panel; a click shows that hero\x27s games in Match History; cards show Net MMR and sort three ways',
+    statement:
+      'A hero card on the Career Heroes tab shows its portrait, name, games played, Top 4 %, average placement and NET MMR, '
+      + 'and has no hover or focus tooltip panel. Net MMR is the signed sum of the rank points settle_rank APPLIED (the delta '
+      + 'the rank screen showed) over that hero\x27s RATED games: only rows the settlement stamped (entry.rank present, lobby '
+      + 'mode) count; unrated, practice, pre-medal-ladder and unstamped rows are left out, and a hero with no such game prints '
+      + '"-". The grid sorts by Games played (most first, the default), Average placement (lowest first) or Net MMR (highest '
+      + 'first), unknowns last, remembered per browser. Clicking, tapping or pressing Enter / Space on a card opens Match '
+      + 'History filtered to that hero (its newest 50 games from the runs already loaded) with a removable hero chip and a Back '
+      + 'to Heroes button; leaving Match History drops the filter. Each row keeps its own Replay / No replay state, and a hero '
+      + 'filter with no games shows a designed empty state. Light rows of the filtered hero are upgraded with one detailed '
+      + 'run_history read per hero pick, never per hover or per row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23 (Career hero games)', quote: 'the mouseover tooltip here is pretty ugly and redundant info. would it be possible to show the games of that hero if i clicked on the hero so i could go rewatch them or something?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23 (hero sort + Net MMR)', quote: 'also add a way to sort by average games played/average placement/net mmr. show net mmr on the hero card instead of # of 1sts' },
+      { kind: 'code', ref: 'packages/ui/src/Career.tsx HeroTile / heroFilter; packages/ui/src/careerData.ts ratingDeltaOf / sortHeroCareers / runsOfHero / withRunDetails; packages/ui/src/remoteBoards.ts fetchRunDetails' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/careerData.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
     id: 'R-PRACTICE-TIME-01',
     title: 'Practice has an Unlimited time option: no shop timer at all',
     statement:
@@ -4854,6 +4878,42 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-ARCHIVE-SET3-1023-01',
+    title: 'Picnic leaves Set 3; it stays a Set 2 and Set 4 spell and old Set 3 saves still resolve it',
+    statement:
+      'Picnic is out of Set 3: a Set 3 run never offers it in the Shop, the Spell Cart, a Discover or a random grant '
+      + '(every draw reads the run-pinned pool). It stays a Set 2 spell and a Set 4 shared spell, and stays in the global '
+      + 'card index, so an old Set 3 save, snapshot or replay holding it still resolves.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'remove picnic from set 3' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_SHARED_SPELL_IDS / SET4_SHARED_SPELL_IDS' },
+    ],
+    contentIds: ['sp_picnic'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/picnic.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-ARCHIVE-SET3-1023-02',
+    title: 'Whisp and Gatherer leave Set 3 (archived); old Set 3 saves, snapshots and replays still resolve them',
+    statement:
+      'Whisp and Gatherer are out of Set 3: a Set 3 run never offers them in the Shop, a Discover or a random grant '
+      + '(every draw reads the run-pinned pool). Both were Set 3 only, so they are archived and belong to no set. Both stay '
+      + 'in the global card index: on an old Set 3 save Whisp still echoes a Whisper cast on a Dragon and Gatherer still '
+      + 'gets a random Dragon on Rally, and a snapshot or replay holding them resolves. Whispwarder is a different card '
+      + 'and stays in Set 3.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'archive these dragons from set 3: * gatherer * whisp' },
+      { kind: 'code', ref: 'packages/content/src/cards/archive.ts (the 2026-10-23 block)' },
+    ],
+    contentIds: ['d4_whisp', 'd3_gatherer'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',
@@ -5474,11 +5534,13 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-EMOTE-01',
     title: 'Emotes are a cosmetic with a four-slot menu that always shows all four slots: Zen Brian is the one STARTER (everyone\x27s), every other emote is a crate drop (Rare, Epic, Legendary); a 20 second cooldown between emotes, no cap',
     statement:
-      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Zen Brian is the one STARTER '
+      'AMENDED 2026-10-22 by R-PROG-EMOTE-02: the menu now holds EIGHT slots (targets \x270\x27..\x277\x27) and the five '
+      + 'Comms emotes are starters too; where this rule says four slots, one starter or three empty slots, R-PROG-EMOTE-02 '
+      + 'wins. The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Zen Brian is the one STARTER '
       + 'item (acquisition \x27starter\x27): every player owns it from the start, signed in or not, with no ownership row, '
       + 'and it never drops from a crate. Every other live emote is a CRATE item: 8 Rare (Nervous Jensen, Depressed Hank, '
       + 'Nervous Voss, Tara Sad, Chronos Mad, Rascal Broke, Skeleton Wave, Pup Pup), 7 Epic (Flirty Midas, Happy Urchin, '
-      + 'Sly Oona, Dead Elder, Gambler, Sexy Darah, Angry Deathswarmer) and 5 Legendary '
+      + 'Sly Oona, Dead Elder, Gambler, Darahling, Angry Deathswarmer) and 5 Legendary '
       + '(Rich Pimm, Baby Rubies, Mad Tormentor, Dan the Man, Iggy), dropping like any crate item (fixed rarity odds, then an equal share '
       + 'inside the rarity, never one already owned). Angry Mushy, once a starter, is RETIRED (active false, the id kept): '
       + 'not owned, shown, equippable or played, and an old recording of it plays nothing. Sad Wrangler, once a Rare crate '
@@ -5496,7 +5558,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'slot from there; one not owned shows them read-only). The crate reveal shows a won emote\x27s bubble beside the '
       + 'plate. An equip the server cannot take is kept on the device, but still only shows owned emotes. In a game the '
       + 'player right-clicks THEIR hero portrait (only there is the browser menu suppressed) in a shop turn or a combat, '
-      + 'never in a replay, and picks an emote: its bubble pops beside the portrait. At least 20 seconds pass between two '
+      + 'never in a replay, and picks an emote: its bubble pops beside the portrait. At least 8 seconds (20 before 2026-10-22) pass between two '
       + 'emotes (the menu shows the wait); there is no per-turn cap and no muting. The menu is LIVE LOADOUT ONLY: a run '
       + 'records the emotes USED (R-EMOTE-01), never the menu.',
     domain: 'foundation',
@@ -5504,6 +5566,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players right-click THEIR hero\x27s portrait (in game) to open an emote menu showing their 4 equipped emotes; clicking one plays it.' },
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Cooldown: 20 seconds between emotes (show the cooldown state on the menu). No per-turn cap. No muting for now.' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-22', quote: 'drop the emote cooldown from 20s to 8s' },
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players equip up to 4 in Collections. Unlock source: crates, plus starter emotes everyone owns.' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove the angry mushy emote' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove all emotes as \x27given\x27 and put them in various loot tiers between rare and legendary. wire all the new ones that i added' },
@@ -5534,6 +5597,50 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/progression/CollectionScreen.test.tsx',
       ],
       lastVerifiedAt: '2026-10-18',
+    },
+  },
+  {
+    id: 'R-PROG-EMOTE-02',
+    title: 'The emote menu holds EIGHT slots, and the five Comms emotes (Hi, Good Choice, Too Nasty, It\x27s Beasts, Lemon Approved) are free for everyone, each flagged on its own; every other emote, and any new one added with no flag, is a crate drop',
+    statement:
+      'The in-game emote menu and the Collection\x27s slot row hold EIGHT positions (EMOTE_SLOT_COUNT 8; the loadout row '
+      + 'target, the inventory request check, the SQL equip_cosmetic check and the device layer all accept \x270\x27..\x277\x27 '
+      + 'and refuse anything else). The menu draws all eight, two rows of four, an empty one as the dashed "Empty" frame; on '
+      + 'a touch device each pick stays at least 48 screen px tall. Five COMMS emotes are STARTER items, each flagged '
+      + 'starter on its own row (never a blanket rule): Hi, Good Choice, Too Nasty, It\x27s Beasts and Lemon Approved (Common, '
+      + 'ids emote_hi, emote_good_choice, emote_too_nasty, emote_its_beasts, emote_lemon_approved). Like Zen Brian they are '
+      + 'owned by every account, guests included, with no ownership row, equip with no ownership row, and are NEVER in the '
+      + 'crate pool (nobody rolls a free emote). Every other live emote is a crate drop, and an emote added later with no '
+      + 'flag is a crate drop by default. The DEFAULT menu (positions no explicit choice fills) keeps positions 1 to 4 '
+      + 'exactly as the four-slot menu showed them (Zen Brian, then owned emotes in catalog order), then the Comms emotes, '
+      + 'then the rest of the owned emotes; explicit choices always win their position. A fresh account (a guest included) '
+      + 'sees Zen Brian, Hi, Good Choice, Too Nasty, It\x27s Beasts, Lemon Approved and two empty slots.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-22', quote: 'we\x27ll use emotes for quickchat options, then. let\x27s add 4 more emote slots, and give everyone the communication emotes. i added 5 here: C:\\Game Assets\\Ascent Art\\Emotes\\Comms' },
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-22', quote: 'give all players the 5 comms emotes for free, but others im going to continue to add will go into the skins lootboxes' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (EMOTE_SLOT_COUNT, EMOTE_POSITION_RE, COMMS_EMOTE_IDS, the Comms rows, emoteSlotsOf); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-22-emote-eight-slots.sql (equip_cosmetic); packages/ui/src/emotes/emoteLoadout.ts (the device layer); packages/ui/src/emotes/emotes.css + packages/ui/src/touchUi.css (the eight-slot menu)' },
+    ],
+    currentBehaviour:
+      'Conforms in the client from 2026-10-22. On the live server the eight positions need 2026-10-22-emote-eight-slots.sql '
+      + 'run, then progression-inventory deployed (its request check and its catalog sync, which writes the five Comms rows '
+      + 'as starters). Until then an equip at positions 5 to 8 is kept on the device and the Comms emotes still show (the '
+      + 'client treats starters as owned).',
+    example:
+      'A guest right-clicks (or long-presses) their portrait: two rows of four, Zen Brian, Hi, Good Choice, Too Nasty, '
+      + 'It\x27s Beasts, Lemon Approved, then two "Empty" slots. A player who owns three crate emotes and never placed one '
+      + 'still sees Zen Brian and those three in slots 1 to 4, then Hi, Good Choice, Too Nasty and It\x27s Beasts. Opening a '
+      + 'chest never gives Hi.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/progression/src/emotes.test.ts',
+        'packages/progression/src/emotes.db.test.ts',
+        'packages/progression/src/sqlParity.test.ts',
+        'packages/ui/src/emotes/emotes.test.tsx',
+      ],
+      lastVerifiedAt: '2026-10-22',
     },
   },
   {
@@ -5979,7 +6086,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'packages/ui/src/art/skins/, at the rarity of the Skins folder its master sits in (R-PROG-SKINS-11). Hero skins: Golf '
       + 'Midas and Morning Midas (Rare); Amputee Midas, Mac and Melon Midas (Midas), Birthday Runesmith (Runesmith), Gambling '
       + 'Robin (Robin) and Memory Membrance (Membrance) (Epic). Minion skins: Anvilshade (Anvilshade), Liberty Voss (Bellringer '
-      + 'Voss), Metal Rachel (Rad Rachel) and Mushy Pee (Mushy) (Rare); Cosmic Mushy (Mushy), Gilded Kennelmaster '
+      + 'Voss), Metal Rachel (Rad Rachel) and Mushy River (Mushy) (Rare); Cosmic Mushy (Mushy), Gilded Kennelmaster '
       + '(Kennelmaster) and Jensen & Fi Sky (Jensen & Fi) (Epic). Names are the master filenames, except Gilded Kennelmaster '
       + '(master GoldenKennelmaster.png), since an item name never uses Golden. With them in, a first crate holds 38 Common, '
       + '74 Rare, 78 Epic, 70 Legendary and 28 Ancient items (each Rare 0.419%, Epic 0.282%). A portrait frame master that is '
@@ -6249,7 +6356,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-SPECTATE-EMOTE-01',
     title: 'A spectator can emote to the player; it pops from their chip in the top-left stands',
     statement:
-      "A spectator (Versus or a live ranked game) says an emote with the same menu, their own equipped emotes and the same 20 s cooldown as a player. "
+      "A spectator (Versus or a live ranked game) says an emote with the same menu, their own equipped emotes and the same 8 s cooldown as a player. "
       + "It opens from their own plate at the top left of the watch screen (click or right-click), never from the watched player portrait. "
       + "It travels on the existing spectate broadcast channel as { e: emoteId, from: userId }, with no timestamp. "
       + "The player sees it pop from that spectator chip in their Spectating indicator; every other spectator of the same game sees it pop from that spectator chip in their own top-left stands row; the speaker sees it at once from their own plate. "
@@ -7129,6 +7236,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneGpuMemory.test.ts', 'packages/ui/src/phoneFxLayer.test.tsx', 'packages/ui/src/phoneFxLayerDesktop.test.tsx'], lastVerifiedAt: '2026-10-18' },
   },
   {
+    id: 'R-TOUCH-CRASH-REPORT-01',
+    title: 'A phone crash reaches us by itself, once, without slowing the game',
+    statement:
+      'When the crash log is recording (a phone, or ?crashlog=1) and it finds a crashed session on load, the page sends '
+      + 'that session (its breadcrumb trail, last step, duration, memory and WebGL readings, the user agent, screen size and '
+      + 'pixel ratio, Home Screen app or browser, and the build) to the client_crash_reports table: a few seconds after the '
+      + 'game mounts, on idle, never on the boot path and never per frame. Each crashed session is sent once (it is marked '
+      + 'sent only after the insert succeeds) and tried at most 3 times across loads. Without a backend, offline or when '
+      + 'the table is missing, nothing breaks and nothing throws. Clients may only insert into the table; a desktop load '
+      + 'without the flag sends nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (still crashing on an iPhone; no Mac for Safari Web Inspector)', quote: 'I still can\x27t even play it because of the crashing, but I want to make this mobile experience flawless end to end' },
+      { kind: 'code', ref: 'packages/ui/src/crashReport.ts (pendingReports, buildReport, uploadCrashReports, scheduleCrashReportUpload); Game.tsx (the mount effect); supabase/migrations/2026-10-22-client-crash-reports.sql' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-22 (feat/phone-crash-telemetry), once the migration is applied. Before, a crash was only visible on the phone itself, in the crash log readout.',
+    example: 'An iPhone Home Screen app dies after "hero picked"; on the next open, about 6 s after the title shows, one row lands with last_step "hero picked", standalone true and the build id; later opens send nothing more for it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crashReport.test.ts', 'packages/ui/src/crashReportDesktop.test.ts', 'packages/ui/src/crashReports.db.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-TOUCH-RUN-MEMORY-01',
+    title: 'A phone keeps hero select, the gate and the run free of full-stage layers',
+    statement:
+      'On a phone (the lite art path), when the browser reports element geometry under CSS zoom the standard way (a '
+      + 'one-time probe), hero select, the ranked gate and the run shrink the stage with CSS zoom instead of a transform, '
+      + 'as the menus already do, so no composited layer costs its full stage size at the screen density. The Settings '
+      + 'switch "Old stage in games" puts them back on the transform. On every phone, transform or zoom: the falling gate '
+      + 'is hidden while parked above the screen and shows the moment it falls; the hero ceremony entrances let go of their '
+      + 'layers when they finish; the hero select stops painting while the launch curtain fully covers it. Same look and '
+      + 'same input. Desktop is unchanged: none of these paths runs there.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (iPhone, the page crashes at Play / hero pick after #2151, #2158, #2160, #2163, #2166)', quote: "I still can't even play it because of the crashing" },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (zoomedStage, zoomGeometryIsStandard); phoneDiag.ts (gamexf); touchUi.css; hero-select/HeroLaunchCurtain.tsx (setLaunchCovered); hero-select/heroCeremony.css; scripts/phone-run-memory.mjs (npm run perf:phone-run)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-22 (fix/phone-play-crash). Before, hero select and the run kept the stage transform, and the '
+      + 'iOS layer model peaked at 651 MB on the way into a game (five full-stage layers at about 87 MB each during the '
+      + 'launch curtain), with 87 MB of parked falling gate held through every shop and fight.',
+    example: 'iPhone landscape 852x393 @3x, prod build, peak iOS estimate title to the first fight: 651 MB before, 227 MB after; hero select 272 to 110 MB; first shop 553 to 198 MB.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneRunMemory.test.ts', 'packages/ui/src/phoneGpuMemory.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:
@@ -7683,6 +7835,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamPlayback.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-SPECTATE-EMOTE-02',
+    title: 'Spectators see the watched player\'s emotes, live, where the player sees them',
+    statement:
+      'Every emote a player says reaches everyone watching them, at once, in the shop and in combat. A live ranked game forwards the player\'s own emote on its spectate channel while at least one person watches (nothing is sent with nobody watching); in Versus both players\'s emotes already travel on the room channel. A spectator shows the WATCHED player\'s emote on that player\'s hero portrait (where the player sees their own) and, in Versus, the other player\'s beside the opponent. A seated Versus player still shows only the opponent\'s emote on the foe. The speaker\'s own bubble shows exactly once (no echo from the channel). A spectator ignores a malformed message and a second emote from the same seat inside the cooldown (the channel is a public broadcast).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (spectator emotes)', quote: 'spectators arent seeing when a player emotes, i think only the player sees the emotes. please fix this.' },
+      { kind: 'code', ref: 'packages/ui/src/emotes/emoteTransport.ts (subscribeSentEmotes); live/livePublisher.ts; live/liveWatch.ts; versus/versusEmotes.ts (receiveWatchedEmote); versus/versusStore.ts' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, a live ranked game used the local emote loopback (nothing left the player\'s client), and a Versus spectator dropped the emotes of both players because it holds no seat.',
+    example: 'Claudebot2 watches Claudebot1\'s ranked game. Claudebot1 says an emote mid-fight; the same bubble rises from Claudebot1\'s portrait on Claudebot2\'s screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEmotesCursor.test.ts', 'packages/ui/src/versus/versusEmotes.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-SPECTATE-COMBATCURSOR-01',
+    title: 'Spectators and replays see the player\'s hand during combat too',
+    statement:
+      'The watched player\'s cursor is drawn during combat as well as the shop: on the live watch screen, for Versus spectators and in a replay. It travels the same way as in the shop (the same messages and sample rate, anchored to the unit under it when there is one, else the game box) and its hover opens the same unit preview. A replay records the hand through the fight and plays it on the replay clock, which runs through a fight frame (held while paused, re-anchored on a speed change). No card is ever held in a fight. The player\'s own frames carry no new per-frame work.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (spectator combat cursor)', quote: 'i dont think spectators can see player mouse behavior in combat (or emotes) which would be nice to see.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/SpectatorCursor.tsx; replay/streamRecorder.ts; replay/replayStreamPlayer.ts; replay/replayPlayer.ts (replayClockMs); Recruit.tsx startStreamCapture' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, the player sent the cursor in combat but the spectator overlay drew nothing while the run was in combat, and the replay recorder and player skipped it.',
+    example: 'The player points at an enemy minion during a fight; the spectator sees the gauntlet on that same minion and its preview opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEmotesCursor.test.ts', 'packages/ui/src/replay/replayViewer.test.ts', 'packages/ui/src/replay/streamParity.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-REPLAY-EMOTE-01',
+    title: 'A replay shows the emotes the player saw, at the moment they popped',
+    statement:
+      'While a run records its spectator stream (R-REPLAY-STREAM-01), every emote shown on the player\'s screen (their own, and those of the seats they faced) is recorded on the replay clock with its seat. A replay shows each one through the game\'s emote seam when its clock reaches it, from the same portrait. One the clock jumped past (a seek) is never popped late; seeking back before it plays it again. A spectator\'s chip emote is not recorded. A replay recorded before this has no emotes and plays as before; an older build ignores the field.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (spectator emotes)', quote: 'spectators arent seeing when a player emotes, i think only the player sees the emotes. please fix this.' },
+      { kind: 'code', ref: 'packages/sim/src/replayStream.ts (StreamSegment.em, encodeStreamEmote, decodeStreamEmotes); packages/ui/src/replay/streamRecorder.ts; replay/replayStreamPlayer.ts; emotes/EmoteLayer.tsx' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, a replay showed no emotes at all.',
+    example: 'A replay of round 6: 4.2 s into the shop the player\'s emote bubble rises from their portrait, as it did live.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEmotesCursor.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-SKIP-TURBO-01',
     title: 'Skip fast-forwards the fight and slows back down for the hit that decides it',
     statement:
@@ -7698,6 +7895,143 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Since 2026-10-22. Before, Skip froze the fight, faded out and jumped to the resolved board. The beat on screen when Skip is pressed finishes at its current speed; the fast-forward starts on the next beat.',
     example: 'A 4v4 that would take 14 seconds: press Skip on the second swing, the fight and its effects race at 20× under a whir, slow evenly for a second and a half while the game sounds fade back in, and the final killing swing plays at normal speed with its sound.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipTurbo.test.ts', 'packages/ui/src/skipTurboReplay.test.tsx'], lastVerifiedAt: '2026-10-22' },
+  },
+  // ── The shop <-> combat transition only MOVES, it never reshapes (owner 2026-10-21/22, millisecond flashes) ─────
+  {
+    id: 'R-PRESENT-35',
+    title: 'The shop and combat transition covers the screen by moving a solid layer, never by reshaping one, so no frame of it is see-through',
+    statement:
+      'The screen that hides the swap between the Shop and combat (both ways) covers it by MOVING a solid, full-screen '
+      + 'layer (today a wooden gate that falls from the top, slams, holds and is cranked back up), never by growing, '
+      + 'clipping or reshaping one. A busy frame may make it late, but never see-through, so nothing of the game ever '
+      + 'flashes over it. It covers the WHOLE screen for as long as the scene behind it changes, including through its '
+      + 'landing bounce, and the scene swaps only while it fully covers. Anything that rides on it (the poster with the '
+      + 'opponent, its edge FX) moves with it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-21 (after the z3000 curtain fix)',
+        quote: 'interestingly i still see random flashes of various elements over the transition curtain. they are milisecond flashes, but they do occur, i wonder why',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-21 (the ranked gate standing in for the curtain, as a test)',
+        quote: 'so far not a single issue',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-21 (the redesign)',
+        quote: 'i want to do something that falls from the "ceiling" of the screen and lands at the bottom of the screen with a bang, like a big stone gate or something',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-23 (the ultrawide check that found the gap at the bounce)',
+        quote: 'can you verify that the wood door transition works on ultrawide too?',
+      },
+      { kind: 'fix-pr', ref: 'feat/panel-transition' },
+      { kind: 'fix-pr', ref: 'feat/vista-return' },
+      { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts curtainClassFor; packages/ui/src/styles.css .wipecurtain / .wipecurtain::after (the foot) / .wipeposter / @keyframes wipeslam, wipecrank, posterslam, postercrank; packages/ui/src/Recruit.tsx (the curtain markup + its sounds)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-22. Before, the blue curtain bloomed out of the End Turn gem by animating its clip-path: a '
+      + 'shape recomputed every frame, which on the heavy End Turn frame could come out wrong or not be drawn, so the game '
+      + 'showed through for a frame (the "millisecond flashes" left after R-PRESENT-17 put the curtain above every layer). '
+      + 'With the ranked gate (doors that only slide) standing in, the owner saw none. Now the curtain is the owner\'s '
+      + 'wooden gate: transform-only motion (fall, slam bounce, a swaying crank), a hidden strip of its bottom beam below '
+      + 'its edge so the landing bounce never opens a gap at the floor while the scene swaps, and the poster carrying '
+      + 'NOW FACING swinging on its own nail (transform only). FIXED 2026-10-23: the strip under the gate was flipped about '
+      + 'its top edge, so it folded up inside the gate and the landing bounce (up to 3.4%) opened a gap at the floor on every '
+      + 'screen; found rendering the gate for the owner’s ultrawide check. It now flips in place and mirrors the rows above '
+      + 'the gate’s visible bottom edge, so a window wider than 16:9 (which crops the art) stays seamless too.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-STAGE-OPP-HUD-01',
+    title: 'The opponent\'s hero block stays on the board at every window shape, like the player\'s',
+    statement:
+      'The opponent\'s hero block (portrait, name, Health and Armor, the Shop Tier pill, the rune slots and the hero '
+      + 'power) is placed in the 16:9 game area, exactly like the player\'s own block. On any window shape (wide, tall, '
+      + 'a phone in landscape, an iPad in portrait, the phone stage zoom) it keeps its spot at the board\'s top-right; '
+      + 'it never hangs off the top of the window. A 16:9 desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner, 2026-10-23 (screenshot of a tall, narrow window in combat: the foe block at the window\'s top-right, far above the board)',
+        quote: 'everything in the game works/stays in place seemingly except for opponent information. can you fix it so these locations are baked in the viewport in the same way as other ui elements?',
+      },
+      { kind: 'fix-pr', ref: 'fix/opponent-hud-stage-anchor' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css .combatopp / .heropowerbtn.opp-power / .herotip.opp-power-tip (top starts from var(--bar-y))' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the block\'s top was measured from the top of the layout viewport, not the 16:9 '
+      + 'box, so whenever the window was taller than 16:9 (the stage letterboxed, --bar-y above 0) it sat at the window\'s '
+      + 'top while the board sat in the middle. At 16:9 --bar-y is 0, so a desktop never showed it.',
+    example: 'A 483 x 898 browser window in combat: the foe portrait sits beside the board\'s top-right corner, mirroring the player\'s at its bottom-left.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/combatOpponentStageAnchor.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-OPP-HAND-01',
+    title: 'The opponent\'s hand shows face down beside their runes: their card plate, the count only, live through the fight',
+    statement:
+      'In every fight (the player\'s own, a spectator, Versus, a replay) the opponent\'s hand is drawn face down to the left '
+      + 'of their runes: one card per card held, each the opponent\'s equipped card plate (the standard plate when they have '
+      + 'none, for bots, or with opponent cosmetics off) with no art, name, text or stats, and no card identity anywhere in '
+      + 'the page. It starts from the hand their recorded board carried in (minions, then spells; none for an older '
+      + 'recording). A card the opponent gains mid-fight joins it the moment it arrives. A minion they summon from hand '
+      + 'lifts out of that face-down card with the shared lift-and-land (R-HANDSUMMON-FX-01); a copy summon greys the card '
+      + 'for the fight, as the player\'s does, and a consuming summon removes it. Presentation only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-10-23',
+        quote: 'it should show their card plate they have equipped, but without the minions text or art, so it is \'hidden.\'',
+      },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner ask, 2026-10-23',
+        quote: 'i\'d like it to show when opponents get cards added to hand in real time as well',
+      },
+      { kind: 'code', ref: 'packages/ui/src/OpponentHand.tsx + oppHandModel.ts; handSummonFx.ts (the enemy source, liftSign); useCombatReplay.ts (enemy flights + enemyHandSummonedShown)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the opponent\'s hand was not drawn at all: its mid-fight grants were only logged, '
+      + 'and its hand-summons popped in like any summon.',
+    example: 'A foe holding 3 minions and 2 spells shows 5 face-down Galaxy plates; its Herald of Doom attacks and a sixth '
+      + 'materialises; its Seedling Spirit\'s Rally lifts a copy out of the second card, which greys.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentHand.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
+  // ── A transition never shows a picture before it is ready (owner clip 2026-10-23, the vista's 4-frame blank) ──────
+  {
+    id: 'R-PRESENT-36',
+    title: 'A transition only uses art that is already loaded and decoded, so no piece of it blanks out mid-play',
+    statement:
+      'Every picture a screen transition draws or cuts with (its layers, masks and overlays) is fetched and decoded before '
+      + 'the transition can start, and a piece that is still not ready when its moment comes is left out for that play '
+      + 'rather than switched on half-loaded. No part of a transition may disappear and come back while it plays.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-23 (Medal clip of the return trip)',
+        quote: 'you can see  briefly that part of the image disappears and returns',
+      },
+      { kind: 'fix-pr', ref: 'feat/vista-return' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (vistaArtRef / vistaMaskReadyRef / vistaMaskTrip, the maskok class); packages/ui/src/styles.css .wipevista.maskok.held .wipevista-masked' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the return trip’s door cut-out (vista-doormask.png) was the one vista picture '
+      + 'never preloaded; when the mask switched on as the land settled, the browser hid the whole masked group (sky, hills, '
+      + 'title, shop) until it decoded, and for four frames the fight showed through behind the flowers. Now every vista '
+      + 'picture is decoded on mount and kept referenced, and each trip uses the cut-out only if it was decoded before the '
+      + 'trip began. PARTIAL as a general rule: the test pins the vista’s mask, not every transition’s art.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
     id: 'R-SKIP-DIAMOND-01',

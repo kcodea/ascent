@@ -65,7 +65,7 @@
    the dials are true on-screen px on every tip, and one dial moves every tip the same amount. The `--atip-z-*`
    values are re-derived on EVERY tip element (a custom property resolves where it is declared), and the tip's
    children inherit them. `em` inside a tip is relative to those sizes, so it scales along. ── */
-.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip,
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .tagtip,
 .sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs,
 .gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
   --atip-z-title: calc(var(--atip-title-size) / var(--atip-k, 1));
@@ -89,7 +89,7 @@
 .inspect-card .kwbox, .inspect-card .inspect-buffs { --atip-k: 1.9; }
 
 /* ── 1. THE PANEL: every tip, rich or simple ── */
-.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip,
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .tagtip,
 .sbtip, .tvb-tip, .etb-tip, .rfb-tip, .kwbox, .inspect-buffs, .lobbyscout, .anc-pv,
 .gtip[data-tip]::after, .titlescreen [data-tip]:not(.menubtn)::after, .lbpage [data-tip]:not(.menubtn)::after, .balpage [data-tip]::after {
   background: var(--ui-sheen) padding-box, var(--atip-bg) padding-box, var(--atip-edge) border-box;
@@ -104,7 +104,7 @@
 }
 
 /* ── 2. RICH TIPS: a title, a divider, body text ── */
-.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .cv2-herotip, .tagtip, .sbtip.goldtip {
+.atip, .herotip, .questbadge-tip, .riftpill-tip, .riftbtn-tip, .runtrophy-tip, .cv2-rune-tip, .tagtip, .sbtip.goldtip {
   font-size: var(--atip-z-body); line-height: var(--atip-lh); font-weight: 600;
   text-align: left; letter-spacing: normal; text-transform: none; overflow-wrap: break-word;
   padding: var(--atip-z-pad) calc(var(--atip-z-pad) * 1.35) calc(var(--atip-z-pad) * 1.1);
@@ -117,13 +117,13 @@
 
 /* The title. */
 .atip-title, .herotip > b, .herotip-head > b, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child,
-.riftbtn-tip > b:first-child, .runtrophy-tip > b:first-child, .cv2-rune-tip-name, .cv2-herotip-name, .goldtip .gt-now {
+.riftbtn-tip > b:first-child, .runtrophy-tip > b:first-child, .cv2-rune-tip-name, .goldtip .gt-now {
   font-family: var(--atip-title-font); font-weight: 800; font-size: var(--atip-z-title); line-height: 1.15;
   color: var(--atip-title); letter-spacing: normal; text-transform: none;
 }
 /* The divider under it (the hero tip's head and the Gold readout's first line carry their own). */
 .atip-title, .questbadge-tip > b:first-child, .riftpill-tip > b:first-child, .riftbtn-tip > b:first-child,
-.runtrophy-tip > b:first-child, .cv2-rune-tip-name, .cv2-herotip-name {
+.runtrophy-tip > b:first-child, .cv2-rune-tip-name {
   padding-bottom: 0.45em; border-bottom: 1px solid var(--atip-divider);
   border-image: linear-gradient(90deg, color-mix(in srgb, var(--ui-edge-main) 80%, transparent), var(--atip-divider) 60%, transparent) 1;
 }

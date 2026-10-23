@@ -107,7 +107,7 @@ describe('Compendium set picker', () => {
     const runeCount = (): number => m.container.querySelectorAll('.book-grid .book-cell').length;
     const setRunes = (id: SetId) => [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || r.sets.includes(id));
     click(m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]'));
-    const pills = (): HTMLElement[] => [...m.container.querySelectorAll<HTMLElement>('.book-runetribe')];
+    const pills = (): HTMLElement[] => [...m.container.querySelectorAll<HTMLElement>('.book-runetribe:not(.book-runeforge)')];
     const neutralPill = (): HTMLElement => pills().find((b) => b.getAttribute('aria-label') === 'Runes with no tribe')!;
 
     for (const id of [activeSet().id, ...(Object.keys(SETS) as SetId[]).filter((x) => x !== activeSet().id && poolFor(x).buyable.length > 0)]) {
@@ -127,7 +127,8 @@ describe('Compendium set picker', () => {
       expect(runeCount(), `${id}: Neutral shows exactly the untribed runes`).toBe(untribed.length);
 
       // ORs with a tribe pill: Neutral + the first tribe = untribed + that tribe's runes, no tribe-gated extras.
-      const t = SETS[id].tribes[0]!;
+      // The pills are alphabetical by name (owner 2026-10-23); every tribe id sorts the same way as its name.
+      const t = [...SETS[id].tribes].sort()[0]!;
       click(pills()[0]);
       const both = setRunes(id).filter((r) => !r.tribes?.length || r.tribes.includes(t));
       expect(runeCount(), `${id}: Neutral + ${t}`).toBe(both.length);
@@ -135,6 +136,27 @@ describe('Compendium set picker', () => {
       click(neutralPill());
       expect(runeCount()).toBe(setRunes(id).length);
     }
+  });
+
+  it('the Runes tab has Basic / Epic forge pills (owner 2026-10-23): each shows only its forge, both or none = all', () => {
+    const click = (el: Element | null | undefined): void => { act(() => { (el as HTMLElement).click(); }); };
+    const runeCount = (): number => m.container.querySelectorAll('.book-grid .book-cell').length;
+    const id = activeSet().id;
+    const inSet = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(id);
+    click(m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]'));
+    const forge = (label: string): HTMLElement => m.container.querySelector<HTMLElement>(`.book-runeforge[aria-label="${label}"]`)!;
+    const basicN = RUNES.filter(inSet).length;
+    const epicN = EPIC_RUNES.filter(inSet).length;
+    expect(runeCount()).toBe(basicN + epicN);
+    click(forge('Epic runes'));
+    expect(forge('Epic runes').getAttribute('aria-pressed')).toBe('true');
+    expect(runeCount()).toBe(epicN);
+    click(forge('Basic runes'));
+    expect(runeCount()).toBe(basicN + epicN);
+    click(forge('Epic runes'));
+    expect(runeCount()).toBe(basicN);
+    click(forge('Basic runes'));
+    expect(runeCount()).toBe(basicN + epicN);
   });
 });
 
@@ -184,7 +206,7 @@ describe('Compendium set picker is dev-only', () => {
       expect(m.container.querySelectorAll('.book-grid .book-cell').length).toBeGreaterThan(0);
       // The Runes tab's tribe pills are the active set's tribes, then Neutral.
       act(() => { (m.container.querySelector('.book-rail .book-cat[aria-label="Runes"]') as HTMLElement).click(); });
-      expect(m.container.querySelectorAll('.book-runetribe')).toHaveLength(live.tribes.length + 1);
+      expect(m.container.querySelectorAll('.book-runetribe:not(.book-runeforge)')).toHaveLength(live.tribes.length + 1);
       const setRunes = [...RUNES, ...EPIC_RUNES].filter((r) => !r.sets || r.sets.includes(live.id));
       expect(m.container.querySelectorAll('.book-grid .book-cell').length).toBe(setRunes.length);
     } finally { m.unmount(); }

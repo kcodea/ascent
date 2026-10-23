@@ -25,7 +25,7 @@ describe('tranche 0: reprices, rename, wording (owner 2026-09-27)', () => {
   it('the seven approved reprices hold', () => {
     const cost = (id: string) => RUNE_INDEX[id]!.cost;
     expect([cost('rune_spearline'), cost('rune_bartering'), cost('rune_spirit_crown'), cost('rune_eventide'), cost('rune_first_round'), cost('rune_long_shift')])
-      .toEqual([6, 4, 4, 3, 5, 3]);
+      .toEqual([5, 3, 3, 2, 4, 3]); // owner 2026-10-23 rune reprice: was [6, 4, 4, 3, 5, 3] (Long Shift, Epic 3, unchanged)
     expect(BODY_COUNTING_DEATHS).toBe(6);
     expect(RUNE_INDEX['rune_body_counting']!.text).toBe('When **6** friendly minions die, get a random **Undead** minion.');
   });

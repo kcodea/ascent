@@ -15,21 +15,25 @@
 
 .emote-menu {
   position: fixed; z-index: 950;
-  transform: translate(-30%, calc(-100% - 14px));
-  max-width: none; width: 440px;
+  /* A fixed lead (the old 440 px menu's 30%), so the wider eight-slot menu grows to the RIGHT and never runs off the
+     stage's left edge over a bottom-left portrait. */
+  transform: translate(-132px, calc(-100% - 14px));
+  max-width: none; width: 720px;
   pointer-events: auto;
 }
 /* A spectator's menu opens UNDER their own chip (top left of the screen), so it never runs off the top. */
-.emote-menu.below { transform: translate(-12%, 14px); }
+.emote-menu.below { transform: translate(-53px, 14px); }
 /* A PLACED menu (placeEmoteMenu): its left/top are already the final box, below or above its anchor and clamped
    inside the stage, so no offset transform. */
 .emote-menu.placed { transform: none; }
-.emote-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* EIGHT slots (owner 2026-10-22: "let's add 4 more emote slots"): two rows of four, the same wells, so the menu is about
+   as tall as the old two-by-two one and wider. */
+.emote-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 /* A pick is the bubble art on a quiet well; it lifts a touch on hover (transform only). The global rule paints the
    gauntlet cursor on buttons, so none is set here. */
 .emote-pick {
   appearance: none; display: flex; align-items: center; justify-content: center;
-  height: 128px; padding: 6px; border: 0; border-radius: 10px;
+  height: 112px; padding: 6px; border: 0; border-radius: 10px;
   background: rgba(0, 0, 0, 0.22); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
   transition: transform 0.12s ease-out;
 }
@@ -43,7 +47,7 @@
   transform: none;
 }
 .emote-slot-empty-txt { color: var(--atip-muted, rgba(255, 246, 228, 0.45)); font-weight: 700; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
-/* The Collection's slot row (the same wells, smaller): an emote's bubble or the empty frame; the slot holding the
+/* The Collection's slot row (the same wells, smaller; eight since 2026-10-22, two rows of four): an emote's bubble or the empty frame; the slot holding the
    selected emote is ringed. */
 .colls-detail-actions:has(> .colls-emote-slots) { flex-direction: column; align-items: stretch; }
 .colls-emote-slots { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; width: 100%; }

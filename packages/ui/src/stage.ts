@@ -231,13 +231,58 @@ export function applyStage(): StageFit {
 }
 
 let menuZoom = false;
-/** Pure: does the stage zoom instead of transform? Only on a phone: on its menus by default (unless `nozoom`), or
- *  everywhere with the `zoom` switch. */
-export function zoomedStage(phone: boolean, onMenus: boolean, flags: { zoom?: 1; nozoom?: 1 }): boolean {
+/**
+ * Pure: does the stage zoom instead of transform? Only on a phone (desktop: never, whatever else is passed).
+ *   - On its MENUS: yes, unless the `nozoom` switch (R-TOUCH-GPU-MEMORY-01).
+ *   - In HERO SELECT, THE GATE AND THE RUN (R-TOUCH-RUN-MEMORY-01, owner 2026-10-22: "I still can't even play it
+ *     because of the crashing"): yes when this browser reports geometry under CSS zoom the standard way
+ *     (`standardZoom`, see `zoomGeometryIsStandard`), because the game measures the screen with getBoundingClientRect
+ *     and a browser that reports unzoomed rects would put every drag and effect in the wrong place. The `gamexf`
+ *     switch keeps the games on the transform; the `zoom` switch zooms them even when the probe says no.
+ * Why: a transformed stage makes WebKit pay every composited layer inside it at its full stage size times 3x3 (a
+ * full-screen layer is about 87 MB); a zoomed stage lays them out at their on-screen size (about 11.5 MB).
+ */
+export function zoomedStage(
+  phone: boolean, onMenus: boolean, flags: { zoom?: 1; nozoom?: 1; gamexf?: 1 }, standardZoom = false,
+): boolean {
   if (!phone) return false;
-  return !!flags.zoom || (onMenus && !flags.nozoom);
+  if (onMenus) return !flags.nozoom;
+  if (flags.zoom) return true;
+  return standardZoom && !flags.gamexf;
 }
-function stageZoomed(): boolean { return zoomedStage(PHONE_GPU, menuZoom, PHONE_DIAG); }
+
+let zoomProbe: boolean | null = null;
+/**
+ * Does this browser report element geometry under CSS `zoom` the STANDARD way (getBoundingClientRect scaled by the
+ * zoom, as a transform would)? Chrome since 128 and Safari since the CSS zoom standardisation do; older WebKit
+ * returned the unzoomed size and divided the position by the zoom (WebKit bug 77998 / 185034). Measured once, with a
+ * hidden 100 px box at left 100 px inside a zoom-0.5 host: standard reports 50 / 50. Phone only (never called on
+ * desktop); false when it cannot measure.
+ */
+export function zoomGeometryIsStandard(): boolean {
+  if (zoomProbe !== null) return zoomProbe;
+  zoomProbe = false;
+  try {
+    if (typeof document === 'undefined' || !document.body) { zoomProbe = null; return false; }
+    const host = document.createElement('div');
+    host.style.cssText = 'position:fixed;left:0;top:0;width:400px;height:400px;zoom:0.5;visibility:hidden;pointer-events:none;';
+    const box = document.createElement('div');
+    box.style.cssText = 'position:absolute;left:100px;top:100px;width:100px;height:100px;';
+    host.appendChild(box);
+    document.body.appendChild(host);
+    const h = host.getBoundingClientRect();
+    const r = box.getBoundingClientRect();
+    host.remove();
+    zoomProbe = Math.abs(r.width - 50) < 1.5 && Math.abs(r.height - 50) < 1.5
+      && Math.abs(r.left - h.left - 50) < 1.5 && Math.abs(r.top - h.top - 50) < 1.5 && Math.abs(h.width - 200) < 1.5;
+  } catch { zoomProbe = false; }
+  return zoomProbe;
+}
+
+function stageZoomed(): boolean {
+  if (!PHONE_GPU) return false;
+  return zoomedStage(PHONE_GPU, menuZoom, PHONE_DIAG, menuZoom ? false : zoomGeometryIsStandard());
+}
 /** Game.tsx: a phone is on the menus (title, mode pages, ladder pages; not hero select, not a run). Re-applies the fit
  *  only when that changes. A no-op on desktop. */
 export function setStageMenuZoom(on: boolean): void {

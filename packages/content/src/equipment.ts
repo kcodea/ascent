@@ -211,8 +211,8 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   // regular ruby, only the special ones"). Gilded doubles it to 4. The Both branch is unchanged and still expires at
   // the turn boundary like every Choose-Both charge, so "this turn" stays printed (the 2026-09-24 quote omitted it
   // too, and the card has always said it).
-  text: 'Choose One: **Discover 2 Rubies** or your next **Choose One** card this turn gains **both** effects.',
-  goldenText: 'Choose One: **Discover 4 Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
+  text: 'Choose One: **Discover 2 special Rubies** or your next **Choose One** card this turn gains **both** effects.',
+  goldenText: 'Choose One: **Discover 4 special Rubies** or your next **2 Choose One** cards this turn gain **both** effects.',
   baseCost: 1,
   targetMode: 'none',
   effectId: 'grantChooseBothCharges',
@@ -228,8 +228,8 @@ export const PRISMATIC_PICK: EquipmentDefinition = {
   chooseOne: [
     {
       // Owner Ruby batch 2026-09-24 (was "Discover a Choose One card"): Discover one of the special Rubies.
-      text: '**Discover 2 Rubies**.',
-      goldenText: '**Discover 4 Rubies**.',
+      text: '**Discover 2 special Rubies**.',
+      goldenText: '**Discover 4 special Rubies**.',
       effectId: 'discoverRuby',
       params: { count: 2 }, // owner 2026-10-22: 2 Discovers (was 1)
       gildedParams: { count: 4 },
@@ -569,7 +569,27 @@ export const JAR_OF_SECRETS: EquipmentDefinition = {
   gildedParams: { count: 3, mult: 2 },
 };
 
-export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR, JAR_OF_SECRETS];
+/** ROYAL EDICT — Vellum's Equipment (Set 3 Dragons, T7, owner 2026-10-23): "Equip Royal Edict (2): Improve your Shop
+ *  spells by +2/+2. Your next 3 spells cast from hand this turn cast an additional time."
+ *  · The improve is the run's spell power (`spellBonus`, the Adeptus / Spell Generator channel: "your Shop spells").
+ *  · The cast half banks `count` EDICT CHARGES (`RunState.edictCharges`): each of the next `count` spells cast from
+ *    hand this turn casts `extra` additional times (ADDED, like Comet / Nimbus, the "additional time" vocabulary), one
+ *    charge spent per hand cast, read and spent by exactly the cast sites that read and spend Comet's charge (Shop
+ *    spells, Rubies, aimed Clue-class Gifts, Whispers that multicast). Unspent charges expire at the turn boundary.
+ *  Gilded: +4/+4 and **2** additional times per charge (the "additional time" gilding rule); still 3 spells. */
+export const ROYAL_EDICT: EquipmentDefinition = {
+  id: 'royal_edict',
+  name: 'Royal Edict',
+  text: 'Improve your **Shop spells** by **+2/+2**. Your next **3** spells cast from hand this turn cast an additional time.',
+  goldenText: 'Improve your **Shop spells** by **+4/+4**. Your next **3** spells cast from hand this turn cast **2** additional times.',
+  baseCost: 2,
+  targetMode: 'none',
+  effectId: 'equipmentRoyalEdict',
+  params: { attack: 2, health: 2, count: 3, extra: 1 },
+  gildedParams: { attack: 4, health: 4, count: 3, extra: 2 },
+};
+
+export const EQUIPMENT: readonly EquipmentDefinition[] = [BLOODPOT, TITAN_HAMMER, BLAST_PUMP, PRISMATIC_PICK, DUELING_RUBETTAS, POURMANS_KEG, THYMEPIECE, COFFIN_FLOP, DEATHFIBRILLATOR, MAGNIFYING_GLASS, WHIPLASSO, SPIRITBRINGER, REVELMAKER, COMET, STELLAR_LENS, STAR_DESTROYER, CALIBRATION_WRENCH, DRAGONS_EGG, SPELL_GENERATOR, JAR_OF_SECRETS, ROYAL_EDICT];
 
 export const EQUIPMENT_INDEX: Readonly<Record<string, EquipmentDefinition>> =
   Object.fromEntries(EQUIPMENT.map((e) => [e.id, e]));

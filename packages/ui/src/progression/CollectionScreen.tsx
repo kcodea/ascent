@@ -291,8 +291,8 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
     if (!ok) setError(plate ? 'Could not change your card plate. Try again.' : voice ? 'Could not change your announcer. Try again.' : attack ? 'Could not change your hero attack. Try again.' : frame ? 'Could not change your portrait frame. Try again.' : skin ? 'Could not change your skin. Try again.' : 'Could not change your title. Try again.');
   };
 
-  /** EMOTES (owner 2026-10-13: "Players equip up to 4 in Collections"): put an emote in a menu position (1 to 4 on
-   *  screen, 0 to 3 in the loadout). The server takes it when it can; when it cannot (signed out, offline, or the
+  /** EMOTES (owner 2026-10-13: "Players equip up to 4 in Collections"): put an emote in a menu position (1 to 8 on
+   *  screen, 0 to 7 in the loadout). The server takes it when it can; when it cannot (signed out, offline, or the
    *  emote SQL not run yet) the position is kept on this device, so it always works. The same emote leaves any other
    *  position (a swap). */
   const onPlaceEmote = async (item: CosmeticDef, position: number): Promise<void> => {
@@ -567,9 +567,9 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
   showDefault?: boolean;
   onHover?: (id: string | null, el?: HTMLElement, asDefault?: boolean) => void;
   onEquip: () => void; onTakeOff: () => void;
-  /** An emote: its menu position (0 to 3), or -1 when it is not in the menu; and how to put it in one. */
+  /** An emote: its menu position (0 to 7), or -1 when it is not in the menu; and how to put it in one. */
   emotePosition?: number;
-  /** Your emote menu by position (null = an empty slot), shown as the four slots. */
+  /** Your emote menu by position (null = an empty slot), shown as the eight slots. */
   emoteSlots?: readonly (string | null)[];
   onPlaceEmote?: (position: number) => void;
 }): JSX.Element {
@@ -685,7 +685,7 @@ function DetailPanel({ item, owned, equipped, busy, error, playerName, reducedMo
 }
 
 /**
- * YOUR EMOTE MENU as four slots (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"),
+ * YOUR EMOTE MENU as eight slots (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"),
  * drawn like the in-game menu: an emote's bubble, or the dashed empty-slot frame. With an OWNED emote selected each slot
  * is a button that puts it there (the one already holding it is ringed); otherwise the row is read-only.
  */

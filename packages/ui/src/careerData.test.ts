@@ -17,7 +17,8 @@ import { describe, it, expect } from 'vitest';
 import type { ReplayV2 } from '@game/sim';
 import {
   TREND_WINDOWS, actionsOf, apmOf, careerAggregates, careerRunOf, heroCareers, isMatchWin, joinTelemetry, matchResultOf, mmrAxisOf, outcomeOf,
-  polylineOf, replaySummary, runLengthText, telemetryFactsOf, trendSeries, trendWindowLabel, type CareerRun, type TrendSeries,
+  polylineOf, ratingDeltaOf, replaySummary, runLengthText, runsOfHero, sortHeroCareers, telemetryFactsOf, trendSeries, trendWindowLabel,
+  withRunDetails, type CareerRun, type TrendSeries,
 } from './careerData';
 
 const DAY = 86_400_000;
@@ -318,6 +319,63 @@ describe('heroCareers — the Heroes tab, folded over EVERY run', () => {
     expect(h[2]).toMatchObject({ wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null });
     expect(Number.isNaN(h[2]!.lastAtMs)).toBe(true);
     expect(heroCareers([])).toEqual([]);
+  });
+});
+
+/**
+ * R-CAREER-HERO-GAMES-01 (owner 2026-10-23: "also add a way to sort by average games played/average placement/net mmr.
+ * show net mmr on the hero card instead of # of 1sts"): NET MMR is the sum of the rank points settle_rank APPLIED over a
+ * hero's RATED games (only rows the settlement stamped, `rank` set); the three sort orders; the hero filter's rows.
+ */
+describe('Net MMR + the hero sorts + the hero filter rows (owner 2026-10-23)', () => {
+  it('Net MMR sums the applied delta of settle-stamped (rated) games only; legacy / unstamped / practice rows are left out', () => {
+    expect(ratingDeltaOf(run({ rank: 7, ratingDelta: 23 }))).toBe(23);
+    expect(ratingDeltaOf(run({ rank: 0, ratingDelta: -14 }))).toBe(-14); // Bronze I is a real division
+    expect(ratingDeltaOf(run({ rank: null, ratingDelta: 41 }))).toBeNull(); // pre-medal Elo / a stamp that missed
+    expect(ratingDeltaOf(run({ rank: 5, ratingDelta: null }))).toBeNull();
+    const h = heroCareers([
+      run({ heroId: 'brackus', rank: 6, ratingDelta: 40 }),
+      run({ heroId: 'brackus', rank: 6, ratingDelta: -15 }),
+      run({ heroId: 'brackus', rank: null, ratingDelta: 99 }), // unrated: counts as a game, not in Net MMR
+      run({ heroId: 'sable', rank: null, ratingDelta: 12 }),
+    ]);
+    expect(h.find((x) => x.heroId === 'brackus')).toMatchObject({ runs: 3, netMmr: 25, ratedGames: 2 });
+    expect(h.find((x) => x.heroId === 'sable')).toMatchObject({ runs: 1, netMmr: 0, ratedGames: 0 });
+  });
+
+  const HEROES = heroCareers([
+    // a: 3 games, avg 5, net +10 · b: 1 game, avg 1, net +60 · c: 2 games, avg 3, no rated game · d: 2 games, avg 3, net -30
+    run({ heroId: 'a', placement: 4, rank: 3, ratingDelta: 20 }), run({ heroId: 'a', placement: 5, rank: 3, ratingDelta: -5 }), run({ heroId: 'a', placement: 6, rank: 3, ratingDelta: -5 }),
+    run({ heroId: 'b', placement: 1, rank: 3, ratingDelta: 60 }),
+    run({ heroId: 'c', placement: 2 }), run({ heroId: 'c', placement: 4 }),
+    run({ heroId: 'd', placement: 3, rank: 3, ratingDelta: -10 }), run({ heroId: 'd', placement: 3, rank: 3, ratingDelta: -20 }),
+    run({ heroId: 'e', placement: null, rank: null }), // no placement, no rated game: last on both keyed sorts
+  ]);
+  it('Games played: most first (ties by win rate, then id)', () => {
+    expect(sortHeroCareers(HEROES, 'games').map((h) => h.heroId)).toEqual(['a', 'c', 'd', 'b', 'e']);
+  });
+  it('Average placement: best (lowest) first, a hero with no placement last', () => {
+    expect(sortHeroCareers(HEROES, 'avg').map((h) => h.heroId)).toEqual(['b', 'c', 'd', 'a', 'e']);
+  });
+  it('Net MMR: highest first, a hero with no rated game after every rated one (a real 0 or a loss still ranks above it)', () => {
+    expect(sortHeroCareers(HEROES, 'mmr').map((h) => h.heroId)).toEqual(['b', 'a', 'd', 'c', 'e']);
+    expect(HEROES.find((h) => h.heroId === 'd')!.netMmr).toBe(-30);
+  });
+  it('sorting never mutates its input', () => {
+    const before = HEROES.map((h) => h.heroId);
+    sortHeroCareers(HEROES, 'mmr');
+    expect(HEROES.map((h) => h.heroId)).toEqual(before);
+  });
+
+  it('runsOfHero keeps only that hero, newest first, capped; withRunDetails upgrades light rows with board + runes only', () => {
+    const runs = [run({ id: 1, heroId: 'a' }), run({ id: 2, heroId: 'b' }), run({ id: 3, heroId: 'a', replayRowId: 44 }), run({ id: 4, heroId: 'a' })];
+    expect(runsOfHero(runs, 'a', 2).map((r) => r.id)).toEqual([1, 3]);
+    expect(runsOfHero(runs, 'zz', 50)).toEqual([]);
+    const up = withRunDetails(runsOfHero(runs, 'a', 50), [detailedRow({ id: 3 })]);
+    expect(up[1]!.detailed).toBe(true);
+    expect(up[1]!.board).not.toBeNull();
+    expect(up[1]!.replayRowId).toBe(44); // the telemetry join survives the upgrade
+    expect(up[0]).toBe(runs[0]); // no detailed row: the same object
   });
 });
 

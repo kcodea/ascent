@@ -786,6 +786,28 @@ export function isRuneBuffSource(source: string): boolean {
   return source.startsWith('Rune') || RUNE_BUFF_LABELS.has(source) || source === 'Twin Sun Oath';
 }
 
+/** SHOP DAMAGE IN THE LEDGER (owner report 2026-10-22, R-LEDGER-SHOP-DAMAGE-01): Shop damage to your own minions
+ *  is permanent (a Shop-fired Fel Spikes Echo / Gasket Rally sprays YOUR non-Demons, owner ruling 2026-08-04), so the
+ *  Health it takes away is recorded on `card.buffs` as its own negative row, labelled `<source> (damage)`, and the
+ *  inspect breakdown adds up to the Health the card shows. Before this, a body that took 800 Shop damage while Rad
+ *  Rachel gave it +802 showed "Rad Rachel +1604/+802" over a 16 Health badge. A damage row is NOT a buff stack:
+ *  stack counters (Celestial Crucible) and buff tallies skip it via `isShopDamageRow`. */
+export const SHOP_DAMAGE_SUFFIX = ' (damage)';
+export function isShopDamageRow(source: string): boolean {
+  return source.endsWith(SHOP_DAMAGE_SUFFIX);
+}
+/** Record `amount` Shop damage dealt to `card` by `source` (a name) as one more hit on its damage row. Writes the
+ *  ledger only: the caller has already taken the Health off. Never routed through `addBuff`, so no gain mirror
+ *  (Sable's bond, Xerox, Shared Spoils) or Attack-gain watcher sees a loss as a gain. */
+export function recordShopDamage(card: { buffs?: CardBuff[] }, source: string, amount: number): void {
+  if (amount <= 0) return;
+  const label = `${source}${SHOP_DAMAGE_SUFFIX}`;
+  card.buffs ??= [];
+  const row = card.buffs.find((b) => b.source === label);
+  if (row) { row.health -= amount; row.count += 1; }
+  else card.buffs.push({ source: label, attack: 0, health: -amount, count: 1 });
+}
+
 /** Total rune-sourced buff magnitude (Σ attack+health) on a card — the diff of this across an action is what
  *  tells the UI a rune just buffed the minion. */
 export function runeBuffMagnitude(card: { buffs?: { source: string; attack: number; health: number }[] }): number {
@@ -937,6 +959,12 @@ export interface RunState {
    *  Read by `spellCasts` (added to the multiplied total), spent by the reducer on the next real
    *  (non-singleCast) spell cast; persists across turns until used (NOT cleared at settle). */
   nextSpellExtraCasts?: number;
+  /** ROYAL EDICT (Vellum's Equipment, Set 3 T7, owner 2026-10-23): "your next 3 spells cast from hand this turn cast an
+   *  additional time". `edictCharges` = hand casts still covered; each covered cast adds `edictExtra` casts (ADDED, like
+   *  Nimbus). Read by `nextSpellExtra` beside `nextSpellExtraCasts`, spent one charge per hand cast by
+   *  `spendNextSpellCharge` at every site that spends Comet's charge. Cleared at the turn boundary ("this turn"). */
+  edictCharges?: number;
+  edictExtra?: number;
   /** Starpath Vendor: +A/+H banked for the NEXT Shop spell. Folded into `spellAttackBonus` / `spellHealthBonus`
    *  (so every stat spell and its preview read it like spell power) and spent by the reducer on the next real
    *  Shop-spell cast. Gifts and Rubies are not Shop spells: `castSpell` hides it from a Gift, `rubyStatBonus`
@@ -1036,13 +1064,15 @@ export interface RunState {
      *  specific badge — several threshold runes can be held at once, so a flat list alone can't say which
      *  belongs to which (owner ask 2026-08-03: "runes/quests should all have tally trackers"). */
     sourceId?: string;
-    meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand'; per: number; tick: number;
+    meter: 'gold' | 'spellCast' | 'anySpell' | 'spellCastNonAle' | 'castRuby' | 'cardsBought' | 'cardsPlayed' | 'playDragon' | 'shout' | 'consume' | 'playSpirit' | 'playBeast' | 'whisperFromHand' | 'shopSpellFromHand' | 'refresh' | 'sell'; per: number; tick: number;
     /** Rune of the Secret Exchange (owner 2026-10-21): Shop-spell Discovers opened when the meter trips. */
     discoverSpell?: number;
     /** Rune of Minted Gems (Set 3 design pass): random Rubies per trip. */
     grantRandomRuby?: number;
     /** Rune of Loose Tongues (Set 3 Dragon runes): random Whispers (the gated pool) per trip. */
     grantRandomWhisper?: number;
+    /** Last Call (Set 3 Dwarf rune, 2026-10-23): a trip arms `lastCallArmed` (the next Ale cast from hand casts twice). */
+    armAleRepeat?: boolean;
     grantGoldNextTurn?: number; resetEachTurn?: boolean;
     grantSpell?: number; grantAle?: number; grantRuby?: number;
     /** Rune of the Deep Feast: exact card ids handed over when the meter trips. */
@@ -1756,7 +1786,7 @@ export interface RunState {
   /** Run-wide combat modifiers armed by completed quests (Blood Trail / Echoing Coop / Law of Teeth / The Old
    *  Hunt) — merged with the live Beast aura and threaded into `simulate()` each fight. `oldHunt` stores the
    *  per-Beast-attack aura step. Absent = none armed. */
-  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean; runeOpenHand?: boolean; runeWakingReserve?: boolean; runeEchoingKobolds?: boolean; runeRubywire?: boolean; runeCombatativeRubies?: boolean; runeBodyCounting?: boolean; runeAggressiveGolems?: boolean; runeRupturedRubies?: boolean; runeWake?: boolean; runeSecondWind?: boolean; runeSoulToll?: boolean; runeGravedigger?: boolean; runeSoulFurnace?: boolean; runeRestless?: boolean; runeOpenGrave?: boolean; runeHeraldingStar?: boolean; runeStellarEchoes?: boolean; runeScatteredLight?: boolean; runeAfterglow?: boolean; runeStarsong?: boolean; runeGuidingStar?: boolean; runeGravity?: boolean; runeMeteorStorm?: boolean; runeCallAndAnswer?: boolean; runeEncore?: boolean; runeKindredHand?: boolean; runeWhetstone?: boolean; runeAnvil?: boolean; runeSatchel?: boolean; runeGemCrypt?: boolean; runePallbearer?: boolean; runeStarTap?: boolean; runeClosingTime?: boolean; runeGrimToast?: boolean; runeGemStar?: boolean; runeKeepsakeGem?: boolean; runeHeavyHand?: boolean; runeUnity?: boolean; runeSunpony?: boolean; runeRunicPrimer?: boolean; runeClearVoices?: boolean; runeSpellFedScales?: boolean; runeBorrowedFlame?: boolean; runeSpellTempering?: boolean; runeOpenTreasury?: boolean; runeDeepBreaths?: boolean; runeDefiantWings?: boolean; runeFinalUtterance?: boolean; runeEmberInheritance?: boolean; runeWarCouncil?: boolean; runeGrowingInferno?: boolean; runeRuneboundBrood?: boolean; runeUnbrokenScales?: boolean; runeRunicTransposition?: boolean; runeLastingWords?: boolean; runeTwinTongues?: boolean; runeOpenedVault?: boolean; runeBequeathedSecrets?: boolean };
+  questFlags?: { bloodTrail?: boolean; echoingCoop?: boolean; lawOfTeeth?: boolean; oldHunt?: number; deepHunger?: boolean; contractRewrite?: boolean; doubleLeftmostAttack?: boolean; feedingLine?: boolean; umbralEnergy?: boolean; emptyGraves?: boolean; crateringMissive?: boolean; passingSpears?: boolean; assemblyLine?: number; runeWarding?: boolean; runeFury?: boolean; runeSlaying?: boolean; runeForthcoming?: boolean; runeRallying?: boolean; runeRisingGraves?: boolean; runeBroodpit?: boolean; runeSpearline?: boolean; runeAppraisal?: boolean; runeSoulTaxes?: boolean; runeFirstClaws?: boolean; runePackcraft?: boolean; runeInheritance?: boolean; runeSalvage?: boolean; runeTwilight?: boolean; runeWarden?: boolean; runeRebirth?: boolean; runeAftershocks?: boolean; runeEngraving?: boolean; runeUnderdog?: boolean; runeGemGolem?: boolean; runeChef?: boolean; runeCarrionCoin?: number; runeFiveBanners?: boolean; runeCenterline?: boolean; runeSecondLitter?: boolean; runeDragonscale?: number; runeTemperedTime?: boolean; runeSavagery?: boolean; runeCrucible?: number; runeHerald?: boolean; runeUndertow?: number | boolean; runeMirrorMarch?: boolean; runeTrophy?: boolean; avengeFirstDouble?: boolean; candlelightToll?: boolean; gemheartCharge?: boolean; burningLegion?: number; runeVanguard?: boolean; runeFinality?: number; runeHatchery?: boolean; runeLastCall?: boolean; runeCinderLedger?: number; runeProcession?: boolean; runeGemstorm?: number; runeBloodAndCoin?: number; runeWildHunt?: number; runeLivingTreasure?: boolean; runeRemains?: number; runeReinvestment?: number; runeHuntingBell?: boolean; runeBrood?: number; runeLivingEchoes?: number; runeWarChorus?: boolean; runeFoodChain?: boolean; runeAttackingGems?: number; runeOverflow?: number; runeCounterpoint?: boolean; runeMammoth?: boolean; runeWarpath?: boolean; runeEmberline?: boolean; runeAshenPayroll?: number; runeBackbeat?: boolean; runeSpareChair?: boolean; runeAncestralRoar?: boolean; runeRubyShrapnel?: boolean; runeSharedScripture?: boolean; runeMoonhowl?: boolean; runeFloodedVault?: boolean; runeBattleRefraction?: boolean; runeWrangler?: boolean; runeLivingGeode?: boolean; runeDawnclaw?: boolean; runeSylus?: boolean; oldPack?: boolean; runeJungle?: boolean; runeBurrow?: boolean; runeBeastialSwarm?: boolean; runeZoo?: boolean; runeRuins?: boolean; runeGolems?: boolean; runeEngravingGems?: boolean; runeHerdingHorn?: boolean; runeDeathtouchedApple?: boolean; runeStokedMenagerie?: boolean; runeReturningPack?: number; runeGraveRefreshment?: number; runeShiftingFacets?: boolean; runeDeepeningVein?: boolean; runeFinalGate?: boolean; runeDreamedGraves?: boolean; runeOpenHand?: boolean; runeWakingReserve?: boolean; runeEchoingKobolds?: boolean; runeRubywire?: boolean; runeCombatativeRubies?: boolean; runeBodyCounting?: boolean; runeAggressiveGolems?: boolean; runeRupturedRubies?: boolean; runeWake?: boolean; runeSecondWind?: boolean; runeSoulToll?: boolean; runeGravedigger?: boolean; runeSoulFurnace?: boolean; runeRestless?: boolean; runeOpenGrave?: boolean; runeHeraldingStar?: boolean; runeStellarEchoes?: boolean; runeScatteredLight?: boolean; runeAfterglow?: boolean; runeStarsong?: boolean; runeGuidingStar?: boolean; runeGravity?: boolean; runeMeteorStorm?: boolean; runeCallAndAnswer?: boolean; runeEncore?: boolean; runeKindredHand?: boolean; runeWhetstone?: boolean; runeAnvil?: boolean; runeSatchel?: boolean; runeGemCrypt?: boolean; runePallbearer?: boolean; runeStarTap?: boolean; runeClosingTime?: boolean; runeGrimToast?: boolean; runeGemStar?: boolean; runeKeepsakeGem?: boolean; runeHeavyHand?: boolean; runeUnity?: boolean; runeSunpony?: boolean; runeRunicPrimer?: boolean; runeClearVoices?: boolean; runeSpellFedScales?: boolean; runeBorrowedFlame?: boolean; runeSpellTempering?: boolean; runeOpenTreasury?: boolean; runeDeepBreaths?: boolean; runeDefiantWings?: boolean; runeFinalUtterance?: boolean; runeEmberInheritance?: boolean; runeWarCouncil?: boolean; runeGrowingInferno?: boolean; runeRuneboundBrood?: boolean; runeUnbrokenScales?: boolean; runeRunicTransposition?: boolean; runeLastingWords?: boolean; runeTwinTongues?: boolean; runeOpenedVault?: boolean; runeBequeathedSecrets?: boolean; runeGoleming?: boolean; runeRedStart?: boolean; runeRoseysGarden?: boolean; runeReturnCustomers?: boolean };
   // ── Runeforge ──
   /** A Runeforge is open: a pending offer of rune ids to buy for their Gold cost. Like `questOffer`, while set
    *  the reducer blocks every non-`buyRune`/`skipRuneforge`/`rerollRuneforge` action and the UI pauses the
@@ -2103,6 +2133,14 @@ export interface RunState {
    *  next Whisper cast from hand spends it. One charge at most ("your next Whisper"); it waits across turns until
    *  spent, like every earned one-shot. */
   openedVaultArmed?: boolean;
+  /** LAST CALL (Set 3 Dwarf rune, owner 2026-10-23: "After you Sell 3 minions, your next Dwarven Ale casts twice."):
+   *  armed by the rune's `sell` threshold trip, spent by the next Dwarven Ale cast from hand (which casts once more per
+   *  copy held). One charge waiting at most (the Opened Vault shape): a trip while armed adds nothing. Carries across
+   *  turns until spent. */
+  lastCallArmed?: boolean;
+  /** RETURN CUSTOMERS (Set 3 Dwarf Epic, owner 2026-10-23): Dwarves Sold this turn that already returned a plain copy
+   *  (the first `RETURN_CUSTOMERS_PER_TURN` each turn do). Reset at the turn flip. */
+  returnCustomersThisTurn?: number;
   /** Rune of the Runic Hoard: a Shop spell copied to hand gives your Dragons +1/+1. */
   runeRunicHoard?: boolean;
   /** Rune of the Banquet Hall (owner 2026-09-23): the turn's first buy hands its stats to 2 random friendly minions. */
@@ -2640,6 +2678,9 @@ export interface RunState {
   pendingDecoys?: number;
   /** Weaken casts banked for the NEXT combat (each = one random enemy set to 1 Health at SoC). */
   pendingWeaken?: number;
+  /** Overflowing Crypt (Set 3, 2026-10-23): Skeletons banked for the NEXT combat's Start of Combat (2 per cast).
+   *  Rides `questMods.bankedSkeletons` (so a served snapshot carries it); spent in `settleCombat`. */
+  pendingSkeletons?: number;
   /** The run's ONE free Runeforge re-roll is spent (owner 2026-07-31: rerolls are free, once per game). */
   runeforgeRerollUsed?: boolean;
   /** Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice. */

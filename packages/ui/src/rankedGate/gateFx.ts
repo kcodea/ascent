@@ -48,9 +48,17 @@ const CRYSTAL_REF_SIZE = 271;
 
 const SPARK_TINTS = [0xffffff, 0xfff2c0, 0xffd27a, 0xffa84a, 0xff7a2e] as const;
 const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
+/** The landing's debris: chips of pale stone and light, freshly split wood. Light on purpose: the first, darker set
+ *  (grey stone, brown wood) vanished against the gate's dark wood (owner 2026-10-23: "i dont think i see the debris"). */
+const DEBRIS_TINTS = [0xada699, 0x9b9385, 0xbab3a6, 0x937b5b, 0xa8906e, 0x866b4b] as const; // 20% darker than the first light set ("its too light grey")
 const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
 /** The sparks the forming crystal pulls in: white-hot, with the crystal's own blues among them. */
 const HOT_TINTS = [0xffffff, 0xffffff, 0xeaf6ff, 0xbfe4ff, 0x7fc4ff] as const;
+/** How hard the portal's round motes are thrown, against their first throw (owner 2026-10-23: "have them launch out 30
+ *  percent further"). The air's drag is linear, so the distance they carry scales with it. */
+const MOTE_THROW = 1.3;
+/** The return trip's portal (the turquoise gem over the shop door): white-hot and turquoise, a touch of violet and gold. */
+const PORTAL_TINTS = [0xffffff, 0xe6fffb, 0xa8f6ee, 0x5fe8dc, 0x36cfd6, 0xc9a2ff, 0xffe08a] as const;
 /** How much of everything there is: 1 = the first cut, 1.2 = the owner's "+20%" (2026-10-12). Particles only. */
 const FX_AMOUNT = 1.2;
 /** A particle count at the current amount. */
@@ -297,7 +305,7 @@ class GateFxController {
   }
 
   /** One ember: it lifts off with a small sideways kick, then floats up, swaying wider and flickering as it dies. */
-  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number; glow?: number; life?: number } = {}): void {
+  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number; glow?: number; life?: number; fade?: number } = {}): void {
     const drag = o.drag ?? 1; // how hard the air takes the throw back: lower = it carries further
     const rise = (70 + Math.random() * 190) * k * (o.rise ?? 1); // px/s upward
     // The kick off the impact (a random sideways one, or the shatter's own throw); the air takes it back.
@@ -325,7 +333,8 @@ class GateFxController {
       bx += vx * s;
       p.sp.y += (vy - rise * (1 - t * 0.35)) * s; // it slows a little as it cools
       p.sp.x = bx + Math.sin(age * swayHz + swayPhase) * swayAmp * t;
-      p.sp.alpha = Math.min(1, glow * Math.min(1, t * 8) * Math.pow(1 - t, 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase)));
+      // `fade` is how hard it drops off towards the end (higher = it dims sooner and goes out quicker).
+      p.sp.alpha = Math.min(1, glow * Math.min(1, t * 8) * Math.pow(1 - t, o.fade ?? 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase)));
       p.sp.scale.set(size * k * (1 - t * 0.55));
     });
   }
@@ -375,6 +384,171 @@ class GateFxController {
         const x = offSeam ? seam.x + (Math.random() - 0.5) * 26 * k : seam.x + (Math.random() - 0.5) * 840 * k;
         const y = offSeam ? seam.top + h * (1 - Math.random() * Math.random()) : seam.bottom - Math.random() * 24 * k;
         this.ember(x, y, k, Math.random() * 480);
+      }
+    });
+  }
+
+  /**
+   * THE LANDING (owner 2026-10-21, the shop/combat falling gate: "create the dust from the bottom"): a slab that hits
+   * the floor across the whole screen width. Stone dust bursts up and out along its bottom edge, pushed away from the
+   * middle, with a low, wide bank that rolls sideways along the floor. `bottom` / `left` / `right` are screen px.
+   */
+  land(edge: { left: number; right: number; bottom: number }): void {
+    this.run(() => {
+      const w = Math.max(1, edge.right - edge.left);
+      const k = Math.max(0.5, window.innerHeight / 1080); // tuned at 1080 tall, like the slam
+      const mid = edge.left + w / 2;
+      // THE DEBRIS (owner 2026-10-23: "can we add a bit more debris to the door slam effect when it hits the bottom?"):
+      // chips of stone and wood kicked up off the floor along the whole edge. Each spins, arcs up and falls back under
+      // gravity, thrown outward like the dust; normal blend, so they read as solid bits, not light.
+      for (let i = 0, n = amount(90); i < n; i++) {
+        const x = edge.left + Math.random() * w;
+        const out = (x - mid) / (w / 2);
+        let vx = (out * (80 + Math.random() * 320) + (Math.random() - 0.5) * 160) * k;
+        let vy = -(320 + Math.random() * 620) * k;
+        const spin = (Math.random() - 0.5) * 22;
+        const sz = (0.45 + Math.random() * 0.7) * k; // 14 to 37 px at 1080 tall (the first set, 7 to 20, read as specks)
+        const sx = sz * (0.7 + Math.random() * 0.6), sy = sz * (0.5 + Math.random() * 0.5);
+        const delay = Math.random() * 70;
+        const sp = this.spawn(this.shardTex!, x, edge.bottom - Math.random() * 14 * k, pick(DEBRIS_TINTS), delay + 650 + Math.random() * 550, false, (p, dt) => {
+          if (p.age < delay) { p.sp.alpha = 0; return; }
+          const s = dt / 1000;
+          vx *= 1 - 0.6 * s;
+          vy += 2100 * k * s;
+          p.sp.x += vx * s;
+          p.sp.y += vy * s;
+          p.sp.rotation += spin * s;
+          const t = (p.age - delay) / (p.life - delay);
+          p.sp.alpha = 1 - t * t * t;
+          p.sp.scale.set(sx, sy);
+        });
+        sp.rotation = Math.random() * Math.PI * 2;
+      }
+      // The burst: all along the edge, thrown up and outward (harder towards the sides). (70 -> 88 with the debris.)
+      for (let i = 0, n = amount(88); i < n; i++) {
+        const x = edge.left + Math.random() * w;
+        const out = (x - mid) / (w / 2); // -1 at the left edge, +1 at the right
+        this.puff(x, edge.bottom - Math.random() * 24 * k, k, out * (60 + Math.random() * 240), -90 - Math.random() * 230,
+          2.4 + Math.random() * 3.4, 0.24 + Math.random() * 0.22, 1200 + Math.random() * 900, Math.random() * 90);
+      }
+      // The rolling bank: low and wide, sliding sideways along the floor and only slowly rising. (40 -> 50 with the debris.)
+      for (let i = 0, n = amount(50); i < n; i++) {
+        const side = i % 2 ? -1 : 1;
+        const x = edge.left + Math.random() * w;
+        this.puff(x, edge.bottom - Math.random() * 10 * k, k, side * (180 + Math.random() * 380), -15 - Math.random() * 55,
+          3.2 + Math.random() * 3, 0.2 + Math.random() * 0.18, 1400 + Math.random() * 900, 30 + Math.random() * 120);
+      }
+    });
+  }
+
+  /**
+   * THE PORTAL (owner 2026-10-23: "a flash of sparks and energy emit ... almost like the door way is a magical portal into
+   * the shop", then "lets actually have the burst and flash come from the turquoise gemstone above the shop door"): the
+   * return trip's GEM, on the medallion over the shop's doorway, charges and bursts. A turquoise glow swells on it (the
+   * charge), then at `chargeMs` it flashes in a starburst, sparks spray out from it in every direction, and glowing motes
+   * are flung out and float up. The doorway's own glow is DOM (`.wipevista-doorglow`). `gem` is screen px: centre and radius.
+   */
+  portal(gem: { x: number; y: number; r: number }, chargeMs = 160): void {
+    this.run(() => {
+      const k = Math.max(0.5, window.innerHeight / 1080);
+      const r = Math.max(4, gem.r);
+      // THE CHARGE: the gem swelling with light, peaking as the burst goes.
+      for (let i = 0; i < 3; i++) {
+        this.spawn(this.glowTex!, gem.x, gem.y, i === 0 ? 0xffffff : pick(PORTAL_TINTS), chargeMs + 240, true, (p) => {
+          const t = p.age / p.life, c = chargeMs / p.life;
+          p.sp.alpha = t < c ? 0.85 * (t / c) : 0.85 * (1 - (t - c) / (1 - c));
+          p.sp.scale.set((r / 16) * (1.2 + 2.2 * (t < c ? t / c : 1)) * (1 + i * 0.6));
+        });
+      }
+      // THE FLASH: a starburst on the gem, a bright core and a wide soft bloom, gone in a blink.
+      for (const [size, a, life] of [[5, 1, 260], [12, 0.7, 380], [22, 0.35, 460]] as const) {
+        this.spawn(this.glowTex!, gem.x, gem.y, size === 5 ? 0xffffff : 0x9ff7ef, chargeMs + life, true, (p) => {
+          if (p.age < chargeMs) return;
+          const t = (p.age - chargeMs) / (p.life - chargeMs);
+          p.sp.alpha = a * (1 - t);
+          p.sp.scale.set((r / 16) * size * (0.7 + t * 0.8));
+        });
+      }
+      // THE BURST: sparks thrown straight out from the gem in every direction. Short-lived since the owner asked for
+      // them to "fade way faster" (2026-10-23): under half their first life, and a steeper fade. Fewer of these long
+      // streaks since "lets remove some of the longer sparks, add more of the circular sparks" (140 -> 80).
+      for (let i = 0, n = amount(80); i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const speed = (420 + Math.random() * 1200) * k;
+        let vx = Math.cos(a) * speed, vy = Math.sin(a) * speed;
+        const delay = chargeMs + Math.random() * 60;
+        const len = 0.5 + Math.random() * 0.9;
+        this.spawn(this.sparkTex!, gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, pick(PORTAL_TINTS), delay + 150 + Math.random() * 230, true, (p, dt) => {
+          if (p.age < delay) return;
+          const s = dt / 1000;
+          vx *= 1 - 2.1 * s;
+          vy = vy * (1 - 2.1 * s) + 380 * k * s; // magic falls slowly
+          p.sp.x += vx * s;
+          p.sp.y += vy * s;
+          p.sp.rotation = Math.atan2(vy, vx);
+          const t = (p.age - delay) / (p.life - delay);
+          p.sp.alpha = Math.pow(1 - t, 2.5);
+          p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
+        });
+      }
+      // THE ENERGY: glowing motes flung out from the gem, flickering out fast (a third of their first life). More of
+      // them (70 -> 120) and thrown 30% further (owner 2026-10-23: "have them launch out 30 percent further").
+      for (let i = 0, n = amount(120); i < n; i++) {
+        const a = Math.random() * Math.PI * 2;
+        this.ember(gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, k, chargeMs + Math.random() * 120, {
+          throwX: Math.cos(a) * (220 + Math.random() * 420) * MOTE_THROW, throwY: Math.sin(a) * (200 + Math.random() * 380) * MOTE_THROW, drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
+        });
+      }
+    });
+  }
+
+  /**
+   * THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
+   * fluttery sparks bloom out from all four sides of the player screen"): the portal's own sparks and motes, born along
+   * every edge of the screen and thrown inward, as the return trip comes out of the doorway onto the shop. They fade
+   * as fast as the gem's.
+   */
+  edgeBloom(): void {
+    this.run(() => {
+      const W = window.innerWidth, H = window.innerHeight;
+      const k = Math.max(0.5, H / 1080);
+      // A point on an edge (0 top, 1 right, 2 bottom, 3 left), weighted by the edge's length, and its inward direction.
+      const onEdge = (): { x: number; y: number; nx: number; ny: number } => {
+        const u = Math.random() * 2 * (W + H);
+        if (u < W) return { x: u, y: 0, nx: 0, ny: 1 };
+        if (u < W + H) return { x: W, y: u - W, nx: -1, ny: 0 };
+        if (u < 2 * W + H) return { x: u - W - H, y: H, nx: 0, ny: -1 };
+        return { x: 0, y: u - 2 * W - H, nx: 1, ny: 0 };
+      };
+      // Sparks, thrown in off the edge with a little spread either way (fewer long streaks, like the gem's: 160 -> 90).
+      for (let i = 0, n = amount(90); i < n; i++) {
+        const e = onEdge();
+        const ang = Math.atan2(e.ny, e.nx) + (Math.random() - 0.5) * 1.3;
+        const speed = (380 + Math.random() * 1000) * k;
+        let vx = Math.cos(ang) * speed, vy = Math.sin(ang) * speed;
+        const delay = Math.random() * 90;
+        const len = 0.5 + Math.random() * 0.9;
+        this.spawn(this.sparkTex!, e.x, e.y, pick(PORTAL_TINTS), delay + 150 + Math.random() * 230, true, (p, dt) => {
+          if (p.age < delay) return;
+          const s = dt / 1000;
+          vx *= 1 - 2.1 * s;
+          vy = vy * (1 - 2.1 * s) + 380 * k * s;
+          p.sp.x += vx * s;
+          p.sp.y += vy * s;
+          p.sp.rotation = Math.atan2(vy, vx);
+          const t = (p.age - delay) / (p.life - delay);
+          p.sp.alpha = Math.pow(1 - t, 2.5);
+          p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
+        });
+      }
+      // The fluttery motes, flung in off the edge and flickering out (more of them, 110 -> 180, and 30% further).
+      for (let i = 0, n = amount(180); i < n; i++) {
+        const e = onEdge();
+        const ang = Math.atan2(e.ny, e.nx) + (Math.random() - 0.5) * 1.1;
+        const push = (220 + Math.random() * 460) * MOTE_THROW;
+        this.ember(e.x, e.y, k, Math.random() * 120, {
+          throwX: Math.cos(ang) * push, throwY: Math.sin(ang) * push, drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
+        });
       }
     });
   }

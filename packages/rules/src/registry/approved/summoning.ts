@@ -228,4 +228,86 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-21',
     },
   },
+  // ── Summoned from hand: one presentation for every source, both phases (owner ask 2026-10-23) ─────────────────
+  {
+    id: 'R-HANDSUMMON-FX-01',
+    title: 'A minion summoned from the hand is shown coming from the hand: the card lifts out and the minion forms in its slot, as one seamless motion',
+    statement:
+      'Whenever a minion is summoned out of the hand (a Spirit hand-summon such as Seedling Spirit or Tide Caller, or '
+      + 'Rune of the Waking Reserve), a copy of that hand card lifts off its hand slot and curves on toward the board as '
+      + 'it dissolves, while the minion forms in its already-opened slot through one slight overshoot to rest, with a '
+      + 'landing ring, the arrival dust and the summon sound. The phases overlap: the screen is never empty and the copy '
+      + 'and the minion are never both solid. One animation for every source, in combat and in the Shop, for the player, '
+      + 'a replay and a spectator. The hand card itself stays (greyed for the fight in combat). The next combat beat waits '
+      + 'for the landing. Otherwise presentation only. Several at once are staggered left to right; a Skip-speed replay, '
+      + 'or a hand card that is not on screen, keeps the stock arrival.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask, 2026-10-23', quote: 'build an animation for when a minion is summoned from hand' },
+      { kind: 'owner-chat', ref: 'Owner refinement, 2026-10-23', quote: 'it should land and have a small pulse or some sort or something. nothing over the top' },
+      { kind: 'owner-chat', ref: 'Owner decision, 2026-10-23', quote: 'use the lift and land animation, but smooth it out and make it overall less clunky and way more seamless' },
+      { kind: 'owner-chat', ref: 'Owner sign-off, 2026-10-23', quote: 'hand summon animation looks good to me' },
+      { kind: 'code', ref: 'packages/ui/src/handSummonFx.ts (combatHandSummonOrigins, shopHandSummonFlights, launchHandSummonFlights); useCombatReplay.ts + Recruit.tsx layout effects' },
+    ],
+    contentIds: ['sp3_seedling', 'sp3_dreamtide', 'rune_waking_reserve'],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, a hand-summoned minion popped in like any other summon; only the greyed hand '
+      + 'card hinted where it came from. Opponent hand-summons lift out of the face-down opponent hand (R-OPP-HAND-01), '
+      + 'which registers the enemy source; they lift DOWN, toward the opponent board.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/handSummonFx.test.ts'],
+      lastVerifiedAt: '2026-10-23',
+    },
+  },
+  {
+    id: 'R-SPELL-CRYPT-01',
+    title: 'Overflowing Crypt: the next fight opens by summoning 2 Skeletons, as real summons, for either side, once',
+    statement:
+      'Overflowing Crypt (Set 3 Undead spell, tribe-gated to runs with Undead, Tier 2, 3 Gold) is a next-combat spell. Cast in the Shop it summons nothing there; it '
+      + 'arms the NEXT fight, which opens (Start of Combat) by summoning 2 Skeletons (the 1/1 Undead token). They are '
+      + 'real summons: the 7-slot cap holds, and a Skeleton that does not fit Overflows (Ending, Bicycle Bob and Rune of '
+      + 'Overflow pay off), and the Undead Aura applies. Casts stack (two casts, 4 Skeletons). Rune of Twilight repeats '
+      + 'it like the other Start-of-Combat banks. It lasts that one fight and lapses at settle. A recorded board carries '
+      + 'it, so a served opponent that cast it summons its Skeletons too. Cast mid-fight it fizzles, like every '
+      + 'next-combat spell.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'Overflowing Crypt - T2 - 3g Start of Combat: Summon 2 Skeletons.' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (tribe + art)', quote: 'Crowded crypt is supposed to be for overflowing crypt. It’s an undead spell' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts spellSkeletonsNextCombat; packages/sim/src/reducer.ts questMods.bankedSkeletons; packages/core/src/combat/simulate.ts runRuneStartOfCombat (bankedSkeletons)' },
+    ],
+    contentIds: ['sp_overflowingcrypt', 'u3_skeleton'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-HAND-GRANT-SUMMON-01',
+    title: 'A minion added to hand mid-fight can be summoned from hand in that same fight',
+    statement:
+      'A MINION a combat effect adds to your hand joins your combat hand the moment it arrives (after the cards you '
+      + 'started the fight with), with the stats it would have as a hand card right then: its printed stats plus every '
+      + 'run-wide buff a new copy gets (its per-card run buff, the Undead / Beast / Attachment buy auras), Gilded or an '
+      + 'exact copy when the grant says so. When it is summoned from hand it also takes the auras a board body takes '
+      + '(the Undead Aura), exactly like a card you started with, and it arrives after the fight with the stats the fight '
+      + 'showed. Every summon-from-hand effect can then pick it with the usual rules: a copy summon greys it for the '
+      + 'fight and the card still arrives in your hand after combat; hand buffs grow it and stay on it. It can be '
+      + 'picked only while it would really fit your hand after combat (the hand cap counts every held card, the '
+      + 'fight Rubies land first, then the granted cards in order). Spells are never candidates. Both sides, '
+      + 'identically.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23', quote: 'a minion added to hand CAN be summoned that same fight.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23 (PR #2253 review)', quote: "a new card would get its printed stats plus any potential aura/run-wide buffs. like an undead card granted to hand mid fight would still inherit undead aura buffs etc. buffs in combat would persist to newly added cards as well. so if a card is added to hand and then buffed +5/+5 in combat, it'd keep those" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts recordHandGrant / grantedHandStats / handPool / grantFits (handGrantUid on the toHand event; copyStats.handFold folds the board auras onto a hand summon); packages/sim/src/reducer.ts settleCombat landedGrants (a hand buff on a granted card lands on the arrived card); CombatSideState.handRoom (reducer, snapshot, boardSide)' },
+    ],
+    contentIds: ['sp3_dreamtide', 'sp3_dreamingdeep', 'sp3_seedling'],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before: a grant was only recorded for settle, so every summon-from-hand effect '
+      + 'ignored cards gained mid-fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/midfightHandGrants.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

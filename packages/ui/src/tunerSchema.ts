@@ -103,6 +103,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   screenwipe: '🌀',
   platedissolve: '🌀',
   platecoalesce: '🪄',
+  handsummon: '🃏',
   ward: '🔵',
   execute: '☠️',
   swapfx: '↔️',

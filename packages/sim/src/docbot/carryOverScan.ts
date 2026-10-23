@@ -179,6 +179,8 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   nextSellBonus: { kind: 'no-combat-meaning', why: 'Quick Sale\'s next-sell Gold bonus; sells are shop actions' },
   spellCostOffTurn: { kind: 'no-combat-meaning', why: 'Arcane Clearance\'s this-turn spell discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
   minionCostOffTurn: { kind: 'no-combat-meaning', why: 'Friends and Family\'s this-turn minion discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
+  edictCharges: { kind: 'no-combat-meaning', why: 'the Royal Edict "next 3 spells cast from hand this turn" charges (Vellum, 2026-10-23); only a hand cast in the shop spends one, a fight never casts from hand, and the turn rollover clears them' },
+  edictExtra: { kind: 'no-combat-meaning', why: 'the extra casts per Royal Edict charge (paired with edictCharges); read only by shop hand casts' },
   sellBonusWindow: { kind: 'no-combat-meaning', why: 'Thymepiece\'s 8-second sell-bonus window (a shop sell price on the turn clock, closed by faceOmen before the fight is built); selling is shop-only' },
   shopClockExpired: { kind: 'no-combat-meaning', why: 'the recruit clock hit 0:00 (R-TIMER-LOCK-01): it only refuses Shop player actions, and faceOmen clears it before the fight is built' },
   tavernBuyBonusTurn: { kind: 'no-combat-meaning', why: 'Merchant\'s Chorus\' this-turn SHOP-offer buff; enchants offers, not the fought board' },
@@ -214,6 +216,7 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   rememberedThisTurn: { kind: 'no-combat-meaning', why: 'Runesnout Archivist\'s once-per-turn journal latch; recording happens in the shop, the JOURNAL itself is threaded (rememberedSpellIds)' },
   spellhideUsedThisTurn: { kind: 'no-combat-meaning', why: 'Spellhide\'s per-turn RECORD latch; recording happens on the shop cast, the recorded re-casts ride spellhidePending' },
   lastWordUsedThisTurn: { kind: 'no-combat-meaning', why: 'Last Word\'s per-turn sold-Dragon latch; selling is a shop action' },
+  returnCustomersThisTurn: { kind: 'no-combat-meaning', why: 'Return Customers: per-turn count of Dwarves sold that returned a copy (Set 3 Dwarf Epic, 2026-10-23); selling is a shop action' },
   bequeathedUsedThisTurn: { kind: 'no-combat-meaning', why: 'Bequeathed Secrets: per-turn first-Dragon-sold latch (Set 3 Dragon Epic, 2026-10-21); selling is a shop action' },
   // ── Set 3 batch 2 (2026-09-16) — tranche A per-turn gates: every one is a SHOP latch (sells, buys, casts, plays) ──
   revelersSoldThisTurn: { kind: 'no-combat-meaning', why: 'Festival Wages / the Festival Circuit\'s per-turn Revelers-sold meter ("after you sell 3 Revelers"); selling is a shop action' },

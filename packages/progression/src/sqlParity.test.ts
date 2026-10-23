@@ -7,7 +7,7 @@ import {
 } from './rules';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, CRATE_ROLL_VERSION,
-  EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, HERO_TITLE_COSMETICS, catalogSyncPayload, crateRarityFallback, eligibleCrateCosmetics, heroMasterTitleId, heroTitleId, pickCrateReward,
+  EMOTE_POSITION_RE, EMOTE_SLOT_COUNT, EQUIP_SLOTS, GLOBAL_EQUIP_SLOTS, HERO_TITLE_COSMETICS, catalogSyncPayload, crateRarityFallback, eligibleCrateCosmetics, heroMasterTitleId, heroTitleId, pickCrateReward,
 } from './cosmetics';
 import { SQL_ERROR_STATUS } from './server';
 import {
@@ -67,12 +67,15 @@ const milestoneEpic = readFileSync(join(root, 'supabase/migrations/2026-10-20-mi
 /** Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06): the newest aether_quote, appended to schema.sql right
  *  after the milestone file. */
 const announcersNotFocusable = readFileSync(join(root, 'supabase/migrations/2026-10-20-announcers-not-focusable.sql'), 'utf8');
+/** Eight emote positions (2026-10-22, R-PROG-EMOTE-02): the newest equip_cosmetic (emote targets '0'..'7'), appended to
+ *  schema.sql right after the announcers file. */
+const emoteEight = readFileSync(join(root, 'supabase/migrations/2026-10-22-emote-eight-slots.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
-/** The body of a function's LATEST definition (the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
+/** The body of a function's LATEST definition (the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -233,10 +236,11 @@ describe('the emote file (2026-10-13)', () => {
     for (const i of catalogSyncPayload().items) expect(allowed, i.cosmeticId).toContain(i.acquisitionSource);
   });
 
-  it('equip_cosmetic: an emote position is 0 to 3, a starter needs no ownership row, and an emote moves', () => {
+  it('equip_cosmetic: an emote position is 0 to 7 (eight since 2026-10-22), a starter needs no ownership row, and an emote moves', () => {
     const body = fnBody('equip_cosmetic');
     expect(body).toContain("elsif p_slot = 'emote' then");
-    expect(body).toContain("p_target_id !~ '^[0-3]$'");
+    expect(body).toContain("p_target_id !~ '^[0-7]$'");
+    expect(body).not.toContain("'^[0-3]$'");
     expect(body).toContain("if v_cat.acquisition_source <> 'starter'");
     expect(body).toMatch(/delete from public\.cosmetic_loadouts\s+where user_id = p_user and slot = 'emote' and cosmetic_id = p_cosmetic_id and target_id <> p_target_id;/);
     expect(schema.replace(/\r\n/g, '\n')).toContain(emotes.replace(/\r\n/g, '\n').trim());
@@ -571,9 +575,9 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const body = lf(aether).trim();
     const at = flat.indexOf(body);
     expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
-    // only the launch-grant file (2026-10-19), then the milestone file and the announcers file (2026-10-20) follow it
+    // only the launch-grant file (2026-10-19), the milestone file and the announcers file (2026-10-20), then the emote positions file (2026-10-22) follow it
     expect(flat.slice(at, at + body.length)).toBe(body);
-    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}`);
+    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}`);
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
       expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
@@ -586,7 +590,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const lf = (t: string): string => t.replace(/\r\n/g, '\n');
     const flat = lf(schema);
     const body = lf(launchGrant).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}`)).toBe(true);
     expect(flat.lastIndexOf('create or replace function public.aether_rollout(')).toBeGreaterThan(flat.lastIndexOf(lf(aether).trim()));
     expect(body).toContain("perform public.aether_launch_grant(v_user);");
     expect(fnBody('aether_rollout', milestoneEpic)).toContain("perform public.aether_launch_grant(v_user);");
@@ -601,7 +605,7 @@ describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER
   it('schema.sql carries the milestone file verbatim (the announcers file follows it), and its three functions are the ones a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(milestoneEpic).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     for (const fn of ['open_crate', 'settle_progression', 'aether_rollout']) {
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThan(at);
@@ -644,10 +648,10 @@ describe("Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06)", () 
   // chests"; every focusable category ticked: "Free, may give an Announcer".
   const lf = (t: string): string => t.replace(/\r\n/g, '\n');
 
-  it('schema.sql ENDS with the announcers file verbatim, and its aether_quote is the one a paste leaves', () => {
+  it('schema.sql carries the announcers file verbatim (the emote positions file follows it), and its aether_quote is the one a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(announcersNotFocusable).trim();
-    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(emoteEight).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     const fnAt = flat.lastIndexOf('create or replace function public.aether_quote(');
     expect(fnAt).toBeGreaterThan(at);
@@ -662,5 +666,30 @@ describe("Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06)", () 
     expect(announcersNotFocusable).not.toContain('create or replace function public.progression_tiered_crate_pick(');
     // still internal: revoked from every API role, the service role included
     expect(announcersNotFocusable).toContain('revoke all on function public.aether_quote(uuid, text, text[], boolean) from public, anon, authenticated, service_role;');
+  });
+});
+
+describe('eight emote positions (2026-10-22, R-PROG-EMOTE-02)', () => {
+  // Owner 2026-10-22: "we'll use emotes for quickchat options, then. let's add 4 more emote slots, and give everyone the
+  // communication emotes".
+  const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+
+  it('schema.sql ENDS with the emote positions file verbatim, and its equip_cosmetic is the one a paste leaves', () => {
+    const flat = lf(schema);
+    const body = lf(emoteEight).trim();
+    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    const fnAt = flat.lastIndexOf('create or replace function public.equip_cosmetic(');
+    expect(fnAt).toBeGreaterThan(flat.lastIndexOf(body));
+    expect(fnBody('equip_cosmetic', flat.slice(fnAt))).toBe(fnBody('equip_cosmetic'));
+  });
+
+  it('the SQL position check is exactly the TS one (EMOTE_SLOT_COUNT positions), and nothing else moved from the card plates file', () => {
+    expect(EMOTE_SLOT_COUNT).toBe(8);
+    const re = /p_target_id !~ '(\^\[0-\d\]\$)'/.exec(fnBody('equip_cosmetic', emoteEight))![1]!;
+    expect(re).toBe(EMOTE_POSITION_RE.source);
+    for (let i = 0; i < 10; i++) expect(new RegExp(re).test(String(i)), String(i)).toBe(i < EMOTE_SLOT_COUNT);
+    const norm = (b: string): string => b.split("'^[0-7]$'").join("'^[0-3]$'").split("'0'..'7'").join("'0'..'3'");
+    expect(norm(fnBody('equip_cosmetic', emoteEight))).toBe(fnBody('equip_cosmetic', cardPlates));
+    expect(emoteEight).toContain('grant execute on function public.equip_cosmetic(uuid, text, text, text) to service_role;');
   });
 });

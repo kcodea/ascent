@@ -12,12 +12,12 @@ describe('Aug-11 rune + minion batch — new content ships', () => {
   it('the 20 new runes exist at their owner costs', () => {
     const want: [string, number][] = [
       // balance 9/23: Living Geode 4 → 1, Open Enrollment 5 → 3, Strange Caravan 3 → 2, Restocking 3 → 2, Trade-In 2 → 1,
-      // Collector 4 → 5, Bargain Bin 7 → 6, Kobold Bebes 6 → 4.
-      ['rune_display_case', 4], ['rune_wrangler', 3], ['rune_living_geode', 1], ['rune_open_enrollment', 3],
+      // Collector 4 → 5, Bargain Bin 7 → 6, Kobold Bebes 6 → 4. Owner 2026-10-23 reprice: every rune here 1 Gold cheaper except Living Geode, Strange Caravan, Lassoing, Restocking, Trade-In, Seller's Market (Bargain Bin 6 → 5, Old Pack 6 → 5).
+      ['rune_display_case', 3], ['rune_wrangler', 2], ['rune_living_geode', 1], ['rune_open_enrollment', 2],
       ['rune_strange_caravan', 2], ['rune_lassoing', 2], ['rune_restocking', 2], ['rune_trade_in', 1],
-      ['rune_window_shopping', 3], ['rune_fresh_pages', 3], ['rune_collector', 5], ['rune_shopkeep', 5],
-      ['rune_dawnclaw', 5], ['rune_blart', 4], ['rune_bargain_bin', 6], ['rune_sylus', 5], ['rune_kobold_bebes', 4],
-      ['rune_sellers_market', 3], ['rune_old_pack', 6], ['rune_herzog', 5],
+      ['rune_window_shopping', 2], ['rune_fresh_pages', 2], ['rune_collector', 4], ['rune_shopkeep', 4],
+      ['rune_dawnclaw', 4], ['rune_blart', 3], ['rune_bargain_bin', 5], ['rune_sylus', 4], ['rune_kobold_bebes', 3],
+      ['rune_sellers_market', 3], ['rune_old_pack', 5], ['rune_herzog', 4],
     ];
     for (const [id, cost] of want) {
       expect(RUNE_INDEX[id], `${id} exists`).toBeDefined();

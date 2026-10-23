@@ -9,7 +9,8 @@ import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, RUNES } from '@game/content';
  */
 const ALL_TRIBES = ['beast', 'dragon', 'undead', 'mech', 'demon', 'kobold', 'dwarf'];
 // The def checks read the archive too: several of these runes were archived everywhere 2026-10-07 (owner balance batch).
-const byName = (n: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.name === n);
+// By name, but the archived Set 2 Last Call (`rune_last_call`) wins over the 2026-10-23 Set 3 Last Call (`rune_last_call_set3`), which shares its name.
+const byName = (n: string) => [...RUNES, ...EPIC_RUNES, ...ARCHIVED_RUNES].find((r) => r.name === n && r.id !== 'rune_last_call_set3');
 const sim = (p: BoardMinion[], e: BoardMinion[], mods = {}) =>
   simulate(p, e, makeRng(5), CARD_INDEX, combatSide({ tier: 6, tribes: ALL_TRIBES, questMods: mods as never }), combatSide());
 /** A board that loses N cheap bodies, with one survivor to keep the fight going. */

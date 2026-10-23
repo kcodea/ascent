@@ -268,4 +268,23 @@ export const TARGETING_RULES: GameRule[] = [
       + 'sites (most common type, distinct types, the two different end types of Centerline, the archived type of Wishbone) and bot scoring.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/allTypesEverywhere.test.ts', 'packages/sim/src/docbot/tribePredicates.test.ts'], lastVerifiedAt: '2026-10-21' },
   },
+  {
+    id: 'R-TARGET-GREVLIN-01',
+    title: 'Grevlin & Co.: a random friendly Demon consumes, Grevlin included',
+    statement:
+      'Every 3rd minion sold, the Grevlin & Co. consume is performed by ONE random friendly Demon drawn from the board '
+      + '(the shared `isTribe` predicate, so All-types bodies count) with Grevlin himself in the pool, an owner '
+      + 'exemption from R-TARGET-03. The chosen Demon eats the right-most Shop minion (R-ORD-03), gains its stats and '
+      + 'carries the consume record (`shopEaten.eaterUid`) and `onConsume`. One draw off the run cursor per bite, and '
+      + 'none when Grevlin is the only Demon (he eats, exactly as before). Gilded eats twice; each bite is its own pick.',
+    domain: 'targeting',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug fix 2026-10-22', quote: 'grevlin & co shouldnt be him consuming 100% of the time, it should be a random friendly demon. (himself included)' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts minionSoldConsumeRightmost; grevlinEater' },
+    ],
+    contentIds: ['dm_grevlin'],
+    currentBehaviour: 'Conforms (2026-10-22). Before, Grevlin was always the eater.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/grevlinRandomEater.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
 ];

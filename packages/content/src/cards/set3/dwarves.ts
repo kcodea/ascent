@@ -117,9 +117,9 @@ export const SET3_DWARVES: CardDef[] = [
     id: 'dw3_thymes',
     name: 'Thymes',
     tribe: 'dwarf',
-    tier: 6,
-    attack: 8,
-    health: 10,
+    tier: 5, // T6 8/10 -> T5 5/7 (owner 2026-10-23: "Thymes -> T5 and 5/7 stats")
+    attack: 5,
+    health: 7,
     keywords: [],
     effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'thymepiece' } }],
     text: '**Equip Thymepiece (3):** cards **Sell** for **+1** Gold for the next **8 seconds**.',
@@ -281,9 +281,12 @@ export const SET3_DWARVES: CardDef[] = [
     attack: 2,
     health: 6,
     keywords: [],
-    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 4 } }],
-    text: 'When you **Sell** **4 minions**, get a random **Shop Spell**.',
-    goldenText: 'When you **Sell** **4 minions**, get **2** random **Shop Spells**.',
+    // Owner 2026-10-23 ("Mariet -> When you sell 4 minions, get a Dwarven Ale"): the payout is now a random Dwarven
+    // Ale (`ale: true`: the run's Ale pool, the Rune of Last Call / Gold-spent Ale recipe; a set without Ales grants
+    // nothing). The every-4 meter, its carry and the gilded double are unchanged.
+    effects: [{ on: 'minionSold', do: 'minionSoldGrantSpell', params: { count: 4, ale: true } }],
+    text: 'When you **Sell** **4 minions**, get a **Dwarven Ale**.',
+    goldenText: 'When you **Sell** **4 minions**, get **2 Dwarven Ales**.',
   },
   {
     // Shift Broker's sale watcher (`minionSoldBuffSelf`) with Health and an every-`count` Gold payout: +3/+3 on every

@@ -24,6 +24,9 @@
  *  - `k`: the anchor keys (`u:<uid>`, `s:<spec>`), each stored once per segment.
  *  - `s`: the held card / aim, written only when they CHANGE (they are repeated on every live message).
  *  - `e`: the screen events that are not cursor messages: the shop overlays' minimize state and the fight's Skip.
+ *  - `em`: the emotes shown on the player's screen (their own and the seats they faced), `[ms since t0, seat, emote
+ *    id]` (owner 2026-10-22: "spectators arent seeing when a player emotes"; R-REPLAY-EMOTE-01). Optional: a stream
+ *    recorded before it has none, and an older build reading a newer stream ignores the field.
  *
  * Message layout in `m` (one message): `dt, flags, [dgx, dgy], [key, fx, fy], [n, n x trail point]`.
  *  - `dt`: ms since the previous message of the segment (the first: since `t0`), never negative.
@@ -94,7 +97,14 @@ export interface StreamSegment {
   s?: StreamStateChange[];
   /** Screen events, flat triples: `ms since t0, code, value` (`EV_OVERLAY` with the minimize bits, `EV_SKIP` with 0). */
   e?: number[];
+  /** Emotes shown on the player's screen: `[ms since t0, seat, emote id]`, in order (R-REPLAY-EMOTE-01). */
+  em?: StreamEmote[];
 }
+
+/** One recorded emote: `[ms since the segment's t0, seat id ("s0" = the player), emote id]`. */
+export type StreamEmote = [number, string, string];
+/** At most this many emotes are kept per segment (the 20 s cooldown allows a handful; served seats add a few). */
+export const STREAM_SEG_MAX_EMOTES = 64;
 
 /** A replay's recorded spectator stream (`ReplayV2.stream`). */
 export interface ReplayStream {
@@ -228,6 +238,26 @@ export function encodeStreamEvent(enc: StreamEncoder, t: number, code: number, v
   seg.t1 = Math.max(seg.t1, at);
 }
 
+/** Append an emote shown at frames-clock `t` (R-REPLAY-EMOTE-01). Returns false past the per-segment cap. */
+export function encodeStreamEmote(enc: StreamEncoder, t: number, seat: string, emoteId: string): boolean {
+  const seg = enc.seg;
+  if ((seg.em?.length ?? 0) >= STREAM_SEG_MAX_EMOTES) return false;
+  const at = Math.max(seg.t0, Math.round(t));
+  (seg.em ??= []).push([at - seg.t0, seat, emoteId]);
+  seg.t1 = Math.max(seg.t1, at);
+  return true;
+}
+
+/** A segment's emotes, decoded: `{ t (frames clock), seat, id }`, in order. Malformed entries are skipped. */
+export function decodeStreamEmotes(seg: Pick<StreamSegment, 't0' | 'em'>): { t: number; seat: string; id: string }[] {
+  const out: { t: number; seat: string; id: string }[] = [];
+  for (const e of seg.em ?? []) {
+    if (!Array.isArray(e) || typeof e[0] !== 'number' || typeof e[1] !== 'string' || typeof e[2] !== 'string') continue;
+    out.push({ t: seg.t0 + e[0], seat: e[1], id: e[2] });
+  }
+  return out;
+}
+
 /** The overlay minimize bits of a `{ discover, power, quest, forge }` state. */
 export function overlayBitsOf(o: { discover: boolean; power: boolean; quest: boolean; forge: boolean }): number {
   return (o.discover ? OV_DISCOVER : 0) | (o.power ? OV_POWER : 0) | (o.quest ? OV_QUEST : 0) | (o.forge ? OV_FORGE : 0);
@@ -236,7 +266,7 @@ export function overlayBitsOf(o: { discover: boolean; power: boolean; quest: boo
 /** The segment as it is stored: a copy of the encoder's fields with the messages packed. The encoder keeps going. */
 export function sealStreamSegment(enc: StreamEncoder): StreamSegment {
   const g = enc.seg;
-  return { ...g, k: g.k.slice(), m: packInts(enc.ints), ...(g.s ? { s: g.s.slice() } : {}), ...(g.e ? { e: g.e.slice() } : {}) };
+  return { ...g, k: g.k.slice(), m: packInts(enc.ints), ...(g.s ? { s: g.s.slice() } : {}), ...(g.e ? { e: g.e.slice() } : {}), ...(g.em ? { em: g.em.slice() } : {}) };
 }
 
 // ── packing: zigzag LEB128 varints, base64 ─────────────────────────────────────────────────────────────────
@@ -373,7 +403,8 @@ export function isReplayStream(v: unknown): v is ReplayStream {
 export function isStreamSegment(v: unknown): v is StreamSegment {
   const g = v as Partial<StreamSegment> | null;
   return !!g && typeof g === 'object' && typeof g.w === 'number' && typeof g.t0 === 'number' && typeof g.t1 === 'number'
-    && Array.isArray(g.k) && typeof g.m === 'string' && (g.s === undefined || Array.isArray(g.s)) && (g.e === undefined || Array.isArray(g.e));
+    && Array.isArray(g.k) && typeof g.m === 'string' && (g.s === undefined || Array.isArray(g.s)) && (g.e === undefined || Array.isArray(g.e))
+    && (g.em === undefined || Array.isArray(g.em));
 }
 
 /** Total recorded messages across a stream's segments. */

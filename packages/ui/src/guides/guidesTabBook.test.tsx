@@ -201,7 +201,7 @@ describe('the pills in the real Compendium', () => {
     await settle();
     expect(communityAsked.length).toBe(1);
     expect(communityAsked[0]!.setId).toBe(live.id);
-    expect(communityAsked[0]!.tribes).toEqual([...live.tribes]);
+    expect(communityAsked[0]!.tribes).toEqual([...live.tribes].sort()); // the Compendium lists tribes alphabetically (owner 2026-10-23)
     expect(communityAsked[0]!.neutral).toBe(true);
     expect(communityAsked[0]!.search).toBe('');
     expect(communityAsked[0]!.offset).toBe(0);

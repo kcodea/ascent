@@ -1,6 +1,6 @@
-import { CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
+import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
-import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC } from '@game/core';
+import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
 
 /**
  * LIVE RUNE TALLIES (owner ask 2026-08-03: "make sure our runes/quests all have tally trackers like the
@@ -81,6 +81,9 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // Set 3 Dragon Epics B (2026-10-21): Bequeathed Secrets' one Dragon sale a turn (the Open Grave shape), and the Opened
   // Vault's armed double while it waits for the next Whisper cast from hand.
   if (runeId === 'rune_bequeathed_secrets' && run.questFlags?.runeBequeathedSecrets) return run.bequeathedUsedThisTurn ? '0/1' : '1/1';
+  // Return Customers (Set 3 Dwarf Epic, 2026-10-23): Dwarves sold this turn that returned a copy, out of the 2 that do
+  // (the N/X integer counter, counting up).
+  if (runeId === 'rune_return_customers' && run.questFlags?.runeReturnCustomers) return `${Math.min(RETURN_CUSTOMERS_PER_TURN, run.returnCustomersThisTurn ?? 0)}/${RETURN_CUSTOMERS_PER_TURN}`;
   if (runeId === 'rune_opened_vault' && run.questFlags?.runeOpenedVault && run.openedVaultArmed) return 'next Whisper x2';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {
@@ -100,11 +103,11 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_astral_refrain' && run.runeAstralRefrain) {
     return `${Math.min((run.spellIdsThisTurn ?? []).length, run.runeAstralRefrain.at)}/${run.runeAstralRefrain.at}`;
   }
-  // Rune of the Traveling Festival: what a Reveler sale pays RIGHT NOW (the shared value + this rune's extra).
-  if (runeId === 'rune_traveling_festival' && run.revelerExtra) {
-    const x = Math.max(1, run.revelerX ?? 1);
-    return `+${x + run.revelerExtra.attack}/+${x + run.revelerExtra.health}`;
-  }
+  // Rune of the Traveling Festival: NO tally. Its "+2/+2" is a flat, one-time addition to every Reveler's grant
+  // (owner 2026-10-23: "this rune doesn't grow, it just gives +2 to the bonus of the revelers"), already printed
+  // on the rune, so it reads like every other flat-bonus rune. The growing number is the Reveler's own, and each
+  // Reveler's text prints it with the +2/+2 folded in (`spiritText`, `revelerExtra`). It used to show
+  // "+X+2/+X+2" here, which read as the rune itself growing.
   // Rune of Falling Embers: what a Star Crash grants right now, beyond its printed base.
   if (runeId === 'rune_falling_embers' && run.starCrashBonus) {
     return `+${run.starCrashBonus.attack}/+${run.starCrashBonus.health}`;
@@ -323,6 +326,7 @@ const RUNE_DEATHS_PER: Record<string, number> = {
   rune_shifting_facets: 3, rune_deepening_vein: 3,
   rune_soul_toll: 4, // Set 3 design pass (2026-09-27): Avenge (4) raises the Undead Aura
   rune_final_utterance: DRAGON_RUNES_BASIC.finalUtteranceAvenge, // Set 3 Dragon runes (2026-10-21): Avenge (4), a Whisper and a Shop Spell
+  rune_goleming: GOLEMING_AVENGE, // Set 3 Kobold runes (2026-10-22): Avenge (5), a Gemheart Golem with 6 Rubies cast on it
 };
 const RUNE_SUMMONS_PER: Record<string, number> = { rune_remains: 5 };
 

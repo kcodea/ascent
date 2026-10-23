@@ -71,13 +71,15 @@ export const SET3_UNDEAD: CardDef[] = [
     tribe: 'undead',
     // 3 → 4, and the Echo grants both stats (owner handoff 2026-09-18; was +1 Attack only). Back to 4 → 3 at 5/1 → 4/1
     // (owner balance ask 2026-10-22: "move adeptus and bicycle bob to tier 3, reduce their stats slightly").
-    tier: 3,
+    // Owner 2026-10-23 ("Adeptus -> T2, Echo: Give your Shop spells +1 Attack"): T3 -> T2 and the Echo is Attack only
+    // (was +1/+1). Stats unchanged (not named in the ask).
+    tier: 2,
     attack: 4,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 1 } }],
-    text: '**Echo:** give your **Shop spells +1/+1**.',
-    goldenText: '**Echo:** give your **Shop spells +2/+2**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 0 } }],
+    text: '**Echo:** Give your **Shop spells +1 Attack**.',
+    goldenText: '**Echo:** Give your **Shop spells +2 Attack**.',
   },
   {
     // An EQUIP Undead whose Equipment is a paid, aimed "fire this Echo and keep the body": Rise, then destroy.
@@ -207,5 +209,22 @@ export const SET3_UNDEAD: CardDef[] = [
     effects: [{ on: 'summonOverflow', do: 'overflowBuffRandomTribePerPlayed', params: { tribe: 'undead', attack: 1, health: 1 } }],
     text: '**Overflow:** give a random **Undead +1/+1**. Improves for every Undead played this turn.',
     goldenText: '**Overflow:** give a random **Undead +2/+2**. Improves for every Undead played this turn.',
+  },
+  {
+    // ENDING (owner 2026-10-23), T7 Summit Undead 1/1: "When you Overflow a minion, give your Undead Aura +4 Health."
+    // Squatimus' / Bicycle Bob's `summonOverflow` watcher, Lantern of Souls' channel (`grantUndeadAura`): the run-wide
+    // Undead Aura, raised in BOTH phases. In the shop the aura is the run channel the board already reads; in combat
+    // the living Undead feel it now and the gain carries home at settle (the Lantern / Wick Mortis ritual), so the
+    // Aura is permanent from either phase. Not a spell, so spell power does not fold in. Gilded: +8 Health.
+    id: 'u3_ending',
+    name: 'Ending',
+    tribe: 'undead',
+    tier: 7,
+    attack: 1,
+    health: 1,
+    keywords: [],
+    effects: [{ on: 'summonOverflow', do: 'overflowGrowUndeadAura', params: { attack: 0, health: 4 } }],
+    text: 'When you **Overflow** a minion, give your **Undead Aura** **+4 Health**.',
+    goldenText: 'When you **Overflow** a minion, give your **Undead Aura** **+8 Health**.',
   },
 ];

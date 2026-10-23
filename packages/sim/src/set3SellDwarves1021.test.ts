@@ -12,6 +12,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { CARD_INDEX, SETS, poolFor } from '@game/content';
+import { ALE_IDS } from '@game/core';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
 import { runSpells } from './spellPool';
 
@@ -78,10 +79,10 @@ describe('SAILSEY: Sell: Give your Dwarves +2/+3', () => {
   });
 });
 
-describe('MARIET: every 4 minions you Sell, get a random Shop Spell', () => {
-  const legal = (s: RunState) => new Set(runSpells(s).filter((c) => c.tier <= s.tier).map((c) => c.id));
+describe('MARIET: every 4 minions you Sell, get a Dwarven Ale (owner 2026-10-23; was a random Shop Spell)', () => {
+  const legal = (s: RunState) => new Set(runSpells(s).filter((c) => ALE_IDS.includes(c.id)).map((c) => c.id));
 
-  it('pays one legal Shop Spell on the 4th sale, not before; the meter carries across a turn', () => {
+  it('pays one Dwarven Ale from the run\'s pool on the 4th sale, not before; the meter carries across a turn', () => {
     let s = run({ board: [body('m', 'dw3_marketing'), FODDER('a'), FODDER('b'), FODDER('c'), FODDER('d'), FODDER('e')] });
     s = act(s, { type: 'sell', uid: 'a' });
     s = act(s, { type: 'sell', uid: 'b' });
@@ -95,17 +96,18 @@ describe('MARIET: every 4 minions you Sell, get a random Shop Spell', () => {
     const got = CARD_INDEX[s.hand[0]!.cardId]!;
     expect(got.spell).toBe(true);
     expect(got.token).toBeFalsy();
-    expect(legal(s).has(got.id), `${got.id} is in the run's legal spell pool`).toBe(true);
+    expect(ALE_IDS, `${got.id} is a Dwarven Ale`).toContain(got.id);
+    expect(legal(s).has(got.id), `${got.id} is in the run's Ale pool`).toBe(true);
     expect(at(s, 'm').soldProgress, 'the payout consumes the threshold').toBe(0);
   });
 
-  it('Gilded gets 2 Shop Spells per payout (the Runic Archivist convention), still every 4 sales', () => {
+  it('Gilded gets 2 Dwarven Ales per payout (the Runic Archivist convention), still every 4 sales', () => {
     let s = run({ board: [body('m', 'dw3_marketing', { golden: true }), FODDER('a'), FODDER('b'), FODDER('c'), FODDER('d')] });
     for (const u of ['a', 'b', 'c']) s = act(s, { type: 'sell', uid: u });
     expect(s.hand).toHaveLength(0);
     s = act(s, { type: 'sell', uid: 'd' });
     expect(s.hand).toHaveLength(2);
-    for (const h of s.hand) expect(CARD_INDEX[h.cardId]!.spell).toBe(true);
+    for (const h of s.hand) expect(ALE_IDS).toContain(h.cardId);
   });
 
   it('selling Mariet itself does not count', () => {

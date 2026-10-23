@@ -157,4 +157,23 @@ export const AURAS_RULES: GameRule[] = [
       + 'multiplier), which is what keeps it additive with the run-wide extras in combat too.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/elderhornOrivaxAuras.test.ts'], lastVerifiedAt: '2026-10-07' },
   },
+  {
+    id: 'R-AURA-ENDING-01',
+    title: 'Ending: every Overflow gives your Undead Aura +4 Health, in the Shop and in combat, permanently',
+    statement:
+      'Ending (Set 3 Undead, T7 1/1): "When you Overflow a minion, give your Undead Aura +4 Health." Each friendly summon '
+      + 'that does not fit (the `summonOverflow` watcher Squatimus and Bicycle Bob use) raises the run-wide Undead Aura '
+      + 'through the Lantern of Souls channel (`grantUndeadAura`). In the Shop it raises the run figure every Undead already '
+      + 'reads; in combat the living Undead gain it at once and the gain carries home at settle, so the Aura is permanent '
+      + 'from either phase (R-AURA-02). Not a spell: spell power does not fold in. Gilded: +8 Health.',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23 (Ending)', quote: 'When you Overflow a minion, give your Undead Aura +4 Health.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts overflowGrowUndeadAura; packages/core/src/effects/factories.ts + packages/sim/src/recruit.ts overflowGrowUndeadAura' },
+    ],
+    contentIds: ['u3_ending'],
+    currentBehaviour: 'Conforms as of 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3T7VellumEnding.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

@@ -29,6 +29,7 @@ export interface ThisTurnClassification {
 
 export const THIS_TURN_CLASSIFIED: Readonly<Record<string, ThisTurnClassification>> = {
   // ── Equipment ──
+  d3_vellum: { kind: 'no-combat-meaning', why: 'Vellum prints the wording of its Equipment Royal Edict: "your next 3 spells cast from hand this turn cast an additional time". Only a spell cast FROM HAND spends a charge, and a fight never casts from hand, so the charges have no combat half to lose. They are cleared at the turn rollover and excused in the carry-over scan for the same reason (R-TURN-01 conform, R-EQUIP-EDICT-01).' },
   k3_prismpick: { kind: 'no-combat-meaning', why: 'Prismpick Artificer prints the wording of its Equipment: "your next Choose One card this turn gains both effects". Choose One is resolved when a HAND card is played in the SHOP — a fight never plays one — so the armed charge has no combat half to lose. It is cleared at the turn rollover and excused in the carry-over scan for the same reason (R-TURN-01 conform).' },
 
   // ── gifts ──

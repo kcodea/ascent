@@ -564,6 +564,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:spellTransformTierUp:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellTriggerEcho:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:spellWeakenNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
+  'factory:spellSkeletonsNextCombat:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:stealTavernMinion:cast': { policy: 'ownBeat', family: 'spellCast' },
   'factory:summonBuffSelfTribe:onSummon': { policy: 'foldedCue', family: 'summonReact' },
   'factory:summonBuffTribeAsym:onSummon': { policy: 'foldedCue', family: 'summonReact' },

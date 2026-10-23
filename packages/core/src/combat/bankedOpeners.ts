@@ -30,6 +30,7 @@ export const BANKED_SPELL_OF = {
   markFoeRightmostTaunt: 'markedtarget',
   rallyDouble: 'rallyoffensive',
   weakenTargets: 'weaken',
+  bankedSkeletons: 'sp_overflowingcrypt',
   decoySigils: 'decoysigil',
   summonTaunts: 'summoningbulwark',
   solidGroundLeft: 'sp_solidground',

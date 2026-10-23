@@ -9162,6 +9162,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     ctx.state.pendingWeaken = (ctx.state.pendingWeaken ?? 0) + num(params.count, 1);
   },
 
+  /** Overflowing Crypt (Set 3, owner 2026-10-23) — cast: bank `count` Skeletons for the NEXT combat's Start of
+   *  Combat (`questMods.bankedSkeletons`, summoned by `simulate` for whichever side holds it). Stacks per cast. */
+  spellSkeletonsNextCombat: (ctx, _self, params) => {
+    ctx.state.pendingSkeletons = (ctx.state.pendingSkeletons ?? 0) + num(params.count, 2);
+  },
+
   /** Ruby Excavation — cast: play `rubies` Rubies on EVERY friendly minion (each worth 1/1 + the run's
    *  rubyBonus, like any recruit-phase Ruby). Fires each target's on-Ruby watchers per Ruby. */
   spellPlayRubiesAll: (ctx, _self, params) => {

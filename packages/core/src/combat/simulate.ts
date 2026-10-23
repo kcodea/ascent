@@ -5472,6 +5472,20 @@ export function simulate(
         emit({ type: 'sc', source: m.uid, text: `${m.name} is Weakened to 1 Health`, cast: true, setHealth: 1 });
       }
     }
+    // Overflowing Crypt (next-combat spell, Set 3 owner 2026-10-23): "Start of Combat: Summon 2 Skeletons." REAL
+    // summons through `summonMinion`, so the board cap applies and a Skeleton that does not fit Overflows (Ending,
+    // Bicycle Bob, Rune of Overflow pay off). Every pass, so Rune of Twilight repeats it like the other Start-of-Combat
+    // banks (owner report 2026-08-12). Either side: a served snapshot carries it in its `questMods`.
+    const skeletons = rmods.bankedSkeletons ?? 0;
+    const skeletonDef = cards['u3_skeleton'];
+    if (skeletons > 0 && skeletonDef) {
+      twilightPulse(rside, pass);
+      emit({ type: 'bankedCast', side: rside, spellId: BANKED_SPELL_OF.bankedSkeletons, key: BANKED_CAST_KEY });
+      for (let k = 0; k < skeletons; k++) {
+        nextStep();
+        summonMinion(rside, skeletonDef, undefined);
+      }
+    }
     // Rune of Forthcoming (owner sheet 2026-07-31): the LEFT-MOST minion gains Ward and attacks immediately.
     // Replaces the old "you always attack first" turn-priority version (see the reducer's playerAttacksFirst).
     if (rmods.runeForthcoming) {

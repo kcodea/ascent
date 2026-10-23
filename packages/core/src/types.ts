@@ -609,6 +609,7 @@ export type EffectFactoryId =
   | 'spellTargetConsumesShop' // Cupcakes: the targeted Demon Consumes N random Shop minions
   | 'deathrattleSummonGolemsWithRuby' // Geode Guardian: summon N Gemheart Golems with Taunt + play Rubies on them
   | 'rallyCastShopBuffSpell' // Ashen Broodlord: Rally casts a Staff of Guel (permanent tavern-buy buff)
+  | 'spellSkeletonsNextCombat' // Overflowing Crypt (Set 3, 2026-10-23): bank a next-combat "Start of Combat: summon N Skeletons"
   | 'spellWeakenNextCombat' // Weaken: bank a next-combat "set a random enemy to 1 Health" // Set 2 — Ashen Broodlord: when THIS consumes, get a Shop spell
   | 'rallyBuffSelfPerTribe' // Packstrider: Rally — buff self per friendly tribe minion
   | 'avengeCopyLeftmostHandSpell' // Vault Curator: Avenge — copy the left-most spell in your hand
@@ -2576,6 +2577,9 @@ export interface QuestCombatMods {
   decoySigils?: number;
   /** Weaken (next-combat spell): at Start of Combat, set this many random living enemies to 1 Health. */
   weakenTargets?: number;
+  /** Overflowing Crypt (next-combat spell, Set 3 2026-10-23): at Start of Combat, summon this many Skeletons
+   *  (`u3_skeleton`) for this side. Real summons: the board cap applies and a body that does not fit Overflows. */
+  bankedSkeletons?: number;
   /** Rune of Rising Graves: at Start of Combat, give two friendly Undead Rise (Reborn). */
   runeRisingGraves?: boolean;
   /** Rune of the Broodpit: every 6 friendly deaths, summon 2 Imps with Taunt. */

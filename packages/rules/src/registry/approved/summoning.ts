@@ -261,4 +261,25 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-23',
     },
   },
+  {
+    id: 'R-SPELL-CRYPT-01',
+    title: 'Overflowing Crypt: the next fight opens by summoning 2 Skeletons, as real summons, for either side, once',
+    statement:
+      'Overflowing Crypt (Set 3, Tier 2, 3 Gold) is a next-combat spell. Cast in the Shop it summons nothing there; it '
+      + 'arms the NEXT fight, which opens (Start of Combat) by summoning 2 Skeletons (the 1/1 Undead token). They are '
+      + 'real summons: the 7-slot cap holds, and a Skeleton that does not fit Overflows (Ending, Bicycle Bob and Rune of '
+      + 'Overflow pay off), and the Undead Aura applies. Casts stack (two casts, 4 Skeletons). Rune of Twilight repeats '
+      + 'it like the other Start-of-Combat banks. It lasts that one fight and lapses at settle. A recorded board carries '
+      + 'it, so a served opponent that cast it summons its Skeletons too. Cast mid-fight it fizzles, like every '
+      + 'next-combat spell.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'Overflowing Crypt - T2 - 3g Start of Combat: Summon 2 Skeletons.' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts spellSkeletonsNextCombat; packages/sim/src/reducer.ts questMods.bankedSkeletons; packages/core/src/combat/simulate.ts runRuneStartOfCombat (bankedSkeletons)' },
+    ],
+    contentIds: ['sp_overflowingcrypt', 'u3_skeleton'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

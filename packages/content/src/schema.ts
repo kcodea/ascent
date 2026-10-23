@@ -264,6 +264,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleSummonGolemsWithRuby',
   'rallyCastShopBuffSpell',
   'spellWeakenNextCombat',
+  'spellSkeletonsNextCombat', // Overflowing Crypt (Set 3, 2026-10-23)
   'rallyBuffSelfPerTribe',
   'avengeCopyLeftmostHandSpell',
   'avengeBuffSpellPower',

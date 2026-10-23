@@ -104,6 +104,17 @@ export function enemyScalersOf(e: CombatSideState): EnemyScalers | undefined {
   return any ? out : undefined;
 }
 
+/**
+ * The combat-hand uid of the hand grant at `idx` in a side's `handGrants` list (R-HAND-GRANT-SUMMON-01, owner
+ * 2026-10-23: "a minion added to hand CAN be summoned that same fight"). A MINION grant that fits the hand joins
+ * the side's combat hand pool under this uid, rides its `toHand` event, and is how settle finds the run card that
+ * grant became (a mid-fight `handBuff` on it carries back onto that card). Side-NEUTRAL, so a fight and its
+ * side-swapped mirror log identical events (R-SYMMETRY-01); the per-fight hand bookkeeping is keyed by side.
+ */
+export function handGrantUid(idx: number): string {
+  return `hg${idx}`;
+}
+
 export function simulate(
   player: BoardMinion[],
   enemy: BoardMinion[],
@@ -458,22 +469,22 @@ export function simulate(
           const pool = ctx.poolCards(side).filter((c) => c.spell && !c.token && c.tier <= sideState.tier && !ALE_IDS.includes(c.id));
           for (let i = 0; i < meter.grantSpell && pool.length > 0; i++) {
             const pick = pool[Math.floor(draw.next() * pool.length)]!;
-            handGrants[side].push(pick.id);
-            emit({ type: 'toHand', cardId: pick.id, side });
+            const uid = recordHandGrant(side, pick.id);
+            emit({ type: 'toHand', cardId: pick.id, side, ...(uid ? { uid } : {}) });
           }
         }
         if (meter.grantOneOf?.length) {
           const pick = meter.grantOneOf[Math.floor(draw.next() * meter.grantOneOf.length)]!;
           if (cards[pick]) {
-            handGrants[side].push(pick);
-            emit({ type: 'toHand', cardId: pick, side });
+            const uid = recordHandGrant(side, pick);
+            emit({ type: 'toHand', cardId: pick, side, ...(uid ? { uid } : {}) });
           }
         }
         // Rune of the Whelps (2026-10-07): the named card(s), into the hand — the shop's `grantCards` payout.
         for (const id of meter.grantCards ?? []) {
           if (!cards[id]) continue;
-          handGrants[side].push(id);
-          emit({ type: 'toHand', cardId: id, side });
+          const uid = recordHandGrant(side, id);
+          emit({ type: 'toHand', cardId: id, side, ...(uid ? { uid } : {}) });
         }
         // Rune of the Echoing Shouts (2026-10-07): this side's LIVING tribe members gain +A/+H the moment the Shout
         // fires (R-REALTIME-01), for this fight — the Drake Skull / Starsong combat rule. A Dragon in the HAND is not
@@ -495,9 +506,65 @@ export function simulate(
   // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
   // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
   const rubyMintCount: Record<Side, number> = { player: 0, enemy: 0 }; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
-  const handSummonedUids = new Set<string>(); // hand minions taken by Rope Wrangler's Echo (per-fight, both sides)
+  const handSummonedUids = new Set<string>(); // hand minions taken by Rope Wrangler's Echo (per-fight, both sides; keyed `handKey`)
   const handSummoned = perSide<string[]>(() => []); // per side, carried back so settle removes them from the hand
   const handCopiedUids = new Set<string>(); // set 3 Spirits: hand cards a COPY was summoned from this fight — NOT consumed, just spent as a summon source
+  /** The two hands' bookkeeping key: a hand uid is only unique within its own side (two captured hands, or the two
+   *  sides' mid-fight grants `hg0`, can share one). */
+  const handKey = (side: Side, uid: string): string => `${side}:${uid}`;
+  // MID-FIGHT HAND GRANTS ARE SUMMONABLE (R-HAND-GRANT-SUMMON-01, owner 2026-10-23: "a minion added to hand CAN be
+  // summoned that same fight"). Every MINION recorded in `handGrants` gets a combat hand entry here (base stats,
+  // printed keywords; gilded / exact when the grant is), ordered after the starting hand. It is a candidate only
+  // while it would FIT the real hand at settle: settle mints the fight's Rubies first, then walks `handGrants` in
+  // order, each one taking a slot (spells too) until the cap. So grant `idx` fits while `idx < room - rubies`.
+  type HandEntry = { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; grantIdx: number };
+  const grantedHand = perSide<HandEntry[]>(() => []);
+  const handRoomAtStart = perSide<number>(() => 0);
+  for (const side of ['player', 'enemy'] as const) {
+    const st = stateOf(side);
+    handRoomAtStart[side] = Math.max(0, st.handRoom ?? 10 - (st.handMinions?.length ?? 0) - (st.handSpellIds?.length ?? 0));
+  }
+  const grantFits = (side: Side, idx: number): boolean =>
+    idx < handRoomAtStart[side] - rubyGrants[side].n - rubyGrantIds[side].length - rubyMintCount[side];
+  /** The side's combat hand: the starting hand, then the mid-fight minion grants that still fit. */
+  const handPool = (side: Side): NonNullable<CombatSideState['handMinions']> => {
+    const start = stateOf(side).handMinions ?? [];
+    const granted = grantedHand[side];
+    if (granted.length === 0) return start;
+    const fit = granted.filter((e) => grantFits(side, e.grantIdx));
+    return fit.length === 0 ? start : [...start, ...fit];
+  };
+  /** Record a hand grant (settle lands it, capped) and, when it is a minion that fits, enter it into the combat hand.
+   *  Returns the combat uid it was entered under (rides the `toHand` event), or undefined. */
+  const recordHandGrant = (side: Side, cardId: string): string | undefined => {
+    const idx = handGrants[side].length;
+    handGrants[side].push(cardId);
+    const def = cards[cardId];
+    if (!def || def.spell || def.ruby || !grantFits(side, idx)) return undefined;
+    const uid = handGrantUid(idx);
+    const st = grantedHandStats(side, def);
+    grantedHand[side].push({ uid, cardId, attack: st.attack, health: st.health, keywords: [...def.keywords], golden: false, grantIdx: idx });
+    return uid;
+  };
+  /** The stats a granted minion holds AS A HAND CARD right now: the printed stats plus every BAKED run-wide buff,
+   *  the same derivation settle conjures it with (`conjuredStats`: the per-card run enchant, the Undead / Beast /
+   *  Attachment buy-time auras, read LIVE so a gain earlier this fight counts). The FOLDED auras (the Undead Aura,
+   *  this fight's per-card stacks) are not in a hand card's stats; they land when it is summoned (`handFold`).
+   *  Both sides read their own run (a recorded board carries all of these). Owner 2026-10-23: "a new card would get
+   *  its printed stats plus any potential aura/run-wide buffs". */
+  const grantedHandStats = (side: Side, def: CardDef): { attack: number; health: number } => {
+    const st = stateOf(side);
+    const runTribes = st.cardTribes?.[def.id] ?? [];
+    const isT = (t: Tribe): boolean => defIsTribe(def, t) || runTribes.includes(t);
+    const cb = st.cardBuffs?.[def.id];
+    let attack = def.attack + (cb?.attack ?? 0);
+    let health = def.health + (cb?.health ?? 0);
+    if (isT('undead')) attack += undeadAura[side].buyAtk;
+    if (isT('beast')) { attack += beastAtkAuraFor[side]; health += beastHpAuraFor[side]; }
+    if (def.keywords.includes('M')) { attack += magneticAuraFor[side].attack; health += magneticAuraFor[side].health; }
+    return { attack, health };
+  };
+  const grantedEntry = (side: Side, idx: number): HandEntry | undefined => grantedHand[side].find((e) => e.grantIdx === idx);
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
@@ -1015,6 +1082,9 @@ export function simulate(
     ctx.grantToHand(body.cardId, side, sourceUid);
     if (modsFor(side).ancientFlash?.exact && handGrants[side].length > idx) {
       (shoutCarry[side].handExact ??= []).push({ idx, attack: body.attack, health: body.health, keywords: [...body.keywords], golden: body.golden });
+      // The combat hand entry is the same exact copy settle lands (R-HAND-GRANT-SUMMON-01).
+      const e = grantedEntry(side, idx);
+      if (e) Object.assign(e, { attack: body.attack, health: body.health, keywords: [...body.keywords], golden: body.golden });
     }
   }
   /** A body of the victim's side died: the OTHER side put it down. */
@@ -1582,8 +1652,8 @@ export function simulate(
       // Combat can't touch the recruit hand directly; record player-side grants so the
       // run loop can add them after the replay (Arcane Weaver → a Spirit Fire copy), and log a
       // `toHand` event so the replay shows the card flying to your hand as it happens.
-      handGrants[side].push(cardId);
-      emit({ type: 'toHand', cardId, side, source: sourceUid });
+      const uid = recordHandGrant(side, cardId);
+      emit({ type: 'toHand', cardId, side, source: sourceUid, ...(uid ? { uid } : {}) });
       // "A card was added to your hand" — the reactors (Gangplank, Kegheart Dwarf) fire NOW, during the
       // fight, not only at settle (owner report 2026-08-29). This is the one combat chokepoint every
       // grant-to-hand passes through, which is exactly why the trigger belongs here rather than at the
@@ -1592,26 +1662,26 @@ export function simulate(
       emitGainCard(cardId, side);
     },
     handMinionsFor: (side) => {
-      const pool = stateOf(side).handMinions ?? [];
+      const pool = handPool(side);
       // Neither a consumed card (Rope Wrangler) nor one already copied this fight (a Spirit summon) is a candidate.
-      return pool.filter((h) => !handSummonedUids.has(h.uid) && !handCopiedUids.has(h.uid));
+      return pool.filter((h) => !handSummonedUids.has(handKey(side, h.uid)) && !handCopiedUids.has(handKey(side, h.uid)));
     },
     summonCopyFromHand: (side, uid, nearUid, ward) => {
-      const pool = stateOf(side).handMinions ?? [];
+      const pool = handPool(side);
       const h = pool.find((x) => x.uid === uid);
-      if (!h || h.locked || handSummonedUids.has(uid) || handCopiedUids.has(uid)) return undefined; // a locked card never reaches the board
+      if (!h || h.locked || handSummonedUids.has(handKey(side, uid)) || handCopiedUids.has(handKey(side, uid))) return undefined; // a locked card never reaches the board
       const def = cards[h.cardId];
       if (!def || def.spell) return undefined;
       const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
       pendingHandSummon[side] = true; // Rune of Dreamed Graves reads this at placement
       const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
-        { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS') });
+        { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS'), handFold: true });
       // A FULL board: `placeSummon` overflowed (the overflow payoffs fired) and the copy never landed — so the
       // hand card is NOT spent. It is still summonable by the next summoner once there is room (owner report
       // 2026-09-10: a second Seedling Spirit found room and summoned nothing, because the first attempt had
       // marked the card). "Once per combat" means once SUMMONED, not once attempted.
       if (!boards[side].includes(copy)) return undefined;
-      handCopiedUids.add(uid); // once per combat; the card itself stays in hand and keeps taking buffs
+      handCopiedUids.add(handKey(side, uid)); // once per combat; the card itself stays in hand and keeps taking buffs
       // Stamp the hand origin onto the summon event just emitted — the replay greys that hand card for the fight.
       // Found by uid, scanning back: a grant that lands ON the placed body (Rune of Dreamed Graves' Rebirth) emits
       // after the summon, so "the last event" is no longer guaranteed to be it.
@@ -1627,8 +1697,8 @@ export function simulate(
       // hand), so a later hand-summon (Rope Wrangler's Echo) fields the buffed body; the run hand is grown at
       // settle from the carry-back; and the event lets the replay grow the hand card on its beat.
       if (attack === 0 && health === 0) return;
-      const card = (stateOf(side).handMinions ?? []).find((h) => h.uid === uid);
-      if (!card || handSummonedUids.has(uid)) return;
+      const card = handPool(side).find((h) => h.uid === uid);
+      if (!card || handSummonedUids.has(handKey(side, uid))) return;
       handBuffs[side].push({ uid, attack, health, ...(sourceUid ? { source: sourceUid } : {}) });
       card.attack += attack;
       card.health += health;
@@ -1684,11 +1754,13 @@ export function simulate(
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, side, text: `+${attack}/+${health} Shop` });
     },
     takeRandomHandMinion: (side) => {
+      // The starting hand only: no live card uses this primitive (Rope Wrangler's old Echo), and the owner asked for no
+      // behaviour change to it in R-HAND-GRANT-SUMMON-01 (2026-10-23).
       const pool = stateOf(side).handMinions ?? [];
-      const left = pool.filter((h) => !h.locked && !handSummonedUids.has(h.uid)); // Rope Wrangler skips a locked card too
+      const left = pool.filter((h) => !h.locked && !handSummonedUids.has(handKey(side, h.uid))); // Rope Wrangler skips a locked card too
       if (left.length === 0) return undefined;
       const pick = left[Math.floor(rng.next() * left.length)]!;
-      handSummonedUids.add(pick.uid);
+      handSummonedUids.add(handKey(side, pick.uid));
       handSummoned[side].push(pick.uid); // settle removes it from the run hand
       pendingHandSummon[side] = true; // the caller summons it next — Rune of Dreamed Graves reads this at placement
       return pick;
@@ -1842,10 +1914,10 @@ export function simulate(
       const draw = grantRngFor(side);
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(draw.next() * pool.length)]!;
-        handGrants[side].push(pick.id);
+        const uid = recordHandGrant(side, pick.id);
         // A random card reaching hand IS a card reaching hand: the reactors (Gangplank, Kegheart) fire now, the
         // same as `grantToHand` (R-REALTIME-03 — a Shout's Discover re-fired in combat must wake them). Either side.
-        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid }); emitGainCard(pick.id, side);
+        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid, ...(uid ? { uid } : {}) }); emitGainCard(pick.id, side);
       }
     },
     grantRandomMinion: (count, tribe, side, exclude, sourceUid, fixedTier, shoutOnly) => {
@@ -1885,8 +1957,8 @@ export function simulate(
       const draw = grantRngFor(side);
       for (let i = 0; i < count && pool.length > 0; i++) {
         const pick = pool[Math.floor(draw.next() * pool.length)]!;
-        handGrants[side].push(pick.id);
-        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid }); emitGainCard(pick.id, side);
+        const uid = recordHandGrant(side, pick.id);
+        emit({ type: 'toHand', cardId: pick.id, side, source: sourceUid, ...(uid ? { uid } : {}) }); emitGainCard(pick.id, side);
       }
     },
     grantImpBuff: (attack, health, side) => {
@@ -2036,7 +2108,7 @@ export function simulate(
       for (const h of ctx.handMinionsFor(side)) {
         const def = cards[h.cardId];
         if (!def || def.spell) continue;
-        const golden = !!((side === 'player' ? playerState : enemyState).handMinions ?? []).find((x) => x.uid === h.uid)?.golden;
+        const golden = !!handPool(side).find((x) => x.uid === h.uid)?.golden;
         for (const eff of def.effects) {
           if (eff.on !== 'spellCast' || eff.do !== 'shopSpellCastGrowSelf') continue;
           const g = shopSpellGrowth(eff.params, golden, true);
@@ -2172,7 +2244,7 @@ export function simulate(
       divineShield: src.divineShield, rebornAvailable: src.rebornAvailable,
     });
   }
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean }, doubled = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean; handFold?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     // Rune of Drakko: a card the side's run re-typed (`cardTribes`) arrives with those types, like its board copies.
@@ -2443,7 +2515,7 @@ export function simulate(
    * strike-queue push, and Echo Warden doubling. Split out of summonMinion so attack-on-summon tokens can
    * DEFER to flushImmediateAttacks (which calls this at flush time) while plain summons run it inline.
    */
-  function placeSummon(minion: Minion, side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined, doubled: boolean): Minion {
+  function placeSummon(minion: Minion, side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; handFold?: boolean } | undefined, doubled: boolean): Minion {
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff). `occupied`, not `living`: a body
     // mid-Rise still holds its slot (owner 2026-09-09).
@@ -2488,6 +2560,12 @@ export function simulate(
     // opening — exactly as before.
     minion.avengeBaseline = deaths[side];
     if (!copyStats) applyAuras(minion, true); // a plain summon starts from base; an exact copy already carries its final stats
+    // A HAND card's stats are its run stats: the baked auras are in them, the FOLDED ones (the Undead Aura, Grim Toast,
+    // this fight's per-card stacks) are not (the Shop folds them on display and on the board). So a body summoned FROM
+    // HAND takes the folded auras on top, exactly as a board body does at the opening (`applyAuras(m, false)`), never
+    // the baked ones twice (owner 2026-10-23, R-HAND-GRANT-SUMMON-01: "an undead card granted to hand mid fight would
+    // still inherit undead aura buffs").
+    else if (copyStats.handFold) applyAuras(minion, false);
     // SOLID GROUND (spell): the first N minions YOU summon this fight land bigger. Counted down per body, so a
     // wave of tokens spends it in arrival order and the 4th arrives plain.
     // Side-general: it is the SUMMONING side's own banked charges that pay.
@@ -3072,7 +3150,7 @@ export function simulate(
   //   • `{ minion, shieldFirst }` — an already-on-board minion taking an out-of-turn strike (a placed token's
   //     own swing, or Solaris Fang / Feeding Line / Bloodlust granting an existing body a bonus attack).
   const pendingAttackOnSummon: (
-    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
+    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; handFold?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
     | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined; interrupts?: undefined; seq?: undefined }
     // ANCIENT OF WAR x Lord of the Risen: a body that RETURNED to attack immediately (the Undying Rise). A Rise is a
     // summon, so for R-ORD-05 it interrupts like one (the between-swings and wind-up flushes pick it up by `seq`).
@@ -5371,7 +5449,7 @@ export function simulate(
     if (rmods.runeWakingReserve) {
       for (let k = 0; k < flagCopiesOf(rside, 'runeWakingReserve'); k++) {
         queueSpaceSummon(rside, () => {
-          const rawHand = stateOf(rside).handMinions ?? [];
+          const rawHand = handPool(rside);
           const pool = ctx.handMinionsFor(rside).filter((h) => !h.locked && !cards[h.cardId]?.spell);
           if (pool.length === 0) return;
           const top = pool.reduce((a, b) => (b.attack + b.health > a.attack + a.health ? b : a));
@@ -5383,7 +5461,7 @@ export function simulate(
           fireTrigger('runeWakingReserve', rside);
           pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
           summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
-            { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
+            { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS'), handFold: true });
           pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
         });
       }
@@ -6327,7 +6405,13 @@ export function simulate(
     const idx = handGrants[side].length;
     nextStep();
     ctx.grantRandomMinion(1, undefined, side, undefined, victim?.uid);
-    if (handGrants[side].length > idx) (shoutCarry[side].handGilds ??= []).push(idx);
+    if (handGrants[side].length > idx) {
+      (shoutCarry[side].handGilds ??= []).push(idx);
+      // The combat hand entry is gilded the way settle gilds it (`gildMinion`: + the printed stats, Gilded).
+      const e = grantedEntry(side, idx);
+      const def = e ? cards[e.cardId] : undefined;
+      if (e && def && !e.golden) { e.attack += def.attack; e.health += def.health; e.golden = true; }
+    }
   });
   // ANCIENT OF DEATH × Brackus (owner 2026-10-06): "Avenge (3) Give all Tier 7 minions +6/+6." (owner: "this works in
   // hand/shop"). The Xerox Death running count. Each fire: the living Tier 7 bodies gain it PERMANENTLY (`permaGain`, the

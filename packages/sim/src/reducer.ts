@@ -1,4 +1,4 @@
-import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
+import { type PresentationCollector, type ConsequenceDraft, beatIdentity, inRunTribes, socTwilightExtraFires, COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, ALE_IDS, combatSide, makeCollector, makeRng, simulate, handGrantUid, type BoardMinion, type CardDef, type CombatConfig, type CombatResult, type CombatSideState, type Keyword, type PendingCombatQuest, type PresentationBatch, type QuestCombatMods, type QuestDef, type QuestObjective, type QuestObjectiveEvent, type RuneDef, type Tribe, TRIBES } from '@game/core';
 import { ancientGorrFirstFree, ancientSecondHandEvery, ancientSecondHandSources, ancientSecondHandIsExact, ancientSecondHandExactCopy, ancientAfterSecondHand, ancientOnBuy, ancientRobinBondsPrice, ancientSpendRobinBonds, ancientCopyCharges, ancientSpendCopyCharge, ancientOnCopyMachine, ancientXeroxBondTripled, ancientCombatMods, ancientAfterPowerGild, ancientOfferOpen, ancientPowerTargetsGilded, ancientReplacesPowerGild, ancientsCombatTick, ancientsRefreshTick, ancientsSetMeter, pickAncient, ancientPulseExtraThenDestroy, ancientPulseDiscovers, ancientPulsePassive, ancientAfterPulse, ancientAegisDestroys, ancientAegisRecipient, ancientAegisDestroyAndGive, ancientAegisResilient, ancientAfterCombat, ancientBondsReact, ancientStartOfTurn, ancientEmpowerPassive, ancientOnEmpowerPick, ancientOnSpellbook, ancientClearancePassive, ancientClearanceStacks, ancientSpendClearanceStack, ancientClearanceRefresh, ancientMarkClearanceOffer, ancientAfterClearance, ancientOnClearanceBuy, ancientTimePrice, ancientNoteMinionBuy, ancientAfterRefresh, ancientTradesBuy, ancientRallyGoldGraft, ancientUpgradeSurchargeOff, FRUGAL_UPGRADE_SURCHARGE, ancientReclaimInShop, ancientShopReclaim, ancientAfterReclaimMark, ancientTradesRefreshFree, ancientTradesSpendFreeRefresh } from './ancients';
 import { ancientInvestmentPassive, ancientInvestmentTime, ancientRunInvestmentTime, ancientInvestmentDiscovers, ancientRunInvestmentGenesis, ancientOnTripleReward, ancientOnDiscoverPick } from './ancients'; // Braum
 import { ancientSyncEchoEnchants, ancientEnchantedPrice, ancientEnchantedSpellCut, ancientOnEnchantedBuy } from './ancients'; // Ayse
@@ -4769,6 +4769,9 @@ export function playerCombatSideState(s: RunState): CombatSideState {
     handMinions: s.hand
       .filter((c) => { const d = CARD_INDEX[c.cardId]; return !!d && !d.spell && !d.ruby; })
       .map((c) => ({ uid: c.uid, cardId: c.cardId, attack: c.attack, health: c.health, keywords: c.keywords, golden: c.golden, ...(handCardLocked(s, c) ? { locked: true } : {}) })),
+    // R-HAND-GRANT-SUMMON-01: the free hand slots, so a minion granted mid-fight is summonable only while it would
+    // fit the real hand at settle (every held card counts: spells and Rubies too).
+    handRoom: Math.max(0, handCap(s) - s.hand.length),
     // Set 2 — Elderhorn's chosen mode(s), so its tribe-scoped trigger multipliers apply in the fight.
     beastHuntExtra: s.beastHuntExtra ?? 0,
     beastRitualExtra: s.beastRitualExtra ?? 0,
@@ -5055,6 +5058,9 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // a Spirit Fire copy) AND a RANDOM card already picked in combat (Sporebat's spell, Ryme re-firing Sea Urchin
   // / Black Belt Brian — the `toHand` event showed the real card flying). Each carries the run's per-card
   // enchant + Undead bond and leaves the shared pool (both no-ops for spells), matching a normal conjure.
+  // R-HAND-GRANT-SUMMON-01: the run card each landed grant became, by the uid the fight's combat hand knew it as —
+  // so a mid-fight hand buff on a granted card (below) lands on the card that arrived.
+  const landedGrants = new Map<string, BoardCard>();
   if (result.playerHandGrants) {
     // Crypt Broker (R-REALTIME-03): the grants at these indices arrived mid-fight; their Echo fires now, out of
     // combat, on the arrived card (the Shop half's "trigger it"). A grant the hand cap refused triggers nothing.
@@ -5078,6 +5084,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
         golden: false,
       };
       s.hand.push(card);
+      landedGrants.set(handGrantUid(i), card);
       takeFromPool(s, cardId);
       if (gildAt.has(i) && !def.spell) gildMinion(card, s);
       const exact = exactAt.get(i);
@@ -5094,7 +5101,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // uid resolves against the fight's initial snapshot, else the generic 'Combat'.
   if (result.playerHandBuffs) {
     for (const b of result.playerHandBuffs) {
-      const card = s.hand.find((c) => c.uid === b.uid);
+      const card = s.hand.find((c) => c.uid === b.uid) ?? landedGrants.get(b.uid);
       if (!card) continue;
       // A hand card that grew ITSELF (Goldilox: source = its own uid) names itself (R-PROV-01).
       const srcId = b.source ? (b.source === b.uid ? card.cardId : result.initial.player.find((m) => m.uid === b.source)?.cardId) : undefined;

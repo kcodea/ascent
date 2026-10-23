@@ -8119,6 +8119,32 @@ export function Recruit() {
     () => handPreviews.map((cardId) => conjuredView(cardId, run) ?? tokenRefView(cardId, cardBuffsLive, run.impBuff, undefined, run.rubyBonus)),
     [handPreviews, run, cardBuffsLive],
   );
+  // R-HAND-GRANT-SUMMON-01 (owner 2026-10-23): a minion granted mid-fight is in the combat hand under the uid its
+  // `toHand` carries. The combat previews follow the player's `toHand` order, so preview i is the i-th uid here:
+  // a hand buff on it grows the preview, and a copy summoned from it greys it, exactly like a starting hand card.
+  const combatGrantUids = useMemo(
+    () => (inCombat && !run.combatSettled
+      ? replay.replayEvents.flatMap((e) => (e.type === 'toHand' && e.side === 'player' && CARD_INDEX[e.cardId] ? [e.uid] : []))
+      : null),
+    [inCombat, run.combatSettled, replay.replayEvents],
+  );
+  const handPreviewShown = useMemo(() => {
+    if (!combatGrantUids || !combatHandBuffs) return handPreviewViews;
+    let changed = false;
+    const out = handPreviewViews.map((v, i) => {
+      const uid = combatGrantUids[i];
+      const d = uid ? combatHandBuffs[uid] : undefined;
+      if (!d) return v;
+      changed = true;
+      return { ...v, attack: v.attack + d.attack, health: v.health + d.health };
+    });
+    return changed ? out : handPreviewViews;
+  }, [handPreviewViews, combatGrantUids, combatHandBuffs]);
+  const handPreviewSpent = useMemo(() => {
+    if (!combatGrantUids || !combatHandSummoned || combatHandSummoned.size === 0) return null;
+    const out = handPreviewViews.map((_, i) => { const uid = combatGrantUids[i]; return !!uid && combatHandSummoned.has(uid); });
+    return out.some(Boolean) ? out : null;
+  }, [handPreviewViews, combatGrantUids, combatHandSummoned]);
 
   return (
     <div
@@ -8281,7 +8307,7 @@ export function Recruit() {
       <HandRow
         gambleHand={handRow} handOrder={handOrder} goldSpentRun={run.goldSpent ?? 0} tier={run.tier} wave={run.wave}
         handViews={handRowViews} fadeDelays={whisperFadeDelays} refViewsByUid={refViewsByUid} combatHandSummoned={combatHandSummoned}
-        onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewViews}
+        onCardPointerDown={onCardPointerDown} handPreviewViews={handPreviewShown} handPreviewSpent={handPreviewSpent}
       />
       </PerfProfiler>
 
@@ -9034,7 +9060,7 @@ const WarbandRow = memo(function WarbandRow({
  *  measured slot spacing passed as a value (it was read off a ref at render). */
 const HandRow = memo(function HandRow({
   gambleHand, handOrder, goldSpentRun, tier, wave, handViews, fadeDelays, refViewsByUid, combatHandSummoned,
-  onCardPointerDown, handPreviewViews,
+  onCardPointerDown, handPreviewViews, handPreviewSpent,
 }: {
   /** Whispers dissipating at End of Turn: uid -> fade delay ms (`whisperDissipate.ts`). */
   fadeDelays: ReadonlyMap<string, number> | null;
@@ -9045,6 +9071,8 @@ const HandRow = memo(function HandRow({
   handViews: ReadonlyMap<string, CardView>; refViewsByUid: ReadonlyMap<string, CardView[]>;
   combatHandSummoned: ReadonlySet<string> | null;
   onCardPointerDown: (e: ReactPointerEvent) => void; handPreviewViews: CardView[];
+  /** Per preview: a copy was summoned from this mid-fight grant (greyed for the fight, R-HAND-GRANT-SUMMON-01). */
+  handPreviewSpent: readonly boolean[] | null;
 }) {
   const { dragActive, viewerDrag, dragUid, dragSource, handGapIndex, handSlotW, canDropHand } = useDragSlice(selectHandDrag);
   const isDragging = (uid: string): boolean => dragActive && dragUid === uid;
@@ -9117,7 +9145,7 @@ const HandRow = memo(function HandRow({
           {handPreviewViews.map((view, i) => (
             /* `plated` to match the real hand cards exactly — the preview is swapped for the committed card,
                and an unplated preview made that swap read as a flicker. */
-            <Card key={`grant-${i}`} card={view} suppressPop forceFull plated />
+            <Card key={`grant-${i}`} card={view} spent={handPreviewSpent?.[i] ?? false} suppressPop forceFull plated />
           ))}
         </div>
       </div>

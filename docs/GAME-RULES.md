@@ -1878,6 +1878,22 @@ live opponent has one.)
 `ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
 
+**A minion added mid-fight can be summoned from hand in that same fight** (owner ruling 2026-10-23,
+R-HAND-GRANT-SUMMON-01: *"a minion added to hand CAN be summoned that same fight."*). The moment a MINION reaches
+a hand mid-fight it joins that side's combat hand, after the cards the fight started with, with the stats it would
+have as a hand card right then: printed stats plus every run-wide buff a new copy gets (its per-card run buff, the
+Undead / Beast / Attachment buy auras; Gilded, or an exact copy, when the grant says so). Owner, same day: *"a new card
+would get its printed stats plus any potential aura/run-wide buffs. like an undead card granted to hand mid fight
+would still inherit undead aura buffs etc."* Any card summoned from hand (granted or held from the start) also takes
+the auras a board body takes, the Undead Aura above all, the same as it shows in the Shop; baked buffs are never added
+twice. The card arrives after the fight with the stats the fight showed, plus any hand buff it took. Every summon-from-hand effect (the Spirits' copy
+summons, the Waking Reserve, Dreamed Graves / Open Hand hearing the summon) can then pick it under the
+usual rules: a copy greys it for the fight and the card still arrives after combat; hand buffs grow it and stay on
+it. It is a candidate only while it would really fit the hand after combat: the hand cap counts every held card,
+the fight's Rubies land first, then the granted cards in the order they arrived. Spells are never candidates.
+Both sides, identically (a recorded board carries its owner's free hand slots as `handRoom`; an older capture
+without it assumes 10 minus the minions and spells it lists).
+
 ---
 
 ### Random picks reach Tier 7 only from a Tier 7 Shop (owner rulings 2026-10-21, R-RANDOM-TIER7-01, R-RANDOM-POOL-01)

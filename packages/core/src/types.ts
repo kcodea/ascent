@@ -3272,7 +3272,11 @@ export type CombatEvent = (
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
-  | { type: 'toHand'; cardId: string; side: Side; source?: string } // a combat effect adds a card to your hand (Arcane Weaver)
+  | { type: 'toHand'; cardId: string; side: Side; source?: string;
+      /** A MINION recorded as a hand grant that fits the hand joins the side's combat hand pool under this uid
+       *  (`handGrantUid`), so a summon-from-hand later this fight can pick it and the replay can grey it
+       *  (R-HAND-GRANT-SUMMON-01, owner 2026-10-23). Absent on every other `toHand` (spells, Rubies, visual-only). */
+      uid?: string } // a combat effect adds a card to your hand (Arcane Weaver)
   | { type: 'handBuff'; uid: string; cardId: string; side: Side; attack: number; health: number; source?: string } // a combat effect buffs a card IN YOUR HAND — permanent (R-HAND-02, owner 2026-09-09), carried back via `playerHandBuffs`; the replay grows the hand card live
   | { type: 'hpGrant'; target: string; amount: number } // Sergeant: live HP-grant amount after each Attack-gain improvement
   | { type: 'spellProgress'; target: string; amount: number } // Archmagus Guel: on-board spell tally after a combat cast (live countdown)
@@ -3415,6 +3419,10 @@ export interface CombatSideState {
     /** Locked in hand (Disco Dan's tier lock, Brackus's Gold lock, the Hourglass next-turn lock): buffable and
      *  readable, but no summon-from-hand may put it on the board (owner 2026-09-10). */
     locked?: boolean }[];
+  /** FREE hand slots at combat start (the run's hand cap minus every card held: minions, spells AND Rubies). A
+   *  minion granted to hand mid-fight joins `handMinions` for this fight only while it would fit the real hand at
+   *  settle (R-HAND-GRANT-SUMMON-01). Absent (older captures): the cap of 10 minus the minions + spells listed. */
+  handRoom?: number;
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for this side's BEAST triggers. `beastHuntExtra` applies
    *  to Rally + Slaughter, `beastRitualExtra` to Echo (Deathrattle). Tribe-scoped by design — unlike the
    *  card-level `triggerMultiplier` (Drakko/Uron), which is board-wide. */

@@ -282,4 +282,31 @@ export const SUMMONING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-23).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-HAND-GRANT-SUMMON-01',
+    title: 'A minion added to hand mid-fight can be summoned from hand in that same fight',
+    statement:
+      'A MINION a combat effect adds to your hand joins your combat hand the moment it arrives (after the cards you '
+      + 'started the fight with), with the stats it would have as a hand card right then: its printed stats plus every '
+      + 'run-wide buff a new copy gets (its per-card run buff, the Undead / Beast / Attachment buy auras), Gilded or an '
+      + 'exact copy when the grant says so. When it is summoned from hand it also takes the auras a board body takes '
+      + '(the Undead Aura), exactly like a card you started with, and it arrives after the fight with the stats the fight '
+      + 'showed. Every summon-from-hand effect can then pick it with the usual rules: a copy summon greys it for the '
+      + 'fight and the card still arrives in your hand after combat; hand buffs grow it and stay on it. It can be '
+      + 'picked only while it would really fit your hand after combat (the hand cap counts every held card, the '
+      + 'fight Rubies land first, then the granted cards in order). Spells are never candidates. Both sides, '
+      + 'identically.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23', quote: 'a minion added to hand CAN be summoned that same fight.' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23 (PR #2253 review)', quote: "a new card would get its printed stats plus any potential aura/run-wide buffs. like an undead card granted to hand mid fight would still inherit undead aura buffs etc. buffs in combat would persist to newly added cards as well. so if a card is added to hand and then buffed +5/+5 in combat, it'd keep those" },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts recordHandGrant / grantedHandStats / handPool / grantFits (handGrantUid on the toHand event; copyStats.handFold folds the board auras onto a hand summon); packages/sim/src/reducer.ts settleCombat landedGrants (a hand buff on a granted card lands on the arrived card); CombatSideState.handRoom (reducer, snapshot, boardSide)' },
+    ],
+    contentIds: ['sp3_dreamtide', 'sp3_dreamingdeep', 'sp3_seedling'],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before: a grant was only recorded for settle, so every summon-from-hand effect '
+      + 'ignored cards gained mid-fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/midfightHandGrants.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

@@ -86,6 +86,7 @@ import { TRIBE_ICON } from './gauntlet/tribeIcon';
 import { foePortrait } from './gauntlet/foePortrait';
 import { GOLD_CLOCK_WAITING, goldClockOf, goldClockState, goldClockWaiting, goldTurnClock, practiceClockMult, shopClockInfinite } from './goldClock';
 import { CombatOpponent } from './CombatOpponent';
+import { OpponentHand } from './OpponentHand';
 import { playHeroBlast } from './heroBlast/heroBlast';
 import type { HeroAttackHandle } from './heroAttack/options';
 import { heroBlastPreviewSpeed } from './heroBlast/heroBlastConfig';
@@ -8255,6 +8256,8 @@ export function Recruit() {
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
+      {/* The foe's hand, face down, left of its runes (R-OPP-HAND-01): the count, the mid-fight grants, the greys. */}
+      <OpponentHand events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat && !run.combatSettled} />
       {run.mode === 'versus' && <VersusHud />}
       {/* Who is watching this player (Versus or a live ranked lobby game): top left, R-SPECTATE-WATCHERS-01. */}
       <WatchersBadge />

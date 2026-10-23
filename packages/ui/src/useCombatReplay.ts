@@ -3,7 +3,7 @@ import { playCastFanOutBuffFx, playGenericCastSound } from './fx/spellCastFx';
 import { perfMonitor } from './perfMonitor';
 import { toScreen } from './stage';
 import gsap from 'gsap';
-import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type RiseTint, type Tribe } from '@game/core';
+import { damageMeterOf, type CombatEvent, type CombatResult, type Keyword, type MinionBuff, type MinionSnapshot, type RiseTint, type Side, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { whisperCombatBuffLabel } from './buffExpiry';
 import { runeProgress, runeProgressKey, triggerCounts } from './choreo/triggerCounts';
@@ -28,7 +28,7 @@ import { prefoldedShareOf } from './choreo/clashOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
 import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, showCombatCastPreviews } from './castPreview';
-import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandSummonFlight } from './handSummonFx';
+import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandCardLike, type HandSummonFlight } from './handSummonFx';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
@@ -53,7 +53,7 @@ import { canPlayDefs, playDef } from './fx/playDef';
 import { createSettlingPoint, settledSlotCenter } from './fx/settledSlot';
 import { SOURCE_CASCADE_MS, sourceCascadeRanks, steppedRevealPlan, type RevealStep } from './choreo/sourceCascade';
 import { authoredBuffDefFor, bindingFor, heroPowerBuffLabelFor, labelBuffFxFor, sourceBuffDefFor, castFxReplacesTendril } from './choreo/bindings';
-import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, type RuneCombatProgress } from '@game/sim';
+import { ANCIENT_CLEARANCE_STACK_FLAG, ANCIENT_RALLY_GOLD_FLAG, ANCIENT_REFRESH_AVENGE_FLAG, ANCIENT_SWAP_CHARGE_FLAG, isRuneBuffSource, playerOpponent, type RuneCombatProgress } from '@game/sim';
 import { anchorsForUnits } from './fx/combatAnchors';
 import { spellPowerNarrationAnchor } from './choreo/spellPowerAnchor';
 import { getDef } from './fx/fxDefs';
@@ -351,14 +351,23 @@ export function handBuffUidsIn(beat: { start: number; end: number }, events: rea
 }
 
 /** Hand uids a COPY has been summoned from so far (set 3 Spirits' hand-summon), through the beat cursor — the hand
- *  card greys on that beat and stays grey for the fight; the card itself is untouched (owner design 2026-09-09). */
-export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, withheld?: (boardUid: string) => boolean): ReadonlySet<string> {
+ *  card greys on that beat and stays grey for the fight; the card itself is untouched (owner design 2026-09-09).
+ *  `side` defaults to YOUR hand; the foe's face-down hand greys off the `'enemy'` call (R-OPP-HAND-01). */
+export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, withheld?: (boardUid: string) => boolean, side: Side = 'player'): ReadonlySet<string> {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   const out = new Set<string>();
   for (const e of events.slice(0, through)) {
-    if (e.type === 'summon' && e.side === 'player' && e.fromHandUid && !withheld?.(e.minion.uid)) out.add(e.fromHandUid);
+    if (e.type === 'summon' && e.side === side && e.fromHandUid && !withheld?.(e.minion.uid)) out.add(e.fromHandUid);
   }
   return out;
+}
+
+/** The foe's recorded starting hand minions (the served board's snapshot), for matching its hand-summons to a
+ *  face-down card. Empty outside a lobby, for a bot / authored seat, or an older recording. */
+function foeHandMinions(): readonly HandCardLike[] {
+  const lobby = useGame.getState().run.lobby;
+  const foe = lobby ? playerOpponent(lobby) : null;
+  return foe?.board.snapshot?.handMinions ?? [];
 }
 
 /**
@@ -903,6 +912,8 @@ export interface CombatReplay {
   handBuffsShown: Record<string, { attack: number; health: number }>;
   /** Hand uids a copy was summoned from so far (greyed in the hand row for the fight). */
   handSummonedShown: ReadonlySet<string>;
+  /** The same for the FOE's face-down hand (`OpponentHand`, R-OPP-HAND-01). */
+  enemyHandSummonedShown: ReadonlySet<string>;
   /** uids whose effect fired in the current window — their trigger medallion pulses. */
   triggerUids: Set<string>;
   /** uid → a per-fire nonce for units mid-Rally (used as the medallion `key` so each pulse restarts). */
@@ -3627,18 +3638,28 @@ export function useCombatReplay(
     () => (active ? combatHandSummonOrigins(events, useGame.getState().run.hand) : new Map<string, string>()),
     [active, events],
   );
+  // The FOE's hand-summons fly from its face-down hand (R-OPP-HAND-01): `OpponentHand` registers the 'enemy' source.
+  const enemyHandOrigins = useMemo(
+    () => (active ? combatHandSummonOrigins(events, foeHandMinions(), 'enemy') : new Map<string, string>()),
+    [active, events],
+  );
   const handFlightSeenRef = useRef<{ uids: Set<string>; beat: number } | null>(null);
   // Bodies seen WITHHELD: their beat already rang the summon sound, so their landing does not ring it again.
   const handHeldSeenRef = useRef<Set<string>>(new Set());
   useLayoutEffect(() => {
-    if (!active || handOrigins.size === 0) { handFlightSeenRef.current = null; handHeldSeenRef.current.clear(); return; }
+    if (!active || (handOrigins.size === 0 && enemyHandOrigins.size === 0)) { handFlightSeenRef.current = null; handHeldSeenRef.current.clear(); return; }
     const prev = handFlightSeenRef.current;
     // A body the summon-hold layout effect (declared above, so it already ran for this commit) has just withheld is
     // NOT drawn: the re-render it scheduled removes it before paint. It flies when the hold releases it.
+    // Keyed per side ('p:' / 'e:'): the two boards come from different runs, so their uids can coincide.
     const drawn = new Set<string>();
     for (const u of visibleFrame.player) {
-      if (!isSummonHeld(u.uid)) drawn.add(u.uid);
+      if (!isSummonHeld(u.uid)) drawn.add(`p:${u.uid}`);
       else if (handOrigins.has(u.uid)) handHeldSeenRef.current.add(u.uid);
+    }
+    for (const u of visibleFrame.enemy) {
+      if (!isSummonHeld(u.uid)) drawn.add(`e:${u.uid}`);
+      else if (enemyHandOrigins.has(u.uid)) handHeldSeenRef.current.add(u.uid);
     }
     handFlightSeenRef.current = { uids: drawn, beat: beatIdx };
     if (!prev) return;
@@ -3646,13 +3667,18 @@ export function useCombatReplay(
     if (!stepped || turbo) return;
     const flights: HandSummonFlight[] = [];
     for (const u of visibleFrame.player) {
-      if (prev.uids.has(u.uid) || !drawn.has(u.uid)) continue;
+      if (prev.uids.has(`p:${u.uid}`) || !drawn.has(`p:${u.uid}`)) continue;
       const handUid = handOrigins.get(u.uid);
       if (handUid) flights.push({ handUid, boardUid: u.uid, cardId: u.cardId });
     }
+    for (const u of visibleFrame.enemy) {
+      if (prev.uids.has(`e:${u.uid}`) || !drawn.has(`e:${u.uid}`)) continue;
+      const handUid = enemyHandOrigins.get(u.uid);
+      if (handUid) flights.push({ handUid, boardUid: u.uid, cardId: u.cardId, side: 'enemy' });
+    }
     const heldSeen = handHeldSeenRef.current;
     launchHandSummonFlights(flights, findEl, { speed: combatSpeedRef.current, ownSound: (f) => !heldSeen.has(f.boardUid) });
-  }, [active, handOrigins, visibleFrame, beatIdx, turbo, findEl]);
+  }, [active, handOrigins, enemyHandOrigins, visibleFrame, beatIdx, turbo, findEl]);
 
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
@@ -3865,13 +3891,17 @@ export function useCombatReplay(
     () => (active ? handSummonedShownThrough(events, beats, beatIdx, (uid) => summonHeldV >= 0 && isSummonHeld(uid)) : EMPTY_HAND_SUMMONED),
     [active, events, beats, beatIdx, summonHeldV],
   );
+  const enemyHandSummonedShown = useMemo(
+    () => (active ? handSummonedShownThrough(events, beats, beatIdx, (uid) => summonHeldV >= 0 && isSummonHeld(uid), 'enemy') : EMPTY_HAND_SUMMONED),
+    [active, events, beats, beatIdx, summonHeldV],
+  );
   const handBuffsShown = useMemo(
     () => (active ? handBuffsShownThrough(events, beats, beatIdx) : EMPTY_HAND_BUFFS),
     [active, beatIdx, beats, events],
   );
 
   return {
-    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown, handBuffsShown, handSummonedShown,
+    frame, visibleFrame, anims, lungeUid, projectiles, floats, deathFloats, log, fullLog, procs, handGrant, handGrantsShown, handBuffsShown, handSummonedShown, enemyHandSummonedShown,
     triggerUids: triggers,
     rallyPulseUids: rallyPulse,
     watcherPulseUids: watcherPulse,

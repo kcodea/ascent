@@ -127,7 +127,7 @@ export function handSummonDurationMs(c: HandSummonConfig = getHandSummonConfig()
  * WHERE A FLIGHT STARTS. A source resolves a hand uid to the element the ghost is cloned from, its screen centre, its
  * LAYOUT size (stage px, unaffected by transforms) and its resting tilt. Null = not on screen: no flight, the stock
  * summon plays. Registered per side: the player's hand is the default; the enemy has none yet (an opponent hand area
- * can register one with `setHandSummonSource('enemy', …)`).
+ * registers one with `setHandSummonSource('enemy', …)` while it is mounted: `OpponentHand.tsx`).
  */
 export interface HandSummonOrigin {
   el: HTMLElement; cx: number; cy: number; w: number; h: number; rotateDeg: number;
@@ -164,7 +164,8 @@ export function setHandSummonSource(side: Side, src: HandSummonSource | null): H
 const WAKING_LOOKBACK = 6;
 
 /**
- * Pure: player-side combat summons that came OUT OF THE HAND, board uid → the hand card uid it came from.
+ * Pure: one side's combat summons that came OUT OF THE HAND, board uid → the hand card uid it came from (`side`
+ * defaults to the player; the enemy's are matched against the foe's recorded starting hand, R-OPP-HAND-01).
  *
  *  - A Spirit's hand-summon stamps `fromHandUid` on its `summon` (the same field that greys the hand card).
  *  - Rune of the Waking Reserve copies the highest-stat hand minion but deliberately leaves the card UNMARKED (no
@@ -172,19 +173,19 @@ const WAKING_LOOKBACK = 6;
  *    hand card with the summoned body's id (gilding matched first, then the highest Attack + Health, the rune's own
  *    pick rule). No hand card of that id on screen → no ghost, the stock summon plays.
  *
- * The enemy's hand is never drawn, so only the player side has an origin.
+ * The enemy's hand is drawn face down (`OpponentHand`), which registers the `'enemy'` source.
  */
-export function combatHandSummonOrigins(events: readonly CombatEvent[], hand: readonly HandCardLike[]): Map<string, string> {
+export function combatHandSummonOrigins(events: readonly CombatEvent[], hand: readonly HandCardLike[], side: Side = 'player'): Map<string, string> {
   const out = new Map<string, string>();
   for (let i = 0; i < events.length; i++) {
     const e = events[i];
-    if (e?.type !== 'summon' || e.side !== 'player') continue;
+    if (e?.type !== 'summon' || e.side !== side) continue;
     if (e.fromHandUid) { out.set(e.minion.uid, e.fromHandUid); continue; }
     let waking = false;
     for (let j = i - 1; j >= 0 && j >= i - WAKING_LOOKBACK; j--) {
       const p = events[j];
       if (!p || p.type === 'summon') break;
-      if (p.type === 'questTrigger' && p.flag === 'runeWakingReserve' && p.side === 'player') { waking = true; break; }
+      if (p.type === 'questTrigger' && p.flag === 'runeWakingReserve' && p.side === side) { waking = true; break; }
     }
     if (!waking) continue;
     const same = hand.filter((h) => h.cardId === e.minion.cardId);

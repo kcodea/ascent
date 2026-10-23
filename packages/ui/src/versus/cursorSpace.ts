@@ -48,11 +48,19 @@ export function anchorSelector(key: string): string | null {
   return null;
 }
 
-/** This screen's element for an anchor key (the first live, visible one), or null. */
+/** This screen's element for an anchor key (the first live, visible one), or null. When that element holds another with
+ *  the SAME key (a combat unit wraps its card, both `data-uid`), the innermost is returned: the sender's `anchorOf` reads
+ *  `closest()` from the element under the pointer, so it anchors to the innermost too, and that inner element is the one
+ *  whose own hover handler opens the preview (R-SPECTATE-COMBATCURSOR-01). */
 export function findAnchor(key: string, root: ParentNode = document): HTMLElement | null {
   const sel = anchorSelector(key);
   if (!sel) return null;
-  for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) if (!el.closest(SKIP)) return el;
+  for (const el of Array.from(root.querySelectorAll<HTMLElement>(sel))) {
+    if (el.closest(SKIP)) continue;
+    let hit = el;
+    for (let inner = hit.querySelector<HTMLElement>(sel); inner && !inner.closest(SKIP); inner = hit.querySelector<HTMLElement>(sel)) hit = inner;
+    return hit;
+  }
   return null;
 }
 

@@ -15,6 +15,7 @@ import { myWatcherIdentity, othersInStands, setWatchers } from '../versus/watche
 import { supabaseClient } from '../remoteBoards';
 import { currentUserId } from '../identity';
 import { installSpectatorEmotes, onUnknownSpectatorEmote, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from '../versus/spectatorEmotes';
+import { receiveWatchedEmote, resetWatchedEmotes, VERSUS_EMOTE_EVENT } from '../versus/versusEmotes';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
 
 export interface LiveWatchState {
@@ -142,6 +143,7 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
     useLiveWatch.setState({ error: errorText(e) });
     return false;
   }
+  resetWatchedEmotes();
   const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, endTimer: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0 };
   session = s;
   installSpectateIo({
@@ -158,6 +160,9 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
     else if (event === SPECTATE_CURSOR_EVENT) receiveSpectatorCursor(payload);
     // A fellow spectator's emote pops from their chip in my top-left row (R-SPECTATE-EMOTE-01).
     else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
+    // The PLAYER's own emote, forwarded by their publisher: it rises from their hero portrait, as on their screen
+    // (R-SPECTATE-EMOTE-02).
+    else if (event === VERSUS_EMOTE_EVENT && useSpectate.getState().active) receiveWatchedEmote(payload, useSpectate.getState().seat);
   });
   // My own emotes go out on this channel, as me; a sender I do not know yet re-reads the stands (throttled).
   const me = currentUserId();

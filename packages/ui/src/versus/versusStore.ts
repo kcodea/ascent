@@ -28,7 +28,7 @@ import { beginRunProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, tempHandle, useGame } from '../store';
 import { ServerClock, shopClockAt } from './versusClock';
-import { installVersusEmotes, receiveVersusEmote, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
+import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
@@ -350,7 +350,12 @@ function subscribe(matchId: string | null): void {
     if (what === 'members' && row && patchMemberSeen(row)) return;
     scheduleRefresh(what);
   }, (event, payload) => {
-    if (event === VERSUS_EMOTE_EVENT) receiveVersusEmote(payload);
+    // A player's emote: the other player shows it on its foe; a SPECTATOR shows both players' where the watched seat's
+    // screen does (R-SPECTATE-EMOTE-02). Never both: a seated client is a player.
+    if (event === VERSUS_EMOTE_EVENT) {
+      if (mySeat()) receiveVersusEmote(payload);
+      else if (useSpectate.getState().active) receiveWatchedEmote(payload, useSpectate.getState().seat);
+    }
     // A spectator's emote: the players and the other spectators show it from that spectator's chip (R-SPECTATE-EMOTE-01).
     else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
     else if (event === 'spectate') { if (!mySeat()) receiveSpectate(payload); }

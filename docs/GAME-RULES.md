@@ -1068,7 +1068,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   the hover previews the player opens (cards, minions, runes, quests, the hero power, the game's tips) open for the
   spectator too; the board opens the same gap while the player drags a minion over it; a targeting arrow follows the
   player's aim and ends on their target, and the spectator's own mouse never moves it. Joining or coming back in the
-  middle of a fight starts it from the player's current moment, never from its first beat.
+  middle of a fight starts it from the player's current moment, never from its first beat. The cursor and its hover
+  previews carry on through combat (owner 2026-10-22; R-SPECTATE-COMBATCURSOR-01): pointing at a minion in the fight
+  points at it for the spectator, and its preview opens.
+- **Spectators see the player's emotes** (owner 2026-10-22; R-SPECTATE-EMOTE-02). In shop and combat, the watched
+  player's emote pops from their portrait on the spectator's screen at once, as it does on theirs. Versus spectators
+  see both players' emotes (the other player's beside the opponent). Replays recorded from 2026-10-22 show the
+  player's emotes and the emotes of the seats they faced at the moment they popped, and the cursor through combat
+  (R-REPLAY-EMOTE-01); older replays play as before.
 - **The watched hand plays back smoothly, and drops land as they happen** (owner 2026-10-20; R-SPECTATE-SMOOTH-01).
   The player's hand is drawn at an even pace a short, self-adjusting moment behind them (about a tenth to a fifth of a
   second, by how steady the connection is), so it never stalls and jumps. What the hand does (picking a card up, the

@@ -9,7 +9,7 @@
  */
 import type { EmoteMessage } from '@game/sim';
 import { deliverEmote, setEmoteTransport, type EmoteTransport } from '../emotes/emoteTransport';
-import { VERSUS_FOE_SEAT_ID, type VersusSeat } from '@game/sim';
+import { EMOTE_COOLDOWN_MS, VERSUS_FOE_SEAT_ID, type VersusSeat } from '@game/sim';
 
 /** The wire message (the contract agreed with feat/emotes). */
 export interface VersusEmoteMessage {
@@ -62,4 +62,35 @@ export function receiveVersusEmote(payload: unknown): boolean {
   if (!m || !mine || m.seat === mine) return false;
   deliverEmote({ emoteId: m.emoteId, seat: VERSUS_OPPONENT_SEAT, phase: m.phase, offsetMs: m.offsetMs, round: m.round });
   return true;
+}
+
+/** The seat id the WATCHED player's own emotes are shown under on a spectator's screen: the watched player is the run on
+ *  screen, so their bubble rises from the hero portrait, exactly where the player sees their own (`emoteBubble`). */
+export const WATCHED_PLAYER_SEAT = 's0';
+/** The shortest gap a spectator accepts between two emotes from one watched seat (the cooldown, less network jitter):
+ *  the channel is a public broadcast, so the receiver is the guard against a flood. */
+export const WATCHED_EMOTE_GAP_MS = EMOTE_COOLDOWN_MS - 2000;
+const watchedLast = new Map<VersusSeat, number>();
+
+/**
+ * A SPECTATOR hears a player's emote (owner 2026-10-22: "spectators arent seeing when a player emotes, i think only the
+ * player sees the emotes"; R-SPECTATE-EMOTE-02). The same wire message the players trade (`VersusEmoteMessage`): in
+ * Versus both players' emotes already travel on the room channel; a live ranked game's publisher forwards the player's
+ * (seat `p1`) to its stands. Shown where the watched player sees it: the WATCHED seat's on the hero portrait, the other
+ * seat's beside the opponent (the Versus foe). Refused while this client holds a seat (a player has its own path,
+ * `receiveVersusEmote`), with no watched seat, malformed, or inside the cooldown for that seat (receiver's clock).
+ */
+export function receiveWatchedEmote(payload: unknown, watched: VersusSeat | null, now: number = Date.now()): boolean {
+  const m = parseVersusEmote(payload);
+  if (!m || !watched || mine) return false;
+  const last = watchedLast.get(m.seat);
+  if (last !== undefined && now - last >= 0 && now - last < WATCHED_EMOTE_GAP_MS) return false;
+  watchedLast.set(m.seat, now);
+  deliverEmote({ emoteId: m.emoteId, seat: m.seat === watched ? WATCHED_PLAYER_SEAT : VERSUS_OPPONENT_SEAT, phase: m.phase, offsetMs: m.offsetMs, round: m.round });
+  return true;
+}
+
+/** A new watch (or the tests): forget the per-seat cooldowns. */
+export function resetWatchedEmotes(): void {
+  watchedLast.clear();
 }

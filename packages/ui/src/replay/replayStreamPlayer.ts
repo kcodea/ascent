@@ -16,6 +16,12 @@
  * Seeking: the feed is cleared and rebuilt at the target: the last message at or before it sets the hand's state at
  * once (held card, aim, hover, hidden; no pick-up cue, no drop verdict) and the points just before it seed the path.
  *
+ * IN THE FIGHT TOO, AND THE EMOTES (owner 2026-10-22: "i dont think spectators can see player mouse behavior in combat
+ * (or emotes)"; R-SPECTATE-COMBATCURSOR-01, R-REPLAY-EMOTE-01): the hand is fed through combat frames as well (a stream
+ * recorded before 2026-10-22 simply has no combat messages), and each recorded emote is delivered through the game's
+ * emote seam (`deliverEmote`) when the replay clock reaches it, so it pops from the same portrait it did live. One the
+ * clock skipped past (a seek, a jump) is never played late.
+ *
  * Old replays (no stream) never come here: they keep the 20 Hz cursor trail and the drag ghost flights.
  *
  * Cost: one 30 ms timer while a stream replay is on screen; per tick a clock read and a compare, plus the messages it
@@ -23,9 +29,10 @@
  */
 import { create } from 'zustand';
 import {
-  EV_OVERLAY, EV_SKIP, OV_DISCOVER, OV_FORGE, OV_POWER, OV_QUEST, decodeStreamEvents, decodeStreamSegment, isReplayStream,
+  EV_OVERLAY, EV_SKIP, OV_DISCOVER, OV_FORGE, OV_POWER, OV_QUEST, decodeStreamEmotes, decodeStreamEvents, decodeStreamSegment, isReplayStream,
   type RecordedCursorBody, type ReplayStream, type StreamSegment,
 } from '@game/sim';
+import { deliverEmote } from '../emotes/emoteTransport';
 import { cursorFeed, ingestCursor, resetCursorFeed, setCursorFeedClock } from '../versus/spectate';
 import { watchLocalHover } from '../versus/spectatorHover';
 
@@ -35,6 +42,8 @@ export const FEED_MS = 30;
 export const FEED_LEAD_MS = 120;
 /** A seek seeds the hand's path with the points this far before the target. */
 export const SEEK_SEED_MS = 300;
+/** A recorded emote the clock passed more than this long ago (replay ms) is dropped, never popped late. */
+export const EMOTE_LATE_MS = 1500;
 
 /** What Recruit applies from the stream: the recorded overlay minimize state, and a Skip of the fight on screen. */
 export interface ReplayStreamUi {
@@ -51,7 +60,9 @@ let segs: Seg[] = [];
 let events: { t: number; code: number; value: number }[] = [];
 let clock: (() => number) | null = null;
 let speedOf: () => number = () => 1;
-let inShop: () => boolean = () => true;
+/** Every recorded emote, in clock order, and the next one to deliver. */
+let emotes: { t: number; seat: string; id: string }[] = [];
+let ei = 0;
 let timer: ReturnType<typeof setInterval> | null = null;
 /** The next message to feed: segment index + message index. */
 let si = 0;
@@ -71,18 +82,17 @@ export const hasPlayableStream = (stream: unknown): stream is ReplayStream => is
 
 /**
  * Start playing a replay's stream. `replayClock` is the replay frames' clock now (`replayClockMs`); `speed` the playback
- * speed; `shop` whether a shop frame is on screen (the hand is not drawn in a fight); `sound` the viewer's Sounds toggle
- * (the pick-up's touch). Returns false (and plays nothing)
- * when the recording has no usable stream.
+ * speed; `sound` the viewer's Sounds toggle (the pick-up's touch). Returns false (and plays nothing) when the recording
+ * has no usable stream.
  */
-export function startStreamPlayback(stream: unknown, replayClock: () => number, speed: () => number, shop: () => boolean, sound: () => boolean = () => true): boolean {
+export function startStreamPlayback(stream: unknown, replayClock: () => number, speed: () => number, sound: () => boolean = () => true): boolean {
   stopStreamPlayback();
   if (!hasPlayableStream(stream)) return false;
   segs = [...stream.segs].sort((a, b) => a.t0 - b.t0).map((seg) => ({ seg, msgs: null }));
   events = segs.flatMap((s) => decodeStreamEvents(s.seg)).sort((a, b) => a.t - b.t);
+  emotes = segs.flatMap((s) => decodeStreamEmotes(s.seg)).sort((a, b) => a.t - b.t);
   clock = replayClock;
   speedOf = speed;
-  inShop = shop;
   setCursorFeedClock(() => (clock ? clock() : 0), sound);
   watchLocalHover(true); // the viewer's own rune hover wins on their screen (R-SPECTATE-RUNEHOVER-01)
   seekStream(replayClock());
@@ -104,7 +114,8 @@ export function stopStreamPlayback(): void {
   clock = null;
   segs = [];
   events = [];
-  si = 0; mi = 0; oi = -1;
+  emotes = [];
+  si = 0; mi = 0; oi = -1; ei = 0;
   useReplayStream.setState({ overlay: null, skip: null });
 }
 
@@ -132,12 +143,21 @@ function applyOverlayUpTo(t: number): void {
   if (latest >= 0) useReplayStream.setState({ overlay: bitsToOverlay(events[latest]!.value) });
 }
 
+/** Pop the recorded emotes the clock has reached (R-REPLAY-EMOTE-01); one passed long ago is skipped, not played late. */
+function deliverEmotesUpTo(t: number): void {
+  while (ei < emotes.length && emotes[ei]!.t <= t) {
+    const e = emotes[ei++]!;
+    if (t - e.t > EMOTE_LATE_MS) continue;
+    deliverEmote({ emoteId: e.id, seat: e.seat, phase: 'shop', offsetMs: 0, round: 0 });
+  }
+}
+
 function tick(): void {
   if (!clock) return;
   const now = performance.now();
   const t = clock();
   applyOverlayUpTo(t);
-  if (!inShop()) return;
+  deliverEmotesUpTo(t);
   feedUpTo(t + FEED_LEAD_MS * Math.max(1, speedOf()), now);
   // A held hand (or a paused replay) keeps the overlay drawn: the feed's own staleness check only knows the wire.
   if (!cursorFeed.hidden && cursorFeed.pts.length) cursorFeed.lastAt = now;
@@ -182,6 +202,9 @@ export function seekStream(t: number): void {
   let latest = -1;
   for (let i = 0; i < events.length && events[i]!.t <= t; i++) { oi = i; if (events[i]!.code === EV_OVERLAY) latest = i; }
   useReplayStream.setState({ overlay: latest >= 0 ? bitsToOverlay(events[latest]!.value) : null, skip: null });
+  // The emotes from here on (one already popped before the target is not popped again).
+  ei = 0;
+  while (ei < emotes.length && emotes[ei]!.t <= t) ei += 1;
 }
 
 /**

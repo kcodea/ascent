@@ -26,7 +26,8 @@ import './emotes.css';
  *  - THE REPLAY: at each phase start, the recorded emotes of every seat that is a real player's run are scheduled at
  *    their recorded offsets (`seatEmoteSchedule`), off the transition frame; the next phase start cancels what is left.
  *    In combat only the foe you are fighting can be seen, so only its emotes are scheduled. Bots and generated seats
- *    never emote. Nothing is scheduled while a replay is being watched.
+ *    never emote. Nothing is scheduled while a replay is being watched (the replay's stream delivers what the player
+ *    saw, R-REPLAY-EMOTE-01); the fight's foe is still named so those bubbles find the foe portrait.
  *  - THE MENU: your eight emotes (four before 2026-10-22), opened by right-clicking your portrait (StatusBar), with the 20 s cooldown.
  */
 export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
@@ -42,7 +43,10 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
       setEmoteFoe(null);
       const st = useGame.getState();
       const lobby: RunLobby | undefined = st.run.lobby ?? undefined;
-      if (!lobby || st.replaySession || st.run.godMode) return;
+      if (!lobby || st.run.godMode) return;
+      // A REPLAY plays the emotes its stream recorded (R-REPLAY-EMOTE-01, `replayStreamPlayer.ts`), never the seats'
+      // schedules; it still names the fight's foe so a recorded foe emote lands beside the foe portrait.
+      const replay = !!st.replaySession;
       // Off the phase transition's frame: a snapshot seat's board is a lookup, but the transition is busy enough.
       timers.push(window.setTimeout(() => {
         const cur = useGame.getState().run.lobby;
@@ -52,8 +56,10 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
           const foe = playerOpponent(cur);
           if (!foe || foe.ghost) return;
           setEmoteFoe(foe.seat.id);
+          if (replay) return;
           seats = [foe.seat.id];
         } else {
+          if (replay) return;
           seats = cur.seats.filter((s) => s.id !== PLAYER_SEAT && s.kind === 'snapshot' && s.alive).map((s) => s.id);
         }
         for (const seat of seats) {

@@ -509,6 +509,61 @@ canvas.spr { image-rendering: pixelated; display: block; }
   62% { transform: rotate(-2.4deg); animation-timing-function: ease-in-out; }
   78% { transform: rotate(1.6deg); animation-timing-function: ease-in-out; }
   100% { transform: rotate(0.4deg); } }
+/* THE GATE IS FOR THE ENTRY PASS ONLY (owner 2026-10-23: "i want to separate the returnn to shop experience from the door
+   and gate"). On the exit pass the machine still walks the same states, but the gate stays parked out of sight, with no
+   motion or events of its own; the return trip is the vista below. */
+.wipecurtain.exit { visibility: hidden; transform: translateY(-100%) !important; transition: none !important; animation: none !important; }
+.wipecurtain.exit .wipeposter { animation: none !important; }
+/* THE RETURN TRIP: the shop's VISTA (owner 2026-10-23, "ascent_fantasy_shop" in six parallax layers). It FADES IN over the
+   fight (`in`), and while RETURNING TO SHOP sits in its clear sky, a slow push towards the shop runs, each layer scaling a
+   little more the nearer it is, which reads as depth. At full cover the fade is snapped home (`held`) and the Shop swaps in
+   behind it. Then it DIVES through the shop's door (`dive`: the whole picture zooms in on the doorway while it fades),
+   landing in the Shop. Opacity + transform only, one shot per return (CLAUDE.md perf rules), so like the gate it is never
+   see-through while the scene behind it changes (R-PRESENT-35).
+   The picture is laid out in `.wipevista-stage`, a box at the art's own 16:9 cover-fit, so every position inside it (the
+   door, the sky text, the push centre) stays on the same spot of the painting at any screen shape.
+   The layer art was cut with filled-in hidden parts only good for MILD movement (its README; the smeared fill under the
+   flowers, a few shop fragments left on lower layers), so the push is gentle: 2% (sky) to 9% (flowers) over 2.6 s,
+   centred on the doorway at ground level so the flowers' top edge barely moves against the midground behind it. */
+.wipevista { position: fixed; inset: 0; z-index: 3000; pointer-events: none; overflow: hidden; opacity: 0; visibility: hidden;
+  background: #3f8fe6; }
+.wipevista.on { visibility: visible; }
+.wipevista.in { opacity: 1; transition: opacity var(--wipe-dur, 450ms) ease-out; }
+.wipevista.held { transition: none; }
+.wipevista.dive { opacity: 1; animation: vistafade var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistafade { 0% { opacity: 1; } 40% { opacity: 1; animation-timing-function: ease-in; } 100% { opacity: 0; } }
+.wipevista-stage { position: absolute; left: 50%; top: 50%; translate: -50% -50%;
+  width: max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7778)); height: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778));
+  transform-origin: 47.9% 74.7%; }
+/* The dive: straight in through the shop's open door. */
+.wipevista.dive .wipevista-stage { animation: vistadive var(--wipe-reveal-dur, 450ms) cubic-bezier(.5, 0, .9, .4) both; }
+@keyframes vistadive { 0% { transform: scale(1); } 100% { transform: scale(3.2); } }
+.wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.9% 80%; will-change: transform; }
+.wipevista-sky { background-image: url('/vista-sky.webp'); }
+.wipevista-far { background-image: url('/vista-far.webp'); }
+.wipevista-islands { background-image: url('/vista-islands.webp'); }
+.wipevista-mid { background-image: url('/vista-mid.webp'); }
+.wipevista-shop { background-image: url('/vista-shop.webp'); }
+.wipevista-fore { background-image: url('/vista-fore.webp'); }
+/* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
+.wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
+.wipevista.on .wipevista-sky { animation: vistapushsky 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-far { animation: vistapushfar 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-islands { animation: vistapushislands 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-mid { animation: vistapushmid 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-shop { animation: vistapushshop 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-fore { animation: vistapushfore 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-flat { animation: vistapushshop 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+@keyframes vistapushsky { 0% { transform: scale(1); } 100% { transform: scale(1.02); } }
+@keyframes vistapushfar { 0% { transform: scale(1); } 100% { transform: scale(1.03); } }
+/* The islands also drift up a touch, as if floating. */
+@keyframes vistapushislands { 0% { transform: translateY(0) scale(1); } 100% { transform: translateY(-0.8%) scale(1.045); } }
+@keyframes vistapushmid { 0% { transform: scale(1); } 100% { transform: scale(1.06); } }
+@keyframes vistapushshop { 0% { transform: scale(1); } 100% { transform: scale(1.075); } }
+@keyframes vistapushfore { 0% { transform: scale(1); } 100% { transform: scale(1.09); } }
+/* RETURNING TO SHOP, in the clear sky above the spire (measured off the art: 48% across, 17% down), in the announcement's
+   own lettering (white, 2px black outline), bigger for the open sky. */
+.wipevista-title { position: absolute; left: 48%; top: 17%; translate: -50% -50%; white-space: nowrap; font-size: calc(64 * var(--u, 1px)); }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */

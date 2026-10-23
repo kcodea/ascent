@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   WIPE_ENTRY, WIPE_EXIT, WIPE_STATES, afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor,
-  frontClassFor, wipeCovered, wipeSweeping, wipeUp, type WipeState,
+  frontClassFor, vistaClassFor, wipeCovered, wipeSweeping, wipeUp, type WipeState,
 } from './wipeMachine';
 import { WIPE_DEFAULTS, sanitizeWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { wipeOriginFor } from './wipeGeometry';
@@ -109,6 +109,36 @@ describe('the wipe machine', () => {
 
   it('body.wipe-up spans the whole wipe, tell to reveal', () => {
     for (const w of WIPE_STATES) expect(wipeUp(w)).toBe(w !== 'idle' && w !== 'combat');
+  });
+});
+
+// Owner 2026-10-23: "i want to separate the returnn to shop experience from the door and gate". The exit pass is the
+// shop's vista: it fades in, pushes in, and dives through the door, by opacity + transform only.
+describe('the return trip is the vista, not the gate', () => {
+  it('shows the vista across the exit pass only, fully covering at the hold where the shop swaps in', () => {
+    for (const w of WIPE_STATES) {
+      const on = w === 'coverOut' || w === 'coveredOut' || w === 'revealOut';
+      expect(vistaClassFor(w).includes(' on'), w).toBe(on);
+    }
+    expect(vistaClassFor('coveredOut')).toContain(' held');
+    // The Shop swaps in (the backdrop flips) only while the vista is held fully opaque.
+    expect(combatBackdropShown('coverOut')).toBe(true);
+    expect(combatBackdropShown('coveredOut')).toBe(false);
+    expect(css).toMatch(/\.wipevista\.in \{ opacity: 1; transition: opacity /);
+    expect(css).toMatch(/\.wipevista\.held \{ transition: none; \}/);
+  });
+
+  it('keeps the gate parked and silent on the exit pass', () => {
+    expect(css).toMatch(/\.wipecurtain\.exit \{ visibility: hidden; transform: translateY\(-100%\) !important; transition: none !important; animation: none !important; \}/);
+    for (const w of WIPE_EXIT.slice(1, -1)) expect(curtainClassFor(w), w).toContain(' exit');
+  });
+
+  it('moves by opacity and transform only', () => {
+    for (const k of ['vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushislands', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+      const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
+      expect(frames, k).toMatch(/transform|opacity/);
+      expect(frames.replace(/(transform|opacity|animation-timing-function): [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);
+    }
   });
 });
 

@@ -197,3 +197,8 @@ html[data-touch-ui][data-phone-gpu] .hsc-ring { opacity: 1; animation-fill-mode:
 html[data-touch-ui][data-phone-gpu] .hsc-flash { animation-fill-mode: backwards; }
 html[data-touch-ui][data-phone-gpu] :is(.hsc-plate, .hsc-name, .hsc-power, .hsc-start) { opacity: 1; animation-fill-mode: backwards; }
 html[data-touch-ui][data-phone-gpu][data-launch-covered] .heroselect { visibility: hidden; }
+
+/* THE RETURN TRIP'S VISTA on phones (2026-10-23): one flattened picture instead of six full-screen parallax layers (six
+   composited layers at stage size are too much GPU memory for a phone). It still fades in, pushes in and dives. */
+html[data-touch-ui][data-phone-gpu] .wipevista-layer:not(.wipevista-flat) { display: none; }
+html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }

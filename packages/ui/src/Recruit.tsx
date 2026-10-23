@@ -273,6 +273,15 @@ const GOLDEN_RUBY_COIN_GAP_MS = 220;
 /** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
  *  "lets actually not use the floating islands layer", so five). */
 const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
+/** The vista's doorway on SCREEN at the end of the push (screen px, for the portal burst): the owner's door shape's box on
+ *  the 2560x1440 art, through the art's cover-fit and the 1.12 push about (47.7%, 83%), as styles.css lays them out. */
+function vistaDoorOnScreen(): { x: number; y: number; w: number; h: number } {
+  const A = 2560 / 1440, W = window.innerWidth, H = window.innerHeight;
+  const wi = Math.max(W, H * A), hi = Math.max(H, W / A), left = (W - wi) / 2, top = (H - hi) / 2;
+  const push = (u: number, o: number): number => o + (u - o) * 1.12;
+  const x0 = push(1124 / 2560, 0.477), x1 = push(1317 / 2560, 0.477), y0 = push(947 / 1440, 0.83), y1 = push(1202 / 1440, 0.83);
+  return { x: left + ((x0 + x1) / 2) * wi, y: top + ((y0 + y1) / 2) * hi, w: (x1 - x0) * wi, h: (y1 - y0) * hi };
+}
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
  *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
@@ -2393,7 +2402,16 @@ export function Recruit() {
   // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
   // groan as it is winched back up.
   useEffect(() => {
-    // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
+    // THE PORTAL (owner 2026-10-23): just before the return trip dives through the shop's door, the doorway charges and
+  // bursts with sparks and energy (gateFx.portal, on the ranked gate's particle layer, lifted over the curtain while it is
+  // up). Timed off the hold so the burst lands right as the dive starts. Desktop only, like the gate's dust.
+  useEffect(() => {
+    if (wipe !== 'coveredOut' || PHONE_GPU) return undefined;
+    const charge = 160;
+    const t = window.setTimeout(() => gateFx.portal(vistaDoorOnScreen(), charge), Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
+    return () => window.clearTimeout(t);
+  }, [wipe]);
+  // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
     if (wipe === 'coverIn') sfx.wipeGate('drop');
     else if (wipe === 'coveredIn') {
       sfx.wipeGate('impact');

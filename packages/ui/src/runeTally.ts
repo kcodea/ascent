@@ -100,11 +100,11 @@ export function runeTally(run: RunState, runeId: string): string | null {
   if (runeId === 'rune_astral_refrain' && run.runeAstralRefrain) {
     return `${Math.min((run.spellIdsThisTurn ?? []).length, run.runeAstralRefrain.at)}/${run.runeAstralRefrain.at}`;
   }
-  // Rune of the Traveling Festival: what a Reveler sale pays RIGHT NOW (the shared value + this rune's extra).
-  if (runeId === 'rune_traveling_festival' && run.revelerExtra) {
-    const x = Math.max(1, run.revelerX ?? 1);
-    return `+${x + run.revelerExtra.attack}/+${x + run.revelerExtra.health}`;
-  }
+  // Rune of the Traveling Festival: NO tally. Its "+2/+2" is a flat, one-time addition to every Reveler's grant
+  // (owner 2026-10-23: "this rune doesn't grow, it just gives +2 to the bonus of the revelers"), already printed
+  // on the rune, so it reads like every other flat-bonus rune. The growing number is the Reveler's own, and each
+  // Reveler's text prints it with the +2/+2 folded in (`spiritText`, `revelerExtra`). It used to show
+  // "+X+2/+X+2" here, which read as the rune itself growing.
   // Rune of Falling Embers: what a Star Crash grants right now, beyond its printed base.
   if (runeId === 'rune_falling_embers' && run.starCrashBonus) {
     return `+${run.starCrashBonus.attack}/+${run.starCrashBonus.health}`;

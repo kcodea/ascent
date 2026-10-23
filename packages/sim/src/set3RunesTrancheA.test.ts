@@ -175,11 +175,12 @@ describe('Rune of the Traveling Festival', () => {
     let s = armed('rune_traveling_festival', { board: [body('k', 'sp3_kindled'), body('f', 'sp3_flamereveler')] });
     expect(s.hand).toHaveLength(1);
     expect(REVELER_IDS).toContain(s.hand[0]!.cardId);
-    expect(runeTally(s, 'rune_traveling_festival'), 'what a sale pays right now: 1 + 2').toBe('+3/+3');
+    // Owner 2026-10-23: the rune does not grow, so it carries no tally (the Reveler's text prints the live grant).
+    expect(runeTally(s, 'rune_traveling_festival'), 'a flat rune: no growing readout').toBeNull();
     s = sell(s, 'f');
     expect(stats(at(s, 'k')), 'Flame: value 1 + the rune\'s 2 extra Attack, no Health').toEqual([1 + 3, 3]);
     expect(revelerValue(s), 'the shared value still rises by one').toBe(2);
-    expect(runeTally(s, 'rune_traveling_festival')).toBe('+4/+4');
+    expect(runeTally(s, 'rune_traveling_festival'), 'still no tally after the Reveler value rose').toBeNull();
     s = nextTurn(s);
     expect(s.hand.filter((c) => REVELER_IDS.includes(c.cardId))).toHaveLength(2);
   });

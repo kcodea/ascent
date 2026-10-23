@@ -1495,17 +1495,21 @@ export function rallySpreadText(cardId: string, golden: boolean, rallySpreadAtk?
  */
 export function spiritText(
   cardId: string, golden: boolean,
-  p: { revelerX?: number; spiritTally?: number; spiritsPlayed?: number; spiritDiscount?: number; onBoard?: boolean },
+  p: { revelerX?: number; revelerExtra?: { attack: number; health: number }; spiritTally?: number; spiritsPlayed?: number; spiritDiscount?: number; onBoard?: boolean },
 ): string | null {
   const g = golden ? 2 : 1;
   const x = Math.max(1, p.revelerX ?? 1);
+  // Rune of the Traveling Festival: "your Revelers grant an additional +2/+2" is a FLAT add on top of the shared
+  // value (golden doubles the value, never the extra; one +2/+2 however many copies are held), exactly as
+  // `revelerSell` pays it (owner 2026-10-23: "their value should just gain that one-time +2 to it").
+  const exA = p.revelerExtra?.attack ?? 0, exH = p.revelerExtra?.health ?? 0;
   const tally = p.spiritTally ?? 0;
   const played = p.spiritsPlayed ?? 0;
   const live = (n: number | string): string => `{{${n}}}`;
   switch (cardId) {
-    case 'sp3_flamereveler': return x * g > g ? `**Sell:** give your Spirits **${live(`+${x * g} Attack`)}**, then increase that by 1.` : null;
-    case 'sp3_tidereveler': return x * g > g ? `**Sell:** give your Spirits **${live(`+${x * g} Health`)}**, then increase that by 1.` : null;
-    case 'sp3_grovereveler': return x * g > g ? `**Sell:** give your minions **${live(`+${x * g}/+${x * g}`)}**, then increase that by 1.` : null;
+    case 'sp3_flamereveler': return x * g > g || exA > 0 ? `**Sell:** give your Spirits **${live(`+${x * g + exA} Attack`)}**, then increase that by 1.` : null;
+    case 'sp3_tidereveler': return x * g > g || exH > 0 ? `**Sell:** give your Spirits **${live(`+${x * g + exH} Health`)}**, then increase that by 1.` : null;
+    case 'sp3_grovereveler': return x * g > g || exA > 0 || exH > 0 ? `**Sell:** give your minions **${live(`+${x * g + exA}/+${x * g + exH}`)}**, then increase that by 1.` : null;
     case 'sp3_luminary': {
       const v = (1 + x) * g;
       return `**Shout:** give **3** random Spirits **${live(`+${v}/+${v}`)}** (+${g}/+${g} plus ${golden ? 'twice ' : ''}your **Reveler** bonus).`;

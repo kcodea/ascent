@@ -7883,7 +7883,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-SKIP-TURBO-01',
     title: 'Skip fast-forwards the fight and slows back down for the hit that decides it',
     statement:
-      'Pressing Skip during a combat replay never jumps straight to the resolved board. The replay fast-forwards (20× by default) and eases back to the player\'s own replay speed for the hit that decides the fight: the swing (from its wind-up) or other blow that kills the last body to die. A Rise\'s first death is not that kill. Like the auto-ramp, the speed is driven by the authored time left (here, to that hit): a smooth climb from the press, then an even brake over a fixed stretch of real time (1.5 s by default) that lands exactly on the player\'s speed as that hit begins, updated every frame rather than in steps per beat. Effects play at the fight\'s speed throughout and slow down with it. Game sounds never cut back in: while it races they are silent under a fast-forward whir, and through the brake they crossfade back in as the whir winds down, reaching full level as the deciding hit begins. If the deciding hit has already played, Skip races the rest of the fight. Skip hides once pressed, a second press does nothing, and a fight with no beats still finishes. Spectators and replays that follow a Skip get the same fast-forward.',
+      'Pressing Skip during a combat replay never jumps straight to the resolved board. The replay fast-forwards (20× by default) and eases back to the player\'s own replay speed for the hit that decides the fight: the swing (from its wind-up) or other blow that kills the last body to die. A Rise\'s first death is not that kill. Like the auto-ramp, the speed is driven by the authored time left (here, to that hit): a smooth climb from the press, then an even brake over a fixed stretch of real time (1.5 s by default) that lands exactly on the player\'s speed as that hit begins, updated every frame rather than in steps per beat. Effects play at the fight\'s speed throughout and slow down with it. Game sounds never cut back in: while it races they are silent under a fast-forward whir, and through the brake they crossfade back in as the whir winds down, reaching full level as the deciding hit begins. If the deciding hit has already played, Skip races the rest of the fight. Once pressed, Skip cannot be pressed again (the diamond stops being Skip, R-SKIP-DIAMOND-01), and a fight with no beats still finishes. Spectators and replays that follow a Skip get the same fast-forward.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8032,5 +8032,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'picture is decoded on mount and kept referenced, and each trip uses the cut-out only if it was decoded before the '
       + 'trip began. PARTIAL as a general rule: the test pins the vista’s mask, not every transition’s art.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-SKIP-DIAMOND-01',
+    title: 'Skip lives on the End Turn diamond, which glows yellow while the fight can be skipped',
+    statement:
+      'During a combat replay the End Turn diamond is the Skip button; there is no separate Skip pill. From the moment the fight starts until Skip is pressed or the replay ends, the diamond fades into a bright yellow glow, its hover label reads "Skip Combat", and a click bursts the skip-sparks effect off the gem (on the real clock, not raced by the Skip it starts) and runs Skip (R-SKIP-TURBO-01). Pressing Skip fades the glow back to the spent gem; once the replay is done the diamond is End Combat exactly as before. The glow is an opacity fade over a static tint and halo, never a looping paint animation.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-22 (combat Skip)', quote: 'i want to change the skip button from the Skip Pill to the end turn / start combat diamond. once combat starts have the diamond fade into a bright yellow glow. when hovering have a thumbnail that says "Skip Combat"' },
+      { kind: 'code', ref: 'packages/ui/src/EndTurnButton.tsx (skipReady / onSkip, .etb-skipglow); packages/ui/src/Recruit.tsx ShopControls skipReady; styles.css .etbwrap.skip' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, Skip was a blue pill above the diamond and the diamond sat dim and disabled for the whole replay.',
+    example: 'The fight begins and the diamond turns gold; hovering it shows Skip Combat; clicking it races the fight, the gold fades, and when the fight ends the diamond offers End Combat.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipDiamond.test.tsx'], lastVerifiedAt: '2026-10-22' },
   },
 ];

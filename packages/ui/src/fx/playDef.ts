@@ -87,6 +87,10 @@ export interface PlayDefOptions extends FxScaleAxes {
   /** Playback rate multiplier (e.g. the combat-speed dial). Non-finite or ≤ 0 falls back to 1 — a paused
    *  fire-and-forget effect would never retire, so "0" is treated as caller error rather than honoured. */
   speed?: number;
+  /** Play on the WALL clock even while a Skip races the FX clock (R-SKIP-TURBO-01 `pixiFx.setTimeScale`). For UI
+   *  chrome effects that are not part of the fight, like the Skip diamond's own `skip-sparks` (R-SKIP-DIAMOND-01),
+   *  which fire on the very click that starts the race. Off by default: fight effects race with the fight. */
+  realTime?: boolean;
   /* `scale` / `intensity` / `time` come from `FxScaleAxes` — the per-call geometric, quantity and temporal
    * multipliers. All default to 1, and 1 is an EXACT no-op (the def object is not even copied). Only params
    * that declare an `axis` in their spec respond, and each is clamped to its own slider range, so scaling is
@@ -739,8 +743,9 @@ function playDefInner(
   // cost `fx:<id>` above. One label per def id, so the offenders list can say WHICH effect is eating frames
   // rather than "something in fx:sim". A passthrough when the monitor is off; two clock reads when it is on.
   const frameLabel = `fx:def:${def.id}`;
-  removeUpdater = pixiFx.addUpdater((dtMs) => {
+  removeUpdater = pixiFx.addUpdater((scaledMs) => {
     if (retired()) return; // same-frame snapshot re-entry — see `FxRetire.retired`
+    const dtMs = opts.realTime ? scaledMs / pixiFx.getTimeScale() : scaledMs;
     wallMs += dtMs;
     perfMonitor.begin(frameLabel);
     try { player.update(dtMs); } finally { perfMonitor.end(); }

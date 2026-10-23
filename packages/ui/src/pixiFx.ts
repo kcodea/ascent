@@ -826,6 +826,10 @@ class FxController {
   setTimeScale(n: number): void {
     this.timeScale = Number.isFinite(n) && n > 0 ? n : 1;
   }
+  /** The current FX clock rate (1 unless a Skip is racing it): a `realTime` play divides it back out. */
+  getTimeScale(): number {
+    return this.timeScale;
+  }
 
   addUpdater(fn: (dtMs: number) => void): () => void {
     this.extraUpdaters.push(fn);

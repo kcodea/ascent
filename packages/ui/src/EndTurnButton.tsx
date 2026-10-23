@@ -29,10 +29,16 @@ import { publicArt } from './phoneArt';
  *     reads `getEndTurnConfig()` live each frame (tuner slider moves apply instantly) and self-gates: it
  *     draws nothing (and skips clearing) while there are no live arcs and spawning is off/pressed.
  *
+ * SKIP COMBAT (owner ask 2026-10-22, R-SKIP-DIAMOND-01): while the combat replay plays, the diamond is the Skip
+ * button (the old Skip pill above it is gone). It fades into a bright YELLOW glow as the fight starts (a gold copy
+ * of the gem over the spent one, opacity-faded, static filter), its hover pill reads "Skip Combat", and a click
+ * runs the Skip fast-forward (R-SKIP-TURBO-01). Once Skip is pressed the glow fades back to the spent gem; once
+ * the replay is done the diamond becomes End Combat as before.
+ *
  * Position/scale come from `--etb-*` vars (stage-pinned like the hero power); the DEV tuner
  * (`EndTurnTuner.tsx`) dials everything live.
  */
-export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, note }: {
+export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, skipReady, onSkip, note }: {
   onEndTurn: () => void;
   disabled: boolean;
   /** The button has been hit — the end-of-turn beats are playing; show the dulled gem + stop the effects. */
@@ -43,6 +49,9 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
    *  2026-07-16): clicking relights it with a clean shine (no strike sfx/vfx) and returns to the shop. */
   combatReady?: boolean;
   onEndCombat?: () => void;
+  /** The combat replay is playing and can still be skipped: the diamond glows yellow and is the SKIP button. */
+  skipReady?: boolean;
+  onSkip?: () => void;
   /** A status the gem's own pill shows, pinned on, in place of its label (VERSUS: "Players ready 1/2" while this
    *  player waits on the other one, owner 2026-10-14). Null / absent: the ordinary hover label. */
   note?: string | null;
@@ -55,6 +64,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   const wakeRef = useRef<() => void>(() => {}); // re-arms the (idling) bolt loop — see the arc effect
   const [striking, setStriking] = useState(false); // the one-shot strike flash is playing
   const [relighting, setRelighting] = useState(false); // the one-shot END-COMBAT shine is playing
+  const [skipFlash, setSkipFlash] = useState(false); // the one-shot gold pop on a Skip click
 
   // The STRIKE (owner notes 2026-07-16): the art swaps to the dim gem immediately, and the swap is masked
   // by a white-hot gem flash + a burst of lightning arcs + a dirt/smoke billow + an outward shockwave
@@ -91,6 +101,19 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   useEffect(() => onPressCue('endTurn', playStrike));
   useEffect(() => onPressCue('endCombat', playRelight));
   const click = (): void => {
+    if (skipReady) {
+      // The owner's `skip-sparks` burst at the gem (owner ask 2026-10-22). Wall clock: this click is what starts
+      // the Skip racing the FX clock, and the sparks are the button's, not the fight's.
+      const r = wrapRef.current?.getBoundingClientRect();
+      if (r) {
+        const at = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+        playDef('skip-sparks', { source: at, target: at }, { realTime: true });
+      }
+      setSkipFlash(true);
+      window.setTimeout(() => setSkipFlash(false), 700);
+      onSkip?.();
+      return;
+    }
     if (combatReady) {
       playRelight();
       onEndCombat?.();
@@ -245,10 +268,10 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
     <button
       ref={wrapRef}
       data-spec="endturn"
-      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${note ? ' noted' : ''}`}
+      className={`etbwrap${pressed ? ' pressed' : ''}${urgent && !pressed ? ' urgent' : ''}${combatReady ? ' ready' : ''}${skipReady ? ' skip' : ''}${note ? ' noted' : ''}`}
       disabled={disabled}
       onClick={click}
-      aria-label={combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}
+      aria-label={skipReady ? 'Skip combat' : combatReady ? 'End combat and go back to shop' : 'End your turn and start combat'}
     >
       <canvas ref={canvasRef} className="etb-bolts" aria-hidden="true" />
       {/* Hover glow is now a drop-shadow ON the gem itself (styles.css `.etb-gem` hover → `--etb-gemglow`),
@@ -266,6 +289,11 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
         <img decoding="sync" className="etb-gem lit" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} />
         <img decoding="sync" className="etb-gem cracked" src={publicArt(`frames/end_button_gem_cracked.webp`)} alt="" draggable={false} />
       </span>
+      {/* SKIP GLOW: a gold copy of the gem over the spent one. Always mounted so it can FADE (opacity transition
+          on `.skip`), in and back out; no loop, the filter is static. */}
+      <span className="etb-gembox" aria-hidden="true">
+        <img decoding="sync" className="etb-skipglow" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} />
+      </span>
       {/* Ambient SHEEN — a periodic glare sweeping the gem's face (lit AND pressed), clipped to the gem's
           diamond. The bar animates TRANSFORM only inside a static clip-path (compositor-cheap loop). */}
       <span className="etb-sheen" aria-hidden="true"><span className="etb-sheen-bar" /></span>
@@ -273,8 +301,9 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
           one-shot (its animation runs on mount and it unmounts right after — never a loop). */}
       {striking && <img decoding="sync" className="etb-flash" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} aria-hidden="true" />}
       {/* The END-COMBAT relight — the LIT art shines through as the dim gem hands back to the shop. */}
+      {skipFlash && <img decoding="sync" className="etb-flash skipflash" src={publicArt(`frames/end_button_gem.webp`)} alt="" draggable={false} aria-hidden="true" />}
       {relighting && <img decoding="sync" className="etb-flash relight" src={publicArt(`frames/end_button_base.webp`)} alt="" draggable={false} aria-hidden="true" />}
-      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (combatReady ? 'End combat and go back to shop' : 'End your turn and start combat')}</span>
+      <span className="etb-tip" aria-live={note ? 'polite' : undefined}>{note ?? (skipReady ? 'Skip Combat' : combatReady ? 'End combat and go back to shop' : 'End your turn and start combat')}</span>
     </button>
   );
 });

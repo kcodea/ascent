@@ -43,6 +43,8 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // follows the card, fired by literal id from its hook.
   'funeral-on-loan': ['useOnLoanFx.ts'],
   'click-puff': ['Recruit.tsx'],
+  // The Skip click (owner-authored 2026-10-22, R-SKIP-DIAMOND-01): sparks off the End Turn diamond as it skips.
+  'skip-sparks': ['EndTurnButton.tsx'],
   // The generic buff-other ribbon (owner-authored 2026-09-02, replacing the stripped procedural tendril). Fired
   // from the ONE shared buff-other path so the combat replay and the shop draw the same trail; a card's own
   // authored def still takes precedence upstream of it (see `fireBuffFx`).

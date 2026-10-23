@@ -1316,6 +1316,27 @@ body.etb-glow-preview .etbwrap:not(.pressed):not(:disabled) .etb-gem {
   animation: etbrelight 0.65s ease-out forwards;
 }
 @keyframes etbrelight { 0% { opacity: 0; } 25% { opacity: 0.95; } 100% { opacity: 0; } }
+/* SKIP COMBAT (R-SKIP-DIAMOND-01, owner ask 2026-10-22): while the replay can be skipped the diamond fades into a
+   bright YELLOW glow. A gold copy of the gem (`.etb-skipglow`, always mounted over the spent gem) carries a STATIC
+   tint + yellow halo; only its OPACITY moves (0.6s in as the fight starts, back out when Skip is pressed or the fight
+   ends), so nothing repaints per frame. Hover brightens it with a one-shot filter transition. */
+.etbwrap .etb-skipglow {
+  position: absolute; inset: 0; width: 100%; height: 100%; -webkit-user-drag: none; pointer-events: none;
+  opacity: 0;
+  filter: sepia(1) saturate(4.5) hue-rotate(8deg) brightness(1.45)
+    drop-shadow(0 0 calc(10 * var(--u)) rgba(255, 225, 80, 1)) drop-shadow(0 0 calc(30 * var(--u)) rgba(255, 200, 50, 0.9));
+  transition: opacity 0.6s ease, filter 0.16s ease;
+}
+.etbwrap.skip .etb-skipglow { opacity: 1; }
+.etbwrap.skip:not(:disabled):hover .etb-skipglow {
+  filter: sepia(1) saturate(4.5) hue-rotate(8deg) brightness(1.75)
+    drop-shadow(0 0 calc(12 * var(--u)) rgba(255, 236, 120, 1)) drop-shadow(0 0 calc(38 * var(--u)) rgba(255, 210, 70, 1));
+}
+/* The Skip click: a one-shot gold pop over the gem, opacity only (same shape as the relight). */
+.etbwrap .etb-flash.skipflash {
+  filter: sepia(1) saturate(3) brightness(2) drop-shadow(0 0 calc(18 * var(--u)) rgba(255, 230, 120, 0.95));
+  animation: etbrelight 0.65s ease-out forwards;
+}
 /* Ambient SHEEN — a narrow glare bar sweeping the gem's face on a slow cycle (lit AND pressed). The
    container is clipped to the gem's diamond (a static clip-path over the art box — the gem spans
    ~16–84% × 17–83% of the trimmed art); the bar animates TRANSFORM only (compositor-cheap loop). Sweep
@@ -5909,7 +5930,6 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
 /* The rows + FX canvases + the control bar aren't animated, so a plain opacity transition fades them cleanly. */
 .app.combatout .zone .row,
 .app.combatout .pixifx,
-.app.combatout .combathud-skip,
 .app.combatout .combatround,
 .app.combatout .combatctl { opacity: 0; transition: opacity 0.2s ease; }
 .app.combatin .zone .row,
@@ -6007,16 +6027,9 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
    (buffs aren't actionable mid-replay; it returns in recruit). The QUEST panel stays visible in combat — its
    objectives tick up live as the replay plays (the whole point of the combat quest live-tick). */
 .app.combat .buffsframe { display: none; }
-/* Skip button — pinned ABOVE the End Turn / End Combat diamond (owner move 2026-08-11), same stage anchor +
-   `--etb-x/y` offsets as the Summary pill (they never show at once: Skip during the replay, Summary after). */
-.combathud-skip { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh) + var(--cc-skip-y, 49px) * var(--scale)); transform: translate(-50%, -50%); z-index: 41; display: inline-flex; align-items: center; justify-content: center; gap: calc(7 * var(--u)); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--cc-skip-size, 18) * var(--u)); letter-spacing: 0.04em; color: var(--cc-skip-text, #f2f2f2); background: var(--cc-skip-bg, #006fd6); border: var(--cc-skip-bw, 1px) solid var(--cc-skip-border, #b07047); padding: calc(8 * var(--u)) calc(20 * var(--u)); border-radius: calc(var(--cc-skip-radius, 30) * var(--u)); box-shadow: 0 calc(4 * var(--u)) 0 var(--cc-skip-border, #b07047); cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; animation: fadein 0.25s ease; }
-.combathud-skip svg { width: calc(16 * var(--u)); height: calc(16 * var(--u)); }
-.combathud-skip:hover { background: var(--cc-skip-border, #b07047); }
-.combathud-skip:active { transform: translate(-50%, -50%) translateY(calc(2 * var(--u))); box-shadow: 0 calc(2 * var(--u)) 0 var(--cc-skip-border, #b07047); }
-/* ROUND X (owner ask 2026-09-25) — the round number, white, top-centre of the arena, sitting just ABOVE the Skip
-   button. Same stage anchor as `.combathud-skip` (its centre point, incl. the tuner's --cc-skip-x/y), then lifted
-   by half Skip's height + a gap and bottom-anchored (translateY -100%), so it never overlaps or shifts Skip and
-   stays put after Skip unmounts. Static: no looping animation, only the shared one-shot fade-in. Inert. */
+/* ROUND X (owner ask 2026-09-25) — the round number, white, top-centre of the arena. It sat just ABOVE the old
+   Skip pill and keeps that pill's stage anchor (incl. the Combat Controls tuner's --cc-skip-x/y) now that Skip lives
+   on the End Turn diamond (R-SKIP-DIAMOND-01), lifted and bottom-anchored (translateY -100%), so it does not move. Static: no looping animation, only the shared one-shot fade-in. Inert. */
 .combatround { position: fixed; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); top: calc(var(--bar-y) + 0.055 * var(--gh) + var(--cc-skip-y, 49px) * var(--scale) - 28 * var(--u)); transform: translate(-50%, -100%); z-index: 41; pointer-events: none; white-space: nowrap; font-family: var(--font-ui); font-weight: 800; font-size: calc(24 * var(--u)); line-height: 1; letter-spacing: 0.14em; text-transform: uppercase; color: #fff; text-shadow: 0 calc(2 * var(--u)) calc(4 * var(--u)) rgba(0, 0, 0, 0.75), 0 0 calc(10 * var(--u)) rgba(0, 0, 0, 0.45); animation: fadein 0.25s ease; }
 /* ── FIGHT RECAP (owner redesign 2026-09-24; was the flat beige "Combat Summary") ──
    The house modal language: dark glass (#241a13 → #17110c) inside a dark-gold trim, cream type, gold accents

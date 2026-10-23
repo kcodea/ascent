@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Skip has moved onto the End Turn diamond: it glows gold while a fight can be skipped, and clicking it skips.',
+        details: [
+          'Hover the glowing diamond during a fight to see Skip Combat.',
+          'Once the fight ends the diamond goes back to ending combat as before.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new trip back to the Shop: after each fight the camera drops into a sunny valley, RETURNING TO SHOP pops up in the sky, and you fly through the glowing doorway of the Shop.',
       },
       { category: 'Systems', text: 'The Now Facing poster is easier to read, and it and the return trip fit every screen shape, including ultrawide and windowed.' },

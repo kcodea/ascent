@@ -36,6 +36,7 @@ const UNIT_LESS: { file: string; id: string; why: string }[] = [
   { file: 'Recruit.tsx', id: 'final-countdown-tick', why: 'the final-countdown burst: fires from the shop TIMER digits (HUD chrome) on each of the last five seconds, never at a unit' },
   { file: 'Recruit.tsx', id: 'self-buff-burst', why: 'the End-of-Turn economy burst (R-EOT-ECON-01): fires at the HUD control whose number moved (Tier stone, Refresh crystal, Gold pill), never at a unit' },
   { file: 'EndTurnButton.tsx', id: 'impact-dust', why: 'fires at the button' },
+  { file: 'EndTurnButton.tsx', id: 'skip-sparks', why: 'the Skip click burst (R-SKIP-DIAMOND-01): fires at the End Turn diamond, HUD chrome, never at a unit' },
   { file: 'StatusBar.tsx', id: 'equipment-used-up', why: "the Equipment slot ran EMPTY — anchored on the slot button, which is HUD chrome and has no unit uid. The subject is the allowance, not a body on the board" },
   { file: 'EquipFxTuner.tsx', id: 'equipment-spark', why: "the tuner's TEST fire — screen coords with no run and no unit; the real call in Recruit.tsx carries the source uid" },
   { file: 'EquipFxTuner.tsx', id: '<dynamic>', why: "the tuner's TEST fire for the USE effect — the SELECTED Equipment's own def, slot to a stand-in point, no run and no unit; the real call carries the target uid" },

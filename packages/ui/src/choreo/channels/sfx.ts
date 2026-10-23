@@ -1,5 +1,6 @@
 import type { CombatEvent } from '@game/core';
 import { sfx } from '../../sfx';
+import { isHandSummonInFlight } from '../../handSummonFx';
 import type { Moment } from '../compile';
 
 /**
@@ -33,7 +34,8 @@ export function playMomentSfx(moment: Moment, events: CombatEvent[], cardIds?: M
     else if (e.type === 'shieldUp') once('shield', sfx.shield);
     else if (e.type === 'buff') once('buff', sfx.buff);
     else if (e.type === 'maxGold') once('maxgold', sfx.maxGold);
-    else if (e.type === 'summon') once('summon', () => sfx.summon(e.minion.cardId));
+    // A body summoned from the hand rings its summon on its LANDING (handSummonFx.ts), not here.
+    else if (e.type === 'summon') { if (!isHandSummonInFlight(e.minion.uid)) once('summon', () => sfx.summon(e.minion.cardId)); }
   }
   if (riseDeath) once('rise', sfx.rebornShatter);
   return { shake: kill };

@@ -3512,6 +3512,12 @@ body.modalup .app { z-index: auto; }
    this, so parking it here costs nothing and makes that whole class of flash impossible rather than
    whack-a-mole per remount path. */
 .dragcard { position: fixed; left: 0; top: 0; transform: translate(-9999px, -9999px); z-index: 115; pointer-events: none; filter: drop-shadow(0 16px 22px rgba(0, 0, 0, 0.34)); will-change: transform; }
+/* SUMMONED FROM HAND (owner ask 2026-10-23, R-HANDSUMMON-FX-01): the copy of the hand card that travels to the board
+   slot (`handSummonFx.ts`). A clone of the real hand card's render, positioned by ONE Web Animation over transform +
+   opacity (compositor only, nothing loops). The hand's own tuck / fan / hover transforms are dropped on the clone:
+   the wrapper owns the motion. The hand zone's card size vars are copied onto the wrapper at launch. */
+.handsummon-ghost { position: fixed; left: 0; top: 0; z-index: 115; pointer-events: none; transform-origin: 50% 50%; will-change: transform, opacity; opacity: 0; }
+.handsummon-ghost > .card { width: 100%; height: 100%; margin: 0; animation: none; transition: none; transform: none; translate: none; rotate: none; filter: none; }
 .dragcard.snap { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
 /* a Magnetic card shrinking straight into its Mech before it merges — snappy, so it reads as an
    "absorb" rather than a slow creep (the target Mech crackles + buff-flashes as it lands) */

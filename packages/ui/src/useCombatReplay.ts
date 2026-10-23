@@ -28,6 +28,7 @@ import { prefoldedShareOf } from './choreo/clashOrder';
 import { rallyDeliveredUids, runMomentCues } from './choreo/score';
 import { CastPreviewMemory } from './choreo/channels/castPreview';
 import { bankedCastPlayerAnchor, clearCastPreviews, showBankedCastPreviews, showCombatCastPreviews } from './castPreview';
+import { clearHandSummonFx, combatHandSummonOrigins, handSummonRemainingMs, isHandSummonInFlight, launchHandSummonFlights, type HandSummonFlight } from './handSummonFx';
 import { anySummonHeld, holdSummon, isSummonHeld, releaseAllSummons, releaseSummons, subscribeSummonHolds, summonHoldVersion } from './fx/summonHold';
 import { notifyTutorialPresented } from './tutorial/presentationBus';
 import { RALLY_PROC_STRIDE_MS, attackSummonUids, ownStrikeAt, rallyProcsFor, strikeFollowsWindup } from './choreo/channels/rallyFired';
@@ -351,10 +352,12 @@ export function handBuffUidsIn(beat: { start: number; end: number }, events: rea
 
 /** Hand uids a COPY has been summoned from so far (set 3 Spirits' hand-summon), through the beat cursor — the hand
  *  card greys on that beat and stays grey for the fight; the card itself is untouched (owner design 2026-09-09). */
-export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number): ReadonlySet<string> {
+export function handSummonedShownThrough(events: CombatEvent[], beats: Beat[], beatIdx: number, withheld?: (boardUid: string) => boolean): ReadonlySet<string> {
   const through = beatIdx === 0 ? 0 : (beats[beatIdx - 1]?.end ?? events.length);
   const out = new Set<string>();
-  for (const e of events.slice(0, through)) if (e.type === 'summon' && e.side === 'player' && e.fromHandUid) out.add(e.fromHandUid);
+  for (const e of events.slice(0, through)) {
+    if (e.type === 'summon' && e.side === 'player' && e.fromHandUid && !withheld?.(e.minion.uid)) out.add(e.fromHandUid);
+  }
   return out;
 }
 
@@ -1929,6 +1932,8 @@ export function useCombatReplay(
     // and by the install layout effect). A summon hold surviving a seek or a fresh fight would hide a live
     // minion until its TTL, which is the one direction that feature must never fail in.
     releaseAllSummons();
+    // …and any summoned-from-hand ghost in flight: a seek / a fresh fight must never leave a body hidden.
+    clearHandSummonFx();
   }, [cancelPendingRolls]);
 
   // A fresh combat resets the replay to the top (the hook persists across fights). `beatIdx` is already back
@@ -2329,6 +2334,9 @@ export function useCombatReplay(
     if (shown?.kind === 'attackExchange' && engineAdvancingRef.current) return;
     const next = beats[beatIdx]!;
     let d = holdMs(next, shown, combatSpeedRef.current);
+    // A minion still arriving from the hand (R-HANDSUMMON-FX-01) finishes landing before the next beat shows: the
+    // flight's remaining real time is a floor on this hold (0 when none runs, so every other fight is unchanged).
+    d = Math.max(d, handSummonRemainingMs());
     // A Deathrattle summon (skull) or a Rise return (body fade) waits for the death to read — and an attacker
     // to settle home — before the consequence-overlap gap, so the tokens/returned body land AFTER the proc
     // reads, not on top of it.
@@ -2869,6 +2877,7 @@ export function useCombatReplay(
       // grown it to a measurable, full size; skip if the element isn't resolvable (e.g. a summon off-screen).
       onSummonFx: (uids) => {
         for (const uid of uids) {
+          if (isHandSummonInFlight(uid)) continue; // a summoned-from-hand body arrives with its flight from the hand instead
           const el = findEl(uid);
           if (!el) continue;
           const { cx, cy, w, h } = layoutRectOf(el);
@@ -3608,6 +3617,43 @@ export function useCombatReplay(
     return { player: frame.player.filter((u) => !isSummonHeld(u.uid)), enemy: frame.enemy.filter((u) => !isSummonHeld(u.uid)) };
   }, [frame, summonHeldV]);
 
+  // ── SUMMONED FROM HAND (owner ask 2026-10-23, R-HANDSUMMON-FX-01) ─────────────────────────────────────────────
+  // A body that came out of the hand (a Spirit's hand-summon: `fromHandUid`; Rune of the Waking Reserve) gets the
+  // ghost flight from its hand card the moment it is DRAWN — when it enters `visibleFrame`, so a Rally summon that
+  // `summonHold` withholds flies when its sparkle releases it, not at moment start. A LAYOUT effect: the body is
+  // hidden on its first painted frame. Presentation only; nothing about the beat or its order moves. A seek or a
+  // Skip (beat jumped, turbo) records what is drawn without flying anything.
+  const handOrigins = useMemo(
+    () => (active ? combatHandSummonOrigins(events, useGame.getState().run.hand) : new Map<string, string>()),
+    [active, events],
+  );
+  const handFlightSeenRef = useRef<{ uids: Set<string>; beat: number } | null>(null);
+  // Bodies seen WITHHELD: their beat already rang the summon sound, so their landing does not ring it again.
+  const handHeldSeenRef = useRef<Set<string>>(new Set());
+  useLayoutEffect(() => {
+    if (!active || handOrigins.size === 0) { handFlightSeenRef.current = null; handHeldSeenRef.current.clear(); return; }
+    const prev = handFlightSeenRef.current;
+    // A body the summon-hold layout effect (declared above, so it already ran for this commit) has just withheld is
+    // NOT drawn: the re-render it scheduled removes it before paint. It flies when the hold releases it.
+    const drawn = new Set<string>();
+    for (const u of visibleFrame.player) {
+      if (!isSummonHeld(u.uid)) drawn.add(u.uid);
+      else if (handOrigins.has(u.uid)) handHeldSeenRef.current.add(u.uid);
+    }
+    handFlightSeenRef.current = { uids: drawn, beat: beatIdx };
+    if (!prev) return;
+    const stepped = beatIdx === prev.beat || beatIdx === prev.beat + 1;
+    if (!stepped || turbo) return;
+    const flights: HandSummonFlight[] = [];
+    for (const u of visibleFrame.player) {
+      if (prev.uids.has(u.uid) || !drawn.has(u.uid)) continue;
+      const handUid = handOrigins.get(u.uid);
+      if (handUid) flights.push({ handUid, boardUid: u.uid, cardId: u.cardId });
+    }
+    const heldSeen = handHeldSeenRef.current;
+    launchHandSummonFlights(flights, findEl, { speed: combatSpeedRef.current, ownSound: (f) => !heldSeen.has(f.boardUid) });
+  }, [active, handOrigins, visibleFrame, beatIdx, turbo, findEl]);
+
   // Enemy minions killed so far (deaths landed up to the current beat) — Cassen's Collision counter ticks
   // up live in combat off this; settleCombat banks the same total at the end.
   const enemyDeaths = useMemo(() => {
@@ -3815,8 +3861,9 @@ export function useCombatReplay(
     [active, beatIdx, beats, events],
   );
   const handSummonedShown = useMemo(
-    () => (active ? handSummonedShownThrough(events, beats, beatIdx) : EMPTY_HAND_SUMMONED),
-    [active, events, beats, beatIdx],
+    // The hand card greys the moment its body is DRAWN (as its copy lifts away), not while a hold still withholds it.
+    () => (active ? handSummonedShownThrough(events, beats, beatIdx, (uid) => summonHeldV >= 0 && isSummonHeld(uid)) : EMPTY_HAND_SUMMONED),
+    [active, events, beats, beatIdx, summonHeldV],
   );
   const handBuffsShown = useMemo(
     () => (active ? handBuffsShownThrough(events, beats, beatIdx) : EMPTY_HAND_BUFFS),

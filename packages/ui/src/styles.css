@@ -473,13 +473,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
    (`transition-poster.webp`, the paper trimmed to its edges, transparent around them) laid on the gate between its two
    iron straps, hanging from its TOP-CENTRE NAIL (`transform-origin`, measured off the art at 48.4% across, 9.8% down).
    It is sized and placed by the size the gate art is actually drawn at (`--gate-hi`, the cover-fit height), so it stays
-   on the same spot of the wood on any screen shape: 49% of the gate's height, centred across, its middle 48.4% down
+   on the same spot of the wood on any screen shape: 60% of the gate's height (49% until the owner asked for it larger,
+   2026-10-23: "can we make the paper sheet larger first and foremost"; its edges now overlap the straps a little, as if nailed
+   over them), centred across, its middle 48.4% down
    (the clear wood between the straps). NOW FACING / RETURNING TO SHOP sits on it, centred on the paper and turned with
    it (-3.3 degrees, measured off its edges), so every swing carries the opponent with it. Transform-only, one shot per
    slam and per crank (CLAUDE.md perf rules). */
 .wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }
 .wipeposter { position: absolute; left: 50%; top: calc(50% - 0.016 * var(--gate-hi));
-  width: calc(0.49 * 1.8012 * var(--gate-hi)); height: calc(0.49 * var(--gate-hi)); translate: -50% -50%;
+  width: calc(0.6 * 1.8012 * var(--gate-hi)); height: calc(0.6 * var(--gate-hi)); translate: -50% -50%;
   background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
   transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
 .wipeposter .wipevs { rotate: -3.3deg; }

@@ -504,7 +504,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* …and the portrait a little too ("then move the portrait up slightly as well"); the name stays put. */
 .wipeposter .wipevs > .wipevs-face, .wipeposter .wipevs > .wipevs-facewrap { position: relative; top: calc(-14 * var(--u, 1px)); }
 .wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));
-  padding-bottom: calc(12 * var(--u, 1px)); }
+  padding-bottom: calc(12 * var(--u, 1px)); top: calc(-10 * var(--u, 1px)); } /* raised a bit (owner 2026-10-23: "raise the player name text a bit as well") */
 /* The rules: a thin brown line, tapered to points at both ends, under each line of text. */
 .wipeposter .wipevs-label::after, .wipeposter .wipevs-name::after { content: ''; position: absolute; left: -6%; right: -6%; bottom: 0;
   height: calc(3 * var(--u, 1px)); border-radius: 50%; opacity: 0.85;

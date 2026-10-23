@@ -539,13 +539,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
   width: max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7778)); height: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778));
   transform-origin: 47.7% 74%; }
 /* THE DIVE THROUGH THE DOOR (owner 2026-10-23: "zooms in so far that going through the door ends up being the screen wipe
-   effect"): the doorway's painted interior fades out over the first 30%, opening it onto the real Shop behind, while the
+   effect"): the doorway's painted interior fades out (from 15% to 55% of the dive), opening it onto the real Shop behind, while the
    whole picture zooms 18x on the doorway (its lower middle, where it sits after the push) so the open door grows past
    every edge of the screen: flying through it IS the wipe. 13x already clears a 16:9 screen; 18x is margin. */
 .wipevista.dive .wipevista-stage { transform-origin: 47.7% 76%; animation: vistadive var(--wipe-reveal-dur, 450ms) cubic-bezier(.55, 0, .85, .35) both; }
 @keyframes vistadive { 0% { transform: scale(1); } 100% { transform: scale(18); } }
 .wipevista.dive .wipevista-doorfill { animation: vistadooropen var(--wipe-reveal-dur, 450ms) both; }
-@keyframes vistadooropen { 0% { opacity: 1; } 30% { opacity: 0; } 100% { opacity: 0; } }
+/* It waits a beat, then fades a little slower (owner 2026-10-23: "have the masks fade wait a bit and fade slightly slower"):
+   held to 15% of the dive, gone by 55%. */
+@keyframes vistadooropen { 0% { opacity: 1; } 15% { opacity: 1; animation-timing-function: ease-in-out; } 55% { opacity: 0; } 100% { opacity: 0; } }
 /* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
    The stage zooms 18x (the house, its doorway and the hole through everything behind it, which must stay locked to the
    doorway). Each layer behind the house sits in a WRAPPER that scales it back down, so its NET zoom is slower: sky 2.5x,

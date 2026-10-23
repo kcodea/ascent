@@ -683,11 +683,14 @@ canvas.spr { image-rendering: pixelated; display: block; }
   font-size: calc(98 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
   text-shadow: 0 0 calc(6 * var(--u, 1px)) #9ff7ef, 0 0 calc(18 * var(--u, 1px)) #36cfd6, 0 0 calc(40 * var(--u, 1px)) rgba(54, 207, 214, 0.8),
     0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(10, 40, 80, 0.5); }
-/* THE POP (owner 2026-10-23: "have it grow and pop out and spring back into place with a little settle. have this happen
-   partway through the transition"): early in the hold, once the land has settled, the title swells, springs back past
-   its size and settles. Scale only (compositor); the selector spans the dive too so the class change never restarts it. */
-.wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.75s linear 0.2s both; }
-@keyframes vistatitlepop { 0% { transform: scale(1); animation-timing-function: cubic-bezier(.2, .8, .3, 1); } 30% { transform: scale(1.2); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 50% { transform: scale(0.93); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 67% { transform: scale(1.045); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 84% { transform: scale(0.988); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 100% { transform: scale(1); } }
+/* THE ENTRANCE (owner 2026-10-23: first "have it grow and pop out and spring back into place with a little settle ...
+   partway through the transition", then "i want [it] to grow from zero, not bounce midway through. where the current bounce
+   is, is where the text should first come in"): the title is not there while the land rises; early in the hold it grows
+   in from nothing, overshoots, springs back and settles. Scale + opacity only (compositor); the selector spans the dive
+   too so the class change never restarts it. */
+.wipevista .wipevista-title { transform: scale(0); opacity: 0; }
+.wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.7s linear 0.2s both; }
+@keyframes vistatitlepop { 0% { transform: scale(0); opacity: 0; animation-timing-function: cubic-bezier(.2, .8, .3, 1); } 15% { opacity: 1; } 45% { transform: scale(1.14); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 64% { transform: scale(0.95); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 82% { transform: scale(1.02); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 100% { transform: scale(1); opacity: 1; } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */

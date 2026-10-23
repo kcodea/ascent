@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      { category: 'Systems', text: 'Last Call and Return Customers have their emblem art.' },
       { category: 'Balance', text: 'Minions added to your hand during a fight can now be summoned from hand in that same fight.' },
       { category: 'Balance', text: 'Overflowing Crypt is now an Undead spell, offered in runs with Undead. It has new art.' },
       {

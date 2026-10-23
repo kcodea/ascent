@@ -38,10 +38,11 @@ export interface RecordedEmote {
   at: number;
 }
 
-/** Owner 2026-10-13: "Cooldown: 20 seconds between emotes". No per-turn cap. */
-export const EMOTE_COOLDOWN_MS = 20_000;
+/** Owner 2026-10-13: "Cooldown: 20 seconds between emotes". No per-turn cap. Owner 2026-10-22: "drop the emote cooldown from
+ *  20s to 8s". */
+export const EMOTE_COOLDOWN_MS = 8_000;
 
-/** Hard caps, so a hostile or corrupt board stays tiny: a 20 s cooldown allows a handful per round, never more. */
+/** Hard caps, so a hostile or corrupt board stays tiny: an 8 s cooldown allows a handful per round, never more. */
 export const MAX_RECORDED_EMOTES = 24;
 /** An offset past this is junk (no shop turn or combat lasts 10 minutes). */
 export const MAX_EMOTE_OFFSET_MS = 10 * 60_000;

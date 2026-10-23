@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * EMOTES IN A GAME (owner spec 2026-10-13). Pins the client half:
- *  - the 20 s cooldown on saying one (no per-turn cap), and the menu showing it;
+ *  - the 8 s cooldown on saying one (no per-turn cap), and the menu showing it;
  *  - your emote goes through the transport seam and comes straight back as YOUR bubble;
  *  - in a lobby run it is RECORDED for the round's board at its offset into the phase: a shop emote is held until the
  *    round's board is captured, a combat emote lands on the board already captured; practice records nothing;
@@ -56,24 +56,24 @@ afterEach(() => {
 const lobbyRun = (phase: RunState['phase'] = 'recruit', mode: RunState['mode'] = 'lobby'): RunState => ({ ...createLobbyRun(4242, 'warden'), phase, mode });
 
 describe('saying an emote: the cooldown, the transport, the recording', () => {
-  it('20 s between emotes, no per-turn cap; each one goes out through the transport seam', () => {
+  it('8 s between emotes, no per-turn cap; each one goes out through the transport seam', () => {
     act(() => { useGame.setState({ run: lobbyRun() }); });
     markEmotePhase('shop', 1, 1000);
     const heard: EmoteMessage[] = [];
     const off = subscribeEmotes((m) => heard.push(m));
-    expect(EMOTE_COOLDOWN_MS).toBe(20_000);
+    expect(EMOTE_COOLDOWN_MS).toBe(8_000);
     expect(sayEmote(C, 5200)).toBe(true);
     expect(sayEmote(A, 10_000)).toBe(false); // cooling
-    expect(sayEmote(A, 25_199)).toBe(false);
-    expect(sayEmote(A, 25_200)).toBe(true);
-    expect(sayEmote(B, 45_200)).toBe(true); // a third in the same turn: no cap
+    expect(sayEmote(A, 13_199)).toBe(false);
+    expect(sayEmote(A, 13_200)).toBe(true);
+    expect(sayEmote(B, 21_200)).toBe(true); // a third in the same turn: no cap
     expect(sayEmote('emote_does_not_exist', 99_000)).toBe(false);
     expect(sayEmote(RETIRED, 99_000)).toBe(false); // retired 2026-10-15: known, but never live
     off();
     expect(heard).toEqual([
       { emoteId: C, seat: 's0', phase: 'shop', offsetMs: 4200, round: 1 },
-      { emoteId: A, seat: 's0', phase: 'shop', offsetMs: 24_200, round: 1 },
-      { emoteId: B, seat: 's0', phase: 'shop', offsetMs: 44_200, round: 1 },
+      { emoteId: A, seat: 's0', phase: 'shop', offsetMs: 12_200, round: 1 },
+      { emoteId: B, seat: 's0', phase: 'shop', offsetMs: 20_200, round: 1 },
     ]);
   });
 
@@ -162,7 +162,7 @@ describe('the menu (right-click your portrait)', () => {
     expect(document.body.querySelector('.emote-menu')).toBeNull(); // saying one closes it
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
     expect(picks().every((b) => b.disabled)).toBe(true);
-    expect(document.body.querySelector('.emote-menu .emote-cd-txt')!.textContent).toMatch(/^Ready in (19|20)s$/);
+    expect(document.body.querySelector('.emote-menu .emote-cd-txt')!.textContent).toMatch(/^Ready in [78]s$/);
     act(() => { closeEmoteMenu(); });
   });
 });

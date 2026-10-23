@@ -5498,7 +5498,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'slot from there; one not owned shows them read-only). The crate reveal shows a won emote\x27s bubble beside the '
       + 'plate. An equip the server cannot take is kept on the device, but still only shows owned emotes. In a game the '
       + 'player right-clicks THEIR hero portrait (only there is the browser menu suppressed) in a shop turn or a combat, '
-      + 'never in a replay, and picks an emote: its bubble pops beside the portrait. At least 20 seconds pass between two '
+      + 'never in a replay, and picks an emote: its bubble pops beside the portrait. At least 8 seconds (20 before 2026-10-22) pass between two '
       + 'emotes (the menu shows the wait); there is no per-turn cap and no muting. The menu is LIVE LOADOUT ONLY: a run '
       + 'records the emotes USED (R-EMOTE-01), never the menu.',
     domain: 'foundation',
@@ -5506,6 +5506,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players right-click THEIR hero\x27s portrait (in game) to open an emote menu showing their 4 equipped emotes; clicking one plays it.' },
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Cooldown: 20 seconds between emotes (show the cooldown state on the menu). No per-turn cap. No muting for now.' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-22', quote: 'drop the emote cooldown from 20s to 8s' },
       { kind: 'owner-handoff', ref: 'Owner spec 2026-10-13 (emotes)', quote: 'Players equip up to 4 in Collections. Unlock source: crates, plus starter emotes everyone owns.' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove the angry mushy emote' },
       { kind: 'owner-handoff', ref: 'Owner 2026-10-15', quote: 'remove all emotes as \x27given\x27 and put them in various loot tiers between rare and legendary. wire all the new ones that i added' },
@@ -6295,7 +6296,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-SPECTATE-EMOTE-01',
     title: 'A spectator can emote to the player; it pops from their chip in the top-left stands',
     statement:
-      "A spectator (Versus or a live ranked game) says an emote with the same menu, their own equipped emotes and the same 20 s cooldown as a player. "
+      "A spectator (Versus or a live ranked game) says an emote with the same menu, their own equipped emotes and the same 8 s cooldown as a player. "
       + "It opens from their own plate at the top left of the watch screen (click or right-click), never from the watched player portrait. "
       + "It travels on the existing spectate broadcast channel as { e: emoteId, from: userId }, with no timestamp. "
       + "The player sees it pop from that spectator chip in their Spectating indicator; every other spectator of the same game sees it pop from that spectator chip in their own top-left stands row; the speaker sees it at once from their own plate. "

@@ -28,7 +28,7 @@ import './emotes.css';
  *    In combat only the foe you are fighting can be seen, so only its emotes are scheduled. Bots and generated seats
  *    never emote. Nothing is scheduled while a replay is being watched (the replay's stream delivers what the player
  *    saw, R-REPLAY-EMOTE-01); the fight's foe is still named so those bubbles find the foe portrait.
- *  - THE MENU: your eight emotes (four before 2026-10-22), opened by right-clicking your portrait (StatusBar), with the 20 s cooldown.
+ *  - THE MENU: your eight emotes (four before 2026-10-22), opened by right-clicking your portrait (StatusBar), with the 8 s cooldown (20 s before 2026-10-22).
  */
 export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
   useEffect(() => {

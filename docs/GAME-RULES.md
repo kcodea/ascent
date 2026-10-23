@@ -1894,6 +1894,20 @@ the fight's Rubies land first, then the granted cards in the order they arrived.
 Both sides, identically (a recorded board carries its owner's free hand slots as `handRoom`; an older capture
 without it assumes 10 minus the minions and spells it lists).
 
+### The opponent's hand, face down (owner ask 2026-10-23, R-OPP-HAND-01)
+
+In every fight (your own, a spectator's view, Versus, replays) the opponent's hand shows **face down** to the left of
+their runes: one card per card they hold, each drawn as their equipped **card plate** (the standard plate when they
+have none, for bots, or with opponent cosmetics off), with no art, name, text or stats. It reveals the **count** only.
+
+- It starts from the hand their recorded board carried into the fight (its minions, then its spells; an older
+  recording without a hand shows none).
+- A card the opponent gains mid-fight joins it **the moment it arrives**, as yours do (R-HAND-01).
+- A minion they summon from hand lifts out of **that** card and lands with the shared lift-and-land
+  (R-HANDSUMMON-FX-01); a copy summon greys the card for the fight, exactly as yours does.
+
+Presentation only: nothing here changes the fight.
+
 ---
 
 ### Random picks reach Tier 7 only from a Tier 7 Shop (owner rulings 2026-10-21, R-RANDOM-TIER7-01, R-RANDOM-POOL-01)

@@ -78,6 +78,15 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Systems', text: "Traveling Festival no longer shows a growing number. Each Reveler's text now includes the rune's extra +2/+2." },
       { category: 'Systems', text: 'Opponent info now stays in place on unusual window shapes.' },
       { category: 'Systems', text: 'A minion summoned from your hand now shows it. The card lifts out of your hand and the minion forms in its slot with a small pulse. This works in combat and in the Shop.' },
+      {
+        category: 'Systems',
+        text: "In combat you can now see your opponent's hand, face down, to the left of their runes.",
+        details: [
+          'The cards show the card plate your opponent has equipped. You only see how many cards they hold, never which ones.',
+          'Cards your opponent gains during the fight appear in their hand as it happens.',
+          'A minion they summon from hand lifts out of its card, and that card greys out for the fight.',
+        ],
+      },
     ],
   },
   {

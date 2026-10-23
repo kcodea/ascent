@@ -90,6 +90,7 @@ import { SPEC as LoadScreenSpec } from './LoadScreenTuner';
 import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
 import { SPEC as PlateDissolveSpec } from './PlateDissolveTuner';
+import { SPEC as HandSummonSpec } from './HandSummonTuner';
 import { SPEC as QuestTendrilSpec } from './QuestTendrilTuner';
 import { SPEC as RefreshSpec } from './RefreshTuner';
 import { SPEC as RubyPowerFxSpec } from './RubyPowerFxTuner';
@@ -190,6 +191,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   LungeSpec,
   PlateCoalesceSpec,
   PlateDissolveSpec,
+  HandSummonSpec,
   QuestTendrilSpec,
   RefreshSpec,
   RubyPowerFxSpec,

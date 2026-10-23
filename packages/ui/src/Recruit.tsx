@@ -184,6 +184,7 @@ import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
+import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, shopHandSummonFlights } from './handSummonFx';
 import { fireBuffFx } from './buffFxRender';
 import { planShoutChain } from './choreo/shoutChain';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
@@ -5286,10 +5287,31 @@ export function Recruit() {
     if (!prev || inCombat || run.phase !== 'recruit') return;
     const fresh = run.board.filter((c) => !prev.has(c.uid) && !placed.has(c.uid) && !(tripled && c.golden));
     for (const c of fresh) {
+      // A body summoned FROM THE HAND lands with its own dust and sound, on its landing (R-HANDSUMMON-FX-01).
+      if (isHandSummonInFlight(c.uid)) continue;
       puffOnBoard(c.uid);
       sfx.summon(c.cardId);
     }
   }, [run.board, inCombat]);
+
+  // SUMMONED FROM HAND, Shop half (owner ask 2026-10-23, R-HANDSUMMON-FX-01): a Spirit's hand-summon fired in the
+  // Shop (`summonCopyFromHandShop`) grows `handCopiedThisTurn` in the same commit that puts the copy on the board, so
+  // the pair is exact: the hand card lifts out and travels to the new body, which crossfades in. The
+  // same flight combat plays (`useCombatReplay`). A LAYOUT effect, so the body is hidden on its first painted frame.
+  // Bodies End-of-Turn playback already drew (`eotSummons`) are on screen: nothing to fly.
+  const eotShownRef = useRef<Set<string>>(new Set());
+  useEffect(() => { for (const e of eotSummons) eotShownRef.current.add(e.uid); }, [eotSummons]);
+  const handSummonPrevRef = useRef<{ copied: readonly string[]; board: Set<string> } | null>(null);
+  useLayoutEffect(() => {
+    const prev = handSummonPrevRef.current;
+    const copied = run.handCopiedThisTurn ?? [];
+    handSummonPrevRef.current = { copied, board: new Set(run.board.map((c) => c.uid)) };
+    if (inCombat) { eotShownRef.current.clear(); return; }
+    if (!prev || run.phase !== 'recruit') return;
+    launchHandSummonFlights(shopHandSummonFlights(prev.copied, copied, prev.board, run.board, run.hand, eotShownRef.current), findEl);
+    // (the Shop's landing rings its own summon sound: the arrival effect below stands down for these bodies)
+  }, [run.board, run.handCopiedThisTurn, inCombat]);
+  useEffect(() => () => clearHandSummonFx(), []);
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher

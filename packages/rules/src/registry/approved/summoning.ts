@@ -228,4 +228,36 @@ export const SUMMONING_RULES: GameRule[] = [
       lastVerifiedAt: '2026-10-21',
     },
   },
+  // ── Summoned from hand: one presentation for every source, both phases (owner ask 2026-10-23) ─────────────────
+  {
+    id: 'R-HANDSUMMON-FX-01',
+    title: 'A minion summoned from the hand is shown coming from the hand: the card lifts out and the minion forms in its slot, as one seamless motion',
+    statement:
+      'Whenever a minion is summoned out of the hand (a Spirit hand-summon such as Seedling Spirit or Tide Caller, or '
+      + 'Rune of the Waking Reserve), a copy of that hand card lifts off its hand slot and curves on toward the board as '
+      + 'it dissolves, while the minion forms in its already-opened slot through one slight overshoot to rest, with a '
+      + 'landing ring, the arrival dust and the summon sound. The phases overlap: the screen is never empty and the copy '
+      + 'and the minion are never both solid. One animation for every source, in combat and in the Shop, for the player, '
+      + 'a replay and a spectator. The hand card itself stays (greyed for the fight in combat). The next combat beat waits '
+      + 'for the landing. Otherwise presentation only. Several at once are staggered left to right; a Skip-speed replay, '
+      + 'or a hand card that is not on screen, keeps the stock arrival.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask, 2026-10-23', quote: 'build an animation for when a minion is summoned from hand' },
+      { kind: 'owner-chat', ref: 'Owner refinement, 2026-10-23', quote: 'it should land and have a small pulse or some sort or something. nothing over the top' },
+      { kind: 'owner-chat', ref: 'Owner decision, 2026-10-23', quote: 'use the lift and land animation, but smooth it out and make it overall less clunky and way more seamless' },
+      { kind: 'code', ref: 'packages/ui/src/handSummonFx.ts (combatHandSummonOrigins, shopHandSummonFlights, launchHandSummonFlights); useCombatReplay.ts + Recruit.tsx layout effects' },
+    ],
+    contentIds: ['sp3_seedling', 'sp3_dreamtide', 'rune_waking_reserve'],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, a hand-summoned minion popped in like any other summon; only the greyed hand '
+      + 'card hinted where it came from. Opponent hand-summons have no hand on screen yet: the flight takes a per-side '
+      + 'source, so an opponent hand area can register one later.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/handSummonFx.test.ts'],
+      lastVerifiedAt: '2026-10-23',
+    },
+  },
 ];

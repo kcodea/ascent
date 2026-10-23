@@ -168,7 +168,9 @@ describe('the return trip is the vista, not the gate', () => {
     expect(css).toContain('.wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }');
     expect(css).toContain('.wipeposter { --u: calc(var(--gate-hi) * 0.00089333); }');
     expect(css).toContain('.wipevista { --vista-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778)); }');
-    expect(css).toContain('.wipevista .wipevista-title { --u: calc(var(--vista-hi) * 0.00089333);');
+    // (the sky title is sized by the VISIBLE height and kept below the screen's top edge: a wide window crops the sky)
+    expect(css).toContain('.wipevista .wipevista-title { --u: calc(var(--lvh, 100dvh) * 0.00089333);');
+    expect(css).toContain('top: max(15.5%, calc((var(--vista-hi) - var(--lvh, 100dvh)) / 2 + 140 * var(--u)));');
     // the constant is the old --u at a 16:9 screen: 1.34px x 0.96 (--ui-scale) per 1440 px of stage height
     expect(Math.abs((1.34 * 0.96) / 1440 - 0.00089333)).toBeLessThan(1e-8);
   });

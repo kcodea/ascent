@@ -48,8 +48,9 @@ const CRYSTAL_REF_SIZE = 271;
 
 const SPARK_TINTS = [0xffffff, 0xfff2c0, 0xffd27a, 0xffa84a, 0xff7a2e] as const;
 const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
-/** The landing's debris: chips of grey stone and brown wood. */
-const DEBRIS_TINTS = [0x6f675c, 0x8a8174, 0x4f4943, 0x6b4f36, 0x553d2a, 0x8a6a4a] as const;
+/** The landing's debris: chips of pale stone and light, freshly split wood. Light on purpose: the first, darker set
+ *  (grey stone, brown wood) vanished against the gate's dark wood (owner 2026-10-23: "i dont think i see the debris"). */
+const DEBRIS_TINTS = [0xd8cfbf, 0xc2b8a6, 0xe8e0d0, 0xb89a72, 0xd2b48a, 0xa8865e] as const;
 const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
 /** The sparks the forming crystal pulls in: white-hot, with the crystal's own blues among them. */
 const HOT_TINTS = [0xffffff, 0xffffff, 0xeaf6ff, 0xbfe4ff, 0x7fc4ff] as const;
@@ -400,13 +401,13 @@ class GateFxController {
       // THE DEBRIS (owner 2026-10-23: "can we add a bit more debris to the door slam effect when it hits the bottom?"):
       // chips of stone and wood kicked up off the floor along the whole edge. Each spins, arcs up and falls back under
       // gravity, thrown outward like the dust; normal blend, so they read as solid bits, not light.
-      for (let i = 0, n = amount(60); i < n; i++) {
+      for (let i = 0, n = amount(90); i < n; i++) {
         const x = edge.left + Math.random() * w;
         const out = (x - mid) / (w / 2);
         let vx = (out * (80 + Math.random() * 320) + (Math.random() - 0.5) * 160) * k;
         let vy = -(320 + Math.random() * 620) * k;
         const spin = (Math.random() - 0.5) * 22;
-        const sz = (0.22 + Math.random() * 0.4) * k;
+        const sz = (0.45 + Math.random() * 0.7) * k; // 14 to 37 px at 1080 tall (the first set, 7 to 20, read as specks)
         const sx = sz * (0.7 + Math.random() * 0.6), sy = sz * (0.5 + Math.random() * 0.5);
         const delay = Math.random() * 70;
         const sp = this.spawn(this.shardTex!, x, edge.bottom - Math.random() * 14 * k, pick(DEBRIS_TINTS), delay + 650 + Math.random() * 550, false, (p, dt) => {
@@ -418,7 +419,7 @@ class GateFxController {
           p.sp.y += vy * s;
           p.sp.rotation += spin * s;
           const t = (p.age - delay) / (p.life - delay);
-          p.sp.alpha = 0.95 * (1 - t * t * t);
+          p.sp.alpha = 1 - t * t * t;
           p.sp.scale.set(sx, sy);
         });
         sp.rotation = Math.random() * Math.PI * 2;

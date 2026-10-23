@@ -2374,7 +2374,7 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
-    for (const n of PHONE_GPU ? ['flat'] : VISTA_LAYERS) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
+    for (const n of PHONE_GPU ? ['flat', 'doorfill'] : [...VISTA_LAYERS, 'doorfill']) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
     sfx.warmGate();
     sfx.warmWipeGate();
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
@@ -8233,8 +8233,15 @@ export function Recruit() {
           fade in and the dive out drive the machine like the gate does (`onVistaEnd` / `onVistaAnimEnd`). */}
       <div className={vistaClassFor(wipe)} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
         <div className="wipevista-stage">
-          {VISTA_LAYERS.map((n) => <div key={n} className={`wipevista-layer wipevista-${n}`} />)}
-          <div className="wipevista-layer wipevista-flat" />
+          {/* THE PORTAL (owner 2026-10-23): everything BEHIND the shop's doorway is cut away there (`.wipevista-masked`),
+              the doorway's own painted interior sits in the hole (`.wipevista-doorfill`) and fades out as the dive
+              starts, so the dive flies through an open door onto the real Shop. The flowers stay in front of it all. */}
+          <div className="wipevista-masked">
+            {VISTA_LAYERS.filter((n) => n !== 'fore').map((n) => <div key={n} className={`wipevista-layer wipevista-${n}`} />)}
+            <div className="wipevista-layer wipevista-flat" />
+          </div>
+          <div className="wipevista-doorwrap"><div className="wipevista-doorfill" /></div>
+          <div className="wipevista-layer wipevista-fore" />
           <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>
       </div>

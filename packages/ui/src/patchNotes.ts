@@ -68,6 +68,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'Rune and quest hovers now show each card they grant only once. Lantern Keeper shows one Lantern of Souls.' },
       { category: 'Systems', text: "Traveling Festival no longer shows a growing number. Each Reveler's text now includes the rune's extra +2/+2." },
+      { category: 'Systems', text: 'Opponent info now stays in place on unusual window shapes.' },
     ],
   },
   {

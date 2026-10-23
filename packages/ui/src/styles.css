@@ -495,7 +495,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
   text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
 .wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 700;
   font-size: calc(56 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px));
-  top: calc(-40 * var(--u, 1px)); } /* raised on the page (owner 2026-10-23: "a bit", then "needs to go up more") */
+  top: calc(-30 * var(--u, 1px)); } /* raised on the page (owner 2026-10-23: "a bit", then "needs to go up more"; -40 -> -30 once it scaled with the poster: "needs to come down a little bit now") */
 /* …and the portrait a little too ("then move the portrait up slightly as well"); the name stays put. */
 .wipeposter .wipevs > .wipevs-face, .wipeposter .wipevs > .wipevs-facewrap { position: relative; top: calc(-14 * var(--u, 1px)); }
 .wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(50 * var(--u, 1px));

@@ -466,15 +466,16 @@ canvas.spr { image-rendering: pixelated; display: block; }
    (`transition-poster.webp`, the paper trimmed to its edges, transparent around them) laid on the gate between its two
    iron straps, hanging from its TOP-CENTRE NAIL (`transform-origin`, measured off the art at 48.4% across, 9.8% down).
    It is sized and placed by the size the gate art is actually drawn at (`--gate-hi`, the cover-fit height), so it stays
-   on the same spot of the wood on any screen shape: 55% of the gate's height (49% until the owner asked for it larger,
+   on the same spot of the wood on any screen shape: 60% of the gate's height (49% until the owner asked for it larger,
    2026-10-23: "can we make the paper sheet larger first and foremost"; its edges now overlap the straps a little, as if nailed
-   over them; 60% -> 55% the same day, "reduce the size of the paper slightly"), centred across, its middle 48.4% down
+   over them; 60% -> 55% the same day, "reduce the size of the paper slightly", then back to 60%, "make the paper larger
+   again, as it was before"), centred across, its middle 48.4% down
    (the clear wood between the straps). NOW FACING / RETURNING TO SHOP sits on it, centred on the paper and turned with
    it (-3.3 degrees, measured off its edges), so every swing carries the opponent with it. Transform-only, one shot per
    slam and per crank (CLAUDE.md perf rules). */
 .wipecurtain { --gate-hi: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7777)); }
 .wipeposter { position: absolute; left: 50%; top: calc(50% - 0.016 * var(--gate-hi));
-  width: calc(0.55 * 1.8012 * var(--gate-hi)); height: calc(0.55 * var(--gate-hi)); translate: -50% -50%;
+  width: calc(0.6 * 1.8012 * var(--gate-hi)); height: calc(0.6 * var(--gate-hi)); translate: -50% -50%;
   background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
   transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
 .wipeposter .wipevs { rotate: -3.3deg; }
@@ -564,6 +565,26 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the masked group (the group carries the 1.12 push about 83%). Transform only. */
 .wipevista-dive { position: absolute; inset: 0; will-change: transform; transform-origin: 47.7% 76.75%; }
 .wipevista-dive.wipevista-dive-fore { transform-origin: 47.7% 76%; }
+/* THE ARRIVAL: THE LAYERS SWIPE IN (owner 2026-10-23: "a transition where all the components of the shop transition swipe in
+   from the left or right slightly into place and then the gem flashes and it zooms through as it currently does"). As the
+   vista fades in, each layer glides sideways into place and eases to a stop, alternating sides, the nearer ones travelling
+   further: distance 6% from the right, midground 9% from the left, the shop (with its doorway, its hole and the door's glow,
+   which travel together so the door never parts from its hole) 12% from the right, the flowers 16% from the left, the sky
+   text a short glide from the left. The SKY does not move, so the screen is always covered behind them. These ride the
+   individual `translate` property (or, for the centred title, `transform`), so they stack with the push and the dive.
+   Inside the masked group (which carries the shop's 12%) each layer's slide is written relative to it. Transform only. */
+.wipevista.on .wipevista-dive-sky { animation: vistaslidesky 0.7s cubic-bezier(.2, .75, .25, 1) both; }
+.wipevista.on .wipevista-dive-far { animation: vistaslidefar 0.7s cubic-bezier(.2, .75, .25, 1) both; }
+.wipevista.on .wipevista-dive-mid { animation: vistaslidemid 0.7s cubic-bezier(.2, .75, .25, 1) both; }
+.wipevista.on .wipevista-dive-fore { animation: vistaslidefore 0.7s cubic-bezier(.2, .75, .25, 1) both; }
+/* net: sky 0 (12% back against the group), distance +6%, midground -9% */
+@keyframes vistaslidesky { 0% { translate: -12% 0; } 100% { translate: 0 0; } }
+@keyframes vistaslidefar { 0% { translate: -6% 0; } 100% { translate: 0 0; } }
+@keyframes vistaslidemid { 0% { translate: -21% 0; } 100% { translate: 0 0; } }
+@keyframes vistaslidefore { 0% { translate: -16% 0; } 100% { translate: 0 0; } }
+@keyframes vistaslideshop { 0% { translate: 12% 0; } 100% { translate: 0 0; } }
+.wipevista.on .wipevista-title { animation: vistaslidetitle 0.7s cubic-bezier(.2, .75, .25, 1) both; }
+@keyframes vistaslidetitle { 0% { transform: translateX(-14%); } 100% { transform: translateX(0); } }
 .wipevista.dive .wipevista-dive-sky { animation: vistadivesky var(--wipe-reveal-dur, 450ms) linear both; }
 .wipevista.dive .wipevista-dive-far { animation: vistadivefar var(--wipe-reveal-dur, 450ms) linear both; }
 .wipevista.dive .wipevista-dive-mid { animation: vistadivemid var(--wipe-reveal-dur, 450ms) linear both; }
@@ -608,7 +629,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
 .wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
-.wipevista.on .wipevista-masked, .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-masked, .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistaslideshop 0.7s cubic-bezier(.2, .75, .25, 1) both; }
 .wipevista.on .wipevista-sky { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-far { animation: vistapushfar 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-mid { animation: vistapushmid 2s cubic-bezier(.25, .6, .35, 1) both; }

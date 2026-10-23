@@ -2435,6 +2435,18 @@ export function Recruit() {
   // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
   // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
   // crashed the shop screen (owner report 2026-10-23).
+  // THE TITLE'S WOOSH (owner 2026-10-23: "add a subtle woosh sound to the return to shop text springing out", then
+  // "start the woosh sound for the title text .3 seconds earlier"): 0.1 s BEFORE the hold begins, so 0.3 s ahead of the
+  // title's entrance (0.2 s into the hold, `vistatitlepop`). Timed off the trip's start (the land settles at
+  // VISTA_ARRIVAL_MS) and held in a ref, so the step into the hold does not cancel it; only leaving the trip does.
+  const titleWooshRef = useRef(0);
+  useEffect(() => {
+    if (wipe === 'coverOut') {
+      window.clearTimeout(titleWooshRef.current);
+      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), Math.max(0, VISTA_ARRIVAL_MS - 100));
+    } else if (wipe === 'idle' || wipe === 'chargeIn' || wipe === 'combat') window.clearTimeout(titleWooshRef.current);
+  }, [wipe]);
+  useEffect(() => () => window.clearTimeout(titleWooshRef.current), []);
   // THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
   // fluttery sparks bloom out from all four sides of the player screen"): once the dive has the doorway filling the
   // screen (82% of it, just before the vista fades off the shop), the portal's sparks bloom in off every edge.
@@ -2447,14 +2459,12 @@ export function Recruit() {
     if (wipe === 'coverOut') sfx.vistaTrip('arrive');
     else if (wipe === 'revealOut') sfx.vistaTrip('dive');
     if (wipe !== 'coveredOut') return undefined;
-    // The title's woosh, as it starts to grow in (its CSS entrance waits 0.2 s into the hold: `vistatitlepop`).
-    const tw = window.setTimeout(() => sfx.vistaTrip('title'), 200);
     const charge = 160;
     const t = window.setTimeout(() => {
       sfx.vistaTrip('portal');
       if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
     }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
-    return () => { window.clearTimeout(t); window.clearTimeout(tw); };
+    return () => window.clearTimeout(t);
   }, [wipe]);
   useEffect(() => {
     // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).

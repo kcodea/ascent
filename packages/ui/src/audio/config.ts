@@ -72,7 +72,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // THE RETURN TRIP (owner 2026-10-23): bank clips reused on faders of their own. Starting levels, to tune by ear.
   vistawhoosh: 0.45, vistashimmer: 0.35, vistaportal: 0.5, vistadive: 0.45, vistasparkle: 0.4,
   // …and the owner's own clips through the portal (2026-10-23): the long cartoon woosh and the magic spell.
-  vistawoosh: 0.5, vistatitle: 0.45, vistaspell: 0.35, // the title woosh +50% (owner 2026-10-23) // the spell -30% (owner 2026-10-23: "lower the level of the magic sound ... by about 30 percent")
+  vistawoosh: 0.5, vistatitle: 0.54, vistaspell: 0.35, // the title woosh +50%, then +20% (owner 2026-10-23) // the spell -30% (owner 2026-10-23: "lower the level of the magic sound ... by about 30 percent")
   // The Discover ENTRANCE (owner 2026-09-25): the whoosh under the cards' flight, the settle as each arrives, and the
   // sparkle once the set is in. One fader each. (The open cue keeps the existing `discover` fader.)
   discoverWhoosh: 0.5, discoverArrive: 0.4, discoverSparkle: 0.45,

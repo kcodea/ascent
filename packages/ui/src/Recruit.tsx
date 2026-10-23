@@ -8237,11 +8237,14 @@ export function Recruit() {
               the doorway's own painted interior sits in the hole (`.wipevista-doorfill`) and fades out as the dive
               starts, so the dive flies through an open door onto the real Shop. The flowers stay in front of it all. */}
           <div className="wipevista-masked">
-            {VISTA_LAYERS.filter((n) => n !== 'fore').map((n) => <div key={n} className={`wipevista-layer wipevista-${n}`} />)}
+            {/* The layers behind the house each sit in a dive wrapper that slows their zoom (parallax in the dive). */}
+            {VISTA_LAYERS.filter((n) => n !== 'fore').map((n) => n === 'shop'
+              ? <div key={n} className="wipevista-layer wipevista-shop" />
+              : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
             <div className="wipevista-layer wipevista-flat" />
           </div>
           <div className="wipevista-doorwrap"><div className="wipevista-doorfill" /></div>
-          <div className="wipevista-layer wipevista-fore" />
+          <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
           <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>
       </div>

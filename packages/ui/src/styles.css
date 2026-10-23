@@ -546,6 +546,24 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes vistadive { 0% { transform: scale(1); } 100% { transform: scale(18); } }
 .wipevista.dive .wipevista-doorfill { animation: vistadooropen var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadooropen { 0% { opacity: 1; } 30% { opacity: 0; } 100% { opacity: 0; } }
+/* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
+   The stage zooms 18x (the house, its doorway and the hole through everything behind it, which must stay locked to the
+   doorway). Each layer behind the house sits in a WRAPPER that scales it back down, so its NET zoom is slower: sky 2.5x,
+   distance 4x, midground 8x. The flowers' wrapper scales them UP, to 26x, rushing past. Every wrapper is keyframed so
+   the net zoom follows the stage's own ease (1 + (N - 1) x ease), so nothing ever dips back (generated, see the devlog).
+   They all scale about the same point on screen, the doorway: (47.7%, 76%) on the stage, which is (47.7%, 76.75%) inside
+   the masked group (the group carries the 1.12 push about 83%). Transform only. */
+.wipevista-dive { position: absolute; inset: 0; will-change: transform; transform-origin: 47.7% 76.75%; }
+.wipevista-dive.wipevista-dive-fore { transform-origin: 47.7% 76%; }
+.wipevista.dive .wipevista-dive-sky { animation: vistadivesky var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-far { animation: vistadivefar var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-mid { animation: vistadivemid var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-fore { animation: vistadivefore var(--wipe-reveal-dur, 450ms) linear both; }
+@keyframes vistadivesky { 0% { transform: scale(1.0000); } 10% { transform: scale(0.9410); } 20% { transform: scale(0.7932); } 30% { transform: scale(0.6236); } 40% { transform: scale(0.4780); } 50% { transform: scale(0.3681); } 60% { transform: scale(0.2890); } 70% { transform: scale(0.2326); } 80% { transform: scale(0.1920); } 90% { transform: scale(0.1620); } 100% { transform: scale(0.1389); } }
+@keyframes vistadivefar { 0% { transform: scale(1.0000); } 10% { transform: scale(0.9467); } 20% { transform: scale(0.8132); } 30% { transform: scale(0.6600); } 40% { transform: scale(0.5286); } 50% { transform: scale(0.4293); } 60% { transform: scale(0.3578); } 70% { transform: scale(0.3069); } 80% { transform: scale(0.2702); } 90% { transform: scale(0.2431); } 100% { transform: scale(0.2222); } }
+@keyframes vistadivemid { 0% { transform: scale(1.0000); } 10% { transform: scale(0.9619); } 20% { transform: scale(0.8666); } 30% { transform: scale(0.7572); } 40% { transform: scale(0.6633); } 50% { transform: scale(0.5923); } 60% { transform: scale(0.5413); } 70% { transform: scale(0.5049); } 80% { transform: scale(0.4787); } 90% { transform: scale(0.4593); } 100% { transform: scale(0.4444); } }
+@keyframes vistadivefore { 0% { transform: scale(1.0000); } 10% { transform: scale(1.0305); } 20% { transform: scale(1.1067); } 30% { transform: scale(1.1943); } 40% { transform: scale(1.2694); } 50% { transform: scale(1.3261); } 60% { transform: scale(1.3670); } 70% { transform: scale(1.3961); } 80% { transform: scale(1.4170); } 90% { transform: scale(1.4325); } 100% { transform: scale(1.4444); } }
+
 /* The hole moves WITH THE SHOP: the masked group and the door's wrapper carry the shop's push, and the layers inside the
    group push RELATIVE to it (sky 1.03 / 1.12 and so on), so each layer still ends at the same scale as before while the
    hole stays exactly on the shop's doorway the whole way. The mask (`vista-doormask.png`: the whole picture, minus the
@@ -554,7 +572,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-masked { -webkit-mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; }
 /* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
    hairline can show), at its box. */
-.wipevista-doorfill { position: absolute; left: 43.75%; top: 65.1389%; width: 7.8516%; height: 18.2639%;
+.wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
   background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
 .wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
 /* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door

@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      { category: 'Systems', text: 'Match History and Recent Games show bigger minions.' },
       { category: 'Balance', text: 'Whisp and Gatherer leave Set 3.' },
       {
         category: 'Balance',

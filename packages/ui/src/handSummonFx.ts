@@ -142,9 +142,41 @@ export interface HandSummonOrigin {
 }
 export type HandSummonSource = (handUid: string) => HandSummonOrigin | null;
 
-/** The player's hand: the mounted hand card with that uid. */
-export const playerHandSource: HandSummonSource = (uid) => {
+/**
+ * The player's combat-grant uids, in hand-preview order (R-HAND-GRANT-SUMMON-01: a minion granted mid-fight is in the
+ * combat hand under the uid its `toHand` carries, and a Spirit may summon a copy of it that same fight). The preview
+ * card of a grant has no `data-uid` (it is not a run card yet), so the source finds it by position: preview i is the
+ * i-th entry here. Recruit publishes the list for the fight on screen; empty outside combat.
+ */
+let playerGrantUids: readonly (string | undefined)[] = [];
+export function setPlayerGrantUids(uids: readonly (string | undefined)[]): void {
+  playerGrantUids = uids;
+}
+
+/** Pure: the player's grant uids for a fight, in the order the hand previews them (every player `toHand` whose card
+ *  the client knows, as `handPreviews` filters them). A grant that carries no uid keeps its slot as undefined. */
+export function playerGrantUidsOf(events: readonly CombatEvent[], known: (cardId: string) => boolean): (string | undefined)[] {
+  const out: (string | undefined)[] = [];
+  for (const e of events) {
+    if (e.type !== 'toHand' || e.side !== 'player' || !known(e.cardId)) continue;
+    const uid = (e as { uid?: unknown }).uid;
+    out.push(typeof uid === 'string' && uid ? uid : undefined);
+  }
+  return out;
+}
+
+/** The hand card for a uid: a run card by its `data-uid`, else a combat grant's preview card by its position. */
+export function playerHandCardElement(uid: string): HTMLElement | null {
   const el = handCardElement(uid);
+  if (el || typeof document === 'undefined') return el;
+  const i = playerGrantUids.indexOf(uid);
+  if (i < 0) return null;
+  return document.querySelectorAll<HTMLElement>('[data-zone="hand"] .card:not([data-uid])')[i] ?? null;
+}
+
+/** The player's hand: the mounted hand card with that uid (a run card, or a combat grant's preview). */
+export const playerHandSource: HandSummonSource = (uid) => {
+  const el = playerHandCardElement(uid);
   if (!el) return null;
   const r = el.getBoundingClientRect(); // the tilted card's bounding box: its centre IS the card's centre
   if (r.width <= 0) return null;

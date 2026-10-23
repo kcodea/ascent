@@ -185,7 +185,7 @@ import { playGildTrail } from './gildTrail';
 import { commitSlidePlan } from './rowSlides';
 import { resolveGildSources, snapshotGildCandidates, type GildSnap, type Pt } from './gildTrailSources';
 import { playBuySlide, type BuyFrom } from './buySlide';
-import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, shopHandSummonFlights } from './handSummonFx';
+import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, playerGrantUidsOf, setPlayerGrantUids, shopHandSummonFlights } from './handSummonFx';
 import { fireBuffFx } from './buffFxRender';
 import { planShoutChain } from './choreo/shoutChain';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
@@ -5313,6 +5313,16 @@ export function Recruit() {
     // (the Shop's landing rings its own summon sound: the arrival effect below stands down for these bodies)
   }, [run.board, run.handCopiedThisTurn, inCombat]);
   useEffect(() => () => clearHandSummonFx(), []);
+  // A minion GRANTED mid-fight can be summoned from hand that fight (R-HAND-GRANT-SUMMON-01): its lift starts on its
+  // hand preview, which the source finds by the grant's position (`setPlayerGrantUids`).
+  const liftGrantUids = useMemo(
+    () => (inCombat && !run.combatSettled ? playerGrantUidsOf(replay.replayEvents, (id) => !!CARD_INDEX[id]) : null),
+    [inCombat, run.combatSettled, replay.replayEvents],
+  );
+  useEffect(() => {
+    setPlayerGrantUids(liftGrantUids ?? []);
+  }, [liftGrantUids]);
+  useEffect(() => () => setPlayerGrantUids([]), []);
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher

@@ -19,7 +19,7 @@ import { mount, type Mounted } from './renderedText.mount';
 import { OpponentHand, opponentHandSource } from './OpponentHand';
 import { EMPTY_START_HAND, oppHandBackSrc, oppHandFan, oppStartHand, opponentHandCards } from './oppHandModel';
 import { CARD_PLATE_LOOKS, cardPlateLookOf } from './cardPlate/cardPlateLook';
-import { combatHandSummonOrigins, liftSign } from './handSummonFx';
+import { combatHandSummonOrigins, liftSign, playerGrantUidsOf, playerHandCardElement, playerHandSource, setPlayerGrantUids } from './handSummonFx';
 import { useGame } from './store';
 
 const HAND_MINIONS = [
@@ -190,5 +190,41 @@ describe('OpponentHand (mounted)', () => {
     act(() => { useGame.setState({ run: { ...run, servedBoards: { [run.wave]: snap } }, combatStaged: true }); });
     ui = mount(<OpponentHand events={[]} through={0} summoned={new Set()} live />);
     expect(document.body.querySelector('.opphand')).toBeNull();
+  });
+});
+
+describe('a GRANTED card lifts from its hand card (R-HAND-GRANT-SUMMON-01)', () => {
+  afterEach(() => { setPlayerGrantUids([]); document.body.innerHTML = ''; });
+
+  it('player: the grant uids follow the hand previews, and the source finds a grant preview by its position', () => {
+    const events = [toHand('player', 'heraldapoc', 'hg0'), toHand('enemy', 'heraldapoc', 'hg0'), toHand('player', 'nope_unknown', 'hg1'), toHand('player', 'ruby'), toHand('player', 'sp3_kindled', 'hg2')];
+    const uids = playerGrantUidsOf(events, (id) => !!CARD_INDEX[id]);
+    expect(uids).toEqual(['hg0', ...(CARD_INDEX.ruby ? [undefined] : []), 'hg2']);
+    // The hand row: two run cards, then the grant previews (no data-uid).
+    const zone = document.createElement('div');
+    zone.setAttribute('data-zone', 'hand');
+    zone.innerHTML = '<div class="card" data-uid="h1"></div><div class="card" data-uid="h2"></div>'
+      + uids.map(() => '<div class="card grantpreview"></div>').join('');
+    document.body.appendChild(zone);
+    setPlayerGrantUids(uids);
+    const previews = zone.querySelectorAll('.grantpreview');
+    expect(playerHandCardElement('h2')).toBe(zone.querySelector('[data-uid="h2"]'));
+    expect(playerHandCardElement('hg0')).toBe(previews[0]);
+    expect(playerHandCardElement('hg2')).toBe(previews[uids.length - 1]);
+    expect(playerHandCardElement('hg9')).toBeNull();
+    // ...and so a summon whose `fromHandUid` names a grant has an origin to lift from.
+    (previews[0] as HTMLElement).getBoundingClientRect = () => ({ left: 10, top: 600, width: 80, height: 120, right: 90, bottom: 720, x: 10, y: 600, toJSON: () => ({}) });
+    expect(playerHandSource('hg0')?.el).toBe(previews[0]);
+    setPlayerGrantUids([]);
+    expect(playerHandCardElement('hg0')).toBeNull();
+  });
+
+  it('enemy: a granted card is keyed by its toHand uid, so a summon from it greys and lifts from THAT face-down card', () => {
+    const start = oppStartHand({ handMinions: HAND_MINIONS });
+    const events = [toHand('enemy', 'sp3_kindled', 'hg0'), summonFrom('hg0')];
+    const cards = opponentHandCards(start, events, 2, new Set(['hg0']));
+    expect(cards.map((c) => [c.key, c.spent])).toEqual([['eh1', false], ['eh2', false], ['hg0', true]]);
+    // The flight's origin match is by uid, whatever the hand list holds.
+    expect(combatHandSummonOrigins(events, HAND_MINIONS, 'enemy').get('b-hg0')).toBe('hg0');
   });
 });

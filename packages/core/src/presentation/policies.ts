@@ -243,7 +243,6 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:getRubies:onPlay': { policy: 'ownBeat', family: 'shout' }, // Prospector: plain Rubies again (balance 2026-10-20; was getRandomRubies from 2026-10-10)
   'factory:onGetRubyRandomRuby:onGetRuby': { policy: 'foldedCue', family: 'economyReact' }, // Gem Sage (2026-09-24)
   'factory:getRandomRubies:chooseOnePlayed': { policy: 'foldedCue', family: 'economyReact' }, // Dealski (rework 2026-10-22: a random Ruby; was getRubies, 2 plain): Ruby Roach's trigger
-  'factory:battlecryPlayRubiesRandomTribe:onPlay': { policy: 'ownBeat', family: 'shout' }, // Shardluck (2026-09-24)
   'factory:onSummonCardPlayRubiesSelf:onSummon': { policy: 'foldedCue', family: 'summonReact' }, // Gemheart Legionnaire (2026-09-24)
   'factory:goldSpentBuffFodder:cardsBought': { policy: 'foldedCue', family: 'economyReact' },
   'factory:goldSpentGetRubiesPlayOnTribe:goldSpent': { policy: 'ownBeat', family: 'economy' }, // Mountainbond (2026-08-14)

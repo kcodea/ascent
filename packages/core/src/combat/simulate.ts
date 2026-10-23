@@ -542,8 +542,27 @@ export function simulate(
     const def = cards[cardId];
     if (!def || def.spell || def.ruby || !grantFits(side, idx)) return undefined;
     const uid = handGrantUid(idx);
-    grantedHand[side].push({ uid, cardId, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false, grantIdx: idx });
+    const st = grantedHandStats(side, def);
+    grantedHand[side].push({ uid, cardId, attack: st.attack, health: st.health, keywords: [...def.keywords], golden: false, grantIdx: idx });
     return uid;
+  };
+  /** The stats a granted minion holds AS A HAND CARD right now: the printed stats plus every BAKED run-wide buff,
+   *  the same derivation settle conjures it with (`conjuredStats`: the per-card run enchant, the Undead / Beast /
+   *  Attachment buy-time auras, read LIVE so a gain earlier this fight counts). The FOLDED auras (the Undead Aura,
+   *  this fight's per-card stacks) are not in a hand card's stats; they land when it is summoned (`handFold`).
+   *  Both sides read their own run (a recorded board carries all of these). Owner 2026-10-23: "a new card would get
+   *  its printed stats plus any potential aura/run-wide buffs". */
+  const grantedHandStats = (side: Side, def: CardDef): { attack: number; health: number } => {
+    const st = stateOf(side);
+    const runTribes = st.cardTribes?.[def.id] ?? [];
+    const isT = (t: Tribe): boolean => !!def.universalTribe || def.tribe === t || def.tribe2 === t || runTribes.includes(t);
+    const cb = st.cardBuffs?.[def.id];
+    let attack = def.attack + (cb?.attack ?? 0);
+    let health = def.health + (cb?.health ?? 0);
+    if (isT('undead')) attack += undeadAura[side].buyAtk;
+    if (isT('beast')) { attack += beastAtkAuraFor[side]; health += beastHpAuraFor[side]; }
+    if (def.keywords.includes('M')) { attack += magneticAuraFor[side].attack; health += magneticAuraFor[side].health; }
+    return { attack, health };
   };
   const grantedEntry = (side: Side, idx: number): HandEntry | undefined => grantedHand[side].find((e) => e.grantIdx === idx);
   const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
@@ -1656,7 +1675,7 @@ export function simulate(
       const kws = [...h.keywords, ...(ward && !h.keywords.includes('DS') ? (['DS'] as Keyword[]) : [])];
       pendingHandSummon[side] = true; // Rune of Dreamed Graves reads this at placement
       const copy = summonMinion(side, def, nearUid, kws, h.golden, false,
-        { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS') });
+        { attack: h.attack, health: h.health, maxHealth: h.health, divineShield: !!ward || h.keywords.includes('DS'), handFold: true });
       // A FULL board: `placeSummon` overflowed (the overflow payoffs fired) and the copy never landed — so the
       // hand card is NOT spent. It is still summonable by the next summoner once there is room (owner report
       // 2026-09-10: a second Seedling Spirit found room and summoned nothing, because the first attempt had
@@ -1735,7 +1754,9 @@ export function simulate(
       if (sourceUid && (attack !== 0 || health !== 0)) emit({ type: 'sc', source: sourceUid, side, text: `+${attack}/+${health} Shop` });
     },
     takeRandomHandMinion: (side) => {
-      const pool = handPool(side);
+      // The starting hand only: no live card uses this primitive (Rope Wrangler's old Echo), and the owner asked for no
+      // behaviour change to it in R-HAND-GRANT-SUMMON-01 (2026-10-23).
+      const pool = stateOf(side).handMinions ?? [];
       const left = pool.filter((h) => !h.locked && !handSummonedUids.has(handKey(side, h.uid))); // Rope Wrangler skips a locked card too
       if (left.length === 0) return undefined;
       const pick = left[Math.floor(rng.next() * left.length)]!;
@@ -2223,7 +2244,7 @@ export function simulate(
       divineShield: src.divineShield, rebornAvailable: src.rebornAvailable,
     });
   }
-  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean }, doubled = false): Minion {
+  function summonMinion(side: Side, card: CardDef, nearUid: string | undefined, grantKeywords?: Keyword[], golden = false, attackNow = false, copyStats?: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; stripReturn?: boolean; handFold?: boolean }, doubled = false): Minion {
     // A GILDED token (golden: true): doubled base stats + the golden flag, for summoners whose golden form
     // upgrades the token rather than the count (Manasaber's 0/4 cubs).
     // Rune of Drakko: a card the side's run re-typed (`cardTribes`) arrives with those types, like its board copies.
@@ -2494,7 +2515,7 @@ export function simulate(
    * strike-queue push, and Echo Warden doubling. Split out of summonMinion so attack-on-summon tokens can
    * DEFER to flushImmediateAttacks (which calls this at flush time) while plain summons run it inline.
    */
-  function placeSummon(minion: Minion, side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined, doubled: boolean): Minion {
+  function placeSummon(minion: Minion, side: Side, card: CardDef, nearUid: string | undefined, grantKeywords: Keyword[] | undefined, golden: boolean, attackNow: boolean, copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; handFold?: boolean } | undefined, doubled: boolean): Minion {
     // Board cap of 7 (handoff A.2): a full board can't receive summons — but Flowing Monk pays off
     // on the wasted body (the combat half of its recruit overflow buff). `occupied`, not `living`: a body
     // mid-Rise still holds its slot (owner 2026-09-09).
@@ -2539,6 +2560,12 @@ export function simulate(
     // opening — exactly as before.
     minion.avengeBaseline = deaths[side];
     if (!copyStats) applyAuras(minion, true); // a plain summon starts from base; an exact copy already carries its final stats
+    // A HAND card's stats are its run stats: the baked auras are in them, the FOLDED ones (the Undead Aura, Grim Toast,
+    // this fight's per-card stacks) are not (the Shop folds them on display and on the board). So a body summoned FROM
+    // HAND takes the folded auras on top, exactly as a board body does at the opening (`applyAuras(m, false)`), never
+    // the baked ones twice (owner 2026-10-23, R-HAND-GRANT-SUMMON-01: "an undead card granted to hand mid fight would
+    // still inherit undead aura buffs").
+    else if (copyStats.handFold) applyAuras(minion, false);
     // SOLID GROUND (spell): the first N minions YOU summon this fight land bigger. Counted down per body, so a
     // wave of tokens spends it in arrival order and the 4th arrives plain.
     // Side-general: it is the SUMMONING side's own banked charges that pay.
@@ -3123,7 +3150,7 @@ export function simulate(
   //   • `{ minion, shieldFirst }` — an already-on-board minion taking an out-of-turn strike (a placed token's
   //     own swing, or Solaris Fang / Feeding Line / Bloodlust granting an existing body a bonus attack).
   const pendingAttackOnSummon: (
-    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
+    | { summon: { minion: Minion; side: Side; card: CardDef; nearUid: string | undefined; grantKeywords: Keyword[] | undefined; golden: boolean; copyStats: { attack: number; health: number; maxHealth: number; divineShield?: boolean; rebornAvailable?: boolean; handFold?: boolean } | undefined; doubled: boolean }; seq: number; minion?: undefined }
     | { minion: Minion; shieldFirst?: boolean; forcedTarget?: Minion; summon?: undefined; interrupts?: undefined; seq?: undefined }
     // ANCIENT OF WAR x Lord of the Risen: a body that RETURNED to attack immediately (the Undying Rise). A Rise is a
     // summon, so for R-ORD-05 it interrupts like one (the between-swings and wind-up flushes pick it up by `seq`).
@@ -5434,7 +5461,7 @@ export function simulate(
           fireTrigger('runeWakingReserve', rside);
           pendingHandSummon[rside] = true; // a hand-summon for Dreamed Graves / the Open Hand — the card itself stays unmarked
           summonMinion(rside, def, undefined, [...raw.keywords], raw.golden, false,
-            { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS') });
+            { attack: raw.attack, health: raw.health, maxHealth: raw.health, divineShield: raw.keywords.includes('DS'), handFold: true });
           pendingHandSummon[rside] = false; // consumed by the placement; cleared here too in case it never placed
         });
       }

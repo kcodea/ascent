@@ -3,7 +3,8 @@
  *
  * A MINION granted to hand mid-fight joins that side's combat hand pool at once (both sides, 1:1), under the uid
  * `handGrantUid(idx)` that its `toHand` event also carries. Summon-from-hand effects can then pick it with
- * the existing rules (a copy greys it for the fight and the card still arrives at settle). It is summonable only
+ * the existing rules (a copy greys it for the fight and the card still arrives at settle). Rope Wrangler's old
+ * consuming Echo primitive is unused and unchanged (starting hand only). It is summonable only
  * while it would fit the real hand at settle (`handRoom` minus the fight's Rubies, then grants in order), and a
  * mid-fight hand buff on it carries back onto the card it becomes.
  */
@@ -23,6 +24,10 @@ const CARDS: Record<string, CardDef> = {
   ...CARD_INDEX,
   t_grant_kindled: granter('t_grant_kindled', 'sp3_kindled'),
   t_grant_two: granter('t_grant_two', 'sp3_kindled', 2),
+  t_grant_pup: granter('t_grant_pup', 'u3_poochy'),
+  // An Echo that gives the Spirits in hand +5/+5 (the live R-HAND-02 hand-buff body).
+  t_hand5: { ...CARD_INDEX['sandbag']!, id: 't_hand5', name: 'Test Hand Buffer', attack: 0, health: 1, keywords: [],
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffHandTribe', params: { tribe: 'spirit', attack: 5, health: 5 } }] } as CardDef,
 };
 
 const bm = (cardId: string, over: Partial<BoardMinion> = {}): BoardMinion => {
@@ -103,16 +108,43 @@ describe('R-HAND-GRANT-SUMMON-01: a minion granted to hand mid-fight is summonab
     expect(r.playerHandBuffs?.some((b) => b.uid === uid)).toBe(true);
   });
 
-  it('a CONSUMING hand summon (the Rope Wrangler Echo primitive) can take a granted card too; settle keeps it like a starting card', () => {
-    const cards: Record<string, CardDef> = { ...CARDS, t_wrangler: { ...CARD_INDEX['sandbag']!, id: 't_wrangler', attack: 1, health: 1, keywords: [],
-      effects: [{ on: 'onDeath', do: 'deathrattleSummonRandomHandMinion' }] } as CardDef };
-    const r = simulate([bm('t_grant_kindled'), { cardId: 't_wrangler', attack: 1, health: 1, keywords: [] } as unknown as BoardMinion], [foe(5, 400)],
-      makeRng(7), cards, side({ handRoom: 10 }), side());
-    const uid = handGrantUid(0);
-    expect(r.playerHandSummoned).toEqual([uid]);
-    expect(r.events.some((e) => e.type === 'summon' && e.side === 'player' && e.minion.cardId === 'sp3_kindled')).toBe(true);
-    // Settle has kept Rope Wrangler's hand card since 2026-08-08 (it is not eaten), so the grant still arrives.
-    expect(r.playerHandGrants).toEqual(['sp3_kindled']);
+  it('stats: a granted Undead carries the baked Undead buy Attack in hand, and the Undead Aura lands when it is summoned (both sides)', () => {
+    // Owner 2026-10-23: "an undead card granted to hand mid fight would still inherit undead aura buffs".
+    const aura = { undeadBuyAtk: 2, undeadAtk: 3, undeadHp: 4 };
+    const pup = CARD_INDEX['u3_poochy']!;
+    const p = simulate(mine('t_grant_pup'), [foe(5, 400)], makeRng(7), CARDS, side({ handRoom: 10, ...aura }), side());
+    const e = simulate([foe(5, 400)], mine('t_grant_pup'), makeRng(7), CARDS, side(), side({ handRoom: 10, ...aura }), { firstSide: 'enemy' });
+    for (const [r, who] of [[p, 'player'], [e, 'enemy']] as const) {
+      const s = handSummons(r.events, who);
+      expect(s, who).toHaveLength(1);
+      expect([s[0]!.minion.attack, s[0]!.minion.health], who).toEqual([pup.attack + 2 + 3, pup.health + 4]);
+    }
+  });
+
+  it('stats: a granted card carries its run-wide per-card buff (cardBuffs)', () => {
+    const d = CARD_INDEX['sp3_kindled']!;
+    const r = simulate(mine(), [foe(5, 400)], makeRng(7), CARDS, side({ handRoom: 10, cardBuffs: { sp3_kindled: { attack: 3, health: 2 } } }), side());
+    const s = handSummons(r.events, 'player');
+    expect([s[0]!.minion.attack, s[0]!.minion.health]).toEqual([d.attack + 3, d.health + 2]);
+  });
+
+  it('a granted card buffed +5/+5 in hand mid-fight, then summoned, fields the buffed body; the buff carries back', () => {
+    const d = CARD_INDEX['sp3_kindled']!;
+    let hit = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const r = simulate([bm('t_grant_kindled'), bm('t_hand5', { attack: 1 } as Partial<BoardMinion>), bm('sp3_dreamtide', { attack: 1, health: 1 } as Partial<BoardMinion>)],
+        [foe(5, 400)], makeRng(seed), CARDS, side({ handRoom: 10 }), side());
+      const buffAt = r.events.findIndex((e) => e.type === 'handBuff' && e.uid === handGrantUid(0));
+      const sumAt = r.events.findIndex((e) => e.type === 'summon' && (e as { fromHandUid?: string }).fromHandUid === handGrantUid(0));
+      expect(buffAt, `seed ${seed}: the granted card took the hand buff`).toBeGreaterThanOrEqual(0);
+      expect(r.playerHandBuffs?.find((b) => b.uid === handGrantUid(0))).toMatchObject({ attack: 5, health: 5 });
+      if (sumAt > buffAt) {
+        hit++;
+        const s = handSummons(r.events, 'player')[0]!;
+        expect([s.minion.attack, s.minion.health], `seed ${seed}`).toEqual([d.attack + 5, d.health + 5]);
+      }
+    }
+    expect(hit, 'some seed buffs before the summon').toBeGreaterThan(0);
   });
 
   it('determinism: the same seed resolves the identical event log', () => {
@@ -152,5 +184,19 @@ describe('R-HAND-GRANT-SUMMON-01: the run side and settle', () => {
     const d = CARD_INDEX['sp3_kindled']!;
     expect([arrived[0]!.attack, arrived[0]!.health]).toEqual([d.attack + 2, d.health + 3]);
     expect(s.hand.find((c) => c.uid === 'h1')!.attack, 'the starting card is untouched').toBe(CARD_INDEX['sp3_tidebud']!.attack);
+  });
+
+  it('settle stats match the fight: the card arrives with exactly the stats the combat hand showed (run-wide buffs, no drop, no double)', () => {
+    const base = run({ embers: 10, board: [body('b', 'sp3_kindled')], hand: [], cardBuffs: { sp3_kindled: { attack: 3, health: 2 } } });
+    // The fight, from this run's own combat side: the granted Kindled's hand entry is fielded by Dreamtide.
+    const r = simulate(mine(), [foe(5, 400)], makeRng(7), CARDS, playerCombatSideState(base), side());
+    const fought = handSummons(r.events, 'player')[0]!.minion;
+    let s = reduce(base, { type: 'faceOmen' } as Action);
+    s.lastCombat!.playerHandGrants = ['sp3_kindled'];
+    s = reduce(s, { type: 'settleCombat' } as Action);
+    s = reduce(s, { type: 'resolveCombat' } as Action);
+    const arrived = s.hand.filter((c) => c.cardId === 'sp3_kindled');
+    expect(arrived).toHaveLength(1);
+    expect([arrived[0]!.attack, arrived[0]!.health]).toEqual([fought.attack, fought.health]);
   });
 });

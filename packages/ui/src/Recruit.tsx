@@ -2403,13 +2403,13 @@ export function Recruit() {
   // they are different from the gate sounds"; sfx.wipeGate): the door whoosh as it starts to fall, the layered thuds
   // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
   // groan as it is winched back up.
-  useEffect(() => {
-    // THE PORTAL (owner 2026-10-23): just before the return trip dives through the shop's door, the doorway charges and
+  // THE PORTAL (owner 2026-10-23): just before the return trip dives through the shop's door, the doorway charges and
   // bursts with sparks and energy (gateFx.portal, on the ranked gate's particle layer, lifted over the curtain while it is
   // up). Timed off the hold so the burst lands right as the dive starts. Desktop only, like the gate's dust.
   // Its SOUNDS (owner 2026-10-23, bank clips; sfx.vistaTrip): a whoosh and a shimmer as it fades in, the energy burst and a
   // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
-  // desktop-only).
+  // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
+  // crashed the shop screen (owner report 2026-10-23).
   useEffect(() => {
     if (wipe === 'coverOut') sfx.vistaTrip('arrive');
     else if (wipe === 'revealOut') sfx.vistaTrip('dive');
@@ -2421,7 +2421,8 @@ export function Recruit() {
     }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
     return () => window.clearTimeout(t);
   }, [wipe]);
-  // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
+  useEffect(() => {
+    // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).
     if (wipe === 'coverIn') sfx.wipeGate('drop');
     else if (wipe === 'coveredIn') {
       sfx.wipeGate('impact');

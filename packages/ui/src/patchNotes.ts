@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      { category: 'Systems', text: 'Compendium: tribes are listed in alphabetical order.' },
       { category: 'Systems', text: 'Minion Book: the tribe filters show each tribe name in its colour, with no icon.' },
       { category: 'Systems', text: 'Emotes now have an 8 second cooldown (was 20).' },
       { category: 'Systems', text: 'Renamed two cosmetics: the Mushy Pee skin is now Mushy River, and the Sexy Darah emote is now Darahling.' },

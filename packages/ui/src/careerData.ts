@@ -384,7 +384,7 @@ export function careerAggregates(runs: readonly CareerRun[]): CareerAggregates {
 
 // ── Heroes tab (owner ask 2026-09-20) ───────────────────────────────────────────────────────────────────
 
-/** One hero's career — every run the account played it, folded. Feeds the portrait grid + its hover panel. */
+/** One hero's career — every run the account played it, folded. Feeds the portrait grid (and its sort). */
 export interface HeroCareer {
   heroId: string;
   /** Games played on this hero (every run, placed or not). */
@@ -403,6 +403,24 @@ export interface HeroCareer {
   bestPlacement: number | null;
   /** When the hero was last played (max run end time); NaN when no run carries a time. */
   lastAtMs: number;
+  /** NET MMR (owner 2026-10-23): the sum of the rank points `settle_rank` actually APPLIED over this hero's RATED games
+   *  (`ratingDeltaOf`). 0 when none is known; read it with `ratedGames`. */
+  netMmr: number;
+  /** How many of the hero's games carried a known applied delta (the games `netMmr` sums). 0 = no rated game: the
+   *  card prints "-", never a fake 0. */
+  ratedGames: number;
+}
+
+/** The rank points a run's settlement APPLIED (award + strength bonus, after the promotion / demotion gates: the
+ *  delta the rank screen showed), or null when the run was not rated or the number is not known for sure.
+ *
+ *  Trusted only on a row `settle_rank` stamped: it writes `rank` (the position the game settled from, read here as
+ *  `run.rank`) together with `ratingDelta = v_applied`. A row with a `ratingDelta` but no `rank` stamp is either a
+ *  pre-medal-ladder run (the retired Elo delta) or a settlement that missed the row, so it is left out rather than
+ *  guessed. Practice / Versus / tutorial rows never carry a rank (`careerGameRankOf`). */
+export function ratingDeltaOf(r: CareerRun): number | null {
+  if (r.rank == null || r.ratingDelta == null || !Number.isFinite(r.ratingDelta)) return null;
+  return r.ratingDelta;
 }
 
 /** Every hero the account has played, folded over ALL the runs handed in, sorted by games played (desc), then
@@ -413,7 +431,7 @@ export function heroCareers(runs: readonly CareerRun[]): HeroCareer[] {
     if (!r.heroId) continue;
     let h = by.get(r.heroId);
     if (!h) {
-      h = { heroId: r.heroId, runs: 0, firsts: 0, wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null, lastAtMs: NaN, placementSum: 0 };
+      h = { heroId: r.heroId, runs: 0, firsts: 0, wins: 0, losses: 0, winRate: null, avgPlacement: null, bestPlacement: null, lastAtMs: NaN, netMmr: 0, ratedGames: 0, placementSum: 0 };
       by.set(r.heroId, h);
     }
     h.runs++;
@@ -427,6 +445,8 @@ export function heroCareers(runs: readonly CareerRun[]): HeroCareer[] {
       if (h.bestPlacement === null || r.placement < h.bestPlacement) h.bestPlacement = r.placement;
     }
     if (Number.isFinite(r.atMs) && !(h.lastAtMs >= r.atMs)) h.lastAtMs = r.atMs;
+    const d = ratingDeltaOf(r);
+    if (d !== null) { h.netMmr += d; h.ratedGames++; }
   }
   const out: HeroCareer[] = [...by.values()].map(({ placementSum, ...h }) => {
     const placed = h.wins + h.losses;
@@ -436,7 +456,50 @@ export function heroCareers(runs: readonly CareerRun[]): HeroCareer[] {
       avgPlacement: placed ? Math.round((placementSum / placed) * 10) / 10 : null,
     };
   });
-  out.sort((a, b) => b.runs - a.runs || (b.winRate ?? -1) - (a.winRate ?? -1) || a.heroId.localeCompare(b.heroId));
+  return sortHeroCareers(out, 'games');
+}
+
+/** How the Heroes grid is ordered (owner 2026-10-23): games played (most first), average placement (best = lowest
+ *  first) or Net MMR (highest first). */
+export type HeroSort = 'games' | 'avg' | 'mmr';
+export const HERO_SORTS: readonly HeroSort[] = ['games', 'avg', 'mmr'];
+export const HERO_SORT_LABEL: Record<HeroSort, string> = { games: 'Games played', avg: 'Avg placement', mmr: 'Net MMR' };
+
+/** A sorted COPY of `heroes`. A hero with no number for the key (no placement / no rated game) sorts after every hero
+ *  that has one; ties fall back to games played (desc), then match win rate (desc, unknown last), then hero id. Pure. */
+export function sortHeroCareers(heroes: readonly HeroCareer[], sort: HeroSort): HeroCareer[] {
+  const tie = (a: HeroCareer, b: HeroCareer): number => b.runs - a.runs || (b.winRate ?? -1) - (a.winRate ?? -1) || a.heroId.localeCompare(b.heroId);
+  const key = (h: HeroCareer): number | null => (sort === 'avg' ? h.avgPlacement : sort === 'mmr' ? (h.ratedGames > 0 ? -h.netMmr : null) : null);
+  if (sort === 'games') return [...heroes].sort(tie);
+  return [...heroes].sort((a, b) => {
+    const ka = key(a), kb = key(b);
+    if (ka === null || kb === null) return ka === kb ? tie(a, b) : ka === null ? 1 : -1;
+    return ka - kb || tie(a, b);
+  });
+}
+
+/** Upgrade LIGHT runs with their detailed rows (`fetchRunDetails`): only the fields a light row lacks — the final board,
+ *  the runes and the match details — are taken, so the telemetry join (Replay, length) and every scalar stay as they
+ *  were. Runs with no detailed row come back untouched (same object). Pure. */
+export function withRunDetails(runs: readonly CareerRun[], detailRows: readonly RunHistoryRowLike[]): CareerRun[] {
+  const byId = new Map<number, CareerRun>();
+  for (const d of detailRows) if (typeof d.id === 'number') byId.set(d.id, careerRunOf(d));
+  if (byId.size === 0) return [...runs];
+  return runs.map((r) => {
+    const up = r.id !== null && !r.detailed ? byId.get(r.id) : undefined;
+    return up ? { ...r, board: up.board, runes: up.runes, match: up.match ?? null, detailed: true } : r;
+  });
+}
+
+/** The newest `limit` runs played on `heroId` (newest first, as the page holds them). Pure; the Match History hero
+ *  filter (owner 2026-10-23) reads the runs already loaded, never a new list fetch. */
+export function runsOfHero(runs: readonly CareerRun[], heroId: string, limit: number): CareerRun[] {
+  const out: CareerRun[] = [];
+  for (const r of runs) {
+    if (r.heroId !== heroId) continue;
+    out.push(r);
+    if (out.length >= limit) break;
+  }
   return out;
 }
 

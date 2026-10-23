@@ -2148,6 +2148,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/practiceGames.test.ts', 'packages/ui/src/ladderPages.test.tsx'], lastVerifiedAt: '2026-09-27' },
   },
   {
+    id: 'R-CAREER-HERO-GAMES-01',
+    title: 'Career Heroes: no hover panel; a click shows that hero\x27s games in Match History; cards show Net MMR and sort three ways',
+    statement:
+      'A hero card on the Career Heroes tab shows its portrait, name, games played, Top 4 %, average placement and NET MMR, '
+      + 'and has no hover or focus tooltip panel. Net MMR is the signed sum of the rank points settle_rank APPLIED (the delta '
+      + 'the rank screen showed) over that hero\x27s RATED games: only rows the settlement stamped (entry.rank present, lobby '
+      + 'mode) count; unrated, practice, pre-medal-ladder and unstamped rows are left out, and a hero with no such game prints '
+      + '"-". The grid sorts by Games played (most first, the default), Average placement (lowest first) or Net MMR (highest '
+      + 'first), unknowns last, remembered per browser. Clicking, tapping or pressing Enter / Space on a card opens Match '
+      + 'History filtered to that hero (its newest 50 games from the runs already loaded) with a removable hero chip and a Back '
+      + 'to Heroes button; leaving Match History drops the filter. Each row keeps its own Replay / No replay state, and a hero '
+      + 'filter with no games shows a designed empty state. Light rows of the filtered hero are upgraded with one detailed '
+      + 'run_history read per hero pick, never per hover or per row.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23 (Career hero games)', quote: 'the mouseover tooltip here is pretty ugly and redundant info. would it be possible to show the games of that hero if i clicked on the hero so i could go rewatch them or something?' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23 (hero sort + Net MMR)', quote: 'also add a way to sort by average games played/average placement/net mmr. show net mmr on the hero card instead of # of 1sts' },
+      { kind: 'code', ref: 'packages/ui/src/Career.tsx HeroTile / heroFilter; packages/ui/src/careerData.ts ratingDeltaOf / sortHeroCareers / runsOfHero / withRunDetails; packages/ui/src/remoteBoards.ts fetchRunDetails' },
+    ],
+    currentBehaviour: 'Conforms since 2026-10-23.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/Career.test.tsx', 'packages/ui/src/careerData.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
     id: 'R-PRACTICE-TIME-01',
     title: 'Practice has an Unlimited time option: no shop timer at all',
     statement:

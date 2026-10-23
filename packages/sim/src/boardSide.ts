@@ -101,6 +101,7 @@ export function sideFromSnapshot(snap: BoardSnapshot, fallbackTier: number, pool
     tribesPlayed: snap.tribesPlayed ?? {}, // the per-tribe channel (enemy Bicycle Bob); a legacy capture's Beast/Spirit scalars are folded in by combatSide()
     revelerX: snap.revelerX ?? 0, // enemy Revelers / Luminary (text)
     handMinions: snap.handMinions ?? [], // enemy Rope Wrangler / Water Dragon
+    ...(snap.handRoom !== undefined ? { handRoom: snap.handRoom } : {}), // R-HAND-GRANT-SUMMON-01: the owner's free hand slots
     beastHuntExtra: snap.beastHuntExtra ?? 0, // enemy Elderhorn (Rally/Slaughter)
     beastRitualExtra: snap.beastRitualExtra ?? 0, // enemy Elderhorn (Echo)
     tribes: snap.tribes ?? [], // captured since v1 but never threaded — tribe-scoped random grants read it

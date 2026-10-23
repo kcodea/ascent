@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      { category: 'Balance', text: 'Minions added to your hand during a fight can now be summoned from hand in that same fight.' },
       {
         category: 'Balance',
         text: 'Two new Tier 7 minions: Vellum (Dragon) and Ending (Undead).',

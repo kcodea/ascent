@@ -35,7 +35,7 @@ const SIDE_FIELDS: { [K in keyof Required<CombatSideState>]: Carried | Excluded 
   revelerX: 'carried', cardsBoughtThisTurn: 'carried', magneticAtk: 'carried', magneticHp: 'carried', rubyBonus: 'carried',
   handSpellIds: 'carried', alesLastTurn: 'carried', spellEscalation: 'carried', lastSpellCastId: 'carried',
   rememberedSpellIds: 'carried', spellhide: 'carried', growthBonus: 'carried', goldSpentThisTurn: 'carried',
-  lastSpellThisTurnId: 'carried', squirlScoutBuff: 'carried', handMinions: 'carried', beastHuntExtra: 'carried',
+  lastSpellThisTurnId: 'carried', squirlScoutBuff: 'carried', handMinions: 'carried', handRoom: 'carried', beastHuntExtra: 'carried',
   beastRitualExtra: 'carried', tier: 'carried', tribes: 'carried', cardBuffs: 'carried', questMods: 'carried',
   pendingQuests: 'carried',
 };

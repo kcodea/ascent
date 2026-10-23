@@ -206,6 +206,10 @@ export interface BoardSnapshot {
   cardTribes?: Record<string, Tribe[]>;
   /** Minions in the owner's hand at capture, with live stats (Rope Wrangler / Water Dragon reach into it). */
   handMinions?: { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; locked?: true }[];
+  /** Free hand slots at capture (hand cap minus every held card), so a served board's mid-fight minion grants are
+   *  summonable exactly while they would have fit its owner's hand (R-HAND-GRANT-SUMMON-01). Absent in older
+   *  captures: the fight falls back to 10 minus the listed hand minions + spells. */
+  handRoom?: number;
   /** Set 2 — Elderhorn's chosen mode(s): extra fires for the owner's Beast triggers. */
   beastHuntExtra?: number;
   beastRitualExtra?: number;
@@ -484,6 +488,7 @@ export function snapshotBoard(s: RunState): BoardSnapshot {
     ...(s.cardTribes && Object.keys(s.cardTribes).length ? { cardTribes: Object.fromEntries(Object.entries(s.cardTribes).map(([k, v]) => [k, [...v]])) } : {}),
     ...(s.revelerX ? { revelerX: s.revelerX } : {}),
     ...(handMinions.length ? { handMinions } : {}),
+    ...(own.handRoom !== undefined ? { handRoom: own.handRoom } : {}),
     ...(s.beastHuntExtra ? { beastHuntExtra: s.beastHuntExtra } : {}),
     ...(s.beastRitualExtra ? { beastRitualExtra: s.beastRitualExtra } : {}),
   };

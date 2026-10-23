@@ -282,4 +282,27 @@ export const SUMMONING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-23).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/nextCombatBanks.guard.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-HAND-GRANT-SUMMON-01',
+    title: 'A minion added to hand mid-fight can be summoned from hand in that same fight',
+    statement:
+      'A MINION a combat effect adds to your hand joins your combat hand the moment it arrives (after the cards you '
+      + 'started the fight with), with its printed stats and keywords (Gilded or an exact copy when the grant says '
+      + 'so). Every summon-from-hand effect can then pick it with the usual rules: a copy summon greys it for the '
+      + 'fight and the card still arrives in your hand after combat; hand buffs grow it and stay on it. It can be '
+      + 'picked only while it would really fit your hand after combat (the hand cap counts every held card, the '
+      + 'fight Rubies land first, then the granted cards in order). Spells are never candidates. Both sides, '
+      + 'identically.',
+    domain: 'summoning',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-23', quote: 'a minion added to hand CAN be summoned that same fight.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts recordHandGrant / handPool / grantFits (handGrantUid on the toHand event); packages/sim/src/reducer.ts settleCombat landedGrants (a hand buff on a granted card lands on the arrived card); CombatSideState.handRoom (reducer, snapshot, boardSide)' },
+    ],
+    contentIds: ['sp3_dreamtide', 'sp3_dreamingdeep', 'sp3_seedling'],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before: a grant was only recorded for settle, so every summon-from-hand effect '
+      + 'ignored cards gained mid-fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/midfightHandGrants.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

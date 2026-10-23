@@ -1878,6 +1878,17 @@ live opponent has one.)
 `ctx.grantRandomRubies` (the only ways a card reaches a hand mid-fight). Both run the *same* effect bodies, in
 `ARENA_EFFECTS`, so the two phases cannot drift apart.
 
+**A minion added mid-fight can be summoned from hand in that same fight** (owner ruling 2026-10-23,
+R-HAND-GRANT-SUMMON-01: *"a minion added to hand CAN be summoned that same fight."*). The moment a MINION reaches
+a hand mid-fight it joins that side's combat hand, after the cards the fight started with, at its printed stats and
+keywords (Gilded, or an exact copy, when the grant says so). Every summon-from-hand effect (the Spirits' copy
+summons, Rope Wrangler's Echo primitive, Dreamed Graves / Open Hand hearing the summon) can then pick it under the
+usual rules: a copy greys it for the fight and the card still arrives after combat; hand buffs grow it and stay on
+it. It is a candidate only while it would really fit the hand after combat: the hand cap counts every held card,
+the fight's Rubies land first, then the granted cards in the order they arrived. Spells are never candidates.
+Both sides, identically (a recorded board carries its owner's free hand slots as `handRoom`; an older capture
+without it assumes 10 minus the minions and spells it lists).
+
 ---
 
 ### Random picks reach Tier 7 only from a Tier 7 Shop (owner rulings 2026-10-21, R-RANDOM-TIER7-01, R-RANDOM-POOL-01)

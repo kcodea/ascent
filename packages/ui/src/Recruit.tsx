@@ -2386,6 +2386,8 @@ export function Recruit() {
     for (const n of PHONE_GPU ? ['flat', 'doorfill'] : [...VISTA_LAYERS, 'doorfill']) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
     sfx.warmGate();
     sfx.warmWipeGate();
+    // The poster's inked lettering (plain Cinzel, used nowhere else): fetched now so the first gate never swaps fonts on screen.
+    void document.fonts?.load('700 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {

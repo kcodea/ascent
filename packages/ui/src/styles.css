@@ -485,6 +485,25 @@ canvas.spr { image-rendering: pixelated; display: block; }
   background: url('/transition-poster.webp') 50% 50% / 100% 100% no-repeat; pointer-events: none;
   transform-origin: 48.4% 9.8%; transform: rotate(0deg); will-change: transform; }
 .wipeposter .wipevs { rotate: -3.3deg; }
+/* INKED INTO THE POSTER (owner 2026-10-23: "how can we edit the text to look more burned into the paper? like this?", with a
+   reference of brown serif lettering and ruled flourishes). On the gate's poster the announcement is dark burnt-brown ink, no
+   white fill or black outline, with a soft darker bleed at its edges as if scorched or inked into the paper: NOW FACING in
+   plain Cinzel over a tapered rule, the name in bold Fraunces over a rule with a diamond in its middle. (The return trip's sky
+   text keeps the white lettering; this is the poster only.) All static: nothing here animates. */
+.wipeposter .wipevs-label, .wipeposter .wipevs-name { position: relative; color: #3a2210; -webkit-text-stroke: 0; opacity: 0.92;
+  text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
+.wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 700;
+  font-size: calc(46 * var(--u, 1px)); letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px)); }
+.wipeposter .wipevs-name { font-family: 'Fraunces', Georgia, serif; font-weight: 900; font-size: calc(40 * var(--u, 1px));
+  padding-bottom: calc(12 * var(--u, 1px)); }
+/* The rules: a thin brown line, tapered to points at both ends, under each line of text. */
+.wipeposter .wipevs-label::after, .wipeposter .wipevs-name::after { content: ''; position: absolute; left: -6%; right: -6%; bottom: 0;
+  height: calc(3 * var(--u, 1px)); border-radius: 50%; opacity: 0.85;
+  background: linear-gradient(to right, rgba(58, 34, 16, 0), #3a2210 18%, #3a2210 82%, rgba(58, 34, 16, 0)); }
+/* …and the small diamond at the middle of the name's rule. */
+.wipeposter .wipevs-name::before { content: ''; position: absolute; left: 50%; bottom: calc(-3.5 * var(--u, 1px));
+  width: calc(9 * var(--u, 1px)); height: calc(9 * var(--u, 1px)); background: #3a2210; opacity: 0.9;
+  transform: translateX(-50%) rotate(45deg); }
 /* THE SLAM: the gate stops dead and the paper doesn't. It is knocked down and crooked on its loose nail, swings back
    and forth a few times, less each time, and comes to rest a little crooked (0.8 degrees). */
 .wipecurtain.full.settle .wipeposter { animation: posterslam 1300ms both; }

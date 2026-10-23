@@ -524,7 +524,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    The picture is laid out in `.wipevista-stage`, a box at the art's own 16:9 cover-fit, so every position inside it (the
    door, the sky text, the push centre) stays on the same spot of the painting at any screen shape.
    The layers (the owner's second set, 2026-10-23) are each painted in full behind what sits in front of them, so the push
-   can show real depth: 3% (sky) to 16% (flowers) over 2.6 s, centred on the doorway at ground level so the flowers' top
+   can show real depth: 3% (sky) to 16% (flowers) over 2 s (the fade-in plus the 1.5 s hold), centred on the doorway at ground level so the flowers' top
    edge barely moves against the midground behind it. The shop is baked into its layer at 75% of its painted size,
    shrunk around the foot of its steps so it stays on the path (owner: "i like 75% better"). */
 .wipevista { position: fixed; inset: 0; z-index: 3000; pointer-events: none; overflow: hidden; opacity: 0; visibility: hidden; }
@@ -539,15 +539,15 @@ canvas.spr { image-rendering: pixelated; display: block; }
   width: max(var(--lvw, 100vw), calc(var(--lvh, 100dvh) * 1.7778)); height: max(var(--lvh, 100dvh), calc(var(--lvw, 100vw) / 1.7778));
   transform-origin: 47.7% 74%; }
 /* THE DIVE THROUGH THE DOOR (owner 2026-10-23: "zooms in so far that going through the door ends up being the screen wipe
-   effect"): the doorway's painted interior fades out (from 15% to 55% of the dive), opening it onto the real Shop behind, while the
+   effect"): the doorway's painted interior fades out (from 25% to 65% of the dive), opening it onto the real Shop behind, while the
    whole picture zooms 18x on the doorway (its lower middle, where it sits after the push) so the open door grows past
    every edge of the screen: flying through it IS the wipe. 13x already clears a 16:9 screen; 18x is margin. */
 .wipevista.dive .wipevista-stage { transform-origin: 47.7% 76%; animation: vistadive var(--wipe-reveal-dur, 450ms) cubic-bezier(.55, 0, .85, .35) both; }
 @keyframes vistadive { 0% { transform: scale(1); } 100% { transform: scale(18); } }
 .wipevista.dive .wipevista-doorfill { animation: vistadooropen var(--wipe-reveal-dur, 450ms) both; }
-/* It waits a beat, then fades a little slower (owner 2026-10-23: "have the masks fade wait a bit and fade slightly slower"):
-   held to 15% of the dive, gone by 55%. */
-@keyframes vistadooropen { 0% { opacity: 1; } 15% { opacity: 1; animation-timing-function: ease-in-out; } 55% { opacity: 0; } 100% { opacity: 0; } }
+/* It waits, then fades a little slower (owner 2026-10-23: "have the masks fade wait a bit and fade slightly slower", then
+   "wait slightly longer still"): held to 25% of the dive, gone by 65%. */
+@keyframes vistadooropen { 0% { opacity: 1; } 25% { opacity: 1; animation-timing-function: ease-in-out; } 65% { opacity: 0; } 100% { opacity: 0; } }
 /* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
    The stage zooms 18x (the house, its doorway and the hole through everything behind it, which must stay locked to the
    doorway). Each layer behind the house sits in a WRAPPER that scales it back down, so its NET zoom is slower: sky 2.5x,
@@ -587,11 +587,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
 .wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
-.wipevista.on .wipevista-masked, .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2.6s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-sky { animation: vistapushsky 2.6s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-far { animation: vistapushfar 2.6s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-mid { animation: vistapushmid 2.6s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-fore { animation: vistapushfore 2.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-masked, .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-sky { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-far { animation: vistapushfar 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-mid { animation: vistapushmid 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-fore { animation: vistapushfore 2s cubic-bezier(.25, .6, .35, 1) both; }
 /* Net scales at the end of the push: sky 1.03, distance 1.05, midground 1.08, shop 1.12 (the group itself), flowers 1.16.
    The three inside the group are written relative to its 1.12. */
 @keyframes vistapushsky { 0% { transform: scale(1); } 100% { transform: scale(0.9196); } }

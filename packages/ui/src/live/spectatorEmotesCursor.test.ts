@@ -226,9 +226,20 @@ describe('R-SPECTATE-COMBATCURSOR-01: the stands draw the hand in a fight', () =
     vi.stubGlobal('requestAnimationFrame', () => 1); // the overlay's loop is not run here (its sync step is)
     const before = useGame.getState().run;
     useGame.setState({ run: { ...rankedRun(), phase: 'combat' } as RunState });
+    // A combat unit wraps its card, and both carry the uid: the hover must reach the INNER card (its own handler opens
+    // the preview), the element the sender's closest() anchored to.
     const unit = document.createElement('div');
+    unit.className = 'unit';
     unit.setAttribute('data-uid', 'u7');
-    unit.getBoundingClientRect = () => ({ left: 100, top: 100, width: 80, height: 100, right: 180, bottom: 200, x: 100, y: 100, toJSON: () => null }) as DOMRect;
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.setAttribute('data-uid', 'u7');
+    unit.appendChild(card);
+    const box = () => ({ left: 100, top: 100, width: 80, height: 100, right: 180, bottom: 200, x: 100, y: 100, toJSON: () => null }) as DOMRect;
+    unit.getBoundingClientRect = box;
+    card.getBoundingClientRect = box;
+    let cardOver = 0;
+    card.addEventListener('mouseover', (e) => { if (e.target === card) cardOver += 1; });
     document.body.appendChild(unit);
     const host = document.createElement('div');
     document.body.appendChild(host);
@@ -238,6 +249,7 @@ describe('R-SPECTATE-COMBATCURSOR-01: the stands draw the hand in a fight', () =
     // an older-wire sample (applied on arrival) over the unit
     act(() => { sp.ingestCursor({ gx: 0.1, gy: 0.1, an: { k: 'u:u7', fx: 0.5, fy: 0.5 } }, performance.now()); });
     expect(hover.spectatorHoverKey()).toBe('u:u7');
+    expect(cardOver, 'the inner card is hovered, not its wrapper').toBe(1);
     const mover = host.querySelectorAll<HTMLElement>('.ghostmover')[1]!;
     expect(mover.style.opacity).toBe('1');
     act(() => { root.unmount(); });

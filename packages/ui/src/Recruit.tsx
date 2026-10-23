@@ -5313,16 +5313,7 @@ export function Recruit() {
     // (the Shop's landing rings its own summon sound: the arrival effect below stands down for these bodies)
   }, [run.board, run.handCopiedThisTurn, inCombat]);
   useEffect(() => () => clearHandSummonFx(), []);
-  // A minion GRANTED mid-fight can be summoned from hand that fight (R-HAND-GRANT-SUMMON-01): its lift starts on its
-  // hand preview, which the source finds by the grant's position (`setPlayerGrantUids`).
-  const liftGrantUids = useMemo(
-    () => (inCombat && !run.combatSettled ? playerGrantUidsOf(replay.replayEvents, (id) => !!CARD_INDEX[id]) : null),
-    [inCombat, run.combatSettled, replay.replayEvents],
-  );
-  useEffect(() => {
-    setPlayerGrantUids(liftGrantUids ?? []);
-  }, [liftGrantUids]);
-  useEffect(() => () => setPlayerGrantUids([]), []);
+
 
   // Replay a batch of captured buff-other events as source→target tendrils (living minion) or descends
   // (spell / Deathrattle / sourceless), using the same renderer as combat. Shared by the per-action watcher
@@ -8134,11 +8125,14 @@ export function Recruit() {
   // `toHand` carries. The combat previews follow the player's `toHand` order, so preview i is the i-th uid here:
   // a hand buff on it grows the preview, and a copy summoned from it greys it, exactly like a starting hand card.
   const combatGrantUids = useMemo(
-    () => (inCombat && !run.combatSettled
-      ? replay.replayEvents.flatMap((e) => (e.type === 'toHand' && e.side === 'player' && CARD_INDEX[e.cardId] ? [e.uid] : []))
-      : null),
+    () => (inCombat && !run.combatSettled ? playerGrantUidsOf(replay.replayEvents, (id) => !!CARD_INDEX[id]) : null),
     [inCombat, run.combatSettled, replay.replayEvents],
   );
+  // The same list is where a hand-summon of a GRANTED card lifts from: the grant's preview has no `data-uid`, so the
+  // player source finds it by this position (`setPlayerGrantUids`, R-HANDSUMMON-FX-01). Without it the lift found no
+  // origin and the minion just popped in.
+  useEffect(() => { setPlayerGrantUids(combatGrantUids ?? []); }, [combatGrantUids]);
+  useEffect(() => () => setPlayerGrantUids([]), []);
   const handPreviewShown = useMemo(() => {
     if (!combatGrantUids || !combatHandBuffs) return handPreviewViews;
     let changed = false;

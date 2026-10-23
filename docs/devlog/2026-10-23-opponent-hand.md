@@ -39,6 +39,24 @@ corner, `top` from `var(--bar-y)`, R-STAGE-OPP-HUD-01), nudged by `--oh-x` / `--
 with the independent `translate` / `rotate` properties, so a re-fan eases on the compositor. Phones (the phone GPU
 flag) drop the per-card drop shadow.
 
+## A granted card is a summon origin too (with #2253)
+
+R-HAND-GRANT-SUMMON-01 made a minion granted mid-fight summonable that fight, under its `toHand` uid (`hg<n>`).
+- Enemy: the face-down grant card is keyed by that uid, so a summon of it greys and lifts from that card.
+- Player: a grant's hand PREVIEW has no `data-uid`, so the #2252 lift found no origin and the minion just popped in.
+  Recruit now publishes the grant uids in preview order (`setPlayerGrantUids`, the same list #2253 uses to grey and
+  grow the previews), and the player source falls back to the preview at that position.
+
 ## Perf
 
-See the PR for the before/after table (prod bench builds, headless Chrome, uncapped frames).
+Prod bench builds (`VITE_PERF_BENCH=1`), headless Chrome 1920x1080 with vsync and the frame cap off, so each rAF
+interval is the frame's own cost. A Scene Builder fight: the foe holds 5 cards on the Galaxy plate, Herald of Doom
+grants it cards, two Seedling Spirits and a Tide Caller summon from its hand. Whole fight, 3 runs each:
+
+| | frames | over 6.25 ms | p95 | p99 |
+|---|---|---|---|---|
+| branch | 25.6k / 24.8k / 29.5k | 150 / 125 / 141 | 2.4 / 2.3 / 2.0 ms | 4.8 / 4.4 / 3.9 ms |
+| main | 24.4k / 27.0k / 25.9k | 120 / 140 / 135 | 2.4 / 2.1 / 2.2 ms | 4.6 / 4.5 / 4.4 ms |
+
+Within run-to-run noise (about 0.5% of frames over budget on both). The worst frames on both builds are the fight's
+own (curtain, hero strike), not the hand.

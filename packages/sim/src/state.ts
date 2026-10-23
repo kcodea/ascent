@@ -2668,6 +2668,9 @@ export interface RunState {
   pendingDecoys?: number;
   /** Weaken casts banked for the NEXT combat (each = one random enemy set to 1 Health at SoC). */
   pendingWeaken?: number;
+  /** Overflowing Crypt (Set 3, 2026-10-23): Skeletons banked for the NEXT combat's Start of Combat (2 per cast).
+   *  Rides `questMods.bankedSkeletons` (so a served snapshot carries it); spent in `settleCombat`. */
+  pendingSkeletons?: number;
   /** The run's ONE free Runeforge re-roll is spent (owner 2026-07-31: rerolls are free, once per game). */
   runeforgeRerollUsed?: boolean;
   /** Rune of the Matriarch: Runebloom Matriarch's per-spell trigger fires twice. */

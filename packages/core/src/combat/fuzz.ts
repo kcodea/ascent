@@ -135,6 +135,7 @@ const VALUE_MODS: ((r: Rng, ids: { A: string[]; pool: string[] }) => Partial<Que
   () => ({ burningLegionUses: 1 }),
   () => ({ decoySigils: 1 }),
   () => ({ weakenTargets: 1 }),
+  () => ({ bankedSkeletons: 2 }),
   () => ({ runePackcraft: true, packcraftLevel: { attack: 3, health: 2 } }),
   () => ({ runeCarrionCoin: 1 }),
   () => ({ solidGroundLeft: 2, solidGroundStat: 3 }),

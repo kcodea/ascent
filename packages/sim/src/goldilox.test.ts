@@ -85,12 +85,13 @@ describe('Goldilox — SHOP: board +3/+2, hand +6/+4 per Shop spell', () => {
     expect(at(s.hand, 'gh').buffs?.find((b) => b.source === 'Goldilox')).toMatchObject({ attack: 6, health: 4 });
   });
 
-  it('END OF TURN: a minion casting Shop spells at End of Turn (Soul Defiler → Staff of Guel + Picnic) counts, board and hand', () => {
-    // Two casts since the owner balance 2026-10-10 (Staff of Guel AND Picnic), so the Goldilox gain lands twice.
+  it('END OF TURN: a minion casting Shop spells at End of Turn (Soul Defiler → Staff of Guel + Picnic; only Staff is a Set 3 Shop spell) counts, board and hand', () => {
+    // Two casts since the owner balance 2026-10-10 (Staff of Guel AND Picnic), but Picnic left Set 3 on 2026-10-23
+    // ("remove picnic from set 3"), so in this Set 3 run only Staff of Guel is a Shop spell: the gain lands once.
     const s = run({ board: [body('sd', 'dm_curator'), body('gb', 'dw3_goldilox')], hand: [body('gh', 'dw3_goldilox')] });
     applyEndOfTurn(s);
-    expect(at(s.board, 'gb').buffs?.find((b) => b.source === 'Goldilox')).toMatchObject({ attack: 6, health: 4 });
-    expect(at(s.hand, 'gh').buffs?.find((b) => b.source === 'Goldilox')).toMatchObject({ attack: 12, health: 8 });
+    expect(at(s.board, 'gb').buffs?.find((b) => b.source === 'Goldilox')).toMatchObject({ attack: 3, health: 2 });
+    expect(at(s.hand, 'gh').buffs?.find((b) => b.source === 'Goldilox')).toMatchObject({ attack: 6, health: 4 });
   });
 });
 

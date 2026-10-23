@@ -4854,6 +4854,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-22).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Archives1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-ARCHIVE-SET3-1023-01',
+    title: 'Picnic leaves Set 3; it stays a Set 2 and Set 4 spell and old Set 3 saves still resolve it',
+    statement:
+      'Picnic is out of Set 3: a Set 3 run never offers it in the Shop, the Spell Cart, a Discover or a random grant '
+      + '(every draw reads the run-pinned pool). It stays a Set 2 spell and a Set 4 shared spell, and stays in the global '
+      + 'card index, so an old Set 3 save, snapshot or replay holding it still resolves.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'remove picnic from set 3' },
+      { kind: 'code', ref: 'packages/content/src/sets.ts SET3_SHARED_SPELL_IDS / SET4_SHARED_SPELL_IDS' },
+    ],
+    contentIds: ['sp_picnic'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/overflowingCrypt.test.ts', 'packages/sim/src/picnic.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
   // ── The Gold Fuse in every lobby (owner 2026-10-07; supersedes the Bronze-only R-TIMER-BRONZE-01 / -02) ─────────
   {
     id: 'R-TIMER-FUSE-01',

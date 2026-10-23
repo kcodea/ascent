@@ -5345,6 +5345,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // Decoy Sigil / Weaken were spent on the fight that just resolved — clear the banks.
   s.pendingDecoys = undefined;
   s.pendingWeaken = undefined;
+  s.pendingSkeletons = undefined; // Overflowing Crypt: one fight only
   // Rune of Slaying (owner change 2026-07-31, second pass): kills BANK across combats — every 6th pays a
   // minion of the board's dominant type into hand (the same resolver Reinforcing Ale uses). Replaces the
   // max-Gold-per-Slaughter shape entirely; the leftover progress carries in `runeSlayingKills`.
@@ -8043,6 +8044,7 @@ export function questCombatMods(s: RunState): QuestCombatMods {
     burningLegionUses: f?.burningLegion, // The Burning Legion: bounded Imp self-copies
     decoySigils: s.pendingDecoys || undefined, // Decoy Sigil: next-combat Training Dummy slot-fillers
     weakenTargets: s.pendingWeaken || undefined, // Weaken: SoC set N random enemies to 1 Health
+    bankedSkeletons: s.pendingSkeletons || undefined, // Overflowing Crypt: SoC summon N Skeletons
     runeVanguard: f?.runeVanguard,         // Rune of the Vanguard: SoC Crit + Ward on your 3 left-most
     runeFinality: f?.runeFinality,         // Rune of Finality: your last death summons Warded Imps
     // Rune of the Hatchery and Rayse's Empowering Vines share one channel — both are "bodies summoned in

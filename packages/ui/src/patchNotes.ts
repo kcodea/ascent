@@ -66,6 +66,13 @@ export const PATCH_NOTES: PatchNote[] = [
           'Ending is a 1/1 Undead. When you Overflow a minion, give your Undead Aura +4 Health.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'New Set 3 spell: Overflowing Crypt.',
+        details: ['Overflowing Crypt is a Tier 2 spell that costs 3 Gold. Start of Combat: Summon 2 Skeletons. If your board is full, the extra Skeletons Overflow.'],
+      },
+      { category: 'Balance', text: 'Picnic is no longer in Set 3.' },
+      { category: 'Systems', text: 'Undead Army has new art.' },
       { category: 'Systems', text: 'Rune and quest hovers now show each card they grant only once. Lantern Keeper shows one Lantern of Souls.' },
       { category: 'Systems', text: "Traveling Festival no longer shows a growing number. Each Reveler's text now includes the rune's extra +2/+2." },
       { category: 'Systems', text: 'Opponent info now stays in place on unusual window shapes.' },

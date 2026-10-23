@@ -548,12 +548,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes vistadooropen { 0% { opacity: 1; } 30% { opacity: 0; } 100% { opacity: 0; } }
 /* The hole moves WITH THE SHOP: the masked group and the door's wrapper carry the shop's push, and the layers inside the
    group push RELATIVE to it (sky 1.03 / 1.12 and so on), so each layer still ends at the same scale as before while the
-   hole stays exactly on the shop's doorway the whole way. The mask is one SVG (`vista-doormask.svg`: the whole
-   picture, minus the doorway), static, so it is drawn once and only carried by the transform. */
+   hole stays exactly on the shop's doorway the whole way. The mask (`vista-doormask.png`: the whole picture, minus the
+   doorway the OWNER PAINTED, his soft edge kept, 2026-10-23) is static, so it is drawn once and only carried by the transform. */
 .wipevista-masked, .wipevista-doorwrap { position: absolute; inset: 0; transform-origin: 47.7% 83%; will-change: transform; }
-.wipevista-masked { -webkit-mask: url('/vista-doormask.svg') 0 0 / 100% 100% no-repeat; mask: url('/vista-doormask.svg') 0 0 / 100% 100% no-repeat; }
-/* The doorway's interior (`vista-doorfill.webp`, cut a touch larger than the hole so no hairline can show), at its box. */
-.wipevista-doorfill { position: absolute; left: 43.9063%; top: 65.4167%; width: 7.5%; height: 18.0556%;
+.wipevista-masked { -webkit-mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; }
+/* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
+   hairline can show), at its box. */
+.wipevista-doorfill { position: absolute; left: 43.75%; top: 65.1389%; width: 7.8516%; height: 18.2639%;
   background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
 .wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
 /* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door

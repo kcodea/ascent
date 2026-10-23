@@ -831,7 +831,6 @@ export function MinionBook() {
                     aria-pressed={runeTribes.has(t)}
                     aria-label={t === 'neutral' ? 'Runes with no tribe' : `Runes that name ${CAT_META[t].label}`}
                   >
-                    <Icon name={CAT_META[t].icon} />
                     <span>{CAT_META[t].label}</span>
                   </button>
                 ))}
@@ -859,7 +858,6 @@ export function MinionBook() {
                     aria-pressed={guideTribes.has(t)}
                     aria-label={t === 'neutral' ? 'Neutral guides' : `${CAT_META[t].label} guides`}
                   >
-                    <Icon name={CAT_META[t].icon} />
                     <span>{CAT_META[t].label}</span>
                   </button>
                 ))}

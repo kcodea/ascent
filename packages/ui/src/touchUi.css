@@ -60,6 +60,10 @@ html[data-touch-ui] .frzwrap .frz-pill { transform: translate(calc(-50% + var(--
 html[data-touch-ui] .tvbwrap .tvb-cost { transform: translate(-50%, -50%) scale(calc(var(--tvb-cost-s, 0.84) * var(--touch-k))); }
 html[data-touch-ui] .rfb-cost { transform: translate(calc(-50% + var(--rfb-cost-x, -66) * var(--u)), calc(-50% + var(--rfb-cost-y, -64) * var(--u))) scale(calc(var(--rfb-cost-s, 0.72) * var(--touch-k))); }
 
+/* The emote menu (opened by a long-press on your portrait): each of the eight picks stays at least 48 screen px tall,
+   so every bubble is a finger-sized target on a phone (the stage scales it down otherwise). */
+html[data-touch-ui] .emote-menu .emote-pick { height: max(112px, calc(48px * var(--touch-inv-s) * var(--touch-k))); }
+
 /* Combat's Skip, and hero select's Main Menu (anchored top-left, so it grows from that corner). */
 html[data-touch-ui] .combathud-skip { transform: translate(-50%, -50%) scale(calc(var(--touch-k) * 1.25)); }
 html[data-touch-ui] .hsback { scale: var(--touch-k); transform-origin: 0 0; }

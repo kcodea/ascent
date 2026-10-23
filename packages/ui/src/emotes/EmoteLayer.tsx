@@ -27,7 +27,7 @@ import './emotes.css';
  *    their recorded offsets (`seatEmoteSchedule`), off the transition frame; the next phase start cancels what is left.
  *    In combat only the foe you are fighting can be seen, so only its emotes are scheduled. Bots and generated seats
  *    never emote. Nothing is scheduled while a replay is being watched.
- *  - THE MENU: your four emotes, opened by right-clicking your portrait (StatusBar), with the 20 s cooldown.
+ *  - THE MENU: your eight emotes (four before 2026-10-22), opened by right-clicking your portrait (StatusBar), with the 20 s cooldown.
  */
 export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
   useEffect(() => {
@@ -93,7 +93,7 @@ export const EmoteLayer = memo(function EmoteLayer(): JSX.Element | null {
   return menu ? <EmoteMenu at={menu} /> : null;
 });
 
-/** The right-click menu: your four emotes, and the cooldown while it runs. Portaled to the stage host. */
+/** The right-click menu: your eight emotes, and the cooldown while it runs. Portaled to the stage host. */
 function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean; anchor?: { top: number; bottom: number } } }): JSX.Element {
   const slots = useEmoteSlots();
   const ref = useRef<HTMLDivElement>(null);
@@ -145,7 +145,7 @@ function EmoteMenu({ at }: { at: { x: number; y: number; below?: boolean; anchor
       onContextMenu={(e) => { e.preventDefault(); }}
     >
       <b className="atip-title">Emotes</b>
-      {/* ALL FOUR slots, always (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"):
+      {/* ALL EIGHT slots, always (owner 2026-10-15: "show the empty emote slots so it's obvious they have empty slots"):
           an empty one is the dashed empty-slot frame, never clickable, its hover pointing at crates. */}
       <div className="emote-grid">
         {slots.map((id, i) => {

@@ -5474,7 +5474,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-PROG-EMOTE-01',
     title: 'Emotes are a cosmetic with a four-slot menu that always shows all four slots: Zen Brian is the one STARTER (everyone\x27s), every other emote is a crate drop (Rare, Epic, Legendary); a 20 second cooldown between emotes, no cap',
     statement:
-      'The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Zen Brian is the one STARTER '
+      'AMENDED 2026-10-22 by R-PROG-EMOTE-02: the menu now holds EIGHT slots (targets \x270\x27..\x277\x27) and the five '
+      + 'Comms emotes are starters too; where this rule says four slots, one starter or three empty slots, R-PROG-EMOTE-02 '
+      + 'wins. The emote category ("Emotes", target global, enabled) holds painted speech bubbles. Zen Brian is the one STARTER '
       + 'item (acquisition \x27starter\x27): every player owns it from the start, signed in or not, with no ownership row, '
       + 'and it never drops from a crate. Every other live emote is a CRATE item: 8 Rare (Nervous Jensen, Depressed Hank, '
       + 'Nervous Voss, Tara Sad, Chronos Mad, Rascal Broke, Skeleton Wave, Pup Pup), 7 Epic (Flirty Midas, Happy Urchin, '
@@ -5534,6 +5536,50 @@ export const FOUNDATION_RULES: GameRule[] = [
         'packages/ui/src/progression/CollectionScreen.test.tsx',
       ],
       lastVerifiedAt: '2026-10-18',
+    },
+  },
+  {
+    id: 'R-PROG-EMOTE-02',
+    title: 'The emote menu holds EIGHT slots, and the five Comms emotes (Hi, Good Choice, Too Nasty, It\x27s Beasts, Lemon Approved) are free for everyone, each flagged on its own; every other emote, and any new one added with no flag, is a crate drop',
+    statement:
+      'The in-game emote menu and the Collection\x27s slot row hold EIGHT positions (EMOTE_SLOT_COUNT 8; the loadout row '
+      + 'target, the inventory request check, the SQL equip_cosmetic check and the device layer all accept \x270\x27..\x277\x27 '
+      + 'and refuse anything else). The menu draws all eight, two rows of four, an empty one as the dashed "Empty" frame; on '
+      + 'a touch device each pick stays at least 48 screen px tall. Five COMMS emotes are STARTER items, each flagged '
+      + 'starter on its own row (never a blanket rule): Hi, Good Choice, Too Nasty, It\x27s Beasts and Lemon Approved (Common, '
+      + 'ids emote_hi, emote_good_choice, emote_too_nasty, emote_its_beasts, emote_lemon_approved). Like Zen Brian they are '
+      + 'owned by every account, guests included, with no ownership row, equip with no ownership row, and are NEVER in the '
+      + 'crate pool (nobody rolls a free emote). Every other live emote is a crate drop, and an emote added later with no '
+      + 'flag is a crate drop by default. The DEFAULT menu (positions no explicit choice fills) keeps positions 1 to 4 '
+      + 'exactly as the four-slot menu showed them (Zen Brian, then owned emotes in catalog order), then the Comms emotes, '
+      + 'then the rest of the owned emotes; explicit choices always win their position. A fresh account (a guest included) '
+      + 'sees Zen Brian, Hi, Good Choice, Too Nasty, It\x27s Beasts, Lemon Approved and two empty slots.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-22', quote: 'we\x27ll use emotes for quickchat options, then. let\x27s add 4 more emote slots, and give everyone the communication emotes. i added 5 here: C:\\Game Assets\\Ascent Art\\Emotes\\Comms' },
+      { kind: 'owner-handoff', ref: 'Owner 2026-10-22', quote: 'give all players the 5 comms emotes for free, but others im going to continue to add will go into the skins lootboxes' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (EMOTE_SLOT_COUNT, EMOTE_POSITION_RE, COMMS_EMOTE_IDS, the Comms rows, emoteSlotsOf); packages/progression/src/inventory.ts (the emote target); supabase/migrations/2026-10-22-emote-eight-slots.sql (equip_cosmetic); packages/ui/src/emotes/emoteLoadout.ts (the device layer); packages/ui/src/emotes/emotes.css + packages/ui/src/touchUi.css (the eight-slot menu)' },
+    ],
+    currentBehaviour:
+      'Conforms in the client from 2026-10-22. On the live server the eight positions need 2026-10-22-emote-eight-slots.sql '
+      + 'run, then progression-inventory deployed (its request check and its catalog sync, which writes the five Comms rows '
+      + 'as starters). Until then an equip at positions 5 to 8 is kept on the device and the Comms emotes still show (the '
+      + 'client treats starters as owned).',
+    example:
+      'A guest right-clicks (or long-presses) their portrait: two rows of four, Zen Brian, Hi, Good Choice, Too Nasty, '
+      + 'It\x27s Beasts, Lemon Approved, then two "Empty" slots. A player who owns three crate emotes and never placed one '
+      + 'still sees Zen Brian and those three in slots 1 to 4, then Hi, Good Choice, Too Nasty and It\x27s Beasts. Opening a '
+      + 'chest never gives Hi.',
+    enforcement: {
+      kind: 'scenario',
+      refs: [
+        'packages/progression/src/emotes.test.ts',
+        'packages/progression/src/emotes.db.test.ts',
+        'packages/progression/src/sqlParity.test.ts',
+        'packages/ui/src/emotes/emotes.test.tsx',
+      ],
+      lastVerifiedAt: '2026-10-22',
     },
   },
   {

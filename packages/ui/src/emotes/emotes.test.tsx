@@ -19,12 +19,15 @@ import { deliverEmote, sendEmote, setEmoteTransport, subscribeEmotes } from './e
 import { bubbleBox, clearEmoteBubbles, setEmoteFoe, showEmoteBubble } from './emoteBubble';
 import { EmoteLayer } from './EmoteLayer';
 import { useProgression } from '../progression/progressionStore';
+import { equipEmoteLocally, parseLocalEmotes, useLocalEmotes } from './emoteLoadout';
 
 vi.mock('../identity', async (orig) => ({ ...(await orig<typeof import('../identity')>()), currentUserId: () => 'u-1' }));
 
 /** Angry Mushy was a starter until the owner retired it on 2026-10-15 ("remove the angry mushy emote"). */
 const RETIRED = 'emote_angry_mushy';
 const [A, B, C] = ['emote_flirty_midas', 'emote_nervous_jensen', 'emote_zen_brian'];
+/** The five free Comms emotes (owner 2026-10-22), as the menu names them. */
+const COMMS = ['Say Hi', 'Say Good Choice', 'Say Too Nasty', "Say It's Beasts", 'Say Lemon Approved'];
 
 const board = (author: string, heroId: string, seed: number, wave: number, emotes?: BoardSnapshot['emotes']): BoardSnapshot => ({
   v: 1, wave, heroId, resolve: 30, tier: 1, triples: 0,
@@ -129,16 +132,16 @@ describe('the menu (right-click your portrait)', () => {
   afterEach(() => { useProgression.setState({ mirror: null }); });
   const slots = (): HTMLElement[] => [...document.body.querySelectorAll<HTMLElement>('.emote-menu .emote-grid > .emote-pick')];
 
-  it('always FOUR slots (owner 2026-10-15): a fresh account has Zen Brian and three visibly empty, unclickable slots', () => {
+  it('always EIGHT slots (owner 2026-10-22): a fresh account has Zen Brian, the five Comms emotes and two visibly empty, unclickable slots', () => {
     act(() => { useGame.setState({ run: lobbyRun() }); owning([]); });
     ui = mount(<EmoteLayer />);
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
-    expect(slots()).toHaveLength(4);
-    expect(slots().map((e) => e.tagName)).toEqual(['BUTTON', 'SPAN', 'SPAN', 'SPAN']);
-    expect(slots()[0]!.getAttribute('aria-label')).toBe('Say Zen Brian');
-    const empty = slots().slice(1);
+    expect(slots()).toHaveLength(8);
+    expect(slots().map((e) => e.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON', 'BUTTON', 'BUTTON', 'BUTTON', 'SPAN', 'SPAN']);
+    expect(slots().slice(0, 6).map((e) => e.getAttribute('aria-label'))).toEqual(['Say Zen Brian', ...COMMS]);
+    const empty = slots().slice(6);
     expect(empty.every((e) => e.classList.contains('emote-slot-empty') && e.getAttribute('aria-disabled') === 'true')).toBe(true);
-    expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 2 is empty', 'Slot 3 is empty', 'Slot 4 is empty']);
+    expect(empty.map((e) => e.getAttribute('aria-label'))).toEqual(['Slot 7 is empty', 'Slot 8 is empty']);
     expect(empty[0]!.textContent).toBe('Empty');
     expect(empty[0]!.classList.contains('gtip')).toBe(true); // the game's hover bubble, never a native title
     expect(empty[0]!.getAttribute('data-tip')).toBe('Empty slot. Find more emotes in chests.');
@@ -146,13 +149,14 @@ describe('the menu (right-click your portrait)', () => {
     act(() => { closeEmoteMenu(); });
   });
 
-  it('shows the emotes you OWN after Zen Brian (catalog order), says one, closes, then shows the cooldown when reopened', () => {
+  it('shows the emotes you OWN after Zen Brian (catalog order), then the Comms, says one, closes, then shows the cooldown when reopened', () => {
     act(() => { useGame.setState({ run: lobbyRun() }); owning([A, B, 'title_wanderer']); });
     ui = mount(<EmoteLayer />);
     act(() => { openEmoteMenu({ x: 200, y: 700 }); });
     const picks = (): HTMLButtonElement[] => [...document.body.querySelectorAll<HTMLButtonElement>('.emote-menu button.emote-pick')];
-    expect(picks().map((b) => b.getAttribute('aria-label'))).toEqual(['Say Zen Brian', 'Say Nervous Jensen', 'Say Flirty Midas']); // starter, Rare, Epic
-    expect(slots()).toHaveLength(4); // and one empty slot
+    // starter, Rare, Epic (slots 1-4 as the four-slot menu had them), then the Comms fill the rest
+    expect(picks().map((b) => b.getAttribute('aria-label'))).toEqual(['Say Zen Brian', 'Say Nervous Jensen', 'Say Flirty Midas', ...COMMS]);
+    expect(slots()).toHaveLength(8); // all eight filled
     expect(document.body.querySelector('.emote-menu')!.hasAttribute('title')).toBe(false);
     act(() => { picks()[2]!.click(); });
     expect(document.body.querySelector('.emote-menu')).toBeNull(); // saying one closes it
@@ -249,5 +253,24 @@ describe('the bubble sits by its speaker', () => {
   it('an unknown emote id (a newer client\'s) shows nothing', () => {
     place('<div class="statusbar"><div class="hero"><div class="f"></div></div></div>', '.statusbar .hero .f', { left: 40, top: 800, width: 200, height: 200 });
     expect(showEmoteBubble('s0', 'emote_from_the_future')).toBe(false);
+  });
+});
+
+describe('the device layer (ascent.emoteLoadout): positions 0 to 7', () => {
+  afterEach(() => { useLocalEmotes.setState({ local: null }); localStorage.removeItem('ascent.emoteLoadout'); useProgression.setState({ mirror: null }); });
+
+  it('keeps positions 0 to 7 and drops anything else', () => {
+    expect(parseLocalEmotes(JSON.stringify({ 0: A, 4: B, 7: 'emote_hi', 8: C, '07': C, x: C, 3: 'Bad Id' }))).toEqual({ 0: A, 4: B, 7: 'emote_hi' });
+    expect(parseLocalEmotes(JSON.stringify({ 8: C }))).toBeNull();
+    expect(parseLocalEmotes('[1]')).toBeNull();
+    expect(parseLocalEmotes('not json')).toBeNull();
+  });
+
+  it('an equip the server cannot take lands in a new position (slot 8) on this device, and the menu shows it there', () => {
+    act(() => { equipEmoteLocally(7, 'emote_hi'); });
+    expect(JSON.parse(localStorage.getItem('ascent.emoteLoadout')!)).toEqual({ 7: 'emote_hi' });
+    expect(useLocalEmotes.getState().local).toEqual({ 7: 'emote_hi' });
+    act(() => { equipEmoteLocally(8, 'emote_hi'); }); // out of range: ignored
+    expect(useLocalEmotes.getState().local).toEqual({ 7: 'emote_hi' });
   });
 });

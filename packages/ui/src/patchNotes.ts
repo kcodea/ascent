@@ -56,6 +56,13 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-23',
+    changes: [
+      { category: 'Systems', text: 'Rune and quest hovers now show each card they grant only once. Lantern Keeper shows one Lantern of Souls.' },
+      { category: 'Systems', text: "Traveling Festival no longer shows a growing number. Each Reveler's text now includes the rune's extra +2/+2." },
+    ],
+  },
+  {
     date: '2026-10-22',
     changes: [
       { category: 'Systems', text: 'Compendium: tribes are listed in alphabetical order.' },

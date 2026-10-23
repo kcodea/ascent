@@ -2580,4 +2580,42 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-22 (new content).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3KoboldRunes1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-RUNE-PREVIEW-1023-01',
+    title: 'A rune (or quest) hover previews each card it grants or names ONCE',
+    statement:
+      'The hover beside a rune lists the cards its reward grants (gilded grants marked) and then its `previewCards`, '
+      + 'one card each. A card granted twice by the same reward (a `grant` now plus a `recurringGrant` of it, the Rare '
+      + 'Goods shape: Lantern Keeper, Overture) or granted and also named in `previewCards` shows a single preview. '
+      + 'A gilded grant of a card is a different-looking card and keeps its own preview. Quest hovers follow the same rule.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (Lantern Keeper hover showed two Lantern of Souls)', quote: 'this doesnt need both previews' },
+      { kind: 'code', ref: 'packages/ui/src/RuneCard.tsx previewIdsOf; packages/ui/src/QuestCard.tsx rewardCards' },
+    ],
+    contentIds: ['rune_lantern_keeper', 'rune_overture'],
+    currentBehaviour: 'Conforms as of 2026-10-23: the collector dedupes by id + gilding (was a plain flatMap of every grant).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/runeCardPreview.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
+    id: 'R-RUNE-FESTIVAL-1023-02',
+    title: 'Traveling Festival adds a flat +2/+2 to every Reveler grant: no growing rune tally, and each Reveler prints the sum',
+    statement:
+      'Rune of the Traveling Festival does not grow. Its "+2/+2" is added once to what each Reveler pays on Sell (Flame: '
+      + 'Attack, Tide: Health, Grove: both), on top of the shared Reveler value; golden doubles the value, never the +2/+2, '
+      + 'and a second copy does not raise it (`revelerExtra` takes the max). So the rune shows NO tally (it used to show '
+      + 'the value plus 2, which read as the rune growing), and every Reveler text (shop, board, hand, Discover and the '
+      + 'combat Unit) prints its live grant WITH the +2/+2 folded in. Festival Luminary is not a Reveler and never gets it.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (Traveling Festival readout)', quote: "this rune doesn't grow, it just gives +2 to the bonus of the revelers" },
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-23 (Reveler text)', quote: 'their value should just gain that one-time +2 to it basically' },
+      { kind: 'code', ref: 'packages/ui/src/runeTally.ts (no Festival branch); packages/ui/src/cardText.ts spiritText (revelerExtra); packages/sim/src/recruit.ts revelerSell' },
+    ],
+    contentIds: ['rune_traveling_festival', 'sp3_flamereveler', 'sp3_tidereveler', 'sp3_grovereveler'],
+    currentBehaviour: 'Conforms as of 2026-10-23: display only; the engine already paid value + 2 (unchanged).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/spiritText.test.ts', 'packages/ui/src/renderedText.test.tsx', 'packages/sim/src/set3RunesTrancheA.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

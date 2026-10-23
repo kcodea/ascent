@@ -183,7 +183,7 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         runeFlags: foe ? undefined : { matriarch: !!run.runeMatriarch, brokerage: !!run.runeBrokerage, livingTreasure: !!run.questFlags?.runeLivingTreasure, gambling: !!run.runeGambleBoth, vaultkeeper: !!run.runeVaultkeeper },
         // Set 3 Spirits: the shared Reveler value + Spirits played this turn, frozen for the fight (Kindled Sprite's
         // Rally, Nurturer, the Revelers, Luminary). Player-side only, like the other run-scoped scalers.
-        revelerX: foe ? enemyScalers?.revelerX : run.revelerX, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
+        revelerX: foe ? enemyScalers?.revelerX : run.revelerX, revelerExtra: foe ? undefined : run.revelerExtra /* Rune of the Traveling Festival (player side; a foe Reveler is never sold mid-fight) */, spiritsPlayed: foe ? enemyScalers?.spiritsPlayed : spiritsPlayedThisTurn(run),
         // Bicycle Bob's Undead-played count, per side (2026-09-18): the foe's rides its snapshot's per-tribe map; the
         // player's is derived from the frozen `playedThisTurn` ids by the same predicate the sim froze it with.
         tribesPlayed: foe ? enemyScalers?.tribesPlayed : tribesPlayedThisTurn(run),

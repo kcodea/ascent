@@ -46,7 +46,8 @@ function cardViewOf(id: string): CardView | null {
 export function QuestCard({ quest, onBuy, readOnly = false }: { quest: QuestDef; onBuy: () => void; readOnly?: boolean }) {
   const c = quest.tribe === 'neutral' ? 'var(--t-neutral)' : `var(--t-${quest.tribe})`;
   const art = questArt(quest.id);
-  const rewardCards = rewardCardIds(quest.reward).map(cardViewOf).filter((v): v is CardView => v !== null);
+  // One preview per card (owner report 2026-10-23): a grant + a recurring grant of the same card preview it once.
+  const rewardCards = [...new Set(rewardCardIds(quest.reward))].map(cardViewOf).filter((v): v is CardView => v !== null);
   const hasPreview = rewardCards.length > 0;
   const [tip, setTip] = useState<RefPopupPos | null>(null);
   const timer = useRef<number | null>(null);

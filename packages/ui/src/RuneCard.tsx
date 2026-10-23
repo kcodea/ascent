@@ -30,9 +30,13 @@ function rewardCardIds(r: QuestReward): { id: string; golden?: boolean }[] {
 }
 
 /** Reward grants first, then `previewCards` — text-referenced cards the reward doesn't grant (owner rule
- *  2026-08-01: a rune that references a card shows it on hover). Deduped by id, grant wins (it may be gilded). */
-function previewIdsOf(rune: RuneDef): { id: string; golden?: boolean }[] {
-  const out = rewardCardIds(rune.reward);
+ *  2026-08-01: a rune that references a card shows it on hover). ONE preview per card (owner report 2026-10-23,
+ *  Lantern Keeper: "this doesnt need both previews"): a reward that grants the same card twice (a `grant` now plus
+ *  a `recurringGrant` of it, the Rare Goods shape) or names it again in `previewCards` previews it once. Deduped
+ *  by id + gilding (a gilded grant is a different-looking card); the grant wins over `previewCards`. */
+export function previewIdsOf(rune: Pick<RuneDef, 'reward' | 'previewCards'>): { id: string; golden?: boolean }[] {
+  const out: { id: string; golden?: boolean }[] = [];
+  for (const x of rewardCardIds(rune.reward)) if (!out.some((y) => y.id === x.id && !!y.golden === !!x.golden)) out.push(x);
   for (const id of rune.previewCards ?? []) if (!out.some((x) => x.id === id)) out.push({ id });
   return out;
 }

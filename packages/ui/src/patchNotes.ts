@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Career Heroes: click a hero to see its games in Match History and watch them back.',
+        details: [
+          'The hover panel on hero cards is gone.',
+          'Click a hero to open Match History showing only that hero. Remove the hero chip to see every game again.',
+          'Hero cards now show Net MMR, the rank points you gained or lost with that hero in ranked games.',
+          'Sort heroes by games played, average placement or Net MMR.',
+        ],
+      },
       { category: 'Systems', text: 'Last Call and Return Customers have their emblem art.' },
       { category: 'Balance', text: 'Minions added to your hand during a fight can now be summoned from hand in that same fight.' },
       { category: 'Balance', text: 'Overflowing Crypt is now an Undead spell, offered in runs with Undead. It has new art.' },

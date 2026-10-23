@@ -8,7 +8,7 @@
  * Watch button, live only with a replay); the MMR as a bare number (no delta); the four trend charts (MMR first,
  * plotted raw from each run's settled rating; a run with no stamp is skipped, never a 0) + the 7 / 30 / 90 / All
  * time window toggle (owner ask 2026-09-22); the designed loading / signed-out / offline / empty states; the HEROES tab (a PORTRAIT GRID folded over
- * every run, with a hover / focus panel per hero; the choice persisted); the three columns sharing one header
+ * every run, sortable, NO hover panel; a click opens Match History filtered to that hero; the choice persisted); the three columns sharing one header
  * row; the Seasonal Ranked card as the medal rank (crest in the portrait ring + bar + the scalar caption) — for
  * your own profile and for a VIEWED player (rank handed over on `careerOf.rank`, or fetched by user id, the card
  * holding a quiet ring while that fetch is in flight; the bare number only when neither yields a rank; owner
@@ -32,6 +32,7 @@ const fetchReplayPayload = vi.fn<(rowId: number) => Promise<unknown>>();
 const fetchPlayerById = vi.fn<(userId: string) => Promise<PlayerRow | null>>();
 const startReplay = vi.fn();
 const fetchPracticeReplay = vi.fn<(rowId: number) => Promise<unknown>>();
+const fetchRunDetails = vi.fn<(userId: string, ids: readonly number[]) => Promise<unknown[] | null>>();
 const fetchMyPracticeGames = vi.fn<(userId: string | null | undefined, limit?: number) => Promise<PracticeGameRow[] | null>>();
 
 vi.mock('./remoteBoards', async (importOriginal) => ({
@@ -42,6 +43,7 @@ vi.mock('./remoteBoards', async (importOriginal) => ({
   fetchPlayerById: (id: string) => fetchPlayerById(id),
   fetchMyPracticeGames: (id: string | null | undefined, limit?: number) => fetchMyPracticeGames(id, limit),
   fetchPracticeReplay: (id: number) => fetchPracticeReplay(id),
+  fetchRunDetails: (userId: string, ids: readonly number[]) => fetchRunDetails(userId, ids),
   fetchPlayerRating: async () => undefined, // syncProfileFromServer: "couldn't ask" → keep the local rating
 }));
 // The LOBBY STRENGTH readout is hidden behind one switch (owner 2026-09-30); a getter-backed mock lets a test
@@ -107,6 +109,8 @@ beforeEach(async () => {
   fetchPlayerById.mockReset().mockResolvedValue(null);
   startReplay.mockReset();
   fetchMyPracticeGames.mockReset().mockResolvedValue(PRACTICE);
+  fetchRunDetails.mockReset().mockResolvedValue([]);
+  try { localStorage.removeItem('ascent.career.heroSort'); } catch { /* jsdom */ }
   fetchPracticeReplay.mockReset().mockResolvedValue({ version: 2, seed: 7, frames: [{}] });
   useGame.setState({
     showCareer: true, careerOf: null, careerCache: null, playerName: 'Kev',
@@ -612,68 +616,117 @@ describe('the Heroes tab', () => {
     expect(ui.container.querySelector('[title]')).toBeNull();
   });
 
-  it('hovering a portrait floats the hero\'s career beside it — MATCH W–L + win rate, avg placement, then 1st-place wins / best / last played — portalled; leaving hides it', () => {
+  /**
+   * R-CAREER-HERO-GAMES-01 (owner 2026-10-23: "the mouseover tooltip here is pretty ugly and redundant info. would it be
+   * possible to show the games of that hero if i clicked on the hero so i could go rewatch them or something?").
+   */
+  it('hovering or focusing a hero card shows NO tooltip panel; the card is a button', () => {
     click(heroesTab());
     vi.useFakeTimers();
     try {
-      const tiles = [...ui.container.querySelectorAll('.cv2-hcard')];
-      over(tiles[0]!, 'mouseover');
-      expect(document.querySelector('.cv2-herotip')).toBeNull(); // a short hover delay first
-      act(() => { vi.advanceTimersByTime(200); });
-      const tip = document.querySelector('.cv2-herotip');
-      expect(tip).not.toBeNull();
-      expect(tip!.parentElement).toBe(stageHost()); // portalled (into the scaled stage) — the scrolling grid can't clip it
-      expect(tip!.getAttribute('role')).toBe('tooltip');
-      expect(tip!.classList.contains('right') || tip!.classList.contains('left')).toBe(true); // seated BESIDE the portrait
-      expect((tip as HTMLElement).style.position || getComputedStyle(tip!).position).toMatch(/fixed|^$/);
-      expect(tiles[0]!.getAttribute('aria-describedby')).toBe(tip!.id);
-      expect(tip!.querySelector('.cv2-herotip-name')?.textContent).toBe('Brackus');
-      // Brackus: 3rd (W) + 7th (L) → 1 W – 1 L = 50%; avg 5; 0 firsts; best 3rd. (Fights 5–5 + 2–5 play no part.)
-      expect(tip!.querySelector('.cv2-herotip-record')?.getAttribute('aria-label')).toBe('1 wins, 1 losses');
-      expect([...tip!.querySelectorAll('.cv2-herotip-n')].map((n) => n.textContent)).toEqual(['1', '1']);
-      expect(tip!.querySelector('.cv2-herotip-rate')?.textContent).toBe('50%');
-      expect([...tip!.querySelectorAll('.cv2-herotip-l')].map((n) => n.textContent)).toEqual(['Record', 'Avg Placement', '1st Place Wins', 'Best Placement', 'Last Played']);
-      expect(tip!.querySelector('.cv2-herotip-v')?.textContent).toBe('5');
-      const subs = [...tip!.querySelectorAll('.cv2-herotip-sv')];
-      expect(subs[0]!.textContent).toBe('0');
-      expect(subs[1]!.textContent).toBe('3rd');
-      expect(subs[1]!.classList.contains('top4')).toBe(true);
-      expect(subs[2]!.textContent).toMatch(/\d{4}$/);
-      expect(tip!.textContent).not.toMatch(/7 wins|10 losses|fight/i);
-      over(tiles[0]!, 'mouseout');
-      expect(document.querySelector('.cv2-herotip')).toBeNull();
-      expect(tiles[0]!.getAttribute('aria-describedby')).toBeNull();
-
-      // Sable: 1 game, won it → 1 W – 0 L = 100%, avg 1, 1 first (green), best 1st (green).
-      over(tiles[1]!, 'mouseover');
-      act(() => { vi.advanceTimersByTime(200); });
-      const tip2 = document.querySelector('.cv2-herotip')!;
-      expect(tip2.querySelector('.cv2-herotip-name')?.textContent).toBe('Sable');
-      expect([...tip2.querySelectorAll('.cv2-herotip-n')].map((n) => n.textContent)).toEqual(['1', '0']);
-      expect(tip2.querySelector('.cv2-herotip-rate')?.textContent).toBe('100%');
-      expect(tip2.querySelector('.cv2-herotip-v')?.textContent).toBe('1');
-      const subs2 = [...tip2.querySelectorAll('.cv2-herotip-sv')];
-      expect(subs2[0]!.textContent).toBe('1');
-      expect(subs2[0]!.classList.contains('won')).toBe(true);
-      expect(subs2[1]!.textContent).toBe('1st');
-      expect(subs2[1]!.classList.contains('won')).toBe(true);
-      over(tiles[1]!, 'mouseout');
-      expect(document.querySelector('.cv2-herotip')).toBeNull();
+      const tile = ui.container.querySelector('.cv2-hcard') as HTMLElement;
+      over(tile, 'mouseover');
+      act(() => { vi.advanceTimersByTime(400); });
+      act(() => { tile.focus(); });
+      expect(document.querySelector('.cv2-herotip, [role=tooltip]')).toBeNull();
+      expect(tile.getAttribute('aria-describedby')).toBeNull();
+      expect(tile.getAttribute('role')).toBe('button');
+      expect(tile.getAttribute('title')).toBeNull();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('keyboard focus shows the same panel at once (no hover delay) and blur hides it', () => {
+  it('the card prints Top 4, Avg and NET MMR (no 1st count)', () => {
     click(heroesTab());
-    const tile = ui.container.querySelector('.cv2-hcard') as HTMLElement;
-    act(() => { tile.focus(); });
-    const tip = document.querySelector('.cv2-herotip');
-    expect(tip).not.toBeNull();
-    expect(tip!.querySelector('.cv2-herotip-name')?.textContent).toBe('Brackus');
-    expect(tile.getAttribute('aria-describedby')).toBe(tip!.id);
-    act(() => { tile.blur(); });
-    expect(document.querySelector('.cv2-herotip')).toBeNull();
+    const labels = [...ui.container.querySelectorAll('.cv2-hcard')[0]!.querySelectorAll('.cv2-hcard-stat')].map((n) => n.lastChild?.textContent);
+    expect(labels).toEqual(['Top 4', 'Avg', 'Net MMR']);
+    // The fixtures carry no settle stamp (`rank`), so no game is known rated: "-", never a fake 0.
+    expect(ui.container.querySelector('.cv2-hcard-net b')?.textContent).toBe('-');
+  });
+
+  it('clicking a hero opens Match History filtered to that hero, with a removable chip; clearing it restores every run', async () => {
+    click(heroesTab());
+    click(ui.container.querySelectorAll('.cv2-hcard')[0]!); // Brackus (2 games)
+    await flush();
+    const tabs = ui.container.querySelectorAll('.cv2-tabs [role=tab]');
+    expect(tabs[0]!.getAttribute('aria-selected')).toBe('true');
+    const chip = ui.container.querySelector('.cv2-herofilter-chip');
+    expect(chip?.textContent).toBe('Brackus\u2715');
+    expect(chip?.getAttribute('title')).toBeNull();
+    expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('2 Brackus games');
+    const items = [...ui.container.querySelectorAll('.gs-item .gs-title')].map((n) => n.textContent);
+    expect(items).toEqual(['Brackus', 'Brackus']);
+    // The light (older) Brackus run asks for its detailed row ONCE; the detailed one never does.
+    expect(fetchRunDetails).toHaveBeenCalledTimes(1);
+    expect(fetchRunDetails.mock.calls[0]![1]).toEqual([10]);
+    // Each row keeps its own Replay state: the selected (newest) Brackus run has no recording here.
+    const replay = ui.container.querySelector<HTMLButtonElement>('.gs-detail .cv2-watch');
+    expect(replay?.disabled).toBe(true);
+    click(chip);
+    expect(ui.container.querySelector('.cv2-herofilter-chip')).toBeNull();
+    expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(3);
+    expect(ui.container.querySelector('.cv2-sec-sub')?.textContent).toBe('Last 3 runs');
+  });
+
+  it('Back to Heroes returns to the grid and drops the filter; Enter on a focused card opens it too', () => {
+    click(heroesTab());
+    const sable = ui.container.querySelectorAll<HTMLElement>('.cv2-hcard')[1]!;
+    act(() => { sable.focus(); sable.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); });
+    expect(ui.container.querySelector('.cv2-herofilter-chip')?.textContent).toBe('Sable\u2715');
+    expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(1);
+    click(ui.container.querySelector('.cv2-herofilter-back'));
+    expect(heroesTab().getAttribute('aria-selected')).toBe('true');
+    click(ui.container.querySelector('.cv2-tabs [role=tab]'));
+    expect(ui.container.querySelector('.cv2-herofilter-chip')).toBeNull();
+    expect(ui.container.querySelectorAll('.gs-item')).toHaveLength(3);
+  });
+
+  it('a hero filter with no games left shows the designed empty state, not a blank list', async () => {
+    click(heroesTab());
+    click(ui.container.querySelectorAll('.cv2-hcard')[1]!); // Sable
+    await flush();
+    // The career refreshes (a finished run bumps the version) and the Sable run is no longer in the answer.
+    fetchMyRuns.mockResolvedValue(RUNS.filter((r) => r.heroId !== 'sable'));
+    act(() => { useGame.setState((st) => ({ careerVersion: st.careerVersion + 1 })); });
+    await flush();
+    await flush();
+    expect(ui.container.querySelector('.cv2-herofilter-chip')?.textContent).toBe('Sable\u2715');
+    expect(ui.container.querySelector('.cv2-none .cv2-state-title')?.textContent).toBe('No Sable games yet');
+    expect(ui.container.querySelector('.gs-item')).toBeNull();
+  });
+
+  it('sorts by Games played / Avg placement / Net MMR, remembered per browser', async () => {
+    ui.unmount();
+    const rated = (o: Partial<CareerRun>): CareerRun => run({ rank: 8, ...o });
+    fetchMyRuns.mockResolvedValue([
+      rated({ id: 1, heroId: 'brackus', placement: 6, ratingDelta: -20 }),
+      rated({ id: 2, heroId: 'brackus', placement: 5, ratingDelta: -10 }),
+      rated({ id: 3, heroId: 'sable', placement: 1, ratingDelta: 50 }),
+    ]);
+    useGame.setState({ careerCache: null });
+    ui = mount(<Career />);
+    await flush();
+    click(heroesTab());
+    const names = (): (string | null | undefined)[] => [...ui.container.querySelectorAll('.cv2-hcard-name')].map((n) => n.textContent);
+    const sortBtns = (): HTMLButtonElement[] => [...ui.container.querySelectorAll<HTMLButtonElement>('.cv2-herosort .cv2-seg-btn')];
+    expect(sortBtns().map((b) => b.textContent)).toEqual(['Games played', 'Avg placement', 'Net MMR']);
+    expect(sortBtns()[0]!.getAttribute('aria-pressed')).toBe('true');
+    expect(names()).toEqual(['Brackus', 'Sable']);
+    const nets = (): (string | null | undefined)[] => [...ui.container.querySelectorAll('.cv2-hcard-net b')].map((n) => n.textContent);
+    expect(nets()).toEqual(['-30', '+50']);
+    expect(ui.container.querySelector('.cv2-hcard-net b')?.className).toContain('down');
+    click(sortBtns()[2]!);
+    expect(names()).toEqual(['Sable', 'Brackus']);
+    expect(localStorage.getItem('ascent.career.heroSort')).toBe('mmr');
+    click(sortBtns()[1]!);
+    expect(names()).toEqual(['Sable', 'Brackus']); // avg 1 before 5.5
+    click(sortBtns()[2]!);
+    ui.unmount();
+    ui = mount(<Career />);
+    await flush();
+    expect(sortBtns()[2]!.getAttribute('aria-pressed')).toBe('true');
+    expect(names()).toEqual(['Sable', 'Brackus']);
   });
 
   it('the choice persists per browser and the tabs toggle back', async () => {

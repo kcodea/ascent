@@ -8,7 +8,7 @@
  * adds its class here AND to the skin groups in tooltips.css.
  */
 
-/** Hover-tip panels (the element that appears). Sub-parts (`questbadge-tip-reward`, `cv2-herotip-name`, ...) are
+/** Hover-tip panels (the element that appears). Sub-parts (`questbadge-tip-reward`, `cv2-rune-tip-name`, ...) are
  *  covered through their parent's prefix. */
 export const TIP_CLASSES = [
   'atip',
@@ -19,7 +19,6 @@ export const TIP_CLASSES = [
   'runtrophy-tip',
   'lb-rune-tip',
   'cv2-rune-tip',
-  'cv2-herotip',
   'goldtip',
   'tagtip',
   'sbtip',

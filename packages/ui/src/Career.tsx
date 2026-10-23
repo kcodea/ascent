@@ -2,7 +2,6 @@ import { createContext, memo, useCallback, useContext, useEffect, useMemo, useRe
 import { GameSplit, type GameListItem } from './GameSplit';
 import { GameRank } from './gameRank';
 import { SeatBoard, SeatRuneRow, useLobbyParts } from './matchDetails/LobbyPicker';
-import { createPortal } from 'react-dom';
 import { RUNE_INDEX } from '@game/content';
 import { getHero, runeLiveStateOfSnapshot, strengthText } from '@game/sim';
 import { SHOW_LOBBY_STRENGTH } from './lobbyStrengthDisplay';
@@ -22,8 +21,9 @@ import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
-import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
+import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
+import type { RunHistoryRowLike } from './careerData';
 import { careerFresh, careerKeyUser, carryTelemetry, loadCareer } from './careerLoad';
 import { RankBar } from './rank/RankBar';
 import { cosmeticOf, isMasterTitle, levelProgress, titleName } from '@game/progression';
@@ -34,10 +34,9 @@ import { achievementsVisible, useProgression } from './progression/progressionSt
 import { rankLabel, rankScalar, scalarCaption } from './rank/rankFormat';
 import { rankPositionOf, type RankedProfile } from './rank/types';
 import {
-  TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, ordinalOf, outcomeOf, playedOnText, runLengthText,
-  trendSeries, trendWindowLabel, type CareerRun, type HeroCareer, type TrendWindow,
+  HERO_SORTS, HERO_SORT_LABEL, TREND_WINDOWS, TRIBE_LABEL, careerAggregates, heroCareers, matchResultOf, outcomeOf, playedOnText, runLengthText,
+  runsOfHero, sortHeroCareers, trendSeries, trendWindowLabel, withRunDetails, type CareerRun, type HeroCareer, type HeroSort, type TrendWindow,
 } from './careerData';
-import { rectToStage, stageHost, stageViewport } from './stage';
 
 /**
  * CAREER (owner rebuild 2026-09-19/20) — three columns on the game's page backdrop, after the Battlegrounds-style
@@ -58,9 +57,9 @@ import { rectToStage, stageHost, stageViewport } from './stage';
  *                   WATCH REPLAY, live only when a telemetry replay exists.
  *          Heroes — every hero the account has played (folded over ALL the fetched runs, not just the 25
  *          banners) as a PORTRAIT GRID (owner 2026-09-20): each hero in the game's circular frame with its name
- *          and "N games played", sorted by games played then win rate; hovering / focusing a portrait floats a
- *          styled panel beside it (portalled, never clipped) with the match W–L + win rate, avg placement, and
- *          1st-place wins / best placement / last played as secondary lines. No per-hero rows.
+ *          and "N games played", Top 4 %, average placement and Net MMR on the card, sortable by games played /
+ *          average placement / Net MMR. No hover panel (owner 2026-10-23); CLICKING a hero opens Match History
+ *          filtered to that hero's games (a removable hero chip + Back to Heroes). No per-hero rows.
  *          Practice (owner ask 2026-09-27: "add practice games as a tab in the career as well so players can see
  *          practice games they played ... the practice bot games should include the bot level"): the career
  *          owner's finished practice games from their own `practice_games` table (`fetchMyPracticeGames`, by
@@ -331,98 +330,51 @@ function PracticeRow({ game, busy, unplayable, onWatch }: { game: PracticeGameRo
   );
 }
 
-/** The hero panel's footprint (px) — used to seat it beside the portrait and keep it on screen. The height is
- *  the measured render (the content is fixed: a name, two headline rows, three secondary lines). */
-const HERO_TIP_W = 250, HERO_TIP_H = 208;
-
-/** One hero on the Heroes tab (owner 2026-09-20): the portrait in the game's circular frame, the name and
- *  "N games played". Hovering — or tabbing onto it — floats the hero's career in a styled panel BESIDE the
- *  portrait (to its right; flipped to the left near the screen edge; vertically centred on the tile and clamped
- *  to the viewport), portalled to <body> so the scrolling grid never clips it. Never a native `title`. */
-function HeroTile({ h }: { h: HeroCareer }) {
+/** One hero on the Heroes tab (owner 2026-09-20): the portrait in the game's circular frame, the name, "N games played"
+ *  and the headline numbers (Top 4 %, average placement, Net MMR). No hover panel any more (owner 2026-10-23: "the
+ *  mouseover tooltip here is pretty ugly and redundant info"): CLICKING (or Enter / Space, or a tap) opens Match History
+ *  filtered to this hero's games so they can be watched back. Memoised: `onPick` is the page's stable callback. */
+const HeroTile = memo(function HeroTile({ h, onPick }: { h: HeroCareer; onPick: (heroId: string) => void }) {
   const name = getHero(h.heroId).name;
   const careerLoadout = useContext(CareerSkinContext).loadout;
-  const [tip, setTip] = useState<{ left: number; top: number; side: 'right' | 'left' } | null>(null);
-  const timer = useRef<number | null>(null);
-  const tipId = `cv2-herotip-${h.heroId}`;
-  useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
-  const place = (el: HTMLElement): void => {
-    // One layout read per show (never per frame).
-    const r = rectToStage(el.getBoundingClientRect()); // stage px (stage.ts): written as the tip's CSS left/top
-    const vp = stageViewport();
-    const gap = 12;
-    const fitsRight = r.right + gap + HERO_TIP_W + 8 <= vp.w;
-    const side: 'right' | 'left' = fitsRight ? 'right' : 'left';
-    const left = fitsRight ? r.right + gap : Math.max(8, r.left - gap - HERO_TIP_W);
-    const top = Math.max(8, Math.min(vp.h - HERO_TIP_H - 8, r.top + r.height / 2 - HERO_TIP_H / 2));
-    setTip({ left, top, side });
-  };
-  const show = (el: HTMLElement, delay: number): void => {
-    if (timer.current) window.clearTimeout(timer.current);
-    if (delay <= 0) { place(el); return; }
-    timer.current = window.setTimeout(() => { timer.current = null; place(el); }, delay);
-  };
-  const hide = (): void => {
-    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
-    setTip(null);
-  };
   const games = `${h.runs} game${h.runs === 1 ? '' : 's'} played`;
-  const last = playedOnText(h.lastAtMs);
-  const best = h.bestPlacement === null ? null : outcomeOf(h.bestPlacement);
+  const net = h.ratedGames > 0 ? h.netMmr : null;
+  const netText = net === null ? '-' : net > 0 ? `+${net}` : `${net}`;
   return (
     <div
       className="cv2-hcard"
+      role="button"
       tabIndex={0}
-      aria-label={`${name}: ${games}`}
-      aria-describedby={tip ? tipId : undefined}
-      onMouseEnter={(e) => show(e.currentTarget, 160)}
-      onMouseLeave={hide}
-      onFocus={(e) => show(e.currentTarget, 0)}
-      onBlur={hide}
+      aria-label={`${name}: ${games}. Show ${name} games`}
+      onClick={() => onPick(h.heroId)}
+      onKeyDown={(e) => {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        e.preventDefault();
+        onPick(h.heroId);
+      }}
     >
       <HeroFrame heroId={h.heroId} skins={careerLoadout} />
       <div className="cv2-hcard-name">{name}</div>
       <div className="cv2-hcard-games">{games}</div>
-      {/* The headline numbers ON the card (2026-10-16 audit: the tab was five portraits over an empty panel); the
-          hover panel keeps the full record. */}
       <div className="cv2-hcard-stats" aria-hidden="true">
         <span className="cv2-hcard-stat"><b>{h.winRate === null ? '-' : `${h.winRate}%`}</b>Top 4</span>
         <span className="cv2-hcard-stat"><b>{h.avgPlacement === null ? '-' : h.avgPlacement}</b>Avg</span>
-        <span className="cv2-hcard-stat"><b>{h.firsts}</b>1st</span>
+        <span className="cv2-hcard-stat cv2-hcard-net"><b className={net === null || net === 0 ? undefined : `cv2-row-delta ${net > 0 ? 'up' : 'down'}`}>{netText}</b>Net MMR</span>
       </div>
-      {tip && createPortal(
-        <div id={tipId} className={`cv2-herotip ${tip.side}`} role="tooltip" style={{ left: tip.left, top: tip.top }}>
-          <div className="cv2-herotip-name">{name}</div>
-          <div className="cv2-herotip-row">
-            <span className="cv2-herotip-l">Record</span>
-            <span className="cv2-herotip-record" aria-label={`${h.wins} wins, ${h.losses} losses`}>
-              <span className="cv2-herotip-n win">{h.wins}</span><span className="cv2-herotip-wl">W</span>
-              <span className="cv2-herotip-sep">–</span>
-              <span className="cv2-herotip-n loss">{h.losses}</span><span className="cv2-herotip-wl">L</span>
-            </span>
-            <span className="cv2-herotip-rate">{h.winRate === null ? '—' : `${h.winRate}%`}</span>
-          </div>
-          <div className="cv2-herotip-row">
-            <span className="cv2-herotip-l">Avg Placement</span>
-            <span className="cv2-herotip-v">{h.avgPlacement === null ? '—' : h.avgPlacement}</span>
-          </div>
-          <div className="cv2-herotip-sub">
-            <span className="cv2-herotip-l">1st Place Wins</span>
-            <span className={`cv2-herotip-sv${h.firsts > 0 ? ' won' : ''}`}>{h.firsts}</span>
-          </div>
-          <div className="cv2-herotip-sub">
-            <span className="cv2-herotip-l">Best Placement</span>
-            <span className={`cv2-herotip-sv${best ? ` ${best.cls}` : ''}`}>{best ? ordinalOf(h.bestPlacement!) : '—'}</span>
-          </div>
-          <div className="cv2-herotip-sub">
-            <span className="cv2-herotip-l">Last Played</span>
-            <span className="cv2-herotip-sv">{last || '—'}</span>
-          </div>
-        </div>,
-        stageHost(),
-      )}
     </div>
   );
+});
+
+/** The Heroes grid's order, persisted per browser (owner 2026-10-23); games played when nothing is stored. */
+const HERO_SORT_KEY = 'ascent.career.heroSort';
+function loadHeroSort(): HeroSort {
+  try {
+    const v = localStorage.getItem(HERO_SORT_KEY);
+    return v === 'avg' || v === 'mmr' ? v : 'games';
+  } catch { return 'games'; }
+}
+function saveHeroSort(v: HeroSort): void {
+  try { localStorage.setItem(HERO_SORT_KEY, v); } catch { /* storage unavailable: the choice just doesn't persist */ }
 }
 
 export function Career() {
@@ -452,6 +404,13 @@ export function Career() {
   // Achievements tab reads as Match History until then.
   const achievementsOn = useProgression(achievementsVisible);
   const tab: CenterTab = tabPicked === 'achievements' && !achievementsOn ? 'history' : tabPicked;
+  // HEROES -> MATCH HISTORY (owner 2026-10-23: "show the games of that hero if i clicked on the hero so i could go
+  // rewatch them"): the hero Match History is filtered to (null = every run), the Heroes grid's sort, and the detailed
+  // rows read for a filtered hero's light runs (one read per hero pick, per career owner).
+  const [heroSort, setHeroSort] = useState<HeroSort>(loadHeroSort);
+  const [heroFilter, setHeroFilter] = useState<string | null>(null);
+  const [heroDetail, setHeroDetail] = useState<{ userId: string; rows: RunHistoryRowLike[] } | null>(null);
+  const heroAsked = useRef(new Set<string>());
   const [watching, setWatching] = useState<number | null>(null); // run id whose replay is loading
   const [noReplay, setNoReplay] = useState<number | null>(null); // run id whose payload came back unplayable
   // PRACTICE tab rows, per career owner (`rows: null` = the read failed; no entry for this player = not read yet).
@@ -543,6 +502,33 @@ export function Career() {
   // The clock is read once per data / window change, on purpose (a stable `nowMs` keeps the charts' memos stable).
   const trendNow = useMemo(() => Date.now(), [runs, window_]);
   const heroes = useMemo(() => heroCareers(runs ?? []), [runs]);
+  const sortedHeroes = useMemo(() => sortHeroCareers(heroes, heroSort), [heroes, heroSort]);
+  // The filtered hero's newest games, read from the runs already loaded (no list fetch), their light rows upgraded
+  // with the detailed rows read below once they land.
+  const heroDetailRows = heroDetail && heroDetail.userId === userId ? heroDetail.rows : null;
+  const heroRuns = useMemo(
+    () => (heroFilter && runs ? withRunDetails(runsOfHero(runs, heroFilter, MATCH_ROWS), heroDetailRows ?? []) : null),
+    [heroFilter, runs, heroDetailRows],
+  );
+  // A hero's games older than the newest `CAREER_DETAIL_ROWS` were fetched light (no final team): read their detailed
+  // rows ONCE per hero pick so the selected game shows its board. Replay never waits on this (the telemetry join
+  // already gave every row its handle).
+  useEffect(() => {
+    if (!show) { setHeroFilter(null); setHeroDetail(null); heroAsked.current.clear(); return; }
+    if (tab !== 'history' || !heroFilter || !userId || !runs || !remoteEnabled()) return;
+    const ask = `${userId}|${heroFilter}`;
+    if (heroAsked.current.has(ask)) return;
+    const ids = runsOfHero(runs, heroFilter, MATCH_ROWS).filter((r) => !r.detailed && r.id !== null).map((r) => r.id!);
+    if (ids.length === 0) return;
+    heroAsked.current.add(ask);
+    let live = true;
+    const who = userId;
+    void fetchRunDetails(who, ids).then((rows) => {
+      if (!live || !rows) return;
+      setHeroDetail((prev) => ({ userId: who, rows: [...(prev && prev.userId === who ? prev.rows : []), ...rows] }));
+    });
+    return () => { live = false; };
+  }, [show, tab, heroFilter, userId, runs]);
   const focusIndex = useMemo(() => (runs ? focusIndexOf(runs, viewing?.focus) : -1), [runs, viewing?.focus]);
   // ACCOUNT LEVEL (2026-09-27): your own mirror, or the viewed player's public row. Null until the feature is on.
   const accountProgression = useCareerProgression(show ? userId : null, !viewing);
@@ -560,10 +546,18 @@ export function Career() {
   // a different player's page starts over.
   const [pickedRun, setPickedRun] = useState<string | null>(null);
   const [pickedPractice, setPickedPractice] = useState<string | null>(null);
-  useEffect(() => { setPickedRun(null); setPickedPractice(null); }, [viewing?.userId, viewing?.focus]);
+  useEffect(() => { setPickedRun(null); setPickedPractice(null); setHeroFilter(null); }, [viewing?.userId, viewing?.focus]);
   // Stable Watch callbacks for the memoised banners; the ref always holds this render's handler.
   const watchRunRef = useRef<(run: CareerRun) => void>(() => {});
   const onWatchRun = useCallback((run: CareerRun) => watchRunRef.current(run), []);
+  // A hero card's click: Match History, filtered to that hero, its newest game selected.
+  const onPickHero = useCallback((id: string) => {
+    sfx.pulse();
+    setHeroFilter(id);
+    setPickedRun(null);
+    setTab('history');
+    saveTab('history');
+  }, []);
 
   if (!show) return null;
 
@@ -604,8 +598,11 @@ export function Career() {
 
   const heroId = aggregates.mostPlayedHero ?? viewing?.favoriteHero ?? '';
   const heroName = heroId ? getHero(heroId).name : '—';
-  const matchRows = (runs ?? []).slice(0, MATCH_ROWS);
-  const pickTab = (t: CenterTab): void => { if (t === tab) return; setTab(t); saveTab(t); };
+  const matchRows = heroRuns ?? (runs ?? []).slice(0, MATCH_ROWS);
+  const filterName = heroFilter ? getHero(heroFilter).name : '';
+  // Leaving Match History drops the hero filter: it only ever comes from a hero card's click.
+  const pickTab = (t: CenterTab): void => { if (t === tab) return; if (t !== 'history') setHeroFilter(null); setTab(t); saveTab(t); };
+  const clearHeroFilter = (): void => { sfx.pulse(); setHeroFilter(null); setPickedRun(null); };
 
   let body: JSX.Element;
   if (!remoteEnabled()) {
@@ -692,6 +689,8 @@ export function Career() {
                 ? (heroes.length ? `${heroes.length} hero${heroes.length === 1 ? '' : 'es'} played` : '')
                 : tab === 'practice'
                 ? (practiceRows?.length ? `Last ${practiceRows.length} practice game${practiceRows.length === 1 ? '' : 's'}` : '')
+                : heroFilter
+                ? `${matchRows.length} ${filterName} game${matchRows.length === 1 ? '' : 's'}`
                 : (matchRows.length ? `Last ${matchRows.length} run${matchRows.length === 1 ? '' : 's'}` : '')}
             </span>
           </div>
@@ -757,14 +756,47 @@ export function Career() {
                   <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run yet.` : 'Every hero you finish a lobby run with is tallied here.'}</div>
                 </div>
               ) : (
-                <div className="cv2-herogrid" aria-label="Heroes played">
-                  {heroes.map((h) => <HeroTile key={h.heroId} h={h} />)}
-                </div>
+                <>
+                  <div className="cv2-herosort">
+                    <span className="cv2-herosort-l">Sort by</span>
+                    <div className="cv2-seg" role="group" aria-label="Sort heroes">
+                      {HERO_SORTS.map((k) => (
+                        <button
+                          type="button"
+                          key={k}
+                          className={`cv2-seg-btn${heroSort === k ? ' on' : ''}`}
+                          aria-pressed={heroSort === k}
+                          onClick={() => { if (heroSort !== k) { setHeroSort(k); saveHeroSort(k); } }}
+                        >
+                          {HERO_SORT_LABEL[k]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="cv2-herogrid" aria-label="Heroes played">
+                    {sortedHeroes.map((h) => <HeroTile key={h.heroId} h={h} onPick={onPickHero} />)}
+                  </div>
+                </>
               )}
             </div>
           ) : (
             <div className="cv2-list" role="tabpanel">
-              {matchRows.length === 0 ? (
+              {heroFilter && (
+                <div className="cv2-herofilter">
+                  <span className="cv2-herofilter-l">Showing</span>
+                  <button type="button" className="cv2-ppill cv2-herofilter-chip pressable" aria-label={`Show every hero, not just ${filterName}`} onClick={clearHeroFilter}>
+                    {filterName}<span className="cv2-herofilter-x" aria-hidden="true">✕</span>
+                  </button>
+                  <button type="button" className="cv2-btn cv2-btn-sm pressable cv2-herofilter-back" onClick={() => { sfx.pulse(); pickTab('heroes'); }}>Back to Heroes</button>
+                </div>
+              )}
+              {heroFilter && matchRows.length === 0 ? (
+                <div className="cv2-panel cv2-none">
+                  <div className="cv2-state-ico"><Icon name="taunt" /></div>
+                  <div className="cv2-state-title">No {filterName} games yet</div>
+                  <div className="cv2-state-body">{viewing ? `${shownName} hasn’t finished a lobby run with ${filterName} yet.` : `Finish a lobby run with ${filterName} and it will appear here.`}</div>
+                </div>
+              ) : matchRows.length === 0 ? (
                 <div className="cv2-panel cv2-none">
                   <div className="cv2-state-ico"><Icon name="sword" /></div>
                   <div className="cv2-state-title">No runs yet</div>
@@ -774,7 +806,8 @@ export function Career() {
                 // LAYOUT B (owner 2026-10-16: "maybe even do something like that for career"): the compact list + the
                 // selected run in full (GameSplit.tsx, shared with Recent Games). A Recent Games open lands on its run.
                 const keyed = matchRows.map((run, i) => ({ run, i, key: `r${run.id ?? i}` }));
-                const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusIndex >= 0 ? focusIndex : 0]!;
+                const focusAt = heroFilter ? -1 : focusIndex; // a Recent Games focus indexes the unfiltered list
+                const sel = keyed.find((k) => k.key === pickedRun) ?? keyed[focusAt >= 0 ? focusAt : 0]!;
                 const items: GameListItem[] = keyed.map(({ run, key }) => {
                   const name = run.heroId ? getHero(run.heroId).name : '-';
                   const fights = run.wins + run.losses + run.draws;
@@ -791,7 +824,7 @@ export function Career() {
                     detail={(
                       <MatchRow
                         run={sel.run}
-                        focus={sel.i === focusIndex}
+                        focus={sel.i === focusAt}
                         busy={watching !== null && watching === sel.run.id}
                         unplayable={noReplay !== null && noReplay === sel.run.id}
                         onWatch={onWatchRun}

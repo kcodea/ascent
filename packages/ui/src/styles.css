@@ -2625,7 +2625,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .desc .descboth { color: var(--c, var(--t-neutral)); font-weight: 800; }
 
 /* THE HERO-POWER TIP (restyled 2026-09-25, owner: "it looks ugly", then "i dont want it to be white background …
-   our typical dark blue style"): the dark slate-blue panel the Career / lobby hover cards wear (`.cv2-herotip`), a
+   our typical dark blue style"): the dark slate-blue panel the Career / lobby hover cards wear (`.cv2-rune-tip`), a
    gold hairline on top, a warm-gold title, the rule in soft cream (AA on the panel) and the live status as a dark chip. Shared by EVERY hero-power hover (the
    main power, Void's second power, the Equipment slot and the foe's power in combat), so all of them change together.
    Static paint; only the existing one-shot opacity fade. THIS PANEL IS NOW EVERY TIP'S LOOK (owner 2026-10-02):
@@ -8533,25 +8533,20 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
 .cv2-hcard .cv2-heroframe .hero { width: 120px; height: 120px; padding: 5px; }
 .cv2-hcard-name { margin-top: 6px; max-width: 100%; font-family: var(--font-ui); font-weight: 900; font-size: 18px; line-height: 1.1; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cv2-hcard-games { font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.04em; color: rgba(232, 200, 119, 0.85); white-space: nowrap; }
-/* The hero panel — portalled to <body> and fixed beside the portrait (never a native title). Same skin as the
-   rune panel; a static shadow, nothing animated past the one-shot fade. */
-.cv2-herotip { position: fixed; z-index: 520; width: 250px; display: flex; flex-direction: column; gap: 6px; pointer-events: none; animation: fadein 0.12s ease; }
-.cv2-herotip-name { margin-bottom: 2px; }
-.cv2-herotip-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.cv2-herotip-l { font-size: 0.87em; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--atip-muted); white-space: nowrap; }
-.cv2-herotip-record { display: inline-flex; align-items: baseline; gap: 3px; margin-left: auto; font-weight: 900; font-size: 1.33em; font-variant-numeric: tabular-nums; color: #fff; }
-.cv2-herotip-n.win { color: #6fe0a0; }
-.cv2-herotip-n.loss { color: #ff9a9a; }
-.cv2-herotip-wl { font-size: 0.8em; letter-spacing: 0.06em; color: var(--atip-muted); margin-right: 4px; }
-.cv2-herotip-sep { color: var(--atip-muted); margin-right: 4px; }
-.cv2-herotip-rate { font-weight: 900; font-size: 1.33em; color: #fff; font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
-.cv2-herotip-v { font-weight: 900; font-size: 1.33em; color: #fff; font-variant-numeric: tabular-nums; }
-.cv2-herotip-sub { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.cv2-herotip-sub:first-of-type { margin-top: 4px; padding-top: 0.4em; border-top: 1px solid var(--atip-divider); }
-.cv2-herotip-sv { font-weight: 800; font-size: 1em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.cv2-herotip-sv.won { color: #6fe0a0; }
-.cv2-herotip-sv.top4 { color: var(--atip-text); }
-.cv2-herotip-sv.lost { color: #ff9a9a; }
+/* A hero card is a button (owner 2026-10-23): a click opens Match History filtered to the hero. It keeps the hover lift
+   above and settles on press (one-shot transform, compositor-only). The cursor comes from the global [role="button"]
+   gauntlet rule, never a bare keyword here. */
+.cv2-hcard:active { transform: translateY(1px); border-color: rgba(232, 200, 119, 0.85); }
+/* The Heroes grid's sort (owner 2026-10-23): the Performance Trends segmented control, right-aligned above the grid. */
+.cv2-herosort { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex: none; padding: 0 2px; }
+.cv2-herosort-l { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+/* Match History's hero filter: "Showing [Brackus ✕]" in the practice pill's style, plus a way back to the grid. */
+.cv2-herofilter { display: flex; align-items: center; gap: 10px; flex: none; padding: 0 2px; }
+.cv2-herofilter-l { font-family: var(--font-ui); font-weight: 800; font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 255, 255, 0.55); }
+.cv2-herofilter-chip { --pr-edge: 2px; --pr-edge-c: rgba(0, 0, 0, 0.45); border-color: rgba(232, 200, 119, 0.7); }
+.cv2-herofilter-chip:hover { border-color: rgba(240, 208, 137, 0.95); }
+.cv2-herofilter-x { font-size: 12px; color: #e8c877; }
+.cv2-herofilter-back { margin-left: auto; }
 
 /* RIGHT column */
 .cv2-right { gap: 0; overflow-y: auto; }
@@ -14330,6 +14325,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* THE HEROES TAB: each card carries its headline numbers. */
 .cv2-hcard-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; width: 100%; margin-top: 6px; padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); }
 .cv2-hcard-stat { display: flex; flex-direction: column; align-items: center; gap: 1px; font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.55); }
+.cv2-hcard-net { white-space: nowrap; letter-spacing: 0; }
 .cv2-hcard-stat b { font-weight: 900; font-size: 18px; letter-spacing: 0; color: #fff; font-variant-numeric: tabular-nums; }
 /* THE GAUNTLET: the coming-soon slots keep their place on the path but drop the repeated pill; one line says it. */
 .gslot[data-state='soon'] .gslot-tag { visibility: hidden; }

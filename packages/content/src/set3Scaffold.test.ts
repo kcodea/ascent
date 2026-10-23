@@ -81,9 +81,9 @@ describe('set 3 scaffold', () => {
       'sp3_treasurer', 'sp3_revelator', 'sp3_luminary', 'sp3_forestcolossus', 'sp3_grandprocession',
       // …then the WHISPER DRAGONS (from Set 4, owner swap 2026-10-14), in the slot the Celestials held until they moved
       // to Set 4 the same day. Every earlier minion keeps its position.
-      'd4_galas', 'd4_tolan', 'd4_tamby', 'd4_whisp',
+      'd4_galas', 'd4_tolan', 'd4_tamby', // Whisp archived 2026-10-23
       'd3_whaloo', 'd3_falx', 'd3_morro', 'd3_shush', // the first Set 3-authored Dragons (owner 2026-10-14), appended after the swapped-in four
-      'd3_gatherer', 'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener', // Dragon batch 2 (owner 2026-10-15)
+      'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener', // Dragon batch 2 (owner 2026-10-15); Gatherer archived 2026-10-23
       'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', // owner additions on #2097 (2026-10-15)
       'd3_vellum', // the T7 Summit Dragon (owner 2026-10-23), appended after the file's token
       'd2_chorus', 'd2_transcendence', 'd2_flutterdrake', // the three carried Set 2 Dragons (2026-10-15), by reference

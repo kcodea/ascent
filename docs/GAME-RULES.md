@@ -2407,7 +2407,8 @@ minion +2/+2. Improve this.", its Whisper is **Runebind**), and its hover previe
   granter's text and the hover preview all print the current value.
 - **Whisper reactors.** Tamby: "When you cast a Whisper on this, get a copy of it. (Once per turn)" (Gilded: 2
   copies). Whisp: "When you cast a Whisper on a Dragon, also cast it on this." (Gilded: twice). Whisp's cast is a
-  full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again.
+  full cast of the same Whisper (it counts, and Runebind improves again); the echo casts never echo again. Whisp was
+  archived 2026-10-23 (no longer in Set 3; only old saves, snapshots and replays still hold it).
 - **Whisper tiers** (owner 2026-10-16, R-WHISPER-TIER-01). Every Whisper has the tier of the Whisper minion that owns
   it (derived from data: Tome 1, Seed 1, Runebind 2, Bait 2, Clutch 4, Ripple 5, Well of Dragons 5, Warding Call 5;
   the lowest if several minions own one, Tier 1 if none does). A Whisper minion granting its **own** Whisper is never
@@ -2465,7 +2466,7 @@ Gravestar Seer is archived. Chorus Drake, Flutterbutter and Transcendant (Set 2 
 cards. New Dragons:
 
 - **Gatherer** (T4 5/4): "**Rally:** Get a random **Dragon**." From the run's set pool, up to your tier, in both phases
-  (a combat swing hands it over mid-fight). Gilded: 2.
+  (a combat swing hands it over mid-fight). Gilded: 2. Archived 2026-10-23 (no longer in Set 3; old saves still resolve it).
 - **Gravus** (T6 10/3 Taunt since 2026-10-23, Dragon and Undead): "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions." Its
   Attack at death, to 2 different other friendlies. A combat buff in combat; permanent from a Shop Echo. Gilded: twice.
 - **Well Watcher** (T5 8/8): "**Whisper:** **Discover** a **Dragon**." Its Whisper, **Well of Dragons**, needs no

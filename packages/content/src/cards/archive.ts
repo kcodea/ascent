@@ -12,6 +12,40 @@ import type { CardDef } from '@game/core';
  * one, move it back. Set counts in tests change by exactly the cards moved.
  */
 export const ARCHIVED_CARDS: CardDef[] = [
+  // -- 2026-10-23 owner ask: Whisp and Gatherer archived (both Set 3 only, so they leave every set). --
+  {
+    // ARCHIVED 2026-10-23 (owner: "archive these dragons from set 3: * gatherer * whisp"). Moved verbatim from
+    // set3/dragons.ts; belongs to no set now (it was Set 3 only).
+    // T6 7/6. A Whisper cast on a Dragon is ALSO cast on this (a full cast). Gilded: twice.
+    id: 'd4_whisp',
+    name: 'Whisp',
+    tribe: 'dragon',
+    tier: 6,
+    attack: 7,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'passive', do: 'whisperEchoOnDragon', params: { count: 1 } }],
+    text: 'When you cast a **Whisper** on a Dragon, also cast it on this.',
+    goldenText: 'When you cast a **Whisper** on a Dragon, also cast it on this twice.',
+  },
+  {
+    // ARCHIVED 2026-10-23 (owner: "archive these dragons from set 3: * gatherer * whisp"). Moved verbatim from
+    // set3/dragons.ts; belongs to no set now (it was Set 3 only).
+    // T4 5/4: "Rally: Get a random Dragon." A random Dragon from the RUN's set pool (tier-capped, every Dragon-counting
+    // body: dual tribes and All-types), to hand. Cross-phase (`rallyGrantRandomTribeMinion`, one arena body): a combat
+    // swing hands it over mid-fight through `grantRandomMinion`; a Shop-phase Rally (a forced Rally) mints it at once.
+    // Gilded: 2 Dragons.
+    id: 'd3_gatherer',
+    name: 'Gatherer',
+    tribe: 'dragon',
+    tier: 4,
+    attack: 5,
+    health: 4,
+    keywords: ['RL'],
+    effects: [{ on: 'onAttack', do: 'rallyGrantRandomTribeMinion', params: { tribe: 'dragon', count: 1 } }],
+    text: '**Rally:** Get a random **Dragon**.',
+    goldenText: '**Rally:** Get **2** random **Dragons**.',
+  },
   // -- 2026-10-22 owner ask: Shredder and Jumpstart Jules archived (both Set 3 only, so they leave every set). --
   {
     // ARCHIVED 2026-10-22 (owner: "archive shredder and jumpstart jules"). Moved verbatim from set3/neutral.ts; belongs

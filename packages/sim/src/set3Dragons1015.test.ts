@@ -55,9 +55,9 @@ const isDragon = (id: string): boolean => {
 };
 
 describe('the batch is Set 3 content', () => {
-  it('the eight new Dragons are Set 3 Dragons at the owner tiers / stats; Gravus is Dragon AND Undead', () => {
+  it('the batch Dragons are Set 3 Dragons (Gatherer archived 2026-10-23) at the owner tiers / stats; Gravus is Dragon AND Undead', () => {
     const want: [string, number, number, number][] = [
-      ['d3_gatherer', 4, 5, 4], ['d3_gravus', 6, 10, 3] /* T5 8/3 -> T6 10/3 + Taunt, owner 2026-10-23 */, ['d3_wellwatcher', 5, 8, 8] /* T6 -> T5, owner 2026-10-15 */, ['d3_matriarch', 6, 4, 12],
+      ['d3_gravus', 6, 10, 3] /* T5 8/3 -> T6 10/3 + Taunt, owner 2026-10-23 */, ['d3_wellwatcher', 5, 8, 8] /* T6 -> T5, owner 2026-10-15 */, ['d3_matriarch', 6, 4, 12],
       ['d3_woozy', 3, 5, 3], ['d3_iggy', 5, 7, 2], ['d3_hum', 2, 2, 5], ['d3_gardener', 1, 1, 1],
       ['d3_baitbrood', 2, 2, 4], ['d3_hatcher', 4, 5, 4], ['d3_whispwarder', 5, 7, 5], // owner additions on #2097
     ];
@@ -71,6 +71,7 @@ describe('the batch is Set 3 content', () => {
     expect(CARD_INDEX['d3_gravus']!.tribe2).toBe('undead');
     expect(CARD_INDEX['d3_drakepup']).toMatchObject({ tribe: 'dragon', attack: 3, health: 3, keywords: ['T'], token: true });
     expect(ids).not.toContain('d3_drakepup');
+    expect(ids, 'Gatherer archived 2026-10-23').not.toContain('d3_gatherer');
   });
 
   it('Chorus Drake, Flutterbutter and Transcendant are in Set 3 by reference (Set 2 keeps them, unchanged ids)', () => {

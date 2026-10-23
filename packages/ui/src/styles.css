@@ -527,8 +527,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    can show real depth: 3% (sky) to 16% (flowers) over 2.6 s, centred on the doorway at ground level so the flowers' top
    edge barely moves against the midground behind it. The shop is baked into its layer at 75% of its painted size,
    shrunk around the foot of its steps so it stays on the path (owner: "i like 75% better"). */
-.wipevista { position: fixed; inset: 0; z-index: 3000; pointer-events: none; overflow: hidden; opacity: 0; visibility: hidden;
-  background: #3f8fe6; }
+.wipevista { position: fixed; inset: 0; z-index: 3000; pointer-events: none; overflow: hidden; opacity: 0; visibility: hidden; }
 .wipevista.on { visibility: visible; }
 .wipevista.in { opacity: 1; transition: opacity var(--wipe-dur, 450ms) ease-out; }
 .wipevista.held { transition: none; }
@@ -557,7 +556,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-doorfill { position: absolute; left: 43.9063%; top: 65.4167%; width: 7.5%; height: 18.0556%;
   background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
 .wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
-.wipevista-sky { background-image: url('/vista-sky.webp'); }
+/* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door
+   hole cuts through it too: a backing colour behind the group showed through the open door as plain blue instead of the
+   Shop (owner 2026-10-23: "i see just blue from the mask currently. not the shop"). */
+.wipevista-sky { background-color: #3f8fe6; background-image: url('/vista-sky.webp'); }
 .wipevista-far { background-image: url('/vista-far.webp'); }
 .wipevista-mid { background-image: url('/vista-mid.webp'); }
 .wipevista-shop { background-image: url('/vista-shop.webp'); }

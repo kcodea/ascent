@@ -1,0 +1,89 @@
+/* ═══ THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01) ═════════════════════════════════════════════════════
+   "let's work on the phone layout/ui/sizing ... Use hearthstones mobile sizing/ui as a blind comparison/critic for
+   readability and quality."
+
+   A phone in landscape lays the game out in a 2:1 box (stage.ts, PHONE_DESIGN_W) and this file re-composes the SAME
+   components inside it: bigger minions in two rows, the painted board grown to hold them, the hand under the board,
+   and every HUD piece placed in BOX coordinates (`--bar-x` / `--bar-y` + reference px x `--scale`), so nothing floats
+   when the screen's aspect or safe area differs ("baked in place", owner 2026-10-23).
+
+   EVERY rule is keyed off `html[data-phone-layout]` (stage.ts writes it only on a phone in landscape) AND sits inside
+   the touch media query, so it is not even in a mouse device's active style sheet: desktop is pixel-identical.
+   `phoneLayout.test.ts` fails on any rule outside the query or without the key. No looping animation lives here.
+
+   Tuner vars (`--board-x`, `--etb-x`, `--gold-x`, ...) are written INLINE on :root by the dev tuners, so this file never
+   overrides a tuner var on :root; it overrides the PROPERTY on the element (or sets the var on that element).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+
+/* ── The box and the board ───────────────────────────────────────────────────────────────────────────────────
+   The box is 2:1 inside the safe area (stage.ts fits the same box): 2880 x 1440 reference px at --scale 1. Every
+   position below is in those reference px. The painted board is drawn `--pl-z` times its desktop size, centred on
+   (`--pl-ax`, `--pl-ay`), and each button that sits on a painted socket is placed at the art centre plus `--pl-z` times
+   its desktop offset from the art centre, and grown by `--pl-z`, so it stays seated on its socket. */
+html[data-phone-layout] {
+  --gw: min(var(--avw), calc(var(--avh) * 2), 2560px);
+  --gh: min(var(--avh), calc(var(--avw) / 2), 1440px);
+  --pl-z: 1.25;
+  --pl-ax: 1440px;
+  --pl-ay: 636px;
+  --board-mobile-zoom: var(--pl-z);
+  /* Cards everywhere grow by 30%: ~85 pt tall minions on a 393 pt iPhone, ~99 pt on a Pixel 8 (Hearthstone 75-90). */
+  --mobile-boost: 1.3;
+}
+/* The art's centre: `--board-x/y` are read by the two elements that draw / sit on the art (set there, not on :root). */
+html[data-phone-layout] :is(.boardbg, .statusbar) { --board-x: calc(var(--pl-ax) - 1440px); --board-y: calc(var(--pl-ay) - 720px); }
+/* The hero sits a little high in its (larger) painted socket, so its Health plate clears the bottom of the box. */
+html[data-phone-layout] .statusbar { --board-x: calc(var(--pl-ax) - 1395px); --board-y: calc(var(--pl-ay) - 770px); }
+
+/* ── The two minion rows: out of the column flow, each centred on its painted row ──────────────────────────── */
+html[data-phone-layout] .app > .zone[data-zone='tavern'],
+html[data-phone-layout] .app > .zone[data-zone='warband'] { position: absolute; left: calc(var(--pl-row-dx, -60px) * var(--scale)); right: calc(var(--pl-row-dx, -60px) * var(--scale) * -1); height: var(--ch); padding-bottom: 0; flex: none; }
+html[data-phone-layout] .app > .zone[data-zone='tavern'] { top: calc((var(--pl-ay) - 231px * var(--pl-z)) * var(--scale) - var(--ch) / 2); }
+html[data-phone-layout] .app > .zone[data-zone='warband'] { top: calc((var(--pl-ay) + 66px * var(--pl-z)) * var(--scale) - var(--ch) / 2); }
+
+/* ── Stats you can read across the table: the Attack / Health badges grow 60% from their corners and their digits a
+   further 15%, so a digit is ~12 pt tall on an iPhone (Hearthstone's are about that). ──────────────────────────── */
+html[data-phone-layout] .zone .card.compact .badge.atk { scale: 1.6; transform-origin: 0% 100%; }
+html[data-phone-layout] .zone .card.compact .badge.hp { scale: 1.6; transform-origin: 100% 100%; }
+html[data-phone-layout] .zone .card.compact .badge > .value { scale: 1.15; }
+
+/* ── Buttons seated on their painted sockets ──────────────────────────────────────────────────────────────── */
+html[data-phone-layout] .tvbwrap { left: calc(var(--bar-x) + (var(--pl-ax) - 779px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 438px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--tvb-s, 1.24) * var(--pl-z))); }
+html[data-phone-layout] .frzwrap.frzwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 8px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 461px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--frz-s, 1.36) * var(--pl-z))); }
+html[data-phone-layout] .rfbwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 773px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 454px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--rfb-s, 1.54) * var(--pl-z))); }
+html[data-phone-layout] .etbwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 803px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 100px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--etb-s, 1.17) * var(--pl-z))); }
+html[data-phone-layout] .goldpill { right: auto; bottom: auto; left: calc(var(--bar-x) + (var(--pl-ax) + 800px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) + 220px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--gold-s, 1.69) * var(--pl-z))); transform-origin: 50% 50%; }
+
+/* The shop info strip (the turn timer): on the tray's top frame between Tier and Freeze (desktop has it above the
+   tray, where the phone has no room). */
+html[data-phone-layout] .app > .shopbar { position: absolute; left: calc(990px * var(--scale)); top: calc(-28px * var(--scale)); margin: 0; translate: -50% 0; }
+
+/* ── The hand: a fan of minion faces (art + cost + stats) under the board, between the hero and the right column.
+   The text plate stays hidden in the fan (it is 4 pt at this size); a tap lifts the card with its text (`.tt-on`, the
+   touch twin of the desktop hover pop) and a long-press opens Inspect. ────────────────────────────────────────── */
+html[data-phone-layout] .zone[data-zone='hand'] { left: calc(var(--bar-x) + 1470px * var(--scale)); bottom: auto; top: calc(var(--bar-y) + 1005px * var(--scale)); width: calc(1640px * var(--scale)); translate: none; }
+html[data-phone-layout] .row.hand .card { --hand-tuck: 0px; margin-left: calc(var(--ccw) * var(--pl-hand-gap, -0.36)); }
+html[data-phone-layout] .row.hand .card:first-child { margin-left: 0; }
+html[data-phone-layout] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
+
+/* ── Combat: the round title alone at the top centre, Skip on the Tier socket's corner (Tier is away in combat), so
+   neither sits on the enemy row or on each other. ─────────────────────────────────────────────────────────────── */
+html[data-phone-layout] .combathud-skip { left: calc(var(--bar-x) + (var(--pl-ax) - 779px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 438px * var(--pl-z)) * var(--scale)); }
+html[data-phone-layout] .combatsummary { left: calc(var(--bar-x) + (var(--pl-ax) - 779px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 438px * var(--pl-z)) * var(--scale)); scale: 1.9; }
+/* The round summary (fight recap) reads at phone size: about 1.8x, still inside the box. */
+html[data-phone-layout] .fr-panel { scale: 1.8; }
+html[data-phone-layout] .combatround { left: calc(var(--bar-x) + 1380px * var(--scale)); top: calc(var(--bar-y) + 70px * var(--scale)); font-size: calc(34 * var(--u)); }
+
+/* ── The lobby rail: same rail, its names and Health about 9 pt (the tuner vars are set on the rail itself). ──── */
+html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3; }
+
+/* The help / Compendium / settings squares: a row in the bottom-right corner of the box. */
+html[data-phone-layout] { --pl-cb: calc(140px * var(--scale)); }
+html[data-phone-layout] :is(.gearbtn, .bookbtn, .rulesbtn) { width: var(--pl-cb); height: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); }
+html[data-phone-layout] .gearbtn { left: calc(var(--bar-x) + 2725px * var(--scale)); }
+html[data-phone-layout] .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
+html[data-phone-layout] .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
+html[data-phone-layout] :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
+
+}

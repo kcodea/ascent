@@ -3,6 +3,7 @@ import './styles.css';
 import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD pills
 import './tooltips.css';
 import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui] (touch devices only, R-TOUCH-UISCALE-01)
+import './phoneLayout.css'; // THE PHONE LAYOUT: html[data-phone-layout] only (a phone in landscape, R-PHONE-LAYOUT-01)
 import './runeCard.css'; // the forge card: rune cards + rune rack badges (owner reference 2026-10-07)
 import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
@@ -100,7 +101,7 @@ import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
 import { LITE_ART } from './phoneArt';
 import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
-import { installStage, onStageChange, setStageMenuZoom, stageScale, stageViewport } from './stage';
+import { installStage, onStageChange, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
 import { installTouchUi, touchUi } from './touchUi';
 import { installTouchSlop } from './touchSlop';
@@ -453,7 +454,11 @@ export function Game() {
       // 2560×1440 reference, so `--scale` tops out at 1.0 in lockstep. Without this cap the CSS stage pinned but
       // JS still drove --scale above 1.0 on tall windows, so anything mixing `--bar` position (capped) with
       // `--scale` size (uncapped) — the hero panel: portrait, Health pill, rune chains — drifted off the board.
-      const gh = Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh (16:9 stage, pinned)
+      // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): the 2:1 box, cleared of the safe area exactly as the CSS box is, so
+      // `--scale` IS the box's own height / 1440 and the composition cannot drift when the insets change.
+      const f = stageFit();
+      const ax = Math.max(f.safe.left, f.safe.right), ay = Math.max(f.safe.top, f.safe.bottom);
+      const gh = f.aspect ? Math.min(h - 2 * ay, (w - 2 * ax) / f.aspect, 1440) : Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh
       const scale = gh / 1440;
       document.documentElement.style.setProperty('--scale', String(scale));
       // Keep the WebGL combat particles proportional to the cards ON SCREEN. The Pixi renderers stay in screen

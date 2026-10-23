@@ -22,10 +22,28 @@
  */
 
 import { PHONE_DIAG, PHONE_GPU } from './phoneDiag';
+import { isPhone } from './deviceClass';
 
 /** The design viewport: the layout never goes smaller than this. The owner's 1080p desktop look. */
 export const DESIGN_W = 1920;
 export const DESIGN_H = 1080;
+
+/**
+ * THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01: "let's work on the phone layout/ui/sizing", judged against
+ * Hearthstone Battlegrounds on a phone). A phone in landscape lays the game out in a 2:1 box instead of the 16:9 one:
+ * 2160 x 1080 layout px, the same height (so `--scale` and every tuned size keep their meaning) and 240 px wider, which
+ * is the phone's own shape (19.5:9 less its side insets). The box is still FIXED-aspect and letterboxed, so every piece
+ * of the phone composition (phoneLayout.css) is placed in box coordinates and stays "baked in place" on any phone.
+ * Desktop, laptops and tablets never take it: `phoneLayoutApplies` needs `isPhone()` (a touch device whose shorter
+ * screen side is at most 600 CSS px) and a landscape window. The `deskui` diagnostics switch turns it off.
+ */
+export const PHONE_DESIGN_W = 2160;
+export const PHONE_BOX_ASPECT = PHONE_DESIGN_W / DESIGN_H;
+export const DESK_BOX_ASPECT = 16 / 9;
+/** Pure: does the phone layout apply? A phone, in landscape. */
+export function phoneLayoutApplies(phone: boolean, w: number, h: number, off = false): boolean {
+  return phone && !off && w > h;
+}
 
 export interface StageFit {
   /** The stage's scale: screen px per layout px. 1 at or above the design size, < 1 below it. */
@@ -35,6 +53,8 @@ export interface StageFit {
   lh: number;
   /** THE SAFE AREA, per side, in LAYOUT px (the screen inset / s): the notch / Dynamic Island / home indicator. */
   safe: SafeInsets;
+  /** The game box's aspect: 16:9, or 2:1 in the phone layout (R-PHONE-LAYOUT-01). Absent = 16:9. */
+  aspect?: number;
 }
 
 /** Safe-area insets (`env(safe-area-inset-*)`), per side. */
@@ -52,16 +72,16 @@ export const NO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
  * The insets come back in LAYOUT px (`safe`) for the stylesheet's `--safe-*` vars. Before this the stylesheet added raw
  * `env()` inside the scaled stage, where the transform shrank a 59 px island inset to about 21 px on screen.
  */
-export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS): StageFit {
-  const w = vw > 0 ? vw : DESIGN_W;
+export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W): StageFit {
+  const w = vw > 0 ? vw : designW;
   const h = vh > 0 ? vh : DESIGN_H;
   const ix = Math.max(0, insets.left, insets.right);
   const iy = Math.max(0, insets.top, insets.bottom);
   const aw = w - 2 * ix > 0 ? w - 2 * ix : w;
   const ah = h - 2 * iy > 0 ? h - 2 * iy : h;
-  const s = Math.min(1, aw / DESIGN_W, ah / DESIGN_H);
+  const s = Math.min(1, aw / designW, ah / DESIGN_H);
   const safe = { top: Math.max(0, insets.top) / s, right: Math.max(0, insets.right) / s, bottom: Math.max(0, insets.bottom) / s, left: Math.max(0, insets.left) / s };
-  return { s, lw: w / s, lh: h / s, safe };
+  return designW === DESIGN_W ? { s, lw: w / s, lh: h / s, safe } : { s, lw: w / s, lh: h / s, safe, aspect: designW / DESIGN_H };
 }
 
 /** The shorter window side from which a touch device counts as a TABLET (it may play portrait, letterboxed). */
@@ -192,7 +212,11 @@ export function windowSize(): { w: number; h: number } {
 export function applyStage(): StageFit {
   if (typeof window === 'undefined') return fit;
   const { w, h } = windowSize();
-  const next = fitStage(w, h, readSafeInsets());
+  // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): a phone in landscape lays out in the 2:1 box. Decided per fit (a rotation to
+  // portrait drops it), written as `data-phone-layout` for phoneLayout.css. Desktop never has the attribute.
+  const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.deskui);
+  document.documentElement.toggleAttribute('data-phone-layout', phoneLayout);
+  const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W);
   fit = next;
   const de = document.documentElement.style;
   // The SAFE AREA in layout px (R-TOUCH-SAFEAREA-01): the 16:9 box (`--gw` / `--gh`) and the edge-anchored HUD
@@ -325,8 +349,9 @@ export function gameBoxOf(f: StageFit): GameBox {
   const { x, y } = safeAxes(f); // the box clears the safe area (styles.css `--gw` / `--gh`)
   const aw = f.lw - 2 * x;
   const ah = f.lh - 2 * y;
-  const w = Math.min(aw, (ah * 16) / 9, GAME_BOX_MAX_W);
-  const h = Math.min(ah, (aw * 9) / 16, GAME_BOX_MAX_H);
+  const a = f.aspect ?? DESK_BOX_ASPECT; // 2:1 in the phone layout (phoneLayout.css)
+  const w = Math.min(aw, ah * a, GAME_BOX_MAX_W);
+  const h = Math.min(ah, aw / a, GAME_BOX_MAX_H);
   return { left: ((f.lw - w) / 2) * f.s, top: ((f.lh - h) / 2) * f.s, w: w * f.s, h: h * f.s };
 }
 /** The game box for the current window. The fit is refreshed on resize, but jsdom / pre-install reads the window. */

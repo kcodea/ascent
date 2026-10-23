@@ -14139,12 +14139,20 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The board: seven slots across the full width, at the one detail-board size below. */
 .gc.gc-detail .gc-board { align-self: center; border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 6px; }
 /* ONE card size for every detail board (owner 2026-10-21: the Career and Recent Games showed the same board at 70px
-   and 110px). The stage lays out at 1920 x 1080 and scales as a whole, so a fixed size is the same on every screen:
-   100px is the largest that fits the narrower host (the Career's centre column) with the pills' gap. The
-   min() only bites in a host narrower than that (never at the design size). The gap follows the card, since the
-   pills now do (`--pill` above). */
-.gc.gc-detail .gc-board .cv2-team.cv2-team { --tw: min(100px, calc((100cqw - 28px) / 8.2)); --tile-gap: calc(var(--tw) * 0.2); flex-wrap: nowrap; justify-content: center;
-  padding: calc(var(--tw) * 0.3) 14px calc(var(--tw) * 0.3 + 6px); }
+   and 110px), and it GROWS WITH THE WINDOW (owner 2026-10-23: "minion sizes are really small here and in recent
+   games"). The stage only scales DOWN: at or above 1920 x 1080 the layout is the real window, so a fixed 100px card
+   sat small in a huge panel on a 1440p screen. The size is derived from the LAYOUT VIEWPORT, not each host, so both
+   pages still print the same card at a given window: it is the width the narrower host (the Career's centre column,
+   the window less ~1020px of rail, list and Seasonal Ranked column) gives seven cards plus their pill gaps (8.4 card
+   widths: 7 + 6 gaps of 0.2 + the 0.1 badge overhang each side). Capped at 200px, and by the window HEIGHT so the
+   Career still fits without scrolling (112px at 1080 tall, +0.5px per extra px of height). The host's own width
+   (`100cqw`) still bounds it, for a narrower host (a phone). 100px at 1920 x 1080 (the width there allows no more),
+   ~177px at 2560 x 1440. The gap follows the card, since the pills do (`--pill` above). */
+.gc.gc-detail .gc-board .cv2-team.cv2-team {
+  --tw: min(max(100px, calc((var(--lvw, 100vw) - 1064px) / 8.4)), calc((100cqw - 4px) / 8.4), 200px, calc(112px + (var(--lvh, 100vh) - 1080px) * 0.5));
+  --tile-gap: calc(var(--tw) * 0.2); flex-wrap: nowrap; justify-content: center;
+  /* Top: the tier stars above the arch (0.3 card). Sides: the badge overhang. Bottom: the badges end at the tile. */
+  padding: calc(var(--tw) * 0.3) calc(var(--tw) * 0.1 + 2px) 10px; }
 .gc.gc-detail .gc-board .lb-team-none, .gc.gc-detail .gc-board .cv2-row-none { padding: 36px 0; text-align: center; font-size: 16px; }
 /* The runes: a row of pills, each the rune's emblem and its name; the hover tip carries the text. */
 .gc.gc-detail .gc-runes { grid-area: runes; display: flex; justify-content: center; min-width: 0; }
@@ -14289,7 +14297,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 /* The mini board: seven portraits in ONE row (the tile stays ~80px tall so the whole Career fits one frame, owner
    2026-10-16). Minion art only, no badges; a Gilded minion wears a gold rim and a small star. */
 .lp-mini { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; justify-items: center; }
-.lp-mini-m { position: relative; width: 100%; max-width: 40px; aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.2); }
+.lp-mini-m { position: relative; width: 100%; max-width: 72px; aspect-ratio: 1; border-radius: 50%; overflow: hidden; background: rgba(0, 0, 0, 0.35); border: 1.5px solid rgba(255, 255, 255, 0.2); }
 .lp-mini-star { position: absolute; right: 1px; bottom: 0; font-size: 10px; line-height: 1; color: #ffd76a; text-shadow: 0 1px 2px #000; }
 .lp-mini-m.golden { border-color: #e8b84e; }
 .lp-mini-m.empty { border-style: dashed; border-color: rgba(255, 255, 255, 0.12); background: none; }

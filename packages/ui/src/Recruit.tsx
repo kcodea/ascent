@@ -273,14 +273,14 @@ const GOLDEN_RUBY_COIN_GAP_MS = 220;
 /** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
  *  "lets actually not use the floating islands layer", so five). */
 const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
-/** The vista's doorway on SCREEN at the end of the push (screen px, for the portal burst): the owner's door shape's box on
- *  the 2560x1440 art, through the art's cover-fit and the 1.12 push about (47.7%, 83%), as styles.css lays them out. */
-function vistaDoorOnScreen(): { x: number; y: number; w: number; h: number } {
+/** The vista's turquoise GEM (on the medallion over the shop door) on SCREEN at the end of the push (screen px, for the
+ *  portal burst): measured off the 2560x1440 art (centre 1167, 871; about 14 px across), through the art's cover-fit and
+ *  the 1.12 push about (47.7%, 83%), as styles.css lays them out. */
+function vistaGemOnScreen(): { x: number; y: number; r: number } {
   const A = 2560 / 1440, W = window.innerWidth, H = window.innerHeight;
   const wi = Math.max(W, H * A), hi = Math.max(H, W / A), left = (W - wi) / 2, top = (H - hi) / 2;
   const push = (u: number, o: number): number => o + (u - o) * 1.12;
-  const x0 = push(1124 / 2560, 0.477), x1 = push(1317 / 2560, 0.477), y0 = push(947 / 1440, 0.83), y1 = push(1202 / 1440, 0.83);
-  return { x: left + ((x0 + x1) / 2) * wi, y: top + ((y0 + y1) / 2) * hi, w: (x1 - x0) * wi, h: (y1 - y0) * hi };
+  return { x: left + push(1167 / 2560, 0.477) * wi, y: top + push(871 / 1440, 0.83) * hi, r: (14 / 2560) * 1.12 * wi };
 }
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
@@ -2383,7 +2383,7 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
-    for (const n of PHONE_GPU ? ['flat', 'doorfill'] : [...VISTA_LAYERS, 'doorfill']) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
+    for (const n of PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
     sfx.warmGate();
     sfx.warmWipeGate();
     // The poster's inked lettering (plain Cinzel, used nowhere else): fetched now so the first gate never swaps fonts on screen.
@@ -2417,7 +2417,7 @@ export function Recruit() {
     const charge = 160;
     const t = window.setTimeout(() => {
       sfx.vistaTrip('portal');
-      if (!PHONE_GPU) gateFx.portal(vistaDoorOnScreen(), charge);
+      if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
     }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
     return () => window.clearTimeout(t);
   }, [wipe]);
@@ -8261,6 +8261,8 @@ export function Recruit() {
           flattened picture on phones), RETURNING TO SHOP in its sky (`vistaClassFor`, `.wipevista` in styles.css). The
           fade in and the dive out drive the machine like the gate does (`onVistaEnd` / `onVistaAnimEnd`). */}
       <div className={vistaClassFor(wipe)} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
+        {/* The Shop seen through the door starts in shadow and brightens as you go through (`.wipevista-dusk`). */}
+        <div className="wipevista-dusk" />
         <div className="wipevista-stage">
           {/* THE PORTAL (owner 2026-10-23): everything BEHIND the shop's doorway is cut away there (`.wipevista-masked`),
               the doorway's own painted interior sits in the hole (`.wipevista-doorfill`) and fades out as the dive
@@ -8272,7 +8274,7 @@ export function Recruit() {
               : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
             <div className="wipevista-layer wipevista-flat" />
           </div>
-          <div className="wipevista-doorwrap"><div className="wipevista-doorfill" /></div>
+          <div className="wipevista-doorwrap"><div className="wipevista-doorfill" /><div className="wipevista-doorglow" /></div>
           <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
           <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>

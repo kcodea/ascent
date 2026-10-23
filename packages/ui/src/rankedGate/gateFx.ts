@@ -51,8 +51,8 @@ const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
 const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
 /** The sparks the forming crystal pulls in: white-hot, with the crystal's own blues among them. */
 const HOT_TINTS = [0xffffff, 0xffffff, 0xeaf6ff, 0xbfe4ff, 0x7fc4ff] as const;
-/** The return trip's portal (the shop doorway): white-hot, cyan and violet magic with a little gold. */
-const PORTAL_TINTS = [0xffffff, 0xeaf8ff, 0x9fe8ff, 0x6fd3ff, 0xc9a2ff, 0xa77bff, 0xffe08a] as const;
+/** The return trip's portal (the turquoise gem over the shop door): white-hot and turquoise, a touch of violet and gold. */
+const PORTAL_TINTS = [0xffffff, 0xe6fffb, 0xa8f6ee, 0x5fe8dc, 0x36cfd6, 0xc9a2ff, 0xffe08a] as const;
 /** How much of everything there is: 1 = the first cut, 1.2 = the owner's "+20%" (2026-10-12). Particles only. */
 const FX_AMOUNT = 1.2;
 /** A particle count at the current amount. */
@@ -409,33 +409,41 @@ class GateFxController {
   }
 
   /**
-   * THE PORTAL (owner 2026-10-23: "a flash of sparks and energy emit from the masked shape just before the zooming in
-   * begins ... almost like the door way is a magical portal into the shop"): the return trip's shop doorway charges and
-   * bursts. A glow swells in the opening (the charge), then at `chargeMs` sparks spray outward from all round its edge, a
-   * flash fills it, and glowing motes are flung out and float up. `door` is its box on screen (screen px): centre, size.
+   * THE PORTAL (owner 2026-10-23: "a flash of sparks and energy emit ... almost like the door way is a magical portal into
+   * the shop", then "lets actually have the burst and flash come from the turquoise gemstone above the shop door"): the
+   * return trip's GEM, on the medallion over the shop's doorway, charges and bursts. A turquoise glow swells on it (the
+   * charge), then at `chargeMs` it flashes in a starburst, sparks spray out from it in every direction, and glowing motes
+   * are flung out and float up. The doorway's own glow is DOM (`.wipevista-doorglow`). `gem` is screen px: centre and radius.
    */
-  portal(door: { x: number; y: number; w: number; h: number }, chargeMs = 160): void {
+  portal(gem: { x: number; y: number; r: number }, chargeMs = 160): void {
     this.run(() => {
       const k = Math.max(0.5, window.innerHeight / 1080);
-      const rx = door.w / 2, ry = door.h / 2;
-      // THE CHARGE: a soft glow swelling in the opening, peaking as the burst goes.
+      const r = Math.max(4, gem.r);
+      // THE CHARGE: the gem swelling with light, peaking as the burst goes.
       for (let i = 0; i < 3; i++) {
-        this.spawn(this.glowTex!, door.x, door.y + ry * 0.15, i === 0 ? 0xffffff : pick(PORTAL_TINTS), chargeMs + 260, true, (p) => {
+        this.spawn(this.glowTex!, gem.x, gem.y, i === 0 ? 0xffffff : pick(PORTAL_TINTS), chargeMs + 240, true, (p) => {
           const t = p.age / p.life, c = chargeMs / p.life;
-          p.sp.alpha = t < c ? 0.75 * (t / c) : 0.75 * (1 - (t - c) / (1 - c));
-          const g = t < c ? t / c : 1 + (t - c) * 1.5;
-          p.sp.scale.set((rx / 16) * (0.6 + 0.8 * g) * (1 + i * 0.35), (ry / 16) * (0.6 + 0.8 * g) * (1 + i * 0.35));
+          p.sp.alpha = t < c ? 0.85 * (t / c) : 0.85 * (1 - (t - c) / (1 - c));
+          p.sp.scale.set((r / 16) * (1.2 + 2.2 * (t < c ? t / c : 1)) * (1 + i * 0.6));
         });
       }
-      // THE BURST: sparks off the whole edge of the doorway, thrown straight out from its middle.
-      for (let i = 0, n = amount(150); i < n; i++) {
+      // THE FLASH: a starburst on the gem, a bright core and a wide soft bloom, gone in a blink.
+      for (const [size, a, life] of [[5, 1, 260], [12, 0.7, 380], [22, 0.35, 460]] as const) {
+        this.spawn(this.glowTex!, gem.x, gem.y, size === 5 ? 0xffffff : 0x9ff7ef, chargeMs + life, true, (p) => {
+          if (p.age < chargeMs) return;
+          const t = (p.age - chargeMs) / (p.life - chargeMs);
+          p.sp.alpha = a * (1 - t);
+          p.sp.scale.set((r / 16) * size * (0.7 + t * 0.8));
+        });
+      }
+      // THE BURST: sparks thrown straight out from the gem in every direction.
+      for (let i = 0, n = amount(140); i < n; i++) {
         const a = Math.random() * Math.PI * 2;
-        const ex = door.x + Math.cos(a) * rx, ey = door.y + Math.sin(a) * ry;
-        const speed = (380 + Math.random() * 1100) * k;
-        let vx = Math.cos(a) * speed, vy = Math.sin(a) * speed * 0.85;
-        const delay = chargeMs + Math.random() * 70;
+        const speed = (420 + Math.random() * 1200) * k;
+        let vx = Math.cos(a) * speed, vy = Math.sin(a) * speed;
+        const delay = chargeMs + Math.random() * 60;
         const len = 0.5 + Math.random() * 0.9;
-        this.spawn(this.sparkTex!, ex, ey, pick(PORTAL_TINTS), delay + 360 + Math.random() * 520, true, (p, dt) => {
+        this.spawn(this.sparkTex!, gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, pick(PORTAL_TINTS), delay + 340 + Math.random() * 520, true, (p, dt) => {
           if (p.age < delay) return;
           const s = dt / 1000;
           vx *= 1 - 2.1 * s;
@@ -448,18 +456,11 @@ class GateFxController {
           p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
         });
       }
-      // THE FLASH: the opening fills with light for a blink.
-      this.spawn(this.glowTex!, door.x, door.y, 0xffffff, chargeMs + 300, true, (p) => {
-        if (p.age < chargeMs) return;
-        const t = (p.age - chargeMs) / (p.life - chargeMs);
-        p.sp.alpha = (1 - t) * 0.95;
-        p.sp.scale.set((rx / 16) * (1.6 + t * 1.4), (ry / 16) * (1.6 + t * 1.4));
-      });
-      // THE ENERGY: glowing motes flung out from the doorway, then floating up and flickering out.
-      for (let i = 0, n = amount(90); i < n; i++) {
+      // THE ENERGY: glowing motes flung out from the gem, then floating up and flickering out.
+      for (let i = 0, n = amount(70); i < n; i++) {
         const a = Math.random() * Math.PI * 2;
-        this.ember(door.x + Math.cos(a) * rx * 0.8, door.y + Math.sin(a) * ry * 0.8, k, chargeMs + Math.random() * 220, {
-          throwX: Math.cos(a) * (240 + Math.random() * 420), throwY: Math.sin(a) * (200 + Math.random() * 360), drag: 0.8, glow: 1.4, life: 0.7,
+        this.ember(gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, k, chargeMs + Math.random() * 200, {
+          throwX: Math.cos(a) * (220 + Math.random() * 420), throwY: Math.sin(a) * (200 + Math.random() * 380), drag: 0.8, glow: 1.4, life: 0.7,
         });
       }
     });

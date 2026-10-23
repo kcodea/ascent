@@ -618,14 +618,16 @@ type WipeGateCue = 'drop' | 'impact' | 'crank';
  * and magical sounds for the return to shop animation?"): clips already in the bank, each on a fader of its own (`vista*`):
  *  - arrive: as the vista fades in, the ceremony's airy whoosh (it peaks at 0.25 s, the fade's length) and, a beat
  *            later, the Good Luck intro's shine (a sparkly glint as the scene and the sky text appear)
- *  - portal: as the doorway charges and bursts, the rune-select energy implosion, and a whoosh that BUILDS for 0.6 s, so
+ *  - portal: as the gem charges and bursts, the trigger glow chime, and a whoosh that BUILDS for 0.6 s, so
  *            it rises out of the burst and peaks halfway through the dive
  *  - dive:   the glittering part of the sparkle whoosh (the slice the Good Luck intro uses), trailing you through the door
  */
 type VistaTripCue = 'arrive' | 'portal' | 'dive';
 const VISTA_TRIP_LAYERS: Record<VistaTripCue, readonly WipeLayer[]> = {
   arrive: [{ clip: 'ceremony/woosh2', category: 'vistawhoosh' }, { clip: 'equipmentsheen', category: 'vistashimmer', delay: 0.2 }],
-  portal: [{ clip: 'runeselectimplosion', category: 'vistaportal' }, { clip: 'fx/whoosh-03', category: 'vistadive' }],
+  // (The rune-select implosion played here first; its heavy thud was swapped for the glow chime, owner 2026-10-23: "there a
+  // big thudding sound that i dont like, can we replace that with something else?")
+  portal: [{ clip: 'triggerglow', category: 'vistaportal' }, { clip: 'fx/whoosh-03', category: 'vistadive' }],
   dive: [{ clip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', category: 'vistasparkle', offset: 1.1, duration: 0.9, fadeMs: 250 }],
 };
 const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {

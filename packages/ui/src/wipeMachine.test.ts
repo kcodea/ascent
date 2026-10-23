@@ -136,7 +136,7 @@ describe('the return trip is the vista, not the gate', () => {
   it('moves by opacity and transform only', () => {
     // (…and the portal: the doorway's interior fading open, owner 2026-10-23.)
     expect(css).toContain(".wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
-    for (const k of ['vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+    for (const k of ['vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       expect(frames, k).toMatch(/transform|opacity/);
       expect(frames.replace(/(transform|opacity|animation-timing-function): [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);

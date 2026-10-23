@@ -598,6 +598,20 @@ canvas.spr { image-rendering: pixelated; display: block; }
    hairline can show), at its box. */
 .wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
   background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; will-change: opacity; }
+/* THE DOORWAY GLOWS (owner 2026-10-23: "use the shape of the mask to create a glow along the edge of it so it looks like the
+   doorway begins glowing as it zooms into the door after the gem flash"): a turquoise-white line along the edge of the
+   owner's door shape with a soft halo (`vista-doorglow.webp`, made from his shape), carried with the door. It lights up as
+   the dive starts, just after the gem's flash, and stays lit as the doorway grows past the screen. */
+.wipevista-doorglow { position: absolute; left: 41.7188%; top: 61.875%; width: 11.9141%; height: 25.4861%;
+  background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity; }
+.wipevista.dive .wipevista-doorglow { animation: vistadoorglow var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistadoorglow { 0% { opacity: 0; animation-timing-function: ease-out; } 18% { opacity: 1; } 100% { opacity: 1; } }
+/* THE SHOP COMES OUT OF SHADOW (owner 2026-10-23: "at the moment the board is revealed, it would be nice if it started darker
+   and brightened as we got through the door"): a dark veil BEHIND the picture, over the real Shop, so the Shop seen through
+   the open door starts in shadow and brightens to full as you fly through. Opacity only. */
+.wipevista-dusk { position: absolute; inset: 0; background: #04060c; opacity: 0; pointer-events: none; will-change: opacity; }
+.wipevista.dive .wipevista-dusk { animation: vistadusk var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistadusk { 0% { opacity: 0.78; } 25% { opacity: 0.72; animation-timing-function: ease-in-out; } 100% { opacity: 0; } }
 .wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
 /* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door
    hole cuts through it too: a backing colour behind the group showed through the open door as plain blue instead of the

@@ -510,9 +510,11 @@ canvas.spr { image-rendering: pixelated; display: block; }
   height: calc(3 * var(--u, 1px)); border-radius: 50%; opacity: 0.85;
   background: linear-gradient(to right, rgba(58, 34, 16, 0), #3a2210 18%, #3a2210 82%, rgba(58, 34, 16, 0)); }
 /* …NOW FACING's rule sits a touch higher, closer to its letters (owner 2026-10-23: "slightly raise the underline underneath the NOW FACING text"). */
-.wipeposter .wipevs-label::after { bottom: calc(10 * var(--u, 1px)); } /* 3 -> 6: "raise the underline beneath it slightly as well", then 10: "further raise the underline" */
+.wipeposter .wipevs-label::after { bottom: calc(14 * var(--u, 1px)); } /* 3 -> 6: "raise the underline beneath it slightly as well", then 10: "further raise the underline", then 14: "raise the now facing underline a bit more" */
+/* …and the name's rule and its diamond, raised together (owner 2026-10-23: "raise the player name underline a bit"). */
+.wipeposter .wipevs-name::after { bottom: calc(5 * var(--u, 1px)); }
 /* …and the small diamond at the middle of the name's rule. */
-.wipeposter .wipevs-name::before { content: ''; position: absolute; left: 50%; bottom: calc(-3.5 * var(--u, 1px));
+.wipeposter .wipevs-name::before { content: ''; position: absolute; left: 50%; bottom: calc(1.5 * var(--u, 1px));
   width: calc(9 * var(--u, 1px)); height: calc(9 * var(--u, 1px)); background: #3a2210; opacity: 0.9;
   transform: translateX(-50%) rotate(45deg); }
 /* THE SLAM: the gate stops dead and the paper doesn't. It is knocked down and crooked on its loose nail, swings back

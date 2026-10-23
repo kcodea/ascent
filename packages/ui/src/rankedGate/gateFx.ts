@@ -50,7 +50,7 @@ const SPARK_TINTS = [0xffffff, 0xfff2c0, 0xffd27a, 0xffa84a, 0xff7a2e] as const;
 const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
 /** The landing's debris: chips of pale stone and light, freshly split wood. Light on purpose: the first, darker set
  *  (grey stone, brown wood) vanished against the gate's dark wood (owner 2026-10-23: "i dont think i see the debris"). */
-const DEBRIS_TINTS = [0xd8cfbf, 0xc2b8a6, 0xe8e0d0, 0xb89a72, 0xd2b48a, 0xa8865e] as const;
+const DEBRIS_TINTS = [0xada699, 0x9b9385, 0xbab3a6, 0x937b5b, 0xa8906e, 0x866b4b] as const; // 20% darker than the first light set ("its too light grey")
 const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
 /** The sparks the forming crystal pulls in: white-hot, with the crystal's own blues among them. */
 const HOT_TINTS = [0xffffff, 0xffffff, 0xeaf6ff, 0xbfe4ff, 0x7fc4ff] as const;

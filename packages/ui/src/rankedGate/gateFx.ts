@@ -299,7 +299,7 @@ class GateFxController {
   }
 
   /** One ember: it lifts off with a small sideways kick, then floats up, swaying wider and flickering as it dies. */
-  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number; glow?: number; life?: number } = {}): void {
+  private ember(x: number, y: number, k: number, delay = 0, o: { kick?: number; rise?: number; throwX?: number; throwY?: number; drag?: number; glow?: number; life?: number; fade?: number } = {}): void {
     const drag = o.drag ?? 1; // how hard the air takes the throw back: lower = it carries further
     const rise = (70 + Math.random() * 190) * k * (o.rise ?? 1); // px/s upward
     // The kick off the impact (a random sideways one, or the shatter's own throw); the air takes it back.
@@ -327,7 +327,8 @@ class GateFxController {
       bx += vx * s;
       p.sp.y += (vy - rise * (1 - t * 0.35)) * s; // it slows a little as it cools
       p.sp.x = bx + Math.sin(age * swayHz + swayPhase) * swayAmp * t;
-      p.sp.alpha = Math.min(1, glow * Math.min(1, t * 8) * Math.pow(1 - t, 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase)));
+      // `fade` is how hard it drops off towards the end (higher = it dims sooner and goes out quicker).
+      p.sp.alpha = Math.min(1, glow * Math.min(1, t * 8) * Math.pow(1 - t, o.fade ?? 1.2) * (0.75 + 0.25 * Math.sin(age * flickHz + flickPhase)));
       p.sp.scale.set(size * k * (1 - t * 0.55));
     });
   }
@@ -436,14 +437,15 @@ class GateFxController {
           p.sp.scale.set((r / 16) * size * (0.7 + t * 0.8));
         });
       }
-      // THE BURST: sparks thrown straight out from the gem in every direction.
+      // THE BURST: sparks thrown straight out from the gem in every direction. Short-lived since the owner asked for
+      // them to "fade way faster" (2026-10-23): under half their first life, and a steeper fade.
       for (let i = 0, n = amount(140); i < n; i++) {
         const a = Math.random() * Math.PI * 2;
         const speed = (420 + Math.random() * 1200) * k;
         let vx = Math.cos(a) * speed, vy = Math.sin(a) * speed;
         const delay = chargeMs + Math.random() * 60;
         const len = 0.5 + Math.random() * 0.9;
-        this.spawn(this.sparkTex!, gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, pick(PORTAL_TINTS), delay + 340 + Math.random() * 520, true, (p, dt) => {
+        this.spawn(this.sparkTex!, gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, pick(PORTAL_TINTS), delay + 150 + Math.random() * 230, true, (p, dt) => {
           if (p.age < delay) return;
           const s = dt / 1000;
           vx *= 1 - 2.1 * s;
@@ -452,15 +454,66 @@ class GateFxController {
           p.sp.y += vy * s;
           p.sp.rotation = Math.atan2(vy, vx);
           const t = (p.age - delay) / (p.life - delay);
-          p.sp.alpha = (1 - t) * (1 - t);
+          p.sp.alpha = Math.pow(1 - t, 2.5);
           p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
         });
       }
-      // THE ENERGY: glowing motes flung out from the gem, then floating up and flickering out.
+      // THE ENERGY: glowing motes flung out from the gem, flickering out fast (a third of their first life).
       for (let i = 0, n = amount(70); i < n; i++) {
         const a = Math.random() * Math.PI * 2;
-        this.ember(gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, k, chargeMs + Math.random() * 200, {
-          throwX: Math.cos(a) * (220 + Math.random() * 420), throwY: Math.sin(a) * (200 + Math.random() * 380), drag: 0.8, glow: 1.4, life: 0.7,
+        this.ember(gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, k, chargeMs + Math.random() * 120, {
+          throwX: Math.cos(a) * (220 + Math.random() * 420), throwY: Math.sin(a) * (200 + Math.random() * 380), drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
+        });
+      }
+    });
+  }
+
+  /**
+   * THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
+   * fluttery sparks bloom out from all four sides of the player screen"): the portal's own sparks and motes, born along
+   * every edge of the screen and thrown inward, as the return trip comes out of the doorway onto the shop. They fade
+   * as fast as the gem's.
+   */
+  edgeBloom(): void {
+    this.run(() => {
+      const W = window.innerWidth, H = window.innerHeight;
+      const k = Math.max(0.5, H / 1080);
+      // A point on an edge (0 top, 1 right, 2 bottom, 3 left), weighted by the edge's length, and its inward direction.
+      const onEdge = (): { x: number; y: number; nx: number; ny: number } => {
+        const u = Math.random() * 2 * (W + H);
+        if (u < W) return { x: u, y: 0, nx: 0, ny: 1 };
+        if (u < W + H) return { x: W, y: u - W, nx: -1, ny: 0 };
+        if (u < 2 * W + H) return { x: u - W - H, y: H, nx: 0, ny: -1 };
+        return { x: 0, y: u - 2 * W - H, nx: 1, ny: 0 };
+      };
+      // Sparks, thrown in off the edge with a little spread either way.
+      for (let i = 0, n = amount(160); i < n; i++) {
+        const e = onEdge();
+        const ang = Math.atan2(e.ny, e.nx) + (Math.random() - 0.5) * 1.3;
+        const speed = (380 + Math.random() * 1000) * k;
+        let vx = Math.cos(ang) * speed, vy = Math.sin(ang) * speed;
+        const delay = Math.random() * 90;
+        const len = 0.5 + Math.random() * 0.9;
+        this.spawn(this.sparkTex!, e.x, e.y, pick(PORTAL_TINTS), delay + 150 + Math.random() * 230, true, (p, dt) => {
+          if (p.age < delay) return;
+          const s = dt / 1000;
+          vx *= 1 - 2.1 * s;
+          vy = vy * (1 - 2.1 * s) + 380 * k * s;
+          p.sp.x += vx * s;
+          p.sp.y += vy * s;
+          p.sp.rotation = Math.atan2(vy, vx);
+          const t = (p.age - delay) / (p.life - delay);
+          p.sp.alpha = Math.pow(1 - t, 2.5);
+          p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
+        });
+      }
+      // The fluttery motes, flung in off the edge and flickering out.
+      for (let i = 0, n = amount(110); i < n; i++) {
+        const e = onEdge();
+        const ang = Math.atan2(e.ny, e.nx) + (Math.random() - 0.5) * 1.1;
+        const push = 220 + Math.random() * 460;
+        this.ember(e.x, e.y, k, Math.random() * 120, {
+          throwX: Math.cos(ang) * push, throwY: Math.sin(ang) * push, drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
         });
       }
     });

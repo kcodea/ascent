@@ -2388,8 +2388,9 @@ export function Recruit() {
     for (const n of PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']) new Image().src = `${import.meta.env.BASE_URL}vista-${n}.webp`;
     sfx.warmGate();
     sfx.warmWipeGate();
-    // The poster's inked lettering (plain Cinzel, used nowhere else): fetched now so the first gate never swaps fonts on screen.
+    // Plain Cinzel (the poster's inked lettering, 700, and the return trip's sky title, 900): fetched now so neither swaps fonts on screen.
     void document.fonts?.load('700 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
+    void document.fonts?.load('900 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
   useEffect(() => {
@@ -2412,6 +2413,14 @@ export function Recruit() {
   // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
   // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
   // crashed the shop screen (owner report 2026-10-23).
+  // THROUGH THE DOOR (owner 2026-10-23: "at the moment that we pass through the glowing door completely, have those same
+  // fluttery sparks bloom out from all four sides of the player screen"): once the dive has the doorway filling the
+  // screen (82% of it, just before the vista fades off the shop), the portal's sparks bloom in off every edge.
+  useEffect(() => {
+    if (wipe !== 'revealOut' || PHONE_GPU) return undefined;
+    const t = window.setTimeout(() => gateFx.edgeBloom(), getScreenWipeConfig().revealMs * 0.82);
+    return () => window.clearTimeout(t);
+  }, [wipe]);
   useEffect(() => {
     if (wipe === 'coverOut') sfx.vistaTrip('arrive');
     else if (wipe === 'revealOut') sfx.vistaTrip('dive');

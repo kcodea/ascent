@@ -619,7 +619,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
    doorway begins glowing as it zooms into the door after the gem flash"): a turquoise-white line along the edge of the
    owner's door shape with a soft halo (`vista-doorglow.webp`, made from his shape), carried with the door. It lights up as
    the dive starts, just after the gem's flash, and stays lit as the doorway grows past the screen. */
-.wipevista-doorglow { position: absolute; left: 41.7188%; top: 61.875%; width: 11.9141%; height: 25.4861%;
+.wipevista-doorglow { position: absolute; left: 39.6094%; top: 58.125%; width: 16.1328%; height: 32.9861%;
   background: url('/vista-doorglow.webp') 0 0 / 100% 100% no-repeat; opacity: 0; will-change: opacity; }
 .wipevista.dive .wipevista-doorglow { animation: vistadoorglow var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadoorglow { 0% { opacity: 0; animation-timing-function: ease-out; } 18% { opacity: 1; } 100% { opacity: 1; } }
@@ -658,6 +658,24 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the spire tip is 25% down), in the announcement's own lettering (white, 2px black outline), bigger for the open sky. */
 .wipevista-title { position: absolute; left: 50%; top: 11.5%; translate: -50% -50%; display: flex; flex-direction: column; align-items: center;
   white-space: nowrap; font-size: calc(64 * var(--u, 1px)); line-height: 1.15; }
+/* …in the MAGIC GLOW lettering (owner 2026-10-23, mock-up C: "lets do C magic glow"): heavy Cinzel, white, lit from
+   within by the gem's turquoise, no black outline. Out-specifies `.wipevs-label`, whose 38u size had been winning. */
+.wipevista .wipevista-title { top: 13%; font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
+  font-size: calc(108 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
+  text-shadow: 0 0 calc(6 * var(--u, 1px)) #9ff7ef, 0 0 calc(18 * var(--u, 1px)) #36cfd6, 0 0 calc(40 * var(--u, 1px)) rgba(54, 207, 214, 0.8),
+    0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(10, 40, 80, 0.5); }
+/* THE POP (owner 2026-10-23: "have it grow and pop out and spring back into place with a little settle. have this happen
+   partway through the transition"): early in the hold, once the land has settled, the title swells, springs back past
+   its size and settles. Scale only (compositor); the selector spans the dive too so the class change never restarts it. */
+.wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.75s linear 0.2s both; }
+@keyframes vistatitlepop {
+  0% { transform: scale(1); animation-timing-function: cubic-bezier(.2, .8, .3, 1); }
+  30% { transform: scale(1.2); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
+  50% { transform: scale(0.93); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
+  67% { transform: scale(1.045); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
+  84% { transform: scale(0.988); animation-timing-function: cubic-bezier(.5, 0, .5, 1); }
+  100% { transform: scale(1); }
+}
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face
    is loaded at boot by the title screen, so it is always ready by the first fight. */

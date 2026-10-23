@@ -608,7 +608,9 @@ const GATE_SLICE: Partial<Record<GateCue, ClipSlice>> = {
  */
 /** `category`: the fader a layer plays on (default: the clip's own). `reverb`: a wet send of that much (0 to 1) into a
  *  short convolution tail, through the soft-tail voice (`playTailedSample`). */
-interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number; reverb?: number; delay?: number }
+/** One clip of a transition moment. `fadeInMs` ramps it up from silence as it starts; `fadeMs` (with `duration`) takes it
+ *  out over the end of its slice. */
+interface WipeLayer { clip: string; category?: string; offset?: number; duration?: number; fadeMs?: number; fadeInMs?: number; reverb?: number; delay?: number }
 /** The crank's reverb tail length (owner 2026-10-22: "a slight amount of reverb ... specifically the cranking part").
  *  Pre-built once audio starts (`warmWipeGate`), so the first crank never builds an impulse on its own frame. */
 const WIPE_CRANK_REVERB_SEC = 1.2;
@@ -621,14 +623,22 @@ type WipeGateCue = 'drop' | 'impact' | 'crank';
  *  - portal: as the gem charges and bursts, the trigger glow chime, and a whoosh that BUILDS for 0.6 s, so
  *            it rises out of the burst and peaks halfway through the dive
  *  - dive:   the glittering part of the sparkle whoosh (the slice the Good Luck intro uses), trailing you through the door
+ * THROUGH THE PORTAL (owner 2026-10-23, his own clips): "add this sound when wooshing through the doorway" (a long cartoon
+ * woosh, loudest 0.9 s in) and "i want this to be the sound of passing through the portal ... we may need to fade this in
+ * and out" (a magic spell, loudest 0.6 to 1.0 s in). Both are lined up so their loudest point lands as you pass through the
+ * door (82% of the 450 ms dive, the edge bloom's moment): the woosh starts with the gem's burst 0.25 s into its build, so it
+ * rises out of the burst; the spell starts with the dive 0.45 s in, fades up over 0.2 s, and fades out over 0.6 s as the
+ * Shop comes up.
  */
 type VistaTripCue = 'arrive' | 'portal' | 'dive';
 const VISTA_TRIP_LAYERS: Record<VistaTripCue, readonly WipeLayer[]> = {
   arrive: [{ clip: 'ceremony/woosh2', category: 'vistawhoosh' }, { clip: 'equipmentsheen', category: 'vistashimmer', delay: 0.2 }],
   // (The rune-select implosion played here first; its heavy thud was swapped for the glow chime, owner 2026-10-23: "there a
   // big thudding sound that i dont like, can we replace that with something else?")
-  portal: [{ clip: 'triggerglow', category: 'vistaportal' }, { clip: 'fx/whoosh-03', category: 'vistadive' }],
-  dive: [{ clip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', category: 'vistasparkle', offset: 1.1, duration: 0.9, fadeMs: 250 }],
+  portal: [{ clip: 'triggerglow', category: 'vistaportal' }, { clip: 'fx/whoosh-03', category: 'vistadive' },
+    { clip: 'fx/alexis_gaming_cam-woosh-long-cartoon-370386', category: 'vistawoosh', offset: 0.25 }],
+  dive: [{ clip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', category: 'vistasparkle', offset: 1.1, duration: 0.9, fadeMs: 250 },
+    { clip: 'fx/soumages-magic-spell-333896', category: 'vistaspell', offset: 0.45, duration: 1.5, fadeInMs: 200, fadeMs: 600 }],
 };
 const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   drop: [{ clip: 'wipedrop' }],
@@ -660,16 +670,24 @@ function playWipeLayer(l: WipeLayer): void {
     playTailedSample(l.clip, l.category ?? l.clip, 1, delay, { fadeOutMs: l.fadeMs ?? 0, reverbMix: l.reverb, reverbSec: WIPE_CRANK_REVERB_SEC }, slice);
     return;
   }
-  playSample(l.clip, l.category ?? l.clip, delay, l.fadeMs && l.duration ? (({ src, gain }) => {
+  const fadeOut = Boolean(l.fadeMs && l.duration), fadeIn = Boolean(l.fadeInMs && l.fadeInMs > 0);
+  playSample(l.clip, l.category ?? l.clip, delay, fadeOut || fadeIn ? (({ src, gain }) => {
     const a = ctx;
     if (!a) return;
     try {
-      const fade = l.fadeMs! / 1000;
-      const from = a.currentTime + delay + Math.max(0, l.duration! - fade);
-      gain.gain.setValueAtTime(gain.gain.value, from);
-      gain.gain.linearRampToValueAtTime(0.0001, from + fade);
-      src.stop(from + fade + 0.02);
-    } catch { /* the fade is a nicety: the slice then simply ends */ }
+      const start = a.currentTime + delay, level = gain.gain.value, inSec = fadeIn ? l.fadeInMs! / 1000 : 0;
+      if (fadeIn) {
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.linearRampToValueAtTime(level, start + inSec);
+      }
+      if (fadeOut) {
+        const fade = l.fadeMs! / 1000;
+        const from = start + Math.max(inSec, l.duration! - fade);
+        gain.gain.setValueAtTime(level, from);
+        gain.gain.linearRampToValueAtTime(0.0001, from + fade);
+        src.stop(from + fade + 0.02);
+      }
+    } catch { /* the fades are a nicety: the slice then simply plays as cut */ }
   }) : undefined, slice);
 }
 /** A tailed play with every dial off: the clip's own end, no reverb (the old behaviour, for bare calls). */
@@ -2198,6 +2216,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   vistawhoosh: () => playWipeLayer(VISTA_TRIP_LAYERS.arrive[0]!), vistashimmer: () => playWipeLayer({ ...VISTA_TRIP_LAYERS.arrive[1]!, delay: 0 }),
   vistaportal: () => playWipeLayer(VISTA_TRIP_LAYERS.portal[0]!), vistadive: () => playWipeLayer(VISTA_TRIP_LAYERS.portal[1]!),
   vistasparkle: () => playWipeLayer(VISTA_TRIP_LAYERS.dive[0]!),
+  vistawoosh: () => playWipeLayer(VISTA_TRIP_LAYERS.portal[2]!), vistaspell: () => playWipeLayer(VISTA_TRIP_LAYERS.dive[1]!),
   wipedrop: () => sfx.wipeGate('drop'), wipethudwood: () => playWipeLayer(WIPE_GATE_LAYERS.impact[0]!), wipethudground: () => playWipeLayer(WIPE_GATE_LAYERS.impact[1]!),
   wipethudheavy: () => playWipeLayer(WIPE_GATE_LAYERS.impact[2]!), wipethudgrit: () => playWipeLayer(WIPE_GATE_LAYERS.impact[3]!), wipeposter: () => playWipeLayer(WIPE_GATE_LAYERS.impact[4]!),
   wipecrank: () => playWipeLayer(WIPE_GATE_LAYERS.crank[0]!), wipegears: () => playWipeLayer(WIPE_GATE_LAYERS.crank[1]!), wipegroan: () => playWipeLayer(WIPE_GATE_LAYERS.crank[2]!), wipegateopen: () => playWipeLayer(WIPE_GATE_LAYERS.crank[3]!),

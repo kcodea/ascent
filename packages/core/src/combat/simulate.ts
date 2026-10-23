@@ -555,7 +555,7 @@ export function simulate(
   const grantedHandStats = (side: Side, def: CardDef): { attack: number; health: number } => {
     const st = stateOf(side);
     const runTribes = st.cardTribes?.[def.id] ?? [];
-    const isT = (t: Tribe): boolean => !!def.universalTribe || def.tribe === t || def.tribe2 === t || runTribes.includes(t);
+    const isT = (t: Tribe): boolean => defIsTribe(def, t) || runTribes.includes(t);
     const cb = st.cardBuffs?.[def.id];
     let attack = def.attack + (cb?.attack ?? 0);
     let health = def.health + (cb?.health ?? 0);

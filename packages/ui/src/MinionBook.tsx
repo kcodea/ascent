@@ -378,7 +378,12 @@ export function MinionBook() {
   // Browsing the run's own set → scope to its active tribes (mirrors `stockPool`: neutral is always findable, so
   // it's added below regardless). The title, or any other set picked → that set's WHOLE tribe roster.
   const runTribes = run.tribes;
-  const tribes: Tribe[] = useMemo(() => (browsingRun ? runTribes : [...SETS[setId].tribes]), [browsingRun, runTribes, setId]);
+  // ALPHABETICAL by name (owner 2026-10-23: the run's tribe roll order made the rail look random). Neutral and the
+  // Library stay after them in their fixed order.
+  const tribes: Tribe[] = useMemo(
+    () => (browsingRun ? [...runTribes] : [...SETS[setId].tribes]).sort((a, b) => CAT_META[a].label.localeCompare(CAT_META[b].label)),
+    [browsingRun, runTribes, setId],
+  );
 
   // Switching sets drops the tribe filters the new set doesn't have (a Mechs chip means nothing in Set 2), so the
   // gallery can never be stuck filtered on an invisible chip. Tier, search, Gilded and keyword filters carry over.

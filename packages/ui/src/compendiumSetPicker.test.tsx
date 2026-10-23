@@ -127,7 +127,8 @@ describe('Compendium set picker', () => {
       expect(runeCount(), `${id}: Neutral shows exactly the untribed runes`).toBe(untribed.length);
 
       // ORs with a tribe pill: Neutral + the first tribe = untribed + that tribe's runes, no tribe-gated extras.
-      const t = SETS[id].tribes[0]!;
+      // The pills are alphabetical by name (owner 2026-10-23); every tribe id sorts the same way as its name.
+      const t = [...SETS[id].tribes].sort()[0]!;
       click(pills()[0]);
       const both = setRunes(id).filter((r) => !r.tribes?.length || r.tribes.includes(t));
       expect(runeCount(), `${id}: Neutral + ${t}`).toBe(both.length);

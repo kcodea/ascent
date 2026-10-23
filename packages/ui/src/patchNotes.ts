@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      { category: 'Systems', text: 'Minion Book: the tribe filters show each tribe name in its colour, with no icon.' },
       {
         category: 'Systems',
         text: "Spectators now see the player's emotes and their cursor during combat. Replays show them too.",

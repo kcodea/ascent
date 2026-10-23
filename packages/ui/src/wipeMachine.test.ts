@@ -124,8 +124,19 @@ describe('the return trip is the vista, not the gate', () => {
     // The Shop swaps in (the backdrop flips) only while the vista is held fully opaque.
     expect(combatBackdropShown('coverOut')).toBe(true);
     expect(combatBackdropShown('coveredOut')).toBe(false);
-    expect(css).toMatch(/\.wipevista\.in \{ opacity: 1; transition: opacity /);
+    // No fade (owner 2026-10-23): the vista is shown at once and its layers fly in from off the screen.
+    expect(css).toContain('.wipevista.in { opacity: 1; }');
     expect(css).toMatch(/\.wipevista\.held \{ transition: none; \}/);
+  });
+
+  it('the layers fly in from fully off the screen, and the door hole opens only once they have landed', () => {
+    expect(css).toContain('@keyframes vistaflyleft { 0% { translate: -105% 0; } 100% { translate: 0 0; } }');
+    expect(css).toContain('@keyframes vistaflyright { 0% { translate: 105% 0; } 100% { translate: 0 0; } }');
+    // the shop and the door's interior + glow fly together (same flight, same delay)
+    const flight = /\.wipevista\.on \.wipevista-shop \{ animation: (vistaflyright [^;]*?) both; \}/.exec(css)?.[1];
+    expect(flight).toBeTruthy();
+    expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
+    expect(css).toContain(".wipevista.held .wipevista-masked, .wipevista.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
   });
 
   it('keeps the gate parked and silent on the exit pass', () => {
@@ -135,8 +146,7 @@ describe('the return trip is the vista, not the gate', () => {
 
   it('moves by opacity and transform only', () => {
     // (…and the portal: the doorway's interior fading open, owner 2026-10-23.)
-    expect(css).toContain(".wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
-    for (const k of ['vistaslidesky', 'vistaslidefar', 'vistaslidemid', 'vistaslidefore', 'vistaslideshop', 'vistaslidetitle', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+    for (const k of ['vistaflyleft', 'vistaflyright', 'vistaslidetitle', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       // (`translate` is the individual transform property: compositor-only like `transform`.)
       expect(frames, k).toMatch(/transform|translate|opacity/);

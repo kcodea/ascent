@@ -2531,7 +2531,9 @@ export function Recruit() {
     advanceWipe();
   }, [advanceWipe]);
   const onVistaAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
-    if (e.animationName !== 'vistafade' || e.target !== e.currentTarget) return;
+    // The cover ends when the last flying piece lands (`vistaslidetitle`, from the title); the reveal when the vista fades out.
+    const ends = e.animationName === 'vistaslidetitle' || (e.animationName === 'vistafade' && e.target === e.currentTarget);
+    if (!ends) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);

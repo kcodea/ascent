@@ -202,7 +202,7 @@ html[data-touch-ui][data-phone-gpu][data-launch-covered] .heroselect { visibilit
    composited layers at stage size are too much GPU memory for a phone). It still fades in, pushes in and dives. */
 html[data-touch-ui][data-phone-gpu] .wipevista-layer:not(.wipevista-flat) { display: none; }
 html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }
-/* …and on phones the flattened picture does not swipe in (one picture sliding would open a gap at its edge): it fades in and
-   pushes as before. The arrival's per-layer swipe (styles.css, "THE ARRIVAL") is desktop only. */
-html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-masked,
-html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
+/* …and on phones the one flattened picture flies in from the left as the backdrop does on desktop, with the door's
+   interior and glow flying in with it (styles.css, "THE ARRIVAL"). */
+html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-flat { animation: vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0s both; }
+html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistaflyleft 0.55s cubic-bezier(.16, .84, .3, 1) 0s both; }

@@ -24,14 +24,14 @@ Oracle: `R-RUNE-COSTS-1023-01` (`packages/content/src/runeCosts1023.test.ts`).
 
 ## Counts
 
-325 runes changed (36 of them archived):
+324 runes changed (36 of them archived; Top Hat was kept at 6 by owner follow-up):
 
 | band | changed |
 |---|---|
 | Basic 3 -> 2 | 85 |
 | Basic 4 -> 3 | 63 |
 | Basic 5 -> 4 | 22 |
-| Basic 6 -> 4 | 1 |
+| Basic 6 -> 4 | 0 (Top Hat kept at 6 by owner follow-up) |
 | Epic 4 -> 3 | 63 |
 | Epic 5 -> 4 | 61 |
 | Epic 6 -> 5 | 24 |
@@ -214,7 +214,7 @@ Content change: versus-resolve needs a redeploy after merge.
 | rune_summit | Summit | set1/set2 | no | basicPool | 5 | 4 |
 | rune_unbroken_vein | Unbroken Vein | set2 | no | basicPool | 5 | 4 |
 | rune_warden | Warden | set1/set3 | no | basicPool | 5 | 4 |
-| rune_top_hat | Top Hat | set1/set2 | no | basicPool | 6 | 4 |
+| rune_top_hat | Top Hat | set1/set2 | no | basicPool | 6 | 6 (owner: "put top hat back to 6 cost") |
 | rune_ancient_den | Ancient Den | set1/set2 | yes | epicPool | 4 | 3 |
 | rune_astral_draft | Astral Draft |  | yes | epicPool | 4 | 3 |
 | rune_attacking_gems | Attacking Gems | set2/set3 | yes | epicPool | 4 | 3 |

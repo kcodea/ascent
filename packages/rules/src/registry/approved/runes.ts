@@ -2685,18 +2685,19 @@ export const RUNES_RULES: GameRule[] = [
     title: 'Rune cost pass 2026-10-23: Basic 3-5 cost 1 less and 6+ cost 2 less; Epic 4-7 cost 1 less and 8+ cost 2 less',
     statement:
       'Every rune definition (Basic pool, Epic pool and archived, all sets) was repriced from its printed cost on main: a '
-      + 'Basic rune at 3, 4 or 5 Gold costs 1 less and at 6 or more costs 2 less (1 and 2 unchanged); an Epic rune at 4, 5, 6 '
-      + 'or 7 Gold costs 1 less and at 8 or more costs 2 less (1 to 3 unchanged). 325 runes changed: Basic 85 (3 to 2), 63 '
-      + '(4 to 3), 22 (5 to 4), 1 (6 to 4); Epic 63 (4 to 3), 61 (5 to 4), 24 (6 to 5), 4 (7 to 6), 2 (8 to 6); 36 of them '
+      + 'Basic rune at 3, 4 or 5 Gold costs 1 less and at 6 or more costs 2 less (1 and 2 unchanged; Top Hat, the only Basic at 6, was kept at 6 by owner follow-up); an Epic rune at 4, 5, 6 '
+      + 'or 7 Gold costs 1 less and at 8 or more costs 2 less (1 to 3 unchanged). 324 runes changed: Basic 85 (3 to 2), 63 '
+      + '(4 to 3), 22 (5 to 4); Epic 63 (4 to 3), 61 (5 to 4), 24 (6 to 5), 4 (7 to 6), 2 (8 to 6); 36 of them '
       + 'archived. Only printed base costs moved: the hero forge discount (clamped at 0), the duplicate sweetener (half the '
       + 'printed cost rounded up) and every other rune price mechanic read the new printed cost unchanged. After the pass no '
-      + 'Basic rune costs more than 4 and no Epic rune more than 6.',
+      + 'Basic rune but Top Hat (6) costs more than 4 and no Epic rune more than 6.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass)', quote: "let's reduce the cost of all 3,4,5 cost basic runes by 1, and reduce the cost of all 4,5,6,7 cost epic runes by 1 across all sets" },
       { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass, 8+)', quote: 'if there are any 8+ reduce those by 2' },
       { kind: 'owner-chat', ref: 'Owner 2026-10-23 (rune cost pass, Basic 6+)', quote: 'if there are any basic runes a 6+ gold, reduce their cost by 2' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (Top Hat exception)', quote: 'actually put top hat back to 6 cost' },
       { kind: 'code', ref: 'packages/content/src/runes.ts (each changed `cost:` annotated "owner 2026-10-23"); docs/devlog/2026-10-23-rune-costs.md (full table)' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-23.',

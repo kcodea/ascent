@@ -20,7 +20,7 @@ describe('the 15 remaining defs exist at sheet costs', () => {
     // rune_tip_jar left the sheet on 2026-08-19 — promoted to a 0-Gold EPIC (asserted in runeBatchAug19).
     ['rune_coffers', 3], ['rune_vault', 2], ['rune_altar', 2], ['rune_lorekeeping', 2], // Coffers 5 → 4, Altar 1 → 3 (balance 9/23); Coffers 3, Altar 2, Lorekeeping 2 (owner 2026-10-23: was 4 / 3 / 3)
     ['rune_thrift', 2], ['rune_engraving', 2], ['rune_wheel', 3], ['rune_flagship', 3], ['rune_brew', 3], // Flagship 3 → 4 (balance 9/23); owner 2026-10-23: was 3 / 3 / 4 / 4 / 4
-    ['rune_underdog', 3], ['rune_top_hat', 4], ['rune_evolution', 2], ['rune_transcription', 3], // Top Hat 3 → 6 (balance 9/23); owner 2026-10-23: was 4 / 6 / 3 / 4
+    ['rune_underdog', 3], ['rune_top_hat', 6], ['rune_evolution', 2], ['rune_transcription', 3], // Top Hat 3 → 6 (balance 9/23; owner 2026-10-23 kept it at 6); owner 2026-10-23: was 4 / 6 / 3 / 4
     ['rune_treasure_map', 2], ['rune_golden_splinter', 2], // Treasure Map 2 → 3 (balance 9/23); owner 2026-10-23: was 3 / 3
   ];
   it('all present, all Basic, at the sheet costs', () => {

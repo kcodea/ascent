@@ -217,7 +217,6 @@ export const PATCH_NOTES: PatchNote[] = [
           'Summit: 5 to 4',
           'Unbroken Vein: 5 to 4',
           'Warden: 5 to 4',
-          'Top Hat: 6 to 4',
           'Epic runes:',
           'Ancient Den: 4 to 3',
           'Astral Draft: 4 to 3',

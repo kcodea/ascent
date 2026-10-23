@@ -631,7 +631,7 @@ export const RUNES: RuneDef[] = [
   {
     id: 'rune_top_hat',
     name: 'Top Hat',
-    cost: 4, // owner 2026-10-23 -2 (was 6); balance 9/23 (was 3)
+    cost: 6, // owner 2026-10-23: kept at 6 ("put top hat back to 6 cost"); balance 9/23 (was 3)
     text: 'Get **two random minions** each from **Tiers 1, 2, and 3**.',
     reward: { kind: 'multi', rewards: [
       { kind: 'grant', randomTier: 1, randomCount: 2 },

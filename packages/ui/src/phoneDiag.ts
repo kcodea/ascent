@@ -12,8 +12,10 @@
  *    The menus stop their looping animations after one cycle (touchUi.css, keyed off `html[data-phone-gpu]`). And on
  *    the menus the stage is shrunk with CSS `zoom` instead of `transform: scale()` (stage.ts `setStageMenuZoom`):
  *    WebKit pays a layer inside a transformed stage at its full stage size times 3x3, while a zoomed stage lays its
- *    layers out at their on-screen size. Measured layout matches within 1-2 px. Hero select and the run keep the
- *    transform (their drag and FX maths measure the screen, and Safari's zoom geometry is not proven there yet).
+ *    layers out at their on-screen size. Measured layout matches within 1-2 px. Hero select, the gate and the run zoom
+ *    too (R-TOUCH-RUN-MEMORY-01, 2026-10-22) when the browser passes the zoom-geometry probe (`zoomGeometryIsStandard`
+ *    in stage.ts: their drag and FX maths measure the screen, so they need zoomed rects reported the standard way);
+ *    otherwise they keep the transform.
  *
  * 2. THE DIAGNOSTICS SWITCHES. We can only test on the owner's phone, through the crash log. A Home Screen web app
  *    cannot be given a query string and keeps its own storage (separate from Safari's), so the switches are toggles in
@@ -22,8 +24,10 @@
  *      nofx    no WebGL FX canvases at all (the game plays with no Pixi effects)
  *      res1    every Pixi canvas at resolution 1 (CSS px), not 1.5
  *      noanim  no animations or transitions at all on the menus (not just the loops)
- *      zoom    the stage is shrunk with CSS `zoom` in games too, not only on the menus (see below)
+ *      zoom    the stage is shrunk with CSS `zoom` in games even when the geometry probe says not to (see stage.ts)
  *      nozoom  the menus go back to `transform: scale()` (the old way), to bisect the menu zoom
+ *      gamexf  hero select, the gate and the run go back to `transform: scale()` (R-TOUCH-RUN-MEMORY-01 zooms them
+ *              by default on a phone whose browser reports zoomed geometry the standard way)
  *      litebd  no painted menu backdrop (a flat dark ground)
  *    `?phonediag=nofx,res1` (in Safari, or any browser) sets them too; `?phonediag=0` clears them.
  */
@@ -32,13 +36,14 @@ import { LITE_ART } from './phoneArt';
 
 export const PHONE_DIAG_KEY = 'ascent.phonediag.v1';
 
-export type PhoneDiagFlag = 'nofx' | 'res1' | 'noanim' | 'zoom' | 'nozoom' | 'litebd';
+export type PhoneDiagFlag = 'nofx' | 'res1' | 'noanim' | 'zoom' | 'nozoom' | 'gamexf' | 'litebd';
 export const PHONE_DIAG_FLAGS: ReadonlyArray<{ id: PhoneDiagFlag; label: string; hint: string }> = [
   { id: 'nofx', label: 'No effect canvases', hint: 'No WebGL effects at all.' },
   { id: 'res1', label: 'Effects at resolution 1', hint: 'Sharper effects off, less GPU memory.' },
   { id: 'noanim', label: 'No menu animations', hint: 'Menus stand still.' },
-  { id: 'zoom', label: 'Flat stage everywhere', hint: 'Zoom the stage in games too, not only on the menus.' },
+  { id: 'zoom', label: 'Flat stage everywhere', hint: 'Zoom the stage in games even if this browser fails the zoom check.' },
   { id: 'nozoom', label: 'Old stage on menus', hint: 'Scale the menus by transform, as before.' },
+  { id: 'gamexf', label: 'Old stage in games', hint: 'Scale hero select and games by transform, as before.' },
   { id: 'litebd', label: 'Lite menu backdrop', hint: 'No painted backdrop on the menus.' },
 ];
 export type PhoneDiagFlags = Partial<Record<PhoneDiagFlag, 1>>;

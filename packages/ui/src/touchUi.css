@@ -169,3 +169,27 @@ html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *::after {
   transition-duration: 0s !important; transition-delay: 0s !important;
 }
 html[data-touch-ui][data-pd-litebd] .mbd-lite { background: #0a1220; }
+
+/* ── Phone run start: fewer full-screen layers from hero select to the first shop (owner 2026-10-22, "I still can't
+   even play it because of the crashing", R-TOUCH-RUN-MEMORY-01) ────────────────────────────────────────────────────
+   Hero select and the run keep the stage `transform` (their drag and FX maths read the screen, and Safari's geometry
+   under CSS zoom is not the standard one), so every composited layer inside the stage is paid at its full stage size
+   times 3x3: about 87 MB for a full-screen one. `npm run perf:phone-run` measured up to five of them at once on the way
+   into a game. Same look on a phone, fewer layers; desktop never matches (`data-phone-gpu` is LITE_ART only).
+     1. The falling gate (`.wipecurtain`, R-PRESENT-35) hides while it is PARKED above the screen (idle, armed, or
+        parked after the combat crank). It sat there as an 87 MB layer (plus its 26 MB poster) through every shop and
+        every fight. It shows the moment it starts to fall (visibility is not transitioned, so it flips at once, while
+        the gate is still off the top of the screen) and through the crank.
+     2. The hero ceremony's one-shot entrances (scrim, accent glow, ring, flash, name plate, Start Game) are filled
+        `backwards` with their end state as the element's own style: same frames, and the layer goes when each ends.
+        Filled `forwards` they held a full-screen 87 MB scrim layer (and the glow's 42 MB) until the run began.
+     3. While the launch curtain is fully opaque (`data-launch-covered`, HeroLaunchCurtain), the hero select under it
+        stops painting: it can not be seen, and it held four layers (~270 MB) through the "Finding opponents" wait. */
+html[data-touch-ui][data-phone-gpu] .wipecurtain:not(.full):not(.gone),
+html[data-touch-ui][data-phone-gpu] .wipecurtain.gone.parked { visibility: hidden; }
+html[data-touch-ui][data-phone-gpu] .hsc-scrim { opacity: 1; animation-name: hscFadeInFrom; animation-fill-mode: backwards; }
+html[data-touch-ui][data-phone-gpu] .hsc-glow { opacity: 1; transform: scale(1); animation-name: hscGlowInFrom; animation-fill-mode: backwards; }
+html[data-touch-ui][data-phone-gpu] .hsc-ring { opacity: 1; animation-fill-mode: backwards; }
+html[data-touch-ui][data-phone-gpu] .hsc-flash { animation-fill-mode: backwards; }
+html[data-touch-ui][data-phone-gpu] :is(.hsc-plate, .hsc-name, .hsc-power, .hsc-start) { opacity: 1; animation-fill-mode: backwards; }
+html[data-touch-ui][data-phone-gpu][data-launch-covered] .heroselect { visibility: hidden; }

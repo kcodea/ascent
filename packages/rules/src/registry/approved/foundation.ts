@@ -7150,6 +7150,30 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/crashReport.test.ts', 'packages/ui/src/crashReportDesktop.test.ts', 'packages/ui/src/crashReports.db.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-TOUCH-RUN-MEMORY-01',
+    title: 'A phone keeps hero select, the gate and the run free of full-stage layers',
+    statement:
+      'On a phone (the lite art path), when the browser reports element geometry under CSS zoom the standard way (a '
+      + 'one-time probe), hero select, the ranked gate and the run shrink the stage with CSS zoom instead of a transform, '
+      + 'as the menus already do, so no composited layer costs its full stage size at the screen density. The Settings '
+      + 'switch "Old stage in games" puts them back on the transform. On every phone, transform or zoom: the falling gate '
+      + 'is hidden while parked above the screen and shows the moment it falls; the hero ceremony entrances let go of their '
+      + 'layers when they finish; the hero select stops painting while the launch curtain fully covers it. Same look and '
+      + 'same input. Desktop is unchanged: none of these paths runs there.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-22 (iPhone, the page crashes at Play / hero pick after #2151, #2158, #2160, #2163, #2166)', quote: "I still can't even play it because of the crashing" },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (zoomedStage, zoomGeometryIsStandard); phoneDiag.ts (gamexf); touchUi.css; hero-select/HeroLaunchCurtain.tsx (setLaunchCovered); hero-select/heroCeremony.css; scripts/phone-run-memory.mjs (npm run perf:phone-run)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-22 (fix/phone-play-crash). Before, hero select and the run kept the stage transform, and the '
+      + 'iOS layer model peaked at 651 MB on the way into a game (five full-stage layers at about 87 MB each during the '
+      + 'launch curtain), with 87 MB of parked falling gate held through every shop and fight.',
+    example: 'iPhone landscape 852x393 @3x, prod build, peak iOS estimate title to the first fight: 651 MB before, 227 MB after; hero select 272 to 110 MB; first shop 553 to 198 MB.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneRunMemory.test.ts', 'packages/ui/src/phoneGpuMemory.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:

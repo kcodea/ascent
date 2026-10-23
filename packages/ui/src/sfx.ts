@@ -630,7 +630,10 @@ type WipeGateCue = 'drop' | 'impact' | 'crank';
  * rises out of the burst; the spell starts with the dive 0.45 s in, fades up over 0.2 s, and fades out over 0.6 s as the
  * Shop comes up.
  */
-type VistaTripCue = 'arrive' | 'portal' | 'dive';
+/* - title: RETURNING / TO SHOP springing out (owner 2026-10-23: "lets add a subtle woosh sound to the return to shop text
+ *            springing out", his clip): its first 0.1 s skipped so its peak (0.4 s in) lands with the title's fullest
+ *            swell (0.3 s after it starts growing), cut at 1 s with a soft fade (the file is 4.5 s, near-silent after 1.2). */
+type VistaTripCue = 'arrive' | 'portal' | 'dive' | 'title';
 const VISTA_TRIP_LAYERS: Record<VistaTripCue, readonly WipeLayer[]> = {
   arrive: [{ clip: 'ceremony/woosh2', category: 'vistawhoosh' }, { clip: 'equipmentsheen', category: 'vistashimmer', delay: 0.2 }],
   // (The rune-select implosion played here first; its heavy thud was swapped for the glow chime, owner 2026-10-23: "there a
@@ -639,6 +642,7 @@ const VISTA_TRIP_LAYERS: Record<VistaTripCue, readonly WipeLayer[]> = {
     { clip: 'fx/alexis_gaming_cam-woosh-long-cartoon-370386', category: 'vistawoosh', offset: 0.25 }],
   dive: [{ clip: 'fx/djartmusic-christmas-sparkle-whoosh-1-275404', category: 'vistasparkle', offset: 1.1, duration: 0.9, fadeMs: 250 },
     { clip: 'fx/soumages-magic-spell-333896', category: 'vistaspell', offset: 0.45, duration: 1.5, fadeInMs: 200, fadeMs: 600 }],
+  title: [{ clip: 'fx/stereogenicstudio-swish-swoosh-woosh-sfx-39-357160', category: 'vistatitle', offset: 0.1, duration: 1, fadeMs: 300 }],
 };
 const WIPE_GATE_LAYERS: Record<WipeGateCue, readonly WipeLayer[]> = {
   drop: [{ clip: 'wipedrop' }],
@@ -2217,6 +2221,7 @@ const SFX_PREVIEW: Record<string, () => void> = {
   vistaportal: () => playWipeLayer(VISTA_TRIP_LAYERS.portal[0]!), vistadive: () => playWipeLayer(VISTA_TRIP_LAYERS.portal[1]!),
   vistasparkle: () => playWipeLayer(VISTA_TRIP_LAYERS.dive[0]!),
   vistawoosh: () => playWipeLayer(VISTA_TRIP_LAYERS.portal[2]!), vistaspell: () => playWipeLayer(VISTA_TRIP_LAYERS.dive[1]!),
+  vistatitle: () => playWipeLayer(VISTA_TRIP_LAYERS.title[0]!),
   wipedrop: () => sfx.wipeGate('drop'), wipethudwood: () => playWipeLayer(WIPE_GATE_LAYERS.impact[0]!), wipethudground: () => playWipeLayer(WIPE_GATE_LAYERS.impact[1]!),
   wipethudheavy: () => playWipeLayer(WIPE_GATE_LAYERS.impact[2]!), wipethudgrit: () => playWipeLayer(WIPE_GATE_LAYERS.impact[3]!), wipeposter: () => playWipeLayer(WIPE_GATE_LAYERS.impact[4]!),
   wipecrank: () => playWipeLayer(WIPE_GATE_LAYERS.crank[0]!), wipegears: () => playWipeLayer(WIPE_GATE_LAYERS.crank[1]!), wipegroan: () => playWipeLayer(WIPE_GATE_LAYERS.crank[2]!), wipegateopen: () => playWipeLayer(WIPE_GATE_LAYERS.crank[3]!),

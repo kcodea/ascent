@@ -2447,12 +2447,14 @@ export function Recruit() {
     if (wipe === 'coverOut') sfx.vistaTrip('arrive');
     else if (wipe === 'revealOut') sfx.vistaTrip('dive');
     if (wipe !== 'coveredOut') return undefined;
+    // The title's woosh, as it starts to grow in (its CSS entrance waits 0.2 s into the hold: `vistatitlepop`).
+    const tw = window.setTimeout(() => sfx.vistaTrip('title'), 200);
     const charge = 160;
     const t = window.setTimeout(() => {
       sfx.vistaTrip('portal');
       if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
     }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
-    return () => window.clearTimeout(t);
+    return () => { window.clearTimeout(t); window.clearTimeout(tw); };
   }, [wipe]);
   useEffect(() => {
     // The gate's sounds and dust belong to the ENTRY pass only: the return trip is the vista (owner 2026-10-23).

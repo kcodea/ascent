@@ -553,6 +553,8 @@ function renderFrame(i: number): void {
   eotPhase = 'idle';       // …and any recorded End of Turn belongs to the step that just ended
   stepArmedAtReal = null;
   if (frames[i]?.kind === 'combat') combatShownAtReal = performance.now();
+  // A fight rendered while paused (a seek) holds at its start until play resumes.
+  combatFrozenMs = !playing && frames[i]?.kind === 'combat' ? frames[i]!.tMs : null;
   ghostLandPending = false; // any render supersedes an in-flight ghost (frameResets clears the layer too)
   ghostFlightStartedAtReal = null;
   releaseGhostHold(); // …and the held card returns — in its NEW slot, since the landing frame renders now
@@ -665,6 +667,9 @@ function markStepProgress(): void {
  *  on top of it (owner report 2026-08-19: "ending combat seems a bit fast" was accurate - playback advanced
  *  500ms after the arena finished, discarding the recorded watch/settle time). */
 let combatShownAtReal = 0;
+/** The replay clock held while a COMBAT frame is paused (null: running). The fight's clock runs from
+ *  `combatShownAtReal` at the replay speed (R-SPECTATE-COMBATCURSOR-01: the recorded hand plays through the fight). */
+let combatFrozenMs: number | null = null;
 /** True while a ghost is flying and its frame has NOT landed yet — a pause mid-ghost lands the frame
  *  immediately (the ghost dissolves with it), so the paused world is never stuck one frame behind. */
 let ghostLandPending = false;
@@ -686,8 +691,15 @@ export function replayClockMs(): number {
     const dur = drag?.durMs ?? 0;
     return Math.min(f.tMs, f.tMs - dur + Math.max(0, performance.now() - ghostFlightStartedAtReal) * speed);
   }
-  const live = stepArmedAtReal !== null ? Math.max(0, performance.now() - stepArmedAtReal) * speedAtArm : 0;
   const next = frames[idx + 1];
+  if (f.kind === 'combat') {
+    // A FIGHT runs on its own clock (no step is armed while the arena plays): the recorded hand and emotes of the fight
+    // play along it, capped at the next frame (R-SPECTATE-COMBATCURSOR-01). Held while paused.
+    if (combatFrozenMs !== null) return combatFrozenMs;
+    const t = f.tMs + Math.max(0, performance.now() - combatShownAtReal) * speed;
+    return next ? Math.min(t, next.tMs) : t;
+  }
+  const live = stepArmedAtReal !== null ? Math.max(0, performance.now() - stepArmedAtReal) * speedAtArm : 0;
   const t = f.tMs + stepElapsedSourceMs + live;
   return next ? Math.min(t, next.tMs) : t;
 }
@@ -865,7 +877,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
   playing = true;
   token += 1;
   // The recorded spectator stream (2026-10-22): played through the watch screen's pipeline on this replay's clock.
-  streamOn = startStreamPlayback(replay.stream, replayClockMs, () => speed, () => frames[idx]?.kind === 'shop', () => sounds);
+  streamOn = startStreamPlayback(replay.stream, replayClockMs, () => speed, () => sounds);
   authorName = meta?.authorName ?? replay.author;
   // A recording that doesn't reach back to round 1 advertises its RANGE, so the rail can say what it has
   // instead of letting the viewer infer that rounds were dropped. Derived from the marks rather than trusted
@@ -895,6 +907,7 @@ export function startReplay(replay: ReplayV2, meta?: { authorName?: string }): v
 
 export function pauseReplay(): void {
   if (!snapshot) return;
+  if (playing && frames[idx]?.kind === 'combat' && combatFrozenMs === null) combatFrozenMs = replayClockMs();
   playing = false;
   markStepProgress(); // bank the in-flight step so resume continues it rather than restarting it
   clearPending();
@@ -910,14 +923,26 @@ export function resumeReplay(): void {
   const session = useGame.getState().replaySession;
   if (session?.ended) return; // finished — seek somewhere to rewind, exit to leave
   playing = true;
+  // A fight paused mid-way resumes its clock where it was held.
+  rebaseCombatClock(combatFrozenMs, speed);
   patchSession({ playing: true });
   scheduleNext(token);
+}
+
+/** Re-anchor a combat frame's clock so it reads `at` now and runs at `atSpeed` (a resume, a speed change). */
+function rebaseCombatClock(at: number | null, atSpeed: number): void {
+  const f = frames[idx];
+  if (at === null || !f || f.kind !== 'combat') { combatFrozenMs = null; return; }
+  combatShownAtReal = performance.now() - Math.max(0, at - f.tMs) / Math.max(0.01, atSpeed);
+  combatFrozenMs = null;
 }
 
 export function setReplaySpeed(v: number): void {
   if (!snapshot) return;
   markStepProgress(); // bank at the OLD speed first - the ledger converts real elapsed to source elapsed
-  speed = Math.max(0.5, Math.min(5, v)); // owner ruling 2026-08-19: the replay speed range is 0.5–5×
+  const combatAt = frames[idx]?.kind === 'combat' && playing ? replayClockMs() : null;
+  speed = Math.max(0.5, Math.min(5, v));
+  if (combatAt !== null) rebaseCombatClock(combatAt, speed); // a fight keeps its place on the clock // owner ruling 2026-08-19: the replay speed range is 0.5–5×
   patchSession({ speed });
   // Re-arm the current step at the new speed (a full step, not the remainder — a simplification that costs
   // at most one step of drift, invisible against the clamped pacing). A speed change mid-ghost lands the

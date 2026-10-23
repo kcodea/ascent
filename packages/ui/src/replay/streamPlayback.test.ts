@@ -126,7 +126,7 @@ describe('R-REPLAY-PLAYBACK-01: a stream replay plays through the spectator pipe
     const enc = newStreamEncoder(2, 1000);
     encodeStreamMessage(enc, msg(1000, 0.5), 1000);
     encodeStreamEvent(enc, 1700, EV_SKIP);
-    expect(rs.startStreamPlayback({ v: 1, segs: [sealStreamSegment(enc)] }, () => 1000, () => 1, () => false)).toBe(true);
+    expect(rs.startStreamPlayback({ v: 1, segs: [sealStreamSegment(enc)] }, () => 1000, () => 1)).toBe(true);
     rs.streamFightShown(2, 1000, 9000);
     vi.advanceTimersByTime(650);
     expect(rs.useReplayStream.getState().skip).toBeNull();

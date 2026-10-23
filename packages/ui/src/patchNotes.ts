@@ -58,6 +58,16 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-22',
     changes: [
+      {
+        category: 'Systems',
+        text: "Spectators now see the player's emotes and their cursor during combat. Replays show them too.",
+        details: [
+          "Watching a ranked game live, the player's emote pops from their portrait, in the shop and in combat.",
+          "Versus spectators see both players' emotes.",
+          "The player's cursor stays visible through the fight, and hovering a minion opens its preview for the watchers.",
+          "New replays show the emotes and the combat cursor at the moment they happened. Older replays play as before.",
+        ],
+      },
       { category: 'Balance', text: 'Picksy and Prismatic Pick now say "Discover 2 special Rubies". Same effect: the plain Ruby was never offered.' },
       {
         category: 'Balance',

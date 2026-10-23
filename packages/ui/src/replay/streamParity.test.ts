@@ -6,7 +6,7 @@
  * one builder (`versus/cursorSource.ts`). Driven with the same inputs (pointer moves over anchored and plain UI, a card
  * picked up with its drop gap, a committed drop, a refused drop, an aim line, an idle hide), every message the stands
  * received comes back out of the recorded stream exactly, minus the seat and the legacy window fractions. Also pinned:
- * one segment per round, nothing recorded outside the shop or when the run records no replay, the overlay and Skip
+ * one segment per round (the fight included since 2026-10-22), nothing recorded when the run records no replay, the overlay and Skip
  * events, and a resume splicing restored rounds in front on the clock.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -153,12 +153,12 @@ describe('R-REPLAY-STREAM-01: the recorder stores exactly what the live sender s
 });
 
 describe('R-REPLAY-STREAM-01: what the recorder keeps', () => {
-  it('one segment per round; nothing outside the shop or when the run records no replay', () => {
+  it('one segment per round, the fight included (R-SPECTATE-COMBATCURSOR-01); nothing when the run records no replay', () => {
     capture();
     vi.advanceTimersByTime(tap.CURSOR_TICK_MS); // the join's first message (the hand's state at once)
     move(document.body, 100, 100);
     vi.advanceTimersByTime(tap.CURSOR_TICK_MS);
-    round = { wave: 3, shop: false }; // the fight
+    round = { wave: 3, shop: false }; // the fight: recorded too since 2026-10-22
     move(document.body, 200, 100);
     vi.advanceTimersByTime(tap.CURSOR_TICK_MS);
     round = { wave: 4, shop: true };
@@ -168,7 +168,7 @@ describe('R-REPLAY-STREAM-01: what the recorder keeps', () => {
     move(document.body, 400, 100);
     vi.advanceTimersByTime(tap.CURSOR_TICK_MS);
     const segs = takeStreamSegments();
-    expect(segs.map((g) => [g.w, g.n])).toEqual([[3, 2], [4, 1]]);
+    expect(segs.map((g) => [g.w, g.n])).toEqual([[3, 3], [4, 1]]);
   });
 
   it('records the overlay minimize state and the fight\'s Skip as events, through the tap', () => {

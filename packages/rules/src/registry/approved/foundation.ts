@@ -7774,6 +7774,51 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/replay/streamPlayback.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-SPECTATE-EMOTE-02',
+    title: 'Spectators see the watched player\'s emotes, live, where the player sees them',
+    statement:
+      'Every emote a player says reaches everyone watching them, at once, in the shop and in combat. A live ranked game forwards the player\'s own emote on its spectate channel while at least one person watches (nothing is sent with nobody watching); in Versus both players\'s emotes already travel on the room channel. A spectator shows the WATCHED player\'s emote on that player\'s hero portrait (where the player sees their own) and, in Versus, the other player\'s beside the opponent. A seated Versus player still shows only the opponent\'s emote on the foe. The speaker\'s own bubble shows exactly once (no echo from the channel). A spectator ignores a malformed message and a second emote from the same seat inside the cooldown (the channel is a public broadcast).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (spectator emotes)', quote: 'spectators arent seeing when a player emotes, i think only the player sees the emotes. please fix this.' },
+      { kind: 'code', ref: 'packages/ui/src/emotes/emoteTransport.ts (subscribeSentEmotes); live/livePublisher.ts; live/liveWatch.ts; versus/versusEmotes.ts (receiveWatchedEmote); versus/versusStore.ts' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, a live ranked game used the local emote loopback (nothing left the player\'s client), and a Versus spectator dropped the emotes of both players because it holds no seat.',
+    example: 'Claudebot2 watches Claudebot1\'s ranked game. Claudebot1 says an emote mid-fight; the same bubble rises from Claudebot1\'s portrait on Claudebot2\'s screen.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEmotesCursor.test.ts', 'packages/ui/src/versus/versusEmotes.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-SPECTATE-COMBATCURSOR-01',
+    title: 'Spectators and replays see the player\'s hand during combat too',
+    statement:
+      'The watched player\'s cursor is drawn during combat as well as the shop: on the live watch screen, for Versus spectators and in a replay. It travels the same way as in the shop (the same messages and sample rate, anchored to the unit under it when there is one, else the game box) and its hover opens the same unit preview. A replay records the hand through the fight and plays it on the replay clock, which runs through a fight frame (held while paused, re-anchored on a speed change). No card is ever held in a fight. The player\'s own frames carry no new per-frame work.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (spectator combat cursor)', quote: 'i dont think spectators can see player mouse behavior in combat (or emotes) which would be nice to see.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/SpectatorCursor.tsx; replay/streamRecorder.ts; replay/replayStreamPlayer.ts; replay/replayPlayer.ts (replayClockMs); Recruit.tsx startStreamCapture' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, the player sent the cursor in combat but the spectator overlay drew nothing while the run was in combat, and the replay recorder and player skipped it.',
+    example: 'The player points at an enemy minion during a fight; the spectator sees the gauntlet on that same minion and its preview opens.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEmotesCursor.test.ts', 'packages/ui/src/replay/replayViewer.test.ts', 'packages/ui/src/replay/streamParity.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
+    id: 'R-REPLAY-EMOTE-01',
+    title: 'A replay shows the emotes the player saw, at the moment they popped',
+    statement:
+      'While a run records its spectator stream (R-REPLAY-STREAM-01), every emote shown on the player\'s screen (their own, and those of the seats they faced) is recorded on the replay clock with its seat. A replay shows each one through the game\'s emote seam when its clock reaches it, from the same portrait. One the clock jumped past (a seek) is never popped late; seeking back before it plays it again. A spectator\'s chip emote is not recorded. A replay recorded before this has no emotes and plays as before; an older build ignores the field.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-22 (spectator emotes)', quote: 'spectators arent seeing when a player emotes, i think only the player sees the emotes. please fix this.' },
+      { kind: 'code', ref: 'packages/sim/src/replayStream.ts (StreamSegment.em, encodeStreamEmote, decodeStreamEmotes); packages/ui/src/replay/streamRecorder.ts; replay/replayStreamPlayer.ts; emotes/EmoteLayer.tsx' },
+    ],
+    currentBehaviour: 'Since 2026-10-22. Before, a replay showed no emotes at all.',
+    example: 'A replay of round 6: 4.2 s into the shop the player\'s emote bubble rises from their portrait, as it did live.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEmotesCursor.test.ts'], lastVerifiedAt: '2026-10-22' },
+  },
+  {
     id: 'R-SKIP-TURBO-01',
     title: 'Skip fast-forwards the fight and slows back down for the hit that decides it',
     statement:

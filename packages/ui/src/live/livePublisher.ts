@@ -19,6 +19,9 @@ import { SPECTATE_KEY_EVENT } from '../versus/spectate';
 import { SPECTATE_BYE_EVENT } from '../versus/spectateTap';
 import { anonymousWatchers, setWatchers as setWatcherList } from '../versus/watchers';
 import { receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT } from '../versus/spectatorEmotes';
+import { subscribeSentEmotes } from '../emotes/emoteTransport';
+import { PLAYER_SEAT } from '../emotes/emoteRuntime';
+import { VERSUS_EMOTE_EVENT, type VersusEmoteMessage } from '../versus/versusEmotes';
 import { liveRemote, type LiveRemote } from './liveRemote';
 
 export const LIVE_HEARTBEAT_MS = 15_000;
@@ -45,6 +48,8 @@ interface Live {
   keyWanted: boolean;
   /** The last heartbeat a watcher's arrival asked for (throttled). */
   askedAt: number;
+  /** Stops forwarding my emotes to the stands (set only while someone watches). */
+  emotesOff: (() => void) | null;
 }
 let live: Live | null = null;
 let remote: LiveRemote = liveRemote;
@@ -103,6 +108,14 @@ function setWatchers(l: Live, n: number): void {
     l.pub = newPublisher('p1');
     l.keyWanted = true;
     setSpectatorTap(true, 'p1', l.channel.send, () => frames.schedule(undefined), () => frames.flush());
+    // MY EMOTES REACH THE STANDS (owner 2026-10-22: "spectators arent seeing when a player emotes";
+    // R-SPECTATE-EMOTE-02): each one I say goes out at once on the game's channel, the Versus wire message as seat
+    // `p1`. Only while watched; the channel never echoes to me (`self: false`), so my own bubble still shows once.
+    const ch = l.channel;
+    l.emotesOff = subscribeSentEmotes((m) => {
+      if (live !== l || !l.pub || m.seat !== PLAYER_SEAT) return;
+      ch.send(VERSUS_EMOTE_EVENT, { emoteId: m.emoteId, seat: 'p1', phase: m.phase, offsetMs: Math.round(m.offsetMs), round: m.round } satisfies VersusEmoteMessage);
+    });
     frames.schedule(undefined);
   } else if (n === 0 && l.pub) {
     stopPublishing(l);
@@ -115,6 +128,8 @@ function setWatchers(l: Live, n: number): void {
 /** Stop publishing (nobody watching any more): the channel stays joined, listening for the next watcher. */
 function stopPublishing(l: Live): void {
   setSpectatorTap(false, null, null);
+  l.emotesOff?.();
+  l.emotesOff = null;
   l.pub = null;
   l.fightSent = null;
 }
@@ -147,7 +162,7 @@ const frames = createDeferredWriter<undefined>(() => {
 
 function start(run: RunState): void {
   const gameId = rankedRunIdOf(run);
-  const l: Live = { gameId, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, askedAt: 0 };
+  const l: Live = { gameId, watchers: 0, timer: null, lastKey: '', pub: null, channel: null, fightSent: null, keyWanted: false, askedAt: 0, emotesOff: null };
   live = l;
   l.timer = window.setInterval(beat, LIVE_HEARTBEAT_MS);
   l.channel = remote.channel(gameId, (event, payload) => onBroadcast(l, event, payload)); // listening only, until someone watches

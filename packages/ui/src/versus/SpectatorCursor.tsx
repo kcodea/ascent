@@ -213,8 +213,11 @@ export function SpectatorCursor(): JSX.Element | null {
     return () => { window.clearTimeout(t); anim.cancel(); };
   }, [springUid]);
 
-  if (inCombat || flying) return null; // in a fight there is nothing to point at; a flight's fist IS the hand
-  const card = shown && !(aimOn && shown.mode === 'held') ? shown : null;
+  // IN A FIGHT TOO (owner 2026-10-22: "i dont think spectators can see player mouse behavior in combat ... which would be
+  // nice to see"; R-SPECTATE-COMBATCURSOR-01): the hand is drawn over the arena, anchored to the same unit when it is
+  // over one, and its hover opens the same unit preview. No card is ever held in a fight. A flight's fist IS the hand.
+  if (flying) return null;
+  const card = shown && !inCombat && !(aimOn && shown.mode === 'held') ? shown : null;
   const view = card ? heldCardView(useGame.getState().run, card.uid, card.cardId) : undefined;
   return (
     <div className="replay-dragghost vsspec-cursor" aria-hidden="true" style={{ opacity: visible || card ? 1 : 0 }}>

@@ -7,6 +7,11 @@
  * recorded emote is delivered by the replay scheduler (`deliverEmote`, never sent anywhere). A Versus build swaps in a
  * transport whose `send` also broadcasts the `EmoteMessage` on a Realtime channel and whose incoming messages call
  * `deliverEmote`, and nothing else in the game changes.
+ *
+ * WHO ELSE HEARS WHAT YOU SAY (owner 2026-10-22: "spectators arent seeing when a player emotes, i think only the player
+ * sees the emotes"; R-SPECTATE-EMOTE-02). `subscribeSentEmotes` hears every emote THIS player says, whatever transport is
+ * installed: the live ranked game's publisher forwards it to the stands while someone watches. It is told once per
+ * emote and never delivers anything locally, so the speaker's own bubble still comes back exactly once (the transport).
  */
 import type { EmoteMessage } from '@game/sim';
 
@@ -44,7 +49,18 @@ export function setEmoteTransport(next: EmoteTransport | null): void {
   transport = next ?? LOCAL_EMOTE_TRANSPORT;
 }
 
+const sentListeners = new Set<Listener>();
+
+/** Hear every emote this player SAYS (not ones delivered from elsewhere). Returns the unsubscribe. */
+export function subscribeSentEmotes(fn: Listener): () => void {
+  sentListeners.add(fn);
+  return () => { sentListeners.delete(fn); };
+}
+
 /** Say an emote through the installed transport. */
 export function sendEmote(message: EmoteMessage): void {
   transport.send(message);
+  for (const fn of [...sentListeners]) {
+    try { fn(message); } catch { /* a listener must never break the sender */ }
+  }
 }

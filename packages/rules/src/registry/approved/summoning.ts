@@ -247,6 +247,7 @@ export const SUMMONING_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ask, 2026-10-23', quote: 'build an animation for when a minion is summoned from hand' },
       { kind: 'owner-chat', ref: 'Owner refinement, 2026-10-23', quote: 'it should land and have a small pulse or some sort or something. nothing over the top' },
       { kind: 'owner-chat', ref: 'Owner decision, 2026-10-23', quote: 'use the lift and land animation, but smooth it out and make it overall less clunky and way more seamless' },
+      { kind: 'owner-chat', ref: 'Owner sign-off, 2026-10-23', quote: 'hand summon animation looks good to me' },
       { kind: 'code', ref: 'packages/ui/src/handSummonFx.ts (combatHandSummonOrigins, shopHandSummonFlights, launchHandSummonFlights); useCombatReplay.ts + Recruit.tsx layout effects' },
     ],
     contentIds: ['sp3_seedling', 'sp3_dreamtide', 'rune_waking_reserve'],

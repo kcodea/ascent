@@ -12,6 +12,9 @@ reviewed on 5173:
 5. Owner: "use the lift and land animation, but smooth it out and make it overall less clunky and way more
    seamless." Lift and land is now THE animation. The fly and spirit code was dropped.
 
+The owner signed off on round 5: "hand summon animation looks good to me". The shipped DEFAULTS in
+`handSummonConfig.ts` are the values that round ran with on 5173.
+
 ## The motion (handSummonFx.ts)
 
 It is one continuous movement, with overlapping phases instead of chained ones.

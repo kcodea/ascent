@@ -179,6 +179,8 @@ export const CARRY_OVER_EXCUSED: Readonly<Record<string, CarryOverExcuse>> = {
   nextSellBonus: { kind: 'no-combat-meaning', why: 'Quick Sale\'s next-sell Gold bonus; sells are shop actions' },
   spellCostOffTurn: { kind: 'no-combat-meaning', why: 'Arcane Clearance\'s this-turn spell discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
   minionCostOffTurn: { kind: 'no-combat-meaning', why: 'Friends and Family\'s this-turn minion discount; costs are shop-only (R-TURN-01 conform: nothing in the combat half of the turn can pay a cost)' },
+  edictCharges: { kind: 'no-combat-meaning', why: 'the Royal Edict "next 3 spells cast from hand this turn" charges (Vellum, 2026-10-23); only a hand cast in the shop spends one, a fight never casts from hand, and the turn rollover clears them' },
+  edictExtra: { kind: 'no-combat-meaning', why: 'the extra casts per Royal Edict charge (paired with edictCharges); read only by shop hand casts' },
   sellBonusWindow: { kind: 'no-combat-meaning', why: 'Thymepiece\'s 8-second sell-bonus window (a shop sell price on the turn clock, closed by faceOmen before the fight is built); selling is shop-only' },
   shopClockExpired: { kind: 'no-combat-meaning', why: 'the recruit clock hit 0:00 (R-TIMER-LOCK-01): it only refuses Shop player actions, and faceOmen clears it before the fight is built' },
   tavernBuyBonusTurn: { kind: 'no-combat-meaning', why: 'Merchant\'s Chorus\' this-turn SHOP-offer buff; enchants offers, not the fought board' },

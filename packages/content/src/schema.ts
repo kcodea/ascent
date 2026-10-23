@@ -116,6 +116,7 @@ export const EffectFactoryIdSchema = z.enum([
   'spellCastEveryNBuffTribe',
   'rallyGrantFirstSpellCopy',
   'equipmentExtraNextSpellCasts',
+  'equipmentRoyalEdict', // Vellum's Royal Edict (Set 3 T7, 2026-10-23): spell power + next-N-hand-spells extra-cast charges
   'battlecryCreateStarformOrBuff',
   'onBuyBuffStarform', 'goldSpentCreateStarformOrBuff',
   'buffThisShop',
@@ -561,6 +562,7 @@ export const EffectFactoryIdSchema = z.enum([
   'deathrattleBuffHandTribe', // R-HAND-02 (2026-09-09): buff hand minions of a tribe — permanent in both phases
   // Set 3 Undead (2026-09-09)
   'onRiseBuffSelfWard', 'onRiseBuffBoardAndHand', 'overflowBuffAllPermanent', 'deathrattleBuffRandomTribe',
+  'overflowGrowUndeadAura', // Ending (Set 3 T7, 2026-10-23): overflow → your Undead Aura +a/+h (both phases)
   'overflowBuffRandomTribePerPlayed', // Bicycle Bob (2026-09-18): overflow → a random other <tribe> +(a·(1+played))/+(h·(1+played)), permanent
   // Set 3 batch 2, tranche B (2026-09-16) — rune grafts
   'onRiseSelfSummonToken', 'deathrattleEquipmentFreeNextTurn',

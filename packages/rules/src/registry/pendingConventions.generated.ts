@@ -282,16 +282,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-grant",
-    "title": "'grant' family · 17 cards",
-    "statement": "All 17 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'grant' family · 18 cards",
+    "statement": "All 18 'grant' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "1 effect factories across 17 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Cometius: \"Equip Comet (3): your next spell cast from hand casts 2 additional times.\" · Members: Cometius · Lens Grinder · Shush · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Picksy · Calibration Master · Highway Hustler · … and 5 more",
+    "currentBehaviour": "1 effect factories across 18 cards dispatch through the 'grant' presentation family, all on the single trigger 'equip' (recruit); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Cometius: \"Equip Comet (3): your next spell cast from hand casts 2 additional times.\" · Members: Cometius · Lens Grinder · Shush · Vellum · Pourman · Thymes · Alchemist Frank · Titan Sculptor · Blast Surveyor · Kaura L'roft · Picksy · Calibration Master · … and 6 more",
     "example": "Cometius follows the 'grant' convention — its trigger fires on equip. its printed numbers double when the card is gilded.",
     "contentIds": [
       "ce3_artificer",
       "ce3_lensgrinder",
       "d3_shush",
+      "d3_vellum",
       "dw3_pourman",
       "dw3_thymes",
       "e3_frank",
@@ -913,7 +914,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "403 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "405 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },
@@ -2400,16 +2401,17 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-trigger-overflow",
-    "title": "Trigger: a summon overflows a full board · 4 cards",
-    "statement": "All 4 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "Trigger: a summon overflows a full board · 5 cards",
+    "statement": "All 5 of these fire on one trigger: a summon overflows a full board. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "4 effect factories across 4 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Flowing Monk: \"Overflow: Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Bicycle Bob · Squatimus",
+    "currentBehaviour": "5 effect factories across 5 cards dispatch on 'summonOverflow' (both) — re-clustered by TRIGGER out of the 'react' presentation family on the owner's 2026-08-28 ruling; the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Flowing Monk: \"Overflow: Engrave 2 friendly minions +2/+2. Improves by +2/+2 every 5 overflows.\" · Members: Flowing Monk · Cratering Hulk · Bicycle Bob · Ending · Squatimus",
     "example": "Flowing Monk fires when a summon overflows a full board, like every other card here. its printed numbers double when the card is gilded.",
     "contentIds": [
       "monk",
       "thunderingabomination",
       "u3_bicyclebob",
+      "u3_ending",
       "u3_squatimus"
     ]
   },

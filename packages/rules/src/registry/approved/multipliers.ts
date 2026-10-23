@@ -211,4 +211,27 @@ export const MULTIPLIERS_RULES: GameRule[] = [
       lastVerifiedAt: '2026-09-24',
     },
   },
+  {
+    id: 'R-EQUIP-EDICT-01',
+    title: 'Vellum equips Royal Edict: (2) Gold, Shop spells +2/+2, and each of your next 3 spells cast from hand this turn casts an additional time',
+    statement:
+      'Vellum (Set 3 Dragon, T7 12/8) equips Royal Edict, whose "(2)" is its Gold cost (one use per turn like every '
+      + 'Equipment). A use raises the run spell power (`spellBonus`, the Adeptus / Spell Generator channel) by +2/+2, then '
+      + 'arms 3 edict charges: each of the next 3 spells cast FROM HAND this turn casts 1 additional time (ADDED, like '
+      + 'Comet / Nimbus; one charge spent per hand cast, at exactly the cast sites that spend the Comet charge: Shop '
+      + 'spells, Rubies, aimed multicast Gifts and Whispers). Rune, hero, minion and EQUIPMENT casts are not from hand and never read or spend a charge. '
+      + 'Unspent charges expire at the turn boundary. A second trigger (Amplified) adds 3 more charges. Gilded: +4/+4 '
+      + 'and 2 additional times per charge, still 3 spells.',
+    domain: 'multipliers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23 (Vellum)', quote: 'Equip Royal Edict (2): Improve your Shop spells by +2/+2. Your next 3 spells cast from hand this turn cast an additional time.' },
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-10-23 (Vellum readings)', quote: 'correct, equipment casts are also not from hand' },
+      { kind: 'owner-chat', ref: 'Owner rulings 2026-10-23 (Gilded Vellum: +4/+4 and 2 extra casts per spell, still 3 spells)', quote: 'first is correct' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts equipmentRoyalEdict / nextSpellExtra / spendNextSpellCharge; packages/content/src/equipment.ts ROYAL_EDICT; packages/sim/src/reducer.ts the turn-boundary clear' },
+    ],
+    contentIds: ['d3_vellum'],
+    currentBehaviour: 'Conforms as of 2026-10-23 (all readings owner-confirmed 2026-10-23: from-hand scope, turn expiry, Gilded, Amplified stacking).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3T7VellumEnding.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

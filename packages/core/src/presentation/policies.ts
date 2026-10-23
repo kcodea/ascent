@@ -361,6 +361,7 @@ export const PRESENTATION_POLICIES: Record<string, PresentationPolicyEntry> = {
   'factory:orbitSellValue:orbit': { policy: 'ownBeat', family: 'orbit' },
   'factory:overflowBuffRandom:summonOverflow': { policy: 'foldedCue', family: 'react' },
   'factory:overflowBuffAllPermanent:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Squatimus (set 3)
+  'factory:overflowGrowUndeadAura:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Ending (set 3 T7, 2026-10-23)
   'factory:overflowBuffRandomTribePerPlayed:summonOverflow': { policy: 'foldedCue', family: 'react' }, // Bicycle Bob (set 3, 2026-09-18)
   'factory:onRiseBuffSelfWard:onRise': { policy: 'foldedCue', family: 'react' }, // Revenant (set 3)
   'factory:onLoseWardOnceBuffSelfRegain:onLoseDivineShield': { policy: 'foldedCue', family: 'react' }, // Foamguard (set 3, 2026-10-21)

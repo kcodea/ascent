@@ -305,4 +305,19 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     token: true,
     text: '',
   },
+  {
+    // VELLUM (owner 2026-10-23), T7 Summit Dragon 12/8: "Equip Royal Edict (2): Improve your Shop spells by +2/+2. Your
+    // next 3 spells cast from hand this turn cast an additional time." The Equip convention (Alchemist Frank / Shush):
+    // the card names its Equipment by id; "(2)" is the Gold cost. Both halves live on `ROYAL_EDICT`.
+    id: 'd3_vellum',
+    name: 'Vellum',
+    tribe: 'dragon',
+    tier: 7,
+    attack: 12,
+    health: 8,
+    keywords: [],
+    effects: [{ on: 'equip', do: 'grantEquipment', params: { equipmentId: 'royal_edict' } }],
+    text: '**Equip Royal Edict (2):** Improve your **Shop spells** by **+2/+2**. Your next **3** spells cast from hand this turn cast an additional time.',
+    goldenText: '**Equip Royal Edict (2):** Improve your **Shop spells** by **+4/+4**. Your next **3** spells cast from hand this turn cast **2** additional times.',
+  },
 ];

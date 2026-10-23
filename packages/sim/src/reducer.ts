@@ -39,7 +39,7 @@ import { godRuneBlocked } from './godMode';
 import { buyStarform, fireStarformGainRemainder, starformFollowShopBuff, starformRefreshTick, starformSnapshot, starformSoulScriptBake, starformSpellAimsToken, starformStandIn, withStarformPinned, buffStarform, createStarform, hasStarform } from './starform';
 import { syncStarDestroyer, overchargeFree, consumeCalibration, equipmentPermanentlyAmplified, equipmentAmplifiedByAura, quickReleaseApplies, grantRuneEquipment, equipIsNews } from './equipment';
 import { fireOnBuyWatchers, tribesPlayedThisTurn, fireHandCardEcho, syncSoulFurnace, GEM_STAR_CAP, syncUnity, isTribeNatural, syncRunTribes, stampRunTribes } from './recruit';
-import { withWhisperMult } from './recruit';
+import { withWhisperMult, spendNextSpellCharge } from './recruit';
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
@@ -1928,7 +1928,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           const spellCastsN = def.singleCast ? 1 : spellCasts(s, def, card);
           withHandCast(def.id, () => { for (let n = 0; n < spellCastsN; n++) { queueDiscover(s, { kind: 'spell' }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
           noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
-          if (!def.singleCast) s.nextSpellExtraCasts = undefined;
+          if (!def.singleCast) spendNextSpellCharge(s);
           if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
           if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true;
           if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id)) s.sharedPourUsedThisTurn = true;
@@ -1961,7 +1961,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // cast, so a multiplied Discover counts each time, exactly like a multiplied ordinary spell.
         withHandCast(def.id, () => { for (let n = 0; n < casts; n++) { queueDiscover(s, { ...spec }); noteSpellCast(s, def); } }); // a cast FROM HAND (the from-hand gate)
         noteHandCastPlay(s, def); // the from-hand meters (Secret Exchange / Wyrm's Hoard): one per card played
-        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+        if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
@@ -1986,7 +1986,7 @@ function reduceCore(state: RunState, action: Action): RunState {
         // below so the next cast of either kind is single.
         // Shared with the UI's ×N badge (`rubyCastCount`), so the number shown and the number resolved can't drift.
         const casts = rubyCastCount(s);
-        s.nextSpellExtraCasts = undefined; // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
+        spendNextSpellCharge(s); // Comet / Nimbus "next spell" charge spent on this Ruby (folded into `casts`, owner 2026-09-18)
         // Warding Ruby: its keyword rider (Ward = DS) rides EVERY landing through `fireOnRubyPlayed` — the direct
         // target, the Redirection tail, and every bounce off it — granted only to a KOBOLD (owner spec 2026-07-31:
         // "give it Ward if it is a Kobold"; the stat half lands on anyone). It used to be a trailing grant on the
@@ -2174,7 +2174,7 @@ function reduceCore(state: RunState, action: Action): RunState {
               castWhisperFromHand(s, def, whisperTarget);
             }
           }, card.grantedTier); // Hatcher's Whisper: the tier its copy was stamped with
-          if (def.giftMulticast && whisperTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into the count)
+          if (def.giftMulticast && whisperTarget) spendNextSpellCharge(s); // Comet / Nimbus charge spent (folded into the count)
           clearVoicesOnHandCast(s, def); // Rune of Clear Voices (Set 3 Dragon runes): a distinct Whisper cast from hand
           noteHandCastPlay(s, def); // Rune of the Secret Exchange: one Whisper cast from hand (a Yazzus repeat is not another)
           checkTriples(s);
@@ -2193,7 +2193,7 @@ function reduceCore(state: RunState, action: Action): RunState {
             // a minion" — owner: "works with all spells, rubies, clues etc". Per cast, like the Shop-spell path.
             if (giftTarget) applyLorekeeping(s, giftTarget);
           }
-          if (def.giftMulticast && giftTarget) s.nextSpellExtraCasts = undefined; // Comet / Nimbus charge spent (folded into `giftCasts`)
+          if (def.giftMulticast && giftTarget) spendNextSpellCharge(s); // Comet / Nimbus charge spent (folded into `giftCasts`)
           s.hand.splice(i, 1);
           s.playedThisTurn = [...(s.playedThisTurn ?? []), card.cardId];
           withHandCast(def.id, () => noteSpellCast(s, def)); // counts as a spell CAST from hand (but never as a Shop spell — see the flag's doc)
@@ -2275,7 +2275,7 @@ function reduceCore(state: RunState, action: Action): RunState {
           if (spellFizzles(s, def)) return state;
           withHandCast(def.id, () => castWithRuneRepeats(casts, runeExtraCasts(s, def, card), () => castSpell(s, def, undefined))); // untargeted run spell (Growth, Ember Pouch), cast from hand
         }
-        if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent on this cast (already folded into `casts`)
+        if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent on this cast (already folded into `casts`)
         if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
         if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
         if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
@@ -4076,7 +4076,7 @@ function resolveChooseOneSpell(
     if (offer) castSpellOnOffer(s, synthetic, offer);
     else castSpell(s, synthetic, target);
   }));
-  if (!def.singleCast) s.nextSpellExtraCasts = undefined; // Nimbus charge spent (already folded into `casts`)
+  if (!def.singleCast) spendNextSpellCharge(s); // Nimbus charge spent (already folded into `casts`)
   if (!def.gift) s.nextSpellBonus = undefined; // Starpath Vendor's next-Shop-spell bonus spent
   if (!def.singleCast && s.spellFirstDoubleEachTurn) s.spellFirstUsedThisTurn = true; // Spell Thesis freebie spent
   if (!def.singleCast && s.runeSharedPour && ALE_IDS.includes(def.id) && !s.sharedPourUsedThisTurn) procRuneId(s, 'rune_shared_pour');
@@ -5752,6 +5752,7 @@ function advanceCombat(s: RunState): void {
   s.gorrBuys = undefined; // Gorr: the per-turn minion-buy tally resets
   s.freeBuyUsedThisTurn = false; // Freedom rift: the first minion each turn is free again
   s.spellFirstUsedThisTurn = false; // Spell Thesis: "first spell each turn casts twice" resets each turn
+  s.edictCharges = undefined; s.edictExtra = undefined; // Royal Edict: "your next 3 spells ... this turn" never outlives the turn
   // Choose-One BOTH charges are per-turn — cleared here, then Forked Crown's start-of-turn effect (below in
   // the same advance) re-grants its own. Clearing FIRST is what makes "the first Choose One each turn" true
   // rather than letting an unspent charge accumulate.

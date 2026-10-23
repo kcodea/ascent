@@ -4145,7 +4145,7 @@ export function Recruit() {
       return handViewCache.current;
     }),
     // `handStatOverride` is a per-render closure over `eotAnimStats` + `combatHandBuffs`; both are listed below.
-    [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts],
+    [run.hand, run.tier, eotAnimStats, combatHandBuffs, spellBonus, spellBonusH, run.spellsThisTurn, run.deathrattlesTriggered, run.undeadAttackBonus, run.undeadHealthBonus, ftbBonus, run.wave, run.spellsCast, run.cardBuffs, run.fodderConsumedThisTurn, live, run.board, run.nextSpellExtraCasts, run.edictCharges, run.edictExtra],
   );
   // The hand row's views: a dissipating Whisper the commit already removed keeps the view it last showed.
   const handRowViews = useMemo(() => {

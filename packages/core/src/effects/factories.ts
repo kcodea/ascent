@@ -2466,6 +2466,13 @@ export const FACTORIES: Partial<Record<EffectFactoryId, EffectFn>> = {
     ARENA_EFFECTS.overflowBuffAllPermanent(combatArena(ctx, self), params);
   },
 
+  /** Ending — `summonOverflow` (this side's summon found no room): the side's Undead Aura +a/+h, carried back. */
+  overflowGrowUndeadAura: (ctx, self, params, payload) => {
+    const { side } = payload as { side: Side };
+    if (self.dead || side !== self.side) return;
+    ARENA_EFFECTS.overflowGrowUndeadAura(combatArena(ctx, self), params);
+  },
+
   /** Bicycle Bob — `summonOverflow` (this side's summon found no room): a random OTHER friendly <tribe> gains the
    *  printed buff × (1 + <tribe> played this turn), carried back. One body in arena.ts serves both phases. */
   overflowBuffRandomTribePerPlayed: (ctx, self, params, payload) => {

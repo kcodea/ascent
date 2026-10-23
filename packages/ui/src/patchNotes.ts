@@ -60,6 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       { category: 'Systems', text: 'Minion Book: the tribe filters show each tribe name in its colour, with no icon.' },
       { category: 'Systems', text: 'Emotes now have an 8 second cooldown (was 20).' },
+      { category: 'Systems', text: 'Renamed two cosmetics: the Mushy Pee skin is now Mushy River, and the Sexy Darah emote is now Darahling.' },
       {
         category: 'Systems',
         text: "Spectators now see the player's emotes and their cursor during combat. Replays show them too.",

@@ -94,7 +94,7 @@ describe('the Heroes and Minions tabs', () => {
       // the Fatecarver skin (2026-10-10)
       'Astral Fatecarver',
       // skins batch 10 (2026-10-21)
-      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy Pee', 'Cosmic Mushy', 'Gilded Kennelmaster', 'Jensen & Fi Sky',
+      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy River', 'Cosmic Mushy', 'Gilded Kennelmaster', 'Jensen & Fi Sky',
     ].sort());
     const owned = tile('Sheriff Brian');
     expect(owned.className).toMatch(/\bskin\b/);
@@ -172,7 +172,7 @@ describe('the kill switch in the Collection (retired = hidden, owned or not; res
       'Sketchbook Brian', 'Crowd Surf Drakko', 'Lounge Act Joker', 'Storm Front Nimbus', 'Superfan Paragon', 'Stencil Sylus', 'Blown Glass Recaller', 'Crimson Chimerus',
       'Epic Baal', 'Smog Nimbus', 'Lightblade Sword', 'Mascot Scalefeather', 'Mime Joker', 'Quartet Chorusdrake', 'Star Urchin',
       'Sea Dragon Wayfinder', 'Timeworn Spellsword', 'Frost Commander', 'Canyon Drake', 'Thunderchorus Drake', 'Astral Fatecarver',
-      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy Pee',
+      'Anvilshade', 'Liberty Voss', 'Metal Rachel', 'Mushy River',
       'Joyride Jensen & Fi', 'Potion Stand Steward', 'Double Agent Zyff', 'Beefy Arnold', 'Starform Recaller', 'Bouncer Pimm', 'Mecha Scalefeather', 'Lavish Date',
       'Soul Surf Wayfinder', 'Hexhunter Wardkeeper', 'Amber Deepvein', 'Static Deepvein', 'Frost Wardkeeper', 'Infernal Wayfinder',
     ]);

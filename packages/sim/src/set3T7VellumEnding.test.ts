@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { combatSide, makeRng, simulate, type BoardMinion } from '@game/core';
 import { CARD_INDEX, EQUIPMENT_INDEX, poolFor } from '@game/content';
 import { createRun, reduce, type Action, type BoardCard, type RunState } from './index';
-import { fireSummonOverflow, spellCasts } from './recruit';
+import { castSpell, castsOutsideHand, fireSummonOverflow, spellCasts } from './recruit';
 
 /**
  * SET 3 T7 SUMMIT — the owner's 2026-10-23 pair:
@@ -59,6 +59,14 @@ describe('R-EQUIP-EDICT-01: Royal Edict improves Shop spells and arms 3 extra-ca
       expect(s.spellsCast - before, `spell ${i} resolved`).toBe(want);
     }
     expect(s.edictCharges ?? 0).toBe(0);
+  });
+
+  it('an EQUIPMENT cast is not from hand (owner 2026-10-23): it casts once and leaves every charge armed', () => {
+    const s = armed();
+    const charges = s.edictCharges;
+    expect(castsOutsideHand(s, CARD_INDEX['rubyblast']!), 'a non-hand cast resolves once').toBe(1);
+    castSpell(s, CARD_INDEX['rubyblast']!); // the cast an Equipment Spell (Blast Pump) makes via equipmentCastSpell
+    expect(s.edictCharges).toBe(charges);
   });
 
   it('Gilded: +4/+4 and each of the next 3 spells casts 2 additional times', () => {

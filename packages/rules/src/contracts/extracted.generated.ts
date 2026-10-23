@@ -38161,7 +38161,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     ],
     "tags": [
       "runeforge:basic",
-      "cost:4"
+      "cost:6"
     ],
     "effects": [
       {

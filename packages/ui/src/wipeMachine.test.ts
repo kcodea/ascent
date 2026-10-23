@@ -162,7 +162,7 @@ describe('the return trip is the vista, not the gate', () => {
 
   it('moves by opacity and transform only', () => {
     // (…and the portal: the doorway's interior fading open, owner 2026-10-23.)
-    for (const k of ['vistaflash', 'vistacut', 'vistapullback', 'vistarisefar', 'vistarisemid', 'vistariseshop', 'vistarisefore', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+    for (const k of ['vistaflash', 'vistacut', 'vistapullback', 'vistarisefar', 'vistarisemid', 'vistariseshop', 'vistarisefore', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistadoordark', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       // (`translate` is the individual transform property: compositor-only like `transform`.)
       expect(frames, k).toMatch(/transform|translate|opacity/);

@@ -557,8 +557,16 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes vistadive { 0% { transform: scale(1); } 100% { transform: scale(18); } }
 .wipevista.dive .wipevista-doorfill { animation: vistadooropen var(--wipe-reveal-dur, 450ms) both; }
 /* It waits, then fades a little slower (owner 2026-10-23: "have the masks fade wait a bit and fade slightly slower", then
-   "wait slightly longer still"): held to 25% of the dive, gone by 65%. */
-@keyframes vistadooropen { 0% { opacity: 1; } 25% { opacity: 1; animation-timing-function: ease-in-out; } 65% { opacity: 0; } 100% { opacity: 0; } }
+   "wait slightly longer still"): held to 30% of the dive, gone by 65%. */
+@keyframes vistadooropen { 0% { opacity: 1; } 30% { opacity: 1; animation-timing-function: ease-in-out; } 65% { opacity: 0; } 100% { opacity: 0; } }
+/* THE DOORWAY DARKENS (owner 2026-10-23: "as the zoom begins, can we have the inside of the doorway also darken? then as
+   its dark, it fades to the darkened board that lightens up as it goes through"): the SAME veil as the Shop's dusk (its
+   colour, at its 0.78), cut to the door's shape, darkens the painted interior over the dive's first 28%. It lives INSIDE
+   the interior, so the two fade out as one: a darkened doorway crossfading into an equally darkened Shop. Opacity only. */
+.wipevista-doordark { position: absolute; inset: 0; background: #04060c; opacity: 0; will-change: opacity;
+  -webkit-mask: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; mask: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; }
+.wipevista.dive .wipevista-doordark { animation: vistadoordark var(--wipe-reveal-dur, 450ms) both; }
+@keyframes vistadoordark { 0% { opacity: 0; animation-timing-function: ease-out; } 28% { opacity: 0.78; } 100% { opacity: 0.78; } }
 /* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
    The stage zooms 18x (the house, its doorway and the hole through everything behind it, which must stay locked to the
    doorway). Each layer behind the house sits in a WRAPPER that scales it back down, so its NET zoom is slower: sky 2.5x,
@@ -595,7 +603,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 @keyframes vistarisemid { 0% { translate: 0 64%; } 100% { translate: 0 0; } }
 @keyframes vistariseshop { 0% { translate: 0 80%; } 100% { translate: 0 0; } }
 @keyframes vistarisefore { 0% { translate: 0 40%; } 100% { translate: 0 0; } }
-.wipevista.dive .wipevista-dive-sky { animation: vistadivesky var(--wipe-reveal-dur, 450ms) linear both; }
+.wipevista.dive .wipevista-dive-sky, .wipevista.dive .wipevista-dive-title { animation: vistadivesky var(--wipe-reveal-dur, 450ms) linear both; }
 .wipevista.dive .wipevista-dive-far { animation: vistadivefar var(--wipe-reveal-dur, 450ms) linear both; }
 .wipevista.dive .wipevista-dive-mid { animation: vistadivemid var(--wipe-reveal-dur, 450ms) linear both; }
 .wipevista.dive .wipevista-dive-fore { animation: vistadivefore var(--wipe-reveal-dur, 450ms) linear both; }
@@ -628,7 +636,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the open door starts in shadow and brightens to full as you fly through. Opacity only. */
 .wipevista-dusk { position: absolute; inset: 0; background: #04060c; opacity: 0; pointer-events: none; will-change: opacity; }
 .wipevista.dive .wipevista-dusk { animation: vistadusk var(--wipe-reveal-dur, 450ms) both; }
-@keyframes vistadusk { 0% { opacity: 0.78; } 25% { opacity: 0.72; animation-timing-function: ease-in-out; } 100% { opacity: 0; } }
+@keyframes vistadusk { 0% { opacity: 0.78; } 35% { opacity: 0.74; animation-timing-function: ease-in-out; } 100% { opacity: 0; } }
+/* The title's own sky-motion box (it rides the sky's push and dive, just behind the shop). */
+.wipevista-titlebox { position: absolute; inset: 0; transform-origin: 47.7% 83%; will-change: transform; }
 .wipevista-layer { position: absolute; inset: 0; background: 50% 50% / 100% 100% no-repeat; transform-origin: 47.7% 83%; will-change: transform; }
 /* The sky carries the vista's fallback colour (for a slow image load) ON ITS OWN LAYER, inside the masked group, so the door
    hole cuts through it too: a backing colour behind the group showed through the open door as plain blue instead of the
@@ -643,7 +653,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista.on .wipevista-masked { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
 /* The door's interior and glow rise WITH the shop (same rise, same moment), then push with it. */
 .wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
-.wipevista.on .wipevista-sky { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-sky, .wipevista.on .wipevista-titlebox { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-far { animation: vistapushfar 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-mid { animation: vistapushmid 2s cubic-bezier(.25, .6, .35, 1) both; }
 .wipevista.on .wipevista-fore { animation: vistapushfore 2s cubic-bezier(.25, .6, .35, 1) both; }
@@ -660,8 +670,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
   white-space: nowrap; font-size: calc(64 * var(--u, 1px)); line-height: 1.15; }
 /* …in the MAGIC GLOW lettering (owner 2026-10-23, mock-up C: "lets do C magic glow"): heavy Cinzel, white, lit from
    within by the gem's turquoise, no black outline. Out-specifies `.wipevs-label`, whose 38u size had been winning. */
-.wipevista .wipevista-title { top: 13%; font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
-  font-size: calc(108 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
+.wipevista .wipevista-title { top: 15.5%; font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
+  font-size: calc(98 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
   text-shadow: 0 0 calc(6 * var(--u, 1px)) #9ff7ef, 0 0 calc(18 * var(--u, 1px)) #36cfd6, 0 0 calc(40 * var(--u, 1px)) rgba(54, 207, 214, 0.8),
     0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(10, 40, 80, 0.5); }
 /* THE POP (owner 2026-10-23: "have it grow and pop out and spring back into place with a little settle. have this happen

@@ -8283,14 +8283,20 @@ export function Recruit() {
               starts, so the dive flies through an open door onto the real Shop. The flowers stay in front of it all. */}
           <div className="wipevista-masked">
             {/* The layers behind the house each sit in a dive wrapper that slows their zoom (parallax in the dive). */}
+            {/* RETURNING TO SHOP sits just BEHIND the shop (owner 2026-10-23: "put it behind the shop layer, so the shop
+                roof may clip over it slightly"), moving with the sky (`.wipevista-dive-title` / `.wipevista-titlebox`). */}
             {VISTA_LAYERS.filter((n) => n !== 'fore').map((n) => n === 'shop'
-              ? <div key={n} className="wipevista-layer wipevista-shop" />
+              ? <Fragment key={n}>
+                <div className="wipevista-dive wipevista-dive-title"><div className="wipevista-titlebox">
+                  <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
+                </div></div>
+                <div className="wipevista-layer wipevista-shop" />
+              </Fragment>
               : <div key={n} className={`wipevista-dive wipevista-dive-${n}`}><div className={`wipevista-layer wipevista-${n}`} /></div>)}
             <div className="wipevista-layer wipevista-flat" />
           </div>
-          <div className="wipevista-doorwrap"><div className="wipevista-doorfill" /><div className="wipevista-doorglow" /></div>
+          <div className="wipevista-doorwrap"><div className="wipevista-doorfill"><div className="wipevista-doordark" /></div><div className="wipevista-doorglow" /></div>
           <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
-          <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>
         {/* The flash that hides the cut from the fight into the sky (`.wipevista-flash`). */}
         <div className="wipevista-flash" />

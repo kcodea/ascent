@@ -51,6 +51,9 @@ const DUST_TINTS = [0x9a9388, 0x7d776d, 0xb3aa9a, 0x625c55, 0x8c8172] as const;
 const EMBER_TINTS = [0xd6f0ff, 0xa8dcff, 0x7fc4ff, 0x4fa8ff, 0x3f8cff] as const;
 /** The sparks the forming crystal pulls in: white-hot, with the crystal's own blues among them. */
 const HOT_TINTS = [0xffffff, 0xffffff, 0xeaf6ff, 0xbfe4ff, 0x7fc4ff] as const;
+/** How hard the portal's round motes are thrown, against their first throw (owner 2026-10-23: "have them launch out 30
+ *  percent further"). The air's drag is linear, so the distance they carry scales with it. */
+const MOTE_THROW = 1.3;
 /** The return trip's portal (the turquoise gem over the shop door): white-hot and turquoise, a touch of violet and gold. */
 const PORTAL_TINTS = [0xffffff, 0xe6fffb, 0xa8f6ee, 0x5fe8dc, 0x36cfd6, 0xc9a2ff, 0xffe08a] as const;
 /** How much of everything there is: 1 = the first cut, 1.2 = the owner's "+20%" (2026-10-12). Particles only. */
@@ -438,8 +441,9 @@ class GateFxController {
         });
       }
       // THE BURST: sparks thrown straight out from the gem in every direction. Short-lived since the owner asked for
-      // them to "fade way faster" (2026-10-23): under half their first life, and a steeper fade.
-      for (let i = 0, n = amount(140); i < n; i++) {
+      // them to "fade way faster" (2026-10-23): under half their first life, and a steeper fade. Fewer of these long
+      // streaks since "lets remove some of the longer sparks, add more of the circular sparks" (140 -> 80).
+      for (let i = 0, n = amount(80); i < n; i++) {
         const a = Math.random() * Math.PI * 2;
         const speed = (420 + Math.random() * 1200) * k;
         let vx = Math.cos(a) * speed, vy = Math.sin(a) * speed;
@@ -458,11 +462,12 @@ class GateFxController {
           p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
         });
       }
-      // THE ENERGY: glowing motes flung out from the gem, flickering out fast (a third of their first life).
-      for (let i = 0, n = amount(70); i < n; i++) {
+      // THE ENERGY: glowing motes flung out from the gem, flickering out fast (a third of their first life). More of
+      // them (70 -> 120) and thrown 30% further (owner 2026-10-23: "have them launch out 30 percent further").
+      for (let i = 0, n = amount(120); i < n; i++) {
         const a = Math.random() * Math.PI * 2;
         this.ember(gem.x + Math.cos(a) * r, gem.y + Math.sin(a) * r, k, chargeMs + Math.random() * 120, {
-          throwX: Math.cos(a) * (220 + Math.random() * 420), throwY: Math.sin(a) * (200 + Math.random() * 380), drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
+          throwX: Math.cos(a) * (220 + Math.random() * 420) * MOTE_THROW, throwY: Math.sin(a) * (200 + Math.random() * 380) * MOTE_THROW, drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
         });
       }
     });
@@ -486,8 +491,8 @@ class GateFxController {
         if (u < 2 * W + H) return { x: u - W - H, y: H, nx: 0, ny: -1 };
         return { x: 0, y: u - 2 * W - H, nx: 1, ny: 0 };
       };
-      // Sparks, thrown in off the edge with a little spread either way.
-      for (let i = 0, n = amount(160); i < n; i++) {
+      // Sparks, thrown in off the edge with a little spread either way (fewer long streaks, like the gem's: 160 -> 90).
+      for (let i = 0, n = amount(90); i < n; i++) {
         const e = onEdge();
         const ang = Math.atan2(e.ny, e.nx) + (Math.random() - 0.5) * 1.3;
         const speed = (380 + Math.random() * 1000) * k;
@@ -507,11 +512,11 @@ class GateFxController {
           p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
         });
       }
-      // The fluttery motes, flung in off the edge and flickering out.
-      for (let i = 0, n = amount(110); i < n; i++) {
+      // The fluttery motes, flung in off the edge and flickering out (more of them, 110 -> 180, and 30% further).
+      for (let i = 0, n = amount(180); i < n; i++) {
         const e = onEdge();
         const ang = Math.atan2(e.ny, e.nx) + (Math.random() - 0.5) * 1.1;
-        const push = 220 + Math.random() * 460;
+        const push = (220 + Math.random() * 460) * MOTE_THROW;
         this.ember(e.x, e.y, k, Math.random() * 120, {
           throwX: Math.cos(ang) * push, throwY: Math.sin(ang) * push, drag: 0.8, glow: 1.4, life: 0.25, fade: 2,
         });

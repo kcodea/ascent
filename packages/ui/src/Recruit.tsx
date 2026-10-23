@@ -270,8 +270,9 @@ const GodModePanel = lazy(() => import('./godMode/GodModePanel').then((m) => ({ 
  *  multi-cast Golden Ruby pays several times in one action. */
 const GOLDEN_RUBY_COIN_DELAY_MS = 180;
 const GOLDEN_RUBY_COIN_GAP_MS = 220;
-/** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23, six parallax layers). */
-const VISTA_LAYERS = ['sky', 'far', 'islands', 'mid', 'shop', 'fore'] as const;
+/** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
+ *  "lets actually not use the floating islands layer", so five). */
+const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
 
 /** The bodies a DARK RUBY made eat this action (owner Ruby batch 2026-09-24) — their consume is sequenced after
  *  the first gem (see the `shopEaten` watcher and `holdFodderGains`). */
@@ -8234,7 +8235,7 @@ export function Recruit() {
         <div className="wipevista-stage">
           {VISTA_LAYERS.map((n) => <div key={n} className={`wipevista-layer wipevista-${n}`} />)}
           <div className="wipevista-layer wipevista-flat" />
-          <div className="wipevista-title wipevs-label">Returning to Shop</div>
+          <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,

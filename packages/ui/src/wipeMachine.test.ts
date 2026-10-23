@@ -134,7 +134,7 @@ describe('the return trip is the vista, not the gate', () => {
   });
 
   it('moves by opacity and transform only', () => {
-    for (const k of ['vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushislands', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+    for (const k of ['vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       expect(frames, k).toMatch(/transform|opacity/);
       expect(frames.replace(/(transform|opacity|animation-timing-function): [^;]*;/g, ''), k).not.toMatch(/:\s*[^;{}]+;/);

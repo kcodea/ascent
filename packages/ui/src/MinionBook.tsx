@@ -370,6 +370,8 @@ export function MinionBook() {
   // is "related" to a tribe when its `tribes` gate names it (the gate exists exactly where the text names a
   // tribe — ruling 2026-09-16). No button lit = every rune.
   const [runeTribes, setRuneTribes] = useState<Set<Tribe>>(() => new Set());
+  // RUNES TAB forge filter (owner ask 2026-10-23): Basic / Epic pills; none lit = both. ANDs with the tribe pills.
+  const [runeForges, setRuneForges] = useState<Set<'basic' | 'epic'>>(() => new Set());
   // GUIDES TAB tribe filter (owner ask 2026-10-09), the Runes tab's pills: no pill lit (or "All") = every guide.
   const [guideTribes, setGuideTribes] = useState<Set<Tribe>>(() => new Set());
   // The lit pills as a list, for the Guides tab's Community list (it asks the server with them).
@@ -449,8 +451,13 @@ export function MinionBook() {
     // Set-scoped (owner ask 2026-09-18): only the runes the SHOWN set's Runeforge can offer — a rune with no `sets`
     // is offered everywhere; otherwise its scope must name this set.
     const setOk = (r: { sets?: readonly string[] }): boolean => !r.sets || r.sets.includes(setId);
-    return [...[...RUNES].sort((a, b) => a.name.localeCompare(b.name)), ...[...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name))].filter((r) => setOk(r) && match(r) && tribeOk(r));
-  }, [searchQ, runeTribes, setId]);
+    const basic = runeForges.size === 0 || runeForges.has('basic');
+    const epic = runeForges.size === 0 || runeForges.has('epic');
+    return [
+      ...(basic ? [...RUNES].sort((a, b) => a.name.localeCompare(b.name)) : []),
+      ...(epic ? [...EPIC_RUNES].sort((a, b) => a.name.localeCompare(b.name)) : []),
+    ].filter((r) => setOk(r) && match(r) && tribeOk(r));
+  }, [searchQ, runeTribes, runeForges, setId]);
 
   // The Compendium SUBSCRIBES to the guides store (unlike the rail's snapshot), and refreshes it when the tab opens.
   const guideList = useGuides((s) => s.list);
@@ -837,6 +844,20 @@ export function MinionBook() {
                     aria-label={t === 'neutral' ? 'Runes with no tribe' : `Runes that name ${CAT_META[t].label}`}
                   >
                     <span>{CAT_META[t].label}</span>
+                  </button>
+                ))}
+                {/* BASIC / EPIC (owner ask 2026-10-23): which forge the rune comes from. ANDs with the tribe pills. */}
+                <span className="book-chart-cap book-runeforge-cap">forge</span>
+                {(['basic', 'epic'] as const).map((f) => (
+                  <button
+                    key={f}
+                    className={`book-runetribe book-runeforge${runeForges.has(f) ? ' on' : ''}`}
+                    style={{ '--c': f === 'epic' ? '#b078e6' : 'var(--ui-title)' } as CSSProperties}
+                    onClick={() => setRuneForges((prev) => { const next = new Set(prev); if (next.has(f)) next.delete(f); else next.add(f); return next; })}
+                    aria-pressed={runeForges.has(f)}
+                    aria-label={f === 'epic' ? 'Epic runes' : 'Basic runes'}
+                  >
+                    <span>{f === 'epic' ? 'Epic' : 'Basic'}</span>
                   </button>
                 ))}
               </div>

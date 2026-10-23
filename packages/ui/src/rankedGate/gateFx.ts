@@ -466,43 +466,6 @@ class GateFxController {
     });
   }
 
-  /**
-   * THE EDGE BURST (owner 2026-10-23: "have both sides of the player's screen pulse and flash with light and sparks as the
-   * pieces come in"): as a piece of the return trip's vista flies in from one side, sparks spray in off that edge of the
-   * screen, mostly inward, with a few glowing motes, as if it burst through. `side` is the edge it flies in from.
-   */
-  edgeSparks(side: 'left' | 'right'): void {
-    this.run(() => {
-      const k = Math.max(0.5, window.innerHeight / 1080);
-      const H = window.innerHeight, x0 = side === 'left' ? 0 : window.innerWidth, dir = side === 'left' ? 1 : -1;
-      for (let i = 0, n = amount(46); i < n; i++) {
-        const y = Math.random() * H;
-        const a = (Math.random() - 0.5) * 1.3; // a fan, mostly straight in
-        const speed = (500 + Math.random() * 1100) * k;
-        let vx = Math.cos(a) * speed * dir, vy = Math.sin(a) * speed;
-        const delay = Math.random() * 50;
-        const len = 0.6 + Math.random() * 0.9;
-        this.spawn(this.sparkTex!, x0, y, pick(PORTAL_TINTS), delay + 280 + Math.random() * 420, true, (p, dt) => {
-          if (p.age < delay) return;
-          const s = dt / 1000;
-          vx *= 1 - 2.4 * s;
-          vy = vy * (1 - 2.4 * s) + 260 * k * s;
-          p.sp.x += vx * s;
-          p.sp.y += vy * s;
-          p.sp.rotation = Math.atan2(vy, vx);
-          const t = (p.age - delay) / (p.life - delay);
-          p.sp.alpha = (1 - t) * (1 - t);
-          p.sp.scale.set(len * k * (1 - t * 0.5), k * (1 - t * 0.4));
-        });
-      }
-      for (let i = 0, n = amount(14); i < n; i++) {
-        this.ember(x0 + dir * Math.random() * 30 * k, Math.random() * H, k, Math.random() * 80, {
-          throwX: dir * (260 + Math.random() * 380), throwY: (Math.random() - 0.5) * 160, drag: 0.9, glow: 1.3, life: 0.55,
-        });
-      }
-    });
-  }
-
   /** THE SHUDDER: dust shaken loose from the top of the doors, and a few sparks spat from the seam. */
   shudder(seam: GateSeam, ms: number): void {
     this.run(() => {

@@ -273,6 +273,8 @@ const GOLDEN_RUBY_COIN_GAP_MS = 220;
 /** The return trip's vista layers, back to front (`public/vista-<name>.webp`; owner 2026-10-23: six parallax layers, then
  *  "lets actually not use the floating islands layer", so five). */
 const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
+/** The return trip's arrival, ms: the land finishes rising 0.15 + 0.7 s in (styles.css, "THE ARRIVAL"); its sweep backstop. */
+const VISTA_ARRIVAL_MS = 850;
 /** The vista's turquoise GEM (on the medallion over the shop door) on SCREEN at the end of the push (screen px, for the
  *  portal burst): measured off the 2560x1440 art (centre 1167, 871; about 14 px across), through the art's cover-fit and
  *  the 1.12 push about (47.7%, 83%), as styles.css lays them out. */
@@ -2410,14 +2412,6 @@ export function Recruit() {
   // rising whoosh with the portal, a glittering trail through the door. Phones get the sounds (only the particles are
   // desktop-only). Its OWN effect: it once sat nested inside the gate's sound effect below, an invalid hook call that
   // crashed the shop screen (owner report 2026-10-23).
-  // THE ARRIVAL'S EDGE SPARKS (owner 2026-10-23): as each piece of the vista flies in, sparks spray in off the edge it comes
-  // from, on the same beats as the edge-light pulses in styles.css (left 0 / 120 / 220 ms, right 60 / 180 / 260 ms).
-  useEffect(() => {
-    if (wipe !== 'coverOut' || PHONE_GPU) return undefined;
-    const beats: Array<[number, 'left' | 'right']> = [[0, 'left'], [60, 'right'], [120, 'left'], [180, 'right'], [220, 'left'], [260, 'right']];
-    const ts = beats.map(([ms, side]) => window.setTimeout(() => gateFx.edgeSparks(side), ms));
-    return () => { for (const t of ts) window.clearTimeout(t); };
-  }, [wipe]);
   useEffect(() => {
     if (wipe === 'coverOut') sfx.vistaTrip('arrive');
     else if (wipe === 'revealOut') sfx.vistaTrip('dive');
@@ -2459,7 +2453,8 @@ export function Recruit() {
     }
     if (!wipeIsSweeping) return undefined;
     const c = getScreenWipeConfig();
-    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverIn' || wipe === 'coverOut' ? c.coverMs : c.revealMs) + 400);
+    // (The return trip's arrival runs its own length, VISTA_ARRIVAL_MS: the flash, the pull back and the rise.)
+    wipeTimeoutRef.current = window.setTimeout(advanceWipe, (wipe === 'coverOut' ? VISTA_ARRIVAL_MS : wipe === 'coverIn' ? c.coverMs : c.revealMs) + 400);
     return () => window.clearTimeout(wipeTimeoutRef.current);
   }, [wipe, wipeIsSweeping, advanceWipe]);
   useEffect(() => {
@@ -2539,8 +2534,8 @@ export function Recruit() {
     advanceWipe();
   }, [advanceWipe]);
   const onVistaAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
-    // The cover ends when the last flying piece lands (`vistaslidetitle`, from the title); the reveal when the vista fades out.
-    const ends = e.animationName === 'vistaslidetitle' || (e.animationName === 'vistafade' && e.target === e.currentTarget);
+    // The cover ends when the last layer has risen into place (`vistarisefore`, the flowers); the reveal when the vista fades out.
+    const ends = e.animationName === 'vistarisefore' || (e.animationName === 'vistafade' && e.target === e.currentTarget);
     if (!ends) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
@@ -8288,9 +8283,8 @@ export function Recruit() {
           <div className="wipevista-dive wipevista-dive-fore"><div className="wipevista-layer wipevista-fore" /></div>
           <div className="wipevista-title wipevs-label"><span>Returning</span><span>To Shop</span></div>
         </div>
-        {/* The screen edges flare with light as the pieces fly in (`.wipevista-edge`). */}
-        <div className="wipevista-edge wipevista-edge-left" />
-        <div className="wipevista-edge wipevista-edge-right" />
+        {/* The flash that hides the cut from the fight into the sky (`.wipevista-flash`). */}
+        <div className="wipevista-flash" />
       </div>
       {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
           parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the

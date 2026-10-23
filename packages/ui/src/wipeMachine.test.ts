@@ -129,11 +129,27 @@ describe('the return trip is the vista, not the gate', () => {
     expect(css).toMatch(/\.wipevista\.held \{ transition: none; \}/);
   });
 
-  it('the layers fly in from fully off the screen, and the door hole opens only once they have landed', () => {
-    expect(css).toContain('@keyframes vistaflyleft { 0% { translate: -105% 0; } 100% { translate: 0 0; } }');
-    expect(css).toContain('@keyframes vistaflyright { 0% { translate: 105% 0; } 100% { translate: 0 0; } }');
-    // the shop and the door's interior + glow fly together (same flight, same delay)
-    const flight = /\.wipevista\.on \.wipevista-shop \{ animation: (vistaflyright [^;]*?) both; \}/.exec(css)?.[1];
+  // Owner 2026-10-23: "its really these hard lines im trying to get rid of" (the sideways fly-in showed each layer's cut
+  // edges). The arrival is a flash into the sky, a pull back, and the land rising from below.
+  it('arrives out of the sky: a flash hides the cut, the camera pulls back, the land rises with no cut edge showing', () => {
+    expect(css).toContain('@keyframes vistapullback { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }');
+    expect(css).toMatch(/\.wipevista\.in \.wipevista-flash \{ animation: vistaflash /);
+    // The sky never moves (it fills the screen from the first frame), so nothing behind the rising land can show.
+    expect(css).not.toMatch(/\.wipevista\.on \.wipevista-dive-sky \{/);
+    // The rise distances that keep every flat bottom edge behind the flowers' grass or below the screen (see styles.css).
+    const rise = (n: string): number => Number(new RegExp(`@keyframes vistarise${n} \\{ 0% \\{ translate: 0 (\\d+)%; \\}`).exec(css)?.[1]);
+    expect([rise('far'), rise('mid'), rise('shop'), rise('fore')]).toEqual([58, 64, 80, 40]);
+    // The art bounds (fractions of 1440) and the flowers' solid grass top: each layer's bottom edge stays covered or off-screen.
+    const fore = { solidTop: 0.82, bottom: 1, d: 0.4 };
+    for (const [n, bottom] of [['far', 0.924], ['mid', 0.984], ['shop', 0.964]] as const) {
+      const d = rise(n) / 100;
+      for (let x = 0; x <= 1; x += 0.05) {
+        const edge = bottom + d * x, solid = fore.solidTop + fore.d * x, foreEnd = fore.bottom + fore.d * x;
+        expect(edge >= solid && (edge <= foreEnd || edge >= 1), `${n} at ${x.toFixed(2)}`).toBe(true);
+      }
+    }
+    // The shop and the door's interior + glow rise together (same rise, same delay), and the hole opens only after landing.
+    const flight = /\.wipevista\.on \.wipevista-shop \{ animation: (vistariseshop [^;]*?) both; \}/.exec(css)?.[1];
     expect(flight).toBeTruthy();
     expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
     expect(css).toContain(".wipevista.held .wipevista-masked, .wipevista.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
@@ -146,7 +162,7 @@ describe('the return trip is the vista, not the gate', () => {
 
   it('moves by opacity and transform only', () => {
     // (…and the portal: the doorway's interior fading open, owner 2026-10-23.)
-    for (const k of ['vistaflyleft', 'vistaflyright', 'vistaslidetitle', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
+    for (const k of ['vistaflash', 'vistacut', 'vistapullback', 'vistarisefar', 'vistarisemid', 'vistariseshop', 'vistarisefore', 'vistadoorglow', 'vistadusk', 'vistadivesky', 'vistadivefar', 'vistadivemid', 'vistadivefore', 'vistadooropen', 'vistafade', 'vistadive', 'vistapushsky', 'vistapushfar', 'vistapushmid', 'vistapushshop', 'vistapushfore']) {
       const frames = new RegExp(`@keyframes ${k} \\{([\\s\\S]*?)\\} \\}`).exec(css)?.[1] ?? '';
       // (`translate` is the individual transform property: compositor-only like `transform`.)
       expect(frames, k).toMatch(/transform|translate|opacity/);

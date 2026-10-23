@@ -26,7 +26,7 @@ const SET3_CARRY = new Set<string>([]); // the Unbroken Vein was CUT FROM SET 3 
 describe('the six defs ship as specced', () => {
   it('costs, rarity, all Set-2 scoped', () => {
     const spec: Record<string, [number, boolean]> = {
-      rune_unbroken_vein: [5, false],
+      rune_unbroken_vein: [4, false], // owner 2026-10-23: was 5
       rune_shared_reflection: [3, true], // Shared Reflection 5 → 3 (balance 9/23)
       // rune_moonhowl archived 2026-09-23 (ARCHIVED_RUNES, Balance 9/23) — no longer in the active pool.
       // rune_living_growth archived 2026-10-10 (ARCHIVED_RUNES, owner balance batch: it only worked with Mushy's Growth).

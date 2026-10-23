@@ -36,23 +36,24 @@ const armed = (id: string, over: Partial<RunState> = {}): RunState => reduce(
 /** Every card the run holds anywhere — a granted body lands in hand, or on the board when hand is full. */
 const held = (s: RunState): string[] => [...s.hand, ...s.board].map((c) => c.cardId);
 
-// ── the roster ───────────────────────────────────────────────────────────────────────────────────────────
 /** [id, cost, epic]. `runeforgePool` reads ARRAY membership, so the array is the real assertion — the `epic`
- *  flag is only the card's kicker, and the two disagreeing is exactly the bug this catches. */
+ *  flag is only the card's kicker, and the two disagreeing is exactly the bug this catches.
+ *  Owner reprice 2026-10-23: every Basic below dropped by 1 (Basic 3/4/5 −1), and every Epic at 4+ by 1
+ *  (Epic 4–7 −1); the 2- and 3-cost Epics kept their price. */
 const BASIC: [string, number][] = [
-  ['rune_deep_feast', 4], ['rune_gem_sage', 5], ['rune_ancient_expenditure', 4], // Deep Feast 5 → 4 (balance 9/23)
-  ['rune_clockwork_promotion', 4], ['rune_night_market', 4], ['rune_muckbroker', 4], // Night Market 5 → 4 (balance 9/23)
-  ['rune_living_magic', 4], ['rune_draconic_curiosity', 4], ['rune_dragons_pantry', 4],
-  ['rune_returning_pack', 4], ['rune_grave_refreshment', 3], ['rune_seasoned_ledger', 4], // Seasoned Ledger 5 → 4 (balance 9/23)
-  ['rune_echoed_arrival', 4], ['rune_rare_goods', 4], ['rune_kegheart', 4],
-  /* rune_shifting_facets ARCHIVED everywhere 2026-10-07 (owner balance batch) */ ['rune_shared_spoils', 4], ['rune_heavy_payroll', 4],
-  ['rune_compounding_wages', 4], ['rune_gilded_ledger', 4],
+  ['rune_deep_feast', 3], ['rune_gem_sage', 4], ['rune_ancient_expenditure', 3], // Deep Feast 5 → 4 (balance 9/23) → 3 (owner 2026-10-23); Gem Sage was 5
+  ['rune_clockwork_promotion', 3], ['rune_night_market', 3], ['rune_muckbroker', 3], // Night Market 5 → 4 (balance 9/23) → 3 (owner 2026-10-23)
+  ['rune_living_magic', 3], ['rune_draconic_curiosity', 3], ['rune_dragons_pantry', 3], // owner 2026-10-23: was 4
+  ['rune_returning_pack', 3], ['rune_grave_refreshment', 2], ['rune_seasoned_ledger', 3], // Seasoned Ledger 5 → 4 (balance 9/23) → 3 (owner 2026-10-23); Grave Refreshment was 3
+  ['rune_echoed_arrival', 3], ['rune_rare_goods', 3], ['rune_kegheart', 3], // owner 2026-10-23: was 4
+  /* rune_shifting_facets ARCHIVED everywhere 2026-10-07 (owner balance batch) */ ['rune_shared_spoils', 3], ['rune_heavy_payroll', 3],
+  ['rune_compounding_wages', 3], ['rune_gilded_ledger', 3], // owner 2026-10-23: was 4
 ];
 const EPIC: [string, number][] = [
-  ['rune_perfect_recall', 3], ['rune_ninefold_commerce', 4], ['rune_borrowed_echoes', 2], // balance 9/23: 6 → 3, 6 → 4, 5 → 2
-  ['rune_muster_general', 4], ['rune_delayed_duplication', 4], ['rune_ascension', 2], // balance 9/23: 5 → 4, 5 → 4, 5 → 2
-  ['rune_lasting_cadence', 5], ['rune_deepening_vein', 5], ['rune_abomination', 5],
-  ['rune_bottomless_portrait', 5],
+  ['rune_perfect_recall', 3], ['rune_ninefold_commerce', 3], ['rune_borrowed_echoes', 2], // balance 9/23: 6 → 3, 6 → 4, 5 → 2; Ninefold 4 → 3 (owner 2026-10-23)
+  ['rune_muster_general', 3], ['rune_delayed_duplication', 3], ['rune_ascension', 2], // balance 9/23: 5 → 4, 5 → 4, 5 → 2; then 4 → 3, 4 → 3 (owner 2026-10-23)
+  ['rune_lasting_cadence', 4], ['rune_deepening_vein', 4], ['rune_abomination', 4], // owner 2026-10-23: was 5
+  ['rune_bottomless_portrait', 4], // owner 2026-10-23: was 5
 ];
 
 describe('the Aug-20 batch — pool membership, cost, and the three renames', () => {

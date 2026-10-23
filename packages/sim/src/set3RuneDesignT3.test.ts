@@ -34,9 +34,10 @@ const stats = (s: RunState, uid: string): [number, number] => [at(s, uid).attack
 
 describe('the tranche 3 roster (owner 2026-09-27)', () => {
   it('four Spirit + three Dwarf runes at the doc costs, Set 3 only, tribe-gated; the Kindred Hand replaces the Beckoning', () => {
+    // Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Epic 4-7 -1); each was 1 higher before.
     const want: [string, number, boolean, string][] = [
-      ['rune_call_and_answer', 3, false, 'spirit'], ['rune_encore', 3, false, 'spirit'], ['rune_overture', 4, false, 'spirit'], ['rune_kindred_hand', 3, false, 'spirit'],
-      ['rune_whetstone', 3, false, 'dwarf'], ['rune_anvil', 5, true, 'dwarf'], ['rune_satchel', 4, true, 'dwarf'],
+      ['rune_call_and_answer', 2, false, 'spirit'], ['rune_encore', 2, false, 'spirit'], ['rune_overture', 3, false, 'spirit'], ['rune_kindred_hand', 2, false, 'spirit'],
+      ['rune_whetstone', 2, false, 'dwarf'], ['rune_anvil', 4, true, 'dwarf'], ['rune_satchel', 3, true, 'dwarf'],
     ];
     for (const [id, cost, epic, tribe] of want) {
       const r = RUNE_INDEX[id]!;

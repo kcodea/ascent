@@ -119,11 +119,11 @@ describe('the Set-2 rune batch (owner sheet 2026-07-30)', () => {
   it("ships the six new runes at the sheet's costs and tiers", () => {
     const want: [string, number, boolean][] = [
       ['Recollection', 2, false], // 3 → 2 (balance 9/23)
-      ['First Round', 5, false], // 5 → 4 (balance 9/23) → 5 (owner 2026-09-27, Set 3 rune design pass)
-      ['Motherlode', 4, true], // 5 → 4 (balance 9/23)
-      ['Adventuring', 5, true], // 6 → 5 (balance 9/23)
-      ['Choir', 4, true],
-      ['High King', 4, true],
+      ['First Round', 4, false], // 5 → 4 (balance 9/23) → 5 (owner 2026-09-27, Set 3 rune design pass) → 4 (owner 2026-10-23)
+      ['Motherlode', 3, true], // 5 → 4 (balance 9/23) → 3 (owner 2026-10-23)
+      ['Adventuring', 4, true], // 6 → 5 (balance 9/23) → 4 (owner 2026-10-23)
+      ['Choir', 3, true], // owner 2026-10-23: was 4
+      ['High King', 3, true], // owner 2026-10-23: was 4
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);

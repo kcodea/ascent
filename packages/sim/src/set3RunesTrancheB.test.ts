@@ -46,14 +46,15 @@ const STAT_SPELL: CardDef = { id: 'dbg_tb_fortify', name: 'Fortify (probe)', tri
 for (const c of [CEL, CEL2, CEL3, UNDEAD2, STAT_SPELL]) CARD_INDEX[c.id] = c;
 
 // ── the roster ──────────────────────────────────────────────────────────────────────────────────────────
+// Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Basic 6+ -2; Epic 4-7 -1, Epic 8+ -2); rows below 3 / Epic below 4 kept their cost.
 const BASIC: [string, number][] = [
-  ['rune_first_light', 4], ['rune_accretion', 5], ['rune_eventide', 3] /* 4 → 3 (owner 2026-09-27, design pass) */, ['rune_efficient_tooling', 3],
-  ['rune_quick_release', 4], ['rune_resonant_arms', 5], ['rune_last_rites', 4], ['rune_crowded_crypt', 4],
+  ['rune_first_light', 3], ['rune_accretion', 4], ['rune_eventide', 2] /* 4 → 3 (owner 2026-09-27, design pass) → 2 (owner 2026-10-23: was 3) */, ['rune_efficient_tooling', 2],
+  ['rune_quick_release', 3], ['rune_resonant_arms', 4], ['rune_last_rites', 3], ['rune_crowded_crypt', 3],
 ];
 const EPIC: [string, number][] = [
-  ['rune_open_constellation', 6], ['rune_supernova', 6], ['rune_stolen_constellations', 6], ['rune_spellweaving', 3],
-  ['rune_overcharge', 5], ['rune_dismantling', 4], ['rune_counterrotation', 5], ['rune_empty_hands', 4],
-  ['rune_last_tool', 5], ['rune_endless_march', 5], ['rune_grave_orbit', 5],
+  ['rune_open_constellation', 5], ['rune_supernova', 5], ['rune_stolen_constellations', 5], ['rune_spellweaving', 3],
+  ['rune_overcharge', 4], ['rune_dismantling', 3], ['rune_counterrotation', 4], ['rune_empty_hands', 3],
+  ['rune_last_tool', 4], ['rune_endless_march', 4], ['rune_grave_orbit', 4],
 ];
 
 /** The 2026-10-14 swap (owner: "move celestials to set 4 along with their runes etc."): Celestial runes are Set 4 only,

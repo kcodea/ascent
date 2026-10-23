@@ -102,8 +102,8 @@ describe('the meters are wired to real play', () => {
 describe('the seven runes', () => {
   it('ship at the sheet\'s costs', () => {
     const want: [string, number][] = [
-      ['Chorus', 3], ['Overtime', 1], ['Infernal Ink', 3], // Ink 4 -> 3 (owner 2026-08-07)
-      ['Showcase', 3], ["Merchant's Chorus", 3], // Cindergem archived 2026-09-23 (Balance 9/23)
+      ['Chorus', 2], ['Overtime', 1], ['Infernal Ink', 2], // Ink 4 -> 3 (owner 2026-08-07); Chorus 3 -> 2, Ink 3 -> 2 (owner 2026-10-23)
+      ['Showcase', 2], ["Merchant's Chorus", 2], // both 3 -> 2 (owner 2026-10-23); Cindergem archived 2026-09-23 (Balance 9/23)
       ['Long Shift', 3], // 2 → 3 (owner 2026-09-27, Set 3 rune design pass)
     ];
     for (const [name, cost] of want) {

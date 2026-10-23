@@ -52,25 +52,26 @@ const isBeastDef = (id: string): boolean => { const d = CARD_INDEX[id]!; return 
 describe('the 2026-10-07 Beast roster', () => {
   it("Rune of the Sunpony: buying it arms the combat flag, which reaches the fight (the combat half: core's sunponyRune.test.ts)", () => {
     const s = withRuneFlag('rune_sunpony');
-    expect(s.embers).toBe(37);
+    expect(s.embers).toBe(38); // 2 Gold (owner 2026-10-23: was 3)
     expect(s.questFlags?.runeSunpony).toBe(true);
     expect(questCombatMods(s).runeSunpony).toBe(true);
     expect(RUNE_INDEX['rune_sunpony']!.reward).toEqual({ kind: 'combatFlag', flag: 'runeSunpony' });
   });
-  it('Basic vs Epic by array membership, 3 Gold each, Set 2 only, Beast-gated, no em dash', () => {
-    const want: [string, boolean][] = [['rune_actioned_beasts', false], ['rune_gators_bite', true], ['rune_sunpony', false]];
-    for (const [id, epic] of want) {
+  it('Basic vs Epic by array membership, owner costs (Basics 2, Gator Bite 3), Set 2 only, Beast-gated, no em dash', () => {
+    // owner 2026-10-23: the two Basics were 3 Gold, now 2; the Epic Gator's Bite stays 3.
+    const want: [string, number, boolean][] = [['rune_actioned_beasts', 2, false], ['rune_gators_bite', 3, true], ['rune_sunpony', 2, false]];
+    for (const [id, cost, epic] of want) {
       const r = RUNE_INDEX[id]!;
       expect((epic ? EPIC_RUNES : RUNES).some((x) => x.id === id), `${id} lives in the right forge`).toBe(true);
       expect((epic ? RUNES : EPIC_RUNES).some((x) => x.id === id), `${id} is not in the other forge`).toBe(false);
-      expect([r.cost, !!r.epic, r.tribes, r.sets], id).toEqual([3, epic, ['beast'], ['set2']]);
+      expect([r.cost, !!r.epic, r.tribes, r.sets], id).toEqual([cost, epic, ['beast'], ['set2']]);
       expect(r.text, `${id}: no em dash in player text`).not.toMatch(/—|--/);
     }
   });
-  it('buying each rune arms its own playBeast meter and spends 3 Gold', () => {
-    for (const id of ['rune_actioned_beasts', 'rune_gators_bite']) {
+  it('buying each rune arms its own playBeast meter and spends its cost', () => {
+    for (const [id, left] of [['rune_actioned_beasts', 38], ['rune_gators_bite', 37]] as [string, number][]) {
       const s = withRune(id);
-      expect(s.embers, `${id} cost`).toBe(37);
+      expect(s.embers, `${id} cost`).toBe(left); // 40 - 2 / 40 - 3 (owner 2026-10-23: Actioned Beasts was 3)
       const t = s.runeThresholds!.find((x) => x.sourceId === id)!;
       expect([t.meter, t.tick], id).toEqual(['playBeast', 0]);
     }

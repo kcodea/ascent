@@ -32,9 +32,10 @@ const at = (s: RunState, cardId: string) => s.board.find((c) => c.cardId === car
 
 describe('the tranche 1 roster (owner 2026-09-27)', () => {
   it('eight Undead runes at the doc costs, Set 3 only, Undead-gated; Soul Toll replaces the Unquiet', () => {
+    // Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Epic 4-7 -1); each was 1 higher before.
     const want: [string, number, boolean][] = [
-      ['rune_lantern_keeper', 4, false], ['rune_wake', 4, false], ['rune_second_wind', 3, false], ['rune_soul_toll', 3, false],
-      ['rune_gravedigger', 3, false], ['rune_soul_furnace', 5, true], ['rune_restless', 5, true], ['rune_open_grave', 4, true],
+      ['rune_lantern_keeper', 3, false], ['rune_wake', 3, false], ['rune_second_wind', 2, false], ['rune_soul_toll', 2, false],
+      ['rune_gravedigger', 2, false], ['rune_soul_furnace', 4, true], ['rune_restless', 4, true], ['rune_open_grave', 3, true],
     ];
     for (const [id, cost, epic] of want) {
       const r = RUNE_INDEX[id]!;

@@ -23,8 +23,8 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the five defs ship as specced', () => {
   it('costs, all Epic, and only the Ruby one is Set-2 scoped', () => {
     const costs: Record<string, number> = {
-      rune_ancestral_roar: 5, rune_ruby_shrapnel: 5, rune_shared_scripture: 6,
-      rune_banquet_hall: 5, rune_crucible_choir: 5, // Crucible Choir 6 → 5 (balance 9/23)
+      rune_ancestral_roar: 4, rune_ruby_shrapnel: 4, rune_shared_scripture: 5, // each -1 (owner 2026-10-23: was 5 / 5 / 6)
+      rune_banquet_hall: 4, rune_crucible_choir: 4, // Crucible Choir 6 → 5 (balance 9/23); both 4 (owner 2026-10-23: was 5)
     };
     for (const [id, cost] of Object.entries(costs)) {
       expect(rune(id).cost, `${id} cost`).toBe(cost);

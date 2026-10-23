@@ -103,7 +103,7 @@ describe('Rune of the War Chorus', () => {
 describe('the three runes ship as specced', () => {
   it('exist at the sheet costs and tiers', () => {
     const want: [string, number, boolean][] = [
-      ['Brood', 3, false], ['War Chorus', 3, false], ['Living Echoes', 5, true],
+      ['Brood', 2, false], ['War Chorus', 2, false], ['Living Echoes', 4, true], // owner 2026-10-23: were 3 / 3 / 5
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);

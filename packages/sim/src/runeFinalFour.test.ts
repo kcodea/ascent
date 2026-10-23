@@ -122,7 +122,7 @@ describe('Rune of the White Wolf', () => {
 describe('the last four runes ship as specced', () => {
   it('exist at the sheet costs, all epic', () => {
     const want: [string, number][] = [
-      ['Counterpoint', 5], ['Overflow', 4], ['Spellstone', 1], ['White Wolf', 4], // Counterpoint 7 → 5, Spellstone 3 → 1 (balance 9/23; Spellstone 6 → 3 owner balance 2026-08-18)
+      ['Counterpoint', 4], ['Overflow', 3], ['Spellstone', 1], ['White Wolf', 3], // owner 2026-10-23 reprice: Counterpoint 5 → 4, Overflow 4 → 3, White Wolf 4 → 3. Earlier: Counterpoint 7 → 5, Spellstone 3 → 1 (balance 9/23; Spellstone 6 → 3 owner balance 2026-08-18)
     ];
     for (const [name, cost] of want) {
       // Rune of the White Wolf was ARCHIVED 2026-09-24 with Moonhowl Mentor; its def is verbatim in ARCHIVED_RUNES.

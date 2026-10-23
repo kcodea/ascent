@@ -22,7 +22,7 @@ function withRune(id: string, extra: Partial<RunState> = {}): RunState {
 describe('the five defs ship as specced', () => {
   it('costs, rarity, and every one scoped to Set 2 (each names a Set-2 card)', () => {
     const spec: Record<string, [number, boolean]> = {
-      rune_full_measure: [4, false], rune_mountain_trade: [5, false], rune_open_appetite: [5, false],
+      rune_full_measure: [3, false], rune_mountain_trade: [4, false], rune_open_appetite: [4, false], // owner 2026-10-23: was 4 / 5 / 5
       // rune_broodmaster archived 2026-08-18 (ARCHIVED_RUNES) — no longer in the active RUNES/EPIC_RUNES pool.
     };
     for (const [id, [cost, epic]] of Object.entries(spec)) {

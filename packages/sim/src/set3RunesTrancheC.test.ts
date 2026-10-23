@@ -55,7 +55,8 @@ describe('the six defs ship as specced', () => {
     const epic = ['rune_grand_workshop', 'rune_red_giant', 'rune_final_gate', 'rune_dreamed_graves'];
     for (const id of basic) { expect(RUNES.some((r) => r.id === id), `${id} is Basic`).toBe(true); expect(RUNE_INDEX[id]!.epic).toBeFalsy(); }
     for (const id of epic) { expect(EPIC_RUNES.some((r) => r.id === id), `${id} is Epic`).toBe(true); expect(RUNE_INDEX[id]!.epic).toBe(true); }
-    const costs: Record<string, number> = { rune_amplification: 4, rune_soul_script: 5, rune_grand_workshop: 6, rune_red_giant: 5, rune_final_gate: 6, rune_dreamed_graves: 4 };
+    // Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Basic 6+ -2; Epic 4-7 -1, Epic 8+ -2); each was 1 higher before.
+    const costs: Record<string, number> = { rune_amplification: 3, rune_soul_script: 4, rune_grand_workshop: 5, rune_red_giant: 4, rune_final_gate: 5, rune_dreamed_graves: 3 };
     for (const [id, c] of Object.entries(costs)) { expect(RUNE_INDEX[id]!.cost, id).toBe(c); expect(RUNE_INDEX[id]!.sets, `${id} is set 3 only (Celestial ones: set 4 since 2026-10-14)`).toEqual(afterSwap(id, ['set3'])); }
     expect(RUNE_INDEX['rune_amplification']!.tribes, 'Universal').toBeUndefined();
     expect(RUNE_INDEX['rune_grand_workshop']!.tribes, 'Universal').toBeUndefined();

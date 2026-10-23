@@ -114,7 +114,7 @@ describe('Rune of Attacking Gems', () => {
 
 describe('the two runes ship as specced', () => {
   it('exist at the sheet costs, both epic', () => {
-    for (const [name, cost] of [['Food Chain', 5], ['Attacking Gems', 4]] as [string, number][]) {
+    for (const [name, cost] of [['Food Chain', 4], ['Attacking Gems', 3]] /* owner 2026-10-23: were 5 / 4 */ as [string, number][]) {
       const r = byName(name);
       expect(r, `${name} is missing`).toBeDefined();
       expect(r!.cost).toBe(cost);

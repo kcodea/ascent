@@ -52,7 +52,7 @@ const ale = (uid: string): BoardCard => body(uid, 'wo_mine'); // "Gain 2 Gold": 
 describe('the two runes as content', () => {
   it('names, costs, pools (Basic vs Epic by array), Dwarf gate, Set 3 only, text, no art', () => {
     const rows: [string, string, number, boolean, string][] = [
-      [LAST_CALL_ID, 'Last Call', 3, false, 'After you **Sell 3 minions**, your next **Dwarven Ale** casts twice.'],
+      [LAST_CALL_ID, 'Last Call', 2, false, 'After you **Sell 3 minions**, your next **Dwarven Ale** casts twice.'],
       ['rune_return_customers', 'Return Customers', 3, true, 'The first **2 Dwarves** you **Sell** each turn return a plain copy to your hand.'],
     ];
     for (const [id, name, cost, epic, text] of rows) {

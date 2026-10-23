@@ -130,8 +130,8 @@ describe("Rune of Gemstorm — Avenge (2): PLAY Rubies onto your Kobolds", () =>
 describe("the four runes ship as specced", () => {
   it("exist at the sheet costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Hunger', 5, false], ['Gemstorm', 2, true], // Hunger 2 → 5 (owner balance 2026-08-04)
-      ['Shared Table', 3, true], ['Redirection', 4, true],
+      ['Hunger', 4, false], ['Gemstorm', 2, true], // Hunger 2 → 5 (owner balance 2026-08-04) → 4 (owner 2026-10-23: was 5)
+      ['Shared Table', 3, true], ['Redirection', 3, true], // Redirection 3 (owner 2026-10-23: was 4)
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);

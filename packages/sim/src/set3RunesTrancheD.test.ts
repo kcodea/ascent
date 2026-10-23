@@ -30,7 +30,8 @@ const stats = (c: BoardCard): [number, number] => [c.attack, c.health];
 const SRC = { cardId: 'dbg_starseed', name: 'Star Seed' };
 
 describe('the two deferred runes ship: roster, cost, scope, wiring', () => {
-  it.each([['rune_open_hand', 5], ['rune_waking_reserve', 6]] as const)('%s is EPIC, set 3 only, costs %i, and is Spirit-gated (owner Set 3 rune list 2026-09-25)', (id, cost) => {
+  // Costs are the 2026-10-23 owner reprice (Basic 3-5 -1, Basic 6+ -2; Epic 4-7 -1, Epic 8+ -2): was 5 / 6.
+  it.each([['rune_open_hand', 4], ['rune_waking_reserve', 5]] as const)('%s is EPIC, set 3 only, costs %i, and is Spirit-gated (owner Set 3 rune list 2026-09-25)', (id, cost) => {
     const r = RUNE_INDEX[id]!;
     expect(EPIC_RUNES.some((x) => x.id === id)).toBe(true);
     expect(RUNES.some((x) => x.id === id)).toBe(false);

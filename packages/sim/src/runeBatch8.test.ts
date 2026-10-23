@@ -60,7 +60,7 @@ describe("the two runes ship as specced", () => {
   // the offerable lists `byName` searches. Its machinery is unchanged and still under test above, because a
   // saved run that already owns it keeps paying out; only the offer is gone.
   it("exist at the sheet costs, both basic", () => {
-    for (const [name, cost] of [['Reinvestment', 5]] as [string, number][]) {
+    for (const [name, cost] of [['Reinvestment', 4]] as [string, number][]) {
       const r = byName(name);
       expect(r, `${name} is missing`).toBeDefined();
       expect(r!.cost, `${name} cost`).toBe(cost);

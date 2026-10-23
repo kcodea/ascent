@@ -50,14 +50,14 @@ const buffs = (events: readonly CombatEvent[], spellId: string) => events.filter
 
 describe('the roster', () => {
   it('seven Epic Dragon runes, Set 3 only, Dragon-gated, the draft costs, no em dash, owner texts', () => {
-    const want: Record<string, [string, number]> = {
-      rune_war_council: ['War Council', 5],
-      rune_growing_inferno: ['Growing Inferno', 5],
-      rune_secret_exchange: ['Secret Exchange', 4],
-      rune_runebound_brood: ['Runebound Brood', 4],
-      rune_unbroken_scales: ['Unbroken Scales', 5],
-      rune_runic_transposition: ['Runic Transposition', 4],
-      rune_wyrms_hoard: ["Wyrm's Hoard", 4],
+    const want: Record<string, [string, number]> = { // owner 2026-10-23 reprice: each 1 Gold cheaper
+      rune_war_council: ['War Council', 4],
+      rune_growing_inferno: ['Growing Inferno', 4],
+      rune_secret_exchange: ['Secret Exchange', 3],
+      rune_runebound_brood: ['Runebound Brood', 3],
+      rune_unbroken_scales: ['Unbroken Scales', 4],
+      rune_runic_transposition: ['Runic Transposition', 3],
+      rune_wyrms_hoard: ["Wyrm's Hoard", 3],
     };
     for (const id of IDS) {
       const r = RUNE_INDEX[id]!;

@@ -51,10 +51,10 @@ const shoutFight = (mods: QuestCombatMods, extra: BoardMinion[] = [], seed = 5) 
 describe('the 2026-10-07 roster', () => {
   it('Basic vs Epic by array membership, owner costs, Set 2, tribe gates', () => {
     const want: [string, number, boolean, string[] | undefined][] = [
-      ['rune_echoing_shouts', 3, false, ['dragon']],
+      ['rune_echoing_shouts', 2, false, ['dragon']],
       ['rune_whelps', 3, true, ['dragon']],
       ['rune_voicekeeper', 2, true, ['dragon']],
-      ['rune_flaming_dragon', 4, true, ['dragon']],
+      ['rune_flaming_dragon', 3, true, ['dragon']],
       ['rune_dragons_egg', 2, true, ['dragon']],
       ['rune_wise_armory', 3, true, undefined],
     ];

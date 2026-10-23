@@ -27,8 +27,9 @@ const NAMES: Record<string, string> = {
 
 // Costs from docs/set3-dragon-rune-draft-30.md (owner ruling 2026-10-22).
 const COSTS: Record<string, number> = {
-  rune_runic_primer: 2, rune_loose_tongues: 3, rune_clear_voices: 2, rune_spell_fed_scales: 3, rune_borrowed_flame: 2, rune_spell_tempering: 3,
-  rune_open_treasury: 2, rune_deep_breaths: 3, rune_defiant_wings: 3, rune_final_utterance: 2, rune_ember_inheritance: 3,
+  rune_runic_primer: 2, rune_loose_tongues: 2, rune_clear_voices: 2, rune_spell_fed_scales: 2, rune_borrowed_flame: 2, rune_spell_tempering: 2,
+  rune_open_treasury: 2, rune_deep_breaths: 2, rune_defiant_wings: 2, rune_final_utterance: 2, rune_ember_inheritance: 2,
+  // owner 2026-10-23 reprice: every 3-cost here was 3 → 2.
 };
 
 const bc = (uid: string, cardId: string, over: Partial<BoardCard> = {}): BoardCard => {

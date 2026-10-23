@@ -120,7 +120,7 @@ describe("Rune of Living Treasure — Gemheart Golems gain Rebirth (owner rework
 describe("the three runes ship as specced", () => {
   it("exist at the sheet costs and tiers", () => {
     const want: [string, number, boolean][] = [
-      ['Blood and Coin', 3, false], ['Wild Hunt', 3, true], ['Living Treasure', 4, true],
+      ['Blood and Coin', 2, false], ['Wild Hunt', 3, true], ['Living Treasure', 3, true], // owner 2026-10-23: Blood and Coin was 3, Living Treasure was 4
     ];
     for (const [name, cost, epic] of want) {
       const r = byName(name);

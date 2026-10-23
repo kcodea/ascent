@@ -2666,13 +2666,14 @@ export const RUNES_RULES: GameRule[] = [
       'Mariet: every 4 minions Sold get a random Dwarven Ale (Gilded 2) instead of a Shop spell; the meter is unchanged. '
       + 'Adeptus: Tier 2 (stats 4/1 unchanged); its Echo gives your Shop spells +1 Attack (Gilded +2), through the run spell '
       + 'power channel, from a combat death (carried back) and from a Shop Echo alike. Gravus: Tier 6, 10/3, gains Taunt; '
-      + 'its Echo and both tribes are unchanged. Shardluck: Tier 5, 8/4; Choose One casts 2 Rubies on your Kobolds (2 in '
-      + 'all, each on a random other friendly Kobold) or casts Veinstorm 2 times; Gilded 4 and 4. Thymes: Tier 5, 5/7, its '
+      + 'its Echo and both tribes are unchanged. Shardluck: Tier 5, 8/4; Choose One casts 2 Rubies on EACH of your Kobolds '
+      + '(itself included; owner 2026-10-23) or casts Veinstorm 2 times; Gilded 4 on each and 4 casts. Thymes: Tier 5, 5/7, its '
       + 'Thymepiece unchanged.',
     domain: 'runes',
     status: 'approved',
     evidence: [
       { kind: 'owner-handoff', ref: 'Owner Set 3 changes 2026-10-23 (minion changes)', quote: 'Shardluck -> T5 8/4 Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times.' },
+      { kind: 'owner-chat', ref: 'Owner 2026-10-23 (Shardluck reading)', quote: 'shardluck should cast 2 rubies on all kobold not 2 random get 1' },
       { kind: 'code', ref: 'packages/content/src/cards/set3/{dwarves,undead,dragons,kobolds}.ts; packages/sim/src/recruit.ts minionSoldGrantSpell (`ale`)' },
     ],
     contentIds: ['dw3_marketing', 'u3_adeptus', 'd3_gravus', 'k3_facetbound', 'dw3_thymes'],

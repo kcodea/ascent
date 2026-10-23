@@ -287,19 +287,17 @@ describe('Shardluck — Choose One: Cast 2 Rubies on your Kobolds or cast Veinst
   });
 
   const board = (): BoardCard[] => [plain('k1', 'kobold'), plain('k2', 'kobold'), plain('b', 'beast'), body('gg', 'k_gemgorge')];
-  it('branch 1: 2 plain Rubies, each on a random OTHER friendly Kobold (dual tribes count, never itself, never a Beast)', () => {
+  it('branch 1: 2 plain Rubies on EACH friendly Kobold, itself included (dual tribes count, never a Beast) (owner 2026-10-23)', () => {
     let s = run({ board: board(), hand: [body('sl', 'k3_facetbound')] });
     s = act(act(s, { type: 'play', uid: 'sl' }), { type: 'chooseOne', index: 0 });
-    const counts = ['k1', 'k2', 'gg'].map((u) => rubyBuff(at(s, u))?.count ?? 0);
-    expect(counts.reduce((a, b) => a + b, 0)).toBe(2);
+    expect(['k1', 'k2', 'gg', 'sl'].map((u) => rubyBuff(at(s, u))?.count ?? 0)).toEqual([2, 2, 2, 2]);
     expect(rubyBuff(at(s, 'b'))).toBeUndefined();
-    expect(rubyBuff(at(s, 'sl')), 'R-TARGET-03: a random pick never lands on the source').toBeUndefined();
   });
 
-  it('Gilded: 4 Rubies', () => {
+  it('Gilded: 4 Rubies on each Kobold', () => {
     let s = run({ board: board(), hand: [body('sl', 'k3_facetbound', { golden: true })] });
     s = act(act(s, { type: 'play', uid: 'sl' }), { type: 'chooseOne', index: 0 });
-    expect(['k1', 'k2', 'gg'].map((u) => rubyBuff(at(s, u))?.count ?? 0).reduce((a, b) => a + b, 0)).toBe(4);
+    expect(['k1', 'k2', 'gg', 'sl'].map((u) => rubyBuff(at(s, u))?.count ?? 0)).toEqual([4, 4, 4, 4]);
   });
 
   it('branch 2: Veinstorm cast 2 times (4 Gilded) as real Shop spells', () => {

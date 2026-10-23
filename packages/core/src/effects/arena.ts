@@ -1247,7 +1247,10 @@ export const ARENA_EFFECTS = {
   battlecryPlayRubiesAll(arena: EffectArena, params: Record<string, unknown>): void {
     const per = (typeof params.rubies === 'number' ? params.rubies : 1) * (arena.self.golden ? 2 : 1);
     if (per <= 0) return;
+    // `tribe` (Shardluck, owner 2026-10-23): only that tribe's friends (dual-tribe / All-types count), self included.
+    const tribe = str(params.tribe);
     for (const f of arena.friends()) {
+      if (tribe && !arena.isTribe(f, tribe)) continue;
       for (let r = 0; r < per; r++) arena.playRubiesOn(f, 1);
     }
   },

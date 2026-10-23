@@ -75,7 +75,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Mariet: When you Sell 4 minions, get a Dwarven Ale (was a random Shop spell).',
           'Adeptus: now Tier 2 (was Tier 3). Echo: Give your Shop spells +1 Attack (was +1/+1).',
           'Gravus: now Tier 6 (was Tier 5) and 10/3 (was 8/3), and gains Taunt.',
-          'Shardluck: now Tier 5 (was Tier 6) and 8/4 (was 8/5). Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times (was 3 and 3).',
+          'Shardluck: now Tier 5 (was Tier 6) and 8/4 (was 8/5). Choose One: Cast 2 Rubies on each of your Kobolds, or cast Veinstorm 2 times.',
           'Thymes: now Tier 5 (was Tier 6) and 5/7 (was 8/10).',
         ],
       },

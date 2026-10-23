@@ -278,37 +278,38 @@ describe('Kobe — Pummel (15): Get a random Ruby. (Twice per combat)', () => {
 
 // ── 5. Shardluck ──────────────────────────────────────────────────────────────────────────────────────────
 
-describe('Shardluck — Choose One: Play 3 Rubies on your Kobolds or cast Veinstorm 3 times', () => {
-  it('is a T6 8/5 with the owner\'s text', () => {
+describe('Shardluck — Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times (owner 2026-10-23)', () => {
+  it('is a T5 8/4 with the owner\'s text (was T6 8/5, 3 Rubies / 3 Veinstorms)', () => {
     const d = CARD_INDEX['k3_facetbound']!;
-    expect([d.tier, d.attack, d.health]).toEqual([6, 8, 5]);
-    expect(d.text).toBe('**Choose One:** Play **3 Rubies** on your **Kobolds** or cast **Veinstorm** 3 times.');
+    expect([d.tier, d.attack, d.health]).toEqual([5, 8, 4]);
+    expect(d.text).toBe('**Choose One:** Cast **2 Rubies** on your **Kobolds** or cast **Veinstorm** 2 times.');
+    expect(d.goldenText).toBe('**Choose One:** Cast **4 Rubies** on your **Kobolds** or cast **Veinstorm** 4 times.');
   });
 
   const board = (): BoardCard[] => [plain('k1', 'kobold'), plain('k2', 'kobold'), plain('b', 'beast'), body('gg', 'k_gemgorge')];
-  it('branch 1: 3 plain Rubies, each on a random OTHER friendly Kobold (dual tribes count, never itself, never a Beast)', () => {
+  it('branch 1: 2 plain Rubies, each on a random OTHER friendly Kobold (dual tribes count, never itself, never a Beast)', () => {
     let s = run({ board: board(), hand: [body('sl', 'k3_facetbound')] });
     s = act(act(s, { type: 'play', uid: 'sl' }), { type: 'chooseOne', index: 0 });
     const counts = ['k1', 'k2', 'gg'].map((u) => rubyBuff(at(s, u))?.count ?? 0);
-    expect(counts.reduce((a, b) => a + b, 0)).toBe(3);
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(2);
     expect(rubyBuff(at(s, 'b'))).toBeUndefined();
     expect(rubyBuff(at(s, 'sl')), 'R-TARGET-03: a random pick never lands on the source').toBeUndefined();
   });
 
-  it('Gilded: 6 Rubies', () => {
+  it('Gilded: 4 Rubies', () => {
     let s = run({ board: board(), hand: [body('sl', 'k3_facetbound', { golden: true })] });
     s = act(act(s, { type: 'play', uid: 'sl' }), { type: 'chooseOne', index: 0 });
-    expect(['k1', 'k2', 'gg'].map((u) => rubyBuff(at(s, u))?.count ?? 0).reduce((a, b) => a + b, 0)).toBe(6);
+    expect(['k1', 'k2', 'gg'].map((u) => rubyBuff(at(s, u))?.count ?? 0).reduce((a, b) => a + b, 0)).toBe(4);
   });
 
-  it('branch 2: Veinstorm cast 3 times (6 Gilded) as real Shop spells', () => {
+  it('branch 2: Veinstorm cast 2 times (4 Gilded) as real Shop spells', () => {
     let s = run({ board: board(), hand: [body('sl', 'k3_facetbound')] });
     const before = s.spellsCast;
     s = act(act(s, { type: 'play', uid: 'sl' }), { type: 'chooseOne', index: 1 });
-    expect(s.spellsCast - before).toBe(3);
+    expect(s.spellsCast - before).toBe(2);
     let g = run({ board: board(), hand: [body('sl', 'k3_facetbound', { golden: true })] });
     g = act(act(g, { type: 'play', uid: 'sl' }), { type: 'chooseOne', index: 1 });
-    expect(g.spellsCast - before).toBe(6);
+    expect(g.spellsCast - before).toBe(4);
   });
 });
 

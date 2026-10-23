@@ -71,13 +71,15 @@ export const SET3_UNDEAD: CardDef[] = [
     tribe: 'undead',
     // 3 → 4, and the Echo grants both stats (owner handoff 2026-09-18; was +1 Attack only). Back to 4 → 3 at 5/1 → 4/1
     // (owner balance ask 2026-10-22: "move adeptus and bicycle bob to tier 3, reduce their stats slightly").
-    tier: 3,
+    // Owner 2026-10-23 ("Adeptus -> T2, Echo: Give your Shop spells +1 Attack"): T3 -> T2 and the Echo is Attack only
+    // (was +1/+1). Stats unchanged (not named in the ask).
+    tier: 2,
     attack: 4,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 1 } }],
-    text: '**Echo:** give your **Shop spells +1/+1**.',
-    goldenText: '**Echo:** give your **Shop spells +2/+2**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleBuffSpellPower', params: { attack: 1, health: 0 } }],
+    text: '**Echo:** Give your **Shop spells +1 Attack**.',
+    goldenText: '**Echo:** Give your **Shop spells +2 Attack**.',
   },
   {
     // An EQUIP Undead whose Equipment is a paid, aimed "fire this Echo and keep the body": Rise, then destroy.

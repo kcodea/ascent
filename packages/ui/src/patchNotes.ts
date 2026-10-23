@@ -62,6 +62,25 @@ export const PATCH_NOTES: PatchNote[] = [
       { category: 'Balance', text: 'Overflowing Crypt is now an Undead spell, offered in runs with Undead. It has new art.' },
       {
         category: 'Balance',
+        text: 'Two new Dwarf runes in Set 3: Last Call and Return Customers.',
+        details: [
+          'Last Call (Basic, 3 Gold): After you Sell 3 minions, your next Dwarven Ale casts twice.',
+          'Return Customers (Epic, 3 Gold): The first 2 Dwarves you Sell each turn return a plain copy to your hand.',
+        ],
+      },
+      {
+        category: 'Balance',
+        text: 'Set 3 minion changes: Mariet, Adeptus, Gravus, Shardluck and Thymes.',
+        details: [
+          'Mariet: When you Sell 4 minions, get a Dwarven Ale (was a random Shop spell).',
+          'Adeptus: now Tier 2 (was Tier 3). Echo: Give your Shop spells +1 Attack (was +1/+1).',
+          'Gravus: now Tier 6 (was Tier 5) and 10/3 (was 8/3), and gains Taunt.',
+          'Shardluck: now Tier 5 (was Tier 6) and 8/4 (was 8/5). Choose One: Cast 2 Rubies on your Kobolds or cast Veinstorm 2 times (was 3 and 3).',
+          'Thymes: now Tier 5 (was Tier 6) and 5/7 (was 8/10).',
+        ],
+      },
+      {
+        category: 'Balance',
         text: 'Two new Tier 7 minions: Vellum (Dragon) and Ending (Undead).',
         details: [
           'Vellum is a 12/8 Dragon. Equip Royal Edict (2): Improve your Shop spells by +2/+2. Your next 3 spells cast from hand this turn cast an additional time.',

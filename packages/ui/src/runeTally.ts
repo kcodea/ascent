@@ -1,4 +1,4 @@
-import { CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
+import { RETURN_CUSTOMERS_PER_TURN, CLEAR_VOICES_DISTINCT, SPELL_TEMPERING_PER, kindredHandValue, grimToastFold, GEM_STAR_CAP, unityTypeCount, runeStacksOf, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, REVELER_METER, SLAYING_KILLS, INVESTMENT_SELLS, ANCESTRAL_ROAR_STEP, recurringTickCount, type RunState } from '@game/sim';
 import { CARD_INDEX } from '@game/content';
 import { COMBATATIVE_RUBIES_ATTACKS, BODY_COUNTING_DEATHS, DRAGON_RUNES_BASIC, GOLEMING_AVENGE } from '@game/core';
 
@@ -81,6 +81,9 @@ export function runeTally(run: RunState, runeId: string): string | null {
   // Set 3 Dragon Epics B (2026-10-21): Bequeathed Secrets' one Dragon sale a turn (the Open Grave shape), and the Opened
   // Vault's armed double while it waits for the next Whisper cast from hand.
   if (runeId === 'rune_bequeathed_secrets' && run.questFlags?.runeBequeathedSecrets) return run.bequeathedUsedThisTurn ? '0/1' : '1/1';
+  // Return Customers (Set 3 Dwarf Epic, 2026-10-23): Dwarves sold this turn that returned a copy, out of the 2 that do
+  // (the N/X integer counter, counting up).
+  if (runeId === 'rune_return_customers' && run.questFlags?.runeReturnCustomers) return `${Math.min(RETURN_CUSTOMERS_PER_TURN, run.returnCustomersThisTurn ?? 0)}/${RETURN_CUSTOMERS_PER_TURN}`;
   if (runeId === 'rune_opened_vault' && run.questFlags?.runeOpenedVault && run.openedVaultArmed) return 'next Whisper x2';
   // Rune of the Wheel: refreshes toward the aura's next +2/+2 improve (`shopAuraGrow`).
   if (runeId === 'rune_wheel' && run.shopAuraGrow?.per) {

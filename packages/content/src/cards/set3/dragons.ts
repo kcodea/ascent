@@ -147,13 +147,15 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     name: 'Gravus',
     tribe: 'dragon',
     tribe2: 'undead',
-    tier: 5,
-    attack: 8,
+    // Owner 2026-10-23 ("Gravis -> T6, 10/3 Taunt. Echo: Give this minion's Attack to 2 friendly minions."): T5 8/3 ->
+    // T6 10/3 and gains Taunt; the Echo and both tribes are unchanged.
+    tier: 6,
+    attack: 10,
     health: 3,
-    keywords: [],
+    keywords: ['T'],
     effects: [{ on: 'onDeath', do: 'deathrattleGiveAttackToOthers', params: { count: 2 } }],
-    text: "**Echo:** Give this minion's **Attack** to **2** friendly minions.",
-    goldenText: "**Echo:** Give this minion's **Attack** to **2** friendly minions twice.",
+    text: "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions.",
+    goldenText: "**Taunt.** **Echo:** Give this minion's **Attack** to **2** friendly minions twice.",
   },
   {
     // T5 8/8 (T6 until the owner's 2026-10-15 move): "Whisper: Discover a Dragon." Grants the Whisper Well of Dragons (on play from hand + every Start of Turn

@@ -336,16 +336,20 @@ describe('Noggin, Squatimus, Adeptus, Warden Rodrick, Hierophant', () => {
     expect(r.events.filter((e) => e.type === 'buff' && (e as { source: string }).source === sq).length, 'two overflows × the living friends').toBeGreaterThanOrEqual(12);
     expect((r.playerPermaBuffs ?? []).some((b) => b.attack >= 3 && b.health >= 4), 'and it carries back (an Engrave-style perma-gain)').toBe(true);
   });
-  it('Adeptus: Echo → +1/+1 to your Shop spells (owner 2026-09-18; was +1 Attack), combat carry-back and shop alike', () => {
-    expect(fight([bm('u3_adeptus')], [foe(20, 20)]).playerSpellPower).toEqual({ attack: 1, health: 1 });
+  it('Adeptus: Echo → +1 Attack to your Shop spells (owner 2026-10-23: T2, "Give your Shop spells +1 Attack"; was T3 +1/+1), combat carry-back and shop alike', () => {
+    expect(fight([bm('u3_adeptus')], [foe(20, 20)]).playerSpellPower).toEqual({ attack: 1, health: 0 });
+    expect(fight([bm('u3_adeptus', { golden: true })], [foe(20, 20)]).playerSpellPower).toEqual({ attack: 2, health: 0 });
     const s = run({ board: [body('a', 'u3_adeptus')] });
     const beforeA = spellAttackBonus(s), beforeH = spellHealthBonus(s);
     fireRecruitDeathrattlesForTest(s, s.board[0]!);
     expect(spellAttackBonus(s)).toBe(beforeA + 1);
-    expect(spellHealthBonus(s)).toBe(beforeH + 1);
-    expect([CARD_INDEX['u3_adeptus']!.tier, CARD_INDEX['u3_adeptus']!.attack, CARD_INDEX['u3_adeptus']!.health]).toEqual([3, 4, 1]);
-    expect(CARD_INDEX['u3_adeptus']!.text).toContain('+1/+1');
-    expect(CARD_INDEX['u3_adeptus']!.goldenText).toContain('+2/+2');
+    expect(spellHealthBonus(s)).toBe(beforeH);
+    const g = run({ board: [body('a', 'u3_adeptus', { golden: true })] });
+    fireRecruitDeathrattlesForTest(g, g.board[0]!);
+    expect(spellAttackBonus(g)).toBe(spellAttackBonus(run()) + 2);
+    expect([CARD_INDEX['u3_adeptus']!.tier, CARD_INDEX['u3_adeptus']!.attack, CARD_INDEX['u3_adeptus']!.health]).toEqual([2, 4, 1]);
+    expect(CARD_INDEX['u3_adeptus']!.text).toBe('**Echo:** Give your **Shop spells +1 Attack**.');
+    expect(CARD_INDEX['u3_adeptus']!.goldenText).toBe('**Echo:** Give your **Shop spells +2 Attack**.');
   });
   it('Robinson: Tier 4, 5/7 (owner handoff 2026-09-18) — text unchanged', () => {
     const d = CARD_INDEX['u3_robinson']!;

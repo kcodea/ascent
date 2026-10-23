@@ -813,7 +813,9 @@ export const QuestCombatFlagSchema = z.enum(['bloodTrail', 'echoingCoop', 'lawOf
   // Set 3 Dragon runes, Epic B (owner 2026-10-21): the Whisper Epics (Shop-only hooks)
   'runeLastingWords', 'runeTwinTongues', 'runeOpenedVault', 'runeBequeathedSecrets',
   // Set 3 Kobold runes (owner 2026-10-22)
-  'runeGoleming', 'runeRedStart', 'runeRoseysGarden']);
+  'runeGoleming', 'runeRedStart', 'runeRoseysGarden',
+  // Set 3 Dwarf rune, Epic (owner 2026-10-23)
+  'runeReturnCustomers']);
 
 // The reward palette — a discriminated union kept in lockstep with the `QuestReward` type in @game/core.
 export const QuestRewardSchema: z.ZodType = z.lazy(() => z.discriminatedUnion('kind', [
@@ -957,6 +959,7 @@ z.object({ kind: z.literal('runeThreshold'), meter: z.enum(['gold', 'spellCast',
   discoverSpell: z.number().int().positive().optional(), // Set 3 Dragon runes (2026-10-21): Rune of the Secret Exchange
   grantSpell: z.number().int().positive().optional(), grantAle: z.number().int().positive().optional(), grantRuby: z.number().int().positive().optional(),
   grantRandomWhisper: z.number().int().positive().optional(), // Rune of Loose Tongues (Set 3 Dragon runes, 2026-10-21)
+  armAleRepeat: z.boolean().optional(), // Last Call (Set 3 Dwarf rune, 2026-10-23): arm the next Ale cast from hand to cast twice
   grantCards: z.array(z.string().min(1)).min(1).optional(),
   castStatSpell: z.number().int().positive().optional(),
   buff: z.object({ target: z.enum(['imps', 'shop', 'shopRightmost', 'shopTurn', 'spells', 'tribe', 'tribeBoard', 'hand']), tribe: TribeSchema.optional(), attack: z.number().int(), health: z.number().int(), step: z.object({ attack: z.number().int(), health: z.number().int() }).strict().optional() }).strict().optional(),

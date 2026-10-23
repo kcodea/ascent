@@ -23,10 +23,10 @@ const noProse = (t: string): void => {
 describe('Mariet: authored text, the countdown is the integer counter', () => {
   it('prints the authored text at every point of the meter', () => {
     for (const n of [0, 1, 2, 3]) {
-      expect(live('dw3_marketing', n)).toBe('When you **Sell** **4 minions**, get a random **Shop Spell**.');
+      expect(live('dw3_marketing', n)).toBe('When you **Sell** **4 minions**, get a **Dwarven Ale**.'); // owner 2026-10-23 (was a random Shop Spell)
       noProse(live('dw3_marketing', n));
     }
-    expect(live('dw3_marketing', 1, true)).toBe('When you **Sell** **4 minions**, get **2** random **Shop Spells**.');
+    expect(live('dw3_marketing', 1, true)).toBe('When you **Sell** **4 minions**, get **2 Dwarven Ales**.');
   });
   it('wears the N/4 sold counter', () => {
     expect(stepProgress('dw3_marketing', { soldProgress: 3 })).toEqual({ current: 3, total: 4 });

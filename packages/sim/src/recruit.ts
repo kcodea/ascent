@@ -1932,6 +1932,7 @@ export function runeExtraCasts(state: RunState, def: CardDef, card?: Pick<BoardC
   if (ALE_IDS.includes(def.id)) {
     if ((state.ownedRunes ?? []).includes('rune_bottomless_cask') && (state.aleExtraCasts ?? 0) > 0) runes.push('rune_bottomless_cask');
     if (state.runeSharedPour && !state.sharedPourUsedThisTurn) runes.push('rune_shared_pour');
+    if (state.lastCallArmed) runes.push(LAST_CALL_ID);
   }
   if ((card?.extraCasts ?? 0) > 0 && (state.ownedRunes ?? []).includes('rune_astral_draft')) runes.push('rune_astral_draft');
   if (def.id === 'veinstorm' && (state.runeStormingVeins ?? 0) > 0) runes.push('rune_storming_veins');
@@ -2010,6 +2011,10 @@ function spellCastsWithout(state: RunState, def: CardDef, card: Pick<BoardCard, 
     // in the UI can't spend it.
     // +1 extra cast per Shared Pour copy held (repeat family, owner 2026-08-27).
     if (state.runeSharedPour && !state.sharedPourUsedThisTurn && !off.has('rune_shared_pour')) mult += runeStacksOf(state, 'rune_shared_pour');
+    // LAST CALL (Set 3 Dwarf rune, owner 2026-10-23): an ARMED charge makes the next Ale cast from hand cast once more
+    // per copy held ("casts twice" with one copy). READ-ONLY here, like Shared Pour: the cast site spends the charge
+    // (`spendLastCall`) after its whole loop, so the UI's x N badge previews it without side effects.
+    if (state.lastCallArmed && !off.has(LAST_CALL_ID)) mult += Math.max(1, runeStacksOf(state, LAST_CALL_ID));
   }
   // RUNE OF STORMING VEINS (owner 2026-09-25): "Veinstorms cast 2 additional times from hand" — ADDED, like every
   // "additional time" source, after the multipliers above (R-MULT-06: only the hand-cast path reads `spellCasts`).
@@ -2173,6 +2178,19 @@ export function noteHandCastPlay(state: RunState, def: CardDef): void {
   advanceRuneThresholds(state, 'shopSpellFromHand', 1);
 }
 
+/** Last Call's id (Set 3 Dwarf rune, owner 2026-10-23). `rune_last_call` is the archived Set 2 Avenge rune of the same
+ *  name, so the new one carries the `_set3` twin suffix (the Menagerie convention). */
+export const LAST_CALL_ID = 'rune_last_call_set3';
+
+/** LAST CALL: spend the armed charge on a Dwarven Ale cast from hand. Called by every hand-cast site beside the Shared
+ *  Pour spend, AFTER the cast loop (the charge was already folded into the cast count by `spellCastsWithout`). A
+ *  `singleCast` spell never multiplies, so it never spends the charge. */
+export function spendLastCall(state: RunState, def: CardDef): void {
+  if (!state.lastCallArmed || def.singleCast || !ALE_IDS.includes(def.id)) return;
+  state.lastCallArmed = undefined;
+  procRuneId(state, LAST_CALL_ID);
+}
+
 function payRuneThreshold(state: RunState, t: NonNullable<RunState['runeThresholds']>[number]): void {
   // THE RUNE IS THE CASTER (owner ask 2026-09-23): any spell a threshold reward casts (Rune of the Gilded Ledger's
   // random stat spell, a Spell Market's Staff of Guel) previews above THIS rune's badge.
@@ -2190,6 +2208,8 @@ function payRuneThresholdInner(state: RunState, t: NonNullable<RunState['runeThr
   if (t.grantRuby) mintRubies(state, t.grantRuby);
   if (t.grantRandomRuby) mintRandomRubies(state, t.grantRandomRuby); // Rune of Minted Gems (Set 3 design pass)
   if (t.grantRandomWhisper) mintRandomWhispers(state, t.grantRandomWhisper); // Rune of Loose Tongues (Set 3 Dragon runes): the gated Whisper pool
+  // Last Call (Set 3 Dwarf rune, owner 2026-10-23): arm the next Ale cast from hand. One charge waiting at most.
+  if (t.armAleRepeat) state.lastCallArmed = true;
   // Rune of the Secret Exchange (owner 2026-10-21): Discover a Shop spell (the Rift-Sunk Codex spec: the run's Shop
   // spells up to your tier), queued behind any open Discover.
   for (let i = 0; i < (t.discoverSpell ?? 0); i++) queueDiscover(state, { kind: 'spell' });
@@ -8542,7 +8562,12 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const progress = (self.soldProgress ?? 0) + 1;
     self.soldProgress = progress % every;
     if (progress < every) return;
-    const spells = runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
+    // `ale` (Mariet, owner 2026-10-23: "When you sell 4 minions, get a Dwarven Ale"): the payout is a random Dwarven
+    // Ale from the run's pool (the `grantAle` recipe: every Ale the set sells, no tier gate; a set without Ales grants
+    // nothing). Otherwise a random Shop spell at or below your tier (Runic Archivist).
+    const spells = params.ale
+      ? runSpells(ctx.state).filter((c) => ALE_IDS.includes(c.id))
+      : runSpells(ctx.state).filter((c) => c.tier <= ctx.state.tier);
     conjureToHand(ctx.state, spells, Math.floor(progress / every) * gold(self));
   },
 
@@ -12200,6 +12225,28 @@ function roseysGardenHearsRubies(state: RunState, rubies: number): void {
  *  text is the contract; keep the two in lockstep. */
 export const REVELER_METER = 3;
 
+/** Return Customers' per-turn allowance: "The first 2 Dwarves you Sell each turn" (owner 2026-10-23). */
+export const RETURN_CUSTOMERS_PER_TURN = 2;
+
+/**
+ * RETURN CUSTOMERS (Set 3 Dwarf Epic, owner 2026-10-23): "The first 2 Dwarves you Sell each turn return a plain copy to
+ * your hand." Heard on every sale path (`fireOnMinionSold`, after the body has left). A Dwarf is the shared tribe
+ * read (`defIsTribe` on the def, so an All-types body counts; `isTribeNatural` for a run-retyped body). The copy is
+ * PLAIN: a fresh, non-gilded body at its printed stats (plus the run-wide card buffs every fresh copy gets, the
+ * `conjureToHand` mint), so a gilded or buffed sale returns the base card. It respects the hand cap (a full hand gets
+ * nothing, and the sale still spends one of the turn's two). One copy per rune copy held (repeat family).
+ */
+function runeReturnCustomers(state: RunState, sold: BoardCard): void {
+  if (!state.questFlags?.runeReturnCustomers) return;
+  if ((state.returnCustomersThisTurn ?? 0) >= RETURN_CUSTOMERS_PER_TURN) return;
+  const def = CARD_INDEX[sold.cardId];
+  if (!def || def.spell || def.ruby) return;
+  if (!(defIsTribe(def, 'dwarf', state) || isTribeNatural(sold, 'dwarf'))) return; // R-ALL-TYPES-EVERYWHERE-01
+  state.returnCustomersThisTurn = (state.returnCustomersThisTurn ?? 0) + 1;
+  procRuneId(state, 'rune_return_customers');
+  conjureToHand(state, [def], runeStacksOf(state, 'rune_return_customers'), runeGrantOverflow());
+}
+
 export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
   syncUnity(state); // Rune of Unity: a sale can break the full house
   // ── Set 3 batch 2: the REVELER-SOLD runes. Both key on the sold body being a Reveler and both read ONE per-turn
@@ -12229,6 +12276,7 @@ export function fireOnMinionSold(state: RunState, sold: BoardCard): void {
       if (pool.length > 0) { procRuneId(state, 'rune_festival_circuit'); conjureToHand(state, pool, runeStacksOf(state, 'rune_festival_circuit'), runeGrantOverflow()); }
     }
   }
+  runeReturnCustomers(state, sold);
   // RUNE OF THE LAST WORD: the turn's first Dragon-with-a-Shout you sell fires its Shout on the way out — one
   // more use from a body you were cashing in anyway. `replayBattlecry` is the same path Myra's hero power and
   // every other Shout re-fire uses, so a targeted Shout auto-picks exactly as it does there.

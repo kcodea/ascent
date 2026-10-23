@@ -7,6 +7,7 @@ import { lobbyPoolGate } from '../opponentPool/lobbyPoolGate';
 import { poolNeededFor } from '../opponentPool/poolGate';
 import { PoolWaitPanel } from '../opponentPool/PoolWaitPanel';
 import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
+import { PHONE_GPU } from '../phoneDiag';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -31,7 +32,17 @@ function fade(el: HTMLElement | null, from: number, to: number, ms: number): Pro
   if (typeof el.animate !== 'function') return Promise.resolve();
   const anim = el.animate([{ opacity: from }, { opacity: to }], { duration: ms, easing: 'ease', fill: 'forwards' });
   // Swallow the AbortError a cancel() raises — cleanup must never surface as an unhandled rejection.
-  return anim.finished.then(() => undefined, () => undefined);
+  // PHONE (R-TOUCH-RUN-MEMORY-01): drop the finished, filling animation. The inline opacity already holds the end
+  // state, and a filling opacity animation keeps the full-screen curtain its own composited layer. Desktop unchanged.
+  return anim.finished.then(() => { if (PHONE_GPU) anim.cancel(); }, () => undefined);
+}
+
+/** PHONE (R-TOUCH-RUN-MEMORY-01): mark the launch curtain fully opaque, so the hero select under it stops painting
+ *  (touchUi.css `[data-launch-covered]`). Cleared before every reveal. A no-op on desktop. */
+export function setLaunchCovered(on: boolean, phone: boolean = PHONE_GPU): void {
+  if (!phone || typeof document === 'undefined') return;
+  if (on) document.documentElement.setAttribute('data-launch-covered', '');
+  else document.documentElement.removeAttribute('data-launch-covered');
 }
 
 /** Two animation frames = "Recruit has painted at least once" (§7 step 7). setTimeout fallback for
@@ -74,6 +85,7 @@ export function HeroLaunchCurtain() {
       const el = elRef.current;
       await fade(el, 0, 1, t.launchCoverMs);
       if (dead) return;
+      setLaunchCovered(true);
       // OPPONENT POOL GATE (fix 2026-09-28): a lobby that seats recorded player runs waits here, under full
       // cover, until the opponent pool has loaded. Instant when it already has (the usual case: it loads at
       // startup). Otherwise the panel shows "Finding opponents...", and an unreachable pool becomes an explicit
@@ -88,6 +100,7 @@ export function HeroLaunchCurtain() {
           useGame.getState().openTitle();
           await twoFrames();
           if (dead) return;
+          setLaunchCovered(false);
           await fade(el, 1, 0, t.launchRevealMs);
           if (!dead) finish();
           return;
@@ -120,11 +133,12 @@ export function HeroLaunchCurtain() {
       }
       await twoFrames();
       if (dead) return;
+      setLaunchCovered(false);
       await fade(el, 1, 0, t.launchRevealMs);
       if (dead) return;
       finish();
     })();
-    return () => { dead = true; lobbyPoolGate.cancel(); };
+    return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); };
   }, [req]);
 
   if (!req) return null;

@@ -71,6 +71,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Phones: fixed a crash when starting a game.',
+        details: [
+          'Hero select, the ranked gate and the game itself now use far less graphics memory on a phone. The look is the same.',
+          'If something looks out of place on your phone, Settings > Phone diagnostics > "Old stage in games" switches back to the old way.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'A new transition between the Shop and combat: a heavy wooden gate slams down, shows who you are facing on a nailed-up poster, then cranks back up.',
         details: [
           'Replaces the blue curtain, and nothing from the game flashes through it any more.',

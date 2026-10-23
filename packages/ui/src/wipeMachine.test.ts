@@ -157,6 +157,18 @@ describe('the return trip is the vista, not the gate', () => {
     expect(css).not.toMatch(/^\.wipevista\.(held|dive) \.wipevista-masked[^{]*\{[^}]*mask/m);
   });
 
+  it("keeps the floor covered through the gate's landing bounce, on any screen shape", () => {
+    // R-PRESENT-35. The bounce lifts the gate up to 3.4% of its height; the strip under it (6%) must hang BELOW its
+    // edge. Flipped about its top edge it folded up inside the gate, and the fight showed through at the bounce's peak
+    // (found 2026-10-23 rendering the gate for the owner's ultrawide check).
+    const foot = /\.wipecurtain::after \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(foot).toContain('top: 100%; height: 6%;');
+    expect(foot).toContain('transform: scaleY(-1); transform-origin: 50% 50%;');
+    expect(Number(/translateY\(-([\d.]+)%\)/.exec(/@keyframes wipeslam \{([\s\S]*?)\} \}/.exec(css)?.[1] ?? '')?.[1])).toBeLessThan(6);
+    // …and it mirrors the rows above the gate's VISIBLE bottom edge (a wide window crops the cover-fit art).
+    expect(foot).toContain('50% calc(0.06 * var(--lvh, 100dvh) - (var(--lvh, 100dvh) + var(--gate-hi)) / 2)');
+  });
+
   it('keeps the gate parked and silent on the exit pass', () => {
     expect(css).toMatch(/\.wipecurtain\.exit \{ visibility: hidden; transform: translateY\(-100%\) !important; transition: none !important; animation: none !important; \}/);
     for (const w of WIPE_EXIT.slice(1, -1)) expect(curtainClassFor(w), w).toContain(' exit');

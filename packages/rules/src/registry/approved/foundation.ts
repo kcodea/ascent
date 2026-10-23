@@ -7925,7 +7925,13 @@ export const FOUNDATION_RULES: GameRule[] = [
         ref: 'Claude Code session, 2026-10-21 (the redesign)',
         quote: 'i want to do something that falls from the "ceiling" of the screen and lands at the bottom of the screen with a bang, like a big stone gate or something',
       },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-23 (the ultrawide check that found the gap at the bounce)',
+        quote: 'can you verify that the wood door transition works on ultrawide too?',
+      },
       { kind: 'fix-pr', ref: 'feat/panel-transition' },
+      { kind: 'fix-pr', ref: 'feat/vista-return' },
       { kind: 'code', ref: 'packages/ui/src/wipeMachine.ts curtainClassFor; packages/ui/src/styles.css .wipecurtain / .wipecurtain::after (the foot) / .wipeposter / @keyframes wipeslam, wipecrank, posterslam, postercrank; packages/ui/src/Recruit.tsx (the curtain markup + its sounds)' },
     ],
     currentBehaviour:
@@ -7935,8 +7941,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'With the ranked gate (doors that only slide) standing in, the owner saw none. Now the curtain is the owner\'s '
       + 'wooden gate: transform-only motion (fall, slam bounce, a swaying crank), a hidden strip of its bottom beam below '
       + 'its edge so the landing bounce never opens a gap at the floor while the scene swaps, and the poster carrying '
-      + 'NOW FACING swinging on its own nail (transform only).',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-22' },
+      + 'NOW FACING swinging on its own nail (transform only). FIXED 2026-10-23: the strip under the gate was flipped about '
+      + 'its top edge, so it folded up inside the gate and the landing bounce (up to 3.4%) opened a gap at the floor on every '
+      + 'screen; found rendering the gate for the owner’s ultrawide check. It now flips in place and mirrors the rows above '
+      + 'the gate’s visible bottom edge, so a window wider than 16:9 (which crops the art) stays seamless too.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts', 'packages/ui/src/curtainLadder.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
     id: 'R-STAGE-OPP-HUD-01',

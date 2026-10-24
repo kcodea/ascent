@@ -364,8 +364,9 @@ export const SET2_BEASTS: CardDef[] = [
     attack: 4,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttackerAndSelf', params: { tribe: 'beast', attack: 2, health: 2 } }],
-    text: 'When a **Beast** attacks, give it and this **+2/+2**.',
-    goldenText: 'When a **Beast** attacks, give it and this **+4/+4**.',
+    // Owner balance 2026-10-24: "when a beast attacks give it and this +2/+1" (+2/+2 -> +2/+1; Gilded +4/+2).
+    effects: [{ on: 'onAttack', do: 'onTribeAttackBuffAttackerAndSelf', params: { tribe: 'beast', attack: 2, health: 1 } }],
+    text: 'When a **Beast** attacks, give it and this **+2/+1**.',
+    goldenText: 'When a **Beast** attacks, give it and this **+4/+2**.',
   },
 ];

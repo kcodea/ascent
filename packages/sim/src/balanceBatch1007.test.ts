@@ -216,11 +216,11 @@ describe('2026-10-07 Set 2 minions', () => {
     expect(all.indexOf('dw3_striker')).toBeGreaterThan(at + 1);
   });
 
-  it('Big Brain Billy: T2 Dwarf 2/2 in Set 2, +1/+1 per Shop spell (gilded +2/+2), a Ruby does not count', () => {
+  it('Big Brain Billy: T2 Dwarf 2/2 in Set 2, +2/+2 per Shop spell since 2026-10-24 (gilded +4/+4), a Ruby does not count', () => {
     const def = CARD_INDEX['dw_bigbrainbilly']!;
     expect([def.tier, def.attack, def.health, def.tribe, !!def.token]).toEqual([2, 2, 2, 'dwarf', false]);
     expect(poolFor('set2').buyable.some((c) => c.id === 'dw_bigbrainbilly')).toBe(true);
-    for (const [golden, step] of [[false, 1], [true, 2]] as const) {
+    for (const [golden, step] of [[false, 2], [true, 4]] as const) {
       const s = recruit({ board: [body('dw_bigbrainbilly', 'bb', { golden })], hand: [{ uid: 'p', cardId: 'emberpouch', tribe: 'neutral', attack: 0, health: 1, keywords: [], golden: false }] });
       const after = (reduce(s, { type: 'play', uid: 'p' }) as RunState).board[0]!;
       expect([after.attack, after.health]).toEqual([2 + step, 2 + step]);

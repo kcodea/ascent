@@ -238,7 +238,7 @@ describe('Flo Rida: when you summon a Beast, give it +5/+5 and improve this', ()
 });
 
 // ── 13. Beev ──────────────────────────────────────────────────────────────────────────────────────────────
-describe('Beev: when a Beast attacks, give it and this +2/+2', () => {
+describe('Beev: when a Beast attacks, give it and this +2/+1 (owner balance 2026-10-24, was +2/+2)', () => {
   it('is a set-2 T3 4/4 Beast', () => {
     const d = CARD_INDEX['b2_beev']!;
     expect([d.tribe, d.tier, d.attack, d.health]).toEqual(['beast', 3, 4, 4]);
@@ -251,12 +251,12 @@ describe('Beev: when a Beast attacks, give it and this +2/+2', () => {
     const alley = uidOf(r, 'alley');
     const dragon = uidOf(r, 'd2_broodfire');
     const fromBeev = buffs(r).filter((b) => b.source === beev);
-    expect(fromBeev.some((b) => b.target === alley && b.attack === 2 && b.health === 2)).toBe(true);
-    expect(fromBeev.some((b) => b.target === beev && b.attack === 2 && b.health === 2)).toBe(true);
+    expect(fromBeev.some((b) => b.target === alley && b.attack === 2 && b.health === 1)).toBe(true);
+    expect(fromBeev.some((b) => b.target === beev && b.attack === 2 && b.health === 1)).toBe(true);
     expect(fromBeev.some((b) => b.target === dragon), 'a Dragon attacking is not a Beast attacking').toBe(false);
   });
 
-  it('COMBAT: when Beev itself attacks it gains +2/+2 once ("it" and "this" are one body)', () => {
+  it('COMBAT: when Beev itself attacks it gains +2/+1 once ("it" and "this" are one body)', () => {
     const r = fight([bm('b2_beev', 1, 900)], [{ cardId: 'sandbag', attack: 0, health: 90000 }]);
     const beev = uidOf(r, 'b2_beev');
     const firstAttack = r.events.findIndex((e) => e.type === 'attack' && e.attacker === beev);

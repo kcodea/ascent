@@ -46,16 +46,17 @@ describe('aggregate (synthetic fixture)', () => {
     // Regenerated 2026-10-23: Set 3 minion changes (Adeptus T2, Gravus T6 10/3 Taunt, Shardluck T5 8/4, Thymes T5 5/7, Mariet gets an Ale).
     // Regenerated 2026-10-23: Whisp and Gatherer archived out of Set 3.
     // Regenerated 2026-10-23: Nitrogen joins the Set 3 Dragons.
+    // Regenerated 2026-10-24: Set 2 balance (Scrapper T2 3/1, Gem Carver T4, Rik/Cave Cutter/Beev/Huggies/Billy numbers).
     expect(heroes).toMatchInlineSnapshot(`
       [
-        "drakko:30:4.90",
-        "fibbsy:30:4.07",
-        "gorr:30:4.93",
-        "harlan:30:5.30",
-        "midas:30:4.37",
-        "nadja:30:4.33",
-        "pete:30:4.13",
-        "warden:30:3.97",
+        "drakko:30:5.03",
+        "fibbsy:30:3.87",
+        "gorr:30:4.77",
+        "harlan:30:5.33",
+        "midas:30:4.30",
+        "nadja:30:4.40",
+        "pete:30:4.10",
+        "warden:30:4.20",
       ]
     `);
     expect(agg.minions.length).toBeGreaterThan(50);

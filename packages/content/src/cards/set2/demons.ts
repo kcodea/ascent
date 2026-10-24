@@ -142,9 +142,10 @@ export const SET2_DEMONS: CardDef[] = [
     // a param here: the factory grants `mul(self)` copies, which is already the golden "2 Staves".
     // Owner balance 2026-10-10: "Echo: Get 2 Picnics." (was a Staff of Guel). `count` is read by the shared body
     // and doubled by a gilded copy: 2, gilded 4.
-    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'sp_picnic', count: 2 } }],
-    text: '**Taunt.** **Echo:** get **2 Picnics**.',
-    goldenText: '**Taunt.** **Echo:** get **4 Picnics**.',
+    // Owner balance 2026-10-24: "big huggies -> taunt. echo: get 2 staff of guels" (Picnics -> Staff of Guel, Gilded 4).
+    effects: [{ on: 'onDeath', do: 'deathrattleGrantSpell', params: { cardId: 'staffofguel', count: 2 } }],
+    text: '**Taunt.** **Echo:** get **2 Staves of Guel**.',
+    goldenText: '**Taunt.** **Echo:** get **4 Staves of Guel**.',
   },
   {
     // Owner rework 2026-08-18: a straight run-wide Imp lord — its Echo buffs every Imp this game and leaves a

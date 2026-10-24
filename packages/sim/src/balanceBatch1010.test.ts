@@ -206,14 +206,14 @@ describe('Demon numbers', () => {
     expect(CARD_INDEX['dm_grobbus']!.effects[0]!.params).toMatchObject({ grant: 2 });
   });
 
-  it('Big Huggies: Taunt (owner ruling) and Echo: 2 Picnics (4 gilded)', () => {
+  it('Big Huggies: Taunt (owner ruling) and Echo: 2 Staves of Guel (4 gilded; Picnics until 2026-10-24)', () => {
     expect(CARD_INDEX['dm_velvet']!.keywords).toEqual(['T']);
-    expect(CARD_INDEX['dm_velvet']!.text).toBe('**Taunt.** **Echo:** get **2 Picnics**.');
-    expect(CARD_INDEX['dm_velvet']!.goldenText).toBe('**Taunt.** **Echo:** get **4 Picnics**.');
+    expect(CARD_INDEX['dm_velvet']!.text).toBe('**Taunt.** **Echo:** get **2 Staves of Guel**.');
+    expect(CARD_INDEX['dm_velvet']!.goldenText).toBe('**Taunt.** **Echo:** get **4 Staves of Guel**.');
     const grant = (golden: boolean): number => {
       const s = recruit({ hand: [], board: [body('dm_velvet', 'v', { golden })] });
       fireRecruitDeathrattlesForTest(s, s.board[0]!);
-      return s.hand.filter((c) => c.cardId === 'sp_picnic').length;
+      return s.hand.filter((c) => c.cardId === 'staffofguel').length;
     };
     expect([grant(false), grant(true)]).toEqual([2, 4]);
   });

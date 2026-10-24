@@ -133,6 +133,6 @@ describe('Alchemist Brisbane: "Shout and Rally: Your Rubies gain +1/+1. Spend 40
   it('other Ruby-strength cards are untouched by the improve fold (no step printed, accrual ignored)', () => {
     const s = run({ board: [body('sc', 'k_faultline', { summonBonus: 5 })] });
     fireRecruitDeathrattlesForTest(s, at(s, 'sc'));
-    expect(ruby(s), 'Scrapper: its printed +1/+1').toEqual({ attack: 1, health: 1 });
+    expect(ruby(s), 'Scrapper: its printed +1 Attack (2026-10-24)').toEqual({ attack: 1, health: 0 });
   });
 });

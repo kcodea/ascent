@@ -301,10 +301,10 @@ export const ENTRIES: readonly WikiEntry[] = [
     id: 'engraved',
     topic: 'keywords',
     q: 'What does Engraved do?',
-    a: "Normally, stats a minion gains **during a fight** vanish when the fight ends. An Engraved minion **keeps them** for good. Win or lose, even if it died in that fight.",
+    a: "Normally, stats a minion gains **during a fight** vanish when the fight ends. An Engraved minion **keeps them** for good, along with keywords it gains in the fight, like Ward or Taunt. Win or lose, even if it died in that fight.",
     aliases: ['engrave', 'keep combat buffs', 'keep stats'],
     seeAlso: ['combat-buffs-dont-stay', 'permanent', 'engraved-damage'],
-    covers: [{ keyword: 'engraved', fp: '5c0422d8' }],
+    covers: [{ keyword: 'engraved', fp: 'e61a9f23' }],
   },
   {
     id: 'engraved-damage',
@@ -313,7 +313,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "No. Engraved only keeps stats it **gained**. Damage never carries over; it's back at full Health next fight.",
     aliases: ['engraved health', 'engraved lose health'],
     seeAlso: ['engraved', 'heal-between-fights'],
-    covers: [{ keyword: 'engraved', fp: '5c0422d8' }],
+    covers: [{ keyword: 'engraved', fp: 'e61a9f23' }],
   },
   {
     id: 'permanent',
@@ -331,7 +331,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "No. Combat buffs only last **that fight**. The exceptions: the minion is **Engraved**, or the card says the buff is **permanent**. Buffs you give in the shop always stay.",
     aliases: ['combat buff', 'lose buffs', 'buffs reset', 'temporary buff', 'shout in combat'],
     seeAlso: ['engraved', 'permanent', 'heal-between-fights'],
-    covers: [{ keyword: 'engraved', fp: '5c0422d8' }, { keyword: 'permanent', fp: '32993c18' }, { rule: 'R-REALTIME-04', fp: '928aa562' }],
+    covers: [{ keyword: 'engraved', fp: 'e61a9f23' }, { keyword: 'permanent', fp: '32993c18' }, { rule: 'R-REALTIME-04', fp: '928aa562' }],
   },
 
   // ── General combat ─────────────────────────────────────────────────────────────────────────────────────

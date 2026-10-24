@@ -8473,4 +8473,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Bob watches a match whose last fight he sees only partly; the gate opens on the room with "+50 XP" and the fight screen does not come back.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEnd.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
+  {
+    id: 'R-SPECTATE-END-03',
+    title: 'Where a spectator lands when the game ends: the Versus room after a Versus match, the Play menu after a regular game',
+    statement:
+      'When the game a spectator is watching ends, the end gate shuts over the watch screen and opens with the watched player\x27s result ("X came in '
+      + '1st" in the end screen\x27s numeral, and the XP for watching it). A spectator of a Versus match (1v1 or 3-4 players, a player knocked out of a '
+      + 'group match and watching the rest included) lands back in that Versus room. A spectator of a regular game watched from Live Games lands on the '
+      + 'Play menu (the mode picker).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-24 via the coordinator', quote: 'Spectators go back to the lobby at the end of versus, and back to the play menu for spectating a regular game not in a lobby' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (maybeEndWatch -> endWatchedGame, stopSpectating restores titleView versus); packages/ui/src/live/liveWatch.ts gameEnded (titleView modes); packages/ui/src/live/spectatorEnd.ts' },
+    ],
+    currentBehaviour: 'Conforms since #2283 + #2285 (checked 2026-10-24, no change needed): live with Claudebot1..4, a Versus Group spectator and a knocked-out player both returned to the room with the result and "+50 XP" (the spectator), a 1v1 spectator to the room; in tests the Live Games end lands on the mode picker.',
+    example: 'Ann watches a 3-player Versus game to the end: the gates close and open on the room with "VICTORY, Bob finished the game." Ann watching a ranked game from Live Games lands on the Play menu with "4TH".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEnd.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

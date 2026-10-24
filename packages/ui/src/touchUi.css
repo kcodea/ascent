@@ -208,68 +208,31 @@ html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animatio
 /* Phones draw the vista as ONE flattened picture (the shop baked in), so the title stays in FRONT of it there. */
 html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }
 
-/* ── Phones: the desktop game, zoomed, with the HUD BAKED IN PLACE (owner 2026-10-23/24, R-PHONE-ZOOM-01: "bake the
-   ui elements into place like the rune slots, hero power etc"). stage.ts shows a run 1.25-1.45x larger than the plain
-   fit (1.35 by default); the 16:9 box is pinned at its design size and centred, its outer board edges cropped. On a
-   phone the visible part of the box is about x 125..1795, y 150..930 (layout px, both an iPhone 15 Pro and a Pixel 8
-   inside their safe insets), so every HUD piece has ONE fixed seat in BOX coordinates (`--pz-bx` / `--pz-by` + px),
-   the same on every phone, never on a minion, a card, another piece or an inset:
-     top strip   (y 150..255, over the Shop row)  timer, Freeze, Refresh; in combat the round title, Skip / Summary
-     left column (x 135..425)                     Tier and Gold, the hero power and End Turn, the hero cluster below
-     right column (x 1525..1790)                  the lobby rail (Shop) / the foe and its hand (combat), the help
-                                                   / Compendium / Settings squares at its foot
-     the hand                                     a tighter fan, x ~500..1435, under the board
-   `data-phone-zoom` is written only on a phone in landscape in a run. ── */
-html[data-touch-ui][data-phone-zoom] { --gw: 1920px; --gh: 1080px; --pz-bx: calc((var(--lvw, 100vw) - 1920px) / 2); --pz-by: calc((var(--lvh, 100dvh) - 1080px) / 2); }
-/* End Turn rides 22 px right of its socket, clear of the seventh minion. */
-html[data-touch-ui][data-phone-zoom] .etbwrap { left: calc(var(--pz-bx) + 0.81 * 1920px + (var(--etb-x, 10px) + 22px) * var(--scale)); }
-/* Gold rides 10 px left of its socket, clear of the rail's Guides tab. */
-html[data-touch-ui][data-phone-zoom] .goldpill { --gold-x: 422px; }
-/* Pieces whose painted socket is inside the visible part stay ON it (Freeze, Refresh, End Turn, Gold: desktop seats, a
-   breath lower for the top two). The rest have a fixed seat beside the board. */
-html[data-touch-ui][data-phone-zoom] .frzwrap.frzwrap { top: calc(var(--pz-by) + (var(--frz-y, 264px) + 14px) * var(--scale)); }
-html[data-touch-ui][data-phone-zoom] .rfbwrap { top: calc(var(--pz-by) + (var(--rfb-y, 270px) + 14px) * var(--scale)); }
-/* Tier: its corner socket's top is cropped, so the stone sits 70 px lower and 82 px left (clear of a full Shop row), its pill riding with it. */
-html[data-touch-ui][data-phone-zoom] .tvbwrap { --tvb-x: -6px; top: calc(var(--pz-by) + 0.42 * 1080px + (var(--tvb-y, -318px) * var(--scale)) + 70px); }
-/* The turn timer: on the top frame between Tier and Freeze. */
-html[data-touch-ui][data-phone-zoom] .shopbar { translate: -274px 128px; }
-/* The hero cluster: the bottom-left corner, inside the screen (portrait, Health / Armor, its rune sockets). */
-html[data-touch-ui][data-phone-zoom] .statusbar { left: calc(var(--pz-bx) + 110px); bottom: calc(var(--pz-by) + 1080px - 942px); }
-/* The hero power: in the left column between Tier and the hero, beside the board. */
-html[data-touch-ui][data-phone-zoom] .statusbar .heropanel:not(.heropanel2):not(.equipslot) { left: calc(var(--pz-bx) + 360px); top: calc(var(--pz-by) + 450px); }
-/* The hand: a tighter, smaller fan under the board (its art, cost and stats above the screen's foot), between the hero
-   cluster and the right column. */
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --z-hand-gap: -0.3; scale: 0.84; transform-origin: 50% 100%; --bar-y: calc(var(--pz-by) + 112px); }
-/* The lobby rail: a slimmer column on the right frame, under Refresh and beside End Turn / Gold; its header on top,
-   its Guides tab under its left edge. */
-html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-scale: 0.6; --lby-w: 220; --lby-top: 318px; --lby-y: 0; --lr-right: 125px; --lr-w: var(--lr-w0); }
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(125px + var(--lr-w0) - 2px); top: 744px; }
-/* Combat: the round title on the top frame's centre, Skip / Summary in Tier's corner (Tier is away in combat), the foe
-   in the right column's top corner above End Turn (the rail has slid away), its power beside it on the top frame and its
-   hand on the top frame. End Turn stays on its socket, its caption hidden (on a phone it is a 5 pt label over the board). */
-html[data-touch-ui][data-phone-zoom] :is(.combathud-skip, .combatsummary) { left: calc(var(--pz-bx) + 330px); top: calc(var(--pz-by) + 218px); }
-html[data-touch-ui][data-phone-zoom] .combatround { left: calc(var(--pz-bx) + 967px); top: calc(var(--pz-by) + 196px); margin-top: 0; }
-html[data-touch-ui][data-phone-zoom] .combatopp { --hd-opp-s: 1.85; right: calc(var(--pz-bx) + 408px); top: calc(var(--pz-by) + 258px); }
-/* …laid out across instead of down: its name and Health (the Shop tier under it) on the top frame to the portrait's
-   left, the portrait in the corner, the rune slots in a row left of the name, so the whole foe stays above the enemy
-   row and End Turn at its desktop portrait size. */
-html[data-touch-ui][data-phone-zoom] .combatopp-drop { display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto 1fr; column-gap: calc(12 * var(--u)); row-gap: 0; align-items: center; justify-items: end; }
-html[data-touch-ui][data-phone-zoom] .combatopp-body { grid-column: 2; grid-row: 1 / span 3; }
-html[data-touch-ui][data-phone-zoom] .combatopp-name { grid-column: 1; grid-row: 1; transform: scale(var(--hd-name-s, 0.65)); transform-origin: 100% 50%; align-self: end; }
-html[data-touch-ui][data-phone-zoom] .combatopp-hp { grid-column: 1; grid-row: 2; align-self: start; }
-html[data-touch-ui][data-phone-zoom] :is(.combatopp-runes, .combatopp-runeslots) { left: auto; right: calc(100% + 2 * var(--u)); top: 6%; height: auto; flex-direction: row; gap: calc(4 * var(--u)); transform: scale(calc(1.1 / var(--hd-opp-s, 2.4))); transform-origin: right top; }
-html[data-touch-ui][data-phone-zoom] :is(.combatopp-rune, .combatopp-slot) { translate: none !important; }
-html[data-touch-ui][data-phone-zoom] .combatopp-slot { scale: 1; }
-html[data-touch-ui][data-phone-zoom] :is(.heropowerbtn.opp-power, .herotip.opp-power-tip) { --hd-power-s: 0.72; right: calc(var(--pz-bx) + 1920px - 1785px); top: calc(var(--pz-by) + 400px); }
-html[data-touch-ui][data-phone-zoom] .herotip.opp-power-tip { top: calc(var(--pz-by) + 500px); }
-html[data-touch-ui][data-phone-zoom] .opphand { right: calc(var(--pz-bx) + 1920px - 880px); top: calc(var(--pz-by) + 205px); }
-html[data-touch-ui][data-phone-zoom] .etbwrap .etb-tip { visibility: hidden; }
-/* The help / Compendium / Settings squares: the bottom-right corner, under the rail. */
-html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { bottom: auto; right: auto; top: calc(var(--pz-by) + 852px); }
-html[data-touch-ui][data-phone-zoom] .gearbtn { left: calc(var(--pz-bx) + 1712px); }
-html[data-touch-ui][data-phone-zoom] .bookbtn { left: calc(var(--pz-bx) + 1625px); }
-html[data-touch-ui][data-phone-zoom] .rulesbtn { left: calc(var(--pz-bx) + 1538px); }
-html[data-touch-ui][data-phone-zoom] .version { display: none; }
+/* ── Phones: the desktop game, zoomed, every HUD piece in its housing (owner 2026-10-23/24, R-PHONE-ZOOM-01: "all of the ui
+   elements are out of their housing areas ... fix those to their spots"). stage.ts zooms a run as far as the HOUSED span
+   allows (every piece that sits in a painted socket, ring, plate or niche of the board art stays exactly in it, at its
+   desktop seat, inside the safe area) and places the 16:9 box (`--pz-bx` / `--pz-by`, layout px) so that span is centred
+   in the safe area. NOTHING is repositioned relative to the board: the box, the board art and every piece take the same
+   offset. The rules below only carry that offset to the pieces that are positioned off the screen centre instead of
+   the box (the box itself, the board art, the hero cluster, the foe, the hand), and anchor the edge pieces (help /
+   Compendium / Settings, the rail's clamp) to the screen's safe edges. `data-phone-zoom` is written only on a phone in
+   landscape in a run. ── */
+html[data-touch-ui][data-phone-zoom] {
+  --gw: 1920px; --gh: 1080px; --bar-x: var(--pz-bx); --bar-y: var(--pz-by);
+  --pz-sx: calc(var(--pz-bx) - (var(--lvw, 100vw) - 1920px) / 2); --pz-sy: calc(var(--pz-by) - (var(--lvh, 100dvh) - 1080px) / 2);
+  --edge-l: var(--safe-l); --edge-r: var(--safe-r); --edge-t: var(--safe-t); --edge-b: var(--safe-b);
+}
+html[data-touch-ui][data-phone-zoom] .app { left: var(--pz-sx); top: var(--pz-sy); }
+html[data-touch-ui][data-phone-zoom] :is(.boardbg, .statusbar) { --board-x: calc(var(--pz-sx) / var(--scale)); --board-y: calc(5px + var(--pz-sy) / var(--scale)); }
+/* The foe's pieces are written off the screen centre (`50% - --gw / 2`): this `--gw` puts that term on the box's right edge. */
+html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .herotip.opp-power-tip, .opphand) { --gw: calc(2 * (var(--pz-bx) + 1920px) - var(--lvw, 100vw)); }
+/* Pieces anchored by the box's RIGHT or BOTTOM edge read the bar on that side (the box is not centred here). */
+html[data-touch-ui][data-phone-zoom] { --pz-bxr: calc(var(--lvw, 100vw) - var(--pz-bx) - 1920px); --pz-byb: calc(var(--lvh, 100dvh) - var(--pz-by) - 1080px); }
+html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: var(--pz-bxr); --bar-y: var(--pz-byb); }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --bar-x: var(--pz-bxr); }
+/* The rail's Guides tab has no housing: it drops below End Turn's socket, still on the rail's left edge. */
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab { top: 590px; }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { left: calc(var(--pz-bx) + 960px); --bar-y: var(--pz-byb); }
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
 html[data-touch-ui][data-phone-zoom] .row.hand .card .plate-tribe { visibility: hidden; }

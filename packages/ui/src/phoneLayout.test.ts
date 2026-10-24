@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
 
@@ -30,27 +30,22 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(phoneZoomOf({})).toBe(1.35);
     expect(phoneZoomOf({ pz145: 1 })).toBe(1.45);
   });
-  it('iPhone 15 Pro and Pixel 8 at every variant: the stage is the plain fit times the zoom, the 16:9 box centred', () => {
+  it('iPhone 15 Pro and Pixel 8: the zoom is as large as the HOUSED span allows, the span centred in the safe area', () => {
+    const e = PHONE_HOUSED_SPAN;
     for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
       const plain = fitStage(w, h, ins);
       for (const z of Object.values(PHONE_ZOOM_VARIANTS)) {
         const f = fitStage(w, h, ins, DESIGN_W, z);
-        expect(f.s).toBeCloseTo(plain.s * z, 10);
+        expect(f.s).toBeGreaterThan(plain.s);
+        expect(f.s).toBeLessThanOrEqual(plain.s * z + 1e-9);
         const box = gameBoxOf(f);
         expect(box.w / box.h).toBeCloseTo(16 / 9, 6);
-        expect(box.left + box.w / 2).toBeCloseTo(w / 2, 6);
-        expect(box.top + box.h / 2).toBeCloseTo(h / 2, 6);
+        // every housed piece (the span) is inside the safe area, at its desktop seat (the box is not re-laid out)
+        expect(box.left + e.left * f.s).toBeGreaterThanOrEqual(ins.left - 1e-6);
+        expect(box.left + e.right * f.s).toBeLessThanOrEqual(w - ins.right + 1e-6);
+        expect(box.top + e.top * f.s).toBeGreaterThanOrEqual(ins.top - 1e-6);
+        expect(box.top + e.bottom * f.s).toBeLessThanOrEqual(h - ins.bottom + 1e-6);
       }
-    }
-  });
-  it("at 1.35x the baked HUD region (box x 125..1795, y 150..930) is inside both phones' safe areas", () => {
-    for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
-      const f = fitStage(w, h, ins, DESIGN_W, 1.35);
-      const box = gameBoxOf(f);
-      expect(box.left + 125 * f.s).toBeGreaterThanOrEqual(ins.left - 1e-6);
-      expect(box.left + 1795 * f.s).toBeLessThanOrEqual(w - ins.right + 1e-6);
-      expect(box.top + 150 * f.s).toBeGreaterThanOrEqual(ins.top - 1e-6);
-      expect(box.top + 930 * f.s).toBeLessThanOrEqual(h - ins.bottom + 1e-6);
     }
   });
   it("a desktop window of a phone's aspect never zooms (the plain fit)", () => {
@@ -69,7 +64,7 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
   });
   it('the zoom CSS is keyed off the touch UI and the stage attribute', () => {
     const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
-    expect(css).toMatch(/html\[data-touch-ui\]\[data-phone-zoom\] \{ --gw: 1920px; --gh: 1080px;/);
+    expect(css).toMatch(/html\[data-touch-ui\]\[data-phone-zoom\] \{\s*--gw: 1920px; --gh: 1080px; --bar-x: var\(--pz-bx\); --bar-y: var\(--pz-by\);/);
   });
 });
 
@@ -140,7 +135,7 @@ describe('the phone layout is written by stage.ts, never by a desktop', () => {
   it('the attribute and the 2:1 design width come from the same gate', () => {
     expect(src).toMatch(/const phoneLayout = phoneLayoutApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.phonelayout\)/);
     expect(src).toMatch(/toggleAttribute\('data-phone-layout', phoneLayout\)/);
-    expect(src).toMatch(/const phoneZoom = !phoneLayout && phoneZoomApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.nophonezoom, !menuZoom\)/);
+    expect(src).toMatch(/const phoneZoom = !phoneLayout && phoneZoomApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.nophonezoom, inRun\)/);
     expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1\)/);
   });
   it('Discover shows full cards on a phone only', () => {

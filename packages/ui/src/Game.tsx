@@ -29,7 +29,7 @@ import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { CrashLogReadout } from './CrashLogReadout';
 import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
-import { supabaseClient } from './remoteBoards';
+import { anonRestInsert, supabaseClient } from './remoteBoards';
 import { PHONE_GPU } from './phoneDiag';
 import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
@@ -192,7 +192,7 @@ export function Game() {
   useEffect(() => scheduleCrashReportUpload(() => {
     const c = supabaseClient();
     return c ? (row) => c.from(CRASH_REPORT_TABLE).insert([row]) : null;
-  }), []);
+  }, () => anonRestInsert(CRASH_REPORT_TABLE)), []);
 
   // Perf HUD: start/stop the sampler with the toggle, and feed it the game context so every logged second
   // carries what was happening (a spike is only actionable if you know the phase + wave it landed in).

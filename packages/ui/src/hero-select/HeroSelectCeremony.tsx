@@ -19,6 +19,7 @@ import { rectToStage, stageViewport } from '../stage';
 import './heroCeremony.css';
 import { useGame } from '../store';
 import { useVersusHeroesRevealed } from '../versus/versusStore';
+import { crumbLight, crumbTrail } from '../crashLog';
 
 /** VERSUS: how long a finished ceremony waits on Start Game before starting on its own (both heroes locked). */
 const VERSUS_AUTO_START_MS = 1500;
@@ -183,6 +184,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
     // Commit-time effect: runs exactly once for the ceremony's lifetime.
     // (deps intentionally omitted — see the comment above)
   }, []);
+
+  /* ---- Crash-log trail (phones; R-TOUCH-CRASH-REPORT-02, owner 2026-10-23: the iPhone died "after selecting a hero,
+     when the animation should play" with no step to name it). Light steps: the ceremony is animating. */
+  useEffect(() => crumbTrail('hero picked', { hero: heroId }, true), []);
+  useEffect(() => { if (state.phase === 'materializing' || state.phase === 'ready') crumbLight(`hero ceremony ${state.phase}`); }, [state.phase]);
 
   /* ---- Pixi lifecycle (§11): its own Application, mounted after commit, destroyed with the ceremony.
      Geometry flows one way (setGeometry); the controller never reads the DOM. */

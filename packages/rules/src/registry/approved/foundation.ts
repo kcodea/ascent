@@ -7281,6 +7281,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneRunMemory.test.ts', 'packages/ui/src/phoneGpuMemory.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-TOUCH-CRASH-REPORT-02',
+    title: 'A phone crash report survives Safari, a flaky network and a stuck auth client, and names the hero pick',
+    statement:
+      'The crash upload (R-TOUCH-CRASH-REPORT-01) runs on a browser without requestIdleCallback (iOS Safari): the delay '
+      + 'timer sends it itself. A load that starts offline spends no try and sends once the network is back. When the '
+      + 'Supabase client insert errors, hangs past its timeout or throws, the same row goes once more, in the same try, as '
+      + 'a plain REST insert with only the publishable key (role anon, insert only). A page restored from the back/forward '
+      + 'cache is recorded as live again. The crash log also records the hero pick and its ceremony steps, the launch '
+      + 'curtain (cover, covered, run built, reveal, first shop) and the falling gate (fall, combat, trip back), as light '
+      + 'steps that read no per-element style; every step carries a composited-layer estimate (animated and will-change '
+      + 'elements at their backing size, a model) and the drawing-buffer size of each live WebGL context, and says whether the '
+      + 'stage was zoomed or transformed. Desktop without ?crashlog=1 still records and sends nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-23 (real iPhone, a build from 2026-10-21 without the uploader; two crashes, no report arrived)', quote: 'the phone just crashed twice from trying to play. i got to hero select and then it crashed both times after selecting a hero, when the animation should play' },
+      { kind: 'code', ref: 'packages/ui/src/crashReport.ts (tryInsert, fallback, the online wait); remoteBoards.ts (anonRestInsert); crashLog.ts (crumbLight, layerEstimate, gs, xf, pageshow); hero-select/HeroSelectCeremony.tsx; hero-select/HeroLaunchCurtain.tsx; Recruit.tsx (gate steps)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-23 (fix/iphone-hero-pick-crash). Before, a stuck or failing client insert spent the try with no second route, an offline load spent one of the three tries, and the last crumb before a hero-pick crash was the background art stream.',
+    example: 'An iPhone dies 2 s into the hero ceremony; the next open sends a row whose last step is "hero picked +1 s" with "layers est ... MB, GL buffers 1278x590,..., stage zoom". If the client insert hangs, the REST route lands the same row about 10 s later.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/crashReportIos.test.ts', 'packages/ui/src/phoneRunHardening.test.ts', 'packages/ui/src/crashReport.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
+  {
     id: 'R-TOUCH-HITSLOP-01',
     title: 'Every control has a touch target of at least 44 screen px, on touch only',
     statement:

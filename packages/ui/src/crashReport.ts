@@ -13,6 +13,11 @@
  *    one up), one request per session per load, no retry loop.
  *  - NEVER THROWS: no backend configured (no client), offline, the table not created yet, RLS refusing: all resolve
  *    quietly. It is insert-only: no row is ever read back (the table has no select policy).
+ *  - TWO ROUTES (2026-10-23, R-TOUCH-CRASH-REPORT-02: two real iPhone crashes sent nothing). The Supabase client insert
+ *    first (it carries the signed-in user); when that errors, hangs or throws, the same row goes once more as a plain
+ *    REST insert with only the publishable key (`fallback`: role anon, no auth client, no session refresh, no lock),
+ *    in the same try. A load that starts OFFLINE waits for the `online` event before it spends a try. Safari has no
+ *    `requestIdleCallback`; the delay timer then runs the upload itself (tested).
  */
 import { crashedSessions, crashLogActive, lastStep, type CrashSession } from './crashLog';
 import { LITE_ART } from './phoneArt';
@@ -113,15 +118,29 @@ function settle(st: ReportedState, crashes: readonly CrashSession[]): ReportedSt
 export interface UploadDeps {
   crashes: readonly CrashSession[];
   insert: CrashInsert | null;
+  /** The second route when `insert` fails: a plain REST insert with the publishable key (see the header). */
+  fallback?: CrashInsert | null;
   env: CrashReportEnv;
   read: () => string | null;
   write: (v: string) => void;
   timeoutMs?: number;
 }
 
+/** One insert with a timeout; true when it succeeded. Never rejects. */
+async function tryInsert(insert: CrashInsert, row: CrashReportRow, timeoutMs: number): Promise<boolean> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const res = await Promise.race([
+      Promise.resolve(insert(row)),
+      new Promise<{ error: unknown }>((r) => { timer = setTimeout(() => r({ error: 'timeout' }), timeoutMs); }),
+    ]);
+    return !res.error;
+  } catch { return false; } finally { if (timer !== undefined) clearTimeout(timer); }
+}
+
 /** Send the pending crashed sessions, one request each, in order. Resolves to the number sent; never rejects. */
 export async function uploadCrashReports(d: UploadDeps): Promise<number> {
-  if (!d.insert || d.crashes.length === 0) return 0;
+  if ((!d.insert && !d.fallback) || d.crashes.length === 0) return 0;
   let st = parseReported(d.read());
   const save = (): void => { try { d.write(JSON.stringify(st)); } catch { /* blocked storage: best-effort */ } };
   let sent = 0;
@@ -132,11 +151,9 @@ export async function uploadCrashReports(d: UploadDeps): Promise<number> {
     let ok = false;
     try {
       const row = buildReport(s, d.env, d.crashes.length);
-      const res = await Promise.race([
-        Promise.resolve(d.insert(row)),
-        new Promise<{ error: unknown }>((r) => setTimeout(() => r({ error: 'timeout' }), d.timeoutMs ?? REQUEST_TIMEOUT_MS)),
-      ]);
-      ok = !res.error;
+      const ms = d.timeoutMs ?? REQUEST_TIMEOUT_MS;
+      if (d.insert) ok = await tryInsert(d.insert, row, ms);
+      if (!ok && d.fallback) ok = await tryInsert(d.fallback, row, ms);
     } catch { ok = false; }
     if (ok) { st.done.push(k); delete st.tries[k]; sent++; }
     save();
@@ -166,29 +183,46 @@ function readEnv(): CrashReportEnv {
  * Schedule the upload (Game.tsx, once on mount). `getInsert` returns null when no backend is configured. Returns a
  * cancel for the unmount. A no-op unless the crash log is recording this load and a crash is on record.
  */
-export function scheduleCrashReportUpload(getInsert: () => CrashInsert | null): () => void {
+export function scheduleCrashReportUpload(
+  getInsert: () => CrashInsert | null, getFallback: () => CrashInsert | null = () => null,
+): () => void {
   if (typeof window === 'undefined' || !crashLogActive()) return () => {};
   // Taken NOW, at mount: the readout's Close forgets the crashes, and a quick tap on it must not cancel the report.
   const crashes = [...crashedSessions()];
   if (crashes.length === 0) return () => {};
   let idle = 0;
+  let cancelled = false;
   const run = (): void => {
+    if (cancelled) return;
     let insert: CrashInsert | null = null;
+    let fallback: CrashInsert | null = null;
     try { insert = getInsert(); } catch { insert = null; }
+    try { fallback = getFallback(); } catch { fallback = null; }
     void uploadCrashReports({
       crashes,
       insert,
+      fallback,
       env: readEnv(),
       read: () => { try { return localStorage.getItem(CRASH_REPORTED_KEY); } catch { return null; } },
       write: (v) => localStorage.setItem(CRASH_REPORTED_KEY, v),
     }).catch(() => 0);
   };
+  // Offline at the moment it would send (a phone on a train): wait for the network instead of spending a try.
+  const whenOnline = (): void => { window.removeEventListener('online', whenOnline); run(); };
+  const go = (): void => {
+    if (cancelled) return;
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) { window.addEventListener('online', whenOnline); return; }
+    run();
+  };
   const timer = window.setTimeout(() => {
+    // Safari (iOS included) has no requestIdleCallback: then the timer itself sends.
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
-    if (typeof ric === 'function') idle = ric(run, { timeout: 10_000 });
-    else run();
+    if (typeof ric === 'function') idle = ric(go, { timeout: 10_000 });
+    else go();
   }, UPLOAD_DELAY_MS);
   return () => {
+    cancelled = true;
+    window.removeEventListener('online', whenOnline);
     window.clearTimeout(timer);
     const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback;
     if (idle && typeof cic === 'function') cic(idle);

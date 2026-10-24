@@ -245,6 +245,7 @@ import { ChargeMotes } from './chargeMotes';
 import { wipeFx } from './wipeFx';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
+import { crumbLight } from './crashLog';
 import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
 import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
@@ -2385,6 +2386,8 @@ export function Recruit() {
   const [vistaMaskTrip, setVistaMaskTrip] = useState(false);
   useEffect(() => {
     if (wipe === 'coverOut') setVistaMaskTrip(vistaMaskReadyRef.current);
+    // Crash-log steps for the falling gate and the trip back (phones; R-TOUCH-CRASH-REPORT-02). Light: mid-animation.
+    if (wipe === 'coverIn' || wipe === 'combat' || wipe === 'coverOut' || wipe === 'revealOut') crumbLight(`gate ${wipe}`);
   }, [wipe]);
   // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
   // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat

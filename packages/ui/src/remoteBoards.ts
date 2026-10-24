@@ -82,6 +82,28 @@ function client(): SupabaseClient | null {
  *  is configured (the queue then simply retains reports). Exported narrowly for that one caller. */
 export const supabaseClient = (): SupabaseClient | null => client();
 
+/**
+ * PHONE CRASH REPORTS, the second route (R-TOUCH-CRASH-REPORT-02, 2026-10-23: two real iPhone crashes reached nothing).
+ * A plain PostgREST insert with ONLY the publishable key: role anon, no auth client, no session refresh, no
+ * navigator.locks. crashReport.ts uses it when the client insert errors or hangs. Insert-only (`return=minimal`), so
+ * the table's lack of a select policy does not matter. Null when no backend is configured. Never rejects.
+ */
+export function anonRestInsert(table: string): ((row: object) => Promise<{ error: unknown }>) | null {
+  if (!SUPABASE_URL || !SUPABASE_KEY || typeof fetch !== 'function') return null;
+  const url = `${String(SUPABASE_URL).replace(/\/+$/, '')}/rest/v1/${table}`;
+  return async (row) => {
+    try {
+      const body = JSON.stringify(row);
+      const headers: Record<string, string> = { apikey: SUPABASE_KEY, 'content-type': 'application/json', prefer: 'return=minimal' };
+      // A legacy anon key is a JWT and goes in Authorization too; a publishable key (`sb_publishable_`) must not.
+      if (/^eyJ/.test(SUPABASE_KEY)) headers.authorization = `Bearer ${SUPABASE_KEY}`;
+      // keepalive lets the request finish if the page goes away; browsers cap a keepalive body at 64 KB.
+      const r = await fetch(url, { method: 'POST', headers, body, keepalive: body.length < 60_000 });
+      return { error: r.ok ? null : `http ${r.status}` };
+    } catch (e) { return { error: e }; }
+  };
+}
+
 /** A Supabase auth user → our provider-agnostic `Identity`. `is_anonymous` flips false once an email is
  *  confirmed on the account, so it is the single source of truth for "real account vs device-bound session".
  *  `displayName` is left to the caller (it comes from local storage / the profile, never from auth). */

@@ -271,7 +271,7 @@ try {
   await c.send('Emulation.setEmulatedMedia', { features: [{ name: 'hover', value: 'none' }, { name: 'pointer', value: 'coarse' }, { name: 'any-hover', value: 'none' }, { name: 'any-pointer', value: 'coarse' }, { name: 'display-mode', value: 'standalone' }] });
   await c.send('Page.navigate', { url: `http://127.0.0.1:${PORT}/` });
   console.log(`Phone run memory (${W}x${H} @${DPR}x, iOS UA, touch, standalone${FLAGS ? `, flags ${FLAGS}` : ''}), build ${DIST}`);
-  const detail = new Set((arg('detail', 'heroselect,picked +1s,start +0.7s,start +2.5s,shop,gate down,combat')).split(','));
+  const detail = new Set((arg('detail', 'heroselect,picked +0.25s,picked +1s,start +0.7s,start +2.5s,shop,gate down,combat')).split(','));
   const sample = async (label, ok = true) => {
     const s = await evaluate(c, 'window.__runMem()');
     const L = await layerModel(c);
@@ -310,7 +310,9 @@ try {
   await sample('heroselect');
   await snap('heroselect');
   const picked = await tap(c, '.herocard.big');
-  for (const [t, label] of [[1000, 'picked +1s'], [3000, 'picked +4s']]) { await sleep(t); await sample(label, picked); }
+  // A finer trail right after the pick (2026-10-23: the iPhone died 'after selecting a hero, when the animation should
+  // play'). Each sample itself takes a moment, so the labels are the wait before it, not exact wall-clock marks.
+  for (const [t, label] of [[250, 'picked +0.25s'], [750, 'picked +1s'], [1000, 'picked +2s'], [2000, 'picked +4s']]) { await sleep(t); await sample(label, picked); }
   await snap('ceremony');
   // The ceremony ends on Start Game.
   let started = false;
@@ -343,6 +345,11 @@ try {
       await sleep(1500);
       return true;
     };
+    // A hero with a turn-1 Discover / quest offer opens it over the Shop: take its first choice (heroes are random per run).
+    for (let i = 0; i < 6 && await evaluate(c, `!!document.querySelector('.discover-ov')`); i++) {
+      if (!await tap(c, '.discover-ov .card') && !await tap(c, '.discover-ov button')) break;
+      await sleep(2500);
+    }
     const before = await count();
     await drag(await centre('[data-zone="tavern"] .row .card[data-uid]'), await centre('[data-zone="warband"]'));
     const bought = await count();

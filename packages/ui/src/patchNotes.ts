@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      { category: 'Systems', text: 'Phones: crash reports now send reliably.' },
       {
         category: 'Balance',
         text: 'New Dragon in Set 3: Nitrogen.',

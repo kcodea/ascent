@@ -55,11 +55,11 @@ export function phoneZoomOf(flags: Partial<Record<string, 1>>): number {
  *  rune sockets), measured off the desktop layout, plus a 10 px breath. The phone zoom keeps all of it on screen. */
 export const PHONE_HOUSED_SPAN = { left: 55, top: 0, right: 1887, bottom: 1055 }; // top 0 = a 12 px breath above the foe's name plaque (y 12)
 /** The housed span's top in the SHOP (a breath above the Tier pill at y 116, Freeze 129, Refresh's cost 129). */
-export const PHONE_SHOP_TOP = 104;
+export const PHONE_SHOP_TOP = 92;
 /** The breathing gap kept either side of the housed span, layout px. */
 export const PHONE_SIDE_GAP = 20;
 /** The lowest housed ART (the hero ring's foot): inside the safe area. */
-export const PHONE_ART_BOTTOM = 1012; // the hero ring's foot (979) + its decorative rim + a breath
+export const PHONE_ART_BOTTOM = 1030; // the hero ring's foot (979) + the board art's socket rim around it + a breath
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
   return phone && !off && inRun && w > h;
@@ -289,8 +289,12 @@ export function applyStage(): StageFit {
   // query sees the WINDOW, which on a scaled stage is not the size the layout is drawn at).
   document.documentElement.setAttribute('data-lv', layoutBreakpoints(next).join(' '));
   // THE PHONE ZOOM's box placement (R-PHONE-ZOOM-01, touchUi.css); never written off a phone.
-  if (next.barX !== undefined && next.barY !== undefined) { de.setProperty('--pz-bx', `${next.barX}px`); de.setProperty('--pz-by', `${next.barY}px`); }
-  else { de.removeProperty('--pz-bx'); de.removeProperty('--pz-by'); }
+  if (next.barX !== undefined && next.barY !== undefined) {
+    de.setProperty('--pz-bx', `${next.barX}px`); de.setProperty('--pz-by', `${next.barY}px`);
+    // The layout viewport's height as a fraction of the design height: overlays sized off the viewport (the Runeforge)
+    // keep their desktop proportions at the design height and scale by this to fit.
+    de.setProperty('--pz-vfit', String(Math.min(1, next.lh / DESIGN_H)));
+  } else { de.removeProperty('--pz-bx'); de.removeProperty('--pz-by'); de.removeProperty('--pz-vfit'); }
   // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01): the rotate prompt is phones only.
   document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
   const root = stageHost();

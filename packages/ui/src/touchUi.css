@@ -244,7 +244,7 @@ html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: 54px; top: 430px; sc
 html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
 html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
 /* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
-html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--safe-b) + 8px); }
+html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--safe-b) + 6px * var(--touch-inv-s)); }
 html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }
 html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--pz-bxr) + 1920px - 1823px); }
 html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 1920px - 1749px); }
@@ -253,7 +253,7 @@ html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -34p
 /* The turn timer: a deliberate top-right corner seat, above the rail and right of Refresh (its desktop seat above the
    frame is outside the shop's framing). */
 html[data-touch-ui][data-phone-zoom] .shopbar { translate: 822px 104px; }
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px); left: calc(var(--pz-bx) + 1098px); --z-hand-gap: -0.3; }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 962px); --z-hand-gap: -0.15; }
 /* …the tucked hand shows each card's art, cost and stats only: its name ribbon and text plate are off (Inspect and a
    drag show the full card), so nothing is ever cut mid-line at the screen edge. */
 html[data-touch-ui][data-phone-zoom] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
@@ -293,15 +293,18 @@ html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='
 html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .hp { right: calc(var(--ccw) * 0.06); }
 /* Zoomed phone: combat Skip / Summary at ~1.3x their desktop size (not the touch UI's 2x); End Turn's hover caption off. */
 html[data-touch-ui][data-phone-zoom] .combathud-skip { transform: translate(-50%, -50%) scale(1.3); }
-html[data-touch-ui][data-phone-zoom] .combatsummary { scale: 1.3; }
+html[data-touch-ui][data-phone-zoom] .combatsummary { scale: 1.3; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); }
 html[data-touch-ui][data-phone-zoom] .etbwrap .etb-tip { display: none; }
 /* Zoomed phone: the round summary a size up (its labels were 6-7 pt). */
 html[data-touch-ui][data-phone-zoom] .fr-panel { zoom: 1.3; }
 
 /* Zoomed phone: three-digit stats shrink to fit inside their badge. */
 html[data-touch-ui][data-phone-zoom] .badge > .value[data-fit='3'] { --sv-fit: 0.8; }
-/* Zoomed phone, the hand: each card keeps its Attack AND Health visible; with the cards overlapped, Health stacks above
-   Attack on the card's visible left edge. */
-html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.hp { right: auto; left: calc(var(--ccw) * -0.02); bottom: calc(var(--ccw) * 0.24); }
+/* Zoomed phone, the hand: each card keeps its Attack AND Health visible, laid out as on the board (Attack bottom-left,
+   Health bottom-right) within the strip of the card the overlap leaves visible. */
+html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.hp { right: calc(var(--ccw) * 0.14); }
 /* Zoomed phone: the Runeforge keeps its desktop composition (the touch UI's extra forge scale overflowed its frame). */
-html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { scale: 1; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { --vh: 10.8px; scale: var(--pz-vfit, 1); transform-origin: 50% 50%; }
+
+/* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
+html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }

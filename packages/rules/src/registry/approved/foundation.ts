@@ -7388,6 +7388,47 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['apps/web/hoverGuardPlugin.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
   {
+    id: 'R-PHONE-ZOOM-01',
+    title: 'A phone in landscape plays the desktop game, zoomed, every housed piece in its housing',
+    statement:
+      'On a phone in landscape, in a run, the stage shows the normal desktop game zoomed in past the plain fit, never a '
+      + 'separate phone composition. Every piece with a housing in the board art (hero ring, Health plate, hero power, '
+      + 'rune sockets, Tier, Freeze, Refresh, End Turn, Gold, the foe\x27s corner socket and its pieces) sits exactly at its '
+      + 'desktop seat and inside the safe area, and the shop and combat use one framing so nothing moves between phases. '
+      + 'Unhoused pieces (lobby rail, help / Compendium / Settings, timer) keep their desktop corners. Cards look exactly '
+      + 'as on desktop. The Runeforge dims the whole screen. Desktop (a mouse) is pixel-identical at every size.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-23 (phone layout review, the custom composition dropped)', quote: 'just take the normal game\x27s 21:9 and zoom it slightly' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-23 (phone zoom)', quote: 'bake the ui elements into place' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (card internals on the phone)', quote: 'move the badges back to normal' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (baked8b sign-off)', quote: 'Looks solid to me' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (fitStage zoom branch, PHONE_HOUSED_SPAN, PHONE_ART_BOTTOM, phoneZoomApplies); packages/ui/src/touchUi.css (html[data-touch-ui][data-phone-zoom])' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-24 (feat/phone-layout). Before, a phone showed the plain fit with wide empty margins and small pieces.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-PHONE-HAND-01',
+    title: 'On a phone the hand rests low and a press pops a card up whole',
+    statement:
+      'On a zoomed phone the hand shows the real desktop cards, badges and spacing unchanged, resting low with their plates '
+      + 'running off the bottom edge (a neighbour may cover a badge). A finger on a hand card lifts that card straight up, '
+      + 'large, fully on screen (plate, text, cost, Attack, Health) above the rest of the hand, clear of the hero ring and '
+      + 'power, and drops it back on release. Transform only; never during a drag; a mouse is unaffected.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (hand on the phone)', quote: 'Show the full plate' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (the pop ruling)', quote: 'they can sit lower and pop up cleanly when highlighted' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (hand badges)', quote: 'move the badges back to normal' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (PRESS_CLASS, handCardOf); packages/ui/src/touchUi.css (.row.hand .card.tt-press)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-24 (feat/phone-layout). Before, the hand on a phone was the small desktop fan with no way to read a card short of Inspect.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
     id: 'R-TOUCH-KEYBOARD-01',
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:

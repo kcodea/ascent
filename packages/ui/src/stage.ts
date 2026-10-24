@@ -53,11 +53,11 @@ export function phoneZoomOf(flags: Partial<Record<string, 1>>): number {
  *  board art, at its exact desktop seat (the hero ring + Health plate + rune sockets, the hero power, Tier, Freeze,
  *  Refresh, End Turn, Gold, and in combat the foe's corner socket with its name plaque, Health, Shop tier, power and
  *  rune sockets), measured off the desktop layout, plus a 10 px breath. The phone zoom keeps all of it on screen. */
-export const PHONE_HOUSED_SPAN = { left: 55, top: 0, right: 1887, bottom: 1055 }; // top 0 = a 12 px breath above the foe's name plaque (y 12)
+export const PHONE_HOUSED_SPAN = { left: 55, top: 18, right: 1887, bottom: 1055 }; // top 18 = a 6 px breath above the foe's name plaque (y 24)
 /** The breathing gap kept either side of the housed span, layout px. */
 export const PHONE_SIDE_GAP = 20;
 /** The lowest housed piece (your Health / Armor plate under the hero ring, at its desktop seat): inside the safe area. */
-export const PHONE_ART_BOTTOM = 1052; // the Health plate's foot (1044) + a breath
+export const PHONE_ART_BOTTOM = 1028; // the Health plate's foot (1044, raised 20 onto the ring's rim on a phone) + a breath
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
   return phone && !off && inRun && w > h;

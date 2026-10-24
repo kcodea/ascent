@@ -6,6 +6,7 @@ import { livePlaysSnapshot } from './fx/fxBudget';
 import { combatSide, makeRng, simulate } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { FAN_PARTICLE_BUDGETS } from './fx/fanBudget';
+import { useSpectatorEnd } from './live/spectatorEnd';
 
 /**
  * PROD-BUILD BENCH HANDLES (perf report 2026-09-30). `docs/performance.md`'s rule is that a slowness number only
@@ -20,6 +21,8 @@ export function installPerfBench(): void {
     store: useGame,
     // The progression store (UI refinement 2026-10-16): a bench capture can show the signed-in menus (Collection plaque).
     progression: useProgression,
+    // The spectator's end notice (phone menus pass 2026-10-24): a bench capture can show it without watching a game.
+    spectatorEnd: useSpectatorEnd,
     pixiFx,
     playDef,
     ready: ensureDefsReady,

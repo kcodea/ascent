@@ -56,7 +56,7 @@ describe('phone diagnostics switches', () => {
     expect(parseDiagQuery('res1, litebd,nope')).toEqual({ res1: 1, litebd: 1 });
     expect(parseDiagQuery('0')).toEqual({});
     expect(activeDiagLabel({ litebd: 1, nofx: 1 })).toBe('nofx+litebd');
-    expect(PHONE_DIAG_FLAGS.map((f) => f.id)).toEqual(['nofx', 'res1', 'noanim', 'zoom', 'nozoom', 'gamexf', 'litebd']);
+    expect(PHONE_DIAG_FLAGS.map((f) => f.id)).toEqual(['nofx', 'res1', 'noanim', 'zoom', 'nozoom', 'gamexf', 'litebd', 'pz125', 'pz135', 'pz145', 'nophonezoom', 'phonelayout']);
   });
 
   it('Settings offers them on a phone only', () => {

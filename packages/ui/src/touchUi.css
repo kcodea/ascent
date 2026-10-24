@@ -230,8 +230,17 @@ html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .h
 html[data-touch-ui][data-phone-zoom] { --pz-bxr: calc(var(--lvw, 100vw) - var(--pz-bx) - 1920px); --pz-byb: calc(var(--lvh, 100dvh) - var(--pz-by) - 1080px); }
 html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: var(--pz-bxr); --bar-y: var(--pz-byb); }
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --bar-x: var(--pz-bxr); }
-/* The rail's Guides tab has no housing: it drops below End Turn's socket, still on the rail's left edge. */
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab { top: 590px; }
+/* PIECES WITH NO HOUSING, placed where they fit tidily inside the zoomed view (box x ~55..1887, y 12..~960 on an iPhone):
+   - the lobby rail: the right margin between End Turn / Refresh and the box edge, its header on top, its Guides tab under it;
+   - help / Compendium / Settings: a column in the left margin, between Tier and the hero's rune sockets;
+   - your Health / Armor plate: raised onto the hero ring's lower rim, above the home indicator. */
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: 22px; --lr-w: 224px; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(22px + 224px - 84px); top: 818px; }
+html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 82px; right: auto; bottom: auto; left: calc(var(--pz-bx) + 64px); }
+html[data-touch-ui][data-phone-zoom] .rulesbtn { top: calc(var(--pz-by) + 322px); }
+html[data-touch-ui][data-phone-zoom] .bookbtn { top: calc(var(--pz-by) + 414px); }
+html[data-touch-ui][data-phone-zoom] .gearbtn { top: calc(var(--pz-by) + 506px); }
+html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -34px; }
 html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { left: calc(var(--pz-bx) + 960px); --bar-y: var(--pz-byb); }
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
@@ -246,3 +255,19 @@ html[data-touch-ui][data-touch-small][data-phone-zoom] .disc-toggle.disc-peek:no
 /* The round summary's buttons: finger-sized hit areas on a zoomed phone. */
 html[data-touch-ui][data-phone-zoom] .fr-btn { padding: calc(14 * var(--u)) calc(28 * var(--u)); }
 html[data-touch-ui][data-phone-zoom] .fr-details-toggle { padding: calc(14 * var(--u)) calc(10 * var(--u)); }
+/* Zoomed phone: the build label is on the title only (in a game it crowds the rail's corner). */
+html[data-touch-ui][data-phone-zoom] .version { display: none; }
+/* Zoomed phone: minions a little larger in their rows, still inside the felt with the desktop gaps. */
+html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) { --cw: calc(var(--ch-base) * var(--card-scale, 0.75) * 0.752 * 1.06); --ccw: calc(var(--cw) * 0.85); --gap-tighten: 0.3; }
+/* Zoomed phone: the lobby rail's names and Health a size up. */
+html[data-touch-ui][data-phone-zoom] .lobbyrail { --lby-name-size: 1.8; --lby-hp-size: 1.7; }
+
+/* Hero select on a phone (plain fit, no zoom): the row sized so the re-roll row stays on screen, and each hero's power
+   text shown under its difficulty pill (a phone has no hover to reveal it). */
+html[data-touch-ui][data-touch-small] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.4); }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow > * { position: static; inset: auto; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcmeta { opacity: 1; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) { align-items: stretch; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }

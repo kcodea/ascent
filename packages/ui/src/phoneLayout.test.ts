@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
 
@@ -30,7 +30,7 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(phoneZoomOf({})).toBe(1.35);
     expect(phoneZoomOf({ pz145: 1 })).toBe(1.45);
   });
-  it('iPhone 15 Pro and Pixel 8: the zoom is as large as the HOUSED span allows, the span centred in the safe area', () => {
+  it('iPhone 15 Pro and Pixel 8: the zoom fills the safe width with the housed span (or the height binds), housed art stays on screen', () => {
     const e = PHONE_HOUSED_SPAN;
     for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
       const plain = fitStage(w, h, ins);
@@ -44,7 +44,8 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
         expect(box.left + e.left * f.s).toBeGreaterThanOrEqual(ins.left - 1e-6);
         expect(box.left + e.right * f.s).toBeLessThanOrEqual(w - ins.right + 1e-6);
         expect(box.top + e.top * f.s).toBeGreaterThanOrEqual(ins.top - 1e-6);
-        expect(box.top + e.bottom * f.s).toBeLessThanOrEqual(h - ins.bottom + 1e-6);
+        // the lowest housed ART (the hero ring's foot) may run into the bottom inset, never off the screen
+        expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(h + 1e-6);
       }
     }
   });

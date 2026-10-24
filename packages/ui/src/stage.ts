@@ -54,6 +54,10 @@ export function phoneZoomOf(flags: Partial<Record<string, 1>>): number {
  *  Refresh, End Turn, Gold, and in combat the foe's corner socket with its name plaque, Health, Shop tier, power and
  *  rune sockets), measured off the desktop layout, plus a 10 px breath. The phone zoom keeps all of it on screen. */
 export const PHONE_HOUSED_SPAN = { left: 55, top: 12, right: 1887, bottom: 1055 };
+/** The breathing gap kept either side of the housed span, layout px. */
+export const PHONE_SIDE_GAP = 20;
+/** The lowest housed ART (the hero ring's foot, decorative): it may run into the bottom inset, never off screen. */
+export const PHONE_ART_BOTTOM = 984;
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
   return phone && !off && inRun && w > h;
@@ -112,13 +116,18 @@ export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS,
     // THE PHONE ZOOM (R-PHONE-ZOOM-01): as large as the HOUSED span allows (every piece that sits in a painted housing
     // stays exactly in it and inside the safe area), capped at the plain fit times `zoom`; the box is placed so that
     // span is centred in the safe area, and everything outside it (empty frame, background) is cropped.
+    // Width: the housed span plus a breathing gap fills the safe width. Height: the span's top (the foe's name plaque)
+    // at the safe top, its bottom (the hero ring's foot, decorative art) allowed into the bottom inset (the home
+    // indicator strip), never past the screen. Whichever binds wins; the box is placed span-centred across, top-pinned.
     const e = PHONE_HOUSED_SPAN;
     const iL = Math.max(0, insets.left), iR = Math.max(0, insets.right), iT = Math.max(0, insets.top), iB = Math.max(0, insets.bottom);
-    const sw = w - iL - iR, sh = h - iT - iB;
-    const sz = Math.min(1, s * zoom, sw / (e.right - e.left), sh / (e.bottom - e.top));
+    const sw = w - iL - iR;
+    const spanW = e.right - e.left + 2 * PHONE_SIDE_GAP;
+    const spanH = PHONE_ART_BOTTOM - e.top;
+    const sz = Math.min(1, s * zoom, sw / spanW, (h - iT) / spanH);
     const sf = { top: iT / sz, right: iR / sz, bottom: iB / sz, left: iL / sz };
     const barX = iL / sz + (sw / sz - (e.right - e.left)) / 2 - e.left;
-    const barY = iT / sz + (sh / sz - (e.bottom - e.top)) / 2 - e.top;
+    const barY = iT / sz + ((h - iT) / sz - spanH) / 2 - e.top;
     return { s: sz, lw: w / sz, lh: h / sz, safe: sf, zoom: sz / s, barX, barY };
   }
   return designW === DESIGN_W ? { s, lw: w / s, lh: h / s, safe } : { s, lw: w / s, lh: h / s, safe, aspect: designW / DESIGN_H };

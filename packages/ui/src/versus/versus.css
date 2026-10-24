@@ -296,6 +296,40 @@ body.vsroom-on .pixifx { z-index: 470; }
 .vsroomctl { position: absolute; bottom: calc(var(--edge-b, 0px) + 20 * var(--u)); left: calc(var(--edge-l, 0px) + 24 * var(--u)); display: flex; gap: calc(12 * var(--u)); }
 .vsroomerror { position: absolute; top: calc(var(--bar-y, 0px) + 96 * var(--u)); left: 50%; translate: -50% 0; }
 
+/* ── VERSUS GROUP ROOMS (owner 2026-10-24, R-VERSUS-GROUP-05): four seats, two each side of the VS mark, a size down so
+   the four fit the same arena. Static layout; the seat moves stay the room's own transform glides. */
+.vsarena.vsgroup { --vs-seat-k: 1.22; }
+.vsgroup .vspcard { width: 11%; top: 19%; height: 40%; }
+.vsgroup .vspcard-p1, .vsgroup .vsgatebox-p1 { left: 17.5%; }
+.vsgroup .vspcard-p2, .vsgroup .vsgatebox-p2 { left: 30%; }
+.vsgroup .vspcard-p3, .vsgroup .vsgatebox-p3 { left: 59%; }
+.vsgroup .vspcard-p4, .vsgroup .vsgatebox-p4 { left: 71.5%; }
+.vsgroup .vsgatebox { width: 11%; top: 64%; }
+.vsenter .vspcard-p3 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.3s both; }
+.vsenter .vspcard-p4 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.36s both; }
+.vsenter .vsmcard-p3 > .vsmcard-in, .vsenter .vsmcard-p4 > .vsmcard-in { animation: vsinrightc 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }
+
+/* ── ROOM OPTIONS (owner 2026-10-24, R-VERSUS-OPTIONS-01): the mode chip under the room's name (it opens the panel), the
+   panel on the Gem plate (Practice's own segmented pills inside), and the "options changed" notice. */
+.vsroommode { pointer-events: auto; margin-top: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(12 * var(--u)); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1.2;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+.vsoptions { position: absolute; z-index: 40; left: calc(var(--edge-l, 0px) + 24 * var(--u)); bottom: calc(var(--edge-b, 0px) + 84 * var(--u));
+  width: min(calc(560 * var(--u)), 92%); box-sizing: border-box; padding: calc(14 * var(--u)) calc(20 * var(--u)) calc(16 * var(--u));
+  display: flex; flex-direction: column; gap: calc(6 * var(--u));
+  border-radius: calc(14 * var(--u)); border: 2px solid transparent;
+  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
+  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 10px 26px -8px rgba(0, 0, 0, 0.8); }
+.vsoptions-head { display: flex; align-items: center; justify-content: space-between; }
+.vsoptions-title { font-family: var(--font-title), serif; font-weight: 800; font-size: calc(22 * var(--u)); color: #f7ecd2; text-shadow: 0 2px 0 rgba(40, 20, 6, 0.85); }
+.vsoptions-note { font-family: var(--font-ui); font-weight: 600; font-size: calc(13 * var(--u)); color: #b7ad9b; }
+.vsoptions .porow { grid-template-columns: calc(150 * var(--u)) 1fr; }
+.vsrcard-mode { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.04em; color: var(--ui-title, #ffd98a); }
+.vsoptions-notice { position: absolute; z-index: 41; top: calc(var(--bar-y, 0px) + 140 * var(--u)); left: 50%; translate: -50% 0;
+  padding: calc(8 * var(--u)) calc(18 * var(--u)); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u));
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); pointer-events: none;
+  animation: vsinfade 0.3s ease-out both; }
+
 /* ── ENTERING THE ROOM (owner 2026-10-21: "make this feel more exciting than simply an instantaneous ui/screen
    change", R-VERSUS-ROOM-ENTER-01). One beat of about 1.2 s, armed by `.vsenter` (VersusRoom's `useRoomEntrance`) and
    finished at once by any click or key: the room opens out of the dark, the arena settles from a slight push-in, the
@@ -561,6 +595,11 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
   border: 2px solid color-mix(in srgb, var(--gold) 55%, #000); border-radius: calc(8 * var(--u)); background: linear-gradient(180deg, #241a13, #17110c);
   font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1; color: #ff9db0; }
 .vsspec-hp svg { width: calc(13 * var(--u)); height: calc(13 * var(--u)); color: var(--threat); }
+/* VERSUS GROUP's fight picker (R-VERSUS-GROUP-04): who each player fights this round, and the players already out. */
+.vsspec-vs { max-width: calc(140 * var(--u)); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-ui); font-weight: 700; font-size: calc(11 * var(--u)); color: #f3ead4; text-shadow: 0 1px 2px #000; }
+.vsspec-seat.out { opacity: 0.45; }
+.vsspec-seat.out:hover { opacity: 0.45; transform: none; }
 .vsspec-key { position: absolute; left: calc(40 * var(--u)); top: calc(-3 * var(--u)); z-index: 3;
   display: grid; place-items: center; width: calc(15 * var(--u)); height: calc(15 * var(--u)); border-radius: 50%;
   font-family: var(--font-ui); font-weight: 900; font-size: calc(9 * var(--u)); color: var(--ink); background: linear-gradient(180deg, #fff, #f3ead4); border: 1.5px solid var(--gold); }

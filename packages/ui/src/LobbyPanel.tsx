@@ -119,7 +119,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const runTribes = useGame((st) => st.run.tribes);
   const guidesOn = useGame((st) => st.run.mode !== 'tutorial');
   // VERSUS (owner 2026-10-14): its rail sits at the middle of the right side, not the top (`.vsplace`).
-  const versusRail = useGame((st) => st.run.mode === 'versus');
+  // VERSUS GROUP (owner 2026-10-24, R-VERSUS-GROUP-03): a 3-4 player match uses the ranked rail as it is (its seats in
+  // the rail's place, the Guides tab), so only a 1v1 lobby (two seats) takes the Versus placement and drawer.
+  const versusRail = useGame((st) => st.run.mode === 'versus' && (st.run.lobby?.seats.length ?? 0) <= 2);
   // The guide list is a SNAPSHOT of the guides store, retaken each time the Guides view opens (below), never a
   // subscription: a refresh that lands while the player is reading must not move a card under them. It is retaken
   // in a LAYOUT effect, before paint, so a refresh that landed while the view was closed never shows as a
@@ -342,7 +344,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // checks every field against what each round actually did. Your own row reads the RUN, which takes your hit the
   // moment the fight settles (owner report 2026-08-25), except in VERSUS, whose seats carry the hearts. VERSUS shows a
   // ONE-ROW rail, the opponent and their hearts (owner 2026-10-14); your own hearts sit under your hero.
-  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versus ? { hideSelf: true } : { self: { resolve: myResolve, armor: myArmor } }) });
+  // VERSUS GROUP (R-VERSUS-GROUP-03): the ranked rail with every player (you included) on their hearts, the Copy in
+  // the last slot while one is in play. A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
+  const versusDuel = versus && lobby.seats.length <= 2;
+  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : versus ? {} : { self: { resolve: myResolve, armor: myArmor } }) });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
   // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
@@ -351,7 +356,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   const rows = rail.rows;
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
-  const railRows = versus ? (showGuides ? 8 : 3) : rows.length;
+  const railRows = versusDuel ? (showGuides ? 8 : 3) : rows.length;
 
   // The round's loss cap (the run's own table: the Gauntlet has its own, see `roundLossCap`). Infinity = uncapped.
   const cap = rail.lossCap;
@@ -366,9 +371,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         positioned off the rail's own `right` / `top` / `width` (styles.css), so it takes no layout space and
         moves nothing. */}
     {/* VERSUS draws its Round plate on the opponent's block (versus/VersusFoe.tsx); the Guides view keeps this header. */}
-    {!(versus && !showGuides) && <div className={`lobbyrailhead${railMods}`}>
+    {!(versusDuel && !showGuides) && <div className={`lobbyrailhead${railMods}`}>
       <span className="lobbyround">{showGuides ? 'Guides' : `Round ${rail.round}`}</span>
-      {versus && showGuides && (
+      {versusDuel && showGuides && (
         <button type="button" className="mdd-close pressable vsdrawer-close" aria-label="Close build guides" onClick={closeVsGuides}>
           <span aria-hidden="true">✕</span>
         </button>
@@ -392,7 +397,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* THE VIEW TAB on the rail's left edge (owner ask 2026-10-09). A SIBLING of the rail like the header (the rail
         clips its children), placed off the rail's own position + height vars (guides/lobbyGuides.css). Two stacked
         glyphs, the current view's lit, so the tab always says which face is showing. */}
-    {guidesOn && !versus && (
+    {guidesOn && !versusDuel && (
       <button type="button" className={`lobbyrailtab gtip${railMods}`}
         style={{ '--lby-n': railRows } as React.CSSProperties}
         aria-label={showGuides ? 'Show opponents' : 'Show build guides'} aria-pressed={showGuides}
@@ -403,7 +408,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     )}
     {/* VERSUS (owner 2026-10-14): no rail panel on the Opponents view. The opponent's hero block floats where the rail
         stands (versus/VersusFoe.tsx), mirroring your own; its Round header and the Guides tab stay. */}
-    {versus && lobby.seats[1] && (() => {
+    {versusDuel && lobby.seats[1] && (() => {
       const foeSeat = lobby.seats[1]!;
       const foeSkins = opponentSkins(showOppSkins, foeSeat.cosmetics);
       const foeFrameId = frameIdOf(foeSkins);
@@ -429,9 +434,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
       );
     })()}
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
-    {!(versus && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
+    {!(versusDuel && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versus ? '' : `${rail.left} left`}</span>
+        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${rail.left} left`}</span>
       </div>
 
       {showGuides ? (

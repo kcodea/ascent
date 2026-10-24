@@ -18,6 +18,7 @@ import { contentRevision, activeSet } from '@game/content';
 import {
   buildVersusCandidate, catchUpVersusRun, progressionFactsOf, createVersusRun, deserialize, reduce, resetLobbyDrivers, serialize, versusAutoResolve, versusHeroOffer, versusHeroRerollCandidates, isHeroReroll,
   versusLobby, versusLobbyKey, versusScoutOf, versusTimeoutRng, VERSUS_LEASE_SECONDS, type Action, type RunState, type VersusLobbyInput, type VersusSeat,
+  normalizeVersusOptions, versusGroupLobby, type VersusRoomOptions, versusGroupLobbyKey, type PreparedCombatSide, type VersusGroupLobbyInput, type VersusGroupSeat, type VersusSeatScout,
 } from '@game/sim';
 import { parseCosmeticSnapshot, type RunCosmeticSnapshot } from '@game/progression';
 import type { CombatResult } from '@game/core';
@@ -28,10 +29,12 @@ import { beginRunProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, tempHandle, useGame } from '../store';
 import { ServerClock, shopClockAt } from './versusClock';
-import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
+import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT } from './versusEmotes';
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
-import { VersusError, versusRemote, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
+import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
+import { groupPairingAt, groupSeatOf, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { versusOptionsSummary } from './versusOptionsUi';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, useSpectate } from './spectate';
 import { othersInStands, setWatchers, uniqueWatchers, type Watcher } from './watchers';
@@ -79,12 +82,16 @@ export interface VersusState {
   /** MY SEAT MOVE IN FLIGHT (R-VERSUS-DRAG-SEAT-01): the role I asked the server for and have not heard back on. The
    *  room shows it at once (`roomWithSeatMove`); a refusal clears it and the card goes back. */
   seatMove: { role: VersusRole } | null;
+  /** ROOM OPTIONS (R-VERSUS-OPTIONS-01): "Room options changed: ..." for a moment after the host changes them. */
+  optionsNotice: string | null;
+  /** VERSUS GROUP KNOCKOUT (R-VERSUS-GROUP-06): my placement, shown as I am moved into the stands to watch the rest. */
+  knockout: { matchId: string; placement: number | null; of: number } | null;
 }
 
 export const useVersus = create<VersusState>(() => ({
   screen: 'browser', rooms: [], loading: false, error: null, room: null, match: null, priv: null, heroOffer: null,
   rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, offsetMs: 0, lastMatch: null, statsOpen: false, pickedFor: null, runReady: false,
-  rerollPending: false, rerollOffFor: null, seatMove: null,
+  rerollPending: false, rerollOffFor: null, seatMove: null, optionsNotice: null, knockout: null,
 }));
 
 const clock = new ServerClock();
@@ -108,18 +115,49 @@ useVersus.subscribe((st, prev) => {
   setWatchers(versusWatchersOf(st.room, !!st.room && !!mySeat(st.match), currentUserId()));
 });
 
+/** THE OPTIONS-CHANGED NOTICE (R-VERSUS-OPTIONS-01): when the room's options move (its `options_rev` grows) everyone
+ *  but the host who changed them sees what they are now, for a moment. */
+let optionsNoticeTimer = 0;
+useVersus.subscribe((st, prev) => {
+  const r = st.room;
+  const p = prev.room;
+  if (!r || !p || r.id !== p.id || (r.options_rev ?? 0) <= (p.options_rev ?? 0)) return;
+  if (r.host_user_id === currentUserId()) return;
+  const text = `Room options changed: ${versusOptionsSummary(r.options)}`;
+  set({ optionsNotice: text });
+  if (typeof window === 'undefined') return;
+  window.clearTimeout(optionsNoticeTimer);
+  optionsNoticeTimer = window.setTimeout(() => { if (get().optionsNotice === text) set({ optionsNotice: null }); }, 4500);
+});
+
+/** The host changes the room's options (Open rooms only; the server validates). */
+export async function setRoomOptions(next: VersusRoomOptions): Promise<void> {
+  const room = get().room;
+  if (!room) return;
+  try {
+    set({ room: await versusRemote.setOptions(room.id, next), error: null });
+  } catch (e) {
+    flashError(errorText(e));
+    void refreshRoom();
+  }
+}
+
 /** Human copy for the SQL error codes a player can actually hit (no em dashes, short sentences). */
 const ERROR_TEXT: Record<string, string> = {
   not_signed_in: 'Sign in to play Versus.',
   no_backend: 'Versus needs a connection to the game server.',
   already_in_room: 'You are already in a room. Leave it first.',
   room_not_open: 'That room has already started.',
-  seats_full: 'Both player seats are taken. You can watch instead.',
+  seats_full: 'Every player seat is taken. You can watch instead.',
   spectators_full: 'The stands are full.',
   version_mismatch: 'That room is on a different game version. Update to join it.',
   seat_taken: 'That seat was just taken.',
   need_two_players: 'You need an opponent to start.',
-  not_host: 'Only the host can start the game.',
+  need_three_players: 'You need three or four players to start.',
+  bad_mode: 'That mode is not available.',
+  bad_modifiers: 'That modifier is not available.',
+  bad_role: 'That seat is not open in this mode.',
+  not_host: 'Only the host can do that.',
   gate_expired: 'The gate closed. The host can start again.',
   no_room: 'That room is gone.',
   network: 'Connection problem. Try again.',
@@ -310,7 +348,7 @@ function enterRoom(room: VersusRoom): void {
   set({ room, screen: 'room', error: null, seatMove: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
   session = { roomId: room.id, matchId: null, channel: null, beat: 0, tick: 0, wake: null, lastFinalize: 0, candidateSeq: 0, publisher: null, unsubRun: null, unsubGates: useVersus.subscribe(driveGates) };
   installSpectateIo({
-    latestFrames: (id) => versusRemote.latestFrames(id),
+    latestFrames: (id) => mx.latestFrames(id),
     requestKey: () => session?.channel?.send(SPECTATE_KEY_EVENT, {}),
     loadRounds: () => { const m = get().match; if (m) void loadRounds(m).then(() => spectateSync(get().match, get().rounds)); },
     lobbyFor: spectatorLobbyFor,
@@ -365,7 +403,7 @@ function subscribe(matchId: string | null): void {
   });
   // A channel swap mid-match keeps the emote transport on the live channel.
   const seat = mySeat();
-  if (seat && useGame.getState().run.mode === 'versus') installVersusEmotes(seat, session.channel.send);
+  if (seat && useGame.getState().run.mode === 'versus') installVersusEmotes(emoteSeatOf(get().match) ?? seat, session.channel.send);
   // A spectator ON THE WATCH SCREEN emotes on the same channel, as themselves (R-SPECTATE-EMOTE-01); a player never
   // does. A channel swap re-installs it on the live channel.
   syncSpectatorEmotes();
@@ -427,7 +465,7 @@ async function refreshMatch(matchId: string): Promise<void> {
   if (!session) return;
   if (session.matchId !== matchId) subscribe(matchId);
   try {
-    const match = await versusRemote.match(matchId);
+    const match = await mx.match(matchId);
     if (!match) return;
     await onMatch(match);
   } catch { /* transient */ }
@@ -438,11 +476,12 @@ async function heartbeat(): Promise<void> {
   try {
     const r = await timed(() => versusRemote.heartbeat(session!.roomId), (x) => x.serverNow);
     if (r.match) await onMatch(r.match);
+    else if (r.groupMatch) await onMatch(ingestGroup(r.groupMatch));
     // Pause detection rides the heartbeat: a running match is reconciled every beat, so an opponent who went
     // silent pauses the clock within a lease plus one beat (live test 2026-10-14: a 12 s modulo window let it slip
     // to ~20 s).
     const m = get().match;
-    if (m && mySeat(m) && m.phase !== 'complete' && !m.paused_at) void versusRemote.reconcile(m.id).then((x) => onMatch(x)).catch(() => undefined);
+    if (m && mySeat(m) && m.phase !== 'complete' && !m.paused_at) void mx.reconcile(m.id).then((x) => onMatch(x)).catch(() => undefined);
   } catch (e) {
     if ((e as VersusError).code === 'not_a_member') await leaveRoom();
   }
@@ -459,11 +498,11 @@ function onTick(): void {
   if (match.paused_at ? due(match.pause_grace_until) || leaseLate || (!!match.resume_at && due(match.resume_at))
     : (match.phase === 'hero_select' && due(match.hero_deadline)) || (match.phase === 'shop' && due(match.shop_deadline))
       || (match.phase === 'combat' && due(match.combat_deadline)) || leaseLate) {
-    void versusRemote.reconcile(match.id).then((m) => onMatch(m)).catch(() => undefined);
+    void mx.reconcile(match.id).then((m) => onMatch(m)).catch(() => undefined);
   }
   if (match.phase === 'resolving' && Date.now() - session.lastFinalize > 2500) {
     session.lastFinalize = Date.now();
-    void versusRemote.finalize(match.id, match.round, match.content_revision).then(() => refreshMatch(match.id)).catch(() => undefined);
+    void mx.finalize(match.id, match.round, match.content_revision).then(() => refreshMatch(match.id)).catch(() => undefined);
   }
   // My shared deadline, the fallback for a screen that is not driving the clock (`useVersusRecruit` locks on the
   // exact edge). It locks AT 0:00, never before (R-VERSUS-CLOCK-LOCK-01: it used to lock 400 ms early on a 500 ms tick,
@@ -481,6 +520,7 @@ function onTick(): void {
 
 async function onMatch(match: VersusMatch): Promise<void> {
   if (!session) return;
+  if (!match.group) setVersusEmoteSeatMap(null);
   const prev = get().match;
   if (prev && prev.id === match.id && prev.revision > match.revision) return; // an older read arriving late
   // A right-click inspect never outlives the moment it was opened in (live PvP 2026-10-14): a new phase or round, a
@@ -496,7 +536,7 @@ async function onMatch(match: VersusMatch): Promise<void> {
   // ONE ROOM, MANY MATCHES (live bug 2026-10-14: spectators saw "combat from OUR game last game"): the committed rounds
   // are keyed by round NUMBER, which restarts every match, so they belong to one match and are dropped the moment the
   // room's match changes, for every member (players and the stands alike).
-  if (roundsOf !== match.id) { roundsOf = match.id; set({ rounds: {} }); }
+  if (roundsOf !== match.id) { roundsOf = match.id; groupRoundsRaw = {}; set({ rounds: {} }); }
   const seat = mySeat(match);
   if (!seat) {
     // A SPECTATOR (Versus phase 2): nothing to drive. The committed rounds feed the fights it watches.
@@ -506,13 +546,13 @@ async function onMatch(match: VersusMatch): Promise<void> {
   }
 
   if (!get().priv || get().priv!.match_id !== match.id) {
-    const priv = await versusRemote.myPrivate(match.id).catch(() => null);
+    const priv = await mx.myPrivate(match.id).catch(() => null);
     if (priv) {
       // The server's row is the truth once registered: after a re-roll (R-HERO-REROLL-01) it is no longer the seeded three.
       const registered = priv.hero_offer && priv.hero_offer.length === 3 ? priv.hero_offer : null;
       const offer = registered ?? versusHeroOffer(Number(priv.hero_seed), Number(priv.run_seed), match.set_id as SetId);
       set({ priv, heroOffer: offer, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, rerollPending: false });
-      if (!priv.hero_offer) void versusRemote.registerOffer(match.id, offer).catch(() => undefined);
+      if (!priv.hero_offer) void mx.registerOffer(match.id, offer).catch(() => undefined);
     }
   }
   if (match.round > 0) await loadRounds(match);
@@ -532,6 +572,7 @@ async function onMatch(match: VersusMatch): Promise<void> {
 let roundsOf: string | null = null;
 
 async function loadRounds(match: VersusMatch): Promise<void> {
+  if (match.group) { await loadGroupRounds(match); return; }
   const have = get().rounds;
   const known = Object.keys(have).map(Number);
   const from = known.length ? Math.max(...known) + 1 : 1;
@@ -554,6 +595,7 @@ function settleVersusProgression(match: VersusMatch): void {
   // The server needs one fought round (`not_terminal` otherwise): a match conceded at Hero Select or before the
   // first fight settles nothing.
   if (settledMatches.has(match.id) || !mySeat(match) || Object.keys(get().rounds).length === 0) return;
+  if (match.group) return; // VERSUS GROUP: the progression server reads 1v1 matches only (not wired yet)
   settledMatches.add(match.id);
   const g = useGame.getState();
   const run = g.run;
@@ -605,15 +647,22 @@ function lobbyInputFor(match: VersusMatch, seat: VersusSeat, run: Pick<RunState,
   };
 }
 /** A SPECTATOR's two-seat lobby for the player it watches, when that player's view carries none (a test bot). */
-export function spectatorLobbyFor(seat: VersusSeat, run: RunState): RunState['lobby'] {
+export function spectatorLobbyFor(seat: VersusGroupSeat, run: RunState): RunState['lobby'] {
   const match = get().match;
   if (!match) return undefined;
+  if (match.group) {
+    const lobby = versusGroupLobby(groupLobbyInputFor(match.group.raw, seat, run));
+    resetLobbyDrivers(lobby.seats);
+    return lobby;
+  }
+  if (seat !== 'p1' && seat !== 'p2') return undefined;
   const lobby = versusLobby(lobbyInputFor(match, seat, run));
   resetLobbyDrivers(lobby.seats);
   return lobby;
 }
 
 export function syncVersusLobby(): void {
+  if (syncGroupLobby()) return;
   const input = versusLobbyInput();
   if (!input) return;
   const run = useGame.getState().run;
@@ -630,6 +679,155 @@ const resultsFor = (seat: VersusSeat): Map<number, CombatResult> =>
 
 let builtFor: string | null = null;
 
+// ── VERSUS GROUP (R-VERSUS-GROUP-01): the 3-4 player match through this client ───────────────────────────────────
+/** The latest raw group match (seats included) and its committed rounds, raw. The store's `match` / `rounds` are
+ *  their projection from my seat (`versusGroupView.ts`). */
+let groupRaw: VersusGroupMatchRaw | null = null;
+let groupRoundsRaw: Record<number, VersusGroupRoundRaw> = {};
+/** Which table each match id lives in (learned on its first read). */
+const groupIds = new Set<string>();
+const duelIds = new Set<string>();
+
+/** Whose side a group match is seen from: mine while I hold a living seat, or my run of it is still on screen (the
+ *  deciding fight); a player who is out and back in the room sees it as a spectator. */
+function groupViewer(raw: VersusGroupMatchRaw): string | null {
+  const me = currentUserId();
+  const row = groupSeatOf(raw, me);
+  if (!row) return null;
+  if (row.eliminatedRound != null && builtFor !== raw.id) return null;
+  return me;
+}
+
+/** My seat on the emote wire: my REAL seat in a group match (p1..p4), else the 1v1 seat. */
+function emoteSeatOf(match: VersusMatch | null): VersusGroupSeat | null {
+  return match?.group ? match.group.me : mySeat(match);
+}
+
+/** The group rail's seat id for `seat` as seen from `viewer` (the others in seat order are s1, s2, s3). */
+function groupLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSeat, seat: VersusGroupSeat): string | null {
+  if (seat === viewer) return 's0';
+  const i = raw.seats.map((x) => x.seat).filter((x) => x !== viewer).sort().indexOf(seat);
+  return i < 0 ? null : `s${i + 1}`;
+}
+
+/** Take a group match row (RPC answer or table read) and hand back its projection from my side. */
+function ingestGroup(raw: VersusGroupMatchRaw): VersusMatch {
+  groupIds.add(raw.id);
+  // Group emotes land on the sender's own rail row (R-VERSUS-GROUP-03).
+  setVersusEmoteSeatMap((seat, viewer) => (groupRaw ? groupLobbySeatId(groupRaw, viewer, seat) : null));
+  if (!groupRaw || groupRaw.id !== raw.id || raw.revision >= groupRaw.revision) groupRaw = raw;
+  // A concede leaves before the server has placed me: the knockout notice fills its placement in when it lands.
+  const ko = get().knockout;
+  if (ko && ko.matchId === groupRaw.id && ko.placement == null) {
+    const p = groupSeatOf(groupRaw, currentUserId())?.placement ?? null;
+    if (p != null) set({ knockout: { ...ko, placement: p } });
+  }
+  return projectGroupMatch(groupRaw, groupViewer(groupRaw));
+}
+
+async function loadGroupRounds(match: VersusMatch): Promise<void> {
+  const raw = groupRaw;
+  if (!raw || raw.id !== match.id) return;
+  const known = Object.keys(groupRoundsRaw).map(Number);
+  const from = known.length ? Math.max(...known) + 1 : 1;
+  if (from <= raw.round) {
+    try {
+      const rows = await versusRemote.groupRounds(match.id, from);
+      if (roundsOf !== match.id) return;
+      for (const r of rows) groupRoundsRaw[r.round] = r;
+    } catch { /* retried on the next wake */ }
+  }
+  set({ rounds: projectGroupRounds(raw, Object.values(groupRoundsRaw), groupViewer(raw)) });
+}
+
+/**
+ * The match API: every match-scoped call goes to the 1v1 RPCs or the group ones, by the match id, and a group answer
+ * comes back projected. Same signatures as `versusRemote`'s 1v1 calls.
+ */
+const G = (id: string): boolean => groupIds.has(id);
+const mx = {
+  async match(id: string): Promise<VersusMatch | null> {
+    if (!G(id)) {
+      const m = await versusRemote.match(id);
+      if (m) { duelIds.add(id); return m; }
+    }
+    if (duelIds.has(id)) return null;
+    const g = await versusRemote.groupMatch(id);
+    return g ? ingestGroup(g) : null;
+  },
+  reconcile: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupReconcile(id).then(ingestGroup) : versusRemote.reconcile(id)),
+  finalize: (id: string, round: number, content: string): Promise<void> => (G(id) ? versusRemote.finalizeGroup(id, round, content) : versusRemote.finalize(id, round, content)),
+  myPrivate: (id: string) => (G(id) ? versusRemote.groupMyPrivate(id) : versusRemote.myPrivate(id)),
+  registerOffer: (id: string, offer: string[]): Promise<unknown> => (G(id) ? versusRemote.groupRegisterOffer(id, offer) : versusRemote.registerOffer(id, offer)),
+  myLatestCheckpoint: (id: string) => (G(id) ? versusRemote.groupMyLatestCheckpoint(id) : versusRemote.myLatestCheckpoint(id)),
+  introDone: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupIntroDone(id).then(ingestGroup) : versusRemote.introDone(id)),
+  combatReady: (id: string, round: number): Promise<VersusMatch> => (G(id) ? versusRemote.groupCombatReady(id, round).then(ingestGroup) : versusRemote.combatReady(id, round)),
+  submit: (id: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null): Promise<VersusMatch> =>
+    (G(id) ? versusRemote.groupSubmit(id, round, seq, side, final, checkpoint, scout).then(ingestGroup) : versusRemote.submit(id, round, seq, side, final, checkpoint, scout)),
+  publishFrame: (id: string, seq: number, round: number, frame: unknown): Promise<void> =>
+    (G(id) ? versusRemote.groupPublishFrame(id, seq, round, frame) : versusRemote.publishFrame(id, seq, round, frame)),
+  latestFrames: (id: string): Promise<{ seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]> =>
+    (G(id) ? versusRemote.groupLatestFrames(id) : versusRemote.latestFrames(id)),
+  pickHero: (id: string, index: number): Promise<VersusMatch> => (G(id) ? versusRemote.groupPickHero(id, index).then(ingestGroup) : versusRemote.pickHero(id, index)),
+  requestResume: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupRequestResume(id).then(ingestGroup) : versusRemote.requestResume(id)),
+  unpause: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupUnpause(id).then(ingestGroup) : versusRemote.unpause(id)),
+  forfeit: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupForfeit(id).then(ingestGroup) : versusRemote.forfeit(id)),
+  async rerollHero(id: string, slot: number, candidates: string[]): Promise<{ offer: string[]; reroll: unknown }> {
+    if (!G(id)) return versusRemote.rerollHero(id, slot, candidates);
+    const out = await versusRemote.groupRerollHero(id, slot, candidates);
+    ingestGroup(out.match);
+    return out;
+  },
+};
+
+/** The group match's rail (the ranked lobby rail with every seat, and the Copy): `versusGroupLobby`. */
+let groupLobbyKey = '';
+function groupLobbyInput(): VersusGroupLobbyInput | null {
+  const match = get().match;
+  const run = useGame.getState().run;
+  const g = match?.group;
+  if (!match || !g || !g.me || run.mode !== 'versus' || builtFor !== match.id) return null;
+  return groupLobbyInputFor(g.raw, g.me, run);
+}
+/** The group lobby input from `seat`'s side (a spectator builds it for the seat it watches). */
+function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run: Pick<RunState, 'wave' | 'phase' | 'combatSettled' | 'heroId' | 'cosmetics'>): VersusGroupLobbyInput {
+  const members = get().room?.members ?? [];
+  return {
+    matchSeed: Number(raw.seed),
+    setId: raw.set_id as SetId,
+    me: seat,
+    wave: run.wave,
+    inCombat: run.phase === 'combat',
+    combatSettled: !!run.combatSettled,
+    seats: raw.seats.map((s) => {
+      const cos = s.seat === seat ? run.cosmetics : parseCosmeticSnapshot(members.find((m) => m.userId === s.userId)?.profile?.cosmetics) ?? undefined;
+      return {
+        seat: s.seat, label: s.name, heroId: (s.seat === seat ? run.heroId : s.hero) ?? run.heroId,
+        eliminatedRound: s.eliminatedRound, placement: s.placement, ...(cos ? { cosmetics: cos } : {}),
+      };
+    }),
+    rounds: Object.values(groupRoundsRaw).map((r) => ({
+      round: r.round, hearts: r.hearts,
+      fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: f.b_copy, heartLostBy: f.heart_lost_by, aResult: f.a_result, aScout: f.a_scout, bScout: f.b_scout })),
+    })),
+    pairing: groupPairingAt(raw, run.wave),
+  };
+}
+/** Build / refresh the group rail. True when this is a group match (the 1v1 builder then stays out). */
+function syncGroupLobby(): boolean {
+  if (!get().match?.group) return false;
+  const input = groupLobbyInput();
+  if (!input) return true;
+  const run = useGame.getState().run;
+  const key = versusGroupLobbyKey(input);
+  if (key === groupLobbyKey && run.lobby) return true;
+  groupLobbyKey = key;
+  const lobby = versusGroupLobby(input);
+  resetLobbyDrivers(lobby.seats);
+  useGame.setState({ run: { ...run, lobby } });
+  return true;
+}
+
 /** The run for this match: built once, from my lock checkpoint + committed rounds on a reconnect. */
 function ensureRun(match: VersusMatch, seat: VersusSeat): void {
   const game = useGame.getState();
@@ -642,10 +840,11 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
   builtFor = match.id;
   void (async () => {
     const hero = (seat === 'p1' ? match.p1_hero : match.p2_hero) ?? offer[priv.hero_index ?? 0] ?? offer[0]!;
-    let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId);
+    // The MATCH's pinned room options (R-VERSUS-OPTIONS-01): a modifier pins its rift onto the run.
+    let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId, match.options ? normalizeVersusOptions(match.options) : null);
     const rr = get().priv?.hero_reroll;
     if (isHeroReroll(rr)) run.heroReroll = { ...rr }; // the hero select's one re-roll (R-HERO-REROLL-01)
-    const ck = await versusRemote.myLatestCheckpoint(match.id).catch(() => null);
+    const ck = await mx.myLatestCheckpoint(match.id).catch(() => null);
     if (ck?.checkpoint) {
       try { run = deserialize(ck.checkpoint); } catch { /* fall back to the fresh run */ }
     }
@@ -653,6 +852,7 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
     if (!run.cosmetics) { const cos = currentRunCosmetics(); if (cos) run.cosmetics = cos; } // my skins, as a lobby run records them
     const present = (): void => {
       lobbyKey = '';
+      groupLobbyKey = '';
       useGame.getState().startVersusRun(run);
       syncVersusLobby();
       // Reconnected after locking this round: the lock is irreversible, so the shop stays locked.
@@ -690,7 +890,7 @@ function ackIntro(matchId: string): void {
     const send = (): void => {
       const m = get().match;
       if (!session || !m || m.id !== matchId || m.phase !== 'shop' || m.round !== 1 || m.shop_deadline) return;
-      void versusRemote.introDone(matchId).then((x) => onMatch(x)).catch(() => undefined);
+      void mx.introDone(matchId).then((x) => onMatch(x)).catch(() => undefined);
     };
     if (!goodLuckIntro.isActive()) { send(); return; }
     const off = goodLuckIntro.subscribe(() => { if (!goodLuckIntro.isActive()) { off(); send(); } });
@@ -720,7 +920,7 @@ function driveRun(match: VersusMatch, seat: VersusSeat): void {
   // Already past this fight (a reload rebuilt the run beyond it) but the server still waits on me: I am back.
   if (match.phase === 'combat' && run.phase === 'recruit' && run.wave > match.round && !match[`${seat}_ready`] && readySentFor !== `${match.id}:${match.round}`) {
     readySentFor = `${match.id}:${match.round}`;
-    void versusRemote.combatReady(match.id, match.round).then((m) => onMatch(m)).catch(() => { readySentFor = null; });
+    void mx.combatReady(match.id, match.round).then((m) => onMatch(m)).catch(() => { readySentFor = null; });
   }
 }
 /**
@@ -745,8 +945,8 @@ let readySentFor: string | null = null;
 function startRunWatch(matchId: string, seat: VersusSeat): void {
   if (!session) return;
   session.unsubRun?.();
-  session.publisher = newPublisher(seat);
-  if (session.channel) { uninstallSpectatorEmotes(); installVersusEmotes(seat, session.channel.send); }
+  session.publisher = newPublisher(emoteSeatOf(get().match) ?? seat);
+  if (session.channel) { uninstallSpectatorEmotes(); installVersusEmotes(emoteSeatOf(get().match) ?? seat, session.channel.send); }
   installVersusHandlers({
     fightFor: (wave) => {
       const r = get().rounds[wave];
@@ -757,7 +957,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
       if (next !== prev) tapAct(action); // the stands replay it (a no-op with nobody watching; never a rejected action)
       if (action.type === 'resolveCombat' && prev.phase === 'combat' && next.phase === 'recruit') {
         set({ endTurnWave: null });
-        void versusRemote.combatReady(matchId, prev.wave).then((m) => onMatch(m)).catch(() => undefined);
+        void mx.combatReady(matchId, prev.wave).then((m) => onMatch(m)).catch(() => undefined);
       }
     },
   });
@@ -783,7 +983,7 @@ const candidates = createDeferredWriter<{ matchId: string; seat: VersusSeat }>((
   const side = buildVersusCandidate(run, versusTimeoutRng(Number(match.seed), run.wave, seat));
   if (!side) return;
   session.candidateSeq += 1;
-  void versusRemote.submit(matchId, match.round, session.candidateSeq, side, false, null, versusScoutOf(run)).catch(() => undefined);
+  void mx.submit(matchId, match.round, session.candidateSeq, side, false, null, versusScoutOf(run)).catch(() => undefined);
 }, 600);
 
 /** How many spectators were in the room at the last publish: a new arrival gets a keyframe. */
@@ -798,7 +998,7 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const watchers = get().room?.members.filter((m) => m.role === 'spectator').length ?? 0;
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
-  setSpectatorTap(watchers > 0, mySeat(), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
+  setSpectatorTap(watchers > 0, emoteSeatOf(get().match), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
   if (watchers === 0) return;
   const msg = nextSpectatorMessage(pub, run, run.wave, forceKey || arrived || keyWanted, hasPendingActs());
   keyWanted = false;
@@ -814,7 +1014,7 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   // the persisted copy (its beat would be stale by the time someone reads it).
   const cb = msg.kind === 'key' ? combatBeatFor(run) : null;
   session.channel?.send('spectate', cb ? { ...msg, cb } : msg);
-  if (msg.kind === 'key') void versusRemote.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
+  if (msg.kind === 'key') void mx.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
 }, 250);
 
 /**
@@ -846,7 +1046,7 @@ export async function lockTurn(): Promise<void> {
   const ended = reduce(answered, { type: 'faceOmen', deferFight: true });
   if (!ended.pendingCombatSide) { set({ lockedRound: null }); return; }
   try {
-    const m = await versusRemote.submit(match.id, match.round, (session?.candidateSeq ?? 0) + 1, ended.pendingCombatSide, true, serialize(answered), versusScoutOf(answered));
+    const m = await mx.submit(match.id, match.round, (session?.candidateSeq ?? 0) + 1, ended.pendingCombatSide, true, serialize(answered), versusScoutOf(answered));
     await onMatch(m);
   } catch (e) {
     // `deadline_passed` / `stale_round`: the server already promoted my newest candidate. Keep waiting for the fight.
@@ -861,7 +1061,7 @@ export async function pickVersusHero(index: number): Promise<void> {
   const match = get().match;
   if (!match) return;
   try {
-    await onMatch(await versusRemote.pickHero(match.id, index));
+    await onMatch(await mx.pickHero(match.id, index));
   } catch (e) {
     set({ error: errorText(e) });
   }
@@ -871,13 +1071,13 @@ export async function pickVersusHero(index: number): Promise<void> {
 export async function resumeMatch(): Promise<void> {
   const match = get().match;
   if (!match) return;
-  try { await onMatch(await versusRemote.requestResume(match.id)); } catch (e) { set({ error: errorText(e) }); }
+  try { await onMatch(await mx.requestResume(match.id)); } catch (e) { set({ error: errorText(e) }); }
 }
 
 export async function unpauseMatch(): Promise<void> {
   const match = get().match;
   if (!match) return;
-  try { await onMatch(await versusRemote.unpause(match.id)); } catch (e) { set({ error: errorText(e) }); }
+  try { await onMatch(await mx.unpause(match.id)); } catch (e) { set({ error: errorText(e) }); }
 }
 
 /** CONCEDE (the Esc menu's two-tap): the gate closes at once (owner 2026-10-14), while the server records it. */
@@ -885,7 +1085,7 @@ export async function forfeitMatch(): Promise<void> {
   const match = get().match;
   if (!match || match.phase === 'complete') return;
   playVersusEndGate(match.id);
-  try { await onMatch(await versusRemote.forfeit(match.id)); } catch (e) { set({ error: errorText(e) }); }
+  try { await onMatch(await mx.forfeit(match.id)); } catch (e) { set({ error: errorText(e) }); }
 }
 
 /** The match ended: back to the room (ruling 10: no rematch room; the room itself lives on). */
@@ -902,6 +1102,7 @@ export function returnToRoom(): void {
   builtFor = null;
   pendingPresent = null;
   lobbyKey = '';
+  groupLobbyKey = '';
   goodLuckIntro.end();
   uninstallVersusEmotes();
   uninstallSpectatorEmotes();
@@ -910,6 +1111,18 @@ export function returnToRoom(): void {
   if (session) session.unsubRun = null;
   set({ lockedRound: null, readyRound: null, endTurnWave: null, screen: 'room' });
   useGame.getState().leaveVersusRun();
+  // VERSUS GROUP: a player who is out of a match that goes on now sees it as the stands do.
+  // KNOCKED OUT (owner 2026-10-24: "when a player loses/is knocked out in this mode they go into a spectator seat so
+  // they can watch the rest of the game", R-VERSUS-GROUP-06): straight onto the watch screen of the same match (the
+  // server has moved them to the stands), their placement shown as they arrive. Seen as the stands from here on.
+  if (groupRaw && match && groupRaw.id === match.id) {
+    const mine = groupSeatOf(groupRaw, currentUserId());
+    if (groupRaw.phase !== 'complete' && mine) {
+      set({ knockout: { matchId: match.id, placement: mine.placement, of: groupRaw.seat_count }, statsOpen: false });
+      useSpectate.setState({ optedOut: null });
+    }
+    void onMatch(ingestGroup(groupRaw));
+  }
   void refreshRoom();
 }
 
@@ -937,7 +1150,7 @@ export async function resumeVersusMatch(): Promise<void> {
     if (!roomId || get().room) return;
     const room = await versusRemote.room(roomId);
     const role = room?.members.find((m) => m.userId === me)?.role;
-    if (!room || room.status !== 'in_game' || (role !== 'p1' && role !== 'p2')) return;
+    if (!room || room.status !== 'in_game' || !role || role === 'spectator') return;
     enterRoom(room);
   } catch { /* no backend / offline: nothing to resume */ }
 }
@@ -954,6 +1167,7 @@ async function rejoinMyRoom(): Promise<void> {
 }
 
 export const clearVersusError = (): void => set({ error: null });
+export const clearVersusKnockout = (): void => set({ knockout: null });
 export const setVersusStatsOpen = (open: boolean): void => {
   useGame.setState({ inspect: null }); // an overlay opening or closing never leaves an inspect behind
   set({ statsOpen: open });
@@ -971,7 +1185,7 @@ export function versusEndCombatPressed(run: RunState): boolean {
   if (match.paused_at) return true; // paused: End Combat waits for the resume (swallowed, nothing sent)
   if (get().readyRound !== run.wave) {
     set({ readyRound: run.wave });
-    void versusRemote.combatReady(match.id, run.wave).then((m) => onMatch(m)).catch(() => undefined);
+    void mx.combatReady(match.id, run.wave).then((m) => onMatch(m)).catch(() => undefined);
   }
   return true;
 }
@@ -987,7 +1201,7 @@ export function rereadVersusMatch(): void {
   const m = get().match;
   if (!session || !m || Date.now() - lastReread < 1000) return;
   lastReread = Date.now();
-  void versusRemote.reconcile(m.id).then((x) => onMatch(x)).catch(() => undefined);
+  void mx.reconcile(m.id).then((x) => onMatch(x)).catch(() => undefined);
 }
 
 // ── the lobby gates (owner 2026-10-14: "the normal lobby gate close with the crystal"; the end gate) ───────────────
@@ -1041,12 +1255,13 @@ export async function rerollVersusHero(slot: number): Promise<void> {
   if (!match || candidates.length === 0) return;
   set({ rerollPending: true });
   try {
-    const out = await versusRemote.rerollHero(match.id, slot, candidates);
+    const out = await mx.rerollHero(match.id, slot, candidates);
     const priv = get().priv;
-    if (!priv || priv.match_id !== match.id || !isHeroReroll(out.reroll) || !Array.isArray(out.offer) || out.offer.length !== 3) return;
-    set({ priv: { ...priv, hero_offer: out.offer, hero_reroll: out.reroll }, heroOffer: [...out.offer] });
+    const rr = out.reroll;
+    if (!priv || priv.match_id !== match.id || !isHeroReroll(rr) || !Array.isArray(out.offer) || out.offer.length !== 3) return;
+    set({ priv: { ...priv, hero_offer: out.offer, hero_reroll: rr }, heroOffer: [...out.offer] });
     const g = useGame.getState();
-    if (g.pendingMode === 'versus' && g.heroChoices) useGame.setState({ heroChoices: [...out.offer], heroReroll: out.reroll });
+    if (g.pendingMode === 'versus' && g.heroChoices) useGame.setState({ heroChoices: [...out.offer], heroReroll: rr });
   } catch {
     set({ rerollOffFor: match.id });
   } finally {
@@ -1066,7 +1281,7 @@ function driveGates(st: VersusState): void {
   const { room, match } = st;
   if (!room || !session) return;
   const role = myRole(room);
-  const player = role === 'p1' || role === 'p2';
+  const player = !!role && role !== 'spectator';
   if (room.status === 'sealed' && player) {
     const key = `${room.id}|${room.gate_deadline ?? ''}`;
     if (entryGate?.key !== key) {

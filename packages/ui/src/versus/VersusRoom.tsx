@@ -19,7 +19,7 @@
  * is one-shot transform / opacity (the entrance, the seat moves); the gauntlet cursor comes from the global rule.
  */
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { VERSUS_HEARTS, VERSUS_SPECTATOR_CAP } from '@game/sim';
+import { normalizeVersusOptions, VERSUS_HEARTS, VERSUS_MODE_SEATS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat } from '@game/sim';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
@@ -33,7 +33,8 @@ import { versusTestToolsEnabled } from './versusFlag';
 import { resumeSpectating } from './spectate';
 import { VersusEmptySeatCard, VersusPlayerCard } from './VersusPlayerCard';
 import { MAX_RECORD_IDS, useSeatData, type SeatServerData } from './versusSeatCard';
-import { leaveRoom, myRole, setVersusStatsOpen, startGame, useVersus, versusRemainingMs, type VersusState } from './versusStore';
+import { leaveRoom, myRole, setRoomOptions, setVersusStatsOpen, startGame, useVersus, versusRemainingMs, type VersusState } from './versusStore';
+import { VersusOptionsPanel, versusOptionsSummary } from './versusOptionsUi';
 import { canDragSeatCard, roomWithSeatMove } from './seatDrag';
 import { beginSeatDrag, endSeatDrag, SeatDragGhost, useRoomCards, useSeatDragStore, type SeatDragState } from './useSeatDrag';
 import type { VersusMember } from './versusRemote';
@@ -155,12 +156,19 @@ function useStartPresence(full: boolean): [boolean, boolean] {
   return [full || leaving, !full && leaving];
 }
 
-function Seat({ side, m, room, match, me, drag, arena }: { side: 'p1' | 'p2'; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
+/** A seat's hearts in the running match: the 1v1 row, or the group table's seat (R-VERSUS-GROUP-05). */
+function seatHearts(match: VersusState['match'], side: VersusGroupSeat): number | null {
+  if (!match) return null;
+  if (match.group) return match.group.raw.seats.find((x) => x.seat === side)?.hearts ?? null;
+  return side === 'p1' ? match.p1_hearts : side === 'p2' ? match.p2_hearts : null;
+}
+
+function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
   const botStatus = useVersusBot((s) => s.status);
   const open = room.status === 'open';
   const running = room.status === 'in_game' && match && match.phase !== 'complete';
   const mine = room.members.find((x) => x.userId === me) ?? null;
-  const iSit = mine?.role === 'p1' || mine?.role === 'p2';
+  const iSit = !!mine && mine.role !== 'spectator';
   const isHostViewer = !!me && me === room.host_user_id;
   // THE OPEN SEAT (owner 2026-10-21, R-VERSUS-ROOM-POLISH-03): a seat is taken by DRAGGING your card onto it (and left by
   // dragging it back to the hand); the slot's own text is the only waiting cue.
@@ -194,7 +202,7 @@ function Seat({ side, m, room, match, me, drag, arena }: { side: 'p1' | 'p2'; m:
         )}
       </div>
       <div className={`vsgatebox vsgatebox-${side}`}>
-        {running && m && <span className="vsgatestate">{side === 'p1' ? match!.p1_hearts : match!.p2_hearts} / {VERSUS_HEARTS} hearts</span>}
+        {running && m && seatHearts(match, side) != null && <span className="vsgatestate">{seatHearts(match, side)} / {VERSUS_HEARTS} hearts</span>}
       </div>
     </>
   );
@@ -244,10 +252,10 @@ function useCardFaces(): (m: VersusMember) => CardFace {
  * travel onto it and grab it. As a SEAT card the pads are off and it takes no pointer: the open-seat card under it
  * (same box) takes the hover and hands the press to the seat's own drag.
  */
-const RoomCard = memo(function RoomCard({ face, server, host, slot, i, draggable, dragSrc, arena }: { face: CardFace; server: SeatServerData | undefined; host: boolean; slot: 'p1' | 'p2' | 'bench'; i: number; draggable: boolean; dragSrc: boolean; arena: RefObject<HTMLDivElement> }) {
+const RoomCard = memo(function RoomCard({ face, server, host, slot, i, draggable, dragSrc, arena }: { face: CardFace; server: SeatServerData | undefined; host: boolean; slot: VersusGroupSeat | 'bench'; i: number; draggable: boolean; dragSrc: boolean; arena: RefObject<HTMLDivElement> }) {
   const seat = slot !== 'bench';
   // The entrance's stagger (`.vsenter`): the fighters stride in at 0.18 s / 0.24 s, the hand rises card by card.
-  const delay = slot === 'p1' ? 0.18 : slot === 'p2' ? 0.24 : 0.46 + Math.min(i, 8) * 0.045;
+  const delay = slot === 'p1' ? 0.18 : slot === 'p2' ? 0.24 : slot === 'p3' ? 0.3 : slot === 'p4' ? 0.36 : 0.46 + Math.min(i, 8) * 0.045;
   return (
     <div className={`vsmcard ${seat ? `vsmcard-seat vsmcard-${slot}` : 'vsbcard'}${draggable ? ' vsdraggable' : ''}${dragSrc ? ' vsdragsrc' : ''}`} data-vsm={face.userId}
       style={{ '--vsz': seat ? 10 : 10 + i } as CSSProperties}
@@ -282,7 +290,7 @@ function RoomCards({ room, data, me, drag, arena }: { room: NonNullable<VersusSt
     <div className="vscards">
       {order.current.map((id) => {
         const m = byId.get(id)!;
-        const slot = m.role === 'p1' || m.role === 'p2' ? m.role : 'bench';
+        const slot = m.role === 'spectator' ? 'bench' : m.role;
         return (
           <RoomCard key={id} face={faceOf(m)} server={data.get(id)} host={id === room.host_user_id} slot={slot} i={benchIndex.get(id) ?? 0}
             draggable={canDragSeatCard(room, me, id)} dragSrc={drag?.userId === id} arena={arena} />
@@ -301,14 +309,21 @@ export function VersusRoom() {
   const drag = useSeatDragStore((s) => s.drag);
   const arenaRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
-  useRoomCards(arenaRef, room?.members.map((x) => `${x.userId}:${x.role}`).join(',') ?? '');
+  // The room's mode re-lays the seats out (two, or four for a group room): it rides the placement signature.
+  const roomMode = normalizeVersusOptions(serverRoom?.options).mode;
+  useRoomCards(arenaRef, `${room?.members.map((x) => `${x.userId}:${x.role}`).join(',') ?? ''},mode:${roomMode}`);
   useEffect(() => () => endSeatDrag(), []);
   // The room's FX (coins, landing dust, the entrance slam) play on the game's FX canvas, lifted over the room while it
   // is up (versus.css `body.vsroom-on`): a class, so nothing is matched per mutation.
   useEffect(() => { document.body.classList.add('vsroom-on'); return () => document.body.classList.remove('vsroom-on'); }, []);
   const entering = useRoomEntrance(stageRef, serverRoom?.id);
-  const [startShown, startLeaving] = useStartPresence(!!serverRoom && serverRoom.status === 'open' && serverRoom.members.some((x) => x.role === 'p1') && serverRoom.members.some((x) => x.role === 'p2'));
-  const vsBeat = useFullBeat(stageRef, !!serverRoom && serverRoom.members.some((x) => x.role === 'p1') && serverRoom.members.some((x) => x.role === 'p2'));
+  // Enough players to start: both seats (1v1), or three of the four (group, R-VERSUS-GROUP-05).
+  const seatedCount = serverRoom?.members.filter((x) => x.role !== 'spectator').length ?? 0;
+  const enough = !!serverRoom && seatedCount >= VERSUS_MODE_SEATS[roomMode].min;
+  const [startShown, startLeaving] = useStartPresence(!!serverRoom && serverRoom.status === 'open' && enough);
+  const vsBeat = useFullBeat(stageRef, enough);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const optionsNotice = useVersus((s) => s.optionsNotice);
   const match = useVersus((s) => s.match);
   const error = useVersus((s) => s.error);
   const setTitleView = useGame((s) => s.setTitleView);
@@ -318,10 +333,10 @@ export function VersusRoom() {
   const statsOpen = useVersus((s) => s.statsOpen);
   // The seat cards' numbers: re-read when a player sits or leaves, and when a match ends and the room reopens. (A
   // hook, so it runs before the no-room return.)
-  const p1 = room?.members.find((x) => x.role === 'p1') ?? null;
-  const p2 = room?.members.find((x) => x.role === 'p2') ?? null;
-  // ONE batched read for every card in the room: both seats and every spectator (at most 22 ids, R-NET-01).
-  const seatIds = [p1?.userId, p2?.userId, ...(room?.members.filter((x) => x.role === 'spectator').map((x) => x.userId) ?? [])]
+  const seatRoles: VersusGroupSeat[] = roomMode === 'group' ? ['p1', 'p2', 'p3', 'p4'] : ['p1', 'p2'];
+  const seated = seatRoles.map((r) => room?.members.find((x) => x.role === r) ?? null);
+  // ONE batched read for every card in the room: every seat and every spectator (at most 24 ids, R-NET-01).
+  const seatIds = [...seated.map((x) => x?.userId), ...(room?.members.filter((x) => x.role === 'spectator').map((x) => x.userId) ?? [])]
     .filter((x): x is string => !!x).slice(0, MAX_RECORD_IDS);
   const seatData = useSeatData(seatIds, `${seatIds.join(',')}|${room?.status === 'open' ? 'open' : 'busy'}|${room?.current_match_id ?? ''}|${lastMatch?.matchId ?? ''}`);
   if (!room || !serverRoom) return null;
@@ -330,7 +345,10 @@ export function VersusRoom() {
   const spectators = room.members.filter((x) => x.role === 'spectator');
   const open = room.status === 'open';
   const running = room.status === 'in_game' && !!match && match.phase !== 'complete';
-  const isPlayer = role === 'p1' || role === 'p2';
+  // A group player already out of the running match watches it like the stands (R-VERSUS-GROUP-02).
+  const outOfMatch = !!match?.group && !!role && role !== 'spectator' && !match.group.me;
+  const isPlayer = !!role && role !== 'spectator' && !outOfMatch;
+  const hostEdits = host && open;
   // Who hosts, wherever they sit (a host in the hand has no seat tag): named once, in the room's heading.
   const hostName = room.members.find((x) => x.userId === room.host_user_id)?.displayName?.trim() || null;
 
@@ -348,11 +366,10 @@ export function VersusRoom() {
           static image, never a live blur), under a static grade that darkens the edges and seats the hand. */}
       <div className="vsarena-ext" aria-hidden="true" />
       <div className="vsvignette" aria-hidden="true" />
-      <div className="vsarena" ref={arenaRef}>
+      <div className={`vsarena${roomMode === 'group' ? ' vsgroup' : ''}`} ref={arenaRef}>
         {/* The VS mark between the two cards: the game's display font with a static glow until it has its own art. */}
         <div key={vsBeat} className={`vsmark${vsBeat > 0 ? ' vsmark-full' : ''}`} aria-hidden="true">VS</div>
-        <Seat side="p1" m={p1} room={room} match={match} me={me} drag={drag} arena={arenaRef} />
-        <Seat side="p2" m={p2} room={room} match={match} me={me} drag={drag} arena={arenaRef} />
+        {seatRoles.map((side, i) => <Seat key={side} side={side} m={seated[i] ?? null} room={room} match={match} me={me} drag={drag} arena={arenaRef} />)}
 
         {/* THE ACTION AREA (owner 2026-10-21, R-VERSUS-ROOM-POLISH-03): EMPTY until both seats are filled. Then the host's
             Start game (everyone else: "Host starts the match", in the same place) fades in and floats up into place;
@@ -383,11 +400,15 @@ export function VersusRoom() {
       <div className="vsroomhead">
         <span className="vsroomtitle">{room.name}</span>
         <span className="vsroomwatch">{hostName ? `Hosted by ${hostName}` : 'Versus'}</span>
+        {/* ROOM OPTIONS (R-VERSUS-OPTIONS-01): what this room plays, for everyone; the host changes it between games. */}
+        <button type="button" className="vsroommode hudpill-name" aria-label={`Room options: ${versusOptionsSummary(room.options)}`}
+          onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>{versusOptionsSummary(room.options)}</button>
       </div>
       <div className="vsroomtop">
         <button className="vsplate" onClick={() => { sfx.pulse(); setTitleView('modes'); }}>Back</button>
       </div>
       <div className="vsroomctl">
+        <button className="vsplate" onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>Room options</button>
         {lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
         <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</button>
         {bot.status === 'playing' && bot.roomId === room.id && (
@@ -405,6 +426,11 @@ export function VersusRoom() {
       )}
       <SeatDragGhost room={room} data={seatData} />
 
+      {optionsOpen && (
+        <VersusOptionsPanel options={room.options} editable={hostEdits} onClose={() => setOptionsOpen(false)}
+          onChange={(next) => { void setRoomOptions(next); }} />
+      )}
+      {optionsNotice && <div className="vsoptions-notice hudpill-name" role="status">{optionsNotice}</div>}
       {statsOpen && lastMatch && <VersusMatchStats record={lastMatch} onClose={() => setVersusStatsOpen(false)} />}
       {error && <div className="vserror vsroomerror" role="alert">{error}</div>}
       {/* The entrance's dark: fades out as the room opens, and takes the click that skips the entrance. */}

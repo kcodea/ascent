@@ -8,17 +8,17 @@
  * it is empty, and nothing new about the host (moving to the stands keeps the host, exactly like the button).
  */
 import type { VersusMember, VersusRole, VersusRoom } from './versusRemote';
-import type { VersusSeat } from '@game/sim';
+import type { VersusGroupSeat } from '@game/sim';
 
 export interface Box { left: number; top: number; right: number; bottom: number }
 
 /** Where a dragged card is: over a player seat, over the stands (the sell band above the seats, or the hand of
  *  spectator cards), or nowhere that does anything. */
-export type SeatZone = VersusSeat | 'stands' | null;
+export type SeatZone = VersusGroupSeat | 'stands' | null;
 
 /** The drag's cached geometry (screen px, measured once at pick-up). */
 export interface SeatDragGeo {
-  seats: readonly { role: VersusSeat; box: Box }[];
+  seats: readonly { role: VersusGroupSeat; box: Box }[];
   /** The sell line: above it a SEATED card goes back to the stands (null for a spectator's card). */
   sellTop: number | null;
   /** The spectator hand's box: dropping a seated card on it also goes back to the stands. */

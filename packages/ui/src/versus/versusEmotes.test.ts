@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { EmoteMessage } from '@game/sim';
 import { sendEmote, subscribeEmotes } from '../emotes/emoteTransport';
-import { installVersusEmotes, parseVersusEmote, receiveVersusEmote, uninstallVersusEmotes, VERSUS_EMOTE_EVENT, VERSUS_OPPONENT_SEAT } from './versusEmotes';
+import { installVersusEmotes, parseVersusEmote, receiveVersusEmote, setVersusEmoteSeatMap, uninstallVersusEmotes, VERSUS_EMOTE_EVENT, VERSUS_OPPONENT_SEAT } from './versusEmotes';
 
-afterEach(() => uninstallVersusEmotes());
+afterEach(() => { uninstallVersusEmotes(); setVersusEmoteSeatMap(null); });
 
 describe('Versus emotes through the emote transport seam', () => {
   it('your emote shows locally AND goes out on the match channel as the agreed wire message', () => {
@@ -24,8 +24,21 @@ describe('Versus emotes through the emote transport seam', () => {
     expect(receiveVersusEmote({ emoteId: 'gg', seat: 'p2', phase: 'combat', offsetMs: 5, round: 4 })).toBe(true);
     expect(receiveVersusEmote({ emoteId: 'gg', seat: 'p1', phase: 'combat', offsetMs: 5, round: 4 })).toBe(false);
     expect(receiveVersusEmote({ emoteId: 7, seat: 'p2' })).toBe(false);
-    expect(parseVersusEmote({ emoteId: 'x', seat: 'p3', phase: 'shop', offsetMs: 0, round: 1 })).toBeNull();
+    expect(parseVersusEmote({ emoteId: 'x', seat: 'p5', phase: 'shop', offsetMs: 0, round: 1 })).toBeNull();
+    // VERSUS GROUP seats parse (R-VERSUS-GROUP-03); a 1v1 client shows them as its one opponent.
+    expect(parseVersusEmote({ emoteId: 'x', seat: 'p3', phase: 'shop', offsetMs: 0, round: 1 })?.seat).toBe('p3');
     expect(shown).toEqual([{ emoteId: 'gg', seat: VERSUS_OPPONENT_SEAT, phase: 'combat', offsetMs: 5, round: 4 }]);
+    off();
+  });
+
+  it('VERSUS GROUP: an emote lands on each sender rail row (the seat map), from my real seat', () => {
+    const shown: EmoteMessage[] = [];
+    const off = subscribeEmotes((m) => shown.push(m));
+    installVersusEmotes('p3', () => undefined);
+    setVersusEmoteSeatMap((seat, viewer) => (seat === viewer ? 's0' : `s${['p1', 'p2', 'p4'].indexOf(seat) + 1}`));
+    expect(receiveVersusEmote({ emoteId: 'gg', seat: 'p4', phase: 'shop', offsetMs: 0, round: 2 })).toBe(true);
+    expect(receiveVersusEmote({ emoteId: 'gg', seat: 'p3', phase: 'shop', offsetMs: 0, round: 2 })).toBe(false); // my own echo
+    expect(shown.map((m) => m.seat)).toEqual(['s3']);
     off();
   });
 

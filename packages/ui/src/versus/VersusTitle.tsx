@@ -20,6 +20,7 @@ import {
   clearVersusError, createRoom, joinRoom, refreshRooms, useVersus,
 } from './versusStore';
 import type { VersusRoomSummary } from './versusRemote';
+import { versusOptionsSummary } from './versusOptionsUi';
 import './versus.css';
 
 const STATUS: Record<string, string> = { open: 'Open', sealed: 'Starting', in_game: 'In game' };
@@ -33,16 +34,20 @@ export function defaultRoomName(playerName: string): string {
 function RoomCard({ r }: { r: VersusRoomSummary }) {
   const open = r.status === 'open';
   const host = r.hostName?.trim() || 'Someone';
-  const go = (): void => { sfx.pulse(); void joinRoom(r.id, open && r.players < 2 ? 'player' : 'spectator'); };
+  // The room's seats for its mode (2, or 4 for a group room) and what it plays (R-VERSUS-OPTIONS-01): joiners know
+  // what they are joining.
+  const cap = r.maxPlayers ?? 2;
+  const go = (): void => { sfx.pulse(); void joinRoom(r.id, open && r.players < cap ? 'player' : 'spectator'); };
   return (
     <div className={`vsrcard s-${r.status}`} role="listitem">
       <MemberRing name={host} profile={r.hostProfile} className="vsrcard-ring" />
       <div className="vsrcard-who">
         <span className="vsrcard-name">{r.name || `${host}'s room`}</span>
         <span className="vsrcard-host"><Icon name="crown" /> {host}</span>
+        <span className="vsrcard-mode">{versusOptionsSummary(r.options)}</span>
       </div>
-      <div className="vsrcard-seats" aria-label={`${r.players} of 2 seats taken`}>
-        {[0, 1].map((i) => <span key={i} className={`vsrseat${i < r.players ? ' on' : ''}`} />)}
+      <div className="vsrcard-seats" aria-label={`${r.players} of ${cap} seats taken`}>
+        {Array.from({ length: cap }, (_, i) => <span key={i} className={`vsrseat${i < r.players ? ' on' : ''}`} />)}
       </div>
       <span className={`vsrstatus s-${r.status}`}>{STATUS[r.status] ?? r.status}</span>
       <span className={`vsrwatch${r.spectators > 0 ? '' : ' none'}`} aria-label={`${r.spectators} watching`}><Icon name="eye" /> {r.spectators}</span>

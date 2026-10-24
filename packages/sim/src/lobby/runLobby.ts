@@ -159,6 +159,11 @@ export interface RunLobby {
    *  recorded player run (every seat generated). Such a lobby moves no rank, division, promotion or demotion.
    *  Read through `lobbyIsUnrated`, which also derives it from the seats for a lobby saved before the stamp. */
   unrated?: 'all-generated';
+  /** VERSUS GROUP (owner 2026-10-24, R-VERSUS-GROUP-01): the player's opponent for `round`, fixed by the server's
+   *  round-robin schedule (`versusGroupPairings`). `playerOpponent` serves this seat instead of pairing the table, so
+   *  the rail's next-opponent mark and the combat scene name exactly who (or which Copy) the player fights. Display
+   *  lobbies only; absent everywhere else. */
+  forcedOpponent?: { round: number; seatId: string };
 }
 
 /** Player-run boards available to a lobby when it was built (non-synthetic, this set only). */
@@ -715,6 +720,12 @@ export function ghostIsRematch(lobby: RunLobby, seatId: string, ghost: LobbySeat
 
 /** Who the player faces this round, and the board they bring. `null` = the player has a bye. */
 export function playerOpponent(lobby: RunLobby): { seat: LobbySeatState; board: PreparedBoard; ghost?: boolean } | null {
+  const forced = lobby.forcedOpponent;
+  if (forced && forced.round === lobby.round) {
+    const seat = lobby.seats.find((x) => x.id === forced.seatId);
+    // Round 1 (nothing fielded yet) still names the opponent, on an empty board.
+    return seat ? { seat, board: seatBoardThisRound(lobby, seat) ?? { minions: [], tier: 1 } } : null;
+  }
   const { pairs, bye } = pairRunLobby(lobby);
   const pair = pairs.find(([a, b]) => a.id === 's0' || b.id === 's0');
   if (!pair) {

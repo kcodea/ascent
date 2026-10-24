@@ -5,12 +5,13 @@
  * (blueprint 4). See supabase/migrations/2026-10-13-versus.sql for every RPC this wraps.
  */
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { ownSeatPerspective, VERSUS_PROTOCOL, type HeroReroll, type PreparedCombatSide, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import { ownSeatPerspective, VERSUS_PROTOCOL, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
 import type { CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
-export type VersusRole = VersusSeat | 'spectator';
+/** A room role: a player seat (p3 / p4 only in a group room, R-VERSUS-GROUP-01) or the stands. */
+export type VersusRole = VersusGroupSeat | 'spectator';
 export type VersusPhase = 'hero_select' | 'shop' | 'resolving' | 'combat' | 'complete';
 
 export interface VersusMember {
@@ -33,7 +34,15 @@ export interface VersusRoom {
   gate_deadline: string | null;
   p1_gate: boolean;
   p2_gate: boolean;
+  /** Group rooms only (2026-10-24-versus-group.sql). */
+  p3_gate?: boolean;
+  p4_gate?: boolean;
   current_match_id: string | null;
+  /** THE ROOM OPTIONS (R-VERSUS-OPTIONS-01): the host's mode + modifiers, on the room. Absent before the migration. */
+  options?: VersusRoomOptions | null;
+  /** Bumped on every options change (the room's "options changed" notice). */
+  options_rev?: number;
+  options_changed_at?: string | null;
   members: VersusMember[];
   serverNow: string;
 }
@@ -51,6 +60,9 @@ export interface VersusRoomSummary {
   hostProfile: Record<string, unknown> | null;
   players: number;
   spectators: number;
+  /** The room's seats for its mode (2 or 4) and its options (absent before 2026-10-24-versus-group.sql). */
+  maxPlayers?: number;
+  options?: VersusRoomOptions | null;
 }
 
 export interface VersusMatch {
@@ -98,6 +110,96 @@ export interface VersusMatch {
   end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
   completed_at: string | null;
   serverNow?: string;
+  /** The room options this match started with (R-VERSUS-OPTIONS-01). Null on a match before 2026-10-24. */
+  options?: VersusRoomOptions | null;
+  /** VERSUS GROUP (R-VERSUS-GROUP-01): this row is a 3-4 player match PROJECTED onto the 1v1 shape from one seat's
+   *  side (`versusGroupView.ts`): p1 = that seat, p2 = its opponent this round. The full table rides here. */
+  group?: VersusGroupView;
+}
+
+/** One seat of a group match, as `versus_group__match_json` (and the client's own table read) names it. */
+export interface VersusGroupSeatRow {
+  seat: VersusGroupSeat;
+  userId: string;
+  name: string;
+  hearts: number;
+  hero: string | null;
+  locked: boolean;
+  ready: boolean;
+  intro: boolean;
+  auto: boolean;
+  missed: number;
+  eliminatedRound: number | null;
+  outReason: 'hearts' | 'forfeit' | 'left' | 'missed' | null;
+  placement: number | null;
+}
+
+/** A group match row with its seats (`versus_group_matches` + `versus_group_seats`). */
+export interface VersusGroupMatchRaw {
+  id: string;
+  room_id: string | null;
+  seed: number;
+  set_id: string;
+  content_revision: string;
+  protocol: number;
+  options: VersusRoomOptions | null;
+  phase: VersusPhase;
+  revision: number;
+  round: number;
+  seat_count: number;
+  heroes_revealed: boolean;
+  hero_deadline: string | null;
+  shop_starts_at: string | null;
+  shop_deadline: string | null;
+  intro_deadline: string | null;
+  combat_deadline: string | null;
+  paused_seat: VersusGroupSeat | null;
+  paused_at: string | null;
+  pause_grace_until: string | null;
+  resume_at: string | null;
+  winner_seat: VersusGroupSeat | null;
+  end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
+  completed_at: string | null;
+  serverNow?: string;
+  seats: VersusGroupSeatRow[];
+}
+
+/** One fight of a committed group round (`versus_group_fights`). */
+export interface VersusGroupFightRow {
+  round: number;
+  fight: number;
+  a_seat: VersusGroupSeat;
+  b_seat: VersusGroupSeat;
+  b_copy: boolean;
+  chair: 'a' | 'b';
+  outcome: 'a' | 'b' | 'draw';
+  heart_lost_by: VersusGroupSeat | null;
+  a_result: CombatResult;
+  b_result: CombatResult;
+  a_scout: VersusSeatScout | null;
+  b_scout: VersusSeatScout | null;
+}
+
+/** A committed group round: every seat's hearts after it and its fights. */
+export interface VersusGroupRoundRaw {
+  round: number;
+  hearts: Partial<Record<VersusGroupSeat, number>>;
+  eliminated: VersusGroupSeat[];
+  fights: VersusGroupFightRow[];
+}
+
+/** What a projected group match carries beyond the 1v1 shape (see `VersusMatch.group`). */
+export interface VersusGroupView {
+  raw: VersusGroupMatchRaw;
+  /** The viewer's REAL seat (null for a spectator). */
+  me: VersusGroupSeat | null;
+  /** The opponent this round: a seat, or a Copy of that seat. */
+  foe: { seat: VersusGroupSeat; copy: boolean } | null;
+  /** Living seats with each flag (an auto seat counts), and how many are living: the "Players ready N/M" pill. */
+  counts: { locked: number; ready: number; intro: number; living: number };
+  /** Who caused the pause (the pause panel names them). */
+  pausedName: string | null;
+  pausedUser: string | null;
 }
 
 export interface VersusPrivate {
@@ -134,6 +236,9 @@ export interface VersusRoundRow {
   /** Each seat's public state at its lock (tier from the locked side), for the scout card. Null on older rounds. */
   p1_scout?: VersusSeatScout | null;
   p2_scout?: VersusSeatScout | null;
+  /** VERSUS GROUP: every seat's OWN result this round (the spectator's view of any seat), and the round's raw row. */
+  results?: Partial<Record<VersusGroupSeat, CombatResult>>;
+  group?: VersusGroupRoundRaw;
 }
 
 export interface VersusOwnSubmission {
@@ -189,8 +294,13 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
    *  (2026-10-17-versus-open-rooms.sql, R-VERSUS-OPEN-ROOMS-01). The menus' "2 open" indicator. */
   openRooms: (contentRevision: string) =>
     rpc<{ open: number; seatOpen: number }>('versus_open_rooms', { p_protocol: VERSUS_PROTOCOL, p_content: contentRevision }),
-  createRoom: (name: string, me: VersusIdentity) =>
-    rpc<VersusRoom>('versus_create_room', { p_name: name, p_display: me.displayName, p_profile: me.profile, p_set_id: me.setId, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL }),
+  createRoom: (name: string, me: VersusIdentity, options?: VersusRoomOptions | null) =>
+    rpc<VersusRoom>('versus_create_room', {
+      p_name: name, p_display: me.displayName, p_profile: me.profile, p_set_id: me.setId, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL,
+      ...(options ? { p_options: options } : {}),
+    }),
+  /** The host sets the room's options while it is Open (R-VERSUS-OPTIONS-01; 2026-10-24-versus-group.sql). */
+  setOptions: (roomId: string, options: VersusRoomOptions) => rpc<VersusRoom>('versus_set_options', { p_room: roomId, p_options: options }),
   joinRoom: (roomId: string, as: 'player' | 'spectator', me: VersusIdentity) =>
     rpc<VersusRoom>('versus_join_room', { p_room: roomId, p_as: as, p_display: me.displayName, p_profile: me.profile, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL }),
   takeSeat: (roomId: string, role: VersusRole) => rpc<VersusRoom>('versus_take_seat', { p_room: roomId, p_role: role }),
@@ -198,7 +308,7 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   startGame: (roomId: string) => rpc<VersusRoom>('versus_start_game', { p_room: roomId }),
   pressGate: (roomId: string) => rpc<VersusRoom>('versus_press_gate', { p_room: roomId }),
   reconcileRoom: (roomId: string) => rpc<VersusRoom>('versus_reconcile_room', { p_room: roomId }),
-  heartbeat: (roomId: string) => rpc<{ serverNow: string; match?: VersusMatch }>('versus_heartbeat', { p_room: roomId }),
+  heartbeat: (roomId: string) => rpc<{ serverNow: string; match?: VersusMatch; groupMatch?: VersusGroupMatchRaw }>('versus_heartbeat', { p_room: roomId }),
 
   async room(roomId: string): Promise<VersusRoom | null> {
     const { data, error } = await db().from('versus_rooms').select('*').eq('id', roomId).maybeSingle();
@@ -280,6 +390,69 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     return (data as { seat: VersusSeat; seq: number; round: number; frame: unknown }[]) ?? [];
   },
 
+  // ── VERSUS GROUP (R-VERSUS-GROUP-01, 2026-10-24-versus-group.sql): the 3-4 player match's tables and RPCs. ──────
+  async groupMatch(matchId: string): Promise<VersusGroupMatchRaw | null> {
+    const { data, error } = await db().from('versus_group_matches').select('*').eq('id', matchId).maybeSingle();
+    if (error) fail(error);
+    if (!data) return null;
+    // rows: at most four rows, one per seat (primary key match_id + seat) (R-NET-01).
+    const { data: seats, error: e2 } = await db().from('versus_group_seats').select('*').eq('match_id', matchId).order('seat');
+    if (e2) fail(e2);
+    return { ...(data as Omit<VersusGroupMatchRaw, 'seats'>), seats: ((seats ?? []) as Record<string, unknown>[]).map(groupSeatOfRow) };
+  },
+  async groupRounds(matchId: string, fromRound = 1): Promise<VersusGroupRoundRaw[]> {
+    // rows: one row per round; a group match ends long before 1,000 rounds (7 hearts each) (R-NET-01).
+    const { data, error } = await db().from('versus_group_rounds').select('round, hearts, eliminated').eq('match_id', matchId).gte('round', fromRound).order('round');
+    if (error) fail(error);
+    if (!data?.length) return [];
+    // rows: at most two fights per round (R-NET-01).
+    const { data: fights, error: e2 } = await db().from('versus_group_fights').select('*').eq('match_id', matchId).gte('round', fromRound).order('round').order('fight');
+    if (e2) fail(e2);
+    const byRound = new Map<number, VersusGroupFightRow[]>();
+    for (const f of (fights ?? []) as VersusGroupFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
+    return (data as { round: number; hearts: VersusGroupRoundRaw['hearts']; eliminated: VersusGroupSeat[] }[])
+      .map((r) => ({ round: r.round, hearts: r.hearts ?? {}, eliminated: r.eliminated ?? [], fights: byRound.get(r.round) ?? [] }))
+      .filter((r) => r.fights.length > 0);
+  },
+  async groupMyPrivate(matchId: string): Promise<VersusPrivate | null> {
+    const { data, error } = await db().from('versus_group_seat_private').select('*').eq('match_id', matchId).maybeSingle();
+    if (error) fail(error);
+    return (data as VersusPrivate | null) ?? null;
+  },
+  async groupMyLatestCheckpoint(matchId: string): Promise<VersusOwnSubmission | null> {
+    const { data, error } = await db().from('versus_group_submissions').select('round, final, candidate_seq, checkpoint')
+      .eq('match_id', matchId).eq('final', true).not('checkpoint', 'is', null).order('round', { ascending: false }).limit(1).maybeSingle();
+    if (error) fail(error);
+    return (data as VersusOwnSubmission | null) ?? null;
+  },
+  groupRegisterOffer: (matchId: string, offer: string[]) => rpc<VersusGroupMatchRaw>('versus_group_register_offer', { p_match: matchId, p_offer: offer }),
+  groupPickHero: (matchId: string, index: number) => rpc<VersusGroupMatchRaw>('versus_group_pick_hero', { p_match: matchId, p_index: index }),
+  groupRerollHero: (matchId: string, slot: number, candidates: string[]) =>
+    rpc<{ match: VersusGroupMatchRaw; offer: string[]; reroll: HeroReroll }>('versus_group_reroll_hero', { p_match: matchId, p_slot: slot, p_candidates: candidates }),
+  groupSubmit: (matchId: string, round: number, seq: number, side: PreparedCombatSide, final: boolean, checkpoint: string | null, scout?: VersusSeatScout | null) =>
+    rpc<VersusGroupMatchRaw>('versus_group_submit', { p_match: matchId, p_round: round, p_seq: seq, p_side: side, p_final: final, p_checkpoint: checkpoint, p_scout: scout ?? null }),
+  groupIntroDone: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_intro_done', { p_match: matchId }),
+  groupCombatReady: (matchId: string, round: number) => rpc<VersusGroupMatchRaw>('versus_group_combat_ready', { p_match: matchId, p_round: round }),
+  groupForfeit: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_forfeit', { p_match: matchId }),
+  groupUnpause: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_unpause', { p_match: matchId }),
+  groupRequestResume: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_request_resume', { p_match: matchId }),
+  groupReconcile: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_group_reconcile', { p_match: matchId }),
+  groupPublishFrame: (matchId: string, seq: number, round: number, frame: unknown) =>
+    rpc<void>('versus_group_publish_frame', { p_match: matchId, p_seq: seq, p_round: round, p_frame: frame }),
+  async groupLatestFrames(matchId: string): Promise<{ seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]> {
+    // rows: at most four rows per match, one per seat (primary key match_id + seat) (R-NET-01).
+    const { data, error } = await db().from('versus_group_spectator_frames').select('seat, seq, round, frame').eq('match_id', matchId);
+    if (error) fail(error);
+    return (data as { seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]) ?? [];
+  },
+  /** Ask the resolver to settle a group round (`finalize_group`, idempotent server-side). */
+  async finalizeGroup(matchId: string, round: number, contentRevision: string): Promise<void> {
+    const { error } = await db().functions.invoke('versus-resolve', {
+      body: { action: 'finalize_group', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
+    });
+    if (error) throw new VersusError('finalize_failed', (error as Error).message);
+  },
+
   /** Ask the resolver to settle a `resolving` round (idempotent server-side; any member may ask). */
   async finalize(matchId: string, round: number, contentRevision: string): Promise<void> {
     const { error } = await db().functions.invoke('versus-resolve', {
@@ -300,9 +473,12 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_rooms', filter: `id=eq.${roomId}` }, () => onChange('room'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_members', filter: `room_id=eq.${roomId}` }, (p: { eventType?: string; new?: Record<string, unknown> }) => onChange('members', p.eventType === 'UPDATE' ? p.new : undefined));
     if (matchId) {
+      // A match id lives in exactly one of the two match tables (1v1 or group): listening on both costs nothing.
       ch = ch
         .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'));
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_group_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'));
     }
     if (onBroadcast) ch = ch.on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
     ch.subscribe();
@@ -316,4 +492,14 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
 }
 
 export type VersusRemote = ReturnType<typeof makeVersusRemote>;
+
+/** A `versus_group_seats` table row in the RPC json's camelCase shape. */
+export function groupSeatOfRow(r: Record<string, unknown>): VersusGroupSeatRow {
+  return {
+    seat: r.seat as VersusGroupSeat, userId: String(r.user_id), name: String(r.name ?? ''), hearts: Number(r.hearts ?? 0),
+    hero: (r.hero as string | null) ?? null, locked: !!r.locked, ready: !!r.ready, intro: !!r.intro, auto: !!r.auto,
+    missed: Number(r.missed ?? 0), eliminatedRound: r.eliminated_round == null ? null : Number(r.eliminated_round),
+    outReason: (r.out_reason as VersusGroupSeatRow['outReason']) ?? null, placement: r.placement == null ? null : Number(r.placement),
+  };
+}
 export const versusRemote: VersusRemote = makeVersusRemote(supabaseClient);

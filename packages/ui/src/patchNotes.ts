@@ -85,6 +85,18 @@ export const PATCH_NOTES: PatchNote[] = [
           'When a game you are watching ends, the gates close and open on the menu with the result and your XP.',
         ],
       },
+      {
+        category: 'Systems',
+        text: 'Versus rooms now have options. The host can switch a room between 1v1 and a new 3-4 player mode, and add a modifier, between games.',
+        details: [
+          '3-4 players: everyone meets everyone in turn. With three players, one player faces a copy of another player\'s board each round.',
+          'Each player has 7 hearts. Beating a copy never hurts the player it copied. Last one standing wins.',
+          'In a 3-4 player game the lobby rail shows every player and their hearts, plus the Copy while one is in play.',
+          'Modifiers: Freedom (your first minion each turn is free) or Summit (the shop reaches Tier 7).',
+          'The room list shows each room\'s mode. Everyone in the room is told when the host changes the options.',
+          'Spectators pick which fight to watch. Versus stays unranked.',
+        ],
+      },
       { category: 'Systems', text: "Rebirth's glow no longer cuts off in a straight line." },
       { category: 'Systems', text: 'Fel Spikes now shows its spikes when a Start of Combat rune triggers its Echo.' },
       {

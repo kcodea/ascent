@@ -32,7 +32,7 @@ import { canDragSeatCard, memberOf, roomWithSeatMove, seatDropOf, seatZoneAt, se
 import type { SeatServerData } from './versusSeatCard';
 import { takeSeat, useVersus } from './versusStore';
 import type { VersusMember, VersusRole, VersusRoom } from './versusRemote';
-import type { VersusSeat } from '@game/sim';
+import type { VersusGroupSeat } from '@game/sim';
 
 export interface SeatDragState {
   userId: string;
@@ -103,7 +103,7 @@ export function beginSeatDrag(e: ReactPointerEvent<HTMLElement>, userId: string,
     const card = [...arena.querySelectorAll<HTMLElement>('.vsmcard [data-versus-card]')].find((el) => el.dataset.versusCard === userId) ?? src;
     const sr = card.getBoundingClientRect();
     origin = { cx: sr.left + sr.width / 2, cy: sr.top + sr.height / 2, w: sr.width };
-    const seats = [...arena.querySelectorAll<HTMLElement>('.vspcard[data-seat]')].map((el) => ({ role: el.dataset.seat as VersusSeat, box: boxOf(el.getBoundingClientRect()) }));
+    const seats = [...arena.querySelectorAll<HTMLElement>('.vspcard[data-seat]')].map((el) => ({ role: el.dataset.seat as VersusGroupSeat, box: boxOf(el.getBoundingClientRect()) }));
     const benchEl = arena.querySelector<HTMLElement>('.vsbench');
     const own = seats.find((s) => s.role === from);
     const sellScreen = from !== 'spectator' && own ? sellLineOf(own.box, y0) : null;
@@ -254,7 +254,7 @@ interface PlateBox { left: number; top: number; width: number; height: number }
  *  card's size; a hand card is the same element drawn smaller). */
 export interface CardPlace { x: number; y: number; s: number }
 interface CardSpot { role: string; place: CardPlace | null; cx: number; cy: number; w: number; plate: PlateBox | null }
-const isSeat = (role: string): boolean => role === 'p1' || role === 'p2';
+const isSeat = (role: string): boolean => role === 'p1' || role === 'p2' || role === 'p3' || role === 'p4';
 const plateRect = (el: HTMLElement): PlateBox | null => {
   const p = el.querySelector<HTMLElement>('.cardplate');
   if (!p) return null;
@@ -298,16 +298,19 @@ function presentLanding(el: HTMLElement, afterMs: number, sound: boolean): void 
  * in) that a rect would include. A hand card is the seat card scaled by `--vsb-k / --vspcard-k`. Null when nothing is
  * laid out (jsdom), where the cards are simply not placed.
  */
-export interface RoomGeo { seat: Record<'p1' | 'p2', CardPlace>; bench: CardPlace[]; step: number; cw: number; ch: number }
+export interface RoomGeo { seat: Partial<Record<VersusGroupSeat, CardPlace>> & Record<'p1' | 'p2', CardPlace>; bench: CardPlace[]; step: number; cw: number; ch: number }
 export function readRoomGeo(arena: HTMLElement): RoomGeo | null {
   const num = (v: string | null | undefined): number => (v ? parseFloat(v) : NaN);
-  const seatOf = (side: 'p1' | 'p2'): { box: HTMLElement; hold: HTMLElement } | null => {
+  const seatOf = (side: VersusGroupSeat): { box: HTMLElement; hold: HTMLElement } | null => {
     const box = arena.querySelector<HTMLElement>(`.vspcard-${side}`);
     const hold = box?.querySelector<HTMLElement>(':scope > .vspcard-hold');
     return box && hold ? { box, hold } : null;
   };
   const p1 = seatOf('p1');
   const p2 = seatOf('p2');
+  // VERSUS GROUP (R-VERSUS-GROUP-05): seats 3 and 4 exist only in a group room.
+  const p3 = seatOf('p3');
+  const p4 = seatOf('p4');
   const bench = arena.querySelector<HTMLElement>('.vsbench');
   if (!p1 || !p2 || !bench) return null;
   const h1 = getComputedStyle(p1.hold);
@@ -328,8 +331,15 @@ export function readRoomGeo(arena: HTMLElement): RoomGeo | null {
     step = num(acs.width);
     return { x: bl + num(acs.left) - (cw * bs) / 2, y: bt + num(acs.top), s: bs };
   });
-  const geo: RoomGeo = { seat: { p1: seatPlace(p1, h1), p2: seatPlace(p2, getComputedStyle(p2.hold)) }, bench: benchPlaces, step, cw, ch };
-  const all = [cw, ch, bs, geo.seat.p1.x, geo.seat.p1.y, geo.seat.p2.x, geo.seat.p2.y, ...benchPlaces.flatMap((p) => [p.x, p.y])];
+  const geo: RoomGeo = {
+    seat: {
+      p1: seatPlace(p1, h1), p2: seatPlace(p2, getComputedStyle(p2.hold)),
+      ...(p3 ? { p3: seatPlace(p3, getComputedStyle(p3.hold)) } : {}),
+      ...(p4 ? { p4: seatPlace(p4, getComputedStyle(p4.hold)) } : {}),
+    },
+    bench: benchPlaces, step, cw, ch,
+  };
+  const all = [cw, ch, bs, ...Object.values(geo.seat).flatMap((p) => [p.x, p.y]), ...benchPlaces.flatMap((p) => [p.x, p.y])];
   return cw > 0 && ch > 0 && all.every(Number.isFinite) ? geo : null;
 }
 
@@ -382,7 +392,7 @@ function placeRoomCards(root: HTMLElement, signature: string, prev: ReadonlyMap<
   const slotOf = (id: string): CardPlace | null => {
     if (!geo) return null;
     const r = roles.get(id);
-    if (r === 'p1' || r === 'p2') return geo.seat[r];
+    if (r === 'p1' || r === 'p2' || r === 'p3' || r === 'p4') return geo.seat[r] ?? null;
     const i = benchIndex.get(id);
     return i === undefined ? null : geo.bench[i] ?? null;
   };

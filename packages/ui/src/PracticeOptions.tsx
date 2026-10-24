@@ -20,7 +20,7 @@ import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePrac
 /** A labelled segmented control: one row of options, the lit ones selected. Generic over the option value.
  *  Single-select passes `value`; MULTI-select passes `isOn` (which options are lit) and does its own toggling in
  *  `onPick`, so both share one look (the `poseg` pills, the global gauntlet cursor). */
-function Segmented<T extends string | number | null>(props: {
+export function Segmented<T extends string | number | null>(props: {
   label: string;
   hint?: string;
   value?: T;

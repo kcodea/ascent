@@ -15,7 +15,7 @@
  *     `undefined` field never survives JSON, so a clear must travel as a removal, the Replay V2 lesson).
  * A receiver that sees `seq !== last + 1` asks for the latest keyframe and resumes after it.
  */
-import { SHOP_VIEW_EXCLUDED_KEYS, type RunState, type VersusSeat } from '@game/sim';
+import { SHOP_VIEW_EXCLUDED_KEYS, type RunState, type VersusGroupSeat } from '@game/sim';
 import type { SpectatorAct } from './spectateTap';
 
 /** RunState keys never sent to spectators: RNG internals and identity, on top of the replay exclusions. */
@@ -32,8 +32,8 @@ export type VersusSpectatorView = Record<string, unknown> & { wave: number; hero
 export interface CombatBeat { w: number; b: number }
 /** `ov`: which shop overlays the player has minimized (`spectateTap.tapOverlay`, R-SPECTATE-OVERLAY-01). */
 /** `od`: the player's own odds for the fight on (`spectateTap.takeOdds`), for the stands' Summary (R-SPECTATE-LOCAL-01). */
-export interface SpectatorKeyframe { kind: 'key'; seat: VersusSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat; od?: unknown; ov?: unknown }
-export interface SpectatorDelta { kind: 'delta'; seat: VersusSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat; od?: unknown; ov?: unknown }
+export interface SpectatorKeyframe { kind: 'key'; seat: VersusGroupSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat; od?: unknown; ov?: unknown }
+export interface SpectatorDelta { kind: 'delta'; seat: VersusGroupSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat; od?: unknown; ov?: unknown }
 export type SpectatorMessage = SpectatorKeyframe | SpectatorDelta;
 
 /** A keyframe at least this often, so a receiver that missed one never drifts far. */
@@ -52,7 +52,7 @@ const same = (a: unknown, b: unknown): boolean => a === b || JSON.stringify(a) =
 
 /** The publisher's state for one seat. */
 export interface SpectatorPublisher {
-  seat: VersusSeat;
+  seat: VersusGroupSeat;
   seq: number;
   last: VersusSpectatorView | null;
   sinceKey: number;
@@ -65,7 +65,7 @@ export interface SpectatorPublisher {
  * the last frame before the reload) and by the persisted keyframe. Starting at the wall clock in ms keeps every new
  * session above the last one (a session sends far fewer than one message per millisecond); seq is a bigint in the SQL.
  */
-export const newPublisher = (seat: VersusSeat, seq = Date.now()): SpectatorPublisher => ({ seat, seq, last: null, sinceKey: 0 });
+export const newPublisher = (seat: VersusGroupSeat, seq = Date.now()): SpectatorPublisher => ({ seat, seq, last: null, sinceKey: 0 });
 
 /**
  * The next message for `run`, or null when nothing visible changed. `forceKey` (shop open, reconnect) sends a

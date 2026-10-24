@@ -75,6 +75,8 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The Engraved keyword now reads: Keeps all stats and effects gained during combat.',
         details: ['A wording update. Engraved minions keep the stats and keywords they gain in a fight, as before.'],
+      },
+      {
         category: 'Systems',
         text: 'Versus games and watching a game to the end now earn account XP.',
         details: [

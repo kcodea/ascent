@@ -323,14 +323,18 @@ html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::af
 /* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
 html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }
 /* THE POP: a finger on a hand card lifts it whole and VERY large (owner 2026-10-24: "it should be very large"): straight,
-   ~88% of the safe screen height, centred where it fits, plate, text, cost, Attack and Health all on screen (owner
+   ~95% of the safe screen height, rising from just above its row, plate, text, cost, Attack and Health all on screen (owner
    2026-10-24: the resting hand is the desktop card exactly, badges and all, so a neighbour may cover them; the pop is
    where it all reads). touchInput.ts measures the card ONCE on the press and writes `--pop-s` / `--pop-tx` / `--pop-ty`
    (translate + scale about the card's top-left). Transform only, the base 0.14 s transition, the card is re-rastered at
    its final size. Not while a drag is live (the dragged card owns the finger). */
 html[data-touch-ui][data-phone-zoom] .row.hand .card { transform-origin: 0 0; }
 html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translate(var(--pop-tx, 0px), var(--pop-ty, 0px)) scale(var(--pop-s, 1)); z-index: 50; }
-html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app { z-index: auto; }
+/* …and so the popped card can rise above the HUD, `.app`'s stacking context is dissolved for good on a zoomed phone (the
+   same move desktop makes while a hand card is hovered, styles.css): toggling it per press restacked the whole app and
+   cost ~3 dropped frames a press at 4x CPU throttle; permanent, a press only raises the hand zone. `.boardbg` stays at 0
+   under `.statusbar` 40, as on desktop. */
+html[data-touch-ui][data-phone-zoom] .app { z-index: auto; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone[data-zone='hand'] { z-index: 70; }
 
 /* ── PHONE MENUS (owner 2026-10-24: "Make sure all menus look good too") ────────────────────────────────────────────
@@ -366,10 +370,11 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lbpage { padding
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-body { overflow-y: auto; }
 /* Its category tabs break between words only ("Attack Animations" was splitting mid-word), a size smaller to fit. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-tab-name { overflow-wrap: normal; font-size: 11.5px; letter-spacing: 0.02em; }
-/* On a sidebar page the help / Compendium squares sit in the sidebar's spare space above Settings, never over the page. */
-html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] :is(.rulesbtn, .bookbtn) { top: auto; right: auto; bottom: calc(var(--safe-b) + 150px); }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .rulesbtn { left: calc(var(--safe-l) + 28px); }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .bookbtn { left: calc(var(--safe-l) + 38px + var(--touch-cb)); }
+/* On a sidebar page the help / Compendium squares sit in the top band, left of the profile strip's Career link (the
+   bottom corner is page content, and the sidebar has no spare height on every phone). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] :is(.rulesbtn, .bookbtn) { bottom: auto; left: auto; top: calc(var(--safe-t) + 26px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .bookbtn { right: calc(var(--safe-r) + 420px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .rulesbtn { right: calc(var(--safe-r) + 430px + var(--touch-cb)); }
 /* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titleversion { font-size: 18px; }
@@ -404,7 +409,6 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { zoom: var
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lvend .vspanel { zoom: var(--pm-z); }
 /* Phone menus, round 2 of the critic. The Leaderboard's top-three podium at a third of its zoomed size, so the table (and
    its pinned "you" row) has room below it. */
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom: 0.6; }
 /* Recent Games: the placement sparkline is dropped on a phone, so the games themselves fill the page. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .rg-sum-chart { display: none; }
 /* The Compendium's minions-by-tier strip sits in the flow (not over the Gilded switch), and its caption is dropped. */
@@ -415,5 +419,21 @@ html[data-touch-ui][data-touch-kb] .book::after { visibility: hidden; }
 /* The mode pages keep a right gutter clear of the notch, and Versus' box never runs past it. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host .mpview:not(.mp-home) { padding-right: calc(var(--safe-r) + 16px * var(--touch-inv-s)); box-sizing: border-box; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='versus'] .mpbox { min-width: 0; width: auto; max-width: calc((var(--touch-mp-w) - 16px * var(--touch-inv-s)) / var(--hs-zoom)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='versus'] .vstitle { max-width: calc((var(--touch-mp-w) - 16px * var(--touch-inv-s)) / var(--hs-zoom)); }
 /* Gauntlet's ten stage slots fit beside the sidebar (they ran under it at the menus' zoom). */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='gauntlet'] .gstages { zoom: 0.78; }
+/* The Leaderboard's pinned "you" row is opaque on a phone, so the row scrolling under it never shows through. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-mepin { background-color: #0d1528; }
+/* Recent Games' open game: Replay / Career take their own row under the placement and hero (the narrow card had them
+   over the hero's portrait and name). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .gc.gc-detail .gc-body { grid-template-columns: 92px minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto auto; grid-template-areas: 'place hero' 'side side' 'board board' 'runes runes' 'meta meta'; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .gc.gc-detail .gc-side { justify-content: flex-start; }
+/* The Leaderboard's "you" row sits after the list on a phone (pinned, it covered the one row the short screen shows),
+   and the podium is smaller still so rows show under it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) :is(.lb-mepin, .lb-table > .lb-trow-btn.me) { position: static; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom: 0.48; }
+@media (hover: none) and (pointer: coarse) {
+  /* Practice is the one mode page that scrolls on a phone: its help / Compendium squares step away there rather than
+     float over its options (both stay on the Play page and in a game). */
+  html[data-touch-ui][data-touch-small]:not([data-phone-layout]):has(.mpview[data-view='practice']:not(.mpv-out)) :is(.rulesbtn, .bookbtn) { visibility: hidden; }
+}

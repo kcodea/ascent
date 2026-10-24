@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
-import { POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry } from './touchInput';
+import { POP_FOOT_GAP, POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry } from './touchInput';
 
 /**
  * THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01): a phone in landscape lays the game out in a 2:1 box and
@@ -75,21 +75,30 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(pop?.[1]).toMatch(/transform:/);
     expect(pop?.[1]).not.toMatch(/box-shadow|filter|top:|bottom:|margin/);
   });
-  it('the pop fills ~88% of the safe height, centred, and never past a safe edge', () => {
+  it('the pop fills ~95% of the safe height, its foot just above the safe bottom, never past a safe edge', () => {
     const safe = { top: 0, right: 59, bottom: 21, left: 59 };
     const base = { width: 50, extentTop: -10, extentBottom: 110, k: 0.4, vw: 852, vh: 393, safe };
     for (const left of [60, 400, 780]) {
       const g = popGeometry({ ...base, left, top: 300 });
       const h = g.s * 120; const avail = 393 - 21;
       expect(h / avail).toBeCloseTo(POP_HEIGHT_FRAC, 6);
-      // the popped extent's top: top + k*ty + s*extentTop, centred in the safe height
-      const top = 300 + 0.4 * g.ty + g.s * -10;
-      expect(top).toBeCloseTo((avail - h) / 2, 6);
+      // the popped extent's foot: top + k*ty + s*extentBottom, just above the safe bottom
+      const foot = 300 + 0.4 * g.ty + g.s * 110;
+      expect(foot).toBeCloseTo(393 - 21 - POP_FOOT_GAP, 6);
       // horizontally inside the safe area
       const l = left + 0.4 * g.tx; const r = l + g.s * 50;
       expect(l).toBeGreaterThanOrEqual(59 + 8 - 1e-6);
       expect(r).toBeLessThanOrEqual(852 - 59 - 8 + 1e-6);
     }
+  });
+  it('R-PHONE-MENUS-01: the phone menu rules are touch-phone only and zoom the modal panels', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    const K = 'html[data-touch-ui][data-touch-small]:not([data-phone-layout])';
+    for (const sel of ['.pnpanel { zoom: var(--pm-z)', '.bgrpanel { zoom: var(--pm-z)', '.book { zoom: var(--pm-book)', '.lvend .vspanel { zoom: var(--pm-z)']) expect(css).toContain(`${K} ${sel}`);
+    // the menu page zoom on a phone
+    expect(css).toContain(`${K} { --touch-p: 2.1 !important; }`);
+    // board badges step in on a zoomed phone only
+    expect(css).toMatch(/html\[data-touch-ui\]\[data-phone-zoom\] \.zone:is\(\[data-zone='tavern'\], \[data-zone='warband'\]\) \.card\.compact \.atk \{ left: var\(--pz-badge-in/);
   });
   it('a press marks only a hand card', () => {
     // a stand-in for the DOM (this suite runs in node): `closest` answers for the hand-card selector only

@@ -201,8 +201,11 @@ export function isTap(x0: number, y0: number, x1: number, y1: number, slop = TAP
 
 /** The class a finger's press puts on the hand card under it (see `installTouchInput`). */
 export const PRESS_CLASS = 'tt-press';
-/** How tall the popped hand card is, as a share of the safe screen height (owner 2026-10-24: "it should be very large"). */
-export const POP_HEIGHT_FRAC = 0.88;
+/** How tall the popped hand card is, as a share of the safe screen height (owner 2026-10-24: "it should be very large",
+ *  then "pop less vertically and just make the pop larger"). */
+export const POP_HEIGHT_FRAC = 0.95;
+/** Screen px kept between the popped card's foot and the safe bottom edge: it grows up from just above its resting row. */
+export const POP_FOOT_GAP = 6;
 export interface PopInput {
   /** The card's untransformed box on screen (px): its rest transform taken back out. */
   left: number; top: number; width: number;
@@ -215,8 +218,8 @@ export interface PopInput {
 }
 /**
  * Pure: the pop of a hand card on a zoomed phone, as `translate(tx, ty) scale(s)` about the card's top-left (layout px).
- * The whole card fills `POP_HEIGHT_FRAC` of the safe height, centred vertically, and horizontally as close to where it
- * rests as the screen allows (never past a safe edge).
+ * The whole card fills `POP_HEIGHT_FRAC` of the safe height, its foot just above the safe bottom edge (it rises only as far
+ * as it must), and horizontally as close to where it rests as the screen allows (never past a safe edge).
  */
 export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; tx: number; ty: number } {
   const availH = p.vh - p.safe.top - p.safe.bottom;
@@ -226,7 +229,7 @@ export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; t
   const want = p.left + p.width / 2;
   const lo = p.safe.left + 8 + w / 2, hi = p.vw - p.safe.right - 8 - w / 2;
   const cx = lo > hi ? p.vw / 2 : Math.min(hi, Math.max(lo, want));
-  const top = p.safe.top + (availH - s * h) / 2;
+  const top = p.vh - p.safe.bottom - POP_FOOT_GAP - s * h;
   const k = p.k > 0 ? p.k : 1;
   return { s, tx: (cx - w / 2 - p.left) / k, ty: (top - s * p.extentTop - p.top) / k };
 }

@@ -7414,18 +7414,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'On a phone the hand rests low and a press pops a card up whole',
     statement:
       'On a zoomed phone the hand shows the real desktop cards, badges and spacing unchanged, resting low with their plates '
-      + 'running off the bottom edge (a neighbour may cover a badge). A finger on a hand card lifts that card straight up, '
-      + 'large, fully on screen (plate, text, cost, Attack, Health) above the rest of the hand, clear of the hero ring and '
-      + 'power, and drops it back on release. Transform only; never during a drag; a mouse is unaffected.',
+      + 'running off the bottom edge (a neighbour may cover a badge). A finger on a hand card lifts that card straight up to '
+      + 'about 95% of the safe screen height, its foot just above the bottom edge, fully on screen (plate, text, cost, Attack, Health) '
+      + 'above everything, and drops it back on release. Transform only; never during a drag; a mouse is unaffected. On '
+      + 'the board rows Attack and Health step in so neighbouring badges never overlap.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (hand on the phone)', quote: 'Show the full plate' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (the pop ruling)', quote: 'they can sit lower and pop up cleanly when highlighted' },
       { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (hand badges)', quote: 'move the badges back to normal' },
-      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (PRESS_CLASS, handCardOf); packages/ui/src/touchUi.css (.row.hand .card.tt-press)' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (the pop size)', quote: 'it should be very large' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (board badges)', quote: 'Move the attack and health badges in slightly so they don\x27t overlap on board (mobile only)' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (PRESS_CLASS, handCardOf, popGeometry, writePop); packages/ui/src/touchUi.css (.row.hand .card.tt-press, --pz-badge-in)' },
     ],
     currentBehaviour: 'Conforms as of 2026-10-24 (feat/phone-layout). Before, the hand on a phone was the small desktop fan with no way to read a card short of Inspect.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-PHONE-MENUS-01',
+    title: 'On a phone the menus read at phone size',
+    statement:
+      'On a phone in landscape the menu pages (Play, Career, Leaderboard, Recent Games, Live Games, Practice, Versus, '
+      + 'Gauntlet), Settings and the modal panels (Patch Notes, Report a Problem, the Compendium and its Rules, the '
+      + 'spectator end notice) zoom so body text reads at about 9 pt or more, inside the safe area, with a visible way out, '
+      + 'and nothing laid over content. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (phone pass)', quote: 'Make sure all menus look good too' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css (PHONE MENUS block, keyed html[data-touch-ui][data-touch-small]); packages/ui/src/MenuSidebar.tsx (data-phone-sbpage on every phone)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-24 (feat/phone-layout). Before, menu text rendered at 3.5 to 6 px on a phone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {

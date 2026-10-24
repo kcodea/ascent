@@ -94,13 +94,16 @@ export interface CombatPreviewFold {
   bladeAttacks: number;
   /** Squirl Scout's run-wide snowball grown so far this fight (the player's `improve` events carrying `scout`). */
   scout: number;
+  /** Conductor's run-wide improvement grown so far this fight, per side (`improve` events carrying `conductor`). */
+  conductor: number;
+  conductorEnemy: number;
 }
 
 const ESCALATION_RE = /improves \+(\d+)\/\+(\d+)$/;
 
 /** Fold the four display-only preview counters over `events[0, upto)`. Pure; one pass. */
 export function combatPreviewFold(events: readonly CombatEvent[], upto: number): CombatPreviewFold {
-  let escA = 0, escH = 0, spellsCast = 0, friendlyDeaths = 0, bladeAttacks = 0, scout = 0;
+  let escA = 0, escH = 0, spellsCast = 0, friendlyDeaths = 0, bladeAttacks = 0, scout = 0, conductor = 0, conductorEnemy = 0;
   const n = Math.min(upto, events.length);
   for (let i = 0; i < n; i++) {
     const e = events[i];
@@ -110,13 +113,16 @@ export function combatPreviewFold(events: readonly CombatEvent[], upto: number):
     if (e.type === 'spellcast') { if (e.side === 'player') spellsCast++; }
     else if (e.type === 'death') { if (e.side === 'player' && !e.rise) friendlyDeaths++; }
     else if (e.type === 'questTrigger') { if (e.side === 'player' && e.flag === 'bladeMastery') bladeAttacks++; }
-    else if (e.type === 'improve') { if (e.scout && e.side !== 'enemy') scout += e.scout; } // either side's Squirl Scout stamps `scout` + `side` (R-SYMMETRY-01); an untagged one is the player's (older logs)
+    else if (e.type === 'improve') {
+      if (e.scout && e.side !== 'enemy') scout += e.scout;
+      if (e.conductor) { if (e.side === 'enemy') conductorEnemy += e.conductor; else conductor += e.conductor; } // Conductor (owner 2026-10-24), either side
+    } // either side's Squirl Scout stamps `scout` + `side` (R-SYMMETRY-01); an untagged one is the player's (older logs)
     else if (e.type === 'sc' && e.side === 'player') {
       const m = ESCALATION_RE.exec(e.text);
       if (m) { escA += Number(m[1]); escH += Number(m[2]); }
     }
   }
-  return { escalation: { attack: escA, health: escH }, spellsCast, friendlyDeaths, bladeAttacks, scout };
+  return { escalation: { attack: escA, health: escH }, spellsCast, friendlyDeaths, bladeAttacks, scout, conductor, conductorEnemy };
 }
 
 /** Read a card def's first effect of a given `do` id and pull a numeric param (for live magnitudes). */

@@ -819,6 +819,8 @@ export function simulate(
   const emberInheritanceUsed: Record<Side, boolean> = { player: false, enemy: false };
   /** Squirl Scout's snowball, live: the side's run value, grown by every combat re-fire this fight. */
   const scoutBuff: Record<Side, number> = { player: playerState.squirlScoutBuff ?? 0, enemy: enemyState.squirlScoutBuff ?? 0 };
+  /** Conductor's run-wide improvement, live: the side's run value, grown by every combat Conductor Shout. */
+  const conductorLive: Record<Side, number> = { player: playerState.conductorBuff ?? 0, enemy: enemyState.conductorBuff ?? 0 };
   // Declared up here (not beside the functions that use them, further down) because a Start-of-Combat cast can
   // already reach them: a Star Crash / Ruby cast in the Start-of-Combat pass read them before their `let`/`const`
   // line ran and threw (a temporal-dead-zone crash the mirror test found, 2026-10-13).
@@ -1989,8 +1991,15 @@ export function simulate(
       if (attack !== 0 || health !== 0) emit({ type: 'tribeAura', side, tribe: 'mech', attack, health, aura: 'magnetic' });
     },
     impAura: (side) => ({ ...impAura[side] }), // Chef Raag reads the live Imp Aura to buff your minions by it
-    // CONDUCTOR: the run's snowball, per side — read-only in combat (a re-fire is a trigger, not a play).
-    conductorTally: (side) => (side === 'player' ? playerState.conductorBuff : enemyState.conductorBuff) ?? 0,
+    // CONDUCTOR: the side's run-wide improvement — every combat Shout trigger steps it (owner 2026-10-24); the
+    // growth rides the side's ShoutCarry and lands permanently at settle. Each side reads only its own run.
+    conductorTally: (side) => conductorLive[side],
+    growConductor: (step, side) => {
+      if (step === 0) return;
+      conductorLive[side] += step;
+      const c = shoutCarry[side];
+      c.conductorBuff = (c.conductorBuff ?? 0) + step;
+    },
     grantFodderBuff: (attack, health, side) => {
       fodderBuffGain[side].attack += attack;
       fodderBuffGain[side].health += health;

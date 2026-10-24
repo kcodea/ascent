@@ -467,6 +467,13 @@ function combatArena(ctx: CombatContext, self: Minion): EffectArena {
     },
     isUniversalTribe: (t) => (t as Minion).universalTribe === true || !!ctx.getCard(t.cardId)?.universalTribe,
     improveReps: () => ctx.improveRepsFor(self.side),
+    conductorTally: () => ctx.conductorTally(self.side),
+    growConductor: (step) => {
+      ctx.growConductor(step, self.side);
+      // Logged on the beat: `conductor` + `side` is what the replay folds into that side's Conductor text, so
+      // every Conductor's printed grant climbs the moment a combat Shout improves them (owner 2026-10-24).
+      ctx.log({ type: 'improve', target: self.uid, amount: 0, display: step, conductor: step, side: self.side });
+    },
     matriarchReps: () => ctx.matriarchRepsFor(self.side),
     logSpellProgress: (amount) => ctx.log({ type: 'spellProgress', target: self.uid, amount }),
     logImprove: (amount) => ctx.log({ type: 'improve', target: self.uid, amount }),

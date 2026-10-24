@@ -20366,7 +20366,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "plain": {
             "attack": 3,
             "health": 3,
-            "step": 1
+            "step": 3
           }
         }
       }

@@ -2,7 +2,7 @@ import { memo, type CSSProperties } from 'react';
 import { damageMeterOf } from '@game/core';
 import { CARD_INDEX } from '@game/content';
 import { grantedTriggersOfSnapshot } from './grantedTriggers';
-import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn, runTallyFor } from '@game/sim';
+import { chooseBothActive, hasTier7Access, unusedEquipmentCount, runeStacksOf, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spiritsPlayedThisTurn, tribesPlayedThisTurn, runTallyFor } from '@game/sim';
 import { Card, type CardView } from './Card';
 import { stepProgress } from './cardText';
 import { liveCardText } from './instView';
@@ -145,8 +145,9 @@ function UnitInner({ u, side, anim, triggered, rallyPulse, watcherPulse, framePu
         // Squirl Scout's snowball LIVE (R-TEXT-11): a combat Squirl Scout Shout grows it mid-fight, and the replay's
         // display-only fold (`fxScoutPreview`) rides on the frozen run value so the printed grant moves on the beat.
         playedThisTurn: beastsPlayed, squirlScoutBuff: foe ? 0 : squirlScoutBuffLive(run),
-        // CONDUCTOR (owner rework 2026-09-23) reads its own copy's `summonBonus` above, either side — the
-        // run-wide `conductorBuff` snowball it used to print is dormant.
+        // CONDUCTOR (owner 2026-10-24): the SIDE's run-wide improvement, live — the player's run value + this
+        // fight's replayed growth; a served foe's own snapshot value + ITS growth (symmetric, never the player's).
+        conductorBuff: foe ? (enemyScalers?.conductorBuff ?? 0) + (run.fxConductorPreview?.enemy ?? 0) : conductorBuffLive(run),
         // Drunken Oaf's rep count. Player-only: `enemyScalers` carries no Ale tally, so a served Oaf reads its
         // printed text — the same fallback every other run-scoped scaler takes on the foe side.
         alesThisTurn: foe ? enemyScalers?.alesLastTurn : run.alesCastThisTurn,

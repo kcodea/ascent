@@ -344,6 +344,8 @@ function shopArena(state: RunState, self: BoardCard): EffectArena {
     },
     isUniversalTribe: (t) => !!CARD_INDEX[t.cardId]?.universalTribe,
     improveReps: () => improveReps(state),
+    conductorTally: () => state.conductorBuff ?? 0, // CONDUCTOR's run-wide improvement (owner 2026-10-24)
+    growConductor: (step) => { state.conductorBuff = (state.conductorBuff ?? 0) + step; },
     matriarchReps: () => 1, // the legacy shop halves never applied Matriarch; preserved until ruled otherwise
     logSpellProgress: () => {}, // the live countdown re-derives from the instance field in the shop
     logImprove: () => {},
@@ -10242,10 +10244,9 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
   battlecryBuffAdjacent: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryBuffAdjacent(shopArena(ctx.state, self), params);
   },
-  /** Conductor — Shout: adjacent minions +(2 + accrual)/+(3 + accrual), then improve THIS copy (owner rework
-   *  2026-09-23). One arena body serves both phases: the grant AND the per-copy `summonBonus` step live there,
-   *  so a shop re-fire (Moira, Ryme, Dawnclaw) and a combat re-fire (Parting Cry) improve the copy exactly like
-   *  the play does. The run-wide `conductorBuff` snowball of 2026-08-21 is no longer written. */
+  /** Conductor — Shout: adjacent minions +(3 + N)/+(3 + N), then improve EVERY Conductor (the run-wide
+   *  `conductorBuff`) by +3/+3 (owner 2026-10-24). One arena body serves both phases, so a shop re-fire (Moira,
+   *  Ryme, Dawnclaw) and a combat re-fire (Parting Cry) step the run-wide value exactly like the play does. */
   battlecryConductorAdjacent: (ctx, self, params) => {
     ARENA_EFFECTS.battlecryConductorAdjacent(shopArena(ctx.state, self), params);
   },
@@ -11181,6 +11182,12 @@ export function spellHealthBonusLive(state: RunState): number {
 /** Squirl Scout's run-wide snowball plus the combat replay's display-only growth (R-TEXT-11). Display only. */
 export function squirlScoutBuffLive(state: RunState): number {
   return (state.squirlScoutBuff ?? 0) + (state.fxScoutPreview ?? 0);
+}
+
+/** Conductor's run-wide improvement plus the combat replay's display-only growth this fight (owner 2026-10-24).
+ *  Display only — the real growth lands at settle. */
+export function conductorBuffLive(state: RunState): number {
+  return (state.conductorBuff ?? 0) + (state.fxConductorPreview?.player ?? 0);
 }
 
 /** The run's escalating-spell step (Front to Back) plus the replay's display-only preview. Display only. */

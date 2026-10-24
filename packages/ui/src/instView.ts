@@ -1,6 +1,6 @@
 import { damageMeterOf, foldTribes, type Keyword, type Tribe } from '@game/core';
 import { CARD_INDEX } from '@game/content';
-import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe, runTallyFor } from '@game/sim';
+import { ancientClearanceSellValue, sellValueOf, spiritsPlayedThisTurn, playedThisTurnFor, anySpellsCastThisTurn, CONFIG, chooseBothActive, dominantBoardTribe, hasTier7Access, rubyStatBonus, runeStacksOf, spellAttackBonus, spellDisplayText, spellHealthBonus, type BoardCard, type RunState, grimToastFold, unityAuraFold, defIsTribe, runTallyFor, conductorBuffLive } from '@game/sim';
 import type { CardView } from './Card';
 import { grantedTriggersOfBoard } from './grantedTriggers';
 import {
@@ -68,9 +68,9 @@ export interface LiveTextParams {
   permaGain?: { attack: number; health: number };
   /** Squirl Scout's run-wide accrued grant size — its live "+N/+N" next grant. */
   squirlScoutBuff?: number;
+  /** Conductor's RUN-WIDE improvement (owner 2026-10-24) — every Conductor prints base + this, on every surface. */
   conductorBuff?: number;
-  /** True once the card is a real body (board or combat) rather than a shop/hand offer — Conductor reads the
-   *  CURRENT snowball there, not "what playing this would make it". */
+  /** True once the card is a real body (board or combat) rather than a shop/hand offer. */
   onBoard?: boolean;
   /** True for a card sitting in the player's HAND (the hand row) — Goldilox prints its doubled in-hand gain. */
   inHand?: boolean;
@@ -266,7 +266,7 @@ function liveCardTextCore(cardId: string, p: LiveTextParams): { text: string; go
             trailForagerText(c.id, p.golden, p.sellBonus ?? 0) ??
             thundeerText(c.id, p.summonBonus ?? 0, p.golden) ??
             squirlScoutText(c.id, p.golden, p.squirlScoutBuff ?? 0) ??
-            conductorText(c.id, p.golden, p.summonBonus ?? 0) ?? // Conductor: (base + this copy's accrual) × golden, every surface
+            conductorText(c.id, p.golden, (p.conductorBuff ?? 0) + (p.summonBonus ?? 0), p.improveReps ?? 1) ?? // Conductor: (base + run-wide improvement) × golden, every surface (owner 2026-10-24)
             sergeantText(c.id, p.golden, p.hpGrantBonus ?? 0) ??
             ritualistText(c.id, p.golden, p.eotBonus ?? 0) ?? // Ritualist: live per-tick Fodder/Imp grant (climbs each End of Turn)
             stewardText(c.id, p.golden, p.lastSpellName) ??
@@ -507,7 +507,7 @@ export function liveBoardView(m: BoardCard, run: RunState): CardView {
       rubyCasts: run.rubyCasts, // Vaultkeeper's spell umbrella — dropped here until the 2026-09-10 parity pass
       tribeUnionPlays: run.tribeUnionPlays ?? {}, // Vaultkeeper: the run-wide improve tally (owner 2026-10-20); {} = "the player's, none yet", never the copy's own
       goldSpent: run.goldSpentThisTurn ?? 0, goldSpentRun: run.goldSpent, goldPouchValue: run.goldPouchValue,
-      playedThisTurn: run.playedThisTurn, cardTribes: run.cardTribes, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: run.conductorBuff,
+      playedThisTurn: run.playedThisTurn, cardTribes: run.cardTribes, squirlScoutBuff: run.squirlScoutBuff, conductorBuff: conductorBuffLive(run),
       lastSpellName: run.lastSpellCastId ? CARD_INDEX[run.lastSpellCastId]?.name : undefined,
       rememberedSpellNames: (run.rememberedSpellIds ?? []).map((id) => CARD_INDEX[id]?.name).filter((n): n is string => !!n),
       firstSpellThisTurnName: run.firstSpellThisTurnId ? CARD_INDEX[run.firstSpellThisTurnId]?.name : undefined,

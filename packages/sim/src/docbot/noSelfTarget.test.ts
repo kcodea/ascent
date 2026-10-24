@@ -79,7 +79,7 @@ function fakeArena(selfUid: string, friendUids: string[], params: { tribe?: stri
     tribesOf: (t: { tribe?: string }) => [t.tribe ?? 'dwarf'],
     isUniversalTribe: () => false, isCelestial: () => false, isImp: () => false, isFodder: () => false,
     rubyTallyOf: () => ({ attack: 0, health: 0 }), impAura: () => ({ attack: 0, health: 0 }),
-    deathrattleTally: () => 0, conductorTally: () => 0, improveReps: () => 1, matriarchReps: () => 1,
+    deathrattleTally: () => 0, conductorTally: () => 0, growConductor: () => {}, improveReps: () => 1, matriarchReps: () => 1,
     spellsThisTurn: () => 0, spellPower: () => ({ attack: 0, health: 0 }), alesLastTurn: () => 1,
     fodderConsumed: () => ({ attack: 0, health: 0 }), activeTribes: () => ['dwarf'], targetTribe: () => undefined,
     cardDef: () => undefined, nameOf: (t: { uid: string }) => t.uid, hasEffect: () => false, hasEcho: () => false,

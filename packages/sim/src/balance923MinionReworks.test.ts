@@ -3,9 +3,7 @@ import { CARD_INDEX } from '@game/content';
 import { combatSide, makeRng, simulate, type BoardMinion, type CombatEvent } from '@game/core';
 import { createRun, reduce, type BoardCard, type RunState } from './index';
 import { applyEndOfTurn, eotTickCount, endOfTurnTicksOf, replayBattlecry, replayEndOfTurn, projectEndOfTurnSteps } from './recruit';
-import { snapshotBoard } from './snapshot';
-import { opponentBoard } from './opponents';
-import { conductorText, castSpellPerGoldText, musterTrooperText } from '../../ui/src/cardText';
+import { castSpellPerGoldText, musterTrooperText } from '../../ui/src/cardText';
 
 /**
  * BALANCE 9/23, TRANCHE 2 — the minion MECHANIC rewrites (owner sheet 2026-09-23). One block per card: the trigger
@@ -13,7 +11,7 @@ import { conductorText, castSpellPerGoldText, musterTrooperText } from '../../ui
  * hand / board / Discover, and the combat chain in Unit.tsx) are pinned in `packages/ui/src/balance923LiveText.test.ts`
  * — the sim package cannot import the UI's JSX-adjacent modules under `typecheck:pkgs`.
  *
- *   · Conductor       — "Shout: give adjacent minions +2/+3 and improve this."  (per-copy accrual on `summonBonus`)
+ *   · Conductor       — superseded 2026-10-24 (run-wide improvement): see conductorCombat.test.ts
  *   · Traveling Skald — 1/3; "When another friendly Dragon attacks, give it +3/+2."
  *   · Rope Wrangler   — "End of Turn: cast Lasso. Repeat for every 10 Gold spent this turn." (one tick per repeat)
  *   · Soul Defiler    — "End of Turn: cast Staff of Guel."
@@ -36,72 +34,7 @@ const buffsOn = (events: readonly CombatEvent[], target: string) =>
     .map((e) => e as unknown as { attack: number; health: number; source?: string });
 const recruit = (over: Partial<RunState>): RunState => ({ ...createRun(1), phase: 'recruit', embers: 40, hand: [], shop: [], ...over } as RunState);
 
-// ── 1. CONDUCTOR ────────────────────────────────────────────────────────────────────────────────────────────
-describe('Conductor — Shout: give adjacent minions +2/+3 and improve this (per copy)', () => {
-  it('the play grants the printed +2/+3, then the copy is improved; a re-fire grants +3/+4; a fresh copy starts over', () => {
-    let s = recruit({
-      board: [card('a', 'alley'), card('b', 'alley')],
-      hand: [card('c1', 'n2_conductor'), card('c2', 'n2_conductor')],
-    });
-    s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 });
-    const alley = CARD_INDEX['alley']!;
-    // RE-PIN 2026-10-10 (owner balance batch): Conductor's grant is now +3/+3 (was +2/+3); the per-copy step is unchanged.
-    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[alley.attack + 3, alley.health + 3], [2, 4], [alley.attack + 3, alley.health + 3]]);
-    expect(s.board[1]!.summonBonus, 'the copy improved itself after granting').toBe(1);
-    expect(s.conductorBuff ?? 0, 'the retired run-wide snowball is never written').toBe(0);
-    // A RE-FIRE of the same copy (Moira / Ryme / Dawnclaw path) pays the improved +3/+4 and improves again.
-    replayBattlecry(s, s.board[1]!);
-    expect(s.board.map((c) => [c.attack, c.health])).toEqual([[alley.attack + 7, alley.health + 7], [2, 4], [alley.attack + 7, alley.health + 7]]);
-    expect(s.board[1]!.summonBonus).toBe(2);
-    // A SECOND copy is its own card: it grants the printed +2/+3 to its one neighbour, untouched by the first.
-    s = reduce(s, { type: 'play', uid: 'c2', toIndex: 0 });
-    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([alley.attack + 7 + 3, alley.health + 7 + 3]);
-    expect(s.board[0]!.summonBonus).toBe(1);
-    expect(s.board[2]!.summonBonus, 'the first copy keeps its own accrual').toBe(2);
-  });
-
-  it('gilded doubles the applied grant (+4/+6 on a fresh copy, +6/+8 once improved), not the accrual', () => {
-    let s = recruit({ board: [card('a', 'alley')], hand: [card('g', 'n2_conductor', { golden: true, attack: 4, health: 8 })] });
-    s = reduce(s, { type: 'play', uid: 'g', toIndex: 1 });
-    const alley = CARD_INDEX['alley']!;
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([alley.attack + 6, alley.health + 6]); // RE-PIN 2026-10-10: gilded +6/+6
-    expect(s.board[1]!.summonBonus, 'the accrual steps by 1, gilded or not').toBe(1);
-    replayBattlecry(s, s.board[1]!);
-    expect([s.board[0]!.attack, s.board[0]!.health]).toEqual([alley.attack + 6 + 8, alley.health + 6 + 8]); // RE-PIN: (3 + 1) × 2
-  });
-
-  it('a COMBAT re-fire (Parting Cry) pays the copy\'s accrued grant and improves it — the same arena body', () => {
-    const r = simulate(
-      [bm('dw_orin', 'L', 4, 99), bm('n2_conductor', 'C', 1, 1, { partingCry: true, summonBonus: 2 }), bm('dw_orin', 'R', 4, 99)],
-      [bm('sandbag', 'B', 6, 30)],
-      makeRng(5), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 6 }),
-    );
-    expect(buffsOn(r.events, 'm0').some((b) => b.attack === 5 && b.health === 5), 'accrual 2 → +5/+5 on the left neighbour (RE-PIN 2026-10-10, was +4/+5)').toBe(true);
-    expect(buffsOn(r.events, 'm2').some((b) => b.attack === 5 && b.health === 5), '…and on the right').toBe(true);
-    expect(r.events.some((e) => e.type === 'improve' && (e as { target: string }).target === 'm1'), 'the copy improved mid-fight').toBe(true);
-  });
-
-  it('the accrual is served in a snapshot and carried back after combat (a permanent per-copy improvement)', () => {
-    const s = recruit({ board: [card('c', 'n2_conductor', { summonBonus: 3 })] });
-    const served = opponentBoard(snapshotBoard(s));
-    expect(served[0]!.summonBonus, 'the snapshot carries the copy\'s accrual').toBe(3);
-    // Carry-back: the per-uid `summonBonus` channel settle reads carries the improved accrual to the run card.
-    const r = simulate(
-      [bm('dw_orin', 'L', 4, 99), bm('n2_conductor', 'C', 1, 1, { partingCry: true, summonBonus: 3 })],
-      [bm('sandbag', 'B', 6, 30)],
-      makeRng(5), CARD_INDEX, combatSide({ tier: 4 }), combatSide({ tier: 6 }),
-    );
-    expect((r.playerSummonBonus ?? []).find((b) => b.sourceUid === 'C')?.bonus, 'the improved accrual (3 + 1) rides the carry-back').toBe(4);
-  });
-
-  it('live text prints (base + accrual) × golden on every surface; the printed base stands at zero', () => {
-    expect(conductorText('n2_conductor', false, 0)).toBeNull();
-    // RE-PIN 2026-10-10 (owner balance batch): base +3/+3.
-    expect(conductorText('n2_conductor', false, 2)).toContain('{{+5/+5}}');
-    expect(conductorText('n2_conductor', true, 2)).toContain('{{+10/+10}}');
-    expect(CARD_INDEX['n2_conductor']!.text).toBe('**Shout:** give adjacent minions **+3/+3** and improve this.');
-  });
-});
+// ── 1. CONDUCTOR ── superseded: the 2026-10-24 run-wide rework is pinned in conductorCombat.test.ts.
 
 // ── 2. TRAVELING SKALD ──────────────────────────────────────────────────────────────────────────────────────
 describe('Traveling Skald — 1/3; when another friendly Dragon attacks, give it +3/+2', () => {

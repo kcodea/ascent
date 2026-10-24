@@ -109,6 +109,8 @@ export function layoutBreakpoints(f: StageFit): string[] {
 let fit: StageFit = { s: 1, lw: typeof window === 'undefined' ? DESIGN_W : window.innerWidth, lh: typeof window === 'undefined' ? DESIGN_H : window.innerHeight, safe: NO_INSETS };
 const listeners = new Set<(f: StageFit) => void>();
 
+/** The phone layout is on (R-PHONE-LAYOUT-01): the fit was made for the 2:1 phone box. False on desktop, always. */
+export function phoneLayoutOn(): boolean { return fit.aspect !== undefined; }
 /** The current stage scale (screen px per layout px). */
 export function stageScale(): number { return fit.s; }
 /** The current fit (scale + layout viewport). */

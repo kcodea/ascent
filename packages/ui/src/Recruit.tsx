@@ -249,7 +249,7 @@ import { publicArt } from './phoneArt';
 import { crumbLight } from './crashLog';
 import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
-import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
+import { stageHost, toStage, toScreen, rectToStage, stageScale, phoneLayoutOn } from './stage';
 import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
 import { touchBuyLine, touchUi } from './touchUi';
 import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
@@ -10068,6 +10068,9 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
           occasion={discoverOccasion(run)}
           speed={replaySpeed}
           burstRef={discoverBurstRef}
+          // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): the options are full cards with their text, as Choose One's are. A
+          // phone has no hover to read a compact tile's text, and the text is the decision.
+          full={phoneLayoutOn()}
         />
       )}
     </>

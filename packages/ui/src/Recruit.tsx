@@ -245,6 +245,7 @@ import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
+import { publicArt } from './phoneArt';
 import { crumbLight } from './crashLog';
 import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
@@ -2391,10 +2392,12 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
     // Decoded up front and kept referenced, so the first trip never waits on a decode; the door's cut-out among them.
+    // Through `publicArt`: on a phone the flat picture and the cut-out are their 1280 px copies (the same URLs the
+    // stylesheet's `--vista-flat` / `--vista-doormask` point at, R-TOUCH-RUN-MEMORY-02); desktop, the originals.
     const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
     vistaArtRef.current = [...art, 'vista-doormask.png'].map((f) => {
       const img = new Image();
-      img.src = `${import.meta.env.BASE_URL}${f}`;
+      img.src = publicArt(f);
       const decoded = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
       if (f === 'vista-doormask.png') decoded.then(() => { vistaMaskReadyRef.current = true; }, () => { /* no hole this session */ });
       else decoded.catch(() => { /* a background still loads on its own */ });

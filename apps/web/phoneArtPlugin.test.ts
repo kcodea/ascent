@@ -32,6 +32,17 @@ describe('planPhoneArt', () => {
     expect(p.find((x) => x.key === 'augustfullboard.webp')!.cap).toBe(1920);
   });
 
+  it("the return trip's vista gets a 1280 px copy although a stylesheet names it (a CSS var a phone re-points; R-TOUCH-RUN-MEMORY-02)", () => {
+    const vistaCss = ".wipevista-flat { background-image: var(--vista-flat, url('/vista-flat.webp')); } .m { mask: var(--vista-doormask, url('/vista-doormask.png')); }";
+    const v = planPhoneArt([], [
+      { key: 'vista-flat.webp', width: 2560, height: 1440 },
+      { key: 'vista-doormask.png', width: 2560, height: 1440 },
+      { key: 'vista-sky.webp', width: 2560, height: 1440 },
+    ], vistaCss);
+    expect(v.manifest.public).toEqual(['vista-doormask.png', 'vista-flat.webp']);
+    expect(v.pub.map((x) => x.cap)).toEqual([1280, 1280]);
+  });
+
   it('the copies live in their own versioned folder', () => {
     expect(manifest.dir).toBe('m1');
   });

@@ -153,7 +153,7 @@ describe('the return trip is the vista, not the gate', () => {
     expect(flight).toBeTruthy();
     expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
     // (…and only on a trip whose cut-out was decoded before it began: a mask still loading blanks the group.)
-    expect(css).toContain(".wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
+    expect(css).toContain(".wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: var(--vista-doormask, url('/vista-doormask.png'))");
     expect(css).not.toMatch(/^\.wipevista\.(held|dive) \.wipevista-masked[^{]*\{[^}]*mask/m);
   });
 

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import type { Plugin } from 'vite';
-import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, phonePublicCap, type PhoneArtManifest } from '../../packages/ui/src/phoneArt';
+import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, PHONE_CSS_VARS, phonePublicCap, type PhoneArtManifest } from '../../packages/ui/src/phoneArt';
 
 /**
  * PHONE ART COPIES (owner 2026-10-18: "the iPhone crashes a lot"). A production build writes a downscaled copy of the
@@ -14,7 +14,8 @@ import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, phonePublicCap, typ
  *
  * A file gets a copy only when it is LARGER than its cap (`PHONE_ASSET_CAPS` / `phonePublicCap`), and a public file
  * only when no stylesheet names it (a CSS url() cannot be switched per device, so a copy would just be a second
- * download). The two boards are the exception: they are CSS custom properties `applyPhoneCssArt` re-points.
+ * download). The two boards and the vista's two pictures are the exception: they are CSS custom properties
+ * `applyPhoneCssArt` re-points.
  *
  * Nothing is committed: the copies exist only in `dist/`, so the art tree's file budget (`artNoRedundantMasters`) is
  * unaffected. They do add files to `dist/` (the itch zip); `ASCENT_PHONE_ART=0` builds without them (phones then get
@@ -22,8 +23,9 @@ import { PHONE_ART_DIR, PHONE_ART_VERSION, PHONE_ASSET_CAPS, phonePublicCap, typ
  * `node_modules/.cache/phone-art`, keyed by the source bytes + cap, so a rebuild only resizes what changed.
  */
 
-/** The board images `applyPhoneCssArt` re-points; every other CSS-named public file is left alone. */
-const CSS_OVERRIDDEN = new Set(['augustfullboard.webp', 'augustboardcombat.webp']);
+/** The images `applyPhoneCssArt` re-points (the boards, the return trip's vista); every other CSS-named public file
+ *  is left alone. */
+const CSS_OVERRIDDEN = new Set(PHONE_CSS_VARS.map(([, rel]) => rel));
 
 export interface PhoneArtCandidate { key: string; width: number; height: number; cap: number }
 

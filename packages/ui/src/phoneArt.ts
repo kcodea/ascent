@@ -49,6 +49,10 @@ export function phonePublicCap(rel: string): number | null {
   // The menu backdrop plates (1920 x 1080 masters, drawn behind every menu): about a phone screen's own width
   // (R-TOUCH-GPU-MEMORY-01). `hall-dim` is already 960 wide and a stylesheet names it.
   if (rel === 'backdrops/hall-soft.webp' || rel === 'backdrops/hall.webp') return 1280;
+  // The return trip's vista on a phone (owner 2026-10-24: "Phone-sized return-trip images: yea send em"): the one
+  // flattened picture and the door's cut-out, 2560 x 1440 masters decoded on Shop mount and held for the run
+  // (R-PRESENT-36). About a phone screen's width; both are CSS custom properties `applyPhoneCssArt` re-points.
+  if (rel === 'vista-flat.webp' || rel === 'vista-doormask.png') return 1280;
   // Card frames, plates, desc boxes, tier stars, the shop buttons. NOT the title logo (drawn huge on the title), the
   // Compendium frame (a border-image sliced in image pixels) or the ranked gate (CSS-painted).
   if (/^frames\/(?!title-logo|compendium-|ranked-gate)/.test(rel)) return 512;
@@ -177,6 +181,15 @@ export function phonePublicUrl(
 /** Shorthand every UI module uses for a public image: `publicArt('frames/oval-beast.webp')`. */
 export const publicArt = (rel: string): string => phonePublicUrl(rel);
 
+/** The stylesheet's custom properties a phone re-points at the phone copy (each var's default names the original). */
+export const PHONE_CSS_VARS: ReadonlyArray<readonly [string, string]> = [
+  ['--board', 'augustfullboard.webp'],
+  ['--board-combat', 'augustboardcombat.webp'],
+  // The return trip's vista (R-TOUCH-RUN-MEMORY-02): `.wipevista-flat` and the door's mask read these.
+  ['--vista-flat', 'vista-flat.webp'],
+  ['--vista-doormask', 'vista-doormask.png'],
+];
+
 /**
  * Point the stylesheet's board art at its phone copy (the board is a CSS custom property, `--board`). Absolute URLs:
  * a relative url() set inline would resolve against the page, which is what we want, but an absolute one cannot be
@@ -186,8 +199,7 @@ export function applyPhoneCssArt(): void {
   if (!LITE_ART || !MANIFEST || typeof document === 'undefined') return;
   const root = document.documentElement;
   root.classList.add('lite-art');
-  const vars: Array<[string, string]> = [['--board', 'augustfullboard.webp'], ['--board-combat', 'augustboardcombat.webp']];
-  for (const [name, rel] of vars) {
+  for (const [name, rel] of PHONE_CSS_VARS) {
     const u = phonePublicUrl(rel);
     if (u.endsWith(`${MANIFEST.dir}/${rel}`)) root.style.setProperty(name, `url("${new URL(u, document.baseURI).href}")`);
   }

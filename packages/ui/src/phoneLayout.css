@@ -109,6 +109,9 @@ html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3;
   /* Its width growth is fixed in box units (desktop clamps it to the window edge, which drifts with the aspect). */
   --lr-right: calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)); }
 
+/* The opponent's hand in combat: card backs about twice the size, so the count reads at a glance. */
+html[data-phone-layout] .opphand { --oh-s: 1.8; }
+
 /* The rail's head (round, alive count, max damage) and the hero power's name plate, both ~3.5 pt on the desktop
    composition, grow to ~7 pt. */
 html[data-phone-layout] .lobbyrailhead { zoom: 1.7; }
@@ -151,5 +154,15 @@ html[data-phone-layout] .escpanel button.pressable:not(.escmute) { min-height: 6
    corner squares are at least 32 pt. */
 html[data-phone-layout] .mp-practice .postart { position: sticky; bottom: 52px; z-index: 5; }
 html[data-phone-layout][data-touch-ui] { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.6); }
+/* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
+html[data-phone-layout] .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
+html[data-phone-layout] .titlefoot .titleversion { font-size: 18px; }
+/* The mode home: the spread a little larger (the sidebar is wider here) and its captions and small labels ~9 pt. */
+html[data-phone-layout][data-touch-ui][data-touch-small] .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.18); }
+html[data-phone-layout] .mp-home .mcdesc { font-size: 28px; }
+html[data-phone-layout] .mp-home .mclast { font-size: 20px; }
+html[data-phone-layout] .mp-home :is(.pstrip-rank-name, .pstrip-rank-mmr, .pstrip-go) { font-size: 24px; }
+/* The menu sidebar's buttons reach 32 pt (it scrolls if they outgrow the height). */
+html[data-phone-layout][data-touch-ui] { --touch-sb: 1.85; }
 
 }

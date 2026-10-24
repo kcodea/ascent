@@ -229,8 +229,8 @@ html[data-touch-ui][data-phone-zoom] .goldpill { --gold-x: 422px; }
    breath lower for the top two). The rest have a fixed seat beside the board. */
 html[data-touch-ui][data-phone-zoom] .frzwrap.frzwrap { top: calc(var(--pz-by) + (var(--frz-y, 264px) + 14px) * var(--scale)); }
 html[data-touch-ui][data-phone-zoom] .rfbwrap { top: calc(var(--pz-by) + (var(--rfb-y, 270px) + 14px) * var(--scale)); }
-/* Tier: its corner socket's top is cropped, so the stone sits 70 px lower, its pill riding with it. */
-html[data-touch-ui][data-phone-zoom] .tvbwrap { top: calc(var(--pz-by) + 0.42 * 1080px + (var(--tvb-y, -318px) * var(--scale)) + 70px); }
+/* Tier: its corner socket's top is cropped, so the stone sits 70 px lower and 82 px left (clear of a full Shop row), its pill riding with it. */
+html[data-touch-ui][data-phone-zoom] .tvbwrap { --tvb-x: -6px; top: calc(var(--pz-by) + 0.42 * 1080px + (var(--tvb-y, -318px) * var(--scale)) + 70px); }
 /* The turn timer: on the top frame between Tier and Freeze. */
 html[data-touch-ui][data-phone-zoom] .shopbar { translate: -274px 128px; }
 /* The hero cluster: the bottom-left corner, inside the screen (portrait, Health / Armor, its rune sockets). */

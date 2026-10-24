@@ -243,12 +243,10 @@ import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
-import { wipeFx } from './wipeFx';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
 import { crumbLight } from './crashLog';
-import { wipeOriginFor, type WipeOrigin } from './wipeGeometry';
-import { afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor, frontClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
+import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale } from './stage';
 import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
@@ -2326,17 +2324,10 @@ export function Recruit() {
   // combat runs the same choreography (bloom from the End Combat gem → swap back → linear reveal). Sweeps
   // advance on the curtain's clip-path transitionend (+ a backstop timer); holds advance on their own timer.
   // A run RESUMED mid-combat initialises straight to 'combat' (curtain parked, combat backdrop shown).
-  // HYBRID geometry (owner ask 2026-08-29): COVERS are radial blooms out of the gem; REVEALS are the
-  // linear sweeps (entry reveal R→L, exit reveal L→R). circle() and inset() can't interpolate, but no
-  // transition ever crosses shapes: the circle→inset switch happens during the fully-covered hold
-  // (`.full.settle`, transition:none — both values are full cover, so the swap is invisible), and the
-  // inset→circle switch happens between empty parked states (both cover nothing). The one wrinkle is the
-  // EXIT bloom: it must START from the zero circle, but combat parks the curtain on the reveal's inset
-  // sliver — so `primeOut` snaps it to the zero circle for one frame before `coverOut` launches.
-  // `chargeIn` is the ENTRY's anticipation beat (owner ask 2026-08-29, the gem "charge-up tell"): the
-  // curtain stays parked while wipeFx spirals motes into the gem, then the bloom erupts. The EXIT reuses
-  // `primeOut` for the same tell — it already parks the zero circle, so it just holds for the charge
-  // duration instead of one frame.
+  // THE OLD BLUE CURTAIN IS GONE (owner 2026-10-23: "if there is anything left over that is playing during these transitions
+  // from the old curtain effect, i want them gone"): its gem charge-up sparkles, the wind-up beat they needed, the gem
+  // measurement that aimed its bloom, and its hidden glow ring and bar. The states `chargeIn` / `primeOut` remain as a
+  // zero-length step (chargeMs 0) so the machine and its tests are unchanged.
   // SKINS: "Show opponent skins" (the NOW FACING portrait honours it; your own portrait never does).
   const showOppSkins = useGame((s) => s.showOpponentSkins);
   // The portrait-frames tuner's opponent ring for the NOW FACING face (null = today's gold CSS border).
@@ -2370,30 +2361,6 @@ export function Recruit() {
   const wipeCfg = getScreenWipeConfig();
   const wipeIsSweeping = wipeSweeping(wipe);
   const wipeIsExiting = wipeExiting(wipe);
-  // GEM ORIGIN — measured ONCE at the start of each cover sweep (a one-shot layout read, not per-frame;
-  // see CLAUDE.md perf rules), then handed to the CSS (`wipeCssVars`: `--wipe-cx/cy/rx/ry`, `--wipe-front-sx/sy`). The
-  // ellipse reaches the farthest viewport corner and the ring's scale is derived from it (see
-  // wipeGeometry.ts), so `.full` provably covers the whole screen — 16:9, 21:9 or 32:9 — and the ring rides
-  // the seam all the way out (owner bug 2026-09-24: the ring was a fixed 16:9 size and stalled mid-screen on
-  // ultrawide). Re-measured on resize while a wipe is on screen, so a mid-wipe window change still covers.
-  // The gem element (`.etb-gembox` inside `.etbwrap`) is the same control in both directions — End Turn on
-  // entry, End Combat on exit — so both blooms erupt from the same diamond.
-  const [wipeOrigin, setWipeOrigin] = useState<WipeOrigin | null>(null);
-  const wipeOriginRef = useRef<WipeOrigin | null>(null);
-  const measureWipeOrigin = useCallback((): void => {
-    const gem = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
-    const c = getScreenWipeConfig();
-    const o = wipeOriginFor(window.innerWidth, window.innerHeight, gem ? gem.getBoundingClientRect() : null, { ellipse: c.ellipse, ringLine: c.ringLine });
-    wipeOriginRef.current = o; // screen px: the wipeFx Pixi layer reads the ref
-    // The state feeds CSS vars (wipeCssVars) -> stage px (stage.ts); frontScale is a ratio, unchanged.
-    setWipeOrigin({ ...o, cx: toStage(o.cx), cy: toStage(o.cy), rx: toStage(o.rx), ry: toStage(o.ry), r: toStage(o.r) });
-  }, []);
-  useLayoutEffect(() => {
-    // Both tells precede their bloom, so measuring here commits the vars (and the ref the FX reads)
-    // before `coverIn`/`coverOut` launches.
-    if (wipe !== 'chargeIn' && wipe !== 'primeOut') return;
-    measureWipeOrigin();
-  }, [wipe, measureWipeOrigin]);
   const wipeOnScreen = wipeUp(wipe);
   // `body.wipe-up` while the curtain is up (owner 2026-09-24: "sometimes background elements come through the
   // wipe or it flickers"): hides the hover layers that sit above the curtain's z (card references, cast
@@ -2402,11 +2369,6 @@ export function Recruit() {
     document.body.classList.toggle('wipe-up', wipeOnScreen);
   }, [wipeOnScreen]);
   useEffect(() => () => document.body.classList.remove('wipe-up'), []);
-  useEffect(() => {
-    if (!wipeOnScreen) return undefined;
-    window.addEventListener('resize', measureWipeOrigin);
-    return () => window.removeEventListener('resize', measureWipeOrigin);
-  }, [wipeOnScreen, measureWipeOrigin]);
   // THE DOOR'S CUT-OUT MUST BE READY BEFORE IT IS USED (owner clip 2026-10-23: "part of the image disappears and
   // returns"). `.wipevista-masked` (sky, hills, title, shop) wears `vista-doormask.png` as a CSS mask once the land has
   // settled; a mask whose image is not decoded yet hides the WHOLE group, so for four frames the fight showed through
@@ -2422,15 +2384,9 @@ export function Recruit() {
     // Crash-log steps for the falling gate and the trip back (phones; R-TOUCH-CRASH-REPORT-02). Light: mid-animation.
     if (wipe === 'coverIn' || wipe === 'combat' || wipe === 'coverOut' || wipe === 'revealOut') crumbLight(`gate ${wipe}`);
   }, [wipe]);
-  // WIPE FX — the above-curtain Pixi layer (see wipeFx.ts). Warmed once on mount so the async Pixi init
-  // is long done before the first combat; each state fires its one-shot as it begins. A decisive combat
-  // snaps the machine to 'idle' — clear() kills any in-flight motes so nothing drifts over the end screen.
+  // THE TRANSITIONS' ART AND SOUNDS, warmed once on mount so the first trip never waits on a load.
   useEffect(() => {
-    wipeFx.warm();
-    // Warm the exit splash's shop vignette too (the foe face is boot-loaded by the title screen; this one
-    // has no other loader, and a first-exit pop-in on the blue would read as a blip).
-    new Image().src = `${import.meta.env.BASE_URL}return-to-shop.webp`;
-    // …and the falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
+    // The falling gate's own art and sounds (2026-10-21), so the first End Turn never drops a bare colour.
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
@@ -2451,15 +2407,6 @@ export function Recruit() {
     void document.fonts?.load('900 1em Cinzel').catch(() => { /* the fallback serif is fine */ });
     if (!PHONE_GPU) gateFx.warm(); // the landing dust (see the falling gate's sounds below)
   }, []);
-  useEffect(() => {
-    const o = wipeOriginRef.current;
-    if (wipe === 'idle') { wipeFx.clear(); return; }
-    if (!o) return;
-    const c = getScreenWipeConfig();
-    // The gem's charge-up tell stays. The bloom stardust and the exit inhale rode the retired radial bloom's seam;
-    // the falling gate (2026-10-21) has no seam for them to follow, so they no longer play.
-    if (wipe === 'chargeIn' || wipe === 'primeOut') wipeFx.charge(o.cx, o.cy, c.chargeMs + 80);
-  }, [wipe]);
   // THE FALLING GATE's sounds: its OWN recordings since 2026-10-22 (owner: "i have new impact sounds i want to use so
   // they are different from the gate sounds"; sfx.wipeGate): the door whoosh as it starts to fall, the layered thuds
   // and the poster's flap as it lands (the hold begins the moment it touches down), and the crank, gears and metal
@@ -2514,7 +2461,7 @@ export function Recruit() {
     }
     else if (wipe === 'revealIn') sfx.wipeGate('crank');
   }, [wipe]);
-  const wipeVars = wipeCssVars(wipeCfg, wipeOrigin) as CSSProperties;
+  const wipeVars = wipeCssVars(wipeCfg, null) as CSSProperties;
   const wipeTimeoutRef = useRef<number | undefined>(undefined);
   const advanceWipe = useCallback((): void => {
     setWipe(afterSweep);
@@ -2549,7 +2496,7 @@ export function Recruit() {
     // invisibly behind the blue. The CSS `.wipefront` glow carries the front's look. The `board-wipe` def
     // stays committed in the workbench for a future dedicated above-curtain layer.)
   }, [inCombat]);
-  // What each element wears per state lives in wipeMachine.ts (curtainClassFor / frontClassFor / barClassFor),
+  // What each element wears per state lives in wipeMachine.ts (curtainClassFor / vistaClassFor),
   // so the tuner's preview and the tests read the same rules. The backdrop flips only across a hold.
   const curtainClass = curtainClassFor(wipe);
   const combatBgShown = combatBackdropShown(wipe);
@@ -8406,12 +8353,6 @@ export function Recruit() {
         {/* The flash that hides the cut from the fight into the sky (`.wipevista-flash`). */}
         <div className="wipevista-flash" />
       </div>
-      {/* TWO glow fronts for the hybrid: the RING rides the bloom's seam on covers (grows with the circle,
-          parked snapped at base otherwise), and the vertical BAR rides the linear reveals — parked at the
-          launch edge during each hold (entry reveal runs R→L so it parks RIGHT during coveredIn; exit
-          reveal runs L→R from its LEFT home). Opacity rides `sweeping` on both, so parking is invisible. */}
-      <div className={frontClassFor(wipe)} aria-hidden="true" style={wipeVars} />
-      <div className={barClassFor(wipe)} aria-hidden="true" style={wipeVars} />
       </>, stageHost())}
       {/* Charge glyph — the board's etched sigil, anchored to the board midline. Lives HERE (a direct child of
           `.app`, before the zones) rather than inside the warband zone, so the warband layout offset (x/y/scale)

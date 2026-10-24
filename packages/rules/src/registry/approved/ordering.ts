@@ -203,6 +203,26 @@ export const ORDERING_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
   },
   {
+    id: 'R-ECHO-LAUNCH-01',
+    title: 'A forced Echo with no death and no rally (Rune of the Herald) still throws its spike volley from the living body',
+    statement:
+      'A projectile Echo (Fel Spikes) launches its volley from whatever fired it: from the body as it dies, from the '
+      + 'living body when a Rally forces it (Echohorn, Spots), AND from the living body when a rune fires it with no '
+      + 'death and no rally (Rune of the Herald: "Start of Combat: trigger all your Echoes"). The rune-fired volley '
+      + 'launches as the rune pulses, on the rally timing, and the first wave is held until the spikes connect, so the '
+      + 'numbers land on the strike. A golden second pass is part of the same launch; a spray a death or a rally already '
+      + 'launched is never launched twice. Presentation only.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Bug Board report d3a682a6 (2026-10-12, wave 10)', quote: 'fel spikes when triggered from start of combat rune (maybe minion too) doesn\x27t play the animation.' },
+      { kind: 'code', ref: 'packages/ui/src/useCombatReplay.ts unsignalledEchoLaunch / echoDeliveryLead / scheduleEchoVolleys (the cue effect\x27s forced-Echo block)' },
+    ],
+    contentIds: ['dm_felspikes', 'rune_herald'],
+    currentBehaviour: 'Conforms as of 2026-10-24. Before, a Herald-fired Fel Spikes spray had no death or rally to launch from, so no spikes flew while the damage beat still hid the stock hit burst: the damage landed with no animation.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/heraldEchoLaunch.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
     id: 'R-DEMON-DMG-DEATH-01',
     title: 'A pass lands whole, then its Demon-damage reactions buff, THEN deaths are checked: a body is buffed before it can die to the pass',
     statement:

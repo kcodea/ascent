@@ -302,7 +302,11 @@ export function actionSfx(action: Action, prev: RunState, next: RunState): void 
   // (skips minions bought/played already-warded, handled on-play above). Plays the same shield cue as combat.
   const wasWard = new Map(prev.board.map((m) => [m.uid, m.keywords.includes('DS')]));
   if (next.board.some((m) => m.keywords.includes('DS') && wasWard.get(m.uid) === false)) sfx.shield();
-  if (countGolden(next) > countGolden(prev)) sfx.triple();
+  // A triple made at Start of Turn lands with `resolveCombat`, under the return wipe: the Shop parks that gild and plays
+  // its sound when the gild actually plays (R-SOT-GILD-01, `turnStartGild.ts`), so it never rings over the transition.
+  // Same test the Shop parks on (`gildMustWait`): the recruit phase with the wipe still moving.
+  const shopParksGild = action.type === 'resolveCombat' && next.phase === 'recruit' && !useGame.getState().wipeIdle;
+  if (!shopParksGild && countGolden(next) > countGolden(prev)) sfx.triple();
 }
 
 /** Live transport state of a running replay — read by the replay overlay + round rail, driven by

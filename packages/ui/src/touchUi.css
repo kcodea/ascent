@@ -204,6 +204,6 @@ html[data-touch-ui][data-phone-gpu] .wipevista-layer:not(.wipevista-flat) { disp
 html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }
 /* …and on phones the one flattened picture (sky and land in one) gets the flash and the pull back out of the sky, but no
    rise (styles.css, "THE ARRIVAL"): its door's interior and glow just push with it. */
-html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.3s cubic-bezier(.25, .6, .35, 1) both; }
+html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.6s cubic-bezier(.25, .6, .35, 1) both; }
 /* Phones draw the vista as ONE flattened picture (the shop baked in), so the title stays in FRONT of it there. */
 html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }

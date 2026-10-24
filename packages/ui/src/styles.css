@@ -670,13 +670,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
 .wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
-.wipevista.on .wipevista-masked { animation: vistapushshop 1.3s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-masked { animation: vistapushshop 1.6s cubic-bezier(.25, .6, .35, 1) both; }
 /* The door's interior and glow rise WITH the shop (same rise, same moment), then push with it. */
-.wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.3s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.62s cubic-bezier(.2, .9, .3, 1.04) 0.13s both; }
-.wipevista.on .wipevista-sky, .wipevista.on .wipevista-titlebox { animation: vistapushsky 1.3s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-far { animation: vistapushfar 1.3s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-mid { animation: vistapushmid 1.3s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-fore { animation: vistapushfore 1.3s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.6s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.62s cubic-bezier(.2, .9, .3, 1.04) 0.13s both; }
+.wipevista.on .wipevista-sky, .wipevista.on .wipevista-titlebox { animation: vistapushsky 1.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-far { animation: vistapushfar 1.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-mid { animation: vistapushmid 1.6s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-fore { animation: vistapushfore 1.6s cubic-bezier(.25, .6, .35, 1) both; }
 /* Net scales at the end of the push: sky 1.03, distance 1.05, midground 1.08, shop 1.12 (the group itself), flowers 1.16.
    The three inside the group are written relative to its 1.12. */
 @keyframes vistapushsky { 0% { transform: scale(1); } 100% { transform: scale(0.9196); } }

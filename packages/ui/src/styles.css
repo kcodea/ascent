@@ -2266,8 +2266,12 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* The oval's art box is OVERFILLED under the gold (--fill), so the veil insets to the VISIBLE window; a Taunt's art
    box IS its window (clipped to --heater). The image is the pre-blurred `--rb-veil` (rebirthCrown.ts veilSvg). */
 .card.compact.stdframe .rebirth-veil { inset: calc(50% * (1 - 1 / var(--fill, 1))); }
+/* `.rbv` BLEEDS past the window by rebirthCrown's VEIL_BLEED (0.18 of the box per side; the SVG's viewBox carries the
+   same margin), so the bottom tongues' bases + blur fade out on their own instead of being sliced off by the image
+   edge in a straight line across the portrait (owner 2026-10-24). The art's oval / heater clip still trims it,
+   under the gold. Static geometry only; the breathe below stays opacity-only. */
 .card.compact .rebirth-veil .rbv {
-  position: absolute; inset: 0; background: var(--rb-veil) center / 100% 100% no-repeat;
+  position: absolute; inset: -18%; background: var(--rb-veil) center / 100% 100% no-repeat;
   animation: rbveil var(--rb-glow-pulse, 2.4s) ease-in-out infinite; will-change: opacity;
 }
 @keyframes rbveil { 0%, 100% { opacity: 0.7; } 50% { opacity: 1; } }

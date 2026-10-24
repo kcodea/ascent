@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-24',
     changes: [
+      { category: 'Systems', text: "Rebirth's glow no longer cuts off in a straight line." },
       { category: 'Systems', text: 'Fel Spikes now shows its spikes when a Start of Combat rune triggers its Echo.' },
       {
         category: 'Systems',

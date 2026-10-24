@@ -216,6 +216,15 @@ export function pillarUrl(c: CrownColors): string {
  *  sides of the window and a faint edge glow, pre-blurred, drawn in the WINDOW's own box (viewBox 100 x 128, the
  *  window is the inscribed ellipse; the portrait clip trims the rest). Transparent through the middle, so the art
  *  reads through it the way it reads through Ward's glass. */
+/** The veil's BLEED margin, as a fraction of the window box on every side (owner 2026-10-24: "rebirth cuts off
+ *  with a horizontal line ... so it's the full oval/fade it better"). The bottom tongues are rooted ON the window
+ *  ellipse, so their rounded bases and their blur spill past the 100 x 128 box; drawn in exactly that box, the
+ *  image's own edge sliced them off in a straight line, and on the oval frame (whose art is overfilled past the
+ *  window) that line showed across the bottom of the portrait. The SVG now carries this margin in its viewBox and
+ *  styles.css bleeds `.rbv` out by the same fraction (`inset: -18%`), so the fire inside the window is pixel-identical
+ *  and the spill fades out on its own until the portrait's oval/heater clip (under the gold) trims it. */
+export const VEIL_BLEED = 0.18;
+
 export function veilSvg(c: CrownColors): string {
   const rnd = prng(0x7e11a);
   const cx = 50, cy = 64, rx = 50, ry = 64;
@@ -236,7 +245,8 @@ export function veilSvg(c: CrownColors): string {
     tongues.push(`<path transform="translate(${f(x)} ${f(y)}) rotate(${f(rot)})" d="${tonguePath(w, l, lean)}" fill="url(#vd)"/>`);
     cores.push(`<path transform="translate(${f(x)} ${f(y)}) rotate(${f(rot)})" d="${tonguePath(w * 0.5, l * 0.6, lean * 0.6)}" fill="url(#vh)"/>`);
   }
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 128" preserveAspectRatio="none">'
+  const bx = 100 * VEIL_BLEED, by = 128 * VEIL_BLEED;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${f(-bx)} ${f(-by)} ${f(100 + 2 * bx)} ${f(128 + 2 * by)}" preserveAspectRatio="none">`
     + '<defs>'
     + `<radialGradient id="edge" cx="50%" cy="50%" r="50%"><stop offset="0.7" stop-color="${c.deep}" stop-opacity="0"/><stop offset="0.9" stop-color="${c.deep}" stop-opacity="0.55"/><stop offset="1" stop-color="${c.hot}" stop-opacity="0.8"/></radialGradient>`
     + `<linearGradient id="vd" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="${c.hot}" stop-opacity="0.9"/><stop offset="0.55" stop-color="${c.deep}" stop-opacity="0.6"/><stop offset="1" stop-color="${c.deep}" stop-opacity="0"/></linearGradient>`

@@ -1173,8 +1173,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Spectators** (R-VERSUS-GROUP-04) pick a player at the bottom right (keys 1 to 4), grouped by this round's fights,
   each plate saying who that player fights; players out are dimmed. Watching shows that player's screen and fight;
   switching within the same fight continues from the same moment, switching to the other fight joins it where it is.
-- **Not yet:** XP and achievements for a group match (the progression server reads 1v1 matches only). The room's card
-  records (wins/losses) read at most 22 members, so in a full group room the last two spectators show "-".
+- **XP** (R-VERSUS-GROUP-08, R-PROG-VERSUS-XP-01). A group player settles under the match the moment their own result
+  is final (knocked out, or the match over): four players earn 125 / 80 / 50 / 50, three 125 / 50 / 50. A spectator
+  who watched to the end earns 50 (R-PROG-SPECTATE-XP-01); a player watching their own match does not. A full group
+  room reads every card's record (24 ids). The room cards' records still count 1v1 matches only.
+- **Previous match stats** (R-VERSUS-GROUP-07). Your place (Victory, 2nd, 3rd, 4th), the whole table with places, heroes
+  and hearts, then your rounds; each round names who you fought (a player, or "Copy of <name>").
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 

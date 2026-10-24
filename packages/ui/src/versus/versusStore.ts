@@ -154,6 +154,7 @@ const ERROR_TEXT: Record<string, string> = {
   seat_taken: 'That seat was just taken.',
   need_two_players: 'You need an opponent to start.',
   need_three_players: 'You need three or four players to start.',
+  eliminated: 'You are out of this match. You can watch the rest.',
   bad_mode: 'That mode is not available.',
   bad_modifiers: 'That modifier is not available.',
   bad_role: 'That seat is not open in this mode.',

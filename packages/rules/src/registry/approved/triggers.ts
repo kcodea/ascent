@@ -1583,4 +1583,23 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (fixed 2026-10-22). The replay only re-derived Crypt Drake\'s attackSeen, so Frack\'s combat counter never moved; the repeats themselves fired correctly.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/frackCombatCounter.test.ts', 'packages/sim/src/set3Kobolds1022.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
+  {
+    id: 'R-DRAGON-NITROGEN-01',
+    title: 'Nitrogen casts Growth whenever a friendly Dragon attacks (gilded: twice)',
+    statement:
+      'Nitrogen (Set 3, T5 6/6 Dragon): every swing by a friendly Dragon, its own included (dual-tribe and '
+      + 'All-types bodies count), casts the real Shop spell Growth through the combat named-spell path. It is a genuine '
+      + 'spell cast announced from Nitrogen (counts toward spell tallies and wakes spell watchers), not a cast from hand. '
+      + 'The Growth buff in combat lands on every friendly minion and is combat-only. A non-Dragon swing casts nothing. '
+      + 'Gilded casts Growth twice per Dragon swing. An enemy Nitrogen behaves identically.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-23', quote: 'add dragon to set 3 and wire art: * Nitrogen T5 6/6 When a Dragon attacks, Cast Growth. * gilded casts twice.' },
+      { kind: 'code', ref: 'packages/content/src/cards/set3/dragons.ts d3_nitrogen; packages/core/src/effects/arena.ts onTribeAttackCastNamedSpell' },
+    ],
+    contentIds: ['d3_nitrogen'],
+    currentBehaviour: 'Conforms (built 2026-10-23).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Nitrogen1023.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

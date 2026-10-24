@@ -86,6 +86,7 @@ describe('set 3 scaffold', () => {
       'd3_gravus', 'd3_wellwatcher', 'd3_matriarch', 'd3_woozy', 'd3_iggy', 'd3_hum', 'd3_gardener', // Dragon batch 2 (owner 2026-10-15); Gatherer archived 2026-10-23
       'd3_baitbrood', 'd3_hatcher', 'd3_whispwarder', // owner additions on #2097 (2026-10-15)
       'd3_vellum', // the T7 Summit Dragon (owner 2026-10-23), appended after the file's token
+      'd3_nitrogen', // owner 2026-10-23, appended
       'd2_chorus', 'd2_transcendence', 'd2_flutterdrake', // the three carried Set 2 Dragons (2026-10-15), by reference
     ]);
     // The set-1 Undead NOT on the roster stay out (owner confirmation 2026-09-09), still resolvable.

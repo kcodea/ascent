@@ -357,11 +357,11 @@ export const CONVENTION_PENDING: GameRule[] = [
       ]
     },
     "id": "q-conv-family-rally",
-    "title": "'rally' family · 48 cards",
-    "statement": "All 48 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
+    "title": "'rally' family · 49 cards",
+    "statement": "All 49 'rally' cards trigger the same way. Gilding doubles their output. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "triggers",
-    "currentBehaviour": "56 effect factories across 48 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
-    "cardText": "Exemplar — Beev: \"When a Beast attacks, give it and this +2/+2.\" · Members: Beev · Echohorn · Hawkus · Packstrider · Raven · Sunmane · Neptus · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · … and 36 more",
+    "currentBehaviour": "56 effect factories across 49 cards dispatch through the 'rally' presentation family, all on the single trigger 'onAttack' (both); the factoryPhase lane gates each (trigger, factory) pair. Gilding: the ×2 baseline; any member whose gild changes shape instead carries authored golden text (R-GILD-01).",
+    "cardText": "Exemplar — Beev: \"When a Beast attacks, give it and this +2/+2.\" · Members: Beev · Echohorn · Hawkus · Packstrider · Raven · Sunmane · Neptus · Chimerus · Chorus Engine · Crypt Drake · Chorus Drake · Cinderchef · … and 37 more",
     "example": "Beev follows the 'rally' convention — its trigger fires on onAttack. its printed numbers double when the card is gilded.",
     "contentIds": [
       "b2_beev",
@@ -379,6 +379,7 @@ export const CONVENTION_PENDING: GameRule[] = [
       "d2_flamebeat",
       "d2_roarcollector",
       "d2_warflame",
+      "d3_nitrogen",
       "d3_whaloo",
       "deathsayer",
       "dm_gasket",
@@ -913,7 +914,7 @@ export const CONVENTION_PENDING: GameRule[] = [
     "title": "Gilding default: ×2",
     "statement": "A gilded card doubles its printed numbers. Outliers instead gild the summoned token, reshape the effect, or add a proc; spells never gild. — ✓ yes · ✕ no (say why) · ✎ your wording",
     "domain": "gilding",
-    "currentBehaviour": "403 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
+    "currentBehaviour": "404 cards carry authored goldenText; every other card inherits the ×2 number-doubler. The outlier shapes are the owner's 2026-08-28 rulings, now carried per card as the contract's gildedDelta kind (R-GILD-01); spells and Rubies are not-applicable (R-GILD-02).",
     "cardText": "Exemplar — Wolves Den: \"Deathrattle: Summon 3 Crypt Wolves.\" → gilded: \"Deathrattle: Summon 6 Crypt Wolves.\"",
     "example": "Wolves Den's gilded text just writes the ×2 out in full — while gilded Dunkey instead summons ONE gilded Armadiyo."
   },

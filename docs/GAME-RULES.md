@@ -1096,6 +1096,48 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   Guides, read their guides, pin a seat card) and open the fight Summary with the player's own odds. None of it
   reaches the player.
 
+### Versus room options and Versus Group (3-4 players) (owner 2026-10-24; R-VERSUS-OPTIONS-01, R-VERSUS-GROUP-01, R-VERSUS-GROUP-02)
+
+> Server side only so far (phase 1, `supabase/migrations/2026-10-24-versus-group.sql` + the `versus-resolve`
+> `finalize_group` action). The host options panel, the group room seats and the in-game rail arrive in phase 2;
+> until then no client opens a group room or sets options.
+
+- **Room options.** A room has ONE options object on the server, kept on the ROOM (it outlives its matches): the
+  **mode** (1v1, or Group for 3-4 players) and up to one **modifier**, an existing rift (Freedom: the first minion
+  bought each turn is free; Summit: +10 Armor and the shop reaches Tier 7). Defaults are today's Versus (1v1, no
+  modifier). Only the host changes them, only while the room is Open (between games), and the server refuses anything
+  off its list. Each change bumps a counter so the room can say the options changed. Hearts (7) and the round timer are
+  not options yet; the object is versioned so they can be added later with today's values as their defaults.
+- **Each match pins its copy.** A new match (1v1 or group) copies the room's options when it starts. A game in progress
+  never changes, and a modifier is pinned onto every player's run at creation exactly as a Rift run pins its rift, so
+  a restored or replayed run keeps it. Versus is unrated whatever the options.
+- **Switching modes.** Group opens seats 3 and 4. Switching back to 1v1 with more than two seated moves the extras to
+  the stands: the lowest seats keep theirs, and a player in seat 3 or 4 first fills an empty seat 1 or 2.
+- **Group start.** The host starts with 3 or 4 seated; every seated player presses their gate gem within 30 seconds.
+  Hero Select, the intro, the server shop clock (with its 250 ms grace), End Turn locks, the timeout policy and the
+  90 second combat cap all work as in 1v1, over every player still in.
+- **Round robin.** Each round pairs the players still in so everyone meets everyone before any repeat. 4 in: the three
+  pairings of four in turn (two fights a round). 3 in: one fight, and the odd player faces a **Copy** of another
+  player's board as locked for that round, rotating so that over three rounds every pair fights once, every player faces
+  the Copy once and every player is copied once (never a copy of yourself). 2 in: they face each other. When the players
+  still in change, the cycle restarts on them and avoids a rematch of the round just played when it can. The pairing is
+  derived from public data (the seats and when each went out), so every client and the server agree on it before the
+  round is fought.
+- **Hearts.** 7 each. The loser of a fight loses one heart; a draw costs nobody. A Copy never loses a heart (damage to a
+  Copy never hurts the copied player), but a Copy's win costs the facing player one. Players at 0 hearts after a round
+  are out together and share the lower placement (the lobby's rule: two out at once from four are both 4th). The last
+  one standing is 1st and the room goes back to Open.
+- **Leaving and conceding** puts that player out at once, placed below everyone still in; the match goes on while two
+  or more remain. A player who goes out during a round still fights that round as a **ghost** of their last locked
+  board: the pairing never changes under the others, the ghost never loses a heart, and its win still costs a heart. If
+  every player still in would go out in one round, the one who entered it with the most hearts (then by seat) survives.
+- **Disconnects** as 1v1, over the players still in: a pause, the 30 second grace, then any other player still in may
+  unpause and the absent seat plays on auto (its last locked board); three auto rounds in a row is out; coming back
+  clears auto. A player who is out never pauses or holds up the match.
+- **Back from the fight.** The next shop opens when every player still in is back; when all but one are, the last has
+  5 seconds (90 seconds at most from the commit).
+- **Not yet:** XP and achievements for a group match (the progression server reads 1v1 matches only).
+
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 
 - **What is listed.** Every RANKED lobby game in progress (a rated table: not Practice, the tutorial, Gauntlet, a

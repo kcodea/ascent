@@ -18,13 +18,30 @@ import { heroRerollCandidates } from '../heroReroll';
 import { reduce } from '../reducer';
 import { modalOpen } from '../recruit';
 import { createRun, mixSeed, runTribesForSeed, type Action, type PreparedCombatSide, type RunState } from '../state';
-import { VERSUS_HERO_OFFER_SIZE, type VersusSeat } from './constants';
+import { RIFT_BONUS_ARMOR } from '../config';
+import { VERSUS_HERO_OFFER_SIZE } from './constants';
+import type { VersusGroupSeat } from './group';
+import { normalizeVersusOptions, versusOptionsRift, type VersusRoomOptions } from './options';
 import { snapshotBoard } from '../snapshot';
 import type { VersusSeatScout } from '../lobby/runLobby';
 
-/** A fresh Versus run for one seat. `runSeed` is the seat's private run seed (server-pinned). */
-export function createVersusRun(runSeed: number, heroId: string, setId: SetId): RunState {
-  return createRun(runSeed, heroId, 'versus', undefined, setId);
+/**
+ * A fresh Versus run for one seat. `runSeed` is the seat's private run seed (server-pinned). `options` is the MATCH's
+ * pinned room options (R-VERSUS-OPTIONS-01): a modifier pins its rift onto the run here, exactly as a Rift run pins
+ * the live rift in `createRun` (the rift and its Armor bonus together), so a saved, restored or replayed run keeps it.
+ * The opening shop is Tier 1 and reads no rift, so pinning after `createRun` draws the same shop a Rift run would.
+ * No options (or the defaults) = today's run, byte for byte.
+ */
+export function createVersusRun(runSeed: number, heroId: string, setId: SetId, options?: VersusRoomOptions | null): RunState {
+  const run = createRun(runSeed, heroId, 'versus', undefined, setId);
+  const rift = versusOptionsRift(normalizeVersusOptions(options));
+  if (rift) {
+    const bonus = RIFT_BONUS_ARMOR[rift] ?? 0;
+    run.rift = rift;
+    run.armor += bonus;
+    run.maxArmor += bonus;
+  }
+  return run;
 }
 
 /** The seat's three heroes: a seeded shuffle of the heroes this run's tribes allow. */
@@ -45,9 +62,10 @@ export function versusHeroRerollCandidates(runSeed: number, setId: SetId, offer:
   return heroRerollCandidates(offer, playableHeroes(runTribesForSeed(runSeed, setId)).map((h) => h.id));
 }
 
-/** The deterministic RNG for one seat's timeout answers in one round. */
-export function versusTimeoutRng(matchSeed: number, round: number, seat: VersusSeat): Rng {
-  return makeRng(mixSeed(matchSeed, round, seat === 'p1' ? 1 : 2, 0x71e0));
+/** The deterministic RNG for one seat's timeout answers in one round (p1..p4; p1/p2 unchanged since 1v1). */
+export function versusTimeoutRng(matchSeed: number, round: number, seat: VersusGroupSeat): Rng {
+  const n = seat === 'p1' ? 1 : seat === 'p2' ? 2 : seat === 'p3' ? 3 : 4;
+  return makeRng(mixSeed(matchSeed, round, n, 0x71e0));
 }
 
 const legal = (s: RunState, a: Action): boolean => reduce(s, a) !== s;
@@ -119,7 +137,7 @@ export function catchUpVersusRun(
   run: RunState,
   results: ReadonlyMap<number, CombatResult>,
   matchSeed: number,
-  seat: VersusSeat,
+  seat: VersusGroupSeat,
 ): RunState {
   let s = run;
   for (let guard = 0; guard < 200; guard++) {

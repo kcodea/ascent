@@ -44,6 +44,13 @@ moves). The client's `returnToRoom` for a knocked-out player clears the opt-out 
 of the same match, with the placement notice (LiveWatchBar's numeral panel, reused) for 6 s. A reload lands in the
 stands. Without the migration the player stays in their seat but still watches as a spectator.
 
+## Spectator end + XP (#2283)
+
+Rebased on #2283: a group spectator beats `spectate_beat('group', matchId)` while the watch screen is open
+(`startSpectatorBeat`), and at the match end `endWatchedGame({ kind: 'group' })` names the watched player with their
+own seat's name and final place on the table. A knocked-out player watching their own match gets the end gate and the
+notice; the server refuses XP for watching your own game.
+
 ## The room
 
 `VersusRoom` lays out four seats (`.vsgroup`, a size down) for a 3-4 player room; Start game shows with three seated.

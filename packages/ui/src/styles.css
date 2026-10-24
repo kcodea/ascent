@@ -1690,7 +1690,9 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow, .heropowerbtn:not(:disabled).tt-o
 @keyframes hpbcallring { 0% { transform: scale(1); opacity: 0.95; } 100% { transform: scale(1.6); opacity: 0; } }
 .statusbar.shopphase .heropowerbtn.ready::after {
   inset: calc(-9 * var(--u));
-  background: conic-gradient(from 0deg, rgba(255, 244, 200, 0) 0deg, rgba(255, 244, 200, 0) 200deg, rgba(255, 200, 90, 0.55) 290deg, #fffbe6 354deg, rgba(255, 244, 200, 0) 360deg);
+  /* a long tail (fading in from 110deg, owner 2026-10-23: "increase the length of the tail") and 25% dimmer overall ("lower the
+     overall brightness of the arc by 25%"): every stop at three quarters of its first strength. */
+  background: conic-gradient(from 0deg, rgba(255, 244, 200, 0) 0deg, rgba(255, 244, 200, 0) 110deg, rgba(255, 190, 80, 0.15) 200deg, rgba(255, 200, 90, 0.41) 290deg, rgba(255, 251, 230, 0.75) 354deg, rgba(255, 244, 200, 0) 360deg);
   will-change: transform;
   animation: hpbcallspin 1.3s linear infinite;
 }

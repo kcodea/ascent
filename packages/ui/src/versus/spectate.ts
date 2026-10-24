@@ -178,6 +178,8 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
   schedule();
 }
 
+/** The match whose end closed this watch screen (render never reopens it). */
+let watchDone: string | null = null;
 /** A finished match still on the watch screen, waiting for its last fight to play out. */
 let endWatch: { match: VersusMatch; at: number; timer: number | null } | null = null;
 /** The fight the screen last played to its end (its strike included): `${matchId}|${wave}`. */
@@ -206,6 +208,7 @@ function maybeEndWatch(): void {
   if (!lastFightShown) return;
   if (e.timer != null) window.clearTimeout(e.timer);
   endWatch = null;
+  watchDone = m.id;
   const seat = useSpectate.getState().seat;
   // VERSUS GROUP (R-VERSUS-GROUP-04/06): the watched player's own seat row has their name and final place on the table.
   const row = m.group?.raw.seats.find((x) => x.seat === seat);
@@ -806,6 +809,9 @@ function schedule(): void {
 
 function render(): void {
   if (!matchId || useSpectate.getState().optedOut === matchId) return;
+  // The match's end already closed this watch screen: a frame the winner still publishes (from their last fight) must
+  // not open it again (found in the Versus Group live test, 2026-10-24).
+  if (watchDone === matchId) return;
   const seat = useSpectate.getState().seat;
   const latest = shownView ?? rx[seat].view;
   if (!latest) return; // nothing to show for this seat yet: the keyframe is on its way
@@ -1042,6 +1048,7 @@ export function stopSpectating(): void {
 export function resetSpectate(): void {
   if (endWatch?.timer != null) window.clearTimeout(endWatch.timer);
   endWatch = null;
+  watchDone = null;
   fightShown = null;
   stopSpectatorBeat();
   stopSpectating();

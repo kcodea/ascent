@@ -59,6 +59,17 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-24',
     changes: [
       {
+        category: 'Systems',
+        text: '3-4 player Versus: Previous match stats now show the whole table, and players earn their XP when they finish.',
+        details: [
+          'Previous match stats show your place, every player with their place and hearts, and who you fought each round.',
+          'Four players earn 125, 80, 50 and 50 XP. Three players earn 125, 50 and 50.',
+          'A full room shows every player card\'s record.',
+          'Fixed: a spectator\'s screen could reopen on the last fight after the match ended.',
+          'Fixed: a spectator who watched to the end could miss their XP when the last fight ran long.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Set 2 balance: Tunneller Rik, Cave Cutter, Scrapper, Gem Carver, Beev, Big Huggies and Big Brain Billy changed.',
         details: [

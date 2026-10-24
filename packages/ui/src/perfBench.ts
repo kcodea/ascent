@@ -29,5 +29,11 @@ export function installPerfBench(): void {
     combat: { simulate, makeRng, combatSide, cards: CARD_INDEX },
     // The per-def fan budgets (`fx/fanBudget.ts`), writable on a bench build only, so one bundle can A/B a budget.
     fanBudgets: FAN_PARTICLE_BUDGETS as Record<string, number>,
+    // VERSUS end-to-end (2026-10-24, Versus Group phase 3): the session store and its actions, the spectate store, and the
+    // sim (its public entrypoint), so a bench build can be driven through a whole live match by CDP. Loaded on demand.
+    versus: () => import('./versus/versusStore'),
+    spectate: () => import('./versus/spectate'),
+    sim: () => import('@game/sim'),
+    db: () => import('./remoteBoards').then((m) => m.supabaseClient()),
   };
 }

@@ -8419,4 +8419,76 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Four players. Dan loses his last heart in round 9: he watches that fight, the gate closes, and he is watching Ann vs Bob from the stands with "4TH" on screen; his card is now in the room\x27s hand.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.db.test.ts', 'packages/ui/src/versus/versusGroupRoom.test.tsx'], lastVerifiedAt: '2026-10-24' },
   },
+  {
+    id: 'R-VERSUS-GROUP-07',
+    title: 'Previous match stats after a 3-4 player Versus game show the whole table and who each round was fought',
+    statement:
+      'After a group match the room\x27s Previous match stats shows the player\x27s place in the end screen\x27s numeral (Victory, 2nd, 3rd, 4th), '
+      + 'then every player of the table in order with their place, hero and hearts (the player\x27s own row lit; a player still in while the stats are '
+      + 'opened reads "Playing"), then the player\x27s own rounds as pips. Each round\x27s opponent row names who they fought that round (another '
+      + 'player, or "Copy of <name>"), with that board and hearts. A player knocked out has the stats in the room, filling in as the table finishes; '
+      + 'the winner\x27s end gate opens on them.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator brief 2026-10-24 (phase 3)', quote: '"Previous match stats" for a group game showing the whole table' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusMatchRecord.ts (buildGroupMatchRecord); packages/ui/src/versus/VersusMatchStats.tsx (.vsms-table, per-round foeName); packages/ui/src/versus/versusStore.ts (groupRecord)' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-edges, phase 3). Before, the stats showed only the player\x27s fights, all under the last opponent\x27s name.',
+    example: 'Ann wins a four-player game: Victory, then Ann 7 hearts, Cat 2nd, Bob 3rd, Dan 4th; round 6\x27s pip shows the fight against "Copy of Cat".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupView.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-08',
+    title: 'Versus Group players earn XP when their own result is final, and a full group room shows every card\x27s record',
+    statement:
+      'A player of a group match settles their XP under the match (R-PROG-VERSUS-XP-01: half a lobby game\x27s XP at the same share of the table, '
+      + 'so four players earn 125 / 80 / 50 / 50 and three earn 125 / 50 / 50) the moment their own result is final: when they are knocked out, or '
+      + 'when the match ends. A full group room (four seats and 20 spectators) reads the Versus record of all 24 cards in one call.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator brief 2026-10-24 (phase 3)', quote: 'verify on the live backend after a test match that each group player gets XP (125/80/50/50 for 4 players) and spectators get 50' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts settleVersusProgression (group no longer skipped); supabase/migrations/2026-10-24-versus-records-24.sql; packages/ui/src/versus/versusSeatCard.ts MAX_RECORD_IDS' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-edges, phase 3); live-verified with Claudebot1..4 (four players: 125 / 80 / 50 / 50; three: 125 / 50 / 50; 1v1: 125 / 50). The records read takes 24 once 2026-10-24-versus-records-24.sql is applied (22 before). Before the fix the client never queued a group settlement.',
+    example: 'Dan is knocked out 4th in round 7: his 50 XP settles then; Ann, who wins in round 15, settles 125.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRecords.db.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-SPECTATE-END-02',
+    title: 'A watch screen closed by the match end never reopens, and its XP settles even when the last fight held it past the server window',
+    statement:
+      'Once a Versus match\x27s end has closed a spectator\x27s watch screen (the end gate onto the room with the result), nothing reopens it: frames '
+      + 'the winner\x27s client still publishes from their last fight are ignored. The XP for watching to the end (R-PROG-SPECTATE-XP-01) settles '
+      + 'when the final beat is recorded OR any earlier beat saw the match ended: the server accepts beats for 45 seconds after the end, and the '
+      + 'screen may hold the last fight up to 60 seconds, so a refused final beat no longer loses the XP.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner 2026-10-24 (R-SPECTATE-END-01)', quote: 'when the game ends for the player, have the gates shut for the spectator and open up at the play menu with the same \x27X player came in 1st\x27 or w/e it shows' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (watchDone); packages/ui/src/live/spectatorEnd.ts (sawEnd)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-24 (feat/versus-group-edges), both found in the Versus Group live test: a spectator saw the watch screen reopen behind the result notice, and a spectator held on the last fight for 60 s got no XP.',
+    example: 'Bob watches a match whose last fight he sees only partly; the gate opens on the room with "+50 XP" and the fight screen does not come back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEnd.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-SPECTATE-END-03',
+    title: 'Where a spectator lands when the game ends: the Versus room after a Versus match, the Play menu after a regular game',
+    statement:
+      'When the game a spectator is watching ends, the end gate shuts over the watch screen and opens with the watched player\x27s result ("X came in '
+      + '1st" in the end screen\x27s numeral, and the XP for watching it). A spectator of a Versus match (1v1 or 3-4 players, a player knocked out of a '
+      + 'group match and watching the rest included) lands back in that Versus room. A spectator of a regular game watched from Live Games lands on the '
+      + 'Play menu (the mode picker).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-24 via the coordinator', quote: 'Spectators go back to the lobby at the end of versus, and back to the play menu for spectating a regular game not in a lobby' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (maybeEndWatch -> endWatchedGame, stopSpectating restores titleView versus); packages/ui/src/live/liveWatch.ts gameEnded (titleView modes); packages/ui/src/live/spectatorEnd.ts' },
+    ],
+    currentBehaviour: 'Conforms since #2283 + #2285 (checked 2026-10-24, no change needed): live with Claudebot1..4, a Versus Group spectator and a knocked-out player both returned to the room with the result and "+50 XP" (the spectator), a 1v1 spectator to the room; in tests the Live Games end lands on the mode picker.',
+    example: 'Ann watches a 3-player Versus game to the end: the gates close and open on the room with "VICTORY, Bob finished the game." Ann watching a ranked game from Live Games lands on the Play menu with "4TH".',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEnd.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

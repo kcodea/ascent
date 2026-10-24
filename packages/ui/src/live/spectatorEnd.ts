@@ -40,7 +40,8 @@ export interface SpectatorEndNoticeState {
 export const useSpectatorEnd = create<{ notice: SpectatorEndNoticeState | null }>(() => ({ notice: null }));
 export const dismissSpectatorEnd = (): void => useSpectatorEnd.setState({ notice: null });
 
-type Beat = (kind: SpectateKind, target: string) => Promise<boolean>;
+/** A beat's answer: recorded or not, and whether the server saw the game ended (`spectate_beat`'s `ended`). */
+type Beat = (kind: SpectateKind, target: string) => Promise<boolean | { ok: boolean; ended?: boolean }>;
 
 /** The server beat. True when it was recorded. Never throws. */
 const remoteBeat: Beat = async (kind, target) => {
@@ -48,8 +49,8 @@ const remoteBeat: Beat = async (kind, target) => {
   if (!c || !currentUserId()) return false;
   try {
     // rows: a scalar RPC (one jsonb answer).
-    const { error } = await c.rpc('spectate_beat', { p_kind: kind, p_target: target });
-    return !error;
+    const { data, error } = await c.rpc('spectate_beat', { p_kind: kind, p_target: target });
+    return { ok: !error, ended: !error && !!(data as { ended?: boolean } | null)?.ended };
   } catch {
     return false;
   }
@@ -57,6 +58,18 @@ const remoteBeat: Beat = async (kind, target) => {
 let beatFn: Beat = remoteBeat;
 /** Tests: replace the server beat. */
 export function setSpectateBeatForTests(fn: Beat | null): void { beatFn = fn ?? remoteBeat; }
+
+/** Games a recorded beat saw END (R-PROG-SPECTATE-XP-01). The server takes beats only up to 45 s after a game ends,
+ *  and the screen may hold the last fight longer than that (up to `VERSUS_END_HOLD_MAX_MS`), so the final beat can be
+ *  refused while the watch was complete: a game a beat saw end still settles (found in the Versus Group live test,
+ *  2026-10-24). */
+let sawEnd = new Set<string>();
+async function beat(kind: SpectateKind, target: string): Promise<boolean> {
+  const r = await beatFn(kind, target);
+  const ok = typeof r === 'boolean' ? r : r.ok;
+  if (typeof r !== 'boolean' && r.ok && r.ended) sawEnd.add(spectateRunId(kind, target));
+  return ok;
+}
 
 let current: { kind: SpectateKind; target: string; timer: number | null } | null = null;
 
@@ -66,8 +79,8 @@ export function startSpectatorBeat(kind: SpectateKind, target: string): void {
   stopSpectatorBeat();
   const s: NonNullable<typeof current> = { kind, target, timer: null };
   current = s;
-  void beatFn(kind, target);
-  if (typeof window !== 'undefined') s.timer = window.setInterval(() => { if (current === s) void beatFn(kind, target); }, SPECTATE_BEAT_MS);
+  void beat(kind, target);
+  if (typeof window !== 'undefined') s.timer = window.setInterval(() => { if (current === s) void beat(kind, target); }, SPECTATE_BEAT_MS);
 }
 
 /** The watch screen closed (Leave, the room left, the end): no more beats. */
@@ -101,8 +114,8 @@ export function endWatchedGame(end: WatchedGameEnd): Promise<void> {
   stopSpectatorBeat();
   // The last beat lands before the settlement is queued, so the server sees this spectator present at the end.
   let xpKey: string | null = null;
-  const settle = beatFn(end.kind, end.target).then((ok) => {
-    if (ok && beginSpectateProgression(runId, runId)) xpKey = runId;
+  const settle = beat(end.kind, end.target).then((ok) => {
+    if ((ok || sawEnd.has(runId)) && beginSpectateProgression(runId, runId)) xpKey = runId;
     const n = useSpectatorEnd.getState().notice;
     if (n && n.name === end.name && n.xpKey !== xpKey) useSpectatorEnd.setState({ notice: { ...n, xpKey } });
   });
@@ -123,5 +136,6 @@ export function endWatchedGame(end: WatchedGameEnd): Promise<void> {
 export function resetSpectatorEndForTests(): void {
   stopSpectatorBeat();
   ended = new Set();
+  sawEnd = new Set();
   useSpectatorEnd.setState({ notice: null });
 }

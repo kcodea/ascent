@@ -4,6 +4,7 @@ import {
   boardIntel, getHero, lastRoundDamage, lobbyRailView, playerOpponent, railSeatIntel, roundLossCap, seatResults, snapshotBoard,
   type LobbySeatState, type RunLobby, type SeatIntel,
   seatStartingArmor,
+  VERSUS_COPY_SEAT_ID,
 } from '@game/sim';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
 import { floatLobbyDamageOnSeats, roundDamageFloats, whenCurtainDown } from './lobbyDamageFx';
@@ -436,7 +437,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
     {/* `--lby-n`: the seat count, so the Gem rail can hold exactly the height Classic sizes to (lobbyRail.css). */}
     {!(versusDuel && !showGuides) && <div className={`lobbyrail${railMods}`} style={{ '--lby-n': railRows } as React.CSSProperties}>
       <div className="lobbyhead">
-        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${rail.left} left`}</span>
+        <span className="lobbyalive">{showGuides ? `${guideCount} guide${guideCount === 1 ? '' : 's'}` : versusDuel ? '' : `${versus ? rail.left - (lobby.seats.some((x) => x.id === VERSUS_COPY_SEAT_ID) ? 1 : 0) : rail.left} left`}</span>
       </div>
 
       {showGuides ? (

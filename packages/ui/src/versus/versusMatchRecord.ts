@@ -5,8 +5,9 @@
  */
 import type { BoardMinion, CombatResult, MinionSnapshot } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { VERSUS_HEARTS, runeCarryOf, runeLiveStateOfCarries, type RuneLiveState, type VersusSeat } from '@game/sim';
-import type { VersusMatch, VersusRoundRow } from './versusRemote';
+import { VERSUS_HEARTS, runeCarryOf, runeLiveStateOfCarries, type RuneLiveState, type VersusGroupSeat, type VersusSeat } from '@game/sim';
+import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusMatch, VersusRoundRow } from './versusRemote';
+import { copyName, groupSeatOf, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 
 export interface VersusRecordRound {
   round: number;
@@ -32,6 +33,18 @@ export interface VersusRecordRound {
   /** Each player's shop tier at that round's lock (the scouts), for the inspect's tier-reading text. */
   myTier?: number;
   foeTier?: number;
+  /** VERSUS GROUP: who I fought this round (another player, or "Copy of X"), when it is not the record's one foe. */
+  foeName?: string;
+  foeHero?: string | null;
+}
+
+/** VERSUS GROUP's table in the record (R-VERSUS-GROUP-07): every player, their final (or current) place and hearts. */
+export interface VersusRecordSeat {
+  name: string;
+  heroId: string | null;
+  placement: number | null;
+  hearts: number;
+  me: boolean;
 }
 
 export interface VersusMatchRecord {
@@ -49,6 +62,10 @@ export interface VersusMatchRecord {
   myHearts: number;
   foeHearts: number;
   rounds: VersusRecordRound[];
+  /** VERSUS GROUP (3-4 players): my place of `of`, and the whole table (standings order). Absent on a 1v1 record. */
+  placement?: number | null;
+  of?: number;
+  table?: VersusRecordSeat[];
 }
 
 const boardOf = (ms: readonly MinionSnapshot[] | undefined): BoardMinion[] =>
@@ -92,5 +109,46 @@ export function buildVersusMatchRecord(
         foeTier: (other === 'p1' ? r.p1_scout : r.p2_scout)?.tier,
       };
     }),
+  };
+}
+
+/**
+ * VERSUS GROUP's "Previous match stats" (owner ask 2026-10-24, R-VERSUS-GROUP-07): my fights round by round (each with
+ * the player, or Copy, I fought that round) plus the whole table: every player's place and hearts. Built from the raw
+ * group rows from MY seat (never the spectator view a player who is out is shown later), so it reads the same whenever it
+ * is (re)built; rebuilt as the table finishes so the places fill in.
+ */
+export function buildGroupMatchRecord(
+  raw: VersusGroupMatchRaw, rounds: readonly VersusGroupRoundRaw[], me: string, myCosmetics: RunCosmeticSnapshot | null,
+  cosmeticsOf: (userId: string) => RunCosmeticSnapshot | null = () => null,
+): VersusMatchRecord | null {
+  const mine = groupSeatOf(raw, me);
+  if (!mine) return null;
+  const view = projectGroupMatch(raw, me);
+  const rows = projectGroupRounds(raw, rounds, me);
+  const base = buildVersusMatchRecord(view, rows, 'p1', myCosmetics, view.group?.foe ? cosmeticsOf(raw.seats.find((x) => x.seat === view.group!.foe!.seat)?.userId ?? '') : null);
+  const nameOf = (seat: VersusGroupSeat, copy: boolean): string => {
+    const r = raw.seats.find((x) => x.seat === seat);
+    return r ? (copy ? copyName(r.name) : r.name) : '';
+  };
+  const recRounds = base.rounds.map((r) => {
+    const g = rows[r.round]?.group;
+    const f = g ? g.fights.find((x) => x.a_seat === mine.seat || (x.b_seat === mine.seat && !x.b_copy)) : null;
+    if (!f) return r;
+    const foe = f.a_seat === mine.seat ? { seat: f.b_seat, copy: f.b_copy } : { seat: f.a_seat, copy: false };
+    return { ...r, foeName: nameOf(foe.seat, foe.copy), foeHero: raw.seats.find((x) => x.seat === foe.seat)?.hero ?? null };
+  });
+  const won = raw.phase === 'complete' && raw.winner_seat === mine.seat;
+  const placement = won ? 1 : mine.placement;
+  const table = [...raw.seats]
+    .map((x) => ({ name: x.name, heroId: x.hero, placement: raw.phase === 'complete' && raw.winner_seat === x.seat ? 1 : x.placement, hearts: Math.max(0, x.hearts), me: x.seat === mine.seat }))
+    .sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || b.hearts - a.hearts);
+  return {
+    ...base,
+    outcome: placement === 1 ? 'win' : placement != null ? 'lose' : 'none',
+    rounds: recRounds,
+    placement,
+    of: raw.seat_count,
+    table,
   };
 }

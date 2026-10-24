@@ -393,6 +393,12 @@ body.vsroom-on .pixifx { z-index: 470; }
 .vsms-hearts { font-size: 18px; }
 .vsms-hearts svg { width: 18px; height: 18px; color: var(--threat); }
 .vsms-side .mds-runes { min-height: 0; padding: 2px 0 0; border-top: none; }
+/* VERSUS GROUP's standings in Previous match stats (R-VERSUS-GROUP-07): one row per player, mine lit. */
+.vsms-table { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 8px; border-bottom: 1px solid rgba(196, 160, 92, 0.16); }
+.vsms-trow { display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 3px 8px; border-radius: 8px; }
+.vsms-trow.me { background: rgba(255, 214, 120, 0.1); }
+.vsms-tplace { font-family: var(--font-title), serif; font-weight: 800; font-size: 18px; color: var(--ui-title, #ffd98a); }
+.vsms-trow .vsms-name { flex-direction: row; align-items: baseline; gap: 8px; font-size: 16px; }
 /* Hero Select's 20 s clock (the shop's own clock, `ShopTimer`), under the title. */
 .vshstimer { display: flex; justify-content: center; margin: calc(4 * var(--u)) 0 calc(22 * var(--u)); }
 

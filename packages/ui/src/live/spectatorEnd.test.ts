@@ -76,6 +76,26 @@ describe('the end', () => {
     expect(leave).toHaveBeenCalledTimes(1);
     expect(queued).toHaveLength(1);
   });
+
+  it('a final beat refused after the server window still settles when an earlier beat saw the game end (live test 2026-10-24)', async () => {
+    let n = 0;
+    // The first beat sees the match ended; the end beat (past the 45 s window) is refused.
+    end.setSpectateBeatForTests(async () => (n++ === 0 ? { ok: true, ended: true } : { ok: false }));
+    end.startSpectatorBeat('group', 'g3');
+    await flush();
+    gate.registerRankedGate(async (onShut) => { onShut(); });
+    await end.endWatchedGame({ kind: 'group', target: 'g3', name: 'Ann', placement: 1, leave: () => undefined });
+    await flush();
+    expect(queued).toEqual([{ localKey: 'watch:group:g3', runId: 'watch:group:g3' }]);
+  });
+
+  it('a final beat refused with no beat that saw the end settles nothing', async () => {
+    end.setSpectateBeatForTests(async () => ({ ok: false }));
+    gate.registerRankedGate(async (onShut) => { onShut(); });
+    await end.endWatchedGame({ kind: 'group', target: 'g4', name: 'Ann', placement: 1, leave: () => undefined });
+    await flush();
+    expect(queued).toEqual([]);
+  });
 });
 
 describe('a Versus match on the watch screen', () => {
@@ -108,6 +128,11 @@ describe('a Versus match on the watch screen', () => {
     expect(useGame.getState().showTitle).toBe(true);
     expect(end.useSpectatorEnd.getState().notice).toMatchObject({ name: 'Ann', placement: 2 });
     expect(queued.map((q) => q.runId)).toEqual([`watch:versus:${M}`]);
+    // The winner still publishes frames from their last fight: the closed watch screen never reopens on one
+    // (Versus Group live test 2026-10-24).
+    sp.receiveSpectate({ ...nextSpectatorMessage(newPublisher('p1'), run0, 3, true)!, m: M });
+    await flush();
+    expect(sp.useSpectate.getState().active).toBe(false);
   });
 
   it('won on hearts: the screen waits for the last fight to play out (or the cap) before the gate', async () => {

@@ -72,3 +72,24 @@ describe('Versus Group projection (R-VERSUS-GROUP-01)', () => {
     expect(roundResultFor({ p1_result: res('X', 'win'), p2_result: res('Y', 'lose') } as never, 'p2')).toEqual(res('Y', 'lose'));
   });
 });
+
+describe('Versus Group "Previous match stats" (R-VERSUS-GROUP-07)', () => {
+  it('my fights round by round (each naming who I fought, a Copy included) and the whole table with places', async () => {
+    const { buildGroupMatchRecord } = await import('./versusMatchRecord');
+    const fr = (result: 'win' | 'lose' | 'draw'): CombatResult => ({ result, initial: { player: [], enemy: [] }, events: [], playerDamage: 0 } as unknown as CombatResult);
+    const rounds: VersusGroupRoundRaw[] = [
+      { round: 1, hearts: { p1: 7, p2: 6, p3: 7 }, eliminated: [], fights: [
+        { round: 1, fight: 0, a_seat: 'p1', b_seat: 'p2', b_copy: false, chair: 'a', outcome: 'a', heart_lost_by: 'p2', a_result: fr('win'), b_result: fr('lose'), a_scout: null, b_scout: null },
+        { round: 1, fight: 1, a_seat: 'p3', b_seat: 'p1', b_copy: true, chair: 'a', outcome: 'draw', heart_lost_by: null, a_result: fr('draw'), b_result: fr('draw'), a_scout: null, b_scout: null },
+      ] },
+    ];
+    const seats = [seat('p1', { placement: null }), seat('p2', { eliminatedRound: 1, outReason: 'hearts', hearts: 0, placement: 3 }), seat('p3', { hearts: 7, eliminatedRound: 1, outReason: 'forfeit', placement: 2 })];
+    const done = raw(3, { phase: 'complete', winner_seat: 'p1', end_reason: 'hearts', round: 1 }, seats);
+    const mine = buildGroupMatchRecord(done, rounds, 'u3', null)!;
+    expect(mine.rounds[0]!.foeName).toBe('Copy of P1');
+    expect([mine.placement, mine.of, mine.outcome]).toEqual([2, 3, 'lose']);
+    expect(mine.table!.map((t) => [t.name, t.placement, t.me])).toEqual([['P1', 1, false], ['P3', 2, true], ['P2', 3, false]]);
+    const winner = buildGroupMatchRecord(done, rounds, 'u1', null)!;
+    expect([winner.placement, winner.outcome, winner.rounds[0]!.foeName, winner.rounds[0]!.result]).toEqual([1, 'win', 'P2', 'win']);
+  });
+});

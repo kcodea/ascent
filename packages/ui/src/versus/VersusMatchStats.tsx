@@ -18,6 +18,7 @@ import { StoredTeam } from '../StoredTeam';
 import { sfx } from '../sfx';
 import { stageHost } from '../stage';
 import type { VersusMatchRecord } from './versusMatchRecord';
+import { placementText } from '../rank/rankFormat';
 import { blockInspect } from './VersusHud';
 import { versusSnapshotView } from './versusInspectView';
 import '../matchDetails/matchDetails.css';
@@ -52,7 +53,13 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
     <div className="mdd-scrim vsms-scrim" onPointerDown={() => { sfx.tick(); onClose(); }} onContextMenuCapture={inspectOnlyOwn}>
       <div className="mdd-panel" role="dialog" aria-modal="true" aria-label="Match stats" onPointerDown={(e) => e.stopPropagation()}>
         {/* VICTORY / DEFEAT in the lobby end screen's gold numeral (owner 2026-10-14: the end gate opens on this). */}
-        {record.outcome !== 'none' && (
+        {/* VERSUS GROUP (R-VERSUS-GROUP-07): my place in the lobby end screen's numeral ("Victory", "2ND"). */}
+        {record.table && record.placement != null && (
+          <div className={`endplace vsms-verdict${record.placement === 1 ? ' won' : ''}`}>
+            <span className="endplace-num">{record.placement === 1 ? 'Victory' : placementText(record.placement)}</span>
+          </div>
+        )}
+        {!record.table && record.outcome !== 'none' && (
           <div className={`endplace vsms-verdict${record.outcome === 'win' ? ' won' : ''}`}>
             <span className="endplace-num">{record.outcome === 'win' ? 'Victory' : 'Defeat'}</span>
           </div>
@@ -60,6 +67,18 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
         <button ref={closeRef} type="button" className="mdd-close pressable vsms-close" aria-label="Close match stats" onClick={() => { sfx.tick(); onClose(); }}>
           <span aria-hidden="true">✕</span>
         </button>
+        {/* THE WHOLE TABLE of a group match: every player's place, hero and hearts (the match details row look). */}
+        {record.table && (
+          <div className="vsms-table" aria-label="Final standings">
+            {record.table.map((t) => (
+              <div key={t.name} className={`vsms-trow${t.me ? ' me' : ''}`}>
+                <span className="vsms-tplace">{t.placement != null ? placementText(t.placement) : 'Playing'}</span>
+                <span className="vsms-name">{t.name}{t.heroId && <span className="vsms-hero">{getHero(t.heroId).name}</span>}</span>
+                <span className="mds-hp-v vsms-hearts"><Icon name="heartPill" />{t.hearts}</span>
+              </div>
+            ))}
+          </div>
+        )}
         {record.rounds.length === 0 ? (
           <div className="mds-empty">No rounds were fought.</div>
         ) : (
@@ -75,8 +94,9 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
             {shown && (
               <section className="vsms-round">
                 <div className="mds-board-caption">Round {shown.round} · {RESULT_WORD[shown.result]}</div>
-                <VsSide name={record.foeName} heroId={record.foeHero} skins={foeSkins} self={false} hearts={shown.foeHearts}
-                  minions={shown.foe} snaps={shown.foeSnap} tier={shown.foeTier} runes={shown.foeRunes} runeLive={shown.foeRuneLive} label={`${record.foeName}'s board`} />
+                {/* A group round names the player (or Copy) fought that round. */}
+                <VsSide name={shown.foeName ?? record.foeName} heroId={shown.foeHero !== undefined ? shown.foeHero : record.foeHero} skins={foeSkins} self={false} hearts={shown.foeHearts}
+                  minions={shown.foe} snaps={shown.foeSnap} tier={shown.foeTier} runes={shown.foeRunes} runeLive={shown.foeRuneLive} label={`${shown.foeName ?? record.foeName}'s board`} />
                 <VsSide name={record.myName} heroId={record.myHero} skins={mySkins} self hearts={shown.myHearts}
                   minions={shown.mine} snaps={shown.mineSnap} tier={shown.myTier} runes={shown.myRunes} runeLive={shown.myRuneLive} label="Your board" />
               </section>

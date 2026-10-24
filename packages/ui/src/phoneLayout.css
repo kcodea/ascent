@@ -203,6 +203,8 @@ html[data-phone-layout] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.74
 /* ── Hero select (browse every hero, Practice): four big tiles a row, as the offer, scrolling; their power text reads. */
 html[data-phone-layout] .hsrow.browse { zoom: 1.36; max-height: calc((var(--lvh, 100dvh) - var(--safe-b) - 60px * var(--touch-inv-s)) / 1.36); }
 html[data-phone-layout] .hsrow.browse .herocard.big .hcpw { font-size: 21px; line-height: 1.25; }
+/* Each tile reserves the height of the roster's longest power text, so a long power never runs into the next row. */
+html[data-phone-layout] .hsrow.browse .herocard.big .hcbelow { min-height: 168px; }
 
 /* ── The menus on a phone ─────────────────────────────────────────────────────────────────────────────────────
    Practice's Start sits beside the page title instead of below the fold, and the corner squares are at least 32 pt. */

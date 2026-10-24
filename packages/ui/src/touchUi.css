@@ -323,7 +323,7 @@ html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::af
 /* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
 html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }
 /* THE POP: a finger on a hand card lifts it whole and VERY large (owner 2026-10-24: "it should be very large"): straight,
-   ~95% of the safe screen height, rising from just above its row, plate, text, cost, Attack and Health all on screen (owner
+   ~68% of the safe screen height, growing in place from the hand row, plate, text, cost, Attack and Health all on screen (owner
    2026-10-24: the resting hand is the desktop card exactly, badges and all, so a neighbour may cover them; the pop is
    where it all reads). touchInput.ts measures the card ONCE on the press and writes `--pop-s` / `--pop-tx` / `--pop-ty`
    (translate + scale about the card's top-left). Transform only, the base 0.14 s transition, the card is re-rastered at
@@ -436,4 +436,11 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom
   /* Practice is the one mode page that scrolls on a phone: its help / Compendium squares step away there rather than
      float over its options (both stay on the Play page and in a game). */
   html[data-touch-ui][data-touch-small]:not([data-phone-layout]):has(.mpview[data-view='practice']:not(.mpv-out)) :is(.rulesbtn, .bookbtn) { visibility: hidden; }
+  /* A Shop card's Inspect carries a Buy pill at the screen's foot: the card rides higher and a touch smaller so its tribe
+     label clears the pill and the home indicator. */
+  html[data-touch-ui][data-touch-small]:has(.disc-toggle.inspect-act) .inspect-card { scale: calc(var(--touch-inspect) * 0.9); translate: 0 calc(-11 * var(--vh, 1vh)); }
 }
+/* Zoomed phone: the rail's header ("Round N", the max-damage chip) and the round summary's odds captions a size up
+   (they read at 4-6 px). */
+html[data-touch-ui][data-phone-zoom] .lobbyrailhead { --lby-font: 1.5; }
+html[data-touch-ui][data-phone-zoom] .fr-odds-dmg-label { font-size: calc(16 * var(--u)); }

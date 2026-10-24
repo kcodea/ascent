@@ -7415,7 +7415,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'On a zoomed phone the hand shows the real desktop cards, badges and spacing unchanged, resting low with their plates '
       + 'running off the bottom edge (a neighbour may cover a badge). A finger on a hand card lifts that card straight up to '
-      + 'about 95% of the safe screen height, its foot just above the bottom edge, fully on screen (plate, text, cost, Attack, Health) '
+      + 'about 68% of the safe screen height, growing in place from the hand row (its foot on the bottom edge), fully on screen (plate, text, cost, Attack, Health) '
       + 'above everything, and drops it back on release. Transform only; never during a drag; a mouse is unaffected. On '
       + 'the board rows Attack and Health step in so neighbouring badges never overlap.',
     domain: 'foundation',

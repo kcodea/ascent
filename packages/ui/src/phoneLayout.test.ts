@@ -75,7 +75,7 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(pop?.[1]).toMatch(/transform:/);
     expect(pop?.[1]).not.toMatch(/box-shadow|filter|top:|bottom:|margin/);
   });
-  it('the pop fills ~95% of the safe height, its foot just above the safe bottom, never past a safe edge', () => {
+  it('the pop fills ~68% of the safe height, its foot just above the safe bottom, never past a safe edge', () => {
     const safe = { top: 0, right: 59, bottom: 21, left: 59 };
     const base = { width: 50, extentTop: -10, extentBottom: 110, k: 0.4, vw: 852, vh: 393, safe };
     for (const left of [60, 400, 780]) {

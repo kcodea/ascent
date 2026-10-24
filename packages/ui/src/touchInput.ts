@@ -202,10 +202,10 @@ export function isTap(x0: number, y0: number, x1: number, y1: number, slop = TAP
 /** The class a finger's press puts on the hand card under it (see `installTouchInput`). */
 export const PRESS_CLASS = 'tt-press';
 /** How tall the popped hand card is, as a share of the safe screen height (owner 2026-10-24: "it should be very large",
- *  then "pop less vertically and just make the pop larger"). */
-export const POP_HEIGHT_FRAC = 0.95;
+ *  then "It's still popping very vertically": it grows in place from the hand row, its top around the board's top row). */
+export const POP_HEIGHT_FRAC = 0.68;
 /** Screen px kept between the popped card's foot and the safe bottom edge: it grows up from just above its resting row. */
-export const POP_FOOT_GAP = 6;
+export const POP_FOOT_GAP = 4;
 export interface PopInput {
   /** The card's untransformed box on screen (px): its rest transform taken back out. */
   left: number; top: number; width: number;

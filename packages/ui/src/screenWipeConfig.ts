@@ -64,7 +64,7 @@ export const WIPE_DEFAULTS: ScreenWipeConfig = {
   // ("we need the hold to be twice as long").
   holdInMs: 1500, // 2.4 s -> 1.8 s -> 1.5 s (owner 2026-10-23: "change the down, holding step of the wooden gate from 2.4 to 1.8 s", then "reduce the gate hold from 1.8 to 1.5")
   // The return trip's hold (the vista, 2026-10-23): 2.0 s -> 1.5 s (owner: "can we have the overall animation a bit shorter").
-  holdOutMs: 1200, // 1.5 s -> 0.8 s -> 1.2 s (owner 2026-10-23: "the hold from 1.5 to .8", then "increase the hold of the return to shop from .8 to 1.2")
+  holdOutMs: 1350, // 1.5 s -> 0.8 s -> 1.2 s -> 1.35 s (owner 2026-10-23: "the hold from 1.5 to .8", then "from .8 to 1.2", then "increased to 1.35")
   easeX1: 0.45,
   easeY1: 0,
   easeX2: 0.7,

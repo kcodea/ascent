@@ -953,7 +953,7 @@ export const PERSISTENCE_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner ruling 2026-10-24 (keep keywords-only behaviour)', quote: "how it works now, idk what 'abilities added' even means" },
       { kind: 'code', ref: 'packages/ui/src/keywordGlossary.ts engraved def; packages/core/src/types.ts ENGRAVE_KEEPS_KEYWORDS' },
     ],
-    currentBehaviour: 'Conforms from 2026-10-24 (was "Keeps all stats gained during combat."). Owner confirmed 2026-10-24: keep today's behaviour (stats + combat keywords; grafted triggers are not kept).',
+    currentBehaviour: 'Conforms from 2026-10-24 (was "Keeps all stats gained during combat."). Owner confirmed 2026-10-24: keep the current behaviour (stats + combat keywords; grafted triggers are not kept).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/engravedWording1024.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
 ];

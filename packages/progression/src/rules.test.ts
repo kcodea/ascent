@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CURVE_BANDS, XP_RULES, comebackAfterLosses, isProgressionFacts, levelOfXp, levelProgress, matchXp, parseProgressionProfile,
-  parseProgressionResult, practiceRunId, titleName, titlesForLevel, titlesUnlockedBetween, tutorialRunId, xpAtLevelStart, xpForSettlement,
+  parseProgressionResult, practiceRunId, spectateRunId, SPECTATE_RUN_ID, titleName, versusLobbyPlacement, titlesForLevel, titlesUnlockedBetween, tutorialRunId, xpAtLevelStart, xpForSettlement,
   xpToAdvanceFrom, type CombatOutcome, type ProgressionRunFactsV1,
 } from './rules';
 
@@ -214,5 +214,41 @@ describe('facts + payload parsing', () => {
     expect(parseProgressionProfile({ ...prof, aether: 190 })).toEqual({ ...prof, aether: 190 });
     expect(parseProgressionProfile(prof)).not.toHaveProperty('aether');
     expect(parseProgressionProfile({ ...prof, aether: -3 })).not.toHaveProperty('aether');
+  });
+});
+
+describe('Versus and spectating XP (owner 2026-10-24: 50% of a normal game)', () => {
+  it('a Versus finish maps onto the lobby placement holding the same share of the table', () => {
+    // 1v1: the winner is 1st, the loser 8th.
+    expect([versusLobbyPlacement(1, 2), versusLobbyPlacement(2, 2)]).toEqual([1, 8]);
+    // 3 players: 1st, 6th, 8th. 4 players: 1st, 4th (Top 4), 6th, 8th.
+    expect([1, 2, 3].map((p) => versusLobbyPlacement(p, 3))).toEqual([1, 6, 8]);
+    expect([1, 2, 3, 4].map((p) => versusLobbyPlacement(p, 4))).toEqual([1, 4, 6, 8]);
+    expect(versusLobbyPlacement(null, 4)).toBeNull();
+  });
+
+  it('Versus pays half the Ranked XP for that placement, never a comeback; no winner pays half the completion', () => {
+    const half = (p: number | null): number => xpForSettlement({ mode: 'versus', placement: p, comeback: true }).total;
+    const ranked = (p: number): number => xpForSettlement({ mode: 'ranked', placement: p, comeback: false }).total;
+    expect(half(1)).toBe(125);
+    expect(half(1)).toBe(Math.round(ranked(1) / 2));
+    expect(half(4)).toBe(80);
+    expect(half(6)).toBe(50);
+    expect(half(8)).toBe(50);
+    expect(half(null)).toBe(50);
+    expect(xpForSettlement({ mode: 'versus', placement: 1, comeback: true })).toEqual({ base: 50, topFour: 30, firstPlace: 45, comeback: 0, total: 125 });
+    expect(XP_RULES.versusPercent).toBe(50);
+  });
+
+  it('watching a game to the end pays half the completion XP of a game, whatever the result', () => {
+    expect(xpForSettlement({ mode: 'spectate', placement: null, comeback: false })).toEqual({ base: 50, topFour: 0, firstPlace: 0, comeback: 0, total: 50 });
+    expect(xpForSettlement({ mode: 'spectate', placement: 1, comeback: true }).total).toBe(XP_RULES.complete * XP_RULES.spectatePercent / 100);
+  });
+
+  it('spectator run ids: one per kind and game', () => {
+    const uuid = '0a1b2c3d-0000-4000-8000-00000000abcd';
+    expect(spectateRunId('versus', uuid)).toBe(`watch:versus:${uuid}`);
+    for (const ok of [spectateRunId('lobby', 'run-1729:abc'), spectateRunId('versus', uuid), spectateRunId('group', uuid)]) expect(SPECTATE_RUN_ID.test(ok), ok).toBe(true);
+    for (const bad of ['watch:versus:nope', 'watch:lobby:', `watch:duel:${uuid}`, 'watch:lobby:has space']) expect(SPECTATE_RUN_ID.test(bad), bad).toBe(false);
   });
 });

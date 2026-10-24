@@ -188,3 +188,16 @@ describe('flush', () => {
     expect(pendingProgressions().map((i) => i.runId)).toEqual(['mine']);
   });
 });
+
+describe('Versus and spectator items (2026-10-24)', () => {
+  it('a Versus and a spectate item stay queued and are submitted (the queue used to drop every mode but three on read)', async () => {
+    const m = '0a1b2c3d-0000-4000-8000-00000000abcd';
+    enqueuePendingProgression({ mode: 'versus', runId: `versus:${m}`, rulesVersion: 1, comeback: false });
+    enqueuePendingProgression({ mode: 'spectate', runId: `watch:versus:${m}`, rulesVersion: 1 });
+    expect(pendingProgressions().map((i) => i.mode)).toEqual(['versus', 'spectate']);
+    await flushPendingProgressions(() => undefined, noRankPending);
+    expect(invokes.map((i) => [i.body.mode, i.body.runId])).toEqual([['versus', `versus:${m}`], ['spectate', `watch:versus:${m}`]]);
+    expect(invokes[1]!.body).not.toHaveProperty('facts');
+    expect(pendingProgressions()).toEqual([]);
+  });
+});

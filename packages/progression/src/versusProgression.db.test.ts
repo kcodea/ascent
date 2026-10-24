@@ -3,11 +3,11 @@ import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { achievementCatalogHash, achievementCatalogPayload, evaluateAchievements, ACHIEVEMENTS } from './achievements';
-import { parseProgressionResult, versusRunId, xpForSettlement, XP_RULES } from './rules';
-import { settlementParity, validateSubmitBody } from './server';
+import { parseProgressionResult, versusRunId, XP_RULES } from './rules';
+import { validateSubmitBody } from './server';
 
 /**
- * VERSUS PROGRESSION, EXECUTED (owner 2026-10-14: "versus can complete achievements and grant XP but no rank
+ * VERSUS PROGRESSION (the 2026-10-14 writer; its numbers were replaced 2026-10-24, see versusSpectatorXp.db.test.ts), EXECUTED (owner 2026-10-14: "versus can complete achievements and grant XP but no rank
  * progress"). PGlite runs the progression migrations in order, then the Versus migration and the Versus progression
  * migration, and settles real `versus_matches` rows as the Edge Function would: XP 100 (+60 for the winner), the
  * `any` achievements with the server-recorded hero, NO placement-gated (Top 4 / 1st) or Ranked achievement, NO rank
@@ -86,17 +86,16 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('Versus progression: XP and achievements, never rank', () => {
-  it('the winner earns 100 + 60, the loser 100; the ledger says versus; no rank row, rating untouched; parity holds', async () => {
+  it('the winner earns 100 + 60, the loser 100; the ledger says versus; no rank row, rating untouched', async () => {
+    // THIS file's (2026-10-14) Versus XP. Since 2026-10-24 Versus pays half the lobby equivalent instead (125 / 50 for a
+    // 1v1), proven against the newer writer in versusSpectatorXp.db.test.ts, so the TS rules no longer match these rows.
     const m = await match({ winner: 'p1' });
     const w = await settle(P1, m);
     const l = await settle(P2, m);
     expect(w.status).toBe('ok');
-    expect(w.result!.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 1, comeback: false }));
-    expect(w.result!.xp.total).toBe(XP_RULES.complete + XP_RULES.versusWin);
+    expect(w.result!.xp).toEqual({ base: XP_RULES.complete, topFour: 0, firstPlace: 60, comeback: 0, total: XP_RULES.complete + 60 });
     expect(l.result!.xp.total).toBe(XP_RULES.complete);
     expect([w.result!.placement, l.result!.placement]).toEqual([1, 2]);
-    expect(settlementParity(w.result!)).toBe(true);
-    expect(settlementParity(l.result!)).toBe(true);
     const ranks = await db.query('select * from public.rank_results');
     expect(ranks.rows).toHaveLength(0);
     const prof = await db.query<{ rating: number }>('select rating from public.profiles where user_id = $1', [P1]);

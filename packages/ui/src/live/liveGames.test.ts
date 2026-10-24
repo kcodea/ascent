@@ -18,6 +18,7 @@ const { useGame } = await import('../store');
 const identity = await import('../identity');
 const pubMod = await import('./livePublisher');
 const watchMod = await import('./liveWatch');
+const endMod = await import('./spectatorEnd');
 const { useSpectate } = await import('../versus/spectate');
 const { newPublisher, nextSpectatorMessage } = await import('../versus/spectatorView');
 
@@ -203,16 +204,23 @@ describe('the viewer', () => {
     const shown = g.run;
     g.dispatch({ type: 'roll' });
     expect(useGame.getState().run).toBe(shown);
-    // the game ends: the placement shows, then back to the list (the viewer's own run restored)
+    // the game ends (owner 2026-10-24, R-SPECTATE-END-01): the end gate (none mounted here: it swaps at once) opens on
+    // the Play menu with the placement and the XP for watching it; the viewer's own run is restored
+    const beats: string[] = [];
+    endMod.setSpectateBeatForTests(async (kind, target) => { beats.push(`${kind}:${target}`); return true; });
     net.r.watch.mockResolvedValue(row('game-1', { phase: 'end', placement: 2 }));
     await vi.advanceTimersByTimeAsync(watchMod.LIVE_WATCH_POLL_MS + 10);
-    expect(watchMod.useLiveWatch.getState().ended?.placement).toBe(2);
-    await vi.advanceTimersByTimeAsync(watchMod.LIVE_END_HOLD_MS + 10);
+    expect(watchMod.useLiveWatch.getState().ended).toBeNull(); // the session is gone, behind the doors
+    expect(endMod.useSpectatorEnd.getState().notice).toMatchObject({ name: 'Watched Wanda', placement: 2 });
+    expect(beats.at(-1)).toBe('lobby:game-1'); // the last beat, so the server sees the spectator at the end
     expect(useSpectate.getState().active).toBe(false);
     expect(useGame.getState().replaying).toBe(false);
-    expect(useGame.getState().showLiveGames).toBe(true);
+    expect(useGame.getState().showLiveGames).toBe(false);
+    expect(useGame.getState().titleView).toBe('modes');
     expect(useGame.getState().run).toBe(own);
     expect(net.r.unwatch).toHaveBeenCalledWith('game-1');
+    endMod.resetSpectatorEndForTests();
+    endMod.setSpectateBeatForTests(null);
   });
 });
 

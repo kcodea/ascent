@@ -3,8 +3,9 @@
  * screen whole (`versus/spectate.ts`): the real lobby shop and combat from the player's side, view only (the replay
  * viewer's render-only mode), the action animations, the live cursor, right-click inspect. This file joins the game
  * (`lobby_live_watch`, cap 20), opens its broadcast channel, feeds the frames in, keeps the watcher seat warm, and
- * follows the listing row: when the game ends the player's placement shows (the end screen's numeral) and the viewer
- * goes back to the Live games list. Leave goes back at once.
+ * follows the listing row. Leave goes back to the Live games list at once. When the game ENDS (owner 2026-10-24,
+ * R-SPECTATE-END-01) the game's end gate closes over the watch screen and opens on the Play menu with the player's
+ * placement and the XP for watching it (`spectatorEnd.ts`); the watch record that XP is judged on beats from here.
  */
 import { create } from 'zustand';
 import { playerRunsFrom, resetLobbyDrivers, runKeyOf, setWatchedSeatRuns, type RunLobby } from '@game/sim';
@@ -17,6 +18,7 @@ import { currentUserId } from '../identity';
 import { installSpectatorEmotes, onUnknownSpectatorEmote, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from '../versus/spectatorEmotes';
 import { receiveWatchedEmote, resetWatchedEmotes, VERSUS_EMOTE_EVENT } from '../versus/versusEmotes';
 import { liveRemote, LiveError, type LiveGameRow, type LiveRemote } from './liveRemote';
+import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from './spectatorEnd';
 
 export interface LiveWatchState {
   /** The game being watched (its listing row), or null. */
@@ -31,14 +33,12 @@ export const useLiveWatch = create<LiveWatchState>(() => ({ game: null, ended: n
 
 /** Watcher heartbeat / listing poll. */
 export const LIVE_WATCH_POLL_MS = 5000;
-/** How long the final placement shows before the list. */
-export const LIVE_END_HOLD_MS = 6000;
 
 let remote: LiveRemote = liveRemote;
 export function setLiveWatchRemoteForTests(r: LiveRemote): void { remote = r; }
 
 let session: {
-  gameId: string; channel: { send: (e: string, p: unknown) => void; close: () => void } | null; poll: number | null; endTimer: number | null;
+  gameId: string; channel: { send: (e: string, p: unknown) => void; close: () => void } | null; poll: number | null;
   /** Stops waiting for the game's first lobby (`watchSeatRecordings`). */
   seatsUnsub: (() => void) | null;
   /** The watched game's seats, so leaving evicts the drivers built from its recordings. */
@@ -144,7 +144,7 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
     return false;
   }
   resetWatchedEmotes();
-  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, endTimer: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0 };
+  const s: NonNullable<typeof session> = { gameId, channel: null, poll: null, seatsUnsub: null, seats: null, fellowsAt: 0, polls: 0 };
   session = s;
   installSpectateIo({
     latestFrames: async (id) => { const f = await remote.latestFrame(id); return f ? [{ seat: 'p1' as const, frame: f }] : []; },
@@ -173,6 +173,8 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
   liveSync(gameId);
   s.channel.send(SPECTATE_KEY_EVENT, {}); // a keyframe now, if the player is already publishing
   s.poll = window.setInterval(() => void follow(s), LIVE_WATCH_POLL_MS);
+  // The watch record for the XP of watching it to the end (R-PROG-SPECTATE-XP-01).
+  startSpectatorBeat('lobby', gameId);
   watchSeatRecordings(s);
   void readFellows(s);
   return true;
@@ -196,9 +198,20 @@ async function follow(s: NonNullable<typeof session>): Promise<void> {
   }
 }
 
+/**
+ * THE GAME ENDED for its player (owner 2026-10-24): the end gate shuts over the watch screen and opens on the Play menu
+ * with their placement and the XP for watching it (R-SPECTATE-END-01). Behind the doors the session is left for the menu.
+ */
 function gameEnded(s: NonNullable<typeof session>, row: LiveGameRow): void {
   useLiveWatch.setState({ ended: row });
-  s.endTimer = window.setTimeout(() => { if (session === s) leaveLiveGame(true); }, LIVE_END_HOLD_MS);
+  if (s.poll != null) { window.clearInterval(s.poll); s.poll = null; }
+  void endWatchedGame({
+    kind: 'lobby', target: s.gameId, name: row.display_name, placement: row.placement ?? null,
+    leave: () => {
+      if (session === s) leaveLiveGame(false);
+      useGame.setState({ showTitle: true, titleView: 'modes', showLiveGames: false });
+    },
+  });
 }
 
 /** Leave the game (Leave, the Esc menu, the end). `back`: return to the Live games list. */
@@ -207,7 +220,7 @@ export function leaveLiveGame(back = true): void {
   if (!s) return;
   session = null;
   if (s.poll != null) window.clearInterval(s.poll);
-  if (s.endTimer != null) window.clearTimeout(s.endTimer);
+  stopSpectatorBeat();
   s.seatsUnsub?.();
   setWatchedSeatRuns(null);
   if (s.seats) resetLobbyDrivers(s.seats);

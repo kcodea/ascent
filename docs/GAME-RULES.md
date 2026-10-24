@@ -480,6 +480,20 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   no meaningful placement (Unlimited Health, played to the curtain) earns a flat **60**. The first completion of
   the current **Learn Ascent** course: **250**, once per account. Scene Builder, sandboxes and quit games: 0.
   No caps, no diminishing returns, no repeat penalties.
+- **Versus XP (owner 2026-10-24, "versus modes should grant account xp. just make it 50% of a 'normal' game for now";
+  R-PROG-VERSUS-XP-01).** Every finished Versus match, 1v1 and Group, pays **half** the Ranked XP of the lobby result
+  holding the same share of the table: the winner counts as 1st; any other place p of n players as ceil(p x 8 / n) of
+  8. So a 1v1 pays **125** to the winner and **50** to the loser; a Group of 4 pays 125 / 80 / 50 / 50 (2nd of 4 is a
+  Top 4); a Group of 3 pays 125 / 50 / 50; a match nobody won (abandoned) pays 50. Never a comeback bonus. A Group
+  player knocked out early is paid at once. A player must have fought at least one round. (Was 100, +60 for the
+  winner, from 2026-10-14.) Aether for Versus is unchanged (see below).
+- **Spectator XP (owner 2026-10-24, "watching a player's game rewards 50% of the xp at the end of the match";
+  R-PROG-SPECTATE-XP-01).** Watching a game to its end pays **50** (half a game's completion XP), whatever the watched
+  player's result: a live ranked game (Live Games) or a Versus match (1v1 or Group). Once per game per spectator. It
+  counts only when the server's own watch record (beats from the open watch screen) shows the spectator watching at
+  the end and for at least half the game (5 minutes is always enough); time counts on one game at a time, so two watch
+  screens at once earn nothing. Never for your own game or a match you played a seat in. No Aether, no achievements,
+  no rank.
 - **Comeback.** A loss adds to a streak, a draw neither adds nor clears it, a win after 4+ consecutive losses
   earns the bonus. Once per run.
 - **Curve.** 250 XP per level from Level 1 to 11, 400 per level to Level 26, 500 per level after, uncapped.
@@ -870,8 +884,8 @@ progression **epoch**; nothing finished before the epoch counts (no backfill).
   no session at all, a game earns nothing.
 - **The server is the authority.** The client sends the run id and mode (plus the practice row id or the course
   pin, and the comeback fact), never an XP number. `settle_progression` reads the placement from the accepted
-  rank result / the player's own practice row / a unique tutorial claim, and a duplicate returns the original
-  result. The client queues the request durably and retries; a failure reads "Progress pending".
+  rank result / the player's own practice row / a unique tutorial claim / the Versus match row and the player's
+  seat / the spectator's own watch record (`spectate_sessions`), and a duplicate returns the original result. The client queues the request durably and retries; a failure reads "Progress pending".
 
 ### Aether and the Chest Shop (owner rulings 2026-10-18, 2026-10-19 and 2026-10-20; R-PROG-AETHER-01, R-PROG-AETHER-02, R-PROG-AETHER-03, R-PROG-AETHER-04, R-PROG-AETHER-05, R-PROG-AETHER-06)
 
@@ -1045,9 +1059,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **The end.** When the match is decided, the last fight plays out; its End Combat gem (or, with nothing left to
   watch, the moment it ends) closes the end gate, which opens on the room. The room then has **Previous match
   stats**: the round-by-round result pips, and both boards as they entered each fight with each player's hearts.
-- **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP,
-  achievements and match history are intended (match history = the server's match and round rows; XP/achievements
-  await the progression server change, see R-VERSUS-RANK-01).
+- **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP (half a
+  normal game, see Account Level: R-PROG-VERSUS-XP-01) and achievements are earned (R-VERSUS-RANK-01).
 - **Spectators** watch live (Phase 2). From the shop onwards a spectator sees ONE player's full game screen at a time,
   the real shop and combat screens from that player's side (shop, hand, board, Gold, tier, hero and power, runes,
   quests, Equipment, open choices, the clock, hearts, every fight and its recap), and switches players instantly from
@@ -1095,6 +1108,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   to switch between; a live game: the player's name and rank). The spectator can use their own lobby rail (flip to
   Guides, read their guides, pin a seat card) and open the fight Summary with the player's own odds. None of it
   reaches the player.
+- **The end, for a spectator** (owner 2026-10-24; R-SPECTATE-END-01). When the watched game ends for its player, the
+  game's end gate shuts over the watch screen and opens on the menu with the result: the watched player's place in the
+  end screen's numeral and "<name> finished the game.", plus the Account XP panel for watching it (when it earned).
+  Continue closes it. A live ranked game opens on the Play menu (when the player is out or wins); a Versus match plays
+  its last fight out first, then opens on the room (the Versus view of the Play menu) the spectator is still in.
 
 ### Versus room options and Versus Group (3-4 players) (owner 2026-10-24; R-VERSUS-OPTIONS-01, R-VERSUS-GROUP-01, R-VERSUS-GROUP-02)
 

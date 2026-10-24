@@ -33,7 +33,7 @@ import { create } from 'zustand';
 import { queueNewRewards } from './newRewards';
 import { addSeen, adoptAccountSeen, ensureSeenBaseline } from './collectionSeen';
 import {
-  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, INVENTORY_ERROR_STATUS, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
+  COSMETICS, DEFAULT_AETHER_ECONOMY, HERO_TITLE_COSMETICS, INVENTORY_ERROR_STATUS, PROGRESSION_RULES_VERSION, heroMasterTitleId, heroTitleId, isMasterTitle, setServerCatalogState, titleName, withEmoteAt, type ServerCatalogState, type AetherEconomy, type BuyCrateResult, type CosmeticCategory, type CrateTier, type EquipSlot, type CrateRow, type OpenCrateResult, type ProgressionMode, type ProgressionProfile, type ProgressionResult, type ProgressionRunFacts, type RunCosmeticSnapshot,
 } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
@@ -301,6 +301,26 @@ export function beginRunProgression(localKey: string, facts: ProgressionRunFacts
   const item = enqueuePendingProgression(progressionRequestFor(facts, sourceId, st.achievementsCapability === 'on'));
   if (!item) return none();
   useProgression.setState({ current: { localKey, mode: facts.mode, runId: facts.runId, state: 'pending', result: null, deduped: false, error: null } });
+  void flushProgression();
+  return true;
+}
+
+/**
+ * SPECTATOR XP (owner 2026-10-24: "watching a player's game rewards 50% of the xp at the end of the match"): a watched
+ * game just ended for this spectator. Queue its settlement (`watch:<kind>:<game>`): the server decides from its own watch
+ * record whether it earns (watched to the end, enough of it, not your own game), so the request carries no facts and
+ * no amount. `localKey` is the key the spectator's end notice shows the XP panel for. Returns whether it was queued.
+ */
+export function beginSpectateProgression(localKey: string, runId: string): boolean {
+  const st = useProgression.getState();
+  const none = (): false => {
+    useProgression.setState({ current: { localKey, mode: 'spectate', runId, state: 'none', result: null, deduped: false, error: null } });
+    return false;
+  };
+  if (st.capability === 'off') return none();
+  const item = enqueuePendingProgression({ mode: 'spectate', runId, rulesVersion: PROGRESSION_RULES_VERSION });
+  if (!item) return none();
+  useProgression.setState({ current: { localKey, mode: 'spectate', runId, state: 'pending', result: null, deduped: false, error: null } });
   void flushProgression();
   return true;
 }

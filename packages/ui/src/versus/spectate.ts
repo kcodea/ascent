@@ -36,6 +36,7 @@ import { setSpectatorHover, watchLocalHover } from './spectatorHover';
 import type { CursorSample, SpectatorAct, WireDecision, WireOdds, WireOverlay } from './spectateTap';
 import { applySpectatorMessage, newReceiver, type CombatBeat, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
+import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from '../live/spectatorEnd';
 
 /** The broadcast event a spectator sends when it needs a fresh keyframe (a gap it could not repair from the table). */
 export const SPECTATE_KEY_EVENT = 'spectate_key';
@@ -149,7 +150,13 @@ function watchedLobby(lobby: NonNullable<RunState['lobby']>, name: string): NonN
 export function spectateSync(match: VersusMatch | null, allRounds: Record<number, VersusRoundRow>): void {
   rounds = allRounds;
   const live = !!match && (match.phase === 'shop' || match.phase === 'resolving' || match.phase === 'combat');
-  if (!match || !live) { if (useSpectate.getState().active) stopSpectating(); return; }
+  // THE MATCH ENDED while this spectator watched it (owner 2026-10-24, R-SPECTATE-END-01): the screen plays the last fight
+  // out, then the end gate shuts over it and opens on the room with the result and the XP for watching it.
+  if (match && match.phase === 'complete' && match.id === matchId && useSpectate.getState().active && useSpectate.getState().optedOut !== match.id) {
+    watchEnded(match);
+    return;
+  }
+  if (!match || !live) { stopSpectatorBeat(); if (useSpectate.getState().active) stopSpectating(); return; }
   if (matchId !== match.id) {
     // A NEW MATCH in the room: nothing of the last one survives (views, queue, cursor, caches).
     if (useSpectate.getState().active) stopSpectating();
@@ -160,10 +167,47 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     resumeAt = null;
     rounds = allRounds;
     useSpectate.setState({ odds: {}, overlay: {} });
+    endWatch = null;
     void fetchKeyframes();
   }
-  if (useSpectate.getState().optedOut === match.id) return;
+  if (useSpectate.getState().optedOut === match.id) { stopSpectatorBeat(); return; }
+  // The watch record for the XP of watching it to the end (R-PROG-SPECTATE-XP-01): beats while this screen is the one on.
+  startSpectatorBeat('versus', match.id);
   schedule();
+}
+
+/** A finished match still on the watch screen, waiting for its last fight to play out. */
+let endWatch: { match: VersusMatch; at: number; timer: number | null } | null = null;
+/** The fight the screen last played to its end (its strike included): `${matchId}|${wave}`. */
+let fightShown: string | null = null;
+/** The longest the screen waits for the last fight before the end gate closes anyway (a fight is capped at 90 s). */
+export const VERSUS_END_HOLD_MAX_MS = 60_000;
+
+function watchEnded(match: VersusMatch): void {
+  if (endWatch?.match.id === match.id) { endWatch.match = match; maybeEndWatch(); return; }
+  endWatch = { match, at: Date.now(), timer: window.setTimeout(() => maybeEndWatch(), VERSUS_END_HOLD_MAX_MS) };
+  schedule();
+  maybeEndWatch();
+}
+
+/**
+ * Close the end gate once the player's last fight has played out on this screen: at once when the match ended without
+ * one (a concede, missed rounds, abandoned), else when the screen finished the final round's fight and its strike, or
+ * at the latest `VERSUS_END_HOLD_MAX_MS` after the end. The doors open on the room (the place this screen came from)
+ * with the watched player's result and the XP for watching (`live/spectatorEnd.ts`).
+ */
+function maybeEndWatch(): void {
+  const e = endWatch;
+  if (!e) return;
+  const m = e.match;
+  const lastFightShown = m.end_reason !== 'hearts' || fightShown === `${m.id}|${m.round}` || Date.now() - e.at >= VERSUS_END_HOLD_MAX_MS;
+  if (!lastFightShown) return;
+  if (e.timer != null) window.clearTimeout(e.timer);
+  endWatch = null;
+  const seat = useSpectate.getState().seat;
+  const name = seat === 'p1' ? m.p1_name : m.p2_name;
+  const placement = m.winner_seat ? (m.winner_seat === seat ? 1 : 2) : null;
+  void endWatchedGame({ kind: 'versus', target: m.id, name, placement, leave: () => stopSpectating() });
 }
 
 /**
@@ -871,6 +915,12 @@ function pinnedView(seat: VersusSeat, view: VersusSpectatorView): VersusSpectato
   return pin && !pin.released ? pin.view : view;
 }
 function onReplayDone(done: boolean): void {
+  // A finished match waits for its last fight (and the strike after it) before the end gate (R-SPECTATE-END-01).
+  // (Noted on every finished fight: the match row can complete after the screen has already played the last one.)
+  if (done) {
+    const key = `${matchId}|${useGame.getState().run.wave}`;
+    window.setTimeout(() => { fightShown = key; maybeEndWatch(); }, STRIKE_MS);
+  }
   if (!done || !pin || pin.released || releaseTimer != null) return;
   releaseTimer = window.setTimeout(() => { releaseTimer = null; if (pin) pin.released = true; schedule(); }, STRIKE_MS);
 }
@@ -932,6 +982,7 @@ export function watchSeat(seat: VersusSeat): void {
 /** Leave the watch screen for the room (the match keeps running; Watch brings you back). */
 export function leaveSpectating(): void {
   useSpectate.setState({ optedOut: matchId });
+  stopSpectatorBeat();
   stopSpectating();
 }
 
@@ -971,6 +1022,10 @@ export function stopSpectating(): void {
 
 /** The session ended (the room was left): forget the match. */
 export function resetSpectate(): void {
+  if (endWatch?.timer != null) window.clearTimeout(endWatch.timer);
+  endWatch = null;
+  fightShown = null;
+  stopSpectatorBeat();
   stopSpectating();
   matchId = null;
   rx = { p1: newReceiver(), p2: newReceiver() };

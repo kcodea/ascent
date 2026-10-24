@@ -5748,7 +5748,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       'A Versus match never submits a rank or rating request, never settles an abandon penalty, never uploads its '
       + 'boards to the opponent pool, never writes the ranked save slot and never counts as a ranked or Practice '
       + 'game. XP, achievements and match history are granted; rank, rating and MMR never change, whatever the '
-      + 'result. XP: 100 for a completed match (at least one round fought), plus 60 for the winner; no comeback bonus. '
+      + 'result. XP: half a normal game for the same share of the table (R-PROG-VERSUS-XP-01; was 100, +60 for the winner, '
+      + 'until 2026-10-24); no comeback bonus. '
       + 'Achievements: Versus counts for the achievements any game counts for, with the hero the server recorded, but a '
       + '1v1 win is not a lobby finish, so Top 4 / 1st achievements and Ranked-only achievements never count it.',
     domain: 'foundation',
@@ -8202,5 +8203,97 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1); the host options panel arrives in phase 2.',
     example: 'The host plays a 1v1, then switches the room to the group mode with Summit while everyone is back in the room: two more players take seats 3 and 4, and the next match is a 4-player group game where every shop can reach Tier 7. The finished 1v1 still reads 1v1, no modifier.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-PROG-VERSUS-XP-01',
+    title: 'Versus pays half the Ranked XP of the lobby result holding the same share of the table',
+    statement:
+      'Every finished Versus match, 1v1 and Group, settles account XP at 50% of what a Ranked lobby game pays for the '
+      + 'equivalent result, each piece scaled and the total rounded like Practice, never a comeback bonus. The equivalent '
+      + 'result: the winner is 1st; any other place p of n players is ceil(p x 8 / n) of 8 (versusLobbyPlacement). A 1v1 '
+      + 'pays 125 / 50; a Group of 4 pays 125 / 80 / 50 / 50; a Group of 3 pays 125 / 50 / 50; a match nobody won pays 50. '
+      + 'The server reads the match row (1v1) or the player\'s seat (Group: settled as soon as its placement is final) and '
+      + 'requires at least one round fought by that player; the ledger stores the lobby-scale placement. Once per match '
+      + 'per player. Aether and achievements are unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner request 2026-10-24, relayed verbatim by the coordinator', quote: 'versus modes should grant account xp. just make it 50% of a \'normal\' game for now' },
+      { kind: 'code', ref: 'packages/progression/src/rules.ts (XP_RULES.versusPercent, versusLobbyPlacement, xpForSettlement); supabase/migrations/2026-10-24-versus-spectator-xp.sql (settle_progression versus branch)' },
+    ],
+    currentBehaviour:
+      'Conforms in code from 2026-10-24 (feat/versus-spectator-xp); live once 2026-10-24-versus-spectator-xp.sql is applied and '
+      + 'submit-progression is redeployed. Before: a flat 100, plus 60 for the winner (R-VERSUS-RANK-01, 2026-10-14), 1v1 only, and '
+      + 'the client queue dropped every Versus settlement on read (R-PROG-QUEUE-MODES-01), so none had reached the server. The '
+      + 'equivalent-placement mapping is the builder\'s reading of "a normal game", pending owner review.',
+    example: 'A 4-player Versus Group: the winner earns 125 XP, 2nd earns 80 (2nd of 4 is a Top 4 of 8), 3rd and 4th earn 50.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/versusSpectatorXp.db.test.ts', 'packages/progression/src/rules.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-PROG-SPECTATE-XP-01',
+    title: 'Watching a game to its end pays half a game\'s completion XP, judged only on the server\'s own watch record',
+    statement:
+      'A spectator who watches a live ranked lobby game or a Versus match (1v1 or Group) to its end earns 50 XP (half of the '
+      + '100 completion XP), whatever the watched player\'s result, once per game. The open watch screen beats spectate_beat '
+      + 'every 10 s; the server accrues the time between two beats at most 45 s apart on the ONE game the account beat last '
+      + '(two watch screens at once accrue nothing). The settlement (mode spectate, run id watch:<lobby|versus|group>:<game>) '
+      + 'needs: the game over (a live game: a beat saw its end AND the player\'s rank row exists, retried for 2 hours; Versus: '
+      + 'the match row complete with a round fought), the spectator present at the end (a beat within 45 s of it), at least '
+      + 'half the game watched (5 minutes always enough), never their own game or a match they held a seat in. No Aether, '
+      + 'no achievements, no rank, no daily cap.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner request 2026-10-24, relayed verbatim by the coordinator', quote: 'also add this for spectating - watching a player\'s game rewards 50% of the xp at the end of the match.' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-24-versus-spectator-xp.sql (spectate_sessions, spectate_presence, spectate_beat, settle_progression spectate branch); packages/ui/src/live/spectatorEnd.ts; packages/progression/src/server.ts (spectate requests)' },
+    ],
+    currentBehaviour:
+      'Conforms in code from 2026-10-24 (feat/versus-spectator-xp); live once the migration is applied and submit-progression '
+      + 'is redeployed. The eligibility thresholds (half the game, 5 minute cap, 45 s continuity) are the builder\'s minimal '
+      + 'anti-abuse reading, pending owner review.',
+    example: 'You open Live Games 12 minutes into a 20 minute ranked game and watch to the end: 8 minutes watched, more than the 5 needed, so the gate opens on the Play menu with +50 XP.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/versusSpectatorXp.db.test.ts', 'packages/ui/src/live/spectatorEnd.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-SPECTATE-END-01',
+    title: 'A watched game\'s end shuts the end gate over the spectator and opens it on the menu with the result and the watch XP',
+    statement:
+      'When the watched game ends for its player, the spectator\'s client beats once more, queues the watch settlement, and '
+      + 'plays the game\'s end gate (the end variant every finished game leaves through). Behind the shut doors the watch '
+      + 'screen is left; the doors open on the menu with a notice: the watched player\'s place in the end screen numeral, '
+      + '"<name> finished the game.", and the post-game Account XP panel for the watch settlement. A live ranked game opens on '
+      + 'the Play menu (mode home); a Versus match first plays its last fight out (at most 60 s), then opens on the room the '
+      + 'spectator is still in. Once per game. A spectator who left the watch screen earlier gets neither.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner request 2026-10-24, relayed verbatim by the coordinator', quote: 'with those, make the end-match cleaner for a spectator. when the game ends for the player, have the gates shut for the spectator and open up at the play menu with the same \'X player came in 1st\' or w/e it shows.' },
+      { kind: 'code', ref: 'packages/ui/src/live/spectatorEnd.ts (endWatchedGame); packages/ui/src/live/SpectatorEndNotice.tsx; packages/ui/src/live/liveWatch.ts gameEnded; packages/ui/src/versus/spectate.ts watchEnded / maybeEndWatch' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-24 (feat/versus-spectator-xp). Before: a live game showed the placement over the frozen watch '
+      + 'screen for 6 s and dropped back to the Live Games list; a Versus spectator was cut back to the room the moment the '
+      + 'match row completed, before the last fight played. Versus Group spectating arrives with the phase 2 UI and calls the '
+      + 'same endWatchedGame.',
+    example: 'You watch a Versus 1v1; the final fight knocks Bob out. The fight plays out, the doors slam, and they open on the room with "1st, Ann finished the game." and +50 XP.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEnd.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-PROG-QUEUE-MODES-01',
+    title: 'The progression queue keeps and submits every progression mode',
+    statement:
+      'A queued settlement of any progression mode (ranked, practice, tutorial, versus, spectate) survives a reload and is '
+      + 'submitted; the queue read never filters a mode out.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner request 2026-10-24, relayed verbatim by the coordinator', quote: 'versus modes should grant account xp. just make it 50% of a \'normal\' game for now' },
+      { kind: 'code', ref: 'packages/ui/src/progression/progressionQueue.ts isPending (PROGRESSION_MODES)' },
+    ],
+    currentBehaviour:
+      'Fixed 2026-10-24 (feat/versus-spectator-xp). Before, isPending accepted only ranked / practice / tutorial, so every '
+      + 'Versus settlement queued since 2026-10-14 was dropped on its first read and never reached the server.',
+    example: 'You win a Versus match and close the tab before it settles: on your next visit the queue still holds it and it settles.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/progressionQueue.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
 ];

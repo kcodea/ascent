@@ -602,7 +602,9 @@ describe('earning: settlements pay Aether, milestone crates replace level crates
     expect(l.aether).toEqual({ base: 25, placement: 0, total: 25 });
     expect(w.aether).toEqual(aetherForSettlement({ mode: 'versus', placement: 1 }));
     expect(l.aether).toEqual(aetherForSettlement({ mode: 'versus', placement: 2 }));
-    expect(w.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 1, comeback: false }));
+    // The 2026-10-14 Versus XP this file's settle_progression still carries (100 + 60); 2026-10-24 halved it to the lobby
+    // equivalent (versusSpectatorXp.db.test.ts).
+    expect(w.xp).toEqual({ base: 100, topFour: 0, firstPlace: 60, comeback: 0, total: 160 });
     expect(await balance(a)).toBe(70);
     expect(await balance(b)).toBe(25);
     expect(await ledger(a, 'versus')).toEqual([{ delta: 70, balance_after: 70, reason: 'versus', source_id: versusRunId(m) }]);
@@ -797,8 +799,9 @@ describe('fix round 1: an unreadable economy turns Aether off for that game, nev
       parseProgressionResult((await resettle(b, 'versus', versusRunId(m))).result)!,
     ]);
     expect([w.aether, l.aether]).toEqual([null, null]);
-    expect(w.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 1, comeback: false }));
-    expect(l.xp).toEqual(xpForSettlement({ mode: 'versus', placement: 2, comeback: false }));
+    // The 2026-10-14 Versus XP this file's settle_progression carries (see above).
+    expect(w.xp).toEqual({ base: 100, topFour: 0, firstPlace: 60, comeback: 0, total: 160 });
+    expect(l.xp).toEqual({ base: 100, topFour: 0, firstPlace: 0, comeback: 0, total: 100 });
     expect([await balance(a), await balance(b)]).toEqual([0, 0]);
   });
 

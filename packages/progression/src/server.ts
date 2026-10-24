@@ -11,7 +11,10 @@
  *   { mode: 'ranked',   runId, rulesVersion, comeback, facts? }   runId = the rank run id (`rank_results.run_id`)
  *   { mode: 'practice', runId, rulesVersion, comeback, sourceId, facts? }   runId = `practice:<sourceId>`
  *   { mode: 'tutorial', runId, rulesVersion, courseId, courseVersion }   runId = `learn-ascent:v1`
- *   { mode: 'versus',   runId, rulesVersion, facts? }   runId = `versus:<match id>` (2026-10-14: XP + achievements, never rank)
+ *   { mode: 'versus',   runId, rulesVersion, facts? }   runId = `versus:<match id>` (2026-10-14: XP + achievements, never rank;
+ *                                                       a 1v1 or, since 2026-10-24, a Versus Group match id)
+ *   { mode: 'spectate', runId, rulesVersion }   runId = `watch:<lobby|versus|group>:<game>` (2026-10-24: watched to the end;
+ *                                                the evidence is the server's own `spectate_sessions` row, never the request)
  *
  * The SQL writer (`settle_progression`) reads the placement from the SOURCE ROW (the accepted `rank_results`
  * row, the caller's own `practice_games` row, or a unique tutorial claim), computes the XP, crosses levels,
@@ -20,7 +23,7 @@
  * sanity-checks it against the run's recorded win/loss counts where one exists.
  */
 import {
-  PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, VERSUS_RUN_ID, levelOfXp,
+  PROGRESSION_MODES, PROGRESSION_RULES_VERSION, SPECTATE_RUN_ID, TUTORIAL_COURSE_ID, TUTORIAL_COURSE_VERSION, VERSUS_RUN_ID, levelOfXp,
   parseProgressionProfile, parseProgressionResult, practiceRunId, sameXpBreakdown, sanitizeProgressionFacts, titlesForLevel, titlesUnlockedBetween, tutorialRunId, xpForSettlement,
   type ProgressionMode, type ProgressionRunFacts,
 } from './rules';
@@ -64,6 +67,12 @@ export function validateSubmitBody(body: unknown): ValidationResult {
     if (!VERSUS_RUN_ID.test(runId)) return { ok: false, status: 400, error: 'bad_run_id' };
     return { ok: true, request: { mode, runId, sourceId: null, comeback: false, facts } };
   }
+  if (mode === 'spectate') {
+    // The server reads its own watch record (`spectate_sessions`) and the game's end; a spectator played nothing, so no
+    // facts travel (no hero, no metrics: watching never counts toward an achievement).
+    if (!SPECTATE_RUN_ID.test(runId)) return { ok: false, status: 400, error: 'bad_run_id' };
+    return { ok: true, request: { mode, runId, sourceId: null, comeback: false, facts: null } };
+  }
   const comeback = b.comeback === true;
   if (mode === 'practice') {
     const sourceId = b.sourceId;
@@ -84,6 +93,11 @@ export const SQL_ERROR_STATUS: Readonly<Record<string, number>> = Object.freeze(
   before_epoch: 409,
   source_not_found: 409,
   not_terminal: 409,
+  // SPECTATE (2026-10-24): the watched game is over but its server record has not landed yet (the player's rank row):
+  // retried. Watched too little of it, or it was the spectator's own game: permanent.
+  not_yet: 503,
+  not_enough: 409,
+  own_game: 409,
   rate_limited: 429,
 });
 
@@ -166,10 +180,10 @@ export function settlementParity(result: NonNullable<ReturnType<typeof parseProg
     // and the milestone crates (every 10th level), so it can never award more than the milestones through the level
     // reached plus one. A cap only: a floor would be wrong (an account that already holds its milestones gets none), and
     // the amounts are NOT compared with `DEFAULT_AETHER_ECONOMY` because the live `aether_config` may be retuned; the
-    // breakdown only has to add up, and Practice / Tutorial never pay.
+    // breakdown only has to add up, and Practice / Tutorial / Spectate never pay.
     const { base, placement, total } = result.aether;
     if (total !== base + placement) return false;
-    if ((result.mode === 'practice' || result.mode === 'tutorial') && total !== 0) return false;
+    if ((result.mode === 'practice' || result.mode === 'tutorial' || result.mode === 'spectate') && total !== 0) return false;
     if (result.cratesAwarded > milestoneLevelsThrough(result.after.level).length + 1) return false;
   }
   return titlesUnlockedBetween(result.before.level, result.after.level).every((t) => result.unlockedTitles.includes(t));

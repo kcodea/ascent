@@ -58,6 +58,15 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Phones: sound effects load ahead of time and sound clearer.',
+        details: [
+          'The Shop and fight sounds load before the first Shop instead of after the art.',
+          'Your hero, your cards and the minions in a fight have their sounds ready before they play.',
+          'Sounds play at full quality instead of a reduced one.',
+        ],
+      },
       { category: 'Systems', text: 'Phones: crash reports now send reliably.' },
       {
         category: 'Balance',

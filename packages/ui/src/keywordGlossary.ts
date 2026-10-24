@@ -106,7 +106,8 @@ export const KEYWORD_GLOSSARY: KeywordDef[] = [
   { id: 'cleave', name: 'Cleave', aliases: [], badge: 'C', section: 'combat', mechanic: 'cleave', def: 'Its attack also strikes the minions on both sides of its target.' },
   { id: 'immune', name: 'Immune', aliases: [], badge: 'IMM', section: 'combat', mechanic: 'immune', def: 'Takes no damage.' },
   { id: 'stealth', name: 'Stealth', aliases: [], badge: 'ST', section: 'combat', mechanic: 'stealth', def: "Can't be attacked until it attacks, then loses Stealth." },
-  { id: 'engraved', name: 'Engraved', aliases: [], badge: 'EG', section: 'combat', mechanic: 'engraved', def: 'Keeps all stats gained during combat.' },
+  // Owner wording verbatim (2026-10-24, R-ENGRAVE-04). "Effects" here are the keywords it gains (R-ENGRAVE-03).
+  { id: 'engraved', name: 'Engraved', aliases: [], badge: 'EG', section: 'combat', mechanic: 'engraved', def: 'Keeps all stats and effects gained during combat.' },
   // "permanently" marks a combat-time gain that outlives the fight (LG-DURATION); shop gains are permanent by default.
   // Wording is the owner's verbatim (2026-09-21).
   { id: 'permanent', name: 'Permanent', aliases: [], section: 'combat', icon: 'heart', detectRe: /\bpermanent(?:ly)?\b/, def: 'Imbues/Buffs carry through the run permanently.' },

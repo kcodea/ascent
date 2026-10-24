@@ -122,10 +122,10 @@ describe('Ruby stat-gain numbers', () => {
       expect(s.rubyBonus).toEqual({ attack: 0, health: h });
     }
   });
-  it('Cave Cutter: +2/+1 branch, and 4 RANDOM Rubies branch', () => {
+  it('Cave Cutter: +1/+1 branch (2026-10-24), and the 4-Rubies branch', () => {
     let s = act(run({ hand: [body('c', 'k_veinbreaker')] }), { type: 'play', uid: 'c' });
     s = act(s, { type: 'chooseOne', index: 0 });
-    expect(s.rubyBonus).toEqual({ attack: 2, health: 1 });
+    expect(s.rubyBonus).toEqual({ attack: 1, health: 1 });
     s = act(run({ hand: [body('c', 'k_veinbreaker')] }), { type: 'play', uid: 'c' });
     s = act(s, { type: 'chooseOne', index: 1 });
     expect(rubiesInHand(s)).toHaveLength(4);
@@ -134,7 +134,7 @@ describe('Ruby stat-gain numbers', () => {
   it('Cave Cutter: Rune of the Unbroken Vein still grants BOTH halves', () => {
     const s = act(run({ runeUnbrokenVein: true, hand: [body('c', 'k_veinbreaker')] } as Partial<RunState>), { type: 'play', uid: 'c' });
     const done = s.chooseOne ? act(s, { type: 'chooseOne', index: 0 }) : s;
-    expect(done.rubyBonus).toEqual({ attack: 2, health: 1 });
+    expect(done.rubyBonus).toEqual({ attack: 1, health: 1 });
     expect(rubiesInHand(done)).toHaveLength(4);
   });
 });
@@ -161,10 +161,10 @@ describe('random-Ruby grants', () => {
     }
     expect(seen.size).toBeGreaterThan(1);
   });
-  it('Tunneller Rik (combat): one Rally gets 2 Rubies (carried back as random types)', () => {
+  it('Tunneller Rik (combat): one Rally gets 1 random Ruby (owner balance 2026-10-24, was 2)', () => {
     const r = simulate([{ cardId: 'k_tunnelcharger', attack: 3, health: 300, sourceUid: 'T', keywords: ['RL'] } as BoardMinion],
       [{ cardId: 'sandbag', attack: 0, health: 3 }], makeRng(2), CARD_INDEX, combatSide({ tier: 6 }), combatSide({ tier: 1 }));
-    expect(r.playerRubyGrantIds ?? []).toHaveLength(2);
+    expect(r.playerRubyGrantIds ?? []).toHaveLength(1);
     for (const id of r.playerRubyGrantIds ?? []) expect(RUBY_TYPE_IDS).toContain(id);
     expect(r.playerRubyGrants ?? 0, 'none are plain-Ruby mints').toBe(0);
   });
@@ -174,8 +174,8 @@ describe('Crownvein, Scrapper, Portsmith, Kobe, Cavern Fiend', () => {
   it('Crownvein Rally params are +1/+2', () => {
     expect(CARD_INDEX['k_crownvein']!.effects[0]!.params).toMatchObject({ attack: 1, health: 2 });
   });
-  it('Scrapper Echo is +1/+1', () => {
-    expect(CARD_INDEX['k_faultline']!.effects[0]!.params).toMatchObject({ attack: 1, health: 1 });
+  it('Scrapper Echo is +1 Attack (owner balance 2026-10-24, was +1/+1)', () => {
+    expect(CARD_INDEX['k_faultline']!.effects[0]!.params).toMatchObject({ attack: 1, health: 0 });
   });
   it('Portsmith Avenge (3): +1/+1 and 2 Kobolds, keeps Ward', () => {
     const d = CARD_INDEX['k_portsmith']!;

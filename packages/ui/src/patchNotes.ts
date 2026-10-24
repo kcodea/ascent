@@ -58,6 +58,24 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-24',
     changes: [
+      {
+        category: 'Balance',
+        text: 'Set 2 balance: Tunneller Rik, Cave Cutter, Scrapper, Gem Carver, Beev, Big Huggies and Big Brain Billy changed.',
+        details: [
+          'Tunneller Rik: Rally now gets 1 random Ruby (was 2).',
+          'Cave Cutter: Choose One is now give your Rubies +1/+1 (was +2/+1), or get 4 Rubies.',
+          'Scrapper: now Tier 2 and 3/1 (was Tier 3, 5/1). Echo: your Rubies gain +1 Attack (was +1/+1).',
+          'Gem Carver: now Tier 4 (was Tier 3).',
+          'Beev: when a Beast attacks, give it and this +2/+1 (was +2/+2).',
+          'Big Huggies: Taunt. Echo: get 2 Staves of Guel (was 2 Picnics).',
+          'Big Brain Billy: now gains +2/+2 when you cast a Shop spell (was +1/+1).',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'The Engraved keyword now reads: Keeps all stats and effects gained during combat.',
+        details: ['A wording update. Engraved minions keep the stats and keywords they gain in a fight, as before.'],
+      },
       { category: 'Systems', text: "Rebirth's glow no longer cuts off in a straight line." },
       { category: 'Systems', text: 'Fel Spikes now shows its spikes when a Start of Combat rune triggers its Echo.' },
       {

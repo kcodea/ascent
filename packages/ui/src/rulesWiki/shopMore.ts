@@ -423,6 +423,6 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "Buffs a minion gets in the **shop** stay for the rest of the game. Buffs it gets **during a fight** usually only last for that fight, unless the minion has **Engraved** or the card says it's permanent. Buffs on a card **in your hand** always stick, even if they land mid-fight.",
     aliases: ['permanent', 'temporary', 'keep buffs', 'combat buffs', 'lose stats', 'engraved'],
     seeAlso: ['what-is-a-buff', 'minions-after-combat'],
-    covers: [{ keyword: 'permanent', fp: '32993c18' }, { keyword: 'engraved', fp: '5c0422d8' }, { rule: 'R-HAND-02', fp: 'd7ad0466' }],
+    covers: [{ keyword: 'permanent', fp: '32993c18' }, { keyword: 'engraved', fp: 'e61a9f23' }, { rule: 'R-HAND-02', fp: 'd7ad0466' }],
   },
 ];

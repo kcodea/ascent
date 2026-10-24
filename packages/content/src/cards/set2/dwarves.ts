@@ -458,9 +458,10 @@ export const SET2_DWARF_RUNE_MINIONS: CardDef[] = [
     attack: 2,
     health: 2,
     keywords: [],
-    effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 1, health: 1 } }],
-    text: 'When you cast a Shop spell, this gains **+1/+1**.',
-    goldenText: 'When you cast a Shop spell, this gains **+2/+2**.',
+    // Owner balance 2026-10-24: "big brain billy -> buff to +2/+2" (+1/+1 -> +2/+2; Gilded +4/+4).
+    effects: [{ on: 'spellCast', do: 'spellCastBuffSelf', params: { attack: 2, health: 2 } }],
+    text: 'When you cast a Shop spell, this gains **+2/+2**.',
+    goldenText: 'When you cast a Shop spell, this gains **+4/+4**.',
   },
 ];
 

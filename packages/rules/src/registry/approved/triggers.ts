@@ -1648,4 +1648,25 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-24. Before it each copy improved only itself by +1/+1 per fire (2026-09-23 design).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/conductorCombat.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
+  {
+    id: 'R-SET2-BAL-1024-01',
+    title: 'Set 2 balance 2026-10-24: Tunneller Rik, Cave Cutter, Scrapper, Gem Carver, Beev, Big Huggies, Big Brain Billy',
+    statement:
+      'Tunneller Rik (T3 3/4 Rally): Rally gets ONE random Ruby (any of the six types, R-RAND-02), Gilded 2; in combat it is '
+      + 'carried back to hand by type. Cave Cutter (T4 5/3): Choose One, give your Rubies +1/+1 (run-wide Ruby strength; Gilded '
+      + '+2/+2) or get 4 plain Rubies (Gilded 8). Scrapper: T2 3/1 Kobold, Echo: your Rubies gain +1 Attack (Gilded +2), no '
+      + 'Health, in the Shop and carried back from combat. Gem Carver: Tier 4, nothing else changes. Beev (T3 4/4): when a '
+      + 'friendly Beast attacks (Beev included), give it and Beev +2/+1 (Gilded +4/+2), combat-only in combat (R-BUFF-PHASE-01), '
+      + 'permanent on a Shop Rally replay. Big Huggies (T4 5/2 Taunt): Echo gets 2 Staves of Guel (Gilded 4), in the Shop and '
+      + 'from combat. Big Brain Billy (T2 2/2): +2/+2 per Shop spell cast (Gilded +4/+4).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance 2026-10-24 (Set 2)', quote: 'set 2 balance adjustment: * tunneller rik -> rally: get a random ruby * cave cutter -> choose one: give your rubies +1/+1 or get 4 rubies * Scrapper -> T2, stats to 3/1 echo: your rubies gain +1 attack * gem carver -> T4 * beev -> when a beast attacks give it and this +2/+1 * big huggies -> taunt. echo: get 2 staff of guels * big brain billy -> buff to +2/+2' },
+      { kind: 'code', ref: 'packages/content/src/cards/set2/kobolds.ts k_tunnelcharger / k_veinbreaker / k_faultline / k_gemheart; packages/content/src/cards/set2/beasts.ts b2_beev; packages/content/src/cards/set2/demons.ts dm_velvet; packages/content/src/cards/set2/dwarves.ts dw_bigbrainbilly' },
+    ],
+    contentIds: ['k_tunnelcharger', 'k_veinbreaker', 'k_faultline', 'k_gemheart', 'b2_beev', 'dm_velvet', 'dw_bigbrainbilly'],
+    currentBehaviour: 'Conforms from 2026-10-24. Before: Rik 2 random Rubies; Cave Cutter +2/+1; Scrapper T3 5/1 +1/+1; Gem Carver T3; Beev +2/+2; Big Huggies 2 Picnics; Billy +1/+1.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/set2Balance1024.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

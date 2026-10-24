@@ -938,4 +938,21 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-23.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/matchHistoryMinionSize.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-ENGRAVE-04',
+    title: 'The Engraved keyword reads "Keeps all stats and effects gained during combat."',
+    statement:
+      'The Engraved keyword tooltip (glossary) reads exactly "Keeps all stats and effects gained during combat." The mechanic '
+      + 'behind it is R-ENGRAVE-02 (stats, even if it died) and R-ENGRAVE-03 (the combat keywords it gains). "Effects" in the '
+      + 'wording means those keywords: a triggered ability grafted onto the body mid-fight is not carried back (a combat '
+      + 'graft never reaches the run card), and neither are Engraved itself or the trigger labels.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner balance 2026-10-24 (Engraved wording)', quote: 'change engraved keyword to say Keeps all stats and effects gained during combat.' },
+      { kind: 'code', ref: 'packages/ui/src/keywordGlossary.ts engraved def; packages/core/src/types.ts ENGRAVE_KEEPS_KEYWORDS' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-24 (was "Keeps all stats gained during combat."). Open question for the owner: grafted effects are not kept.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/engravedWording1024.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

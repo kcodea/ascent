@@ -25,7 +25,7 @@ describe('Ruby strength gains come down', () => {
     const s = act(run({ hand: [body('m', 'k_deepvein', { golden })] }), { type: 'play', uid: 'm' });
     expect(s.rubyBonus).toEqual({ attack: 0, health });
   });
-  it.each([[false, { attack: 2, health: 1 }], [true, { attack: 4, health: 2 }]] as const)('Cave Cutter (golden=%s): the strength branch is %o', (golden, gain) => {
+  it.each([[false, { attack: 1, health: 1 }], [true, { attack: 2, health: 2 }]] as const)('Cave Cutter (golden=%s): the strength branch is %o', (golden, gain) => {
     let s = act(run({ hand: [body('c', 'k_veinbreaker', { golden })] }), { type: 'play', uid: 'c' });
     s = act(s, { type: 'chooseOne', index: 0 });
     expect(s.rubyBonus).toEqual(gain);
@@ -45,8 +45,8 @@ describe('Ruby strength gains come down', () => {
   it('the printed numbers match the params (plain and Gilded)', () => {
     const text = (id: string) => [CARD_INDEX[id]!.text, CARD_INDEX[id]!.goldenText];
     expect(text('k_deepvein')).toEqual(['**Shout:** Your Rubies gain **+1 Health**.', '**Shout:** Your Rubies gain **+2 Health**.']);
-    expect(text('k_veinbreaker').map((t) => /\*\*\+(\d)\/\+(\d)\*\*/.exec(t!)!.slice(1, 3))).toEqual([['2', '1'], ['4', '2']]);
-    expect(CARD_INDEX['k_veinbreaker']!.chooseOne![0]).toMatchObject({ text: 'Give your Rubies **+2/+1**.', goldenText: 'Give your Rubies **+4/+2**.' });
+    expect(text('k_veinbreaker').map((t) => /\*\*\+(\d)\/\+(\d)\*\*/.exec(t!)!.slice(1, 3))).toEqual([['1', '1'], ['2', '2']]); // owner balance 2026-10-24: +2/+1 -> +1/+1
+    expect(CARD_INDEX['k_veinbreaker']!.chooseOne![0]).toMatchObject({ text: 'Give your Rubies **+1/+1**.', goldenText: 'Give your Rubies **+2/+2**.' });
     expect(text('k_crownvein')).toEqual(['**Rally:** Give your Rubies **+1/+2**.', '**Rally:** Give your Rubies **+2/+4**.']);
     expect(text('k_portsmith').map((t) => /\*\*\+(\d)\/\+(\d)\*\*/.exec(t!)!.slice(1, 3))).toEqual([['1', '1'], ['2', '2']]);
   });

@@ -93,9 +93,10 @@ export const SET2_KOBOLDS: CardDef[] = [
     health: 4,
     keywords: ['RL'],
     // Owner balance 2026-10-10: "Rally: Get 2 random Rubies" (was 3 plain). `random` draws each Ruby's type.
-    effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 2, random: true } }],
-    text: '**Rally:** Get **2** random **Rubies**.',
-    goldenText: '**Rally:** Get **4** random **Rubies**.',
+    // Owner balance 2026-10-24: "tunneller rik -> rally: get a random ruby" (2 -> 1; Gilded 4 -> 2).
+    effects: [{ on: 'onAttack', do: 'rallyGetRubies', params: { count: 1, random: true } }],
+    text: '**Rally:** Get a random **Ruby**.',
+    goldenText: '**Rally:** Get **2** random **Rubies**.',
   },
   {
     // Avenge (combat): every 3 friendly deaths, raise your Ruby strength — grows held + future Rubies (carried
@@ -113,15 +114,16 @@ export const SET2_KOBOLDS: CardDef[] = [
     // Owner balance 2026-10-10: +1/+1 -> +2/+2, and the burst is now 4 RANDOM Rubies (`getRandomRubies`).
     // Owner balance 2026-10-11 ("kobolds are overtuned"): +2/+2 -> +2/+1 (Gilded +4/+2). The burst is unchanged.
     chooseOne: [
-      { text: 'Give your Rubies **+2/+1**.', goldenText: 'Give your Rubies **+4/+2**.',
-        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 2, health: 1 } }] },
+      // Owner balance 2026-10-24: "give your rubies +1/+1 or get 4 rubies" (+2/+1 -> +1/+1; Gilded +2/+2).
+      { text: 'Give your Rubies **+1/+1**.', goldenText: 'Give your Rubies **+2/+2**.',
+        effects: [{ on: 'onPlay', do: 'rubyStatGain', params: { attack: 1, health: 1 } }] },
       // Owner balance 2026-10-20: "cave cutter needs to change to 4 rubies. they should not be the random rubies, but
       // just the standard rubies." Plain Rubies (`battlecryGetRubies`, its pre-10-10 burst primitive); Gilded 8.
       { text: 'Get **4 Rubies**.', goldenText: 'Get **8 Rubies**.',
         effects: [{ on: 'onPlay', do: 'battlecryGetRubies', params: { count: 4 } }] },
     ],
-    text: '**Choose One:** give your Rubies **+2/+1**, or get **4 Rubies**.',
-    goldenText: '**Choose One:** give your Rubies **+4/+2**, or get **8 Rubies**.',
+    text: '**Choose One:** give your Rubies **+1/+1**, or get **4 Rubies**.',
+    goldenText: '**Choose One:** give your Rubies **+2/+2**, or get **8 Rubies**.',
   },
   {
     // Two Rally effects (both fire on this minion's attack): buff your Rubies AND play a Ruby on 2 Kobolds.
@@ -146,13 +148,14 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_faultline',
     name: 'Scrapper', // was 'Faultline Scrapper' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
-    tier: 3,
-    attack: 5,
+    // Owner balance 2026-10-24: "Scrapper -> T2, stats to 3/1 echo: your rubies gain +1 attack" (was T3 5/1, +1/+1).
+    tier: 2,
+    attack: 3,
     health: 1,
     keywords: [],
-    effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 1 } }], // owner balance 2026-10-10: +1 Attack -> +1/+1
-    text: '**Echo:** Your Rubies gain **+1/+1**.',
-    goldenText: '**Echo:** Your Rubies gain **+2/+2**.',
+    effects: [{ on: 'onDeath', do: 'deathrattleRubyStatGain', params: { attack: 1, health: 0 } }], // owner balance 2026-10-10: +1 Attack -> +1/+1; 2026-10-24: back to +1 Attack
+    text: '**Echo:** Your Rubies gain **+1 Attack**.',
+    goldenText: '**Echo:** Your Rubies gain **+2 Attack**.',
   },
   {
     // Owner add 2026-10-11, REPLACING Frenzied Excavator (archived the same day; see `cards/archive.ts`). It sits
@@ -177,7 +180,7 @@ export const SET2_KOBOLDS: CardDef[] = [
     id: 'k_gemheart',
     name: 'Gem Carver', // was 'Gemheart Carver' (owner 2026-10-09); id unchanged
     tribe: 'kobold',
-    tier: 3, // T4 6/5 → T3 5/3 (owner 2026-09-19)
+    tier: 4, // T4 6/5 → T3 5/3 (owner 2026-09-19); T3 → T4 (owner balance 2026-10-24: "gem carver -> T4", tier only)
     attack: 5,
     health: 3,
     keywords: [],

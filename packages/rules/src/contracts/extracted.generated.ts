@@ -851,7 +851,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 2,
-            "health": 2
+            "health": 1
           }
         }
       }
@@ -8794,7 +8794,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           }
         },
         "refs": [
-          "sp_picnic"
+          "staffofguel"
         ]
       }
     ],
@@ -9932,8 +9932,8 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 1,
-            "health": 1
+            "attack": 2,
+            "health": 2
           }
         }
       }
@@ -18415,12 +18415,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
     "setIds": [
       "set2"
     ],
-    "tier": 3,
+    "tier": 2,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:3"
+      "tier:2"
     ],
     "triggers": [
       {
@@ -18436,7 +18436,7 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
           "kind": "const",
           "plain": {
             "attack": 1,
-            "health": 1
+            "health": 0
           }
         }
       }
@@ -18516,12 +18516,12 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
       "set2",
       "set3"
     ],
-    "tier": 3,
+    "tier": 4,
     "tribes": [
       "kobold"
     ],
     "tags": [
-      "tier:3"
+      "tier:4"
     ],
     "triggers": [
       {
@@ -19073,17 +19073,16 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "count": 2
+            "count": 1
           }
         }
       }
     ],
     "gildedDelta": {
-      "kind": "multiply",
-      "factor": 2,
+      "kind": "reshape",
       "basis": "derived:golden-text",
       "goldenTextSource": "index:goldenText",
-      "description": "the authored gilded text WRITES OUT the ×2 baseline — same sentence, doubled numbers"
+      "description": "authored goldenText overrides the ×2 number-doubling default — the gilded form is stated by the text (read from CARD_INDEX at check time), not derivable as a factor"
     },
     "textContract": {
       "source": "index"
@@ -19122,11 +19121,11 @@ export const EXTRACTED_CONTRACTS: ContentContract[] = [
         "amount": {
           "kind": "const",
           "plain": {
-            "attack": 2,
+            "attack": 1,
             "health": 1
           }
         },
-        "note": "Choose One branch 1: \"Give your Rubies +2/+1.\""
+        "note": "Choose One branch 1: \"Give your Rubies +1/+1.\""
       },
       {
         "kind": "battlecryGetRubies",

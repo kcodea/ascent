@@ -7310,6 +7310,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneRunMemory.test.ts', 'packages/ui/src/phoneGpuMemory.test.ts'], lastVerifiedAt: '2026-10-22' },
   },
   {
+    id: 'R-TOUCH-RUN-MEMORY-02',
+    title: "A phone holds the return trip's vista at about its own screen size",
+    statement:
+      'On a phone (the lite art path), the return trip’s flattened vista picture and the door’s cut-out are the build’s '
+      + '1280 px copies (the 2560 x 1440 masters cost 14.1 MB each decoded; a copy about 3.5 MB). They are still fetched and '
+      + 'decoded when the Shop mounts and held for the run, so the trip never waits on a decode or pops in (R-PRESENT-36): '
+      + 'the decoded image and the stylesheet (the --vista-flat / --vista-doormask custom properties, set at boot) point at '
+      + 'the same copy. Desktop, and a build without phone copies, keep the originals.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (the #2266 vista held ~28 MB of decoded images on phones from the first shop on)', quote: 'Phone-sized return-trip images: yea send em' },
+      { kind: 'code', ref: 'packages/ui/src/phoneArt.ts (phonePublicCap, PHONE_CSS_VARS, applyPhoneCssArt); apps/web/phoneArtPlugin.ts (CSS_OVERRIDDEN); styles.css (.wipevista-flat, the maskok mask); Recruit.tsx (the vista decode, through publicArt)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-24 (perf/phone-vista-images). Before, a phone decoded and held both 2560 x 1440 originals '
+      + '(28.1 MB) from the first shop to the end of the run.',
+    example: 'iPhone landscape 852x393 @3x, prod build (npm run perf:phone-run -- --interact): decoded images at the first shop 126 to 106 MB, as the gate falls 127 to 107 MB; the iOS estimate there 260 to 242 MB.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneVistaArt.test.ts', 'apps/web/phoneArtPlugin.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
     id: 'R-TOUCH-CRASH-REPORT-02',
     title: 'A phone crash report survives Safari, a flaky network and a stuck auth client, and names the hero pick',
     statement:

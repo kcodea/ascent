@@ -638,7 +638,7 @@ canvas.spr { image-rendering: pixelated; display: block; }
 /* The hole exists only once every piece has landed (the hold and the dive), so nothing shows through it mid-flight. */
 /* …only on a trip that started with the cut-out already decoded (`maskok`, Recruit.tsx): a mask still loading hides
    the whole group (owner clip 2026-10-23: the fight showed through for four frames). */
-.wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; mask: url('/vista-doormask.png') 0 0 / 100% 100% no-repeat; }
+.wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: var(--vista-doormask, url('/vista-doormask.png')) 0 0 / 100% 100% no-repeat; mask: var(--vista-doormask, url('/vista-doormask.png')) 0 0 / 100% 100% no-repeat; }
 /* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
    hairline can show), at its box. */
 .wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
@@ -669,7 +669,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-shop { background-image: url('/vista-shop.webp'); }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
-.wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
+/* `--vista-flat` / `--vista-doormask` are set only on a phone (applyPhoneCssArt: its 1280 px copies, R-TOUCH-RUN-MEMORY-02);
+   desktop reads the fallback, the 2560 px original. */
+.wipevista-flat { background-image: var(--vista-flat, url('/vista-flat.webp')); display: none; }
 .wipevista.on .wipevista-masked { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both; }
 /* The door's interior and glow rise WITH the shop (same rise, same moment), then push with it. */
 .wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.66s cubic-bezier(.2, .9, .3, 1.04) 0.14s both; }

@@ -91,7 +91,9 @@ export interface OpponentHandProps {
   through: number;
   /** Foe hand uids a copy was summoned from, as shown so far (`enemyHandSummonedShown`). */
   summoned: ReadonlySet<string>;
-  /** The fight is playing (not yet settled): grants and greys only count then. */
+  /** This log is the fight on screen (the run is in its combat phase, settled or not): grants and greys fold through
+   *  `through` then. Outside it (the return to the shop) the hand HOLDS its last fold, so it never reverts to the
+   *  starting count (R-OPP-HAND-02). */
   live: boolean;
 }
 
@@ -122,13 +124,19 @@ export const OpponentHand = memo(function OpponentHand({ events, through, summon
   const room = (snapshot as { handRoom?: number } | undefined)?.handRoom;
   const handMax = typeof room === 'number' ? start.minionUids.length + start.spells + Math.max(0, room) : 10;
 
+  // R-OPP-HAND-02 (owner 2026-10-23: "this player had 2 cards in hand, then added more in combat, and after combat it
+  // went back to 2"): the hand is the starting hand PLUS every grant up to the cursor, through the end frame, the
+  // settle and the Summary, and on a Skip or a seek alike (the cursor is the beat on screen, so a seek back drops the
+  // later grants and a seek forward restores them). Out of the fight it holds the last fold rather than refolding the
+  // previous log against an empty cursor. A DEV duel preview (no fight of its own) shows the bare starting hand.
   const sigRef = useRef<{ sig: string; cards: OppHandCard[] }>({ sig: '', cards: [] });
   const cards = useMemo(() => {
+    if (!live && !preview && sigRef.current.sig) return sigRef.current.cards;
     const next = opponentHandCards(start, events, live ? through : 0, live ? summoned : NO_SUMMONS, handMax);
     const sig = oppHandSignature(next);
     if (sig !== sigRef.current.sig) sigRef.current = { sig, cards: next };
     return sigRef.current.cards;
-  }, [start, events, through, summoned, live, handMax]);
+  }, [start, events, through, summoned, live, preview, handMax]);
 
   const plate = cardPlateLookOf(opponentSkins(showOppSkins, seatCosmetics(foe?.seat, snapshot ? { snapshot } : foe?.board)));
   const back = oppHandBackSrc(plate, STANDARD_BACK);

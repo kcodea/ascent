@@ -70,6 +70,14 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: "The opponent's hand keeps the cards they gained during the fight.",
+        details: [
+          'It no longer drops back to their starting cards when the fight ends or after you skip.',
+          'Watching a replay, the hand shows the cards they held at that point in the fight.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Skip has moved onto the End Turn diamond: it glows gold while a fight can be skipped, and clicking it skips.',
         details: [
           'Hover the glowing diamond during a fight to see Skip Combat.',

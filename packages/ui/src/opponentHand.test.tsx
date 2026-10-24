@@ -9,7 +9,11 @@
  *   4. A copy summoned from a card greys it; a consuming summon removes it.
  *   5. Nothing about a hidden card reaches the DOM: no art, name, text, stats or card id.
  *   6. The foe's hand-summons fly from its face-down card (the 'enemy' source), lifting DOWN toward its board.
+ *   7. R-OPP-HAND-02: the grants up to the beat on screen stay through the end frame, the settle, the Summary and the
+ *      return; a Skip lands the final count; a seek back drops later grants and a seek forward restores them.
  */
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { act } from 'react';
 import type { CombatEvent } from '@game/core';
@@ -147,6 +151,74 @@ describe('OpponentHand (mounted)', () => {
     ui.render(<OpponentHand events={events} through={2} summoned={new Set(['eh1'])} live />);
     expect(cardsEl().filter((el) => el.classList.contains('spent'))).toHaveLength(1);
     expect(cardsEl()[0]!.classList.contains('spent')).toBe(true);
+  });
+
+  // R-OPP-HAND-02 (owner 2026-10-23: "this player had 2 cards in hand, then added more in combat, and after combat it
+  // went back to 2"). The hand is the starting hand plus every grant up to the beat on screen, at the end too.
+  describe('keeps the grants of the fight (R-OPP-HAND-02)', () => {
+    const events = [toHand('enemy', 'heraldapoc', 'hg0'), toHand('enemy', 'sp3_kindled', 'hg1'), summonFrom('eh1')];
+    const end = events.length;
+
+    it('grants persist into the end frame, the settle and the Summary, and the return to the shop', () => {
+      const run = stage();
+      ui = mount(<OpponentHand events={events} through={0} summoned={new Set()} live />);
+      expect(cardsEl()).toHaveLength(3);
+      ui.render(<OpponentHand events={events} through={end} summoned={new Set(['eh1'])} live />);
+      expect(cardsEl()).toHaveLength(5);
+      // The fight settles (the Summary is up): still the combat phase, still the final hand, the grey kept.
+      act(() => { useGame.setState({ run: { ...run, combatSettled: true } }); });
+      ui.render(<OpponentHand events={events} through={end} summoned={new Set(['eh1'])} live />);
+      expect(cardsEl()).toHaveLength(5);
+      expect(cardsEl()[0]!.classList.contains('spent')).toBe(true);
+      expect(document.body.querySelector('.opphand')!.getAttribute('data-tip')).toBe("Opponent's hand: 5 cards");
+      // Leaving the fight (the return curtain): the hand holds its final fold, never the starting 3.
+      act(() => { useGame.setState({ run: { ...run, phase: 'recruit', combatSettled: true } }); });
+      ui.render(<OpponentHand events={events} through={0} summoned={new Set()} live={false} />);
+      expect(cardsEl()).toHaveLength(5);
+      expect(cardsEl()[0]!.classList.contains('spent')).toBe(true);
+    });
+
+    it('a Skip to the end shows the final count at once', () => {
+      stage();
+      ui = mount(<OpponentHand events={events} through={0} summoned={new Set()} live />);
+      ui.render(<OpponentHand events={events} through={end} summoned={new Set(['eh1'])} live />);
+      expect(cardsEl()).toHaveLength(5);
+      expect(cardsEl().filter((el) => el.classList.contains('spent'))).toHaveLength(1);
+    });
+
+    it('a seek matches the beat: back drops the later grants, forward restores them', () => {
+      stage();
+      ui = mount(<OpponentHand events={events} through={end} summoned={new Set(['eh1'])} live />);
+      expect(cardsEl()).toHaveLength(5);
+      ui.render(<OpponentHand events={events} through={1} summoned={new Set()} live />);
+      expect(cardsEl()).toHaveLength(4);
+      expect(cardsEl().some((el) => el.classList.contains('spent'))).toBe(false);
+      ui.render(<OpponentHand events={events} through={0} summoned={new Set()} live />);
+      expect(cardsEl()).toHaveLength(3);
+      ui.render(<OpponentHand events={events} through={end} summoned={new Set(['eh1'])} live />);
+      expect(cardsEl()).toHaveLength(5);
+      expect(cardsEl()[0]!.classList.contains('spent')).toBe(true);
+    });
+
+    it('Recruit folds the hand for the whole combat phase, not only until the fight settles', () => {
+      const src = readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8');
+      const tag = src.match(/<OpponentHand [^>]*\/>/)?.[0] ?? '';
+      expect(tag).toContain('live={inCombat}');
+      expect(tag).not.toContain('combatSettled');
+    });
+
+    it('the final hand still leaks no card identity', () => {
+      stage();
+      ui = mount(<OpponentHand events={events} through={end} summoned={new Set(['eh1'])} live />);
+      ui.render(<OpponentHand events={events} through={0} summoned={new Set()} live={false} />);
+      const html = document.body.querySelector('.opphand')!.outerHTML;
+      for (const id of ['sp3_tidebud', 'sp3_kindled', 'heraldapoc']) {
+        expect(html).not.toContain(id);
+        expect(html).not.toContain(CARD_INDEX[id]!.name);
+      }
+      for (const k of ['eh1', 'hg0', 'hg1']) expect(html).not.toContain(k);
+      for (const el of cardsEl()) expect(el.textContent).toBe('');
+    });
   });
 
   it('leaks nothing about a hidden card into the DOM', () => {

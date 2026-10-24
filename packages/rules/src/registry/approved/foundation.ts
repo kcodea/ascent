@@ -8029,6 +8029,34 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'materialises; its Seedling Spirit\'s Rally lifts a copy out of the second card, which greys.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentHand.test.tsx'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-OPP-HAND-02',
+    title: 'The opponent\'s hand keeps the cards they gained mid-fight, at the end of the fight and after',
+    statement:
+      'The face-down opponent hand (R-OPP-HAND-01) always shows the hand as of the beat on screen: the starting hand plus '
+      + 'every card gained up to that beat, with copy-summoned cards greyed and consumed ones gone. At the end of the fight '
+      + '(the final frame, the settle, the Summary, a Skip to the end) it shows the final hand and never drops back to the '
+      + 'starting count; leaving the fight holds that final hand rather than reverting. In a replay a seek back drops the '
+      + 'cards gained after the new beat and a seek forward restores them. Only the count is shown, never a card. '
+      + 'Presentation only.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Owner report, 2026-10-23',
+        quote: 'this player had 2 cards in hand, then added more in combat, and after combat it went back to 2. can you fix that',
+      },
+      { kind: 'code', ref: 'packages/ui/src/OpponentHand.tsx (holds its last fold out of the fight); Recruit.tsx (live = the combat phase, settled or not)' },
+    ],
+    currentBehaviour:
+      'Conforms as of 2026-10-23. Before, the hand only folded the fight\'s grants until the fight SETTLED; the settle (at '
+      + 'the end of the replay, or at once on a Skip) turned the fold off and it fell back to the recorded starting hand '
+      + 'for the end frame and the Summary.',
+    example: 'A foe starts with 2 cards and gains 3 during the fight: the hand shows 5 on the last beat, on the Summary and '
+      + 'through the return curtain; scrubbing the replay back before the third grant shows 4.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/opponentHand.test.tsx'], lastVerifiedAt: '2026-10-23' },
+  },
   // ── A transition never shows a picture before it is ready (owner clip 2026-10-23, the vista's 4-frame blank) ──────
   {
     id: 'R-PRESENT-36',

@@ -1245,6 +1245,57 @@ function waveHitReactionTicks(events: CombatEvent[], wave: number, from: number)
   return split > a ? chainTickCount(events, split, b) : 0;
 }
 
+/**
+ * A FORCED Echo spray with NO launch signal (R-ECHO-LAUNCH-01, bug d3a682a6). Rune of the Herald ("Start of Combat:
+ * trigger all your Echoes") fires the Echo of a LIVING body straight from the rune: the log carries the rune's
+ * `questTrigger` and then the spray's waves, with no `death` of the sprayer and no `rally` targeting it. Those are the
+ * only two places a `launchOnDeath` volley (Fel Spikes) used to launch, so the spikes never flew, while the damage
+ * beat still claimed and hid the stock hit burst: the spray landed with no animation at all.
+ *
+ * Returns the sprayer, its def and the end of this burst (exclusive) when `next` OPENS such a spray, or null. A
+ * continuation of a spray already under way (the event before `next` belongs to one of the sprayer's waves, e.g. a
+ * golden second pass after its reaction beat), a spray some death or rally already launched, and a sprayer that has
+ * died (its death path owns its volleys) all return null, so no volley is ever thrown twice.
+ */
+export function unsignalledEchoLaunch(
+  shown: Moment | undefined,
+  next: Moment,
+  events: CombatEvent[],
+  cardIds: Map<string, string>,
+): { src: string; def: string; endIdx: number } | null {
+  if (!shown || next.primary.wave === undefined) return null;
+  let src: string | null = null;
+  for (let i = next.start; i < next.end; i++) {
+    const ev = events[i];
+    if (ev?.type === 'dmg' && ev.wave !== undefined && typeof ev.source === 'string') { src = ev.source; break; }
+  }
+  if (!src) return null;
+  const binding = bindingFor(cardIds.get(src) ?? null, 'damage');
+  if (!binding?.launchOnDeath) return null;
+  const srcWaves = new Set<number>();
+  for (const ev of events) if (ev.type === 'dmg' && ev.wave !== undefined && ev.source === src) srcWaves.add(ev.wave);
+  const before = events[next.start - 1];
+  if (before?.wave !== undefined && srcWaves.has(before.wave)) return null; // a later pass of a spray under way
+  // The latest launch signal for this sprayer before `next`: a death (the body is gone, its death path owns every
+  // volley it throws) or a rally whose burst has not yet sprayed (the rally path launched it).
+  for (let i = next.start - 1; i >= 0; i--) {
+    const ev = events[i];
+    if (ev?.type === 'dmg' && ev.wave !== undefined && ev.source === src) break; // an earlier, finished burst
+    if (ev?.type === 'rally' && ev.target === src) return null;
+  }
+  for (let i = 0; i < next.start; i++) {
+    const ev = events[i];
+    if (ev?.type === 'death' && ev.target === src) return null;
+  }
+  let endIdx = next.start;
+  while (endIdx < events.length) {
+    const w = events[endIdx]!.wave;
+    if (w === undefined || !srcWaves.has(w)) break;
+    endIdx++;
+  }
+  return { src, def: binding.def, endIdx };
+}
+
 /** The travel lead (ms, 1× speed) to HOLD before `next` when it is a `launchOnDeath` Echo damage wave whose
  *  spray was launched from a death in `shown` — so the wave's damage lands as the spikes connect. 0 otherwise. */
 function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: CombatEvent[], cardIds: Map<string, string>): number {
@@ -1272,6 +1323,9 @@ function echoDeliveryLead(shown: Moment | undefined, next: Moment, events: Comba
     if (e?.type === 'death' && e.target === src) return ECHO_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
     if (e?.type === 'rally' && e.target === src) return ECHO_RALLY_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
   }
+  // A forced Echo with no launch signal (Rune of the Herald): the volley launches from the living body as `shown`
+  // plays (see the cue effect), exactly like a rally-forced one, so hold for the same launch + travel.
+  if (unsignalledEchoLaunch(shown, next, events, cardIds)) return ECHO_RALLY_LAUNCH_DELAY_MS + projectileImpactMs(binding.def) + ECHO_IMPACT_BUFFER_MS;
   // After the previous volley's REACTION beat (R-DEMON-DMG-BEATS-01): hold until its tendrils have read; the spike
   // schedule (`scheduleEchoVolleys`) was pushed back by the same amount, so this volley still lands on its spike.
   if (shown.hitReaction) return reactionChainMs(shown.ticks ?? 1);
@@ -2986,6 +3040,14 @@ export function useCombatReplay(
         // rear-back so the spikes fly only once the attacker has fully reared back + paused.
         const windupLead = beat.primary.type === 'attack' ? ECHO_WINDUP_HOLD_MS : 0;
         scheduleEchoVolleys(rallyBinding.def, e.target, i, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), endIdx, ECHO_RALLY_LAUNCH_DELAY_MS + windupLead);
+      }
+      // FORCED Echo with NO signal (Rune of the Herald, R-ECHO-LAUNCH-01): no death and no rally to hang the volley
+      // on, so it launches from the living body as the beat BEFORE its first wave plays (the rune's pulse), on the
+      // rally timing. `echoDeliveryLead` holds that wave for the same launch + travel.
+      const upcoming = beats[beatIdx];
+      const forced = upcoming ? unsignalledEchoLaunch(beat, upcoming, events, cardIds) : null;
+      if (forced && rectOf(forced.src)) {
+        scheduleEchoVolleys(forced.def, forced.src, upcoming!.start - 1, events, combatSpeedRef.current, (id) => echoVolleyTimersRef.current.push(id), forced.endIdx, ECHO_RALLY_LAUNCH_DELAY_MS);
       }
     }
     // HELD WINDUP resolve: a parked Echohorn lunge resumes its strike the beat its OWN attack lands (a non-wave

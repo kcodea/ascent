@@ -12,6 +12,10 @@
  *   npm run versus:parity -- remote <functionUrl>     the DEPLOYED function, e.g.
  *       npm run versus:parity -- remote https://<project>.supabase.co/functions/v1/versus-resolve
  *
+ * VERSUS GROUP (owner 2026-10-24): every check also resolves GROUP rounds (3-4 seats, one simulate per fight, a copy
+ * fight when three are alive, a ghost of a seat that went out mid-round), derived from the same fixture sides
+ * (`groupParityCases`, so the fixture file is unchanged), through the `parity_group` action remotely.
+ *
  * `remote` sends the publishable key from apps/web/.env as `apikey` (never printed), or `VERSUS_PARITY_TOKEN`
  * (a user access token) as the bearer when set. It exits non-zero on any mismatch and prints the first differing
  * offset with context.
@@ -20,8 +24,9 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { contentRevision } from '@game/content';
-import { createRun, reduce, resolveVersusFight, VERSUS_PROTOCOL, type PreparedCombatSide, type RunState } from '@game/sim';
-import { parityRecord } from '@game/sim/versus/server';
+import { createRun, reduce, resolveVersusFight, resolveVersusGroupRound, VERSUS_PROTOCOL, type PreparedCombatSide, type RunState } from '@game/sim';
+import { parityGroupRecord, parityRecord } from '@game/sim/versus/server';
+import type { VersusGroupEliminations, VersusGroupSeat } from '@game/sim';
 import { GREEDY_PILOT } from '@game/sim/balance/pilots';
 import { playRecruitTurn } from '@game/sim/balance/seatRunner';
 import { NOOP_RECORDER } from '@game/sim/balance/types';
@@ -85,6 +90,38 @@ export function loadParityFixture(): ParityFixture {
   return JSON.parse(readFileSync(FIXTURE, 'utf8')) as ParityFixture;
 }
 
+export interface GroupParityCase {
+  name: string;
+  matchSeed: number;
+  round: number;
+  seats: VersusGroupSeat[];
+  eliminated: VersusGroupEliminations;
+  sides: Partial<Record<VersusGroupSeat, PreparedCombatSide>>;
+}
+
+/**
+ * Group rounds built from consecutive fixture cases: four seats (two fights), four seats with one out before the round
+ * (three alive: a fight + a COPY), and four seats with one going out DURING the round (a ghost).
+ */
+export function groupParityCases(cases: ParityCase[]): GroupParityCase[] {
+  const out: GroupParityCase[] = [];
+  const seats: VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
+  for (let i = 0; i + 1 < cases.length; i += 2) {
+    const x = cases[i]!;
+    const y = cases[i + 1]!;
+    const sides = { p1: x.p1, p2: x.p2, p3: y.p1, p4: y.p2 };
+    const base = { matchSeed: x.matchSeed, round: x.round, seats, sides };
+    out.push({ ...base, name: `group4 ${x.name} + ${y.name}`, eliminated: {} });
+    out.push({ ...base, name: `group3-copy ${x.name} + ${y.name}`, eliminated: { p4: Math.max(0, x.round - 1) } });
+    out.push({ ...base, name: `group-ghost ${x.name} + ${y.name}`, eliminated: { p2: x.round } });
+  }
+  return out;
+}
+
+function nodeGroupRecord(c: GroupParityCase): { digest: string; canonical: string } {
+  return parityGroupRecord(resolveVersusGroupRound({ matchSeed: c.matchSeed, round: c.round, seats: c.seats, eliminated: c.eliminated, sides: structuredClone(c.sides) }));
+}
+
 function nodeRecord(c: ParityCase): { digest: string; canonical: string } {
   return parityRecord(resolveVersusFight({ matchSeed: c.matchSeed, round: c.round, p1: structuredClone(c.p1), p2: structuredClone(c.p2) }));
 }
@@ -106,11 +143,17 @@ async function checkBundle(): Promise<void> {
   const mod = (await import(pathToFileURL(VERSUS_BUNDLE_PATH).href)) as typeof import('@game/sim/versus/server');
   const { cases } = loadParityFixture();
   if (mod.engineContentRevision() !== contentRevision()) console.warn(`bundle content ${mod.engineContentRevision()} != source ${contentRevision()} (rebuild with npm run versus:bundle)`);
-  report(cases.map((c) => {
+  const duel = cases.map((c) => {
     const node = nodeRecord(c);
     const other = mod.parityRecord(mod.resolveVersusFight({ matchSeed: c.matchSeed, round: c.round, p1: structuredClone(c.p1), p2: structuredClone(c.p2) }));
     return node.canonical === other.canonical ? { name: c.name, ok: true, detail: node.digest } : { name: c.name, ok: false, detail: firstDiff(node.canonical, other.canonical) };
-  }));
+  });
+  const group = groupParityCases(cases).map((c) => {
+    const node = nodeGroupRecord(c);
+    const other = mod.parityGroupRecord(mod.resolveVersusGroupRound({ matchSeed: c.matchSeed, round: c.round, seats: c.seats, eliminated: c.eliminated, sides: structuredClone(c.sides) }));
+    return node.canonical === other.canonical ? { name: c.name, ok: true, detail: node.digest } : { name: c.name, ok: false, detail: firstDiff(node.canonical, other.canonical) };
+  });
+  report([...duel, ...group]);
 }
 
 function publishableKey(): string {
@@ -131,6 +174,22 @@ async function checkRemote(url: string): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${token ?? key}` },
       body: JSON.stringify({ action: 'parity', protocol: VERSUS_PROTOCOL, contentRevision: contentRevision(), matchSeed: c.matchSeed, round: c.round, p1: c.p1, p2: c.p2 }),
+    });
+    const body = (await res.json().catch(() => null)) as { digest?: string; canonical?: string; contentRevision?: string; error?: string } | null;
+    if (!res.ok || !body?.canonical) {
+      rows.push({ name: c.name, ok: false, detail: `HTTP ${res.status} ${body?.error ?? ''}${body?.contentRevision ? ` (server content ${body.contentRevision}, local ${contentRevision()})` : ''}` });
+      continue;
+    }
+    rows.push(body.canonical === node.canonical
+      ? { name: c.name, ok: true, detail: `${node.digest} (server ${body.digest})` }
+      : { name: c.name, ok: false, detail: firstDiff(node.canonical, body.canonical) });
+  }
+  for (const c of groupParityCases(cases)) {
+    const node = nodeGroupRecord(c);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${token ?? key}` },
+      body: JSON.stringify({ action: 'parity_group', protocol: VERSUS_PROTOCOL, contentRevision: contentRevision(), matchSeed: c.matchSeed, round: c.round, seats: c.seats, eliminated: c.eliminated, sides: c.sides }),
     });
     const body = (await res.json().catch(() => null)) as { digest?: string; canonical?: string; contentRevision?: string; error?: string } | null;
     if (!res.ok || !body?.canonical) {

@@ -8128,4 +8128,79 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The fight begins and the diamond turns gold; hovering it shows Skip Combat; clicking it races the fight, the gold fades, and when the fight ends the diamond offers End Combat.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/skipDiamond.test.tsx'], lastVerifiedAt: '2026-10-22' },
   },
+  // ── Versus Group: the 3-4 player round robin (owner 2026-10-24) ──────────────────────────────────────────────────
+  {
+    id: 'R-VERSUS-GROUP-01',
+    title: 'Versus Group: 3 or 4 players, a round robin, a COPY for the odd player, 7 hearts, last one standing',
+    statement:
+      'A Versus room set to the group mode seats 3 or 4 players and starts with 3 or 4; the 1v1 mode is unchanged. Each round '
+      + 'pairs the players still in so everyone meets everyone before any repeat: with 4 in, the three pairings of four in turn '
+      + '(two fights a round); with 3 in, one fight and the odd player faces a COPY of another player\x27s board as locked for '
+      + 'that round, rotating so that over three rounds every pair fights once, every player faces the copy once and every player '
+      + 'is copied once (never a copy of yourself); with 2 in, they face each other. When the players still in change, the cycle '
+      + 'restarts on them, avoiding a rematch of the round just played when it can. The pairing is derived from public data (the '
+      + 'seats and when each went out), so every client and the server agree before a round is fought. One server call resolves '
+      + 'every fight of the round, one simulation per fight. The loser of a fight loses one heart of 7, a draw costs nobody, a copy '
+      + 'never loses a heart (damage to a copy never hurts the copied player) but its win costs the facing player one. Players at '
+      + '0 hearts after a round are out together and share the lower placement (the lobby\x27s rule for simultaneous knockouts); '
+      + 'the last one standing is 1st. Unrated: no rank, rating, MMR or medal.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'for versus, how hard would it be to make a 4 player round robin lobby version?' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (answers)', quote: 'if it\x27s a 3 player game, maybe a player faces a copy of another player\x27s board instead of a ghost' },
+      { kind: 'code', ref: 'packages/sim/src/versus/group.ts (versusGroupPairings, resolveVersusGroupRound); packages/sim/src/versus/groupFinalize.ts; supabase/migrations/2026-10-24-versus-group.sql (versus_group_commit_round); supabase/functions/versus-resolve/index.ts finalize_group' },
+    ],
+    currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1): live once 2026-10-24-versus-group.sql is applied and versus-resolve is redeployed. The room and in-game UI arrive in phase 2; until then no client starts a group match.',
+    example: 'Four players: round 1 is Ann vs Bob and Cat vs Dan, round 2 Ann vs Cat and Bob vs Dan, round 3 Ann vs Dan and Bob vs Cat. Dan runs out of hearts in round 3: round 4 is one fight (not a rematch of round 3) and the third player faces a copy of one of the other two boards.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-02',
+    title: 'Versus Group departures: leaving or conceding is out at once, still fights that round as a ghost; disconnects as 1v1',
+    statement:
+      'In a group match a player who leaves the room or concedes is out at once and placed below everyone still in; the match '
+      + 'goes on while two or more remain and ends when one does. If that happens during a round, the round\x27s pairing does not '
+      + 'change: the departed seat fights it as a ghost of its last locked board (or an empty board), which can never lose a heart '
+      + 'while its win still costs its opponent one. If every player still in would go out in the same round, the one who '
+      + 'entered it with the most hearts (then by seat) survives it, as in the lobby. Disconnects work as in 1v1 over the players '
+      + 'still in: a pause, the 30 second grace, then any other player still in may unpause and the absent seat plays on auto (its '
+      + 'last locked board); three auto rounds in a row is out; coming back clears auto. A player who is out never pauses or '
+      + 'holds up the match. Back from a fight: when all but one player still in are back, the last has 5 seconds (90 seconds at '
+      + 'most from the commit).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (answers)', quote: 'Win condition: last one standing.' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-24-versus-group.sql (versus_group__eliminate, versus_leave_room, versus_group_reconcile, versus_group_combat_ready, versus_group_commit_round wipeout guard); packages/sim/src/versus/group.ts versusGroupAliveAt' },
+    ],
+    currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1), live once the migration is applied.',
+    example: 'Four in, round 5 shop: Dan leaves. He is 4th at once. Round 5 still pairs Cat with Dan; Cat fights Dan\x27s round 4 board and loses a heart if it beats her. Round 6 is three players with a copy.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.db.test.ts', 'packages/sim/src/versus/versusGroup.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  // ── Versus room options (owner 2026-10-24) ─────────────────────────────────────────────────────────────────────────
+  {
+    id: 'R-VERSUS-OPTIONS-01',
+    title: 'Versus rooms carry host options (mode and modifiers), changeable between games; each match pins its copy',
+    statement:
+      'A Versus room has one set of options, kept by the server on the ROOM: the mode (1v1, or the 3-4 player group) and up to one '
+      + 'modifier (an existing rift: Freedom or Summit). The defaults are today\x27s Versus (1v1, no modifier). Only the host changes '
+      + 'them, only while the room is Open (between games, never during the start gate or a match), and the server refuses anything '
+      + 'outside the list. Each change is counted so every member can be told the options changed. Switching to 1v1 with more than '
+      + 'two seated moves the extra players to the stands (the lowest seats keep theirs; a player in seat 3 or 4 first fills an '
+      + 'empty seat 1 or 2). Every new match keeps a copy of the options it started with, so a game in progress never changes; a '
+      + 'modifier is pinned onto every player\x27s run at creation exactly as a Rift run pins its rift. Hearts (7) and the round '
+      + 'timer are not options yet. Versus stays unrated whatever the options.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'i think it would be fun to add custom options/modes to versus lobbies as well' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'all these options should be customizable within a lobby, so a player can host a room and change them game to game without needing to rehost a lobby' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'remove time/lives from options for now' },
+      { kind: 'code', ref: 'packages/sim/src/versus/options.ts; packages/sim/src/versus/run.ts createVersusRun (options); supabase/migrations/2026-10-24-versus-group.sql (versus__options_error, versus_set_options, versus_press_gate snapshot)' },
+    ],
+    currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1); the host options panel arrives in phase 2.',
+    example: 'The host plays a 1v1, then switches the room to the group mode with Summit while everyone is back in the room: two more players take seats 3 and 4, and the next match is a 4-player group game where every shop can reach Tier 7. The finished 1v1 still reads 1v1, no modifier.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

@@ -1,12 +1,13 @@
 /**
  * R-TOUCH-PLAY-MEMORY-01 (owner 2026-10-18: pressing Play on an iPhone crashed the page twice in a row). The phone
- * audio path decodes one clip at a time, at 32 kHz, mono, and only the core bank up front; the crash log records
- * breadcrumbs and turns an unclean session into a crash on the next load.
+ * audio path decodes one clip at a time, mono, and only its resident bank up front (since R-TOUCH-AUDIO-QUALITY-01 at
+ * the context's own rate, not 32 kHz: see phoneAudioQuality.test.ts); the crash log records breadcrumbs and turns an
+ * unclean session into a crash on the next load.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { audioBufferBytes, downmixToMono, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_AUDIO_RATE, serialQueue } from './audio/phoneAudio';
+import { audioBufferBytes, downmixToMono, PHONE_AUDIO_PREFETCH_DELAY_MS, serialQueue } from './audio/phoneAudio';
 import { beginSession, describeCrumb, lastStep, pushCrumb, type CrashLogStore } from './crashLog';
 
 const src = (f: string): string => fs.readFileSync(path.join(__dirname, f), 'utf8');
@@ -20,10 +21,10 @@ describe('phone audio memory', () => {
     expect(downmixToMono([]).length).toBe(0);
   });
 
-  it('a 3 s stereo clip at 48 kHz costs a third once decoded at 32 kHz mono', () => {
+  it('a 3 s stereo clip at 48 kHz costs half once kept mono', () => {
     const before = audioBufferBytes({ length: 3 * 48000, numberOfChannels: 2 });
-    const after = audioBufferBytes({ length: 3 * PHONE_AUDIO_RATE, numberOfChannels: 1 });
-    expect(after / before).toBeCloseTo(1 / 3, 5);
+    const after = audioBufferBytes({ length: 3 * 48000, numberOfChannels: 1 });
+    expect(after / before).toBeCloseTo(1 / 2, 5);
   });
 
   it('the serial queue runs one job at a time, in order, past a failure', async () => {
@@ -39,12 +40,12 @@ describe('phone audio memory', () => {
     expect(peak).toBe(1);
   });
 
-  it('sfx.ts wires the phone path: delayed prefetch, serial 32 kHz decode, mono copy, no non-core fetch', () => {
+  it('sfx.ts wires the phone path: delayed prefetch, serial decode, mono copy, only the resident bank up front', () => {
     const s = src('sfx.ts');
     expect(s).toContain('setTimeout(prefetchSamples, LITE_ART ? PHONE_AUDIO_PREFETCH_DELAY_MS : 0)');
     expect(s).toContain('phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab))');
-    expect(s).toContain('keepBuffer(name, LITE_ART ? monoCopy(a, buf) : buf)');
-    expect(s).toContain('if (!LITE_ART || isCoreSample(name)) loadSample(name, \'audio\');');
+    expect(s).toContain('keepBuffer(name, monoCopy(a, buf))');
+    expect(s).toContain('for (const name of clipNamesInBank()) if (isPhoneResident(name)) loadSample(name, PHONE_SFX_LANE);');
     expect(s).not.toContain('sfx-fetch:');
     expect(PHONE_AUDIO_PREFETCH_DELAY_MS).toBeGreaterThan(0);
   });

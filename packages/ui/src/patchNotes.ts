@@ -78,6 +78,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Phones: sound effects load ahead of time and sound clearer.',
+        details: [
+          'The Shop and fight sounds load before the first Shop instead of after the art.',
+          'Your hero, your cards and the minions in a fight have their sounds ready before they play.',
+          'Sounds play at full quality instead of a reduced one.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Skip has moved onto the End Turn diamond: it glows gold while a fight can be skipped, and clicking it skips.',
         details: [
           'Hover the glowing diamond during a fight to see Skip Combat.',

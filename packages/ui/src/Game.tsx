@@ -96,6 +96,8 @@ import { audioContext, onStopAllAudio, sfx } from './sfx';
 import { cancelAnnouncer, setAnnouncerAudioContextProvider, setAnnouncerPackProvider, syncAnnouncer } from './announcer';
 import { equippedAnnouncerPack } from './progression/announcerPack';
 import { setMusicAudioContextProvider, syncMusic } from './music';
+import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
+import { LITE_ART } from './phoneArt';
 import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
 import { installStage, onStageChange, setStageMenuZoom, stageScale, stageViewport } from './stage';
@@ -230,6 +232,10 @@ export function Game() {
     setMusicAudioContextProvider(audioContext);
     syncMusic(useGame.getState());
     const unsubMusic = useGame.subscribe((st) => syncMusic(st));
+    // PHONE SFX PREWARM (R-TOUCH-AUDIO-QUALITY-01): a phone decodes the clips the game is about to need ahead of
+    // their first play (the heroes on offer, the hero, the cards in play). Desktop already holds every clip.
+    if (LITE_ART) syncPhoneSfxPrewarm(useGame.getState());
+    const unsubSfxPrewarm = LITE_ART ? useGame.subscribe((st) => syncPhoneSfxPrewarm(st)) : () => {};
     // THE ANNOUNCER (owner ask 2026-09-23): same shape as the music (store-driven, React-free, its own gain on
     // the SFX context); a Skip's `stopAllAudio` cancels its queue + the playing line through the hook.
     setAnnouncerAudioContextProvider(audioContext);
@@ -321,6 +327,7 @@ export function Game() {
       unsub();
       unsubWarm();
       unsubMusic();
+      unsubSfxPrewarm();
       unsubAnnouncer();
       offStopHook();
       setFxScene(null);

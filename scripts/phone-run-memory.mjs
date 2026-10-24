@@ -24,6 +24,12 @@
  * Prints a row per step and the biggest layers / images at the steps that matter. Exits 1 when a step's iOS estimate
  * (layers + WebGL buffers + textures + decoded images + audio) is over --budget MB (default 450), or a tap missed.
  * Every request off 127.0.0.1 is blocked, so nothing reaches the live backend.
+ *
+ * Phone audio (2026-10-23): each row also prints the SFX play stats the phone build exposes (`window.__ascentSfx`):
+ * clip plays that found their clip decoded, plays that MISSED it (a synth blip or silence), how many of those were
+ * on-demand clips, and the decoded audio the game holds. `--net <kbps>,<ms>` throttles the network (e.g. 9000,60 for
+ * a phone on 4G) so the order the art and the sounds arrive in matches a real phone; `--combat-ms` lengthens the
+ * first fight (default 5000).
  */
 import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -255,6 +261,8 @@ const c = await launch(profile);
 const rows = []; let missed = 0;
 try {
   await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('DOM.enable');
+  // Page exceptions, so a stalled step can be told apart from a missed tap.
+  c.on('Runtime.exceptionThrown', (p) => console.log(`   (page exception: ${String(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || '').split('\n')[0]})`));
   await c.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   c.on('Fetch.requestPaused', (p) => {
     const local = /^https?:\/\/127\.0\.0\.1[:/]/.test(p.request.url) || /^(data|blob):/.test(p.request.url);
@@ -265,6 +273,12 @@ try {
   const extraCss = arg('css', '');
   const cssJs = extraCss ? `document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = ${JSON.stringify(extraCss)}; document.head.appendChild(s); });` : '';
   await c.send('Page.addScriptToEvaluateOnNewDocument', { source: PROBE + flagJs + cssJs });
+  const net = arg('net', '');
+  if (net) {
+    const [kbps, ms] = net.split(',').map(Number);
+    await c.send('Network.enable');
+    await c.send('Network.emulateNetworkConditions', { offline: false, latency: ms || 0, downloadThroughput: (kbps * 1000) / 8, uploadThroughput: (kbps * 1000) / 8 });
+  }
   await c.send('Emulation.setUserAgentOverride', { userAgent: UA, platform: 'iPhone' });
   await c.send('Emulation.setDeviceMetricsOverride', { width: W, height: H, deviceScaleFactor: DPR, mobile: true, screenOrientation: { type: 'landscapePrimary', angle: 90 } });
   await c.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
@@ -274,6 +288,7 @@ try {
   const detail = new Set((arg('detail', 'heroselect,picked +0.25s,picked +1s,start +0.7s,start +2.5s,shop,gate down,combat')).split(','));
   const sample = async (label, ok = true) => {
     const s = await evaluate(c, 'window.__runMem()');
+    s.sfx = await evaluate(c, 'window.__ascentSfx ? window.__ascentSfx() : null');
     const L = await layerModel(c);
     s.os = processMemory(profile);
     s.layers = L;
@@ -281,7 +296,9 @@ try {
     rows.push([label, s]);
     if (!ok) missed++;
     console.log(`${(label + (ok ? '' : ' (MISS)')).padEnd(18)} iOS est ${s.ios.toFixed(0).padStart(4)} MB = layers ${L.mb.toFixed(0).padStart(4)} (${String(L.n).padStart(2)})  gl ${s.glAlive}/${s.glMade} buf ${s.glBufMB.toFixed(0).padStart(3)} tex ${s.texMB.toFixed(0).padStart(3)}  img ${s.imgMB.toFixed(0).padStart(4)} (${s.imgN})  audio ${s.audioMB.toFixed(0).padStart(3)}  2d ${s.c2dMB.toFixed(0)} (${s.c2dN})  bmp ${s.bitmapMB.toFixed(0)}  | heap ${s.heap.toFixed(0).padStart(3)}`
-      + (s.os ? `  | OS rend ${s.os.renderer.toFixed(0).padStart(4)} gpu ${s.os.gpu.toFixed(0).padStart(4)} all ${s.os.total.toFixed(0).padStart(5)}` : '') + `  [${s.screen}]`);
+      + (s.os ? `  | OS rend ${s.os.renderer.toFixed(0).padStart(4)} gpu ${s.os.gpu.toFixed(0).padStart(4)} all ${s.os.total.toFixed(0).padStart(5)}` : '') + `  [${s.screen}]`
+      + (s.sfx ? `
+     sfx: ${s.sfx.clips} clips ${s.sfx.decodedMB.toFixed(1)} MB @${s.sfx.rate} Hz, plays ${s.sfx.plays}, missed ${s.sfx.misses} (on demand ${s.sfx.demandMisses})` : ''));
     if (detail.has(label) || args.includes('--all-detail')) {
       for (const t of L.top) console.log(`     layer ${t.mb.toFixed(1).padStart(6)} MB  ${t.size.padEnd(10)} ${t.why.padEnd(28)} ${t.el}`);
       for (const t of s.imgTop.slice(0, TOP)) console.log(`     image ${String(t[2]).padStart(6)} MB  ${t[1].padEnd(10)} ${t[3].padEnd(5)} ${t[0]}`);
@@ -296,6 +313,8 @@ try {
     if (r) fs.writeFileSync(`${shot}-${name}.png`, Buffer.from(r.data, 'base64')); else console.log(`   (screenshot ${name} timed out)`);
   };
   await sleep(10000);
+  // A throttled network (--net) can still be on the loading gate after 10 s: wait for the title's Play.
+  for (let i = 0; i < 240 && !(await evaluate(c, `[...document.querySelectorAll('button,[role=button]')].some((x) => x.offsetParent && (x.innerText || '').trim().toUpperCase() === 'PLAY')`)); i++) await sleep(500);
   await sample('title');
   const steps = [
     ['play', 'PLAY', 3000], ['tile', '.modecard.mc-hero', 2500], ['skip-tut', '.tutprompt-skip', 2500],
@@ -362,7 +381,7 @@ try {
     const ended = await tap(c, '.etbwrap');
     await sleep(1200);
     await sample('gate down', ended);
-    await sleep(5000);
+    await sleep(Number(arg('combat-ms', '5000')));
     await sample('combat', ended); // (no screenshots from here: headless capture hangs while the gate and combat run)
   }
 } finally {
@@ -371,6 +390,11 @@ try {
   try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold a file */ }
 }
 const peak = rows.reduce((m, [, s]) => Math.max(m, s.ios), 0);
+const lastSfx = rows.length ? rows[rows.length - 1][1].sfx : null;
+if (lastSfx) {
+  const lag = lastSfx.lagMs.length ? Math.round(lastSfx.lagMs.reduce((a, b) => a + b, 0) / lastSfx.lagMs.length) : 0;
+  console.log(`SFX: ${lastSfx.plays} plays, ${lastSfx.misses} missed (${lastSfx.demandMisses} on demand), miss to decoded avg ${lag} ms; missed: ${lastSfx.missed.join(', ') || 'none'}`);
+}
 console.log(`Peak iOS estimate: ${peak.toFixed(0)} MB (budget ${BUDGET_MB} MB)${missed ? `; ${missed} step(s) missed their tap` : ''}`);
 if (args.includes('--json')) fs.writeFileSync(arg('json'), JSON.stringify(rows.map(([l, s]) => ({ step: l, ...s })), null, 1));
 if (missed || peak > BUDGET_MB) process.exit(1);

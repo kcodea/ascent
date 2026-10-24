@@ -7194,8 +7194,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'On a phone, pressing Play never lands a burst of decoded audio',
     statement:
       'On a phone (the lite art path), the first touch (usually Play) creates the audio context but decodes nothing for '
-      + 'a moment; then only the core sound bank decodes, one clip at a time, at 32 kHz and mono. Card, hero and FX '
-      + 'clips are neither fetched nor decoded until their first play, and are held in a 32 MB least-recently-used cache. '
+      + 'a moment; then only the resident sound bank decodes, one clip at a time, mono. Card, hero and FX clips are never '
+      + 'fetched in bulk: they are decoded ahead of use for the scene in play (R-TOUCH-AUDIO-QUALITY-01) and held in a '
+      + 'bounded least-recently-used cache. '
       + 'The page also writes crash breadcrumbs (step, time, decoded audio, decoded images, WebGL contexts) to '
       + 'localStorage, and a session that ended without leaving the page cleanly is reported as a crash on the next load '
       + '(?crashlog=1, or a standalone phone app after a crash). Desktop is unchanged.',
@@ -7211,6 +7212,34 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'iPhone 48 kHz) and fetched ~430 more clips.',
     example: 'iPhone landscape 932x430 @3x, prod build: decoded audio 15 s after Play 120.5 MB before, 20.3 MB after; renderer 351 MB before, 245 MB after.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePlayMemory.test.ts'], lastVerifiedAt: '2026-10-18' },
+  },
+  {
+    id: 'R-TOUCH-AUDIO-QUALITY-01',
+    title: 'On a phone, sounds are decoded ahead of their first play, at full quality, in a bounded working set',
+    statement:
+      'On a phone (the lite art path) the sound bank keeps the crash-safe rules of R-TOUCH-PLAY-MEMORY-01 (one decode at '
+      + 'a time, mono, nothing decoded in bulk) and also: (1) clips decode at the audio context\'s own sample rate, capped '
+      + 'at 48 kHz, never a lower rate that the player must resample again; a stereo clip whose channels cancel keeps its '
+      + 'louder channel instead of the average; (2) the resident bank (the top-level shop and combat clips, the hero '
+      + 'select ceremony, and the FX clips bound to generic moments or fired from code) rides the asset queue\'s chrome '
+      + 'lane, ahead of the background art stream; (3) the clips the scene will need are decoded ahead of their first '
+      + 'play: the heroes on offer in hero select, the player\'s hero, every card on the board, in the hand, in the Shop '
+      + 'and in the fight (with the FX defs bound to them), and the fx clips named in code (hero attacks); (4) the '
+      + 'on-demand clips live in a 40 MB least-recently-played cache, sized above a busy game\'s working set. Desktop is '
+      + 'unchanged: it decodes and keeps the whole bank.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-23 (a real iPhone, the build with #2242)', quote: 'the sound effects were all terrible/not loaded' },
+      { kind: 'code', ref: 'packages/ui/src/audio/phoneAudio.ts (phoneDecodeRate, phoneMono, PHONE_AUDIO_LRU_BYTES); packages/ui/src/audio/clipIndex.ts + codeClips.ts; packages/ui/src/audio/phonePrewarm.ts; packages/ui/src/sfx.ts (prewarmSfx, isPhoneResident, touchBuffer, PHONE_SFX_LANE); scripts/phone-run-memory.mjs (--net, SFX play stats)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-23 (fix/phone-audio-quality). Before, a phone decoded at 32 kHz (played back through a '
+      + 'linear resample to the 44.1 or 48 kHz context), loaded card, hero and FX clips only on their first play (that '
+      + 'play was silent), and queued the core bank behind the whole background art stream: on a 9 Mbps network 13 of 46 '
+      + 'clip plays in a scripted game missed their clip.',
+    example: 'iPhone landscape, prod build, 9 Mbps / 60 ms, title to the first fight with a buy and a play: see docs/devlog/2026-10-23-phone-audio-quality.md for the before / after misses and decoded MB.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/audio/phoneAudioQuality.test.ts', 'packages/ui/src/audio/codeClips.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
     id: 'R-TOUCH-GPU-MEMORY-01',

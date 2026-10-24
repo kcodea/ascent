@@ -25,8 +25,10 @@ import {
 } from './audio/config';
 import { familyOf } from './audio/clipFamily';
 import { requestAssetTask } from './artPreload';
+import type { Lane } from './assetQueue';
 import { LITE_ART } from './phoneArt';
-import { audioBufferBytes, downmixToMono, PHONE_AUDIO_PREFETCH_DELAY_MS, PHONE_AUDIO_RATE, serialQueue } from './audio/phoneAudio';
+import { audioBufferBytes, createPlayStats, PHONE_AUDIO_LRU_BYTES, PHONE_AUDIO_MAX_RATE, PHONE_AUDIO_PREFETCH_DELAY_MS, phoneDecodeRate, phoneMono, serialQueue } from './audio/phoneAudio';
+import type { ClipIndex, PrewarmScene } from './audio/clipIndex';
 import { crumb, crumbOnce, registerCrashProbe } from './crashLog';
 import { createPickPressLatch } from './pickPressLatch';
 import { SCENES } from './audio/scenes';
@@ -333,6 +335,14 @@ const SAMPLE_URLS = {
   ...import.meta.glob('./audio/fx/*.wav', { eager: true, query: '?url', import: 'default' }),
 } as Record<string, string>;
 const buffers = new Map<string, AudioBuffer>();
+/** Plays that found their clip decoded vs missed it (audio/phoneAudio.ts `createPlayStats`). */
+const playStats = createPlayStats();
+/** A play asked for a clip that is not decoded yet: count the miss (only for a clip the bank has: a card with no
+ *  voice file asks for one on every play and that is not a miss) and ask for it. */
+function missSample(name: string): void {
+  if (clipNamesInBank().includes(name)) playStats.miss(name, LITE_ART && !isPhoneResident(name));
+  loadSample(name);
+}
 const loadingSamples = new Set<string>();
 const sampleAttempts = new Map<string, number>();
 const sampleTaskKey = new Map<string, string>();
@@ -372,7 +382,7 @@ function readAsDataUrl(file: File): Promise<string> {
  * card art needed. Now the bank prefetch rides the `audio` lane (behind the art on screen and the run's early
  * cards), and a sound actually asked for (`lane: 'now'`) jumps the queue — a re-request only ever raises it.
  */
-function loadSample(name: string, lane: 'now' | 'audio' = 'now'): void {
+function loadSample(name: string, lane: Lane = 'now'): void {
   const a = audio();
   if (!a || buffers.has(name)) return;
   if (loadingSamples.has(name)) { requestAssetTask(sampleTaskKey.get(name) ?? `sfx:${name}`, lane, () => Promise.resolve()); return; }
@@ -391,12 +401,25 @@ function loadSample(name: string, lane: 'now' | 'audio' = 'now'): void {
   const key = `sfx:${name}#${(sampleAttempts.get(name) ?? 0) + 1}`;
   sampleAttempts.set(name, (sampleAttempts.get(name) ?? 0) + 1);
   sampleTaskKey.set(name, key);
+  const fail = (): void => { loadingSamples.delete(name); };
+  if (LITE_ART) {
+    // A PHONE (R-TOUCH-AUDIO-QUALITY-01): the queue slot covers only the FETCH; the decode waits its turn on the
+    // phone's one-at-a-time decoder OUTSIDE the queue, so a run of queued decodes never holds the art's slots.
+    requestAssetTask(key, lane, () =>
+      fetch(src)
+        .then((r) => r.arrayBuffer())
+        .then((ab) => {
+          void phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab))
+            .then((buf) => { keepBuffer(name, monoCopy(a, buf)); loadingSamples.delete(name); }, fail);
+        }, fail));
+    return;
+  }
   requestAssetTask(key, lane, () =>
     fetch(src)
       .then((r) => r.arrayBuffer())
-      .then((ab) => (LITE_ART ? phoneDecode(() => phoneDecodeCtx(a).decodeAudioData(ab)) : a.decodeAudioData(ab)))
-      .then((buf) => { keepBuffer(name, LITE_ART ? monoCopy(a, buf) : buf); loadingSamples.delete(name); })
-      .catch(() => { loadingSamples.delete(name); }));
+      .then((ab) => a.decodeAudioData(ab))
+      .then((buf) => { keepBuffer(name, buf); loadingSamples.delete(name); })
+      .catch(fail));
 }
 
 /**
@@ -427,26 +450,28 @@ export async function importFxSound(file: File): Promise<{ id: string; label: st
 
 /**
  * PHONES (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). A decoded AudioBuffer is raw float PCM,
- * about 24x its mp3: the whole ~520-clip bank decodes to roughly 400 MB, which on an iPhone is most of what iOS lets a
- * tab use. So a phone decodes only the CORE bank up front (the top-level UI / shop / combat clips and the hero-select
- * ceremony); the per-card, per-hero and FX `sound` clips load and decode on their first play, which plays the synth
- * fallback exactly as any not-yet-decoded clip does on desktop. Decoded non-core clips are then held in an LRU capped at
- * `LITE_AUDIO_BYTES`. Since R-TOUCH-PLAY-MEMORY-01 (pressing Play crashed an iPhone) a phone also waits a moment after
- * the first touch, decodes one clip at a time, at 32 kHz, and keeps it mono (audio/phoneAudio.ts). Desktop decodes and
+ * about 24x its mp3: the whole ~520-clip bank decodes to roughly 400 MB (stereo, 96 kHz), which on an iPhone is most of
+ * what iOS lets a tab use. So a phone holds the CORE bank (the top-level UI / shop / combat clips, the hero-select
+ * ceremony, and the FX clips every game plays) for the whole session, and the per-card, per-hero and other FX clips
+ * in an LRU capped at `LITE_AUDIO_BYTES`. Since R-TOUCH-PLAY-MEMORY-01 (pressing Play crashed an iPhone) a phone waits
+ * a moment after the first touch, decodes one clip at a time and keeps it mono (audio/phoneAudio.ts). Since
+ * R-TOUCH-AUDIO-QUALITY-01 (owner 2026-10-23, "the sound effects were all terrible/not loaded") it decodes at the
+ * context's own rate (not 32 kHz), and decodes the clips the game will need next AHEAD of their first play
+ * (`prewarmSfx`, fed by audio/phonePrewarm.ts), so a card's or hero's first sound is not silent. Desktop decodes and
  * keeps everything, as before.
  */
-export const LITE_AUDIO_BYTES = 32 * 1024 * 1024;
+export const LITE_AUDIO_BYTES = PHONE_AUDIO_LRU_BYTES;
 /** A phone decodes one clip at a time (R-TOUCH-PLAY-MEMORY-01): no burst of decodes in flight together. */
 const phoneDecode = serialQueue();
-/** A phone decodes at PHONE_AUDIO_RATE (R-TOUCH-PLAY-MEMORY-01): decodeAudioData resamples to its context's rate, so an
- *  offline context at that rate hands back the smaller buffer straight away. The live context plays it at any rate.
- *  Falls back to the live context where an OfflineAudioContext cannot be made. */
+/** A phone decodes at the context's own rate (R-TOUCH-AUDIO-QUALITY-01), so a play needs no second resample. Only a
+ *  context above 48 kHz decodes through an OfflineAudioContext at 48 kHz (decodeAudioData resamples to its context's
+ *  rate, with a proper filter); the live context plays a buffer of any rate. */
 let phoneDecoder: BaseAudioContext | null = null;
 function phoneDecodeCtx(a: AudioContext): BaseAudioContext {
   if (phoneDecoder) return phoneDecoder;
   try {
     const OAC = window.OfflineAudioContext || (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
-    phoneDecoder = OAC && a.sampleRate > PHONE_AUDIO_RATE ? new OAC(1, 1, PHONE_AUDIO_RATE) : a;
+    phoneDecoder = OAC && a.sampleRate > PHONE_AUDIO_MAX_RATE ? new OAC(1, 1, phoneDecodeRate(a.sampleRate)) : a;
   } catch { phoneDecoder = a; }
   return phoneDecoder;
 }
@@ -457,39 +482,85 @@ function monoCopy(a: AudioContext, buf: AudioBuffer): AudioBuffer {
     const chans: Float32Array[] = [];
     for (let c = 0; c < buf.numberOfChannels; c++) chans.push(buf.getChannelData(c));
     const mono = a.createBuffer(1, buf.length, buf.sampleRate);
-    mono.getChannelData(0).set(downmixToMono(chans));
+    mono.getChannelData(0).set(phoneMono(chans));
     return mono;
   } catch { return buf; }
 }
 /** Every decoded clip held right now, in MB (the crash log's breadcrumbs read it). */
 registerCrashProbe('audio', () => decodedAudioMB());
+// The phone measurement (`npm run perf:phone-run`) reads the play stats and the decoded total off the page.
+if (LITE_ART && typeof window !== 'undefined') {
+  (window as unknown as { __ascentSfx?: () => unknown }).__ascentSfx = () => ({ ...playStats.stats, decodedMB: decodedAudioMB(), clips: buffers.size, rate: ctx?.sampleRate ?? 0 });
+}
 export function decodedAudioMB(): number {
   let b = 0;
   for (const buf of buffers.values()) b += audioBufferBytes(buf);
   return b / 1048576;
 }
-/** Core = decoded up front on a phone, never evicted. Exported for its test. */
+/** The top-level clips + the hero-select ceremony. Exported for its test. */
 export const isCoreSample = (name: string): boolean => !name.includes('/') || name.startsWith('ceremony/');
+/** Every clip name in the bank (`roll`, `cards/x`, `heroes/x`, `fx/x`). */
+let allClipNames: string[] | null = null;
+const clipNamesInBank = (): string[] => (allClipNames ??= Object.keys(SAMPLE_URLS).map(sampleName));
+/** Which clips a game needs (audio/clipIndex.ts). A phone loads that module (it reads every FX def and binding) when
+ *  its bank starts; desktop never loads it. Null until then. */
+let clipIndex: ClipIndex | null = null;
+let clipIndexModule: typeof import('./audio/clipIndex') | null = null;
+/** Held for the whole session on a phone: the core bank plus the FX clips every game plays. */
+const isPhoneResident = (name: string): boolean => isCoreSample(name) || !!clipIndex?.common.has(name);
 let liteAudioBytes = 0;
-/** Hold a decoded clip. On a phone a non-core clip joins the LRU (oldest dropped past the cap; re-decoded on demand). */
+/** Hold a decoded clip. On a phone a non-resident clip joins the LRU (least recently played dropped past the cap). */
 function keepBuffer(name: string, buf: AudioBuffer): void {
   buffers.set(name, buf);
-  if (!LITE_ART || isCoreSample(name)) return;
+  playStats.ready(name);
+  if (!LITE_ART || isPhoneResident(name)) return;
   liteAudioBytes += audioBufferBytes(buf);
   for (const [k, b] of buffers) {
     if (liteAudioBytes <= LITE_AUDIO_BYTES) break;
-    if (k === name || isCoreSample(k)) continue;
+    if (k === name || isPhoneResident(k)) continue;
     buffers.delete(k);
     liteAudioBytes -= audioBufferBytes(b);
   }
 }
+/** A phone's LRU order is the Map's insertion order: a play moves its clip to the young end. */
+function touchBuffer(name: string, buf: AudioBuffer): void {
+  if (!LITE_ART || isPhoneResident(name)) return;
+  buffers.delete(name);
+  buffers.set(name, buf);
+}
+
+/** The lane a phone's sounds ride: after the title's art, ahead of the background art stream (R-TOUCH-AUDIO-QUALITY-01). */
+const PHONE_SFX_LANE: Lane = 'chrome';
 
 function prefetchSamples(): void {
-  // A phone prefetches the core bank only; every other clip loads on its first play (R-TOUCH-PLAY-MEMORY-01).
-  for (const path of Object.keys(SAMPLE_URLS)) {
-    const name = sampleName(path);
-    if (!LITE_ART || isCoreSample(name)) loadSample(name, 'audio');
-  }
+  if (!LITE_ART) { for (const name of clipNamesInBank()) loadSample(name, 'audio'); return; }
+  // A phone prefetches its resident bank only (core + the FX every game plays); the rest is decoded ahead of use by
+  // `prewarmSfx` (R-TOUCH-PLAY-MEMORY-01, R-TOUCH-AUDIO-QUALITY-01).
+  void import('./audio/clipIndex').then((m) => {
+    clipIndexModule = m;
+    clipIndex = m.shippedClipIndex(clipNamesInBank());
+  }, () => { /* no index: the core bank alone, every other clip on demand */ }).finally(() => {
+    prefetchStarted = true;
+    for (const name of clipNamesInBank()) if (isPhoneResident(name)) loadSample(name, PHONE_SFX_LANE);
+    if (pendingScene) { const sc = pendingScene; pendingScene = null; prewarmSfx(sc); }
+  });
+}
+
+/** A scene asked for before the bank started (no context yet, or inside the post-Play delay). */
+let pendingScene: PrewarmScene | null = null;
+let prefetchStarted = false;
+/**
+ * PHONE PREWARM (R-TOUCH-AUDIO-QUALITY-01): decode, ahead of their first play, the clips this scene will need: the
+ * hero's lines, the cards on the board, in the hand, in the Shop and in the fight, the heroes on offer, and the
+ * hero-attack clips (audio/clipIndex.ts `prewarmList`). Queued behind the resident bank, one decode at a time, never
+ * creating the audio context. Does nothing on desktop (it already holds every clip). Returns how many it queued.
+ */
+export function prewarmSfx(scene: PrewarmScene): number {
+  if (!LITE_ART) return 0;
+  if (!ctx || !prefetchStarted || !clipIndex || !clipIndexModule) { pendingScene = scene; return 0; }
+  const list = clipIndexModule.prewarmList(clipIndex, scene, (c) => buffers.has(c) || loadingSamples.has(c));
+  for (const c of list) loadSample(c, PHONE_SFX_LANE);
+  return list.length;
 }
 
 // Variant families: a logical clip (e.g. `smack`) can be backed by N numbered files (`smack1.mp3`…`smackN.mp3`);
@@ -527,7 +598,9 @@ function playSample(name: string, category: string, delay = 0, onNodes?: (nodes:
   const a = audio();
   if (!a || muted) return false;
   const buf = buffers.get(name);
-  if (!buf) { loadSample(name); return false; }
+  if (!buf) { missSample(name); return false; }
+  playStats.hit();
+  touchBuffer(name, buf);
   const src = a.createBufferSource();
   src.buffer = buf;
   const g = a.createGain();
@@ -711,7 +784,9 @@ function playTailedSample(name: string, category: string, vol: number, delay: nu
   const a = audio();
   if (!a || muted) return null;
   const buf = buffers.get(name);
-  if (!buf) { loadSample(name); return null; }
+  if (!buf) { missSample(name); return null; }
+  playStats.hit();
+  touchBuffer(name, buf);
   const src = a.createBufferSource();
   // Reversed: the cached reversed copy (Web Audio has no negative playbackRate); a slice is a window of THAT copy.
   src.buffer = reverse ? reversedBuffer(a, name, buf) : buf;
@@ -2427,7 +2502,9 @@ export function playFxSound(clip: string, opts: FxSoundOpts = {}): FxSoundHandle
   const a = audio();
   if (!a || muted || !clip) return null;
   const buf = buffers.get(clip);
-  if (!buf) { loadSample(clip); return null; } // not decoded yet — caller retries
+  if (!buf) { missSample(clip); return null; } // not decoded yet — caller retries
+  playStats.hit();
+  touchBuffer(clip, buf);
   const src = a.createBufferSource();
   src.buffer = opts.reverse ? reversedBuffer(a, clip, buf) : buf;
   const pitchJit = opts.pitchVar ? 1 + (Math.random() * 2 - 1) * opts.pitchVar : 1;

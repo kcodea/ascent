@@ -809,7 +809,9 @@ export function StatusBar() {
   }, [buffMag]);
 
   return (
-    <div className="statusbar">
+    // `shopphase`: the Shop is open, so a usable power can call for a press (the READY CALL in styles.css). Its `ready`
+    // class alone stays on in combat, where a power cannot be used.
+    <div className={`statusbar${run.phase === 'recruit' ? ' shopphase' : ''}`}>
       {/* Completed-quest trophies — a horizontal row of art circles sitting directly above the hero panel. */}
       <QuestBadges />
       <div className="statusrow">

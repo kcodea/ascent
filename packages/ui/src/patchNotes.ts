@@ -64,6 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-23',
     changes: [
+      { category: 'Systems', text: 'Hero powers and Equipment you can use right now glow much brighter in the Shop, so you never miss one.' },
       {
         category: 'Balance',
         text: "Mirrorwing now also casts again when it's in the Shop.",

@@ -55,6 +55,9 @@ html[data-phone-layout] .zone .card.compact .badge > .value { scale: 1.24; }
 html[data-phone-layout] .zone .card.compact .badge > .value[data-fit='2'] { scale: 1.12; }
 html[data-phone-layout] .zone .card.compact .badge > .value[data-fit='3'] { scale: 0.9; }
 
+/* ── The tier plate on top of each minion grows a quarter so its stars read at a glance. ──────────────────────── */
+html[data-phone-layout] .zone .card.compact :is(.tierbadge.tierplate, .tierbadge.tierstars) { scale: 1.25; transform-origin: 50% 50%; }
+
 /* ── A held card (drag) is a readable card: half again its size, its rules text a size up. ────────────────────── */
 html[data-phone-layout] .dragcard > .dragtilt { scale: 1.55; }
 html[data-phone-layout] .dragcard .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.35); line-height: 1.12; }
@@ -145,7 +148,7 @@ html[data-phone-layout]:not([data-phone-menus]) .gearbtn { left: calc(var(--bar-
 html[data-phone-layout]:not([data-phone-menus]) .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
 html[data-phone-layout]:not([data-phone-menus]) .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
 /* The build label rides above the squares, at a size that can be read off a bug-report screenshot. */
-html[data-phone-layout]:not([data-phone-menus]) .version { right: auto; bottom: auto; left: calc(var(--bar-x) + 2865px * var(--scale)); top: calc(var(--bar-y) + 1250px * var(--scale)); translate: -100% 0; font-size: calc(20 * var(--u)); }
+html[data-phone-layout]:not([data-phone-menus]) .version { right: auto; bottom: auto; left: calc(var(--bar-x) + 2865px * var(--scale)); top: calc(var(--bar-y) + 1250px * var(--scale)); translate: -100% 0; font-size: calc(29 * var(--u)); }
 html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
 
 
@@ -157,7 +160,7 @@ html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcmeta { opacity: 1; 
 html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; font-size: 19px; line-height: 1.25; }
 /* Every column stretches to the row's height and its re-roll takes the bottom, so the four buttons share one baseline
    whatever the length of the power text above them. */
-html[data-phone-layout] .hsrow:not(.browse) { align-items: stretch; }
+html[data-phone-layout] .hsrow:not(.browse) { align-items: stretch; gap: 8px; }
 html[data-phone-layout] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }
 html[data-phone-layout] .hsrow:not(.browse) { translate: 0 -40px; }
 
@@ -168,10 +171,18 @@ html[data-phone-layout] .escpanel .escnote { font-size: 21px; line-height: 1.3; 
 html[data-phone-layout] .escpanel :is(.ebl, .evl, .escselect-value) { font-size: 23px; }
 html[data-phone-layout] .escpanel .escmute { font-size: 18px; padding: 10px 22px; min-height: 64px; }
 html[data-phone-layout] .escpanel button.pressable:not(.escmute) { min-height: 64px; }
+/* Its Resume / Done stays in view at the panel's foot while the rest scrolls behind it (a visible close). */
+html[data-phone-layout] .escpanel .escclose { position: sticky; bottom: 0; z-index: 3; min-height: 84px; }
+/* …full width, on a band of the panel's own ground (an outline), so rows scrolling under it do not show round it. */
+html[data-phone-layout] .escpanel .escclose { width: 100%; outline: 30px solid rgb(10, 16, 31); outline-offset: 0; }
 
 /* ── Finger-sized controls (primary >= 44 pt, secondary >= 32 pt on an iPhone) ─────────────────────────────────── */
-html[data-phone-layout] .disc-toggle.disc-peek.inspect-act { --pk: 3.4; }
+html[data-phone-layout] .disc-toggle.disc-peek.inspect-act { --pk: 3.8; left: 79%; bottom: calc(14% + var(--safe-b, 0px)); }
 html[data-phone-layout] .hsc-start { scale: 1.5; }
+html[data-phone-layout] .rankend-details { scale: 1.7; }
+/* The picked hero's power name under its name plate: ~9 pt. */
+html[data-phone-layout] .hsc-power { --hsc-powersize: 38; }
+html[data-phone-layout][data-touch-ui] .hsback { scale: calc(var(--touch-k) * 1.35); }
 html[data-phone-layout] .statusbar .heropanel:not(.heropanel2):not(.equipslot) { --hpb-s: 1.2; }
 html[data-phone-layout] .combathud-skip { scale: 1.6; }
 html[data-phone-layout] .combatsummary { scale: 2.8; }
@@ -185,6 +196,13 @@ html[data-phone-layout][data-touch-ui] .lobbyrailtab { scale: calc(var(--touch-k
 html[data-phone-layout][data-touch-ui] .escvol input[type='range'] { height: calc(36px * var(--touch-k)); }
 /* End Turn says what it does on desktop hover; on a phone its ready label is a 5 pt caption over the board. */
 html[data-phone-layout] .etbwrap .etb-tip { visibility: hidden; }
+
+/* Hero select keeps the touch UI's 1.8 page zoom (the menus' 2.1 above would push its re-roll row off the screen). */
+html[data-phone-layout] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.8); }
+
+/* ── Hero select (browse every hero, Practice): four big tiles a row, as the offer, scrolling; their power text reads. */
+html[data-phone-layout] .hsrow.browse { zoom: 1.36; max-height: calc((var(--lvh, 100dvh) - var(--safe-b) - 60px * var(--touch-inv-s)) / 1.36); }
+html[data-phone-layout] .hsrow.browse .herocard.big .hcpw { font-size: 21px; line-height: 1.25; }
 
 /* ── The menus on a phone ─────────────────────────────────────────────────────────────────────────────────────
    Practice's Start sits beside the page title instead of below the fold, and the corner squares are at least 32 pt. */
@@ -218,7 +236,7 @@ html[data-phone-layout] .mp-practice .pomode-select { height: auto; min-height: 
 html[data-phone-layout] .mp-practice .pomode-title { font-size: 21px; padding-right: 92px; }
 html[data-phone-layout] .mp-practice .pomode-text { font-size: 13px; line-height: 1.3; }
 html[data-phone-layout] .mp-practice .pomode-state { font-size: 13px; }
-html[data-phone-layout] .poseg-btn { padding-top: 9px; padding-bottom: 9px; }
+html[data-phone-layout] .poseg-btn { padding-top: 13px; padding-bottom: 13px; }
 html[data-phone-layout] .msb .msb-gh { font-size: 17.5px; }
 /* Sidebar plaques: 32 pt tall, ~9 pt labels, tighter spacing so the whole rail still fits the height. */
 html[data-phone-layout] .msb .sbbtn { min-height: 62px; }

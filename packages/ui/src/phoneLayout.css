@@ -107,12 +107,47 @@ html[data-phone-layout] .inspect-card .card.compact.plated .drawer { padding-lef
 /* ── The lobby rail: same rail, its names and Health about 9 pt (the tuner vars are set on the rail itself). ──── */
 html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3; }
 
-/* The help / Compendium / settings squares: a row in the bottom-right corner of the box. */
+/* The rail's head (round, alive count, max damage) and the hero power's name plate, both ~3.5 pt on the desktop
+   composition, grow to ~7 pt. */
+html[data-phone-layout] .lobbyrailhead { zoom: 1.7; }
+html[data-phone-layout] .statusbar .heropanel .hplabel { scale: 2.2; transform-origin: 50% 0%; }
+
+/* The help / Compendium / settings squares: a row in the bottom-right corner of the box (in hero select and the run;
+   the menus keep their own corner, touchUi.css). */
 html[data-phone-layout] { --pl-cb: calc(140px * var(--scale)); }
-html[data-phone-layout] :is(.gearbtn, .bookbtn, .rulesbtn) { width: var(--pl-cb); height: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); }
-html[data-phone-layout] .gearbtn { left: calc(var(--bar-x) + 2725px * var(--scale)); }
-html[data-phone-layout] .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
-html[data-phone-layout] .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
-html[data-phone-layout] :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
+html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) { width: var(--pl-cb); height: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) .gearbtn { left: calc(var(--bar-x) + 2725px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
+/* The build label rides above the squares, at a size that can be read off a bug-report screenshot. */
+html[data-phone-layout]:not([data-phone-menus]) .version { right: auto; bottom: auto; left: calc(var(--bar-x) + 2865px * var(--scale)); top: calc(var(--bar-y) + 1250px * var(--scale)); translate: -100% 0; font-size: calc(20 * var(--u)); }
+html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
+
+
+/* ── Hero select (the offer): each hero's power reads under its portrait without a tap (Hearthstone shows it the
+   same way); the difficulty pill sits above it, and the re-roll row tucks up so it stays inside the box. ───────── */
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcbelow { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcbelow > * { position: static; inset: auto; }
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcmeta { opacity: 1; }
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; font-size: 19px; line-height: 1.25; }
+/* Every column stretches to the row's height and its re-roll takes the bottom, so the four buttons share one baseline
+   whatever the length of the power text above them. */
+html[data-phone-layout] .hsrow:not(.browse) { align-items: stretch; }
+html[data-phone-layout] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }
+html[data-phone-layout] .hsrow:not(.browse) { translate: 0 -40px; }
+
+/* ── Settings (Esc): stays inside the safe area; its notes read at ~9 pt and its labels at ~10 pt, Mute is a real
+   button. ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+html[data-phone-layout][data-touch-ui] .escpanel { max-height: calc((var(--lvh, 100dvh) - 2 * var(--safe-y)) * 0.97 / var(--ui-zoom)); }
+html[data-phone-layout] .escpanel .escnote { font-size: 21px; line-height: 1.3; }
+html[data-phone-layout] .escpanel :is(.ebl, .evl, .escselect-value) { font-size: 23px; }
+html[data-phone-layout] .escpanel .escmute { font-size: 18px; padding: 10px 22px; min-height: 64px; }
+html[data-phone-layout] .escpanel button.pressable:not(.escmute) { min-height: 64px; }
+
+/* ── The menus on a phone ─────────────────────────────────────────────────────────────────────────────────────
+   Practice's Start stays on screen (sticky to the bottom of the scrolling page) instead of below the fold, and the
+   corner squares are at least 32 pt. */
+html[data-phone-layout] .mp-practice .postart { position: sticky; bottom: 52px; z-index: 5; }
+html[data-phone-layout][data-touch-ui] { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.6); }
 
 }

@@ -218,6 +218,9 @@ export function applyStage(): StageFit {
   // portrait drops it), written as `data-phone-layout` for phoneLayout.css. Desktop never has the attribute.
   const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.deskui);
   document.documentElement.toggleAttribute('data-phone-layout', phoneLayout);
+  // …and whether it is on the MENUS (title, mode pages) rather than hero select or a run: the in-game composition's
+  // corner-button seats do not apply there (phoneLayout.css).
+  document.documentElement.toggleAttribute('data-phone-menus', phoneLayout && menuZoom);
   const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W);
   fit = next;
   const de = document.documentElement.style;

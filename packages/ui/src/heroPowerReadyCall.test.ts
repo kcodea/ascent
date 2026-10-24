@@ -29,6 +29,15 @@ describe('the hero power ready call', () => {
     }
   });
 
+  it("bursts its ring at the halo's brightest: the two share one beat", () => {
+    const glow = /animation: hpbcallglow ([\d.]+)s/.exec(css)?.[1];
+    const ring = /animation: hpbcallring ([\d.]+)s/.exec(css)?.[1];
+    expect(glow).toBeTruthy();
+    expect(ring).toBe(glow);
+    expect(css).toContain('@keyframes hpbcallglow { 0%, 100% { opacity: 1; }');
+    expect(css).toContain('@keyframes hpbcallring { 0% { transform: scale(1); opacity: 0.95; }');
+  });
+
   it('stills itself for reduced motion', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{\n {2}\.statusbar\.shopphase \.heropowerbtn\.ready \.hpb-glow \{ animation: none;/);
   });

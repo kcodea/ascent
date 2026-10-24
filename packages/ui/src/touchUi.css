@@ -208,15 +208,41 @@ html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animatio
 /* Phones draw the vista as ONE flattened picture (the shop baked in), so the title stays in FRONT of it there. */
 html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }
 
-/* ── Phones: the desktop game, slightly zoomed (owner 2026-10-23, R-PHONE-ZOOM-01: "just take the normal game's 21:9 and
-   zoom it slightly as a starting point"). stage.ts fits the HUD's vertical span (not the whole box) between the safe top
-   and bottom, so the box's empty top and bottom bands of board frame are cropped; nothing is repositioned. The box stays
-   its full design size and sits at `--pz-bar-y` (its top, layout px; negative = the cropped band) instead of centred:
-   the box itself, the two rules anchored to the box's BOTTOM edge (Gold, the hand), and the two pieces drawn off the
-   screen's centre (the board art, the hero cluster) all take that offset. `data-phone-zoom` is written by stage.ts only
-   on a phone in landscape. ── */
-html[data-touch-ui][data-phone-zoom] { --gw: 1920px; --gh: 1080px; --bar-y: var(--pz-bar-y); --pz-shift: calc(var(--pz-bar-y) - (var(--lvh, 100dvh) - 1080px) / 2); }
-html[data-touch-ui][data-phone-zoom] .app { top: var(--pz-shift); }
-html[data-touch-ui][data-phone-zoom] :is(.boardbg, .statusbar) { --board-y: calc(5px + var(--pz-shift) / var(--scale)); }
-html[data-touch-ui][data-phone-zoom] .goldpill { bottom: calc(var(--pz-bar-b) + var(--gold-y, 423px) * var(--scale)); }
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { bottom: calc(var(--pz-bar-b) - 26 * var(--u)); }
+/* ── Phones: the desktop game, zoomed (owner 2026-10-23/24, R-PHONE-ZOOM-01). stage.ts shows a run 1.25-1.45x larger
+   than the plain fit, the 16:9 box pinned at its design size and centred, its outer edges cropped. A HUD piece that
+   would leave the safe area moves inward by exactly its overflow (`--pz-<piece>-x/y`, layout px, + = right / down,
+   0 when it fits), added to its own anchor: `--bar-x` / `--bar-y` (the sign flips for a right / bottom anchor), the
+   foe's `--gw` term, the hero cluster's `--board-x/y`. `data-phone-zoom` is written only on a phone in landscape in a run. ── */
+html[data-touch-ui][data-phone-zoom] { --gw: 1920px; --gh: 1080px; --pz-bx: calc((var(--lvw, 100vw) - 1920px) / 2); --pz-by: calc((var(--lvh, 100dvh) - 1080px) / 2); }
+html[data-touch-ui][data-phone-zoom] .tvbwrap { --bar-x: calc(var(--pz-bx) + var(--pz-tier-x)); --bar-y: calc(var(--pz-by) + var(--pz-tier-y)); }
+html[data-touch-ui][data-phone-zoom] .shopbar { translate: var(--pz-timer-x) var(--pz-timer-y); }
+html[data-touch-ui][data-phone-zoom] .frzwrap { --bar-x: calc(var(--pz-bx) + var(--pz-freeze-x)); --bar-y: calc(var(--pz-by) + var(--pz-freeze-y)); }
+html[data-touch-ui][data-phone-zoom] .rfbwrap { --bar-x: calc(var(--pz-bx) + var(--pz-refresh-x)); --bar-y: calc(var(--pz-by) + var(--pz-refresh-y)); }
+html[data-touch-ui][data-phone-zoom] .etbwrap { --bar-x: calc(var(--pz-bx) + var(--pz-etb-x)); --bar-y: calc(var(--pz-by) + var(--pz-etb-y)); }
+html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: calc(var(--pz-bx) - var(--pz-gold-x)); --bar-y: calc(var(--pz-by) - var(--pz-gold-y)); }
+html[data-touch-ui][data-phone-zoom] .statusbar { --board-x: calc(var(--pz-hero-x) / var(--scale)); --board-y: calc(5px + var(--pz-hero-y) / var(--scale)); }
+html[data-touch-ui][data-phone-zoom] .statusbar .heropanel { --bar-x: calc(var(--pz-bx) + var(--pz-power-x)); --bar-y: calc(var(--pz-by) + var(--pz-power-y)); }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--pz-by) - var(--pz-hand-y)); }
+html[data-touch-ui][data-phone-zoom] .combathud-skip { --bar-x: calc(var(--pz-bx) + var(--pz-skip-x)); --bar-y: calc(var(--pz-by) + var(--pz-skip-y)); }
+html[data-touch-ui][data-phone-zoom] .combatsummary { --bar-x: calc(var(--pz-bx) + var(--pz-skip-x)); --bar-y: calc(var(--pz-by) + var(--pz-skip-y)); }
+html[data-touch-ui][data-phone-zoom] .combatround { --bar-x: calc(var(--pz-bx) + var(--pz-round-x)); --bar-y: calc(var(--pz-by) + var(--pz-round-y)); }
+html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .herotip.opp-power-tip, .opphand) { --gw: calc(1920px + 2 * var(--pz-opp-x)); --bar-y: calc(var(--pz-by) + var(--pz-opp-y)); }
+/* The lobby rail: its desktop width (the extra growth into a wide window's margin has no margin to grow into here),
+   held off the screen edge by its own rule. */
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) {
+  --lr-right: max(var(--lr-right0), calc(10px + var(--safe-r) - var(--pz-bx)));
+  --lr-w: var(--lr-w0);
+}
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab {
+  right: calc(max(var(--lr-right0), calc(10px + var(--safe-r) - var(--pz-bx))) + var(--lr-w0) * var(--ltab-wmul, 1) - 2px);
+}
+/* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
+   would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
+html[data-touch-ui][data-phone-zoom] .row.hand .card .plate-tribe { visibility: hidden; }
+
+/* The touch UI's bigger combat Skip covered the round title above it ("ROUND N"): the title rides up by the extra height. */
+html[data-touch-ui] .combatround { margin-top: calc(-22 * var(--u) * (var(--touch-k) * 1.25 - 1)); }
+/* Hero select's re-roll row sat below a phone's screen: on a phone-scale stage it tucks up under the hero cards. */
+html[data-touch-ui][data-touch-small] .hcreroll-slot { margin-top: 10px; }
+/* A zoomed phone has no margin for the lobby rail: it may slide over End Turn / Refresh / Gold, which stay on top. */
+html[data-touch-ui][data-phone-zoom] :is(.etbwrap, .rfbwrap, .goldpill) { z-index: 61; }

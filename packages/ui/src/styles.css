@@ -1660,6 +1660,49 @@ body.hpb-glow-preview .heropowerbtn .hpb-glow, .heropowerbtn:not(:disabled).tt-o
   0%, 100% { opacity: var(--hpb-glow-alpha, 1); }
   50% { opacity: var(--hpb-glow-dim, 0); }
 }
+/* THE READY CALL (owner 2026-10-23: "a more aggressive glow around any hero power that is activateable/targetable during
+   the shop phase that hasnt yet been used ... i want our players to know its available to use. make it pretty aggressive").
+   Every power you press to use (the hero power, a second power, the Equipment) while it is usable RIGHT NOW in the Shop
+   (`.ready`: unlocked, not yet used, affordable) shouts three ways at once:
+     1. a hot, wide halo (white core, gold, orange spill) that throbs fast instead of the soft 3 s breath;
+     2. a gold ring that bursts outward from the circle and fades, over and over;
+     3. a bright arc of light racing round the rim.
+   PERFORMANCE (CLAUDE.md, docs/performance.md): every loop moves only opacity or transform. The halo's shadow, the
+   ring's border and the arc's gradient and mask are STATIC and paint once; the browser only re-composites them. The
+   moment the power is used or can't be paid for, `.ready` drops and all three stop. Reduced motion keeps a still halo. */
+.statusbar.shopphase .heropowerbtn.ready .hpb-glow {
+  box-shadow: 0 0 calc(6 * var(--u)) calc(4 * var(--u)) #fffbe6, 0 0 calc(22 * var(--u)) calc(14 * var(--u)) #ffc23d,
+    0 0 calc(46 * var(--u)) calc(24 * var(--u)) rgba(255, 140, 30, 0.85), 0 0 calc(80 * var(--u)) calc(30 * var(--u)) rgba(255, 110, 20, 0.45);
+  will-change: opacity;
+  animation: hpbcallglow 1.1s ease-in-out infinite;
+}
+@keyframes hpbcallglow { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+.statusbar.shopphase .heropowerbtn.ready::before,
+.statusbar.shopphase .heropowerbtn.ready::after { content: ''; position: absolute; border-radius: 50%; pointer-events: none; z-index: 3; }
+/* (The arc sits BEHIND the art, z1 under its z2: the art is a solid circle, so only the arc's outer rim shows round it.
+   No mask needed, which also keeps the loop a plain rotation.) */
+.statusbar.shopphase .heropowerbtn.ready::after { z-index: 1; }
+.statusbar.shopphase .heropowerbtn.ready::before {
+  inset: 0; border: calc(4 * var(--u)) solid #ffe08a; box-shadow: 0 0 calc(12 * var(--u)) #ffb340, inset 0 0 calc(8 * var(--u)) #ffb340;
+  opacity: 0; will-change: transform, opacity;
+  /* In step with the halo (owner 2026-10-23: "the pulse ring should fire at the peak of the glow brightness"): the same
+     1.1 s beat, both starting the moment the power turns ready, so each ring bursts at the halo's brightest (its 0%). */
+  animation: hpbcallring 1.1s cubic-bezier(.2, .6, .35, 1) infinite;
+}
+@keyframes hpbcallring { 0% { transform: scale(1); opacity: 0.95; } 100% { transform: scale(1.6); opacity: 0; } }
+.statusbar.shopphase .heropowerbtn.ready::after {
+  inset: calc(-9 * var(--u));
+  /* a long tail (fading in from 110deg, owner 2026-10-23: "increase the length of the tail") and 25% dimmer overall ("lower the
+     overall brightness of the arc by 25%"): every stop at three quarters of its first strength. */
+  background: conic-gradient(from 0deg, rgba(255, 244, 200, 0) 0deg, rgba(255, 244, 200, 0) 110deg, rgba(255, 190, 80, 0.15) 200deg, rgba(255, 200, 90, 0.41) 290deg, rgba(255, 251, 230, 0.75) 354deg, rgba(255, 244, 200, 0) 360deg);
+  will-change: transform;
+  animation: hpbcallspin 1.3s linear infinite;
+}
+@keyframes hpbcallspin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .statusbar.shopphase .heropowerbtn.ready .hpb-glow { animation: none; opacity: 1; }
+  .statusbar.shopphase .heropowerbtn.ready::before, .statusbar.shopphase .heropowerbtn.ready::after { animation: none; display: none; }
+}
 /* The REFRESH FLASH — a one-shot bloom of the face as the power re-arms (mirrors the End Turn diamond's
    relight). Static bright filter; the animation (duration from the tuner via --hpb-flash-ms) eases OPACITY
    in and out, then the layer unmounts — never a loop. */

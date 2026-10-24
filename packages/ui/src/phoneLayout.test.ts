@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_HUD_PIECES, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
 
@@ -30,27 +30,28 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(phoneZoomOf({})).toBe(1.35);
     expect(phoneZoomOf({ pz145: 1 })).toBe(1.45);
   });
-  it('iPhone 15 Pro (insets 59 / 59 / 21) at every variant: the stage is the plain fit times the zoom, and every HUD piece lands inside the safe area', () => {
-    const ins = { top: 0, right: 59, bottom: 21, left: 59 };
-    const plain = fitStage(852, 393, ins);
-    for (const z of Object.values(PHONE_ZOOM_VARIANTS)) {
-      const f = fitStage(852, 393, ins, DESIGN_W, z);
-      expect(f.s).toBeCloseTo(plain.s * z, 10);
-      const box = gameBoxOf(f);
-      expect(box.w / box.h).toBeCloseTo(16 / 9, 6);
-      for (const k of Object.keys(PHONE_HUD_PIECES) as (keyof typeof PHONE_HUD_PIECES)[]) {
-        const [l, t, r, b] = PHONE_HUD_PIECES[k];
-        const c = f.clamp![k];
-        expect(box.left + (l + c.dx) * f.s, k).toBeGreaterThanOrEqual(59 - 1e-6);
-        expect(box.left + (r + c.dx) * f.s, k).toBeLessThanOrEqual(852 - 59 + 1e-6);
-        expect(box.top + (t + c.dy) * f.s, k).toBeGreaterThanOrEqual(-1e-6);
-        expect(box.top + (b + c.dy) * f.s, k).toBeLessThanOrEqual(393 - 21 + 1e-6);
+  it('iPhone 15 Pro and Pixel 8 at every variant: the stage is the plain fit times the zoom, the 16:9 box centred', () => {
+    for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
+      const plain = fitStage(w, h, ins);
+      for (const z of Object.values(PHONE_ZOOM_VARIANTS)) {
+        const f = fitStage(w, h, ins, DESIGN_W, z);
+        expect(f.s).toBeCloseTo(plain.s * z, 10);
+        const box = gameBoxOf(f);
+        expect(box.w / box.h).toBeCloseTo(16 / 9, 6);
+        expect(box.left + box.w / 2).toBeCloseTo(w / 2, 6);
+        expect(box.top + box.h / 2).toBeCloseTo(h / 2, 6);
       }
     }
   });
-  it('a piece that fits does not move', () => {
-    const f = fitStage(852, 393, { top: 0, right: 59, bottom: 21, left: 59 }, DESIGN_W, 1.25);
-    expect(f.clamp!.etb).toEqual({ dx: 0, dy: 0 });
+  it("at 1.35x the baked HUD region (box x 125..1795, y 150..930) is inside both phones' safe areas", () => {
+    for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
+      const f = fitStage(w, h, ins, DESIGN_W, 1.35);
+      const box = gameBoxOf(f);
+      expect(box.left + 125 * f.s).toBeGreaterThanOrEqual(ins.left - 1e-6);
+      expect(box.left + 1795 * f.s).toBeLessThanOrEqual(w - ins.right + 1e-6);
+      expect(box.top + 150 * f.s).toBeGreaterThanOrEqual(ins.top - 1e-6);
+      expect(box.top + 930 * f.s).toBeLessThanOrEqual(h - ins.bottom + 1e-6);
+    }
   });
   it("a desktop window of a phone's aspect never zooms (the plain fit)", () => {
     expect(fitStage(2560, 1080).zoom).toBeUndefined();

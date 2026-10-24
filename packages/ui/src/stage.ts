@@ -33,12 +33,10 @@ export const DESIGN_H = 1080;
  * slightly as a starting point" ... "we need more zoom in general across the board"). A phone in landscape lays a RUN out
  * the way a desktop ~21:9 window does (the 1920 x 1080 box centred, the board art filling the sides, nothing
  * repositioned) and shows it `PHONE_ZOOM_VARIANTS[v]` times larger than the plain fit phones had before. The box and the
- * board are centred and their outer edges (empty board frame, background) are cropped. Only the HUD pieces that would
- * then leave the screen's safe area CLAMP inward, each by exactly its overflow (a piece that fits stays put, on its
- * painted socket): `phoneZoomClamp` computes each piece's shift from its rect in the box (`PHONE_HUD_PIECES`, measured
- * off the plain-fit layout) and stage.ts writes them as `--pz-<piece>-x/y`; touchUi.css adds them to the pieces' own
- * anchors. The lobby rail clamps itself (its rule already keeps it off the screen edge). Pure maths per
- * resize: no layout read. Menus and hero select keep the plain fit (they reflow to the window; a zoom would cut them).
+ * board are centred and their outer edges (empty board frame, background) are cropped. On a phone the visible part of the
+ * box is about x 125..1795, y 150..930, and every HUD piece has ONE fixed seat in box coordinates, baked in place beside
+ * or on its painted socket (touchUi.css, "Phones: the desktop game, zoomed, with the HUD BAKED IN PLACE"). Menus and
+ * hero select keep the plain fit (they reflow to the window; a zoom would cut them).
  * Desktop, laptops and tablets never zoom (`phoneZoomApplies` needs `isPhone()`, a landscape window and a run).
  * Phone diagnostics: `pz125` / `pz135` / `pz145` pick the variant (1.35 by default), `nophonezoom` turns it off. The
  * retired experimental phone COMPOSITION (2:1 box, phoneLayout.css) stays behind the `phonelayout` switch only.
@@ -50,34 +48,6 @@ export const PHONE_ZOOM_DEFAULT: PhoneZoomVariant = 'pz135';
 export function phoneZoomOf(flags: Partial<Record<string, 1>>): number {
   for (const k of Object.keys(PHONE_ZOOM_VARIANTS) as PhoneZoomVariant[]) if (flags[k]) return PHONE_ZOOM_VARIANTS[k];
   return PHONE_ZOOM_VARIANTS[PHONE_ZOOM_DEFAULT];
-}
-/** Each HUD piece's rect inside the 1920 x 1080 box ([left, top, right, bottom], layout px), measured off the phone's
- *  plain-fit layout (touch UI applied). A piece moves only if this rect would leave the safe area, and only by as much. */
-export const PHONE_HUD_PIECES = {
-  tier: [299, 78, 558, 280], timer: [858, 23, 1070, 125], freeze: [896, 144, 1037, 299], refresh: [1371, 145, 1670, 287],
-  etb: [1483, 378, 1644, 555], gold: [1457, 604, 1577, 725], hero: [71, 675, 365, 1044], power: [317, 667, 438, 817],
-  // The hand: its cards' art, cost and stats (the text plate below them is tucked under the screen edge, as on desktop).
-  hand: [295, 733, 1625, 965],
-  skip: [844, 53, 1077, 149], round: [893, 21, 1029, 47], opp: [1454, -39, 1912, 471],
-} as const;
-export type PhoneHudPiece = keyof typeof PHONE_HUD_PIECES;
-/** A breath between a clamped piece and the safe edge, layout px. */
-export const PHONE_CLAMP_PAD = 6;
-export type PhoneClamp = Record<PhoneHudPiece, { dx: number; dy: number }>;
-/** Pure: how far each HUD piece must move (layout px; + = right / down) to stay inside the safe area, 0 when it fits. */
-export function phoneZoomClamp(f: Pick<StageFit, 'lw' | 'lh' | 'safe'>): PhoneClamp {
-  const barX = (f.lw - DESIGN_W) / 2;
-  const barY = (f.lh - DESIGN_H) / 2;
-  const p = PHONE_CLAMP_PAD;
-  const L = f.safe.left + p, R = f.lw - f.safe.right - p, T = f.safe.top + p, B = f.lh - f.safe.bottom - p;
-  const out = {} as PhoneClamp;
-  for (const k of Object.keys(PHONE_HUD_PIECES) as PhoneHudPiece[]) {
-    const [l, t, r, b] = PHONE_HUD_PIECES[k];
-    const dx = Math.max(0, L - (barX + l)) - Math.max(0, barX + r - R);
-    const dy = Math.max(0, T - (barY + t)) - Math.max(0, barY + b - B);
-    out[k] = { dx, dy };
-  }
-  return out;
 }
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
@@ -104,8 +74,6 @@ export interface StageFit {
   /** The phone zoom (R-PHONE-ZOOM-01): the scale relative to the plain inset fit (the box is the full design size,
    *  its empty top and bottom bands cropped). Absent = no phone zoom. */
   zoom?: number;
-  /** With the phone zoom: how far each HUD group clamps inward to stay in the safe area (layout px). */
-  clamp?: PhoneClamp;
 }
 
 /** Safe-area insets (`env(safe-area-inset-*)`), per side. */
@@ -136,8 +104,7 @@ export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS,
     // THE PHONE ZOOM (R-PHONE-ZOOM-01): the plain fit times `zoom`; the centred box overflows and is cropped.
     const sz = s * zoom;
     const sf = { top: Math.max(0, insets.top) / sz, right: Math.max(0, insets.right) / sz, bottom: Math.max(0, insets.bottom) / sz, left: Math.max(0, insets.left) / sz };
-    const fz = { s: sz, lw: w / sz, lh: h / sz, safe: sf, zoom };
-    return { ...fz, clamp: phoneZoomClamp(fz) };
+    return { s: sz, lw: w / sz, lh: h / sz, safe: sf, zoom };
   }
   return designW === DESIGN_W ? { s, lw: w / s, lh: h / s, safe } : { s, lw: w / s, lh: h / s, safe, aspect: designW / DESIGN_H };
 }
@@ -292,11 +259,6 @@ export function applyStage(): StageFit {
   // Layout-viewport breakpoints for the few stylesheet rules that used to be viewport @media queries (a media
   // query sees the WINDOW, which on a scaled stage is not the size the layout is drawn at).
   document.documentElement.setAttribute('data-lv', layoutBreakpoints(next).join(' '));
-  // THE PHONE ZOOM's HUD clamps (R-PHONE-ZOOM-01, touchUi.css); never written off a phone.
-  for (const k of Object.keys(PHONE_HUD_PIECES) as PhoneHudPiece[]) {
-    if (next.clamp) { de.setProperty(`--pz-${k}-x`, `${next.clamp[k].dx}px`); de.setProperty(`--pz-${k}-y`, `${next.clamp[k].dy}px`); }
-    else { de.removeProperty(`--pz-${k}-x`); de.removeProperty(`--pz-${k}-y`); }
-  }
   // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01): the rotate prompt is phones only.
   document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
   const root = stageHost();

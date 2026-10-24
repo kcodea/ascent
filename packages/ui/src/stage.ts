@@ -42,8 +42,8 @@ export const DESIGN_H = 1080;
  * `nophonezoom` diagnostics switch turns it off. The retired experimental phone COMPOSITION (2:1 box, phoneLayout.css)
  * stays in the code behind the `phonelayout` switch only (owner verdict 2026-10-23).
  */
-/** The HUD's vertical span inside the 1080-row box (the timer's top to your Health plate's foot, plus a breath). */
-export const PHONE_HUD_TOP = 38;
+/** The HUD's vertical span inside the 1080-row box (the combat foe name and round title at the top, your Health plate at the foot, plus a breath). */
+export const PHONE_HUD_TOP = 12;
 export const PHONE_HUD_BOTTOM = 1054;
 /** Pure: does the phone zoom apply? A phone, in landscape, not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false): boolean {

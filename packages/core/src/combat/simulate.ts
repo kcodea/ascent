@@ -6853,16 +6853,23 @@ export function simulate(
     }
     const risesBefore = risesOf(attacker);
     const rebirthBefore = attacker.keywords.includes('RB');
+    // What stood to the attacker's LEFT before the swing (dead bodies stay in the board array, so this
+    // reference stays put whatever the swing does). Read by the return rewind below.
+    const leftBeforeSwing: Minion | null = boards[turn][boards[turn].indexOf(attacker) - 1] ?? null;
     performAttack(attacker, defenderSide, 0);
     // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
-    // attack again for its side (rewind the pointer to just before it) rather than going to the back.
+    // attack again for its side rather than going to the back.
     // A REBIRTH return gets the same rewind (owner 2026-09-16: "it acts like rise, so copy that" — pinned by
     // the Rise/Rebirth parity test in `rebirth.test.ts`): `RB` was on the body before the swing and is spent
     // by the return, so a body standing without it came back this swing.
+    // ECHO TOKENS IN ITS SLOT GO FIRST (owner 2026-10-23, R-ORD-RISE-ECHO-01): "the dawnclaw would attack next,
+    // then the bullseye etc." Its Echo lands its bodies in the slot and the body returns to their RIGHT, so the
+    // pointer rewinds to whatever was LEFT of the attacker before the swing: the slot's new occupants attack next
+    // in normal left-to-right order (each token, as it would without Rise), then the returned body, then the rest.
+    // With no Echo summon in the slot this is the old rewind exactly (the body is next again).
     if ((risesOf(attacker) !== risesBefore && !attacker.dead && attacker.health > 0)
       || (rebirthBefore && !attacker.keywords.includes('RB') && !attacker.dead && attacker.health > 0)) {
-      const arr = boards[turn];
-      lastAttacker[turn] = arr[arr.indexOf(attacker) - 1] ?? null;
+      lastAttacker[turn] = leftBeforeSwing;
     }
     // Whelps summoned by this attack's death cascade strike immediately, out of turn order; freed slots are
     // reclaimed / refilled, and anything THAT summons to attack immediately strikes too — all before the next

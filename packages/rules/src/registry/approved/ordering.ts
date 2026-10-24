@@ -212,16 +212,18 @@ export const ORDERING_RULES: GameRule[] = [
       + 'or below is still on the board for those reactions and is buffed like any other: it dies only if the damage beat '
       + 'its Health after the buffs (Echohorn 4/3 hit for 4 with Rachel paying +1 Health per landed hit survives; a hit '
       + 'bigger than the buffs still kills). Echo, Rise and Avenge follow the corrected deaths. The Shop spray already '
-      + 'buffs every board minion before its single death check after the spray, so both phases agree. Side-neutral.',
+      + 'buffs every board minion before its single death check after the spray, so both phases agree. The same holds however '
+      + 'the pass is triggered: a death, a Rally, or a Start-of-Combat trigger of the Echo (Spots). Side-neutral.',
     domain: 'ordering',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner report 2026-10-13 (PR #2074 test)', quote: 'i think the echohorn dies before getting the buff which is \'true\' but it shouldnt die, and should actually get the buffs from rachel. if the damage is > the buff from rachel, then yea it dies, but i think it\'s bugged.' },
       { kind: 'code', ref: 'packages/core/src/combat/simulate.ts withWave / flushDemonReactions / emitDemonDealtDamage / living (pendingCountsLiving) / resolveEchoDeath; packages/sim/src/recruit.ts shopSprayExceptTribe' },
+      { kind: 'owner-chat', ref: 'Bug report 4657b2d2 (owner playtest, build c4001453b, 2026-10-12)', quote: 'the start of combat effect here triggered fel spike which killed echohorn which was then unable to receive rad rachel\'s buff - this is incorrect, the echohorn should have received the buff here and lived because it all happens in the same instance.' },
     ],
-    contentIds: ['dm_gasket', 'dm_felspikes', 'dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_leech', 'dm_chosenfiend', 'b2_echohorn'],
-    currentBehaviour: 'Conforms as of 2026-10-13. Before, each hit fired its reactions at once and a reactor buffed only bodies still above 0, so a minion the pass had already taken to 0 missed every buff and died.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/demonDamageDeathOrder.test.ts', 'packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-13' },
+    contentIds: ['dm_gasket', 'dm_felspikes', 'dm_radrachel', 'dm_ruinouslord', 'dm_todd', 'dm_leech', 'dm_chosenfiend', 'b2_echohorn', 'b2_spots'],
+    currentBehaviour: 'Conforms as of 2026-10-13. Before, each hit fired its reactions at once and a reactor buffed only bodies still above 0, so a minion the pass had already taken to 0 missed every buff and died. 2026-10-23: bug report 4657b2d2 (a Spots Start-of-Combat trigger of the Fel Spikes Echo killing Echohorn before Rachel\'s buffs) was filed on a build from before that fix; current code conforms on the SoC-trigger path too, now pinned by its own scenario.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/demonDamageDeathOrder.test.ts', 'packages/ui/src/choreographer/demonDamageTicks.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
   {
     id: 'R-RISE-ROW-01',

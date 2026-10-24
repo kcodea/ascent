@@ -76,6 +76,26 @@ describe('Fel Spikes volley: damage, then the reactions, then deaths', () => {
   });
 });
 
+describe('a Start-of-Combat trigger of the Fel Spikes Echo: the same order (bug report 4657b2d2)', () => {
+  // Spots' Start of Combat triggers the left-most Echo (Fel Spikes) without a death. m0 Echohorn 4/3 takes the volley's 4;
+  // Rad Rachel's buffs from that same volley land before its death check, so it lives and takes its first swing.
+  const board = (rachel: boolean) => [bm('b2_echohorn', 4, 3, { keywords: ['RL'] }), bm('dm_felspikes', 0, 40, { keywords: ['T'] }),
+    bm('b2_spots', 0, 40, { keywords: ['SC'] }), rachel ? bm('dm_radrachel', 0, 40) : bm('dm_clerk', 0, 40)];
+
+  it('Echohorn survives the SoC-triggered volley on Rachel\'s buffs from it', () => {
+    const r = sim(board(true), wall(5));
+    const pass = firstPass(r);
+    expect(pass[0]?.key, 'the volley is the Start-of-Combat trigger').toContain('startOfCombat');
+    expect(pass.some((e) => e.type === 'dmg' && e.target === 'm0' && e.amount === 4 && e.remainingHp === 0)).toBe(true);
+    expect(pass.some((e) => e.type === 'buff' && e.target === 'm0' && e.source === 'm3'), 'Rachel buffed it').toBe(true);
+    expect(diedToSpray(r, 'm0'), 'the volley does not kill it').toBe(false);
+  });
+
+  it('without a reactor the same SoC volley still kills it', () => {
+    expect(diedToSpray(sim(board(false), wall(5)), 'm0')).toBe(true);
+  });
+});
+
 describe('Gasket Rally pass: the same order', () => {
   it('Echohorn 4/2 takes Gasket\'s 2 and survives on Rachel\'s buffs from the same pass', () => {
     const r = sim([bm('dm_gasket', 7, 30, { keywords: ['RL'] }), bm('b2_echohorn', 0, 2), bm('dm_radrachel', 0, 40)], wall(3), 7);

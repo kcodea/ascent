@@ -38,7 +38,7 @@ html[data-phone-layout] .statusbar { --board-x: calc(var(--pl-ax) - 1395px); --b
 
 /* ── The two minion rows: out of the column flow, each centred on its painted row ──────────────────────────── */
 html[data-phone-layout] .app > .zone[data-zone='tavern'],
-html[data-phone-layout] .app > .zone[data-zone='warband'] { position: absolute; left: calc(var(--pl-row-dx, -130px) * var(--scale)); right: calc(var(--pl-row-dx, -130px) * var(--scale) * -1); height: var(--ch); padding-bottom: 0; flex: none; }
+html[data-phone-layout] .app > .zone[data-zone='warband'] { position: absolute; left: calc(var(--pl-row-dx, -90px) * var(--scale)); right: calc(var(--pl-row-dx, -90px) * var(--scale) * -1); height: var(--ch); padding-bottom: 0; flex: none; }
 html[data-phone-layout] .app > .zone[data-zone='tavern'] { top: calc((var(--pl-ay) - 231px * var(--pl-z)) * var(--scale) - var(--ch) / 2); }
 html[data-phone-layout] .app > .zone[data-zone='warband'] { top: calc((var(--pl-ay) + 66px * var(--pl-z)) * var(--scale) - var(--ch) / 2); }
 
@@ -83,10 +83,10 @@ html[data-phone-layout] .zone[data-zone='hand'] { left: calc(var(--bar-x) + 1470
 html[data-phone-layout] .row.hand .card { --hand-tuck: 0px; margin-left: calc(var(--ccw) * var(--pl-hand-gap, -0.36)); }
 html[data-phone-layout] .row.hand .card:first-child { margin-left: 0; }
 html[data-phone-layout] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
-/* Seven or more cards overlap: the fan then shows each card's art and tier only (as Hearthstone's hand does); the
-   stats are on the card the moment it is touched (Inspect) or held (the drag card). Six or fewer show their stats. */
-html[data-phone-layout] .row.hand .card:first-child:nth-last-child(n+7) .badge,
-html[data-phone-layout] .row.hand .card:first-child:nth-last-child(n+7) ~ .card .badge { visibility: hidden; }
+/* Seven or more cards overlap, so each card's right side is under its neighbour: its Health badge moves up the card's
+   LEFT edge, above Attack, so both stats stay readable on every card of a full hand (owner 2026-10-23). */
+html[data-phone-layout] .row.hand .card:first-child:nth-last-child(n+7) .badge.hp,
+html[data-phone-layout] .row.hand .card:first-child:nth-last-child(n+7) ~ .card .badge.hp { right: auto; left: calc(var(--ccw) * -0.02); bottom: calc(var(--ccw) * 0.43); transform-origin: 0% 100%; }
 
 /* ── Combat: the round title alone at the top centre, Skip on the Tier socket's corner (Tier is away in combat), so
    neither sits on the enemy row or on each other. ─────────────────────────────────────────────────────────────── */
@@ -151,8 +151,8 @@ html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbt
 html[data-phone-layout]:not([data-phone-menus]) .gearbtn { left: calc(var(--bar-x) + 2725px * var(--scale)); }
 html[data-phone-layout]:not([data-phone-menus]) .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
 html[data-phone-layout]:not([data-phone-menus]) .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
-/* The build label rides above the squares, at a size that can be read off a bug-report screenshot. */
-html[data-phone-layout]:not([data-phone-menus]) .version { right: auto; bottom: auto; left: calc(var(--bar-x) + 2865px * var(--scale)); top: calc(var(--bar-y) + 1250px * var(--scale)); translate: -100% 0; font-size: calc(29 * var(--u)); }
+/* The build label is on the title; in a game on a phone it would crowd the corner squares. */
+html[data-phone-layout]:not([data-phone-menus]) .version { display: none; }
 html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
 
 

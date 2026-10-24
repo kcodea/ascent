@@ -207,3 +207,16 @@ html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }
 html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both; }
 /* Phones draw the vista as ONE flattened picture (the shop baked in), so the title stays in FRONT of it there. */
 html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }
+
+/* ── Phones: the desktop game, slightly zoomed (owner 2026-10-23, R-PHONE-ZOOM-01: "just take the normal game's 21:9 and
+   zoom it slightly as a starting point"). stage.ts fits the HUD's vertical span (not the whole box) between the safe top
+   and bottom, so the box's empty top and bottom bands of board frame are cropped; nothing is repositioned. The box stays
+   its full design size and sits at `--pz-bar-y` (its top, layout px; negative = the cropped band) instead of centred:
+   the box itself, the two rules anchored to the box's BOTTOM edge (Gold, the hand), and the two pieces drawn off the
+   screen's centre (the board art, the hero cluster) all take that offset. `data-phone-zoom` is written by stage.ts only
+   on a phone in landscape. ── */
+html[data-touch-ui][data-phone-zoom] { --gw: 1920px; --gh: 1080px; --bar-y: var(--pz-bar-y); --pz-shift: calc(var(--pz-bar-y) - (var(--lvh, 100dvh) - 1080px) / 2); }
+html[data-touch-ui][data-phone-zoom] .app { top: var(--pz-shift); }
+html[data-touch-ui][data-phone-zoom] :is(.boardbg, .statusbar) { --board-y: calc(5px + var(--pz-shift) / var(--scale)); }
+html[data-touch-ui][data-phone-zoom] .goldpill { bottom: calc(var(--pz-bar-b) + var(--gold-y, 423px) * var(--scale)); }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { bottom: calc(var(--pz-bar-b) - 26 * var(--u)); }

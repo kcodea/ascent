@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, fitStage, gameBoxOf, phoneLayoutApplies } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_HUD_BOTTOM, PHONE_HUD_TOP, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
 
@@ -11,14 +11,36 @@ import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
  * phoneLayout.css re-composes the same components in it. Desktop must stay pixel-identical, so the gate and the
  * stylesheet's keying are what this file pins.
  */
-describe('the phone layout gate', () => {
-  it('applies to a phone in landscape only', () => {
-    expect(phoneLayoutApplies(true, 852, 393)).toBe(true);
-    expect(phoneLayoutApplies(true, 915, 412)).toBe(true);
-    expect(phoneLayoutApplies(true, 393, 852)).toBe(false); // portrait: the rotate prompt, never this layout
-    expect(phoneLayoutApplies(false, 852, 393)).toBe(false); // a mouse device at a phone-sized window
-    expect(phoneLayoutApplies(false, 1920, 1080)).toBe(false);
-    expect(phoneLayoutApplies(true, 852, 393, true)).toBe(false); // the `deskui` diagnostics switch
+describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => {
+  it('the zoom applies to a phone in landscape only', () => {
+    expect(phoneZoomApplies(true, 852, 393)).toBe(true);
+    expect(phoneZoomApplies(true, 915, 412)).toBe(true);
+    expect(phoneZoomApplies(true, 393, 852)).toBe(false); // portrait
+    expect(phoneZoomApplies(false, 852, 393)).toBe(false); // a mouse device at a phone-sized window
+    expect(phoneZoomApplies(false, 2560, 1080)).toBe(false);
+    expect(phoneZoomApplies(true, 852, 393, true)).toBe(false); // the `nophonezoom` switch
+  });
+  it('the retired phone composition is OFF unless switched on', () => {
+    expect(phoneLayoutApplies(true, 852, 393)).toBe(false);
+    expect(phoneLayoutApplies(true, 852, 393, true)).toBe(true);
+    expect(phoneLayoutApplies(false, 852, 393, true)).toBe(false);
+  });
+  it('iPhone 15 Pro (insets 59 / 59 / 21): the HUD span fits between the safe top and bottom, ~1.13x the inset fit', () => {
+    const ins = { top: 0, right: 59, bottom: 21, left: 59 };
+    const plain = fitStage(852, 393, ins);
+    const f = fitStage(852, 393, ins, DESIGN_W, true);
+    expect(f.zoom!).toBeGreaterThan(1.05);
+    expect(f.zoom!).toBeLessThan(1.2);
+    expect(f.s).toBeCloseTo(plain.s * f.zoom!, 10);
+    const box = gameBoxOf(f);
+    expect(box.top + PHONE_HUD_TOP * f.s).toBeCloseTo(0, 6); // the HUD starts at the safe top
+    expect(box.top + PHONE_HUD_BOTTOM * f.s).toBeLessThanOrEqual(393 - 21 + 1e-6); // and ends above the home indicator
+    expect(box.left).toBeGreaterThanOrEqual(59 - 1e-6); // the 16:9 box is clear of the island
+    expect(box.w / box.h).toBeCloseTo(16 / 9, 6);
+  });
+  it("a desktop window of a phone's aspect never zooms (the plain fit)", () => {
+    expect(fitStage(2560, 1080).zoom).toBeUndefined();
+    expect(fitStage(852, 393).zoom).toBeUndefined();
   });
   it('a desktop, a laptop with a touchscreen-sized window and a tablet are never phones', () => {
     expect(classifyPhone(false, 1920, 1080)).toBe(false);
@@ -26,9 +48,13 @@ describe('the phone layout gate', () => {
     expect(classifyPhone(true, 1180, 820)).toBe(false); // iPad landscape
     expect(classifyPhone(true, 852, 393)).toBe(true);
   });
-  it('the `deskui` switch exists in Phone diagnostics', () => {
-    expect(PHONE_DIAG_FLAGS.some((f) => f.id === 'deskui')).toBe(true);
-    expect(parseDiagQuery('deskui')).toEqual({ deskui: 1 });
+  it('the `nophonezoom` and `phonelayout` switches exist in Phone diagnostics', () => {
+    expect(PHONE_DIAG_FLAGS.some((f) => f.id === 'nophonezoom')).toBe(true);
+    expect(parseDiagQuery('phonelayout,nophonezoom')).toEqual({ phonelayout: 1, nophonezoom: 1 });
+  });
+  it('the zoom CSS is keyed off the touch UI and the stage attribute', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    expect(css).toMatch(/html\[data-touch-ui\]\[data-phone-zoom\] \{ --gw: 1920px; --gh: 1080px;/);
   });
 });
 
@@ -97,9 +123,10 @@ describe('phoneLayout.css can never reach a mouse device', () => {
 describe('the phone layout is written by stage.ts, never by a desktop', () => {
   const src = readFileSync(join(__dirname, 'stage.ts'), 'utf8');
   it('the attribute and the 2:1 design width come from the same gate', () => {
-    expect(src).toMatch(/const phoneLayout = phoneLayoutApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.deskui\)/);
+    expect(src).toMatch(/const phoneLayout = phoneLayoutApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.phonelayout\)/);
     expect(src).toMatch(/toggleAttribute\('data-phone-layout', phoneLayout\)/);
-    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W\)/);
+    expect(src).toMatch(/const phoneZoom = !phoneLayout && phoneZoomApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.nophonezoom\)/);
+    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom\)/);
   });
   it('Discover shows full cards on a phone only', () => {
     expect(readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8')).toMatch(/full=\{phoneLayoutOn\(\)\}/);

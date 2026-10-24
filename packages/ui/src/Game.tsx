@@ -458,7 +458,8 @@ export function Game() {
       // `--scale` IS the box's own height / 1440 and the composition cannot drift when the insets change.
       const f = stageFit();
       const ax = Math.max(f.safe.left, f.safe.right), ay = Math.max(f.safe.top, f.safe.bottom);
-      const gh = f.aspect ? Math.min(h - 2 * ay, (w - 2 * ax) / f.aspect, 1440) : Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh
+      // THE PHONE ZOOM (R-PHONE-ZOOM-01) pins the box at the design height (styles.css `html[data-phone-zoom]`).
+      const gh = f.zoom ? 1080 : f.aspect ? Math.min(h - 2 * ay, (w - 2 * ax) / f.aspect, 1440) : Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh
       const scale = gh / 1440;
       document.documentElement.style.setProperty('--scale', String(scale));
       // Keep the WebGL combat particles proportional to the cards ON SCREEN. The Pixi renderers stay in screen

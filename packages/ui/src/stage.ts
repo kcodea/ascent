@@ -29,20 +29,32 @@ export const DESIGN_W = 1920;
 export const DESIGN_H = 1080;
 
 /**
- * THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01: "let's work on the phone layout/ui/sizing", judged against
- * Hearthstone Battlegrounds on a phone). A phone in landscape lays the game out in a 2:1 box instead of the 16:9 one:
- * 2160 x 1080 layout px, the same height (so `--scale` and every tuned size keep their meaning) and 240 px wider, which
- * is the phone's own shape (19.5:9 less its side insets). The box is still FIXED-aspect and letterboxed, so every piece
- * of the phone composition (phoneLayout.css) is placed in box coordinates and stays "baked in place" on any phone.
- * Desktop, laptops and tablets never take it: `phoneLayoutApplies` needs `isPhone()` (a touch device whose shorter
- * screen side is at most 600 CSS px) and a landscape window. The `deskui` diagnostics switch turns it off.
+ * PHONES: THE DESKTOP GAME, SLIGHTLY ZOOMED (owner 2026-10-23, R-PHONE-ZOOM-01: "just take the normal game's 21:9 and
+ * zoom it slightly as a starting point"). A phone in landscape (19.5:9 / 20:9) lays the game out the way a desktop
+ * ~21:9 window does: the 1920 x 1080 box centred in a wider layout viewport, the board art filling the sides, the corner
+ * HUD at the screen edges. Nothing is repositioned. Two things differ, both in how the stage is SCALED:
+ *  - The box's top and bottom bands are empty board frame: the HUD spans only `PHONE_HUD_TOP`..`PHONE_HUD_BOTTOM` of its
+ *    1080 rows. So the phone fits THAT span (not the whole box) into the screen less its top and bottom safe insets, and
+ *    the empty bands are cropped. On an iPhone 15 Pro that is 1.13x the old inset-shrunk fit; on a Pixel 8 1.07x.
+ *  - The box is placed so the HUD span starts at the safe top (`--pz-bar-y`, styles via touchUi.css), so the home
+ *    indicator never covers the HUD.
+ * Desktop, laptops and tablets never zoom (`phoneZoomApplies` needs `isPhone()` and a landscape window); the
+ * `nophonezoom` diagnostics switch turns it off. The retired experimental phone COMPOSITION (2:1 box, phoneLayout.css)
+ * stays in the code behind the `phonelayout` switch only (owner verdict 2026-10-23).
  */
+/** The HUD's vertical span inside the 1080-row box (the timer's top to your Health plate's foot, plus a breath). */
+export const PHONE_HUD_TOP = 38;
+export const PHONE_HUD_BOTTOM = 1054;
+/** Pure: does the phone zoom apply? A phone, in landscape, not switched off. */
+export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false): boolean {
+  return phone && !off && w > h;
+}
 export const PHONE_DESIGN_W = 2160;
 export const PHONE_BOX_ASPECT = PHONE_DESIGN_W / DESIGN_H;
 export const DESK_BOX_ASPECT = 16 / 9;
-/** Pure: does the phone layout apply? A phone, in landscape. */
-export function phoneLayoutApplies(phone: boolean, w: number, h: number, off = false): boolean {
-  return phone && !off && w > h;
+/** Pure: does the experimental phone composition apply? Only when switched ON (`phonelayout`), on a phone in landscape. */
+export function phoneLayoutApplies(phone: boolean, w: number, h: number, on = false): boolean {
+  return phone && on && w > h;
 }
 
 export interface StageFit {
@@ -55,6 +67,11 @@ export interface StageFit {
   safe: SafeInsets;
   /** The game box's aspect: 16:9, or 2:1 in the phone layout (R-PHONE-LAYOUT-01). Absent = 16:9. */
   aspect?: number;
+  /** The phone zoom (R-PHONE-ZOOM-01): the scale relative to the plain inset fit (the box is the full design size,
+   *  its empty top and bottom bands cropped). Absent = no phone zoom. */
+  zoom?: number;
+  /** With the phone zoom: the box's top edge in layout px (negative: the cropped band). */
+  barY?: number;
 }
 
 /** Safe-area insets (`env(safe-area-inset-*)`), per side. */
@@ -72,7 +89,7 @@ export const NO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
  * The insets come back in LAYOUT px (`safe`) for the stylesheet's `--safe-*` vars. Before this the stylesheet added raw
  * `env()` inside the scaled stage, where the transform shrank a 59 px island inset to about 21 px on screen.
  */
-export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W): StageFit {
+export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W, zoom = false): StageFit {
   const w = vw > 0 ? vw : designW;
   const h = vh > 0 ? vh : DESIGN_H;
   const ix = Math.max(0, insets.left, insets.right);
@@ -81,6 +98,15 @@ export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS,
   const ah = h - 2 * iy > 0 ? h - 2 * iy : h;
   const s = Math.min(1, aw / designW, ah / DESIGN_H);
   const safe = { top: Math.max(0, insets.top) / s, right: Math.max(0, insets.right) / s, bottom: Math.max(0, insets.bottom) / s, left: Math.max(0, insets.left) / s };
+  if (zoom && designW === DESIGN_W) {
+    // THE PHONE ZOOM (R-PHONE-ZOOM-01): the HUD span (not the whole box) fitted between the safe top and bottom; the
+    // box's empty top and bottom bands are cropped. `zoom` is reported against the plain inset fit.
+    const span = PHONE_HUD_BOTTOM - PHONE_HUD_TOP;
+    const vh2 = h - Math.max(0, insets.top) - Math.max(0, insets.bottom);
+    const sz = Math.min(1, aw / designW, (vh2 > 0 ? vh2 : h) / span);
+    const sf = { top: Math.max(0, insets.top) / sz, right: Math.max(0, insets.right) / sz, bottom: Math.max(0, insets.bottom) / sz, left: Math.max(0, insets.left) / sz };
+    return { s: sz, lw: w / sz, lh: h / sz, safe: sf, zoom: sz / s, barY: sf.top - PHONE_HUD_TOP };
+  }
   return designW === DESIGN_W ? { s, lw: w / s, lh: h / s, safe } : { s, lw: w / s, lh: h / s, safe, aspect: designW / DESIGN_H };
 }
 
@@ -216,12 +242,15 @@ export function applyStage(): StageFit {
   const { w, h } = windowSize();
   // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): a phone in landscape lays out in the 2:1 box. Decided per fit (a rotation to
   // portrait drops it), written as `data-phone-layout` for phoneLayout.css. Desktop never has the attribute.
-  const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.deskui);
+  const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.phonelayout);
   document.documentElement.toggleAttribute('data-phone-layout', phoneLayout);
+  // THE PHONE ZOOM (R-PHONE-ZOOM-01): the desktop game, slightly larger. Written for styles.css (`--gw` / `--gh` pinned).
+  const phoneZoom = !phoneLayout && phoneZoomApplies(isPhone(), w, h, !!PHONE_DIAG.nophonezoom);
+  document.documentElement.toggleAttribute('data-phone-zoom', phoneZoom);
   // …and whether it is on the MENUS (title, mode pages) rather than hero select or a run: the in-game composition's
   // corner-button seats do not apply there (phoneLayout.css).
   document.documentElement.toggleAttribute('data-phone-menus', phoneLayout && menuZoom);
-  const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W);
+  const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom);
   fit = next;
   const de = document.documentElement.style;
   // The SAFE AREA in layout px (R-TOUCH-SAFEAREA-01): the 16:9 box (`--gw` / `--gh`) and the edge-anchored HUD
@@ -231,6 +260,11 @@ export function applyStage(): StageFit {
   // Layout-viewport breakpoints for the few stylesheet rules that used to be viewport @media queries (a media
   // query sees the WINDOW, which on a scaled stage is not the size the layout is drawn at).
   document.documentElement.setAttribute('data-lv', layoutBreakpoints(next).join(' '));
+  // THE PHONE ZOOM's box top (R-PHONE-ZOOM-01, touchUi.css); never written off a phone.
+  if (next.barY !== undefined) {
+    de.setProperty('--pz-bar-y', `${next.barY}px`);
+    de.setProperty('--pz-bar-b', `${next.lh - DESIGN_H - next.barY}px`); // the bar under the box (rules anchored by `bottom`)
+  } else { de.removeProperty('--pz-bar-y'); de.removeProperty('--pz-bar-b'); }
   // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01): the rotate prompt is phones only.
   document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
   const root = stageHost();
@@ -355,9 +389,10 @@ export function gameBoxOf(f: StageFit): GameBox {
   const aw = f.lw - 2 * x;
   const ah = f.lh - 2 * y;
   const a = f.aspect ?? DESK_BOX_ASPECT; // 2:1 in the phone layout (phoneLayout.css)
-  const w = Math.min(aw, ah * a, GAME_BOX_MAX_W);
-  const h = Math.min(ah, aw / a, GAME_BOX_MAX_H);
-  return { left: ((f.lw - w) / 2) * f.s, top: ((f.lh - h) / 2) * f.s, w: w * f.s, h: h * f.s };
+  // The phone zoom pins the box at the design size (it overflows the layout viewport and is cropped, styles.css).
+  const w = f.zoom ? DESIGN_W : Math.min(aw, ah * a, GAME_BOX_MAX_W);
+  const h = f.zoom ? DESIGN_H : Math.min(ah, aw / a, GAME_BOX_MAX_H);
+  return { left: ((f.lw - w) / 2) * f.s, top: (f.barY ?? (f.lh - h) / 2) * f.s, w: w * f.s, h: h * f.s };
 }
 /** The game box for the current window. The fit is refreshed on resize, but jsdom / pre-install reads the window. */
 export function gameBox(): GameBox {

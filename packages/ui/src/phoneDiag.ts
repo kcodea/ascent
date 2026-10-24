@@ -29,7 +29,8 @@
  *      gamexf  hero select, the gate and the run go back to `transform: scale()` (R-TOUCH-RUN-MEMORY-01 zooms them
  *              by default on a phone whose browser reports zoomed geometry the standard way)
  *      litebd  no painted menu backdrop (a flat dark ground)
- *      deskui  the desktop composition shrunk to fit, instead of the phone layout (R-PHONE-LAYOUT-01, stage.ts)
+ *      nophonezoom  the desktop game at its plain fit, without the phone's slight zoom (R-PHONE-ZOOM-01, stage.ts)
+ *      phonelayout  the retired experimental phone composition (R-PHONE-LAYOUT-01, phoneLayout.css), for comparison
  *    `?phonediag=nofx,res1` (in Safari, or any browser) sets them too; `?phonediag=0` clears them.
  */
 import type { ApplicationOptions } from 'pixi.js';
@@ -37,7 +38,7 @@ import { LITE_ART } from './phoneArt';
 
 export const PHONE_DIAG_KEY = 'ascent.phonediag.v1';
 
-export type PhoneDiagFlag = 'nofx' | 'res1' | 'noanim' | 'zoom' | 'nozoom' | 'gamexf' | 'litebd' | 'deskui';
+export type PhoneDiagFlag = 'nofx' | 'res1' | 'noanim' | 'zoom' | 'nozoom' | 'gamexf' | 'litebd' | 'phonelayout' | 'nophonezoom';
 export const PHONE_DIAG_FLAGS: ReadonlyArray<{ id: PhoneDiagFlag; label: string; hint: string }> = [
   { id: 'nofx', label: 'No effect canvases', hint: 'No WebGL effects at all.' },
   { id: 'res1', label: 'Effects at resolution 1', hint: 'Sharper effects off, less GPU memory.' },
@@ -46,7 +47,8 @@ export const PHONE_DIAG_FLAGS: ReadonlyArray<{ id: PhoneDiagFlag; label: string;
   { id: 'nozoom', label: 'Old stage on menus', hint: 'Scale the menus by transform, as before.' },
   { id: 'gamexf', label: 'Old stage in games', hint: 'Scale hero select and games by transform, as before.' },
   { id: 'litebd', label: 'Lite menu backdrop', hint: 'No painted backdrop on the menus.' },
-  { id: 'deskui', label: 'Desktop layout', hint: 'The desktop layout, shrunk, instead of the phone layout.' },
+  { id: 'nophonezoom', label: 'No phone zoom', hint: 'The desktop layout at its plain fit, without the slight zoom.' },
+  { id: 'phonelayout', label: 'Phone layout (experimental)', hint: 'The retired phone composition, for comparison.' },
 ];
 export type PhoneDiagFlags = Partial<Record<PhoneDiagFlag, 1>>;
 

@@ -26,8 +26,9 @@
  * `navHopAt` stamp it wears `.hop`, which turns the page fade off and fades only the content beside the
  * sidebar (see the `.hop` rules in styles.css).
  */
-import { useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type HTMLAttributes, type ReactNode } from 'react';
 import { Icon } from './Icon';
+import { phoneLayoutOn } from './stage';
 import { Crest, IconChest, IconHelm, IconTrophy } from './menuIcons';
 import { cratesVisible, useProgression } from './progression/progressionStore';
 import { sfx } from './sfx';
@@ -55,8 +56,18 @@ export function useMountedFromHop(): boolean {
 
 /** The shell a sidebar host renders as: the given classes plus `.hop` when the sidebar opened it. The ladder
  *  pages pass `lbpage …`, the title's picker / Learn hub `modepick sb-host`. */
+let sidebarPages = 0;
 export function SidebarHost({ className, children, ...rest }: HTMLAttributes<HTMLDivElement> & { className: string; children: ReactNode }) {
   const hop = useMountedFromHop();
+  // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): while a sidebar page is up, `<html data-phone-sbpage>` lets the corner
+  // help / Compendium squares sit in the sidebar's spare space instead of over the page's content (phoneLayout.css).
+  // Never written off the phone layout.
+  useEffect(() => {
+    if (!phoneLayoutOn()) return undefined;
+    sidebarPages++;
+    document.documentElement.setAttribute('data-phone-sbpage', '');
+    return () => { if (--sidebarPages <= 0) { sidebarPages = 0; document.documentElement.removeAttribute('data-phone-sbpage'); } };
+  }, []);
   return <div className={`${className}${hop ? ' hop' : ''}`} {...rest}>{children}</div>;
 }
 

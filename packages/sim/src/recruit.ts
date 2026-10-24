@@ -7647,7 +7647,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     if (self.namedSpreadUsedThisTurn) return;
     self.namedSpreadUsedThisTurn = true;
     for (let i = 0; i < num(params.count, 1) * gold(self) * castsOutsideHand(ctx.state, spellDef); i++) {
-      castSpell(ctx.state, spellDef, self);
+      recastOn(ctx.state, spellDef, self); // a board body or a Shop offer (report 2026-10-23)
     }
   },
 
@@ -8597,7 +8597,7 @@ const RECRUIT_FACTORIES: Partial<Record<string, RecruitFn>> = {
     const spellDef = (payload as { spellDef?: CardDef }).spellDef;
     if (!spellDef) return;
     for (let i = 0; i < num(params.count, 1) * gold(self) * castsOutsideHand(ctx.state, spellDef); i++) {
-      castSpell(ctx.state, spellDef, self);
+      recastOn(ctx.state, spellDef, self); // a board body or a Shop offer (report 2026-10-23)
     }
   },
 
@@ -12469,7 +12469,8 @@ export function fireOnSpellCastOnThis(state: RunState, card: BoardCard, spellDef
   // MIRRORWING ("on each Mirrorwing"), riding the same per-instance first-spell counter the card's own
   // recast uses. Guarded to === 1 for the same reason that counter exists: the spread re-enters `castSpell`,
   // and the bump above is what stops a neighbouring Mirrorwing chain from recursing forever.
-  if (state.runeSharedReflection && card.cardId === 'd2_mirrorwing' && card.spellsOnThisTurn === 1) {
+  // Board-only: "adjacent Dragons" are board neighbours, and a Mirrorwing in the Shop (indexOf -1) has none.
+  if (state.runeSharedReflection && card.cardId === 'd2_mirrorwing' && card.spellsOnThisTurn === 1 && state.board.includes(card)) {
     const at = state.board.indexOf(card);
     for (const nb of [state.board[at - 1], state.board[at + 1]]) {
       if (!nb || nb === card) continue;
@@ -14391,12 +14392,63 @@ export function castSpellOnOffer(state: RunState, spellDef: CardDef, offer: Shop
     attack: (held ? held.attack : card.attack) + (offer.atk ?? 0),
     health: (held ? held.health : card.health) + (offer.hp ?? 0),
     keywords: [...base, ...(offer.keywords ?? []).filter((k) => !base.includes(k))],
-    golden: false,
+    // A gilded offer (Golden Touch) or a golden held body reacts as its Golden self: a Gilded Mirrorwing in the Shop
+    // re-casts twice, as it does on the board. No 'any' Shop spell reads its target's gilding otherwise.
+    golden: held ? held.golden : offer.golden === true,
+    // The per-turn "spells cast on this" counters live on the offer (or on the held body), so a Mirrorwing in the
+    // Shop keeps one "first Shop spell each turn" per instance across casts (report 2026-10-23).
+    spellsOnThisTurn: (held ?? offer).spellsOnThisTurn,
+    namedSpreadUsedThisTurn: (held ?? offer).namedSpreadUsedThisTurn,
   };
   const ledgerSum = (o: ShopCard): { a: number; h: number } =>
     (o.buffs ?? []).reduce((acc, b) => ({ a: acc.a + b.attack, h: acc.h + b.health }), { a: 0, h: 0 });
   const pre = { atk: offer.atk ?? 0, hp: offer.hp ?? 0, ...ledgerSum(offer) };
   castSpell(state, spellDef, temp);
+  foldOfferCast(state, spellDef, offer, card, temp, held, pre);
+  // THE OFFER HEARS THE CAST (player report 2026-10-23, "when in shop mirrorwing doesnt procc"; cross-phase by
+  // default): a targeted Shop spell resolving on an offer fires that minion's `spellCastOnThis` reactions exactly as
+  // it does on the board (Mirrorwing's re-cast, Crash Course's named re-cast), through the SAME dispatcher. Fired
+  // after the fold, so a re-cast (`recastOn` → `castSpellOnOffer` again) builds on the offer's updated stats and
+  // ledgers as its own cast ("Spirit Fire x2"). `castSpell` itself only dispatches for a BOARD target, so this is
+  // the one place an offer reaches it. The counters write back so the next cast on this offer sees them.
+  OFFER_CAST_TEMPS.set(temp, offer);
+  try {
+    fireOnSpellCastOnThis(state, temp, spellDef);
+  } finally {
+    OFFER_CAST_TEMPS.delete(temp);
+  }
+  const counters = held ?? offer;
+  counters.spellsOnThisTurn = temp.spellsOnThisTurn;
+  counters.namedSpreadUsedThisTurn = temp.namedSpreadUsedThisTurn || undefined;
+}
+
+/** The throwaway bodies `castSpellOnOffer` builds, mapped to the offer they stand in for while the offer's
+ *  `spellCastOnThis` reactions run, so a re-cast "on this" lands on the OFFER (a fresh `castSpellOnOffer`) rather
+ *  than on a throwaway nobody folds back. */
+const OFFER_CAST_TEMPS = new WeakMap<BoardCard, ShopCard>();
+
+/** Cast `spellDef` again ON `self` — the one re-cast path the "casts again on this" family shares (Mirrorwing,
+ *  Crash Course). A board body takes a plain `castSpell`; a Shop offer's stand-in re-casts on the offer itself,
+ *  carrying the counters the reaction just set so the re-entry sees the first-per-turn latch spent. */
+function recastOn(state: RunState, spellDef: CardDef, self: BoardCard): void {
+  const offer = OFFER_CAST_TEMPS.get(self);
+  if (!offer) { castSpell(state, spellDef, self); return; }
+  if (!state.shop.includes(offer)) return; // the offer left the Shop mid-cast: nothing left to re-cast on
+  const counters = offer.held ?? offer;
+  counters.spellsOnThisTurn = self.spellsOnThisTurn;
+  counters.namedSpreadUsedThisTurn = self.namedSpreadUsedThisTurn || undefined;
+  castSpellOnOffer(state, spellDef, offer);
+  // The nested cast's own bump is the offer's now; mirror it back so the caller's write-back keeps it.
+  self.spellsOnThisTurn = counters.spellsOnThisTurn;
+}
+
+/** The fold half of `castSpellOnOffer`: bake what one cast did to the stand-in `temp` back onto the offer. */
+function foldOfferCast(
+  state: RunState, spellDef: CardDef, offer: ShopCard, card: CardDef, temp: BoardCard, held: BoardCard | undefined,
+  pre: { atk: number; hp: number; a: number; h: number },
+): void {
+  const ledgerSum = (o: ShopCard): { a: number; h: number } =>
+    (o.buffs ?? []).reduce((acc, b) => ({ a: acc.a + b.attack, h: acc.h + b.health }), { a: 0, h: 0 });
   // Fold the result back against what the card IS NOW — a transform (Strange Revision, owner 2026-08-04)
   // rewrites `temp.cardId`, so the offer becomes the new minion and the deltas re-base on ITS printed stats
   // (the factory keeps the body's stats, so the offer lands at the same printed total; the difference between

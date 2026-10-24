@@ -1760,6 +1760,10 @@ function reduceCore(state: RunState, action: Action): RunState {
         health: card.health + cb.health,
         keywords: [...card.keywords, ...(offer.keywords ?? []).filter((k) => !card.keywords.includes(k))],
         golden: offer.golden ?? false, // Golden Touch: a gilded tavern offer buys in as a Golden
+        // The offer's per-turn "spells cast on this" count rides onto the body (report 2026-10-23): a Mirrorwing whose
+        // first Shop spell this turn already re-cast in the Shop has spent it, the same as if it had been on board.
+        ...(offer.spellsOnThisTurn ? { spellsOnThisTurn: offer.spellsOnThisTurn } : {}),
+        ...(offer.namedSpreadUsedThisTurn ? { namedSpreadUsedThisTurn: true } : {}),
         boughtWave: s.wave, // Hoarder's sell value climbs from the wave it was bought
         ...(offer.sellZero ? { sellOverride: 0 } : {}), // Rune of the Bargain Bin: bought from the bin → sells for 0
         ...(clearanceBuy ? { clearanceBuy: true } : {}), // ANCIENTS × Frank: a "Clearance minion" (Fortune / Bonds)
@@ -5659,6 +5663,14 @@ function advanceCombat(s: RunState): void {
     if (c.soldSeen) c.soldSeen = 0; // Voicekeeper: "each turn" — its per-instance sold counter resets
     if (c.teachTick) c.teachTick = 0; // Moonhowl Mentor: its per-instance teach latch re-arms
     if (c.boardFirstSpellId) c.boardFirstSpellId = undefined;
+  }
+  // A Mirrorwing / Crash Course sitting in the SHOP (a frozen or kept offer, or a Displacement-held body) counts its
+  // "first Shop spell each turn" per instance too, so its counters re-arm with the board's (report 2026-10-23).
+  for (const o of s.shop) {
+    if (o.spellsOnThisTurn) o.spellsOnThisTurn = 0;
+    if (o.namedSpreadUsedThisTurn) o.namedSpreadUsedThisTurn = false;
+    if (o.held?.spellsOnThisTurn) o.held.spellsOnThisTurn = 0;
+    if (o.held?.namedSpreadUsedThisTurn) o.held.namedSpreadUsedThisTurn = false;
   }
   s.playedThisTurn = []; // Pack Leader / Spirit Worgen: minions-played-this-turn resets each turn
   s.soldThisTurn = []; // Voicekeeper: minions-sold-this-turn resets each turn (symmetric with the above)

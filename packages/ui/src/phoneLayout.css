@@ -44,7 +44,7 @@ html[data-phone-layout] .app > .zone[data-zone='warband'] { top: calc((var(--pl-
 
 /* The hero power: right of the portrait, under the board (desktop seats it on the board's left end, where the phone's
    first minion now stands). */
-html[data-phone-layout] .statusbar .heropanel:not(.heropanel2):not(.equipslot) { left: calc(var(--bar-x) + 530px * var(--scale)); top: calc(var(--bar-y) + 1230px * var(--scale)); }
+html[data-phone-layout] .statusbar .heropanel:not(.heropanel2):not(.equipslot) { left: calc(var(--bar-x) + 565px * var(--scale)); top: calc(var(--bar-y) + 1230px * var(--scale)); }
 
 /* ── Stats you can read across the table: the Attack / Health badges grow 60% from their corners and their digits a
    further 15%, so a digit is ~12 pt tall on an iPhone (Hearthstone's are about that). ──────────────────────────── */
@@ -70,7 +70,7 @@ html[data-phone-layout] .tvbwrap { left: calc(var(--bar-x) + (var(--pl-ax) - 779
 html[data-phone-layout] .frzwrap.frzwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 8px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 461px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--frz-s, 1.36) * var(--pl-z))); }
 html[data-phone-layout] .rfbwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 773px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 454px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--rfb-s, 1.54) * var(--pl-z))); }
 html[data-phone-layout] .etbwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 803px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 100px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--etb-s, 1.17) * var(--pl-z))); }
-html[data-phone-layout] .goldpill { right: auto; bottom: auto; left: calc(var(--bar-x) + (var(--pl-ax) + 800px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) + 220px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--gold-s, 1.69) * var(--pl-z))); transform-origin: 50% 50%; }
+html[data-phone-layout] .goldpill { right: auto; bottom: auto; left: calc(var(--bar-x) + (var(--pl-ax) + 800px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) + 195px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--gold-s, 1.69) * var(--pl-z))); transform-origin: 50% 50%; }
 
 /* The shop info strip (the turn timer): on the tray's top frame between Tier and Freeze (desktop has it above the
    tray, where the phone has no room). */
@@ -79,7 +79,7 @@ html[data-phone-layout] .app > .shopbar { position: absolute; left: calc(990px *
 /* ── The hand: a fan of minion faces (art + cost + stats) under the board, between the hero and the right column.
    The text plate stays hidden in the fan (it is 4 pt at this size); a tap lifts the card with its text (`.tt-on`, the
    touch twin of the desktop hover pop) and a long-press opens Inspect. ────────────────────────────────────────── */
-html[data-phone-layout] .zone[data-zone='hand'] { left: calc(var(--bar-x) + 1470px * var(--scale)); bottom: auto; top: calc(var(--bar-y) + 1005px * var(--scale)); width: calc(1640px * var(--scale)); translate: none; }
+html[data-phone-layout] .zone[data-zone='hand'] { left: calc(var(--bar-x) + 1530px * var(--scale)); bottom: auto; top: calc(var(--bar-y) + 1005px * var(--scale)); width: calc(1640px * var(--scale)); height: calc(300px * var(--scale)); translate: none; }
 html[data-phone-layout] .row.hand .card { --hand-tuck: 0px; margin-left: calc(var(--ccw) * var(--pl-hand-gap, -0.36)); }
 html[data-phone-layout] .row.hand .card:first-child { margin-left: 0; }
 html[data-phone-layout] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
@@ -142,7 +142,9 @@ html[data-phone-layout] .opphand { --oh-s: 1.6; --oh-y: -200px; --oh-x: 520px; }
    composition, grow to ~7 pt. */
 html[data-phone-layout] .lobbyrailhead { --lby-font: 1.55; }
 html[data-phone-layout] .lobbyrail .lobbyhead { --lby-font: 1.9; }
-html[data-phone-layout] .statusbar .heropanel .hplabel { scale: 2.2; transform-origin: 50% 0%; }
+html[data-phone-layout] .statusbar .heropanel .hplabel { scale: 1.8; transform-origin: 50% 0%; }
+/* Own Health and Armor read at ~12 pt. */
+html[data-phone-layout] .statusbar .hpbox { zoom: 1.25; }
 
 /* The help / Compendium / settings squares: a row in the bottom-right corner of the box (in hero select and the run;
    the menus keep their own corner, touchUi.css). */

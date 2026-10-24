@@ -105,7 +105,9 @@ html[data-phone-layout] .inspect-card .card.compact.plated .drawer .namediv { ma
 html[data-phone-layout] .inspect-card .card.compact.plated .drawer { padding-left: calc(var(--ccw) * 0.02); padding-right: calc(var(--ccw) * 0.02); }
 
 /* ── The lobby rail: same rail, its names and Health about 9 pt (the tuner vars are set on the rail itself). ──── */
-html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3; }
+html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3;
+  /* Its width growth is fixed in box units (desktop clamps it to the window edge, which drifts with the aspect). */
+  --lr-right: calc(var(--lr-right0) - var(--lr-w0) * (var(--lby-wgrow, 1.3) - 1)); }
 
 /* The rail's head (round, alive count, max damage) and the hero power's name plate, both ~3.5 pt on the desktop
    composition, grow to ~7 pt. */

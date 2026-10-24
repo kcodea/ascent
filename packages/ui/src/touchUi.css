@@ -327,10 +327,12 @@ html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.atk { left: 
 html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.hp { right: calc(var(--ccw) * 0.26); }
 /* THE POP: a finger on a hand card lifts it whole above the fan, straight, at the desktop hover scale, its plate and text
    on screen (the lift is the rest line's overhang plus the scale's growth, ~0.66 card heights). The end cards grow
-   inward so they never cover the hero ring or the screen edge. Transform only, the base 0.14 s transition. Not while a
+   inward so they never cover the hero ring, its power or the screen edge. Transform only, the base 0.14 s transition. Not while a
    drag is live (the dragged card owns the finger). */
 html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * -0.66)) rotate(0deg) scale(var(--z-hand-hover-s, 1.47)); z-index: 50; }
-html[data-touch-ui][data-phone-zoom] .row.hand .card:first-child { transform-origin: 0% 42%; }
+html[data-touch-ui][data-phone-zoom] .row.hand .card:is(:first-child, :nth-child(2)) { transform-origin: 0% 42%; }
+/* …and the first card steps right as it pops, so the whole card clears your hero power's socket. */
+html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press:first-child { transform: translateX(calc(var(--hand-glide, 0px) + 130px)) translateY(calc(var(--ch) * -0.66)) rotate(0deg) scale(var(--z-hand-hover-s, 1.47)); }
 html[data-touch-ui][data-phone-zoom] .row.hand .card:last-child:not(:first-child) { transform-origin: 100% 42%; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app { z-index: auto; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone[data-zone='hand'] { z-index: 70; }

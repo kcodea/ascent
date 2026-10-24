@@ -332,3 +332,88 @@ html[data-touch-ui][data-phone-zoom] .row.hand .card { transform-origin: 0 0; }
 html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translate(var(--pop-tx, 0px), var(--pop-ty, 0px)) scale(var(--pop-s, 1)); z-index: 50; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app { z-index: auto; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone[data-zone='hand'] { z-index: 70; }
+
+/* ── PHONE MENUS (owner 2026-10-24: "Make sure all menus look good too") ────────────────────────────────────────────
+   The menu, Settings and Practice rules the retired 2:1 phone composition (phoneLayout.css) had already taken through the
+   blind critic, keyed to every phone (`data-touch-small`) instead. The menus run at the same height-bound stage scale
+   the composition did, so they carry over as they were. Desktop never has `data-touch-ui`. ── */
+/* ── Settings (Esc): stays inside the safe area; its notes read at ~9 pt and its labels at ~10 pt, Mute is a real
+   button. ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel { max-height: calc((var(--lvh, 100dvh) - 2 * var(--safe-y)) * 0.9 / var(--ui-zoom)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escnote { font-size: 21px; line-height: 1.3; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel :is(.ebl, .evl, .escselect-value) { font-size: 23px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escmute { font-size: 18px; padding: 10px 22px; min-height: 64px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel button.pressable:not(.escmute) { min-height: 64px; }
+/* Its Resume / Done stays in view at the panel's foot while the rest scrolls behind it (a visible close). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escclose { position: sticky; bottom: 0; z-index: 3; min-height: 84px; }
+/* …full width, on a band of the panel's own ground (an outline), so rows scrolling under it do not show round it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escclose { width: 100%; outline: 30px solid rgb(10, 16, 31); outline-offset: 0; }
+
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .rankend-details { scale: 1.7; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .hsback { scale: calc(var(--touch-k) * 1.35); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escvol input[type='range'] { height: calc(36px * var(--touch-k)); }
+/* ── The menus on a phone ─────────────────────────────────────────────────────────────────────────────────────
+   Practice's Start sits beside the page title instead of below the fold, and the corner squares are at least 32 pt. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomodes-box { position: relative; }
+/* Practice's Start sits at the top right of the page, beside its title, so it is on screen without covering an option. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .postart { position: absolute; top: -8px; right: 0; margin: 0; z-index: 5; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.6); }
+/* Scrolling pages stop above the home indicator: their scroller ends at the bottom inset (the backdrop and the sidebar
+   are fixed, so they still reach the edge). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host { bottom: var(--safe-b); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lbpage { padding-bottom: var(--safe-b); }
+/* Collection's body scrolls when its filters and grid outgrow the screen (they ran under the home indicator). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-body { overflow-y: auto; }
+/* Its category tabs break between words only ("Attack Animations" was splitting mid-word), a size smaller to fit. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-tab-name { overflow-wrap: normal; font-size: 11.5px; letter-spacing: 0.02em; }
+/* On a sidebar page the help / Compendium squares sit in the sidebar's spare space above Settings, never over the page. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] :is(.rulesbtn, .bookbtn) { top: auto; right: auto; bottom: calc(var(--safe-b) + 150px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .rulesbtn { left: calc(var(--safe-l) + 28px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .bookbtn { left: calc(var(--safe-l) + 38px + var(--touch-cb)); }
+/* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titleversion { font-size: 18px; }
+/* The mode home: the spread a little larger (the sidebar is wider here) and its captions and small labels ~9 pt. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.18); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home .mcdesc { font-size: 28px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home .mclast { font-size: 20px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home :is(.pstrip-rank-name, .pstrip-rank-mmr, .pstrip-go) { font-size: 24px; }
+/* The menu sidebar's buttons reach 32 pt (it scrolls if they outgrow the height). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-sb: 1.6; }
+/* The menu pages zoom a step further on the phone layout so their body text reaches ~9 pt (they scroll). The touch UI
+   writes the var inline on <html>, hence the !important. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-p: 2.1 !important; }
+/* Practice's two mode cards grow to their text at the larger zoom (the art column narrower, the title a size down). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-select { height: auto; min-height: 150px; grid-template-columns: 130px 1fr; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-title { font-size: 21px; padding-right: 92px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-text { font-size: 13px; line-height: 1.3; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-state { font-size: 13px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .poseg-btn { padding-top: 13px; padding-bottom: 13px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-gh { font-size: 17.5px; }
+/* Sidebar plaques: 32 pt tall, ~9 pt labels, tighter spacing so the whole rail still fits the height. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .sbbtn { min-height: 62px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .mblabel { font-size: 17.5px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-nav { gap: 3px; }
+/* The modal panels a phone opens from the menus read at ~10 pt: Patch Notes, Report a Problem, the Compendium and its
+   Rules, the spectator's end notice. Each zooms (it reflows at the zoomed size) and its viewport-sized caps divide by the
+   same factor, so it still fits the screen and scrolls inside. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --pm-z: 2.1; --pm-book: 1.7; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .pnpanel { zoom: var(--pm-z); width: min(820px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .bgrpanel { zoom: var(--pm-z); width: min(640px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { zoom: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--safe-b)) / var(--pm-book))); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lvend .vspanel { zoom: var(--pm-z); }
+/* Phone menus, round 2 of the critic. The Leaderboard's top-three podium at a third of its zoomed size, so the table (and
+   its pinned "you" row) has room below it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom: 0.6; }
+/* Recent Games: the placement sparkline is dropped on a phone, so the games themselves fill the page. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .rg-sum-chart { display: none; }
+/* The Compendium's minions-by-tier strip sits in the flow (not over the Gilded switch), and its caption is dropped. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book-chart { position: static; transform: none; margin: 0 auto; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book-chart-cap { display: none; }
+/* While a text field is lifted over the keyboard, the Compendium's painted frame steps aside so it never cuts the field. */
+html[data-touch-ui][data-touch-kb] .book::after { visibility: hidden; }
+/* The mode pages keep a right gutter clear of the notch, and Versus' box never runs past it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host .mpview:not(.mp-home) { padding-right: calc(var(--safe-r) + 16px * var(--touch-inv-s)); box-sizing: border-box; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='versus'] .mpbox { min-width: 0; width: auto; max-width: calc((var(--touch-mp-w) - 16px * var(--touch-inv-s)) / var(--hs-zoom)); }
+/* Gauntlet's ten stage slots fit beside the sidebar (they ran under it at the menus' zoom). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='gauntlet'] .gstages { zoom: 0.78; }

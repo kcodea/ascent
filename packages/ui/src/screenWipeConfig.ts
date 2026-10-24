@@ -57,14 +57,17 @@ export interface ScreenWipeConfig {
  * crawling into the far corner, and its edge is a brighter ring with a soft leading halo.
  */
 export const WIPE_DEFAULTS: ScreenWipeConfig = {
-  coverMs: 450,
+  coverMs: 350, // the gate's fall, 0.45 s -> 0.35 s (owner 2026-10-23: "have the gate fall move from .45 to .35")
   revealMs: 450,
-  chargeMs: 260,
+  // The beat before a transition moves: the old curtain's 0.26 s gem charge-up, retired with its sparkles (owner 2026-10-23:
+  // "anything left over ... from the old curtain effect, i want them gone"), then kept as a clean pause ("i do want the brief
+  // beat before the transitions start. make it a clean .15 seconds").
+  chargeMs: 150,
   // The falling gate's hold (owner 2026-10-22): +0.3 s each way ("land hard and wait a little bit longer"), then doubled
   // ("we need the hold to be twice as long").
-  holdInMs: 2400,
+  holdInMs: 1600, // 2.4 s -> 1.8 s -> 1.5 s -> 1.6 s (owner 2026-10-23: "from 2.4 to 1.8 s", then "from 1.8 to 1.5", then "the gate hold from 1.5 to 1.6")
   // The return trip's hold (the vista, 2026-10-23): 2.0 s -> 1.5 s (owner: "can we have the overall animation a bit shorter").
-  holdOutMs: 1500,
+  holdOutMs: 1350, // 1.5 s -> 0.8 s -> 1.2 s -> 1.35 s (owner 2026-10-23: "the hold from 1.5 to .8", then "from .8 to 1.2", then "increased to 1.35")
   easeX1: 0.45,
   easeY1: 0,
   easeX2: 0.7,

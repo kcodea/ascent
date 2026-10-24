@@ -606,17 +606,17 @@ canvas.spr { image-rendering: pixelated; display: block; }
    the covered hold where the Shop swaps in behind, when the LAST layer lands (`vistarisefore`'s animationend, Recruit), and
    the door's see-through hole only exists from then on. Transform + opacity only. */
 .wipevista-flash { position: absolute; inset: 0; pointer-events: none; opacity: 0; will-change: opacity;
-  background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #eafffb 35%, #9ff3ea 100%); }
-.wipevista.in .wipevista-flash { animation: vistaflash 0.5s ease-out both; }
+  background: radial-gradient(ellipse at 50% 40%, #4aa4ff 0%, #1e88fa 35%, #0178f6 100%); } /* the sky's own blue, sampled off vista-sky.webp (owner 2026-10-23: "darken the flash ... from the light teal to the blue of the sky") */
+.wipevista.in .wipevista-flash { animation: vistaflash 0.47s ease-out both; }
 @keyframes vistaflash { 0% { opacity: 0; animation-timing-function: ease-in; } 20% { opacity: 1; } 100% { opacity: 0; } }
 .wipevista.in .wipevista-stage { transform-origin: 50% 20%;
-  animation: vistacut 0.1s linear both, vistapullback 0.95s cubic-bezier(.2, .7, .3, 1) 0.1s both; }
+  animation: vistacut 0.09s linear both, vistapullback 0.89s cubic-bezier(.2, .7, .3, 1) 0.09s both; }
 @keyframes vistacut { 0% { opacity: 0; } 99% { opacity: 0; } 100% { opacity: 1; } }
 @keyframes vistapullback { 0% { transform: scale(1.6); } 100% { transform: scale(1); } }
-.wipevista.on .wipevista-dive-far { animation: vistarisefar 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
-.wipevista.on .wipevista-dive-mid { animation: vistarisemid 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
-.wipevista.on .wipevista-shop { animation: vistariseshop 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
-.wipevista.on .wipevista-dive-fore { animation: vistarisefore 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
+.wipevista.on .wipevista-dive-far { animation: vistarisefar 0.66s cubic-bezier(.2, .9, .3, 1.04) 0.14s both; }
+.wipevista.on .wipevista-dive-mid { animation: vistarisemid 0.66s cubic-bezier(.2, .9, .3, 1.04) 0.14s both; }
+.wipevista.on .wipevista-shop { animation: vistariseshop 0.66s cubic-bezier(.2, .9, .3, 1.04) 0.14s both; }
+.wipevista.on .wipevista-dive-fore { animation: vistarisefore 0.66s cubic-bezier(.2, .9, .3, 1.04) 0.14s both; }
 @keyframes vistarisefar { 0% { translate: 0 58%; } 100% { translate: 0 0; } }
 @keyframes vistarisemid { 0% { translate: 0 64%; } 100% { translate: 0 0; } }
 @keyframes vistariseshop { 0% { translate: 0 80%; } 100% { translate: 0 0; } }
@@ -670,13 +670,13 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
 .wipevista-flat { background-image: url('/vista-flat.webp'); display: none; }
-.wipevista.on .wipevista-masked { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-masked { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both; }
 /* The door's interior and glow rise WITH the shop (same rise, same moment), then push with it. */
-.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.7s cubic-bezier(.2, .9, .3, 1.04) 0.15s both; }
-.wipevista.on .wipevista-sky, .wipevista.on .wipevista-titlebox { animation: vistapushsky 2s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-far { animation: vistapushfar 2s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-mid { animation: vistapushmid 2s cubic-bezier(.25, .6, .35, 1) both; }
-.wipevista.on .wipevista-fore { animation: vistapushfore 2s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both, vistariseshop 0.66s cubic-bezier(.2, .9, .3, 1.04) 0.14s both; }
+.wipevista.on .wipevista-sky, .wipevista.on .wipevista-titlebox { animation: vistapushsky 1.7s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-far { animation: vistapushfar 1.7s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-mid { animation: vistapushmid 1.7s cubic-bezier(.25, .6, .35, 1) both; }
+.wipevista.on .wipevista-fore { animation: vistapushfore 1.7s cubic-bezier(.25, .6, .35, 1) both; }
 /* Net scales at the end of the push: sky 1.03, distance 1.05, midground 1.08, shop 1.12 (the group itself), flowers 1.16.
    The three inside the group are written relative to its 1.12. */
 @keyframes vistapushsky { 0% { transform: scale(1); } 100% { transform: scale(0.9196); } }
@@ -706,7 +706,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    in from nothing, overshoots, springs back and settles. Scale + opacity only (compositor); the selector spans the dive
    too so the class change never restarts it. */
 .wipevista .wipevista-title { transform: scale(0); opacity: 0; }
-.wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.7s linear 0.2s both; }
+/* (Started off the trip's ARRIVAL since 2026-10-23, "have the returning to shop letters pop up .3 seconds earlier": 0.7 s in,
+   0.1 s before the land settles at 0.8 s. `.in` spans the arrival and the hold, `.dive` carries it on, so it never restarts.) */
+.wipevista.in .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.7s linear 0.7s both; }
 @keyframes vistatitlepop { 0% { transform: scale(0); opacity: 0; animation-timing-function: cubic-bezier(.2, .8, .3, 1); } 15% { opacity: 1; } 45% { transform: scale(1.14); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 64% { transform: scale(0.95); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 82% { transform: scale(1.02); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 100% { transform: scale(1); opacity: 1; } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face

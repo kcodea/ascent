@@ -43,7 +43,7 @@ import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateCon
 import { pixiFx } from '../pixiFx';
 import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
 import { resumeAudio, stopAllAudio } from '../sfx';
-import { buildVersusMatchRecord, type VersusMatchRecord } from './versusMatchRecord';
+import { buildGroupMatchRecord, buildVersusMatchRecord, type VersusMatchRecord } from './versusMatchRecord';
 import { versusEndsNow, versusTurn, versusTurnHolds } from './versusTurn';
 
 export type VersusScreen = 'browser' | 'room';
@@ -541,6 +541,11 @@ async function onMatch(match: VersusMatch): Promise<void> {
   if (!seat) {
     // A SPECTATOR (Versus phase 2): nothing to drive. The committed rounds feed the fights it watches.
     if (match.round > 0) await loadRounds(match);
+    // A player knocked out of this group match watches it from the stands: their stats fill in as the table finishes.
+    if (match.group && get().lastMatch?.matchId === match.id) {
+      const rec = groupRecord(get().lastMatch?.myCosmetics ?? null);
+      if (rec) set({ lastMatch: rec });
+    }
     spectateSync(match, get().rounds);
     return;
   }
@@ -560,7 +565,7 @@ async function onMatch(match: VersusMatch): Promise<void> {
   // Back in the room after a reload: the room's last match is still its current one, so "Previous match stats" can
   // be rebuilt from the server rows (the match screen builds it itself on the way out, `returnToRoom`).
   if (match.phase === 'complete' && get().lastMatch?.matchId !== match.id && useGame.getState().run.mode !== 'versus') {
-    set({ lastMatch: buildVersusMatchRecord(match, get().rounds, seat, currentRunCosmetics() ?? null, foeCosmeticsOf(match, seat)) });
+    set({ lastMatch: (match.group ? groupRecord(currentRunCosmetics() ?? null) : null) ?? buildVersusMatchRecord(match, get().rounds, seat, currentRunCosmetics() ?? null, foeCosmeticsOf(match, seat)) });
   }
   if (match.phase !== 'hero_select') ensureRun(match, seat);
   syncVersusLobby();
@@ -595,7 +600,8 @@ function settleVersusProgression(match: VersusMatch): void {
   // The server needs one fought round (`not_terminal` otherwise): a match conceded at Hero Select or before the
   // first fight settles nothing.
   if (settledMatches.has(match.id) || !mySeat(match) || Object.keys(get().rounds).length === 0) return;
-  if (match.group) return; // VERSUS GROUP: the progression server reads 1v1 matches only (not wired yet)
+  // VERSUS GROUP: settles under the same `versus:<match id>` the moment MY result is final (I went out, or the match
+  // ended); the server reads my seat's placement (2026-10-24-versus-spectator-xp.sql, R-PROG-VERSUS-XP-01).
   settledMatches.add(match.id);
   const g = useGame.getState();
   const run = g.run;
@@ -701,6 +707,16 @@ function groupViewer(raw: VersusGroupMatchRaw): string | null {
 /** My seat on the emote wire: my REAL seat in a group match (p1..p4), else the 1v1 seat. */
 function emoteSeatOf(match: VersusMatch | null): VersusGroupSeat | null {
   return match?.group ? match.group.me : mySeat(match);
+}
+
+/** My "Previous match stats" for the current group match, from my seat (R-VERSUS-GROUP-07). */
+function groupRecord(myCos: RunCosmeticSnapshot | null): VersusMatchRecord | null {
+  const raw = groupRaw;
+  const me = currentUserId();
+  if (!raw || !me) return null;
+  const members = get().room?.members ?? [];
+  return buildGroupMatchRecord(raw, Object.values(groupRoundsRaw), me, myCos,
+    (uid) => parseCosmeticSnapshot(members.find((m) => m.userId === uid)?.profile?.cosmetics) ?? null);
 }
 
 /** The group rail's seat id for `seat` as seen from `viewer` (the others in seat order are s1, s2, s3). */
@@ -995,7 +1011,10 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   const run = useGame.getState().run;
   if (!session || !pub || run.mode !== 'versus') return;
   // No one watching: no projection work at all (a spectator never costs a player anything it does not need).
-  const watchers = get().room?.members.filter((m) => m.role === 'spectator').length ?? 0;
+  // Who may be watching: the stands, and in a group match every player already out (R-VERSUS-GROUP-06: they watch the
+  // rest; before the knockout-stands migration their room role is still their seat).
+  const out = new Set(groupRaw && groupRaw.id === matchId ? groupRaw.seats.filter((x) => x.eliminatedRound != null).map((x) => x.userId) : []);
+  const watchers = get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0;
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
   setSpectatorTap(watchers > 0, emoteSeatOf(get().match), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
@@ -1094,8 +1113,11 @@ export function returnToRoom(): void {
   const seat = mySeat(match);
   if (match && seat && match.phase === 'complete') {
     const run = useGame.getState().run;
-    // The end gate opens on the room with the match's stats already up (owner 2026-10-14).
-    set({ lastMatch: buildVersusMatchRecord(match, rounds, seat, run.mode === 'versus' ? run.cosmetics ?? null : null, foeCosmeticsOf(match, seat)), statsOpen: true });
+    // The end gate opens on the room with the match's stats already up (owner 2026-10-14). A group match: the whole
+    // table (R-VERSUS-GROUP-07); a knocked-out player goes to the stands instead, the stats waiting in the room.
+    const myCos = run.mode === 'versus' ? run.cosmetics ?? null : null;
+    const groupRec = match.group ? groupRecord(myCos) : null;
+    set({ lastMatch: groupRec ?? buildVersusMatchRecord(match, rounds, seat, myCos, foeCosmeticsOf(match, seat)), statsOpen: !match.group || groupRaw?.phase === 'complete' });
   } else if (match && seat) {
     set({ statsOpen: true }); // conceded at once: the record is built when the server confirms the result (`onMatch`)
   }

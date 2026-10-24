@@ -126,14 +126,14 @@ export function parseVersusRecords(data: unknown): Map<string, VersusRecord> {
 }
 
 /** Most ids one read answers: the two seats plus up to twenty spectators (VERSUS_SPECTATOR_CAP), in ONE call. */
-export const MAX_RECORD_IDS = 22;
+export const MAX_RECORD_IDS = 24;
 
 /** Wins + losses against real players (`versus_records`). No fallback count: until the RPC is live the record is
  *  unknown and the card prints "-" (a client count cannot tell anonymous / test accounts apart). */
 async function fetchRecords(ids: readonly string[]): Promise<Map<string, VersusRecord>> {
   const c = supabaseClient();
   if (!c || ids.length === 0) return new Map();
-  // rows: versus_records is a scalar RPC (`returns jsonb`): an array of at most 22 objects, one per user id.
+  // rows: versus_records is a scalar RPC (`returns jsonb`): an array of at most 24 objects (2026-10-24-versus-records-24.sql: four group seats + 20 spectators), one per user id.
   const rpc = await Promise.race([Promise.resolve(c.rpc('versus_records', { p_users: ids })), timeout(READ_TIMEOUT_MS, null)]);
   return rpc && !rpc.error ? parseVersusRecords(rpc.data) : new Map();
 }

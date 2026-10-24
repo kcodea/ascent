@@ -12,7 +12,9 @@ import { join } from 'node:path';
 
 const root = join(__dirname, '../../../..');
 const SQL = readFileSync(join(root, 'supabase/migrations/2026-10-13-versus.sql'), 'utf8')
-  + readFileSync(join(root, 'supabase/migrations/2026-10-16-versus-records.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-16-versus-records.sql'), 'utf8')
+  // A full group room reads 24 ids (four seats + 20 spectators, R-VERSUS-GROUP-05).
+  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-records-24.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -77,9 +79,9 @@ describe('versus_records', () => {
     expect(out).toEqual(expect.arrayContaining([{ userId: A, wins: 2, losses: 1 }, { userId: ANON, wins: 0, losses: 0 }, { userId: NOPROF, wins: 0, losses: 0 }]));
   });
 
-  it('answers at most 22 ids, exposes only the two counts, and a player with no matches reads 0 / 0', async () => {
+  it('answers at most 24 ids, exposes only the two counts, and a player with no matches reads 0 / 0', async () => {
     const many = Array.from({ length: 30 }, (_, i) => `00000000-0000-0000-0000-${String(1000 + i).padStart(12, '0')}`);
-    expect(await records(many)).toHaveLength(22);
+    expect(await records(many)).toHaveLength(24);
     const out = await records([A, B, C]);
     expect(out).toHaveLength(3);
     const fresh = await records(['00000000-0000-0000-0000-0000000000ff']);

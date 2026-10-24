@@ -230,21 +230,36 @@ html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .h
 html[data-touch-ui][data-phone-zoom] { --pz-bxr: calc(var(--lvw, 100vw) - var(--pz-bx) - 1920px); --pz-byb: calc(var(--lvh, 100dvh) - var(--pz-by) - 1080px); }
 html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: var(--pz-bxr); --bar-y: var(--pz-byb); }
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --bar-x: var(--pz-bxr); }
-/* PIECES WITH NO HOUSING, placed where they fit tidily inside the zoomed view (box x ~55..1887, y 12..~960 on an iPhone):
-   - the lobby rail: the right margin between End Turn / Refresh and the box edge, its header on top, its Guides tab under it;
-   - help / Compendium / Settings: a column in the left margin, between Tier and the hero's rune sockets;
-   - your Health / Armor plate: raised onto the hero ring's lower rim, above the home indicator. */
-html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: 22px; --lr-w: 224px; }
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(22px + 224px - 84px); top: 818px; }
-html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 82px; right: auto; bottom: auto; left: calc(var(--pz-bx) + 64px); }
-html[data-touch-ui][data-phone-zoom] .rulesbtn { top: calc(var(--pz-by) + 322px); }
-html[data-touch-ui][data-phone-zoom] .bookbtn { top: calc(var(--pz-by) + 414px); }
-html[data-touch-ui][data-phone-zoom] .gearbtn { top: calc(var(--pz-by) + 506px); }
+/* PIECES WITH NO HOUSING, placed where they fit tidily inside the zoomed view:
+   - the lobby rail: the right margin between End Turn / Refresh and the box edge, its header on top;
+   - a LEFT COLUMN beside the board frame: the rail's Guides tab, then help / Compendium / Settings (slightly smaller);
+   - the hand: TUCKED, a clean line just under its cards' Attack / Health (the name ribbons and text plates below the
+     screen's safe bottom, clipped there so nothing is cut mid-line), a gap clear of the hero ring; a tap opens Inspect
+     and a drag lifts the full card. */
+/* The Guides tab on the rail's RIGHT side (owner 2026-10-24), fully visible: the rail's right edge 22 px in, the tab in
+   that strip, mirrored (its flat side against the rail). */
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-top: 286px; --lby-y: 0; --lby-scale: 0.72; }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: 84px; --lr-w: 200px; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: 74px; top: 420px; scale: -1 1; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
+html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
+/* help / Compendium / Settings: a row in the BOTTOM-LEFT (owner 2026-10-24), beside the hero ring's foot, on the safe bottom. */
+html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; right: auto; top: auto; bottom: calc(var(--safe-b) + 6px); }
+html[data-touch-ui][data-phone-zoom] .rulesbtn { left: calc(var(--pz-bx) + 352px); }
+html[data-touch-ui][data-phone-zoom] .bookbtn { left: calc(var(--pz-bx) + 426px); }
+html[data-touch-ui][data-phone-zoom] .gearbtn { left: calc(var(--pz-bx) + 500px); }
+/* your Health / Armor plate rides up onto the ring's lower rim. */
 html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -34px; }
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { left: calc(var(--pz-bx) + 960px); --bar-y: var(--pz-byb); }
+/* The turn timer: on the top frame between the Tier pill and Freeze (its desktop seat above the frame is cropped). */
+html[data-touch-ui][data-phone-zoom] .shopbar { translate: -176px 96px; }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px); left: calc(var(--pz-bx) + 1098px); --z-hand-gap: -0.3; }
+/* …the tucked hand shows each card's art, cost and stats only: its name ribbon and text plate are off (Inspect and a
+   drag show the full card), so nothing is ever cut mid-line at the screen edge. */
+html[data-touch-ui][data-phone-zoom] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
+
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
-html[data-touch-ui][data-phone-zoom] .row.hand .card .plate-tribe { visibility: hidden; }
+
 
 /* The touch UI's bigger combat Skip covered the round title above it ("ROUND N"): the title rides up by the extra height. */
 html[data-touch-ui] .combatround { margin-top: calc(-22 * var(--u) * (var(--touch-k) * 1.25 - 1)); }
@@ -271,3 +286,13 @@ html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcmeta 
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) { align-items: stretch; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }
+
+/* Zoomed phone: Attack / Health tuck in under each portrait so neighbouring two- and three-digit stats never touch. */
+html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .atk { left: calc(var(--ccw) * 0.06); }
+html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .hp { right: calc(var(--ccw) * 0.06); }
+/* Zoomed phone: combat Skip / Summary at ~1.3x their desktop size (not the touch UI's 2x); End Turn's hover caption off. */
+html[data-touch-ui][data-phone-zoom] .combathud-skip { transform: translate(-50%, -50%) scale(1.3); }
+html[data-touch-ui][data-phone-zoom] .combatsummary { scale: 1.3; }
+html[data-touch-ui][data-phone-zoom] .etbwrap .etb-tip { display: none; }
+/* Zoomed phone: the round summary a size up (its labels were 6-7 pt). */
+html[data-touch-ui][data-phone-zoom] .fr-panel { zoom: 1.15; }

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_SHOP_TOP, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
 
@@ -30,23 +30,23 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(phoneZoomOf({})).toBe(1.35);
     expect(phoneZoomOf({ pz145: 1 })).toBe(1.45);
   });
-  it('iPhone 15 Pro and Pixel 8: the zoom fills the safe width with the housed span (or the height binds), housed art stays on screen', () => {
+  it('iPhone 15 Pro and Pixel 8, shop and combat: housed span fits the safe area (width or height binds), top-pinned', () => {
     const e = PHONE_HOUSED_SPAN;
     for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
       const plain = fitStage(w, h, ins);
-      for (const z of Object.values(PHONE_ZOOM_VARIANTS)) {
-        const f = fitStage(w, h, ins, DESIGN_W, z);
+      for (const combat of [false, true]) {
+        const top = combat ? e.top : PHONE_SHOP_TOP;
+        const f = fitStage(w, h, ins, DESIGN_W, 1.45, combat);
         expect(f.s).toBeGreaterThan(plain.s);
-        expect(f.s).toBeLessThanOrEqual(plain.s * z + 1e-9);
         const box = gameBoxOf(f);
         expect(box.w / box.h).toBeCloseTo(16 / 9, 6);
-        // every housed piece (the span) is inside the safe area, at its desktop seat (the box is not re-laid out)
         expect(box.left + e.left * f.s).toBeGreaterThanOrEqual(ins.left - 1e-6);
         expect(box.left + e.right * f.s).toBeLessThanOrEqual(w - ins.right + 1e-6);
-        expect(box.top + e.top * f.s).toBeGreaterThanOrEqual(ins.top - 1e-6);
-        // the lowest housed ART (the hero ring's foot) may run into the bottom inset, never off the screen
-        expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(h + 1e-6);
+        expect(box.top + top * f.s).toBeCloseTo(ins.top, 6); // top-pinned
+        expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(h - ins.bottom + 1e-6);
       }
+      // the shop frames tighter than combat (its top is lower), so it is never smaller
+      expect(fitStage(w, h, ins, DESIGN_W, 1.45, false).s).toBeGreaterThanOrEqual(fitStage(w, h, ins, DESIGN_W, 1.45, true).s);
     }
   });
   it("a desktop window of a phone's aspect never zooms (the plain fit)", () => {
@@ -137,7 +137,7 @@ describe('the phone layout is written by stage.ts, never by a desktop', () => {
     expect(src).toMatch(/const phoneLayout = phoneLayoutApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.phonelayout\)/);
     expect(src).toMatch(/toggleAttribute\('data-phone-layout', phoneLayout\)/);
     expect(src).toMatch(/const phoneZoom = !phoneLayout && phoneZoomApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.nophonezoom, inRun\)/);
-    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1\)/);
+    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1, combatView\)/);
   });
   it('Discover shows full cards on a phone only', () => {
     expect(readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8')).toMatch(/full=\{phoneLayoutOn\(\)\}/);

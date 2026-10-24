@@ -53,10 +53,12 @@ export function phoneZoomOf(flags: Partial<Record<string, 1>>): number {
  *  board art, at its exact desktop seat (the hero ring + Health plate + rune sockets, the hero power, Tier, Freeze,
  *  Refresh, End Turn, Gold, and in combat the foe's corner socket with its name plaque, Health, Shop tier, power and
  *  rune sockets), measured off the desktop layout, plus a 10 px breath. The phone zoom keeps all of it on screen. */
-export const PHONE_HOUSED_SPAN = { left: 55, top: 12, right: 1887, bottom: 1055 };
+export const PHONE_HOUSED_SPAN = { left: 55, top: 0, right: 1887, bottom: 1055 }; // top 0 = a 12 px breath above the foe's name plaque (y 12)
+/** The housed span's top in the SHOP (a breath above the Tier pill at y 116, Freeze 129, Refresh's cost 129). */
+export const PHONE_SHOP_TOP = 104;
 /** The breathing gap kept either side of the housed span, layout px. */
 export const PHONE_SIDE_GAP = 20;
-/** The lowest housed ART (the hero ring's foot, decorative): it may run into the bottom inset, never off screen. */
+/** The lowest housed ART (the hero ring's foot): inside the safe area. */
 export const PHONE_ART_BOTTOM = 984;
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
@@ -103,7 +105,7 @@ export const NO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
  * The insets come back in LAYOUT px (`safe`) for the stylesheet's `--safe-*` vars. Before this the stylesheet added raw
  * `env()` inside the scaled stage, where the transform shrank a 59 px island inset to about 21 px on screen.
  */
-export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W, zoom = 1): StageFit {
+export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W, zoom = 1, combat = false): StageFit {
   const w = vw > 0 ? vw : designW;
   const h = vh > 0 ? vh : DESIGN_H;
   const ix = Math.max(0, insets.left, insets.right);
@@ -116,18 +118,21 @@ export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS,
     // THE PHONE ZOOM (R-PHONE-ZOOM-01): as large as the HOUSED span allows (every piece that sits in a painted housing
     // stays exactly in it and inside the safe area), capped at the plain fit times `zoom`; the box is placed so that
     // span is centred in the safe area, and everything outside it (empty frame, background) is cropped.
-    // Width: the housed span plus a breathing gap fills the safe width. Height: the span's top (the foe's name plaque)
-    // at the safe top, its bottom (the hero ring's foot, decorative art) allowed into the bottom inset (the home
-    // indicator strip), never past the screen. Whichever binds wins; the box is placed span-centred across, top-pinned.
+    // Width: the housed span plus a breathing gap fills the safe width. Height: the span (a breath above the foe's name
+    // plaque down to the hero ring's foot) inside the safe area, top and bottom insets both. Whichever binds wins; the
+    // span is centred in the safe area.
     const e = PHONE_HOUSED_SPAN;
     const iL = Math.max(0, insets.left), iR = Math.max(0, insets.right), iT = Math.max(0, insets.top), iB = Math.max(0, insets.bottom);
     const sw = w - iL - iR;
     const spanW = e.right - e.left + 2 * PHONE_SIDE_GAP;
-    const spanH = PHONE_ART_BOTTOM - e.top;
-    const sz = Math.min(1, s * zoom, sw / spanW, (h - iT) / spanH);
+    // The span's top: in COMBAT a breath above the foe's name plaque (the top of the box); in the SHOP the foe is away,
+    // so a breath above the Tier pill / Freeze / Refresh (owner 2026-10-24: "zoom further and shift everything up").
+    const top = combat ? e.top : PHONE_SHOP_TOP;
+    const spanH = PHONE_ART_BOTTOM - top;
+    const sz = Math.min(1, s * zoom, sw / spanW, (h - iT - iB) / spanH);
     const sf = { top: iT / sz, right: iR / sz, bottom: iB / sz, left: iL / sz };
     const barX = iL / sz + (sw / sz - (e.right - e.left)) / 2 - e.left;
-    const barY = iT / sz + ((h - iT) / sz - spanH) / 2 - e.top;
+    const barY = iT / sz - top; // top-pinned: any slack goes to the bottom (the hand, the hero cluster)
     return { s: sz, lw: w / sz, lh: h / sz, safe: sf, zoom: sz / s, barX, barY };
   }
   return designW === DESIGN_W ? { s, lw: w / s, lh: h / s, safe } : { s, lw: w / s, lh: h / s, safe, aspect: designW / DESIGN_H };
@@ -273,7 +278,7 @@ export function applyStage(): StageFit {
   // …and whether it is on the MENUS (title, mode pages) rather than hero select or a run: the in-game composition's
   // corner-button seats do not apply there (phoneLayout.css).
   document.documentElement.toggleAttribute('data-phone-menus', phoneLayout && menuZoom);
-  const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom ? phoneZoomOf(PHONE_DIAG) : 1);
+  const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom ? phoneZoomOf(PHONE_DIAG) : 1, combatView);
   fit = next;
   const de = document.documentElement.style;
   // The SAFE AREA in layout px (R-TOUCH-SAFEAREA-01): the 16:9 box (`--gw` / `--gh`) and the edge-anchored HUD
@@ -316,6 +321,14 @@ export function applyStage(): StageFit {
 
 let menuZoom = false;
 let inRun = false;
+let combatView = false;
+/** Game.tsx: the combat scene is staged (it flips while the falling gate covers the screen). The phone zoom frames the
+ *  shop and combat each to their own housed span (R-PHONE-ZOOM-01). A no-op off a phone. */
+export function setStageCombat(on: boolean): void {
+  if (on === combatView) return;
+  combatView = on;
+  if (installed && inRun && isPhone()) applyStage();
+}
 /** Game.tsx: a run is on screen (not the menus, not hero select). The phone zoom applies only then (R-PHONE-ZOOM-01).
  *  Re-applies the fit only when that changes. A no-op on desktop. */
 export function setStageInRun(on: boolean): void {

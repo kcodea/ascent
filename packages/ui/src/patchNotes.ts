@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'A minion summoned into the slot of a minion that Rises now attacks before it.',
+        details: [
+          'When a minion with Rise or Rebirth dies on its own attack and its Echo summons into its slot, those summons attack next.',
+          'The returned minion attacks after them, then the rest of the board in order.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: sound effects load ahead of time and sound clearer.',
         details: [
           'The Shop and fight sounds load before the first Shop instead of after the art.',

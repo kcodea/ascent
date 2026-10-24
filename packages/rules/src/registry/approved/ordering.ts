@@ -265,4 +265,25 @@ export const ORDERING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-18. Before, the doubling ran inside the refresh tail, so a buff that landed later in the same action (Infernal Ink on a Sigil of Kinship cast) added on top of the undoubled Health, and the Pete contraband swap replaced the doubled offer.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/embersAfterShopBuffs.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
+  {
+    id: 'R-ORD-RISE-ECHO-01',
+    title: "Echo summons in a Rising attacker's slot attack next, then the returned body, then the rest",
+    statement:
+      'When a minion with Rise or Rebirth dies on its OWN swing and its Echo summons land in its slot, the next '
+      + 'attacker for that side is the first of those summons, in normal left-to-right order (exactly as they would '
+      + 'without Rise), then the returned body (which sits to their right), then the minions to its right. The '
+      + 'attack pointer rewinds to whatever stood LEFT of the attacker before the swing. With no summon in the slot '
+      + 'this is the old Rise rewind unchanged: the returned body attacks next. Symmetric for both sides; a summon '
+      + 'that dies before its turn is skipped as usual; an "attacks immediately" summon still cuts the line first '
+      + '(R-ORD-05) and then also takes this regular turn.',
+    domain: 'ordering',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-23 on bug report fba394b7 (Bullseye Rises, its Echo Dawnclaw was skipped)', quote: 'in the dawnclaw case, yeah the dawnclaw would attack next, then the bullseye etc.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts attack loop (leftBeforeSwing: the Rise / Rebirth return rewind)' },
+    ],
+    contentIds: ['b2_bullseye', 'b2_dawnclaw'],
+    currentBehaviour: 'Conforms from 2026-10-23. Before, the rewind put the pointer just left of the RETURNED body, which sits to the right of its Echo summons, so the risen body attacked next and its Echo summons were skipped until the rotation wrapped.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/riseEchoOrder.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

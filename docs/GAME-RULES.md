@@ -2067,6 +2067,21 @@ Sunmane, Kurse's Gemheart Golem, Violet Whelp / Tamer's Whelps, Spear Warden, Ch
 - The strike **does not use or move the normal attack pointer**; the body then joins the rotation (appended at
   the right) and takes its regular turn as well.
 
+### Echo summons in a Rising attacker's slot attack first (owner ruling 2026-10-23, R-ORD-RISE-ECHO-01)
+
+*"in the dawnclaw case, yeah the dawnclaw would attack next, then the bullseye etc."* A minion with **Rise** or
+**Rebirth** that dies on its **own** swing and comes back used to be next to attack again, even when its Echo had
+put minions in its slot. Now, for **both sides**:
+
+1. the minions its **Echo summoned into its slot** attack next, left to right (as they would without Rise);
+2. **then the returned body** (it sits to their right);
+3. then the rest of the board, carrying on to its right.
+
+With no Echo summon in the slot nothing changes: the returned body is next. A summon that dies before its turn is
+skipped as usual; an "attacks immediately" summon still cuts the line first (R-ORD-05) and then takes this turn too.
+Enforced by the rewind in the attack loop of `simulate.ts` (to whatever stood left of the attacker before its swing),
+pinned in `core/src/combat/riseEchoOrder.test.ts`.
+
 ### Echo first, THEN the Rise attempts — every Rise/Echo interaction, both phases (owner ruling 2026-09-18)
 
 *"When I used Deathfibrillator on a minion with 7 bodies on board, it gives the minion Rise and kills it, but
@@ -2126,7 +2141,8 @@ a Rise-vs-Rebirth parity fixture whose flow of deaths, returns and Avenge payout
   Whaloo, Immune Iggy / Bounty Bot's immune swings, Gryphon, Yeti, Foamguard) is available again, then spent until the
   next removal and return. Side-wide budgets and per-turn limits do not reset.
 - **A body that dies to retaliation on its own swing and returns is next to attack again** — the Rise rewind
-  in the attack rotation applies to a Rebirth return too.
+  in the attack rotation applies to a Rebirth return too. If its Echo summoned into its slot, those summons go
+  first (see "Echo summons in a Rising attacker's slot attack first" below).
 - **NOT a Rise:** the Rise watchers (Revenant, Rising Tide — `onRise`) stay quiet, and Deathtouched
   Apple (a Rise re-arm) does not touch it — those two are Rise's own.
 - **It IS a summon in full** (the owner's Rise ruling 2026-08-12): the summon-entry suite runs on the return.

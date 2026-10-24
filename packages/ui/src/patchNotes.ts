@@ -59,6 +59,15 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-23',
     changes: [
       {
+        category: 'Balance',
+        text: 'New Dragon in Set 3: Nitrogen.',
+        details: [
+          'Nitrogen is a Tier 5 6/6 Dragon: when a Dragon attacks, cast Growth.',
+          'Its own attacks count. Growth gives your minions +2/+2 for the rest of that fight, plus your spell power.',
+          'Gilded Nitrogen casts Growth twice.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Skip has moved onto the End Turn diamond: it glows gold while a fight can be skipped, and clicking it skips.',
         details: [

@@ -293,4 +293,20 @@ export const SET3_DRAGONS: readonly CardDef[] = [
     text: '**Equip Royal Edict (2):** Improve your **Shop spells** by **+2/+2**. Your next **3** spells cast from hand this turn cast an additional time.',
     goldenText: '**Equip Royal Edict (2):** Improve your **Shop spells** by **+4/+4**. Your next **3** spells cast from hand this turn cast **2** additional times.',
   },
+  {
+    // NITROGEN (owner 2026-10-23), T5 Dragon 6/6: "When a Dragon attacks, Cast Growth." Warflame's trigger
+    // (`onTribeAttackCastNamedSpell`): every friendly Dragon's swing (its own, dual-tribe and All-types included) casts
+    // the real Shop spell Growth through the combat named-spell path (a spell cast, not from hand; its buffs are
+    // combat-only per R-BUFF-PERM). Growth's hover preview carries the live value. Gilded: casts it twice.
+    id: 'd3_nitrogen',
+    name: 'Nitrogen',
+    tribe: 'dragon',
+    tier: 5,
+    attack: 6,
+    health: 6,
+    keywords: [],
+    effects: [{ on: 'onAttack', do: 'onTribeAttackCastNamedSpell', params: { tribe: 'dragon', spellId: 'growth' } }],
+    text: 'When a **Dragon** attacks, cast **Growth**.',
+    goldenText: 'When a **Dragon** attacks, cast **Growth** twice.',
+  },
 ];

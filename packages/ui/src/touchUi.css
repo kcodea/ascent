@@ -251,7 +251,7 @@ html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 192
    running off the bottom edge on one clean line. A finger on a card (`.tt-press`, touchInput.ts) POPS it: straightened,
    lifted and scaled so the whole card, plate and text, is on screen above the rest of the fan; it drops back on
    release. Transform only (compositor), one short transition. Centred under the felt. */
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 976px); --z-hand-gap: -0.07; }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 1006px); --z-hand-gap: -0.07; }
 
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */

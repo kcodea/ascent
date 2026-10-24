@@ -8,6 +8,7 @@ import { poolNeededFor } from '../opponentPool/poolGate';
 import { PoolWaitPanel } from '../opponentPool/PoolWaitPanel';
 import { launchVersusHero, useVersusAwaitingPick } from '../versus/versusStore';
 import { PHONE_GPU } from '../phoneDiag';
+import { crumbLight, crumbTrail } from '../crashLog';
 
 /**
  * HERO SELECT CEREMONY — the launch curtain (hero-select-ceremony-blueprint.md §7).
@@ -83,9 +84,12 @@ export function HeroLaunchCurtain() {
     };
     void (async () => {
       const el = elRef.current;
+      // Crash-log trail (phones; R-TOUCH-CRASH-REPORT-02): light steps, the curtain is animating.
+      crumbLight('launch cover');
       await fade(el, 0, 1, t.launchCoverMs);
       if (dead) return;
       setLaunchCovered(true);
+      crumbLight('launch covered');
       // OPPONENT POOL GATE (fix 2026-09-28): a lobby that seats recorded player runs waits here, under full
       // cover, until the opponent pool has loaded. Instant when it already has (the usual case: it loads at
       // startup). Otherwise the panel shows "Finding opponents...", and an unreachable pool becomes an explicit
@@ -119,6 +123,7 @@ export function HeroLaunchCurtain() {
       // warmLobbyDrivers + writeSave) and it also unmounts HeroSelect behind us.
       try {
         if (!versusStart) useGame.getState().pickHero(req.heroId);
+        crumbLight('run built');
         // THE "GOOD LUCK" INTRO (owner ask 2026-09-24): a real lobby / Practice start comes up on a DIMMED
         // board with the words over it, and the shop clock holds until they fade. Begun here, while the cover
         // is still opaque, so the overlay is already dimming the board by the time the reveal below lifts.
@@ -133,10 +138,13 @@ export function HeroLaunchCurtain() {
       }
       await twoFrames();
       if (dead) return;
+      crumbLight('launch reveal');
       setLaunchCovered(false);
       await fade(el, 1, 0, t.launchRevealMs);
       if (dead) return;
       finish();
+      // Not cancelled with this effect (finish() unmounts it at once): a few store-only timers, phones only.
+      crumbTrail('first shop', undefined, true);
     })();
     return () => { dead = true; setLaunchCovered(false); lobbyPoolGate.cancel(); };
   }, [req]);

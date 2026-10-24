@@ -265,6 +265,28 @@ export const KEYWORDS_RULES: GameRule[] = [
     },
   },
   {
+    id: 'R-REBIRTH-VEIL-EDGE-01',
+    title: "Rebirth's glow over the portrait fades out softly; it never ends in a straight line",
+    statement:
+      'The blue fire Rebirth lays over the portrait (the veil) fades out on its own toward the frame, on every surface '
+      + '(the board and Shop tile, the hover and Inspect card, gilded, oval and Taunt shield). Its image carries a bleed '
+      + 'margin past the window on every side, so no tongue or blur is cut by the image edge; only the portrait '
+      + 'oval or heater clip, under the gold, trims it. Static geometry: the idle animation stays opacity only.',
+    domain: 'keywords',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report, 2026-10-24 (Exgalloper Inspect card)', quote: "rebirth cuts off with a horizontal line, can you fix that so it's the full oval/fade it better or w/e" },
+      { kind: 'code', ref: 'packages/ui/src/rebirthCrown.ts (VEIL_BLEED, veilSvg viewBox); packages/ui/src/styles.css (.rebirth-veil .rbv inset)' },
+    ],
+    contentIds: ['dw_exgalloper'],
+    currentBehaviour:
+      'Conforms from 2026-10-24 (fix/rebirth-glow-cutoff). Before, the veil image was exactly the window box; its bottom '
+      + "tongues are rooted on the window's edge, so their bases and blur were sliced off at the box bottom, and on the "
+      + 'oval frame (whose art is overfilled past that box) the slice showed as a hard horizontal line across the bottom of '
+      + 'the portrait, just above the mechanic gem.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rebirthLook.test.tsx'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
     id: 'R-WARDFX-01',
     title: 'A Ward that breaks from an attack bursts AT THE CONTACT of that swing, once',
     statement:

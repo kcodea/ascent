@@ -13,7 +13,9 @@ import type { CombatEvent } from '@game/core';
 import { playDef } from './fx/playDef';
 import { Card, type CardView } from './Card';
 import { mount } from './renderedText.mount';
-import { CROWN_FRAMES, crownSvg, crownTongues, pillarSvg } from './rebirthCrown';
+import { CROWN_FRAMES, VEIL_BLEED, crownSvg, crownTongues, pillarSvg, veilSvg } from './rebirthCrown';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { REBIRTH_DEFAULTS, getRebirthConfig, hexToNum, rebirthPalette } from './rebirthConfig';
 import { reformRebirth } from './choreo/channels/aura';
 import { animFor, deathConsequenceLead, rebirthSettleLead, REBIRTH_FORM_MS } from './useCombatReplay';
@@ -179,5 +181,23 @@ describe('Rebirth 1v1 regression (owner 2026-09-26: "the attack truncated and ha
     const hold = holdMs(attack, reborn, 1) + rebirthSettleLead(reborn, events);
     expect(hold).toBeGreaterThan(REBIRTH_FORM_MS);
     expect(hold).toBeGreaterThanOrEqual(holdMs(attack, shown, 1));
+  });
+});
+
+describe('Rebirth veil edge (R-REBIRTH-VEIL-EDGE-01)', () => {
+  it('the veil image bleeds past the window by VEIL_BLEED, and .rbv bleeds out by the same fraction', () => {
+    // owner 2026-10-24: "rebirth cuts off with a horizontal line". The tongues rooted on the window's edge spill
+    // past it; a viewBox of exactly the window sliced them off in a straight line.
+    const svg = veilSvg({ deep: '#112233', hot: '#445566', core: '#778899' });
+    const vb = /viewBox="([^"]+)"/.exec(svg)![1]!.split(' ').map(Number);
+    expect(VEIL_BLEED).toBeGreaterThanOrEqual(0.15);
+    expect(vb[0]).toBeCloseTo(-100 * VEIL_BLEED, 1);
+    expect(vb[1]).toBeCloseTo(-128 * VEIL_BLEED, 1);
+    expect(vb[2]).toBeCloseTo(100 * (1 + 2 * VEIL_BLEED), 1);
+    expect(vb[3]).toBeCloseTo(128 * (1 + 2 * VEIL_BLEED), 1);
+    const css = readFileSync(join(__dirname, 'styles.css'), 'utf8');
+    const rule = /\.card\.compact \.rebirth-veil \.rbv \{([^}]*)\}/.exec(css)![1]!;
+    expect(rule).toContain(`inset: -${Math.round(VEIL_BLEED * 100)}%`);
+    expect(rule, 'the idle veil still animates opacity only').not.toMatch(/filter|box-shadow/);
   });
 });

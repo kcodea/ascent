@@ -1116,24 +1116,31 @@ export function squirlScoutText(cardId: string, golden: boolean, squirlScoutBuff
 }
 
 /**
- * Conductor (owner rework 2026-09-23: "give adjacent minions +2/+3 and improve this") — the grant is
- * (base + this copy's accrued `summonBonus`) × golden, and it is the SAME number in every framing: a shop offer,
- * a hand card, a board body and a combat body all print what the NEXT fire of this copy grants, because the
- * arena body grants first and improves after. Surface it green in place of the FIRST printed "+A/+B"; null
- * before any accrual (the printed base is accurate). The old run-wide `conductorBuff` framing split
- * (shop = next step, board = current N) is gone with the snowball.
+ * Conductor (owner 2026-10-24: "every played conductor should buff every other conductor's buff" + "it improves
+ * by +3/+3 each trigger of the shout") — the grant is (base + the RUN-WIDE improvement) × golden, plus any legacy
+ * per-copy accrual (`summonBonus`, the 2026-09-23 design) the caller folds into `improvement`. It is the SAME
+ * number on every surface: a Shop offer, a Discover, a hand card, a board body and a combat body all print what
+ * the NEXT trigger of this copy grants, because the arena body grants first and improves after. Surfaced green in
+ * place of the FIRST printed "+A/+B"; the SECOND (the step) is rewritten under Rune of Mastery (`reps` > 1).
+ * Null when neither moved (the printed text is accurate).
  */
-export function conductorText(cardId: string, golden: boolean, summonBonus: number): string | null {
-  if (cardId !== 'n2_conductor' || summonBonus <= 0) return null;
+export function conductorText(cardId: string, golden: boolean, improvement: number, reps = 1): string | null {
+  if (cardId !== 'n2_conductor' || (improvement <= 0 && reps <= 1)) return null;
   const def = CARD_INDEX[cardId];
   if (!def) return null;
-  const params = (def.effects.find((e) => e.do === 'battlecryConductorAdjacent')?.params ?? {}) as { attack?: number; health?: number };
+  const params = (def.effects.find((e) => e.do === 'battlecryConductorAdjacent')?.params ?? {}) as { attack?: number; health?: number; step?: number };
   const g = golden ? 2 : 1;
-  const a = (Number(params.attack ?? 2) + summonBonus) * g;
-  const h = (Number(params.health ?? 3) + summonBonus) * g;
+  const a = (Number(params.attack ?? 3) + improvement) * g;
+  const h = (Number(params.health ?? 3) + improvement) * g;
+  const step = Number(params.step ?? 3) * reps;
   const src = golden ? (def.goldenText ?? def.text) : def.text;
-  let done = false;
-  return src.replace(/\+\d+\/\+\d+/g, (m) => (done ? m : ((done = true), `{{+${a}/+${h}}}`)));
+  let i = 0;
+  return src.replace(/\+\d+\/\+\d+/g, (m) => {
+    const k = i++;
+    if (k === 0) return improvement > 0 ? `{{+${a}/+${h}}}` : m;
+    if (k === 1) return reps > 1 ? `{{+${step}/+${step}}}` : m;
+    return m;
+  });
 }
 
 export function soulsmanText(cardId: string, goldGained: number): string | null {

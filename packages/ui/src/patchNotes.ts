@@ -67,6 +67,17 @@ export const PATCH_NOTES: PatchNote[] = [
           'On a Runeforge turn it waits until you have picked your rune.',
         ],
       },
+      {
+        category: 'Balance',
+        text: 'Conductor reworked: every time any Conductor Shout triggers, all your Conductors improve by +3/+3 for the rest of the game.',
+        details: [
+          'Shout: give adjacent minions +3/+3. Improve all Conductors by +3/+3 this game.',
+          'The improvement is shared. A Conductor in the Shop, in a Discover or in your hand already shows the bigger number.',
+          'Every trigger counts, not just playing it. Moira, Ryme and other Shout triggers improve it too.',
+          'A Conductor triggered in combat gives its neighbours stats for that fight only, but the +3/+3 improvement stays.',
+          'Gilded Conductor doubles the stats it gives. The improvement is still +3/+3.',
+        ],
+      },
     ],
   },
   {

@@ -570,7 +570,7 @@ describe('run loop (@game/sim)', () => {
     expect(s.squirlScoutBuff).toBe(2);
   });
 
-  it('Conductor: Shout buffs the two ADJACENT minions +2/+3 and improves THAT COPY (owner rework 2026-09-23)', () => {
+  it('Conductor: Shout buffs the two ADJACENT minions and improves EVERY Conductor run-wide (owner 2026-10-24)', () => {
     let s: RunState = {
       ...createRun(1),
       board: [
@@ -583,21 +583,19 @@ describe('run loop (@game/sim)', () => {
         { uid: 'c3', cardId: 'n2_conductor', tribe: 'neutral', attack: 4, health: 8, keywords: [], golden: true },
       ],
     };
-    // Played BETWEEN the two: both neighbours get the printed grant, +2/+3, and the copy improves itself.
+    // Played BETWEEN the two: both neighbours get the printed +3/+3, then every Conductor improves by +3/+3.
     s = reduce(s, { type: 'play', uid: 'c1', toIndex: 1 });
-    expect(s.conductorBuff ?? 0, 'the 2026-08-21 run-wide snowball is dormant').toBe(0);
-    expect(s.board[1]!.summonBonus, 'the copy\'s own accrual').toBe(1);
-    // RE-PIN 2026-10-10 (owner balance batch): the grant is +3/+3 (was +2/+3).
+    expect(s.conductorBuff).toBe(3);
     expect(s.board.map((c) => [c.attack, c.health])).toEqual([[4, 4], [2, 4], [4, 4]]);
-    // The second Conductor, played on the LEFT edge: one neighbour only, and a FRESH copy grants the printed +2/+3.
+    // The second Conductor, played on the LEFT edge: one neighbour only, at the improved +6/+6.
     s = reduce(s, { type: 'play', uid: 'c2', toIndex: 0 });
-    expect(s.board[1]!.attack).toBe(4 + 3);
-    expect(s.board[1]!.health).toBe(4 + 3);
+    expect([s.board[1]!.attack, s.board[1]!.health]).toEqual([4 + 6, 4 + 6]);
     expect(s.board[2]!.attack).toBe(2); // the middle Conductor is NOT adjacent to the edge play
-    // A GILDED Conductor doubles the applied grant: +4/+6 to its neighbour.
+    expect(s.conductorBuff).toBe(6);
+    // A GILDED Conductor doubles the applied grant: (3 + 6) x 2 = +18/+18 to its neighbour; the step stays +3.
     s = reduce(s, { type: 'play', uid: 'c3', toIndex: 4 });
-    expect(s.board[3]!.attack).toBe(4 + 6); // the right Pennycat (already +3/+3 from play one); gilded +6/+6
-    expect(s.board[3]!.health).toBe(4 + 6);
+    expect([s.board[3]!.attack, s.board[3]!.health]).toEqual([4 + 18, 4 + 18]);
+    expect(s.conductorBuff).toBe(9);
   });
 
   it('buying an Undead/Beast bakes the run-wide Attack aura exactly once (no double-count)', () => {

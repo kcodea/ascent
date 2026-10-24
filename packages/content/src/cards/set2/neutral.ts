@@ -47,15 +47,14 @@ export const SET2_NEUTRAL: CardDef[] = [
     goldenText: '**Every 2 turns:** get a plain copy of **adjacent** minions.',
   },
   {
-    // CONDUCTOR — a positional Shout that IMPROVES ITSELF (owner rework 2026-09-23: "Shout: Give adjacent
-    // minions +2/+3 and improve this."). The grant is base + this copy's accrued improvement (`summonBonus`,
-    // the per-instance permanent channel Pack Leader / Hunter / Thundeer ride: carried back after combat,
-    // kept through a gild, served in a snapshot), and every fire of the Shout — the play, a Moira / Ryme /
-    // Dawnclaw re-fire in the shop, a Parting Cry or Rune of Shared Scripture re-fire in combat — grants the
-    // current value and THEN steps the accrual by `step` (+1/+1; × Rune of Mastery). Gilded doubles the applied
-    // grant, not the accrual (the Pack Leader convention). Replaces the 2026-08-21 run-wide `conductorBuff`
-    // snowball ("Every Conductor played improves this by +2/+3"), which is now dormant. The step is a lead
-    // assumption pending owner confirmation — see the 2026-09-23 devlog. Live grant: cardText's conductorText.
+    // CONDUCTOR — a positional Shout whose improvement is RUN-WIDE (owner 2026-10-24: "every played conductor
+    // should buff every other conductor's buff. so if one conductor is played, the next conductor found gets the
+    // increases buff from it" + "it improves by +3/+3 each trigger of the shout"). Each trigger of ANY Conductor's
+    // Shout (a play, a Moira / Ryme / Dawnclaw / hero-power re-fire, a combat re-fire) grants its adjacent minions
+    // +(3 + N)/+(3 + N) and THEN raises the run-wide N (`conductorBuff`) by `step` (× Rune of Mastery), so every
+    // Conductor (Shop, hand, board, one found later) grants more. In combat the adjacent grant is combat-only but
+    // the step carries back (owner 2026-10-24). Gilded doubles the applied grant, not the step. Replaces the
+    // 2026-09-23 per-copy accrual. Live grant: cardText's conductorText.
     id: 'n2_conductor',
     name: 'Conductor',
     tribe: 'neutral',
@@ -63,9 +62,9 @@ export const SET2_NEUTRAL: CardDef[] = [
     attack: 2,
     health: 4,
     keywords: [],
-    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 3, health: 3, step: 1 } }], // 2026-10-10: +2/+3 → +3/+3
-    text: '**Shout:** give adjacent minions **+3/+3** and improve this.',
-    goldenText: '**Shout:** give adjacent minions **+6/+6** and improve this.',
+    effects: [{ on: 'onPlay', do: 'battlecryConductorAdjacent', params: { attack: 3, health: 3, step: 3 } }], // 2026-10-24: run-wide, +3/+3 per trigger
+    text: '**Shout:** give adjacent minions **+3/+3**. Improve all Conductors by **+3/+3** this game.',
+    goldenText: '**Shout:** give adjacent minions **+6/+6**. Improve all Conductors by **+3/+3** this game.',
   },
   {
     // Echo: its death hands Ward to two survivors — a body that trades early and leaves the line tougher than

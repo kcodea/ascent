@@ -1624,4 +1624,28 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (fix/mirrorwing-shop-offer, 2026-10-23). Before, `castSpell` only told a BOARD target a spell landed on it, so a Spirit Fire on a Mirrorwing offer resolved once.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/mirrorwingShopOffer.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-CONDUCTOR-RUNWIDE-01',
+    title: 'Every trigger of a Conductor Shout improves EVERY Conductor by +3/+3 for the rest of the game',
+    statement:
+      'Conductor\'s Shout gives its adjacent minions +(3 + N)/+(3 + N) (Gilded doubles that grant) and THEN raises N, '
+      + 'the run-wide Conductor improvement, by +3 (x Rune of Mastery; Gilded does not double the step). N is shared by '
+      + 'every Conductor wherever it is (Shop, Discover, hand, board, one found later), so the first trigger of the game '
+      + 'gives +3/+3, the next +6/+6, then +9/+9. EVERY trigger steps it: the play and any re-trigger of the Shout (Moira, '
+      + 'Ryme, Dawnclaw, a hero power, an extra Shout trigger, a combat re-fire). In combat the adjacent grant is '
+      + 'combat-only but the step is PERMANENT: it carries back at settle, so the next Shop shows the improved value. Each '
+      + 'combat side uses its own run\'s N (a recorded board serves the value it had) and an enemy\'s growth never reaches '
+      + 'the player. Every surface prints the live grant. A legacy per-copy accrual from the 2026-09-23 design still pays on top.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner ask 2026-10-24 (Conductor)', quote: 'every played conductor should buff every other conductor\'s buff. so if one conductor is played, the next conductor found gets the increases buff from it' },
+      { kind: 'owner-chat', ref: 'Owner correction 2026-10-24 (Conductor step)', quote: 'no, it improves by +3/+3 each trigger of the shout.' },
+      { kind: 'owner-chat', ref: 'Owner ruling 2026-10-24 (Conductor in combat)', quote: 'so if it gets triggered in combat, those stats won\'t be permanently granted, but the improvement would be.' },
+      { kind: 'code', ref: 'packages/core/src/effects/arena.ts battlecryConductorAdjacent (conductorTally / growConductor); packages/core/src/combat/simulate.ts conductorLive + ShoutCarry.conductorBuff; packages/sim/src/reducer.ts settle fold; packages/ui/src/cardText.ts conductorText' },
+    ],
+    contentIds: ['n2_conductor'],
+    currentBehaviour: 'Conforms from 2026-10-24. Before it each copy improved only itself by +1/+1 per fire (2026-09-23 design).',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/conductorCombat.test.ts', 'packages/sim/src/run.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

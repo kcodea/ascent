@@ -832,7 +832,7 @@ export type EffectFactoryId =
   | 'onDamagedBuffRandomHand' // Hearth Whisperer: whenever this takes damage, a random hand minion +atk/+hp (permanent)
   | 'tribePlayedBuffSelfInHand' // Slumbering Colossus (hand watcher): whenever you play a `tribe`, this grows in hand
   | 'onGainStatsBuffRandomHand' // Handy Flame (rune token, 2026-09-16): whenever this gains stats, a random OTHER minion in your hand +a/+h
-  | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +2N/+3N; N snowballs per Conductor played (×2 gilded)
+  | 'battlecryConductorAdjacent' // Conductor: Shout — give adjacent minions +(3+N)/+(3+N) (×2 gilded), then N += 3 run-wide (every trigger)
   | 'battlecryBuffMagnetics' // Scrap Herald: Battlecry — give your Magnetic minions +atk/+hp wherever they are; stacks into future buys
   | 'battlecryBuffImps' // Imp Overseer: Battlecry — give your Imps +atk/+hp run-wide (shared impBuff enchant)
   | 'goldSpentBuffFodder' // Koron: every N Gold spent, permanently buff your Fodder run-wide (+ queue a Fodder)
@@ -3274,7 +3274,7 @@ export type CombatEvent = (
   // `spell-bounce` ribbon from `bounce.from` to `target`. Only stamped for CROSS-target hops (a same-target
   // recast — Mirrorwing, Resonance's extra Ruby — carries none; owner ruling 2026-09-15). Never read by the sim.
   | { type: 'buff'; target: string; attack: number; health: number; source: string; ruby?: true; spellId?: string; bounce?: BounceProvenance } // `spellId` = the spell whose cast produced this buff, when one did. Same purpose as the field on `sc`: a buff WAVE is its own presentation moment (the tendril channel lives there), so without this the wave is attributed to the BODY that cast — and an authored spell effect could not replace the stock tendril for the spell that caused it (owner report 2026-09-01: Dragonflame's casters "are triggering tendrils instead").
-  | { type: 'improve'; target: string; amount: number; display?: number; scout?: number; side?: Side } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
+  | { type: 'improve'; target: string; amount: number; display?: number; scout?: number; conductor?: number; side?: Side } // an Improve accrual ticked: `amount` = the accrual-field delta (what the replay folds into `summonBonus`); `display` = the magnitude to NARRATE when it differs (Mammoth: amount 1 proc, display +3)
   | { type: 'shout'; source: string; target: string } // a combat Shout RE-FIRE — one per FIRE, so Drakko's repeats are countable at the signal: `source` = the re-triggering unit (Dawnclaw / Ryme / Thunderous Sovereign / Chorus Drake / Embercrest…), `target` = the Shout's owner. Mirrors `rally` (2026-09-01: three Drakko-repeated fires read as one on screen because they were narration).
   | { type: 'rally'; source: string; target: string } // Deathsayer's Rally fires `target`'s Deathrattle
   | { type: 'maxGold'; target: string; side: Side; amount: number } // Soulsman's Avenge raises your max Gold
@@ -3358,8 +3358,8 @@ export interface CombatSideState {
   /** Imp Aura (Fodder Feeder / Ritualist / Bane) — sizes this side's Imp summons. */
   impAtk: number;
   impHp: number;
-  /** CONDUCTOR's run-wide snowball N, carried in so a Shout RE-FIRED mid-fight grants the accumulated
-   *  +(2N)/+(3N) rather than nothing. Read-only in combat — the increment is a play-time event. */
+  /** CONDUCTOR's run-wide improvement N (owner 2026-10-24), carried in so a Shout RE-FIRED mid-fight grants
+   *  +(3+N)/+(3+N) of THIS side's run. A combat re-fire steps it too; the growth carries back at settle. */
   conductorBuff: number;
   /** Fodder consumed this turn (Abhorrent Horror's Start-of-Combat payoff). */
   fodderConsumedAtk: number;
@@ -3968,6 +3968,8 @@ export interface ShoutCarry {
   grimoireMult?: number;
   /** Squirl Scout: the run-wide snowball's growth this fight (`squirlScoutBuff`). */
   squirlScoutBuff?: number;
+  /** Conductor: the run-wide improvement's growth this fight (`conductorBuff`) — permanent (owner 2026-10-24). */
+  conductorBuff?: number;
   /** Contract Butcher / Malphas: permanent "minions in the Shop" buffs, in fire order. */
   runShopBuffs?: { source: string; cardId?: string; attack: number; health: number }[];
   /** Crypt Broker: indices into `handGrants` whose arrived card's Echo fires out of combat at settle. */
@@ -4381,8 +4383,12 @@ export interface CombatContext {
   /** The side's LIVE Imp Aura this fight (seeded from run state, advanced by in-combat Imp buffs). Chef Raag
    *  reads it to give your minions stats equal to it. */
   impAura(side: Side): { attack: number; health: number };
-  /** CONDUCTOR's carried snowball for a side (see `CombatSideState.conductorBuff`). */
+  /** CONDUCTOR's run-wide improvement for a side: the carried value (`CombatSideState.conductorBuff`) plus
+   *  this fight's growth. */
   conductorTally(side: Side): number;
+  /** CONDUCTOR: step the side's run-wide improvement — live for the rest of this fight, carried back
+   *  PERMANENTLY at settle via `ShoutCarry.conductorBuff` (owner 2026-10-24). */
+  growConductor(step: number, side: Side): void;
   /** Bane (combat, reacting to Ryme's battlecry replays): permanently enchant the Fodder card type run-wide
    *  by +atk/+hp (player only). Carried back via CombatResult.playerFodderBuffGain → `buffFodderRunWide`. */
   grantFodderBuff(attack: number, health: number, side: Side): void;

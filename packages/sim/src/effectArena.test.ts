@@ -68,6 +68,8 @@ const fakeArena = (uids: string[], seed: number, golden = false): { arena: Effec
     tribesOf: () => [],
     isUniversalTribe: () => false,
     improveReps: () => 1,
+    conductorTally: () => 0,
+    growConductor: () => {},
     matriarchReps: () => 1,
     logSpellProgress: () => {},
     logImprove: () => {},

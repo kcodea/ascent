@@ -1233,8 +1233,9 @@ export interface RunState {
   /** Squirl Scout's run-wide grant size: each Squirl Scout played raises it +3 (×2 golden). Its Battlecry
    *  gives a random friendly minion +this/+this once per Beast you own. Absent-safe (0). */
   squirlScoutBuff?: number;
-  /** Conductor's run-wide WEIGHTED trigger count: each Conductor Shout adds 1 (×2 gilded, ×2 Mastery). The
-   *  Shout grants adjacent minions +(2×this)/+(3×this) — the Squirl Scout snowball, positional. Absent-safe. */
+  /** Conductor's RUN-WIDE improvement (owner 2026-10-24): every trigger of any Conductor's Shout (a play, a shop
+   *  re-fire, a combat re-fire carried back at settle) adds +3 (× Rune of Mastery), and every Conductor's Shout
+   *  grants adjacent minions +(3+this)/+(3+this) — wherever that Conductor is when it is found. Absent-safe. */
   conductorBuff?: number;
   /** Run-wide Magnetic/Attachment aura (Scrap Herald): your Magnetic minions get +magneticBuyAtk/+magneticBuyHp
    *  everywhere — baked in on creation, re-applied on Reborn/summon. The only tribe-style aura with a Health half. */
@@ -1296,6 +1297,10 @@ export interface RunState {
    *  move as it fires. Folded from the player's `improve` events that carry `scout`; cleared at settle, where the
    *  REAL growth lands through `playerShoutCarry.squirlScoutBuff`. Display-only (read via `squirlScoutBuffLive`). */
   fxScoutPreview?: number;
+  /** TRANSIENT combat-replay preview of the Conductor run-wide improvement GROWN this fight, per side (owner
+   *  2026-10-24): folded from `improve` events carrying `conductor`; cleared at settle, where the player's REAL
+   *  growth lands through `playerShoutCarry.conductorBuff`. Display-only (read via `conductorBuffLive`). */
+  fxConductorPreview?: { player: number; enemy: number };
   /** TRANSIENT combat-replay preview of FRIENDLY deaths this fight — Cindara's Hoard Avenge (4) tracker ticks
    *  live as her minions fall, instead of being blank in the shop (deaths are combat-internal; there is no run
    *  total). Reset at settle like its spell-cast sibling, so it can never leak into the next fight — a fresh
@@ -2881,7 +2886,7 @@ export type Action =
   /** Combat replay: Blade Mastery attacks so far this fight (Gorun). */
   | { type: 'combatBladeAttackPreview'; count: number }
   /** Combat replay: Squirl Scout's run-wide snowball grown so far this fight (R-TEXT-11). */
-  | { type: 'combatScoutPreview'; amount: number }
+  | { type: 'combatScoutPreview'; amount: number; conductor?: number; conductorEnemy?: number }
   | { type: 'buy'; uid: string }
   /** Recruit your hero's HENCHMAN for its current (decayed) cost — once per run. See `henchmanCostOf`. */
   | { type: 'buyHenchman' }
@@ -3374,6 +3379,7 @@ export function deserialize(json: string, opts: { turnRemaining?: number } = {})
   state.fxFriendlyDeathPreview = undefined;
   state.fxBladeAttacksPreview = undefined;
   state.fxScoutPreview = undefined;
+  state.fxConductorPreview = undefined;
   const win = state.sellBonusWindow;
   if (win && (typeof win.amount !== 'number' || win.amount <= 0)) state.sellBonusWindow = undefined;
   else if (win && win.untilClock !== null && typeof opts.turnRemaining === 'number' && opts.turnRemaining <= win.untilClock) {

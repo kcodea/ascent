@@ -3978,6 +3978,9 @@ function reduceCore(state: RunState, action: Action): RunState {
     }
     case 'combatScoutPreview': {
       s.fxScoutPreview = action.amount === 0 ? undefined : action.amount; // Squirl Scout's live snowball (R-TEXT-11)
+      // Conductor's run-wide improvement grown this fight, per side (owner 2026-10-24) — rides the same bridge.
+      const cp = action.conductor ?? 0, ce = action.conductorEnemy ?? 0;
+      s.fxConductorPreview = cp === 0 && ce === 0 ? undefined : { player: cp, enemy: ce };
       return s;
     }
     case 'pickAncient': {
@@ -5182,6 +5185,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
     }
     if (c.grimoireMult) s.grimoireMult = Math.max(s.grimoireMult ?? 0, c.grimoireMult); // Living Grimoire
     if (c.squirlScoutBuff) s.squirlScoutBuff = (s.squirlScoutBuff ?? 0) + c.squirlScoutBuff; // Squirl Scout
+    if (c.conductorBuff) s.conductorBuff = (s.conductorBuff ?? 0) + c.conductorBuff; // Conductor: the improvement keeps (owner 2026-10-24)
     for (const b of c.runShopBuffs ?? []) applyRunShopBuff(s, b.attack, b.health, b.source, b.cardId); // Contract Butcher / Malphas
     for (const id of c.shopSpellHalves ?? []) applyShopSpellHalf(s, id); // Storm Chaser's split Veinstorm (owner 2026-10-10)
     // Set 3 Whispers (Whaloo, 2026-10-14): Runebind cast in combat improved PERMANENTLY. The carry holds the fight's END
@@ -5328,6 +5332,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   s.fxFriendlyDeathPreview = undefined; // Cindara's live Avenge tracker retires — a new fight re-counts from 0
   s.fxBladeAttacksPreview = undefined; // Gorun's live counter retires — `bladeAttacks` already banked the real total
   s.fxScoutPreview = undefined; // Squirl Scout's live snowball retires — `playerShoutCarry.squirlScoutBuff` banks the real growth
+  s.fxConductorPreview = undefined; // Conductor's too — `playerShoutCarry.conductorBuff` banked the player's real growth
   // Permanent Undead attack AURA gained in combat (Karthus's on-kill, Deathswarmer re-fired by Ryme) —
   // stack into undeadBuyAtk AND apply to all current run-board Undead immediately so they benefit without
   // being re-bought. Labelled 'Undead Bond' to match the buy-time aura (the source varies, the aura is one).

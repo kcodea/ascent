@@ -151,6 +151,13 @@ export interface EffectArena {
   isUniversalTribe(t: ArenaBody): boolean;
   /** Rune of Mastery reps — how many times an Improve tick applies (2 under the rune, else 1). */
   improveReps(): number;
+  /** CONDUCTOR's run-wide improvement for THIS side (owner 2026-10-24): the shop reads `RunState.conductorBuff`;
+   *  combat reads the side's carried value plus this fight's growth. */
+  conductorTally(): number;
+  /** Step the side's run-wide Conductor improvement. The shop writes `RunState.conductorBuff`; combat grows the
+   *  side's live value, logs it for the replay's live text, and carries the growth back PERMANENTLY at settle
+   *  (owner 2026-10-24: "the stats won't be permanently granted, but the improvement would be"). */
+  growConductor(step: number): void;
   /** Rune of the Matriarch reps (2 with the rune, else 1). The shop adapter returns 1 — the legacy shop
    *  halves never applied Matriarch, and that behaviour is preserved until ruled otherwise. */
   matriarchReps(): number;
@@ -1352,11 +1359,6 @@ export const ARENA_EFFECTS = {
 
   /** Scrap Herald — Shout: your Magnetics ("Attachments") gain +atk/+hp WHEREVER they are, permanently
    *  (golden doubles) — the Magnetic sibling of the Undead attack aura, with a Health half. */
-  /** CONDUCTOR — Shout: give the two ADJACENT bodies +(attack×N)/+(health×N), N being the run-wide snowball.
-   *  ARENA-BACKED so it resolves in BOTH phases: it used to be a recruit-only factory, which meant every
-   *  in-combat Shout re-fire treated it as "economy" and deferred it to settle — i.e. it did nothing during
-   *  the fight (owner report 2026-08-26). N is floored at 1 so a body that never went through the shop's play
-   *  path (summoned, Discovered onto the board) still pays its printed +2/+3 rather than nothing. */
   /** Splitboon Adept (Choose One): give the two adjacent bodies +atk/+hp — golden doubles. Shout family, so a
    *  combat re-fire (Ryme / Myra) buffs its neighbours in the fight, exactly as Conductor's does. */
   battlecryBuffAdjacent(arena: EffectArena, params: Record<string, unknown>): void {
@@ -1367,22 +1369,24 @@ export const ARENA_EFFECTS = {
     for (const adj of arena.neighboursOf(arena.self)) arena.buff(adj, a, h);
   },
 
-  /** Conductor — Shout: give the two ADJACENT minions +(base + accrual) and then IMPROVE THIS COPY (owner
-   *  rework 2026-09-23: "give adjacent minions +2/+3 and improve this"). The accrual rides `summonBonus`, the
-   *  per-instance permanent channel (carried back at settle, kept through a gild, served in a snapshot), so
-   *  EVERY fire of the Shout — the play, a shop re-fire (Moira, Ryme, Dawnclaw), a combat re-fire (Parting Cry,
-   *  Rune of Shared Scripture) — grants the current value and steps the accrual by `step` (× Rune of Mastery).
-   *  Grant first, then improve: the first fire pays the printed +2/+3. Gilded doubles the applied grant, not
-   *  the accrual (the Pack Leader convention). Replaces the run-wide `conductorBuff` snowball, now dormant. */
+  /** Conductor — Shout: give the two ADJACENT minions +(base + N) and then improve EVERY Conductor by `step`
+   *  (owner 2026-10-24: "every played conductor should buff every other conductor's buff" + "it improves by
+   *  +3/+3 each trigger of the shout"). N is the RUN-WIDE `conductorBuff`, so the improvement reaches every
+   *  Conductor wherever it is — Shop, hand, board, a Discover, one found later. EVERY trigger of the Shout steps
+   *  it: the play, a shop re-fire (Moira, Ryme, Dawnclaw, a hero power), a combat re-fire (Parting Cry, Rune of
+   *  Shared Scripture). Grant first, then improve: the triggers pay +3/+3, +6/+6, +9/+9, ... In combat the
+   *  adjacent grant is a plain (combat-only) buff but the step is permanent — it carries back at settle (owner
+   *  2026-10-24). Gilded doubles the applied grant, not the step; Rune of Mastery multiplies the step.
+   *  `summonBonus` is the LEGACY per-copy accrual of the 2026-09-23 design (no longer written): a copy that
+   *  accrued one before this change, or an old recorded board, keeps paying it on top. */
   battlecryConductorAdjacent(arena: EffectArena, params: Record<string, unknown>): void {
-    const bonus = arena.self.summonBonus ?? 0;
+    const n = arena.conductorTally() + (arena.self.summonBonus ?? 0);
     const g = gold(arena);
-    const a = ((typeof params.attack === 'number' ? params.attack : 2) + bonus) * g;
-    const h = ((typeof params.health === 'number' ? params.health : 3) + bonus) * g;
+    const a = ((typeof params.attack === 'number' ? params.attack : 3) + n) * g;
+    const h = ((typeof params.health === 'number' ? params.health : 3) + n) * g;
     for (const adj of arena.neighboursOf(arena.self)) arena.buff(adj, a, h);
-    const step = (typeof params.step === 'number' ? params.step : 1) * arena.improveReps();
-    arena.self.summonBonus = bonus + step;
-    arena.logImprove(step); // the live text climbs mid-fight, like Hunter / Thundeer
+    const step = (typeof params.step === 'number' ? params.step : 3) * arena.improveReps();
+    if (step !== 0) arena.growConductor(step);
   },
 
   battlecryBuffMagnetics(arena: EffectArena, params: Record<string, unknown>): void {

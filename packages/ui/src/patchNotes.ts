@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-24',
     changes: [
       { category: 'Systems', text: 'Fel Spikes now shows its spikes when a Start of Combat rune triggers its Echo.' },
+      {
+        category: 'Systems',
+        text: 'A triple made at the start of your turn now plays once you are back in the shop.',
+        details: [
+          'It used to play during the trip back from combat, where you could hear it but not see it.',
+          'On a Runeforge turn it waits until you have picked your rune.',
+        ],
+      },
     ],
   },
   {

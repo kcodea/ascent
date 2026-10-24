@@ -188,6 +188,7 @@ import { playBuySlide, type BuyFrom } from './buySlide';
 import { clearHandSummonFx, isHandSummonInFlight, launchHandSummonFlights, playerGrantUidsOf, setPlayerGrantUids, shopHandSummonFlights } from './handSummonFx';
 import { fireBuffFx } from './buffFxRender';
 import { planShoutChain } from './choreo/shoutChain';
+import { HELD_GILD_PAD_MS, gildMustWait, heldGildMayPlay, shopOfferCovering, type HeldGild } from './turnStartGild';
 import { NO_SOT_HOLDS, holdSotBeats, planSotBeats, releaseSotCue, sotBeatsMayPlay, sotShownStats, type SotCue, type SotHolds } from './sotBeats';
 import { releaseSotRuneProcs, sotRunKey } from './sotRuneHold';
 import { resolveBuffSource } from './choreo/buffSource';
@@ -333,6 +334,12 @@ function playsRubyAim(def: (typeof CARD_INDEX)[string] | undefined): boolean {
 const FLIP_SEL_TAVERN = '[data-zone="tavern"] .row .card[data-uid]';
 const FLIP_SEL_WARBAND = '[data-zone="warband"] .row .card[data-uid]';
 const FLIP_SELECTOR = `${FLIP_SEL_TAVERN}, ${FLIP_SEL_WARBAND}`;
+
+/** How many copies make a gild: two under Rune of Twin Gilding or Midas' Touch, else three. Mirrors the sim's `need`
+ *  (`gildCopiesNeeded`); the trail count comes from this rule, never from counting the uids that vanished. */
+function gildNeedOf(run: RunState): number {
+  return run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch' ? 2 : 3;
+}
 
 /** A hand or warband card's on-screen centre, for the gild's trail sources — null when it isn't laid out. */
 function measureGildCentre(uid: string): Pt | null {
@@ -2150,8 +2157,13 @@ export function Recruit() {
     }
   }
   const sotHeld = sotHolds.stats;
-  const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid) || !!sotHolds.hand?.has(uid);
-  const gambleHand = gambleHold || lassoHolds.hand.size || sotHolds.hand?.size ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
+  /* A TRIPLE MADE AT START OF TURN (R-SOT-GILD-01, `turnStartGild.ts`): its golden card stays out of its row and its gild
+     is parked until the Shop is in front of the player (the wipe at rest, the Start-of-Turn beats done, no offer such as
+     the Runeforge covering it). Parked during render, below the wipe state, so no frame paints the golden early. */
+  const [gildHold, setGildHold] = useState<HeldGild | null>(null);
+  const [gildTriplesSeen, setGildTriplesSeen] = useState(run.triplesMade ?? 0);
+  const handHeldBack = (uid: string): boolean => !!gambleHold?.includes(uid) || lassoHolds.hand.has(uid) || !!sotHolds.hand?.has(uid) || gildHold?.uid === uid;
+  const gambleHand = gambleHold || lassoHolds.hand.size || sotHolds.hand?.size || gildHold ? handShown.filter((c) => !handHeldBack(c.uid)) : handShown;
   /* WHISPER DISSIPATE (owner 2026-10-14, `whisperDissipate.ts`). On End Turn every unused Whisper plays its drift-and-fade
      in the hand row while the End-of-Turn beats and the combat transition run (never delaying them). The commit removes
      it from `run.hand`; the row then holds it as a GHOST at its slot until its own fade ends, and drops it the moment the
@@ -2330,6 +2342,27 @@ export function Recruit() {
   // The portrait-frames tuner's opponent ring for the NOW FACING face (null = today's gold CSS border).
   const foeFrame = usePortraitFrame('opp');
   const [wipe, setWipe] = useState<WipeState>(() => (run.phase === 'combat' ? 'combat' : 'idle'));
+  // Park a triple that landed under the return wipe (R-SOT-GILD-01). Sources resolve NOW, against the snapshot of the
+  // pre-combat layout (`gildSnapRef`), which the next recruit commit overwrites.
+  if ((run.triplesMade ?? 0) !== gildTriplesSeen) {
+    setGildTriplesSeen(run.triplesMade ?? 0);
+    if ((run.triplesMade ?? 0) > gildTriplesSeen && gildMustWait(run.phase, wipe)) {
+      const prevHand = prevHandUidsRef.current!, prevBoard = prevBoardUidsRef.current!;
+      const onScreen = [...run.hand, ...run.board];
+      const gold = onScreen.find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid));
+      if (gold) {
+        const sources = resolveGildSources({
+          prev: gildSnapRef.current,
+          present: new Set(onScreen.map((c) => c.uid)),
+          cardId: gold.cardId,
+          need: gildNeedOf(run),
+          bought: null,
+          fallback: { x: window.innerWidth / 2, y: window.innerHeight * 0.46 },
+        });
+        setGildHold({ uid: gold.uid, sources });
+      }
+    }
+  }
   // Every duration, the easing, the shape and the edge come from the Screen wipe tuner (screenWipeConfig.ts;
   // production plays its baked defaults). Read per render: the machine only moves between wipes, so a slider
   // change shows on the next one. The CSS vars below are set FROM the same numbers, and the sweep backstop
@@ -2685,6 +2718,33 @@ export function Recruit() {
   const runeLockInCue = useGame((st) => st.runeLockInCue);
   /** Dev-only slow-motion for the demo — the real ceremony always plays at its authored speed. */
   const [lockInSlow, setLockInSlow] = useState(1);
+  // RELEASE A PARKED START-OF-TURN GILD (R-SOT-GILD-01) once the Shop is in front of the player: the golden returns to
+  // its row, then (next layout pass, so it is laid out) the trails fly into it and the triple sound plays. `actionSfx`
+  // stays silent for a `resolveCombat` triple, so this is its one sound. Leaving the Shop first drops it unplayed.
+  const gildOfferCovering = shopOfferCovering({
+    runeforge: !!run.runeforgeOffer, forgeMin, runeLockIn: !!lockIn,
+    discover: !!run.discover, discoverMin,
+    quest: !!run.questOffer, questMin,
+    power: !!run.powerOffer, powerMin,
+    chooseOne: !!run.chooseOne, scouting: (run.scoutedNextOpponent?.length ?? 0) > 0, ancientOffer: (run.ancients?.offer?.length ?? 0) > 0,
+  });
+  const gildPlayRef = useRef<HeldGild | null>(null);
+  useEffect(() => {
+    if (!gildHold) return undefined;
+    if (run.phase !== 'recruit') { setGildHold(null); return undefined; }
+    if (!heldGildMayPlay({ phase: run.phase, wipe, sotPlaying, offerCovering: gildOfferCovering })) return undefined;
+    const t = window.setTimeout(() => { gildPlayRef.current = gildHold; setGildHold(null); }, HELD_GILD_PAD_MS);
+    return () => window.clearTimeout(t);
+  }, [gildHold, run.phase, wipe, sotPlaying, gildOfferCovering]);
+  useLayoutEffect(() => {
+    const g = gildPlayRef.current;
+    if (!g || gildHold) return;
+    gildPlayRef.current = null;
+    const el = document.querySelector<HTMLElement>(`.row .card[data-uid="${CSS.escape(g.uid)}"]`);
+    if (!el) return; // sold, or the Shop left, before it formed: nothing to show
+    sfx.triple();
+    playGildTrail(g.sources, el, g.uid);
+  }, [gildHold]);
   /**
    * DEV handle so the ceremony can be replayed without reaching a rune wave — the same shape as
    * `window.__perfHud` / `window.__pixiFx`. Tuning a 1.4s sequence by playing to the Runeforge each time is
@@ -3699,9 +3759,10 @@ export function Recruit() {
        Midas) mirror `need` at reducer.ts (`runeTwinGilding || midasTouch`) — never from counting the uids
        that vanished: a third copy you BUY is minted and consumed inside one commit, so it never shows up as
        "gone" (owner report 2026-07-23). `resolveGildSources` launches that one from the buy's release point. */
-    const gildNeed = run.runeTwinGilding || getHero(run.heroId).power.kind === 'midasTouch' ? 2 : 3;
+    const gildNeed = gildNeedOf(run);
     const onScreen = [...run.hand, ...run.board];
-    if (tripled && run.phase === 'recruit') {
+    // A triple parked for the Shop (R-SOT-GILD-01) plays from the release below, not here.
+    if (tripled && run.phase === 'recruit' && !gildHold) {
       const gold = onScreen.find((c) => c.golden && !prevHand.has(c.uid) && !prevBoard.has(c.uid));
       const el = gold ? document.querySelector<HTMLElement>(`.row .card[data-uid="${gold.uid}"]`) : null;
       if (gold && el) {
@@ -4180,7 +4241,9 @@ export function Recruit() {
   const displayBoard = useMemo<BoardCard[]>(() => {
     // A body a Start-of-Turn beat summons stays off the row until its beat lands it (R-SOT-BEAT-01).
     const sotOff = sotHolds.board;
-    const board = sotOff?.size ? run.board.filter((c) => !sotOff.has(c.uid)) : run.board;
+    // …and a golden whose Start-of-Turn gild is parked (a full hand puts it on the board; R-SOT-GILD-01).
+    const gildOff = gildHold?.uid;
+    const board = sotOff?.size || gildOff ? run.board.filter((c) => !sotOff?.has(c.uid) && c.uid !== gildOff) : run.board;
     if (chooseOnePreview) {
       const out = [...board];
       out.splice(Math.min(chooseOnePreview.at, out.length), 0, chooseOnePreview.card);
@@ -4211,7 +4274,7 @@ export function Recruit() {
       out.splice(s.index !== undefined ? Math.min(s.index, out.length) : out.length, 0, ghost);
     }
     return out;
-  }, [run.board, sotHolds.board, eotSummons, eotKeywords, eotTransforms, chooseOnePreview]);
+  }, [run.board, sotHolds.board, gildHold?.uid, eotSummons, eotKeywords, eotTransforms, chooseOnePreview]);
   // `view:board` / `view:hand` (perf export): building the per-card view + live text for every board/hand card.
   // Memoized, but rebuilds whenever `run.board`/`run.hand` identity changes — i.e. every dispatch (buy/play/weld).
   // If a heavily-attached late-game board makes these dominate a fanout frame, this is where it shows.

@@ -112,4 +112,29 @@ export const GILDING_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-09-25 (was hand first).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/tripleBoardFirst.test.ts'], lastVerifiedAt: '2026-09-25' },
   },
+  {
+    id: 'R-SOT-GILD-01',
+    title: 'A triple made at Start of Turn plays once the Shop is in front of you, after the Runeforge on a rune turn',
+    statement:
+      'When a Start of Turn effect completes a triple (a rune or quest grant, a hero power), the gild (the copies '
+      + 'throwing their trails into the golden card, and the triple sound) plays only once the return-to-shop '
+      + 'transition has finished, the Start of Turn beats have played, and no offer covers the Shop. On a '
+      + 'Runeforge turn it waits until the rune is picked and has reached the rack (likewise a Discover, quest, '
+      + 'power or Ancient offer, a scout, or a Choose One). Until then the golden card stays out of its row. A peeked '
+      + 'offer leaves the Shop in view, so the gild plays. Presentation only: the triple resolves with the turn '
+      + 'setup exactly as before.',
+    domain: 'gilding',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat', ref: 'Bug Board c49f912b (player report relayed by the owner, 2026-10-24)',
+        quote: 'when a unit is tripled at the start of turn, it happens while the return to shop transition is happening. this should wait until you return to shop. if it is on a rune select turn, it should wait until the rune is selected',
+      },
+      { kind: 'code', ref: 'packages/ui/src/turnStartGild.ts (gildMustWait, shopOfferCovering, heldGildMayPlay); packages/ui/src/Recruit.tsx (the gild parked during render, the golden held out of the hand and board rows, the release); packages/ui/src/store.ts actionSfx (silent for a parked resolveCombat triple)' },
+    ],
+    currentBehaviour:
+      'Conforms (2026-10-24). Was: the gild trail and the triple sound fired in the resolveCombat commit, under the '
+      + 'return curtain, and the golden sat in the hand at the reveal and under the Runeforge.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/turnStartGild.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
 ];

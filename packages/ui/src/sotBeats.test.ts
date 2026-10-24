@@ -139,9 +139,9 @@ describe('the Shop plays the beats after the wipe (source pins)', () => {
     const block = RECRUIT.slice(i, i + 500);
     expect(block).toContain('setSotHolds((prev) => holdSotBeats(prev, batch));');
     expect(block).toContain('setSotPlaying(true);');
-    expect(RECRUIT).toContain('|| !!sotHolds.hand?.has(uid);');
+    expect(RECRUIT).toContain('|| !!sotHolds.hand?.has(uid) ||');
     expect(RECRUIT).toContain('displayShop = displayShop.filter((o) => !off.has(o.uid));');
-    expect(RECRUIT).toContain('const board = sotOff?.size ? run.board.filter((c) => !sotOff.has(c.uid)) : run.board;');
+    expect(RECRUIT).toContain('const board = sotOff?.size || gildOff ? run.board.filter((c) => !sotOff?.has(c.uid) && c.uid !== gildOff) : run.board;');
   });
 
   it('queues the batch on its seq and plays it only when sotBeatsMayPlay (the wipe at rest), source first', () => {

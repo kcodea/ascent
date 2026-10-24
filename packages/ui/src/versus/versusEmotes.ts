@@ -9,12 +9,12 @@
  */
 import type { EmoteMessage } from '@game/sim';
 import { deliverEmote, setEmoteTransport, type EmoteTransport } from '../emotes/emoteTransport';
-import { EMOTE_COOLDOWN_MS, VERSUS_FOE_SEAT_ID, type VersusSeat } from '@game/sim';
+import { EMOTE_COOLDOWN_MS, VERSUS_FOE_SEAT_ID, type VersusGroupSeat } from '@game/sim';
 
 /** The wire message (the contract agreed with feat/emotes). */
 export interface VersusEmoteMessage {
   emoteId: string;
-  seat: VersusSeat;
+  seat: VersusGroupSeat;
   phase: 'shop' | 'combat';
   offsetMs: number;
   round: number;
@@ -28,16 +28,20 @@ export const VERSUS_OPPONENT_SEAT = VERSUS_FOE_SEAT_ID;
 export function parseVersusEmote(payload: unknown): VersusEmoteMessage | null {
   const p = payload as Partial<VersusEmoteMessage> | null;
   if (!p || typeof p.emoteId !== 'string' || p.emoteId.length > 64) return null;
-  if (p.seat !== 'p1' && p.seat !== 'p2') return null;
+  if (p.seat !== 'p1' && p.seat !== 'p2' && p.seat !== 'p3' && p.seat !== 'p4') return null;
   if (typeof p.offsetMs !== 'number' || !Number.isFinite(p.offsetMs) || typeof p.round !== 'number') return null;
   if (p.phase !== 'shop' && p.phase !== 'combat') return null;
   return { emoteId: p.emoteId, seat: p.seat, phase: p.phase, offsetMs: p.offsetMs, round: p.round };
 }
 
-let mine: VersusSeat | null = null;
+let mine: VersusGroupSeat | null = null;
+/** VERSUS GROUP (R-VERSUS-GROUP-03): which display-lobby seat a real seat's emote shows under, from `viewer`'s side
+ *  (the group rail has a row per player). Null = the 1v1 mapping (the one opponent, `VERSUS_OPPONENT_SEAT`). */
+let groupSeatMap: ((seat: VersusGroupSeat, viewer: VersusGroupSeat) => string | null) | null = null;
+export function setVersusEmoteSeatMap(map: typeof groupSeatMap): void { groupSeatMap = map; }
 
 /** Install the Versus transport for `seat` over the channel's broadcast `send`. */
-export function installVersusEmotes(seat: VersusSeat, send: (event: string, payload: unknown) => void): void {
+export function installVersusEmotes(seat: VersusGroupSeat, send: (event: string, payload: unknown) => void): void {
   mine = seat;
   const transport: EmoteTransport = {
     send(m: EmoteMessage): void {
@@ -60,7 +64,9 @@ export function uninstallVersusEmotes(): void {
 export function receiveVersusEmote(payload: unknown): boolean {
   const m = parseVersusEmote(payload);
   if (!m || !mine || m.seat === mine) return false;
-  deliverEmote({ emoteId: m.emoteId, seat: VERSUS_OPPONENT_SEAT, phase: m.phase, offsetMs: m.offsetMs, round: m.round });
+  const target = groupSeatMap ? groupSeatMap(m.seat, mine) : VERSUS_OPPONENT_SEAT;
+  if (!target) return false;
+  deliverEmote({ emoteId: m.emoteId, seat: target, phase: m.phase, offsetMs: m.offsetMs, round: m.round });
   return true;
 }
 
@@ -70,7 +76,7 @@ export const WATCHED_PLAYER_SEAT = 's0';
 /** The shortest gap a spectator accepts between two emotes from one watched seat (the cooldown, less network jitter):
  *  the channel is a public broadcast, so the receiver is the guard against a flood. */
 export const WATCHED_EMOTE_GAP_MS = EMOTE_COOLDOWN_MS - 2000;
-const watchedLast = new Map<VersusSeat, number>();
+const watchedLast = new Map<VersusGroupSeat, number>();
 
 /**
  * A SPECTATOR hears a player's emote (owner 2026-10-22: "spectators arent seeing when a player emotes, i think only the
@@ -80,13 +86,15 @@ const watchedLast = new Map<VersusSeat, number>();
  * seat's beside the opponent (the Versus foe). Refused while this client holds a seat (a player has its own path,
  * `receiveVersusEmote`), with no watched seat, malformed, or inside the cooldown for that seat (receiver's clock).
  */
-export function receiveWatchedEmote(payload: unknown, watched: VersusSeat | null, now: number = Date.now()): boolean {
+export function receiveWatchedEmote(payload: unknown, watched: VersusGroupSeat | null, now: number = Date.now()): boolean {
   const m = parseVersusEmote(payload);
   if (!m || !watched || mine) return false;
   const last = watchedLast.get(m.seat);
   if (last !== undefined && now - last >= 0 && now - last < WATCHED_EMOTE_GAP_MS) return false;
   watchedLast.set(m.seat, now);
-  deliverEmote({ emoteId: m.emoteId, seat: m.seat === watched ? WATCHED_PLAYER_SEAT : VERSUS_OPPONENT_SEAT, phase: m.phase, offsetMs: m.offsetMs, round: m.round });
+  const other = groupSeatMap ? groupSeatMap(m.seat, watched) : VERSUS_OPPONENT_SEAT;
+  if (m.seat !== watched && !other) return false;
+  deliverEmote({ emoteId: m.emoteId, seat: m.seat === watched ? WATCHED_PLAYER_SEAT : other!, phase: m.phase, offsetMs: m.offsetMs, round: m.round });
   return true;
 }
 

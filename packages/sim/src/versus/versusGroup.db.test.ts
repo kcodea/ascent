@@ -22,7 +22,9 @@ const FILES = [
   '2026-10-15-versus-hero-reroll.sql', '2026-10-16-versus-clock-grace.sql', '2026-10-17-versus-open-rooms.sql',
 ];
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
-const GROUP = readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8');
+const GROUP = readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8')
+  // A knocked-out player goes to the stands (R-VERSUS-GROUP-06).
+  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group-knockout-stands.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -171,6 +173,31 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
     expect(r.options_rev).toBe(2);
     expect(await roles(room.id)).toEqual({ Ann: 'p1', Bob: 'spectator', Cat: 'p2', Dan: 'spectator' });
     expect(await fails(B, `select public.versus_take_seat($1, 'p3')`, [room.id])).toMatch(/bad_role/);
+  });
+});
+
+describe('Versus Group: knocked out = into the stands (R-VERSUS-GROUP-06)', () => {
+  it('out of hearts or conceding moves the player to the stands of the room, past a full stand; they lock nothing more', async () => {
+    const users = [A, B, C, D];
+    const [room, m] = await startGroup(users);
+    // A full stand: 20 spectators.
+    for (let i = 0; i < 20; i++) await as(U(40 + i), `select public.versus_join_room($1, 'spectator', 'S', '{}', $2, 1)`, [room, CONTENT]);
+    await toShop(m, users);
+    await db.query(`update public.versus_group_seats set hearts = 1 where match_id = $1 and seat = 'p2'`, [m]);
+    for (const u of users) await lock(u, m, 1);
+    await commitFights(m, 1, [fight(0, 'p1', 'p2', 'a'), fight(1, 'p3', 'p4', 'draw')]);
+    expect((await roles(room)).Bob).toBe('spectator');
+    expect(await fails(B, `select public.versus_group_submit($1, 2, 1, '{}'::jsonb, true, null, null)`, [m])).toMatch(/eliminated|stale_round/);
+    await as(D, 'select public.versus_group_forfeit($1)', [m]);
+    expect((await roles(room)).Dan).toBe('spectator');
+    // The match goes on for the other two; the group seats keep their placements.
+    const seats = await seatRows(m);
+    expect([seats.p2.placement, seats.p4.placement, (await groupRow(m)).phase]).toEqual([4, 3, 'combat']);
+    // When it ends they are in the open room's stands, and can take a seat for the next game.
+    await as(C, 'select public.versus_group_forfeit($1)', [m]);
+    expect((await as<any>(A, 'select public.versus_reconcile_room($1)', [room])).status).toBe('open');
+    await as(B, `select public.versus_take_seat($1, 'p2')`, [room]);
+    expect((await roles(room)).Bob).toBe('p2');
   });
 });
 

@@ -8,3 +8,4 @@ export * from './lobbyView';
 export * from './options';
 export * from './group';
 export { handleVersusGroupFinalize, groupRoundDigest, type VersusGroupFinalizeStore } from './groupFinalize';
+export * from './groupLobbyView';

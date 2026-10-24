@@ -8,14 +8,17 @@
  * heart pill), the watched one lit; click a plate, or press 1 / 2, to watch that player's screen. Instant: both views
  * are cached (spectate.ts). In a fight the same plates pick whose side it is shown from.
  */
-import { useEffect, useMemo } from 'react';
-import type { VersusSeat } from '@game/sim';
+import { useEffect, useMemo, useRef } from 'react';
+import type { VersusGroupSeat, VersusSeat } from '@game/sim';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { leaveSpectating, useSpectate, watchSeat } from './spectate';
-import { useVersus } from './versusStore';
+import { clearVersusKnockout, useVersus } from './versusStore';
+import { placementText } from '../rank/rankFormat';
 import { SpectatorCursor } from './SpectatorCursor';
 import { SpectatorSelf, WatchedPanel, type WatchSeat } from './SpectatorHud';
+import '../live/live.css';
+import { copyName, foeIn, groupPairingAt } from './versusGroupView';
 
 const SEATS: readonly VersusSeat[] = ['p1', 'p2'];
 
@@ -31,6 +34,13 @@ export function SpectatorBar(): JSX.Element | null {
     if (!active) return undefined;
     const onKey = (e: KeyboardEvent): void => {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest('input, textarea'))) return;
+      // VERSUS GROUP: 1-4 pick among the players still in, in the bar's order (R-VERSUS-GROUP-04).
+      const pickable = groupOrderRef.current;
+      if (pickable.length > 0 && /^[1-4]$/.test(e.key)) {
+        const s = pickable[Number(e.key) - 1];
+        if (s) { e.preventDefault(); sfx.tick(); watchSeat(s); }
+        return;
+      }
       if (e.key === '1' || e.key === '2') {
         e.preventDefault();
         sfx.tick();
@@ -40,8 +50,49 @@ export function SpectatorBar(): JSX.Element | null {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [active]);
+  // VERSUS GROUP (R-VERSUS-GROUP-04): THE FIGHT PICKER. Every player of the table, grouped by this round's fights (each
+  // plate says who that player is fighting, a Copy included); the players still in can be picked, the ones out are
+  // dimmed. Watching a player shows their screen and their fight. Default: a player still in.
+  const group = match?.group ?? null;
+  const groupSeats = useMemo((): WatchSeat[] => {
+    if (!group) return [];
+    const raw = group.raw;
+    const pairing = groupPairingAt(raw, Math.max(1, raw.round));
+    const order: VersusGroupSeat[] = [];
+    for (const p of pairing) {
+      for (const s of p.copy ? [p.a] : [p.a, p.b]) if (!order.includes(s)) order.push(s);
+    }
+    for (const s of raw.seats) if (!order.includes(s.seat)) order.push(s.seat);
+    return order.map((key) => {
+      const row = raw.seats.find((x) => x.seat === key)!;
+      const foe = row.eliminatedRound == null ? foeIn(pairing, key) : null;
+      const foeRow = foe ? raw.seats.find((x) => x.seat === foe.seat) : null;
+      return {
+        key,
+        name: row.name,
+        heroId: row.hero,
+        profile: room?.members.find((m) => m.userId === row.userId)?.profile,
+        hearts: row.hearts,
+        on: seat === key,
+        pick: () => watchSeat(key),
+        vs: foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
+        out: row.eliminatedRound != null,
+      };
+    });
+  }, [group, room, seat]);
+  const groupOrderRef = useRef<VersusGroupSeat[]>([]);
+  groupOrderRef.current = groupSeats.filter((s) => !s.out).map((s) => s.key as VersusGroupSeat);
+  // Watching a player who is out (or a seat that does not exist): move to a player still in.
+  useEffect(() => {
+    if (!active || !group) return;
+    const cur = group.raw.seats.find((x) => x.seat === seat);
+    if (cur && cur.eliminatedRound == null) return;
+    const next = groupOrderRef.current[0];
+    if (next && next !== seat) watchSeat(next);
+  }, [active, group, seat]);
   const seats = useMemo((): WatchSeat[] => {
     if (!match) return [];
+    if (match.group) return [];
     const [mine, theirs] = shown.split('|');
     return SEATS.map((s) => {
       const user = s === 'p1' ? match.p1_user : match.p2_user;
@@ -62,7 +113,35 @@ export function SpectatorBar(): JSX.Element | null {
     <>
       <SpectatorCursor />
       <SpectatorSelf onLeave={leaveSpectating} />
-      <WatchedPanel seats={seats} />
+      <WatchedPanel seats={group ? groupSeats : seats} />
+      <KnockoutNotice matchId={match.id} />
     </>
+  );
+}
+
+/**
+ * KNOCKED OUT OF A GROUP MATCH (owner 2026-10-24, R-VERSUS-GROUP-06): the end screen's placement numeral on the game's
+ * dark panel (LiveWatchBar's ending, reused), over the watch screen the player was just moved onto. It goes after a
+ * few seconds, on its button, or when the match changes.
+ */
+function KnockoutNotice({ matchId }: { matchId: string }): JSX.Element | null {
+  const ko = useVersus((s) => s.knockout);
+  const showing = !!ko && ko.matchId === matchId;
+  useEffect(() => {
+    if (!showing) return undefined;
+    const t = window.setTimeout(clearVersusKnockout, 6000);
+    return () => window.clearTimeout(t);
+  }, [showing]);
+  if (!ko || !showing) return null;
+  return (
+    <div className="vsveil lvend" role="dialog" aria-label="You are out">
+      <div className="vspanel">
+        <div className="endplace"><span className="endplace-num">{ko.placement ? placementText(ko.placement) : 'Out'}</span></div>
+        <div className="lvend-sub">You are out. Watch the rest of the match from the stands.</div>
+        <div className="vspanel-actions">
+          <button type="button" className="vsplate vsstartbtn" onClick={() => { sfx.pulse(); clearVersusKnockout(); }}>Watch</button>
+        </div>
+      </div>
+    </div>
   );
 }

@@ -8171,9 +8171,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'for versus, how hard would it be to make a 4 player round robin lobby version?' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (answers)', quote: 'if it\x27s a 3 player game, maybe a player faces a copy of another player\x27s board instead of a ghost' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24: approving the phase-1 readings (a Copy never hurts the copied player, a winning Copy costs a heart; simultaneous knockouts share the lower placement)', quote: 'yes' },
       { kind: 'code', ref: 'packages/sim/src/versus/group.ts (versusGroupPairings, resolveVersusGroupRound); packages/sim/src/versus/groupFinalize.ts; supabase/migrations/2026-10-24-versus-group.sql (versus_group_commit_round); supabase/functions/versus-resolve/index.ts finalize_group' },
     ],
-    currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1): live once 2026-10-24-versus-group.sql is applied and versus-resolve is redeployed. The room and in-game UI arrive in phase 2; until then no client starts a group match.',
+    currentBehaviour: 'Server side live 2026-10-24 (#2280: migration applied, versus-resolve redeployed, parity 31/31); playable from the room and in game since phase 2 (feat/versus-group-ui). Readings approved by the owner 2026-10-24.',
     example: 'Four players: round 1 is Ann vs Bob and Cat vs Dan, round 2 Ann vs Cat and Bob vs Dan, round 3 Ann vs Dan and Bob vs Cat. Dan runs out of hearts in round 3: round 4 is one fight (not a rematch of round 3) and the third player faces a copy of one of the other two boards.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
@@ -8194,9 +8195,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (answers)', quote: 'Win condition: last one standing.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24: approving the phase-1 readings (leaving or conceding is out at once and fights that round as a ghost of the last locked board; End Combat gives the last player back 5 s)', quote: 'yes' },
       { kind: 'code', ref: 'supabase/migrations/2026-10-24-versus-group.sql (versus_group__eliminate, versus_leave_room, versus_group_reconcile, versus_group_combat_ready, versus_group_commit_round wipeout guard); packages/sim/src/versus/group.ts versusGroupAliveAt' },
     ],
-    currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1), live once the migration is applied.',
+    currentBehaviour: 'Server side live 2026-10-24 (#2280); the client side (end gate, watching after going out) since phase 2 (feat/versus-group-ui). Readings approved by the owner 2026-10-24.',
     example: 'Four in, round 5 shop: Dan leaves. He is 4th at once. Round 5 still pairs Cat with Dan; Cat fights Dan\x27s round 4 board and loses a heart if it beats her. Round 6 is three players with a copy.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.db.test.ts', 'packages/sim/src/versus/versusGroup.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
@@ -8221,7 +8223,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'remove time/lives from options for now' },
       { kind: 'code', ref: 'packages/sim/src/versus/options.ts; packages/sim/src/versus/run.ts createVersusRun (options); supabase/migrations/2026-10-24-versus-group.sql (versus__options_error, versus_set_options, versus_press_gate snapshot)' },
     ],
-    currentBehaviour: 'Server side built 2026-10-24 (feat/versus-group, phase 1); the host options panel arrives in phase 2.',
+    currentBehaviour: 'Server side built 2026-10-24 (phase 1, #2280); the host options panel since phase 2 (feat/versus-group-ui, R-VERSUS-OPTIONS-02). The switch-to-1v1 seat rule and one modifier at a time approved by the owner 2026-10-24 ("yes").',
     example: 'The host plays a 1v1, then switches the room to the group mode with Summit while everyone is back in the room: two more players take seats 3 and 4, and the next match is a 4-player group game where every shop can reach Tier 7. The finished 1v1 still reads 1v1, no modifier.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
@@ -8316,5 +8318,105 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Versus settlement queued since 2026-10-14 was dropped on its first read and never reached the server.',
     example: 'You win a Versus match and close the tab before it settles: on your next visit the queue still holds it and it settles.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/progression/progressionQueue.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-OPTIONS-02',
+    title: 'The room shows its options to everyone; the host edits them on a panel; a change is announced; the room list shows each room\x27s mode',
+    statement:
+      'Under the Versus room\x27s name a chip reads what the room plays ("1v1", "3-4 players", plus the modifier: "3-4 players · Summit"); it and the '
+      + 'Room options button open the options panel: Mode (1v1 or 3-4 players) and Modifier (None, Freedom, Summit) as Practice\x27s own segmented '
+      + 'pills, each with a one-line hint. The host changes them while the room is Open; everyone else (and everyone while the room is sealed or '
+      + 'in a game) sees the same pills disabled, with "Only the host can change these, between games." When the host changes them, every other '
+      + 'member sees "Room options changed: <summary>" for a few seconds. The room browser shows each room\x27s mode and modifier on its card, and as '
+      + 'many seat sockets as the mode has (2 or 4).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (phase 2 brief)', quote: 'all these options should be customizable within a lobby, so a player can host a room and change them game to game without needing to rehost a lobby' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusOptionsUi.tsx (VersusOptionsPanel, versusOptionsSummary); packages/ui/src/versus/VersusRoom.tsx (.vsroommode, Room options); packages/ui/src/versus/versusStore.ts (setRoomOptions, optionsNotice); packages/ui/src/versus/VersusTitle.tsx (.vsrcard-mode)' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2).',
+    example: 'Bob hosts and picks 3-4 players and Summit. Ann, in the stands, sees "Room options changed: 3-4 players · Summit" and the chip under the room\x27s name changes; her panel shows the same pills, greyed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupRoom.test.tsx'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-03',
+    title: 'In a 3-4 player Versus game the ranked lobby rail shows every player on their hearts, and a Copy row names who is copied this round',
+    statement:
+      'A 3-4 player Versus game replaces the 1v1 opponent block with the ordinary ranked lobby rail: one row per player, the player included, on '
+      + 'their hearts out of 7 (no Armor, no loss cap), the round\x27s opponent marked, players out shown below with their placement, hover and pin '
+      + 'scouting as in a lobby, and the rail\x27s Guides tab. While the round has a copy fight, one more row reads "Copy of <name>" (who is copied '
+      + 'changes each round) with that player\x27s hearts and board; when the player is the one facing it, the Copy is their opponent: the combat '
+      + 'scene names "Copy of <name>" and shows the copied board. Hearts move with the 1v1 timing (yours when your fight settles, the others\x27 '
+      + 'when you leave the fight). An emote shows on its sender\x27s own row. A 1v1 game keeps its opponent block.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'we\x27d replace the \x27enemy hero\x27 ui element we made with versus, with the lobby rail we have in the normal ranked mode, but it\x27d just have the 4 players on the rail instead of 8' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'show a \x27Copy\x27 in the 4th slot if only 3 players are playing, and that would change based on who is copied that round' },
+      { kind: 'code', ref: 'packages/sim/src/versus/groupLobbyView.ts (versusGroupLobby); packages/sim/src/lobby/runLobby.ts (forcedOpponent in playerOpponent); packages/ui/src/LobbyPanel.tsx (versusDuel); packages/ui/src/versus/versusStore.ts (syncGroupLobby); packages/ui/src/versus/versusEmotes.ts (setVersusEmoteSeatMap)' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2).',
+    example: 'Three players. Round 1 the rail shows Ann, Bob, Cat and "Copy of Ann"; Cat\x27s opponent mark is on the Copy. Round 2 the last row reads "Copy of Cat" and Bob fights it.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroupLobby.test.ts', 'packages/ui/src/versus/versusGroupView.test.ts', 'packages/ui/src/versus/versusEmotes.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-04',
+    title: 'Versus Group spectators pick which fight to watch; the table counts every living player; a player who is out watches like the stands',
+    statement:
+      'A spectator of a 3-4 player game picks from every player at the bottom right (keys 1 to 4), grouped by this round\x27s fights, each plate saying '
+      + 'who that player fights ("vs Bob", "vs Copy of Bob"); players already out are dimmed and cannot be picked, and a spectator watching a player who '
+      + 'goes out moves to one still in. Switching between the two players of the same fight continues from the same moment; switching to the other '
+      + 'fight joins it where it is. The End Turn / End Combat pill counts every living player ("Players ready 3/4"); while all but you are back from '
+      + 'their fights it reads "Everyone else is ready" with your seconds. A pause names whoever disconnected. A player who goes out becomes a spectator of '
+      + 'the same match (R-VERSUS-GROUP-06).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Coordinator brief 2026-10-24 relaying the owner', quote: 'spectators (pick which fight to watch; default: a living player\x27s fight)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/SpectatorBar.tsx (group fight picker); packages/ui/src/versus/spectate.ts (four seats, sameFightAt); packages/ui/src/versus/versusGroupView.ts (projectGroupMatch); packages/ui/src/versus/versusTurn.ts (group counts); packages/ui/src/versus/VersusHud.tsx (pause name)' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2).',
+    example: 'Four players, round 3: the bar shows Ann vs Dan, Dan vs Ann, Bob vs Cat, Cat vs Bob. Watching Ann, pressing 2 shows Dan\x27s side of the same fight at the same moment; pressing 3 jumps to Bob\x27s fight.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupView.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-05',
+    title: 'A Versus room in the 3-4 player mode has four seats and starts with three or four seated',
+    statement:
+      'A room set to 3-4 players shows four player seats, two each side of the VS mark, a size down from the 1v1 seats; members take and leave them '
+      + 'by drag or Join exactly as in 1v1. Start game shows for the host once three are seated. Each seat shows its hearts during a match. Switching '
+      + 'the room back to 1v1 moves the extra players to the stands (R-VERSUS-OPTIONS-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (answers)', quote: 'Player counts: 3 or 4 players' },
+      { kind: 'code', ref: 'packages/ui/src/versus/VersusRoom.tsx (seatRoles, VERSUS_MODE_SEATS); packages/ui/src/versus/useSeatDrag.tsx (readRoomGeo p3/p4); packages/ui/src/versus/versus.css (.vsgroup)' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2).',
+    example: 'Three friends sit in a 3-4 player room: Start game appears for the host; a fourth can still take the last seat before it is pressed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupRoom.test.tsx'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
+    id: 'R-VERSUS-GROUP-06',
+    title: 'Knocked out of a 3-4 player Versus game: into the stands of the same match, watching the rest, placement shown on arrival',
+    statement:
+      'When a player goes out of a group match (out of hearts, three missed rounds, or a concede), the server moves them from their seat to the '
+      + 'stands of the room at once (past a full stand: the 20-spectator cap only gates joins and seat moves); their seat in the match keeps its '
+      + 'placement and takes no more locks or inputs. On their screen they watch the fight that knocked them out (out of hearts), then the end '
+      + 'gate closes and opens on the watch screen of the same match, the normal spectator view with the fight picker, with their placement in '
+      + 'the end screen\x27s numeral on the game\x27s dark panel ("3RD", "You are out. Watch the rest of the match from the stands.") for a few '
+      + 'seconds or until Watch is pressed. A conceded player arrives there at once. Leave returns them to the room, Watch brings them back, and '
+      + 'a reload puts them back in the room\x27s stands. When the match ends they are in the open room\x27s stands and take a seat for the next '
+      + 'game like anyone else.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24', quote: 'when a player loses/is knocked out in this mode they go into a spectator seat so they can watch the rest of the game' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-24-versus-group-knockout-stands.sql (versus_group__seat_out_to_stands); packages/ui/src/versus/versusStore.ts returnToRoom (knockout); packages/ui/src/versus/SpectatorBar.tsx KnockoutNotice; packages/ui/src/versus/versusGroupView.ts (the viewer\x27s own end)' },
+    ],
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2), once 2026-10-24-versus-group-knockout-stands.sql is applied (before it, the player stays in their seat and still lands on the watch screen).',
+    example: 'Four players. Dan loses his last heart in round 9: he watches that fight, the gate closes, and he is watching Ann vs Bob from the stands with "4TH" on screen; his card is now in the room\x27s hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.db.test.ts', 'packages/ui/src/versus/versusGroupRoom.test.tsx'], lastVerifiedAt: '2026-10-24' },
   },
 ];

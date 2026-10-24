@@ -30,12 +30,13 @@ function turnOf(st: Pick<VersusState, 'match' | 'lockedRound' | 'readyRound'>, r
 
 /** The turn state as a hook: re-renders only when the kind or the ready count changes. A stale row is re-read. */
 function useVersusTurn(run: Pick<RunState, 'mode' | 'phase' | 'wave'>): VersusTurn {
-  const key = useVersus((s) => { const t = turnOf(s, run); return `${t.kind}|${t.ready ?? ''}|${t.stale ? 1 : 0}|${t.deadline ?? ''}`; });
-  const [kind, ready, stale, deadline] = key.split('|');
+  const key = useVersus((s) => { const t = turnOf(s, run); return `${t.kind}|${t.ready ?? ''}|${t.stale ? 1 : 0}|${t.deadline ?? ''}|${t.of ?? ''}`; });
+  const [kind, ready, stale, deadline, of] = key.split('|');
   useEffect(() => { if (stale === '1') rereadVersusMatch(); }, [stale, key]);
   return {
     kind: kind as VersusTurn['kind'], ...(ready ? { ready: Number(ready) } : {}), ...(stale === '1' ? { stale: true as const } : {}),
     ...(deadline ? { deadline: Number(deadline) } : {}),
+    ...(of ? { of: Number(of) } : {}),
   };
 }
 
@@ -96,7 +97,11 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     const m = s.match;
     if (!versus || !m || m.phase !== 'shop' || m.round !== run.wave) return false;
     const seat = mySeat(m) ?? spectating;
-    return !!seat && (s.lockedRound === m.round || !!m[`${seat}_locked`]);
+    if (!seat) return false;
+    if (s.lockedRound === m.round) return true;
+    // VERSUS GROUP: the watched seat's own lock, off the table (p3 / p4 have no 1v1 column).
+    if (m.group) return !!m.group.raw.seats.find((x) => x.seat === (mySeat(m) ? m.group!.me : seat))?.locked;
+    return seat === 'p1' ? m.p1_locked : seat === 'p2' ? m.p2_locked : false;
   });
   const [clockQuiet, setClockQuiet] = useState(false);
   const quietRef = useRef(false);
@@ -180,11 +185,12 @@ export function VersusHud() {
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
-  const names = { p1: match.p1_name, p2: match.p2_name };
+  // VERSUS GROUP: the absent player is whoever the table says (named on `match.group`), not "the opponent".
+  const names = { p1: match.p1_name, p2: match.group?.pausedName ?? match.p2_name };
   const absent = match.paused_seat;
   const iAmAbsent = absent === seat;
   // The absent player is back in the room (fresh heartbeat) but has not pressed Unpause yet.
-  const absentUser = absent === 'p1' ? match.p1_user : match.p2_user;
+  const absentUser = absent === 'p1' ? match.p1_user : match.group?.pausedUser ?? match.p2_user;
   const seen = room?.members.find((m) => m.userId === absentUser)?.lastSeenAt;
   const absentBack = !!seen && versusServerNow() - Date.parse(seen) < VERSUS_LEASE_SECONDS * 1000;
 

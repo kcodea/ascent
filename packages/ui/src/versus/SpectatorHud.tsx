@@ -75,6 +75,10 @@ export interface WatchSeat {
   hearts: number;
   on: boolean;
   pick: () => void;
+  /** VERSUS GROUP (R-VERSUS-GROUP-04): who this player fights this round ("vs Bob", "vs Copy of Bob"): the fight picker. */
+  vs?: string | null;
+  /** Out of the match: shown dimmed, not pickable. */
+  out?: boolean;
 }
 
 /** Bottom right: who I am watching. Two or more players: the switcher. One: the compact name + rank plate. */
@@ -88,12 +92,13 @@ export function WatchedPanel({ seats, single }: {
         <span className="vsspec-label">Watching</span>
         <div className="vsspec-seats">
           {seats.map((s, i) => (
-            <button key={s.key} type="button" className={`vsspec-seat${s.on ? ' on' : ''}`} aria-pressed={s.on}
-              aria-label={`Watch ${s.name}, ${s.hearts} hearts (${i + 1})`} onClick={() => { if (!s.on) { sfx.tick(); s.pick(); } }}>
+            <button key={s.key} type="button" className={`vsspec-seat${s.on ? ' on' : ''}${s.out ? ' out' : ''}`} aria-pressed={s.on} disabled={s.out}
+              aria-label={`Watch ${s.name}, ${s.hearts} hearts${s.vs ? `, ${s.vs}` : ''} (${i + 1})`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
               <MemberRing name={s.name} heroId={s.heroId} profile={s.profile} className="vsspec-ring" />
               <span className="vsspec-info">
                 <span className="vsspec-name hudpill-name">{s.name}</span>
                 <span className="vsspec-hp hudpill-hp"><HeartIcon />{s.hearts}</span>
+                {s.vs && <span className="vsspec-vs">{s.vs}</span>}
               </span>
               <kbd className="vsspec-key" aria-hidden="true">{i + 1}</kbd>
             </button>

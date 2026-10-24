@@ -19,7 +19,7 @@
  *  - THE FIGHT'S BEAT: the beat the player's fight is on (`notePlayerBeat`) rides every spectator keyframe while in
  *    combat (`cb`), so a spectator who joins or comes back mid-fight seeks to it (R-SPECTATE-JOIN-01).
  */
-import type { Action, CombatOdds, DragPath, EotRecord, StreamCursorBody, StreamDecision, StreamTrailPoint, VersusSeat } from '@game/sim';
+import type { Action, CombatOdds, DragPath, EotRecord, StreamCursorBody, StreamDecision, StreamTrailPoint, VersusGroupSeat } from '@game/sim';
 import { dragTraceOf } from '../replay/dragTrace';
 import { noteStreamOverlay, noteStreamSkip } from '../replay/streamRecorder';
 import { CURSOR_IDLE_MS, CURSOR_POINT_MS, CURSOR_TICK_MS, noteCursorAct, subscribeCursor, wireDecisionOf } from './cursorSource';
@@ -53,7 +53,7 @@ export interface SpectatorAct {
 /** One cursor sample: the message `cursorSource.ts` builds (`StreamCursorBody`: window and game-box fractions, the
  *  anchor, the held card and its drop gap `g` (R-SPECTATE-DRAGGAP-01), the aim, `hide`, the player's clock `ts` and
  *  trail `tr` (R-SPECTATE-SMOOTH-01), the drop outcome `de`), plus the seat it is from. */
-export type CursorSample = StreamCursorBody & { seat: VersusSeat };
+export type CursorSample = StreamCursorBody & { seat: VersusGroupSeat };
 
 /** An earlier point of a cursor message (`CursorSample.tr`): `[ms before ts, gx, gy, anchor key?, fx?, fy?]`. */
 export type TrailPoint = StreamTrailPoint;
@@ -195,7 +195,7 @@ let wake: (() => void) | null = null;
 /** The publisher's flush (send what is pending now), for an action the stands are waiting on. */
 let flush: (() => void) | null = null;
 let flushTimer: number | null = null;
-let seat: VersusSeat | null = null;
+let seat: VersusGroupSeat | null = null;
 /** The cursor subscription while someone watches (`cursorSource.ts` builds the message; this adds the seat and sends). */
 let unsubCursor: (() => void) | null = null;
 const sendCursor = (body: StreamCursorBody): void => {
@@ -224,7 +224,7 @@ export function combatBeatFor(run: { phase: string; wave: number }): { w: number
 /**
  * Turn the live extras on (someone is watching this player) or off. Idempotent; called whenever the stands change.
  */
-export function setSpectatorTap(on: boolean, mySeat: VersusSeat | null, sender: ((event: string, payload: unknown) => void) | null, publish?: () => void, publishNow?: () => void): void {
+export function setSpectatorTap(on: boolean, mySeat: VersusGroupSeat | null, sender: ((event: string, payload: unknown) => void) | null, publish?: () => void, publishNow?: () => void): void {
   const want = on && !!mySeat && !!sender;
   send = sender;
   wake = want ? publish ?? null : null;

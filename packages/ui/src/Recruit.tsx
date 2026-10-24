@@ -2479,7 +2479,7 @@ export function Recruit() {
   useEffect(() => {
     if (wipe === 'coverOut') {
       window.clearTimeout(titleWooshRef.current);
-      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), VISTA_ARRIVAL_MS);
+      titleWooshRef.current = window.setTimeout(() => sfx.vistaTrip('title'), VISTA_ARRIVAL_MS - 300); // moved 0.3 s earlier with the letters ("pop up .3 seconds earlier"), keeping its lead on them
     } else if (wipe === 'idle' || wipe === 'chargeIn' || wipe === 'combat') window.clearTimeout(titleWooshRef.current);
   }, [wipe]);
   useEffect(() => () => window.clearTimeout(titleWooshRef.current), []);
@@ -2499,7 +2499,8 @@ export function Recruit() {
     const t = window.setTimeout(() => {
       sfx.vistaTrip('portal');
       if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
-    }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 120));
+    // 0.3 s earlier than it first fired (owner 2026-10-23: "have the gem flash ... .3 seconds earlier, so it has a bit more time to flair").
+    }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 420));
     return () => window.clearTimeout(t);
   }, [wipe]);
   useEffect(() => {

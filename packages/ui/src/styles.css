@@ -706,7 +706,9 @@ canvas.spr { image-rendering: pixelated; display: block; }
    in from nothing, overshoots, springs back and settles. Scale + opacity only (compositor); the selector spans the dive
    too so the class change never restarts it. */
 .wipevista .wipevista-title { transform: scale(0); opacity: 0; }
-.wipevista.held .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.7s linear 0.2s both; }
+/* (Started off the trip's ARRIVAL since 2026-10-23, "have the returning to shop letters pop up .3 seconds earlier": 0.65 s in,
+   0.1 s before the land settles at 0.75 s. `.in` spans the arrival and the hold, `.dive` carries it on, so it never restarts.) */
+.wipevista.in .wipevista-title, .wipevista.dive .wipevista-title { animation: vistatitlepop 0.7s linear 0.65s both; }
 @keyframes vistatitlepop { 0% { transform: scale(0); opacity: 0; animation-timing-function: cubic-bezier(.2, .8, .3, 1); } 15% { opacity: 1; } 45% { transform: scale(1.14); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 64% { transform: scale(0.95); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 82% { transform: scale(1.02); animation-timing-function: cubic-bezier(.5, 0, .5, 1); } 100% { transform: scale(1); opacity: 1; } }
 /* The curtain announcements wear the TITLE's font (owner ask 2026-08-29 — Cinzel Decorative 600, the
    shipped --title-font): retuning the logo font in the 🏔️ tuner re-dresses the curtain to match. The face

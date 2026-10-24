@@ -3,6 +3,7 @@ import './styles.css';
 import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD pills
 import './tooltips.css';
 import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui] (touch devices only, R-TOUCH-UISCALE-01)
+import './phoneLayout.css'; // THE PHONE LAYOUT: html[data-phone-layout] only (a phone in landscape, R-PHONE-LAYOUT-01)
 import './runeCard.css'; // the forge card: rune cards + rune rack badges (owner reference 2026-10-07)
 import './tooltipConfig';
 import './boardEdgeConfig'; // side-effect: apply the ultrawide edge-blend vars (dev: persisted tune; prod: DEFAULTS)
@@ -100,7 +101,7 @@ import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
 import { LITE_ART } from './phoneArt';
 import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
-import { installStage, onStageChange, setStageMenuZoom, stageScale, stageViewport } from './stage';
+import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
 import { installTouchUi, touchUi } from './touchUi';
 import { installTouchSlop } from './touchSlop';
@@ -418,6 +419,8 @@ export function Game() {
   useEffect(() => { if (!PHONE_GPU) warmDiscoverFx(); }, []);
   // A PHONE's menus shrink the stage with CSS zoom, not a transform (stage.ts, R-TOUCH-GPU-MEMORY-01). No-op on desktop.
   useEffect(() => { setStageMenuZoom(preRun && !heroPicking); }, [preRun, heroPicking]);
+  // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
+  useEffect(() => { setStageInRun(!preRun && !heroPicking); }, [preRun, heroPicking]);
   // …and the screen-wipe's Pixi canvas the same way (perf 2026-10-10). Recruit warms it on mount, which put its
   // WebGL context creation (~200-450 ms, `getContext`) in the FIRST SHOP of the session as an unlabelled long task.
   // On idle at the title it is paid before any run; Recruit's own `warm()` then finds it ready (idempotent).
@@ -453,7 +456,12 @@ export function Game() {
       // 2560×1440 reference, so `--scale` tops out at 1.0 in lockstep. Without this cap the CSS stage pinned but
       // JS still drove --scale above 1.0 on tall windows, so anything mixing `--bar` position (capped) with
       // `--scale` size (uncapped) — the hero panel: portrait, Health pill, rune chains — drifted off the board.
-      const gh = Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh (16:9 stage, pinned)
+      // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): the 2:1 box, cleared of the safe area exactly as the CSS box is, so
+      // `--scale` IS the box's own height / 1440 and the composition cannot drift when the insets change.
+      const f = stageFit();
+      const ax = Math.max(f.safe.left, f.safe.right), ay = Math.max(f.safe.top, f.safe.bottom);
+      // THE PHONE ZOOM (R-PHONE-ZOOM-01) pins the box at the design height (styles.css `html[data-phone-zoom]`).
+      const gh = f.zoom ? 1080 : f.aspect ? Math.min(h - 2 * ay, (w - 2 * ax) / f.aspect, 1440) : Math.min(h, (w * 9) / 16, 1440); // matches the CSS --gh
       const scale = gh / 1440;
       document.documentElement.style.setProperty('--scale', String(scale));
       // Keep the WebGL combat particles proportional to the cards ON SCREEN. The Pixi renderers stay in screen

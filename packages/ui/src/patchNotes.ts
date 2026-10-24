@@ -70,6 +70,17 @@ export const PATCH_NOTES: PatchNote[] = [
         ],
       },
       {
+        category: 'Systems',
+        text: 'Phones: the game is bigger and laid out like desktop, with every piece in its place. Press a card in hand to see it in full.',
+        details: [
+          'On a phone in landscape the game zooms in past the plain fit, and every piece keeps its desktop seat on the board.',
+          'Your hand rests low with its cards as on desktop. Press a card to see it very large, text and all.',
+          'On the board, Attack and Health sit a little further in, so neighbours never overlap.',
+          'The Runeforge covers the whole screen and its rune text reads at the size of the Shop labels.',
+          'The menus read at phone size: Patch Notes, Settings, the Compendium, Practice, the Leaderboard and more.',
+        ],
+      },
+      {
         category: 'Balance',
         text: 'Set 2 balance: Tunneller Rik, Cave Cutter, Scrapper, Gem Carver, Beev, Big Huggies and Big Brain Billy changed.',
         details: [

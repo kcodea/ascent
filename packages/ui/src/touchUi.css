@@ -207,3 +207,240 @@ html[data-touch-ui][data-phone-gpu] .wipevista-flat { display: block; }
 html[data-touch-ui][data-phone-gpu] .wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both; }
 /* Phones draw the vista as ONE flattened picture (the shop baked in), so the title stays in FRONT of it there. */
 html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }
+
+/* ── Phones: the desktop game, zoomed, every HUD piece in its housing (owner 2026-10-23/24, R-PHONE-ZOOM-01: "all of the ui
+   elements are out of their housing areas ... fix those to their spots"). stage.ts zooms a run as far as the HOUSED span
+   allows (every piece that sits in a painted socket, ring, plate or niche of the board art stays exactly in it, at its
+   desktop seat, inside the safe area) and places the 16:9 box (`--pz-bx` / `--pz-by`, layout px) so that span is centred
+   in the safe area. NOTHING is repositioned relative to the board: the box, the board art and every piece take the same
+   offset. The rules below only carry that offset to the pieces that are positioned off the screen centre instead of
+   the box (the box itself, the board art, the hero cluster, the foe, the hand), and anchor the edge pieces (help /
+   Compendium / Settings, the rail's clamp) to the screen's safe edges. `data-phone-zoom` is written only on a phone in
+   landscape in a run. ── */
+html[data-touch-ui][data-phone-zoom] {
+  --gw: 1920px; --gh: 1080px; --bar-x: var(--pz-bx); --bar-y: var(--pz-by);
+  --pz-sx: calc(var(--pz-bx) - (var(--lvw, 100vw) - 1920px) / 2); --pz-sy: calc(var(--pz-by) - (var(--lvh, 100dvh) - 1080px) / 2);
+  --edge-l: var(--safe-l); --edge-r: var(--safe-r); --edge-t: var(--safe-t); --edge-b: var(--safe-b);
+}
+html[data-touch-ui][data-phone-zoom] .app { left: var(--pz-sx); top: var(--pz-sy); }
+html[data-touch-ui][data-phone-zoom] :is(.boardbg, .statusbar) { --board-x: calc(var(--pz-sx) / var(--scale)); --board-y: calc(5px + var(--pz-sy) / var(--scale)); }
+/* The foe's pieces are written off the screen centre (`50% - --gw / 2`): this `--gw` puts that term on the box's right edge. */
+html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .herotip.opp-power-tip, .opphand) { --gw: calc(2 * (var(--pz-bx) + 1920px) - var(--lvw, 100vw)); }
+/* Pieces anchored by the box's RIGHT or BOTTOM edge read the bar on that side (the box is not centred here). */
+html[data-touch-ui][data-phone-zoom] { --pz-bxr: calc(var(--lvw, 100vw) - var(--pz-bx) - 1920px); --pz-byb: calc(var(--lvh, 100dvh) - var(--pz-by) - 1080px); }
+html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: var(--pz-bxr); --bar-y: var(--pz-byb); }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --bar-x: var(--pz-bxr); }
+/* PIECES WITH NO HOUSING, placed where they fit tidily inside the zoomed view:
+   - the lobby rail: the right margin between End Turn / Refresh and the box edge, its header on top;
+   - a LEFT COLUMN beside the board frame: the rail's Guides tab, then help / Compendium / Settings (slightly smaller);
+   - the hand: resting low, its plates running off the bottom edge, a finger pops a card up whole (below). */
+/* The lobby rail at the right, vertically centred in the shop view like desktop (below Refresh, right of End Turn), its
+   Guides tab attached on its RIGHT side (owner 2026-10-24). */
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-top: 214px; --lby-y: 0; --lby-scale: 0.72; }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: max(-110px, calc(56px + var(--edge-r) - var(--bar-x))); --lr-w: 222px; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(max(-110px, calc(56px + var(--edge-r) - var(--bar-x))) - 4px); top: 368px; scale: -1 1; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
+html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
+/* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
+html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--safe-b) + 6px * var(--touch-inv-s)); }
+html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }
+html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--pz-bxr) + 1920px - 1823px); }
+html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 1920px - 1749px); }
+/* Your Health / Armor plate rides 20 px up onto the ring's lower rim (the phone framing's bottom bound, PHONE_ART_BOTTOM). */
+html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -6.5px; } /* the hero is drawn at 3.1x, so 6.5 local px = 20 box px */
+/* THE HAND (owner 2026-10-24: "they can sit lower and pop up cleanly when highlighted"). The real cards, full plates and
+   all, rest LOW: art, cost and Attack / Health on screen at the same bottom margin as the hero ring, every name plate
+   running off the bottom edge on one clean line. A finger on a card (`.tt-press`, touchInput.ts) POPS it: straightened,
+   lifted and scaled so the whole card, plate and text, is on screen above the rest of the fan; it drops back on
+   release. Transform only (compositor), one short transition. Centred under the felt. */
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 1006px); }
+
+/* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
+   would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
+
+
+/* The touch UI's bigger combat Skip covered the round title above it ("ROUND N"): the title rides up by the extra height. */
+html[data-touch-ui] .combatround { margin-top: calc(-22 * var(--u) * (var(--touch-k) * 1.25 - 1)); }
+/* Hero select's re-roll row sat below a phone's screen: on a phone-scale stage it tucks up under the hero cards. */
+html[data-touch-ui][data-touch-small] .hcreroll-slot { margin-top: 10px; }
+/* The Discover's Peek stays centred under the cards on a zoomed phone (the plain touch layout moves it to the edge). */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .disc-toggle.disc-peek:not(.inspect-act) { top: 79%; left: 50%; }
+/* The round summary's buttons: finger-sized hit areas on a zoomed phone. */
+html[data-touch-ui][data-phone-zoom] .fr-btn { padding: calc(14 * var(--u)) calc(28 * var(--u)); }
+html[data-touch-ui][data-phone-zoom] .fr-details-toggle { padding: calc(14 * var(--u)) calc(10 * var(--u)); }
+/* Zoomed phone: the build label is on the title only (in a game it crowds the rail's corner). */
+html[data-touch-ui][data-phone-zoom] .version { display: none; }
+/* Zoomed phone: minions a little larger in their rows, still inside the felt with the desktop gaps. */
+html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) { --cw: calc(var(--ch-base) * var(--card-scale, 0.75) * 0.752 * 1.06); --ccw: calc(var(--cw) * 0.85); --gap-tighten: 0.3; }
+/* Zoomed phone: the lobby rail's names and Health a size up. */
+html[data-touch-ui][data-phone-zoom] .lobbyrail { --lby-name-size: 2.05; --lby-hp-size: 1.9; }
+
+/* Hero select on a phone (plain fit, no zoom): the row sized so the re-roll row stays on screen, and each hero's power
+   text shown under its difficulty pill (a phone has no hover to reveal it). */
+html[data-touch-ui][data-touch-small] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.4); }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 0; padding-top: 10px; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow > * { position: static; inset: auto; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcmeta { opacity: 1; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) { align-items: stretch; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }
+/* …and its blurred board backdrop is darkened to the top edge (the board art's bright top rim read as a light band on a
+   phone's short screen). */
+html[data-touch-ui][data-touch-small] .heroselect:not(.endscreen)::before { background: linear-gradient(rgba(22, 15, 9, 0.92), rgba(22, 15, 9, 0.66) 14%, rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); }
+
+/* Zoomed phone: on the BOARD rows (the Shop, your board, both sides in combat) Attack and Health step in toward the card's
+   centre so neighbouring minions' badges never overlap (owner 2026-10-24: "Move the attack and health badges in slightly
+   so they don't overlap on board (mobile only)"). The hand keeps the desktop badges. */
+html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .atk { left: var(--pz-badge-in, calc(var(--ccw) * 0.03)); }
+html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .hp { right: var(--pz-badge-in, calc(var(--ccw) * 0.03)); }
+/* Zoomed phone: combat Skip / Summary at ~1.3x their desktop size (not the touch UI's 2x); End Turn's hover caption off. */
+html[data-touch-ui][data-phone-zoom] .combathud-skip { transform: translate(-50%, -50%) scale(1.3); }
+html[data-touch-ui][data-phone-zoom] .combatsummary { scale: 1.3; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); }
+html[data-touch-ui][data-phone-zoom] .etbwrap .etb-tip { display: none; }
+/* Zoomed phone: the round summary a size up (its labels were 6-7 pt). */
+html[data-touch-ui][data-phone-zoom] .fr-panel { zoom: 1.3; }
+
+/* Zoomed phone: the Runeforge keeps its desktop composition (the touch UI's extra forge scale overflowed its frame). */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { --vh: 10.8px; scale: calc(var(--pz-vfit, 1) * var(--pz-forge-s, 1.16)); transform-origin: 50% 53%; }
+/* …and its rune cards read on a phone (a blind critic 2026-10-24: the rules text must read at least at the Shop's
+   Tier / Freeze label size): wider cards with less gap fill the frame's interior, the square art is cropped to a band
+   around the emblem, and the name and rules text grow into the room that frees. */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .forge-cards { --rfl-card-scale: 1.42; --rfl-card-gap: 12; margin-top: calc(26 * var(--u)); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard { --rc-art-h: calc(var(--cw) * 0.6); --runecard-text-scale: 1.92; min-height: calc(var(--cw) * 1.5); padding: 0 10px 14px; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-window { height: calc(var(--rc-art-h) - 20px); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-txt { line-height: 1.18; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-divider { margin-top: 4px; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-body { margin-top: 6px; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .forge-actions { margin-top: calc(14 * var(--u)); }
+/* The scale above shrinks the overlay's own box, so its scrim would stop short of the screen edges. On a zoomed phone the
+   scrim moves to a pseudo layer that overhangs every edge (and still takes the taps), and the illustrated frame to a
+   second layer of one fixed height (1000) about the overlay's centre (the same frame-to-card proportion on every phone), so the frame keeps its desktop composition while everything behind is dimmed
+   edge to edge exactly as on desktop. */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { background: none; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::before { content: ''; position: absolute; inset: -60%; z-index: -1; background: rgba(14, 16, 22, 0.96); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::after { content: ''; position: absolute; left: 0; right: 0; top: calc(50% - 500px); height: 1000px; z-index: -1; pointer-events: none; background: url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat; }
+
+/* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
+html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }
+/* THE POP: a finger on a hand card lifts it whole and VERY large (owner 2026-10-24: "it should be very large"): straight,
+   ~68% of the safe screen height, growing in place from the hand row, plate, text, cost, Attack and Health all on screen (owner
+   2026-10-24: the resting hand is the desktop card exactly, badges and all, so a neighbour may cover them; the pop is
+   where it all reads). touchInput.ts measures the card ONCE on the press and writes `--pop-s` / `--pop-tx` / `--pop-ty`
+   (translate + scale about the card's top-left). Transform only, the base 0.14 s transition, the card is re-rastered at
+   its final size. Not while a drag is live (the dragged card owns the finger). */
+html[data-touch-ui][data-phone-zoom] .row.hand .card { transform-origin: 0 0; }
+html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translate(var(--pop-tx, 0px), var(--pop-ty, 0px)) scale(var(--pop-s, 1)); z-index: 50; }
+/* …and so the popped card can rise above the HUD, `.app`'s stacking context is dissolved for good on a zoomed phone (the
+   same move desktop makes while a hand card is hovered, styles.css): toggling it per press restacked the whole app and
+   cost ~3 dropped frames a press at 4x CPU throttle; permanent, a press only raises the hand zone. `.boardbg` stays at 0
+   under `.statusbar` 40, as on desktop. */
+html[data-touch-ui][data-phone-zoom] .app { z-index: auto; }
+html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone[data-zone='hand'] { z-index: 70; }
+
+/* ── PHONE MENUS (owner 2026-10-24: "Make sure all menus look good too") ────────────────────────────────────────────
+   The menu, Settings and Practice rules the retired 2:1 phone composition (phoneLayout.css) had already taken through the
+   blind critic, keyed to every phone (`data-touch-small`) instead. The menus run at the same height-bound stage scale
+   the composition did, so they carry over as they were. Desktop never has `data-touch-ui`. ── */
+/* ── Settings (Esc): stays inside the safe area; its notes read at ~9 pt and its labels at ~10 pt, Mute is a real
+   button. ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel { max-height: calc((var(--lvh, 100dvh) - 2 * var(--safe-y)) * 0.9 / var(--ui-zoom)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escnote { font-size: 21px; line-height: 1.3; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel :is(.ebl, .evl, .escselect-value) { font-size: 23px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escmute { font-size: 18px; padding: 10px 22px; min-height: 64px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel button.pressable:not(.escmute) { min-height: 64px; }
+/* Its Resume / Done stays in view at the panel's foot while the rest scrolls behind it (a visible close). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escclose { position: sticky; bottom: 0; z-index: 3; min-height: 84px; }
+/* …full width, on a band of the panel's own ground (an outline), so rows scrolling under it do not show round it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escclose { width: 100%; outline: 30px solid rgb(10, 16, 31); outline-offset: 0; }
+
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .rankend-details { scale: 1.7; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .hsback { scale: calc(var(--touch-k) * 1.35); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escvol input[type='range'] { height: calc(36px * var(--touch-k)); }
+/* ── The menus on a phone ─────────────────────────────────────────────────────────────────────────────────────
+   Practice's Start sits beside the page title instead of below the fold, and the corner squares are at least 32 pt. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomodes-box { position: relative; }
+/* Practice's Start sits at the top right of the page, beside its title, so it is on screen without covering an option. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .postart { position: absolute; top: -8px; right: 0; margin: 0; z-index: 5; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.6); }
+/* Scrolling pages stop above the home indicator: their scroller ends at the bottom inset (the backdrop and the sidebar
+   are fixed, so they still reach the edge). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host { bottom: var(--safe-b); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lbpage { padding-bottom: var(--safe-b); }
+/* Collection's body scrolls when its filters and grid outgrow the screen (they ran under the home indicator). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-body { overflow-y: auto; }
+/* Its category tabs break between words only ("Attack Animations" was splitting mid-word), a size smaller to fit. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-tab-name { overflow-wrap: normal; font-size: 11.5px; letter-spacing: 0.02em; }
+/* On a sidebar page the help / Compendium squares sit in the top band, left of the profile strip's Career link (the
+   bottom corner is page content, and the sidebar has no spare height on every phone). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] :is(.rulesbtn, .bookbtn) { bottom: auto; left: auto; top: calc(var(--safe-t) + 26px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .bookbtn { right: calc(var(--safe-r) + 420px); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout])[data-phone-sbpage] .rulesbtn { right: calc(var(--safe-r) + 430px + var(--touch-cb)); }
+/* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlefoot .titleversion { font-size: 18px; }
+/* The mode home: the spread a little larger (the sidebar is wider here) and its captions and small labels ~9 pt. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.18); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home .mcdesc { font-size: 28px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home .mclast { font-size: 20px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-home :is(.pstrip-rank-name, .pstrip-rank-mmr, .pstrip-go) { font-size: 24px; }
+/* The menu sidebar's buttons reach 32 pt (it scrolls if they outgrow the height). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-sb: 1.6; }
+/* The menu pages zoom a step further on the phone layout so their body text reaches ~9 pt (they scroll). The touch UI
+   writes the var inline on <html>, hence the !important. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-p: 2.1 !important; }
+/* Practice's two mode cards grow to their text at the larger zoom (the art column narrower, the title a size down). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-select { height: auto; min-height: 150px; grid-template-columns: 130px 1fr; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-title { font-size: 21px; padding-right: 92px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-text { font-size: 13px; line-height: 1.3; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pomode-state { font-size: 13px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .poseg-btn { padding-top: 13px; padding-bottom: 13px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-gh { font-size: 17.5px; }
+/* Sidebar plaques: 32 pt tall, ~9 pt labels, tighter spacing so the whole rail still fits the height. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .sbbtn { min-height: 62px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .mblabel { font-size: 17.5px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-nav { gap: 3px; }
+/* The modal panels a phone opens from the menus read at ~10 pt: Patch Notes, Report a Problem, the Compendium and its
+   Rules, the spectator's end notice. Each zooms (it reflows at the zoomed size) and its viewport-sized caps divide by the
+   same factor, so it still fits the screen and scrolls inside. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --pm-z: 2.1; --pm-book: 1.7; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .pnpanel { zoom: var(--pm-z); width: min(820px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .bgrpanel { zoom: var(--pm-z); width: min(640px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { zoom: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--safe-b)) / var(--pm-book))); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lvend .vspanel { zoom: var(--pm-z); }
+/* Phone menus, round 2 of the critic. The Leaderboard's top-three podium at a third of its zoomed size, so the table (and
+   its pinned "you" row) has room below it. */
+/* Recent Games: the placement sparkline is dropped on a phone, so the games themselves fill the page. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .rg-sum-chart { display: none; }
+/* The Compendium's minions-by-tier strip sits in the flow (not over the Gilded switch), and its caption is dropped. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book-chart { position: static; transform: none; margin: 0 auto; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book-chart-cap { display: none; }
+/* While a text field is lifted over the keyboard, the Compendium's painted frame steps aside so it never cuts the field. */
+html[data-touch-ui][data-touch-kb] .book::after { visibility: hidden; }
+/* The mode pages keep a right gutter clear of the notch, and Versus' box never runs past it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host .mpview:not(.mp-home) { padding-right: calc(var(--safe-r) + 16px * var(--touch-inv-s)); box-sizing: border-box; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='versus'] .mpbox { min-width: 0; width: auto; max-width: calc((var(--touch-mp-w) - 16px * var(--touch-inv-s)) / var(--hs-zoom)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='versus'] .vstitle { max-width: calc((var(--touch-mp-w) - 16px * var(--touch-inv-s)) / var(--hs-zoom)); }
+/* Gauntlet's ten stage slots fit beside the sidebar (they ran under it at the menus' zoom). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mpview[data-view='gauntlet'] .gstages { zoom: 0.78; }
+/* The Leaderboard's pinned "you" row is opaque on a phone, so the row scrolling under it never shows through. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-mepin { background-color: #0d1528; }
+/* Recent Games' open game: Replay / Career take their own row under the placement and hero (the narrow card had them
+   over the hero's portrait and name). */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .gc.gc-detail .gc-body { grid-template-columns: 92px minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr) auto auto; grid-template-areas: 'place hero' 'side side' 'board board' 'runes runes' 'meta meta'; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .gc.gc-detail .gc-side { justify-content: flex-start; }
+/* The Leaderboard's "you" row sits after the list on a phone (pinned, it covered the one row the short screen shows),
+   and the podium is smaller still so rows show under it. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) :is(.lb-mepin, .lb-table > .lb-trow-btn.me) { position: static; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom: 0.48; }
+@media (hover: none) and (pointer: coarse) {
+  /* Practice is the one mode page that scrolls on a phone: its help / Compendium squares step away there rather than
+     float over its options (both stay on the Play page and in a game). */
+  html[data-touch-ui][data-touch-small]:not([data-phone-layout]):has(.mpview[data-view='practice']:not(.mpv-out)) :is(.rulesbtn, .bookbtn) { visibility: hidden; }
+  /* A Shop card's Inspect carries a Buy pill at the screen's foot: the card rides higher and a touch smaller so its tribe
+     label clears the pill and the home indicator. */
+  html[data-touch-ui][data-touch-small]:has(.disc-toggle.inspect-act) .inspect-card { scale: calc(var(--touch-inspect) * 0.9); translate: 0 calc(-11 * var(--vh, 1vh)); }
+}
+/* Zoomed phone: the rail's header ("Round N", the max-damage chip) and the round summary's odds captions a size up
+   (they read at 4-6 px). */
+html[data-touch-ui][data-phone-zoom] .lobbyrailhead { --lby-font: 1.5; }
+html[data-touch-ui][data-phone-zoom] .fr-odds-dmg-label { font-size: calc(16 * var(--u)); }

@@ -29,6 +29,9 @@
  *      gamexf  hero select, the gate and the run go back to `transform: scale()` (R-TOUCH-RUN-MEMORY-01 zooms them
  *              by default on a phone whose browser reports zoomed geometry the standard way)
  *      litebd  no painted menu backdrop (a flat dark ground)
+ *      pz125 / pz135 / pz145  the phone's game zoom variant (R-PHONE-ZOOM-01, stage.ts; 1.35 when none is set)
+ *      nophonezoom  the game at its plain fit, without the phone zoom
+ *      phonelayout  the retired experimental phone composition (R-PHONE-LAYOUT-01, phoneLayout.css), for comparison
  *    `?phonediag=nofx,res1` (in Safari, or any browser) sets them too; `?phonediag=0` clears them.
  */
 import type { ApplicationOptions } from 'pixi.js';
@@ -36,7 +39,7 @@ import { LITE_ART } from './phoneArt';
 
 export const PHONE_DIAG_KEY = 'ascent.phonediag.v1';
 
-export type PhoneDiagFlag = 'nofx' | 'res1' | 'noanim' | 'zoom' | 'nozoom' | 'gamexf' | 'litebd';
+export type PhoneDiagFlag = 'nofx' | 'res1' | 'noanim' | 'zoom' | 'nozoom' | 'gamexf' | 'litebd' | 'phonelayout' | 'nophonezoom' | 'pz125' | 'pz135' | 'pz145';
 export const PHONE_DIAG_FLAGS: ReadonlyArray<{ id: PhoneDiagFlag; label: string; hint: string }> = [
   { id: 'nofx', label: 'No effect canvases', hint: 'No WebGL effects at all.' },
   { id: 'res1', label: 'Effects at resolution 1', hint: 'Sharper effects off, less GPU memory.' },
@@ -45,6 +48,11 @@ export const PHONE_DIAG_FLAGS: ReadonlyArray<{ id: PhoneDiagFlag; label: string;
   { id: 'nozoom', label: 'Old stage on menus', hint: 'Scale the menus by transform, as before.' },
   { id: 'gamexf', label: 'Old stage in games', hint: 'Scale hero select and games by transform, as before.' },
   { id: 'litebd', label: 'Lite menu backdrop', hint: 'No painted backdrop on the menus.' },
+  { id: 'pz125', label: 'Game zoom 1.25x', hint: 'Show the game 1.25x larger (edges cropped, HUD kept on screen).' },
+  { id: 'pz135', label: 'Game zoom 1.35x', hint: 'The default.' },
+  { id: 'pz145', label: 'Game zoom 1.45x', hint: 'Show the game 1.45x larger.' },
+  { id: 'nophonezoom', label: 'No game zoom', hint: 'The game at its plain fit, without the phone zoom.' },
+  { id: 'phonelayout', label: 'Phone layout (experimental)', hint: 'The retired phone composition, for comparison.' },
 ];
 export type PhoneDiagFlags = Partial<Record<PhoneDiagFlag, 1>>;
 

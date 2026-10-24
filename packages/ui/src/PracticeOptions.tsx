@@ -2,6 +2,7 @@ import { useGame } from './store';
 import { modeArt } from './art';
 import { FadeImg } from './FadeImg';
 import { sfx } from './sfx';
+import { phoneLayoutOn } from './stage';
 import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
 
 /**
@@ -197,7 +198,12 @@ export function PracticeOptions() {
       </div>
 
       {/* START: the one bright gold action on this screen (the gold rule). */}
-      <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>
+      {/* THE PHONE LAYOUT (R-PHONE-LAYOUT-01) seats Start at the page's top right, over where hero select's top-right
+          tile lands: on a press the finger's lift would then tap that tile and pick a hero. There it starts on the
+          release (click) instead, so the next screen mounts after the tap is over. Everywhere else: on the press. */}
+      {phoneLayoutOn()
+        ? <button className="postart pressable" onPointerDown={() => sfx.pulse()} onClick={() => confirm()}>Start</button>
+        : <button className="postart pressable" onPointerDown={() => { sfx.pulse(); confirm(); }}>Start</button>}
     </div>
   );
 }

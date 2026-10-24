@@ -1,0 +1,261 @@
+/* ═══ THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01) ═════════════════════════════════════════════════════
+   "let's work on the phone layout/ui/sizing ... Use hearthstones mobile sizing/ui as a blind comparison/critic for
+   readability and quality."
+
+   A phone in landscape lays the game out in a 2:1 box (stage.ts, PHONE_DESIGN_W) and this file re-composes the SAME
+   components inside it: bigger minions in two rows, the painted board grown to hold them, the hand under the board,
+   and every HUD piece placed in BOX coordinates (`--bar-x` / `--bar-y` + reference px x `--scale`), so nothing floats
+   when the screen's aspect or safe area differs ("baked in place", owner 2026-10-23).
+
+   EVERY rule is keyed off `html[data-phone-layout]` (stage.ts writes it only on a phone in landscape) AND sits inside
+   the touch media query, so it is not even in a mouse device's active style sheet: desktop is pixel-identical.
+   `phoneLayout.test.ts` fails on any rule outside the query or without the key. No looping animation lives here.
+
+   Tuner vars (`--board-x`, `--etb-x`, `--gold-x`, ...) are written INLINE on :root by the dev tuners, so this file never
+   overrides a tuner var on :root; it overrides the PROPERTY on the element (or sets the var on that element).
+   ═══════════════════════════════════════════════════════════════════════════════════════════════════════════ */
+@media (hover: none) and (pointer: coarse) {
+
+/* ── The box and the board ───────────────────────────────────────────────────────────────────────────────────
+   The box is 2:1 inside the safe area (stage.ts fits the same box): 2880 x 1440 reference px at --scale 1. Every
+   position below is in those reference px. The painted board is drawn `--pl-z` times its desktop size, centred on
+   (`--pl-ax`, `--pl-ay`), and each button that sits on a painted socket is placed at the art centre plus `--pl-z` times
+   its desktop offset from the art centre, and grown by `--pl-z`, so it stays seated on its socket. */
+html[data-phone-layout] {
+  --gw: min(var(--avw), calc(var(--avh) * 2), 2560px);
+  --gh: min(var(--avh), calc(var(--avw) / 2), 1440px);
+  --pl-z: 1.18;
+  --pl-ax: 1440px;
+  --pl-ay: 672px;
+  --board-mobile-zoom: var(--pl-z);
+  /* Cards everywhere grow by 30%: ~85 pt tall minions on a 393 pt iPhone, ~99 pt on a Pixel 8 (Hearthstone 75-90). */
+  --mobile-boost: 1.3;
+}
+/* The art's centre: `--board-x/y` are read by the two elements that draw / sit on the art (set there, not on :root). */
+html[data-phone-layout] :is(.boardbg, .statusbar) { --board-x: calc(var(--pl-ax) - 1440px); --board-y: calc(var(--pl-ay) - 720px); }
+/* The hero sits a little high in its (larger) painted socket, so its Health plate clears the bottom of the box. */
+html[data-phone-layout] .statusbar { --board-x: calc(var(--pl-ax) - 1395px); --board-y: calc(var(--pl-ay) - 795px); }
+
+/* ── The two minion rows: out of the column flow, each centred on its painted row ──────────────────────────── */
+html[data-phone-layout] .app > .zone[data-zone='tavern'],
+html[data-phone-layout] .app > .zone[data-zone='warband'] { position: absolute; left: calc(var(--pl-row-dx, -90px) * var(--scale)); right: calc(var(--pl-row-dx, -90px) * var(--scale) * -1); height: var(--ch); padding-bottom: 0; flex: none; }
+html[data-phone-layout] .app > .zone[data-zone='tavern'] { top: calc((var(--pl-ay) - 231px * var(--pl-z)) * var(--scale) - var(--ch) / 2); }
+html[data-phone-layout] .app > .zone[data-zone='warband'] { top: calc((var(--pl-ay) + 66px * var(--pl-z)) * var(--scale) - var(--ch) / 2); }
+
+/* The hero power: right of the portrait, under the board (desktop seats it on the board's left end, where the phone's
+   first minion now stands). */
+html[data-phone-layout] .statusbar .heropanel:not(.heropanel2):not(.equipslot) { left: calc(var(--bar-x) + 565px * var(--scale)); top: calc(var(--bar-y) + 1230px * var(--scale)); }
+
+/* ── Stats you can read across the table: the Attack / Health badges grow 60% from their corners and their digits a
+   further 15%, so a digit is ~12 pt tall on an iPhone (Hearthstone's are about that). ──────────────────────────── */
+html[data-phone-layout] .zone .card.compact .badge.atk { scale: 1.6; transform-origin: 0% 100%; }
+html[data-phone-layout] .zone .card.compact .badge.hp { scale: 1.6; transform-origin: 100% 100%; }
+html[data-phone-layout] .zone .card.compact .badge > .value { scale: 1.24; }
+/* Two- and three-digit stats condense so they stay inside their own badge (a single digit keeps the full size). */
+html[data-phone-layout] .zone .card.compact .badge > .value[data-fit='2'] { scale: 1.12; }
+html[data-phone-layout] .zone .card.compact .badge > .value[data-fit='3'] { scale: 0.9; }
+
+/* ── The tier plate on top of each minion grows a quarter so its stars read at a glance. ──────────────────────── */
+html[data-phone-layout] .zone .card.compact :is(.tierbadge.tierplate, .tierbadge.tierstars) { scale: 1.25; transform-origin: 50% 50%; }
+
+/* ── A held card (drag) is a readable card: half again its size, its rules text a size up. ────────────────────── */
+html[data-phone-layout] .dragcard > .dragtilt { scale: 1.55; }
+html[data-phone-layout] .dragcard .card.compact.showtext .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.35); line-height: 1.12; }
+
+/* The cost coin (spells, and a minion whose cost has changed) grows with the stats. */
+html[data-phone-layout] .zone .card.compact .cost { scale: 1.6; }
+
+/* ── Buttons seated on their painted sockets ──────────────────────────────────────────────────────────────── */
+html[data-phone-layout] .tvbwrap { left: calc(var(--bar-x) + (var(--pl-ax) - 779px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 438px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--tvb-s, 1.24) * var(--pl-z))); }
+html[data-phone-layout] .frzwrap.frzwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 8px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 461px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--frz-s, 1.36) * var(--pl-z))); }
+html[data-phone-layout] .rfbwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 773px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 454px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--rfb-s, 1.54) * var(--pl-z))); }
+html[data-phone-layout] .etbwrap { left: calc(var(--bar-x) + (var(--pl-ax) + 803px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 100px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--etb-s, 1.17) * var(--pl-z))); }
+html[data-phone-layout] .goldpill { right: auto; bottom: auto; left: calc(var(--bar-x) + (var(--pl-ax) + 800px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) + 195px * var(--pl-z)) * var(--scale)); transform: translate(-50%, -50%) scale(calc(var(--gold-s, 1.69) * var(--pl-z))); transform-origin: 50% 50%; }
+
+/* The shop info strip (the turn timer): on the tray's top frame between Tier and Freeze (desktop has it above the
+   tray, where the phone has no room). */
+html[data-phone-layout] .app > .shopbar { position: absolute; left: calc(990px * var(--scale)); top: calc(14px * var(--scale)); margin: 0; translate: -50% 0; }
+
+/* ── The hand: a fan of minion faces (art + cost + stats) under the board, between the hero and the right column.
+   The text plate stays hidden in the fan (it is 4 pt at this size); a tap lifts the card with its text (`.tt-on`, the
+   touch twin of the desktop hover pop) and a long-press opens Inspect. ────────────────────────────────────────── */
+html[data-phone-layout] .zone[data-zone='hand'] { left: calc(var(--bar-x) + 1530px * var(--scale)); bottom: auto; top: calc(var(--bar-y) + 1005px * var(--scale)); width: calc(1640px * var(--scale)); height: calc(300px * var(--scale)); translate: none; }
+html[data-phone-layout] .row.hand .card { --hand-tuck: 0px; margin-left: calc(var(--ccw) * var(--pl-hand-gap, -0.36)); }
+html[data-phone-layout] .row.hand .card:first-child { margin-left: 0; }
+html[data-phone-layout] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
+/* Seven or more cards overlap, so each card's right side is under its neighbour: its Health badge moves up the card's
+   LEFT edge, above Attack, so both stats stay readable on every card of a full hand (owner 2026-10-23). */
+html[data-phone-layout] .row.hand .card:first-child:nth-last-child(n+7) .badge.hp,
+html[data-phone-layout] .row.hand .card:first-child:nth-last-child(n+7) ~ .card .badge.hp { right: auto; left: calc(var(--ccw) * -0.02); bottom: calc(var(--ccw) * 0.43); transform-origin: 0% 100%; }
+
+/* ── Combat: the round title alone at the top centre, Skip on the Tier socket's corner (Tier is away in combat), so
+   neither sits on the enemy row or on each other. ─────────────────────────────────────────────────────────────── */
+html[data-phone-layout] .combathud-skip { left: calc(var(--bar-x) + (var(--pl-ax) - 779px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 438px * var(--pl-z)) * var(--scale)); }
+html[data-phone-layout] .combatsummary { left: calc(var(--bar-x) + (var(--pl-ax) - 779px * var(--pl-z)) * var(--scale)); top: calc(var(--bar-y) + (var(--pl-ay) - 438px * var(--pl-z)) * var(--scale)); scale: 1.9; }
+/* The round summary (fight recap) reads at phone size: about 1.8x, still inside the box. */
+html[data-phone-layout] .fr-panel { scale: 1.8; }
+html[data-phone-layout] .combatround { left: calc(var(--bar-x) + 1380px * var(--scale)); top: calc(var(--bar-y) + 70px * var(--scale)); font-size: calc(34 * var(--u)); }
+
+/* ── Discover: three FULL cards (Recruit passes `full` on a phone), large, their rules text bigger than the card's
+   own plate default so it reads at ~10 pt; the Peek pill sits under them, on the box's bottom edge. ───────────── */
+html[data-phone-layout] .discover-ov.disc-full:not(.anc-offer) .disc-panel { scale: 1.55; translate: 0 calc(100px * var(--scale)); }
+html[data-phone-layout] .discover-ov.disc-full .card.compact.plated .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.22); line-height: 1.12; }
+/* Long rules text keeps the 10 pt floor and fits the stone panel: the size buckets stop shrinking at 10 pt, the lines
+   sit tighter, the name divider gives back its margin and the text runs the panel's full width. Checked against the
+   pool's longest texts (Collector 169 characters, Orrery 158, Guel 137). */
+html[data-phone-layout] .discover-ov.disc-full .card.compact.plated:is(.plate-txt-l, .plate-txt-xl) .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.19); }
+html[data-phone-layout] .discover-ov.disc-full .card.compact.plated .drawer .namediv { margin-bottom: 0; }
+html[data-phone-layout] .discover-ov.disc-full .card.compact.plated .drawer { padding-left: calc(var(--ccw) * 0.02); padding-right: calc(var(--ccw) * 0.02); }
+html[data-phone-layout][data-touch-ui] .disc-toggle.disc-peek:not(.inspect-act) { top: calc(var(--bar-y) + 1350px * var(--scale)); left: 50%; scale: 3.2; top: calc(var(--bar-y) + 1290px * var(--scale)); }
+
+/* ── The Runeforge: the same composition; its rune names and rules text read at ~11 / ~9.5 pt, and Re-roll and
+   "Inspect the board" grow to finger size. ──────────────────────────────────────────────────────────────────── */
+html[data-phone-layout] .forge-ov .runecard-name { font-size: 32px; }
+html[data-phone-layout] .forge-ov .runecard-txt { font-size: 26px; line-height: 1.2; }
+html[data-phone-layout] .forge-ov .rf-subtitle { font-size: 24px; }
+html[data-phone-layout] .forge-ov .forge-reroll { scale: 2.9; }
+html[data-phone-layout] .disc-toggle.forge-toggle { scale: 2.4; }
+
+/* ── Inspect: the card rides a little higher so its foot clears the home indicator; the keyword notes beside it
+   read at ~9.5 pt. ─────────────────────────────────────────────────────────────────────────────────────────── */
+html[data-phone-layout][data-touch-ui][data-touch-small] .inspect-card { translate: 0 calc(-14 * var(--vh, 1vh)); scale: 1.3; }
+html[data-phone-layout] .inspect-card .kwdefs { zoom: 1.35; }
+/* Its rules text at an 11 pt floor whatever the length bucket, fitted to the panel as Discover's is. */
+html[data-phone-layout] .inspect-card .card.compact.plated .drawer .desc { font-size: calc(var(--ccw) * 0.072 * 1.08); line-height: 1.12; }
+html[data-phone-layout] .inspect-card .card.compact.plated .drawer .namediv { margin-bottom: 0; }
+html[data-phone-layout] .inspect-card .card.compact.plated .drawer { padding-left: calc(var(--ccw) * 0.02); padding-right: calc(var(--ccw) * 0.02); }
+
+/* ── The lobby rail: same rail, its names and Health about 9 pt (the tuner vars are set on the rail itself). ──── */
+/* Rail, its header and its Guides tab share one geometry: 12 ref px off the box's right edge (desktop clamps the
+   growth to the window edge, which drifts with the aspect), its left edge clear of End Turn. */
+html[data-phone-layout] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-w: 318; --lr-right: calc(12px * var(--scale)); --lby-y: 66; }
+html[data-phone-layout] .lobbyrail { --lby-name-size: 2.5; --lby-hp-size: 2.3; }
+
+/* ── The opponent in combat has its own lane, clear of the enemy row: the portrait block in the right column's top
+   corner (the rail has left), its face-down hand in the top strip between the round title and the portrait, card
+   backs about 1.6x so the count reads at a glance. (The tuner vars are set on the elements; dev writes them on :root.) */
+html[data-phone-layout] :is(.combatopp, .heropowerbtn.opp-power, .herotip.opp-power-tip, .opphand) { --hd-opp-x: 196px; --hd-opp-y: 80px; --hd-opp-s: 2.1; }
+html[data-phone-layout] .heropowerbtn.opp-power, html[data-phone-layout] .herotip.opp-power-tip { --hd-power-y: 225px; }
+html[data-phone-layout] .opphand { --oh-s: 1.6; --oh-y: -200px; --oh-x: 520px; }
+
+/* The rail's head (round, alive count, max damage) and the hero power's name plate, both ~3.5 pt on the desktop
+   composition, grow to ~7 pt. */
+html[data-phone-layout] .lobbyrailhead { --lby-font: 1.55; }
+html[data-phone-layout] .lobbyrail .lobbyhead { --lby-font: 1.9; }
+html[data-phone-layout] .statusbar .heropanel .hplabel { scale: 1.8; transform-origin: 50% 0%; }
+/* Own Health and Armor read at ~12 pt. */
+html[data-phone-layout] .statusbar .hpbox { zoom: 1.25; }
+
+/* The help / Compendium / settings squares: a row in the bottom-right corner of the box (in hero select and the run;
+   the menus keep their own corner, touchUi.css). */
+html[data-phone-layout] { --pl-cb: calc(140px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) { width: var(--pl-cb); height: var(--pl-cb); bottom: auto; right: auto; top: calc(var(--bar-y) + 1290px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) .gearbtn { left: calc(var(--bar-x) + 2725px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) .bookbtn { left: calc(var(--bar-x) + 2570px * var(--scale)); }
+html[data-phone-layout]:not([data-phone-menus]) .rulesbtn { left: calc(var(--bar-x) + 2415px * var(--scale)); }
+/* The build label is on the title; in a game on a phone it would crowd the corner squares. */
+html[data-phone-layout]:not([data-phone-menus]) .version { display: none; }
+html[data-phone-layout]:not([data-phone-menus]) :is(.gearbtn, .bookbtn, .rulesbtn) img { width: calc(var(--pl-cb) * 0.75); height: calc(var(--pl-cb) * 0.75); }
+
+
+/* ── Hero select (the offer): each hero's power reads under its portrait without a tap (Hearthstone shows it the
+   same way); the difficulty pill sits above it, and the re-roll row tucks up so it stays inside the box. ───────── */
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcbelow { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcbelow > * { position: static; inset: auto; }
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcmeta { opacity: 1; }
+html[data-phone-layout] .herocard.big .hcdiff { font-size: 17px; }
+html[data-phone-layout] .herocard.big .hchp { zoom: 1.2; }
+html[data-phone-layout] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; font-size: 19px; line-height: 1.25; }
+/* Every column stretches to the row's height and its re-roll takes the bottom, so the four buttons share one baseline
+   whatever the length of the power text above them. */
+html[data-phone-layout] .hsrow:not(.browse) { align-items: stretch; gap: 8px; }
+html[data-phone-layout] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }
+html[data-phone-layout] .hsrow:not(.browse) { translate: 0 -40px; }
+
+/* ── Settings (Esc): stays inside the safe area; its notes read at ~9 pt and its labels at ~10 pt, Mute is a real
+   button. ─────────────────────────────────────────────────────────────────────────────────────────────────── */
+html[data-phone-layout][data-touch-ui] .escpanel { max-height: calc((var(--lvh, 100dvh) - 2 * var(--safe-y)) * 0.9 / var(--ui-zoom)); }
+html[data-phone-layout] .escpanel .escnote { font-size: 21px; line-height: 1.3; }
+html[data-phone-layout] .escpanel :is(.ebl, .evl, .escselect-value) { font-size: 23px; }
+html[data-phone-layout] .escpanel .escmute { font-size: 18px; padding: 10px 22px; min-height: 64px; }
+html[data-phone-layout] .escpanel button.pressable:not(.escmute) { min-height: 64px; }
+/* Its Resume / Done stays in view at the panel's foot while the rest scrolls behind it (a visible close). */
+html[data-phone-layout] .escpanel .escclose { position: sticky; bottom: 0; z-index: 3; min-height: 84px; }
+/* …full width, on a band of the panel's own ground (an outline), so rows scrolling under it do not show round it. */
+html[data-phone-layout] .escpanel .escclose { width: 100%; outline: 30px solid rgb(10, 16, 31); outline-offset: 0; }
+
+/* ── Finger-sized controls (primary >= 44 pt, secondary >= 32 pt on an iPhone) ─────────────────────────────────── */
+html[data-phone-layout] .disc-toggle.disc-peek.inspect-act { --pk: 3.8; left: 79%; bottom: calc(14% + var(--safe-b, 0px)); }
+html[data-phone-layout] .hsc-start { scale: 1.5; }
+html[data-phone-layout] .rankend-details { scale: 1.7; }
+/* The picked hero's power name under its name plate: ~9 pt. */
+html[data-phone-layout] .hsc-power { --hsc-powersize: 38; }
+html[data-phone-layout][data-touch-ui] .hsback { scale: calc(var(--touch-k) * 1.35); }
+html[data-phone-layout] .statusbar .heropanel:not(.heropanel2):not(.equipslot) { --hpb-s: 1.2; }
+html[data-phone-layout] .combathud-skip { scale: 1.6; }
+html[data-phone-layout] .combatsummary { scale: 2.8; }
+html[data-phone-layout] .fr-btn { padding: calc(25 * var(--u)) calc(32 * var(--u)); }
+html[data-phone-layout] .fr-details-toggle { padding: calc(19 * var(--u)) calc(12 * var(--u)); font-size: calc(17 * var(--u)); }
+/* Small labels that carry information reach ~9 pt: the recap's odds captions, the foe's Shop Tier pill. */
+html[data-phone-layout] .fr-odds-dmg-label { font-size: calc(16 * var(--u)); }
+html[data-phone-layout] .combatopp-tier { zoom: 1.45; }
+html[data-phone-layout] :is(.combatopp-name, .combatopp-hp) { zoom: 1.35; }
+html[data-phone-layout][data-touch-ui] .statcell .timermult { scale: calc(var(--touch-k) * 1.85); }
+html[data-phone-layout][data-touch-ui] .lobbyrailtab { scale: calc(var(--touch-k) * 1.6); }
+html[data-phone-layout][data-touch-ui] .escvol input[type='range'] { height: calc(36px * var(--touch-k)); }
+/* End Turn says what it does on desktop hover; on a phone its ready label is a 5 pt caption over the board. */
+html[data-phone-layout] .etbwrap .etb-tip { visibility: hidden; }
+
+/* Hero select keeps the touch UI's 1.8 page zoom (the menus' 2.1 above would push its re-roll row off the screen). */
+html[data-phone-layout] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.8); }
+
+/* ── Hero select (browse every hero, Practice): four big tiles a row, as the offer, scrolling; their power text reads. */
+html[data-phone-layout] .hsrow.browse { zoom: 1.36; max-height: calc((var(--lvh, 100dvh) - var(--safe-b) - 60px * var(--touch-inv-s)) / 1.36); }
+html[data-phone-layout] .hsrow.browse .herocard.big .hcpw { font-size: 21px; line-height: 1.25; }
+/* Each tile reserves the height of the roster's longest power text, so a long power never runs into the next row. */
+html[data-phone-layout] .hsrow.browse .herocard.big .hcbelow { min-height: 168px; }
+
+/* ── The menus on a phone ─────────────────────────────────────────────────────────────────────────────────────
+   Practice's Start sits beside the page title instead of below the fold, and the corner squares are at least 32 pt. */
+html[data-phone-layout] .mp-practice .pomodes-box { position: relative; }
+/* Practice's Start sits at the top right of the page, beside its title, so it is on screen without covering an option. */
+html[data-phone-layout] .mp-practice .postart { position: absolute; top: -8px; right: 0; margin: 0; z-index: 5; }
+html[data-phone-layout][data-touch-ui] { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.6); }
+/* Scrolling pages stop above the home indicator: their scroller ends at the bottom inset (the backdrop and the sidebar
+   are fixed, so they still reach the edge). */
+html[data-phone-layout] .modepick.sb-host { bottom: var(--safe-b); }
+html[data-phone-layout] .lbpage { padding-bottom: var(--safe-b); }
+/* Collection's body scrolls when its filters and grid outgrow the screen (they ran under the home indicator). */
+html[data-phone-layout] .colls-body { overflow-y: auto; }
+/* Its category tabs break between words only ("Attack Animations" was splitting mid-word), a size smaller to fit. */
+html[data-phone-layout] .colls-tab-name { overflow-wrap: normal; font-size: 11.5px; letter-spacing: 0.02em; }
+/* On a sidebar page the help / Compendium squares sit in the top-right corner, above the page, not over its content. */
+html[data-phone-layout][data-phone-sbpage] :is(.rulesbtn, .bookbtn) { bottom: auto; top: calc(var(--safe-t) + 6px * var(--touch-inv-s)); }
+html[data-phone-layout][data-phone-sbpage] .bookbtn { right: calc(var(--safe-r) + 6px * var(--touch-inv-s)); }
+html[data-phone-layout][data-phone-sbpage] .rulesbtn { right: calc(var(--safe-r) + 44px * var(--touch-inv-s)); }
+/* The title's small links (Report a Problem) and build stamp: a finger-sized link and a readable stamp. */
+html[data-phone-layout] .titlefoot .titlesecondary button { font-size: 20px; padding: 14px 10px; }
+html[data-phone-layout] .titlefoot .titleversion { font-size: 18px; }
+/* The mode home: the spread a little larger (the sidebar is wider here) and its captions and small labels ~9 pt. */
+html[data-phone-layout][data-touch-ui][data-touch-small] .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.18); }
+html[data-phone-layout] .mp-home .mcdesc { font-size: 28px; }
+html[data-phone-layout] .mp-home .mclast { font-size: 20px; }
+html[data-phone-layout] .mp-home :is(.pstrip-rank-name, .pstrip-rank-mmr, .pstrip-go) { font-size: 24px; }
+/* The menu sidebar's buttons reach 32 pt (it scrolls if they outgrow the height). */
+html[data-phone-layout][data-touch-ui] { --touch-sb: 1.6; }
+/* The menu pages zoom a step further on the phone layout so their body text reaches ~9 pt (they scroll). The touch UI
+   writes the var inline on <html>, hence the !important. */
+html[data-phone-layout][data-touch-ui] { --touch-p: 2.1 !important; }
+/* Practice's two mode cards grow to their text at the larger zoom (the art column narrower, the title a size down). */
+html[data-phone-layout] .mp-practice .pomode-select { height: auto; min-height: 150px; grid-template-columns: 130px 1fr; }
+html[data-phone-layout] .mp-practice .pomode-title { font-size: 21px; padding-right: 92px; }
+html[data-phone-layout] .mp-practice .pomode-text { font-size: 13px; line-height: 1.3; }
+html[data-phone-layout] .mp-practice .pomode-state { font-size: 13px; }
+html[data-phone-layout] .poseg-btn { padding-top: 13px; padding-bottom: 13px; }
+html[data-phone-layout] .msb .msb-gh { font-size: 17.5px; }
+/* Sidebar plaques: 32 pt tall, ~9 pt labels, tighter spacing so the whole rail still fits the height. */
+html[data-phone-layout] .msb .sbbtn { min-height: 62px; }
+html[data-phone-layout] .msb .mblabel { font-size: 17.5px; }
+html[data-phone-layout] .msb .msb-nav { gap: 3px; }
+
+}

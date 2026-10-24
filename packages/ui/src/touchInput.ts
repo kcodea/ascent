@@ -31,6 +31,8 @@
  * Nothing here runs for a mouse or a pen: every handler returns on `pointerType !== 'touch'`.
  */
 
+import { readSafeInsets } from './stage';
+
 /** px a touch may travel and still count as a tap (screen px, a physical distance). Matches the drag threshold's
  *  intent: a finger wobbles more than a mouse. */
 export const TAP_SLOP = 10;
@@ -197,6 +199,72 @@ export function isTap(x0: number, y0: number, x1: number, y1: number, slop = TAP
   return Math.hypot(x1 - x0, y1 - y0) <= slop;
 }
 
+/** The class a finger's press puts on the hand card under it (see `installTouchInput`). */
+export const PRESS_CLASS = 'tt-press';
+/** How tall the popped hand card is, as a share of the safe screen height (owner 2026-10-24: "it should be very large",
+ *  then "It's still popping very vertically": it grows in place from the hand row, its top around the board's top row). */
+export const POP_HEIGHT_FRAC = 0.68;
+/** Screen px kept between the popped card's foot and the safe bottom edge: it grows up from just above its resting row. */
+export const POP_FOOT_GAP = 4;
+export interface PopInput {
+  /** The card's untransformed box on screen (px): its rest transform taken back out. */
+  left: number; top: number; width: number;
+  /** The card's whole visual extent (plate and tribe label included) relative to `top`, screen px. */
+  extentTop: number; extentBottom: number;
+  /** Screen px per layout px of the card. */
+  k: number;
+  vw: number; vh: number;
+  safe: { top: number; right: number; bottom: number; left: number };
+}
+/**
+ * Pure: the pop of a hand card on a zoomed phone, as `translate(tx, ty) scale(s)` about the card's top-left (layout px).
+ * The whole card fills `POP_HEIGHT_FRAC` of the safe height, its foot just above the safe bottom edge (it rises only as far
+ * as it must), and horizontally as close to where it rests as the screen allows (never past a safe edge).
+ */
+export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; tx: number; ty: number } {
+  const availH = p.vh - p.safe.top - p.safe.bottom;
+  const h = Math.max(1, p.extentBottom - p.extentTop);
+  const s = (frac * availH) / h;
+  const w = s * p.width;
+  const want = p.left + p.width / 2;
+  const lo = p.safe.left + 8 + w / 2, hi = p.vw - p.safe.right - 8 - w / 2;
+  const cx = lo > hi ? p.vw / 2 : Math.min(hi, Math.max(lo, want));
+  const top = p.vh - p.safe.bottom - POP_FOOT_GAP - s * h;
+  const k = p.k > 0 ? p.k : 1;
+  return { s, tx: (cx - w / 2 - p.left) / k, ty: (top - s * p.extentTop - p.top) / k };
+}
+/** Reads a pressed hand card's geometry ONCE (on the press, never per frame) and writes its pop as CSS variables. */
+function writePop(el: HTMLElement): void {
+  if (!document.documentElement.hasAttribute('data-phone-zoom')) return;
+  // Layout offsets (untransformed: the fan's tuck and tilt never enter), placed through the card's offset parent's box.
+  const op = el.offsetParent as HTMLElement | null;
+  if (!op || !op.offsetWidth) return;
+  const pr = op.getBoundingClientRect();
+  const k = pr.width / op.offsetWidth;
+  let top = 0, bottom = el.offsetHeight;
+  for (const part of el.querySelectorAll<HTMLElement>('.cardplate, .plate-tribe')) {
+    if (!part.offsetHeight) continue;
+    let y = 0; let p: HTMLElement | null = part;
+    while (p && p !== el) { y += p.offsetTop; p = p.offsetParent as HTMLElement | null; }
+    if (p !== el) continue;
+    top = Math.min(top, y); bottom = Math.max(bottom, y + part.offsetHeight);
+  }
+  const g = popGeometry({
+    left: pr.left + (el.offsetLeft + op.clientLeft) * k, top: pr.top + (el.offsetTop + op.clientTop) * k, width: el.offsetWidth * k,
+    extentTop: top * k, extentBottom: bottom * k, k, vw: innerWidth, vh: innerHeight, safe: readSafeInsets(),
+  });
+  el.style.setProperty('--pop-s', String(g.s));
+  el.style.setProperty('--pop-tx', g.tx + 'px');
+  el.style.setProperty('--pop-ty', g.ty + 'px');
+}
+
+/** The class the body wears while a hand card is pressed. */
+export const BODY_PRESS_CLASS = 'tt-handpress';
+/** Pure: the hand card a touch landed on, or null. */
+export function handCardOf(el: Element | null): Element | null {
+  return el?.closest?.('.row.hand .card') ?? null;
+}
+
 /** Elements with a HOVER face worth opening on a long-press when they have no right-click of their own. */
 const HOVER_FACE = 'button, [role="button"], .gtip, [data-tip], .lobbyseat, .herocard, .runecard';
 
@@ -252,12 +320,19 @@ export function installTouchInput(): () => void {
       prev.dispatchEvent(leave);
     }
   };
+  // A finger on a HAND card marks it `.tt-press` (and the body `.tt-handpress`, so the hand zone can rise above the HUD
+  // without a `:has()`) until the finger lifts: on a zoomed phone the resting hand shows only the top of each card, and
+  // the press pops the whole card up (touchUi.css). Classes only; nothing measures.
+  let pressed: Element | null = null;
+  const unpress = (): void => { if (pressed) { pressed.classList.remove(PRESS_CLASS); document.body.classList.remove(BODY_PRESS_CLASS); pressed = null; } };
   const onDown = (e: PointerEvent): void => {
     lastType = e.pointerType;
+    unpress();
     if (e.pointerType !== 'touch') { lp.cancel(); clearChain(); return; }
     downX = e.clientX; downY = e.clientY; moved = false; lastTapWasTap = false;
     const t = e.target as Element | null;
     lastTouchEl = t;
+    if (e.isPrimary !== false) { pressed = handCardOf(t); if (pressed) { writePop(pressed as HTMLElement); pressed.classList.add(PRESS_CLASS); document.body.classList.add(BODY_PRESS_CLASS); } }
     if (e.isPrimary !== false) lp.down(t, e.clientX, e.clientY);
     else lp.cancel(); // a second finger is a pinch / two-finger gesture, never a long-press
     // Tap-away: a touch anywhere but on the tapped element closes its tip (a touch on it keeps it open).
@@ -271,6 +346,7 @@ export function installTouchInput(): () => void {
   };
   const onUp = (e: PointerEvent): void => {
     if (e.pointerType !== 'touch') return;
+    unpress();
     if (!isTap(downX, downY, e.clientX, e.clientY)) moved = true;
     if (lp.up()) {
       // The release of a long-press is not a tap: no hover mark, no tap-inspect, and its click is eaten.
@@ -290,7 +366,7 @@ export function installTouchInput(): () => void {
     if (e.pointerType !== 'touch' || isSynth(e)) return;
     if (tapTarget && lastTapWasTap) e.stopImmediatePropagation();
   };
-  const onCancel = (e: PointerEvent): void => { if (e.pointerType === 'touch') { lp.cancel(); moved = true; lastTapWasTap = false; } };
+  const onCancel = (e: PointerEvent): void => { if (e.pointerType === 'touch') { unpress(); lp.cancel(); moved = true; lastTapWasTap = false; } };
   // The BROWSER's long-press menu (Android Chrome fires `contextmenu` at ~500 ms): our hold already answered at
   // 350 ms, so a native one from a finger is swallowed before React sees it (no double fire, no OS menu). A mouse
   // right-click (lastType 'mouse') is untouched, and so is our own synthetic one.

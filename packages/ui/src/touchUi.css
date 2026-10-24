@@ -251,7 +251,7 @@ html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 192
    running off the bottom edge on one clean line. A finger on a card (`.tt-press`, touchInput.ts) POPS it: straightened,
    lifted and scaled so the whole card, plate and text, is on screen above the rest of the fan; it drops back on
    release. Transform only (compositor), one short transition. Centred under the felt. */
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 1006px); --z-hand-gap: -0.07; }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 1006px); }
 
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
@@ -286,9 +286,6 @@ html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .hcreroll-slot { margi
    phone's short screen). */
 html[data-touch-ui][data-touch-small] .heroselect:not(.endscreen)::before { background: linear-gradient(rgba(22, 15, 9, 0.92), rgba(22, 15, 9, 0.66) 14%, rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); }
 
-/* Zoomed phone: Attack / Health tuck in under each portrait so neighbouring two- and three-digit stats never touch. */
-html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .atk { left: calc(var(--ccw) * 0.06); }
-html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .hp { right: calc(var(--ccw) * 0.06); }
 /* Zoomed phone: combat Skip / Summary at ~1.3x their desktop size (not the touch UI's 2x); End Turn's hover caption off. */
 html[data-touch-ui][data-phone-zoom] .combathud-skip { transform: translate(-50%, -50%) scale(1.3); }
 html[data-touch-ui][data-phone-zoom] .combatsummary { scale: 1.3; left: calc(var(--bar-x) + 0.5 * var(--gw) + 96px * var(--scale) + var(--cc-skip-x, -95px) * var(--scale)); }
@@ -296,8 +293,6 @@ html[data-touch-ui][data-phone-zoom] .etbwrap .etb-tip { display: none; }
 /* Zoomed phone: the round summary a size up (its labels were 6-7 pt). */
 html[data-touch-ui][data-phone-zoom] .fr-panel { zoom: 1.3; }
 
-/* Zoomed phone: three-digit stats shrink to fit inside their badge. */
-html[data-touch-ui][data-phone-zoom] .badge > .value[data-fit='3'] { --sv-fit: 0.8; }
 /* Zoomed phone: the Runeforge keeps its desktop composition (the touch UI's extra forge scale overflowed its frame). */
 html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { --vh: 10.8px; scale: calc(var(--pz-vfit, 1) * var(--pz-forge-s, 1.16)); transform-origin: 50% 53%; }
 /* …and its rune cards read on a phone (a blind critic 2026-10-24: the rules text must read at least at the Shop's
@@ -320,19 +315,17 @@ html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::af
 
 /* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
 html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }
-/* The resting hand: each card's Attack and Health tucked in under its OWN portrait (Attack bottom-left, Health
-   bottom-right of the strip its neighbour leaves uncovered), so every pair reads as one card's and no Health ever
-   touches the next card's Attack. */
-html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.atk { left: calc(var(--ccw) * 0.06); }
-html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.hp { right: calc(var(--ccw) * 0.26); }
-/* THE POP: a finger on a hand card lifts it whole above the fan, straight, at the desktop hover scale, its plate and text
-   on screen (the lift is the rest line's overhang plus the scale's growth, ~0.66 card heights). The end cards grow
+/* THE POP: a finger on a hand card lifts it whole above the fan, straight and large (`--pz-pop-s`), the WHOLE card on
+   screen: plate, text, cost, Attack and Health (owner 2026-10-24: the resting hand is the desktop card exactly, badges
+   and all, so a neighbour may cover them; the pop is where it all reads). The lift `--pz-pop-y` is the rest line's
+   overhang plus the scale's growth. The end cards grow
    inward so they never cover the hero ring, its power or the screen edge. Transform only, the base 0.14 s transition. Not while a
    drag is live (the dragged card owns the finger). */
-html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * -0.66)) rotate(0deg) scale(var(--z-hand-hover-s, 1.47)); z-index: 50; }
+html[data-touch-ui][data-phone-zoom] .row.hand { --pz-pop-s: 1.75; --pz-pop-y: -0.88; }
+html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * var(--pz-pop-y))) rotate(0deg) scale(var(--pz-pop-s)); z-index: 50; }
 html[data-touch-ui][data-phone-zoom] .row.hand .card:is(:first-child, :nth-child(2)) { transform-origin: 0% 42%; }
 /* …and the first card steps right as it pops, so the whole card clears your hero power's socket. */
-html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press:first-child { transform: translateX(calc(var(--hand-glide, 0px) + 130px)) translateY(calc(var(--ch) * -0.66)) rotate(0deg) scale(var(--z-hand-hover-s, 1.47)); }
+html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press:first-child { transform: translateX(calc(var(--hand-glide, 0px) + 130px)) translateY(calc(var(--ch) * var(--pz-pop-y))) rotate(0deg) scale(var(--pz-pop-s)); }
 html[data-touch-ui][data-phone-zoom] .row.hand .card:last-child:not(:first-child) { transform-origin: 100% 42%; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app { z-index: auto; }
 html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone[data-zone='hand'] { z-index: 70; }

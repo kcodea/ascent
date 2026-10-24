@@ -99,4 +99,7 @@ will say which.
 - Desktop pixel-identical: 1920x1080, mouse, seeded Math.random + crypto, animations finished/paused, canvases hidden;
   hero select, the ceremony and the first shop, main vs branch: 0 differing pixels (each build was also run twice; one
   run of each showed sub-pixel raster noise on looping elements that the rerun did not).
-- typecheck, lint, test, build:web: see the PR.
+- typecheck, lint, build:web green. `npm test`: 19,930 passed; the failures were the known load-timing flakes
+  (audioDefaultMix, audio/master, fx/prodPlayback, fx/primitives/prewarm, tunedDefaults, perfCounterNames), each green
+  alone or with a longer timeout, plus one real hit (phoneRunMemory's "cleared before every reveal" source check, the
+  new reveal step sat between the two lines it pins), fixed.

@@ -138,8 +138,8 @@ export function HeroLaunchCurtain() {
       }
       await twoFrames();
       if (dead) return;
-      setLaunchCovered(false);
       crumbLight('launch reveal');
+      setLaunchCovered(false);
       await fade(el, 1, 0, t.launchRevealMs);
       if (dead) return;
       finish();

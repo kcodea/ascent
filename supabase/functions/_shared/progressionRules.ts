@@ -112,8 +112,8 @@ export function levelProgress(lifetimeXp: number): LevelProgress {
 
 // ── Match XP (handoff §4.3) ────────────────────────────────────────────────────────────────────────────────
 
-export type ProgressionMode = 'ranked' | 'practice' | 'tutorial' | 'versus';
-export const PROGRESSION_MODES: readonly ProgressionMode[] = ['ranked', 'practice', 'tutorial', 'versus'];
+export type ProgressionMode = 'ranked' | 'practice' | 'tutorial' | 'versus' | 'spectate';
+export const PROGRESSION_MODES: readonly ProgressionMode[] = ['ranked', 'practice', 'tutorial', 'versus', 'spectate'];
 
 export const XP_RULES = {
   /** Complete an accepted Ranked run. */
@@ -133,8 +133,13 @@ export const XP_RULES = {
   practiceFlat: 60,
   /** First completion of the current Learn Ascent course version. */
   tutorial: 250,
-  /** VERSUS (owner 2026-10-14: XP and achievements, never rank): the winner's bonus on top of `complete`. */
-  versusWin: 60,
+  /** VERSUS (owner 2026-10-24: "versus modes should grant account xp. just make it 50% of a 'normal' game for now"):
+   *  each piece of the equivalent Ranked XP at this percent (`versusLobbyPlacement` maps the Versus finish onto a
+   *  lobby placement), summed then rounded like Practice. Never a comeback. Replaced the 2026-10-14 flat 100 (+60 win). */
+  versusPercent: 50,
+  /** SPECTATING (owner 2026-10-24: "watching a player's game rewards 50% of the xp at the end of the match"): this
+   *  percent of a normal game's completion XP (`complete`), whatever the watched player's result. */
+  spectatePercent: 50,
 } as const;
 
 export const TUTORIAL_COURSE_ID = 'learn-ascent';
@@ -146,6 +151,30 @@ export const practiceRunId = (practiceGameId: number): string => `practice:${pra
 /** A Versus settlement's run id is its server-owned match id: one match, one settlement per player. */
 export const versusRunId = (matchId: string): string => `versus:${matchId}`;
 export const VERSUS_RUN_ID = /^versus:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * VERSUS PLACEMENT ON THE LOBBY'S SCALE (owner 2026-10-24, "50% of a 'normal' game"): a Versus finish is scored as the
+ * lobby placement holding the SAME SHARE of the table. The winner is 1st; any other place p of n seats is
+ * ceil(p * 8 / n) of 8. So a 1v1 loser is 8th; in a 4-player group 2nd is 4th (Top 4), 3rd is 6th, 4th is 8th; in a
+ * 3-player group 2nd is 6th, 3rd is 8th. Null (nobody won, the match was abandoned) stays null. This is the placement
+ * the ledger stores for a Versus settlement. Mirrored in SQL (`settle_progression`, 2026-10-24-versus-spectator-xp.sql).
+ */
+export function versusLobbyPlacement(placement: number | null, seats: number): number | null {
+  if (placement === null || !Number.isInteger(placement) || placement < 1) return null;
+  if (placement === 1) return 1;
+  const n = Number.isInteger(seats) && seats >= 2 ? seats : 2;
+  return Math.min(8, Math.floor((placement * 8 + n - 1) / n));
+}
+
+/** The kinds of game a spectator can watch to the end for XP (owner 2026-10-24). */
+export type SpectateKind = 'lobby' | 'versus' | 'group';
+/**
+ * A spectator settlement's run id: one per watched game per spectator. `lobby` = a live ranked lobby game (its
+ * `lobby_live_games.game_id`, the player's rank run id); `versus` = a 1v1 Versus match id; `group` = a Versus Group
+ * match id.
+ */
+export const spectateRunId = (kind: SpectateKind, target: string): string => `watch:${kind}:${target}`;
+export const SPECTATE_RUN_ID = /^watch:(lobby:[!-~]{1,80}|(versus|group):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 export interface XpBreakdown {
   base: number;
@@ -168,17 +197,28 @@ export const isValidPlacement = (p: unknown): p is number => typeof p === 'numbe
  *  - Practice: each component at 60%, the rounding remainder folded into `base` so `total` is exactly
  *    `round(0.60 * equivalent ranked XP)`. No meaningful placement: a flat 60, no bonuses.
  *  - Tutorial: 250 flat.
+ *  - Versus (2026-10-24): 50% of the Ranked XP at the lobby-scale placement (`versusLobbyPlacement`), no comeback;
+ *    no winner = 50% of the completion XP.
+ *  - Spectate (2026-10-24): 50% of the completion XP.
  */
 export function xpForSettlement(input: { mode: ProgressionMode; placement: number | null; comeback: boolean; terminal?: boolean }): XpBreakdown {
   if (input.terminal === false) return { ...ZERO_XP };
   if (input.mode === 'tutorial') return { base: XP_RULES.tutorial, topFour: 0, firstPlace: 0, comeback: 0, total: XP_RULES.tutorial };
-  // VERSUS: a completed match earns `complete`; the winner (placement 1) adds `versusWin`. Placement 2 = the loser,
-  // null = nobody won (abandoned). Never a comeback, never a Top 4 bonus.
-  if (input.mode === 'versus') {
-    const win = input.placement === 1 ? XP_RULES.versusWin : 0;
-    return { base: XP_RULES.complete, topFour: 0, firstPlace: win, comeback: 0, total: XP_RULES.complete + win };
+  // SPECTATE: half a game's completion XP, nothing else (the watched player's result never counts).
+  if (input.mode === 'spectate') {
+    const base = scalePercent(XP_RULES.complete, XP_RULES.spectatePercent);
+    return { base, topFour: 0, firstPlace: 0, comeback: 0, total: base };
   }
   const placed = isValidPlacement(input.placement);
+  // VERSUS: `placement` is already on the lobby's scale (`versusLobbyPlacement`). Half the equivalent Ranked XP, never a
+  // comeback. Null (nobody won) = half the completion XP only.
+  if (input.mode === 'versus') {
+    if (!placed) {
+      const base = scalePercent(XP_RULES.complete, XP_RULES.versusPercent);
+      return { base, topFour: 0, firstPlace: 0, comeback: 0, total: base };
+    }
+    return scaled(input.placement as number, false, XP_RULES.versusPercent);
+  }
   if (input.mode === 'practice' && !placed) {
     return { base: XP_RULES.practiceFlat, topFour: 0, firstPlace: 0, comeback: 0, total: XP_RULES.practiceFlat };
   }
@@ -192,17 +232,25 @@ export function xpForSettlement(input: { mode: ProgressionMode; placement: numbe
   };
   const rankedTotal = ranked.base + ranked.topFour + ranked.firstPlace + ranked.comeback;
   if (input.mode === 'ranked') return { ...ranked, total: rankedTotal };
-  // Practice: scale each piece, then make the pieces sum to round(total * 0.60) exactly.
-  const total = scalePercent(rankedTotal);
-  const topFour = scalePercent(ranked.topFour);
-  const firstPlace = scalePercent(ranked.firstPlace);
-  const comeback = scalePercent(ranked.comeback);
-  return { base: total - topFour - firstPlace - comeback, topFour, firstPlace, comeback, total };
+  return scaled(p, input.comeback, XP_RULES.practicePercent);
 }
 
-/** round(xp * 60 / 100), half away from zero, in integers (the SQL copy does the same integer math). */
-function scalePercent(xp: number): number {
-  return Math.floor((xp * XP_RULES.practicePercent + 50) / 100);
+/** The Ranked XP for a placement, each piece at `percent`, the pieces made to sum to round(total * percent) exactly (the
+ *  rounding remainder lands on `base`). Practice (60) and Versus (50). */
+function scaled(p: number, comeback: boolean, percent: number): XpBreakdown {
+  const rTop = p <= 4 ? XP_RULES.topFour : 0;
+  const rFirst = p === 1 ? XP_RULES.firstPlace : 0;
+  const rCome = comeback ? XP_RULES.comeback : 0;
+  const total = scalePercent(XP_RULES.complete + rTop + rFirst + rCome, percent);
+  const topFour = scalePercent(rTop, percent);
+  const firstPlace = scalePercent(rFirst, percent);
+  const comebackXp = scalePercent(rCome, percent);
+  return { base: total - topFour - firstPlace - comebackXp, topFour, firstPlace, comeback: comebackXp, total };
+}
+
+/** round(xp * percent / 100), half away from zero, in integers (the SQL copy does the same integer math). */
+function scalePercent(xp: number, percent: number): number {
+  return Math.floor((xp * percent + 50) / 100);
 }
 
 export const sameXpBreakdown = (a: XpBreakdown, b: XpBreakdown): boolean =>

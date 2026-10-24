@@ -19,10 +19,15 @@ export interface BreakdownLine { key: 'base' | 'topFour' | 'firstPlace' | 'comeb
 export function breakdownLines(r: Pick<ProgressionResult, 'mode' | 'xp' | 'placement'>): BreakdownLine[] {
   const base = r.mode === 'tutorial' ? 'Tutorial complete'
     : r.mode === 'practice' ? (r.placement === null ? 'Practice complete' : 'Practice game complete')
+    : r.mode === 'versus' ? 'Versus match complete'
+    : r.mode === 'spectate' ? 'Watched to the end'
     : 'Game complete';
+  // Versus (2026-10-24) is scored as the lobby place holding the same share of the table, so its bonuses read as the
+  // Versus result: the top half, and the win.
+  const versus = r.mode === 'versus';
   const lines: BreakdownLine[] = [{ key: 'base', label: base, xp: r.xp.base }];
-  if (r.xp.topFour > 0) lines.push({ key: 'topFour', label: 'Top 4', xp: r.xp.topFour });
-  if (r.xp.firstPlace > 0) lines.push({ key: 'firstPlace', label: 'First place', xp: r.xp.firstPlace });
+  if (r.xp.topFour > 0) lines.push({ key: 'topFour', label: versus ? 'Top half' : 'Top 4', xp: r.xp.topFour });
+  if (r.xp.firstPlace > 0) lines.push({ key: 'firstPlace', label: versus ? 'Win' : 'First place', xp: r.xp.firstPlace });
   if (r.xp.comeback > 0) lines.push({ key: 'comeback', label: 'Comeback', xp: r.xp.comeback });
   return lines;
 }

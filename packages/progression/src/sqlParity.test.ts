@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   CURVE_BANDS, PROGRESSION_CURVE_VERSION, PROGRESSION_MODES, PROGRESSION_RULES_VERSION, TITLES, TUTORIAL_COURSE_ID,
-  TUTORIAL_COURSE_VERSION, XP_RULES, levelOfXp, xpForSettlement,
+  TUTORIAL_COURSE_VERSION, XP_RULES, levelOfXp, versusLobbyPlacement, xpForSettlement,
 } from './rules';
 import {
   ALPHA_TESTER_TITLE_ID, COSMETICS, COSMETIC_CATEGORIES, COSMETIC_CATEGORY_DEFS, COSMETIC_RARITIES, CRATE_RARITY_ODDS, CRATE_ROLL_VERSION,
@@ -70,12 +70,16 @@ const announcersNotFocusable = readFileSync(join(root, 'supabase/migrations/2026
 /** Eight emote positions (2026-10-22, R-PROG-EMOTE-02): the newest equip_cosmetic (emote targets '0'..'7'), appended to
  *  schema.sql right after the announcers file. */
 const emoteEight = readFileSync(join(root, 'supabase/migrations/2026-10-22-emote-eight-slots.sql'), 'utf8');
+/** Versus + spectator XP (2026-10-24, R-PROG-VERSUS-XP-01 / R-PROG-SPECTATE-XP-01): the newest settle_progression (Versus at
+ *  50% on the lobby's scale, 1v1 + Group, and the spectate branch), the progression_results.mode check, `spectate_beat`;
+ *  appended to schema.sql right after the eight emote positions file. */
+const versusSpectatorXp = readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-spectator-xp.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
 /** The body of a function's LATEST definition (the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -100,7 +104,8 @@ describe('settle_progression constants equal the TS rules', () => {
     expect(n(settle, 'c_top_four')).toBe(XP_RULES.topFour);
     expect(n(settle, 'c_first_place')).toBe(XP_RULES.firstPlace);
     expect(n(settle, 'c_comeback')).toBe(XP_RULES.comeback);
-    expect(n(settle, 'c_versus_win')).toBe(XP_RULES.versusWin);
+    expect(n(settle, 'c_versus_percent')).toBe(XP_RULES.versusPercent);
+    expect(n(settle, 'c_spectate_percent')).toBe(XP_RULES.spectatePercent);
     expect(n(settle, 'c_comeback_streak')).toBe(XP_RULES.comebackStreak);
     expect(n(settle, 'c_practice_percent')).toBe(XP_RULES.practicePercent);
     expect(n(settle, 'c_practice_flat')).toBe(XP_RULES.practiceFlat);
@@ -137,6 +142,27 @@ describe('settle_progression constants equal the TS rules', () => {
     for (let xp = 0; xp <= 60_000; xp += 5) expect(sqlLevel(xp), `${xp} XP`).toBe(levelOfXp(xp));
   });
 
+  it('the SQL Versus arithmetic (the lobby-scale place, 50%, never a comeback) and the spectate pay agree with xpForSettlement', () => {
+    const pct = n(settle, 'c_versus_percent');
+    const seatsMax = n(settle, 'c_lobby_seats');
+    const scale = (x: number): number => Math.floor((x * pct + 50) / 100);
+    // The SQL's integer place mapping: winner 1st, else least(8, (p * 8 + n - 1) / n).
+    const sqlPlace = (p: number | null, seats: number): number | null => (p === null ? null : p === 1 ? 1 : Math.min(seatsMax, Math.floor((p * seatsMax + seats - 1) / seats)));
+    for (const seats of [2, 3, 4]) {
+      for (const p of [null, ...Array.from({ length: seats }, (_, i) => i + 1)]) {
+        const lp = sqlPlace(p, seats);
+        expect(lp, `${p} of ${seats}`).toBe(versusLobbyPlacement(p, seats));
+        const top = lp !== null && lp <= 4 ? n(settle, 'c_top_four') : 0;
+        const first = lp === 1 ? n(settle, 'c_first_place') : 0;
+        const total = scale(n(settle, 'c_complete') + top + first);
+        const sqlXp = { base: total - scale(top) - scale(first), topFour: scale(top), firstPlace: scale(first), comeback: 0, total };
+        expect(sqlXp, `${p} of ${seats}`).toEqual(xpForSettlement({ mode: 'versus', placement: lp, comeback: true }));
+      }
+    }
+    const spectate = Math.floor((n(settle, 'c_complete') * n(settle, 'c_spectate_percent') + 50) / 100);
+    expect(xpForSettlement({ mode: 'spectate', placement: null, comeback: false }).total).toBe(spectate);
+  });
+
   it('the SQL practice arithmetic (integer, remainder on the base) agrees with xpForSettlement', () => {
     const pct = n(settle, 'c_practice_percent');
     const scale = (x: number): number => Math.floor((x * pct + 50) / 100);
@@ -154,8 +180,8 @@ describe('settle_progression constants equal the TS rules', () => {
 });
 
 describe('the migration shape', () => {
-  it('the ledger modes equal the TS modes (the Versus file replaced the MVP check, 2026-10-14)', () => {
-    const m = /add constraint progression_results_mode_check\s+check \(mode in \(([^)]+)\)\)/.exec(versusProg);
+  it('the ledger modes equal the TS modes (the spectator XP file replaced the Versus check, 2026-10-24)', () => {
+    const m = /add constraint progression_results_mode_check\s+check \(mode in \(([^)]+)\)\)/.exec(versusSpectatorXp);
     expect(m, 'progression_results.mode check').toBeTruthy();
     expect(m![1]!.split(',').map((s) => s.trim().replace(/'/g, ''))).toEqual([...PROGRESSION_MODES]);
   });
@@ -577,7 +603,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
     // only the launch-grant file (2026-10-19), the milestone file and the announcers file (2026-10-20), then the emote positions file (2026-10-22) follow it
     expect(flat.slice(at, at + body.length)).toBe(body);
-    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}`);
+    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`);
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
       expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
@@ -590,7 +616,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const lf = (t: string): string => t.replace(/\r\n/g, '\n');
     const flat = lf(schema);
     const body = lf(launchGrant).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
     expect(flat.lastIndexOf('create or replace function public.aether_rollout(')).toBeGreaterThan(flat.lastIndexOf(lf(aether).trim()));
     expect(body).toContain("perform public.aether_launch_grant(v_user);");
     expect(fnBody('aether_rollout', milestoneEpic)).toContain("perform public.aether_launch_grant(v_user);");
@@ -605,7 +631,7 @@ describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER
   it('schema.sql carries the milestone file verbatim (the announcers file follows it), and its three functions are the ones a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(milestoneEpic).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     for (const fn of ['open_crate', 'settle_progression', 'aether_rollout']) {
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThan(at);
@@ -651,7 +677,7 @@ describe("Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06)", () 
   it('schema.sql carries the announcers file verbatim (the emote positions file follows it), and its aether_quote is the one a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(announcersNotFocusable).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(emoteEight).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     const fnAt = flat.lastIndexOf('create or replace function public.aether_quote(');
     expect(fnAt).toBeGreaterThan(at);
@@ -674,10 +700,10 @@ describe('eight emote positions (2026-10-22, R-PROG-EMOTE-02)', () => {
   // communication emotes".
   const lf = (t: string): string => t.replace(/\r\n/g, '\n');
 
-  it('schema.sql ENDS with the emote positions file verbatim, and its equip_cosmetic is the one a paste leaves', () => {
+  it('schema.sql carries the emote positions file verbatim (the spectator XP file follows it), and its equip_cosmetic is the one a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(emoteEight).trim();
-    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
     const fnAt = flat.lastIndexOf('create or replace function public.equip_cosmetic(');
     expect(fnAt).toBeGreaterThan(flat.lastIndexOf(body));
     expect(fnBody('equip_cosmetic', flat.slice(fnAt))).toBe(fnBody('equip_cosmetic'));
@@ -691,5 +717,46 @@ describe('eight emote positions (2026-10-22, R-PROG-EMOTE-02)', () => {
     const norm = (b: string): string => b.split("'^[0-7]$'").join("'^[0-3]$'").split("'0'..'7'").join("'0'..'3'");
     expect(norm(fnBody('equip_cosmetic', emoteEight))).toBe(fnBody('equip_cosmetic', cardPlates));
     expect(emoteEight).toContain('grant execute on function public.equip_cosmetic(uuid, text, text, text) to service_role;');
+  });
+});
+
+describe('Versus + spectator XP (2026-10-24, R-PROG-VERSUS-XP-01, R-PROG-SPECTATE-XP-01)', () => {
+  // Owner 2026-10-24: "versus modes should grant account xp. just make it 50% of a 'normal' game for now / also add this
+  // for spectating - watching a player's game rewards 50% of the xp at the end of the match".
+  const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+
+  it('schema.sql ENDS with the spectator XP file verbatim, and its settle_progression and spectate_beat are the ones a paste leaves', () => {
+    const flat = lf(schema);
+    const body = lf(versusSpectatorXp).trim();
+    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    for (const fn of ['settle_progression', 'spectate_beat']) {
+      const fnAt = flat.lastIndexOf(`create or replace function public.${fn}(`);
+      expect(fnAt, fn).toBeGreaterThan(flat.lastIndexOf(body) - 1);
+      expect(fnBody(fn, flat.slice(fnAt)), fn).toBe(fnBody(fn));
+    }
+  });
+
+  it('settle_progression is the 2026-10-20 body with only the Versus and spectate branches changed', () => {
+    const full = fnBody('settle_progression', milestoneEpic);
+    // The old Versus source branch is replaced whole; every other line must survive.
+    const cutAt = full.indexOf("  elsif p_mode = 'versus' then\n    -- VERSUS: the source");
+    const cutEnd = full.indexOf('  else\n    -- tutorial: one claim');
+    expect(cutAt).toBeGreaterThan(0);
+    const before = full.slice(0, cutAt) + full.slice(cutEnd);
+    const after = fnBody('settle_progression', versusSpectatorXp);
+    // Every Ranked / Practice / Tutorial / Aether / crate / title line survives verbatim.
+    for (const line of before.split('\n').filter((l) => l.trim() && !/versus|c_practice_percent \+ 50|v_ach_epoch is not null and|not in \('ranked'|-- VERSUS|-- Practice: 60%/i.test(l))) {
+      expect(after, line).toContain(line);
+    }
+    expect(after).not.toContain('c_versus_win');
+    expect(after).toContain("if p_mode <> 'spectate' and v_ach_epoch is not null");
+  });
+
+  it('spectate_beat accrues only on the game beat last, at most 45 s between beats, and is callable by signed-in players only', () => {
+    const beat = fnBody('spectate_beat', versusSpectatorXp);
+    expect(constOf(beat, 'c_gap')).toBe("interval '45 seconds'");
+    expect(beat).toContain('v_pres.run_id = v_run and v_now > v_pres.at and v_now - v_pres.at <= c_gap');
+    expect(versusSpectatorXp).toContain('revoke all on function public.spectate_beat(text, text) from public, anon;');
+    expect(versusSpectatorXp).toContain('grant execute on function public.spectate_beat(text, text) to authenticated;');
   });
 });

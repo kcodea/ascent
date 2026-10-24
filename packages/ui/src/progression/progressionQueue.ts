@@ -19,6 +19,7 @@
  * ACCOUNT BINDING. An item is only ever submitted while THAT account's session is live; signing out or switching
  * accounts parks it (never dropped, never cross-submitted) until that account is back.
  */
+import { PROGRESSION_MODES } from '@game/progression';
 import { currentUserId } from '../identity';
 import { remoteEnabled } from '../remoteBoards';
 import { pendingRankFor } from '../rank/rankSubmission';
@@ -59,7 +60,7 @@ function saveQueue(q: PendingProgression[]): void {
 function isPending(x: unknown): x is PendingProgression {
   if (!x || typeof x !== 'object') return false;
   const o = x as Record<string, unknown>;
-  return typeof o.userId === 'string' && typeof o.runId === 'string' && (o.mode === 'ranked' || o.mode === 'practice' || o.mode === 'tutorial')
+  return typeof o.userId === 'string' && typeof o.runId === 'string' && (PROGRESSION_MODES as readonly unknown[]).includes(o.mode)
     && Number.isInteger(o.rulesVersion) && Number.isInteger(o.attempts);
 }
 

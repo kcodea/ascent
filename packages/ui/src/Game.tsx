@@ -110,6 +110,7 @@ import { CloudMovedModal } from './CloudMovedModal';
 import { installLivePublisher } from './live/livePublisher';
 import { LiveGames } from './live/LiveGames';
 import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
+import { SpectatorEndNotice } from './live/SpectatorEndNotice';
 // The tuned look (R-PRESENT-TUNED-01): every config module that applies its defaults at load, so a production build
 // applies them too now that the DEV menu, their old importer, is DEV-only (the medallion circle came back).
 import './tunedDefaults';
@@ -647,6 +648,8 @@ export function Game() {
       {/* The watched player's held card (SpectatorCursor) is THEIR run's card: their skins (R-PROG-SKINS-17). */}
       <RunSkins><LiveWatchBar /></RunSkins>
       <LiveJoining />
+      {/* A watched game's end (owner 2026-10-24, R-SPECTATE-END-01): the end gate opens on the menu with this over it. */}
+      <SpectatorEndNotice />
       <Career />
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}

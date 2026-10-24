@@ -75,6 +75,13 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The Engraved keyword now reads: Keeps all stats and effects gained during combat.',
         details: ['A wording update. Engraved minions keep the stats and keywords they gain in a fight, as before.'],
+        category: 'Systems',
+        text: 'Versus games and watching a game to the end now earn account XP.',
+        details: [
+          'Versus pays half the XP of a normal game with the same finish. A 1v1 win is 125 XP and a loss is 50.',
+          'Watching a ranked game or a Versus match to the end pays 50 XP, once per game.',
+          'When a game you are watching ends, the gates close and open on the menu with the result and your XP.',
+        ],
       },
       { category: 'Systems', text: "Rebirth's glow no longer cuts off in a straight line." },
       { category: 'Systems', text: 'Fel Spikes now shows its spikes when a Start of Combat rune triggers its Echo.' },

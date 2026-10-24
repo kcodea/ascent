@@ -59,7 +59,7 @@ export const PHONE_SHOP_TOP = 104;
 /** The breathing gap kept either side of the housed span, layout px. */
 export const PHONE_SIDE_GAP = 20;
 /** The lowest housed ART (the hero ring's foot): inside the safe area. */
-export const PHONE_ART_BOTTOM = 984;
+export const PHONE_ART_BOTTOM = 1012; // the hero ring's foot (979) + its decorative rim + a breath
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
   return phone && !off && inRun && w > h;

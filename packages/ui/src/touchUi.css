@@ -241,3 +241,8 @@ html[data-touch-ui][data-phone-zoom] .row.hand .card .plate-tribe { visibility: 
 html[data-touch-ui] .combatround { margin-top: calc(-22 * var(--u) * (var(--touch-k) * 1.25 - 1)); }
 /* Hero select's re-roll row sat below a phone's screen: on a phone-scale stage it tucks up under the hero cards. */
 html[data-touch-ui][data-touch-small] .hcreroll-slot { margin-top: 10px; }
+/* The Discover's Peek stays centred under the cards on a zoomed phone (the plain touch layout moves it to the edge). */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .disc-toggle.disc-peek:not(.inspect-act) { top: 75%; left: 50%; }
+/* The round summary's buttons: finger-sized hit areas on a zoomed phone. */
+html[data-touch-ui][data-phone-zoom] .fr-btn { padding: calc(14 * var(--u)) calc(28 * var(--u)); }
+html[data-touch-ui][data-phone-zoom] .fr-details-toggle { padding: calc(14 * var(--u)) calc(10 * var(--u)); }

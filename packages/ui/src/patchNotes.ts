@@ -142,6 +142,7 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       { category: 'Systems', text: 'The Now Facing poster is easier to read, and it and the return trip fit every screen shape, including ultrawide and windowed.' },
       { category: 'Systems', text: 'Fixed a split-second gap at the bottom of the screen as the gate lands.' },
+      { category: 'Systems', text: 'The trips to and from combat are quicker, and the flash into the Shop valley is now sky blue.' },
       { category: 'Systems', text: 'Match History and Recent Games show bigger minions.' },
       { category: 'Systems', text: 'Compendium: the Runes tab can filter Basic or Epic runes.' },
       { category: 'Balance', text: 'Whisp and Gatherer leave Set 3.' },

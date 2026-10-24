@@ -276,7 +276,7 @@ const GOLDEN_RUBY_COIN_GAP_MS = 220;
  *  "lets actually not use the floating islands layer", so five). */
 const VISTA_LAYERS = ['sky', 'far', 'mid', 'shop', 'fore'] as const;
 /** The return trip's arrival, ms: the land finishes rising 0.15 + 0.7 s in (styles.css, "THE ARRIVAL"); its sweep backstop. */
-const VISTA_ARRIVAL_MS = 850;
+const VISTA_ARRIVAL_MS = 750; // 0.85 s -> 0.75 s (owner 2026-10-23: "adjust the arrival to .75 s"); the CSS arrival is scaled to match
 /** The vista's turquoise GEM (on the medallion over the shop door) on SCREEN at the end of the push (screen px, for the
  *  portal burst): measured off the 2560x1440 art (centre 1167, 871; about 14 px across), through the art's cover-fit and
  *  the 1.12 push about (47.7%, 83%), as styles.css lays them out. */

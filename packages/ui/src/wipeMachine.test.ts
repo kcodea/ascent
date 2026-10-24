@@ -151,7 +151,7 @@ describe('the return trip is the vista, not the gate', () => {
     // The shop and the door's interior + glow rise together (same rise, same delay), and the hole opens only after landing.
     const flight = /\.wipevista\.on \.wipevista-shop \{ animation: (vistariseshop [^;]*?) both; \}/.exec(css)?.[1];
     expect(flight).toBeTruthy();
-    expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 2s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
+    expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.3s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
     // (…and only on a trip whose cut-out was decoded before it began: a mask still loading blanks the group.)
     expect(css).toContain(".wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: url('/vista-doormask.png')");
     expect(css).not.toMatch(/^\.wipevista\.(held|dive) \.wipevista-masked[^{]*\{[^}]*mask/m);

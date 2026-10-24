@@ -1602,4 +1602,26 @@ export const TRIGGERS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms (built 2026-10-23).',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3Nitrogen1023.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-SPELLONTHIS-SHOP-01',
+    title: 'A Shop spell cast on a minion in the Shop fires its "cast on this" reactions, once per instance per turn',
+    statement:
+      'Mirrorwing ("The first Shop spell you cast on this each turn casts again") works wherever the minion is: a '
+      + 'targeted Shop spell cast on a Mirrorwing OFFER in the Shop casts again on that offer, exactly as on the board '
+      + '(a full re-cast, scaled by the cast multiplier; Gilded casts 2 additional times; the Inspect ledger shows both '
+      + 'casts). The "first Shop spell each turn" count is per instance: the offer keeps its own count, the count rides '
+      + 'onto the body when it is bought (so a Mirrorwing that already re-cast in the Shop this turn does not re-cast '
+      + 'again on the board that turn), and it re-arms at Start of Turn (a frozen or held offer too). The same path '
+      + 'serves every `spellCastOnThis` reaction (Crash Course, Reflector); Tamby stays board-only by its own guard, '
+      + 'and Rune of Shared Reflection spreads only from a BOARD Mirrorwing (an offer has no adjacent Dragons).',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Player report relayed by the owner 2026-10-23 (Lemon, Discord)', quote: 'when in shop mirrorwing doesnt procc' },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts castSpellOnOffer (fires fireOnSpellCastOnThis on the offer stand-in) / recastOn / foldOfferCast; packages/sim/src/reducer.ts the buy carry + Start of Turn reset; packages/sim/src/state.ts ShopCard.spellsOnThisTurn' },
+    ],
+    contentIds: ['d2_mirrorwing', 'ce3_adept', 'n2_reflector', 'rune_shared_reflection'],
+    currentBehaviour: 'Conforms (fix/mirrorwing-shop-offer, 2026-10-23). Before, `castSpell` only told a BOARD target a spell landed on it, so a Spirit Fire on a Mirrorwing offer resolved once.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/mirrorwingShopOffer.test.ts'], lastVerifiedAt: '2026-10-23' },
+  },
 ];

@@ -113,6 +113,13 @@ export interface ShopCard {
    *  time on a Starform (the first refresh it sits in the slot) and never again on later refreshes. Play-time
    *  right-most buffs (a Shout, a hero power aimed at the row) are unaffected. See `starformRefreshLand`. */
   refreshLanded?: string[];
+  /** The offer's twin of `BoardCard.spellsOnThisTurn` (player report 2026-10-23, "when in shop mirrorwing doesnt
+   *  procc"): Shop spells cast on this OFFER this turn, so a Mirrorwing in the Shop keeps its "first Shop spell each
+   *  turn" count per instance. Carried onto the body when it is bought (one first-spell per instance per turn,
+   *  wherever it sits) and cleared at Start of Turn with the board's counters. Absent = 0. */
+  spellsOnThisTurn?: number;
+  /** The offer's twin of `BoardCard.namedSpreadUsedThisTurn` (Crash Course's "first Star Crash on this each turn"). */
+  namedSpreadUsedThisTurn?: boolean;
 }
 
 /** One source's contribution to a minion's recruit-phase buffs, accumulated for the inspect panel

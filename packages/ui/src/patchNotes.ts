@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-23',
     changes: [
       {
+        category: 'Balance',
+        text: "Mirrorwing now also casts again when it's in the Shop.",
+        details: [
+          'The first Shop spell you cast on a Mirrorwing in the Shop each turn casts again, just like on your board.',
+          'It still only happens once per Mirrorwing per turn. Buying it after that does not give it another one that turn.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Phones: sound effects load ahead of time and sound clearer.',
         details: [

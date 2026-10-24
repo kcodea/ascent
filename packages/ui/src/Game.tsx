@@ -101,7 +101,7 @@ import { syncPhoneSfxPrewarm } from './audio/phonePrewarm';
 import { LITE_ART } from './phoneArt';
 import { useGame, isPreRun } from './store';
 import { RankedGate } from './rankedGate/RankedGate';
-import { installStage, onStageChange, setStageCombat, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
+import { installStage, onStageChange, setStageInRun, setStageMenuZoom, stageFit, stageScale, stageViewport } from './stage';
 import { installTouchInput } from './touchInput';
 import { installTouchUi, touchUi } from './touchUi';
 import { installTouchSlop } from './touchSlop';
@@ -421,8 +421,6 @@ export function Game() {
   useEffect(() => { setStageMenuZoom(preRun && !heroPicking); }, [preRun, heroPicking]);
   // …and the phone zoom (R-PHONE-ZOOM-01) only once a run is on screen: hero select keeps the plain fit.
   useEffect(() => { setStageInRun(!preRun && !heroPicking); }, [preRun, heroPicking]);
-  const combatStaged = useGame((s) => s.combatStaged);
-  useEffect(() => { setStageCombat(combatStaged); }, [combatStaged]);
   // …and the screen-wipe's Pixi canvas the same way (perf 2026-10-10). Recruit warms it on mount, which put its
   // WebGL context creation (~200-450 ms, `getContext`) in the FIRST SHOP of the session as an unlabelled long task.
   // On idle at the title it is paid before any run; Recruit's own `warm()` then finds it ready (idempotent).

@@ -233,14 +233,12 @@ html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailt
 /* PIECES WITH NO HOUSING, placed where they fit tidily inside the zoomed view:
    - the lobby rail: the right margin between End Turn / Refresh and the box edge, its header on top;
    - a LEFT COLUMN beside the board frame: the rail's Guides tab, then help / Compendium / Settings (slightly smaller);
-   - the hand: TUCKED, a clean line just under its cards' Attack / Health (the name ribbons and text plates below the
-     screen's safe bottom, clipped there so nothing is cut mid-line), a gap clear of the hero ring; a tap opens Inspect
-     and a drag lifts the full card. */
+   - the hand: resting low, its plates running off the bottom edge, a finger pops a card up whole (below). */
 /* The lobby rail at the right, vertically centred in the shop view like desktop (below Refresh, right of End Turn), its
    Guides tab attached on its RIGHT side (owner 2026-10-24). */
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-top: 276px; --lby-y: 0; --lby-scale: 0.72; }
-html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: 58px; --lr-w: 190px; }
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: 54px; top: 430px; scale: -1 1; }
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: 30px; --lr-w: 222px; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: 26px; top: 430px; scale: -1 1; }
 html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
 html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
 /* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
@@ -248,15 +246,12 @@ html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touc
 html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }
 html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--pz-bxr) + 1920px - 1823px); }
 html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 1920px - 1749px); }
-/* your Health / Armor plate rides up onto the ring's lower rim. */
-html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -34px; }
-/* The turn timer: a deliberate top-right corner seat, above the rail and right of Refresh (its desktop seat above the
-   frame is outside the shop's framing). */
-html[data-touch-ui][data-phone-zoom] .shopbar { translate: 822px 104px; }
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 962px); --z-hand-gap: -0.15; }
-/* …the tucked hand shows each card's art, cost and stats only: its name ribbon and text plate are off (Inspect and a
-   drag show the full card), so nothing is ever cut mid-line at the screen edge. */
-html[data-touch-ui][data-phone-zoom] .row.hand .card :is(.cardplate, .plateglow, .plate-tribe, .drawer) { display: none; }
+/* THE HAND (owner 2026-10-24: "they can sit lower and pop up cleanly when highlighted"). The real cards, full plates and
+   all, rest LOW: art, cost and Attack / Health on screen at the same bottom margin as the hero ring, every name plate
+   running off the bottom edge on one clean line. A finger on a card (`.tt-press`, touchInput.ts) POPS it: straightened,
+   lifted and scaled so the whole card, plate and text, is on screen above the rest of the fan; it drops back on
+   release. Transform only (compositor), one short transition. Centred under the felt. */
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 976px); --z-hand-gap: -0.07; }
 
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
@@ -267,7 +262,7 @@ html[data-touch-ui] .combatround { margin-top: calc(-22 * var(--u) * (var(--touc
 /* Hero select's re-roll row sat below a phone's screen: on a phone-scale stage it tucks up under the hero cards. */
 html[data-touch-ui][data-touch-small] .hcreroll-slot { margin-top: 10px; }
 /* The Discover's Peek stays centred under the cards on a zoomed phone (the plain touch layout moves it to the edge). */
-html[data-touch-ui][data-touch-small][data-phone-zoom] .disc-toggle.disc-peek:not(.inspect-act) { top: 75%; left: 50%; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .disc-toggle.disc-peek:not(.inspect-act) { top: 79%; left: 50%; }
 /* The round summary's buttons: finger-sized hit areas on a zoomed phone. */
 html[data-touch-ui][data-phone-zoom] .fr-btn { padding: calc(14 * var(--u)) calc(28 * var(--u)); }
 html[data-touch-ui][data-phone-zoom] .fr-details-toggle { padding: calc(14 * var(--u)) calc(10 * var(--u)); }
@@ -276,17 +271,20 @@ html[data-touch-ui][data-phone-zoom] .version { display: none; }
 /* Zoomed phone: minions a little larger in their rows, still inside the felt with the desktop gaps. */
 html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) { --cw: calc(var(--ch-base) * var(--card-scale, 0.75) * 0.752 * 1.06); --ccw: calc(var(--cw) * 0.85); --gap-tighten: 0.3; }
 /* Zoomed phone: the lobby rail's names and Health a size up. */
-html[data-touch-ui][data-phone-zoom] .lobbyrail { --lby-name-size: 1.8; --lby-hp-size: 1.7; }
+html[data-touch-ui][data-phone-zoom] .lobbyrail { --lby-name-size: 2.05; --lby-hp-size: 1.9; }
 
 /* Hero select on a phone (plain fit, no zoom): the row sized so the re-roll row stays on screen, and each hero's power
    text shown under its difficulty pill (a phone has no hover to reveal it). */
 html[data-touch-ui][data-touch-small] .heroselect { --hs-zoom: calc(var(--scale, 0.745) / 0.745 * 1.4); }
-html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow { display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 0; }
+html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow { display: flex; flex-direction: column; align-items: center; gap: 10px; min-height: 0; padding-top: 10px; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcbelow > * { position: static; inset: auto; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcmeta { opacity: 1; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .herocard.big .hcpw { opacity: 1; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) { align-items: stretch; }
 html[data-touch-ui][data-touch-small] .hsrow:not(.browse) .hcreroll-slot { margin-top: auto; padding-top: 6px; height: auto; }
+/* …and its blurred board backdrop is darkened to the top edge (the board art's bright top rim read as a light band on a
+   phone's short screen). */
+html[data-touch-ui][data-touch-small] .heroselect:not(.endscreen)::before { background: linear-gradient(rgba(22, 15, 9, 0.92), rgba(22, 15, 9, 0.66) 14%, rgba(22, 15, 9, 0.7)), var(--board) center / cover no-repeat, var(--bg); }
 
 /* Zoomed phone: Attack / Health tuck in under each portrait so neighbouring two- and three-digit stats never touch. */
 html[data-touch-ui][data-phone-zoom] .zone:is([data-zone='tavern'], [data-zone='warband']) .card.compact .atk { left: calc(var(--ccw) * 0.06); }
@@ -300,11 +298,39 @@ html[data-touch-ui][data-phone-zoom] .fr-panel { zoom: 1.3; }
 
 /* Zoomed phone: three-digit stats shrink to fit inside their badge. */
 html[data-touch-ui][data-phone-zoom] .badge > .value[data-fit='3'] { --sv-fit: 0.8; }
-/* Zoomed phone, the hand: each card keeps its Attack AND Health visible, laid out as on the board (Attack bottom-left,
-   Health bottom-right) within the strip of the card the overlap leaves visible. */
-html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.hp { right: calc(var(--ccw) * 0.14); }
 /* Zoomed phone: the Runeforge keeps its desktop composition (the touch UI's extra forge scale overflowed its frame). */
-html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { --vh: 10.8px; scale: var(--pz-vfit, 1); transform-origin: 50% 50%; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { --vh: 10.8px; scale: calc(var(--pz-vfit, 1) * var(--pz-forge-s, 1.16)); transform-origin: 50% 53%; }
+/* …and its rune cards read on a phone (a blind critic 2026-10-24: the rules text must read at least at the Shop's
+   Tier / Freeze label size): wider cards with less gap fill the frame's interior, the square art is cropped to a band
+   around the emblem, and the name and rules text grow into the room that frees. */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .forge-cards { --rfl-card-scale: 1.42; --rfl-card-gap: 12; margin-top: calc(26 * var(--u)); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard { --rc-art-h: calc(var(--cw) * 0.6); --runecard-text-scale: 1.92; min-height: calc(var(--cw) * 1.5); padding: 0 10px 14px; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-window { height: calc(var(--rc-art-h) - 20px); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-txt { line-height: 1.18; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-divider { margin-top: 4px; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .runecard-body { margin-top: 6px; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .forge-ov .forge-actions { margin-top: calc(14 * var(--u)); }
+/* The scale above shrinks the overlay's own box, so its scrim would stop short of the screen edges. On a zoomed phone the
+   scrim moves to a pseudo layer that overhangs every edge (and still takes the taps), and the illustrated frame to a
+   second layer of one fixed height (1000) about the overlay's centre (the same frame-to-card proportion on every phone), so the frame keeps its desktop composition while everything behind is dimmed
+   edge to edge exactly as on desktop. */
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov { background: none; }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::before { content: ''; position: absolute; inset: -60%; z-index: -1; background: rgba(14, 16, 22, 0.96); }
+html[data-touch-ui][data-touch-small][data-phone-zoom] .discover-ov.forge-ov::after { content: ''; position: absolute; left: 0; right: 0; top: calc(50% - 500px); height: 1000px; z-index: -1; pointer-events: none; background: url('/runeforgebg2.webp') 50% 55% / auto 72% no-repeat; }
 
 /* Zoomed phone: the hero power's name plate a size up (it read at ~6 pt). */
 html[data-touch-ui][data-phone-zoom] .statusbar .heropanel .hplabel { scale: 1.2; transform-origin: 50% 0%; }
+/* The resting hand: each card's Attack and Health tucked in under its OWN portrait (Attack bottom-left, Health
+   bottom-right of the strip its neighbour leaves uncovered), so every pair reads as one card's and no Health ever
+   touches the next card's Attack. */
+html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.atk { left: calc(var(--ccw) * 0.06); }
+html[data-touch-ui][data-phone-zoom] .row.hand .card.compact .badge.hp { right: calc(var(--ccw) * 0.26); }
+/* THE POP: a finger on a hand card lifts it whole above the fan, straight, at the desktop hover scale, its plate and text
+   on screen (the lift is the rest line's overhang plus the scale's growth, ~0.66 card heights). The end cards grow
+   inward so they never cover the hero ring or the screen edge. Transform only, the base 0.14 s transition. Not while a
+   drag is live (the dragged card owns the finger). */
+html[data-touch-ui][data-phone-zoom] body:not(.dragging) .row.hand .card.tt-press { transform: translateX(var(--hand-glide, 0px)) translateY(calc(var(--ch) * -0.66)) rotate(0deg) scale(var(--z-hand-hover-s, 1.47)); z-index: 50; }
+html[data-touch-ui][data-phone-zoom] .row.hand .card:first-child { transform-origin: 0% 42%; }
+html[data-touch-ui][data-phone-zoom] .row.hand .card:last-child:not(:first-child) { transform-origin: 100% 42%; }
+html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app { z-index: auto; }
+html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone[data-zone='hand'] { z-index: 70; }

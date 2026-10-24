@@ -197,6 +197,15 @@ export function isTap(x0: number, y0: number, x1: number, y1: number, slop = TAP
   return Math.hypot(x1 - x0, y1 - y0) <= slop;
 }
 
+/** The class a finger's press puts on the hand card under it (see `installTouchInput`). */
+export const PRESS_CLASS = 'tt-press';
+/** The class the body wears while a hand card is pressed. */
+export const BODY_PRESS_CLASS = 'tt-handpress';
+/** Pure: the hand card a touch landed on, or null. */
+export function handCardOf(el: Element | null): Element | null {
+  return el?.closest?.('.row.hand .card') ?? null;
+}
+
 /** Elements with a HOVER face worth opening on a long-press when they have no right-click of their own. */
 const HOVER_FACE = 'button, [role="button"], .gtip, [data-tip], .lobbyseat, .herocard, .runecard';
 
@@ -252,12 +261,19 @@ export function installTouchInput(): () => void {
       prev.dispatchEvent(leave);
     }
   };
+  // A finger on a HAND card marks it `.tt-press` (and the body `.tt-handpress`, so the hand zone can rise above the HUD
+  // without a `:has()`) until the finger lifts: on a zoomed phone the resting hand shows only the top of each card, and
+  // the press pops the whole card up (touchUi.css). Classes only; nothing measures.
+  let pressed: Element | null = null;
+  const unpress = (): void => { if (pressed) { pressed.classList.remove(PRESS_CLASS); document.body.classList.remove(BODY_PRESS_CLASS); pressed = null; } };
   const onDown = (e: PointerEvent): void => {
     lastType = e.pointerType;
+    unpress();
     if (e.pointerType !== 'touch') { lp.cancel(); clearChain(); return; }
     downX = e.clientX; downY = e.clientY; moved = false; lastTapWasTap = false;
     const t = e.target as Element | null;
     lastTouchEl = t;
+    if (e.isPrimary !== false) { pressed = handCardOf(t); if (pressed) { pressed.classList.add(PRESS_CLASS); document.body.classList.add(BODY_PRESS_CLASS); } }
     if (e.isPrimary !== false) lp.down(t, e.clientX, e.clientY);
     else lp.cancel(); // a second finger is a pinch / two-finger gesture, never a long-press
     // Tap-away: a touch anywhere but on the tapped element closes its tip (a touch on it keeps it open).
@@ -271,6 +287,7 @@ export function installTouchInput(): () => void {
   };
   const onUp = (e: PointerEvent): void => {
     if (e.pointerType !== 'touch') return;
+    unpress();
     if (!isTap(downX, downY, e.clientX, e.clientY)) moved = true;
     if (lp.up()) {
       // The release of a long-press is not a tap: no hover mark, no tap-inspect, and its click is eaten.
@@ -290,7 +307,7 @@ export function installTouchInput(): () => void {
     if (e.pointerType !== 'touch' || isSynth(e)) return;
     if (tapTarget && lastTapWasTap) e.stopImmediatePropagation();
   };
-  const onCancel = (e: PointerEvent): void => { if (e.pointerType === 'touch') { lp.cancel(); moved = true; lastTapWasTap = false; } };
+  const onCancel = (e: PointerEvent): void => { if (e.pointerType === 'touch') { unpress(); lp.cancel(); moved = true; lastTapWasTap = false; } };
   // The BROWSER's long-press menu (Android Chrome fires `contextmenu` at ~500 ms): our hold already answered at
   // 350 ms, so a native one from a finger is swallowed before React sees it (no double fire, no OS menu). A mouse
   // right-click (lastType 'mouse') is untouched, and so is our own synthetic one.

@@ -2,9 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_SHOP_TOP, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
+import { PRESS_CLASS, handCardOf } from './touchInput';
 
 /**
  * THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01): a phone in landscape lays the game out in a 2:1 box and
@@ -30,13 +31,13 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(phoneZoomOf({})).toBe(1.35);
     expect(phoneZoomOf({ pz145: 1 })).toBe(1.45);
   });
-  it('iPhone 15 Pro and Pixel 8, shop and combat: housed span fits the safe area (width or height binds), top-pinned', () => {
+  it('iPhone 15 Pro and Pixel 8: ONE framing for shop and combat, the housed span inside the safe area, top-pinned', () => {
     const e = PHONE_HOUSED_SPAN;
     for (const [w, h, ins] of [[852, 393, { top: 0, right: 59, bottom: 21, left: 59 }], [915, 412, { top: 0, right: 0, bottom: 0, left: 24 }]] as const) {
       const plain = fitStage(w, h, ins);
-      for (const combat of [false, true]) {
-        const top = combat ? e.top : PHONE_SHOP_TOP;
-        const f = fitStage(w, h, ins, DESIGN_W, 1.45, combat);
+      {
+        const top = e.top;
+        const f = fitStage(w, h, ins, DESIGN_W, 1.45);
         expect(f.s).toBeGreaterThan(plain.s);
         const box = gameBoxOf(f);
         expect(box.w / box.h).toBeCloseTo(16 / 9, 6);
@@ -45,8 +46,6 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
         expect(box.top + top * f.s).toBeCloseTo(ins.top, 6); // top-pinned
         expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(h - ins.bottom + 1e-6);
       }
-      // the shop frames tighter than combat (its top is lower), so it is never smaller
-      expect(fitStage(w, h, ins, DESIGN_W, 1.45, false).s).toBeGreaterThanOrEqual(fitStage(w, h, ins, DESIGN_W, 1.45, true).s);
     }
   });
   it("a desktop window of a phone's aspect never zooms (the plain fit)", () => {
@@ -66,6 +65,25 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
   it('the zoom CSS is keyed off the touch UI and the stage attribute', () => {
     const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
     expect(css).toMatch(/html\[data-touch-ui\]\[data-phone-zoom\] \{\s*--gw: 1920px; --gh: 1080px; --bar-x: var\(--pz-bx\); --bar-y: var\(--pz-by\);/);
+  });
+  it('the hand rests low with its full plates and a finger pops a card (owner 2026-10-24)', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    // the plates are never stripped on a zoomed phone any more
+    expect(css).not.toMatch(/data-phone-zoom\][^{]*\.row\.hand \.card :is\(\.cardplate/);
+    // the pop is keyed off the press class, transform only, and not during a drag
+    const pop = css.match(/html\[data-touch-ui\]\[data-phone-zoom\] body:not\(\.dragging\) \.row\.hand \.card\.tt-press \{([^}]*)\}/);
+    expect(pop?.[1]).toMatch(/transform:/);
+    expect(pop?.[1]).not.toMatch(/box-shadow|filter|top:|bottom:|margin/);
+  });
+  it('a press marks only a hand card', () => {
+    // a stand-in for the DOM (this suite runs in node): `closest` answers for the hand-card selector only
+    const card = { id: 'hand card' } as unknown as Element;
+    const inHand = { closest: (sel: string) => (sel === '.row.hand .card' ? card : null) } as unknown as Element;
+    const inShop = { closest: () => null } as unknown as Element;
+    expect(handCardOf(inHand)).toBe(card);
+    expect(handCardOf(inShop)).toBeNull();
+    expect(handCardOf(null)).toBeNull();
+    expect(PRESS_CLASS).toBe('tt-press');
   });
 });
 
@@ -137,7 +155,7 @@ describe('the phone layout is written by stage.ts, never by a desktop', () => {
     expect(src).toMatch(/const phoneLayout = phoneLayoutApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.phonelayout\)/);
     expect(src).toMatch(/toggleAttribute\('data-phone-layout', phoneLayout\)/);
     expect(src).toMatch(/const phoneZoom = !phoneLayout && phoneZoomApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.nophonezoom, inRun\)/);
-    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1, combatView\)/);
+    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1\)/);
   });
   it('Discover shows full cards on a phone only', () => {
     expect(readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8')).toMatch(/full=\{phoneLayoutOn\(\)\}/);

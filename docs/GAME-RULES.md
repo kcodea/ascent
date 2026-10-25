@@ -1196,8 +1196,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   on and it starts from its left-most minion. Both boards falling together is a draw. An empty board hands straight
   over to the teammate. Each player's run keeps only what its own board did in the fight (Engraved gains, tallies,
   hand grants, Gold, ...). Combat stays 1:1 symmetric.
-- **Who fights first.** Seats 1 and 3 on odd rounds, 2 and 4 on even rounds. Either teammate may flip it during the
-  shop, until their team's first End Turn.
+- **Who fights first** (R-DUOS-ORDER-01, owner ruling 2026-10-25: "I want the 'who fights first' to be a 50/50, not a
+  player decision for duos teams. Every round it should say who fights first but players cannot decide who it is."). For
+  each team, every round, a 50/50 pick between its two players; nobody can change it. It is known when the shop opens
+  and shown the whole shop. It comes from the match seed, the round and the team through the one seeded RNG
+  (`duosRandomFirst`), so every client, the server's resolver and a replay land the same pick. (Before 2026-10-25 it
+  alternated by round and either teammate could flip it; that flip is gone.)
 - **Team hearts and placement.** 7 per team. The losing team loses 1 heart, or 2 when the winning team never needed
   its second board; a draw costs nobody. A team at 0 is out together. Placement is by TEAM (owner: "In duos you only
   place 1 and 2 in a 2v2"): the winning team is 1st (both players), the losing team 2nd (both). XP: 125 for each winner,
@@ -1219,8 +1223,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   screen shows the hand-off from their side: both hero slots follow the boards.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
-  side by side, never split by hearts); hearts are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") and swaps it on a
-  click until your team locks in. **The hand-off:** when a board falls ("<Name> steps in" rises on that side with their
+  side by side, never split by hearts); hearts are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
+  it is display only (no click, no hover). **The hand-off:** when a board falls ("<Name> steps in" rises on that side with their
   portrait), the next board's minions fly in from their team's edge of the screen one after another, and BOTH hero slots
   follow the boards: the opponent portrait becomes whoever is fighting now, and your own slot shows your teammate while
   their board fights on your side. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left. **Passing:** drag a

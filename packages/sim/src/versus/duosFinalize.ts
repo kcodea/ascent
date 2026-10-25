@@ -5,14 +5,14 @@
  * 1. Read the match. Only a match in `resolving` at the requested round is finalized; anything else answers with the
  *    current phase (a late or duplicate caller is a client catching up, not an error).
  * 2. The deployed engine must be the one the match was created under (content revision), or it refuses.
- * 3. Read the round's fight order (`duos_first`, the server's own) and every seat's FINAL side, resolve the round's
- *    ONE tag-team fight (`resolveVersusDuosRound`) and commit through `versus_duos_commit_round` (idempotent in SQL;
+ * 3. Read every seat's FINAL side, resolve the round's ONE tag-team fight in the seeded 50/50 fight order
+ *    (`duosRandomFirst` from the match seed + round, R-DUOS-ORDER-01; no player input) (`resolveVersusDuosRound`) and commit through `versus_duos_commit_round` (idempotent in SQL;
  *    team hearts, the knockout and the match end are applied there, under the row lock).
  *
  * Bundle-safe: imports only pure Versus siblings.
  */
 import { canonicalDigest } from './canonical';
-import { resolveVersusDuosRound, type VersusDuosRoundResult, type VersusDuosTeam } from './duos';
+import { resolveVersusDuosRound, type VersusDuosRoundResult } from './duos';
 import type { VersusGroupSeat } from './group';
 
 export interface VersusDuosMatchRow {
@@ -21,8 +21,6 @@ export interface VersusDuosMatchRow {
   round: number;
   seed: number | string;
   content_revision: string;
-  /** The round's fight order, `{ a: 'p1' | 'p2', b: 'p3' | 'p4' }` (null = the default alternation). */
-  duos_first: Partial<Record<VersusDuosTeam, VersusGroupSeat>> | null;
   options?: { mode?: string } | null;
 }
 
@@ -69,7 +67,7 @@ export async function handleVersusDuosFinalize(
     return { status: 409, body: { error: 'engine_mismatch', contentRevision: engineContent } };
   }
   const sides = await store.finalSides(matchId, m.round);
-  const out = resolveVersusDuosRound({ matchSeed: Number(m.seed), round: m.round, first: m.duos_first ?? undefined, sides });
+  const out = resolveVersusDuosRound({ matchSeed: Number(m.seed), round: m.round, sides });
   for (const [seat, why] of Object.entries(out.refused)) store.log(`versus duos finalize: ${seat} side refused, fighting empty`, why);
   const digest = duosRoundDigest(out);
   const committed = await store.commit({ p_match: matchId, p_round: m.round, p_fight: duosFightPayload(out), p_digest: digest });

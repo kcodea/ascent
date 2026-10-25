@@ -11,7 +11,7 @@
  * round they went out in (rounds after it are not shown), with `end_reason` from why (`hearts` → the deciding fight is
  * watched first, as in 1v1; leaving or conceding → the end gate at once). The match goes on for the others.
  */
-import { duosDefaultFirst, duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
+import { duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, duosRandomFirst, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
 import type { CombatEvent, CombatResult } from '@game/core';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow, VersusMatch, VersusRoundRow } from './versusRemote';
 
@@ -22,9 +22,11 @@ const elimOf = (raw: VersusGroupMatchRaw): Partial<Record<VersusGroupSeat, numbe
 /** VERSUS DUOS (R-DUOS-01): this group-table match is a 2v2 Duos match. */
 export const isDuosRaw = (raw: Pick<VersusGroupMatchRaw, 'options'> | null | undefined): boolean => raw?.options?.mode === 'duos';
 
-/** A Duos round's fight order: the server's (`duos_first`, the current round only), else the default alternation. */
+/** A Duos round's fight order: the seeded 50/50 pick from the match seed + round (R-DUOS-ORDER-01), the same one the
+ *  resolver fights (a committed fight's result carries the order it actually used, after an empty-board hand-over). */
 export function duosFirstAt(raw: VersusGroupMatchRaw, round: number): { a: VersusGroupSeat; b: VersusGroupSeat } {
-  return round === raw.round && raw.duos_first ? raw.duos_first : duosDefaultFirst(Math.max(1, round));
+  const f = duosRandomFirst(Number(raw.seed), Math.max(1, round));
+  return { a: f.a, b: f.b };
 }
 
 /** The round's fights (the public schedule every client and the resolver share). Duos: the one team fight, named by

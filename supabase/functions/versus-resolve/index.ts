@@ -24,7 +24,7 @@
  *   - `parity_group` → `{ digest, canonical }`: resolve one GROUP round from posted sides (no database, no auth), for
  *                 `npm run versus:parity -- remote`.
  *   - `finalize_duos` → `{ matchId, round }`: the 2v2 tag-team round (VERSUS DUOS, owner 2026-10-25): ONE fight, each
- *                 team's two boards in sequence, in the server's fight order (`duos_first`), committed through
+ *                 team's two boards in sequence, in the seeded 50/50 fight order (`duosRandomFirst`), committed through
  *                 `versus_duos_commit_round` (idempotent). Logic: `packages/sim/src/versus/duosFinalize.ts`.
  *   - `parity_duos` → `{ digest, canonical }`: resolve one DUOS round from posted sides (no database, no auth).
  *
@@ -166,7 +166,7 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
-      const { data, error } = await admin.from('versus_group_matches').select('id, phase, round, seed, content_revision, duos_first, options').eq('id', id).maybeSingle();
+      const { data, error } = await admin.from('versus_group_matches').select('id, phase, round, seed, content_revision, options').eq('id', id).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -193,15 +193,15 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
 const GROUP_SEATS = ['p1', 'p2', 'p3', 'p4'];
 
 function parityDuos(body: Record<string, unknown>): Response {
-  const { matchSeed, round, first, sides } = body as Record<string, any>;
+  const { matchSeed, round, sides } = body as Record<string, any>;
   if (!Number.isInteger(matchSeed) || !Number.isInteger(round) || round < 1 || round > 999) return json(400, { error: 'bad_round' });
-  if (!sides || typeof sides !== 'object' || (first != null && typeof first !== 'object')) return json(400, { error: 'bad_side' });
+  if (!sides || typeof sides !== 'object') return json(400, { error: 'bad_side' });
   for (const s of GROUP_SEATS) {
     if (sides[s] == null) continue;
     const e = preparedSideError(sides[s]);
     if (e) return json(400, { error: 'bad_side', detail: e });
   }
-  const out = resolveVersusDuosRound({ matchSeed, round, first: first ?? undefined, sides });
+  const out = resolveVersusDuosRound({ matchSeed, round, sides });
   const rec = parityDuosRecord(out);
   return json(200, { digest: rec.digest, canonical: rec.canonical, contentRevision: CONTENT, protocol: VERSUS_PROTOCOL });
 }

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { combatSide, type BoardMinion, type CombatEvent } from '@game/core';
-import { resolveVersusDuosRound, versusGroupLobby, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
+import { duosRandomFirst, resolveVersusDuosRound, versusGroupLobby, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import type { VersusGroupFightRow, VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow } from './versusRemote';
 import { duosCombatAt, duosLobbySeatId, groupDuosRailRows, groupPairingAt, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { computeFrame } from '../useCombatReplay';
@@ -17,10 +17,10 @@ const seat = (s: VersusGroupSeat, over: Partial<VersusGroupSeatRow> = {}): Versu
   missed: 0, eliminatedRound: null, outReason: null, placement: null, ...over,
 });
 const raw = (over: Partial<VersusGroupMatchRaw> = {}, seats?: VersusGroupSeatRow[]): VersusGroupMatchRaw => ({
-  id: 'm1', room_id: 'r1', seed: 5, set_id: 'set3', content_revision: 'rev', protocol: 1, options: { v: 1, mode: 'duos', modifiers: [] },
+  id: 'm1', room_id: 'r1', seed: 7, set_id: 'set3', content_revision: 'rev', protocol: 1, options: { v: 1, mode: 'duos', modifiers: [] },
   phase: 'shop', revision: 3, round: 1, seat_count: 4, heroes_revealed: true, hero_deadline: null, shop_starts_at: null,
   shop_deadline: '2026-10-25T12:00:30Z', intro_deadline: null, combat_deadline: null, paused_seat: null, paused_at: null,
-  pause_grace_until: null, resume_at: null, winner_seat: null, end_reason: null, completed_at: null, duos_first: { a: 'p1', b: 'p3' },
+  pause_grace_until: null, resume_at: null, winner_seat: null, end_reason: null, completed_at: null,
   seats: seats ?? (['p1', 'p2', 'p3', 'p4'] as VersusGroupSeat[]).map((s) => seat(s)),
   ...over,
 });
@@ -28,9 +28,10 @@ const side = (board: BoardMinion[]): PreparedCombatSide => ({ board, state: comb
 const bags = (n: number, attack: number, health: number, tag: string): BoardMinion[] =>
   Array.from({ length: n }, (_, i) => ({ cardId: 'sandbag', attack, health, sourceUid: `${tag}${i}` }));
 
+/** Seed 7's seeded fight order (R-DUOS-ORDER-01): p1 / p3 in round 1, p2 / p4 in round 2 (asserted below). */
 /** A committed Duos round, as the client reads it (one fight row): p1 falls, p2 steps in and wins. */
 function round(): VersusGroupRoundRaw {
-  const out = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p1: side(bags(1, 1, 1, 'a')), p2: side(bags(1, 40, 400, 'b')), p3: side(bags(1, 2, 3, 'c')), p4: side(bags(1, 2, 3, 'd')) } });
+  const out = resolveVersusDuosRound({ matchSeed: 7, round: 1, sides: { p1: side(bags(1, 1, 1, 'a')), p2: side(bags(1, 40, 400, 'b')), p3: side(bags(1, 2, 3, 'c')), p4: side(bags(1, 2, 3, 'd')) } });
   const f: VersusGroupFightRow = {
     round: 1, fight: 0, a_seat: out.first.a, b_seat: out.first.b, b_copy: false, chair: out.chair, outcome: out.outcome,
     heart_lost_by: out.losingTeam === 'b' ? out.first.b : out.losingTeam === 'a' ? out.first.a : null,
@@ -40,10 +41,18 @@ function round(): VersusGroupRoundRaw {
 }
 
 describe('Versus Duos projection (R-DUOS-01)', () => {
+  it('the shown order is the seeded 50/50 from the match seed + round, whatever an old row still holds (R-DUOS-ORDER-01)', () => {
+    const legacy = { ...raw({ seed: 8, round: 3 }), duos_first: { a: 'p2', b: 'p4' } } as VersusGroupMatchRaw;
+    expect(projectGroupMatch(legacy, 'u1').group?.duos?.first).toEqual(duosRandomFirst(8, 3));
+    expect(groupPairingAt(legacy, 3)).toEqual([{ ...duosRandomFirst(8, 3), copy: false, duos: true }]);
+  });
+
   it('my foe is the other team first board this round, whichever board of mine fights first', () => {
     expect(projectGroupMatch(raw(), 'u2').group?.foe).toEqual({ seat: 'p3', copy: false });
     expect(projectGroupMatch(raw(), 'u4').group?.foe).toEqual({ seat: 'p1', copy: false });
-    expect(projectGroupMatch(raw({ duos_first: { a: 'p2', b: 'p4' } }), 'u1').group?.duos).toEqual({ team: 'a', mate: 'p2', first: { a: 'p2', b: 'p4' } });
+    expect(duosRandomFirst(7, 1)).toEqual({ a: 'p1', b: 'p3' });
+    expect(duosRandomFirst(7, 2)).toEqual({ a: 'p2', b: 'p4' });
+    expect(projectGroupMatch(raw({ round: 2 }), 'u1').group?.duos).toEqual({ team: 'a', mate: 'p2', first: { a: 'p2', b: 'p4' } });
     expect(groupPairingAt(raw(), 1)).toEqual([{ a: 'p1', b: 'p3', copy: false, duos: true }]);
   });
 

@@ -13,8 +13,10 @@
  *     nobody. A team at 0 is out; the other team wins.
  *   - PLACEMENT IS BY TEAM (owner: "In duos you only place 1 and 2 in a 2v2"): the winners are both 1st, the losers
  *     both 2nd (with N teams: a team placed by how many teams were still in when it went out).
- *   - WHO FIGHTS FIRST alternates by round (odd rounds p1 / p3, even rounds p2 / p4); either teammate may flip it
- *     during the shop, until the team's first End Turn (the server holds the round's order: `duos_first`).
+ *   - WHO FIGHTS FIRST is a 50/50 pick per team per round (owner ruling 2026-10-25, R-DUOS-ORDER-01: "I want the 'who
+ *     fights first' to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but
+ *     players cannot decide who it is."). `duosRandomFirst` derives it from the match seed + round + team through the one
+ *     seeded RNG, so every client, the resolver and a replay land the same pick, known from the start of the shop.
  *   - The second board's Start of Combat, hero effects and rune / quest mods fire when it steps in; the turn order
  *     carries on and the incoming board starts from its left-most (core `simulate`'s tag-team, R-DUOS-TAGTEAM-01).
  *
@@ -59,11 +61,31 @@ export const duosTeamSeats = (team: string): [VersusGroupSeat, VersusGroupSeat] 
   return [`p${2 * k + 1}`, `p${2 * k + 2}`] as [VersusGroupSeat, VersusGroupSeat];
 };
 
-/** Which seat of each team fights FIRST in `round` by default: each team's first seat on odd rounds, its second on
- *  even ones. Mirrors `versus_duos__default_first`. */
-export function duosDefaultFirst(round: number, teams = 2): Record<VersusDuosTeam, VersusGroupSeat> {
+/** The seed of a team's fight-order draw: (matchSeed, round, order tag, team index) through the fight seed's mixer,
+ *  then a full avalanche (murmur3's finalizer) so neighbouring seeds and rounds draw independently. */
+export function versusDuosOrderSeed(matchSeed: number, round: number, team: number): number {
+  let h = 0x811c9dc5 | 0;
+  for (const part of [matchSeed, round, 0x0f1a /* order tag */, team]) {
+    h = Math.imul(h ^ (part | 0), 0x01000193);
+    h ^= h >>> 13;
+  }
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
+  return h | 0;
+}
+
+/** WHO FIGHTS FIRST in `round` (R-DUOS-ORDER-01): for each team, a 50/50 seeded pick between its two seats. Pure in
+ *  (matchSeed, round, teams): the shop shows it from the start, the resolver fights it, a replay reproduces it. No
+ *  player can change it (the old flip is gone). An empty first board still hands over at resolve. */
+export function duosRandomFirst(matchSeed: number, round: number, teams = 2): Record<VersusDuosTeam, VersusGroupSeat> {
   const out: Record<string, VersusGroupSeat> = {};
-  for (let k = 0; k < teams; k++) out[String.fromCharCode(97 + k)] = `p${2 * k + (round % 2 === 1 ? 1 : 2)}` as VersusGroupSeat;
+  for (let k = 0; k < teams; k++) {
+    const heads = makeRng(versusDuosOrderSeed(matchSeed, round, k)).next() < 0.5;
+    out[String.fromCharCode(97 + k)] = `p${2 * k + (heads ? 1 : 2)}` as VersusGroupSeat;
+  }
   return out as Record<VersusDuosTeam, VersusGroupSeat>;
 }
 
@@ -83,8 +105,6 @@ export function versusDuosCombatSeed(matchSeed: number, round: number): number {
 export interface VersusDuosRoundInput {
   matchSeed: number;
   round: number;
-  /** The round's fight order as the server holds it (absent = the default alternation). */
-  first?: Partial<Record<VersusDuosTeam, VersusGroupSeat>>;
   /** Each seat's FINAL side for this round (missing / malformed = the empty side). */
   sides: Partial<Record<VersusGroupSeat, unknown>>;
 }
@@ -115,11 +135,9 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
     return r.side;
   };
   const sides = { p1: side('p1'), p2: side('p2'), p3: side('p3'), p4: side('p4') };
-  const def = duosDefaultFirst(input.round);
-  const first: Record<VersusDuosTeam, VersusGroupSeat> = { a: def.a, b: def.b };
+  const pick = duosRandomFirst(input.matchSeed, input.round);
+  const first: Record<VersusDuosTeam, VersusGroupSeat> = { a: pick.a, b: pick.b };
   for (const t of ['a', 'b'] as const) {
-    const want = input.first?.[t];
-    if (want && VERSUS_DUOS_TEAMS[t].includes(want)) first[t] = want;
     // An empty first board hands straight over: the teammate's board fights first.
     if (sides[first[t]].board.length === 0 && sides[duosMateOf(first[t])].board.length > 0) first[t] = duosMateOf(first[t]);
   }

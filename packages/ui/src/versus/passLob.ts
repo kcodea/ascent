@@ -45,6 +45,9 @@ function cardLayer(host: HTMLElement, at: Box, face: HTMLElement | null, back: s
     f.style.left = '0';
     f.style.top = '0';
     f.style.position = 'absolute';
+    // A card waiting for its own entrance carries an inline hide (and its pop-in class): the flying copy must show.
+    f.style.removeProperty('opacity');
+    f.classList.remove('popin');
     flip.appendChild(f);
   }
   const img = document.createElement('img');
@@ -55,6 +58,14 @@ function cardLayer(host: HTMLElement, at: Box, face: HTMLElement | null, back: s
   flip.appendChild(img);
   layer.appendChild(flip);
   host.appendChild(layer);
+  // The copy keeps its natural size while the slot it came from may be scaled (the hand fan): fit it to the layer.
+  // One layout read per pass, never per frame.
+  const f = flip.querySelector<HTMLElement>('.duoslob-face');
+  const natural = f?.offsetWidth ?? 0;
+  if (f && natural > 0 && Math.abs(natural - at.width) > 0.5) {
+    f.style.transformOrigin = '0 0';
+    f.style.transform = `scale(${at.width / natural})`;
+  }
   return { layer, flip };
 }
 

@@ -11,7 +11,7 @@
  */
 import { DuosMateDock } from './DuosMateDock';
 import { DuosOrderPlate } from './DuosOrderPlate';
-import { TeammateBar, prepareTeammateSweep, useTeammateViewKeys } from './teammateView';
+import { TeammateFrame, prepareTeammateSweep, useTeammateViewKeys } from './teammateView';
 import { useEffect, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
@@ -194,7 +194,7 @@ export function VersusHud() {
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
-  if (watchingMate) return <><TeammateBar /><DuosMateDock watching /></>;
+  if (watchingMate) return <><TeammateFrame /><DuosMateDock watching /></>;
   // VERSUS GROUP: the absent player is whoever the table says (named on `match.group`), not "the opponent".
   const names = { p1: match.p1_name, p2: match.group?.pausedName ?? match.p2_name };
   const absent = match.paused_seat;

@@ -788,9 +788,6 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 /* The rail row stays a second way in to the teammate view (a click), not a pass target. */
 .lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
-/* A passed card's slot while its face-down card is still on its way out of the teammate portrait (passLob.playArrival). */
-.row.hand .card.passincoming { opacity: 0; }
-
 /* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static and display only
    (R-DUOS-ORDER-01: the order is a seeded 50/50, never a player choice): no pointer events, so no hover look and no
    cursor swap. */

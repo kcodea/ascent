@@ -148,7 +148,7 @@ export function emergeFrames(dx: number, dy: number, start: number, samples = SA
 
 /** RECEIVE: a face-down card (`back`) rises out of the portrait at `from` and flies into `to` (its hand slot), growing
  *  from the portrait's size to full size as it nears the hand, turning face up along the way. */
-export function playEmerge(opts: { from: Box; to: Box; back: string; onLand?: () => void }): void {
+export function playEmerge(opts: { from: Box; to: Box; back: string; face?: HTMLElement | null; onLand?: () => void }): void {
   if (typeof document === 'undefined' || typeof Element === 'undefined' || !('animate' in Element.prototype)) { opts.onLand?.(); return; }
   const host = stageHost();
   const from = stageBox(opts.from);
@@ -156,7 +156,8 @@ export function playEmerge(opts: { from: Box; to: Box; back: string; onLand?: ()
   const w = to.width || 120;
   const h = to.height || 170;
   // The layer sits ON the hand slot; the frames start it inside the portrait (translated back there, tiny).
-  const { layer, flip } = cardLayer(host, { left: to.left, top: to.top, width: w, height: h }, null, opts.back);
+  // The FACE is the landed card itself (cloned): the flight turns face up onto it, so it is never blank mid-air.
+  const { layer, flip } = cardLayer(host, { left: to.left, top: to.top, width: w, height: h }, opts.face ?? null, opts.back);
   const cx0 = from.left + from.width / 2, cy0 = from.top + from.height / 2;
   const cx1 = to.left + w / 2, cy1 = to.top + h / 2;
   const dx = cx0 - cx1, dy = cy0 - cy1;
@@ -200,11 +201,13 @@ export function playArrival(uid: string, back: string): void {
     const to = target.getBoundingClientRect();
     const from = door.getBoundingClientRect();
     catchPulse(door);
-    target.classList.add('passincoming');
+    // The real card waits invisible in its slot for the flight. A Web Animation, not a class: the hand re-renders while
+    // the card flies and React would put its own className back (the card then showed in hand all along).
+    const hide = 'animate' in target ? target.animate([{ opacity: 0 }, { opacity: 0 }], { duration: EMERGE_MS + 200, fill: 'forwards' }) : null;
     playEmerge({
-      from, to, back,
+      from, to, back, face: target,
       onLand: () => {
-        target.classList.remove('passincoming');
+        hide?.cancel();
         if ('animate' in target) target.animate([{ transform: 'scale(0.85)' }, { transform: 'scale(1.08)', offset: 0.6 }, { transform: 'scale(1)' }], { duration: 260, easing: 'ease-out' });
       },
     });

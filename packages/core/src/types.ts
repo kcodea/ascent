@@ -3689,6 +3689,12 @@ export interface CombatResult {
   /** VERSUS DUOS: this is one team member's view (`duosMemberView`): 0 = its board fought first, 1 = it was the reserve.
    *  The `player*` carry-backs are that member's own; the events and the outcome are the team's. */
   duosMember?: number;
+  /** VERSUS DUOS: every seat's board as it was locked for this round, by REAL seat (p1..p4; perspective-free, so a
+   *  mirror carries it unchanged). The rail's per-seat history and the hand-off presentation read the teammate board
+   *  here even when it never stepped in. */
+  duosBoards?: Partial<Record<'p1' | 'p2' | 'p3' | 'p4', BoardMinion[]>>;
+  /** VERSUS DUOS: which seat of each team fought FIRST this round (team a = p1 / p2, team b = p3 / p4). */
+  duosFirst?: { a: 'p1' | 'p2'; b: 'p3' | 'p4' };
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
    *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not
    *  the current player's. Absent for the procedural threat / when nothing scaled. Mirrors the values threaded

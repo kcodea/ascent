@@ -128,6 +128,9 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
       },
     },
   );
+  // Every seat's locked board and the order, by real seat, on the result (perspective-free: the mirror keeps them).
+  result.duosBoards = { p1: structuredClone(sides.p1.board), p2: structuredClone(sides.p2.board), p3: structuredClone(sides.p3.board), p4: structuredClone(sides.p4.board) };
+  result.duosFirst = { a: first.a as 'p1' | 'p2', b: first.b as 'p3' | 'p4' };
   const outcome: VersusDuosRoundResult['outcome'] = result.result === 'draw' ? 'draw' : result.result === 'win' ? 'a' : 'b';
   const losingTeam: VersusDuosTeam | null = outcome === 'draw' ? null : outcome === 'a' ? 'b' : 'a';
   // "2 when the winner never needed its second board": the winning side's reserve never stepped in.

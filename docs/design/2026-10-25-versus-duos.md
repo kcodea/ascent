@@ -1,8 +1,18 @@
 # Versus Duos (2v2 tag-team): scope
 
-Status: SCOPE ONLY (owner 2026-10-25: "Don't build it yet but scope it. I want to add more bespoke duo mechanics too,
-like a shared slot that activates a card on both sides etc."). Nothing below is built. Every OPEN DETAIL carries a
-recommended default for the owner to accept or change.
+Status: BASELINE APPROVED FOR BUILD (owner 2026-10-25). First scoped only ("Don't build it yet but scope it"), then the
+owner ruled on the open details: "you have all the rules right except passing should cost 1 gold". Section 6 now
+records the RULINGS. Owner priorities for the build:
+
+- "we need the viewing in real time for sure and it needs to be really high quality as a mechanic."
+- "as a baseline we need the rules/having it work properly first with boards flying in after one another etc, and
+  passing. we can even add the shared slot mechanic after that is all wired up and working correctly first."
+- "dont worry about the deep duo mechanics yet."
+- "make sure passing a card gets a bespoke animation that is different from a typical coalesce."
+
+Baseline = tag-team combat (the second board flies in after the first falls), team hearts, passing (1 Gold), the
+real-time teammate view. The Shared Slot comes after the baseline works (section 5.1, redesigned per the owner); the
+other bespoke mechanics (5.2 onward) are parked.
 
 ## The owner's design (2026-10-25)
 
@@ -140,6 +150,18 @@ side, as today), so it trusts the card body exactly as it trusts a locked board 
   run. The card text updates on arrival (cardText helpers already read the owning run).
 - Full hand: the pass is refused before it leaves (the sender's drag springs back, the deny buzz).
 
+### Cost (owner ruling 2026-10-25: "passing should cost 1 gold")
+
+Each pass costs the SENDER 1 Gold, paid when the pass is made. No Gold: the pass is refused (the drag springs back,
+the deny buzz; the teammate's portrait shows the disabled state while you hold a card with 0 Gold). Each card once per
+turn, refused on the receiver's full hand, closed at your own End Turn. The server charges the Gold as part of the
+pass RPC's bookkeeping (it counts the passes per seat per round and refuses past the sender's Gold for that round as
+reported with the pass); the run's own reducer is the authority on the sender's Gold, as for every other shop action.
+
+### Presentation (owner: "a bespoke animation that is different from a typical coalesce")
+
+Concepts are pitched to the lead before the build; the chosen one is recorded here.
+
 ## 4. Phased plan with difficulty
 
 | Phase | Scope | Difficulty |
@@ -154,36 +176,36 @@ side, as today), so it trusts the card body exactly as it trusts a locked board 
 Each uses existing mechanics by their existing names. Every cross-board effect is animated (a beam or a fly from
 one board/portrait to the other), and both teammates and spectators see it.
 
-### 5.1 The Shared Slot (owner's idea)
+### 5.1 The Shared Slot (owner's idea; AFTER the baseline)
 
-- **Rule.** Each team has ONE Shared slot, shown at the end of BOTH teammates' boards. The minion in it counts as on
-  both boards in the shop: its auras, its End of Turn, its "when you play / cast / buy" triggers fire for either
-  teammate's events, and "your minions" buffs from either teammate hit it.
-- **Example turn.** Kevin puts a Conductor (aura: your Shouts give +1/+1 more) in the Shared slot. Mike plays two
-  Shout minions that turn and gets the bonus too; Kevin's End of Turn spell "give your minions +2/+2" also grows it.
-- **Physical body in combat.** One instance (a team-owned card). In tag-team combat it fights with the board that
-  goes FIRST, taking one of that board's 7 slots (its rightmost). If that board is full it fights with the second
-  board instead; if both are full it sits out (its shop effects still counted). It never fights twice.
-- **Buffs.** Shop buffs from either teammate are permanent on it. Combat gains are combat-only unless Engraved; an
-  Engraved shared minion carries its gains back to the shared card.
-- **Deaths.** Combat is a copy as always: dying in the fight changes nothing in the shop. Its Echo fires for the
-  board it fought with.
-- **Gilded / triples.** It counts as on the board for both teammates' triple checks (R-GILD-03 "board copies first").
-  If either teammate completes a triple with it, the Gilded card goes to THAT teammate's hand and the slot empties.
-- **Who swaps it and when.** Either teammate, during the shop, by dragging a board minion into the slot (an occupied
-  slot swaps: the old card goes to the swapper's hand). Changes go through the server in order (a version number);
-  the second of two simultaneous moves is refused and springs back, the same as a taken seat. Locked once either
-  teammate has pressed End Turn (recommend; open detail 13).
-- **Why it creates decisions.** Which card is worth sharing (an aura beats a big body), who feeds it, and which board
-  it fights on (fight order now decides where it goes).
-- **Presentation.** The slot is the existing board slot frame, repeated at the end of both boards (no new prop). When
-  a teammate's effect touches it, the effect plays on both screens; when it is moved, it flies between the boards.
-- **Engine cost: L.** Cross-run shared state (both runs read one team-owned card), server-ordered writes, every
-  "on board" iterator must include it in the shop, reducer + snapshot + replay support.
-- **Risks.** Snowball (fed by two economies; consider "Shop buffs from your teammate give half"); determinism (each
-  run must log the shared card's value at each read, or replays drift: the log must carry the server-ordered
-  updates); symmetry (both teams get one, combat is unaffected beyond which board it joins); perf (re-render of both
-  boards on each update: keep the slot a memoized `Unit`).
+Owner 2026-10-25: "a team can have 1 active at a time, and each player gets 1 'charge' or activation to make a unit
+shared per game. then we can have things that replenish that."
+
+- **Rule.** A team has at most ONE shared minion at a time. Each player starts the game with ONE Share charge. Spending
+  it makes one of your board minions SHARED: it then counts as on both teammates' boards. A new share while one is
+  active replaces it (the old one goes back to being an ordinary minion of whoever holds it). Charges are per player,
+  per game; future cards/runes may REPLENISH a charge ("Gain a Share charge"): that is the extension point, data-only
+  once the primitive exists (a `gainShareCharge` effect).
+- **Where it lives.** It stays physically in its owner's board slot (one of the owner's 7). The teammate sees it as a
+  ghosted extra body at the end of their board in the shop (never one of their 7). Its auras, its End of Turn, its
+  "when you play / cast / buy" triggers fire for either teammate's events, and "your minions" buffs from either
+  teammate hit it (permanent: they are shop buffs).
+- **Combat.** It fights ONCE, on its owner's board (where it physically is). If the owner's board goes second, it
+  fights second. It never fights twice.
+- **Deaths.** Combat is a copy as always: dying in the fight changes nothing in the shop. Selling it ends the share
+  (the charge is spent, not refunded).
+- **Gilded / triples.** It counts for its owner's triple checks only. A triple that consumes it ends the share; the
+  Gilded result is not shared.
+- **Example turn.** Kevin spends his charge on a Conductor (aura: your Shouts give +1/+1 more). Mike plays two Shout
+  minions that turn and gets the bonus; Mike's "give your minions +2/+2" also grows Kevin's Conductor. Later Mike
+  spends HIS charge on a Gilded Taunt: the Conductor stops being shared.
+- **Why it creates decisions.** Two charges per team per game: when to spend, on what, and whose.
+- **Presentation.** The shared minion carries a mark on both screens (the existing keyword-pill treatment, no new
+  prop); when a teammate's effect touches it, the effect plays on both screens.
+- **Engine cost: M-L.** Cross-run reads of one team card (server-ordered team state, a version number per change),
+  every shop "on board" iterator includes the teammate's shared body, reducer + snapshot + replay support.
+  **Risks.** Determinism: each run must log the shared card's value at each read (the server-ordered updates ride the
+  run log, as passes do). Snowball: fed by two economies (a budget of 2 charges per team caps it).
 
 ### 5.2 Team Avenge
 
@@ -277,35 +299,24 @@ one board/portrait to the other), and both teammates and spectators see it.
 9. Duet spells (M-L)
 10. Cross-board Shop spells (L)
 
-**Recommended v1:** the Shared Slot, Team Avenge and Gold Tip. One headline, one combat-side, one shop-side; Gold Tip
-reuses the pass infra and Team Avenge is a counter. Hand-off and Shared Starform are the natural v2 (Shared Starform is
-nearly free once the Shared slot's team state exists).
+**Owner order (2026-10-25):** the baseline first; then the Shared Slot (5.1 as redesigned); the rest parked ("dont
+worry about the deep duo mechanics yet").
 
-## 6. OPEN DETAILS (recommended default in bold)
+## 6. RULINGS (owner 2026-10-25: "you have all the rules right except passing should cost 1 gold")
 
-1. **Team hearts:** **7 per team** (one fight a round, so a match is as long as 1v1). Alternative 10.
-2. **Who fights first:** **alternate each round (seat order), and either teammate may flip it during the shop**
-   (server-ordered, last change wins, locked at the first End Turn). Alternative: the board with fewer minions first.
-3. **Second board's Start of Combat and hero effects when it steps in:** **yes, they fire on step-in** against the
-   current survivors (real-time + cross-phase defaults). Same for its next-combat spells and quest/rune mods.
-4. **Damage formula:** **hearts, 1 per lost fight** (Versus never uses damage). Alternative: lose 2 hearts when the
-   winner still has its FIRST board standing.
-5. **Attack order at step-in:** **the turn pointer continues** (if it was the wiped side's turn, the newcomer
-   attacks next), the newcomer starts from its leftmost.
-6. **Pass limits:** **free, unlimited, but each card once per turn** (no passing straight back), refused with a full
-   hand, closed at your own End Turn.
-7. **What can be passed:** **minions and spells** (with stats, enchantments, Gilded); not runes, Equipment, the
-   Starform, quests.
-8. **Teams in the room:** **seat pairs, p1+p2 vs p3+p4** (left vs right of the VS mark), chosen by dragging to a
-   seat. No host assignment.
-9. **Gold and shops:** **separate** (each has their own run, Gold, tier, shop), as in HS Duos.
-10. **Teammate disconnects:** **as Group:** the 30 s pause, then auto (their last locked board fights in their
-    slot); three auto rounds in a row = the TEAM is out. The connected teammate keeps playing; passes to an absent
-    teammate are refused.
-11. **XP:** **125 / 125 winners, 50 / 50 losers.**
-12. **Seeing your teammate's board:** **yes, live**, by hovering/pinning their rail row (it reuses the spectator frame
-    stream: your teammate counts as a watcher of you, so publishing turns on only in Duos).
-13. **Shared Slot lock:** **changes allowed until either teammate presses End Turn.**
-14. **Concede:** **one teammate's concede = the team is out** (a 1-player team cannot continue a 2-board mode
-    cleanly). Alternative: the other plays on with a single board.
-15. **Modifiers (Freedom / Summit):** **allowed**, pinned per run as today.
+1. Team hearts: **7 per team**.
+2. Who fights first: **alternate each round (seat order); either teammate may flip it during the shop**, locked at the
+   team's first End Turn.
+3. The second board's Start of Combat, hero effects, next-combat spells and rune/quest mods: **fire on step-in**.
+4. Hearts: **1 per lost fight, 2 when the winner never needed its second board.**
+5. Attack order at step-in: **the turn pointer continues; the incoming board starts from its leftmost.**
+6. Passing: **costs 1 Gold**; each card once per turn; refused on a full hand; closes at your End Turn.
+7. What passes: **minions and spells** (stats, enchantments, Gilded); not runes, Equipment, the Starform, quests.
+8. Teams: **seat pairs p1+p2 vs p3+p4**, picked by dragging to a seat.
+9. Gold and shops: **separate**.
+10. Disconnects: **as Group**; three auto rounds in a row puts the team out.
+11. XP: **125 / 125 winners, 50 / 50 losers.**
+12. Teammate's board: **live, real time, first-class** ("it needs to be really high quality as a mechanic").
+13. Shared Slot: **later**, redesigned as Share charges (5.1).
+14. Concede: **one teammate's concede puts the team out.**
+15. Modifiers: **Freedom / Summit allowed.**

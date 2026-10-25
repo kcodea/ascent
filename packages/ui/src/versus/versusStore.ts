@@ -38,7 +38,7 @@ import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, leaveTeammate, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
-import { othersInStands, setWatchers, uniqueWatchers, type Watcher } from './watchers';
+import { othersInStands, setWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
 import { pixiFx } from '../pixiFx';
@@ -108,8 +108,10 @@ export function versusWatchersOf(room: VersusRoom | null, seated: boolean, me?: 
   const spectators = room.members.filter((m) => m.role === 'spectator');
   if (!seated && !(me && spectators.some((m) => m.userId === me))) return [];
   const list = spectators.map((m) => ({ id: m.userId, name: m.displayName, profile: m.profile ?? null }));
-  // Seated: everyone in the stands (deduped). Spectating: the others, never me (R-SPECTATE-HUD-02).
-  return seated ? uniqueWatchers(list) : othersInStands(list, [me]);
+  // Seated: everyone in the stands but me. A player knocked out to the stands is still seated in the match while the
+  // last fight plays, and must never see their own chip there (R-SPECTATE-WATCHERS-02). Spectating: the others, never
+  // me (R-SPECTATE-HUD-02).
+  return othersInStands(list, [me]);
 }
 useVersus.subscribe((st, prev) => {
   if (st.room === prev.room && st.match === prev.match) return;

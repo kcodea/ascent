@@ -718,14 +718,16 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    in once: opacity only), the "Watching <Name>" plate with the way back (top centre, the room's plate buttons), and my
    own shop controls visibly inert. Nothing loops. */
 .duosview-vignette { position: fixed; inset: 0; z-index: 70; pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(54, 156, 196, 0.34) 78%, rgba(30, 110, 150, 0.62) 100%);
-  box-shadow: inset 0 0 0 3px rgba(96, 196, 230, 0.55); /* static (never animated): the teammate's frame around the screen */
+  /* Static (never animated; only the one-shot fade-in touches its opacity): a teal team frame that cannot be missed on
+     the purple stage, a solid band at the edge plus a wide glow into the screen. */
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 42%, rgba(40, 170, 200, 0.42) 72%, rgba(18, 120, 150, 0.78) 100%);
+  box-shadow: inset 0 0 0 10px rgba(70, 205, 230, 0.9), inset 0 0 0 12px rgba(10, 40, 50, 0.6), inset 0 0 90px 24px rgba(40, 190, 220, 0.5);
   animation: duosviewfade 0.24s ease both; }
 @keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
-.duosview-bar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 10px;
+.duosview-bar { position: fixed; top: 46px; left: calc(50% + 112px); z-index: 80; display: flex; align-items: center; gap: 10px;
   animation: duosviewfade 0.24s ease both; }
-.duosview-name { white-space: nowrap; display: inline-flex; align-items: center; height: 40px; box-sizing: border-box; padding: 0 20px; border-radius: 999px;
-  font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.06em; line-height: 1;
+.duosview-name { white-space: nowrap; display: inline-flex; align-items: center; height: 48px; box-sizing: border-box; padding: 0 26px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; line-height: 1;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
 :root[data-hp-look="gem"] .duosview-name.hudpill-name { color: var(--ui-title); }
 body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }

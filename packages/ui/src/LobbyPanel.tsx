@@ -23,6 +23,7 @@ import { useSpectate } from './versus/spectate';
 import { useVersus } from './versus/versusStore';
 import { useDragSlice } from './dragStore';
 import { useDuosPassNote } from './versus/duosPassUi';
+import { groupDuosRailRows } from './versus/versusGroupView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { VersusFoe } from './versus/VersusFoe';
@@ -363,7 +364,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
   // CURRENT intel even on round 1. Every card reads the round you are IN, by one rule (`railSeatIntel`).
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
-  const rows = rail.rows;
+  // VERSUS DUOS: team rows grouped (you next to your teammate), never split by hearts.
+  const rows = duosMate ? groupDuosRailRows(rail.rows) : rail.rows;
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
   const railRows = versusDuel ? (showGuides ? 8 : 3) : rows.length;

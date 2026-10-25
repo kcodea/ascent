@@ -67,7 +67,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Seven hearts per team. A loss costs 1 heart, or 2 if the winners never needed their second board.',
           'Drag a card from your hand or board onto your teammate\'s portrait to give it to them. It costs 1 Gold. A full hand refuses it.',
           'Click your teammate\'s portrait, or hold Tab, to watch their board live. Press Back to your board, Esc, or let go of Tab to return.',
-          'The plate under the rail says who fights first. Either of you can swap it until your team locks in.',
+          'The plate above the rail says who fights first. Either of you can swap it until your team locks in.',
         ],
       },
       {

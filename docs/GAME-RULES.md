@@ -1212,19 +1212,20 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   hand" like any other. Runes, Equipment, quests and the Starform cannot be passed.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
   (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out.
-- **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
-  pairs carry "Team 1" / "Team 2". In game the rail lists your teammate right under you, then the other team; hearts are
-  the team's. A plate under the rail says who fights first ("You fight first" / "<Name> fights first") and swaps it on a
+- **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
+  pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
+  side by side, never split by hearts); hearts are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") and swaps it on a
   click until your team locks in. **The hand-off:** when a board falls ("<Name> steps in" rises on that side with their
-  portrait), the next board's minions fly in from their team's edge of the screen one after another, and the opponent
-  portrait becomes whoever is fighting now. **Passing:** drag a hand or board card onto your teammate's rail portrait:
+  portrait), the next board's minions fly in from their team's edge of the screen one after another, and BOTH hero slots
+  follow the boards: the opponent portrait becomes whoever is fighting now, and your own slot shows your teammate while
+  their board fights on your side. **Passing:** drag a hand or board card onto your teammate's rail portrait:
   it rings green when the pass is allowed and red when not, with the reason ("Their hand is full", "You need 1 Gold",
   "Just passed to you", "Passing is closed"); a refused drop springs back. A pass is THROWN: the card arcs high toward
   their portrait, turning face down at the top, with one of your coins riding behind it from your Gold; their portrait
   catches it. On their side the face-down card drops out of your portrait into their hand and turns face up.
   **Watching your teammate:** click their rail portrait (or hold Tab to peek) to see their whole screen live (shop,
   hand, board, Gold, cursor, drags). The screen turns toward the rail on the way in and back on the way out; while you
-  watch, their hero is in the hero slot, a team-colour vignette rims the screen, your shop controls are greyed, and the
+  watch, their hero is in the hero slot, a strong team-colour frame rims the screen, your shop controls are greyed, and the
   "Watching <Name>" plate has "Back to your board" (Esc and letting go of Tab work too). You come back on your own when
   the shop ends, the match pauses, or your clock has under 5 seconds.
 

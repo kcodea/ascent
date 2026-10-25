@@ -8668,16 +8668,54 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'teammate\x27s hero is in the hero slot, a team-colour vignette rims the screen, the player\x27s own shop controls are greyed and take no '
       + 'input, and a "Watching <Name>" plate offers "Back to your board" (Esc and letting go of Tab also return). The player\x27s own game is set '
       + 'aside untouched and comes back exactly as it was; it returns on its own when the shop ends, the match pauses, or the player\x27s clock '
-      + 'has under 5 seconds, so watching never holds the player\x27s turn up.',
+      + 'has under 5 seconds, so watching never holds the player\x27s turn up. The team frame is static and strong enough to read on the '
+      + 'purple stage (a solid team-colour band and glow at every edge), and the "Watching <Name>" plate sits beside the shop clock. On the '
+      + 'rail, team rows stay together: the player\x27s row and their teammate\x27s are always next to each other, never split by hearts.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'we need the viewing in real time for sure and it needs to be really high quality as a mechanic.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'We need full screen view for teammates, and there needs to be some animation/change somehow to distinguish viewing the teammates board vs yours' },
-      { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx; packages/ui/src/versus/spectate.ts (trackDuosMatch, watchTeammate, leaveTeammate, ownRunWhileWatching); packages/ui/src/versus/versusStore.ts (the 5 s return)' },
+      { kind: 'owner-chat', ref: 'Lead ruling 2026-10-25 (owner can override)', quote: 'keep your teammate\x27s row pinned right next to yours on the rail (team rows grouped), not sorted by hearts' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusGroupView.ts (groupDuosRailRows); packages/ui/src/versus/teammateView.tsx; packages/ui/src/versus/spectate.ts (trackDuosMatch, watchTeammate, leaveTeammate, ownRunWhileWatching); packages/ui/src/versus/versusStore.ts (the 5 s return)' },
     ],
     currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2).',
     example: 'Ann holds Tab: the screen turns toward the rail and shows Bob\x27s shop as he rolls; she lets go and is back on her own board, her clock still running.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-SLOTS-01',
+    title: 'Versus Duos: both hero slots follow the board fighting on their side',
+    statement:
+      'In a Duos fight each side\x27s hero slot shows the player whose board is fighting on that side right now, by one rule for both sides: '
+      + 'the foe slot switches to the other team\x27s second player when their board steps in, and the player\x27s own slot shows their '
+      + 'teammate (portrait, skin, frame and name) while the teammate\x27s board fights first or after a hand-off, and the player again once '
+      + 'their own board is fighting. The player\x27s own buttons stay theirs.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner rule 2026-10-13 (combat sides symmetric)', quote: 'player/enemy combat sides must be 1:1 identical; any asymmetry is a bug' },
+      { kind: 'owner-chat', ref: 'Lead ruling 2026-10-25', quote: 'Our own hero portrait must follow our board too' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusGroupView.ts (duosCombatAt); packages/ui/src/StatusBar.tsx; packages/ui/src/CombatOpponent.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2). Before, only the foe slot followed its board.',
+    example: 'Bob\x27s board fights first for Ann\x27s team: Ann\x27s hero slot shows Bob; when his board falls and hers steps in, her own portrait is back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-SPECTATE-WATCHERS-02',
+    title: 'A player knocked out to the stands never sees their own chip among the spectators',
+    statement:
+      'When a Versus Group or Duos player is knocked out, the server moves them to the stands while their match seat still holds for the last '
+      + 'fight. Their top-left Spectating row lists the other spectators only, never themselves. Every other player still sees them there.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead ruling 2026-10-25 (live Duos screenshots)', quote: 'a knocked-out player must never see their own chip in the Spectating row (group and Duos)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (versusWatchersOf)' },
+    ],
+    currentBehaviour: 'Fixed on 2026-10-25. Before, the seated branch listed every spectator, the knocked-out player included.',
+    example: 'Claudebot3 is knocked out in round 12: during the last fight his top left shows Claudebot4 Spectating, not himself.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
 ];

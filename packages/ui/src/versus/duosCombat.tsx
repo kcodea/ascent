@@ -13,7 +13,6 @@
 import { memo, useEffect, useMemo, useState } from 'react';
 import { create } from 'zustand';
 import type { CombatEvent, CombatResult } from '@game/core';
-import { duosMateOf, duosTeamOf, type VersusGroupSeat } from '@game/sim';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { heroPortrait } from '../skins/skinArt';
 import { opponentSkins } from '../skins/skins';
@@ -21,25 +20,18 @@ import { parseCosmeticSnapshot } from '@game/progression';
 import { useGame } from '../store';
 import { useVersus } from './versusStore';
 import { useSpectate } from './spectate';
-import { duosLobbySeatId } from './versusGroupView';
+import { duosCombatAt, type DuosCombatNow } from './versusGroupView';
 
 interface DuosCombatState {
   /** The rail seat id of the board the opponent side is fighting with right now (null = the forced opponent). */
   foeSeatId: string | null;
+  /** The rail seat id of MY TEAMMATE while their board fights on my side (null = my own board). The player hero slot
+   *  reads it so my side's portrait follows my side's board exactly as the foe's does (R-SYMMETRY-01). */
+  selfSeatId: string | null;
   /** The latest hand-off on screen: which side, whose board, and its event index (keys the plate). */
-  tag: { side: 'player' | 'enemy'; seat: VersusGroupSeat; at: number; kind: 'in' | 'first' } | null;
+  tag: DuosCombatNow['tag'];
 }
-export const useDuosCombat = create<DuosCombatState>(() => ({ foeSeatId: null, tag: null }));
-
-/** The seat whose board fights on `side` after `tagIns` hand-offs there (0 = the team's first board). */
-function activeSeat(result: CombatResult, viewer: VersusGroupSeat, side: 'player' | 'enemy', tagged: boolean): VersusGroupSeat | null {
-  const first = result.duosFirst;
-  if (!first) return null;
-  const mine = duosTeamOf(viewer);
-  const team = side === 'player' ? mine : mine === 'a' ? 'b' : 'a';
-  const head = first[team as 'a' | 'b'] as VersusGroupSeat;
-  return tagged ? duosMateOf(head) : head;
-}
+export const useDuosCombat = create<DuosCombatState>(() => ({ foeSeatId: null, selfSeatId: null, tag: null }));
 
 /** Recruit calls this with the replay's cursor: keeps `useDuosCombat` in step with the fight on screen. */
 export function useDuosCombatSync(combat: CombatResult | undefined, events: readonly CombatEvent[], processedEnd: number, fighting: boolean): void {
@@ -48,29 +40,13 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
   const raw = useVersus((s) => s.match?.group?.raw ?? null);
   const seat = viewer ?? watched;
   useEffect(() => {
+    const cur = useDuosCombat.getState();
     if (!fighting || !combat?.duosFirst || !seat || !raw) {
-      if (useDuosCombat.getState().foeSeatId || useDuosCombat.getState().tag) useDuosCombat.setState({ foeSeatId: null, tag: null });
+      if (cur.foeSeatId || cur.selfSeatId || cur.tag) useDuosCombat.setState({ foeSeatId: null, selfSeatId: null, tag: null });
       return;
     }
-    let enemyTagged = false;
-    let last: DuosCombatState['tag'] = null;
-    const end = Math.min(processedEnd, events.length);
-    for (let i = 0; i < end; i++) {
-      const e = events[i];
-      if (e?.type !== 'tagIn') continue;
-      if (e.side === 'enemy') enemyTagged = true;
-      const s = activeSeat(combat, seat, e.side, true);
-      if (s) last = { side: e.side, seat: s, at: i, kind: 'in' };
-    }
-    // The fight opens with my TEAMMATE's board: say so on my side (my own hero stays in my hero slot).
-    if (!last) {
-      const lead = activeSeat(combat, seat, 'player', false);
-      if (lead && lead !== seat) last = { side: 'player', seat: lead, at: -1, kind: 'first' };
-    }
-    const foeSeat = enemyTagged ? activeSeat(combat, seat, 'enemy', true) : null;
-    const foeSeatId = foeSeat ? duosLobbySeatId(raw, seat, foeSeat) : null;
-    const cur = useDuosCombat.getState();
-    if (cur.foeSeatId !== foeSeatId || cur.tag?.at !== last?.at || cur.tag?.kind !== last?.kind) useDuosCombat.setState({ foeSeatId, tag: last });
+    const now = duosCombatAt(combat, raw, seat, events, processedEnd);
+    if (cur.foeSeatId !== now.foeSeatId || cur.selfSeatId !== now.selfSeatId || cur.tag?.at !== now.tag?.at || cur.tag?.kind !== now.tag?.kind) useDuosCombat.setState(now);
   }, [combat, events, processedEnd, fighting, seat, raw]);
 }
 

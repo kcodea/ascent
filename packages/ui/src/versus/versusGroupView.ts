@@ -12,7 +12,7 @@
  * watched first, as in 1v1; leaving or conceding → the end gate at once). The match goes on for the others.
  */
 import { duosDefaultFirst, duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
-import type { CombatResult } from '@game/core';
+import type { CombatEvent, CombatResult } from '@game/core';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow, VersusMatch, VersusRoundRow } from './versusRemote';
 
 const seatsOf = (raw: VersusGroupMatchRaw): VersusGroupSeat[] => raw.seats.map((s) => s.seat);
@@ -220,4 +220,57 @@ export function duosLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSea
     .sort((x, y) => (x === mate ? -1 : y === mate ? 1 : 0));
   const i = others.indexOf(seat);
   return i < 0 ? null : `s${i + 1}`;
+}
+
+/** VERSUS DUOS RAIL (R-DUOS-VIEW-01, lead ruling 2026-10-25): team rows stay together. The rail's ranked order picks
+ *  which TEAM comes first; inside a team the rows keep their ranked order. Teams are the seat pairs `s0`+`s1` (you and
+ *  your teammate, `duosLobbySeatId`) and `s2`+`s3`. Pure: the same rows, regrouped. */
+export function groupDuosRailRows<R extends { id: string }>(rows: readonly R[]): R[] {
+  const team = (id: string): number => (id === 's0' || id === 's1' ? 0 : 1);
+  const first = new Map<number, number>();
+  rows.forEach((r, i) => { const t = team(r.id); if (!first.has(t)) first.set(t, i); });
+  return rows.map((r, i) => ({ r, i })).sort((a, b) => (first.get(team(a.r.id))! - first.get(team(b.r.id))!) || a.i - b.i).map((x) => x.r);
+}
+
+/** The seat whose board fights on `side` (`tagged` = after that side's hand-off), from the viewer's seat. */
+function duosActiveSeat(result: CombatResult, viewer: VersusGroupSeat, side: 'player' | 'enemy', tagged: boolean): VersusGroupSeat | null {
+  const first = result.duosFirst;
+  if (!first) return null;
+  const mine = duosTeamOf(viewer);
+  const team = side === 'player' ? mine : mine === 'a' ? 'b' : 'a';
+  const head = first[team as 'a' | 'b'] as VersusGroupSeat;
+  return tagged ? duosMateOf(head) : head;
+}
+
+/** WHO IS FIGHTING NOW in a Duos replay (R-DUOS-TAGTEAM-01, R-SYMMETRY-01), after the first `end` events: the rail
+ *  seat id of the board on each side when it is not the default (`foeSeatId`: the other team's second board once it
+ *  stepped in; `selfSeatId`: my TEAMMATE's board while it fights on my side), and the latest hand-off for the plate.
+ *  Both sides by one rule, so my hero slot follows my side's board exactly as the foe's slot follows theirs. Pure. */
+export interface DuosCombatNow {
+  foeSeatId: string | null;
+  selfSeatId: string | null;
+  tag: { side: 'player' | 'enemy'; seat: VersusGroupSeat; at: number; kind: 'in' | 'first' } | null;
+}
+export function duosCombatAt(combat: CombatResult, raw: VersusGroupMatchRaw, viewer: VersusGroupSeat, events: readonly CombatEvent[], end: number): DuosCombatNow {
+  const tagged = { player: false, enemy: false };
+  let tag: DuosCombatNow['tag'] = null;
+  for (let i = 0; i < Math.min(end, events.length); i++) {
+    const e = events[i];
+    if (e?.type !== 'tagIn') continue;
+    tagged[e.side] = true;
+    const s = duosActiveSeat(combat, viewer, e.side, true);
+    if (s) tag = { side: e.side, seat: s, at: i, kind: 'in' };
+  }
+  const mine = duosActiveSeat(combat, viewer, 'player', tagged.player);
+  // The fight opens with my TEAMMATE's board: say so on my side.
+  if (!tag) {
+    const lead = duosActiveSeat(combat, viewer, 'player', false);
+    if (lead && lead !== viewer) tag = { side: 'player', seat: lead, at: -1, kind: 'first' };
+  }
+  const foe = tagged.enemy ? duosActiveSeat(combat, viewer, 'enemy', true) : null;
+  return {
+    foeSeatId: foe ? duosLobbySeatId(raw, viewer, foe) : null,
+    selfSeatId: mine && mine !== viewer ? duosLobbySeatId(raw, viewer, mine) : null,
+    tag,
+  };
 }

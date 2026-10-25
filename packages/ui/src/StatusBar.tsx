@@ -14,7 +14,8 @@ import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
 import { equipmentArtFor } from './art';
 import { heroPowerArt, questArt, runeArt } from './art';
-import { heroPortrait, useRunSkins } from './skins/skins';
+import { heroPortrait, opponentSkins, seatCosmetics, useRunSkins } from './skins/skins';
+import { useDuosCombat } from './versus/duosCombat';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
@@ -195,7 +196,12 @@ export function StatusBar() {
   // 2026-10-14). Their portrait skin and frame already come from the watched run's recorded cosmetics (`useRunSkins`).
   const watchedName = useWatchedName();
   const ownName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
-  const playerName = watchedName ?? ownName;
+  // VERSUS DUOS (R-SYMMETRY-01, lead ruling 2026-10-25): while my TEAMMATE's board fights on my side, my hero slot
+  // shows THEIR portrait, skin, frame and name, exactly as the foe's slot follows the foe's board. My buttons stay mine.
+  const duosSelfId = useDuosCombat((s) => s.selfSeatId);
+  const duosSelf = useGame((s) => (duosSelfId && s.run.phase === 'combat' ? s.run.lobby?.seats.find((x) => x.id === duosSelfId) ?? null : null));
+  const showOppSkins = useGame((s) => s.showOpponentSkins);
+  const playerName = duosSelf ? duosSelf.label : watchedName ?? ownName;
   const heroArmed = useGame((s) => s.heroArmed);
   const heroArmedSlot = useGame((s) => s.heroArmedSlot);
   const armHero = useGame((s) => s.armHero);
@@ -213,11 +219,12 @@ export function StatusBar() {
   const hero = getHero(run.heroId);
   // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
   const runSkins = useRunSkins();
-  const heroImg = heroPortrait(hero.id, runSkins);
+  const mateSkins = duosSelf ? opponentSkins(showOppSkins, seatCosmetics(duosSelf)) : null;
+  const heroImg = duosSelf ? heroPortrait(duosSelf.heroId, mateSkins) : heroPortrait(hero.id, runSkins);
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
   // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
   // the board's baked socket, used here only (SOCKET_FIT).
-  const frame = usePortraitFrame('self', frameIdOf(runSkins), 'socket');
+  const frame = usePortraitFrame('self', frameIdOf(duosSelf ? mateSkins : runSkins), 'socket');
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];

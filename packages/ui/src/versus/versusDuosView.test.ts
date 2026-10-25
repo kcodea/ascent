@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { combatSide, type BoardMinion, type CombatEvent } from '@game/core';
 import { resolveVersusDuosRound, versusGroupLobby, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import type { VersusGroupFightRow, VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow } from './versusRemote';
-import { duosLobbySeatId, groupPairingAt, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { duosCombatAt, duosLobbySeatId, groupDuosRailRows, groupPairingAt, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { computeFrame } from '../useCombatReplay';
 
 const U: Record<VersusGroupSeat, string> = { p1: 'u1', p2: 'u2', p3: 'u3', p4: 'u4' };
@@ -98,5 +98,33 @@ describe('the hand-off in the replay (R-DUOS-TAGTEAM-01)', () => {
     const row = (f: typeof after) => (tag.side === 'player' ? f.player : f.enemy);
     expect(row(after).map((u) => u.uid)).toEqual(tag.minions.map((m) => m.uid));
     expect(row(before).map((u) => u.uid)).not.toEqual(tag.minions.map((m) => m.uid));
+  });
+});
+
+describe('Duos rail: team rows stay together (lead ruling 2026-10-25)', () => {
+  it('the ranked order picks the team; you and your teammate are never split by hearts', () => {
+    const rows = ['s2', 's0', 's3', 's1'].map((id) => ({ id }));
+    expect(groupDuosRailRows(rows).map((r) => r.id)).toEqual(['s2', 's3', 's0', 's1']);
+    expect(groupDuosRailRows(['s0', 's2', 's3', 's1'].map((id) => ({ id }))).map((r) => r.id)).toEqual(['s0', 's1', 's2', 's3']);
+    expect(groupDuosRailRows(['s1', 's3', 's0', 's2'].map((id) => ({ id }))).map((r) => r.id)).toEqual(['s1', 's0', 's3', 's2']);
+  });
+});
+
+describe('both hero slots follow their side board (R-SYMMETRY-01, lead ruling 2026-10-25)', () => {
+  it('my slot shows my teammate while their board fights on my side, and me again once I step in', () => {
+    const r = round().fights[0]!.a_result; // team a: p1 fights first, falls, p2 steps in
+    const i = r.events.findIndex((e: CombatEvent) => e.type === 'tagIn');
+    const m = raw();
+    // p1: my own board first (default slot), then my teammate p2 steps in on my side.
+    expect(duosCombatAt(r, m, 'p1', r.events, i).selfSeatId).toBeNull();
+    const after1 = duosCombatAt(r, m, 'p1', r.events, i + 1);
+    expect(after1.selfSeatId).toBe(duosLobbySeatId(m, 'p1', 'p2'));
+    expect(after1.tag).toMatchObject({ side: 'player', seat: 'p2', kind: 'in' });
+    // p2: my teammate p1 fights first (their face in my slot), then I step in and my own face is back.
+    const before2 = duosCombatAt(r, m, 'p2', r.events, i);
+    expect(before2.selfSeatId).toBe(duosLobbySeatId(m, 'p2', 'p1'));
+    expect(before2.tag).toMatchObject({ side: 'player', seat: 'p1', kind: 'first' });
+    expect(duosCombatAt(r, m, 'p2', r.events, i + 1).selfSeatId).toBeNull();
+    expect(after1.foeSeatId).toBeNull(); // the other team never needed its second board
   });
 });

@@ -786,7 +786,7 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 
 /* THE VERSUS BOTS + DUOS DEV TUNER (DEV only, the dev menu's panel): the dev panel's own pieces, laid out as rows of
    small buttons. The game's gauntlet cursor on every control (the dev panel button class sets a bare pointer). */
-.duostuner { width: 380px; max-height: 84vh; overflow-y: auto; }
+.duostuner { width: 380px; max-height: calc(84 * var(--vh)); overflow-y: auto; }
 .duostuner .duostuner-btns { flex-wrap: wrap; padding: 6px 12px 10px; gap: 6px; }
 .duostuner .duostuner-btns .sfxmix-copy { width: auto; flex: 1 0 auto; padding: 5px 8px; font-size: 12px; }
 .duostuner :is(.sfxmix-copy, select, input, label) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }

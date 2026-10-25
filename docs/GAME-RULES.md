@@ -1224,8 +1224,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   release the card DROPS into their portrait, turning face down, with one of your coins following it in from your Gold;
   the portrait pops as it catches it. On their screen the card comes out of YOUR portrait (bottom right for them), flies
   into their hand and lands face up. **Watching your teammate:** click their portrait (their rail row works too, or hold
-  Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). The screen turns toward the
-  rail on the way in and back on the way out; while you watch, their hero is in the hero slot, a strong team-colour
+  Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). A team-colour panel sweeps
+  across from their side on the way in and back on the way out, the screens swapping behind it; while you watch, their hero is in the hero slot, a strong team-colour
   frame rims the screen, your shop controls are greyed, the bottom-right portrait is YOURS (click it to go back), and the
   "Watching <Name>" plate beside the clock has "Back to your board" (Esc and letting go of Tab work too). You come back
   on your own when the shop ends, the match pauses, or your clock has under 5 seconds.

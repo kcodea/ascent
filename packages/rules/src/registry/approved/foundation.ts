@@ -8670,7 +8670,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In Versus Duos a player can watch their teammate\x27s whole screen live (shop, hand, board, Gold, cursor, drags) by clicking the teammate\x27s '
       + 'portrait at the bottom right of the screen (the mirror of their own hero bottom left; the teammate\x27s rail row works too) or holding Tab. '
-      + 'While watching, the bottom-right portrait is the player\x27s OWN, and clicking it goes back to their board. The way in and out is a short turn of the whole screen toward the rail and back. While watching, the '
+      + 'While watching, the bottom-right portrait is the player\x27s OWN, and clicking it goes back to their board. The way in and out is a team-colour panel sweeping across the screen with the screens swapping behind it (one pre-made layer, transform only; the panel waits, covering, until the new screen has finished building, so nothing visible moves over a busy frame). While watching, the '
       + 'teammate\x27s hero is in the hero slot, a team-colour vignette rims the screen, the player\x27s own shop controls are greyed and take no '
       + 'input, and a "Watching <Name>" plate offers "Back to your board" (Esc and letting go of Tab also return). The player\x27s own game is set '
       + 'aside untouched and comes back exactly as it was; it returns on its own when the shop ends, the match pauses, or the player\x27s clock '
@@ -8688,7 +8688,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2).',
     example: 'Ann holds Tab: the screen turns toward the rail and shows Bob\x27s shop as he rolls; she lets go and is back on her own board, her clock still running.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/teammateSweep.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-SLOTS-01',

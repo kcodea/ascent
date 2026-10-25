@@ -8,9 +8,8 @@
  * untouched; leaving puts it back exactly as it was.
  *
  * THE DISTINCTION, so it can never be mistaken for my own board:
- *  - THE TURN (on the way in and out): the whole stage turns away toward the rail, where my teammate's seat is, and the
- *    other screen turns in from the other side (about 320 ms in all; transform / opacity only, one-shot, Web
- *    Animations on the stage root);
+ *  - THE SWEEP (on the way in and out): a team-colour panel crosses the screen from my teammate's side and the other
+ *    screen is there behind it (about 400 ms in all; one pre-made layer, transform only, one-shot Web Animations);
  *  - while watching: their hero, name and hearts in the hero slot (it is their screen), a calm team-colour vignette
  *    over the edges (a static layer that fades in), my shop controls visibly inert, and the "Watching <Name>" plate with
  *    "Back to your board" (the room's own plate buttons). Esc, Tab (when held to peek) or the button come back.
@@ -24,34 +23,63 @@ import { perfMonitor } from '../perfMonitor';
 import { leaveTeammate, useSpectate, watchTeammate } from './spectate';
 import { useVersus } from './versusStore';
 
-/** Half a turn (ms): out, swap, in. */
-export const TURN_HALF_MS = 160;
+/** The sweep's two halves (ms): the team panel crosses in, the screens swap under it, it crosses out. */
+export const SWEEP_IN_MS = 170;
+export const SWEEP_OUT_MS = 200;
 let turning = false;
 
-function stageRoot(): HTMLElement | null {
-  return typeof document === 'undefined' ? null : document.getElementById('root');
+/**
+ * THE SWAP SWEEP. One full-screen team-colour panel, made ONCE and kept off screen on its own compositor layer, so a
+ * swap never creates, rasterises or re-lays-out anything big at the click: it only moves (transform), which the
+ * compositor runs on its own even while the main thread is busy. (The first build turned the whole stage root in 3D;
+ * that cost a 40 ms frame at each end of every turn, measured 2026-10-25.)
+ */
+let panel: HTMLElement | null = null;
+function sweepPanel(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  if (panel?.isConnected) return panel;
+  panel = document.createElement('div');
+  panel.className = 'duosswap';
+  panel.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(panel);
+  return panel;
+}
+/** Made at idle once a Duos match is on, so the first click pays nothing. */
+export function prepareTeammateSweep(): void { sweepPanel(); }
+
+/** Six calm frames in a row (each under 8 ms): the new screen's build and its follow-up work (art, layout reads)
+ *  have finished, so the sweep out moves over a quiet main thread. Capped, so the cover can never stick. */
+function whenSettled(done: () => void): void {
+  let last = performance.now();
+  let calm = 0;
+  const start = last;
+  const tick = (): void => {
+    const now = performance.now();
+    calm = now - last < 8 ? calm + 1 : 0;
+    last = now;
+    if (calm >= 6 || now - start > 700) done(); else requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
 }
 
-/** The stage turn: out toward `dir` (1 = toward the rail on the right), `swap` at the hidden midpoint, then in. */
+/** The swap: the team panel sweeps across from `dir` (1 = from the right, where the teammate's portrait sits), the
+ *  screens swap while it covers them, it sweeps on out the other side once the new screen has settled. */
 function turn(dir: 1 | -1, swap: () => void): void {
-  const root = stageRoot();
-  if (!root || !('animate' in root) || turning) { swap(); return; }
+  const el = sweepPanel();
+  if (!el || !('animate' in el) || turning) { swap(); return; }
   turning = true;
-  const away = `perspective(1600px) translateX(${-2.5 * dir}%) rotateY(${8 * dir}deg) scale(0.965)`;
-  const from = `perspective(1600px) translateX(${2.5 * dir}%) rotateY(${-8 * dir}deg) scale(0.965)`;
   perfMonitor.mark?.('duos:turn:start');
-  const out = root.animate([{ transform: 'none', opacity: 1 }, { transform: away, opacity: 0.08 }], { duration: TURN_HALF_MS, easing: 'cubic-bezier(0.5, 0, 0.75, 0.2)', fill: 'forwards' });
-  out.onfinish = () => {
+  const inn = el.animate([{ transform: `translateX(${105 * dir}%)` }, { transform: 'translateX(0)' }], { duration: SWEEP_IN_MS, easing: 'cubic-bezier(0.5, 0, 0.75, 0.25)', fill: 'forwards' });
+  inn.onfinish = () => {
     swap();
-    // The new screen renders under the hidden midpoint; the turn in starts on the next frame.
-    requestAnimationFrame(() => {
-      const inn = root.animate([{ transform: from, opacity: 0.08 }, { transform: 'none', opacity: 1 }], { duration: TURN_HALF_MS, easing: 'cubic-bezier(0.2, 0.8, 0.3, 1)' });
-      out.cancel();
-      inn.onfinish = () => { turning = false; perfMonitor.mark?.('duos:turn:end'); };
-      inn.oncancel = () => { turning = false; };
+    whenSettled(() => {
+      const out = el.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${-105 * dir}%)` }], { duration: SWEEP_OUT_MS, easing: 'cubic-bezier(0.2, 0.75, 0.3, 1)', fill: 'forwards' });
+      inn.cancel();
+      out.onfinish = () => { turning = false; perfMonitor.mark?.('duos:turn:end'); };
+      out.oncancel = () => { turning = false; };
     });
   };
-  out.oncancel = () => { turning = false; };
+  inn.oncancel = () => { turning = false; };
 }
 
 /** Open my teammate's live screen (Duos, in the shop, from my own board). */

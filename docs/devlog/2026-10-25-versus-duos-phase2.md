@@ -36,8 +36,8 @@ SQL: phase 1's tables and RPCs carry everything.
   `receivePass`, answers `landed` / `refused`; the sender refunds a refusal (`passRefunded`). Your hand room is
   reported so the server refuses a pass to a full hand up front.
 - **Teammate view.** Click your teammate's portrait (bottom right, or their rail row, or hold Tab to peek) for a full-screen, real-time view of their
-  shop: it reuses the spectate screen fed by their frames and cursor. To tell it apart from your own board: the whole
-  stage turns (rotateY toward the rail, 160 ms each half, the content swaps at the hidden midpoint), their portrait
+  shop: it reuses the spectate screen fed by their frames and cursor. To tell it apart from your own board: a team-colour
+  panel sweeps across (170 ms in, the screens swap behind it, it waits for six calm frames, 200 ms out), their portrait
   and name take the hero slot, a team-tint vignette with a static ring frames the screen, your controls go inert, your portrait
   takes the bottom-right slot (click it to come back), and a "Watching <Name>" plate with "Back to your board" sits
   beside the clock. Esc or the button returns. It returns on its own
@@ -55,11 +55,18 @@ SQL: phase 1's tables and RPCs carry everything.
 - Live on the real backend with Claudebot1-4 in four Chrome windows: room, hero select, 9 rounds to a team win
   (team A 7 hearts, placement 1/1; team B 2/2; XP 125/125/50/50), passes both ways landed and were played, the
   fly-in, the step-in plate and the foe portrait switch, the teammate view (screenshots).
-- Swap perf (prod build, ~170 Hz display, 3 swaps): in p95 18-24 ms / p99 29-65 ms, out p95 17-28 / p99 45-61,
-  8-12 dropped frames per swap. Long Animation Frames: one ~88 ms frame per swap, ~65 ms of it the whole-screen React
-  re-render (spectate render in, restore out) plus ~16 ms style/layout. It lands at the turn's midpoint (8% opacity)
-  so it reads as a hitch in the turn, not a visible stall. Re-measured after the stronger frame (240 Hz display, 3
-  swaps): p95 4.4-4.7 ms, p99 13-22 ms, 4-6 dropped frames per swap. Not yet under the 160 fps bar; options in the PR.
+- Swap perf. The first build turned the whole stage root in 3D: 8-12 dropped frames per swap, worst 29-65 ms (a ~40 ms
+  frame at each end of the turn just for the 3D layer, then the ~45 ms screen build at the midpoint). Now the swap is a
+  pre-made full-screen panel moved by transform only (compositor-run), and the panel holds, covering, until the new
+  screen has settled (six frames under 8 ms, capped at 700 ms). Measured on the prod bench build, ~170 Hz display
+  (5.9 ms frames), 5 swaps in + out, every frame labelled by what the panel was doing:
+  - panel moving in: p95 6.2 / p99 6.6 / worst 6.6 ms (the same as the idle shop: p95 6.2 / p99 6.6);
+  - panel moving out: p95 6.3 / p99 8.7 / worst 11.9 ms;
+  - panel holding still over the screen while it builds (74-131 ms per swap): p95 25 / worst 33 ms. These are the
+    screen build itself (React mount of the other player's rows + their layout reads), done under a still, opaque cover.
+  Frames over 6.25 ms during the moving parts are vsync jitter at this refresh (the idle shop shows the same rate).
+  Zero over-budget frames for the build itself would need the other screen kept mounted (a second store instance per
+  screen), a bigger change than this phase.
 
 ## Open
 

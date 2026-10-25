@@ -84,7 +84,9 @@ export function projectGroupMatch(raw: VersusGroupMatchRaw, userId: string | nul
   const paused = byseat(raw.paused_seat);
   // The viewer's own end (out of the match) reads as a finished 1v1 match they lost; the table's end as itself.
   const phase = out ? 'complete' : raw.phase;
-  const won = raw.phase === 'complete' && !!me && raw.winner_seat === me;
+  // Duos: placement is by team, so my teammate's win is mine (R-DUOS-01).
+  const won = raw.phase === 'complete' && !!me && !!raw.winner_seat
+    && (raw.winner_seat === me || (isDuosRaw(raw) && duosTeamOf(raw.winner_seat) === duosTeamOf(me)));
   const endReason = out
     ? (meRow!.outReason === 'hearts' ? 'hearts' : meRow!.outReason === 'missed' ? 'missed' : 'forfeit')
     : raw.end_reason;

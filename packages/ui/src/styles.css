@@ -5963,6 +5963,30 @@ body:has(.fxwb-stage-mount) .pixifx { z-index: 501; }
    room (the card itself pops in via scale so it never looks horizontally squashed). */
 .unit.summoned { animation: summonexpand 0.34s ease; }
 .unit.summoned .card { width: var(--cw); animation: summonpop 0.34s ease; }
+/* VERSUS DUOS (R-DUOS-TAGTEAM-01): THE HAND-OFF. When a board falls, the teammate's board FLIES IN after it: each body
+   sweeps in from its team's edge of the screen (yours from the left, theirs from the right) with a slight turn, landing
+   on a 60 ms stagger left to right. One-shot, transform / opacity only (compositor), no fill so the lunge's inline
+   transform still owns the unit afterwards. */
+.unit.tagin .card { animation: taginfly 0.52s cubic-bezier(0.22, 1.18, 0.36, 1); }
+.zone[data-zone='tavern'] .unit.tagin .card { animation-name: taginflyfoe; }
+.unit.tagin:nth-child(2) .card { animation-delay: 60ms; }
+.unit.tagin:nth-child(3) .card { animation-delay: 120ms; }
+.unit.tagin:nth-child(4) .card { animation-delay: 180ms; }
+.unit.tagin:nth-child(5) .card { animation-delay: 240ms; }
+.unit.tagin:nth-child(6) .card { animation-delay: 300ms; }
+.unit.tagin:nth-child(7) .card { animation-delay: 360ms; }
+.unit.tagin .card { animation-fill-mode: backwards; }
+@keyframes taginfly {
+  0% { opacity: 0; transform: translateX(calc(var(--lvw, 100vw) * -0.62)) rotate(-9deg) scale(0.86); }
+  70% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
+}
+@keyframes taginflyfoe {
+  0% { opacity: 0; transform: translateX(calc(var(--lvw, 100vw) * 0.62)) rotate(9deg) scale(0.86); }
+  70% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
+}
+
 @keyframes summonexpand {
   from { width: 0; margin-right: -22px; }
   to { width: var(--cw); margin-right: 0; }
@@ -14769,26 +14793,3 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .gauntletend-home { background: rgba(255, 255, 255, 0.06); border-color: color-mix(in srgb, var(--gold) 55%, #000); box-shadow: 0 7px 0 color-mix(in srgb, var(--gold) 40%, #000), 0 14px 34px -8px rgba(0, 0, 0, 0.55); }
 .gauntletend-home:hover { background: rgba(255, 255, 255, 0.12); }
 
-/* VERSUS DUOS (R-DUOS-TAGTEAM-01): THE HAND-OFF. When a board falls, the teammate's board FLIES IN after it: each body
-   sweeps in from its team's edge of the screen (yours from the left, theirs from the right) with a slight turn, landing
-   on a 60 ms stagger left to right. One-shot, transform / opacity only (compositor), no fill so the lunge's inline
-   transform still owns the unit afterwards. */
-.unit.tagin .card { animation: taginfly 0.52s cubic-bezier(0.22, 1.18, 0.36, 1); }
-.zone[data-zone='tavern'] .unit.tagin .card { animation-name: taginflyfoe; }
-.unit.tagin:nth-child(2) .card { animation-delay: 60ms; }
-.unit.tagin:nth-child(3) .card { animation-delay: 120ms; }
-.unit.tagin:nth-child(4) .card { animation-delay: 180ms; }
-.unit.tagin:nth-child(5) .card { animation-delay: 240ms; }
-.unit.tagin:nth-child(6) .card { animation-delay: 300ms; }
-.unit.tagin:nth-child(7) .card { animation-delay: 360ms; }
-.unit.tagin .card { animation-fill-mode: backwards; }
-@keyframes taginfly {
-  0% { opacity: 0; transform: translateX(-62vw) rotate(-9deg) scale(0.86); }
-  70% { opacity: 1; }
-  100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
-}
-@keyframes taginflyfoe {
-  0% { opacity: 0; transform: translateX(62vw) rotate(9deg) scale(0.86); }
-  70% { opacity: 1; }
-  100% { opacity: 1; transform: translateX(0) rotate(0) scale(1); }
-}

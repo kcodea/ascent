@@ -8659,4 +8659,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann has 3 Gold and drags a Gilded Taunt from her board to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob cannot send it straight back this turn.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
+  {
+    id: 'R-DUOS-VIEW-01',
+    title: 'Versus Duos: watch your teammate full screen, live, and it must never look like your own board',
+    statement:
+      'In Versus Duos a player can watch their teammate\x27s whole screen live (shop, hand, board, Gold, cursor, drags) by clicking the teammate\x27s '
+      + 'rail portrait or holding Tab. The way in and out is a short turn of the whole screen toward the rail and back. While watching, the '
+      + 'teammate\x27s hero is in the hero slot, a team-colour vignette rims the screen, the player\x27s own shop controls are greyed and take no '
+      + 'input, and a "Watching <Name>" plate offers "Back to your board" (Esc and letting go of Tab also return). The player\x27s own game is set '
+      + 'aside untouched and comes back exactly as it was; it returns on its own when the shop ends, the match pauses, or the player\x27s clock '
+      + 'has under 5 seconds, so watching never holds the player\x27s turn up.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'we need the viewing in real time for sure and it needs to be really high quality as a mechanic.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'We need full screen view for teammates, and there needs to be some animation/change somehow to distinguish viewing the teammates board vs yours' },
+      { kind: 'code', ref: 'packages/ui/src/versus/teammateView.tsx; packages/ui/src/versus/spectate.ts (trackDuosMatch, watchTeammate, leaveTeammate, ownRunWhileWatching); packages/ui/src/versus/versusStore.ts (the 5 s return)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2).',
+    example: 'Ann holds Tab: the screen turns toward the rail and shows Bob\x27s shop as he rolls; she lets go and is back on her own board, her clock still running.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
 ];

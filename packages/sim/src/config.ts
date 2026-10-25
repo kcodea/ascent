@@ -207,6 +207,27 @@ export const RIFTS: Record<RiftId, RiftDef> = {
 export const RIFT_BONUS_ARMOR: Partial<Record<RiftId, number>> = { summit: 10 };
 
 /**
+ * VERSUS MODIFIERS skip the Armor bonus (owner 2026-10-25, R-VERSUS-SUMMIT-01: "summit rift shouldnt add armor in
+ * versus, just have it unlock tier 7"). A Versus room's Summit only raises the tier ceiling (`maxTierFor`); every other
+ * mode keeps `RIFT_BONUS_ARMOR`, so a recorded Summit Rift run replays exactly as it was played.
+ */
+export function riftBonusArmor(rift: RiftId | null | undefined, mode: string | undefined): number {
+  if (!rift || mode === 'versus') return 0;
+  return RIFT_BONUS_ARMOR[rift] ?? 0;
+}
+
+/** The rule text a rift shows in Versus, where it differs from its usual blurb (no Armor there). */
+const VERSUS_RIFT_BLURB: Partial<Record<RiftId, string>> = { summit: 'The shop unlocks Tier 7.' };
+const VERSUS_RIFT_DEFS: Partial<Record<RiftId, RiftDef>> = Object.fromEntries(
+  (Object.keys(VERSUS_RIFT_BLURB) as RiftId[]).map((id) => [id, Object.freeze({ ...RIFTS[id], blurb: VERSUS_RIFT_BLURB[id]! })]),
+);
+
+/** The rift as a run of `mode` plays it (its name + rule text). Stable references, safe as memo'd props. */
+export function riftDefFor(rift: RiftId, mode: string | undefined): RiftDef {
+  return (mode === 'versus' ? VERSUS_RIFT_DEFS[rift] : undefined) ?? RIFTS[rift];
+}
+
+/**
  * The highest shop tier a run can reach. `CONFIG.maxTier` (6) is the standard ceiling; the **Summit**
  * rift raises it to 7. Every tier ceiling — the tavern-up gate, Discover clamps, the triple's "one tier
  * up" peek — must go through this rather than reading `CONFIG.maxTier` directly, or Tier 7 becomes

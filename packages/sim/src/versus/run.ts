@@ -18,7 +18,7 @@ import { heroRerollCandidates } from '../heroReroll';
 import { reduce } from '../reducer';
 import { modalOpen } from '../recruit';
 import { createRun, mixSeed, runTribesForSeed, type Action, type PreparedCombatSide, type RunState } from '../state';
-import { RIFT_BONUS_ARMOR } from '../config';
+import { riftBonusArmor } from '../config';
 import { VERSUS_HERO_OFFER_SIZE } from './constants';
 import type { VersusGroupSeat } from './group';
 import { normalizeVersusOptions, versusOptionsRift, type VersusRoomOptions } from './options';
@@ -28,7 +28,8 @@ import type { VersusSeatScout } from '../lobby/runLobby';
 /**
  * A fresh Versus run for one seat. `runSeed` is the seat's private run seed (server-pinned). `options` is the MATCH's
  * pinned room options (R-VERSUS-OPTIONS-01): a modifier pins its rift onto the run here, exactly as a Rift run pins
- * the live rift in `createRun` (the rift and its Armor bonus together), so a saved, restored or replayed run keeps it.
+ * the live rift in `createRun`, so a saved, restored or replayed run keeps it. A Versus modifier adds NO Armor (owner
+ * 2026-10-25, R-VERSUS-SUMMIT-01): Summit only unlocks Tier 7 here.
  * The opening shop is Tier 1 and reads no rift, so pinning after `createRun` draws the same shop a Rift run would.
  * No options (or the defaults) = today's run, byte for byte.
  */
@@ -36,7 +37,7 @@ export function createVersusRun(runSeed: number, heroId: string, setId: SetId, o
   const run = createRun(runSeed, heroId, 'versus', undefined, setId);
   const rift = versusOptionsRift(normalizeVersusOptions(options));
   if (rift) {
-    const bonus = RIFT_BONUS_ARMOR[rift] ?? 0;
+    const bonus = riftBonusArmor(rift, run.mode); // 0 in Versus
     run.rift = rift;
     run.armor += bonus;
     run.maxArmor += bonus;

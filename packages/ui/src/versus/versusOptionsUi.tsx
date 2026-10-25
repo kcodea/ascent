@@ -5,7 +5,7 @@
  * The controls are Practice's own segmented pills (`Segmented`, PracticeOptions.tsx: `.poseg`, the global gauntlet
  * cursor), on the room's Gem plate panel. Player text: short plain sentences, no em dashes.
  */
-import { RIFTS, normalizeVersusOptions, VERSUS_MODIFIERS, type VersusModifierId, type VersusMode, type VersusRoomOptions } from '@game/sim';
+import { RIFTS, riftDefFor, normalizeVersusOptions, VERSUS_MODIFIERS, type VersusModifierId, type VersusMode, type VersusRoomOptions } from '@game/sim';
 import { Segmented } from '../PracticeOptions';
 
 /** The mode as players read it. */
@@ -44,7 +44,7 @@ export function VersusOptionsPanel({ options, editable, onChange, onClose }: {
   const modeHint = o.mode === 'group'
     ? 'Three or four players. Everyone meets everyone in turn. With three, one player faces a copy of another board each round. Last one standing wins.'
     : 'Two players, seven hearts each.';
-  const modifierHint = modifier ? RIFTS[modifier].blurb : 'The usual rules.';
+  const modifierHint = modifier ? riftDefFor(modifier, 'versus').blurb : 'The usual rules.'; // Summit: Tier 7 only, no Armor
   return (
     <div className="vsoptions" role="dialog" aria-label="Room options">
       <div className="vsoptions-head">

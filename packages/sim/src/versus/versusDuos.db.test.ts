@@ -1,6 +1,6 @@
 /**
  * VERSUS DUOS, EXECUTED (owner 2026-10-25; R-DUOS-01, R-DUOS-PASS-01). PGlite runs every Versus migration in order, then
- * `2026-10-25-versus-duos.sql` (twice: idempotent), against a stubbed `auth.uid()`: a Duos room starts only with four,
+ * `2026-10-25-versus-duos.sql` and `-duos-edges.sql` (each twice: idempotent), against a stubbed `auth.uid()`: a Duos room starts only with four,
  * the round's fight order (default alternation, a flip until the team locks), team hearts through the REAL
  * `finalize_duos` handler (1 heart, 2 for a stomp), a team out together and the other team winning, a concede taking
  * the team out, three auto rounds, passes (exactly once, only in the shop, only to the teammate, capped), and that a
@@ -24,6 +24,7 @@ const FILES = [
 ];
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
 const DUOS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos.sql'), 'utf8');
+const EDGES = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-edges.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -114,6 +115,8 @@ beforeAll(async () => {
   await db.exec(BASE);
   await db.exec(DUOS);
   await db.exec(DUOS); // idempotent
+  await db.exec(EDGES);
+  await db.exec(EDGES); // idempotent
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
@@ -268,6 +271,19 @@ describe('Versus Duos passes (R-DUOS-PASS-01)', () => {
     expect((await as<any>(B, `select public.versus_duos_answer_pass($1, 'p1', 1, false)`, [m])).status).toBe('refused');
     expect((await as<any>(B, `select public.versus_duos_answer_pass($1, 'p1', 1, true)`, [m])).status).toBe('refused');
     expect(await fails(B, 'select public.versus_duos_hand_room($1, 99)', [m])).toMatch(/bad_room/);
+  });
+
+  it('a teammate who is away (on auto, or the one the match is paused for) is refused up front (phase 3)', async () => {
+    const [, m] = await startDuos();
+    await toShop(m);
+    await db.query(`update public.versus_group_seats set auto = true where match_id = $1 and seat = 'p2'`, [m]);
+    expect(await fails(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1)])).toMatch(/teammate_away/);
+    expect((await db.query<any>('select count(*)::int n from public.versus_duos_passes where match_id = $1', [m])).rows[0].n).toBe(0);
+    // Back (auto cleared): the pass goes through; the other team is untouched by it.
+    await db.query(`update public.versus_group_seats set auto = false where match_id = $1 and seat = 'p2'`, [m]);
+    expect((await as<any>(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1)])).to_seat).toBe('p2');
+    await db.query(`update public.versus_group_matches set paused_at = now(), paused_seat = 'p4' where id = $1`, [m]);
+    expect(await fails(C, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(2)])).toMatch(/teammate_away/);
   });
 
   it('closes with the clock (past its grace) and is capped at 10 a round', async () => {

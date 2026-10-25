@@ -132,7 +132,9 @@ describe('Versus Duos room (R-DUOS-01)', () => {
     for (const u of ALL) r = await as(u, `select public.versus_press_gate($1)`, [room]);
     const m = await matchRow(r.current_match_id);
     expect([m.options.mode, m.seat_count]).toEqual(['duos', 4]);
-    expect(Object.values(await seatRows(m.id)).map((s: any) => s.hearts)).toEqual([VERSUS_DUOS_HEARTS, VERSUS_DUOS_HEARTS, VERSUS_DUOS_HEARTS, VERSUS_DUOS_HEARTS]);
+    expect(Object.values(await seatRows(m.id)).map((s: any) => [s.team, s.hearts])).toEqual([['a', VERSUS_DUOS_HEARTS], ['a', VERSUS_DUOS_HEARTS], ['b', VERSUS_DUOS_HEARTS], ['b', VERSUS_DUOS_HEARTS]]);
+    const teams = (await db.query<any>('select team, hearts from public.versus_group_teams where match_id = $1 order by team', [m.id])).rows;
+    expect(teams).toEqual([{ team: 'a', hearts: VERSUS_DUOS_HEARTS }, { team: 'b', hearts: VERSUS_DUOS_HEARTS }]);
   });
 });
 
@@ -173,14 +175,16 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
     expect((await finalize(m, 2)).body.status).toBe('not_resolving');
   });
 
-  it('a team at 0 hearts is out together (3rd) and the other team wins (both 1st); the room opens', async () => {
+  it('a team at 0 hearts is out together (2nd: placement is by team) and the other team wins (both 1st); the room opens', async () => {
     const [room, m] = await startDuos();
     await toShop(m);
-    await db.query(`update public.versus_group_seats set hearts = 2 where match_id = $1 and seat in ('p3', 'p4')`, [m]);
+    await db.query(`update public.versus_group_teams set hearts = 2 where match_id = $1 and team = 'b'`, [m]);
     await playRound(m, 1, { p1: bags(1, 40, 400, 'a') });
     const s = await seatRows(m);
-    expect([s.p1.placement, s.p2.placement, s.p3.placement, s.p4.placement]).toEqual([1, 1, 3, 3]);
+    expect([s.p1.placement, s.p2.placement, s.p3.placement, s.p4.placement]).toEqual([1, 1, 2, 2]);
     expect([s.p3.out_reason, s.p4.out_reason]).toEqual(['hearts', 'hearts']);
+    const teams = (await db.query<any>('select team, hearts, placement, eliminated_round from public.versus_group_teams where match_id = $1 order by team', [m])).rows;
+    expect(teams.map((x) => [x.team, x.hearts, x.placement, x.eliminated_round])).toEqual([['a', 7, 1, null], ['b', 0, 2, 1]]);
     const row = await matchRow(m);
     expect([row.phase, row.winner_seat, row.end_reason]).toEqual(['complete', 'p1', 'hearts']);
     expect((await as<any>(A, 'select public.versus_reconcile_room($1)', [room])).status).toBe('open');
@@ -192,7 +196,7 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
     await as(D, 'select public.versus_group_forfeit($1)', [m]);
     const s = await seatRows(m);
     expect([s.p3.eliminated_round, s.p4.eliminated_round].every((x) => x != null)).toBe(true);
-    expect([s.p1.placement, s.p2.placement, s.p3.placement, s.p4.placement]).toEqual([1, 1, 3, 3]);
+    expect([s.p1.placement, s.p2.placement, s.p3.placement, s.p4.placement]).toEqual([1, 1, 2, 2]);
     expect((await matchRow(m)).phase).toBe('complete');
   });
 
@@ -242,6 +246,28 @@ describe('Versus Duos passes (R-DUOS-PASS-01)', () => {
     expect(await fails(A, 'select public.versus_duos_pass($1, 1, 1, $2::jsonb)', [m, card(2)])).toMatch(/locked/);
     // My teammate can still pass to me while I wait.
     expect((await as<any>(B, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(3)])).to_seat).toBe('p1');
+  });
+
+  it('"Pass is refused if hand is full": a reported full hand refuses it; a pass that still reaches one is answered refused', async () => {
+    const [, m] = await startDuos();
+    await toShop(m);
+    // Bob reports 1 free slot: Ann's first pass is taken, the second refused until Bob answers the first.
+    await as(B, 'select public.versus_duos_hand_room($1, 1)', [m]);
+    await as(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1)]);
+    expect(await fails(A, 'select public.versus_duos_pass($1, 1, 1, $2::jsonb)', [m, card(2)])).toMatch(/hand_full/);
+    // Only the receiver answers.
+    expect(await fails(A, `select public.versus_duos_answer_pass($1, 'p1', 0, true)`, [m])).toMatch(/not_receiver/);
+    const landed = await as<any>(B, `select public.versus_duos_answer_pass($1, 'p1', 0, true)`, [m]);
+    expect(landed.status).toBe('landed');
+    // Bob's hand is now full: he reports 0, so Ann's next pass is refused by the server.
+    await as(B, 'select public.versus_duos_hand_room($1, 0)', [m]);
+    expect(await fails(A, 'select public.versus_duos_pass($1, 1, 1, $2::jsonb)', [m, card(2)])).toMatch(/hand_full/);
+    // A race: Bob reported room, then filled up: his run refuses it and answers so; the answer sticks.
+    await as(B, 'select public.versus_duos_hand_room($1, 2)', [m]);
+    await as(A, 'select public.versus_duos_pass($1, 1, 1, $2::jsonb)', [m, card(2)]);
+    expect((await as<any>(B, `select public.versus_duos_answer_pass($1, 'p1', 1, false)`, [m])).status).toBe('refused');
+    expect((await as<any>(B, `select public.versus_duos_answer_pass($1, 'p1', 1, true)`, [m])).status).toBe('refused');
+    expect(await fails(B, 'select public.versus_duos_hand_room($1, 99)', [m])).toMatch(/bad_room/);
   });
 
   it('closes with the clock (past its grace) and is capped at 10 a round', async () => {

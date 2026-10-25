@@ -6,9 +6,13 @@
  *    EXACTLY 2v2 (4 players, the 4-seat Versus room); unrated.
  *
  * Owner rulings (2026-10-25: "you have all the rules right except passing should cost 1 gold"):
- *   - TEAMS are seat pairs: p1 + p2 (left of the VS mark) vs p3 + p4 (right).
+ *   - TEAMS are seat pairs: p1 + p2 (left of the VS mark) vs p3 + p4 (right). Team ids are letters by seat pair
+ *     (`duosTeamOf`: p1 + p2 = a, p3 + p4 = b, and on), so a future 4-team Duos (8 seats, owner: "We will likely add 4
+ *     team duos at some point") extends the same helpers; today's room and server enforce 2 teams.
  *   - 7 hearts PER TEAM. The losing team loses 1 heart, 2 when the winner never needed its second board. A draw costs
  *     nobody. A team at 0 is out; the other team wins.
+ *   - PLACEMENT IS BY TEAM (owner: "In duos you only place 1 and 2 in a 2v2"): the winners are both 1st, the losers
+ *     both 2nd (with N teams: a team placed by how many teams were still in when it went out).
  *   - WHO FIGHTS FIRST alternates by round (odd rounds p1 / p3, even rounds p2 / p4); either teammate may flip it
  *     during the shop, until the team's first End Turn (the server holds the round's order: `duos_first`).
  *   - The second board's Start of Combat, hero effects and rune / quest mods fire when it steps in; the turn order
@@ -28,8 +32,9 @@ import { versusSideOrEmpty } from './combat';
 import { carryAsPlayerFields, mirrorForEnemySeat } from './mirror';
 import type { VersusGroupSeat } from './group';
 
+/** A team id: a letter per seat pair (a = p1 + p2, b = p3 + p4, ...). The 2v2 round uses a and b. */
 export type VersusDuosTeam = 'a' | 'b';
-/** The two teams, by seat pair: p1 + p2 vs p3 + p4. */
+/** The two teams of today's 2v2, by seat pair: p1 + p2 vs p3 + p4 (`duosTeamSeats` for any team). */
 export const VERSUS_DUOS_TEAMS: Readonly<Record<VersusDuosTeam, readonly [VersusGroupSeat, VersusGroupSeat]>> = {
   a: ['p1', 'p2'],
   b: ['p3', 'p4'],
@@ -40,16 +45,26 @@ export const VERSUS_DUOS_HEARTS = 7;
 export const VERSUS_DUOS_STOMP_HEARTS = 2;
 /** The Gold a pass costs the sender (owner 2026-10-25: "passing should cost 1 gold"). */
 export const VERSUS_DUOS_PASS_GOLD = 1;
-/** Server cap on passes per seat per round (Gold bounds it anyway; this bounds a misbehaving client). */
+/** Server cap on passes per seat per round (Gold bounds it anyway; this bounds a misbehaving client). Mirrored in SQL. */
 export const VERSUS_DUOS_PASS_CAP = 10;
 
-export const duosTeamOf = (seat: VersusGroupSeat): VersusDuosTeam => (seat === 'p1' || seat === 'p2' ? 'a' : 'b');
-export const duosMateOf = (seat: VersusGroupSeat): VersusGroupSeat =>
-  ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[seat];
+const seatNo = (seat: string): number => Number(seat.slice(1));
+/** A seat's team: its seat pair's letter (p1 / p2 = a, p3 / p4 = b, p5 / p6 = c, ...). Mirrors `versus_duos__team`. */
+export const duosTeamOf = (seat: VersusGroupSeat): VersusDuosTeam => String.fromCharCode(97 + Math.floor((seatNo(seat) - 1) / 2)) as VersusDuosTeam;
+/** A seat's teammate: the other seat of its pair. Mirrors `versus_duos__mate`. */
+export const duosMateOf = (seat: VersusGroupSeat): VersusGroupSeat => `p${seatNo(seat) % 2 === 1 ? seatNo(seat) + 1 : seatNo(seat) - 1}` as VersusGroupSeat;
+/** A team's two seats, in seat order. */
+export const duosTeamSeats = (team: string): [VersusGroupSeat, VersusGroupSeat] => {
+  const k = team.charCodeAt(0) - 97;
+  return [`p${2 * k + 1}`, `p${2 * k + 2}`] as [VersusGroupSeat, VersusGroupSeat];
+};
 
-/** Which seat of each team fights FIRST in `round` by default: the first seats on odd rounds, the second on even. */
-export function duosDefaultFirst(round: number): Record<VersusDuosTeam, VersusGroupSeat> {
-  return round % 2 === 1 ? { a: 'p1', b: 'p3' } : { a: 'p2', b: 'p4' };
+/** Which seat of each team fights FIRST in `round` by default: each team's first seat on odd rounds, its second on
+ *  even ones. Mirrors `versus_duos__default_first`. */
+export function duosDefaultFirst(round: number, teams = 2): Record<VersusDuosTeam, VersusGroupSeat> {
+  const out: Record<string, VersusGroupSeat> = {};
+  for (let k = 0; k < teams; k++) out[String.fromCharCode(97 + k)] = `p${2 * k + (round % 2 === 1 ? 1 : 2)}` as VersusGroupSeat;
+  return out as Record<VersusDuosTeam, VersusGroupSeat>;
 }
 
 /** The tie-break chair (`firstSide`): team A on odd rounds, team B on even ones. */

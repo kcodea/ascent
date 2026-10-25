@@ -310,12 +310,14 @@ worry about the deep duo mechanics yet").
 3. The second board's Start of Combat, hero effects, next-combat spells and rune/quest mods: **fire on step-in**.
 4. Hearts: **1 per lost fight, 2 when the winner never needed its second board.**
 5. Attack order at step-in: **the turn pointer continues; the incoming board starts from its leftmost.**
-6. Passing: **costs 1 Gold**; each card once per turn; refused on a full hand; closes at your End Turn.
+6. Passing: **costs 1 Gold**; each card once per turn; closes at your End Turn; **"Pass is refused if hand is full"**
+   (the sender keeps the card and is not charged; a race on arrival refunds it).
 7. What passes: **minions and spells** (stats, enchantments, Gilded); not runes, Equipment, the Starform, quests.
 8. Teams: **seat pairs p1+p2 vs p3+p4**, picked by dragging to a seat.
 9. Gold and shops: **separate**.
 10. Disconnects: **as Group**; three auto rounds in a row puts the team out.
-11. XP: **125 / 125 winners, 50 / 50 losers.**
+11. XP: **125 / 125 winners, 50 / 50 losers.** Placement is by TEAM (owner: "In duos you only place 1 and 2 in a
+    2v2. We will likely add 4 team duos at some point as well."): teams are their own record (id, hearts, placement).
 12. Teammate's board: **live, real time, first-class** ("it needs to be really high quality as a mechanic").
 13. Shared Slot: **later**, redesigned as Share charges (5.1).
 14. Concede: **one teammate's concede puts the team out.**

@@ -59,6 +59,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   pickAncient: 'open',
   closeScout: 'open',
   receivePass: 'open', // VERSUS DUOS: a teammate's pass lands whenever it arrives
+  passRefunded: 'open', // VERSUS DUOS: a refused pass comes back whenever the refusal arrives
   // Automatic transitions, display-only previews, the clock's own ticks, dev tooling.
   shopClockExpired: 'open',
   sellWindowExpired: 'open',

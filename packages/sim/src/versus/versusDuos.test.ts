@@ -14,7 +14,7 @@ import { handCap, type BoardCard, type PreparedCombatSide, type RunState } from 
 import { DUOS_PASS_GOLD } from '../duosPass';
 import { canonicalJson } from './canonical';
 import {
-  duosDefaultFirst, duosMateOf, duosMemberOf, duosMemberView, duosTeamOf, resolveVersusDuosRound, versusDuosCombatSeed,
+  duosDefaultFirst, duosMateOf, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
   VERSUS_DUOS_PASS_GOLD, VERSUS_DUOS_STOMP_HEARTS,
 } from './duos';
 import { versusCombatSeed } from './combat';
@@ -174,22 +174,42 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(reduce({ ...got, embers: 5 }, { type: 'passCard', uid: arrived.uid }).hand).toHaveLength(1);
   });
 
-  it('a full hand: the pass waits, and lands the moment there is room', () => {
+  it('"Pass is refused if hand is full": a full hand refuses it; the sender gets the card and the Gold back', () => {
     const base = duosRun();
     const full: BoardCard[] = Array.from({ length: handCap(base) }, (_, i) => ({ ...base.hand[0]!, uid: `f${i}` }));
     const recv = { ...base, hand: full };
     const got = reduce(recv, { type: 'receivePass', from: 'p1', seq: 3, card: base.board[0]! });
     expect(got.hand).toHaveLength(handCap(base));
-    expect(got.duos!.inbox).toHaveLength(1);
-    const sold = reduce(got, { type: 'sell', uid: 'f0' });
-    expect(sold.duos!.inbox).toHaveLength(0);
-    expect(sold.hand.some((c) => c.passedWave === recv.wave)).toBe(true);
+    expect(got.duos!.refused).toEqual(['p1:3']);
+    expect(got.duos!.received).toEqual([]);
+    // Answered once: the same pass again changes nothing, even with room now.
+    expect(reduce({ ...got, hand: [] }, { type: 'receivePass', from: 'p1', seq: 3, card: base.board[0]! }).hand).toHaveLength(0);
+    // The sender: the board card goes back to its slot, the Gold and the Gold-spent tallies come back, once.
+    const sender = duosRun();
+    const sent = reduce(sender, { type: 'passCard', uid: 'b1' });
+    expect([sent.embers, sent.board.length]).toEqual([sender.embers - 1, 0]);
+    const back = reduce(sent, { type: 'passRefunded', seq: 0 });
+    expect(back.board.map((c) => c.uid)).toEqual(['b1']);
+    expect(back.embers).toBe(sender.embers);
+    expect(back.goldSpentThisTurn ?? 0).toBe(sender.goldSpentThisTurn ?? 0);
+    expect(back.goldSpent ?? 0).toBe(sender.goldSpent ?? 0);
+    expect(back.duos!.outbox[0]!.refunded).toBe(true);
+    expect(reduce(back, { type: 'passRefunded', seq: 0 })).toBe(back);
+    // A hand card goes back to the hand.
+    const h = reduce(reduce(sender, { type: 'passCard', uid: 'h1' }), { type: 'passRefunded', seq: 0 });
+    expect(h.hand.map((c) => c.uid)).toEqual(['h1']);
   });
 
-  it('a pass that arrives during the fight waits for the next Shop', () => {
+  it('a pass that arrives during the fight lands in the hand at once (when there is room)', () => {
     const recv = { ...duosRun(), phase: 'combat' as const };
     const got = reduce(recv, { type: 'receivePass', from: 'p1', seq: 0, card: duosRun().hand[0]! });
-    expect(got.hand).toHaveLength(recv.hand.length);
-    expect(got.duos!.inbox).toHaveLength(1);
+    expect(got.hand).toHaveLength(recv.hand.length + 1);
+  });
+
+  it('team ids are letters by seat pair, so N teams extend the same helpers', () => {
+    expect(duosTeamSeats('a')).toEqual(['p1', 'p2']);
+    expect(duosTeamSeats('b')).toEqual(['p3', 'p4']);
+    expect(duosDefaultFirst(3, 4)).toEqual({ a: 'p1', b: 'p3', c: 'p5', d: 'p7' });
+    expect(duosDefaultFirst(4, 4)).toEqual({ a: 'p2', b: 'p4', c: 'p6', d: 'p8' });
   });
 });

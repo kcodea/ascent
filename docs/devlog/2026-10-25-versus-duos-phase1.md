@@ -36,17 +36,24 @@ gold". Rules: GAME-RULES.md "Versus Duos (2v2 tag-team)"; oracle R-DUOS-TAGTEAM-
   carry-back field map is shared with the mirror: `carryAsPlayerFields`). `duosFinalize.ts` (+ `finalize_duos` /
   `parity_duos` in versus-resolve; `finalize_group` now refuses a Duos match). Options gain `mode: 'duos'` (4 seats).
 - **Passing (run actions).** `duosPass.ts`: `passCard { uid }` (hand or board, 1 Gold through the one Gold-spend
-  chokepoint, recorded in `duos.outbox`), `receivePass { from, seq, card }` (fresh uid, everything the card carried,
-  `passedWave` so it cannot go straight back, a full hand waits in `duos.inbox`, a key lands once, accepted in any
-  phase and while the shop is held). Only a Duos seat's run has `duos` (`createVersusRun` with Duos options); every
-  other run is unchanged. Shop clock: `passCard` locks at 0:00, `receivePass` stays open.
+  chokepoint, recorded in `duos.outbox` with where it came from), `receivePass { from, seq, card }` (fresh uid,
+  everything the card carried, `passedWave` so it cannot go straight back; a FULL hand refuses it: owner "Pass is
+  refused if hand is full"), `passRefunded { seq }` (the refused card back in its place and the Gold and its Gold-spent
+  tallies back, once). Only a Duos seat's run has `duos`; every other run is unchanged. Shop clock: `passCard` locks at
+  0:00, the other two stay open.
 - **Server.** `supabase/migrations/2026-10-25-versus-duos.sql`: a Duos match is a Versus Group match (so Hero Select,
-  locks, the clock, pause / auto, End Combat, frames, the stands trigger and XP all apply) with `duos_first` (set at
-  every shop open, `versus_duos_flip_order` until the team locks), `versus_duos_commit_round` (one fight row, team
-  hearts kept equal, a team out together at 0, three auto rounds = team out), a concede / leave taking the team out
-  (`versus_group__eliminate` duos branch), winners both 1st (`versus_group__complete`), losers 3rd (the existing XP
-  settle maps that to 125 / 50), and passes (`versus_duos_passes` + `versus_duos_pass`: shop only, before my lock and
-  the clock + grace, teammate only, exactly once per seq, 10 a round; RLS: the team reads its passes; realtime).
+  locks, the clock, pause / auto, End Combat, frames and the stands trigger all apply) with TEAMS as their own record
+  (`versus_group_teams`: id, hearts, elimination, placement; `versus_group_seats.team`; ids are letters by seat pair and
+  every helper is generic over N pairs, for the owner's likely 4-team Duos), `duos_first` (set at every shop open,
+  `versus_duos_flip_order` until the team locks), `versus_duos_commit_round` (one fight row, the team's hearts, a team
+  out together at 0 placed by the teams still in, three auto rounds = team out; seats mirror their team), a concede /
+  leave taking the team out, the winning team 1st (both seats), and passes (`versus_duos_passes` with a status:
+  `versus_duos_pass` refuses `hand_full` from the teammate's reported room (`versus_duos_hand_room`) less its
+  unanswered passes; `versus_duos_answer_pass` records landed / refused; shop only, before my lock and the clock +
+  grace, teammate only, exactly once per seq, 10 a round; RLS; realtime).
+- **XP.** `supabase/migrations/2026-10-25-versus-duos-xp.sql` (also appended to schema.sql): `settle_progression`
+  places a Duos seat by its TEAM on the scale of the number of teams: 125 each for the winners, 50 each for the losers
+  (owner: "In duos you only place 1 and 2 in a 2v2").
 - **Parity.** `npm run versus:parity -- bundle`: 49/49 (the 31 before + 18 Duos rounds: default order, flipped, an
   empty first board).
 
@@ -55,14 +62,14 @@ gold". Rules: GAME-RULES.md "Versus Duos (2v2 tag-team)"; oracle R-DUOS-TAGTEAM-
 - The Gold for a pass is enforced by the sender's run (as every Versus shop action: the server never holds a run's
   Gold). The server enforces the phase, the clock, the lock, the team, exactly-once and a cap of 10 a round.
 - A reserve whose board is empty never steps in; a team whose FIRST board is empty fights with the teammate's.
-- Hearts are kept on both seats of a team (always equal) so the rail and the group projection read them unchanged.
-- The losing team is placed 3rd (both players), the winners 1st, so the existing XP settle pays 125 / 50 unchanged.
-- A pass to a full hand waits for room instead of being refused at arrival (the sender cannot see the teammate's hand
-  exactly in time; the phase-2 UI greys the portrait from the teammate's live frame).
+- Each seat mirrors its team's hearts and placement, so the rail and the group projection read them unchanged.
+- A refund gives back the Gold and the Gold-spent tallies, but a payoff that already fired on the spend (a "when you
+  spend Gold" effect) is not undone; the server refuses most full-hand passes up front, so this is the rare race.
 
 ## Deploy (the lead)
 
-1. Apply `supabase/migrations/2026-10-25-versus-duos.sql` (after every earlier Versus file).
+1. Apply `supabase/migrations/2026-10-25-versus-duos.sql` (after every earlier Versus file), then
+   `supabase/migrations/2026-10-25-versus-duos-xp.sql`.
 2. `npm run versus:bundle && npx supabase functions deploy versus-resolve --no-verify-jwt`, then
    `npm run versus:parity -- remote <url>` (49 cases).
 Nothing is reachable by players until phase 2's room option ships; 1v1 and Group are unchanged on both orders.

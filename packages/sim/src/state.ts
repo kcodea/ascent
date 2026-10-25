@@ -2902,8 +2902,10 @@ export type Action =
   /** VERSUS DUOS (R-DUOS-PASS-01): give a hand or board card to your teammate for 1 Gold (`duosPass.ts`). */
   | { type: 'passCard'; uid: string }
   /** VERSUS DUOS: a teammate's pass arrives (from the server): `from` its seat, `seq` its order there. Lands in the
-   *  hand, or waits for room; a key lands once. Accepted in any phase (it waits for the Shop to land). */
+   *  hand; a FULL hand refuses it ("Pass is refused if hand is full"). A key is answered once. Accepted in any phase. */
   | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
+  /** VERSUS DUOS: the teammate's full hand refused my pass `seq`: the card and its 1 Gold come back, once. */
+  | { type: 'passRefunded'; seq: number }
   | { type: 'roll' }
   | { type: 'freeze' }
   | { type: 'upgrade' }

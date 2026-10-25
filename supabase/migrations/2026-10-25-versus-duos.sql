@@ -14,23 +14,36 @@
 -- teammate's portrait". "EXACTLY 2v2: 4 players, 2 teams, fits the current 4-seat Versus room and server. Unrated."
 -- Rulings: "you have all the rules right except passing should cost 1 gold" (docs/design/2026-10-25-versus-duos.md).
 --
+-- Rulings 2026-10-25 (later): "Pass is refused if hand is full." "In duos you only place 1 and 2 in a 2v2. We will
+-- likely add 4 team duos at some point as well."
+--
 -- THE DATA MODEL: a Duos match IS a Versus Group match (`versus_group_matches` with options.mode = 'duos', exactly four
 -- seats), so Hero Select, the intro barrier, the shop clock + grace, locks, auto / pause / unpause, End Combat, the
--- spectator frames, the knockout-to-the-stands trigger and XP all work unchanged. What Duos adds:
+-- spectator frames and the knockout-to-the-stands trigger all work unchanged. What Duos adds:
 --  1. Options: mode 'duos' (exactly four seats; Start needs four).
---  2. TEAMS by seat pair: p1 + p2 vs p3 + p4. Both seats of a team carry the TEAM's hearts (7), kept equal.
+--  2. TEAMS (`versus_group_teams`, `versus_group_seats.team`): a team id is a letter per seat pair (p1 + p2 = a,
+--     p3 + p4 = b, p5 + p6 = c, ...), each team has its own hearts (7), elimination round and PLACEMENT. Nothing below
+--     assumes two teams except where the room / start enforces it today, so a future 4-team Duos (8 seats) extends it.
+--     Each seat mirrors its team's hearts and placement so every seat-reading screen (the rail, the stands, XP) reads
+--     them unchanged.
 --  3. The round's FIGHT ORDER (`duos_first`: which seat of each team fights first): the default alternates (odd rounds
---     p1 / p3, even rounds p2 / p4), set when the shop opens; either teammate may flip it (`versus_duos_flip_order`)
---     until the team's first lock.
---  4. ONE fight per round (`finalize_duos` → `versus_duos_commit_round`): one `versus_group_fights` row (a = team A's
---     first seat, b = team B's), team hearts (-1, or -2 when the winner never needed its second board), a team at 0
---     is out together (placement 3) and the other team wins (placement 1 for both); three auto rounds = the team out.
---  5. A team-mate leaving or conceding puts the TEAM out (owner: "concede = team out").
---  6. PASSES (`versus_duos_passes` + `versus_duos_pass`): a seat's pass to its teammate during the shop, recorded once
---     per (seat, round, seq). The 1 Gold is paid in the sender's run (the reducer's Gold-spend chokepoint, as every
---     Versus shop action: the server never holds a run's Gold); the server checks the phase, the clock, the team, that
---     the sender has not locked, the card's shape, exactly-once, and at most 10 passes per seat per round.
---  Placements: winners 1, losers 3, which the existing XP settle maps to 125 / 50 (owner: 125 / 125 vs 50 / 50).
+--     each team's first seat, even rounds its second), set when the shop opens; either teammate may flip it
+--     (`versus_duos_flip_order`) until the team's first lock.
+--  4. ONE fight per round (`finalize_duos` → `versus_duos_commit_round`): one `versus_group_fights` row (a = team a's
+--     first seat, b = team b's), team hearts (-1, or -2 when the winner never needed its second board); a team at 0
+--     is out together and placed by how many teams were still in (2nd in a 2v2); the last team in is 1st; three auto
+--     rounds in a row put the team out.
+--  5. A teammate leaving or conceding puts the TEAM out (owner: "concede = team out").
+--  6. PASSES (`versus_duos_passes`): `versus_duos_pass` records a seat's pass to its teammate during the shop, once per
+--     (seat, seq). The 1 Gold is paid in the sender's run (the reducer's Gold-spend chokepoint, as every Versus shop
+--     action: the server never holds a run's Gold). "Pass is refused if hand is full": each seat reports its hand
+--     room (`versus_duos_hand_room`), and the server refuses a pass (`hand_full`) while the teammate's reported room,
+--     less the passes not yet answered, is gone; a pass that still reaches a full hand (a race) is refused by the
+--     receiver's run and answered `refused` (`versus_duos_answer_pass`), and the sender's run gets the card and the
+--     Gold back. The server also checks the phase, the clock, the team, the lock, the card's shape and 10 per round.
+--  7. XP: `settle_progression` reads a Duos seat's TEAM placement on the scale of the number of TEAMS, so the winners
+--     earn 125 and the losers 50 (owner: 125 / 125 vs 50 / 50): its own file, 2026-10-25-versus-duos-xp.sql (a
+--     progression migration, also appended to schema.sql), applied right after this one.
 
 -- ── 1. Options: 'duos' joins the whitelist (mirror of packages/sim/src/versus/options.ts) ────────────────────
 create or replace function public.versus__options_error(p jsonb)
@@ -69,39 +82,44 @@ as $$
   select case when p_mode = 'duos' then 4 when p_mode = 'group' then 3 else 2 end;
 $$;
 
--- ── 2. Team helpers ───────────────────────────────────────────────────────────────────────────────────────────
--- A seat's team ('a' = p1 + p2, 'b' = p3 + p4), its teammate, and the seats of a team.
+-- ── 2. Team helpers (generic over N seat pairs; mirrors of packages/sim/src/versus/duos.ts) ─────────────────────
+-- A seat's team: its seat pair's letter (p1 / p2 = a, p3 / p4 = b, p5 / p6 = c, ...).
 create or replace function public.versus_duos__team(p_seat text)
 returns text
 language sql
 immutable
 as $$
-  select case when p_seat in ('p1', 'p2') then 'a' when p_seat in ('p3', 'p4') then 'b' end;
+  select case when p_seat ~ '^p[1-9][0-9]*$' then chr(97 + (substring(p_seat from 2)::int - 1) / 2) end;
 $$;
 
+-- A seat's teammate: the other seat of its pair.
 create or replace function public.versus_duos__mate(p_seat text)
 returns text
 language sql
 immutable
 as $$
-  select case p_seat when 'p1' then 'p2' when 'p2' then 'p1' when 'p3' then 'p4' when 'p4' then 'p3' end;
+  select case when p_seat ~ '^p[1-9][0-9]*$' then
+    'p' || case when substring(p_seat from 2)::int % 2 = 1 then substring(p_seat from 2)::int + 1 else substring(p_seat from 2)::int - 1 end end;
 $$;
 
+-- A team's two seats, in seat order.
 create or replace function public.versus_duos__seats(p_team text)
 returns text[]
 language sql
 immutable
 as $$
-  select case when p_team = 'a' then array['p1', 'p2'] else array['p3', 'p4'] end;
+  select array['p' || (2 * (ascii(p_team) - 97) + 1), 'p' || (2 * (ascii(p_team) - 97) + 2)];
 $$;
 
--- The default fight order of a round: odd rounds p1 / p3, even rounds p2 / p4 (mirror of `duosDefaultFirst`).
-create or replace function public.versus_duos__default_first(p_round int)
+drop function if exists public.versus_duos__default_first(int);
+-- The default fight order of a round for p_teams teams: each team's first seat on odd rounds, its second on even ones.
+create or replace function public.versus_duos__default_first(p_round int, p_teams int)
 returns jsonb
 language sql
 immutable
 as $$
-  select case when p_round % 2 = 1 then '{"a": "p1", "b": "p3"}'::jsonb else '{"a": "p2", "b": "p4"}'::jsonb end;
+  select coalesce(jsonb_object_agg(chr(97 + k), 'p' || (2 * k + case when p_round % 2 = 1 then 1 else 2 end)), '{}'::jsonb)
+    from generate_series(0, greatest(p_teams, 1) - 1) k;
 $$;
 
 create or replace function public.versus_duos__is(m public.versus_group_matches)
@@ -112,23 +130,56 @@ as $$
   select coalesce(m.options->>'mode', 'group') = 'duos';
 $$;
 
--- ── 3. Columns + the passes table ─────────────────────────────────────────────────────────────────────────────
+
+-- ── 3. Columns, the teams table and the passes table ─────────────────────────────────────────────────────────
 alter table public.versus_group_matches add column if not exists duos_first jsonb;
+alter table public.versus_group_seats add column if not exists team text;
+-- A seat's reported hand room (Duos passes: the server refuses a pass to a full hand). Null = not reported yet.
+alter table public.versus_group_seats add column if not exists hand_room int check (hand_room is null or hand_room between 0 and 30);
+
+create table if not exists public.versus_group_teams (
+  match_id          uuid not null references public.versus_group_matches(id) on delete cascade,
+  team              text not null check (team ~ '^[a-z]$'),
+  hearts            int  not null default 7,
+  eliminated_round  int,
+  out_reason        text check (out_reason in ('hearts', 'forfeit', 'left', 'missed')),
+  placement         int  check (placement between 1 and 8),
+  primary key (match_id, team)
+);
+alter table public.versus_group_teams enable row level security;
+drop policy if exists "versus group read teams" on public.versus_group_teams;
+create policy "versus group read teams" on public.versus_group_teams for select to authenticated using (true);
+
+-- Teams still in a match.
+create or replace function public.versus_duos__living_teams(p_match uuid)
+returns int
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select count(*)::int from public.versus_group_teams where match_id = p_match and eliminated_round is null;
+$$;
 
 create table if not exists public.versus_duos_passes (
-  match_id    uuid not null references public.versus_group_matches(id) on delete cascade,
-  round       int  not null,
-  from_seat   text not null check (from_seat in ('p1', 'p2', 'p3', 'p4')),
-  to_seat     text not null check (to_seat in ('p1', 'p2', 'p3', 'p4')),
-  seq         int  not null check (seq >= 0),
-  card        jsonb not null check (jsonb_typeof(card) = 'object' and octet_length(card::text) <= 16384),
-  created_at  timestamptz not null default now(),
+  match_id     uuid not null references public.versus_group_matches(id) on delete cascade,
+  round        int  not null,
+  from_seat    text not null check (from_seat ~ '^p[1-9][0-9]*$'),
+  to_seat      text not null check (to_seat ~ '^p[1-9][0-9]*$'),
+  seq          int  not null check (seq >= 0),
+  card         jsonb not null check (jsonb_typeof(card) = 'object' and octet_length(card::text) <= 16384),
+  -- 'sent' until the teammate's run answers: 'landed' in its hand, or 'refused' (its hand was full).
+  status       text not null default 'sent' check (status in ('sent', 'landed', 'refused')),
+  created_at   timestamptz not null default now(),
+  answered_at  timestamptz,
   primary key (match_id, from_seat, seq)
 );
+alter table public.versus_duos_passes add column if not exists status text not null default 'sent' check (status in ('sent', 'landed', 'refused'));
+alter table public.versus_duos_passes add column if not exists answered_at timestamptz;
 create index if not exists versus_duos_passes_to on public.versus_duos_passes (match_id, to_seat, round);
 
 alter table public.versus_duos_passes enable row level security;
--- The two teammates read their team's passes (the receiver lands them; the sender confirms them). Spectators see the
+-- The two teammates read their team's passes (the receiver lands them; the sender sees the answer). Spectators see the
 -- pass through the players' own frames.
 drop policy if exists "versus duos read team passes" on public.versus_duos_passes;
 create policy "versus duos read team passes" on public.versus_duos_passes for select to authenticated using (
@@ -214,6 +265,13 @@ begin
         insert into public.versus_group_seat_private (match_id, seat, user_id, hero_seed, run_seed)
           values (v_match, mm.role, mm.user_id, floor(random() * 2147483647)::bigint, floor(random() * 2147483647)::bigint);
       end loop;
+      -- Duos: every seat joins its seat pair's team; each team starts with its own hearts.
+      if v_mode = 'duos' then
+        update public.versus_group_seats set team = public.versus_duos__team(seat) where match_id = v_match;
+        insert into public.versus_group_teams (match_id, team)
+          select distinct v_match, public.versus_duos__team(seat) from public.versus_group_seats where match_id = v_match
+          on conflict do nothing;
+      end if;
       update public.versus_rooms set status = 'in_game', current_match_id = v_match, gate_deadline = null where id = p_room;
     end if;
   elsif r.p1_gate and r.p2_gate then
@@ -282,7 +340,7 @@ begin
     shop_deadline = case when v_first then null else v_now + make_interval(secs => public.versus_turn_seconds(p_round)) end,
     intro_deadline = case when v_first then v_now + interval '45 seconds' else null end,
     combat_deadline = null,
-    duos_first = case when public.versus_duos__is(m) then public.versus_duos__default_first(p_round) else duos_first end,
+    duos_first = case when public.versus_duos__is(m) then public.versus_duos__default_first(p_round, m.seat_count / 2) else duos_first end,
     revision = revision + 1, updated_at = v_now
   where id = m.id returning * into v_out;
   return v_out;
@@ -301,8 +359,12 @@ declare
   v_out public.versus_group_matches;
 begin
   if p_winner is not null then
+    -- Duos: placement is by TEAM: the winner's whole team is 1st.
     update public.versus_group_seats set placement = 1 where match_id = m.id
-      and (seat = p_winner or (public.versus_duos__is(m) and seat = public.versus_duos__mate(p_winner)));
+      and (seat = p_winner or (public.versus_duos__is(m) and team = public.versus_duos__team(p_winner)));
+    if public.versus_duos__is(m) then
+      update public.versus_group_teams set placement = 1 where match_id = m.id and team = public.versus_duos__team(p_winner);
+    end if;
   end if;
   update public.versus_group_matches set phase = 'complete', winner_seat = p_winner, end_reason = p_reason,
     paused_seat = null, paused_at = null, pause_grace_until = null, resume_at = null,
@@ -329,13 +391,23 @@ declare
 begin
   if m.phase = 'complete' then return m; end if;
   if public.versus_duos__is(m) then
-    update public.versus_group_seats set eliminated_round = m.round,
-      out_reason = case when seat = p_seat then p_reason else 'forfeit' end, auto = false, placement = 3
-      where match_id = m.id and seat in (p_seat, public.versus_duos__mate(p_seat)) and eliminated_round is null;
+    -- The seat's TEAM goes out together, placed by how many teams were still in (2nd of 2).
+    update public.versus_group_teams set eliminated_round = m.round, out_reason = p_reason,
+      placement = public.versus_duos__living_teams(m.id)
+      where match_id = m.id and team = public.versus_duos__team(p_seat) and eliminated_round is null;
     if not found then return m; end if;
+    update public.versus_group_seats s set eliminated_round = m.round,
+      out_reason = case when s.seat = p_seat then p_reason else 'forfeit' end, auto = false, placement = t.placement
+      from public.versus_group_teams t
+      where s.match_id = m.id and t.match_id = m.id and t.team = s.team and s.team = public.versus_duos__team(p_seat) and s.eliminated_round is null;
     m := public.versus_group__touch(m.id);
-    select seat into v_winner from public.versus_group_seats where match_id = m.id and eliminated_round is null order by seat limit 1;
-    return public.versus_group__complete(m, v_winner, case when p_reason = 'missed' then 'missed' else 'forfeit' end);
+    if public.versus_duos__living_teams(m.id) <= 1 then
+      select seat into v_winner from public.versus_group_seats where match_id = m.id and eliminated_round is null order by seat limit 1;
+      return public.versus_group__complete(m, v_winner, case when p_reason = 'missed' then 'missed' else 'forfeit' end);
+    end if;
+    m := public.versus_group__maybe_resolve(m);
+    m := public.versus_group__maybe_next(m);
+    return m;
   end if;
   update public.versus_group_seats set eliminated_round = m.round, out_reason = p_reason, auto = false,
     placement = public.versus_group__living(m.id)
@@ -383,7 +455,7 @@ begin
   if exists (select 1 from public.versus_group_seats where match_id = p_match and seat = any (public.versus_duos__seats(v_team)) and locked) then
     raise exception 'team_locked';
   end if;
-  v_first := coalesce(m.duos_first, public.versus_duos__default_first(m.round));
+  v_first := coalesce(m.duos_first, public.versus_duos__default_first(m.round, m.seat_count / 2));
   v_first := jsonb_set(v_first, array[v_team], to_jsonb(public.versus_duos__mate(v_first->>v_team)));
   update public.versus_group_matches set duos_first = v_first, revision = revision + 1, updated_at = public.versus_clock()
     where id = p_match returning * into m;
@@ -391,9 +463,27 @@ begin
 end;
 $$;
 
+-- My hand room, reported by my run whenever it changes (Duos passes: "Pass is refused if hand is full").
+create or replace function public.versus_duos_hand_room(p_match uuid, p_room int)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_seat text;
+begin
+  v_seat := public.versus_group__seat_of(p_match, auth.uid());
+  if v_seat is null then raise exception 'not_a_player'; end if;
+  if p_room is null or p_room < 0 or p_room > 30 then raise exception 'bad_room'; end if;
+  update public.versus_group_seats set hand_room = p_room where match_id = p_match and seat = v_seat;
+end;
+$$;
+
 -- Pass a card to my teammate (owner: "drag a card from your hand/board to your teammate's portrait"; "passing should
--- cost 1 gold"). The run already moved the card and paid the Gold (its own recorded `passCard`); this records it for
--- the teammate, exactly once per (seat, seq). Shop only, before my lock and the clock (with its grace).
+-- cost 1 gold"; "Pass is refused if hand is full"). The run already moved the card and paid the Gold (its own recorded
+-- `passCard`); this records it for the teammate, exactly once per (seat, seq). Shop only, before my lock and the clock
+-- (with its grace), and never to a hand my teammate reported full (less the passes it has not answered yet).
 create or replace function public.versus_duos_pass(p_match uuid, p_round int, p_seq int, p_card jsonb)
 returns jsonb
 language plpgsql
@@ -404,6 +494,7 @@ declare
   m public.versus_group_matches;
   v_seat text;
   v_mate text;
+  v_room int;
   v_row public.versus_duos_passes;
 begin
   select * into m from public.versus_group_matches where id = p_match for update;
@@ -422,8 +513,11 @@ begin
     raise exception 'locked';
   end if;
   v_mate := public.versus_duos__mate(v_seat);
-  if not exists (select 1 from public.versus_group_seats where match_id = p_match and seat = v_mate and eliminated_round is null) then
-    raise exception 'no_teammate';
+  select hand_room into v_room from public.versus_group_seats where match_id = p_match and seat = v_mate and eliminated_round is null;
+  if not found then raise exception 'no_teammate'; end if;
+  if v_room is not null and v_room - (select count(*) from public.versus_duos_passes
+      where match_id = p_match and to_seat = v_mate and status = 'sent') <= 0 then
+    raise exception 'hand_full';
   end if;
   if p_seq is null or p_seq < 0 or p_card is null or jsonb_typeof(p_card) <> 'object' or coalesce(jsonb_typeof(p_card->'cardId'), '') <> 'string'
      or octet_length(p_card::text) > 16384 then
@@ -434,6 +528,31 @@ begin
   end if;
   insert into public.versus_duos_passes (match_id, round, from_seat, to_seat, seq, card)
     values (p_match, p_round, v_seat, v_mate, p_seq, p_card) returning * into v_row;
+  return to_jsonb(v_row);
+end;
+$$;
+
+-- The receiver's run answers a pass: it landed in the hand, or the full hand refused it (the sender's run then gets
+-- the card and the Gold back). Only the pass's own receiver answers, once.
+create or replace function public.versus_duos_answer_pass(p_match uuid, p_from_seat text, p_seq int, p_landed boolean)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_seat text;
+  v_row public.versus_duos_passes;
+begin
+  v_seat := public.versus_group__seat_of(p_match, auth.uid());
+  if v_seat is null then raise exception 'not_a_player'; end if;
+  select * into v_row from public.versus_duos_passes where match_id = p_match and from_seat = p_from_seat and seq = p_seq for update;
+  if not found then raise exception 'no_pass'; end if;
+  if v_row.to_seat <> v_seat then raise exception 'not_receiver'; end if;
+  if v_row.status = 'sent' then
+    update public.versus_duos_passes set status = case when p_landed then 'landed' else 'refused' end, answered_at = public.versus_clock()
+      where match_id = p_match and from_seat = p_from_seat and seq = p_seq returning * into v_row;
+  end if;
   return to_jsonb(v_row);
 end;
 $$;
@@ -469,6 +588,8 @@ begin
   if m.phase <> 'resolving' or m.round <> p_round then raise exception 'not_resolving'; end if;
   if p_fight is null or jsonb_typeof(p_fight) <> 'object'
      or public.versus_duos__team(v_a) is distinct from 'a' or public.versus_duos__team(v_b) is distinct from 'b'
+     or not exists (select 1 from public.versus_group_seats where match_id = p_match and seat = v_a)
+     or not exists (select 1 from public.versus_group_seats where match_id = p_match and seat = v_b)
      or v_outcome not in ('a', 'b', 'draw') or p_fight->>'chair' not in ('a', 'b')
      or (v_outcome = 'draw') <> (v_lose is null) or (v_outcome = 'a' and v_lose <> 'b') or (v_outcome = 'b' and v_lose <> 'a')
      or (v_outcome = 'draw' and v_hearts <> 0) or (v_outcome <> 'draw' and v_hearts not in (1, 2)) then
@@ -482,13 +603,14 @@ begin
       (select coalesce(su.scout, '{}'::jsonb) || jsonb_strip_nulls(jsonb_build_object('tier', su.prepared_side -> 'state' -> 'tier'))
          from public.versus_group_submissions su where su.match_id = p_match and su.round = p_round and su.seat = v_b));
 
-  -- TEAM hearts: both seats of the losing team, kept equal.
+  -- TEAM hearts (the team's own row; each seat mirrors it). A team at 0 is out together, placed by how many teams were
+  -- still in (2nd of 2); the last team in is 1st.
   if v_lose is not null then
-    update public.versus_group_seats set hearts = greatest(0, hearts - v_hearts)
-      where match_id = p_match and seat = any (public.versus_duos__seats(v_lose)) and eliminated_round is null;
-    if exists (select 1 from public.versus_group_seats where match_id = p_match and seat = any (public.versus_duos__seats(v_lose)) and hearts <= 0) then
-      update public.versus_group_seats set eliminated_round = p_round, out_reason = 'hearts', auto = false, placement = 3
-        where match_id = p_match and seat = any (public.versus_duos__seats(v_lose)) and eliminated_round is null;
+    update public.versus_group_teams set hearts = greatest(0, hearts - v_hearts)
+      where match_id = p_match and team = v_lose and eliminated_round is null;
+    if exists (select 1 from public.versus_group_teams where match_id = p_match and team = v_lose and hearts <= 0 and eliminated_round is null) then
+      update public.versus_group_teams set eliminated_round = p_round, out_reason = 'hearts', placement = public.versus_duos__living_teams(p_match)
+        where match_id = p_match and team = v_lose;
       v_dead := public.versus_duos__seats(v_lose);
     end if;
   end if;
@@ -497,16 +619,24 @@ begin
   update public.versus_group_seats set missed = case when auto then missed + 1 else 0 end
     where match_id = p_match and eliminated_round is null;
   if cardinality(v_dead) = 0 then
-    select public.versus_duos__team(seat) into v_team from public.versus_group_seats
+    select team into v_team from public.versus_group_seats
       where match_id = p_match and eliminated_round is null and missed >= 3 order by seat limit 1;
     if v_team is not null then
-      update public.versus_group_seats set eliminated_round = p_round,
-        out_reason = case when missed >= 3 then 'missed' else 'forfeit' end, auto = false, placement = 3
-        where match_id = p_match and seat = any (public.versus_duos__seats(v_team)) and eliminated_round is null;
+      update public.versus_group_teams set eliminated_round = p_round, out_reason = 'missed', placement = public.versus_duos__living_teams(p_match)
+        where match_id = p_match and team = v_team and eliminated_round is null;
       v_dead := public.versus_duos__seats(v_team);
       if v_lose is null then v_reason := 'missed'; end if;
     end if;
   end if;
+
+  -- Every seat mirrors its team (hearts, and when out: the round, why and the placement).
+  update public.versus_group_seats s set hearts = t.hearts,
+    eliminated_round = coalesce(s.eliminated_round, t.eliminated_round),
+    out_reason = case when s.eliminated_round is null and t.eliminated_round is not null
+      then case when t.out_reason = 'missed' and s.missed < 3 then 'forfeit' else t.out_reason end else s.out_reason end,
+    auto = case when t.eliminated_round is not null then false else s.auto end,
+    placement = coalesce(t.placement, s.placement)
+    from public.versus_group_teams t where s.match_id = p_match and t.match_id = p_match and t.team = s.team;
 
   insert into public.versus_group_rounds (match_id, round, digest, hearts, eliminated)
     values (p_match, p_round, p_digest,
@@ -516,7 +646,7 @@ begin
   update public.versus_group_matches set phase = 'combat', combat_deadline = v_now + interval '90 seconds',
     revision = revision + 1, updated_at = v_now
     where id = p_match returning * into m;
-  if cardinality(v_dead) > 0 then
+  if public.versus_duos__living_teams(p_match) <= 1 then
     select seat into v_winner from public.versus_group_seats where match_id = p_match and eliminated_round is null order by seat limit 1;
     m := public.versus_group__complete(m, v_winner, v_reason);
   end if;
@@ -531,7 +661,8 @@ revoke all on function public.versus__mode_min_players(text) from public, anon, 
 revoke all on function public.versus_duos__team(text) from public, anon, authenticated;
 revoke all on function public.versus_duos__mate(text) from public, anon, authenticated;
 revoke all on function public.versus_duos__seats(text) from public, anon, authenticated;
-revoke all on function public.versus_duos__default_first(int) from public, anon, authenticated;
+revoke all on function public.versus_duos__default_first(int, int) from public, anon, authenticated;
+revoke all on function public.versus_duos__living_teams(uuid) from public, anon, authenticated;
 revoke all on function public.versus_duos__is(public.versus_group_matches) from public, anon, authenticated;
 revoke all on function public.versus_group__open_shop(public.versus_group_matches, int) from public, anon, authenticated;
 revoke all on function public.versus_group__complete(public.versus_group_matches, text, text) from public, anon, authenticated;
@@ -544,11 +675,15 @@ revoke all on function public.versus_press_gate(uuid) from public, anon;
 revoke all on function public.versus_open_rooms(int, text) from public, anon;
 revoke all on function public.versus_duos_flip_order(uuid) from public, anon;
 revoke all on function public.versus_duos_pass(uuid, int, int, jsonb) from public, anon;
+revoke all on function public.versus_duos_hand_room(uuid, int) from public, anon;
+revoke all on function public.versus_duos_answer_pass(uuid, text, int, boolean) from public, anon;
 grant execute on function public.versus_start_game(uuid) to authenticated;
 grant execute on function public.versus_press_gate(uuid) to authenticated;
 grant execute on function public.versus_open_rooms(int, text) to authenticated;
 grant execute on function public.versus_duos_flip_order(uuid) to authenticated;
 grant execute on function public.versus_duos_pass(uuid, int, int, jsonb) to authenticated;
+grant execute on function public.versus_duos_hand_room(uuid, int) to authenticated;
+grant execute on function public.versus_duos_answer_pass(uuid, text, int, boolean) to authenticated;
 
 -- ── 8. Realtime: a pass wakes the teammate (rows stay the truth) ──────────────────────────────────────────────
 do $$
@@ -556,6 +691,9 @@ begin
   if exists (select 1 from pg_publication where pubname = 'supabase_realtime') then
     if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'versus_duos_passes') then
       alter publication supabase_realtime add table public.versus_duos_passes;
+    end if;
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and tablename = 'versus_group_teams') then
+      alter publication supabase_realtime add table public.versus_group_teams;
     end if;
   end if;
 end;

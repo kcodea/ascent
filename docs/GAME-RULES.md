@@ -1198,15 +1198,18 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   hand grants, Gold, ...). Combat stays 1:1 symmetric.
 - **Who fights first.** Seats 1 and 3 on odd rounds, 2 and 4 on even rounds. Either teammate may flip it during the
   shop, until their team's first End Turn.
-- **Team hearts.** 7 per team. The losing team loses 1 heart, or 2 when the winning team never needed its second board;
-  a draw costs nobody. A team at 0 is out together (both players 3rd) and the other team wins (both 1st). XP: 125 for
-  each winner, 50 for each loser.
+- **Team hearts and placement.** 7 per team. The losing team loses 1 heart, or 2 when the winning team never needed
+  its second board; a draw costs nobody. A team at 0 is out together. Placement is by TEAM (owner: "In duos you only
+  place 1 and 2 in a 2v2"): the winning team is 1st (both players), the losing team 2nd (both). XP: 125 for each winner,
+  50 for each loser. Teams are kept as their own record (id, hearts, placement), so a future 4-team Duos places teams
+  1st to 4th the same way.
 - **Passing.** During the shop a player may drag a minion or a spell from their hand or board onto their teammate's
   portrait to give it to them, for 1 Gold. It arrives in the teammate's hand with everything it carried (stats,
   keywords, enchantments, Gilded) and cannot be passed again that turn. Passing closes at your own End Turn and when
-  the clock runs out. A pass to a full hand waits and lands the moment there is room; one that arrives during the fight
-  lands in the next shop. Arriving is "a card added to your hand" like any other. Runes, Equipment, quests and the
-  Starform cannot be passed.
+  the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
+  the refusal and the card stays yours, and you are not charged. If the teammate's hand fills up while the pass is on
+  its way, it is refused when it arrives and the card and the Gold come back to you. Arriving is "a card added to your
+  hand" like any other. Runes, Equipment, quests and the Starform cannot be passed.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
   (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out.
 

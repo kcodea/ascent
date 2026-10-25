@@ -8621,18 +8621,21 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'round is ONE tag-team fight, team against team. Who fights first alternates by round (seats 1 and 3 on odd rounds, 2 and 4 on even '
       + 'rounds) and either teammate may flip it during the shop until their team\x27s first End Turn; an empty board hands straight over to '
       + 'the teammate. Each team has 7 hearts: the losing team loses 1, or 2 when the winning team never needed its second board; a draw '
-      + 'costs nobody. A team at 0 hearts is out together and the other team wins. Leaving or conceding puts the whole team out. Three '
-      + 'auto-played rounds in a row put the team out. Gold and shops are separate. Unrated. XP: 125 for each winner, 50 for each loser.',
+      + 'costs nobody. A team at 0 hearts is out together and the other team wins. Placement is by team: the winning team is 1st and the '
+      + 'losing team 2nd, both players each; teams are their own record (id, hearts, placement), so more teams place the same way. '
+      + 'Leaving or conceding puts the whole team out. Three auto-played rounds in a row put the team out. Gold and shops are separate. '
+      + 'Unrated. XP: 125 for each winner, 50 for each loser.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'EXACTLY 2v2: 4 players, 2 teams, fits the current 4-seat Versus room and server. Unrated, like group mode.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (approving the 14 recommended defaults)', quote: 'you have all the rules right except passing should cost 1 gold' },
-      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (resolveVersusDuosRound, duosMemberView); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_commit_round, versus_duos_flip_order, versus_group__eliminate); supabase/functions/versus-resolve/index.ts finalize_duos' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (placement)', quote: 'In duos you only place 1 and 2 in a 2v2. We will likely add 4 team duos at some point as well.' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (resolveVersusDuosRound, duosMemberView, duosTeamOf); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-25-versus-duos.sql (versus_group_teams, versus_duos_commit_round, versus_duos_flip_order, versus_group__eliminate); supabase/migrations/2026-10-25-versus-duos-xp.sql (settle_progression); supabase/functions/versus-resolve/index.ts finalize_duos' },
     ],
     currentBehaviour: 'Engine + server built 2026-10-25 (feat/versus-duos phase 1); the migration and the versus-resolve redeploy are the lead\x27s to apply. The room and in-game UI are phase 2.',
     example: 'Round 1: Ann (seat 1) and Cat (seat 3) fight first. Ann\x27s board beats Cat\x27s and then Dan\x27s without Bob ever stepping in: Cat and Dan\x27s team drops from 7 hearts to 5.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/progression/src/versusSpectatorXp.db.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-PASS-01',
@@ -8641,15 +8644,16 @@ export const FOUNDATION_RULES: GameRule[] = [
       'In Versus Duos a player may pass a minion or a spell from their hand or board to their teammate during the shop, for 1 Gold (the '
       + 'sender pays, as any Gold spend). The card arrives in the teammate\x27s hand with everything it carried: stats, keywords, enchantments, '
       + 'Gilded. A card that arrived by a pass cannot be passed again that turn. Passing closes at your own End Turn and when the shop clock '
-      + 'runs out. If the teammate\x27s hand is full the card waits and lands the moment there is room; a card arriving during the fight lands '
-      + 'in the next shop. Arriving in hand is a card added to the hand like any other. The server records each pass exactly once, only '
-      + 'between teammates, at most 10 per player per round.',
+      + 'runs out. A pass to a full hand is refused: the sender keeps the card and is not charged; if the hand fills while the pass is on '
+      + 'its way, it is refused on arrival and the card and the Gold go back to the sender. Arriving in hand is a card added to the hand '
+      + 'like any other. The server records each pass exactly once, only between teammates, at most 10 per player per round.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'drag a card from your hand/board to your teammate\x27s portrait to give it to them.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings)', quote: 'passing should cost 1 gold' },
-      { kind: 'code', ref: 'packages/sim/src/duosPass.ts (passCard / receivePass); supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_passes, versus_duos_pass)' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (full hand)', quote: 'Pass is refused if hand is full.' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts (passCard / receivePass / passRefunded); supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_passes, versus_duos_pass, versus_duos_hand_room, versus_duos_answer_pass)' },
     ],
     currentBehaviour: 'Run actions + server built 2026-10-25 (feat/versus-duos phase 1); the drag to the teammate portrait and its animation are phase 2.',
     example: 'Ann has 3 Gold and drags a Gilded Taunt from her board to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob cannot send it straight back this turn.',

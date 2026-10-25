@@ -32,7 +32,7 @@ import { noteHandCastPlay, applyChooseOnePlayed, spendChooseBothCharge, noteSpel
 import { createRun, handCap, withRuneAcquisition, runeGrantOverflow, recordBounceFx, mixSeed, reservedHandSlots, TAG, henchmanOffer, type Action, type DeferredFight, type PreparedCombatSide, type ActiveQuest, type AuraFxTribe, type BoardCard, type CardBuff, type ShopCard, type CiaSuit, type Commission, type CommissionKind, type RunState, type RubyLandedFx, type SotBeatSource, gateUses, procRune, procRuneId, runeBuffMagnitude, PACKCRAFT_STEP, REINVESTMENT_PER_SUMMON, SLAYING_KILLS, EQUIPMENT_FX_ANCHOR } from './state';
 import { alignmentsOf } from './alignment';
 import { blockedByShopClock } from './shopClock';
-import { applyDuosPass, landDuosInbox, receiveDuosPass } from './duosPass';
+import { applyDuosPass, receiveDuosPass, refundDuosPass } from './duosPass';
 import { pushSotBeat, recordSotBeat } from './sotBeat';
 import { RUNE_DUP_SWEETENER, RUNE_DUP_UNIQUE, forgeFilteredDuplicate, runeStacksOf } from './runeDup';
 import { spellFizzles } from './spellFizzle';
@@ -941,9 +941,6 @@ export function reduce(state: RunState, action: Action): RunState {
     state = settled;
   }
   const next = reduceCore(state, action);
-  // VERSUS DUOS: a pass that waited for room lands the moment there is some (before the hand diff, so it fires the
-  // "a card is added to your hand" triggers like any arrival).
-  if (next !== state && next.duos?.inbox.length) landDuosInbox(next);
   // THE POST-BUFF PHASE (owner 2026-10-18): a refresh's stat MULTIPLIERS (Rune of the Embers) resolve here, after
   // EVERYTHING the action did — so they double the final value, never a value an additive buff then tops up. Ahead
   // of the boundary diffs below on purpose: Starform growth, the "give Shop minions stats" tally and the rest must
@@ -1444,6 +1441,7 @@ function reduceCore(state: RunState, action: Action): RunState {
   if (state.phase === 'gameover' || state.phase === 'victory') return state;
   // VERSUS DUOS (R-DUOS-PASS-01): a teammate's pass lands whatever the phase or modal (it waits for room / the Shop).
   if (action.type === 'receivePass') return receiveDuosPass(state, action.from, action.seq, action.card);
+  if (action.type === 'passRefunded') return refundDuosPass(state, action.seq);
   // Nothing owed — a late or duplicate resolve (the UI timer racing a click) is a free no-op, not a clone.
   if (action.type === 'resolveShopDeath' && !state.pendingDeath) return state;
   // No window open — a late or duplicate expiry tick (Thymepiece) is a free no-op, not a clone.

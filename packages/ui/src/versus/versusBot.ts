@@ -11,7 +11,7 @@
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { activeSet, contentRevision } from '@game/content';
-import type { RunState, VersusGroupSeat } from '@game/sim';
+import { normalizeVersusOptions, type RunState, type VersusGroupSeat } from '@game/sim';
 import { create } from 'zustand';
 import { currentUserId } from '../identity';
 import { VersusBotDriver, type BotStepResult, type VersusBotHooks } from './versusBotDriver';
@@ -118,6 +118,14 @@ async function loop(h: BotHost): Promise<void> {
     // The match is over (or the room is gone): keep watching the continuous room for the next match.
     const room = info ? await h.remote.room(info.roomId).catch(() => null) : null;
     if (!room || !room.members.some((m) => m.userId === info?.userId)) { await stopVersusBotSlot(h.slot); return; }
+    // A bot that went to the stands (it conceded or was knocked out) sits back down once the room reopens, so the
+    // host can start the next test straight away.
+    const me = room.members.find((m) => m.userId === info?.userId);
+    if (room.status === 'open' && me?.role === 'spectator') {
+      const roles = normalizeVersusOptions(room.options).mode === 'duel' ? ['p1', 'p2'] : ['p1', 'p2', 'p3', 'p4'];
+      const free = roles.find((r) => !room.members.some((m) => m.role === r)) as VersusRole | undefined;
+      if (free) await h.remote.takeSeat(room.id, free).catch(() => undefined);
+    }
   }
   // Small random gaps so it feels alive; the driver itself ends its turn with time to spare.
   schedule(h, r === 'acted' ? 250 + Math.random() * 550 : 500);

@@ -161,8 +161,6 @@ export interface VersusGroupMatchRaw {
   end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
   completed_at: string | null;
   serverNow?: string;
-  /** VERSUS DUOS (2026-10-25-versus-duos.sql): which seat of each team fights first this round (null in a group match). */
-  duos_first?: { a: VersusGroupSeat; b: VersusGroupSeat } | null;
   seats: VersusGroupSeatRow[];
 }
 
@@ -468,8 +466,6 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     });
     if (error) throw new VersusError('finalize_failed', (error as Error).message);
   },
-  /** VERSUS DUOS: flip which of my team's boards fights first this round (until my team locks). */
-  duosFlipOrder: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_duos_flip_order', { p_match: matchId }),
   /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
   duosPass: (matchId: string, round: number, seq: number, card: unknown) =>
     rpc<VersusDuosPassRow>('versus_duos_pass', { p_match: matchId, p_round: round, p_seq: seq, p_card: card }),

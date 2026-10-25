@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus Duos: who fights first on your team is now picked at random each round.',
+        details: [
+          'Each round it is a 50/50 for each team. Nobody can change it.',
+          'The plate above the rail says who fights first for the whole shop.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Versus Duos: a new 2v2 room mode. Team up and fight as a tag team.',
         details: [
           'Pick 2v2 in Room options. The left seats are one team, the right seats the other.',
@@ -67,7 +75,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Seven hearts per team. A loss costs 1 heart, or 2 if the winners never needed their second board.',
           'Your teammate\'s portrait sits bottom right. Drag a card from your hand or board onto it to give it to them. It glows when the pass will work. It costs 1 Gold. A full hand refuses it, and so does a teammate who is away.',
           'Click your teammate\'s portrait, or hold Tab, to watch their board live. Click your own portrait, press Esc, or let go of Tab to return.',
-          'The plate above the rail says who fights first. Either of you can swap it until your team locks in.',
+          'The plate above the rail says who fights first.',
         ],
       },
       {

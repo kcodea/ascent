@@ -771,8 +771,10 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 /* A passed card's slot while its face-down card is still on its way out of the teammate portrait (passLob.playArrival). */
 .row.hand .card.passincoming { opacity: 0; }
 
-/* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static. */
-.duosorder { position: fixed; top: 54px; right: 16px; z-index: 35; white-space: nowrap; }
+/* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static and display only
+   (R-DUOS-ORDER-01: the order is a seeded 50/50, never a player choice): no pointer events, so no hover look and no
+   cursor swap. */
+.duosorder { position: fixed; top: 54px; right: 16px; z-index: 35; white-space: nowrap; pointer-events: none; }
 
 /* VERSUS DUOS: THE SWAP SWEEP between my board and my teammate's (teammateView.turn; R-DUOS-VIEW-01). One pre-made
    full-screen team panel parked off screen on its own layer; a swap only moves it (transform, compositor-run). Static

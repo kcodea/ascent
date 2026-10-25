@@ -14,7 +14,7 @@ import { handCap, type BoardCard, type PreparedCombatSide, type RunState } from 
 import { DUOS_PASS_GOLD } from '../duosPass';
 import { canonicalJson } from './canonical';
 import {
-  duosDefaultFirst, duosMateOf, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
+  duosMateOf, duosRandomFirst, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
   VERSUS_DUOS_PASS_GOLD, VERSUS_DUOS_STOMP_HEARTS,
 } from './duos';
 import { versusCombatSeed } from './combat';
@@ -36,10 +36,52 @@ describe('Versus Duos teams and order (R-DUOS-01)', () => {
     expect(duosMateOf('p4')).toBe('p3');
   });
 
-  it('the first board alternates by round: p1 / p3 on odd rounds, p2 / p4 on even ones', () => {
-    expect(duosDefaultFirst(1)).toEqual({ a: 'p1', b: 'p3' });
-    expect(duosDefaultFirst(2)).toEqual({ a: 'p2', b: 'p4' });
-    expect(duosDefaultFirst(7)).toEqual({ a: 'p1', b: 'p3' });
+  // R-DUOS-ORDER-01 (owner 2026-10-25): "I want the 'who fights first' to be a 50/50, not a player decision for duos
+  // teams. Every round it should say who fights first but players cannot decide who it is."
+  it('who fights first is a seeded pick: the same seed + round + team always gives the same seat', () => {
+    for (const seed of [1, 9, 123456, -77, 0x7fffffff]) {
+      for (let round = 1; round <= 12; round++) {
+        const f = duosRandomFirst(seed, round);
+        expect(duosRandomFirst(seed, round)).toEqual(f);
+        expect(['p1', 'p2']).toContain(f.a);
+        expect(['p3', 'p4']).toContain(f.b);
+      }
+    }
+  });
+
+  it('who fights first is roughly 50/50 per team, independent between the teams, and varies by round', () => {
+    const N = 4000;
+    let a1 = 0;
+    let b3 = 0;
+    let both = 0;
+    let changed = 0;
+    for (let i = 0; i < N; i++) {
+      const seed = 1000 + Math.floor(i / 20);
+      const round = (i % 20) + 1;
+      const f = duosRandomFirst(seed, round);
+      if (f.a === 'p1') a1++;
+      if (f.b === 'p3') b3++;
+      if (f.a === 'p1' && f.b === 'p3') both++;
+      if (round > 1 && duosRandomFirst(seed, round - 1).a !== f.a) changed++;
+    }
+    expect(a1 / N).toBeGreaterThan(0.46);
+    expect(a1 / N).toBeLessThan(0.54);
+    expect(b3 / N).toBeGreaterThan(0.46);
+    expect(b3 / N).toBeLessThan(0.54);
+    expect(both / N).toBeGreaterThan(0.21); // independent teams: about a quarter
+    expect(both / N).toBeLessThan(0.29);
+    expect(changed / (N * 0.95)).toBeGreaterThan(0.44); // no alternation pattern, no stickiness
+    expect(changed / (N * 0.95)).toBeLessThan(0.56);
+  });
+
+  it('no player input can set the order: the round input has no order field and the resolver fights the seeded pick', () => {
+    const f = duosRandomFirst(31, 3);
+    const big = side(sandbag(1, 5, 5, 'x'));
+    // A smuggled order (the old flip's shape, the opposite of the pick) is ignored.
+    const smuggled = { first: { a: duosMateOf(f.a), b: duosMateOf(f.b) } };
+    const r = resolveVersusDuosRound({ matchSeed: 31, round: 3, sides: { p1: big, p2: big, p3: big, p4: big }, ...smuggled } as Parameters<typeof resolveVersusDuosRound>[0]);
+    expect(r.first).toEqual(f);
+    expect(r.aResult.duosFirst).toEqual(f);
   });
 
   it('the room option: "duos" is a mode of exactly four seats', () => {
@@ -59,13 +101,20 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
   const big = side(sandbag(1, 40, 400, 'big'));
   const small = side(sandbag(1, 1, 2, 'small'));
 
+  // Seat the boards by the seeded pick of (9, round 1): `fa` fights first for team A, `ma` is its teammate.
+  const pick = duosRandomFirst(9, 1);
+  const fa = pick.a;
+  const ma = duosMateOf(pick.a);
+  const fb = pick.b;
+  const mb = duosMateOf(pick.b);
+
   it('the winner that never needed its second board costs the losers 2 hearts; one that did, 1; a draw 0', () => {
-    const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p1: big, p2: small, p3: small, p4: small } });
+    const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: big, [ma]: small, [fb]: small, [mb]: small } });
     expect(stomp.outcome).toBe('a');
     expect(stomp.losingTeam).toBe('b');
     expect(stomp.heartsLost).toBe(VERSUS_DUOS_STOMP_HEARTS);
-    // Team A's first board (p1, round 1) is small this time: it falls, p2 steps in and wins: 1 heart.
-    const needed = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p1: small, p2: big, p3: small, p4: small } });
+    // Team A's first board is small this time: it falls, its teammate steps in and wins: 1 heart.
+    const needed = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: small, [ma]: big, [fb]: small, [mb]: small } });
     expect(needed.outcome).toBe('a');
     expect(needed.heartsLost).toBe(1);
     expect(needed.aResult.events.some((e) => e.type === 'tagIn' && e.side === 'player')).toBe(true);
@@ -75,14 +124,9 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
     expect(draw.losingTeam).toBeNull();
   });
 
-  it('the server\'s order is honoured (a flip), and an empty first board hands straight over', () => {
-    const flipped = resolveVersusDuosRound({ matchSeed: 9, round: 1, first: { a: 'p2' }, sides: { p1: big, p2: small, p3: small, p4: small } });
-    expect(flipped.first).toEqual({ a: 'p2', b: 'p3' });
-    expect(flipped.heartsLost).toBe(1); // p2 fell first, p1 finished it
-    // A seat of the other team can never be named as a team's first.
-    expect(resolveVersusDuosRound({ matchSeed: 9, round: 1, first: { a: 'p3' }, sides: { p1: big } }).first.a).toBe('p1');
-    const empty = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p2: big, p3: small } });
-    expect(empty.first.a).toBe('p2');
+  it('an empty first board hands straight over to its teammate', () => {
+    const empty = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [ma]: big, [fb]: small } });
+    expect(empty.first).toEqual({ a: ma, b: fb });
     expect(empty.heartsLost).toBe(VERSUS_DUOS_STOMP_HEARTS);
   });
 
@@ -96,27 +140,27 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
   });
 
   it('team B\'s view is the mirror, with the member ledger flipped to its side', () => {
-    const r = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p1: small, p2: big, p3: small, p4: small } });
+    const r = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: small, [ma]: big, [fb]: small, [mb]: small } });
     expect(r.bResult).toEqual(mirrorForEnemySeat(r.aResult));
     expect(r.bResult.tagTeam?.members.player).toEqual(r.aResult.tagTeam?.members.enemy);
     expect(r.bResult.tagTeam?.tagInAt.enemy).toBe(r.aResult.tagTeam?.tagInAt.player);
   });
 
   it('each SEAT lands its own board\'s carry-backs; a board that never fought lands none', () => {
-    const r = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p1: small, p2: big, p3: side(sandbag(2, 1, 2, 'b')), p4: small } });
-    const p1 = duosMemberView(r.aResult, duosMemberOf('p1', r.first));
-    const p2 = duosMemberView(r.aResult, duosMemberOf('p2', r.first));
-    expect(p1.duosMember).toBe(0);
-    expect(p2.duosMember).toBe(1);
-    expect(p1.playerDeaths).toBe(1); // p1's one body fell
-    expect(p2.playerDeaths).toBe(0);
-    expect((p1.enemyDeaths ?? 0) + (p2.enemyDeaths ?? 0)).toBeGreaterThan(0);
-    expect(p1.result).toBe(p2.result); // the outcome is the team's
-    // Team B: p3's two bodies fell before p4 stepped in.
-    const p3 = duosMemberView(r.bResult, duosMemberOf('p3', r.first));
-    expect(p3.playerDeaths).toBe(2);
-    const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { p1: big, p2: small, p3: small, p4: small } });
-    const idle = duosMemberView(stomp.aResult, duosMemberOf('p2', stomp.first));
+    const r = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: small, [ma]: big, [fb]: side(sandbag(2, 1, 2, 'b')), [mb]: small } });
+    const first = duosMemberView(r.aResult, duosMemberOf(fa, r.first));
+    const mate = duosMemberView(r.aResult, duosMemberOf(ma, r.first));
+    expect(first.duosMember).toBe(0);
+    expect(mate.duosMember).toBe(1);
+    expect(first.playerDeaths).toBe(1); // the first board's one body fell
+    expect(mate.playerDeaths).toBe(0);
+    expect((first.enemyDeaths ?? 0) + (mate.enemyDeaths ?? 0)).toBeGreaterThan(0);
+    expect(first.result).toBe(mate.result); // the outcome is the team's
+    // Team B: its first board's two bodies fell before its teammate stepped in.
+    const bFirst = duosMemberView(r.bResult, duosMemberOf(fb, r.first));
+    expect(bFirst.playerDeaths).toBe(2);
+    const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: big, [ma]: small, [fb]: small, [mb]: small } });
+    const idle = duosMemberView(stomp.aResult, duosMemberOf(ma, stomp.first));
     expect(idle.playerDeaths).toBe(0);
     expect(idle.enemyDeaths).toBe(0);
     expect(idle.playerDeathrattles).toBe(0);
@@ -209,7 +253,9 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
   it('team ids are letters by seat pair, so N teams extend the same helpers', () => {
     expect(duosTeamSeats('a')).toEqual(['p1', 'p2']);
     expect(duosTeamSeats('b')).toEqual(['p3', 'p4']);
-    expect(duosDefaultFirst(3, 4)).toEqual({ a: 'p1', b: 'p3', c: 'p5', d: 'p7' });
-    expect(duosDefaultFirst(4, 4)).toEqual({ a: 'p2', b: 'p4', c: 'p6', d: 'p8' });
+    const four = duosRandomFirst(77, 3, 4);
+    expect(Object.keys(four)).toEqual(['a', 'b', 'c', 'd']);
+    for (const [t, s] of Object.entries(four)) expect(duosTeamSeats(t)).toContain(s);
+    expect({ a: four.a, b: four.b }).toEqual(duosRandomFirst(77, 3)); // adding teams never reshuffles the first two
   });
 });

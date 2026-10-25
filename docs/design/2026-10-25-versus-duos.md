@@ -305,8 +305,11 @@ worry about the deep duo mechanics yet").
 ## 6. RULINGS (owner 2026-10-25: "you have all the rules right except passing should cost 1 gold")
 
 1. Team hearts: **7 per team**.
-2. Who fights first: **alternate each round (seat order); either teammate may flip it during the shop**, locked at the
-   team's first End Turn.
+2. Who fights first: ~~alternate each round (seat order); either teammate may flip it during the shop, locked at the
+   team's first End Turn~~. **SUPERSEDED (owner ruling 2026-10-25, R-DUOS-ORDER-01):** "I want the 'who fights first'
+   to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but players cannot
+   decide who it is." Each team's first board is a seeded 50/50 per round (`duosRandomFirst(matchSeed, round)`), shown
+   all shop long on a display-only plate; the flip RPC is dropped (`2026-10-25-versus-duos-random-order.sql`).
 3. The second board's Start of Combat, hero effects, next-combat spells and rune/quest mods: **fire on step-in**.
 4. Hearts: **1 per lost fight, 2 when the winner never needed its second board.**
 5. Attack order at step-in: **the turn pointer continues; the incoming board starts from its leftmost.**

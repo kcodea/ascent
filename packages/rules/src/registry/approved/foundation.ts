@@ -8618,9 +8618,8 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, 7 team hearts, 2 for a stomp, concede = the team out',
     statement:
       'A Versus room set to Duos seats exactly 4 players and starts only with 4: seats 1 and 2 are one team, seats 3 and 4 the other. Each '
-      + 'round is ONE tag-team fight, team against team. Who fights first alternates by round (seats 1 and 3 on odd rounds, 2 and 4 on even '
-      + 'rounds) and either teammate may flip it during the shop until their team\x27s first End Turn; an empty board hands straight over to '
-      + 'the teammate. Each team has 7 hearts: the losing team loses 1, or 2 when the winning team never needed its second board; a draw '
+      + 'round is ONE tag-team fight, team against team. Who fights first on each team is a 50/50 pick every round that no player can change '
+      + '(R-DUOS-ORDER-01); an empty board hands straight over to the teammate. Each team has 7 hearts: the losing team loses 1, or 2 when the winning team never needed its second board; a draw '
       + 'costs nobody. A team at 0 hearts is out together and the other team wins. Placement is by team: the winning team is 1st and the '
       + 'losing team 2nd, both players each; teams are their own record (id, hearts, placement), so more teams place the same way. '
       + 'Leaving or conceding puts the whole team out. Three auto-played rounds in a row put the team out. Gold and shops are separate. '
@@ -8631,11 +8630,29 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'EXACTLY 2v2: 4 players, 2 teams, fits the current 4-seat Versus room and server. Unrated, like group mode.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (approving the 14 recommended defaults)', quote: 'you have all the rules right except passing should cost 1 gold' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (placement)', quote: 'In duos you only place 1 and 2 in a 2v2. We will likely add 4 team duos at some point as well.' },
-      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (resolveVersusDuosRound, duosMemberView, duosTeamOf); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-25-versus-duos.sql (versus_group_teams, versus_duos_commit_round, versus_duos_flip_order, versus_group__eliminate); supabase/migrations/2026-10-25-versus-duos-xp.sql (settle_progression); supabase/functions/versus-resolve/index.ts finalize_duos' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (resolveVersusDuosRound, duosMemberView, duosTeamOf); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-25-versus-duos.sql (versus_group_teams, versus_duos_commit_round, versus_group__eliminate); supabase/migrations/2026-10-25-versus-duos-xp.sql (settle_progression); supabase/functions/versus-resolve/index.ts finalize_duos' },
     ],
     currentBehaviour: 'Engine + server built 2026-10-25 (feat/versus-duos phase 1); the migration and the versus-resolve redeploy are the lead\x27s to apply. The room and in-game UI are phase 2.',
-    example: 'Round 1: Ann (seat 1) and Cat (seat 3) fight first. Ann\x27s board beats Cat\x27s and then Dan\x27s without Bob ever stepping in: Cat and Dan\x27s team drops from 7 hearts to 5.',
+    example: 'Round 1: Ann (seat 1) and Cat (seat 3) are picked to fight first. Ann\x27s board beats Cat\x27s and then Dan\x27s without Bob ever stepping in: Cat and Dan\x27s team drops from 7 hearts to 5.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/progression/src/versusSpectatorXp.db.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-ORDER-01',
+    title: 'Versus Duos: who fights first on each team is a seeded 50/50 every round, shown all shop long, never a player choice',
+    statement:
+      'In Versus Duos, which teammate\x27s board fights first is picked at random for each team every round, 50/50, and no player can '
+      + 'change it. The pick is known when the round\x27s shop opens and is shown the whole shop as "<Name> fights first" (or "You fight '
+      + 'first"), on a plate that is display only. Every player, the server and a replay land the same pick: it comes from the match seed, '
+      + 'the round and the team through the one seeded RNG. An empty first board still hands straight over to the teammate.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (fight order)', quote: 'I want the \x27who fights first\x27 to be a 50/50, not a player decision for duos teams. Every round it should say who fights first but players cannot decide who it is.' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (duosRandomFirst, versusDuosOrderSeed, resolveVersusDuosRound); packages/sim/src/versus/duosFinalize.ts; packages/ui/src/versus/versusGroupView.ts (duosFirstAt); packages/ui/src/versus/DuosOrderPlate.tsx; supabase/migrations/2026-10-25-versus-duos-random-order.sql (versus_duos_flip_order dropped)' },
+    ],
+    currentBehaviour: 'Changed 2026-10-25 (fix/duos-fight-order-random). Before, the order alternated by round and either teammate could flip it in the shop until the team\x27s first End Turn; the flip (plate click, store call, RPC) is gone. Committed fights keep the order they fought in their own result, so old matches and replays read as before.',
+    example: 'Round 4: the shop opens and the plate says "Bob fights first". Neither Ann nor Bob can change it. Bob\x27s board fights first; if it falls, Ann\x27s steps in.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-PASS-01',

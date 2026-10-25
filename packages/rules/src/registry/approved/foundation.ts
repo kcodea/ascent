@@ -8695,14 +8695,13 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the same RPCs and run actions a person\x27s client uses, and registers itself as that host\x27s bot. The dev menu\x27s "Versus Bots + Duos" '
       + 'panel forces the Duos mechanics on demand through the real paths where it can (a bot passing through its run and the pass RPCs, '
       + 'the bot answering passes, real refusals, real fights, real concedes) and labels the rest dev: a set-up board for the next fight, a '
-      + 'full bot hand, no Gold, and the server RPCs to set hearts, end the shop and pick who fights first, which open only to the room\x27s host '
+      + 'full bot hand, no Gold, and the server RPCs to set hearts and end the shop, which open only to the room\x27s host '
       + 'on a table of only that host\x27s bots and mark the match as forced. A bot account, and every player and spectator of a forced match, '
       + 'never earns XP from it (the server refuses the progression row). Bots never count toward Versus records (anonymous accounts never do).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Duos dev tuner)', quote: 'maybe if you have a bot teammate, have a dev tuner that says like... pass a card etc etc so i can just force the various mechanics' },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (fight order)', quote: 'who fights first becomes a seeded 50/50 each round, players can\x27t choose it (the tuner keeps a dev-only override)' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusBot.ts (three bot slots); packages/ui/src/versus/versusBotApi.ts (group / Duos routing + projection); packages/ui/src/versus/versusBotDriver.ts (Duos passes, dev hooks); packages/ui/src/versus/VersusBotsTuner.tsx; packages/ui/src/versus/duosDevTuner.ts; supabase/migrations/2026-10-25-versus-test-bots.sql' },
     ],
     currentBehaviour: 'Built 2026-10-25 (feat/duos-dev-tuner). The bots seat and play without the migration; the dev RPCs and the no-XP guard need 2026-10-25-versus-test-bots.sql applied.',

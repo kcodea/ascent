@@ -10,7 +10,7 @@
 -- 1. `versus_test_bots`: a bot account names the host whose browser drives it (`versus_test_bot_register`, called by
 --    the bot's own session; only an ANONYMOUS account can be a bot). Bots seat themselves through the ordinary room
 --    RPCs, exactly as before; nothing here changes how a person joins or plays.
--- 2. The dev forcing RPCs `versus_dev_set_hearts`, `versus_dev_skip_shop` and `versus_dev_set_first`: only the room's HOST, and only in a group
+-- 2. The dev forcing RPCs `versus_dev_set_hearts` and `versus_dev_skip_shop`: only the room's HOST, and only in a group
 --    or Duos match where EVERY other seat is one of that host's registered bots (a solo test table). Using one marks the
 --    match `dev_forced`.
 -- 3. No XP from a test: a trigger on `progression_results` refuses a row for a registered bot account, and any row
@@ -133,33 +133,6 @@ begin
 end;
 $$;
 
--- DEV ONLY: force which board of a team fights first THIS round (owner 2026-10-25: the order is the server's seeded
--- 50/50 each round and players never choose it; the tuner overrides it for a test). Shop only, before the team locks.
-create or replace function public.versus_dev_set_first(p_match uuid, p_seat text)
-returns jsonb
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  m public.versus_group_matches;
-  v_team text;
-  v_now timestamptz := public.versus_clock();
-begin
-  m := public.versus_dev__gate(p_match);
-  if not public.versus_duos__is(m) then raise exception 'not_duos'; end if;
-  if m.phase <> 'shop' then raise exception 'not_shop'; end if;
-  if not exists (select 1 from public.versus_group_seats where match_id = m.id and seat = p_seat) then raise exception 'bad_seat'; end if;
-  v_team := public.versus_duos__team(p_seat);
-  if exists (select 1 from public.versus_group_seats where match_id = m.id and team = v_team and locked) then raise exception 'team_locked'; end if;
-  update public.versus_group_matches set
-    duos_first = jsonb_set(coalesce(duos_first, public.versus_duos__default_first(round, seat_count / 2)), array[v_team], to_jsonb(p_seat)),
-    revision = revision + 1, updated_at = v_now
-    where id = m.id returning * into m;
-  return public.versus_group__match_json(m);
-end;
-$$;
-
 -- ── 3. No XP from a test ────────────────────────────────────────────────────────────────────────────────────────
 create or replace function public.versus_dev__no_xp()
 returns trigger
@@ -195,8 +168,6 @@ revoke all on function public.versus_dev__no_xp() from public, anon, authenticat
 revoke all on function public.versus_test_bot_register(uuid, int) from public;
 revoke all on function public.versus_dev_set_hearts(uuid, text, int) from public;
 revoke all on function public.versus_dev_skip_shop(uuid) from public;
-revoke all on function public.versus_dev_set_first(uuid, text) from public;
 grant execute on function public.versus_test_bot_register(uuid, int) to authenticated;
 grant execute on function public.versus_dev_set_hearts(uuid, text, int) to authenticated;
 grant execute on function public.versus_dev_skip_shop(uuid) to authenticated;
-grant execute on function public.versus_dev_set_first(uuid, text) to authenticated;

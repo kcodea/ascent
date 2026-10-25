@@ -3,7 +3,7 @@
  * `finalize_duos` handler (owner 2026-10-25: "id like the ability to test the various mechanics with bots").
  *
  *  - 2026-10-25-versus-test-bots.sql: only an anonymous account registers as a bot; the dev RPCs (hearts, skip the
- *    shop, who fights first) open only to the room's host on a table of that host's own bots, and mark the match
+ *    shop) open only to the room's host on a table of that host's own bots, and mark the match
  *    `dev_forced`; no XP row is ever written for a bot or for a forced match.
  *  - Four `VersusBotDriver`s (through `makeBotMatchApi`, the adapter the browser uses) fill a Duos room, gate, pick,
  *    shop, lock and play it to the end; a bot passes to its teammate bot through the real pass RPCs and run actions
@@ -263,16 +263,13 @@ describe('the dev forcing RPCs', () => {
     expect((await theMatch()).dev_forced).toBe(false);
   });
 
-  it('skip the shop: the clock jumps to 5 seconds; who fights first: a dev override until the team locks', async () => {
+  it('skip the shop: the clock jumps to 5 seconds (or stays, if less is left)', async () => {
     const id = await running();
     await as(HOST, 'select public.versus_dev_skip_shop($1)', [id]);
     expect(new Date((await theMatch()).shop_deadline).getTime()).toBe(clock + 5000);
-    const before = (await theMatch()).duos_first;
-    const mate = before.a === 'p1' ? 'p2' : 'p1';
-    await as(HOST, 'select public.versus_dev_set_first($1, $2)', [id, mate]);
-    expect((await theMatch()).duos_first).toEqual({ ...before, a: mate });
-    await as(B2, `select public.versus_group_submit($1, 1, 1, '{}'::jsonb, true, null, null)`, [id]);
-    expect(await fails(HOST, `select public.versus_dev_set_first($1, 'p1')`, [id])).toMatch(/team_locked/);
+    clock += 3000;
+    await as(HOST, 'select public.versus_dev_skip_shop($1)', [id]);
+    expect(new Date((await theMatch()).shop_deadline).getTime()).toBe(clock + 2000);
   });
 
   it('no XP: a row for a bot, or for a forced match, is refused; an ordinary one goes in', async () => {

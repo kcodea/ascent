@@ -8,7 +8,8 @@
  * RPCs; your pass lands in the bot's run, which answers the server; a refusal is a real refusal (a full hand, an away
  * teammate, no Gold, the clock); a forced fight is the real resolver on boards set up for it; a concede is the real
  * forfeit. What only a test needs (a hand topped up, a board replaced, the hearts, the clock, the fight order) is a
- * dev edit or a dev RPC (`versus_dev_*`, the host's bot-only tables, no XP), labelled "dev" here.
+ * dev edit or a dev RPC (`versus_dev_*`, the host's bot-only tables, no XP), labelled "dev" here. Who fights first is
+ * the server's seeded 50/50 (R-DUOS-ORDER-01) and the resolver reads only the seed, so the panel shows it, never sets it.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { duosTeamOf, handCap, poolOf, type RunState, type VersusGroupSeat } from '@game/sim';
@@ -238,12 +239,8 @@ export function VersusBotsTuner(): JSX.Element {
             <Btn label="Back to my board" hint="Swap back" run={() => exitTeammateView()} />
           </Section>
 
-          <Section title="Who fights first (dev)">
-            <Btn label="I fight first" hint="Dev override of this round's order for your team" disabled={match!.phase !== 'shop'}
-              run={() => say(versusRemote.devSetFirst(match!.id, mySeat), 'You fight first this round.')} />
-            <Btn label="Teammate fights first" hint="Dev override of this round's order for your team" disabled={match!.phase !== 'shop' || !duos.mate}
-              run={() => say(versusRemote.devSetFirst(match!.id, duos.mate!), 'Your teammate fights first this round.')} />
-            <span className="duostuner-line">This round: {duos.first.a} and {duos.first.b} lead.</span>
+          <Section title="Who fights first">
+            <span className="duostuner-line">This round {duos.first[duos.team] === mySeat ? 'you fight' : 'your teammate fights'} first (seeded each round; nobody picks it). The forced fights below follow it.</span>
           </Section>
 
           <Section title="Next fight (dev boards)">

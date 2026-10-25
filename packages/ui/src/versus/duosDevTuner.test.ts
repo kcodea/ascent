@@ -4,21 +4,26 @@
  * and `resolveVersusDuosRound` (what versus-resolve runs) must show exactly the mechanic the button names.
  */
 import { describe, expect, it } from 'vitest';
-import { createVersusRun, normalizeVersusOptions, reduce, resolveVersusDuosRound, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
+import { createVersusRun, duosRandomFirst, normalizeVersusOptions, reduce, resolveVersusDuosRound, type PreparedCombatSide, type VersusGroupSeat } from '@game/sim';
 import { DUOS_SCENARIO_LABEL, scenarioBoard, vanillaMinionId, withAddedCard, withForcedBoard, withGold, type DuosScenario } from './duosDevTuner';
 import { fillHand } from './versusBotDriver';
 
 const SEATS: VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
 const OPTS = normalizeVersusOptions({ v: 1, mode: 'duos', modifiers: [] });
 
-function fight(kind: DuosScenario, first = { a: 'p1' as VersusGroupSeat, b: 'p3' as VersusGroupSeat }) {
+/** A match seed whose round-1 order (the server's seeded 50/50, R-DUOS-ORDER-01) puts `lead` first for team a. */
+const seedFor = (lead: VersusGroupSeat): number => { for (let k = 1; ; k++) if (duosRandomFirst(k, 1).a === lead) return k; };
+
+function fight(kind: DuosScenario, lead: VersusGroupSeat = 'p1') {
+  const matchSeed = seedFor(lead);
+  const first = duosRandomFirst(matchSeed, 1);
   const sides: Partial<Record<VersusGroupSeat, PreparedCombatSide>> = {};
   SEATS.forEach((seat, i) => {
     const run = withForcedBoard(createVersusRun(100 + i, 'warden', 'set2', OPTS), scenarioBoard(kind, seat, 'p1', first));
     const ended = reduce(run, { type: 'faceOmen', deferFight: true });
     sides[seat] = ended.pendingCombatSide!;
   });
-  return resolveVersusDuosRound({ matchSeed: 7, round: 1, first, sides });
+  return resolveVersusDuosRound({ matchSeed, round: 1, sides });
 }
 const tagIns = (r: ReturnType<typeof fight>) => r.aResult.events.filter((e) => e.type === 'tagIn').map((e) => (e as { side: string }).side);
 
@@ -45,8 +50,8 @@ describe('the Duos dev tuner (R-DUOS-DEVTUNER-01)', () => {
   });
 
   it('follows the round\'s order: my teammate leading is the board that falls', () => {
-    const r = fight('ourHandoff', { a: 'p2', b: 'p4' });
-    expect(r.first).toEqual({ a: 'p2', b: 'p4' });
+    const r = fight('ourHandoff', 'p2');
+    expect(r.first.a).toBe('p2');
     expect(tagIns(r)).toContain('player');
     expect(r.outcome).toBe('a');
   });

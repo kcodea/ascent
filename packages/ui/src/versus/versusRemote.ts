@@ -490,8 +490,6 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     rpc<VersusGroupMatchRaw>('versus_dev_set_hearts', { p_match: matchId, p_seat: seat, p_hearts: hearts }),
   /** DEV: the shop clock jumps to 5 seconds. */
   devSkipShop: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_dev_skip_shop', { p_match: matchId }),
-  /** DEV (Duos): `seat`'s board fights first for its team this round. */
-  devSetFirst: (matchId: string, seat: VersusGroupSeat) => rpc<VersusGroupMatchRaw>('versus_dev_set_first', { p_match: matchId, p_seat: seat }),
 
   /** Ask the resolver to settle a group round (`finalize_group`, idempotent server-side). */
   async finalizeGroup(matchId: string, round: number, contentRevision: string): Promise<void> {

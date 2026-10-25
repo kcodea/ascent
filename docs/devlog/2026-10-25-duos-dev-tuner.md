@@ -23,10 +23,10 @@ R-DUOS-DEVTUNER-01 (approved/foundation.ts). No patch note (not a gameplay chang
   bots (disconnect / reconnect, concede, remove, add), "Bots end turn after me", match (skip shop timer, concede, force
   win, force loss), team hearts, passing (the bot teammate passes you a random or a picked card), refused passes
   (teammate hand full, teammate away / back, my Gold to 0, close passing, arm the full-hand race), teammate view
-  (watch / back), who fights first (dev override: me / teammate; the order itself is the server's, see below), next
+  (watch / back), who fights first (shown, not set: see below), next
   fight (our hand-off, their hand-off, both teams wiped, all boards empty), and the bot teammate's board and hand.
 - **Server** (`supabase/migrations/2026-10-25-versus-test-bots.sql`): `versus_test_bots` (an anonymous account names the
-  host whose browser drives it); `versus_dev_set_hearts`, `versus_dev_skip_shop`, `versus_dev_set_first` open only to the
+  host whose browser drives it); `versus_dev_set_hearts` and `versus_dev_skip_shop` open only to the
   room's host on a table of only that host's bots, and mark the match `dev_forced`; a trigger on `progression_results`
   refuses XP for a bot and for anything from a forced match (as `source_not_found`, already a permanent 409 for the
   progression queue, so no Edge Function change). Records already ignore anonymous accounts.
@@ -36,8 +36,11 @@ R-DUOS-DEVTUNER-01 (approved/foundation.ts). No patch note (not a gameplay chang
 - Real paths first: passes, refusals, fights and concedes are the real ones. A forced fight sets every board of the table
   (plain minions, no effects) and lets the real resolver run, so a hero power can still nudge it. Your own board is set
   the moment you press it; each bot's as it locks ("Bots end turn after me" keeps them waiting for you).
-- Owner ruling 2026-10-25 (mid-build): who fights first becomes a seeded 50/50 each round and players never choose it
-  (another builder, fix/duos-fight-order-random). The tuner has NO player flip: only the dev override, labelled dev.
+- Owner ruling 2026-10-25 (mid-build): who fights first is a seeded 50/50 each round and players never choose it
+  (#2294, merged while this was built). The coordinator asked for a dev-only override instead of a flip, but after #2294
+  the resolver computes the order from the match seed alone (finalize_duos no longer reads `duos_first`), so an
+  override would need a resolver change and a versus-resolve redeploy. Left out: the panel SHOWS who leads this round,
+  and every forced fight is built from that order, so each one still shows its mechanic whichever board leads.
 - "Teammate hand full" also stops the bot shopping (it would otherwise play cards out of its hand and the pass would
   land); "Empty teammate hand" starts it again.
 - A forced match gives nobody XP, the human included: the dev RPCs make a test table, and a test must not farm XP.

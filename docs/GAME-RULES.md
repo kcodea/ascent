@@ -1211,7 +1211,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   its way, it is refused when it arrives and the card and the Gold come back to you. Arriving is "a card added to your
   hand" like any other. Runes, Equipment, quests and the Starform cannot be passed.
 - **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
-  (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out.
+  (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out. A
+  teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").
+  A pass that comes back to you (their hand was full, the clock) says so on the portrait. A reload keeps every pass
+  exactly once (the restored run lines its passes up with the server by card and round).
+- **Spectating a Duos match.** The fight picker lists the players by team ("Team 1", "Team 2"), and a watched player's
+  screen shows the hand-off from their side: both hero slots follow the boards.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
   side by side, never split by hearts); hearts are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") and swaps it on a

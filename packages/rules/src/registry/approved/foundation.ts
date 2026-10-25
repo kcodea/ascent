@@ -8646,7 +8646,11 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Gilded. A card that arrived by a pass cannot be passed again that turn. Passing closes at your own End Turn and when the shop clock '
       + 'runs out. A pass to a full hand is refused: the sender keeps the card and is not charged; if the hand fills while the pass is on '
       + 'its way, it is refused on arrival and the card and the Gold go back to the sender. Arriving in hand is a card added to the hand '
-      + 'like any other. The server records each pass exactly once, only between teammates, at most 10 per player per round.',
+      + 'like any other. The server records each pass exactly once, only between teammates, at most 10 per player per round. '
+      + 'A teammate who is away (their board plays on auto, or the match is paused for them) cannot be passed to: the portrait says '
+      + '"Away" and a drop is refused with "Your teammate is away" (the server refuses it too). A pass that comes back (a full hand, '
+      + 'the clock) says so on the portrait, "You got it back". After a reload the sender\x27s restored passes line up with the '
+      + 'server\x27s by card and round, never by position, so a card is never passed twice.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8654,6 +8658,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings)', quote: 'passing should cost 1 gold' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (full hand)', quote: 'Pass is refused if hand is full.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (bottom-right portrait)', quote: 'dragging a minion over their portrait should have it glow that teal/blue glow to showcase it is going to pass, then it \x27drops\x27 into their portrait kinda' },
+      { kind: 'code', ref: 'phase 3 (live 4-account test 2026-10-25): packages/ui/src/versus/duosPasses.ts (lineUpOutbox, sayReturned); packages/ui/src/versus/duosPassUi.ts (mateAway); supabase/migrations/2026-10-25-versus-duos-edges.sql (teammate_away)' },
       { kind: 'code', ref: 'packages/sim/src/duosPass.ts (passCard / receivePass / passRefunded); supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_passes, versus_duos_pass, versus_duos_hand_room, versus_duos_answer_pass)' },
     ],
     currentBehaviour: 'Run actions + server built 2026-10-25 (phase 1). Phase 2 (owner direction 2026-10-25): the pass target is the teammate portrait BOTTOM RIGHT. '
@@ -8662,7 +8667,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Gold, and the portrait pops; on the teammate\x27s screen the card comes OUT of the sender\x27s portrait (bottom right there) and flies into '
       + 'their hand, landing face up. Transform and opacity only, one-shot. Not a coalesce.',
     example: 'Ann has 3 Gold and drags a Gilded Taunt from her board to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob cannot send it straight back this turn.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/duosPassesRestore.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-VIEW-01',

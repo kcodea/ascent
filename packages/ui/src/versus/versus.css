@@ -306,7 +306,11 @@ body.vsroom-on .pixifx { z-index: 470; }
 .vsgroup .vspcard-p4, .vsgroup .vsgatebox-p4 { left: 71.5%; }
 .vsgroup .vsgatebox { width: 11%; top: 64%; }
 /* VERSUS DUOS (R-DUOS-01): a static plate over each seat pair, the room's own pill. Static paint, no animation. */
-.vsduos .vsteam { position: absolute; top: 13%; transform: translateX(-50%); pointer-events: none; white-space: nowrap; }
+.vsduos .vsteam { position: absolute; z-index: 45; top: 12%; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+  display: inline-flex; align-items: center; height: calc(34 * var(--u)); box-sizing: border-box; padding: 0 calc(22 * var(--u)); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); letter-spacing: 0.16em; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+:root[data-hp-look="gem"] .vsduos .vsteam.hudpill-name { color: var(--ui-title); }
 .vsduos .vsteam-a { left: 29.25%; }
 .vsduos .vsteam-b { left: 70.75%; }
 .vsenter .vspcard-p3 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.3s both; }
@@ -690,8 +694,11 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
   pointer-events: none; animation: duostagin 0.36s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
 .duostag-player { left: 9%; }
 .duostag-enemy { right: 9%; }
-.duostag { --u: 0.82px; } /* the foe disc is sized in --u (116u): about 95px here */
-.duostag-name { white-space: nowrap; }
+.duostag { --u: 1.1px; } /* the foe disc is sized in --u (116u): about 128px here */
+.duostag-name { white-space: nowrap; display: inline-flex; align-items: center; height: 36px; box-sizing: border-box; padding: 0 18px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.06em; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+:root[data-hp-look="gem"] .duostag-name.hudpill-name { color: var(--ui-title); }
 @keyframes duostagin {
   from { opacity: 0; transform: translateY(18px) scale(0.86); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -710,14 +717,17 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 /* VERSUS DUOS (R-DUOS-VIEW-01): WATCHING YOUR TEAMMATE. A static team-colour vignette over the screen's edges (it fades
    in once: opacity only), the "Watching <Name>" plate with the way back (top centre, the room's plate buttons), and my
    own shop controls visibly inert. Nothing loops. */
-.duosview-vignette { position: fixed; inset: 0; z-index: 30; pointer-events: none;
+.duosview-vignette { position: fixed; inset: 0; z-index: 70; pointer-events: none;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(54, 156, 196, 0.34) 78%, rgba(30, 110, 150, 0.62) 100%);
   box-shadow: inset 0 0 0 3px rgba(96, 196, 230, 0.55); /* static (never animated): the teammate's frame around the screen */
   animation: duosviewfade 0.24s ease both; }
 @keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
 .duosview-bar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 10px;
   animation: duosviewfade 0.24s ease both; }
-.duosview-name { white-space: nowrap; font-size: 1.2em; }
+.duosview-name { white-space: nowrap; display: inline-flex; align-items: center; height: 40px; box-sizing: border-box; padding: 0 20px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 17px; letter-spacing: 0.06em; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+:root[data-hp-look="gem"] .duosview-name.hudpill-name { color: var(--ui-title); }
 body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
 
 /* VERSUS DUOS (R-DUOS-PASS-01): the teammate's rail row as the pass target. Static rings by state (no looping paint):

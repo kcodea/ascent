@@ -66,6 +66,8 @@ export const FAMILY_BY_MOMENT: Record<MomentKind, string> = {
   questComplete: 'quest',
   pummelTrigger: 'reaction', // a damage-meter crossing — a reaction inside the hit that crossed it
   bankedCast: 'startOfCombat', // a next-combat spell cast as the fight opens (2026-10-07)
+  boardFallen: 'death', // VERSUS DUOS: a whole board is gone
+  tagIn: 'summon', // VERSUS DUOS: the teammate's board arrives
 };
 
 /**

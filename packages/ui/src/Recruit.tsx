@@ -1,4 +1,7 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
+import { catchPulse, playLob } from './versus/passLob';
+import { duosPassRefusal, inRect, myCardBack, notePassRefused } from './versus/duosPassUi';
+import { DuosTagInPlate, useDuosCombatSync } from './versus/duosCombat';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -3032,6 +3035,8 @@ export function Recruit() {
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused, rampEnabled });
+  // VERSUS DUOS: who is fighting on each side as the hand-offs play (the opponent portrait, the "steps in" plate).
+  useDuosCombatSync(run.lastCombat, replay.replayEvents, replay.processedEnd, fighting);
   // A VERSUS SPECTATOR switching seats mid-fight continues from the same moment on the other side (both sides of the
   // one fight have the same beats, R-VERSUS-PERSPECTIVE-01): report the beat on screen, and resume at it after a switch.
   const watchingVersus = useSpectate((s) => s.active);
@@ -3883,6 +3888,7 @@ export function Recruit() {
   // be counted against the cached resting midpoints instead of calling getBoundingClientRect on every card
   // every frame. That live read was the last drag path still forcing a synchronous reflow per frame (a
   // read-after-Flip-write thrash); arithmetic against the cache removes it. Null outside a drag.
+  const duosMateRectRef = useRef<DOMRect | null>(null);
   const insertRectsRef = useRef<{ warband: { uid: string; left: number; width: number }[]; shop: { uid: string; left: number; width: number }[]; hand: { uid: string; left: number; width: number }[] } | null>(null);
   // Hand cards OVERLAP (negative margin), so their slot spacing isn't the card width — measured once per drag
   // (consecutive cached lefts) into `dragStore.handSlotW`; the hand row multiplies its per-card slot offset by it.
@@ -4555,6 +4561,9 @@ export function Recruit() {
     // pixel or two. (Flattening the fan first to "clean up" the rects would transition them back on removal —
     // the cards visibly flatten then re-fan on every pickup, the jiggle we're avoiding.)
     const handSlots = measureSlots('.row.hand .card[data-uid]');
+    // VERSUS DUOS (R-DUOS-PASS-01): the teammate's portrait, the pass target, measured ONCE per drag (never per frame).
+    duosMateRectRef.current = run.duos && (drag.source === 'hand' || drag.source === 'board') && !useSpectate.getState().active
+      ? document.querySelector('[data-duos-mate]')?.getBoundingClientRect() ?? null : null;
     insertRectsRef.current = {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
       shop: measureSlots('[data-zone="tavern"] .row .card[data-uid]').filter((c) => c.uid !== run.spell?.uid),
@@ -4645,6 +4654,14 @@ export function Recruit() {
         pixiFx.setAimLine({ x: d0.startX, y: d0.startY }, { x: e.clientX, y: e.clientY }, castAimRef.current.onTarget, getAimFxConfig(), castAimRef.current.defId);
       }
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY);
+      // VERSUS DUOS: over the teammate's portrait? (the cached rect; the pass's refusal reason when it would be refused)
+      if (d0 && duosMateRectRef.current) {
+        const over = inRect(duosMateRectRef.current, e.clientX, e.clientY);
+        const why = over ? duosPassRefusal(run, d0.uid) : null;
+        const passOver = over ? (why ? 'no' : 'ok') : null;
+        const snapNow = dragStore.get();
+        if (snapNow.passOver !== passOver || snapNow.passReason !== why) dragStore.set({ passOver, passReason: why });
+      }
       // Publish only when a VISIBLE decision changes — not on every quantum of travel. The dragged card, aim
       // line and trail all ride `dragStore.pos` frame-exact, so a store write only ever buys the DECISION-driven
       // layer: the drop-gap slides, the magnetize/cast highlights, and the aim reticle. Those change at CARD
@@ -4716,6 +4733,30 @@ export function Recruit() {
       // drop's dispatch (same tick, or the magnetic-merge slide ~260 ms later) takes it; a drop that
       // dispatches nothing just leaves it to go stale (takeDragTrace discards it).
       endDragTrace(e.clientX, e.clientY);
+      // VERSUS DUOS (R-DUOS-PASS-01): released over the teammate's portrait: pass it (1 Gold, the lob), or refuse with
+      // the reason and spring back. Ahead of the sell region, which covers the rail.
+      const mateRect = duosMateRectRef.current;
+      if (mateRect && inRect(mateRect, e.clientX, e.clientY)) {
+        dragStore.set({ passOver: null, passReason: null });
+        document.body.classList.remove('dragging');
+        hideDragCursorVeil();
+        const why = duosPassRefusal(run, d.uid);
+        if (!why) {
+          const face = document.querySelector<HTMLElement>('.dragcard');
+          const from = face?.getBoundingClientRect() ?? { left: e.clientX - d.w / 2, top: e.clientY - d.h / 2, width: d.w, height: d.h };
+          const mateEl = document.querySelector('[data-duos-mate]');
+          playLob({ from, to: mateRect, face: face?.querySelector<HTMLElement>('.card') ?? face, back: myCardBack(), coin: true, send: true, onLand: () => catchPulse(mateEl) });
+          sfx.sell?.();
+          dispatch({ type: 'passCard', uid: d.uid });
+          endSession();
+          return;
+        }
+        sfx.deny();
+        notePassRefused(why);
+        publish({ ...d, x: d.startX - d.grabOx + d.w / 2, y: d.startY - d.grabOy + d.h / 2 }, lastZone, { snapping: true });
+        window.setTimeout(() => endSession(), getDragFeel().snapMs);
+        return;
+      }
       // Resolve the drop zone *before* clearing body.dragging, so the status bar (and
       // hero) stay click-through and a card can land on the hand tucked behind them.
       // A board minion released anywhere above the warband sells (the whole upper screen); a shop card
@@ -8391,6 +8432,7 @@ export function Recruit() {
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
+      <DuosTagInPlate />
       {/* The foe's hand, face down, left of its runes (R-OPP-HAND-01): the count, the mid-fight grants, the greys. */}
       <OpponentHand events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat} />
       {run.mode === 'versus' && <VersusHud />}

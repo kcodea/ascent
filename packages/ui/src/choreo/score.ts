@@ -231,6 +231,10 @@ export const SCORE_DEFAULTS: Record<MomentKind, Cue[]> = {
   // with the rune-cast flourish, at the beat's start; the clock's `bankedCast` hold lets it read before the
   // effect behind it lands. One-shot, transform/opacity only (the cast preview's own CSS).
   bankedCast: [...BASE, { ch: 'bankedCastFx', at: 'start', offset: 0 }],
+  // VERSUS DUOS (R-DUOS-TAGTEAM-01): the hand-off. The fly-in itself is the units' own one-shot CSS (`.unit.tagin`,
+  // transform / opacity only) and the "steps in" plate (DuosTagIn); no channel cue rides these beats.
+  boardFallen: [...BASE],
+  tagIn: [...BASE],
 };
 
 const KEY = 'ascent.choreoScore';

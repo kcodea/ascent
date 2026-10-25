@@ -208,3 +208,14 @@ export function roundResultFor(row: VersusRoundRow | undefined, seat: VersusGrou
 
 /** A committed fight row is a Duos team fight (its result carries the order). */
 export const isDuosFight = (f: { a_result: CombatResult }): boolean => !!f.a_result?.duosFirst;
+
+/** The rail's seat id for `seat` as seen from `viewer` (`versusGroupLobby`'s order: s0 = the viewer, then the others in
+ *  seat order; in Duos the teammate first). */
+export function duosLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSeat, seat: VersusGroupSeat): string | null {
+  if (seat === viewer) return 's0';
+  const mate = isDuosRaw(raw) ? duosMateOf(viewer) : null;
+  const others = raw.seats.map((x) => x.seat).filter((x) => x !== viewer).sort()
+    .sort((x, y) => (x === mate ? -1 : y === mate ? 1 : 0));
+  const i = others.indexOf(seat);
+  return i < 0 ? null : `s${i + 1}`;
+}

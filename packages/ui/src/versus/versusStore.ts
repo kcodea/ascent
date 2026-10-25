@@ -33,11 +33,11 @@ import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersus
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
-import { duosFirstAt, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
-import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, useSpectate } from './spectate';
+import { installSpectateIo, leaveTeammate, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
 import { othersInStands, setWatchers, uniqueWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
@@ -399,8 +399,9 @@ function subscribe(matchId: string | null): void {
     }
     // A spectator's emote: the players and the other spectators show it from that spectator's chip (R-SPECTATE-EMOTE-01).
     else if (event === SPECTATOR_EMOTE_EVENT) receiveSpectatorEmote(payload);
-    else if (event === 'spectate') { if (!mySeat()) receiveSpectate(payload); }
-    else if (event === SPECTATE_CURSOR_EVENT) { if (!mySeat()) receiveSpectatorCursor(payload); }
+    // VERSUS DUOS (R-DUOS-VIEW-01): a player caches their TEAMMATE's frames too (the live teammate view).
+    else if (event === 'spectate') { if (!mySeat() || isMateFrame(payload)) receiveSpectate(payload); }
+    else if (event === SPECTATE_CURSOR_EVENT) { if (!mySeat() || (useSpectate.getState().teammate && isMateFrame(payload))) receiveSpectatorCursor(payload); }
     // A spectator lost its place: the next deferred publish sends a keyframe (coalesced, never per spectator).
     else if (event === SPECTATE_KEY_EVENT) { if (mySeat() && session?.matchId) { keyWanted = true; frames.schedule({ matchId: session.matchId, forceKey: true }); } }
   });
@@ -515,12 +516,18 @@ function onTick(): void {
   // so the shop held while the clock still read 0:01, the owner's "locking a second early"). The server accepts a final
   // side for 250 ms past its deadline, so a lock sent at 0:00 still lands as my own final side.
   const seat = mySeat(match);
+  // VERSUS DUOS (R-DUOS-VIEW-01): watching my teammate never holds my own game up: back to my board when the shop is
+  // over (the fight), the match pauses, or my own clock is in its last 5 seconds.
+  if (useSpectate.getState().teammate && (match.phase !== 'shop' || !!match.paused_at
+    || (versusShopRemainingMs(match.shop_deadline) ?? Infinity) <= TEAMMATE_VIEW_RETURN_MS)) leaveTeammate();
   const run = useGame.getState().run;
   if (seat && match.phase === 'shop' && !match.paused_at && run.mode === 'versus' && run.wave === match.round && get().lockedRound !== match.round
     && shopClockAt(versusShopRemainingMs(match.shop_deadline)).locked) {
     expireVersusShop();
   }
 }
+/** My clock's last stretch, when the teammate view hands my board back (ms). */
+export const TEAMMATE_VIEW_RETURN_MS = 5000;
 
 // ── the match ──────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -555,6 +562,8 @@ async function onMatch(match: VersusMatch): Promise<void> {
     spectateSync(match, get().rounds);
     return;
   }
+  // VERSUS DUOS: my teammate's frames are tracked for the live teammate view (R-DUOS-VIEW-01).
+  trackDuosMatch(match.group?.duos && match.phase !== 'complete' ? match : null, get().rounds);
 
   if (!get().priv || get().priv!.match_id !== match.id) {
     const priv = await mx.myPrivate(match.id).catch(() => null);
@@ -727,9 +736,7 @@ function groupRecord(myCos: RunCosmeticSnapshot | null): VersusMatchRecord | nul
 
 /** The group rail's seat id for `seat` as seen from `viewer` (the others in seat order are s1, s2, s3). */
 function groupLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSeat, seat: VersusGroupSeat): string | null {
-  if (seat === viewer) return 's0';
-  const i = raw.seats.map((x) => x.seat).filter((x) => x !== viewer).sort().indexOf(seat);
-  return i < 0 ? null : `s${i + 1}`;
+  return duosLobbySeatId(raw, viewer, seat); // the rail's own order (Duos: the teammate first)
 }
 
 /** Take a group match row (RPC answer or table read) and hand back its projection from my side. */
@@ -990,6 +997,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
   let lastRun: RunState | null = null;
   session.unsubRun = useGame.subscribe((st) => {
     if (st.run === lastRun || st.run.mode !== 'versus') return;
+    if (ownRunWhileWatching()) return; // VERSUS DUOS: the screen shows my teammate's run; mine is set aside, unchanged
     const shopOpened = lastRun?.phase !== 'recruit' && st.run.phase === 'recruit';
     lastRun = st.run;
     syncVersusLobby(); // a no-op unless the wave / fight state moved (a fresh run object then re-enters here once)
@@ -1006,7 +1014,7 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
 
 const candidates = createDeferredWriter<{ matchId: string; seat: VersusSeat }>(({ matchId, seat }) => {
   const match = get().match;
-  const run = useGame.getState().run;
+  const run = ownRunWhileWatching() ?? useGame.getState().run; // VERSUS DUOS: never the teammate's run on screen
   if (!session || !match || match.id !== matchId || match.phase !== 'shop' || run.mode !== 'versus' || run.phase !== 'recruit'
     || run.wave !== match.round || get().lockedRound === match.round) return;
   const side = buildVersusCandidate(run, versusTimeoutRng(Number(match.seed), run.wave, seat));
@@ -1021,13 +1029,14 @@ let watchersSeen = 0;
 let keyWanted = false;
 const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ matchId, forceKey }) => {
   const pub = session?.publisher;
-  const run = useGame.getState().run;
+  const run = ownRunWhileWatching() ?? useGame.getState().run; // VERSUS DUOS: always MY run, even while I watch my teammate
   if (!session || !pub || run.mode !== 'versus') return;
   // No one watching: no projection work at all (a spectator never costs a player anything it does not need).
   // Who may be watching: the stands, and in a group match every player already out (R-VERSUS-GROUP-06: they watch the
   // rest; before the knockout-stands migration their room role is still their seat).
   const out = new Set(groupRaw && groupRaw.id === matchId ? groupRaw.seats.filter((x) => x.eliminatedRound != null).map((x) => x.userId) : []);
-  const watchers = get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0;
+  // VERSUS DUOS: my teammate always watches (the live teammate view, R-DUOS-VIEW-01).
+  const watchers = (get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0) + (get().match?.group?.duos ? 1 : 0);
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
   setSpectatorTap(watchers > 0, emoteSeatOf(get().match), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
@@ -1475,4 +1484,10 @@ function pullDuosPasses(matchId: string): void {
   const me = get().match?.group?.me;
   if (!raw || raw.id !== matchId || !isDuosRaw(raw) || !me || builtFor !== matchId) return;
   void duosPull(matchId, me, raw.round);
+}
+
+/** VERSUS DUOS: a spectator frame or cursor sample from my teammate's seat. */
+function isMateFrame(payload: unknown): boolean {
+  const mate = get().match?.group?.duos?.mate;
+  return !!mate && !!payload && typeof payload === 'object' && (payload as { seat?: unknown }).seat === mate;
 }

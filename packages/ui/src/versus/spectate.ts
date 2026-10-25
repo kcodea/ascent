@@ -61,6 +61,10 @@ export interface SpectateState {
   odds?: Partial<Record<VersusGroupSeat, WireOdds>>;
   /** Each watched player's minimized shop overlays (`spectateTap.tapOverlay`); absent = an older player: all open. */
   overlay?: Partial<Record<VersusGroupSeat, WireOverlay>>;
+  /** VERSUS DUOS (R-DUOS-VIEW-01): a PLAYER is watching their TEAMMATE's screen live ("View teammate"). The watch
+   *  screen is the same one the stands use; only its chrome differs (TeammateBar), and leaving it restores the
+   *  player's own run exactly as it was, with no trip to the room. */
+  teammate?: boolean;
 }
 
 export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null, seek: null }));
@@ -92,6 +96,49 @@ let snapshot: Partial<ReturnType<typeof useGame.getState>> | null = null;
 const SNAPSHOT_KEYS = ['run', 'showTitle', 'heroChoices', 'inspect', 'heroArmed', 'equipArmed', 'replaying', 'titleView'] as const;
 
 export function installSpectateIo(next: Io | null): void { io = next; }
+
+// ── VERSUS DUOS: watching your teammate (R-DUOS-VIEW-01) ─────────────────────────────────────────────────────────
+/** A SEATED player keeps the teammate's frames cached (Duos), but the watch screen opens only on request. */
+let asPlayer = false;
+/** Called for a Duos player on every match update: track the match's frames like the stands do, never entering. */
+export function trackDuosMatch(match: VersusMatch | null, allRounds: Record<number, VersusRoundRow>): void {
+  asPlayer = !!match;
+  rounds = allRounds;
+  if (!match) { if (useSpectate.getState().teammate) leaveTeammate(); return; }
+  if (matchId !== match.id) {
+    if (useSpectate.getState().teammate) leaveTeammate();
+    matchId = match.id;
+    rx = newReceivers();
+    lobbyCache = null;
+    last = null;
+    resumeAt = null;
+    void fetchKeyframes();
+  }
+  if (useSpectate.getState().teammate) schedule();
+}
+/** Open the teammate's live screen (the watch screen, from their side). */
+export function watchTeammate(seat: VersusGroupSeat): void {
+  if (!matchId) return;
+  pin = null;
+  lateEntry = true;
+  clearQueue();
+  resetCursor();
+  useSpectate.setState({ seat, teammate: true, optedOut: null });
+  if (!rx[seat].view) { askForKey(true); void fetchKeyframes(); }
+  schedule();
+}
+/** Back to my own board: my run comes back exactly as it was (no room, no title). */
+export function leaveTeammate(): void {
+  if (!useSpectate.getState().teammate) return;
+  stopSpectating(true);
+  useSpectate.setState({ teammate: false });
+}
+/** My own run while my screen shows my teammate's (null when it does not). Store code that acts on MY run reads this. */
+export function ownRunWhileWatching(): RunState | null {
+  return useSpectate.getState().teammate && snapshot?.run ? snapshot.run as RunState : null;
+}
+/** A teammate's latest cached view (the pass drag reads their hand, R-DUOS-PASS-01). */
+export const teammateViewOf = (seat: VersusGroupSeat): VersusSpectatorView | null => rx[seat].view;
 
 /** The synthetic run for a seat's view (RunState-shaped, render-only; see `synthRunFromShopView`). */
 export function spectatorRunOf(view: VersusSpectatorView, seat: VersusGroupSeat, id: string, round: VersusRoundRow | undefined): RunState | null {
@@ -295,6 +342,7 @@ export function receiveSpectate(payload: unknown): void {
   if (msg.cb && msg.seat === useSpectate.getState().seat) syncFightBeat(msg.cb);
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
   if (msg.seat !== useSpectate.getState().seat) return;
+  if (asPlayer && !useSpectate.getState().teammate) return; // a Duos player not watching: cached only
   // The watched player's ACTIONS: their screen moves one action at a time, each with the animation and cue the
   // player saw (`playActs`). A message with no actions just renders (coalesced).
   if (msg.acts?.length || queue.length || busy) {
@@ -809,6 +857,8 @@ function schedule(): void {
 
 function render(): void {
   if (!matchId || useSpectate.getState().optedOut === matchId) return;
+  // A SEATED Duos player caches the teammate's frames but sees their screen only while they asked to (R-DUOS-VIEW-01).
+  if (asPlayer && !useSpectate.getState().teammate) return;
   // The match's end already closed this watch screen: a frame the winner still publishes (from their last fight) must
   // not open it again (found in the Versus Group live test, 2026-10-24).
   if (watchDone === matchId) return;
@@ -1019,7 +1069,7 @@ export function resumeSpectating(): void {
   schedule();
 }
 
-export function stopSpectating(): void {
+export function stopSpectating(restoreOnly = false): void {
   if (raf) { cancelAnimationFrame(raf); raf = 0; }
   clearQueue();
   resetCursor();
@@ -1041,7 +1091,9 @@ export function stopSpectating(): void {
   watchLocalHover(false);
   // Back where the spectator came from: the Versus room (its title view), whatever the snapshot says, or the live
   // games list for a ranked lobby game (`Io.returnTo`).
-  if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus', ...(io?.returnTo?.() ?? {}) });
+  // A Duos player leaving their teammate's screen gets their own screen back exactly as it was (R-DUOS-VIEW-01).
+  if (snap && restoreOnly) useGame.setState({ ...snap, inspect: null });
+  else if (snap) useGame.setState({ ...snap, inspect: null, replaying: false, showTitle: true, titleView: 'versus', ...(io?.returnTo?.() ?? {}) });
 }
 
 /** The session ended (the room was left): forget the match. */
@@ -1053,9 +1105,10 @@ export function resetSpectate(): void {
   stopSpectatorBeat();
   stopSpectating();
   matchId = null;
+  asPlayer = false;
   rx = newReceivers();
   rounds = {};
-  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {} });
+  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {}, teammate: false });
 }
 
 /**

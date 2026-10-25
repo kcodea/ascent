@@ -12,6 +12,10 @@
  */
 import { handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
+import { oppHandBackSrc } from '../oppHandModel';
+import { publicArt } from '../phoneArt';
+import { playArrival } from './passLob';
+import { ownRunWhileWatching } from './spectate';
 import { VersusError, versusRemote, type VersusDuosPassRow } from './versusRemote';
 
 /** Server refusals that mean "this pass will never be recorded": refund it now. */
@@ -84,7 +88,13 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
     if (r.to_seat === s.me) {
       const key = `${r.from_seat}:${r.seq}`;
       const answered = run.duos.received.includes(key) || run.duos.refused.includes(key);
-      if (!answered) dispatch({ type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard });
+      if (!answered) {
+        const before = new Set(run.hand.map((c) => c.uid));
+        dispatch({ type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard });
+        // The lob in (R-DUOS-PASS-01): the card drops out of my teammate's portrait into my hand.
+        const got = useGame.getState().run.hand.find((c) => !before.has(c.uid));
+        if (got && !ownRunWhileWatching()) playArrival(got.uid, oppHandBackSrc(null, publicArt('frames/cardplate-standard.webp')));
+      }
       if (r.status === 'sent') {
         const after = useGame.getState().run.duos;
         const landed = !!after?.received.includes(key);

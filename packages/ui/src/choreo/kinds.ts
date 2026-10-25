@@ -16,7 +16,9 @@ export type MomentKind =
   | 'keyword' | 'keywordLost' | 'hpGrant' | 'spellProgress' | 'reveal' | 'tribeAura'
   | 'questTrigger' | 'questComplete'
   | 'pummelTrigger'
-  | 'bankedCast';
+  | 'bankedCast'
+  // VERSUS DUOS (R-DUOS-TAGTEAM-01): a board falls, then the teammate's board flies in.
+  | 'boardFallen' | 'tagIn';
 
 export function momentKind(primary: CombatEvent): MomentKind {
   switch (primary.type) {
@@ -87,6 +89,9 @@ export function momentKind(primary: CombatEvent): MomentKind {
     // A NEXT-COMBAT SPELL resolving at Start of Combat (owner ask 2026-10-07): its own beat, so the spell card can
     // read before its effect (the buff / keyword / summon / Weaken behind it) lands. Paced on its own key.
     case 'bankedCast': return 'bankedCast';
+    // VERSUS DUOS: the fallen board's breath, then the hand-off (the teammate's board flies in: `.unit.tagin`).
+    case 'boardFallen': return 'boardFallen';
+    case 'tagIn': return 'tagIn';
     // Defensive: any future event type falls back to a quiet damage-style moment instead of crashing the replay
     // (momentKind must NEVER return undefined — `getScore()[undefined]` is not iterable).
     default: return 'damage';

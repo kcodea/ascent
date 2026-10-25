@@ -683,3 +683,52 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    scout) take the spectator's hover again, exactly like a card in hand; a press still does nothing (the store refuses a
    viewer's dispatch, and the pick sound skips a viewer). The gauntlet's default hand: it reads, it never picks. */
 .app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+
+/* VERSUS DUOS (R-DUOS-TAGTEAM-01): the "steps in" plate. The foe portrait disc + the name pill, on the stepping-in
+   team's side of the arena (yours left, theirs right), rising in once (transform / opacity, one-shot, keyed). */
+.duostag { position: fixed; top: 46%; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none; animation: duostagin 0.36s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.duostag-player { left: 9%; }
+.duostag-enemy { right: 9%; }
+.duostag .duostag-disc { width: 96px; height: 96px; }
+.duostag-name { white-space: nowrap; }
+@keyframes duostagin {
+  from { opacity: 0; transform: translateY(18px) scale(0.86); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* VERSUS DUOS (R-DUOS-PASS-01): THE LOB, a passed card's flight (passLob.ts animates it: transform / opacity only, one
+   layer per throw, removed on landing). The face is the card as you held it; the back is your card plate. */
+.duoslob { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; will-change: transform, opacity; perspective: 900px; }
+.duoslob-flip { position: absolute; inset: 0; transform-style: preserve-3d; }
+.duoslob-face, .duoslob-back { backface-visibility: hidden; }
+.duoslob-face { margin: 0; }
+.duoslob-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: rotateY(180deg); border-radius: 9px; }
+.duoslob-coin { position: fixed; z-index: 71; width: 28px; height: 28px; pointer-events: none; color: var(--gold, #f3c75b); will-change: transform, opacity; }
+.duoslob-coin svg { width: 100%; height: 100%; }
+
+/* VERSUS DUOS (R-DUOS-VIEW-01): WATCHING YOUR TEAMMATE. A static team-colour vignette over the screen's edges (it fades
+   in once: opacity only), the "Watching <Name>" plate with the way back (top centre, the room's plate buttons), and my
+   own shop controls visibly inert. Nothing loops. */
+.duosview-vignette { position: fixed; inset: 0; z-index: 30; pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 58%, rgba(54, 156, 196, 0.22) 84%, rgba(30, 110, 150, 0.42) 100%);
+  animation: duosviewfade 0.24s ease both; }
+@keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
+.duosview-bar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 10px;
+  animation: duosviewfade 0.24s ease both; }
+.duosview-name { white-space: nowrap; }
+body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
+
+/* VERSUS DUOS (R-DUOS-PASS-01): the teammate's rail row as the pass target. Static rings by state (no looping paint):
+   'ok' = release passes it, 'no' = refused (the note says why). */
+.lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.lobbyseat.mate.pass-ok { outline: 2px solid rgba(120, 220, 160, 0.9); outline-offset: 2px; }
+.lobbyseat.mate.pass-no { outline: 2px solid rgba(230, 90, 80, 0.9); outline-offset: 2px; }
+.duospassnote { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none;
+  animation: duosviewfade 0.18s ease both; }
+
+/* A passed card's slot while its face-down card is still in the air (passLob.playArrival). */
+.row.hand .card.passincoming { opacity: 0; }
+
+/* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static. */
+.duosorder { position: fixed; top: 54px; right: 16px; z-index: 35; white-space: nowrap; }

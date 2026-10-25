@@ -74,6 +74,15 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Versus: the Summit modifier now only unlocks Tier 7. It no longer adds Armor.',
       },
+      {
+        category: 'Systems',
+        text: 'Versus: room options open in a cleaner centered window.',
+        details: [
+          'The room darkens behind it. Close it with the X, a click outside it, or Esc.',
+          'Mode and Modifier each have their own section. Every choice says what it does in one line.',
+          'Only the host can change them. Everyone else sees the room\'s choices, greyed.',
+        ],
+      },
     ],
   },
   {

@@ -8424,20 +8424,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The room shows its options to everyone; the host edits them on a panel; a change is announced; the room list shows each room\x27s mode',
     statement:
       'Under the Versus room\x27s name a chip reads what the room plays ("1v1", "3-4 players", plus the modifier: "3-4 players · Summit"); it and the '
-      + 'Room options button open the options panel: Mode (1v1 or 3-4 players) and Modifier (None, Freedom, Summit) as Practice\x27s own segmented '
-      + 'pills, each with a one-line hint. The host changes them while the room is Open; everyone else (and everyone while the room is sealed or '
-      + 'in a game) sees the same pills disabled, with "Only the host can change these, between games." When the host changes them, every other '
+      + 'Room options button open the options window: the game\x27s centered dialog (the Match details scrim and panel) over a darkened room, '
+      + 'closed by its X, a press on the dark scrim, or Esc (Esc never reaches the Esc menu while it is open). Inside, a Mode section (1v1, '
+      + '3-4 players, 2v2) and a Modifier section (None, Freedom, Summit), each option a card with its name and one plain line, the picked one '
+      + 'lit gold. Open and close are one-shot fades. The host changes them while the room is Open; everyone else (and everyone while the room '
+      + 'is sealed or in a game) sees the same cards disabled, the picked one still bright, under "Only the host can change these." When the host changes them, every other '
       + 'member sees "Room options changed: <summary>" for a few seconds. The room browser shows each room\x27s mode and modifier on its card, and as '
       + 'many seat sockets as the mode has (2 or 4).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-24 (phase 2 brief)', quote: 'all these options should be customizable within a lobby, so a player can host a room and change them game to game without needing to rehost a lobby' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'Improve the room settings layout and center it/darken the background when opened' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusOptionsUi.tsx (VersusOptionsPanel, versusOptionsSummary); packages/ui/src/versus/VersusRoom.tsx (.vsroommode, Room options); packages/ui/src/versus/versusStore.ts (setRoomOptions, optionsNotice); packages/ui/src/versus/VersusTitle.tsx (.vsrcard-mode)' },
     ],
-    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2).',
-    example: 'Bob hosts and picks 3-4 players and Summit. Ann, in the stands, sees "Room options changed: 3-4 players · Summit" and the chip under the room\x27s name changes; her panel shows the same pills, greyed.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupRoom.test.tsx'], lastVerifiedAt: '2026-10-24' },
+    currentBehaviour: 'Since 2026-10-24 (feat/versus-group-ui, phase 2). The centered window with Mode / Modifier cards since 2026-10-25 (fix/versus-room-settings-modal); before, a small bottom-left panel with Practice\x27s segmented pills and no scrim.',
+    example: 'Bob hosts and picks 3-4 players and Summit. Ann, in the stands, sees "Room options changed: 3-4 players · Summit" and the chip under the room\x27s name changes; when she opens the window the room darkens, and the 3-4 players and Summit cards are lit but greyed for her.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupRoom.test.tsx', 'packages/ui/src/versus/versusOptionsModal.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-VERSUS-GROUP-03',

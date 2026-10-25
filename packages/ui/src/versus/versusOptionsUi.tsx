@@ -2,11 +2,19 @@
  * VERSUS ROOM OPTIONS on screen (owner 2026-10-24, R-VERSUS-OPTIONS-01): the host's panel in the room, read-only for
  * everyone else, the short summary the room heading and the room browser show, and the "options changed" notice.
  *
- * The controls are Practice's own segmented pills (`Segmented`, PracticeOptions.tsx: `.poseg`, the global gauntlet
- * cursor), on the room's Gem plate panel. Player text: short plain sentences, no em dashes.
+ * THE CENTERED WINDOW (owner 2026-10-25: "Improve the room settings layout and center it/darken the background when
+ * opened", R-VERSUS-OPTIONS-02): the panel is the game's own centered dialog, the Match details scrim + panel
+ * (`.mdd-scrim` / `.mdd-panel` / `.mdd-head` / `.mdd-close`, the same pieces "Previous match stats" uses), portalled to
+ * the stage. It closes on the X, a press on the dark scrim, or Esc. Inside: a Mode section and a Modifier section, each
+ * option a row card with its name and one plain line; the picked one is lit. Open and close are one-shot
+ * transform/opacity fades (no looping paint). Player text: short plain sentences, no em dashes.
  */
+import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { RIFTS, riftDefFor, normalizeVersusOptions, VERSUS_MODIFIERS, type VersusModifierId, type VersusMode, type VersusRoomOptions } from '@game/sim';
-import { Segmented } from '../PracticeOptions';
+import { sfx } from '../sfx';
+import { stageHost } from '../stage';
+import '../matchDetails/matchDetails.css';
 
 /** The mode as players read it. */
 export const versusModeLabel = (mode: VersusMode): string => (mode === 'group' ? '3-4 players' : mode === 'duos' ? '2v2' : '1v1');
@@ -20,19 +28,34 @@ export function versusOptionsSummary(raw: VersusRoomOptions | null | undefined):
   return [versusModeLabel(o.mode), ...o.modifiers.map(versusModifierName)].join(' · ');
 }
 
-const MODE_OPTIONS: { value: VersusMode; label: string }[] = [
-  { value: 'duel', label: '1v1' },
-  { value: 'group', label: '3-4 players' },
-  { value: 'duos', label: '2v2' },
+/** The close fade's length (ms): the window plays its one-shot out-fade, then the room unmounts it. */
+export const VERSUS_OPTIONS_CLOSE_MS = 140;
+
+const MODE_OPTIONS: { value: VersusMode; desc: string }[] = [
+  { value: 'duel', desc: 'Two players. Seven hearts each.' },
+  { value: 'group', desc: 'Three or four players. Last one standing wins.' },
+  { value: 'duos', desc: 'Two teams of two. Seven hearts per team.' },
 ];
-const MODIFIER_OPTIONS: { value: VersusModifierId | null; label: string }[] = [
-  { value: null, label: 'None' },
-  ...VERSUS_MODIFIERS.map((id) => ({ value: id as VersusModifierId | null, label: versusModifierName(id) })),
+const MODIFIER_OPTIONS: { value: VersusModifierId | null; label: string; desc: string }[] = [
+  { value: null, label: 'None', desc: 'The usual rules.' },
+  ...VERSUS_MODIFIERS.map((id) => ({ value: id as VersusModifierId | null, label: versusModifierName(id), desc: riftDefFor(id, 'versus').blurb })),
 ];
 
+/** One option: a row card with its name and one plain line. Lit when picked; read-only rooms show it disabled. */
+function OptionCard({ name, desc, on, editable, onPick }: { name: string; desc: string; on: boolean; editable: boolean; onPick: () => void }) {
+  return (
+    <button type="button" role="radio" aria-checked={on} disabled={!editable} className={`vsopt-card${on ? ' on' : ''}`}
+      onClick={() => { if (!editable || on) return; sfx.tick(); onPick(); }}>
+      <span className="vsopt-name">{name}</span>
+      <span className="vsopt-desc">{desc}</span>
+    </button>
+  );
+}
+
 /**
- * The options panel. `editable`: the host while the room is Open (anyone else, or a sealed / running room, sees the
- * same pills read-only). `onChange` sends the whole new object; the server validates it.
+ * The options window. `editable`: the host while the room is Open (anyone else, or a sealed / running room, sees the
+ * same cards read-only). `onChange` sends the whole new object; the server validates it. `onClose` fires once the
+ * close fade has played.
  */
 export function VersusOptionsPanel({ options, editable, onChange, onClose }: {
   options: VersusRoomOptions | null | undefined;
@@ -42,24 +65,68 @@ export function VersusOptionsPanel({ options, editable, onChange, onClose }: {
 }): JSX.Element {
   const o = normalizeVersusOptions(options);
   const modifier = o.modifiers[0] ?? null;
-  const modeHint = o.mode === 'group'
-    ? 'Three or four players. Everyone meets everyone in turn. With three, one player faces a copy of another board each round. Last one standing wins.'
-    : o.mode === 'duos'
-      ? 'Two teams of two. The left seats are one team, the right seats the other. When your board falls, your teammate\'s board steps in. Seven hearts per team.'
-      : 'Two players, seven hearts each.';
-  const modifierHint = modifier ? riftDefFor(modifier, 'versus').blurb : 'The usual rules.'; // Summit: Tier 7 only, no Armor
-  return (
-    <div className="vsoptions" role="dialog" aria-label="Room options">
-      <div className="vsoptions-head">
-        <span className="vsoptions-title">Room options</span>
-        <button type="button" className="mdd-close pressable" aria-label="Close room options" onClick={onClose}><span aria-hidden="true">✕</span></button>
+  const [closing, setClosing] = useState(false);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  // The latest onClose without re-arming the key listener on every room render.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const closingRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const close = useRef(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    sfx.tick();
+    setClosing(true);
+    timerRef.current = setTimeout(() => onCloseRef.current(), VERSUS_OPTIONS_CLOSE_MS);
+  }).current;
+  useEffect(() => {
+    closeRef.current?.focus();
+    const onKeyDown = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      // The window owns Esc while it is open: it closes, and the Esc menu stays shut.
+      e.preventDefault();
+      e.stopPropagation();
+      close();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown, true);
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [close]);
+  return createPortal(
+    <div className={`mdd-scrim vsopt-scrim${closing ? ' closing' : ''}`} onPointerDown={close}>
+      <div className="mdd-panel vsoptions" role="dialog" aria-modal="true" aria-label="Room options" onPointerDown={(e) => e.stopPropagation()}>
+        <div className="mdd-head">
+          <div className="mdd-titles">
+            <span className="mdd-title">Room options</span>
+            <span className="mdd-sub">{editable ? 'Pick how this room plays. Versus is unranked.' : 'Versus is unranked.'}</span>
+          </div>
+          <button ref={closeRef} type="button" className="mdd-close pressable" aria-label="Close room options" onClick={close}>
+            <span aria-hidden="true">✕</span>
+          </button>
+        </div>
+        {!editable && <div className="vsopt-lock" role="note">Only the host can change these.</div>}
+        <section className="vsopt-sec" aria-label="Mode">
+          <h3 className="vsopt-h">Mode</h3>
+          <div className="vsopt-grid" role="radiogroup" aria-label="Mode">
+            {MODE_OPTIONS.map((m) => (
+              <OptionCard key={m.value} name={versusModeLabel(m.value)} desc={m.desc} on={o.mode === m.value} editable={editable}
+                onPick={() => onChange({ ...o, mode: m.value })} />
+            ))}
+          </div>
+        </section>
+        <section className="vsopt-sec" aria-label="Modifier">
+          <h3 className="vsopt-h">Modifier</h3>
+          <div className="vsopt-grid" role="radiogroup" aria-label="Modifier">
+            {MODIFIER_OPTIONS.map((m) => (
+              <OptionCard key={String(m.value)} name={m.label} desc={m.desc} on={modifier === m.value} editable={editable}
+                onPick={() => onChange({ ...o, modifiers: m.value ? [m.value] : [] })} />
+            ))}
+          </div>
+        </section>
       </div>
-      {!editable && <span className="vsoptions-note">Only the host can change these, between games.</span>}
-      <Segmented label="Mode" hint={modeHint} value={o.mode} options={MODE_OPTIONS} disabled={!editable}
-        onPick={(mode) => onChange({ ...o, mode })} />
-      <Segmented label="Modifier" hint={modifierHint} value={modifier} options={MODIFIER_OPTIONS} disabled={!editable}
-        onPick={(id) => onChange({ ...o, modifiers: id ? [id] : [] })} />
-      <span className="vsoptions-note">Versus is unranked.</span>
-    </div>
+    </div>,
+    stageHost(),
   );
 }

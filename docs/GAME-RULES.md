@@ -1154,9 +1154,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Back from the fight.** The next shop opens when every player still in is back; when all but one are, the last has
   5 seconds (90 seconds at most from the commit).
 - **In the room** (R-VERSUS-OPTIONS-02, R-VERSUS-GROUP-05). A chip under the room's name says what it plays ("1v1",
-  "3-4 players · Summit"); it and the Room options button open the panel (Mode, Modifier: Practice's own pills). The
-  host edits it while the room is Open; everyone else sees it greyed ("Only the host can change these, between
-  games."). A change shows every other member "Room options changed: ..." for a few seconds. The room browser shows each
+  "3-4 players · Summit"); it and the Room options button open a centered window over the darkened room (closed by its
+  X, a press on the dark scrim, or Esc): a Mode section and a Modifier section, each option a card with its name and
+  one plain line, the picked one lit. The host edits it while the room is Open; everyone else sees it greyed ("Only the
+  host can change these."). A change shows every other member "Room options changed: ..." for a few seconds. The room browser shows each
   room's mode and as many seat sockets as it has. A 3-4 player room shows four seats, two each side of the VS mark,
   and Start game appears for the host once three are seated.
 - **In the game** (R-VERSUS-GROUP-03). The 1v1 opponent block is replaced by the ordinary ranked lobby rail: one row

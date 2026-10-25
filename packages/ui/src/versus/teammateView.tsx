@@ -20,6 +20,7 @@ import { useEffect } from 'react';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { perfMonitor } from '../perfMonitor';
+import { stageHost } from '../stage';
 import { leaveTeammate, useSpectate, watchTeammate } from './spectate';
 import { useVersus } from './versusStore';
 
@@ -41,7 +42,7 @@ function sweepPanel(): HTMLElement | null {
   panel = document.createElement('div');
   panel.className = 'duosswap';
   panel.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(panel);
+  stageHost().appendChild(panel);
   return panel;
 }
 /** Made at idle once a Duos match is on, so the first click pays nothing. */

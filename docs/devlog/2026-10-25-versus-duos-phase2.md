@@ -61,8 +61,8 @@ SQL: phase 1's tables and RPCs carry everything.
   screen has settled (six frames under 8 ms, capped at 700 ms). Measured on the prod bench build, ~170 Hz display
   (5.9 ms frames), 5 swaps in + out, every frame labelled by what the panel was doing:
   - panel moving in: p95 6.2 / p99 6.6 / worst 6.6 ms (the same as the idle shop: p95 6.2 / p99 6.6);
-  - panel moving out: p95 6.3 / p99 8.7 / worst 11.9 ms;
-  - panel holding still over the screen while it builds (74-131 ms per swap): p95 25 / worst 33 ms. These are the
+  - panel moving out: p95 6.3 / p99 8.7-10.1 / worst 11.5-11.9 ms;
+  - panel holding still over the screen while it builds (69-177 ms per swap): p95 24-25 / worst 33-50 ms. These are the
     screen build itself (React mount of the other player's rows + their layout reads), done under a still, opaque cover.
   Frames over 6.25 ms during the moving parts are vsync jitter at this refresh (the idle shop shows the same rate).
   Zero over-budget frames for the build itself would need the other screen kept mounted (a second store instance per

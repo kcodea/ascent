@@ -1234,8 +1234,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   release the card DROPS into their portrait, turning face down, with one of your coins following it in from your Gold;
   the portrait pops as it catches it. On their screen the card comes out of YOUR portrait (bottom right for them), flies
   into their hand and lands face up. **Watching your teammate:** click their portrait (their rail row works too, or hold
-  Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). A team-colour panel sweeps
-  across from their side on the way in and back on the way out, the screens swapping behind it; while you watch, their hero is in the hero slot, a strong team-colour
+  Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). The swap is a quick, clean
+  cross-fade both ways: the screen you leave stays still on top for a moment while the other one is built under it, then
+  fades out over it (no panel, no sweep); while you watch, their hero is in the hero slot, a strong team-colour
   frame rims the screen, your shop controls are greyed, and the bottom-right portrait is YOURS (click or tap anywhere on it to go back; Esc and
   letting go of Tab work too). There is no "Watching" plate or "Back to your board" button up top (owner 2026-10-25: the
   view change and colour make it obvious). You come back

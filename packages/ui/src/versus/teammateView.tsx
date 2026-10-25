@@ -8,8 +8,8 @@
  * untouched; leaving puts it back exactly as it was.
  *
  * THE DISTINCTION, so it can never be mistaken for my own board:
- *  - THE SWEEP (on the way in and out): a team-colour panel crosses the screen from my teammate's side and the other
- *    screen is there behind it (about 400 ms in all; one pre-made layer, transform only, one-shot Web Animations);
+ *  - THE CROSS-FADE (on the way in and out): the screen I leave fades out over the one I arrive at (about 150-200 ms;
+ *    one frozen layer, opacity / transform only, one-shot Web Animations);
  *  - while watching: their hero, name and hearts in the hero slot (it is their screen), a calm team-colour vignette
  *    over the edges (a static layer that fades in), and my shop controls visibly inert. No plate or button up top (owner
  *    2026-10-25: the view change and colour say it already). The bottom-right portrait (mine, while watching), Esc and
@@ -21,67 +21,79 @@ import { useEffect } from 'react';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { perfMonitor } from '../perfMonitor';
-import { stageHost } from '../stage';
 import { leaveTeammate, useSpectate, watchTeammate } from './spectate';
 import { useVersus } from './versusStore';
 
-/** The sweep's two halves (ms): the team panel crosses in, the screens swap under it, it crosses out. */
-export const SWEEP_IN_MS = 170;
-export const SWEEP_OUT_MS = 200;
+/**
+ * THE SWAP: A CROSS-FADE (owner 2026-10-25: "The teammate view swap animation is really ugly" and "The flip to teammate
+ * view and back should be extremely fast and clean/smooth"; it replaced the full-screen team panel sweep).
+ *
+ * At the click, a frozen copy of the screen I am leaving (a clone of `#root`, a few hundred plain nodes; its canvases come
+ * out blank, which a fade never shows) goes on top as the GHOST, and the real screen swaps underneath it at once. Once
+ * the new screen is drawn and calm, the ghost fades out over it, so the two screens truly cross: what is in the same
+ * place on both (the board frame, the rail, the buttons) stays put and only what differs dissolves. One layer, opacity
+ * only, one-shot, so the compositor runs the fade. A plain fade was picked over a fade with a slight scale (pitched
+ * 2026-10-25): with the scale, the two screens' text doubles up mid-fade.
+ */
+/** Ms of the cross-fade itself. */
+export const FADE_MS = 130;
+/** The longest the fade waits for the new screen to be drawn and settled (a teammate view whose frames are on their way). */
+const SETTLE_CAP_MS = 160;
+/** Calm frames in a row (under 8 ms) that count as "the new screen has settled". */
+const CALM_FRAMES = 3;
+/** The new screen's mount comes in TWO busy frames about 30-40 ms apart (the build, then its follow-up draw), so the fade
+ *  never starts sooner than this after the swap, or the second one lands mid-fade (measured 2026-10-25). */
+const MIN_SETTLE_MS = 70;
 let turning = false;
 
-/**
- * THE SWAP SWEEP. One full-screen team-colour panel, made ONCE and kept off screen on its own compositor layer, so a
- * swap never creates, rasterises or re-lays-out anything big at the click: it only moves (transform), which the
- * compositor runs on its own even while the main thread is busy. (The first build turned the whole stage root in 3D;
- * that cost a 40 ms frame at each end of every turn, measured 2026-10-25.)
- */
-let panel: HTMLElement | null = null;
-function sweepPanel(): HTMLElement | null {
-  if (typeof document === 'undefined') return null;
-  if (panel?.isConnected) return panel;
-  panel = document.createElement('div');
-  panel.className = 'duosswap';
-  panel.setAttribute('aria-hidden', 'true');
-  stageHost().appendChild(panel);
-  return panel;
+/** The frozen copy of the screen being left, on top of the real one. */
+function ghostOf(root: HTMLElement): HTMLElement {
+  const g = root.cloneNode(true) as HTMLElement;
+  g.removeAttribute('id');
+  g.className = 'duosghost';
+  g.setAttribute('aria-hidden', 'true');
+  g.setAttribute('inert', '');
+  // A hair short of opaque: the compositor may skip drawing what a fully opaque layer hides, and the new screen under the
+  // ghost must already be drawn when the fade starts uncovering it.
+  g.style.opacity = '0.999';
+  for (const n of g.querySelectorAll('[id]')) n.removeAttribute('id');
+  root.after(g);
+  return g;
 }
-/** Made at idle once a Duos match is on, so the first click pays nothing. */
-export function prepareTeammateSweep(): void { sweepPanel(); }
 
-/** Six calm frames in a row (each under 8 ms): the new screen's build and its follow-up work (art, layout reads)
- *  have finished, so the sweep out moves over a quiet main thread. Capped, so the cover can never stick. */
-function whenSettled(done: () => void): void {
-  let last = performance.now();
+/** Calls `done` once the new screen is drawn and its mount work has run: `changed()` is true (the store holds the new
+ *  screen), then three calm frames in a row (under 8 ms each: the commit's paint and the effects that follow it are done),
+ *  capped so a slow teammate view can never hold the fade. The frozen ghost is on top the whole time, so the wait shows
+ *  the screen I clicked on, standing still; the fade itself then runs over a quiet main thread. */
+function whenNewScreenSettled(changed: () => boolean, done: () => void): void {
+  const start = performance.now();
+  let last = start;
   let calm = 0;
-  const start = last;
   const tick = (): void => {
     const now = performance.now();
-    calm = now - last < 8 ? calm + 1 : 0;
+    const ok = changed();
+    calm = ok && now - last < 8 ? calm + 1 : 0;
     last = now;
-    if (calm >= 6 || now - start > 700) done(); else requestAnimationFrame(tick);
+    if ((calm >= CALM_FRAMES && now - start >= MIN_SETTLE_MS) || now - start > SETTLE_CAP_MS) done(); else requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 }
 
-/** The swap: the team panel sweeps across from `dir` (1 = from the right, where the teammate's portrait sits), the
- *  screens swap while it covers them, it sweeps on out the other side once the new screen has settled. */
-function turn(dir: 1 | -1, swap: () => void): void {
-  const el = sweepPanel();
-  if (!el || !('animate' in el) || turning) { swap(); return; }
+/** The swap: freeze the screen I am leaving as a ghost on top, swap under it, cross-fade once the new one is drawn. */
+function turn(swap: () => void): void {
+  const root = typeof document !== 'undefined' ? document.getElementById('root') : null;
+  if (!root || !('animate' in root) || turning) { swap(); return; }
   turning = true;
   perfMonitor.mark?.('duos:turn:start');
-  const inn = el.animate([{ transform: `translateX(${105 * dir}%)` }, { transform: 'translateX(0)' }], { duration: SWEEP_IN_MS, easing: 'cubic-bezier(0.5, 0, 0.75, 0.25)', fill: 'forwards' });
-  inn.onfinish = () => {
-    swap();
-    whenSettled(() => {
-      const out = el.animate([{ transform: 'translateX(0)' }, { transform: `translateX(${-105 * dir}%)` }], { duration: SWEEP_OUT_MS, easing: 'cubic-bezier(0.2, 0.75, 0.3, 1)', fill: 'forwards' });
-      inn.cancel();
-      out.onfinish = () => { turning = false; perfMonitor.mark?.('duos:turn:end'); };
-      out.oncancel = () => { turning = false; };
-    });
-  };
-  inn.oncancel = () => { turning = false; };
+  const ghost = ghostOf(root);
+  const before = useGame.getState().run;
+  swap();
+  whenNewScreenSettled(() => useGame.getState().run !== before, () => {
+    const out = ghost.animate([{ opacity: 0.999 }, { opacity: 0 }], { duration: FADE_MS, easing: 'cubic-bezier(0.33, 0, 0.2, 1)', fill: 'forwards' });
+    const end = (): void => { ghost.remove(); turning = false; perfMonitor.mark?.('duos:turn:end'); };
+    out.onfinish = end;
+    out.oncancel = end;
+  });
 }
 
 /** Open my teammate's live screen (Duos, in the shop, from my own board). */
@@ -92,7 +104,7 @@ export function enterTeammateView(): void {
   if (!mate || !v.match || v.match.phase !== 'shop' || v.match.paused_at || useSpectate.getState().teammate) return;
   if (g.run.mode !== 'versus' || g.run.phase !== 'recruit') return;
   sfx.tick();
-  turn(1, () => {
+  turn(() => {
     watchTeammate(mate);
     document.body.classList.add('duos-viewing');
   });
@@ -102,7 +114,7 @@ export function enterTeammateView(): void {
 export function exitTeammateView(): void {
   if (!useSpectate.getState().teammate) return;
   sfx.tick();
-  turn(-1, () => {
+  turn(() => {
     leaveTeammate();
     document.body.classList.remove('duos-viewing');
   });

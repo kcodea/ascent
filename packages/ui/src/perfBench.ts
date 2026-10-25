@@ -38,6 +38,8 @@ export function installPerfBench(): void {
     // VERSUS DUOS (2026-10-25): the pass lob, the teammate view and the hand-off state, for a bench capture / CDP drive.
     duos: () => Promise.all([import('./versus/passLob'), import('./versus/teammateView'), import('./versus/duosCombat')]).then(([lob, view, combat]) => ({ ...lob, ...view, ...combat })),
     spectate: () => import('./versus/spectate'),
+    // The Versus test bots (2026-10-25, the Duos swap measurement): a bench build seats its own bots, as the dev tuner does.
+    bots: () => import('./versus/versusBot'),
     sim: () => import('@game/sim'),
     db: () => import('./remoteBoards').then((m) => m.supabaseClient()),
   };

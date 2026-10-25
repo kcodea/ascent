@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-25',
     changes: [
+      { category: 'Systems', text: "Duos: switching to your teammate's board and back is now a quick, clean cross-fade instead of a sliding panel, and twice as fast." },
       { category: 'Systems', text: 'A refreshed ASCENT logo on the loading screen, title screen and hero select.' },
       {
         category: 'Systems',

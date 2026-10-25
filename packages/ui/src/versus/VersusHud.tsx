@@ -11,7 +11,7 @@
  */
 import { DuosMateDock } from './DuosMateDock';
 import { DuosOrderPlate } from './DuosOrderPlate';
-import { TeammateFrame, prepareTeammateSweep, useTeammateViewKeys } from './teammateView';
+import { TeammateFrame, useTeammateViewKeys } from './teammateView';
 import { useEffect, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
@@ -188,9 +188,6 @@ export function VersusHud() {
   // VERSUS DUOS (R-DUOS-VIEW-01): watching my teammate's screen (Tab / their rail portrait), and the way back.
   const watchingMate = useSpectate((s) => s.teammate === true);
   useTeammateViewKeys(!!seat && !!match?.group?.duos);
-  // The swap sweep's panel is made once, ahead of the first click (no build at the click).
-  const duosOn = !!seat && !!match?.group?.duos;
-  useEffect(() => { if (duosOn) prepareTeammateSweep(); }, [duosOn]);
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;

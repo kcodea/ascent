@@ -795,13 +795,13 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
    cursor swap. */
 .duosorder { position: fixed; top: 54px; right: 16px; z-index: 35; white-space: nowrap; pointer-events: none; }
 
-/* VERSUS DUOS: THE SWAP SWEEP between my board and my teammate's (teammateView.turn; R-DUOS-VIEW-01). One pre-made
-   full-screen team panel parked off screen on its own layer; a swap only moves it (transform, compositor-run). Static
-   paint: a deep teal field with a bright leading band on each side. */
-.duosswap { position: fixed; inset: 0; z-index: 200; pointer-events: none; transform: translateX(105%); will-change: transform; contain: strict;
-  background:
-    linear-gradient(90deg, rgba(120, 236, 250, 0.95) 0, rgba(60, 196, 222, 0.9) 1.2%, transparent 3.5%, transparent 96.5%, rgba(60, 196, 222, 0.9) 98.8%, rgba(120, 236, 250, 0.95) 100%),
-    radial-gradient(ellipse at 50% 45%, #1d6f86 0%, #134e63 55%, #0b3242 100%); }
+/* VERSUS DUOS: THE SWAP CROSS-FADE between my board and my teammate's (teammateView.turn; R-DUOS-VIEW-01). The GHOST is a
+   frozen clone of `#root` (the screen being left) laid exactly over the live one; only its opacity animates (one-shot),
+   then it is removed. It mirrors `#root`'s own box (styles.css). NO `will-change` / `contain` here: on a full-screen
+   subtree full of fixed layers they cost 40-70 ms frames at insertion and at the fade's start (measured 2026-10-25);
+   the opacity animation promotes the layer by itself, cheaply. */
+.duosghost { position: fixed; inset: 0; z-index: 190; pointer-events: none; display: flex; align-items: center; justify-content: center;
+  overflow: hidden; }
 
 /* THE VERSUS BOTS + DUOS DEV TUNER (DEV only, the dev menu's panel): the dev panel's own pieces, laid out as rows of
    small buttons. The game's gauntlet cursor on every control (the dev panel button class sets a bare pointer). */

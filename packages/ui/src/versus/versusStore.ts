@@ -33,7 +33,8 @@ import { installVersusEmotes, receiveVersusEmote, receiveWatchedEmote, setVersus
 import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, uninstallSpectatorEmotes } from './spectatorEmotes';
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
-import { groupPairingAt, groupSeatOf, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { duosFirstAt, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { installSpectateIo, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, useSpectate } from './spectate';
@@ -318,6 +319,7 @@ export async function pressGate(): Promise<void> {
 }
 
 export async function leaveRoom(): Promise<void> {
+  duosReset(); // VERSUS DUOS: no pass transport outlives the room
   const room = get().room;
   stopSession();
   set({ room: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, statsOpen: false, seatMove: null, screen: 'browser' });
@@ -444,6 +446,8 @@ function scheduleRefresh(what: string): void {
     if (w.has('room') || w.has('members')) void refreshRoom();
     const mid = get().room?.current_match_id ?? session.matchId;
     if (mid && (w.has('match') || w.has('rounds') || w.has('room'))) void refreshMatch(mid);
+    // VERSUS DUOS: a teammate's pass (or an answer to mine) landed on the server.
+    if (mid && w.has('passes')) pullDuosPasses(mid);
   }, 120);
 }
 
@@ -469,6 +473,7 @@ async function refreshMatch(matchId: string): Promise<void> {
     const match = await mx.match(matchId);
     if (!match) return;
     await onMatch(match);
+    pullDuosPasses(matchId); // VERSUS DUOS: a no-op outside a Duos match
   } catch { /* transient */ }
 }
 
@@ -477,7 +482,7 @@ async function heartbeat(): Promise<void> {
   try {
     const r = await timed(() => versusRemote.heartbeat(session!.roomId), (x) => x.serverNow);
     if (r.match) await onMatch(r.match);
-    else if (r.groupMatch) await onMatch(ingestGroup(r.groupMatch));
+    else if (r.groupMatch) { await onMatch(ingestGroup(r.groupMatch)); pullDuosPasses(r.groupMatch.id); } // Duos: the heartbeat is the passes' backstop
     // Pause detection rides the heartbeat: a running match is reconciled every beat, so an opponent who went
     // silent pauses the clock within a lease plus one beat (live test 2026-10-14: a 12 s modulo window let it slip
     // to ~20 s).
@@ -773,7 +778,9 @@ const mx = {
     return g ? ingestGroup(g) : null;
   },
   reconcile: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupReconcile(id).then(ingestGroup) : versusRemote.reconcile(id)),
-  finalize: (id: string, round: number, content: string): Promise<void> => (G(id) ? versusRemote.finalizeGroup(id, round, content) : versusRemote.finalize(id, round, content)),
+  finalize: (id: string, round: number, content: string): Promise<void> => (G(id)
+    ? (groupRaw?.id === id && isDuosRaw(groupRaw) ? versusRemote.finalizeDuos(id, round, content) : versusRemote.finalizeGroup(id, round, content))
+    : versusRemote.finalize(id, round, content)),
   myPrivate: (id: string) => (G(id) ? versusRemote.groupMyPrivate(id) : versusRemote.myPrivate(id)),
   registerOffer: (id: string, offer: string[]): Promise<unknown> => (G(id) ? versusRemote.groupRegisterOffer(id, offer) : versusRemote.registerOffer(id, offer)),
   myLatestCheckpoint: (id: string) => (G(id) ? versusRemote.groupMyLatestCheckpoint(id) : versusRemote.myLatestCheckpoint(id)),
@@ -828,6 +835,7 @@ function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run
       fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: f.b_copy, heartLostBy: f.heart_lost_by, aResult: f.a_result, aScout: f.a_scout, bScout: f.b_scout })),
     })),
     pairing: groupPairingAt(raw, run.wave),
+    ...(isDuosRaw(raw) ? { duos: { first: duosFirstAt(raw, run.wave) } } : {}),
   };
 }
 /** Build / refresh the group rail. True when this is a group match (the 1v1 builder then stays out). */
@@ -877,6 +885,7 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
       if (live.phase === 'shop' && run.wave === live.round && (seat === 'p1' ? live.p1_locked : live.p2_locked)) set({ lockedRound: live.round });
       startRunWatch(match.id, seat);
       driveRun(get().match ?? match, seat);
+      pullDuosPasses(match.id); // VERSUS DUOS: passes that arrived while the run was being built
     };
     // HERO SELECT is on screen: the run waits for its own launch (the ceremony, then the cover), so the full game
     // start plays out (owner 2026-10-14). Otherwise (a reload into a running match) it goes straight on screen.
@@ -987,6 +996,9 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
     maybeEndGate(); // a finished match ends through the end gate once the last fight has been left
     candidates.schedule({ matchId, seat });
     frames.schedule({ matchId, forceKey: shopOpened });
+    // VERSUS DUOS: my new passes go out, my hand room is reported (R-DUOS-PASS-01).
+    const me = get().match?.group?.me;
+    if (st.run.duos && me) duosAfterRun(matchId, me, st.run);
   });
   candidates.schedule({ matchId, seat });
   frames.schedule({ matchId, forceKey: true });
@@ -1455,4 +1467,12 @@ export function markVersusPickShown(): void {
 // reload is the only honest outcome; the match resumes from the server. Absent in production and in vitest.
 if (import.meta.hot) {
   import.meta.hot.accept(() => { window.location.reload(); });
+}
+
+/** VERSUS DUOS: land my teammate's passes and the answers to mine (a realtime wake or a match refresh). */
+function pullDuosPasses(matchId: string): void {
+  const raw = groupRaw;
+  const me = get().match?.group?.me;
+  if (!raw || raw.id !== matchId || !isDuosRaw(raw) || !me || builtFor !== matchId) return;
+  void duosPull(matchId, me, raw.round);
 }

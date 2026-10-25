@@ -45,6 +45,8 @@ export interface VersusGroupPairing {
   a: VersusGroupSeat;
   b: VersusGroupSeat;
   copy: boolean;
+  /** VERSUS DUOS: a TEAM fight, named by each team's first board (both teammates of each team are in it). */
+  duos?: boolean;
 }
 
 /** Each seat's elimination round (`null` / absent = still in). */

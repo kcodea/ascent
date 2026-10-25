@@ -305,6 +305,10 @@ body.vsroom-on .pixifx { z-index: 470; }
 .vsgroup .vspcard-p3, .vsgroup .vsgatebox-p3 { left: 59%; }
 .vsgroup .vspcard-p4, .vsgroup .vsgatebox-p4 { left: 71.5%; }
 .vsgroup .vsgatebox { width: 11%; top: 64%; }
+/* VERSUS DUOS (R-DUOS-01): a static plate over each seat pair, the room's own pill. Static paint, no animation. */
+.vsduos .vsteam { position: absolute; top: 13%; transform: translateX(-50%); pointer-events: none; white-space: nowrap; }
+.vsduos .vsteam-a { left: 29.25%; }
+.vsduos .vsteam-b { left: 70.75%; }
 .vsenter .vspcard-p3 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.3s both; }
 .vsenter .vspcard-p4 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.36s both; }
 .vsenter .vsmcard-p3 > .vsmcard-in, .vsenter .vsmcard-p4 > .vsmcard-in { animation: vsinrightc 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }

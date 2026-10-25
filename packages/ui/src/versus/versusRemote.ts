@@ -174,6 +174,8 @@ export interface VersusDuosPassRow {
   to_seat: VersusGroupSeat;
   seq: number;
   card: Record<string, unknown>;
+  /** 'sent' until the receiver's run answers: 'landed', or 'refused' (its hand was full). */
+  status: 'sent' | 'landed' | 'refused';
 }
 
 /** One fight of a committed group round (`versus_group_fights`). */
@@ -471,10 +473,15 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
   duosPass: (matchId: string, round: number, seq: number, card: unknown) =>
     rpc<VersusDuosPassRow>('versus_duos_pass', { p_match: matchId, p_round: round, p_seq: seq, p_card: card }),
+  /** VERSUS DUOS: my free hand slots (the server refuses a pass to a full hand: "Pass is refused if hand is full"). */
+  duosHandRoom: (matchId: string, room: number) => rpc<void>('versus_duos_hand_room', { p_match: matchId, p_room: room }),
+  /** VERSUS DUOS: my run's answer to a teammate's pass: it landed, or my full hand refused it. */
+  duosAnswerPass: (matchId: string, fromSeat: VersusGroupSeat, seq: number, landed: boolean) =>
+    rpc<VersusDuosPassRow>('versus_duos_answer_pass', { p_match: matchId, p_from_seat: fromSeat, p_seq: seq, p_landed: landed }),
   /** VERSUS DUOS: my team's passes from `fromRound` on (RLS: only the two teammates read them). */
   async duosPasses(matchId: string, fromRound: number): Promise<VersusDuosPassRow[]> {
     // rows: at most 10 passes per seat per round, two seats, read from the current round (R-NET-01).
-    const { data, error } = await db().from('versus_duos_passes').select('match_id, round, from_seat, to_seat, seq, card')
+    const { data, error } = await db().from('versus_duos_passes').select('match_id, round, from_seat, to_seat, seq, card, status')
       .eq('match_id', matchId).gte('round', fromRound).order('seq').limit(200);
     if (error) fail(error);
     return (data as VersusDuosPassRow[]) ?? [];
@@ -514,7 +521,7 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_group_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
         // VERSUS DUOS: a teammate's pass (RLS lets only the team see the row, so only the teammates wake).
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_duos_passes', filter: `match_id=eq.${matchId}` }, (p: { new?: Record<string, unknown> }) => onChange('passes', p.new));
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_duos_passes', filter: `match_id=eq.${matchId}` }, (p: { new?: Record<string, unknown> }) => onChange('passes', p.new));
     }
     if (onBroadcast) ch = ch.on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
     ch.subscribe();

@@ -3261,6 +3261,13 @@ export type CombatEvent = (
   | { type: 'keyword'; target: string; keyword: Keyword; source?: string; tint?: RiseTint } // a combat effect grants a keyword (Mumi → Rise, Ryme-replayed keyword battlecries) — the UI folds it into the unit's pills
   | { type: 'keywordLost'; target: string; keyword: Keyword; source?: string } // a combat effect STRIPS a keyword (Tauntbreaker → Taunt/Rise off the enemy it hit) — the UI drops that pill
   | { type: 'venomLost'; target: string } // a Venomous minion procced and lost Venomous
+  // TAG-TEAM (Versus Duos, owner 2026-10-25, R-DUOS-TAGTEAM-01): `side`'s board (team member `member`) is wiped and its
+  // fight is over; the reserve steps in next. Emitted once per fallen board, before its `tagIn`. Presentation beat.
+  | { type: 'boardFallen'; side: Side; member: number }
+  // ...and `side`'s RESERVE board (team member `member`, its own run) steps in: `minions` is the board as it enters
+  // (instantiated, run-wide auras folded, before its Start of Combat, which follows as ordinary events). The replay
+  // replaces that side's board with these bodies (the fallen board's dead are gone).
+  | { type: 'tagIn'; side: Side; member: number; minions: MinionSnapshot[] }
   | { type: 'summon'; minion: MinionSnapshot; side: Side; index: number; source?: string; fromHandUid?: string } // `fromHandUid`: a COPY summoned from that hand card (set 3 Spirits) — the card stays in hand, greyed for the fight
   | { type: 'ascend'; target: string; into: string; gild?: true } // `gild`: an in-fight GILD (Ancient of Time) — same card, now golden; its doubled stats arrive as a `buff` // mid-combat transform (Tara → Taragosa, Spirit Pup → Spirit Worgen)
   // `ruby`: this stat gain came from a RUBY landing on `target` (set 2 Kobolds), not from an ordinary buff.
@@ -3470,6 +3477,21 @@ export interface PendingCombatQuest {
 }
 
 /** Combat-resolution flags that are genuinely player-only one-fight overrides (runes), not per-side run state. */
+/** TAG-TEAM (Versus Duos, owner 2026-10-25): a side's SECOND board and its own run context. It steps in when the
+ *  side's first board is wiped (see `CombatConfig.reserve`). */
+export interface CombatReserve {
+  board: BoardMinion[];
+  state: CombatSideState;
+}
+
+/** TAG-TEAM result channel: per side, the carry-backs of each team member that fought (index = member: 0 the first
+ *  board, 1 the reserve), and the event index at which each reserve stepped in. Present only when `reserve` was set. */
+export interface CombatTagTeam {
+  members: Partial<Record<Side, CombatCarryBacks[]>>;
+  /** Index into `events` of each side's `tagIn` (absent = the reserve never stepped in). */
+  tagInAt: Partial<Record<Side, number>>;
+}
+
 export interface CombatConfig {
   /** Pre-emptive Assault (attack-first-next): the player's board strikes first this fight. PER SIDE since
    *  R-SYMMETRY-01 (2026-10-13): `enemyAttacksFirst` is the same option for the enemy board. Both set = they cancel
@@ -3485,6 +3507,10 @@ export interface CombatConfig {
    *  `player` — the order every recorded fight was resolved in. The mirror test resolves the swapped fight with
    *  `firstSide: 'enemy'` and requires an identical fight up to the side swap. */
   firstSide?: Side;
+  /** TAG-TEAM (Versus Duos, owner 2026-10-25, R-DUOS-TAGTEAM-01): a side's second board. When that side's board is
+   *  wiped (and the fight is not over), the reserve steps in against the survivors: its own run context, its own
+   *  Start of Combat, its own carry-backs (`CombatResult.tagTeam`). Absent = an ordinary fight, byte-identical. */
+  reserve?: Partial<Record<Side, CombatReserve>>;
   /** Rallying Offensive: the player's Rally triggers fire twice this fight. LEGACY (2026-10-07): the live channel is
    *  the per-side `QuestCombatMods.rallyDouble`; this flag is still honoured (OR-ed in) for old callers. */
   playerRallyDouble?: boolean;
@@ -3658,6 +3684,8 @@ export interface CombatResult {
    *  `CombatCarryBacks`). Optional like every non-core field (hand-built test fixtures). The shipped run loop
    *  ignores it; the balance bot's seat runner settles the `enemy` seat from it. */
   enemyCarry?: CombatCarryBacks;
+  /** TAG-TEAM fights only (`CombatConfig.reserve`): each team member's carry-backs and when each reserve stepped in. */
+  tagTeam?: CombatTagTeam;
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
    *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not
    *  the current player's. Absent for the procedural threat / when nothing scaled. Mirrors the values threaded

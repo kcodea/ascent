@@ -5,6 +5,8 @@ import type {
   CombatCarryBacks,
   CombatConfig,
   CombatContext,
+  CombatReserve,
+  CombatTagTeam,
   CombatEvent,
   CombatOutcome,
   CombatResult,
@@ -156,6 +158,30 @@ export function simulate(
   enemyState = { ...enemyState, questMods: { ...enemyState.questMods }, handMinions: cloneHand(enemyState) };
   /** This side's run-level combat context (the per-side struct). */
   const stateOf = (side: Side): CombatSideState => (side === 'player' ? playerState : enemyState);
+  // ── TAG-TEAM (Versus Duos, owner 2026-10-25, R-DUOS-TAGTEAM-01) ─────────────────────────────────────────────────
+  // "one combat per round, team vs team. Your board fights first; when it is wiped, your teammate's board steps in
+  // against whatever survived on the other side." `config.reserve[side]` is that side's SECOND board (its own run
+  // context). When the side's board is wiped, the reserve STEPS IN (see `stepIn`): the side's run context becomes the
+  // reserve's, every per-side value below is re-initialized for that side from it (`sideReset`), its board is
+  // instantiated, and its Start of Combat runs against the live survivors. The first board's carry-backs are taken
+  // at that moment, so each teammate's run settles with only what its own board did. No reserve = none of this runs,
+  // so a 1v1 / group / lobby fight is byte-identical.
+  const reserveOf: Partial<Record<Side, CombatReserve>> = { ...config.reserve }; // a copy: a step-in spends its entry
+  const hasReserve = !!(reserveOf.player || reserveOf.enemy);
+  /** Which team member's board a side is fighting with: 0 = its first board, 1 = its reserve (after `stepIn`). */
+  const activeMember: Record<Side, number> = { player: 0, enemy: 0 };
+  /** Does either side's RESERVE hold a mod? Widens a registration-time gate so a listener the reserve needs exists
+   *  (its handler reads the live side's mods). Always false without a reserve, so the gate is unchanged. */
+  const reserveHas = (pred: (m: QuestCombatMods) => boolean): boolean =>
+    hasReserve && (['player', 'enemy'] as const).some((s) => !!reserveOf[s] && pred(reserveOf[s]!.state.questMods ?? {}));
+  /** Per-side values declared through this are re-initialized for ONE side when its reserve steps in: `mk` runs again
+   *  (it reads the side's NEW run context) and that side's half is copied over. Initial evaluation is unchanged. */
+  const sideResetters: ((side: Side) => void)[] = [];
+  const sideReset = <T extends Record<Side, unknown>>(mk: () => T): T => {
+    const v = mk();
+    if (hasReserve) sideResetters.push((s) => { v[s] = mk()[s]; });
+    return v;
+  };
   /** Queen Morro's live extra combat casts for `side`: +`extra` per living Morro, x2 Gilded. Declared via `boards`
    *  lazily (called only once the fight is running). */
   const combatSpellsExtra = (side: Side): number => {
@@ -215,8 +241,8 @@ export function simulate(
   // Beast Attack aura, PER SIDE, mutable so The Old Hunt (oldHuntStep) can pump it live as Beasts attack —
   // later from-base Beast bodies (summons / Reborn) then inherit the grown value. Its Health sibling
   // (Pack Mentality) is fixed for the fight. Enemy values come from the served snapshot.
-  const beastAtkAuraFor: Record<Side, number> = { player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk };
-  const beastHpAuraFor: Record<Side, number> = { player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 };
+  const beastAtkAuraFor: Record<Side, number> = sideReset(() => ({ player: playerState.beastBuyAtk, enemy: enemyState.beastBuyAtk }));
+  const beastHpAuraFor: Record<Side, number> = sideReset(() => ({ player: playerState.questMods.beastAuraHp ?? 0, enemy: enemyState.questMods.beastAuraHp ?? 0 }));
   // ── SYMMETRIC CARRY-BACKS (balance bot, 2026-09-15; fully symmetric since R-SYMMETRY-01, 2026-10-13) ─────────
   // Every settle-time carry-back below is tracked PER SIDE. The `player` half feeds the `player*` result fields
   // exactly as it always has; the `enemy` half is reported on the additive `CombatResult.enemyCarry` so a live
@@ -228,22 +254,22 @@ export function simulate(
   // stream's sequence follows the first side alone and the pick is still a pure function of the seed.
   const zero = (): { attack: number; health: number } => ({ attack: 0, health: 0 });
   const perSide = <T,>(mk: () => T): Record<Side, T> => ({ player: mk(), enemy: mk() });
-  const beastBuyAtkGain: Record<Side, number> = { player: 0, enemy: 0 }; // Pack Mentality: its LEVEL grown this combat → carried back (R-AURA-03)
+  const beastBuyAtkGain: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // Pack Mentality: its LEVEL grown this combat → carried back (R-AURA-03)
   // GORUN (Blade Mastery): attacks made THIS fight, per side. The run-lifetime total rides in on
   // `mods.bladeMastery.attacks`; adding this to it is what lets the grant step up mid-combat as the running
   // total crosses each multiple of 8. Its own counter (per side) rather than the quest tally's attack count, so the
   // grant reads only this fight's swings on top of the run-lifetime total.
-  const bladeAttacks: Record<Side, number> = { player: 0, enemy: 0 };
+  const bladeAttacks: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   // CINDARA (Hoard): the improvement her Whelps have banked ABOVE the token's 1/1 base, per side. Seeded from
   // the run's saved level and grown +2/+2 per Avenge (4) fire; the player's growth carries back at settle.
-  const hoardLevel: Record<Side, { attack: number; health: number }> = {
+  const hoardLevel: Record<Side, { attack: number; health: number }> = sideReset(() => ({
     player: { ...(playerState.questMods.hoard ?? { attack: 0, health: 0 }) },
     enemy: { ...(enemyState.questMods.hoard ?? { attack: 0, health: 0 }) },
-  };
-  const hoardStart: Record<Side, { attack: number; health: number }> = {
+  }));
+  const hoardStart: Record<Side, { attack: number; health: number }> = sideReset(() => ({
     player: { attack: hoardLevel.player.attack, health: hoardLevel.player.health },
     enemy: { attack: hoardLevel.enemy.attack, health: hoardLevel.enemy.health },
-  };
+  }));
   // Pack Mentality: the LIVE growth of its combat Beast buff, PER SIDE (every `per` Beasts summoned this fight grow
   // it by step, applied at once to living Beasts and to later Beast summons). `beastScaleProgress` counts toward
   // the next step. Since 2026-09-28 (R-AURA-03) the buff itself is combat-only: `beastBuyAtkGain`/`beastBuyHpGain`
@@ -251,15 +277,15 @@ export function simulate(
   // never into run-wide Beast stats. The Old Hunt and Beastial Swarm no longer feed them.
   // Both sides grow and tick (R-SYMMETRY-01, 2026-10-13; it used to be player-only, so an enemy Pack Mentality was
   // frozen at its served level and its carry-back was absent).
-  const beastScaleFor: Record<Side, QuestCombatMods['beastSummonScale']> = {
+  const beastScaleFor: Record<Side, QuestCombatMods['beastSummonScale']> = sideReset(() => ({
     player: playerState.questMods.beastSummonScale,
     enemy: enemyState.questMods.beastSummonScale,
-  };
-  const beastBuyHpGain: Record<Side, number> = { player: 0, enemy: 0 };
-  const beastScaleProgress: Record<Side, number> = {
+  }));
+  const beastBuyHpGain: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const beastScaleProgress: Record<Side, number> = sideReset(() => ({
     player: beastScaleFor.player?.progress ?? 0,
     enemy: beastScaleFor.enemy?.progress ?? 0,
-  };
+  }));
   const events: CombatEvent[] = [];
   // Resolution-step tag (choreographer spec 2026-07-06): `stepN` identifies the atomic resolution moment
   // each event belongs to. `emit` stamps it; `nextStep()` is called wherever a NEW atomic resolution begins
@@ -365,10 +391,10 @@ export function simulate(
   // baseline keyword is TEMPORARY (Maw's one-fight Ward, Lord of the Risen's one-fight Rise, a Shop-cast next-combat
   // keyword, a Whisper keyword, a run-wide start aura): the starting copy never counts, but once the body is seen WITHOUT
   // it (`engraveKwLost`), a later combat-time grant is a real gain.
-  const engraveKwStart: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
-  const engraveKwPerm: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
-  const engraveKwLost: Record<Side, Map<string, Set<Keyword>>> = { player: new Map(), enemy: new Map() };
-  const engraveKwGained: Record<Side, Map<string, Keyword[]>> = { player: new Map(), enemy: new Map() };
+  const engraveKwStart: Record<Side, Map<string, Set<Keyword>>> = sideReset(() => ({ player: new Map(), enemy: new Map() }));
+  const engraveKwPerm: Record<Side, Map<string, Set<Keyword>>> = sideReset(() => ({ player: new Map(), enemy: new Map() }));
+  const engraveKwLost: Record<Side, Map<string, Set<Keyword>>> = sideReset(() => ({ player: new Map(), enemy: new Map() }));
+  const engraveKwGained: Record<Side, Map<string, Keyword[]>> = sideReset(() => ({ player: new Map(), enemy: new Map() }));
   let engraveKwScan: (() => void) | undefined;
   const emit = (e: CombatEvent): void => { events.push({ ...e, step: stepN, ...(inAvenge ? { avenge: true as const } : {}), ...(effectCtx ? { key: effectCtx.key, srcCard: effectCtx.srcCard } : {}), ...(waveN !== undefined ? { wave: waveN } : {}) }); if (engraveKwScan) engraveKwScan(); };
   // A completed quest / owned rune's COMBAT effect just fired — emit a marker the UI folds into a badge pulse
@@ -390,27 +416,27 @@ export function simulate(
   };
   let uidCounter = 0;
   const mkUid = (): string => `m${uidCounter++}`;
-  const handGrants = perSide<string[]>(() => []); // cards a side's deathrattles add to its hand after combat
-  const handBuffs = perSide<{ uid: string; attack: number; health: number; source?: string }[]>(() => []); // R-HAND-02: hand cards buffed mid-fight, carried back permanently
+  const handGrants = sideReset(() => (perSide<string[]>(() => []))); // cards a side's deathrattles add to its hand after combat
+  const handBuffs = sideReset(() => (perSide<{ uid: string; attack: number; health: number; source?: string }[]>(() => []))); // R-HAND-02: hand cards buffed mid-fight, carried back permanently
   /** Rune of Grave Refreshment's per-side Echo counter. Combat-local: the rune reads "in combat", so the
    *  remainder is deliberately NOT banked across fights. */
-  const echoRefreshTick: Record<Side, number> = { player: 0, enemy: 0 };
+  const echoRefreshTick: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Rune of the Returning Pack's per-side Beast-summon counter. Combat-local for the same reason. */
-  const packSummonTick: Record<Side, number> = { player: 0, enemy: 0 };
+  const packSummonTick: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Rune of Combatative Rubies' per-side attack meter, seeded with the run's carried progress (a RUNNING meter,
    *  owner 2026-09-25). Settle writes the new progress back from the fight's attack tally. */
-  const combatativeTick: Record<Side, number> = { player: modsFor('player').runeCombatativeTick ?? 0, enemy: modsFor('enemy').runeCombatativeTick ?? 0 };
+  const combatativeTick: Record<Side, number> = sideReset(() => ({ player: modsFor('player').runeCombatativeTick ?? 0, enemy: modsFor('enemy').runeCombatativeTick ?? 0 }));
   /** Balance 9/23 — the CROSS-PHASE Shout tally: Shout (Battlecry) FIRES this fight per side (one per
    *  `battlecryTriggered` emit: Ryme / Dawnclaw / Sovereign re-fires, parting cries, Drakko repeats), carried
    *  back as `shoutFires` so the run's Shout trackers (quest objectives, Bane's Presence, the Author's Hand)
    *  count combat Shouts too. */
-  const shoutFires: Record<Side, number> = { player: 0, enemy: 0 };
+  const shoutFires: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** …and the "when you trigger N Shouts" RUNE METERS (the Chorus / Hoardcalling), copied in from the side's
    *  mods WITH their shop ticks so the ONE counter continues here: every fire advances them, a trip pays into
    *  `handGrants` at once, and the final ticks go home (`shoutMeters`) for the next shop to keep counting. */
   const copyShoutMeters = (side: Side): NonNullable<QuestCombatMods['shoutMeters']> =>
     (modsFor(side).shoutMeters ?? []).map((m) => ({ ...m, grantOneOf: m.grantOneOf ? [...m.grantOneOf] : undefined, grantCards: m.grantCards ? [...m.grantCards] : undefined, buff: m.buff ? { ...m.buff } : undefined }));
-  const shoutMeters: Record<Side, ReturnType<typeof copyShoutMeters>> = { player: copyShoutMeters('player'), enemy: copyShoutMeters('enemy') };
+  const shoutMeters: Record<Side, ReturnType<typeof copyShoutMeters>> = sideReset(() => ({ player: copyShoutMeters('player'), enemy: copyShoutMeters('enemy') }));
   // THE CROSS-PHASE SHOUT TALLY (balance 9/23): every Shout FIRE on a side counts, and the side's "when you trigger
   // N Shouts" rune meters tick with it — paying mid-fight through `handGrants` (a random Shop spell, never an Ale,
   // from the side's own pool at its tier; or one of the named cards), exactly what the shop pays on a trip. The
@@ -496,18 +522,18 @@ export function simulate(
       }
     }
   });
-  const slaughterCopyId: Record<Side, string | undefined> = { player: undefined, enemy: undefined }; // Rune of the Trophy: the first friendly slaughterer's card id
-  const spellPowerGain = perSide(zero); // run-wide spell-power gained this combat (Skullblade)
-  const rubyGrants = perSide(() => ({ n: 0 })); // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
-  const rubyGrantIds = perSide((): string[] => []); // RANDOM-type Rubies (Kobe's Pummel, 2026-09-24) — the drawn ids, carried back
+  const slaughterCopyId: Record<Side, string | undefined> = sideReset(() => ({ player: undefined, enemy: undefined })); // Rune of the Trophy: the first friendly slaughterer's card id
+  const spellPowerGain = sideReset(() => (perSide(zero))); // run-wide spell-power gained this combat (Skullblade)
+  const rubyGrants = sideReset(() => (perSide(() => ({ n: 0 })))); // Set 2 — Rubies to mint into hand after combat (Rikk / Gemline), carried back
+  const rubyGrantIds = sideReset(() => (perSide((): string[] => []))); // RANDOM-type Rubies (Kobe's Pummel, 2026-09-24) — the drawn ids, carried back
   // Per SIDE, and read LIVE (owner rule 2026-08-02): a mid-combat Ruby buff (Crownvein Vanguard's Rally)
   // must reach the Rubies played LATER in the same fight (Gemstorm Instigator's Avenge, Mineral Master's
   // Rally, Rune of Attacking Gems) — it used to be a settle-time carry-back only, so every in-combat Ruby
   // minted at the pre-combat snapshot. `rubyBonusFor` folds this in on every read; the player half still
   // carries back via `playerRubyBonusGain` (enemies have no run to persist to).
-  const rubyMintCount: Record<Side, number> = { player: 0, enemy: 0 }; // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
+  const rubyMintCount: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // "get N Rubies" refired in combat — settle mints via the run's real mintRubies
   const handSummonedUids = new Set<string>(); // hand minions taken by Rope Wrangler's Echo (per-fight, both sides; keyed `handKey`)
-  const handSummoned = perSide<string[]>(() => []); // per side, carried back so settle removes them from the hand
+  const handSummoned = sideReset(() => (perSide<string[]>(() => []))); // per side, carried back so settle removes them from the hand
   const handCopiedUids = new Set<string>(); // set 3 Spirits: hand cards a COPY was summoned from this fight — NOT consumed, just spent as a summon source
   /** The two hands' bookkeeping key: a hand uid is only unique within its own side (two captured hands, or the two
    *  sides' mid-fight grants `hg0`, can share one). */
@@ -518,8 +544,8 @@ export function simulate(
   // while it would FIT the real hand at settle: settle mints the fight's Rubies first, then walks `handGrants` in
   // order, each one taking a slot (spells too) until the cap. So grant `idx` fits while `idx < room - rubies`.
   type HandEntry = { uid: string; cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean; grantIdx: number };
-  const grantedHand = perSide<HandEntry[]>(() => []);
-  const handRoomAtStart = perSide<number>(() => 0);
+  const grantedHand = sideReset(() => (perSide<HandEntry[]>(() => [])));
+  const handRoomAtStart = sideReset(() => (perSide<number>(() => 0)));
   for (const side of ['player', 'enemy'] as const) {
     const st = stateOf(side);
     handRoomAtStart[side] = Math.max(0, st.handRoom ?? 10 - (st.handMinions?.length ?? 0) - (st.handSpellIds?.length ?? 0));
@@ -565,88 +591,88 @@ export function simulate(
     return { attack, health };
   };
   const grantedEntry = (side: Side, idx: number): HandEntry | undefined => grantedHand[side].find((e) => e.grantIdx === idx);
-  const rubyBonusGain: Record<Side, { attack: number; health: number }> = {
+  const rubyBonusGain: Record<Side, { attack: number; health: number }> = sideReset(() => ({
     player: { attack: 0, health: 0 },
     enemy: { attack: 0, health: 0 },
-  };
-  const boardBuffGain = perSide(zero); // Rune of Overflow — permanent, carried back to the warband
-  const tavernBuyGain = perSide(zero); // Demon Horse — carried back to `tavernBuyBonus`
+  }));
+  const boardBuffGain = sideReset(() => (perSide(zero))); // Rune of Overflow — permanent, carried back to the warband
+  const tavernBuyGain = sideReset(() => (perSide(zero))); // Demon Horse — carried back to `tavernBuyBonus`
   // …and WHO raised it, by name (a rune or the body): the run's per-source shop-stat ledger (owner ask 2026-09-10).
-  const tavernBuyGainSources = perSide<Record<string, { attack: number; health: number }>>(() => ({}));
+  const tavernBuyGainSources = sideReset(() => (perSide<Record<string, { attack: number; health: number }>>(() => ({}))));
   const creditTavern = (side: Side, name: string, attack: number, health: number): void => {
     const cur = tavernBuyGainSources[side][name] ?? { attack: 0, health: 0 };
     tavernBuyGainSources[side][name] = { attack: cur.attack + attack, health: cur.health + health };
   }; // Set 2 — rubyBonus gained this combat (Veinbreaker), carried back
-  const nextTurnSpellCopies = perSide(() => ({ n: 0 })); // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
-  const undeadBuyAtkGain: Record<Side, number> = { player: 0, enemy: 0 }; // permanent Undead buy-time attack from this combat (Karthus)
-  const beastExtraGain: Record<Side, { hunt: number; ritual: number }> = { // Elderhorn refired in combat —
+  const nextTurnSpellCopies = sideReset(() => (perSide(() => ({ n: 0 })))); // Set 2 — Scalefeather Echoes: next-turn first-spell copies, carried back
+  const undeadBuyAtkGain: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // permanent Undead buy-time attack from this combat (Karthus)
+  const beastExtraGain: Record<Side, { hunt: number; ritual: number }> = sideReset(() => ({ // Elderhorn refired in combat —
     player: { hunt: 0, ritual: 0 }, // both sides read live for the rest of the fight; player half carries back
     enemy: { hunt: 0, ritual: 0 },
-  };
-  const undeadAuraGain = perSide(zero); // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
+  }));
+  const undeadAuraGain = sideReset(() => (perSide(zero))); // permanent Undead aura (attack+health) from this combat (Watcher's Lantern)
   // Set 3 design pass: Starform growth banked this fight, per source (the Starform is a Shop token: settle applies it).
-  const starformGain = perSide<{ source: string; attack: number; health: number }[]>(() => []);
+  const starformGain = sideReset(() => (perSide<{ source: string; attack: number; health: number }[]>(() => [])));
   const bankStarform = (side: Side, attack: number, health: number, source: string): void => {
     if (attack <= 0 && health <= 0) return;
     const row = starformGain[side].find((g) => g.source === source);
     if (row) { row.attack += attack; row.health += health; } else starformGain[side].push({ source, attack, health });
   };
-  const impBuffGain = perSide(zero); // permanent Imp buff from this combat (Imp King / Brood Avenge)
-  const rightmostSlotGain = perSide(zero); // permanent right-most Shop-slot buff (Right Hand Hank's Echo)
-  const magneticBuffGain = perSide(zero); // permanent Attachment enchant from this combat (Chorus Engine)
-  const fodderBuffGain = perSide(zero); // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
-  const cardBuffGains = perSide<{ cardId: string; attack: number; health: number }[]>(() => []); // run-wide card-type buffs (Grave Knit)
-  const fodderGrants: Record<Side, number> = { player: 0, enemy: 0 }; // Fodder queued into the next tavern (Burial Imp's Deathrattle)
-  const fodderSchedule = perSide<number[]>(() => []); // Fodder queued across the next several shops (Pit Supplier's Avenge)
-  const maxGoldGain: Record<Side, number> = { player: 0, enemy: 0 }; // permanent max-Gold gain (Soulsman's Avenge)
-  const bonusGoldGain: Record<Side, number> = { player: 0, enemy: 0 }; // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
+  const impBuffGain = sideReset(() => (perSide(zero))); // permanent Imp buff from this combat (Imp King / Brood Avenge)
+  const rightmostSlotGain = sideReset(() => (perSide(zero))); // permanent right-most Shop-slot buff (Right Hand Hank's Echo)
+  const magneticBuffGain = sideReset(() => (perSide(zero))); // permanent Attachment enchant from this combat (Chorus Engine)
+  const fodderBuffGain = sideReset(() => (perSide(zero))); // permanent run-wide Fodder enchant from this combat (Bane via Ryme)
+  const cardBuffGains = sideReset(() => (perSide<{ cardId: string; attack: number; health: number }[]>(() => []))); // run-wide card-type buffs (Grave Knit)
+  const fodderGrants: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // Fodder queued into the next tavern (Burial Imp's Deathrattle)
+  const fodderSchedule = sideReset(() => (perSide<number[]>(() => []))); // Fodder queued across the next several shops (Pit Supplier's Avenge)
+  const maxGoldGain: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // permanent max-Gold gain (Soulsman's Avenge)
+  const bonusGoldGain: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // one-time Gold granted into the next shop (Bounty Bot's Slaughter)
   const buffCounts = new Map<string, number>(); // # of stat-grants per minion this combat (Tara → Taragosa ascend)
-  const freeRollGrants: Record<Side, number> = { player: 0, enemy: 0 }; // free shop rerolls banked from combat (Gryphon's on-damaged)
-  const attachmentShopGrants: Record<Side, number> = { player: 0, enemy: 0 }; // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
+  const freeRollGrants: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // free shop rerolls banked from combat (Gryphon's on-damaged)
+  const attachmentShopGrants: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // Moe: shops that must contain a guaranteed Magnetic offer, banked from combat
   // Running spell tally per side for in-combat casts (Taragosa's Growth). The player side is seeded from
   // the run's spellsCast so Guel's grant scales correctly; `playerCombatSpells` is the delta carried back.
   // Both sides seed from their own run (R-SYMMETRY-01: the enemy's used to start at 0, so a served Guel/Taragosa
   // read the wrong tally).
-  const spellTotals: Record<Side, number> = { player: playerState.spellsCast, enemy: enemyState.spellsCast ?? 0 };
-  const combatSpells: Record<Side, number> = { player: 0, enemy: 0 }; // spells a side cast THIS combat → added to the run's spellsCast at settle
+  const spellTotals: Record<Side, number> = sideReset(() => ({ player: playerState.spellsCast, enemy: enemyState.spellsCast ?? 0 }));
+  const combatSpells: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // spells a side cast THIS combat → added to the run's spellsCast at settle
   /** Escalating-spell improvement earned this fight (Quil casting Front to Back). Live for the REST of the
    *  fight — a second cast grants the improved value — and the player's half carries back at settle. */
-  const spellEscalationGain: Record<Side, { attack: number; health: number }> =
-    { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
+  const spellEscalationGain: Record<Side, { attack: number; health: number }> =sideReset(() => (
+    { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } }));
   /** Discover spells cast mid-fight (Quil / Sporebat / a taught Pup) — the modal can't open here, so the
    *  cast carries back and settle queues the real pick. Per side, like every hand channel. */
-  const discoverCasts = perSide<string[]>(() => []);
+  const discoverCasts = sideReset(() => (perSide<string[]>(() => [])));
   /** Shop-buff spells cast mid-fight → a one-time NEXT-shop buff (the run's `nextShopBuff` channel). */
-  const nextShopBuffGain = perSide(zero);
+  const nextShopBuffGain = sideReset(() => (perSide(zero)));
   /** Extra combat casts each side has been granted (Runebloom Matriarch). 0 = a Shop Spell resolves once.
    *  Locked in at Start of Combat, so losing the granter mid-fight does not retract it — the same contract
    *  every other Start-of-Combat mode installs. Read by `castInCombat` via `spellCastRepsFor`. */
   // ANCIENT OF WAR × Hunch (owner 2026-09-30): "Shop Spells cast an additional time in combat" seeds this same channel
   // for the whole fight (Runebloom Matriarch's grant, from the hero), so every `castInCombat` caster reads it.
-  const spellCastExtra: Record<Side, number> = {
+  const spellCastExtra: Record<Side, number> = sideReset(() => ({
     player: Math.max(0, modsFor('player').ancientSpellCastExtra ?? 0),
     enemy: Math.max(0, modsFor('enemy').ancientSpellCastExtra ?? 0),
-  };
+  }));
   /** Rune of the Crucible: the bodies sacrificed at Start of Combat, per side, kept at the stats they had.
    *  Resummoned when that side's LAST minion dies — see the wipe check in `killOrReborn`. Emptied on use, so
    *  a side can only be brought back once per fight. */
-  const crucibleBank: Record<Side, { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[]> =
-    { player: [], enemy: [] };
+  const crucibleBank: Record<Side, { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean }[]> =sideReset(() => (
+    { player: [], enemy: [] }));
   /** Rune of the Second Litter: has the once-per-combat copy already fired, per side? */
-  const secondLitterUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const secondLitterUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   // ── Set 3 batch 2 (2026-09-16), tranche C ──
   /** Rune of the Final Gate: every friendly Undead that REALLY died this combat (printed body: cardId + golden),
    *  in death order, per side. A Rise / Rebirth death whose body came back is not a corpse and is not recorded;
    *  one whose return overflowed IS (it stayed dead). Read once, when the side's board becomes empty. */
-  const finalGateGraves: Record<Side, { cardId: string; golden: boolean }[]> = { player: [], enemy: [] };
+  const finalGateGraves: Record<Side, { cardId: string; golden: boolean }[]> = sideReset(() => ({ player: [], enemy: [] }));
   /** Rune of the Final Gate: has this side's once-per-combat gate already opened? */
-  const finalGateUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const finalGateUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** Rune of Dreamed Graves: has this side's first hand-summon already taken its Rebirth? */
-  const dreamedGravesUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const dreamedGravesUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** The NEXT body this side places came FROM THE HAND (a Spirit hand-summon, Rope Wrangler's Echo). Set by the
    *  two hand-summon ctx paths, consumed by `placeSummon` — success or overflow — so it can never leak onto an
    *  unrelated summon. */
-  const pendingHandSummon: Record<Side, boolean> = { player: false, enemy: false };
+  const pendingHandSummon: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** REBIRTH's Ward restore: uids whose Ward BROKE this combat. A Warded body that dies has, in practice, lost
    *  its Ward first — and the owner's example ("a Warded 50/50 dies and comes back a Warded 50/50") wants it
    *  back, so the return restores a Ward the body carried at any point this fight. */
@@ -728,13 +754,13 @@ export function simulate(
   }
   /** ANCIENTS (Warden's Fortune / Genesis): the cardId of each Ward that BROKE this fight, per side — recorded only
    *  for a side whose mods carry `ancientTrackWardBreaks`, so every other fight's result stays byte-identical. */
-  const wardBreakLog: Record<Side, string[]> = { player: [], enemy: [] };
+  const wardBreakLog: Record<Side, string[]> = sideReset(() => ({ player: [], enemy: [] }));
   /** ANCIENT OF GENESIS × Warden: the run's break window, copied in so the ONE counter continues here and pays the
    *  copy the moment the Nth Ward breaks (real-time, not at settle). */
-  const wardWindow: Record<Side, string[]> = {
+  const wardWindow: Record<Side, string[]> = sideReset(() => ({
     player: [...(modsFor('player').ancientWardCopy?.window ?? [])],
     enemy: [...(modsFor('enemy').ancientWardCopy?.window ?? [])],
-  };
+  }));
   /** ANCIENTS × Lord of the Risen: the combat uids of the bodies Undying marked (matched by `sourceUid` against
    *  `ancientUndying.uids` once the boards exist), the ones whose Death regain is spent, and each body's tinted
    *  Rise look (War's red, Death's regained blue), read by `snapshot` and stamped on the `reborn` / `keyword` events. */
@@ -748,23 +774,23 @@ export function simulate(
   const risesOf = (m: Minion): number => riseSerial.get(m.uid) ?? 0;
   /** ANCIENTS (Risen's Fortune / Time): friendly Rises and friendly summons this fight, per side — counted only for
    *  a side whose mods ask (`ancientCountRises` / `ancientCountSummons`), so every other result is byte-identical. */
-  const riseLog: Record<Side, number> = { player: 0, enemy: 0 };
-  const summonLog: Record<Side, number> = { player: 0, enemy: 0 };
+  const riseLog: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const summonLog: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** ANCIENT OF WAR × Albus: the side-wide hero-Pummel tally (seeded LIFETIME, like the keyword) and its
    *  once-per-combat latch. Only read for a side whose mods carry `ancientPummel`. */
-  const ancientPummelDealt: Record<Side, number> = {
+  const ancientPummelDealt: Record<Side, number> = sideReset(() => ({
     player: modsFor('player').ancientPummel?.dealt ?? modsFor('player').ancientPummelCopy?.dealt ?? modsFor('player').ancientPummelCharge?.dealt ?? modsFor('player').ancientFlash?.pummel?.dealt ?? 0,
     enemy: modsFor('enemy').ancientPummel?.dealt ?? modsFor('enemy').ancientPummelCopy?.dealt ?? modsFor('enemy').ancientPummelCharge?.dealt ?? modsFor('enemy').ancientFlash?.pummel?.dealt ?? 0,
-  };
-  const ancientPummelPaid: Record<Side, boolean> = { player: false, enemy: false };
+  }));
+  const ancientPummelPaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** ANCIENT OF DEATH × Hunch: the spell improvement this fight's Avenges granted, per side (carried back). */
-  const ancientSpellImproved: Record<Side, { attack: number; health: number }> = { player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } };
+  const ancientSpellImproved: Record<Side, { attack: number; health: number }> = sideReset(() => ({ player: { attack: 0, health: 0 }, enemy: { attack: 0, health: 0 } }));
   /** ANCIENT OF WAR × Frantic Frank: Clearance stacks this fight's hero Avenge gained, per side. */
-  const clearanceStacksGained: Record<Side, number> = { player: 0, enemy: 0 };
+  const clearanceStacksGained: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** ANCIENT OF DEATH × Nadja: max-Gold Avenge fires this fight, per side (carried back, paid at settle). */
-  const maxGoldAvengeFires: Record<Side, number> = { player: 0, enemy: 0 };
+  const maxGoldAvengeFires: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Wolvie (Echo): one-shot buffs queued for the next tribe minion each side summons (FIFO). */
-  const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = { player: [], enemy: [] };
+  const nextSummonBuffs: Record<Side, { tribe: Tribe; attack: number; health: number; sourceUid?: string }[]> = sideReset(() => ({ player: [], enemy: [] }));
   /** Wolvie's Echoes STACK onto the NEXT matching summon (owner 2026-08-12): four queued Echoes all land on the
    *  next Beast summoned, then the queue is spent — they are still for the next summon ONLY, just summed. Called
    *  from BOTH the normal summon chokepoint AND the Rise re-slot — a Rise re-enters play as a summon (owner
@@ -784,48 +810,48 @@ export function simulate(
   }
   /** Rune of Beastial Swarm: the current per-Beast-death buff amount, per side (grows via Avenge(2); the player
    *  side's final value carries back into the run). Seeded from the run-persisted level (default 2). */
-  const beastialLevel: Record<Side, number> = {
+  const beastialLevel: Record<Side, number> = sideReset(() => ({
     player: playerState.questMods?.beastialSwarmLevel ?? 2,
     enemy: enemyState.questMods?.beastialSwarmLevel ?? 2,
-  };
+  }));
   const beastialStart = { player: beastialLevel.player, enemy: beastialLevel.enemy };
   /** Rune of Beastial Swarm: the running total each side's Beasts were given this fight. A Rebirth body that was dead
    *  while a payout landed (its own death's, at least) is owed the difference on its return (R-DEATH-RETURN-01). */
-  const beastialGiven: Record<Side, number> = { player: 0, enemy: 0 };
+  const beastialGiven: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Rune of Packcraft (owner rework 2026-09-23): the current per-summon grant, per side — starts at the run's
    *  persisted level (default the printed +2/+1), grows by that base step on every friendly summon, and the
    *  player side's grown value carries back. `PACKCRAFT_BASE` mirrors `PACKCRAFT_STEP` in @game/sim state
    *  (core cannot import sim); the reducer seeds an ungrown run with the same numbers. */
   const PACKCRAFT_BASE = { attack: 2, health: 1 } as const;
-  const packcraftLevel: Record<Side, { attack: number; health: number }> = {
+  const packcraftLevel: Record<Side, { attack: number; health: number }> = sideReset(() => ({
     player: { ...(playerState.questMods?.packcraftLevel ?? PACKCRAFT_BASE) },
     enemy: { ...(enemyState.questMods?.packcraftLevel ?? PACKCRAFT_BASE) },
-  };
+  }));
   const packcraftStart = { player: { ...packcraftLevel.player }, enemy: { ...packcraftLevel.enemy } };
   /** Rune of Dragonscale: Ward grants still owed this combat, per side. */
-  const runeDragonscaleLeft: Record<Side, number> = {
+  const runeDragonscaleLeft: Record<Side, number> = sideReset(() => ({
     player: playerState.questMods.runeDragonscale ?? 0,
     enemy: enemyState.questMods.runeDragonscale ?? 0,
-  };
+  }));
   // Economy battlecries Ryme re-fired in combat (Fodder / Gold / shop / gain-minion) — can't run in pure combat,
   // so they're recorded here and replayed through their real recruit factory at settle (full RunState access).
   // Since R-REALTIME-03 (owner 2026-09-26) only the SHOP-ONLY Shouts land here (`SHOP_ONLY_SHOUTS`); `uid` is the
   // re-fired body's run-board card, so the settle replay acts AS that card (its slot, its per-instance fields).
-  const deferredBattlecries = perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => []);
+  const deferredBattlecries = sideReset(() => (perSide<{ cardId: string; golden: boolean; uid?: string }[]>(() => [])));
   /** Run-state grants Shouts made LIVE this fight (R-REALTIME-03) — see `ShoutCarry`. */
-  const shoutCarry = perSide<ShoutCarry>(() => ({}));
+  const shoutCarry = sideReset(() => (perSide<ShoutCarry>(() => ({}))));
   /** Set 3 Dragon runes (Basic): Rune of Deep Breaths' Dragon swings used, and Rune of Ember Inheritance's once-per-fight latch. */
-  const deepBreathsUsed: Record<Side, number> = { player: 0, enemy: 0 };
-  const emberInheritanceUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const deepBreathsUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const emberInheritanceUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** Squirl Scout's snowball, live: the side's run value, grown by every combat re-fire this fight. */
-  const scoutBuff: Record<Side, number> = { player: playerState.squirlScoutBuff ?? 0, enemy: enemyState.squirlScoutBuff ?? 0 };
+  const scoutBuff: Record<Side, number> = sideReset(() => ({ player: playerState.squirlScoutBuff ?? 0, enemy: enemyState.squirlScoutBuff ?? 0 }));
   /** Conductor's run-wide improvement, live: the side's run value, grown by every combat Conductor Shout. */
-  const conductorLive: Record<Side, number> = { player: playerState.conductorBuff ?? 0, enemy: enemyState.conductorBuff ?? 0 };
+  const conductorLive: Record<Side, number> = sideReset(() => ({ player: playerState.conductorBuff ?? 0, enemy: enemyState.conductorBuff ?? 0 }));
   // Declared up here (not beside the functions that use them, further down) because a Start-of-Combat cast can
   // already reach them: a Star Crash / Ruby cast in the Start-of-Combat pass read them before their `let`/`const`
   // line ran and threw (a temporal-dead-zone crash the mirror test found, 2026-10-13).
   /** Rune of the Gem Star: Rubies already credited this fight, per side (see `runeRubyCastCombat`). */
-  const gemStarUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  const gemStarUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Rune of the Meteor Storm's re-entrancy latch (see `runeMeteorStorm`). */
   let meteorEchoing = false;
 
@@ -850,10 +876,10 @@ export function simulate(
   // seeds from run state (impAtkBonus/impHpBonus); each side's in-combat imp-buffers (Imp King / Brood Matron via
   // `grantImpBuff`) then accrue onto their OWN side, so Imps summoned LATER inherit the gain — for both sides.
   // Fixes: enemy Imps spawning at 1/1 (enemy had no aura), and a later-summoned player Imp missing an earlier buff.
-  const impAura: Record<Side, { attack: number; health: number }> = {
+  const impAura: Record<Side, { attack: number; health: number }> = sideReset(() => ({
     player: { attack: playerState.impAtk, health: playerState.impHp },
     enemy: { attack: enemyState.impAtk, health: enemyState.impHp },
-  };
+  }));
 
   // Bleed (Bloodbinder): at Start of Combat the bleeder MARKS a fixed set of enemies (chosen once, in `armBleed`);
   // then every `everyN` attack swings made this fight (either side), it deals its current Attack (golden ×2) to
@@ -865,31 +891,31 @@ export function simulate(
   // Undead aura IN COMBAT (via grantUndeadBuyAtk / grantUndeadAura), and Undead the enemy summons/Reborns after
   // must inherit it — just like the player's. `buyAtk` is the Attack slice baked at buy time (player) or accrued
   // in-combat (enemy), re-added only to a from-base body; `attack`/`health` (Lantern) apply to all Undead.
-  const undeadAura: Record<Side, { attack: number; health: number; buyAtk: number }> = {
+  const undeadAura: Record<Side, { attack: number; health: number; buyAtk: number }> = sideReset(() => ({
     player: { attack: playerState.undeadAtk, health: playerState.undeadHp, buyAtk: playerState.undeadBuyAtk },
     enemy: { attack: enemyState.undeadAtk, health: enemyState.undeadHp, buyAtk: enemyState.undeadBuyAtk },
-  };
+  }));
   // RUNE OF THE SOUL FURNACE (Set 3 design pass, 2026-09-27): the Undead Aura also gives Health = ceil(Aura Attack / 2)
   // per copy. The run keeps the term inside `undeadHealthBonus`, so the fight is SEEDED with it (inside `undeadHp`);
   // `furnaceHp` records that slice so a mid-fight Aura Attack rise re-derives it live (`resyncSoulFurnace`). The live
   // delta is never carried back: the run re-derives its own term from the carried-back Attack at settle.
   const furnaceCopies = (side: Side): number => (modsFor(side).runeSoulFurnace ? flagCopiesOf(side, 'runeSoulFurnace') : 0);
-  const furnaceHp: Record<Side, number> = {
+  const furnaceHp: Record<Side, number> = sideReset(() => ({
     player: soulFurnaceHealth(undeadAura.player.attack + undeadAura.player.buyAtk, furnaceCopies('player')),
     enemy: soulFurnaceHealth(undeadAura.enemy.attack + undeadAura.enemy.buyAtk, furnaceCopies('enemy')),
-  };
+  }));
 
   // RUNE OF UNITY (Set 3 design pass tranche 5): the bodies Unity made "every type" on each side (their `universalTribe`
   // is Unity's, not printed), and the bodies it already handed the Undead Aura to (never twice in one fight).
-  const unityGranted: Record<Side, Set<Minion>> = { player: new Set(), enemy: new Set() };
+  const unityGranted: Record<Side, Set<Minion>> = sideReset(() => ({ player: new Set(), enemy: new Set() }));
   const unityAuraGiven = new Set<Minion>();
 
   // Attachment/Magnetic aura (Scrap Herald / Banksly welds), PER SIDE — a served enemy carries its own captured
   // value, so enemy from-base Magnetics (summoned/Reborn) get it too, just like Beasts.
-  const magneticAuraFor: Record<Side, { attack: number; health: number }> = {
+  const magneticAuraFor: Record<Side, { attack: number; health: number }> = sideReset(() => ({
     player: { attack: playerState.magneticAtk, health: playerState.magneticHp },
     enemy: { attack: enemyState.magneticAtk, health: enemyState.magneticHp },
-  };
+  }));
 
   // Each aura yields the +atk/+hp it grants a given minion (0/0 = doesn't apply). `bakedAtk` is the slice of
   // Attack already folded into run-board stats at buy time (re-added only to a from-base body). The Imp Aura is
@@ -1018,63 +1044,63 @@ export function simulate(
 
   // Player-side Deathrattle firings this combat — feeds Grim's "+1/+1 per Deathrattle this game" tally
   // (added to the run-wide base passed in), and is carried back to accumulate the run-wide count.
-  const deathrattlesFired: Record<Side, number> = { player: 0, enemy: 0 };
+  const deathrattlesFired: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   // Grave Contract / Last Rites: their "first Echo each combat fires extra" bonus is a one-shot per fight —
   // this flips true the first time a player Echo actually triggers so the bonus is spent exactly once.
   // These "first each combat" one-shots are now PER SIDE (a served enemy runs its own quest/rune doublers):
   // `firstEchoDone`/`firstRallyDone`/`firstSlaughterDone` gate the "first Echo/Rally/Slaughter each combat fires
   // extra" bonuses; `pitDone` gates Pit Without End's once-per-fight summon.
-  const firstEchoDone: Record<Side, boolean> = { player: false, enemy: false };
+  const firstEchoDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   // ANCIENT OF DEATH × Soren: the uid of the body Reclaim is destroying at this moment (read by `playerEchoExtras`).
   let reclaimEchoUid: string | undefined;
   // Player Rally (on-attack) triggers this combat — the `rally` quest objective.
-  const ralliesFired: Record<Side, number> = { player: 0, enemy: 0 };
-  const firstRallyDone: Record<Side, boolean> = { player: false, enemy: false };
+  const ralliesFired: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const firstRallyDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   // Imps the player summoned this combat — the `summonImp` objective.
-  const impsSummoned: Record<Side, number> = { player: 0, enemy: 0 };
-  const pitDone: Record<Side, boolean> = { player: false, enemy: false };
+  const impsSummoned: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const pitDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** Rune of Finality's own once-per-fight latch — separate from `pitDone` so holding both runes pays both. */
-  const finalityDone: Record<Side, boolean> = { player: false, enemy: false };
+  const finalityDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** Rune of the Wild Hunt's escalating per-attack Health grant, per side. */
   // Seeded from each side's run context — the Wild Hunt's growth is PERMANENT across combats (owner fix
   // 2026-08-01), so the fight opens where the last one left off.
-  const wildHuntGrown: Record<Side, number> = { player: playerState.wildHuntGrown ?? 0, enemy: enemyState.wildHuntGrown ?? 0 };
+  const wildHuntGrown: Record<Side, number> = sideReset(() => ({ player: playerState.wildHuntGrown ?? 0, enemy: enemyState.wildHuntGrown ?? 0 }));
   /** Friendly minions summoned this combat — the Remains' threshold and Reinvestment's settle-time multiplier. */
-  const summonCount: Record<Side, number> = { player: 0, enemy: 0 };
+  const summonCount: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Per-side count of combat summons so far (this one included), read by Rune of the Zoo to scale Beardsley. */
-  const summonOrdinal: Record<Side, number> = { player: 0, enemy: 0 };
-  const firstSlaughterDone: Record<Side, boolean> = { player: false, enemy: false };
+  const summonOrdinal: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const firstSlaughterDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
 
   // Enemy-side deaths this combat — Cassen's Collision banks these toward its 5-kill payoff (carried back).
   let enemyDeaths = 0;
   // Flash: the IDENTITY of the first and last enemy body you put down, not just how many. Recorded at both
   // enemy-death sites so a Rise's real death counts exactly like an ordinary one.
   // Per KILLER side: `kills.player` = enemy bodies the player put down; `kills.enemy` the mirror.
-  const kills: Record<Side, { first?: string; last?: string }> = { player: {}, enemy: {} };
+  const kills: Record<Side, { first?: string; last?: string }> = sideReset(() => ({ player: {}, enemy: {} }));
   // Rune of the Deathtouched Apple: 2 re-arms per COMBAT per side. A budget rather than a flag because
   // re-granting Rise on a Rise is otherwise unbounded — each return would arm the next forever.
   // 2 uses per copy held (boolean-flag family, owner 2026-08-27).
-  const appleBudget: Record<Side, { left: number } | null> = {
+  const appleBudget: Record<Side, { left: number } | null> = sideReset(() => ({
     player: modsFor('player').runeDeathtouchedApple ? { left: 2 * flagCopiesOf('player', 'runeDeathtouchedApple') } : null,
     enemy: modsFor('enemy').runeDeathtouchedApple ? { left: 2 * flagCopiesOf('enemy', 'runeDeathtouchedApple') } : null,
-  };
+  }));
   const appleUsesFor = (side: Side): { left: number } | null => appleBudget[side];
-  const flashPickFor: Record<Side, QuestCombatMods['flashPick']> = { player: playerState.questMods?.flashPick, enemy: enemyState.questMods?.flashPick };
+  const flashPickFor: Record<Side, QuestCombatMods['flashPick']> = sideReset(() => ({ player: playerState.questMods?.flashPick, enemy: enemyState.questMods?.flashPick }));
   // Rune of the Wishbone on Flash: the claim grants TWO copies (owner ruling 2026-08-19 — "2 copies of the
   // minion for either choice"). The mark itself is unchanged; what doubles is the payout, which is the only
   // thing about this power that CAN double — arming a mark twice is the same mark.
-  const flashCopiesFor: Record<Side, number> = {
+  const flashCopiesFor: Record<Side, number> = sideReset(() => ({
     player: Math.max(1, playerState.questMods?.flashCopies ?? 1),
     enemy: Math.max(1, enemyState.questMods?.flashCopies ?? 1),
-  };
-  const flashDone: Record<Side, boolean> = { player: false, enemy: false };
+  }));
+  const flashDone: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** ANCIENTS × Flash: the body each kill copies (its stats / keywords / Gilded as it died, for Bonds' exact copy),
    *  the last one per side, and the kill count (Death pays on the 2nd). */
   type FlashBody = { cardId: string; attack: number; health: number; keywords: Keyword[]; golden: boolean };
   const flashBodyOf = (m: Minion): FlashBody =>
     ({ cardId: m.cardId, attack: Math.max(0, m.attack), health: Math.max(1, m.maxHealth ?? m.health), keywords: [...m.keywords], golden: !!m.golden });
-  const lastKillBody: Record<Side, FlashBody | undefined> = { player: undefined, enemy: undefined };
-  const killCount: Record<Side, number> = { player: 0, enemy: 0 };
+  const lastKillBody: Record<Side, FlashBody | undefined> = sideReset(() => ({ player: undefined, enemy: undefined }));
+  const killCount: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** ONE Flash copy to hand (a live `toHand`). Under Ancient of Bonds the grant's index rides `ShoutCarry.handExact`,
    *  so settle lands it as an EXACT copy of `body` rather than the printed card. A spell / Ruby is never copied. */
   function flashToHand(side: Side, body: FlashBody, sourceUid?: string): void {
@@ -1122,7 +1148,7 @@ export function simulate(
     slaughterByTribe: {} as Partial<Record<Tribe, number>>,
     statGainByTribe: {} as Partial<Record<Tribe, number>>,
   });
-  const questTallies = perSide(mkQuestTally);
+  const questTallies = sideReset(() => (perSide(mkQuestTally)));
   const ALL_TRIBES: Tribe[] = ['beast', 'dragon', 'undead', 'mech', 'demon'];
   const tribesFor = (m: Minion): Tribe[] => {
     if (m.universalTribe) return ALL_TRIBES; // counts as every tribe (like the run-wide auras)
@@ -1133,7 +1159,7 @@ export function simulate(
   // current step is "already counted". Deathrattle (Echo) entries carry no tribe (the Echo objective is
   // tribe-agnostic). Carried back via `CombatResult.playerQuestEvents`.
   type QuestEventKind = 'attack' | 'summonCombat' | 'slaughter' | 'slaughterKeyword' | 'deathrattle' | 'friendlyDeath' | 'rally' | 'summonImp';
-  const questEventsFor = perSide<{ step: number; kind: QuestEventKind; tribes: Tribe[] }[]>(() => []);
+  const questEventsFor = sideReset(() => (perSide<{ step: number; kind: QuestEventKind; tribes: Tribe[] }[]>(() => [])));
   // ── Mid-combat quest completion (either side, R-SYMMETRY-01) ─────────────────────────────────────────────
   // Active combat-objective quests threaded in via `pendingQuests`. As their tally climbs, the moment one crosses
   // its threshold we (a) fold its reward's ONGOING combat mods into that side's `questMods` — so effects like
@@ -1142,10 +1168,10 @@ export function simulate(
   // still settles in the reducer; this only makes the in-fight activation live. `checkPendingQuests(side)` is
   // called after every objective tally bump; firing is one-shot per quest. Per side since 2026-10-13: an enemy
   // board that carries its own pending quests (a recorded snapshot, a live Versus opponent) completes them too.
-  const pendingFor: Record<Side, { def: PendingCombatQuest; fired: boolean }[]> = {
+  const pendingFor: Record<Side, { def: PendingCombatQuest; fired: boolean }[]> = sideReset(() => ({
     player: (playerState.pendingQuests ?? []).map((p) => ({ def: p, fired: false })),
     enemy: (enemyState.pendingQuests ?? []).map((p) => ({ def: p, fired: false })),
-  };
+  }));
   const pendingCount = (p: PendingCombatQuest, side: Side): number => {
     const qt = questTallies[side];
     switch (p.event) {
@@ -1231,7 +1257,7 @@ export function simulate(
 
   // Blood Trail: each side's leftmost living minion, captured at Start of Combat, "gains Slaughter: get a random
   // Beast" for this fight — each enemy it kills conjures a random Beast to hand (via ctx.grantRandomMinion).
-  const bloodTrailMinion: Record<Side, Minion | undefined> = { player: undefined, enemy: undefined };
+  const bloodTrailMinion: Record<Side, Minion | undefined> = sideReset(() => ({ player: undefined, enemy: undefined }));
 
   /** The triggers `m` carries beyond its printed card (copied Echoes, Shop / rune grafts), deduped `{ on, do }` pairs,
    *  for the snapshot's `grantedTriggers` (display-only: the portrait medallion). Seed stacks and the Auctioneer's Rally
@@ -2651,10 +2677,10 @@ export function simulate(
 
   /** ANCIENT OF GENESIS: how many extra copies THIS summon makes (`ancientSummonExtra`), spending one from Rayse's
    *  `ancientSummonExtraLimit` budget when the side has one (the first N summons only). 0 once it is spent. */
-  const summonExtraBudget: Record<Side, number | undefined> = {
+  const summonExtraBudget: Record<Side, number | undefined> = sideReset(() => ({
     player: modsFor('player').ancientSummonExtraLimit,
     enemy: modsFor('enemy').ancientSummonExtraLimit,
-  };
+  }));
   function summonExtraFor(side: Side): number {
     const n = modsFor(side).ancientSummonExtra ?? 0;
     if (n <= 0) return 0;
@@ -2689,12 +2715,12 @@ export function simulate(
    */
   /** Summoning Bulwark: the first N bodies each side summons this combat gain Taunt. Decremented on the GRANT
    *  (a body that already has Taunt does not burn one), so the spell delivers N Taunts, not N attempts. */
-  const summonTauntsLeft: Record<Side, number> = {
+  const summonTauntsLeft: Record<Side, number> = sideReset(() => ({
     player: playerState.questMods?.summonTaunts ?? 0,
     enemy: enemyState.questMods?.summonTaunts ?? 0,
-  };
+  }));
   /** ANCIENT OF WAR × Rayse: friendly summons that have already used the "attacks immediately" grant this fight. */
-  const summonsAttackUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  const summonsAttackUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   function summonEntryEffects(minion: Minion, side: Side): void {
     syncUnityCombat(side); // Rune of Unity: a summon can complete the full house, and a new body joins it
     if (summonTauntsLeft[side] > 0 && !minion.dead && !minion.keywords.includes('T')) {
@@ -2948,16 +2974,16 @@ export function simulate(
   };
 
   /** Per-side use counts for the two "while you have room" runes — both are bounded per combat. */
-  const broodSpent: Record<Side, number> = { player: 0, enemy: 0 };
-  const echoesSpent: Record<Side, number> = { player: 0, enemy: 0 };
+  const broodSpent: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
+  const echoesSpent: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   /** Rune of the War Chorus' once-per-combat latch, per side. */
-  const warChorusSpent: Record<Side, boolean> = { player: false, enemy: false };
+  const warChorusSpent: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** Rune of the Warpath re-entrancy latch: the chained attack must not chain again (the right-most could
    *  BE the left-most on a one-minion board, and a chain-of-chains is an infinite loop). */
-  const warpathChaining: Record<Side, boolean> = { player: false, enemy: false };
+  const warpathChaining: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** Rune of the Food Chain: has this side's FIRST summon already happened? The rune reads the left-most living
    *  Demon's stats at that moment (owner rework 2026-09-23; it used to capture them at Start of Combat). */
-  const foodChainUsed: Record<Side, boolean> = { player: false, enemy: false };
+  const foodChainUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** The body that spent this side's Food Chain chance, so a deferred one that overflows can hand it back. */
   const foodChainTaken = new WeakSet<Minion>();
   /**
@@ -2996,7 +3022,7 @@ export function simulate(
     }
   }
 
-  const decoysSpent: Record<Side, number> = { player: 0, enemy: 0 };
+  const decoysSpent: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
 
   /**
    * THE BETWEEN-ATTACKS SETTLE: everything an attack set off resolves before the next normal attacker is chosen.
@@ -3150,7 +3176,7 @@ export function simulate(
   probeArmed = !!probe;
 
   // Running death tally per side — drives Avenge (X) (A.4).
-  const deaths: Record<Side, number> = { player: 0, enemy: 0 };
+  const deaths: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   // The immediate-attack queue, drained by flushImmediateAttacks after each attack's death cascade settles.
   // Two item kinds, processed in FIFO order so a token's summon and its strike stay adjacent:
   //   • `{ summon }` — a DEFERRED attack-on-summon token (Twilight Whelp's 3/3 Whelp, Spear Warden): its whole
@@ -4157,15 +4183,15 @@ export function simulate(
   // next time the board has room — i.e. after a friend dies — never mid-summon-cascade. So its own
   // tokens win the immediate scramble and the original returns later. `anchor` is the dead body it
   // was killed from, so the copy comes back in (or next to) its original slot.
-  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean; attack?: number; maxHealth?: number }[]> = { player: [], enemy: [] };
+  const deadBeasts: Record<Side, { uid: string; cardId: string; golden?: boolean; attack?: number; maxHealth?: number }[]> = sideReset(() => ({ player: [], enemy: [] }));
   // Rune of the Old Pack: the FIRST Beast resummoned each combat returns at full stats (per side, once).
-  const oldPackUsed: Record<Side, number> = { player: 0, enemy: 0 }; // full-stat returns paid (one per Old Pack copy)
+  const oldPackUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // full-stat returns paid (one per Old Pack copy)
   const resummonedUids = new Set<string>(); // a corpse comes back at most once, however many Colossi Echo
-  const emberlineBank: Record<Side, { attack: number; health: number } | undefined> = { player: undefined, enemy: undefined };
-  const emberlinePaid: Record<Side, boolean> = { player: false, enemy: false };
-  const spareChairUsed: Record<Side, number> = { player: 0, enemy: 0 }; // qualifying summons paid (one per Spare Chair copy)
-  const backbeatUsed: Record<Side, boolean> = { player: false, enemy: false };
-  const scriptureSpent: Record<Side, boolean> = { player: false, enemy: false };
+  const emberlineBank: Record<Side, { attack: number; health: number } | undefined> = sideReset(() => ({ player: undefined, enemy: undefined }));
+  const emberlinePaid: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  const spareChairUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 })); // qualifying summons paid (one per Spare Chair copy)
+  const backbeatUsed: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  const scriptureSpent: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   /** RUNE OF SHARED SCRIPTURE: once per side per fight, on the first Shop-spell cast (`spellResolved`). The
    *  left-most minion WITH a Shout Shouts and the left-most minion WITH a Rally Rallies (they may be two bodies;
    *  the Rune of Rallying / War Chorus "left-most" convention). Latched BEFORE firing, so a Shout that itself casts
@@ -4193,19 +4219,19 @@ export function simulate(
   // triggered in combat, and unspent Warm Embers double-charges apply to the next N. Per side, so a served
   // rival whose snapshot carried its own unspent charges gets them too. Spend trackers live here (per-combat),
   // never on shared defs; consumed via ctx.shoutCarryExtras in replayCombatBattlecry.
-  const warDrumCarrySpent: Record<Side, boolean> = { player: false, enemy: false };
+  const warDrumCarrySpent: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   // Warm Embers / Opening Act: "your first Shout each round triggers twice" is a per-PHASE charge (R-SHOUT-01, owner
   // 2026-08-27: "the first shout triggered EACH shop or combat phase"), so each fight opens with its own, spent by
   // the first Shout triggered in it (R-SHOUT-TRIGGER-01).
-  const warmFirstSpent: Record<Side, boolean> = { player: false, enemy: false };
-  const shoutDoubleCarryLeft: Record<Side, number> = {
+  const warmFirstSpent: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
+  const shoutDoubleCarryLeft: Record<Side, number> = sideReset(() => ({
     player: modsFor('player').shoutDoubleCharges ?? 0,
     enemy: modsFor('enemy').shoutDoubleCharges ?? 0,
-  };
+  }));
   // Rune of the Undertow's Ward budget — PER FIGHT and per side (a fresh allowance every combat, both sides), spent
   // only by bodies that land (R-UNDERTOW-LANDED-01). `undertowWarded` remembers which bodies took one, so a deferred
   // summon that overflows at land time can refund it.
-  const undertowUsed: Record<Side, number> = { player: 0, enemy: 0 };
+  const undertowUsed: Record<Side, number> = sideReset(() => ({ player: 0, enemy: 0 }));
   const undertowWarded = new WeakSet<Minion>();
   const raisedBodies = new Set<string>(); // uids of bodies that ARE a resurrection — their deaths don't re-bank
   /**
@@ -5128,53 +5154,56 @@ export function simulate(
   //     priority over its own tokens: they win the immediate scramble, and it reclaims its spot later.
   //     If the board already has room after the Deathrattle, the flush right below brings it back at
   //     once (so on a non-full board it still rejoins before the normal Start of Combat effects). ---
-  for (const minion of [...boards[SIDES[0]], ...boards[SIDES[1]]]) {
-    if (!minion.resummon || minion.dead || minion.health <= 0) continue;
-    // Capture the full combat state for an exact copy (stats + granted keywords + golden + every
-    // per-instance field). `sourceUid` rides along so the copy's carry-backs (Kennelmaster's Avenge,
-    // Engraved permaGain, Sergeant's accrual, Tara's tally) still reach the originating run card —
-    // duplicate-safe at settle: the set-style channels take the copy's (later) entry, and the add-style
-    // ones are empty on the SC-destroyed original. `rallyMechAtk` stores only the WELDED part
-    // (instantiate re-adds the card's own base). The copy's Deathrattle re-arms on the new body — a
-    // re-proc is intended (owner ruling 2026-07-03), the same rule as every resummon.
-    const def = cards[minion.cardId];
-    const weldedRally = (minion.rallyMechAtk ?? 0) - (def?.rallyMechAtk ?? 0) * (minion.golden ? 2 : 1);
-    const copyBoard: BoardMinion = {
-      cardId: minion.cardId,
-      attack: minion.attack,
-      health: minion.health,
-      keywords: [...minion.keywords],
-      golden: minion.golden,
-      summonBonus: minion.summonBonus,
-      overflowBonus: minion.overflowBonus,
-      hpGrantBonus: minion.hpGrantBonus,
-      ascendProgress: minion.ascendProgress,
-      spiritTally: minion.spiritTally,
-      damageDealt: minion.damageDealt,
-      soldProgress: minion.soldProgress,
-      boardFirstSpellId: minion.boardFirstSpellId,
-      sourceUid: minion.sourceUid,
-      rallyMechAtk: weldedRally > 0 ? weldedRally : undefined,
-      rallySpellWeld: minion.rallySpellWeld, // welded-only already (no card component); carry the copy exactly
-      buffs: minion.buffs,
-    };
-    minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
-    // ANCIENTS × Soren (the side's own mods; absent = Reclaim exactly as before).
-    const rc = modsFor(minion.side).ancientReclaim;
-    reclaimEchoUid = rc?.echoExtra ? minion.uid : undefined; // DEATH: this destroy's Echo fires extra times
-    try { killOrReborn(minion); } finally { reclaimEchoUid = undefined; } // tokens summon now and may overflow the board
-    const reclaim = rc && (rc.gain || rc.bonds) ? { gain: rc.gain, bonds: rc.bonds, label: rc.label } : undefined;
-    // Pushed straight onto the space queue (no flush yet): every marked body is destroyed first, then the flush below.
-    const anchor = minion, rside = minion.side;
-    spaceQueue.push({ side: rside, land: () => landResummon(anchor, copyBoard, rside, reclaim) });
-    // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
-    // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
-    for (let k = 1; k < (rc?.copies ?? 1); k++) {
-      const extra: BoardMinion = { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined };
-      spaceQueue.push({ side: rside, land: () => landResummon(anchor, extra, rside, reclaim) });
+  const socReclaim = (sides: readonly Side[]): void => {
+    for (const minion of sides.flatMap((s) => [...boards[s]])) {
+      if (!minion.resummon || minion.dead || minion.health <= 0) continue;
+      // Capture the full combat state for an exact copy (stats + granted keywords + golden + every
+      // per-instance field). `sourceUid` rides along so the copy's carry-backs (Kennelmaster's Avenge,
+      // Engraved permaGain, Sergeant's accrual, Tara's tally) still reach the originating run card —
+      // duplicate-safe at settle: the set-style channels take the copy's (later) entry, and the add-style
+      // ones are empty on the SC-destroyed original. `rallyMechAtk` stores only the WELDED part
+      // (instantiate re-adds the card's own base). The copy's Deathrattle re-arms on the new body — a
+      // re-proc is intended (owner ruling 2026-07-03), the same rule as every resummon.
+      const def = cards[minion.cardId];
+      const weldedRally = (minion.rallyMechAtk ?? 0) - (def?.rallyMechAtk ?? 0) * (minion.golden ? 2 : 1);
+      const copyBoard: BoardMinion = {
+        cardId: minion.cardId,
+        attack: minion.attack,
+        health: minion.health,
+        keywords: [...minion.keywords],
+        golden: minion.golden,
+        summonBonus: minion.summonBonus,
+        overflowBonus: minion.overflowBonus,
+        hpGrantBonus: minion.hpGrantBonus,
+        ascendProgress: minion.ascendProgress,
+        spiritTally: minion.spiritTally,
+        damageDealt: minion.damageDealt,
+        soldProgress: minion.soldProgress,
+        boardFirstSpellId: minion.boardFirstSpellId,
+        sourceUid: minion.sourceUid,
+        rallyMechAtk: weldedRally > 0 ? weldedRally : undefined,
+        rallySpellWeld: minion.rallySpellWeld, // welded-only already (no card component); carry the copy exactly
+        buffs: minion.buffs,
+      };
+      minion.rebornAvailable = false; // force a true death (skip Reborn) so the Deathrattle fires
+      // ANCIENTS × Soren (the side's own mods; absent = Reclaim exactly as before).
+      const rc = modsFor(minion.side).ancientReclaim;
+      reclaimEchoUid = rc?.echoExtra ? minion.uid : undefined; // DEATH: this destroy's Echo fires extra times
+      try { killOrReborn(minion); } finally { reclaimEchoUid = undefined; } // tokens summon now and may overflow the board
+      const reclaim = rc && (rc.gain || rc.bonds) ? { gain: rc.gain, bonds: rc.bonds, label: rc.label } : undefined;
+      // Pushed straight onto the space queue (no flush yet): every marked body is destroyed first, then the flush below.
+      const anchor = minion, rside = minion.side;
+      spaceQueue.push({ side: rside, land: () => landResummon(anchor, copyBoard, rside, reclaim) });
+      // TIME: "Reclaim summons twice". The extra copy is the same body again, but WITHOUT the run card's `sourceUid`, so
+      // its carry-backs (an Engraved gain, a tally) never reach the run card twice; the first copy keeps that link.
+      for (let k = 1; k < (rc?.copies ?? 1); k++) {
+        const extra: BoardMinion = { ...copyBoard, keywords: [...(copyBoard.keywords ?? [])], sourceUid: undefined };
+        spaceQueue.push({ side: rside, land: () => landResummon(anchor, extra, rside, reclaim) });
+      }
     }
-  }
-  flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
+    flushSpaceQueue(); // non-full board → the original rejoins immediately; full board → it waits
+  };
+  socReclaim(SIDES);
 
   // --- CLOSED CASKET (spell): a marked body is DESTROYED at the start of combat (owner ruling 2026-08-15).
   //     Deliberately a REAL death through the normal kill path rather than a bespoke "fire its Echo" hook:
@@ -5182,217 +5211,226 @@ export function simulate(
   //     watchers, the Deathrattle tally, Rune of the Burrow, and so on. Reborn is NOT suppressed here (unlike
   //     The Reclaimer above, which forces a true death because it resummons the body itself): "destroy" should
   //     behave like any other destruction, so a Rise body dies, pays its Echo, and returns. ---
-  for (const minion of [...boards[SIDES[0]], ...boards[SIDES[1]]]) {
-    if (!minion.closedCasket || minion.dead || minion.health <= 0) continue;
-    minion.closedCasket = false; // one-shot, spent as it fires
-    nextStep();
-    emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s casket closes` });
-    killOrReborn(minion);
-  }
+  const socCasket = (sides: readonly Side[]): void => {
+    for (const minion of sides.flatMap((s) => [...boards[s]])) {
+      if (!minion.closedCasket || minion.dead || minion.health <= 0) continue;
+      minion.closedCasket = false; // one-shot, spent as it fires
+      nextStep();
+      emit({ type: 'sc', source: minion.uid, text: `${minion.name}'s casket closes` });
+      killOrReborn(minion);
+    }
+  };
+  socCasket(SIDES);
 
   // --- Start of Combat: player minions left→right first (A.3 step 1), then the enemy's (owner ruling
   //     2026-07-03: a captured board's Start-of-Combat effects are live, not inert — an enemy Taurus
   //     engraves its line too). Effects reading the player's RUN state (Abhorrent Horror's consumed-Fodder
   //     tally) side-gate themselves, since an enemy snapshot carries no run state. ---
   // Blood Trail: mark each holding side's leftmost living minion — its kills this fight conjure a random Beast (above).
-  for (const s of SIDES) if (modsFor(s).bloodTrail) bloodTrailMinion[s] = boards[s].find((m) => !m.dead && m.health > 0);
-  // Run-level SoC quest/rune grants, PER SIDE (a served enemy runs its own): Rulebreaker's Crown, Umbral Energy,
-  // Contract Rewrite. Enemy values come from the captured mods / scalers.
-  for (const scSide of SIDES) {
-    const smods = modsFor(scSide);
-    // ANCIENT OF TIME (proof of concept, owner 2026-09-25): the right-most living minion becomes GILDED for this
-    // fight — golden flag (so its effects double, as any gilded body's do) plus its printed stats again (the gild's
-    // doubled base, as `gildMinion` does in the Shop). The combat body only: the run card is never touched, so the
-    // gild reverts after the fight. First in the Start-of-Combat pass so its own Start of Combat fires gilded.
-    if (smods.ancientTimeGild) {
-      const tail = [...boards[scSide]].reverse().find((m) => !m.dead && m.health > 0);
-      if (tail && !tail.golden) {
-        const def = cards[tail.cardId];
-        nextStep();
-        tail.golden = true;
-        emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
-        if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+  const socRunLevel = (sides: readonly Side[]): void => {
+    for (const s of sides) if (modsFor(s).bloodTrail) bloodTrailMinion[s] = boards[s].find((m) => !m.dead && m.health > 0);
+    // Run-level SoC quest/rune grants, PER SIDE (a served enemy runs its own): Rulebreaker's Crown, Umbral Energy,
+    // Contract Rewrite. Enemy values come from the captured mods / scalers.
+    for (const scSide of sides) {
+      const smods = modsFor(scSide);
+      // ANCIENT OF TIME (proof of concept, owner 2026-09-25): the right-most living minion becomes GILDED for this
+      // fight — golden flag (so its effects double, as any gilded body's do) plus its printed stats again (the gild's
+      // doubled base, as `gildMinion` does in the Shop). The combat body only: the run card is never touched, so the
+      // gild reverts after the fight. First in the Start-of-Combat pass so its own Start of Combat fires gilded.
+      if (smods.ancientTimeGild) {
+        const tail = [...boards[scSide]].reverse().find((m) => !m.dead && m.health > 0);
+        if (tail && !tail.golden) {
+          const def = cards[tail.cardId];
+          nextStep();
+          tail.golden = true;
+          emit({ type: 'ascend', target: tail.uid, into: tail.cardId, gild: true });
+          if (def && (def.attack > 0 || def.health > 0)) ctx.buff(tail, def.attack, def.health, smods.ancientTimeGild.label);
+        }
       }
-    }
-    // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
-    // copy (the Mirror March `copyStats` path + its keywords) of the highest-Health living minion (ties: the left-most),
-    // beside it. No room: nothing.
-    if (smods.ancientXeroxSoc && occupied(scSide) < 7) {
-      const src = xeroxTop(scSide, 'health');
-      if (src) { nextStep(); emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` }); xeroxCopy(scSide, src); }
-    }
-    // ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
-    // played this game." The grant arrives pre-multiplied; every living friendly minion gains it, a combat buff.
-    const socAll = smods.ancientSocBuffAll;
-    if (socAll && (socAll.attack > 0 || socAll.health > 0)) {
-      const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
-      if (band.length > 0) {
-        nextStep();
-        for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
+      // ANCIENT OF WAR × Xerox (owner 2026-10-02): "Start of Combat: Summon a copy of your highest health minion." An exact
+      // copy (the Mirror March `copyStats` path + its keywords) of the highest-Health living minion (ties: the left-most),
+      // beside it. No room: nothing.
+      if (smods.ancientXeroxSoc && occupied(scSide) < 7) {
+        const src = xeroxTop(scSide, 'health');
+        if (src) { nextStep(); emit({ type: 'sc', source: src.uid, text: `${smods.ancientXeroxSoc.label}: a copy of ${src.name}` }); xeroxCopy(scSide, src); }
       }
-    }
-    // ANCIENT OF WAR × Drakko (owner 2026-10-09): "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered
-    // this turn." The repeat-vs-lump rule: the base step plus one repeat per Shout, EACH its own beat, each a random
-    // living friendly minion (re-drawn per step).
-    const srb = smods.ancientSocRandomBuffs;
-    if (srb && (srb.attack > 0 || srb.health > 0)) {
-      const draw = grantRngFor(scSide);
-      for (let r = 0; r < srb.reps; r++) {
+      // ANCIENT OF WAR × Braum (owner 2026-10-06): "Start of Combat: Give your minions +8/+8 for every Gilded minion you've
+      // played this game." The grant arrives pre-multiplied; every living friendly minion gains it, a combat buff.
+      const socAll = smods.ancientSocBuffAll;
+      if (socAll && (socAll.attack > 0 || socAll.health > 0)) {
         const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
-        if (band.length === 0) break;
-        nextStep();
-        ctx.buff(band[draw.int(band.length)]!, srb.attack, srb.health, srb.label);
+        if (band.length > 0) {
+          nextStep();
+          for (const m of band) ctx.buff(m, socAll.attack, socAll.health, socAll.label);
+        }
       }
-    }
-    // ANCIENT OF TIME × Flash (owner 2026-10-09): "Start of Combat: get a copy of a random enemy minion." A random living
-    // enemy body, to hand right now (a live `toHand`; Bonds makes it exact).
-    if (smods.ancientFlash?.soc) {
-      const foe: Side = scSide === 'player' ? 'enemy' : 'player';
-      const band = boards[foe].filter((m) => !m.dead && m.health > 0);
-      if (band.length > 0) {
-        const pick = band[grantRngFor(scSide).int(band.length)]!;
-        nextStep();
-        emit({ type: 'sc', source: pick.uid, text: `${smods.ancientFlash.label}: a copy of ${pick.name}`, side: scSide, heroPower: true });
-        flashToHand(scSide, flashBodyOf(pick), pick.uid);
+      // ANCIENT OF WAR × Drakko (owner 2026-10-09): "Start of Combat: Give a minion +1/+1. Repeat for every Shout triggered
+      // this turn." The repeat-vs-lump rule: the base step plus one repeat per Shout, EACH its own beat, each a random
+      // living friendly minion (re-drawn per step).
+      const srb = smods.ancientSocRandomBuffs;
+      if (srb && (srb.attack > 0 || srb.health > 0)) {
+        const draw = grantRngFor(scSide);
+        for (let r = 0; r < srb.reps; r++) {
+          const band = boards[scSide].filter((m) => !m.dead && m.health > 0);
+          if (band.length === 0) break;
+          nextStep();
+          ctx.buff(band[draw.int(band.length)]!, srb.attack, srb.health, srb.label);
+        }
       }
-    }
-    // ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
-    // minion." The left-most living Tier 7; an exact copy (`xeroxCopy`) right now when there is room, else it waits in
-    // the shared space queue for the first open slot (R-SPACE-PENDING-01).
-    if (smods.ancientSummitCopy) {
-      const src = boards[scSide].find((m) => !m.dead && m.health > 0 && cards[m.cardId]?.tier === 7 && !cards[m.cardId]?.spell);
-      if (src) {
-        nextStep();
-        emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
-        if (occupied(scSide) < 7) xeroxCopy(scSide, src);
-        else {
-          const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
-          const stats = { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable };
-          spaceQueue.push({ side: scSide, land: () => landSummitCopy(scSide, src, kws, stats) });
+      // ANCIENT OF TIME × Flash (owner 2026-10-09): "Start of Combat: get a copy of a random enemy minion." A random living
+      // enemy body, to hand right now (a live `toHand`; Bonds makes it exact).
+      if (smods.ancientFlash?.soc) {
+        const foe: Side = scSide === 'player' ? 'enemy' : 'player';
+        const band = boards[foe].filter((m) => !m.dead && m.health > 0);
+        if (band.length > 0) {
+          const pick = band[grantRngFor(scSide).int(band.length)]!;
+          nextStep();
+          emit({ type: 'sc', source: pick.uid, text: `${smods.ancientFlash.label}: a copy of ${pick.name}`, side: scSide, heroPower: true });
+          flashToHand(scSide, flashBodyOf(pick), pick.uid);
+        }
+      }
+      // ANCIENT OF WAR × Brackus (owner 2026-10-06): "Start of Combat: When you have space, summon a copy of your Tier 7
+      // minion." The left-most living Tier 7; an exact copy (`xeroxCopy`) right now when there is room, else it waits in
+      // the shared space queue for the first open slot (R-SPACE-PENDING-01).
+      if (smods.ancientSummitCopy) {
+        const src = boards[scSide].find((m) => !m.dead && m.health > 0 && cards[m.cardId]?.tier === 7 && !cards[m.cardId]?.spell);
+        if (src) {
+          nextStep();
+          emit({ type: 'sc', source: src.uid, text: `${smods.ancientSummitCopy.label}: a copy of ${src.name}` });
+          if (occupied(scSide) < 7) xeroxCopy(scSide, src);
+          else {
+            const kws = src.keywords.filter((k) => k !== 'DS' && k !== 'RW' && ((k !== 'R' && k !== 'RB') || !!src.rebornAvailable));
+            const stats = { attack: src.attack, health: src.health, maxHealth: src.maxHealth, divineShield: src.divineShield, rebornAvailable: src.rebornAvailable };
+            spaceQueue.push({ side: scSide, land: () => landSummitCopy(scSide, src, kws, stats) });
+          }
+        }
+      }
+      // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
+      // Shouts. If you have only one Shout, trigger it once." The two edges are read once, up front; each fires through
+      // the shared combat Shout path (`fireShout`: a counted `shout` event, the Shout's combat half, the
+      // `battlecryTriggered` emit), folding Drakko like every combat Shout re-fire.
+      if (smods.ancientEdgeShouts) {
+        const shouters = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do)));
+        const edges = shouters.length === 0 ? [] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
+        for (const m of edges) {
+          if (m.dead || m.health <= 0) continue;
+          nextStep();
+          emit({ type: 'sc', source: m.uid, text: `${smods.ancientEdgeShouts.label}: ${m.name}'s Shout` });
+          for (let r = 0; r < drakkoRepeats(ctx, scSide); r++) fireShout(ctx, m, m);
+        }
+      }
+      // ANCIENT OF WAR × Nadja (owner 2026-10-06): "Start of Combat: Your left-most minion gains Rally: give your minions +3
+      // attack per gold spent this turn." The left-most living minion gains Rally and a grafted `rallyBuff` (the Attack
+      // already folded from the Gold spent, every friendly minion itself included, `fixed`: a hero grant, so a Gilded body
+      // gives the same). Registered explicitly (Contract Rewrite's shape: effects were registered at combat start), so
+      // the Rally doublers re-run it like any printed Rally. The combat body only: the run card never carries it.
+      if (smods.ancientSocRally && smods.ancientSocRally.attack > 0) {
+        const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
+        if (lead) {
+          nextStep();
+          emit({ type: 'sc', source: lead.uid, text: `${smods.ancientSocRally.label}: ${lead.name} gains Rally`, side: scSide, heroPower: true });
+          const eff: EffectDef = { on: 'onAttack', do: 'rallyBuff', params: { attack: smods.ancientSocRally.attack, health: 0, self: true, fixed: true } };
+          lead.effects = [...lead.effects, eff];
+          registerEffect(lead, eff);
+          if (!lead.keywords.includes('RL')) lead.keywords.push('RL');
+          emit({ type: 'keyword', target: lead.uid, keyword: 'RL', source: lead.uid });
+        }
+      }
+      // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).
+      if (smods.doubleLeftmostAttack) {
+        const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
+        if (lead && lead.attack > 0) { nextStep(); fireTrigger('doubleLeftmostAttack', scSide); ctx.buff(lead, lead.attack, 0, lead.uid); }
+      }
+      // Atrius's Possession: the leftmost living minion gains the rightmost's Attack, and the rightmost gains
+      // the leftmost's Health — simultaneous (both read the pre-buff values). Needs 2+ living minions.
+      if (smods.possession) {
+        const living = boards[scSide].filter((m) => !m.dead && m.health > 0);
+        if (living.length >= 2) {
+          const first = living[0]!, last = living[living.length - 1]!;
+          const gainAtk = last.attack, gainHp = first.health;
+          if (gainAtk > 0) { nextStep(); ctx.buff(first, gainAtk, 0, first.uid); }
+          if (gainHp > 0) { nextStep(); ctx.buff(last, 0, gainHp, last.uid); }
+        }
+      }
+      // Umbral Energy: give every living Dragon +3/+3 for every spell cast this game (lifetime spellsCast, per side).
+      const scSpells = stateOf(scSide).spellsCast ?? 0;
+      if (smods.umbralEnergy && scSpells > 0) {
+        const amt = 3 * scSpells;
+        let stepped = false;
+        for (const m of boards[scSide]) {
+          if (m.dead || m.health <= 0) continue;
+          if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !m.universalTribe) continue;
+          if (!stepped) { nextStep(); stepped = true; fireTrigger('umbralEnergy', scSide); } // its own beat + badge pulse
+          ctx.buff(m, amt, amt, m.uid);
+        }
+      }
+      // PACK MENTALITY (owner rulings 2026-09-28, R-AURA-03): "Start of Combat: give all your Beasts +A/+H."
+      // The quest's current level rides in on `beastSummonScale.attack/health`; it buffs the living Beasts now and
+      // joins the side's combat Beast pool so later Beast summons this fight inherit it. Combat-only — no carry-back.
+      // (A pre-2026-09-28 run baked its level into `beastBuyAtk` instead and carries no level here, so it never
+      // double-dips.) Per side: a served snapshot applies its own frozen level.
+      const pack = smods.beastSummonScale;
+      if (pack && ((pack.attack ?? 0) > 0 || (pack.health ?? 0) > 0)) {
+        const pa = pack.attack ?? 0, ph = pack.health ?? 0;
+        beastAtkAuraFor[scSide] += pa;
+        beastHpAuraFor[scSide] += ph;
+        let stepped = false;
+        for (const m of boards[scSide]) {
+          if (m.dead || m.health <= 0 || !isBeast(m)) continue;
+          if (!stepped) { nextStep(); stepped = true; }
+          ctx.buff(m, pa, ph, 'Pack Mentality');
+        }
+      }
+      // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward. Gets its own
+      // beat + badge pulse (it used to apply silently — no event at all).
+      if (smods.contractRewrite) {
+        const demon = [...boards[scSide]].reverse().find((m) => !m.dead && m.health > 0 && isDemon(m));
+        if (demon) {
+          nextStep();
+          fireTrigger('contractRewrite', scSide);
+          const eff: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true, keyword: 'DS' } };
+          demon.effects = [...demon.effects, eff];
+          registerEffect(demon, eff); // register just the new Deathrattle (effects were registered at combat start)
         }
       }
     }
-    // ANCIENT OF TIME × the Auctioneer (owner 2026-09-26): "Start of Combat: trigger your left-most and right-most
-    // Shouts. If you have only one Shout, trigger it once." The two edges are read once, up front; each fires through
-    // the shared combat Shout path (`fireShout`: a counted `shout` event, the Shout's combat half, the
-    // `battlecryTriggered` emit), folding Drakko like every combat Shout re-fire.
-    if (smods.ancientEdgeShouts) {
-      const shouters = boards[scSide].filter((m) => !m.dead && m.health > 0 && m.effects.some((e) => e.on === 'onPlay' && !SILENT_ONPLAY.has(e.do)));
-      const edges = shouters.length === 0 ? [] : [...new Set([shouters[0]!, shouters[shouters.length - 1]!])];
-      for (const m of edges) {
-        if (m.dead || m.health <= 0) continue;
-        nextStep();
-        emit({ type: 'sc', source: m.uid, text: `${smods.ancientEdgeShouts.label}: ${m.name}'s Shout` });
-        for (let r = 0; r < drakkoRepeats(ctx, scSide); r++) fireShout(ctx, m, m);
-      }
-    }
-    // ANCIENT OF WAR × Nadja (owner 2026-10-06): "Start of Combat: Your left-most minion gains Rally: give your minions +3
-    // attack per gold spent this turn." The left-most living minion gains Rally and a grafted `rallyBuff` (the Attack
-    // already folded from the Gold spent, every friendly minion itself included, `fixed`: a hero grant, so a Gilded body
-    // gives the same). Registered explicitly (Contract Rewrite's shape: effects were registered at combat start), so
-    // the Rally doublers re-run it like any printed Rally. The combat body only: the run card never carries it.
-    if (smods.ancientSocRally && smods.ancientSocRally.attack > 0) {
-      const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
-      if (lead) {
-        nextStep();
-        emit({ type: 'sc', source: lead.uid, text: `${smods.ancientSocRally.label}: ${lead.name} gains Rally`, side: scSide, heroPower: true });
-        const eff: EffectDef = { on: 'onAttack', do: 'rallyBuff', params: { attack: smods.ancientSocRally.attack, health: 0, self: true, fixed: true } };
-        lead.effects = [...lead.effects, eff];
-        registerEffect(lead, eff);
-        if (!lead.keywords.includes('RL')) lead.keywords.push('RL');
-        emit({ type: 'keyword', target: lead.uid, keyword: 'RL', source: lead.uid });
-      }
-    }
-    // Rulebreaker's Crown: the leftmost living minion gains +Attack equal to its Attack (doubles it).
-    if (smods.doubleLeftmostAttack) {
-      const lead = boards[scSide].find((m) => !m.dead && m.health > 0);
-      if (lead && lead.attack > 0) { nextStep(); fireTrigger('doubleLeftmostAttack', scSide); ctx.buff(lead, lead.attack, 0, lead.uid); }
-    }
-    // Atrius's Possession: the leftmost living minion gains the rightmost's Attack, and the rightmost gains
-    // the leftmost's Health — simultaneous (both read the pre-buff values). Needs 2+ living minions.
-    if (smods.possession) {
-      const living = boards[scSide].filter((m) => !m.dead && m.health > 0);
-      if (living.length >= 2) {
-        const first = living[0]!, last = living[living.length - 1]!;
-        const gainAtk = last.attack, gainHp = first.health;
-        if (gainAtk > 0) { nextStep(); ctx.buff(first, gainAtk, 0, first.uid); }
-        if (gainHp > 0) { nextStep(); ctx.buff(last, 0, gainHp, last.uid); }
-      }
-    }
-    // Umbral Energy: give every living Dragon +3/+3 for every spell cast this game (lifetime spellsCast, per side).
-    const scSpells = stateOf(scSide).spellsCast ?? 0;
-    if (smods.umbralEnergy && scSpells > 0) {
-      const amt = 3 * scSpells;
-      let stepped = false;
-      for (const m of boards[scSide]) {
-        if (m.dead || m.health <= 0) continue;
-        if (m.tribe !== 'dragon' && m.tribe2 !== 'dragon' && !m.universalTribe) continue;
-        if (!stepped) { nextStep(); stepped = true; fireTrigger('umbralEnergy', scSide); } // its own beat + badge pulse
-        ctx.buff(m, amt, amt, m.uid);
-      }
-    }
-    // PACK MENTALITY (owner rulings 2026-09-28, R-AURA-03): "Start of Combat: give all your Beasts +A/+H."
-    // The quest's current level rides in on `beastSummonScale.attack/health`; it buffs the living Beasts now and
-    // joins the side's combat Beast pool so later Beast summons this fight inherit it. Combat-only — no carry-back.
-    // (A pre-2026-09-28 run baked its level into `beastBuyAtk` instead and carries no level here, so it never
-    // double-dips.) Per side: a served snapshot applies its own frozen level.
-    const pack = smods.beastSummonScale;
-    if (pack && ((pack.attack ?? 0) > 0 || (pack.health ?? 0) > 0)) {
-      const pa = pack.attack ?? 0, ph = pack.health ?? 0;
-      beastAtkAuraFor[scSide] += pa;
-      beastHpAuraFor[scSide] += ph;
-      let stepped = false;
-      for (const m of boards[scSide]) {
-        if (m.dead || m.health <= 0 || !isBeast(m)) continue;
-        if (!stepped) { nextStep(); stepped = true; }
-        ctx.buff(m, pa, ph, 'Pack Mentality');
-      }
-    }
-    // Contract Rewrite: the rightmost living Demon gains a Deathrattle — summon 2 Imps with Ward. Gets its own
-    // beat + badge pulse (it used to apply silently — no event at all).
-    if (smods.contractRewrite) {
-      const demon = [...boards[scSide]].reverse().find((m) => !m.dead && m.health > 0 && isDemon(m));
-      if (demon) {
-        nextStep();
-        fireTrigger('contractRewrite', scSide);
-        const eff: EffectDef = { on: 'onDeath', do: 'deathrattleSummon', params: { tokenId: 'impscrap', count: 2, fixed: true, keyword: 'DS' } };
-        demon.effects = [...demon.effects, eff];
-        registerEffect(demon, eff); // register just the new Deathrattle (effects were registered at combat start)
-      }
-    }
-  }
+  };
+  socRunLevel(SIDES);
   // Taurus the Truth Bringer "triggers first": run any scEngraveAll BEFORE the normal SoC pass so every minion's
   // own Start-of-Combat gains are engraved too. Both sides (a captured enemy board's Taurus is live).
-  for (const side of SIDES) {
-    for (const minion of [...boards[side]]) {
-      if (minion.dead || minion.health <= 0) continue;
-      for (const effect of minion.effects) {
-        // CELESTIAL: skip a half gated to the other alignment (see `registerEffect` — SC is dispatched
-        // directly, so it needs its own gate).
-        if (!alignAllows(effect, minion.align)) continue;
-        if (effect.on === 'startOfCombat' && effect.do === 'scEngraveAll') { nextStep(); withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, {})); }
-      }
-    }
-  }
-  for (const side of SIDES) {
-    // Uron: Start-of-Combat effects fire extra times. Resolved per SIDE from that side's own board.
-    const scReps = 1 + extraTriggerFires('startOfCombat', boards[side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
-    for (let rep = 0; rep < scReps; rep++) {
+  const socMinions = (sides: readonly Side[]): void => {
+    for (const side of sides) {
       for (const minion of [...boards[side]]) {
         if (minion.dead || minion.health <= 0) continue;
         for (const effect of minion.effects) {
-          if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
-          if (effect.on !== 'startOfCombat') continue;
-          // CELESTIAL: an alignment-gated half is inert for a body on the wrong side of the sky. Start of
-          // Combat is dispatched by direct iteration (not through the bus), so the registration-time gate
-          // in `registerEffect` does NOT cover it — this is the second half of the same rule.
+          // CELESTIAL: skip a half gated to the other alignment (see `registerEffect` — SC is dispatched
+          // directly, so it needs its own gate).
           if (!alignAllows(effect, minion.align)) continue;
-          const fn = FACTORIES[effect.do];
-          if (fn) { nextStep(); withEffect(minion, effect, () => fn(ctx, minion, effect.params ?? {}, {})); }
+          if (effect.on === 'startOfCombat' && effect.do === 'scEngraveAll') { nextStep(); withEffect(minion, effect, () => FACTORIES[effect.do]?.(ctx, minion, effect.params ?? {}, {})); }
         }
       }
     }
-  }
+    for (const side of sides) {
+      // Uron: Start-of-Combat effects fire extra times. Resolved per SIDE from that side's own board.
+      const scReps = 1 + extraTriggerFires('startOfCombat', boards[side].filter((m) => !m.dead && m.health > 0), (id) => cards[id]);
+      for (let rep = 0; rep < scReps; rep++) {
+        for (const minion of [...boards[side]]) {
+          if (minion.dead || minion.health <= 0) continue;
+          for (const effect of minion.effects) {
+            if (effect.do === 'scEngraveAll') continue; // already ran in the priority pass above
+            if (effect.on !== 'startOfCombat') continue;
+            // CELESTIAL: an alignment-gated half is inert for a body on the wrong side of the sky. Start of
+            // Combat is dispatched by direct iteration (not through the bus), so the registration-time gate
+            // in `registerEffect` does NOT cover it — this is the second half of the same rule.
+            if (!alignAllows(effect, minion.align)) continue;
+            const fn = FACTORIES[effect.do];
+            if (fn) { nextStep(); withEffect(minion, effect, () => fn(ctx, minion, effect.params ?? {}, {})); }
+          }
+        }
+      }
+    }
+  };
+  socMinions(SIDES);
   // Start-of-Combat RUNE grants, PER SIDE (a served enemy runs its own runes). Enemy mods come from the captured
   // snapshot. The whole section is ONE function so Rune of Twilight can run it again (owner ruling 2026-09-21:
   // "Twilight repeats all rune Start-of-Combat effects too" — it used to re-fire only the MINION pass, so Rune
@@ -5407,7 +5445,7 @@ export function simulate(
   // multiplies passes, copies multiply within a pass.
   // Rune of First Claws runs its own passes at its later site (after the Avenge / Inheritance listeners exist).
   /** Rune of Twilight's ONE badge pulse per side, on the beat of its FIRST extra effect — minion or rune. */
-  const twilightFired: Record<Side, boolean> = { player: false, enemy: false };
+  const twilightFired: Record<Side, boolean> = sideReset(() => ({ player: false, enemy: false }));
   const twilightPulse = (side: Side, pass: number): void => {
     if (pass > 0 && !twilightFired[side]) { twilightFired[side] = true; fireTrigger('runeTwilight', side); }
   };
@@ -5978,11 +6016,14 @@ export function simulate(
       }
     }
   };
-  for (const rside of SIDES) {
-    // The base pass, then one full extra rune pass per Twilight fire (0 without the rune).
-    const twilightPasses = socTwilightExtraFires(modsFor(rside));
-    for (let pass = 0; pass <= twilightPasses; pass++) runRuneStartOfCombat(rside, pass);
-  }
+  const socRunes = (sides: readonly Side[]): void => {
+    for (const rside of sides) {
+      // The base pass, then one full extra rune pass per Twilight fire (0 without the rune).
+      const twilightPasses = socTwilightExtraFires(modsFor(rside));
+      for (let pass = 0; pass <= twilightPasses; pass++) runRuneStartOfCombat(rside, pass);
+    }
+  };
+  socRunes(SIDES);
   // ── SET 3 RUNE DESIGN PASS (owner 2026-09-27): shared combat halves ───────────────────────────────────────────
   /** Re-derive the Soul Furnace's Health term after the side's Undead Aura Attack rose: the living Undead gain the
    *  difference now, and bodies summoned or risen later inherit it through `applyAuras` (it rides `undeadAura.health`). */
@@ -6446,10 +6487,10 @@ export function simulate(
   // running count. Each fire summons the Sprout at the CURRENT size (a real combat summon, so Empowering Vines' +2/+3
   // and Taunt land on it), then the size grows by 1; the `questTrigger` pulse is what settle counts to bank the growth.
   // Rune of Fury fires it again, like every hero Avenge.
-  const sproutSize: Record<Side, number> = {
+  const sproutSize: Record<Side, number> = sideReset(() => ({
     player: modsFor('player').ancientSproutAvenge?.size ?? 1,
     enemy: modsFor('enemy').ancientSproutAvenge?.size ?? 1,
-  };
+  }));
   bus.on('avenge', (payload) => {
     const { side, count, victim } = payload as { side: Side; count: number; victim?: Minion };
     const sp = modsFor(side).ancientSproutAvenge;
@@ -6496,7 +6537,7 @@ export function simulate(
   // ANCIENT OF DEATH × Re-Pete (owner 2026-10-02): "Get a copy of the last minion that died in combat." The avenge bus
   // emits once per friendly death (a Rise / Rebirth return still died), so the latest emission is the last death. Paid
   // as the fight ends (below the attack loop).
-  const lastFriendlyDeath: Record<Side, { cardId: string; uid: string } | undefined> = { player: undefined, enemy: undefined };
+  const lastFriendlyDeath: Record<Side, { cardId: string; uid: string } | undefined> = sideReset(() => ({ player: undefined, enemy: undefined }));
   bus.on('avenge', (payload) => {
     const { side, victim } = payload as { side: Side; victim?: Minion };
     if (victim && modsFor(side).ancientLastDeathCopy) lastFriendlyDeath[side] = { cardId: victim.cardId, uid: victim.uid };
@@ -6692,7 +6733,7 @@ export function simulate(
   // ANCIENT OF WAR (proof of concept, owner 2026-09-25): whenever a friendly minion dies (a Rise death included —
   // it is a real death), this side's living GILDED minions gain +a/+h PERMANENTLY — recorded as `permaGain`, the
   // channel settle carries back (the arena's `buffPermanent` contract), so the Shop board keeps it.
-  if (playerState.questMods.ancientWar || enemyState.questMods.ancientWar) {
+  if (playerState.questMods.ancientWar || enemyState.questMods.ancientWar || reserveHas((m) => !!m.ancientWar)) {
     bus.on('onDeath', (payload) => {
       const { minion, side } = payload as { minion: Minion; side: Side };
       const war = modsFor(side).ancientWar;
@@ -6707,7 +6748,7 @@ export function simulate(
     });
   }
   // Rune of Inheritance: when your LEFT-MOST living minion dies, your right-most living minion gains its stats. Per side.
-  if (playerState.questMods.runeInheritance || enemyState.questMods.runeInheritance) {
+  if (playerState.questMods.runeInheritance || enemyState.questMods.runeInheritance || reserveHas((m) => !!m.runeInheritance)) {
     bus.on('onDeath', (payload) => {
       const { minion, side } = payload as { minion: Minion; side: Side };
       if (!modsFor(side).runeInheritance) return;
@@ -6721,7 +6762,7 @@ export function simulate(
   }
   // Passing Spears: your Spear Wardens gain "Echo: when this dies, give its stats to a friendly minion" — on a
   // Spear Warden's death, hand its full stats (attack + max Health) to your strongest OTHER living minion. Per side.
-  if (playerState.questMods.passingSpears || enemyState.questMods.passingSpears) {
+  if (playerState.questMods.passingSpears || enemyState.questMods.passingSpears || reserveHas((m) => !!m.passingSpears)) {
     bus.on('onDeath', (payload) => {
       const { minion, side } = payload as { minion: Minion; side: Side };
       if (minion.cardId !== 'knit' || !modsFor(side).passingSpears) return;
@@ -6735,32 +6776,34 @@ export function simulate(
   }
   // Rune of Salvage: a friendly Mech losing its Ward drops a random Attachment into your hand next shop —
   // Either side (the enemy draws off its side stream and lands on `enemyCarry`).
-  for (const sside of SIDES) {
-    if (!modsFor(sside).runeSalvage) continue;
+  // TAG-TEAM: registered per board (`member`); a reserve that steps in registers its own (see `stepIn`).
+  const registerSalvage = (sside: Side, member: number): void => {
+    if (!modsFor(sside).runeSalvage) return;
     fireTrigger('runeSalvage', sside); // pulse the badge when the Attachment is actually banked
     const magnetics = ctx.poolCards(sside).filter((c) => defIsTribe(c, 'mech') && c.keywords.includes('M')
       && isLegalRandomMinion(c, combatTierCeiling(ctx.tierFor(sside)))); // R-RANDOM-POOL-01
     if (magnetics.length > 0) {
       bus.on('onLoseDivineShield', (payload) => {
         const { minion, side } = payload as { minion: Minion; side: Side };
-        if (side !== sside || !isTribeOf(minion, 'mech', cards)) return;
+        if (side !== sside || activeMember[sside] !== member || !isTribeOf(minion, 'mech', cards)) return;
         // One Attachment per copy held (boolean-flag family, owner 2026-08-27). The enemy draws off its side stream.
         const draw = grantRngFor(sside);
         for (let k = 0; k < flagCopiesOf(sside, 'runeSalvage'); k++) ctx.grantToHand(magnetics[draw.int(magnetics.length)]!.id, sside, minion.uid);
       });
     }
-  }
+  };
+  for (const sside of SIDES) registerSalvage(sside, 0);
   // RUNE OF UNBROKEN SCALES (owner 2026-10-21): "The first 2 times your Dragons lose Ward each combat, give it +10/+10
   // and Ward." A SIDE-WIDE budget of 2 per fight across every friendly Dragon (not per body, so a Rise / Rebirth return
   // does not refill it; R-RETURN-RESET-01 covers per-body limits only). Each fire: the +10/+10 (x copies held, a combat
   // buff, R-BUFF-PERM) then the Ward re-forms. The re-formed Ward's `shieldUp` carries the rune's key, so the replay
   // plays Foamguard's three beats (R-DWARF-1021-03): the break, the buff, the Ward coming back.
-  for (const uside of SIDES) {
-    if (!modsFor(uside).runeUnbrokenScales) continue;
+  const registerUnbrokenScales = (uside: Side, member: number): void => {
+    if (!modsFor(uside).runeUnbrokenScales) return;
     let left = UNBROKEN_SCALES_PER_COMBAT;
     bus.on('onLoseDivineShield', (payload) => {
       const { minion, side } = payload as { minion: Minion; side: Side };
-      if (side !== uside || left <= 0 || minion.dead || minion.health <= 0 || !isTribeOf(minion, 'dragon', cards)) return;
+      if (side !== uside || activeMember[uside] !== member || left <= 0 || minion.dead || minion.health <= 0 || !isTribeOf(minion, 'dragon', cards)) return;
       left--;
       fireTrigger('runeUnbrokenScales', uside);
       const n = 10 * flagCopiesOf(uside, 'runeUnbrokenScales');
@@ -6770,25 +6813,29 @@ export function simulate(
       if (!minion.keywords.includes('DS')) minion.keywords.push('DS');
       emit({ type: 'shieldUp', target: minion.uid, key: UNBROKEN_SCALES_KEY });
     });
-  }
+  };
+  for (const uside of SIDES) registerUnbrokenScales(uside, 0);
   // Rune of First Claws: at Start of Combat, the left-most + right-most Beasts attack immediately. Per side. It
   // stays at THIS site (after the Avenge / Inheritance / Passing Spears listeners exist, so its kills feed them)
   // and repeats its own Twilight passes here: a "Start of Combat:" rune, so each extra pass re-picks the living
   // Beasts and strikes again (a Beast the first pass lost is simply not there to pick).
-  for (const fside of SIDES) {
-    if (!modsFor(fside).runeFirstClaws) continue;
-    for (let pass = 0; pass <= socTwilightExtraFires(modsFor(fside)); pass++) {
-      const beasts = boards[fside].filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
-      const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
-      if (targets.length === 0) continue;
-      nextStep(); twilightPulse(fside, pass); fireTrigger('runeFirstClaws', fside);
-      // One immediate attack each per copy held (boolean-flag family, owner 2026-08-27).
-      for (let k = 0; k < flagCopiesOf(fside, 'runeFirstClaws'); k++) {
-        for (const m of targets) if (!m.dead && m.health > 0) ctx.attackNow?.(m, false);
-        flushImmediateAttacks();
+  const socFirstClaws = (sides: readonly Side[]): void => {
+    for (const fside of sides) {
+      if (!modsFor(fside).runeFirstClaws) continue;
+      for (let pass = 0; pass <= socTwilightExtraFires(modsFor(fside)); pass++) {
+        const beasts = boards[fside].filter((m) => !m.dead && m.health > 0 && m.attack > 0 && isBeast(m));
+        const targets = beasts.length <= 2 ? beasts : [beasts[0]!, beasts[beasts.length - 1]!];
+        if (targets.length === 0) continue;
+        nextStep(); twilightPulse(fside, pass); fireTrigger('runeFirstClaws', fside);
+        // One immediate attack each per copy held (boolean-flag family, owner 2026-08-27).
+        for (let k = 0; k < flagCopiesOf(fside, 'runeFirstClaws'); k++) {
+          for (const m of targets) if (!m.dead && m.health > 0) ctx.attackNow?.(m, false);
+          flushImmediateAttacks();
+        }
       }
     }
-  }
+  };
+  socFirstClaws(SIDES);
 
   // --- First attacker: more living minions goes first; tie → seeded (A.3 step 2).
   //     Pre-emptive Assault overrides the whole rule: the side holding it strikes first, period (one fight —
@@ -6814,7 +6861,7 @@ export function simulate(
   // into living() would skip the minion to the right of one that just died. Resuming from
   // the last attacker's position in the full board array keeps the order stable across
   // deaths and mid-combat summons.
-  const lastAttacker: Record<Side, Minion | null> = { player: null, enemy: null };
+  const lastAttacker: Record<Side, Minion | null> = sideReset(() => ({ player: null, enemy: null }));
   const nextAttacker = (side: Side): Minion | undefined => {
     const arr = boards[side];
     const last = lastAttacker[side];
@@ -6836,13 +6883,14 @@ export function simulate(
   // BOTH sides: a served opponent board captured with a pending Bloodlust must fire it too (fidelity), and
   // flushImmediateAttacks strikes `OTHER[m.side]` — so an enemy Bloodlust correctly swings at the player.
   // First side first (the player by default: unchanged order → determinism preserved).
-  for (const side of SIDES) {
+  const bloodlustFor = (side: Side): void => {
     for (const m of boards[side]) {
       if (!m.bloodlust || m.dead || m.health <= 0 || m.attack <= 0) continue;
       m.attackImmuneLeft = Math.max(m.attackImmuneLeft ?? 0, 1); // no retaliation on the Bloodlust swing
       pendingAttackOnSummon.push({ minion: m });
     }
-  }
+  };
+  for (const side of SIDES) bloodlustFor(side);
   // A board that BEGINS combat with room (fewer than 7) fills its "while you have space" summons NOW, before any
   // attacks — Rune of the Brood / Living Echoes / Decoy Sigil used to wait for the first attack's cascade to free
   // a slot (the only place fillFreeSlots ran), so on an already-short board they fired a beat late, after the
@@ -6851,132 +6899,10 @@ export function simulate(
   fillFreeSlots();
   settleBetweenAttacks(); // Whelps summoned during Start-of-Combat / Reclaimer / the fills above strike before the rotation begins
   flushAscensions(); // a Start-of-Combat buff/cast can already push Tara/Spirit Pup over the line — transform before round 1
-  let guard = 0;
-  while (countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < ITERATION_GUARD) {
-    const defenderSide = OTHER[turn];
-    const attacker = nextAttacker(turn);
-    if (!attacker) {
-      if (!canAttack(defenderSide)) break; // neither side can attack → end the fight
-      turn = defenderSide;
-      continue;
-    }
-    const risesBefore = risesOf(attacker);
-    const rebirthBefore = attacker.keywords.includes('RB');
-    // What stood to the attacker's LEFT before the swing (dead bodies stay in the board array, so this
-    // reference stays put whatever the swing does). Read by the return rewind below.
-    const leftBeforeSwing: Minion | null = boards[turn][boards[turn].indexOf(attacker) - 1] ?? null;
-    performAttack(attacker, defenderSide, 0);
-    // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
-    // attack again for its side rather than going to the back.
-    // A REBIRTH return gets the same rewind (owner 2026-09-16: "it acts like rise, so copy that" — pinned by
-    // the Rise/Rebirth parity test in `rebirth.test.ts`): `RB` was on the body before the swing and is spent
-    // by the return, so a body standing without it came back this swing.
-    // ECHO TOKENS IN ITS SLOT GO FIRST (owner 2026-10-23, R-ORD-RISE-ECHO-01): "the dawnclaw would attack next,
-    // then the bullseye etc." Its Echo lands its bodies in the slot and the body returns to their RIGHT, so the
-    // pointer rewinds to whatever was LEFT of the attacker before the swing: the slot's new occupants attack next
-    // in normal left-to-right order (each token, as it would without Rise), then the returned body, then the rest.
-    // With no Echo summon in the slot this is the old rewind exactly (the body is next again).
-    if ((risesOf(attacker) !== risesBefore && !attacker.dead && attacker.health > 0)
-      || (rebirthBefore && !attacker.keywords.includes('RB') && !attacker.dead && attacker.health > 0)) {
-      lastAttacker[turn] = leftBeforeSwing;
-    }
-    // Whelps summoned by this attack's death cascade strike immediately, out of turn order; freed slots are
-    // reclaimed / refilled, and anything THAT summons to attack immediately strikes too — all before the next
-    // normal attacker is chosen. See `settleBetweenAttacks`.
-    settleBetweenAttacks();
-    flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
-    turn = defenderSide;
-  }
-
-  // ANCIENT OF DEATH × Re-Pete: the fight is over; the last friendly death comes home as a plain copy (live `toHand`).
-  for (const side of SIDES) {
-    const ld = modsFor(side).ancientLastDeathCopy;
-    const last = lastFriendlyDeath[side];
-    if (!ld || !last) continue;
-    nextStep();
-    ctx.grantToHand(last.cardId, side, last.uid);
-  }
-
-  // --- Outcome (A.3 step 8) ---
-  const survivorsP = living('player');
-  const survivorsE = living('enemy');
-  const result: CombatOutcome =
-    survivorsP.length > 0 && survivorsE.length > 0
-      ? 'draw' // iteration guard reached with both sides alive
-      : survivorsE.length === 0 && survivorsP.length > 0
-        ? 'win'
-        : survivorsP.length === 0 && survivorsE.length === 0
-          ? 'draw'
-          : 'lose';
-
-  // Player damage on loss (A.3 step 9) — Battlegrounds-style: the opponent's tavern tier + the SUM of the
-  // tiers of their minions still standing (a tier-4 board surviving with a T4 + T3 → 4 + 4 + 3 = 11). The
-  // run loop caps this per round. `enemyTier` is the served board's tavern tier (or the player's tier for
-  // the procedural fallback); a token / unknown survivor counts as tier 1.
-  const playerDamage =
-    result === 'lose'
-      ? enemyState.tier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
-      : 0;
-  // The SAME numbers, itemized, so the defeat animation can tally the real contributions instead of
-  // recomputing them from its own inputs. It used to derive the counter from `nextOpponent()?.tier` and the
-  // replay's final frame — two sources that can disagree with what the fight actually used (a procedural
-  // fallback, a snapshot without a tier, a body still shown mid-death), and any disagreement read as the
-  // counter saying one number while Resolve dropped by another (owner report 2026-08-08). Sums to
-  // `playerDamage` by construction; the run loop's round cap is applied on top, by the caller.
-  const damageBreakdown =
-    result === 'lose'
-      ? { oppTier: enemyState.tier, survivorTiers: survivorsE.map((m) => cards[m.cardId]?.tier ?? 1), survivorUids: survivorsE.map((m) => m.uid) }
-      : undefined;
-  // The MIRROR: what the enemy side would take, by the identical formula. A single-run fight never needed it
-  // (only the player has a Resolve pool), but a lobby round has two sides that both take damage from ONE
-  // authoritative combat — resolving the same fight twice with the sides swapped can disagree, so the number
-  // has to come out of this call. Deliberately just the mirror: no per-side carry-backs, because a lobby seat
-  // backed by a RECORDED run does not progress — its next board is already on disk.
-  const enemyDamage =
-    result === 'win'
-      ? playerState.tier + survivorsP.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
-      : 0;
-  // ...itemized the same way (the hero damage formation shows these, owner ask 2026-09-28). Sums to `enemyDamage`.
-  const enemyDamageBreakdown =
-    result === 'win'
-      ? { oppTier: playerState.tier, survivorTiers: survivorsP.map((m) => cards[m.cardId]?.tier ?? 1), survivorUids: survivorsP.map((m) => m.uid) }
-      : undefined;
-
   // Rouge Rogue's escalation is "this combat" BY RULE — it rides `summonBonus` like the permanent improvers
   // (Kennelmaster, Oona, Broodwright) but must NOT persist, or three fights of Imp attacks would compound into
   // a permanent aura the card never printed. Excluded here, at the single point deciding what persists.
   const COMBAT_ONLY_SUMMON_BONUS = new Set(['dm_chancellor']);
-
-  // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.
-  // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip. Both sides
-  // bank it; only the player's payout pulses the badge (the enemy half is a silent carry-back).
-  // (The badge pulses per SUMMON at the summon chokepoint since 2026-09-23 — "When you summon a minion in
-  // combat…" — so nothing fires here; this is the silent settle payout.)
-  for (const side of SIDES) {
-    const reinvest = modsFor(side).runeReinvestment;
-    if (reinvest && summonCount[side] > 0) {
-      const a = reinvest.attack * summonCount[side];
-      const h = reinvest.health * summonCount[side];
-      tavernBuyGain[side].attack += a;
-      tavernBuyGain[side].health += h;
-      creditTavern(side, 'Reinvestment', a, h);
-    }
-  }
-  // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still
-  // rides `playerHandGrants` and flies to hand in the replay, exactly like the `first` branch does live.
-  // The enemy's claim is a silent carry-back (its `grantToHand` records without emitting).
-  for (const side of SIDES) {
-    const last = kills[side].last;
-    const lastBody = lastKillBody[side];
-    if (flashPickFor[side] === 'last' && !flashDone[side] && last && lastBody) {
-      const lastDef = cards[last];
-      if (lastDef && !lastDef.spell && !lastDef.ruby) {
-        flashDone[side] = true;
-        const holder = boards[side].find((m) => !m.dead)?.uid;
-        for (let i = 0; i < flashCopiesFor[side]; i++) flashToHand(side, lastBody, holder);
-      }
-    }
-  }
 
   /**
    * THE carry-back surface, computed by ONE code path for either side. The player's half is spread onto the
@@ -7143,6 +7069,235 @@ export function simulate(
       ancientMaxGoldFires: modsFor(side).ancientMaxGoldAvenge ? maxGoldAvengeFires[side] : undefined,
     };
   };
+  // ── THE END-OF-FIGHT PER-SIDE CLAIMS, as functions: the fight's end runs them for both sides (in the order they always
+  // ran), and a TAG-TEAM step-in runs them for the board that just fell (its fight is over), before its carry-backs.
+  // ANCIENT OF DEATH × Re-Pete: the last friendly death comes home as a plain copy (live `toHand`).
+  const finishLastDeathCopy = (side: Side): void => {
+    const ld = modsFor(side).ancientLastDeathCopy;
+    const last = lastFriendlyDeath[side];
+    if (!ld || !last) return;
+    nextStep();
+    ctx.grantToHand(last.cardId, side, last.uid);
+  };
+  // Rune of Reinvestment: pays ONCE when the fight settles, scaled by how many bodies you put on the board.
+  // Paid here rather than per summon so the Shop sees a single combined buff instead of a drip. Both sides
+  // bank it; only the player's payout pulses the badge (the enemy half is a silent carry-back).
+  // (The badge pulses per SUMMON at the summon chokepoint since 2026-09-23 — "When you summon a minion in
+  // combat…" — so nothing fires here; this is the silent settle payout.)
+  const finishReinvestment = (side: Side): void => {
+    const reinvest = modsFor(side).runeReinvestment;
+    if (reinvest && summonCount[side] > 0) {
+      const a = reinvest.attack * summonCount[side];
+      const h = reinvest.health * summonCount[side];
+      tavernBuyGain[side].attack += a;
+      tavernBuyGain[side].health += h;
+      creditTavern(side, 'Reinvestment', a, h);
+    }
+  };
+  // Flash's LAST claim: only knowable now the fight is over. Granted here rather than at settle so it still
+  // rides `playerHandGrants` and flies to hand in the replay, exactly like the `first` branch does live.
+  // The enemy's claim is a silent carry-back (its `grantToHand` records without emitting).
+  const finishFlashLast = (side: Side): void => {
+    const last = kills[side].last;
+    const lastBody = lastKillBody[side];
+    if (flashPickFor[side] === 'last' && !flashDone[side] && last && lastBody) {
+      const lastDef = cards[last];
+      if (lastDef && !lastDef.spell && !lastDef.ruby) {
+        flashDone[side] = true;
+        const holder = boards[side].find((m) => !m.dead)?.uid;
+        for (let i = 0; i < flashCopiesFor[side]; i++) flashToHand(side, lastBody, holder);
+      }
+    }
+  };
+
+  // ── TAG-TEAM STEP-IN (Versus Duos, owner 2026-10-25, R-DUOS-TAGTEAM-01) ─────────────────────────────────────────
+  // "when it is wiped, your teammate's board steps in against whatever survived on the other side." Owner rulings
+  // (2026-10-25): the second board's Start of Combat, hero effects and rune/quest mods fire on step-in; the turn order
+  // carries on and the incoming board starts from its left-most. Runs only from the loop head (a settled moment), only
+  // with a reserve, so an ordinary fight never reaches it.
+  const memberCarries: Partial<Record<Side, CombatCarryBacks[]>> = {};
+  /** The foe's death count when each side's reserve stepped in: the reserve's `foeDeaths` counts only its own kills. */
+  const foeDeathsAtTag: Record<Side, number> = { player: 0, enemy: 0 };
+  const stepIn = (s: Side): void => {
+    const res = reserveOf[s]!;
+    reserveOf[s] = undefined; // spent: a side steps in once
+    // The reserve's board with its next-combat banks applied (pure: Open the Gates can fill an empty board). Nothing
+    // to bring = no step-in: the side is simply out of boards.
+    const other = OTHER[s];
+    const sideBoards = { [s]: res.board, [other]: [] } as unknown as Record<Side, BoardMinion[]>;
+    const sideMods = { [s]: res.state.questMods ?? {}, [other]: {} } as unknown as Record<Side, QuestCombatMods>;
+    const imps = { [s]: { attack: res.state.impAtk, health: res.state.impHp }, [other]: { attack: 0, health: 0 } } as unknown as Record<Side, { attack: number; health: number }>;
+    const open = applyBankedOpeners(sideBoards, sideMods, imps, cards);
+    if (open.boards[s].length === 0) return;
+    const fallen = activeMember[s];
+    // 1. The fallen board's fight is over: its end-of-fight claims, then its carry-backs, frozen now.
+    finishLastDeathCopy(s);
+    finishReinvestment(s);
+    finishFlashLast(s);
+    (memberCarries[s] ??= []).push(carryBacksFor(s));
+    nextStep();
+    emit({ type: 'boardFallen', side: s, member: fallen });
+    // 2. The side's run context becomes the reserve's (a per-fight copy, as the opening does for both sides).
+    const st: CombatSideState = { ...res.state, questMods: { ...res.state.questMods }, handMinions: cloneHand(res.state) };
+    if (s === 'player') playerState = st; else enemyState = st;
+    activeMember[s] = fallen + 1;
+    foeDeathsAtTag[s] = deaths[OTHER[s]];
+    // 3. Every per-side value from scratch, read from the reserve's context.
+    for (const reset of sideResetters) reset(s);
+    startCount[s] = res.board.length;
+    spellPowerOf[s] = { attack: st.spellPowerAtk, health: st.spellPowerHp };
+    const legacy = ctx as { spellPower: { attack: number; health: number }; enemySpellPower: { attack: number; health: number }; spellsThisTurn: number; beastsPlayedThisTurn: number; spiritsPlayedThisTurn: number };
+    if (s === 'player') {
+      legacy.spellPower = spellPowerOf.player;
+      legacy.spellsThisTurn = st.spellsThisTurn;
+      legacy.beastsPlayedThisTurn = st.beastsPlayed;
+      legacy.spiritsPlayedThisTurn = st.spiritsPlayed;
+    } else legacy.enemySpellPower = spellPowerOf.enemy;
+    handRoomAtStart[s] = Math.max(0, st.handRoom ?? 10 - (st.handMinions?.length ?? 0) - (st.handSpellIds?.length ?? 0));
+    for (const key of [...handSummonedUids]) if (key.startsWith(`${s}:`)) handSummonedUids.delete(key);
+    for (const key of [...handCopiedUids]) if (key.startsWith(`${s}:`)) handCopiedUids.delete(key);
+    for (let i = tribeAuras.length - 1; i >= 0; i--) if (tribeAuras[i]!.side === s) tribeAuras.splice(i, 1);
+    for (let i = spaceQueue.length - 1; i >= 0; i--) if (spaceQueue[i]!.side === s) spaceQueue.splice(i, 1);
+    // 4. The board: the reserve's next-combat banks, then its bodies, as the opening builds a board.
+    boards[s].length = 0;
+    for (const b of open.boards[s]) boards[s].push(instantiate(b, s, cards, mkUid));
+    for (const m of boards[s]) applyAuras(m, false);
+    syncUnityCombat(s, true);
+    for (const m of boards[s]) if (m.sourceUid !== undefined) engraveKwStart[s].set(m.sourceUid, new Set(m.keywords));
+    if (engraveKwStart[s].size > 0) {
+      for (const b of res.board) {
+        if (b.sourceUid === undefined) continue;
+        const temp = b.tempKeywords;
+        const own = b.keywords ?? cards[b.cardId]?.keywords ?? [];
+        engraveKwPerm[s].set(b.sourceUid, new Set(temp?.length ? own.filter((k) => !temp.includes(k)) : own));
+      }
+      engraveKwScan = scanEngravedKeywords;
+    }
+    const undying = modsFor(s).ancientUndying;
+    if (undying) {
+      for (const m of boards[s]) {
+        if (!m.sourceUid || !undying.uids.includes(m.sourceUid)) continue;
+        undyingUids.add(m.uid);
+        if (undying.war && m.rebornAvailable) riseTint.set(m.uid, 'red');
+        else if (undying.regainRise && m.rebornAvailable) riseTint.set(m.uid, 'blue');
+      }
+    }
+    for (const m of boards[s]) registerEffects(m);
+    // 5. The step-in beat: the board as it enters (rewound to before its next-combat banks), then those banks' casts.
+    const snap = { [s]: boards[s].map(snapshot), [other]: [] } as unknown as Record<Side, MinionSnapshot[]>;
+    const opening = openingEvents(snap, open.records, sideMods, sideBoards, { player: false, enemy: false }, [s]);
+    nextStep();
+    emit({ type: 'tagIn', side: s, member: activeMember[s], minions: snap[s] });
+    for (const e of opening) emit(e);
+    // 6. Its Start of Combat, against the survivors (the same passes, in the same order, as the opening).
+    socReclaim([s]);
+    socCasket([s]);
+    socRunLevel([s]);
+    socMinions([s]);
+    socRunes([s]);
+    registerSalvage(s, activeMember[s]);
+    registerUnbrokenScales(s, activeMember[s]);
+    socFirstClaws([s]);
+    bloodlustFor(s);
+    fillFreeSlots();
+    settleBetweenAttacks();
+    flushAscensions();
+  };
+  let guard = 0;
+  // A tag-team fight can hold two boards a side, so it gets twice the attack budget (unchanged otherwise).
+  const iterationGuard = hasReserve ? ITERATION_GUARD * 2 : ITERATION_GUARD;
+  for (;;) {
+    // TAG-TEAM: a wiped side whose reserve is still waiting steps in here, at a settled moment (the first side first).
+    if (hasReserve) for (const s of SIDES) if (reserveOf[s] && countLiving(s) === 0) stepIn(s);
+    if (!(countLiving('player') > 0 && countLiving('enemy') > 0 && guard++ < iterationGuard)) break;
+    const defenderSide = OTHER[turn];
+    const attacker = nextAttacker(turn);
+    if (!attacker) {
+      if (!canAttack(defenderSide)) break; // neither side can attack → end the fight
+      turn = defenderSide;
+      continue;
+    }
+    const risesBefore = risesOf(attacker);
+    const rebirthBefore = attacker.keywords.includes('RB');
+    // What stood to the attacker's LEFT before the swing (dead bodies stay in the board array, so this
+    // reference stays put whatever the swing does). Read by the return rewind below.
+    const leftBeforeSwing: Minion | null = boards[turn][boards[turn].indexOf(attacker) - 1] ?? null;
+    performAttack(attacker, defenderSide, 0);
+    // Reborn-on-attack: a minion that died to retaliation and Reborned keeps its place — it's next to
+    // attack again for its side rather than going to the back.
+    // A REBIRTH return gets the same rewind (owner 2026-09-16: "it acts like rise, so copy that" — pinned by
+    // the Rise/Rebirth parity test in `rebirth.test.ts`): `RB` was on the body before the swing and is spent
+    // by the return, so a body standing without it came back this swing.
+    // ECHO TOKENS IN ITS SLOT GO FIRST (owner 2026-10-23, R-ORD-RISE-ECHO-01): "the dawnclaw would attack next,
+    // then the bullseye etc." Its Echo lands its bodies in the slot and the body returns to their RIGHT, so the
+    // pointer rewinds to whatever was LEFT of the attacker before the swing: the slot's new occupants attack next
+    // in normal left-to-right order (each token, as it would without Rise), then the returned body, then the rest.
+    // With no Echo summon in the slot this is the old rewind exactly (the body is next again).
+    if ((risesOf(attacker) !== risesBefore && !attacker.dead && attacker.health > 0)
+      || (rebirthBefore && !attacker.keywords.includes('RB') && !attacker.dead && attacker.health > 0)) {
+      lastAttacker[turn] = leftBeforeSwing;
+    }
+    // Whelps summoned by this attack's death cascade strike immediately, out of turn order; freed slots are
+    // reclaimed / refilled, and anything THAT summons to attack immediately strikes too — all before the next
+    // normal attacker is chosen. See `settleBetweenAttacks`.
+    settleBetweenAttacks();
+    flushAscensions(); // a Tara/Spirit Pup that crossed its threshold this attack transforms now (between actions)
+    turn = defenderSide;
+  }
+
+  // ANCIENT OF DEATH × Re-Pete: the fight is over; the last friendly death comes home as a plain copy (live `toHand`).
+  for (const side of SIDES) finishLastDeathCopy(side);
+
+  // --- Outcome (A.3 step 8) ---
+  const survivorsP = living('player');
+  const survivorsE = living('enemy');
+  const result: CombatOutcome =
+    survivorsP.length > 0 && survivorsE.length > 0
+      ? 'draw' // iteration guard reached with both sides alive
+      : survivorsE.length === 0 && survivorsP.length > 0
+        ? 'win'
+        : survivorsP.length === 0 && survivorsE.length === 0
+          ? 'draw'
+          : 'lose';
+
+  // Player damage on loss (A.3 step 9) — Battlegrounds-style: the opponent's tavern tier + the SUM of the
+  // tiers of their minions still standing (a tier-4 board surviving with a T4 + T3 → 4 + 4 + 3 = 11). The
+  // run loop caps this per round. `enemyTier` is the served board's tavern tier (or the player's tier for
+  // the procedural fallback); a token / unknown survivor counts as tier 1.
+  const playerDamage =
+    result === 'lose'
+      ? enemyState.tier + survivorsE.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
+      : 0;
+  // The SAME numbers, itemized, so the defeat animation can tally the real contributions instead of
+  // recomputing them from its own inputs. It used to derive the counter from `nextOpponent()?.tier` and the
+  // replay's final frame — two sources that can disagree with what the fight actually used (a procedural
+  // fallback, a snapshot without a tier, a body still shown mid-death), and any disagreement read as the
+  // counter saying one number while Resolve dropped by another (owner report 2026-08-08). Sums to
+  // `playerDamage` by construction; the run loop's round cap is applied on top, by the caller.
+  const damageBreakdown =
+    result === 'lose'
+      ? { oppTier: enemyState.tier, survivorTiers: survivorsE.map((m) => cards[m.cardId]?.tier ?? 1), survivorUids: survivorsE.map((m) => m.uid) }
+      : undefined;
+  // The MIRROR: what the enemy side would take, by the identical formula. A single-run fight never needed it
+  // (only the player has a Resolve pool), but a lobby round has two sides that both take damage from ONE
+  // authoritative combat — resolving the same fight twice with the sides swapped can disagree, so the number
+  // has to come out of this call. Deliberately just the mirror: no per-side carry-backs, because a lobby seat
+  // backed by a RECORDED run does not progress — its next board is already on disk.
+  const enemyDamage =
+    result === 'win'
+      ? playerState.tier + survivorsP.reduce((sum, m) => sum + (cards[m.cardId]?.tier ?? 1), 0)
+      : 0;
+  // ...itemized the same way (the hero damage formation shows these, owner ask 2026-09-28). Sums to `enemyDamage`.
+  const enemyDamageBreakdown =
+    result === 'win'
+      ? { oppTier: playerState.tier, survivorTiers: survivorsP.map((m) => cards[m.cardId]?.tier ?? 1), survivorUids: survivorsP.map((m) => m.uid) }
+      : undefined;
+
+  // Rune of Reinvestment: pays ONCE when the fight settles (see `finishReinvestment`).
+  for (const side of SIDES) finishReinvestment(side);
+  // Flash's LAST claim (see `finishFlashLast`).
+  for (const side of SIDES) finishFlashLast(side);
+
   const pc = carryBacksFor('player');
 
   // THE START OF COMBAT CAST BEATS (owner ask 2026-10-07): rewind the starting snapshots to the board before each
@@ -7159,6 +7314,21 @@ export function simulate(
     SIDES,
   );
   if (opening.length) events.unshift(...opening);
+
+  /** TAG-TEAM: per side that HAD a reserve, every member's carry-backs in order (the fallen board's, frozen when it
+   *  fell, then the board that ended the fight; a reserve that never stepped in has none), and where each `tagIn` sits
+   *  in the final log. A member after a step-in counts only its own kills (`foeDeaths`). */
+  function tagTeamResult(playerFinal: CombatCarryBacks): CombatTagTeam {
+    const members: CombatTagTeam['members'] = {};
+    const tagInAt: CombatTagTeam['tagInAt'] = {};
+    for (const s of ['player', 'enemy'] as const) {
+      if (!config.reserve?.[s]) continue;
+      const fin = s === 'player' ? playerFinal : carryBacksFor('enemy');
+      members[s] = [...(memberCarries[s] ?? []), activeMember[s] > 0 ? { ...fin, foeDeaths: fin.foeDeaths - foeDeathsAtTag[s] } : fin];
+    }
+    events.forEach((e, i) => { if (e.type === 'tagIn') tagInAt[e.side] = i; });
+    return { members, tagInAt };
+  }
 
   return {
     events,
@@ -7243,5 +7413,6 @@ export function simulate(
     // The ENEMY side's carry-backs — the same computation, mirrored (balance bot self-play, 2026-09-15). The
     // shipped run loop never reads it; a lobby seat that fought as `enemy` settles from it.
     enemyCarry: carryBacksFor('enemy'),
+    ...(hasReserve ? { tagTeam: tagTeamResult(pc) } : {}),
   };
 }

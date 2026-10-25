@@ -482,6 +482,15 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     if (error) fail(error);
     return (data as VersusDuosPassRow[]) ?? [];
   },
+  // ── DEV / TEST TOOLS (2026-10-25-versus-test-bots.sql): the host's test bots and the Duos dev tuner. ────────────
+  /** The calling (anonymous) bot account names the host whose browser drives it. */
+  testBotRegister: (host: string, slot: number) => rpc<unknown>('versus_test_bot_register', { p_host: host, p_slot: slot }),
+  /** DEV: set a living seat's hearts (Duos: its team's). Host only, every other seat one of the host's bots. */
+  devSetHearts: (matchId: string, seat: VersusGroupSeat, hearts: number) =>
+    rpc<VersusGroupMatchRaw>('versus_dev_set_hearts', { p_match: matchId, p_seat: seat, p_hearts: hearts }),
+  /** DEV: the shop clock jumps to 5 seconds. */
+  devSkipShop: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_dev_skip_shop', { p_match: matchId }),
+
   /** Ask the resolver to settle a group round (`finalize_group`, idempotent server-side). */
   async finalizeGroup(matchId: string, round: number, contentRevision: string): Promise<void> {
     const { error } = await db().functions.invoke('versus-resolve', {

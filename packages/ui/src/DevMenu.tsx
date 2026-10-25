@@ -119,6 +119,7 @@ import { RebirthTuner } from './RebirthTuner';
 import { DiceRollTuner } from './DiceRollTuner';
 import { TavernUpTuner } from './TavernUpTuner';
 import { HeroPanelTuner } from './HeroPanelTuner';
+import { VersusBotsTuner } from './versus/VersusBotsTuner';
 import { pixiFx } from './pixiFx';
 import { perfMonitor } from './perfMonitor';
 import { FxWorkbench } from './fx/ui/Workbench';
@@ -323,6 +324,14 @@ const GROUPS: Group[] = [
       { key: 'smoke', icon: '🌫️', label: 'Strike pulse', C: SmokeTuner, hint: 'The energy rings that ripple out of a melee clack', alt: 'smoke dust impact' },
       { key: 'float', icon: '🔢', label: 'Damage Float', C: FloatTuner, hint: 'The −N pills that pop over a struck unit' },
       { key: 'aimfx', icon: '🎯', label: 'Hero Aim', C: AimFxTuner, hint: 'The targeting line and its activation spark' },
+    ],
+  },
+  {
+    id: 'versus',
+    title: 'Versus',
+    items: [
+      { key: 'versusbots', icon: '🤝', label: 'Versus Bots + Duos', C: VersusBotsTuner, hint: 'Up to three bots in your room, and buttons that force each Duos mechanic: passes, refusals, the teammate view, hand-offs, hearts, the clock',
+        alt: 'versus duos bot teammate pass refuse handoff tag team hearts concede group test' },
     ],
   },
   {

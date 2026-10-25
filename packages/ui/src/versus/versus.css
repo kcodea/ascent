@@ -803,3 +803,18 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
   background:
     linear-gradient(90deg, rgba(120, 236, 250, 0.95) 0, rgba(60, 196, 222, 0.9) 1.2%, transparent 3.5%, transparent 96.5%, rgba(60, 196, 222, 0.9) 98.8%, rgba(120, 236, 250, 0.95) 100%),
     radial-gradient(ellipse at 50% 45%, #1d6f86 0%, #134e63 55%, #0b3242 100%); }
+
+/* THE VERSUS BOTS + DUOS DEV TUNER (DEV only, the dev menu's panel): the dev panel's own pieces, laid out as rows of
+   small buttons. The game's gauntlet cursor on every control (the dev panel button class sets a bare pointer). */
+.duostuner { width: 380px; max-height: calc(84 * var(--vh)); overflow-y: auto; }
+.duostuner .duostuner-btns { flex-wrap: wrap; padding: 6px 12px 10px; gap: 6px; }
+.duostuner .duostuner-btns .sfxmix-copy { width: auto; flex: 1 0 auto; padding: 5px 8px; font-size: 12px; }
+.duostuner :is(.sfxmix-copy, select, input, label) { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.duostuner .sfxmix-copy:disabled { opacity: 0.45; }
+.duostuner-line { flex: 1 0 100%; font-size: 12px; color: var(--ink2, #555); }
+.duostuner-bot { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.duostuner-bot .duostuner-line { flex: 1 0 100%; font-weight: 700; color: var(--ink, #222); }
+.duostuner-note { margin: 4px 12px 0; padding: 6px 8px; border-radius: 8px; font-size: 12px; font-weight: 700; background: color-mix(in srgb, var(--acc, #3a7) 14%, transparent); }
+.duostuner-check { flex: 1 0 100%; display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; }
+.duostuner-num { width: 56px; }
+.duostuner-select { flex: 1 0 100%; font-size: 12px; padding: 4px; }

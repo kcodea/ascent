@@ -28,7 +28,7 @@ import arenaBlur from '../art/versus/arena-blur.webp';
 import { publicAssetCssUrl } from '../floatConfig';
 import { displaySeconds } from './versusClock';
 import { VersusMatchStats } from './VersusMatchStats';
-import { setVersusBotDisconnected, startVersusBot, stopVersusBot, useVersusBot } from './versusBot';
+import { freeVersusBotSlot, setVersusBotDisconnected, startVersusBot, stopVersusBot, useVersusBots } from './versusBot';
 import { versusTestToolsEnabled } from './versusFlag';
 import { resumeSpectating } from './spectate';
 import { VersusEmptySeatCard, VersusPlayerCard } from './VersusPlayerCard';
@@ -164,7 +164,8 @@ function seatHearts(match: VersusState['match'], side: VersusGroupSeat): number 
 }
 
 function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
-  const botStatus = useVersusBot((s) => s.status);
+  // A free bot slot (three at most) and no add in flight: any open seat can take a bot (Group and Duos too).
+  const canAddBot = useVersusBots((s) => !s.busy && s.bots.length < 3) && freeVersusBotSlot() != null;
   const open = room.status === 'open';
   const running = room.status === 'in_game' && match && match.phase !== 'complete';
   const mine = room.members.find((x) => x.userId === me) ?? null;
@@ -196,9 +197,10 @@ function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat
         <VersusEmptySeatCard hint={hint} gone={!!m} />
         {/* TEST TOOLS (dev / opted-in browsers only): a bot fills this seat through the normal server protocol. The host's
             only, on an empty seat, at ONE fixed place under the seat's footprint (owner 2026-10-21: "add bot jumps
-            around and is hard to click"): nothing it sits in moves, and it never moves on hover. */}
-        {!m && open && isHostViewer && versusTestToolsEnabled() && botStatus === 'off' && (
-          <button className="vsplate vsslot-bot" onClick={() => { sfx.pulse(); void startVersusBot(room.id); }}>Add bot</button>
+            around and is hard to click"): nothing it sits in moves, and it never moves on hover. Up to three bots, each
+            its own account, so a Group or Duos table can be filled alone (owner 2026-10-25). */}
+        {!m && open && isHostViewer && versusTestToolsEnabled() && canAddBot && (
+          <button className="vsplate vsslot-bot" onClick={() => { sfx.pulse(); void startVersusBot(room.id, side); }}>Add bot</button>
         )}
       </div>
       <div className={`vsgatebox vsgatebox-${side}`}>
@@ -328,7 +330,9 @@ export function VersusRoom() {
   const error = useVersus((s) => s.error);
   const setTitleView = useGame((s) => s.setTitleView);
   const gateLeft = useCountdown(room?.status === 'sealed' ? room.gate_deadline : null);
-  const bot = useVersusBot();
+  const bots = useVersusBots();
+  const roomBots = bots.bots.filter((b) => b.roomId === serverRoom?.id && b.status === 'playing');
+  const allOff = roomBots.length > 0 && roomBots.every((b) => b.disconnected);
   const lastMatch = useVersus((s) => s.lastMatch);
   const statsOpen = useVersus((s) => s.statsOpen);
   // The seat cards' numbers: re-read when a player sits or leaves, and when a match ends and the room reopens. (A
@@ -414,13 +418,15 @@ export function VersusRoom() {
         <button className="vsplate" onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>Room options</button>
         {lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
         <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</button>
-        {bot.status === 'playing' && bot.roomId === room.id && (
+        {roomBots.length > 0 && (
           <>
-            <button className="vsplate" onClick={() => setVersusBotDisconnected(!bot.disconnected)}>{bot.disconnected ? 'Bot reconnects' : 'Bot disconnects'}</button>
-            <button className="vsplate" onClick={() => { void stopVersusBot(); }}>Remove bot</button>
+            <button className="vsplate" onClick={() => setVersusBotDisconnected(!allOff)}>
+              {roomBots.length === 1 ? (allOff ? 'Bot reconnects' : 'Bot disconnects') : (allOff ? 'Bots reconnect' : 'Bots disconnect')}
+            </button>
+            <button className="vsplate" onClick={() => { void stopVersusBot(); }}>{roomBots.length === 1 ? 'Remove bot' : 'Remove bots'}</button>
           </>
         )}
-        {bot.status === 'error' && <span className="vsgatestate">Bot: {bot.error}</span>}
+        {bots.error && <span className="vsgatestate">Bot: {bots.error}</span>}
       </div>
 
       {/* THE SELL ZONE (the shop's own overlay): a seated card dragged up here goes back to the stands. */}

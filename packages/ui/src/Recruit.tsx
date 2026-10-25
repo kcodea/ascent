@@ -1,5 +1,5 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
-import { catchPulse, playLob } from './versus/passLob';
+import { catchPulse, mateDoor, playDrop } from './versus/passLob';
 import { duosPassRefusal, inRect, myCardBack, notePassRefused } from './versus/duosPassUi';
 import { DuosTagInPlate, useDuosCombatSync } from './versus/duosCombat';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
@@ -4733,8 +4733,8 @@ export function Recruit() {
       // drop's dispatch (same tick, or the magnetic-merge slide ~260 ms later) takes it; a drop that
       // dispatches nothing just leaves it to go stale (takeDragTrace discards it).
       endDragTrace(e.clientX, e.clientY);
-      // VERSUS DUOS (R-DUOS-PASS-01): released over the teammate's portrait: pass it (1 Gold, the lob), or refuse with
-      // the reason and spring back. Ahead of the sell region, which covers the rail.
+      // VERSUS DUOS (R-DUOS-PASS-01): released over the teammate's bottom-right portrait: pass it (1 Gold, the drop),
+      // or refuse with the reason and spring back. Ahead of every other drop region.
       const mateRect = duosMateRectRef.current;
       if (mateRect && inRect(mateRect, e.clientX, e.clientY)) {
         dragStore.set({ passOver: null, passReason: null });
@@ -4748,10 +4748,9 @@ export function Recruit() {
         if (!why && (useGame.getState().run.duos?.outbox.length ?? 0) > sent) {
           const face = document.querySelector<HTMLElement>('.dragcard');
           const from = face?.getBoundingClientRect() ?? { left: e.clientX - d.w / 2, top: e.clientY - d.h / 2, width: d.w, height: d.h };
-          const mateEl = document.querySelector('[data-duos-mate]');
-          // Into the PORTRAIT (the card shrinks to the face it is thrown to), not the whole rail row.
-          const faceEl = mateEl?.querySelector('.lobbyface') ?? mateEl;
-          playLob({ from, to: faceEl?.getBoundingClientRect() ?? mateRect, face: face?.querySelector<HTMLElement>('.card') ?? face, back: myCardBack(), coin: true, send: true, onLand: () => catchPulse(faceEl) });
+          // It DROPS into the teammate's bottom-right portrait disc (owner 2026-10-25), then the disc pops.
+          const door = mateDoor();
+          playDrop({ from, to: door?.getBoundingClientRect() ?? mateRect, face: face?.querySelector<HTMLElement>('.card') ?? face, back: myCardBack(), coin: true, onLand: () => catchPulse(door) });
           sfx.sell?.();
           endSession();
           return;

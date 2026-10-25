@@ -9,6 +9,7 @@
  *    the disconnect pause, in the game's own dialog panel.
  * Every surface here re-renders on Versus state only (a few times per round), never per frame.
  */
+import { DuosMateDock } from './DuosMateDock';
 import { DuosOrderPlate } from './DuosOrderPlate';
 import { TeammateBar, useTeammateViewKeys } from './teammateView';
 import { useEffect, useRef, useState } from 'react';
@@ -190,7 +191,7 @@ export function VersusHud() {
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
-  if (watchingMate) return <TeammateBar />;
+  if (watchingMate) return <><TeammateBar /><DuosMateDock watching /></>;
   // VERSUS GROUP: the absent player is whoever the table says (named on `match.group`), not "the opponent".
   const names = { p1: match.p1_name, p2: match.group?.pausedName ?? match.p2_name };
   const absent = match.paused_seat;
@@ -225,6 +226,7 @@ export function VersusHud() {
     <>
       {held && !paused && <div className="vshold" aria-hidden="true" />}
       {match.group?.duos && !paused && phase === 'recruit' && <DuosOrderPlate />}
+      {match.group?.duos && !paused && phase === 'recruit' && <DuosMateDock watching={false} />}
       {paused && (
         <div className="vsveil" role="status" aria-live="polite" onContextMenuCapture={blockInspect}>
           {match.resume_at ? (

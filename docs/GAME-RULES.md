@@ -1218,16 +1218,17 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   click until your team locks in. **The hand-off:** when a board falls ("<Name> steps in" rises on that side with their
   portrait), the next board's minions fly in from their team's edge of the screen one after another, and BOTH hero slots
   follow the boards: the opponent portrait becomes whoever is fighting now, and your own slot shows your teammate while
-  their board fights on your side. **Passing:** drag a hand or board card onto your teammate's rail portrait:
-  it rings green when the pass is allowed and red when not, with the reason ("Their hand is full", "You need 1 Gold",
-  "Just passed to you", "Passing is closed"); a refused drop springs back. A pass is THROWN: the card arcs high toward
-  their portrait, turning face down at the top, with one of your coins riding behind it from your Gold; their portrait
-  catches it. On their side the face-down card drops out of your portrait into their hand and turns face up.
-  **Watching your teammate:** click their rail portrait (or hold Tab to peek) to see their whole screen live (shop,
-  hand, board, Gold, cursor, drags). The screen turns toward the rail on the way in and back on the way out; while you
-  watch, their hero is in the hero slot, a strong team-colour frame rims the screen, your shop controls are greyed, and the
-  "Watching <Name>" plate has "Back to your board" (Esc and letting go of Tab work too). You come back on your own when
-  the shop ends, the match pauses, or your clock has under 5 seconds.
+  their board fights on your side. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left. **Passing:** drag a
+  hand or board card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not
+  ("Their hand is full", "You need 1 Gold", "Just passed to you", "Passing is closed"); a refused drop springs back. On
+  release the card DROPS into their portrait, turning face down, with one of your coins following it in from your Gold;
+  the portrait pops as it catches it. On their screen the card comes out of YOUR portrait (bottom right for them), flies
+  into their hand and lands face up. **Watching your teammate:** click their portrait (their rail row works too, or hold
+  Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). The screen turns toward the
+  rail on the way in and back on the way out; while you watch, their hero is in the hero slot, a strong team-colour
+  frame rims the screen, your shop controls are greyed, the bottom-right portrait is YOURS (click it to go back), and the
+  "Watching <Name>" plate beside the clock has "Back to your board" (Esc and letting go of Tab work too). You come back
+  on your own when the shop ends, the match pauses, or your clock has under 5 seconds.
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 

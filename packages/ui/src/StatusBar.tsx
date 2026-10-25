@@ -218,13 +218,14 @@ export function StatusBar() {
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
   const hero = getHero(run.heroId);
   // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
-  const runSkins = useRunSkins();
-  const mateSkins = duosSelf ? opponentSkins(showOppSkins, seatCosmetics(duosSelf)) : null;
-  const heroImg = duosSelf ? heroPortrait(duosSelf.heroId, mateSkins) : heroPortrait(hero.id, runSkins);
+  // (Versus Duos: my teammate's skins while their board fights on my side, see `duosSelf`.)
+  const ownSkins = useRunSkins();
+  const runSkins = duosSelf ? opponentSkins(showOppSkins, seatCosmetics(duosSelf)) : ownSkins;
+  const heroImg = heroPortrait(duosSelf ? duosSelf.heroId : hero.id, runSkins);
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
   // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
   // the board's baked socket, used here only (SOCKET_FIT).
-  const frame = usePortraitFrame('self', frameIdOf(duosSelf ? mateSkins : runSkins), 'socket');
+  const frame = usePortraitFrame('self', frameIdOf(runSkins), 'socket');
   const powers = activePowers(run);
   const power = powers[0]!;
   const secondPower = powers[1];

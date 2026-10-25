@@ -732,15 +732,41 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 :root[data-hp-look="gem"] .duosview-name.hudpill-name { color: var(--ui-title); }
 body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
 
-/* VERSUS DUOS (R-DUOS-PASS-01): the teammate's rail row as the pass target. Static rings by state (no looping paint):
-   'ok' = release passes it, 'no' = refused (the note says why). */
+/* VERSUS DUOS: THE TEAMMATE PORTRAIT, bottom right (DuosMateDock; R-DUOS-VIEW-01, R-DUOS-PASS-01). The mirror of the
+   player's hero bottom left (about the same size, the same distance in from the stage corner, clear of the Gold coin and
+   the help buttons). The round disc is the
+   combat opponent's (`.combatopp-portrait`), sized up. PASS STATES: 'ok' = the teal glow breathes (a STATIC shadow on
+   its own layer; only its opacity animates, the kwglow pattern), 'no' = a static red ring and the reason. */
+.duosdock { position: fixed; z-index: 41; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u));
+  right: calc(var(--bar-x) + 60px * var(--scale)); bottom: calc(var(--bar-y) + 92px * var(--scale)); }
+/* While watching, MY portrait sits above the team frame (z70) so the way back reads clearly; under the plate (z80). */
+.duosdock.self { z-index: 75; }
+.duosdock-hold { position: relative; pointer-events: auto; border-radius: 50%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.duosdock .duosdock-disc { width: calc(200 * var(--u)); height: calc(200 * var(--u)); border-width: calc(4 * var(--u)); }
+.duosdock-glow, .duosdock-no { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; }
+.duosdock-glow { box-shadow: 0 0 calc(34 * var(--u)) calc(12 * var(--u)) rgba(64, 214, 236, 0.95), 0 0 0 calc(5 * var(--u)) rgba(96, 226, 244, 0.95); will-change: opacity; }
+.duosdock.pass-ok .duosdock-glow { animation: kwglow 0.9s ease-in-out infinite; }
+.duosdock.pass-ok .duosdock-hold { transform: scale(1.06); }
+.duosdock-no { box-shadow: 0 0 0 calc(5 * var(--u)) rgba(214, 70, 60, 0.95); }
+.duosdock.pass-no .duosdock-no { opacity: 1; }
+.duosdock.pass-no .duosdock-disc { opacity: 0.7; }
+.duosdock-name { white-space: nowrap; display: inline-flex; align-items: center; height: calc(34 * var(--u)); box-sizing: border-box; padding: 0 calc(16 * var(--u));
+  margin-top: calc(-26 * var(--u)); position: relative; z-index: 2; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+.duosdock-cap { white-space: nowrap; display: inline-flex; align-items: center; height: calc(26 * var(--u)); box-sizing: border-box; padding: 0 calc(12 * var(--u));
+  border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+.duosdock.self .duosdock-cap { letter-spacing: 0.06em; }
+.duosdock-note { position: absolute; right: calc(100% + 12 * var(--u)); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none;
+  display: inline-flex; align-items: center; height: calc(32 * var(--u)); padding: 0 calc(14 * var(--u)); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); animation: duosviewfade 0.18s ease both; }
+:root[data-hp-look="gem"] .duosdock .hudpill-name { color: var(--ui-title); }
+/* The rail row stays a second way in to the teammate view (a click), not a pass target. */
 .lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
-.lobbyseat.mate.pass-ok { outline: 2px solid rgba(120, 220, 160, 0.9); outline-offset: 2px; }
-.lobbyseat.mate.pass-no { outline: 2px solid rgba(230, 90, 80, 0.9); outline-offset: 2px; }
-.duospassnote { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none;
-  animation: duosviewfade 0.18s ease both; }
 
-/* A passed card's slot while its face-down card is still in the air (passLob.playArrival). */
+/* A passed card's slot while its face-down card is still on its way out of the teammate portrait (passLob.playArrival). */
 .row.hand .card.passincoming { opacity: 0; }
 
 /* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static. */

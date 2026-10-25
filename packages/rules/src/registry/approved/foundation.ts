@@ -8653,18 +8653,24 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'drag a card from your hand/board to your teammate\x27s portrait to give it to them.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings)', quote: 'passing should cost 1 gold' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (full hand)', quote: 'Pass is refused if hand is full.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (bottom-right portrait)', quote: 'dragging a minion over their portrait should have it glow that teal/blue glow to showcase it is going to pass, then it \x27drops\x27 into their portrait kinda' },
       { kind: 'code', ref: 'packages/sim/src/duosPass.ts (passCard / receivePass / passRefunded); supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_passes, versus_duos_pass, versus_duos_hand_room, versus_duos_answer_pass)' },
     ],
-    currentBehaviour: 'Run actions + server built 2026-10-25 (feat/versus-duos phase 1); the drag to the teammate portrait and its animation are phase 2.',
+    currentBehaviour: 'Run actions + server built 2026-10-25 (phase 1). Phase 2 (owner direction 2026-10-25): the pass target is the teammate portrait BOTTOM RIGHT. '
+      + 'While a dragged card hovers it the portrait glows teal (a pass) or shows a red ring and the reason (refused: full hand, no Gold, '
+      + 'closed, just passed to you). On release the card drops INTO the portrait, turning face down, with one coin following it from the '
+      + 'Gold, and the portrait pops; on the teammate\x27s screen the card comes OUT of the sender\x27s portrait (bottom right there) and flies into '
+      + 'their hand, landing face up. Transform and opacity only, one-shot. Not a coalesce.',
     example: 'Ann has 3 Gold and drags a Gilded Taunt from her board to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob cannot send it straight back this turn.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-VIEW-01',
     title: 'Versus Duos: watch your teammate full screen, live, and it must never look like your own board',
     statement:
       'In Versus Duos a player can watch their teammate\x27s whole screen live (shop, hand, board, Gold, cursor, drags) by clicking the teammate\x27s '
-      + 'rail portrait or holding Tab. The way in and out is a short turn of the whole screen toward the rail and back. While watching, the '
+      + 'portrait at the bottom right of the screen (the mirror of their own hero bottom left; the teammate\x27s rail row works too) or holding Tab. '
+      + 'While watching, the bottom-right portrait is the player\x27s OWN, and clicking it goes back to their board. The way in and out is a short turn of the whole screen toward the rail and back. While watching, the '
       + 'teammate\x27s hero is in the hero slot, a team-colour vignette rims the screen, the player\x27s own shop controls are greyed and take no '
       + 'input, and a "Watching <Name>" plate offers "Back to your board" (Esc and letting go of Tab also return). The player\x27s own game is set '
       + 'aside untouched and comes back exactly as it was; it returns on its own when the shop ends, the match pauses, or the player\x27s clock '
@@ -8676,12 +8682,13 @@ export const FOUNDATION_RULES: GameRule[] = [
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'we need the viewing in real time for sure and it needs to be really high quality as a mechanic.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'We need full screen view for teammates, and there needs to be some animation/change somehow to distinguish viewing the teammates board vs yours' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (bottom-right portrait)', quote: 'i think we should have our teammate\x27s hero portrait in the bottom right area which is how we should pass and click their portrait to view their board, then our portrait is in the bottom right to click on to return to our board.' },
       { kind: 'owner-chat', ref: 'Lead ruling 2026-10-25 (owner can override)', quote: 'keep your teammate\x27s row pinned right next to yours on the rail (team rows grouped), not sorted by hearts' },
-      { kind: 'code', ref: 'packages/ui/src/versus/versusGroupView.ts (groupDuosRailRows); packages/ui/src/versus/teammateView.tsx; packages/ui/src/versus/spectate.ts (trackDuosMatch, watchTeammate, leaveTeammate, ownRunWhileWatching); packages/ui/src/versus/versusStore.ts (the 5 s return)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx; packages/ui/src/versus/versusGroupView.ts (groupDuosRailRows); packages/ui/src/versus/teammateView.tsx; packages/ui/src/versus/spectate.ts (trackDuosMatch, watchTeammate, leaveTeammate, ownRunWhileWatching); packages/ui/src/versus/versusStore.ts (the 5 s return)' },
     ],
     currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2).',
     example: 'Ann holds Tab: the screen turns toward the rail and shows Bob\x27s shop as he rolls; she lets go and is back on her own board, her clock still running.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-SLOTS-01',

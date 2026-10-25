@@ -21,8 +21,6 @@ import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
 import { useVersus } from './versus/versusStore';
-import { useDragSlice } from './dragStore';
-import { useDuosPassNote } from './versus/duosPassUi';
 import { groupDuosRailRows } from './versus/versusGroupView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
@@ -353,11 +351,9 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // VERSUS GROUP (R-VERSUS-GROUP-03): the ranked rail with every player (you included) on their hearts, the Copy in
   // the last slot while one is in play. A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
   const versusDuel = versus && lobby.seats.length <= 2;
-  // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1: the rail lists your teammate right under you). It is the
-  // pass target (drag a card onto it, R-DUOS-PASS-01) and opens their live screen on a click (R-DUOS-VIEW-01).
+  // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1), kept next to yours. A click opens their live screen
+  // (R-DUOS-VIEW-01), a second way in beside the bottom-right teammate portrait (the pass target, DuosMateDock).
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
-  const passOver = useDragSlice((st) => st.passOver, Object.is);
-  const passNote = useDuosPassNote((st) => (st.text ? `${st.n}|${st.text}` : null));
   const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : versus ? {} : { self: { resolve: myResolve, armor: myArmor } }) });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
@@ -475,8 +471,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             <div
               key={seat.id}
               data-seat={seat.id}
-              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ` mate${passOver ? ` pass-${passOver}` : ''}` : ''}`}
-              {...(seat.id === duosMate ? { 'data-duos-mate': '', 'aria-label': `${seat.label}, your teammate. Drag a card here to pass it, or click to watch their board.` } : {})}
+              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ' mate' : ''}`}
+              {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
               onMouseEnter={(e) => openScout(e, seat.id)}
@@ -505,7 +501,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               <span className="lobbynameline">
                 <span className="lobbyname">{seat.label}</span>
               </span>
-              {seat.id === duosMate && passNote && <span key={passNote} className="duospassnote hudpill-name">{passNote.slice(passNote.indexOf('|') + 1)}</span>}
               {row.alive ? (
                 <span className="lobbyhp">
                   {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}

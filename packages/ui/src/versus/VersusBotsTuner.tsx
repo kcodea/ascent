@@ -83,6 +83,10 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function VersusBotsTuner(): JSX.Element {
   const { panelRef, headerPointerDown, panelStyle } = useDraggablePanel('versusbots');
   useEffect(() => { installHooks(); }, []);
+  // The bots' drivers are not a store: re-read them once a second while the panel is open (a dev panel, off the game's
+  // render path), so a bot that just took its seat or locked shows up.
+  const [, setTick] = useState(0);
+  useEffect(() => { const t = window.setInterval(() => setTick((x) => x + 1), 1000); return () => window.clearInterval(t); }, []);
   const room = useVersus((s) => s.room);
   const match = useVersus((s) => s.match);
   const bots = useVersusBots((s) => s.bots);
@@ -215,8 +219,9 @@ export function VersusBotsTuner(): JSX.Element {
 
           <Section title="Refused passes">
             <Btn label="Teammate hand full" hint="Dev: the bot's hand fills to the cap (hover its portrait while dragging)"
-              run={() => editMate((r) => fillHand(r, handCap(r)), 'Teammate hand is full. Drag a card onto their portrait.')} disabled={!mate} />
-            <Btn label="Empty teammate hand" hint="Dev: the bot's hand is emptied" run={() => editMate(withEmptyHand, 'Teammate hand emptied.')} disabled={!mate} />
+              run={() => { if (mate) mate.quiet = true; editMate((r) => fillHand(r, handCap(r)), 'Teammate hand is full (it stops shopping). Drag a card onto their portrait.'); }} disabled={!mate} />
+            <Btn label="Empty teammate hand" hint="Dev: the bot's hand is emptied and it shops again"
+              run={() => { if (mate) mate.quiet = false; editMate(withEmptyHand, 'Teammate hand emptied.'); }} disabled={!mate} />
             <Btn label="Teammate away" hint="The bot disconnects: pause, the 30 s grace, then its board plays on auto"
               run={() => { if (mateSlot) { setVersusBotDisconnected(true, mateSlot); tunerNote('Teammate disconnected. Unpause after the grace to put them on auto.'); } }} disabled={!mateSlot} />
             <Btn label="Teammate back" hint="The bot reconnects and presses Unpause" run={() => { if (mateSlot) { setVersusBotDisconnected(false, mateSlot); tunerNote('Teammate reconnected.'); } }} disabled={!mateSlot} />

@@ -8687,6 +8687,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/duosPassesRestore.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-DEVTUNER-01',
+    title: 'Versus test bots and the Duos dev tuner: a host fills any seat with bots and forces each Duos mechanic; a test never earns XP',
+    statement:
+      'DEV / TEST ONLY (dev builds, or a browser opted in to the Versus test tools). The host of a Versus room can seat up to three test bots '
+      + 'on any empty seat of a 1v1, Group or Duos room; each bot is its own anonymous account, plays inside the host\x27s own browser through '
+      + 'the same RPCs and run actions a person\x27s client uses, and registers itself as that host\x27s bot. The dev menu\x27s "Versus Bots + Duos" '
+      + 'panel forces the Duos mechanics on demand through the real paths where it can (a bot passing through its run and the pass RPCs, '
+      + 'the bot answering passes, real refusals, real fights, real concedes) and labels the rest dev: a set-up board for the next fight, a '
+      + 'full bot hand, no Gold, and the server RPCs to set hearts, end the shop and pick who fights first, which open only to the room\x27s host '
+      + 'on a table of only that host\x27s bots and mark the match as forced. A bot account, and every player and spectator of a forced match, '
+      + 'never earns XP from it (the server refuses the progression row). Bots never count toward Versus records (anonymous accounts never do).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Duos dev tuner)', quote: 'maybe if you have a bot teammate, have a dev tuner that says like... pass a card etc etc so i can just force the various mechanics' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (fight order)', quote: 'who fights first becomes a seeded 50/50 each round, players can\x27t choose it (the tuner keeps a dev-only override)' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusBot.ts (three bot slots); packages/ui/src/versus/versusBotApi.ts (group / Duos routing + projection); packages/ui/src/versus/versusBotDriver.ts (Duos passes, dev hooks); packages/ui/src/versus/VersusBotsTuner.tsx; packages/ui/src/versus/duosDevTuner.ts; supabase/migrations/2026-10-25-versus-test-bots.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (feat/duos-dev-tuner). The bots seat and play without the migration; the dev RPCs and the no-XP guard need 2026-10-25-versus-test-bots.sql applied.',
+    example: 'Kevin hosts a Duos room alone, clicks Add bot on the three empty seats and starts. In the shop he presses "Our hand-off" and ends his turn: his board is a single 1/1, it falls, and his bot teammate\x27s two 4/4s step in and win the round.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusTestBots.db.test.ts', 'packages/ui/src/versus/duosDevTuner.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-DUOS-VIEW-01',
     title: 'Versus Duos: watch your teammate full screen, live, and it must never look like your own board',
     statement:

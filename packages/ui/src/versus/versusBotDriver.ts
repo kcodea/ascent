@@ -118,6 +118,8 @@ export class VersusBotDriver {
   get lockedFor(): number | null { return this.lockedRound; }
   /** Dev tuner hooks (see `VersusBotHooks`). */
   hooks: VersusBotHooks = {};
+  /** Dev: the bot takes no shop actions (its hand and board stay exactly as the tuner set them, e.g. a full hand). */
+  quiet = false;
   /** Duos dev: the bot holds every incoming pass unanswered. */
   holdPasses = false;
   /** Duos dev: the next pass that reaches the bot finds its hand full ("the hand fills while the pass is in flight"). */
@@ -269,7 +271,7 @@ export class VersusBotDriver {
     }
     // A random action, or End Turn once it has had its fill (or the clock is nearly out).
     const left = m.shop_deadline ? Date.parse(m.shop_deadline) - now : Infinity;
-    if (this.actions < (this.opts.maxActions ?? 8) && left > 4000) {
+    if (!this.quiet && this.actions < (this.opts.maxActions ?? 8) && left > 4000) {
       const next = this.randomAction(run);
       this.actions++;
       if (next) { this.run = next; return 'acted'; }

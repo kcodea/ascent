@@ -225,6 +225,10 @@ describe('the bots fill a Duos room and play it through (the browser adapter ove
     await stepAll(ds, async () => !!p1.run!.duos!.outbox[1]?.refunded);
     expect((await rows<any>('select status from public.versus_duos_passes where seq = 1'))[0].status).toBe('refused');
     expect(p2.run!.duos!.refused).toEqual(['p1:1']);
+    // The bot never passes on its own (only the tuner's forcePass sends one).
+    let n = 0;
+    await stepAll(ds, async () => ++n >= 40);
+    expect(p2.run!.duos!.outbox).toHaveLength(0);
   }, 240_000);
 });
 

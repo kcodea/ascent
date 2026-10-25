@@ -53,8 +53,22 @@ export function duosPassRefusal(run: RunState, uid: string): string | null {
   return why ? REASON_TEXT[why] ?? REASON_TEXT.phase! : null;
 }
 
-export const inRect = (r: { left: number; top: number; right: number; bottom: number }, x: number, y: number): boolean =>
-  x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+/**
+ * THE PASS HIT (owner 2026-10-25: "Passing a minion or spell should require the player to release it over their
+ * teammates frame", R-DUOS-PASS-03): the point is over the teammate portrait's VISIBLE frame, the round disc (the
+ * circle inscribed in its box), not the box's corners and nothing near it. Hover uses it for the glow; only a real
+ * release (`pointerup`, mouse or touch alike) at a point inside it passes. A cancelled pointer never passes.
+ */
+export function overMateFrame(r: { left: number; top: number; right: number; bottom: number }, x: number, y: number): boolean {
+  const cx = (r.left + r.right) / 2;
+  const cy = (r.top + r.bottom) / 2;
+  const rad = Math.min(r.right - r.left, r.bottom - r.top) / 2;
+  return rad > 0 && (x - cx) * (x - cx) + (y - cy) * (y - cy) <= rad * rad;
+}
+
+/** Does this pointer event, ending a drag at (x, y), pass the card? Only a release over the frame. */
+export const passOnRelease = (r: { left: number; top: number; right: number; bottom: number } | null, e: { type: string; clientX: number; clientY: number }): boolean =>
+  !!r && e.type === 'pointerup' && overMateFrame(r, e.clientX, e.clientY);
 
 /** My face-down card: my equipped card plate, else the standard plate (the opponent hand's own picture). */
 export function myCardBack(): string {

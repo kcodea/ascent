@@ -8729,6 +8729,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-PASS-03',
+    title: 'Versus Duos: a pass happens only when the card is released over the teammate portrait frame',
+    statement:
+      'A hand or board card is passed only when the player RELEASES it (mouse button up, or the finger lifted) while the pointer is over the '
+      + 'teammate portrait\x27s visible frame, the round disc bottom right. Hovering over it only shows the glow (or the refusal); moving away and '
+      + 'releasing elsewhere, releasing near it or in the corners of its box, over the board or over the teammate\x27s rail row never passes: the '
+      + 'drag resolves as it would anywhere else. A cancelled touch never passes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'Passing a minion or spell should require the player to release it over their teammates frame' },
+      { kind: 'code', ref: 'packages/ui/src/versus/duosPassUi.ts (overMateFrame, passOnRelease); packages/ui/src/Recruit.tsx (the drag hover and the pointerup pass path)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish). Before: the hit area was the square box around the disc and a pointercancel over it could pass.',
+    example: 'Ann drags a minion over Bob\x27s portrait (it glows), changes her mind and lets go over the board: the minion is played, nothing is passed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-DUOS-VIEW-02',
     title: 'Versus Duos: the teammate portrait stays bottom right during combat',
     statement:

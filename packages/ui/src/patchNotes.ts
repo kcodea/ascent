@@ -64,6 +64,7 @@ export const PATCH_NOTES: PatchNote[] = [
         details: [
           'The passed card leaves their portrait at the size of the portrait and keeps growing until it lands full size in your hand, turning face up on the way.',
           'The portrait of your teammate stays bottom right while the fight plays, so you always see who you are fighting beside.',
+          'A card is passed only when you let go of it over the portrait itself. Letting go anywhere else plays or drops it as usual.',
         ],
       },
       {

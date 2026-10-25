@@ -750,6 +750,8 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 .duosdock-no { box-shadow: 0 0 0 calc(5 * var(--u)) rgba(214, 70, 60, 0.95); }
 .duosdock.pass-no .duosdock-no { opacity: 1; }
 .duosdock.pass-no .duosdock-disc { opacity: 0.7; }
+/* The teammate dropped out (their board plays on auto): the portrait greys, static. */
+.duosdock.away .duosdock-disc { opacity: 0.55; }
 .duosdock-name { white-space: nowrap; display: inline-flex; align-items: center; height: calc(34 * var(--u)); box-sizing: border-box; padding: 0 calc(16 * var(--u));
   margin-top: calc(-26 * var(--u)); position: relative; z-index: 2; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1;

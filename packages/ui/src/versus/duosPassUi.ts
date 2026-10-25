@@ -22,6 +22,7 @@ const REASON_TEXT: Record<string, string> = {
   phase: 'Passing is closed',
   no_card: 'Passing is closed',
   not_duos: 'Passing is closed',
+  teammate_away: 'Your teammate is away',
 };
 
 /** Is my teammate's hand full, by their live frame (unknown = not full; the server checks too). */
@@ -33,9 +34,21 @@ export function mateHandFull(): boolean {
   return hand.length >= handCap(view as unknown as Pick<RunState, 'runeforgeOffer'>);
 }
 
+/** My teammate is away: disconnected past the grace (their seat plays on auto), or the match is paused for them. */
+export function mateAway(): boolean {
+  const g = useVersus.getState().match?.group;
+  const mate = g?.duos?.mate;
+  if (!g || !mate) return false;
+  const row = g.raw.seats.find((x) => x.seat === mate);
+  return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === mate);
+}
+
 /** Why `uid` cannot be passed right now, as the portrait says it (null = it can). */
 export function duosPassRefusal(run: RunState, uid: string): string | null {
   if (!useVersus.getState().match?.group?.duos?.mate) return REASON_TEXT.not_duos!;
+  // A teammate who dropped out (their board plays on auto) cannot take a card: it would wait on the server, with my
+  // Gold paid, until they came back (phase-3 live test, 2026-10-25). The server refuses it too.
+  if (mateAway()) return REASON_TEXT.teammate_away!;
   const why = duosPassBlocked(run, uid, mateHandFull());
   return why ? REASON_TEXT[why] ?? REASON_TEXT.phase! : null;
 }

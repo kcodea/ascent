@@ -18,7 +18,7 @@ import { placementText } from '../rank/rankFormat';
 import { SpectatorCursor } from './SpectatorCursor';
 import { SpectatorSelf, WatchedPanel, type WatchSeat } from './SpectatorHud';
 import '../live/live.css';
-import { copyName, foeIn, groupPairingAt } from './versusGroupView';
+import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versusGroupView';
 
 const SEATS: readonly VersusSeat[] = ['p1', 'p2'];
 
@@ -59,6 +59,13 @@ export function SpectatorBar(): JSX.Element | null {
     const raw = group.raw;
     const pairing = groupPairingAt(raw, Math.max(1, raw.round));
     const order: VersusGroupSeat[] = [];
+    // VERSUS DUOS: the plates go by TEAM (team 1, then team 2; the board fighting first leads its team), each saying
+    // its team, never "vs" a single player (one fight is team against team; phase-3 live test, 2026-10-25).
+    const duos = isDuosRaw(raw);
+    if (duos) {
+      const first = duosFirstAt(raw, Math.max(1, raw.round));
+      for (const [lead, other] of [[first.a, first.a === 'p1' ? 'p2' : 'p1'], [first.b, first.b === 'p3' ? 'p4' : 'p3']] as const) order.push(lead, other);
+    }
     for (const p of pairing) {
       for (const s of p.copy ? [p.a] : [p.a, p.b]) if (!order.includes(s)) order.push(s);
     }
@@ -75,7 +82,7 @@ export function SpectatorBar(): JSX.Element | null {
         hearts: row.hearts,
         on: seat === key,
         pick: () => watchSeat(key),
-        vs: foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
+        vs: duos ? (row.eliminatedRound == null ? (key === 'p1' || key === 'p2' ? 'Team 1' : 'Team 2') : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
         out: row.eliminatedRound != null,
       };
     });

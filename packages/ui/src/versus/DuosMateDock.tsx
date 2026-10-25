@@ -35,6 +35,13 @@ export const DuosMateDock = memo(function DuosMateDock({ watching }: { watching:
     const cos = s.room?.members.find((m) => m.userId === row.userId)?.profile?.cosmetics ?? null;
     return JSON.stringify([row.hero, row.name, cos ?? null]);
   });
+  // My teammate dropped out (their board plays on auto): the portrait says so before any drag.
+  const away = useVersus((s) => {
+    const g = s.match?.group;
+    if (watching || !g?.duos) return false;
+    const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
+    return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
+  });
   const showOppSkins = useGame((s) => s.showOpponentSkins);
   const passOver = useDragSlice((st) => (watching ? null : st.passOver), Object.is);
   const passReason = useDragSlice((st) => (watching ? null : st.passReason), Object.is);
@@ -49,8 +56,8 @@ export const DuosMateDock = memo(function DuosMateDock({ watching }: { watching:
   const refusal = passOver === 'no' ? passReason : null;
   const shownNote = refusal ?? (note ? note.slice(note.indexOf('|') + 1) : null);
   return (
-    <div className={`duosdock${watching ? ' self' : ''}${passOver ? ` pass-${passOver}` : ''}`}>
-      <span className="duosdock-cap hudpill-name">{watching ? 'Back to your board' : 'Teammate'}</span>
+    <div className={`duosdock${watching ? ' self' : ''}${away ? ' away' : ''}${passOver ? ` pass-${passOver}` : ''}`}>
+      <span className="duosdock-cap hudpill-name">{watching ? 'Back to your board' : away ? 'Away' : 'Teammate'}</span>
       <div
         className="duosdock-hold"
         data-duos-mate=""

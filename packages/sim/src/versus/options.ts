@@ -26,9 +26,10 @@
  */
 import type { RiftId } from '../config';
 
-/** The room's game mode: today's 1v1, or the 3-4 player round robin ("Versus Group"). */
-export type VersusMode = 'duel' | 'group';
-export const VERSUS_MODES: readonly VersusMode[] = ['duel', 'group'];
+/** The room's game mode: today's 1v1, the 3-4 player round robin ("Versus Group"), or the 2v2 tag-team ("Versus
+ *  Duos", owner 2026-10-25: exactly 4 players, p1 + p2 vs p3 + p4). */
+export type VersusMode = 'duel' | 'group' | 'duos';
+export const VERSUS_MODES: readonly VersusMode[] = ['duel', 'group', 'duos'];
 
 /**
  * MODIFIERS: an existing RIFT applied to one room. The rift is pinned onto every seat's run at creation
@@ -59,10 +60,11 @@ export const DEFAULT_VERSUS_OPTIONS: Readonly<VersusRoomOptions> = Object.freeze
   modifiers: [] as VersusModifierId[],
 });
 
-/** Player seats per mode: 1v1 seats two, a group room up to four (and starts with three or four). */
+/** Player seats per mode: 1v1 seats two, a group room up to four (and starts with three or four), Duos exactly four. */
 export const VERSUS_MODE_SEATS: Readonly<Record<VersusMode, { min: number; max: number }>> = {
   duel: { min: 2, max: 2 },
   group: { min: 3, max: 4 },
+  duos: { min: 4, max: 4 },
 };
 
 /** Why a requested options object is refused, or null when it is valid. Mirrors `versus__options_error` in SQL. */

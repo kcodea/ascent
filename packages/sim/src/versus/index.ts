@@ -2,10 +2,12 @@
 export * from './constants';
 export * from './canonical';
 export * from './combat';
-export { flipEventSides, mirrorForEnemySeat, ownSeatPerspective } from './mirror';
+export { carryAsPlayerFields, flipEventSides, mirrorForEnemySeat, ownSeatPerspective, swapTagTeam } from './mirror';
 export * from './run';
 export * from './lobbyView';
 export * from './options';
 export * from './group';
 export { handleVersusGroupFinalize, groupRoundDigest, type VersusGroupFinalizeStore } from './groupFinalize';
 export * from './groupLobbyView';
+export * from './duos';
+export { handleVersusDuosFinalize, duosFightPayload, duosRoundDigest, type VersusDuosFinalizeStore, type VersusDuosMatchRow } from './duosFinalize';

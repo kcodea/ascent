@@ -34,6 +34,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   buyHenchman: 'locked',
   play: 'locked',
   sell: 'locked',
+  passCard: 'locked', // VERSUS DUOS: a pass spends Gold, so it closes with the Shop
   roll: 'locked',
   upgrade: 'locked',
   heroPower: 'locked',
@@ -57,6 +58,7 @@ export const SHOP_CLOCK_POLICY: Record<Action['type'], 'open' | 'locked'> = {
   rerollRuneforge: 'open',
   pickAncient: 'open',
   closeScout: 'open',
+  receivePass: 'open', // VERSUS DUOS: a teammate's pass lands whenever it arrives
   // Automatic transitions, display-only previews, the clock's own ticks, dev tooling.
   shopClockExpired: 'open',
   sellWindowExpired: 'open',

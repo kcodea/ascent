@@ -1,3 +1,4 @@
+import type { DuosRunState } from './duosPass';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import type { AncientId, AncientsState } from './ancients';
 import type { RankMedal } from './rank';
@@ -148,6 +149,9 @@ export interface BoardCard {
    * start of a turn were both waiting for the same first card, so they are redundancy, not two cards' worth.
    */
   chooseBothLeft?: number;
+  /** VERSUS DUOS (R-DUOS-PASS-01): the wave this card arrived by a teammate's pass. It cannot be passed again that wave
+   *  (no passing straight back). Absent on every card that was never passed. */
+  passedWave?: number;
   tribe: Tribe;
   attack: number;
   health: number;
@@ -1331,6 +1335,9 @@ export interface RunState {
   /** One-shot hint for the UI: Channeling the Devourer's stat projectile (who received it + how much).
    *  Set by the cast, read + cleared by the recruit screen after it animates. */
   devourFx?: { toUid: string; attack: number; health: number };
+  /** VERSUS DUOS (owner 2026-10-25): this run is one teammate of a 2v2 Duos match, so passing is open (`duosPass.ts`).
+   *  Absent on every other run. */
+  duos?: DuosRunState;
   /** Cards bought but not yet played (Battlegrounds hand). */
   hand: BoardCard[];
   board: BoardCard[];
@@ -2892,6 +2899,11 @@ export type Action =
   | { type: 'buyHenchman' }
   | { type: 'play'; uid: string; toIndex?: number; targetUid?: string }
   | { type: 'sell'; uid: string }
+  /** VERSUS DUOS (R-DUOS-PASS-01): give a hand or board card to your teammate for 1 Gold (`duosPass.ts`). */
+  | { type: 'passCard'; uid: string }
+  /** VERSUS DUOS: a teammate's pass arrives (from the server): `from` its seat, `seq` its order there. Lands in the
+   *  hand, or waits for room; a key lands once. Accepted in any phase (it waits for the Shop to land). */
+  | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
   | { type: 'roll' }
   | { type: 'freeze' }
   | { type: 'upgrade' }

@@ -8,7 +8,7 @@
  *
  * Imports only `@game/core` TYPES: this file rides the Edge Function bundle (`npm run versus:bundle`).
  */
-import type { CombatResult } from '@game/core';
+import type { CombatCarryBacks, CombatResult, CombatTagTeam } from '@game/core';
 
 /**
  * The `enemy` seat's view of the one authoritative result.
@@ -90,12 +90,48 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
   delete clone.enemyScalers;
   delete clone.oddsInput;
   delete clone.enemyCarry; // consumed here — the mirrored view must not carry the other seat's mirror of it
+  // TAG-TEAM (Versus Duos): the per-side member ledger flips with the perspective (its KEYS are sides, which the
+  // value relabel below does not reach). Absent on every non-duos fight, so those mirror exactly as before.
+  if (clone.tagTeam) clone.tagTeam = swapTagTeam(clone.tagTeam);
   const outcome = result.result === 'win' ? 'lose' : result.result === 'lose' ? 'win' : 'draw';
   const c = result.enemyCarry;
   const survivors = c ? (c.survivorCardIds ?? []) : enemySurvivorCardIds(result);
-  const defined = <T extends object>(o: T): Partial<T> =>
-    Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
-  const carried: Partial<CombatResult> = c ? defined({
+  const carried: Partial<CombatResult> = c ? carryAsPlayerFields(c) : { playerDeathrattles: 0 }; // UNKNOWN without the symmetric surface — recorded as 0, never estimated
+  return {
+    ...clone,
+    result: outcome,
+    playerDamage: result.enemyDamage ?? 0,
+    enemyDamage: result.playerDamage,
+    // The itemized blows swap sides with the damage they explain.
+    ...(result.enemyDamageBreakdown ? { damageBreakdown: result.enemyDamageBreakdown } : {}),
+    ...(result.damageBreakdown ? { enemyDamageBreakdown: result.damageBreakdown } : {}),
+    playerDeaths: c ? c.deaths : result.enemyDeaths,
+    enemyDeaths: c ? c.foeDeaths : (result.playerDeaths ?? 0),
+    ...(survivors.length ? { playerSurvivorCardIds: survivors } : {}),
+    initial: { player: clone.initial.enemy, enemy: clone.initial.player },
+    events: flipEventSides(clone.events),
+    sidesMirrored: true,
+    ...carried,
+  } as CombatResult;
+}
+
+/** The enemy survivors folded from the event log — the fallback for a result without `enemyCarry`. */
+function enemySurvivorCardIds(result: CombatResult): string[] {
+  const alive = new Map<string, string>(result.initial.enemy.map((m) => [m.uid, m.cardId]));
+  for (const e of result.events) {
+    if (e.type === 'summon' && e.side === 'enemy') alive.set(e.minion.uid, e.minion.cardId);
+    else if (e.type === 'death' && e.side === 'enemy' && !e.rise) alive.delete(e.target);
+  }
+  return [...alive.values()];
+}
+
+const definedFields = <T extends object>(o: T): Partial<T> =>
+  Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as Partial<T>;
+
+/** One side's carry-backs (`CombatCarryBacks`) as the `player*` fields the run's `resolveCombat` path reads. The ONE
+ *  explicit field map: the enemy seat's mirror and a Duos team member's view both land through it. */
+export function carryAsPlayerFields(c: CombatCarryBacks): Partial<CombatResult> {
+  return definedFields({
     playerDeathrattles: c.deathrattles,
     playerRallies: c.rallies,
     playerShoutFires: c.shoutFires,
@@ -162,31 +198,16 @@ export function mirrorForEnemySeat(result: CombatResult): CombatResult {
     playerAncientSpellImproved: c.ancientSpellImproved,
     playerAncientClearanceStacks: c.ancientClearanceStacks,
     playerAncientMaxGoldFires: c.ancientMaxGoldFires,
-  }) : { playerDeathrattles: 0 }; // UNKNOWN without the symmetric surface — recorded as 0, never estimated
-  return {
-    ...clone,
-    result: outcome,
-    playerDamage: result.enemyDamage ?? 0,
-    enemyDamage: result.playerDamage,
-    // The itemized blows swap sides with the damage they explain.
-    ...(result.enemyDamageBreakdown ? { damageBreakdown: result.enemyDamageBreakdown } : {}),
-    ...(result.damageBreakdown ? { enemyDamageBreakdown: result.damageBreakdown } : {}),
-    playerDeaths: c ? c.deaths : result.enemyDeaths,
-    enemyDeaths: c ? c.foeDeaths : (result.playerDeaths ?? 0),
-    ...(survivors.length ? { playerSurvivorCardIds: survivors } : {}),
-    initial: { player: clone.initial.enemy, enemy: clone.initial.player },
-    events: flipEventSides(clone.events),
-    sidesMirrored: true,
-    ...carried,
-  } as CombatResult;
+  });
 }
 
-/** The enemy survivors folded from the event log — the fallback for a result without `enemyCarry`. */
-function enemySurvivorCardIds(result: CombatResult): string[] {
-  const alive = new Map<string, string>(result.initial.enemy.map((m) => [m.uid, m.cardId]));
-  for (const e of result.events) {
-    if (e.type === 'summon' && e.side === 'enemy') alive.set(e.minion.uid, e.minion.cardId);
-    else if (e.type === 'death' && e.side === 'enemy' && !e.rise) alive.delete(e.target);
-  }
-  return [...alive.values()];
+/** A tag-team ledger seen from the other side: its side keys swap. */
+export function swapTagTeam(t: CombatTagTeam): CombatTagTeam {
+  const members: CombatTagTeam['members'] = {};
+  if (t.members.enemy) members.player = t.members.enemy;
+  if (t.members.player) members.enemy = t.members.player;
+  const tagInAt: CombatTagTeam['tagInAt'] = {};
+  if (t.tagInAt.enemy !== undefined) tagInAt.player = t.tagInAt.enemy;
+  if (t.tagInAt.player !== undefined) tagInAt.enemy = t.tagInAt.player;
+  return { members, tagInAt };
 }

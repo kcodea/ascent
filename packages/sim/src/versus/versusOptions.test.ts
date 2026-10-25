@@ -15,7 +15,7 @@ import { createVersusRun } from './run';
 import { DEFAULT_VERSUS_OPTIONS, isDefaultVersusOptions, normalizeVersusOptions, versusOptionsError, VERSUS_MODIFIERS } from './options';
 
 const SAMPLES: unknown[] = [
-  {}, { v: 1 }, { v: 2 }, { mode: 'duel' }, { mode: 'group' }, { mode: 'trio' }, { mode: 3 },
+  {}, { v: 1 }, { v: 2 }, { mode: 'duel' }, { mode: 'group' }, { mode: 'duos' }, { mode: 'trio' }, { mode: 3 },
   { modifiers: [] }, { modifiers: ['freedom'] }, { modifiers: ['summit'] }, { modifiers: ['runic'] }, { modifiers: ['freedom', 'summit'] },
   { modifiers: ['freedom', 'freedom'] }, { modifiers: 'freedom' }, { modifiers: [7] }, { hearts: 7 }, { timer: 'standard' },
   { v: 1, mode: 'group', modifiers: ['summit'] }, [], 'duel', null,
@@ -24,8 +24,10 @@ const SAMPLES: unknown[] = [
 let db: PGlite;
 beforeAll(async () => {
   db = new PGlite();
-  const sql = readFileSync(join(__dirname, '../../../../supabase/migrations/2026-10-24-versus-group.sql'), 'utf8');
-  for (const name of ['versus__options_error', 'versus__normalize_options']) {
+  // The LATEST definition of each (Duos, 2026-10-25, replaced the whitelist; the normalizer is the group file's).
+  const group = readFileSync(join(__dirname, '../../../../supabase/migrations/2026-10-24-versus-group.sql'), 'utf8');
+  const duos = readFileSync(join(__dirname, '../../../../supabase/migrations/2026-10-25-versus-duos.sql'), 'utf8');
+  for (const [name, sql] of [['versus__options_error', duos], ['versus__normalize_options', group]] as const) {
     await db.exec(new RegExp(`create or replace function public\\.${name}\\([\\s\\S]*?\\$\\$;`).exec(sql)![0]);
   }
 }, 60_000);

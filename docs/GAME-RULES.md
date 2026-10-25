@@ -1180,6 +1180,36 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Previous match stats** (R-VERSUS-GROUP-07). Your place (Victory, 2nd, 3rd, 4th), the whole table with places, heroes
   and hearts, then your rounds; each round names who you fought (a player, or "Copy of <name>").
 
+### Versus Duos (2v2 tag-team) (owner 2026-10-25; R-DUOS-01, R-DUOS-TAGTEAM-01, R-DUOS-PASS-01)
+
+> Engine + server: `feat/versus-duos` phase 1 (`supabase/migrations/2026-10-25-versus-duos.sql` + the `versus-resolve`
+> `finalize_duos` action, applied/deployed by the lead). The room, the in-game UI (the teammate's live board, the
+> board hand-off in combat, the pass drag and its animation) are phase 2. Design: `docs/design/2026-10-25-versus-duos.md`.
+
+- **The mode.** A Versus room option beside 1v1 and 3-4 players: exactly 4 players in two teams, unrated. Seats 1 and 2
+  (left of the VS mark) are one team, seats 3 and 4 (right) the other; you pick your team by taking a seat. Start needs
+  all four. Gold, shops, heroes and runs are each player's own. Freedom and Summit work as in any Versus room.
+- **One tag-team fight a round.** Team against team, in ONE combat: each team's first board fights; when a board is
+  wiped, that team's second board steps in against whatever survived on the other side, and the fight goes on until a
+  team has no board left. The board that steps in fights with its own run (auras, spell power, tallies, runes, quests,
+  hero); its Start of Combat, next-combat spells and Start-of-Combat runes fire as it steps in; the attack turn carries
+  on and it starts from its left-most minion. Both boards falling together is a draw. An empty board hands straight
+  over to the teammate. Each player's run keeps only what its own board did in the fight (Engraved gains, tallies,
+  hand grants, Gold, ...). Combat stays 1:1 symmetric.
+- **Who fights first.** Seats 1 and 3 on odd rounds, 2 and 4 on even rounds. Either teammate may flip it during the
+  shop, until their team's first End Turn.
+- **Team hearts.** 7 per team. The losing team loses 1 heart, or 2 when the winning team never needed its second board;
+  a draw costs nobody. A team at 0 is out together (both players 3rd) and the other team wins (both 1st). XP: 125 for
+  each winner, 50 for each loser.
+- **Passing.** During the shop a player may drag a minion or a spell from their hand or board onto their teammate's
+  portrait to give it to them, for 1 Gold. It arrives in the teammate's hand with everything it carried (stats,
+  keywords, enchantments, Gilded) and cannot be passed again that turn. Passing closes at your own End Turn and when
+  the clock runs out. A pass to a full hand waits and lands the moment there is room; one that arrives during the fight
+  lands in the next shop. Arriving is "a card added to your hand" like any other. Runes, Equipment, quests and the
+  Starform cannot be passed.
+- **Leaving, conceding, disconnects.** Leaving or conceding puts the whole team out. A disconnect pauses as in Group
+  (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out.
+
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 
 - **What is listed.** Every RANKED lobby game in progress (a rated table: not Practice, the tutorial, Gauntlet, a

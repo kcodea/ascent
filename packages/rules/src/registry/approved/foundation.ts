@@ -8591,4 +8591,68 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann watches a 3-player Versus game to the end: the gates close and open on the room with "VICTORY, Bob finished the game." Ann watching a ranked game from Live Games lands on the Play menu with "4TH".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/live/spectatorEnd.test.ts', 'packages/ui/src/live/liveGames.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
+  {
+    id: 'R-DUOS-TAGTEAM-01',
+    title: 'Tag-team combat: when a board is wiped, the teammate\x27s board steps in against the survivors, with its own Start of Combat',
+    statement:
+      'A tag-team fight is ONE combat in which each side may have a second board (its teammate\x27s, with that player\x27s own run). When a '
+      + 'side\x27s board is wiped and its teammate\x27s board has not fought yet, the teammate\x27s board steps in against whatever survived on the '
+      + 'other side. It fights with its own run (auras, spell power, tallies, runes, quests, hero), its Start of Combat, next-combat spells '
+      + 'and Start-of-Combat runes fire when it steps in, the attack turn carries on and the new board starts from its left-most minion. The '
+      + 'fight ends when a side has no board left; the last board standing wins, and two last boards falling together is a draw. Each '
+      + 'teammate\x27s run keeps only what its own board did in the fight. An empty teammate board never steps in. Combat stays 1:1 '
+      + 'symmetric between the two sides, and a fight with no second board on either side is exactly the ordinary fight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'Your board fights first; when it is wiped, your teammate\x27s board steps in against whatever survived on the other side.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings on the scope doc)', quote: 'you have all the rules right except passing should cost 1 gold' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts (CombatConfig.reserve, stepIn, sideReset); packages/core/src/types.ts (boardFallen, tagIn, CombatTagTeam)' },
+    ],
+    currentBehaviour: 'Engine built 2026-10-25 (feat/versus-duos phase 1). Every ordinary fight is byte-identical (1231 parity, group and fuzz fights digested before and after).',
+    example: 'Ann\x27s board is wiped by Cat\x27s; two of Cat\x27s minions survive. Bob\x27s board steps in, his Start of Combat fires against those two, and the fight goes on until one team has no board left.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/tagTeam.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-01',
+    title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, 7 team hearts, 2 for a stomp, concede = the team out',
+    statement:
+      'A Versus room set to Duos seats exactly 4 players and starts only with 4: seats 1 and 2 are one team, seats 3 and 4 the other. Each '
+      + 'round is ONE tag-team fight, team against team. Who fights first alternates by round (seats 1 and 3 on odd rounds, 2 and 4 on even '
+      + 'rounds) and either teammate may flip it during the shop until their team\x27s first End Turn; an empty board hands straight over to '
+      + 'the teammate. Each team has 7 hearts: the losing team loses 1, or 2 when the winning team never needed its second board; a draw '
+      + 'costs nobody. A team at 0 hearts is out together and the other team wins. Leaving or conceding puts the whole team out. Three '
+      + 'auto-played rounds in a row put the team out. Gold and shops are separate. Unrated. XP: 125 for each winner, 50 for each loser.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'EXACTLY 2v2: 4 players, 2 teams, fits the current 4-seat Versus room and server. Unrated, like group mode.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (approving the 14 recommended defaults)', quote: 'you have all the rules right except passing should cost 1 gold' },
+      { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (resolveVersusDuosRound, duosMemberView); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_commit_round, versus_duos_flip_order, versus_group__eliminate); supabase/functions/versus-resolve/index.ts finalize_duos' },
+    ],
+    currentBehaviour: 'Engine + server built 2026-10-25 (feat/versus-duos phase 1); the migration and the versus-resolve redeploy are the lead\x27s to apply. The room and in-game UI are phase 2.',
+    example: 'Round 1: Ann (seat 1) and Cat (seat 3) fight first. Ann\x27s board beats Cat\x27s and then Dan\x27s without Bob ever stepping in: Cat and Dan\x27s team drops from 7 hearts to 5.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-PASS-01',
+    title: 'Versus Duos passing: give a hand or board card to your teammate for 1 Gold, once per card per turn',
+    statement:
+      'In Versus Duos a player may pass a minion or a spell from their hand or board to their teammate during the shop, for 1 Gold (the '
+      + 'sender pays, as any Gold spend). The card arrives in the teammate\x27s hand with everything it carried: stats, keywords, enchantments, '
+      + 'Gilded. A card that arrived by a pass cannot be passed again that turn. Passing closes at your own End Turn and when the shop clock '
+      + 'runs out. If the teammate\x27s hand is full the card waits and lands the moment there is room; a card arriving during the fight lands '
+      + 'in the next shop. Arriving in hand is a card added to the hand like any other. The server records each pass exactly once, only '
+      + 'between teammates, at most 10 per player per round.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (Versus Duos design)', quote: 'drag a card from your hand/board to your teammate\x27s portrait to give it to them.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings)', quote: 'passing should cost 1 gold' },
+      { kind: 'code', ref: 'packages/sim/src/duosPass.ts (passCard / receivePass); supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_passes, versus_duos_pass)' },
+    ],
+    currentBehaviour: 'Run actions + server built 2026-10-25 (feat/versus-duos phase 1); the drag to the teammate portrait and its animation are phase 2.',
+    example: 'Ann has 3 Gold and drags a Gilded Taunt from her board to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob cannot send it straight back this turn.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
 ];

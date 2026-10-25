@@ -23,6 +23,10 @@
  *                 `versus_group_commit_round` (idempotent). Logic: `packages/sim/src/versus/groupFinalize.ts`.
  *   - `parity_group` → `{ digest, canonical }`: resolve one GROUP round from posted sides (no database, no auth), for
  *                 `npm run versus:parity -- remote`.
+ *   - `finalize_duos` → `{ matchId, round }`: the 2v2 tag-team round (VERSUS DUOS, owner 2026-10-25): ONE fight, each
+ *                 team's two boards in sequence, in the server's fight order (`duos_first`), committed through
+ *                 `versus_duos_commit_round` (idempotent). Logic: `packages/sim/src/versus/duosFinalize.ts`.
+ *   - `parity_duos` → `{ digest, canonical }`: resolve one DUOS round from posted sides (no database, no auth).
  *
  * A client on another protocol or content revision is refused with 409 rather than resolved under rules it did not
  * show (same posture as `submit-rating`).
@@ -34,7 +38,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import {
   handleVersusFinalize,
   handleVersusGroupFinalize,
+  handleVersusDuosFinalize,
   parityGroupRecord,
+  parityDuosRecord,
+  resolveVersusDuosRound,
   resolveVersusGroupRound,
   VERSUS_LIMITS,
   VERSUS_PROTOCOL,
@@ -118,7 +125,7 @@ async function finalizeGroup(req: Request, body: Record<string, unknown>): Promi
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
-      const { data, error } = await admin.from('versus_group_matches').select('id, phase, round, seed, content_revision').eq('id', id).maybeSingle();
+      const { data, error } = await admin.from('versus_group_matches').select('id, phase, round, seed, content_revision, options').eq('id', id).maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -148,7 +155,56 @@ async function finalizeGroup(req: Request, body: Record<string, unknown>): Promi
   return json(res.status, res.body);
 }
 
+async function finalizeDuos(req: Request, body: Record<string, unknown>): Promise<Response> {
+  const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
+  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const admin = createClient(url, serviceKey);
+  const store = {
+    async match(id: string) {
+      const { data, error } = await admin.from('versus_group_matches').select('id, phase, round, seed, content_revision, duos_first, options').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async finalSides(matchId: string, round: number) {
+      // rows: four rows, one per seat (primary key match_id + round + seat) (R-NET-01).
+      const { data, error } = await admin.from('versus_group_submissions').select('seat, prepared_side, final').eq('match_id', matchId).eq('round', round);
+      if (error) throw error;
+      const out: Record<string, unknown> = {};
+      for (const r of data ?? []) if (r.final) out[r.seat] = r.prepared_side;
+      return out;
+    },
+    async commit(args: Record<string, unknown>) {
+      // rows: the commit RPC returns one jsonb value, never a table (R-NET-01).
+      const { data, error } = await admin.rpc('versus_duos_commit_round', args);
+      if (error) throw error;
+      return data;
+    },
+    log: (msg: string, detail?: unknown) => console.error(msg, detail),
+  };
+  const res = await handleVersusDuosFinalize(userId, body, CONTENT, store);
+  return json(res.status, res.body);
+}
+
 const GROUP_SEATS = ['p1', 'p2', 'p3', 'p4'];
+
+function parityDuos(body: Record<string, unknown>): Response {
+  const { matchSeed, round, first, sides } = body as Record<string, any>;
+  if (!Number.isInteger(matchSeed) || !Number.isInteger(round) || round < 1 || round > 999) return json(400, { error: 'bad_round' });
+  if (!sides || typeof sides !== 'object' || (first != null && typeof first !== 'object')) return json(400, { error: 'bad_side' });
+  for (const s of GROUP_SEATS) {
+    if (sides[s] == null) continue;
+    const e = preparedSideError(sides[s]);
+    if (e) return json(400, { error: 'bad_side', detail: e });
+  }
+  const out = resolveVersusDuosRound({ matchSeed, round, first: first ?? undefined, sides });
+  const rec = parityDuosRecord(out);
+  return json(200, { digest: rec.digest, canonical: rec.canonical, contentRevision: CONTENT, protocol: VERSUS_PROTOCOL });
+}
 
 function parityGroup(body: Record<string, unknown>): Response {
   const { matchSeed, round, seats, eliminated, sides } = body as Record<string, any>;
@@ -189,6 +245,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (body.action === 'finalize') return await finalize(req, body);
     if (body.action === 'finalize_group') return await finalizeGroup(req, body);
     if (body.action === 'parity_group') return parityGroup(body);
+    if (body.action === 'finalize_duos') return await finalizeDuos(req, body);
+    if (body.action === 'parity_duos') return parityDuos(body);
     return json(400, { error: 'unknown_action' });
   } catch (e) {
     console.error('versus-resolve failed', e);

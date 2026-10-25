@@ -3686,6 +3686,9 @@ export interface CombatResult {
   enemyCarry?: CombatCarryBacks;
   /** TAG-TEAM fights only (`CombatConfig.reserve`): each team member's carry-backs and when each reserve stepped in. */
   tagTeam?: CombatTagTeam;
+  /** VERSUS DUOS: this is one team member's view (`duosMemberView`): 0 = its board fought first, 1 = it was the reserve.
+   *  The `player*` carry-backs are that member's own; the events and the outcome are the team's. */
+  duosMember?: number;
   /** The enemy board's run-level scalers at combat start (from its snapshot) — so the UI can render an ENEMY
    *  Grim / Taragosa / Pack Leader / Runescale / Vaultkeeper / Chef Raag / … card at the OPPONENT's value, not
    *  the current player's. Absent for the procedural threat / when nothing scaled. Mirrors the values threaded

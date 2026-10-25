@@ -131,7 +131,8 @@ export function playArrival(uid: string, back: string): void {
   // Two frames: the commit that added the card has rendered its slot.
   requestAnimationFrame(() => requestAnimationFrame(() => {
     const target = document.querySelector<HTMLElement>(`.row.hand .card[data-uid="${uid}"]`);
-    const mate = document.querySelector('[data-duos-mate]');
+    const row = document.querySelector('[data-duos-mate]');
+    const mate = row?.querySelector('.lobbyface') ?? row;
     if (!target || !mate) return;
     const to = target.getBoundingClientRect();
     const from = mate.getBoundingClientRect();

@@ -27,7 +27,7 @@ interface DuosCombatState {
   /** The rail seat id of the board the opponent side is fighting with right now (null = the forced opponent). */
   foeSeatId: string | null;
   /** The latest hand-off on screen: which side, whose board, and its event index (keys the plate). */
-  tag: { side: 'player' | 'enemy'; seat: VersusGroupSeat; at: number } | null;
+  tag: { side: 'player' | 'enemy'; seat: VersusGroupSeat; at: number; kind: 'in' | 'first' } | null;
 }
 export const useDuosCombat = create<DuosCombatState>(() => ({ foeSeatId: null, tag: null }));
 
@@ -60,12 +60,17 @@ export function useDuosCombatSync(combat: CombatResult | undefined, events: read
       if (e?.type !== 'tagIn') continue;
       if (e.side === 'enemy') enemyTagged = true;
       const s = activeSeat(combat, seat, e.side, true);
-      if (s) last = { side: e.side, seat: s, at: i };
+      if (s) last = { side: e.side, seat: s, at: i, kind: 'in' };
+    }
+    // The fight opens with my TEAMMATE's board: say so on my side (my own hero stays in my hero slot).
+    if (!last) {
+      const lead = activeSeat(combat, seat, 'player', false);
+      if (lead && lead !== seat) last = { side: 'player', seat: lead, at: -1, kind: 'first' };
     }
     const foeSeat = enemyTagged ? activeSeat(combat, seat, 'enemy', true) : null;
     const foeSeatId = foeSeat ? duosLobbySeatId(raw, seat, foeSeat) : null;
     const cur = useDuosCombat.getState();
-    if (cur.foeSeatId !== foeSeatId || cur.tag?.at !== last?.at) useDuosCombat.setState({ foeSeatId, tag: last });
+    if (cur.foeSeatId !== foeSeatId || cur.tag?.at !== last?.at || cur.tag?.kind !== last?.kind) useDuosCombat.setState({ foeSeatId, tag: last });
   }, [combat, events, processedEnd, fighting, seat, raw]);
 }
 
@@ -98,7 +103,7 @@ export const DuosTagInPlate = memo(function DuosTagInPlate(): JSX.Element | null
   return (
     <div key={tag.at} className={`duostag duostag-${tag.side}`} aria-live="polite">
       <FoePortraitDisc art={art} gauntlet={false} frame={null} extraClass=" duostag-disc" />
-      <span className="duostag-name hudpill-name">{row.seat === viewer ? 'You step in' : `${row.name} steps in`}</span>
+      <span className="duostag-name hudpill-name">{tag.kind === 'first' ? `${row.name} fights first` : row.seat === viewer ? 'You step in' : `${row.name} steps in`}</span>
     </div>
   );
 });

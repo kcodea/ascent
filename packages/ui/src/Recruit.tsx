@@ -4657,7 +4657,7 @@ export function Recruit() {
       // VERSUS DUOS: over the teammate's portrait? (the cached rect; the pass's refusal reason when it would be refused)
       if (d0 && duosMateRectRef.current) {
         const over = inRect(duosMateRectRef.current, e.clientX, e.clientY);
-        const why = over ? duosPassRefusal(run, d0.uid) : null;
+        const why = over ? duosPassRefusal(useGame.getState().run, d0.uid) : null;
         const passOver = over ? (why ? 'no' : 'ok') : null;
         const snapNow = dragStore.get();
         if (snapNow.passOver !== passOver || snapNow.passReason !== why) dragStore.set({ passOver, passReason: why });
@@ -4740,19 +4740,24 @@ export function Recruit() {
         dragStore.set({ passOver: null, passReason: null });
         document.body.classList.remove('dragging');
         hideDragCursorVeil();
-        const why = duosPassRefusal(run, d.uid);
-        if (!why) {
+        // The LIVE run (not the drag's start): Gold or the hand may have moved during the drag.
+        const live = useGame.getState().run;
+        const why = duosPassRefusal(live, d.uid);
+        const sent = (live.duos?.outbox.length ?? 0);
+        if (!why) dispatch({ type: 'passCard', uid: d.uid });
+        if (!why && (useGame.getState().run.duos?.outbox.length ?? 0) > sent) {
           const face = document.querySelector<HTMLElement>('.dragcard');
           const from = face?.getBoundingClientRect() ?? { left: e.clientX - d.w / 2, top: e.clientY - d.h / 2, width: d.w, height: d.h };
           const mateEl = document.querySelector('[data-duos-mate]');
-          playLob({ from, to: mateRect, face: face?.querySelector<HTMLElement>('.card') ?? face, back: myCardBack(), coin: true, send: true, onLand: () => catchPulse(mateEl) });
+          // Into the PORTRAIT (the card shrinks to the face it is thrown to), not the whole rail row.
+          const faceEl = mateEl?.querySelector('.lobbyface') ?? mateEl;
+          playLob({ from, to: faceEl?.getBoundingClientRect() ?? mateRect, face: face?.querySelector<HTMLElement>('.card') ?? face, back: myCardBack(), coin: true, send: true, onLand: () => catchPulse(faceEl) });
           sfx.sell?.();
-          dispatch({ type: 'passCard', uid: d.uid });
           endSession();
           return;
         }
         sfx.deny();
-        notePassRefused(why);
+        notePassRefused(why ?? 'Passing is closed');
         publish({ ...d, x: d.startX - d.grabOx + d.w / 2, y: d.startY - d.grabOy + d.h / 2 }, lastZone, { snapping: true });
         window.setTimeout(() => endSession(), getDragFeel().snapMs);
         return;

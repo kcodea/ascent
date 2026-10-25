@@ -690,7 +690,7 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
   pointer-events: none; animation: duostagin 0.36s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
 .duostag-player { left: 9%; }
 .duostag-enemy { right: 9%; }
-.duostag .duostag-disc { width: 96px; height: 96px; }
+.duostag { --u: 0.82px; } /* the foe disc is sized in --u (116u): about 95px here */
 .duostag-name { white-space: nowrap; }
 @keyframes duostagin {
   from { opacity: 0; transform: translateY(18px) scale(0.86); }
@@ -711,12 +711,13 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    in once: opacity only), the "Watching <Name>" plate with the way back (top centre, the room's plate buttons), and my
    own shop controls visibly inert. Nothing loops. */
 .duosview-vignette { position: fixed; inset: 0; z-index: 30; pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 58%, rgba(54, 156, 196, 0.22) 84%, rgba(30, 110, 150, 0.42) 100%);
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 48%, rgba(54, 156, 196, 0.34) 78%, rgba(30, 110, 150, 0.62) 100%);
+  box-shadow: inset 0 0 0 3px rgba(96, 196, 230, 0.55); /* static (never animated): the teammate's frame around the screen */
   animation: duosviewfade 0.24s ease both; }
 @keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
 .duosview-bar { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 80; display: flex; align-items: center; gap: 10px;
   animation: duosviewfade 0.24s ease both; }
-.duosview-name { white-space: nowrap; }
+.duosview-name { white-space: nowrap; font-size: 1.2em; }
 body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
 
 /* VERSUS DUOS (R-DUOS-PASS-01): the teammate's rail row as the pass target. Static rings by state (no looping paint):

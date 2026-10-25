@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-25',
     changes: [
+      { category: 'Systems', text: 'A refreshed ASCENT logo on the loading screen, title screen and hero select.' },
       {
         category: 'Systems',
         text: 'Duos: a card your teammate passes you now grows as it flies from their portrait to your hand, and their portrait stays in the bottom right during fights.',

@@ -14,6 +14,8 @@ import { handleVersusFinalize, type VersusFinalizeStore } from './finalize';
 import { resolveVersusGroupRound, versusGroupPairings, type VersusGroupRoundInput, type VersusGroupRoundResult } from './group';
 import { groupFightsPayload, groupRoundDigest, handleVersusGroupFinalize, type VersusGroupFinalizeStore } from './groupFinalize';
 import { normalizeVersusOptions, versusOptionsError } from './options';
+import { resolveVersusDuosRound, type VersusDuosRoundInput, type VersusDuosRoundResult } from './duos';
+import { duosFightPayload, duosRoundDigest, handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 
 export { canonicalDigest, canonicalJson, digestOf, emptyVersusSide, preparedSideError, versusSideOrEmpty, resolveVersusFight, versusChair, versusCombatSeed, VERSUS_HEARTS, VERSUS_LIMITS, VERSUS_PROTOCOL };
 export { handleVersusFinalize };
@@ -21,6 +23,9 @@ export type { VersusFightInput, VersusFightResult, VersusFinalizeStore };
 // VERSUS GROUP (owner 2026-10-24): the 3-4 player round's resolver, its finalize handler and the room options check.
 export { handleVersusGroupFinalize, resolveVersusGroupRound, versusGroupPairings, normalizeVersusOptions, versusOptionsError };
 export type { VersusGroupFinalizeStore, VersusGroupRoundInput, VersusGroupRoundResult };
+// VERSUS DUOS (owner 2026-10-25): the 2v2 tag-team round's resolver and its finalize handler.
+export { handleVersusDuosFinalize, resolveVersusDuosRound };
+export type { VersusDuosFinalizeStore, VersusDuosRoundInput, VersusDuosRoundResult };
 
 /** The content identity this engine was built from (FNV over every card, rune and quest definition). */
 export function engineContentRevision(): string {
@@ -41,5 +46,13 @@ export function parityGroupRecord(out: VersusGroupRoundResult): { digest: string
   const canonical = canonicalJson({ round: out.round, fights: groupFightsPayload(out) });
   const digest = digestOf(canonical);
   if (digest !== groupRoundDigest(out)) throw new Error('group digest drift');
+  return { digest, canonical };
+}
+
+/** The parity view of one DUOS round: the canonical text of its one fight (both team perspectives) and its digest. */
+export function parityDuosRecord(out: VersusDuosRoundResult): { digest: string; canonical: string } {
+  const canonical = canonicalJson({ round: out.round, fight: duosFightPayload(out) });
+  const digest = digestOf(canonical);
+  if (digest !== duosRoundDigest(out)) throw new Error('duos digest drift');
   return { digest, canonical };
 }

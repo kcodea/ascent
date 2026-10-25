@@ -35,7 +35,10 @@ import type { VersusSeatScout } from '../lobby/runLobby';
  */
 export function createVersusRun(runSeed: number, heroId: string, setId: SetId, options?: VersusRoomOptions | null): RunState {
   const run = createRun(runSeed, heroId, 'versus', undefined, setId);
-  const rift = versusOptionsRift(normalizeVersusOptions(options));
+  const opts = normalizeVersusOptions(options);
+  const rift = versusOptionsRift(opts);
+  // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate.
+  if (opts.mode === 'duos') run.duos = { outbox: [], received: [], refused: [] };
   if (rift) {
     const bonus = riftBonusArmor(rift, run.mode); // 0 in Versus
     run.rift = rift;

@@ -70,6 +70,10 @@ function describe(ev: CombatEvent, names: Map<string, string>): string {
       return `   ✖ ${n(ev.target)} loses ${ev.keyword}${ev.source ? ` (to ${n(ev.source)})` : ''}`;
     case 'venomLost':
       return `   ☣ ${n(ev.target)} spends its Venomous`;
+    case 'boardFallen':
+      return `   ✖ ${ev.side}'s board ${ev.member + 1} has fallen`;
+    case 'tagIn':
+      return `   ⇄ ${ev.side}'s board ${ev.member + 1} steps in (${ev.minions.map((m) => m.name).join(', ')})`;
     case 'summon':
       return `   + ${ev.minion.name} (${ev.minion.attack}/${ev.minion.health}) summoned on ${ev.side}`;
     case 'ascend':

@@ -94,6 +94,8 @@ export const COMBAT_TRACE_COVERAGE: Record<CombatEvent['type'], CombatTraceCover
   keywordLost: { source: 'sometimes', target: 'always', amount: 'never', note: 'stripper uid when stamped; keyword in detail' },
   venomLost: { source: 'never', target: 'always', amount: 'never', note: 'venom spent by the target itself' },
   summon: { source: 'sometimes', target: 'always', amount: 'never', note: 'summoner uid when stamped; target = the summoned minion (uid + cardId); board index in detail' },
+  boardFallen: { source: 'never', target: 'never', amount: 'never', note: 'tag-team (Versus Duos): a side board is wiped and its reserve steps in next; side + member in detail' },
+  tagIn: { source: 'never', target: 'never', amount: 'sometimes', note: 'tag-team (Versus Duos): the reserve board steps in; amount = how many bodies, side + member in detail' },
   ascend: { source: 'never', target: 'always', amount: 'never', note: 'self-transform; the destination cardId in detail (into)' },
   buff: { source: 'always', target: 'always', amount: 'never', note: 'source is a display LABEL, not a uid (the emit sites pass names) — carried as label, never coerced to a uid; attack/health in detail (two-axis, no single amount)' },
   improve: { source: 'never', target: 'always', amount: 'always', note: 'accrual delta; display magnitude in detail when it differs' },
@@ -149,6 +151,10 @@ function project(e: CombatEvent): Pick<CombatSemanticEvent, 'source' | 'target' 
     case 'keyword':
     case 'keywordLost':
       return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { uid: e.target }, detail: { keyword: e.keyword } });
+    case 'boardFallen':
+      return defined({ detail: det({ side: e.side, member: e.member }) });
+    case 'tagIn':
+      return defined({ amount: e.minions.length, detail: det({ side: e.side, member: e.member }) });
     case 'summon':
       return defined({ ...(e.source ? { source: { uid: e.source } } : {}), target: { uid: e.minion.uid, cardId: e.minion.cardId, side: e.side }, detail: { index: e.index } });
     case 'ascend':

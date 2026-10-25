@@ -27,6 +27,7 @@ const SYSTEM_ACTIONS: ReadonlySet<Action['type']> = new Set<Action['type']>([
   'faceOmen', 'landCombat', 'settleCombat', 'resolveCombat', 'resolveShopDeath', 'shopClockExpired', 'sellWindowExpired',
   'combatEscalationPreview', 'combatSpellPowerPreview', 'combatSpellCastPreview', 'combatFriendlyDeathPreview',
   'combatBladeAttackPreview', 'combatScoutPreview',
+  'receivePass', 'passRefunded', // VERSUS DUOS: a teammate's pass (or its refusal) lands while the shop is held (re-delivered after a pause)
 ]);
 
 let handlers: VersusCommitHandlers | null = null;

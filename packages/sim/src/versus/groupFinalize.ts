@@ -21,6 +21,8 @@ export interface VersusGroupMatchRow {
   round: number;
   seed: number | string;
   content_revision: string;
+  /** The match's pinned options (a Duos match is a group-table match too: it is finalized by `finalize_duos`). */
+  options?: { mode?: string } | null;
 }
 
 export interface VersusGroupSeatRow {
@@ -65,6 +67,7 @@ export async function handleVersusGroupFinalize(
   if (!Number.isInteger(round) || (round as number) < 1) return { status: 400, body: { error: 'bad_round' } };
   const m = await store.match(matchId);
   if (!m) return { status: 404, body: { error: 'no_match' } };
+  if (m.options?.mode === 'duos') return { status: 400, body: { error: 'duos_match' } };
   if (m.phase !== 'resolving' || m.round !== round) return { status: 200, body: { status: 'not_resolving', phase: m.phase, round: m.round } };
   if (m.content_revision !== engineContent) {
     store.log('versus group finalize: engine content differs from the match', { match: m.content_revision, engine: engineContent });

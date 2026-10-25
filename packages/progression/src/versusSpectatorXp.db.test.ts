@@ -25,6 +25,10 @@ const STARTER_CHECK = ((t: string): string => t.slice(0, t.indexOf('-- ── 2.
 const LATER = ['2026-10-18-aether.sql', '2026-10-19-aether-launch-grant.sql', '2026-10-20-milestone-chests-epic.sql', '2026-10-15-lobby-live.sql',
   '2026-10-15-lobby-live-watcher-identity.sql', '2026-10-24-versus-group.sql'];
 const MINE = read('2026-10-24-versus-spectator-xp.sql');
+/** Versus Duos (2026-10-25): its migration, then its XP file (the newest settle_progression: placement by TEAM). The
+ *  1v1 / Group / spectate cases below run against it, so they prove the Duos branch changed nothing else. */
+const DUOS = read('2026-10-25-versus-duos.sql');
+const DUOS_XP = read('2026-10-25-versus-duos-xp.sql');
 
 const STUB = `
   create role anon; create role authenticated; create role service_role;
@@ -138,9 +142,39 @@ beforeAll(async () => {
   for (const f of LATER) { await db.exec(read(f)); await db.exec(API_GRANTS); }
   await db.exec(MINE);
   await db.exec(MINE); // idempotent
+  await db.exec(DUOS); await db.exec(API_GRANTS);
+  await db.exec(DUOS_XP);
+  await db.exec(DUOS_XP); // idempotent
   await db.exec("update public.progression_config set epoch = now() - interval '2 days' where id = 1;");
 }, 180_000);
 afterAll(async () => { await db?.close(); });
+
+/** A Duos match: four seats in two teams with their TEAM placements (1 = winners, 2 = losers). */
+async function duos(placements: [number | null, number | null, number | null, number | null], complete: boolean): Promise<string> {
+  const id = uuid();
+  await db.query(`insert into public.versus_group_matches (id, room_id, seed, set_id, content_revision, protocol, options, phase, round, seat_count, winner_seat, end_reason, created_at, completed_at)
+    values ($1, null, 1, 'set3', 'x', 1, '{"v":1,"mode":"duos","modifiers":[]}', $2, 5, 4, $3, $4, now() - make_interval(mins => 10), case when $2 = 'complete' then now() end)`,
+  [id, complete ? 'complete' : 'combat', complete ? 'p1' : null, complete ? 'hearts' : null]);
+  for (const team of ['a', 'b']) await db.query('insert into public.versus_group_teams (match_id, team, placement) values ($1, $2, $3)', [id, team, team === 'a' ? placements[0] : placements[2]]);
+  for (const [i, user] of [P1, P2, P3, P4].entries()) {
+    const out = placements[i] === 2;
+    await db.query(`insert into public.versus_group_seats (match_id, seat, user_id, name, hero, placement, eliminated_round, out_reason, team) values ($1, $2, $3, 'N', 'warden', $4, $5, $6, $7)`,
+      [id, `p${i + 1}`, user, placements[i], out ? 5 : null, out ? 'hearts' : null, i < 2 ? 'a' : 'b']);
+  }
+  for (let r = 1; r <= 5; r++) await db.query(`insert into public.versus_group_rounds (match_id, round, digest, hearts) values ($1, $2, 'd', '{}')`, [id, r]);
+  return id;
+}
+
+describe('Versus Duos XP: placement by TEAM (R-DUOS-01: "In duos you only place 1 and 2 in a 2v2")', () => {
+  it('the winning team earns 125 each (1st of 2 teams), the losing team 50 each (2nd of 2)', async () => {
+    const m = await duos([1, 1, 2, 2], true);
+    const out = [];
+    for (const u of [P1, P2, P3, P4]) out.push((await settle(u, 'versus', versusRunId(m))).result);
+    expect(out.map((r) => r.xp.total)).toEqual([125, 125, 50, 50]);
+    expect(out.map((r) => r.placement)).toEqual([1, 1, 8, 8]);
+    for (const r of out) expect(settlementParity(r)).toBe(true);
+  });
+});
 
 describe('Versus XP: half a normal game for the same share of the table (R-PROG-VERSUS-XP-01)', () => {
   it('1v1: the winner earns 125 (half of a lobby 1st), the loser 50 (half of an 8th); the ledger stores the lobby-scale place; parity holds', async () => {

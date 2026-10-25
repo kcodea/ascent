@@ -74,12 +74,15 @@ const emoteEight = readFileSync(join(root, 'supabase/migrations/2026-10-22-emote
  *  50% on the lobby's scale, 1v1 + Group, and the spectate branch), the progression_results.mode check, `spectate_beat`;
  *  appended to schema.sql right after the eight emote positions file. */
 const versusSpectatorXp = readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-spectator-xp.sql'), 'utf8');
+/** Versus Duos XP (2026-10-25, R-DUOS-01): the newest settle_progression (a Duos seat's TEAM placement on the scale of the
+ *  number of teams); appended to schema.sql right after the Versus + spectator XP file. */
+const duosXp = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-xp.sql'), 'utf8');
 const schema = readFileSync(join(root, 'schema.sql'), 'utf8');
 
 /** The body of a function's LATEST definition (the eight emote positions file, else the announcers file, else the milestone file, else Aether, else the card plates, else the emotes, else the announcer slot, else placement XP, else ancient, else frames, else gauntlet, else hero titles, else equal chance, else fixed odds, else hero attack, else achievements, else skins, else crates, else the MVP's). */
 function fnBody(name: string, from?: string): string {
   const defines = (t: string): boolean => t.includes(`create or replace function public.${name}(`);
-  const text = from ?? (defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
+  const text = from ?? (defines(duosXp) ? duosXp : defines(versusSpectatorXp) ? versusSpectatorXp : defines(emoteEight) ? emoteEight : defines(announcersNotFocusable) ? announcersNotFocusable : defines(milestoneEpic) ? milestoneEpic : defines(aether) ? aether : defines(cardPlates) ? cardPlates : defines(versusProg) ? versusProg : defines(emotes) ? emotes : defines(announcerSlot) ? announcerSlot : defines(placementXp) ? placementXp : defines(ancient) ? ancient : defines(frames) ? frames : defines(gauntlet) ? gauntlet : defines(heroTitles) ? heroTitles : defines(uniform) ? uniform : defines(odds) ? odds : defines(heroAttack) ? heroAttack : defines(ach) ? ach : defines(skins) ? skins : defines(crates) ? crates : sql);
   const start = text.indexOf(`create or replace function public.${name}(`);
   if (start < 0) throw new Error(`no function ${name} in the migration`);
   const open = text.indexOf('$$', start);
@@ -603,7 +606,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     expect(at).toBeGreaterThan(flat.indexOf(lf(versusProg).trim()));
     // only the launch-grant file (2026-10-19), the milestone file and the announcers file (2026-10-20), then the emote positions file (2026-10-22) follow it
     expect(flat.slice(at, at + body.length)).toBe(body);
-    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`);
+    expect(flat.slice(at + body.length).trim()).toBe(`${lf(launchGrant).trim()}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}\n\n${lf(duosXp).trim()}`);
     const tail = flat.slice(at);
     for (const fn of ['settle_progression', 'open_crate', 'buy_crate', 'record_gauntlet_clear']) {
       expect(fnBody(fn, tail.slice(tail.lastIndexOf(`create or replace function public.${fn}(`))), fn).toBe(fnBody(fn));
@@ -616,7 +619,7 @@ describe('the Aether migration (2026-10-18): the wallet, the Crate Shop and the 
     const lf = (t: string): string => t.replace(/\r\n/g, '\n');
     const flat = lf(schema);
     const body = lf(launchGrant).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(milestoneEpic).trim()}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}\n\n${lf(duosXp).trim()}`)).toBe(true);
     expect(flat.lastIndexOf('create or replace function public.aether_rollout(')).toBeGreaterThan(flat.lastIndexOf(lf(aether).trim()));
     expect(body).toContain("perform public.aether_launch_grant(v_user);");
     expect(fnBody('aether_rollout', milestoneEpic)).toContain("perform public.aether_launch_grant(v_user);");
@@ -631,7 +634,7 @@ describe('milestone chests are Epic and never focused (2026-10-20, R-PROG-AETHER
   it('schema.sql carries the milestone file verbatim (the announcers file follows it), and its three functions are the ones a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(milestoneEpic).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(announcersNotFocusable).trim()}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}\n\n${lf(duosXp).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     for (const fn of ['open_crate', 'settle_progression', 'aether_rollout']) {
       expect(flat.lastIndexOf(`create or replace function public.${fn}(`), fn).toBeGreaterThan(at);
@@ -677,7 +680,7 @@ describe("Announcers can't be a chest focus (2026-10-20, R-PROG-AETHER-06)", () 
   it('schema.sql carries the announcers file verbatim (the emote positions file follows it), and its aether_quote is the one a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(announcersNotFocusable).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(emoteEight).trim()}\n\n${lf(versusSpectatorXp).trim()}\n\n${lf(duosXp).trim()}`)).toBe(true);
     const at = flat.lastIndexOf(body);
     const fnAt = flat.lastIndexOf('create or replace function public.aether_quote(');
     expect(fnAt).toBeGreaterThan(at);
@@ -703,7 +706,7 @@ describe('eight emote positions (2026-10-22, R-PROG-EMOTE-02)', () => {
   it('schema.sql carries the emote positions file verbatim (the spectator XP file follows it), and its equip_cosmetic is the one a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(emoteEight).trim();
-    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(versusSpectatorXp).trim()}`)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(versusSpectatorXp).trim()}\n\n${lf(duosXp).trim()}`)).toBe(true);
     const fnAt = flat.lastIndexOf('create or replace function public.equip_cosmetic(');
     expect(fnAt).toBeGreaterThan(flat.lastIndexOf(body));
     expect(fnBody('equip_cosmetic', flat.slice(fnAt))).toBe(fnBody('equip_cosmetic'));
@@ -725,10 +728,10 @@ describe('Versus + spectator XP (2026-10-24, R-PROG-VERSUS-XP-01, R-PROG-SPECTAT
   // for spectating - watching a player's game rewards 50% of the xp at the end of the match".
   const lf = (t: string): string => t.replace(/\r\n/g, '\n');
 
-  it('schema.sql ENDS with the spectator XP file verbatim, and its settle_progression and spectate_beat are the ones a paste leaves', () => {
+  it('schema.sql carries the spectator XP file verbatim (the Duos XP file follows it), and its settle_progression and spectate_beat are the ones a paste leaves', () => {
     const flat = lf(schema);
     const body = lf(versusSpectatorXp).trim();
-    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    expect(flat.trimEnd().endsWith(`${body}\n\n${lf(duosXp).trim()}`)).toBe(true);
     for (const fn of ['settle_progression', 'spectate_beat']) {
       const fnAt = flat.lastIndexOf(`create or replace function public.${fn}(`);
       expect(fnAt, fn).toBeGreaterThan(flat.lastIndexOf(body) - 1);
@@ -758,5 +761,34 @@ describe('Versus + spectator XP (2026-10-24, R-PROG-VERSUS-XP-01, R-PROG-SPECTAT
     expect(beat).toContain('v_pres.run_id = v_run and v_now > v_pres.at and v_now - v_pres.at <= c_gap');
     expect(versusSpectatorXp).toContain('revoke all on function public.spectate_beat(text, text) from public, anon;');
     expect(versusSpectatorXp).toContain('grant execute on function public.spectate_beat(text, text) to authenticated;');
+  });
+});
+
+describe('Versus Duos XP (2026-10-25, R-DUOS-01: "In duos you only place 1 and 2 in a 2v2")', () => {
+  const lf = (t: string): string => t.replace(/\r\n/g, '\n');
+
+  it('schema.sql ENDS with the Duos XP file verbatim, and its settle_progression is the one a paste leaves', () => {
+    const flat = lf(schema);
+    const body = lf(duosXp).trim();
+    expect(flat.trimEnd().endsWith(body)).toBe(true);
+    const fnAt = flat.lastIndexOf('create or replace function public.settle_progression(');
+    expect(fnAt).toBeGreaterThan(flat.lastIndexOf(body) - 1);
+    expect(fnBody('settle_progression', flat.slice(fnAt))).toBe(fnBody('settle_progression'));
+  });
+
+  it('settle_progression is the spectator XP body with only the group seat count made Duos-aware (teams)', () => {
+    const before = fnBody('settle_progression', versusSpectatorXp);
+    const after = fnBody('settle_progression', duosXp);
+    const old = '      v_seats := greatest(2, coalesce(v_g_count, 4));';
+    expect(before).toContain(old);
+    const cut = before.indexOf(old);
+    const head = before.slice(0, cut);
+    const tail = before.slice(cut + old.length);
+    expect(after.startsWith(head)).toBe(true);
+    expect(after.endsWith(tail)).toBe(true);
+    const middle = after.slice(head.length, after.length - tail.length);
+    expect(middle).toContain("g2.options->>'mode' = 'duos'");
+    expect(middle).toContain('from public.versus_group_teams t where t.match_id = v_g_id');
+    expect(middle).toContain(old);
   });
 });

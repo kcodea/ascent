@@ -16,6 +16,10 @@
  * fight when three are alive, a ghost of a seat that went out mid-round), derived from the same fixture sides
  * (`groupParityCases`, so the fixture file is unchanged), through the `parity_group` action remotely.
  *
+ * VERSUS DUOS (owner 2026-10-25): every check also resolves DUOS rounds (the 2v2 tag-team fight: four seats from two
+ * consecutive fixture cases, the default order, a flipped order, and one empty first board), `duosParityCases`, through
+ * the `parity_duos` action remotely.
+ *
  * `remote` sends the publishable key from apps/web/.env as `apikey` (never printed), or `VERSUS_PARITY_TOKEN`
  * (a user access token) as the bearer when set. It exits non-zero on any mismatch and prints the first differing
  * offset with context.
@@ -24,8 +28,8 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { contentRevision } from '@game/content';
-import { createRun, reduce, resolveVersusFight, resolveVersusGroupRound, VERSUS_PROTOCOL, type PreparedCombatSide, type RunState } from '@game/sim';
-import { parityGroupRecord, parityRecord } from '@game/sim/versus/server';
+import { createRun, reduce, resolveVersusDuosRound, resolveVersusFight, resolveVersusGroupRound, VERSUS_PROTOCOL, type PreparedCombatSide, type RunState, type VersusDuosTeam } from '@game/sim';
+import { parityDuosRecord, parityGroupRecord, parityRecord } from '@game/sim/versus/server';
 import type { VersusGroupEliminations, VersusGroupSeat } from '@game/sim';
 import { GREEDY_PILOT } from '@game/sim/balance/pilots';
 import { playRecruitTurn } from '@game/sim/balance/seatRunner';
@@ -122,6 +126,33 @@ function nodeGroupRecord(c: GroupParityCase): { digest: string; canonical: strin
   return parityGroupRecord(resolveVersusGroupRound({ matchSeed: c.matchSeed, round: c.round, seats: c.seats, eliminated: c.eliminated, sides: structuredClone(c.sides) }));
 }
 
+export interface DuosParityCase {
+  name: string;
+  matchSeed: number;
+  round: number;
+  first?: Partial<Record<VersusDuosTeam, VersusGroupSeat>>;
+  sides: Partial<Record<VersusGroupSeat, PreparedCombatSide>>;
+}
+
+/** Duos rounds from consecutive fixture cases: the default order, the flipped order, and an empty first board. */
+export function duosParityCases(cases: ParityCase[]): DuosParityCase[] {
+  const out: DuosParityCase[] = [];
+  for (let i = 0; i + 1 < cases.length; i += 2) {
+    const x = cases[i]!;
+    const y = cases[i + 1]!;
+    const sides = { p1: x.p1, p2: x.p2, p3: y.p1, p4: y.p2 };
+    const base = { matchSeed: x.matchSeed, round: x.round };
+    out.push({ ...base, name: `duos ${x.name} + ${y.name}`, sides });
+    out.push({ ...base, name: `duos-flipped ${x.name} + ${y.name}`, first: { a: x.round % 2 ? 'p2' : 'p1', b: x.round % 2 ? 'p4' : 'p3' }, sides });
+    out.push({ ...base, name: `duos-empty-first ${x.name} + ${y.name}`, sides: { ...sides, [x.round % 2 ? 'p1' : 'p2']: { ...x.p1, board: [] } } });
+  }
+  return out;
+}
+
+function nodeDuosRecord(c: DuosParityCase): { digest: string; canonical: string } {
+  return parityDuosRecord(resolveVersusDuosRound({ matchSeed: c.matchSeed, round: c.round, first: c.first, sides: structuredClone(c.sides) }));
+}
+
 function nodeRecord(c: ParityCase): { digest: string; canonical: string } {
   return parityRecord(resolveVersusFight({ matchSeed: c.matchSeed, round: c.round, p1: structuredClone(c.p1), p2: structuredClone(c.p2) }));
 }
@@ -153,7 +184,12 @@ async function checkBundle(): Promise<void> {
     const other = mod.parityGroupRecord(mod.resolveVersusGroupRound({ matchSeed: c.matchSeed, round: c.round, seats: c.seats, eliminated: c.eliminated, sides: structuredClone(c.sides) }));
     return node.canonical === other.canonical ? { name: c.name, ok: true, detail: node.digest } : { name: c.name, ok: false, detail: firstDiff(node.canonical, other.canonical) };
   });
-  report([...duel, ...group]);
+  const duos = duosParityCases(cases).map((c) => {
+    const node = nodeDuosRecord(c);
+    const other = mod.parityDuosRecord(mod.resolveVersusDuosRound({ matchSeed: c.matchSeed, round: c.round, first: c.first, sides: structuredClone(c.sides) }));
+    return node.canonical === other.canonical ? { name: c.name, ok: true, detail: node.digest } : { name: c.name, ok: false, detail: firstDiff(node.canonical, other.canonical) };
+  });
+  report([...duel, ...group, ...duos]);
 }
 
 function publishableKey(): string {
@@ -190,6 +226,22 @@ async function checkRemote(url: string): Promise<void> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${token ?? key}` },
       body: JSON.stringify({ action: 'parity_group', protocol: VERSUS_PROTOCOL, contentRevision: contentRevision(), matchSeed: c.matchSeed, round: c.round, seats: c.seats, eliminated: c.eliminated, sides: c.sides }),
+    });
+    const body = (await res.json().catch(() => null)) as { digest?: string; canonical?: string; contentRevision?: string; error?: string } | null;
+    if (!res.ok || !body?.canonical) {
+      rows.push({ name: c.name, ok: false, detail: `HTTP ${res.status} ${body?.error ?? ''}${body?.contentRevision ? ` (server content ${body.contentRevision}, local ${contentRevision()})` : ''}` });
+      continue;
+    }
+    rows.push(body.canonical === node.canonical
+      ? { name: c.name, ok: true, detail: `${node.digest} (server ${body.digest})` }
+      : { name: c.name, ok: false, detail: firstDiff(node.canonical, body.canonical) });
+  }
+  for (const c of duosParityCases(cases)) {
+    const node = nodeDuosRecord(c);
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${token ?? key}` },
+      body: JSON.stringify({ action: 'parity_duos', protocol: VERSUS_PROTOCOL, contentRevision: contentRevision(), matchSeed: c.matchSeed, round: c.round, first: c.first, sides: c.sides }),
     });
     const body = (await res.json().catch(() => null)) as { digest?: string; canonical?: string; contentRevision?: string; error?: string } | null;
     if (!res.ok || !body?.canonical) {

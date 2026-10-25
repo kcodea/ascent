@@ -758,7 +758,11 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
    combat opponent's (`.combatopp-portrait`), sized up. PASS STATES: 'ok' = the teal glow breathes (a STATIC shadow on
    its own layer; only its opacity animates, the kwglow pattern), 'no' = a static red ring and the reason. */
 .duosdock { position: fixed; z-index: 41; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u));
-  right: calc(var(--bar-x) + 60px * var(--scale)); bottom: calc(var(--bar-y) + 92px * var(--scale)); }
+  right: calc(var(--bar-x) + 60px * var(--scale));
+  /* Always clear of the corner buttons (Rules, Compendium, Settings: 40u tall, 16px off the window edge). They live
+     outside the scaled stage, so on a phone (a small stage scale) they are large next to it and covered the name
+     pill: the clearance is converted into stage units (/ --stage-s). */
+  bottom: max(calc(var(--bar-y) + 92px * var(--scale)), calc((16px + 40 * var(--u) + 12px) / var(--stage-s, 1))); }
 /* While watching, MY portrait sits above the team frame (z70) so the way back reads clearly; under the plate (z80). */
 .duosdock.self { z-index: 75; }
 .duosdock-hold { position: relative; pointer-events: auto; border-radius: 50%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }

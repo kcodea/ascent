@@ -333,7 +333,8 @@ export function VersusRoom() {
   const statsOpen = useVersus((s) => s.statsOpen);
   // The seat cards' numbers: re-read when a player sits or leaves, and when a match ends and the room reopens. (A
   // hook, so it runs before the no-room return.)
-  const seatRoles: VersusGroupSeat[] = roomMode === 'group' ? ['p1', 'p2', 'p3', 'p4'] : ['p1', 'p2'];
+  const fourSeats = roomMode === 'group' || roomMode === 'duos';
+  const seatRoles: VersusGroupSeat[] = fourSeats ? ['p1', 'p2', 'p3', 'p4'] : ['p1', 'p2'];
   const seated = seatRoles.map((r) => room?.members.find((x) => x.role === r) ?? null);
   // ONE batched read for every card in the room: every seat and every spectator (at most 24 ids, R-NET-01).
   const seatIds = [...seated.map((x) => x?.userId), ...(room?.members.filter((x) => x.role === 'spectator').map((x) => x.userId) ?? [])]
@@ -366,7 +367,9 @@ export function VersusRoom() {
           static image, never a live blur), under a static grade that darkens the edges and seats the hand. */}
       <div className="vsarena-ext" aria-hidden="true" />
       <div className="vsvignette" aria-hidden="true" />
-      <div className={`vsarena${roomMode === 'group' ? ' vsgroup' : ''}`} ref={arenaRef}>
+      <div className={`vsarena${fourSeats ? ' vsgroup' : ''}${roomMode === 'duos' ? ' vsduos' : ''}`} ref={arenaRef}>
+        {/* VERSUS DUOS (R-DUOS-01): the seat pairs are the teams; a plate names each pair (the room's own pill style). */}
+        {roomMode === 'duos' && <><span className="vsteam vsteam-a hudpill-name">Team 1</span><span className="vsteam vsteam-b hudpill-name">Team 2</span></>}
         {/* The VS mark between the two cards: the game's display font with a static glow until it has its own art. */}
         <div key={vsBeat} className={`vsmark${vsBeat > 0 ? ' vsmark-full' : ''}`} aria-hidden="true">VS</div>
         {seatRoles.map((side, i) => <Seat key={side} side={side} m={seated[i] ?? null} room={room} match={match} me={me} drag={drag} arena={arenaRef} />)}

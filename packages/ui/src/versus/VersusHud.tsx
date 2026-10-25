@@ -9,6 +9,9 @@
  *    the disconnect pause, in the game's own dialog panel.
  * Every surface here re-renders on Versus state only (a few times per round), never per frame.
  */
+import { DuosMateDock } from './DuosMateDock';
+import { DuosOrderPlate } from './DuosOrderPlate';
+import { TeammateBar, prepareTeammateSweep, useTeammateViewKeys } from './teammateView';
 import { useEffect, useRef, useState } from 'react';
 import type { RunState } from '@game/sim';
 import { useGame } from '../store';
@@ -182,9 +185,16 @@ export function VersusHud() {
   const resumeIn = useSecondsUntil(match?.resume_at ? Date.parse(match.resume_at) : undefined, paused && !!match?.resume_at);
   // Held whenever this shop is not this player's to play right now (`versusTurn`): nothing on the board changes.
   const held = versusTurnHolds(useVersusTurn({ mode, phase, wave }));
+  // VERSUS DUOS (R-DUOS-VIEW-01): watching my teammate's screen (Tab / their rail portrait), and the way back.
+  const watchingMate = useSpectate((s) => s.teammate === true);
+  useTeammateViewKeys(!!seat && !!match?.group?.duos);
+  // The swap sweep's panel is made once, ahead of the first click (no build at the click).
+  const duosOn = !!seat && !!match?.group?.duos;
+  useEffect(() => { if (duosOn) prepareTeammateSweep(); }, [duosOn]);
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;
+  if (watchingMate) return <><TeammateBar /><DuosMateDock watching /></>;
   // VERSUS GROUP: the absent player is whoever the table says (named on `match.group`), not "the opponent".
   const names = { p1: match.p1_name, p2: match.group?.pausedName ?? match.p2_name };
   const absent = match.paused_seat;
@@ -218,6 +228,8 @@ export function VersusHud() {
   return (
     <>
       {held && !paused && <div className="vshold" aria-hidden="true" />}
+      {match.group?.duos && !paused && phase === 'recruit' && <DuosOrderPlate />}
+      {match.group?.duos && !paused && phase === 'recruit' && <DuosMateDock watching={false} />}
       {paused && (
         <div className="vsveil" role="status" aria-live="polite" onContextMenuCapture={blockInspect}>
           {match.resume_at ? (

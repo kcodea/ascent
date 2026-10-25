@@ -143,6 +143,18 @@ describe('R-SPECTATE-EMOTE-01: a spectator emotes to the player', () => {
     expect(versusWatchersOf(room, true, 'p1').map((w) => w.id)).toEqual(['spec-me', SAM]);
     expect(versusWatchersOf(room, false, 'stranger')).toEqual([]);
   });
+
+  it('R-SPECTATE-WATCHERS-02: a player knocked out to the stands, still seated while the last fight plays, never sees their own chip', () => {
+    // Group and Duos: the server moves a knocked-out player to the stands (role spectator) while their match seat
+    // still holds (mySeat is truthy), so the seated branch runs with me among the spectators.
+    const room = { members: [
+      { userId: 'p1', role: 'p1', displayName: 'P1', profile: {}, lastSeenAt: '' },
+      { userId: 'ko-me', role: 'spectator', displayName: 'Me', profile: {}, lastSeenAt: '' },
+      { userId: 'ko-mate', role: 'spectator', displayName: 'Mate', profile: {}, lastSeenAt: '' },
+    ] } as unknown as Parameters<typeof versusWatchersOf>[0];
+    expect(versusWatchersOf(room, true, 'ko-me').map((w) => w.id)).toEqual(['ko-mate']);
+    expect(versusWatchersOf(room, true, 'p1').map((w) => w.id)).toEqual(['ko-me', 'ko-mate']);
+  });
 });
 
 describe('R-SPECTATE-HUD-01: me top left, the watched player and the switcher bottom right', () => {

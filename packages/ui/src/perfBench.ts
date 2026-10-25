@@ -35,6 +35,8 @@ export function installPerfBench(): void {
     // VERSUS end-to-end (2026-10-24, Versus Group phase 3): the session store and its actions, the spectate store, and the
     // sim (its public entrypoint), so a bench build can be driven through a whole live match by CDP. Loaded on demand.
     versus: () => import('./versus/versusStore'),
+    // VERSUS DUOS (2026-10-25): the pass lob, the teammate view and the hand-off state, for a bench capture / CDP drive.
+    duos: () => Promise.all([import('./versus/passLob'), import('./versus/teammateView'), import('./versus/duosCombat')]).then(([lob, view, combat]) => ({ ...lob, ...view, ...combat })),
     spectate: () => import('./versus/spectate'),
     sim: () => import('@game/sim'),
     db: () => import('./remoteBoards').then((m) => m.supabaseClient()),

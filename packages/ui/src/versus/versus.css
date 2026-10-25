@@ -305,6 +305,14 @@ body.vsroom-on .pixifx { z-index: 470; }
 .vsgroup .vspcard-p3, .vsgroup .vsgatebox-p3 { left: 59%; }
 .vsgroup .vspcard-p4, .vsgroup .vsgatebox-p4 { left: 71.5%; }
 .vsgroup .vsgatebox { width: 11%; top: 64%; }
+/* VERSUS DUOS (R-DUOS-01): a static plate over each seat pair, the room's own pill. Static paint, no animation. */
+.vsduos .vsteam { position: absolute; z-index: 45; top: 12%; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+  display: inline-flex; align-items: center; height: calc(34 * var(--u)); box-sizing: border-box; padding: 0 calc(22 * var(--u)); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); letter-spacing: 0.16em; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+:root[data-hp-look="gem"] .vsduos .vsteam.hudpill-name { color: var(--ui-title); }
+.vsduos .vsteam-a { left: 29.25%; }
+.vsduos .vsteam-b { left: 70.75%; }
 .vsenter .vspcard-p3 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.3s both; }
 .vsenter .vspcard-p4 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.36s both; }
 .vsenter .vsmcard-p3 > .vsmcard-in, .vsenter .vsmcard-p4 > .vsmcard-in { animation: vsinrightc 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }
@@ -679,3 +687,95 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
    scout) take the spectator's hover again, exactly like a card in hand; a press still does nothing (the store refuses a
    viewer's dispatch, and the pick sound skips a viewer). The gauntlet's default hand: it reads, it never picks. */
 .app.viewing.spectating .discover-ov .card { pointer-events: auto; cursor: url('/cursors/gauntlet_default.svg') 6 2, default; }
+
+/* VERSUS DUOS (R-DUOS-TAGTEAM-01): the "steps in" plate. The foe portrait disc + the name pill, on the stepping-in
+   team's side of the arena (yours left, theirs right), rising in once (transform / opacity, one-shot, keyed). */
+.duostag { position: fixed; top: 46%; z-index: 40; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  pointer-events: none; animation: duostagin 0.36s cubic-bezier(0.22, 1.2, 0.36, 1) both; }
+.duostag-player { left: 9%; }
+.duostag-enemy { right: 9%; }
+.duostag { --u: 1.1px; } /* the foe disc is sized in --u (116u): about 128px here */
+.duostag-name { white-space: nowrap; display: inline-flex; align-items: center; height: 36px; box-sizing: border-box; padding: 0 18px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 16px; letter-spacing: 0.06em; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+:root[data-hp-look="gem"] .duostag-name.hudpill-name { color: var(--ui-title); }
+@keyframes duostagin {
+  from { opacity: 0; transform: translateY(18px) scale(0.86); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* VERSUS DUOS (R-DUOS-PASS-01): THE LOB, a passed card's flight (passLob.ts animates it: transform / opacity only, one
+   layer per throw, removed on landing). The face is the card as you held it; the back is your card plate. */
+.duoslob { position: fixed; z-index: 70; pointer-events: none; transform-origin: 50% 50%; will-change: transform, opacity; perspective: 900px; }
+.duoslob-flip { position: absolute; inset: 0; transform-style: preserve-3d; }
+.duoslob-face, .duoslob-back { backface-visibility: hidden; }
+.duoslob-face { margin: 0; }
+.duoslob-back { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: rotateY(180deg); border-radius: 9px; }
+.duoslob-coin { position: fixed; z-index: 71; width: 28px; height: 28px; pointer-events: none; color: var(--gold, #f3c75b); will-change: transform, opacity; }
+.duoslob-coin svg { width: 100%; height: 100%; }
+
+/* VERSUS DUOS (R-DUOS-VIEW-01): WATCHING YOUR TEAMMATE. A static team-colour vignette over the screen's edges (it fades
+   in once: opacity only), the "Watching <Name>" plate with the way back (top centre, the room's plate buttons), and my
+   own shop controls visibly inert. Nothing loops. */
+.duosview-vignette { position: fixed; inset: 0; z-index: 70; pointer-events: none;
+  /* Static (never animated; only the one-shot fade-in touches its opacity): a teal team frame that cannot be missed on
+     the purple stage, a solid band at the edge plus a wide glow into the screen. */
+  background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 42%, rgba(40, 170, 200, 0.42) 72%, rgba(18, 120, 150, 0.78) 100%);
+  box-shadow: inset 0 0 0 10px rgba(70, 205, 230, 0.9), inset 0 0 0 12px rgba(10, 40, 50, 0.6), inset 0 0 90px 24px rgba(40, 190, 220, 0.5);
+  animation: duosviewfade 0.24s ease both; }
+@keyframes duosviewfade { from { opacity: 0; } to { opacity: 1; } }
+.duosview-bar { position: fixed; top: 46px; left: calc(50% + 112px); z-index: 80; display: flex; align-items: center; gap: 10px;
+  animation: duosviewfade 0.24s ease both; }
+.duosview-name { white-space: nowrap; display: inline-flex; align-items: center; height: 48px; box-sizing: border-box; padding: 0 26px; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: 20px; letter-spacing: 0.06em; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+:root[data-hp-look="gem"] .duosview-name.hudpill-name { color: var(--ui-title); }
+body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actiontray { opacity: 0.42; transition: opacity 0.2s ease; }
+
+/* VERSUS DUOS: THE TEAMMATE PORTRAIT, bottom right (DuosMateDock; R-DUOS-VIEW-01, R-DUOS-PASS-01). The mirror of the
+   player's hero bottom left (about the same size, the same distance in from the stage corner, clear of the Gold coin and
+   the help buttons). The round disc is the
+   combat opponent's (`.combatopp-portrait`), sized up. PASS STATES: 'ok' = the teal glow breathes (a STATIC shadow on
+   its own layer; only its opacity animates, the kwglow pattern), 'no' = a static red ring and the reason. */
+.duosdock { position: fixed; z-index: 41; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u));
+  right: calc(var(--bar-x) + 60px * var(--scale)); bottom: calc(var(--bar-y) + 92px * var(--scale)); }
+/* While watching, MY portrait sits above the team frame (z70) so the way back reads clearly; under the plate (z80). */
+.duosdock.self { z-index: 75; }
+.duosdock-hold { position: relative; pointer-events: auto; border-radius: 50%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+.duosdock .duosdock-disc { width: calc(200 * var(--u)); height: calc(200 * var(--u)); border-width: calc(4 * var(--u)); }
+.duosdock-glow, .duosdock-no { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; opacity: 0; }
+.duosdock-glow { box-shadow: 0 0 calc(34 * var(--u)) calc(12 * var(--u)) rgba(64, 214, 236, 0.95), 0 0 0 calc(5 * var(--u)) rgba(96, 226, 244, 0.95); will-change: opacity; }
+.duosdock.pass-ok .duosdock-glow { animation: kwglow 0.9s ease-in-out infinite; }
+.duosdock.pass-ok .duosdock-hold { transform: scale(1.06); }
+.duosdock-no { box-shadow: 0 0 0 calc(5 * var(--u)) rgba(214, 70, 60, 0.95); }
+.duosdock.pass-no .duosdock-no { opacity: 1; }
+.duosdock.pass-no .duosdock-disc { opacity: 0.7; }
+.duosdock-name { white-space: nowrap; display: inline-flex; align-items: center; height: calc(34 * var(--u)); box-sizing: border-box; padding: 0 calc(16 * var(--u));
+  margin-top: calc(-26 * var(--u)); position: relative; z-index: 2; border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(17 * var(--u)); line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+.duosdock-cap { white-space: nowrap; display: inline-flex; align-items: center; height: calc(26 * var(--u)); box-sizing: border-box; padding: 0 calc(12 * var(--u));
+  border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(12 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase; line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
+.duosdock.self .duosdock-cap { letter-spacing: 0.06em; }
+.duosdock-note { position: absolute; right: calc(100% + 12 * var(--u)); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none;
+  display: inline-flex; align-items: center; height: calc(32 * var(--u)); padding: 0 calc(14 * var(--u)); border-radius: 999px;
+  font-family: var(--font-ui); font-weight: 800; font-size: calc(15 * var(--u)); line-height: 1;
+  background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); animation: duosviewfade 0.18s ease both; }
+:root[data-hp-look="gem"] .duosdock .hudpill-name { color: var(--ui-title); }
+/* The rail row stays a second way in to the teammate view (a click), not a pass target. */
+.lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
+
+/* A passed card's slot while its face-down card is still on its way out of the teammate portrait (passLob.playArrival). */
+.row.hand .card.passincoming { opacity: 0; }
+
+/* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static. */
+.duosorder { position: fixed; top: 54px; right: 16px; z-index: 35; white-space: nowrap; }
+
+/* VERSUS DUOS: THE SWAP SWEEP between my board and my teammate's (teammateView.turn; R-DUOS-VIEW-01). One pre-made
+   full-screen team panel parked off screen on its own layer; a swap only moves it (transform, compositor-run). Static
+   paint: a deep teal field with a bright leading band on each side. */
+.duosswap { position: fixed; inset: 0; z-index: 200; pointer-events: none; transform: translateX(105%); will-change: transform; contain: strict;
+  background:
+    linear-gradient(90deg, rgba(120, 236, 250, 0.95) 0, rgba(60, 196, 222, 0.9) 1.2%, transparent 3.5%, transparent 96.5%, rgba(60, 196, 222, 0.9) 98.8%, rgba(120, 236, 250, 0.95) 100%),
+    radial-gradient(ellipse at 50% 45%, #1d6f86 0%, #134e63 55%, #0b3242 100%); }

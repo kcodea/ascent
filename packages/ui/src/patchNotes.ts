@@ -60,6 +60,18 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus Duos: a new 2v2 room mode. Team up and fight as a tag team.',
+        details: [
+          'Pick 2v2 in Room options. The left seats are one team, the right seats the other.',
+          'One fight a round. When your board falls, your teammate\'s board flies in against whatever is left.',
+          'Seven hearts per team. A loss costs 1 heart, or 2 if the winners never needed their second board.',
+          'Your teammate\'s portrait sits bottom right. Drag a card from your hand or board onto it to give it to them. It glows when the pass will work. It costs 1 Gold. A full hand refuses it.',
+          'Click your teammate\'s portrait, or hold Tab, to watch their board live. Click your own portrait, press Esc, or let go of Tab to return.',
+          'The plate above the rail says who fights first. Either of you can swap it until your team locks in.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Versus: the Summit modifier now only unlocks Tier 7. It no longer adds Armor.',
       },
     ],

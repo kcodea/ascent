@@ -632,6 +632,14 @@ export function computeFrame(
     } else if (e.type === 'improve') {
       const u = find(e.target);
       if (u) u.summonBonus += e.amount; // Kennelmaster's aura climbs mid-fight → live card text
+    } else if (e.type === 'tagIn') {
+      // VERSUS DUOS (R-DUOS-TAGTEAM-01): the teammate's board steps in. The side's row becomes its bodies (the fallen
+      // board's dead are gone), and its Avenge tally restarts with it, as the sim's does (its own fight starts now).
+      const arr = e.side === 'player' ? player : enemy;
+      arr.length = 0;
+      for (const m of e.minions) { arr.push(fromSnap(m)); maxHp.set(m.uid, m.health); avengeBase.set(m.uid, 0); }
+      deaths[e.side] = 0;
+      spellCasts[e.side] = 0;
     } else if (e.type === 'summon') {
       const arr = e.side === 'player' ? player : enemy;
       arr.splice(Math.min(e.index, arr.length), 0, fromSnap(e.minion));
@@ -753,6 +761,7 @@ export function animFor(e: CombatEvent | undefined): Record<string, string> {
     case 'sc': return e.cast ? { [e.source]: 'sccast' } : {}; // only a genuine SoC cast flashes; narration (spell power, etc.) is silent
     case 'death': return { [e.target]: 'dying' };
     case 'summon': return { [e.minion.uid]: 'summoned' };
+    case 'tagIn': return Object.fromEntries(e.minions.map((m) => [m.uid, 'tagin'])); // VERSUS DUOS: the fly-in
     case 'rally': return { [e.source]: 'sccast', [e.target]: 'flare' }; // Deathsayer pulses; the Deathrattle minion flares
     case 'shout': return { [e.target]: 'sccast' }; // the Shout's owner flashes as it fires; the re-trigger source pulses per proc from `onShoutProc`
     case 'ascend': return { [e.target]: 'ascendpop' }; // transform: the new card pops in under the flash bloom (fired by onAscend)
@@ -778,6 +787,8 @@ function narrateLog(e: CombatEvent, names: Map<string, string>): { text: string;
     case 'reveal': return { text: `${n(e.target)} breaks Stealth.`, kind: 'reveal' };
     case 'death': return { text: `${n(e.target)} is destroyed.`, kind: 'death' };
     case 'summon': return { text: `${e.minion.name} (${e.minion.attack}/${e.minion.health}) is summoned.`, kind: 'summon' };
+    case 'boardFallen': return { text: `${e.side === 'player' ? 'Your' : 'Their'} board has fallen.`, kind: 'death' };
+    case 'tagIn': return { text: `${e.side === 'player' ? 'Your' : 'Their'} teammate's board steps in.`, kind: 'summon' };
     case 'buff': return { text: `${n(e.target)} grows +${e.attack}/+${e.health}.`, kind: 'buff' };
     case 'improve': { const d = e.display ?? e.amount; return d > 0 ? { text: `${n(e.target)}'s effect improves by ${d}.`, kind: 'buff' } : null; }
     case 'keyword': return { text: `${n(e.target)} gains ${KW_FLOAT[e.keyword] ?? e.keyword}${e.source ? ` from ${n(e.source)}` : ''}.`, kind: 'buff' };

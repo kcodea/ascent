@@ -1,4 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
+import { useDuosCombat } from './versus/duosCombat';
 import { liveRuneText } from './runeText';
 import { useEnemyRuneLive } from './useRuneLive';
 import { badgePulsesFromProgress } from './choreo/triggerCounts';
@@ -76,7 +77,11 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const active = !!lobby && (staged || preview);   // `preview` = the dev tuner's Test button
   const [phase, setPhase] = useState<'hidden' | 'in' | 'out'>('hidden');
   const cached = useRef<ReturnType<typeof playerOpponent> | null>(null);
-  const live = active && lobby ? playerOpponent(lobby) : null;
+  // VERSUS DUOS (R-DUOS-TAGTEAM-01): once the other team's second board steps in, the portrait is that player's.
+  const duosFoe = useDuosCombat((s) => s.foeSeatId);
+  const forcedFoe = active && lobby ? playerOpponent(lobby) : null;
+  const duosSeat = duosFoe && lobby ? lobby.seats.find((x) => x.id === duosFoe) : undefined;
+  const live = forcedFoe && duosSeat ? { ...forcedFoe, seat: duosSeat } : forcedFoe;
   if ((inCombat || preview) && live?.seat) cached.current = live;
   useEffect(() => {
     setPhase(active ? 'in' : 'hidden');

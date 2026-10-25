@@ -9,7 +9,7 @@ import { RIFTS, riftDefFor, normalizeVersusOptions, VERSUS_MODIFIERS, type Versu
 import { Segmented } from '../PracticeOptions';
 
 /** The mode as players read it. */
-export const versusModeLabel = (mode: VersusMode): string => (mode === 'group' ? '3-4 players' : '1v1');
+export const versusModeLabel = (mode: VersusMode): string => (mode === 'group' ? '3-4 players' : mode === 'duos' ? '2v2' : '1v1');
 
 /** A modifier's name (its rift's). */
 export const versusModifierName = (id: VersusModifierId): string => RIFTS[id]?.name ?? id;
@@ -23,6 +23,7 @@ export function versusOptionsSummary(raw: VersusRoomOptions | null | undefined):
 const MODE_OPTIONS: { value: VersusMode; label: string }[] = [
   { value: 'duel', label: '1v1' },
   { value: 'group', label: '3-4 players' },
+  { value: 'duos', label: '2v2' },
 ];
 const MODIFIER_OPTIONS: { value: VersusModifierId | null; label: string }[] = [
   { value: null, label: 'None' },
@@ -43,7 +44,9 @@ export function VersusOptionsPanel({ options, editable, onChange, onClose }: {
   const modifier = o.modifiers[0] ?? null;
   const modeHint = o.mode === 'group'
     ? 'Three or four players. Everyone meets everyone in turn. With three, one player faces a copy of another board each round. Last one standing wins.'
-    : 'Two players, seven hearts each.';
+    : o.mode === 'duos'
+      ? 'Two teams of two. The left seats are one team, the right seats the other. When your board falls, your teammate\'s board steps in. Seven hearts per team.'
+      : 'Two players, seven hearts each.';
   const modifierHint = modifier ? riftDefFor(modifier, 'versus').blurb : 'The usual rules.'; // Summit: Tier 7 only, no Armor
   return (
     <div className="vsoptions" role="dialog" aria-label="Room options">

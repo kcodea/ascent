@@ -20,6 +20,9 @@ import { FadeImg } from './FadeImg';
 import { useGame } from './store';
 import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
+import { useVersus } from './versus/versusStore';
+import { groupDuosRailRows } from './versus/versusGroupView';
+import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { VersusFoe } from './versus/VersusFoe';
 import { canEditGuide, guidesFor, type Guide, type GuidesMode } from './guides/guides';
@@ -348,13 +351,17 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // VERSUS GROUP (R-VERSUS-GROUP-03): the ranked rail with every player (you included) on their hearts, the Copy in
   // the last slot while one is in play. A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
   const versusDuel = versus && lobby.seats.length <= 2;
+  // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1), kept next to yours. A click opens their live screen
+  // (R-DUOS-VIEW-01), a second way in beside the bottom-right teammate portrait (the pass target, DuosMateDock).
+  const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
   const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : versus ? {} : { self: { resolve: myResolve, armor: myArmor } }) });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
   // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
   // CURRENT intel even on round 1. Every card reads the round you are IN, by one rule (`railSeatIntel`).
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
-  const rows = rail.rows;
+  // VERSUS DUOS: team rows grouped (you next to your teammate), never split by hearts.
+  const rows = duosMate ? groupDuosRailRows(rail.rows) : rail.rows;
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
   const railRows = versusDuel ? (showGuides ? 8 : 3) : rows.length;
@@ -464,13 +471,14 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             <div
               key={seat.id}
               data-seat={seat.id}
-              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}`}
+              className={`lobbyseat${isYou ? ' you' : ''}${isFoe ? ' foe' : ''}${isGhost ? ' ghost' : ''}${seat.alive ? '' : ' dead'}${koIds.includes(seat.id) ? ' ko' : ''}${seat.id === duosMate ? ' mate' : ''}`}
+              {...(seat.id === duosMate ? { 'aria-label': `${seat.label}, your teammate. Click to watch their board.` } : {})}
               // Hover scouting works on EVERY seat, yours included (owner ask 2026-09-24: "add the same mouseover
               // for self as we have for enemies"). Pinning stays opponent-only; the owner asked for the hover.
               onMouseEnter={(e) => openScout(e, seat.id)}
               onMouseLeave={() => setHovered((h) => (h?.id === seat.id ? null : h))}
               // Left OR right click pins the card (and clicking a different seat switches to it) — owner ask 2026-08-31.
-              onClick={isYou ? undefined : (e) => pinScout(e, seat.id)}
+              onClick={isYou ? undefined : seat.id === duosMate ? () => enterTeammateView() : (e) => pinScout(e, seat.id)}
               onContextMenu={isYou ? undefined : (e) => pinScout(e, seat.id)}
             >
               {(() => {

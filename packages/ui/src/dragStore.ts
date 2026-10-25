@@ -57,12 +57,16 @@ export interface DragSnapshot {
   touch: boolean;         // a touch/pen drag snaps to the finger (no weighted lag)
   /** The card under the hero-power / battlecry aim (the `targeted` highlight). Only crossings write it. */
   aimTargetUid: string | null;
+  /** VERSUS DUOS (R-DUOS-PASS-01): the drag is over the teammate's portrait: 'ok' (release passes it) or 'no' (refused,
+   *  `passReason` says why); null = not over it. */
+  passOver: 'ok' | 'no' | null;
+  passReason: string | null;
 }
 
 const INITIAL: DragSnapshot = {
   drag: null, overZone: null, decision: NO_DRAG_DECISION, castingSpell: false,
   snapping: false, magSlide: false, magTargetUid: null, sellTop: 0, buyTop: 0, handSlotW: 0, touch: false,
-  aimTargetUid: null,
+  aimTargetUid: null, passOver: null, passReason: null,
 };
 
 let snap: DragSnapshot = INITIAL;

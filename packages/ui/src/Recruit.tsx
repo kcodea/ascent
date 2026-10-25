@@ -1,6 +1,6 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
 import { catchPulse, mateDoor, playDrop } from './versus/passLob';
-import { duosPassRefusal, inRect, myCardBack, notePassRefused } from './versus/duosPassUi';
+import { duosPassRefusal, myCardBack, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
 import { DuosTagInPlate, useDuosCombatSync } from './versus/duosCombat';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
@@ -4656,7 +4656,7 @@ export function Recruit() {
       const zone = inSellRegion(e.clientY) ? 'tavern' : inBuyRegion(e.clientY) ? 'hand' : zoneAtCached(e.clientX, e.clientY);
       // VERSUS DUOS: over the teammate's portrait? (the cached rect; the pass's refusal reason when it would be refused)
       if (d0 && duosMateRectRef.current) {
-        const over = inRect(duosMateRectRef.current, e.clientX, e.clientY);
+        const over = overMateFrame(duosMateRectRef.current, e.clientX, e.clientY);
         const why = over ? duosPassRefusal(useGame.getState().run, d0.uid) : null;
         const passOver = over ? (why ? 'no' : 'ok') : null;
         const snapNow = dragStore.get();
@@ -4733,10 +4733,12 @@ export function Recruit() {
       // drop's dispatch (same tick, or the magnetic-merge slide ~260 ms later) takes it; a drop that
       // dispatches nothing just leaves it to go stale (takeDragTrace discards it).
       endDragTrace(e.clientX, e.clientY);
-      // VERSUS DUOS (R-DUOS-PASS-01): released over the teammate's bottom-right portrait: pass it (1 Gold, the drop),
-      // or refuse with the reason and spring back. Ahead of every other drop region.
+      // VERSUS DUOS (R-DUOS-PASS-01/03): RELEASED over the teammate's bottom-right portrait frame (the disc itself, a
+      // real pointerup; never a hover, a near miss or a cancelled touch): pass it (1 Gold, the drop), or refuse with
+      // the reason and spring back. Ahead of every other drop region. Anywhere else the drag resolves as usual.
       const mateRect = duosMateRectRef.current;
-      if (mateRect && inRect(mateRect, e.clientX, e.clientY)) {
+      dragStore.set({ passOver: null, passReason: null });
+      if (mateRect && passOnRelease(mateRect, e)) {
         dragStore.set({ passOver: null, passReason: null });
         document.body.classList.remove('dragging');
         hideDragCursorVeil();

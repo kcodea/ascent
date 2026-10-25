@@ -8712,6 +8712,57 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusTestBots.db.test.ts', 'packages/ui/src/versus/duosDevTuner.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-PASS-02',
+    title: 'Versus Duos: a passed card grows as it flies from the teammate portrait into your hand',
+    statement:
+      'When a teammate\x27s pass lands in your hand, the card leaves their portrait (bottom right) at about the portrait\x27s size and grows '
+      + 'continuously the whole way, faster as it nears your hand, landing at full hand-card size in its slot; it turns face up along the way. '
+      + 'Its size never shrinks on the way. Transform and opacity only, one-shot.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'the pass animation is solid but can be improved, can you make the passed card get larger as it gets closer to hand?' },
+      { kind: 'code', ref: 'packages/ui/src/versus/passLob.ts (emergeFrames, emergeStartScale, playEmerge)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish).',
+    example: 'Bob passes Ann a Taunt: on Ann\x27s screen a small face-down card rises out of Bob\x27s portrait, swells as it arcs left, flips face up and lands full size in her hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-PASS-03',
+    title: 'Versus Duos: a pass happens only when the card is released over the teammate portrait frame',
+    statement:
+      'A hand or board card is passed only when the player RELEASES it (mouse button up, or the finger lifted) while the pointer is over the '
+      + 'teammate portrait\x27s visible frame, the round disc bottom right. Hovering over it only shows the glow (or the refusal); moving away and '
+      + 'releasing elsewhere, releasing near it or in the corners of its box, over the board or over the teammate\x27s rail row never passes: the '
+      + 'drag resolves as it would anywhere else. A cancelled touch never passes.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'Passing a minion or spell should require the player to release it over their teammates frame' },
+      { kind: 'code', ref: 'packages/ui/src/versus/duosPassUi.ts (overMateFrame, passOnRelease); packages/ui/src/Recruit.tsx (the drag hover and the pointerup pass path)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish). Before: the hit area was the square box around the disc and a pointercancel over it could pass.',
+    example: 'Ann drags a minion over Bob\x27s portrait (it glows), changes her mind and lets go over the board: the minion is played, nothing is passed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-VIEW-02',
+    title: 'Versus Duos: the teammate portrait stays bottom right during combat',
+    statement:
+      'The teammate portrait in the bottom right (its name pill and cap) stays on screen through the combat as well as the shop, in the same spot. '
+      + 'In combat it is a face only: the fight is the team\x27s and passing is shop-only, so it takes no click and shows no pass glow or note.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'also keep the teammate portrait in the bottom right during combat too' },
+      { kind: 'code', ref: 'packages/ui/src/versus/VersusHud.tsx (mounts DuosMateDock in recruit and combat); packages/ui/src/versus/DuosMateDock.tsx (inCombat)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish).',
+    example: 'Ann ends her turn; while the team fight plays, Bob\x27s portrait is still at the bottom right with his name under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-DUOS-VIEW-01',
     title: 'Versus Duos: watch your teammate full screen, live, and it must never look like your own board',
     statement:

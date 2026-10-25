@@ -758,7 +758,11 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
    combat opponent's (`.combatopp-portrait`), sized up. PASS STATES: 'ok' = the teal glow breathes (a STATIC shadow on
    its own layer; only its opacity animates, the kwglow pattern), 'no' = a static red ring and the reason. */
 .duosdock { position: fixed; z-index: 41; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: calc(8 * var(--u));
-  right: calc(var(--bar-x) + 60px * var(--scale)); bottom: calc(var(--bar-y) + 92px * var(--scale)); }
+  right: calc(var(--bar-x) + 60px * var(--scale));
+  /* Always clear of the corner buttons (Rules, Compendium, Settings: 40u tall, 16px off the window edge). They live
+     outside the scaled stage, so on a phone (a small stage scale) they are large next to it and covered the name
+     pill: the clearance is converted into stage units (/ --stage-s). */
+  bottom: max(calc(var(--bar-y) + 92px * var(--scale)), calc((16px + 40 * var(--u) + 12px) / var(--stage-s, 1))); }
 /* While watching, MY portrait sits above the team frame (z70) so the way back reads clearly; under the plate (z80). */
 .duosdock.self { z-index: 75; }
 .duosdock-hold { position: relative; pointer-events: auto; border-radius: 50%; cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
@@ -788,9 +792,6 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 /* The rail row stays a second way in to the teammate view (a click), not a pass target. */
 .lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
-/* A passed card's slot while its face-down card is still on its way out of the teammate portrait (passLob.playArrival). */
-.row.hand .card.passincoming { opacity: 0; }
-
 /* VERSUS DUOS: who fights first this round (DuosOrderPlate), a plate under the rail's header. Static and display only
    (R-DUOS-ORDER-01: the order is a seeded 50/50, never a player choice): no pointer events, so no hover look and no
    cursor swap. */
@@ -818,3 +819,5 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 .duostuner-check { flex: 1 0 100%; display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; }
 .duostuner-num { width: 56px; }
 .duostuner-select { flex: 1 0 100%; font-size: 12px; padding: 4px; }
+/* IN COMBAT the teammate portrait stays as a face only (owner 2026-10-25): no click, no pass target. */
+.duosdock.combat .duosdock-hold { pointer-events: none; }

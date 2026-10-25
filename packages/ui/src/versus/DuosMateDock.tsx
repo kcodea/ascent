@@ -22,7 +22,7 @@ import { useDuosPassNote } from './duosPassUi';
 import { enterTeammateView, exitTeammateView } from './teammateView';
 import { useVersus } from './versusStore';
 
-export const DuosMateDock = memo(function DuosMateDock({ watching }: { watching: boolean }): JSX.Element | null {
+export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = false }: { watching: boolean; inCombat?: boolean }): JSX.Element | null {
   // Whose face: my teammate on my board, me while I watch them. One primitive key, so the dock only re-renders when
   // the face, its name or its cosmetics change.
   const key = useVersus((s) => {
@@ -43,8 +43,8 @@ export const DuosMateDock = memo(function DuosMateDock({ watching }: { watching:
     return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
   });
   const showOppSkins = useGame((s) => s.showOpponentSkins);
-  const passOver = useDragSlice((st) => (watching ? null : st.passOver), Object.is);
-  const passReason = useDragSlice((st) => (watching ? null : st.passReason), Object.is);
+  const passOver = useDragSlice((st) => (watching || inCombat ? null : st.passOver), Object.is);
+  const passReason = useDragSlice((st) => (watching || inCombat ? null : st.passReason), Object.is);
   const note = useDuosPassNote((st) => (watching || !st.text ? null : `${st.n}|${st.text}`));
   const face = useMemo(() => {
     if (!key) return null;
@@ -54,10 +54,17 @@ export const DuosMateDock = memo(function DuosMateDock({ watching }: { watching:
   }, [key, watching, showOppSkins]);
   if (!face) return null;
   const refusal = passOver === 'no' ? passReason : null;
-  const shownNote = refusal ?? (note ? note.slice(note.indexOf('|') + 1) : null);
+  const shownNote = refusal ?? (note && !inCombat ? note.slice(note.indexOf('|') + 1) : null);
   return (
-    <div className={`duosdock${watching ? ' self' : ''}${away ? ' away' : ''}${passOver ? ` pass-${passOver}` : ''}`}>
+    <div className={`duosdock${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${passOver ? ` pass-${passOver}` : ''}`}>
       <span className="duosdock-cap hudpill-name">{watching ? 'Back to your board' : away ? 'Away' : 'Teammate'}</span>
+      {/* IN COMBAT (owner 2026-10-25) the portrait stays but is only a face: the fight is the team's (both of you watch
+          the same one) and passing is shop-only, so it takes no click. */}
+      {inCombat ? (
+        <div className="duosdock-hold" data-duos-mate="" aria-label={`${face.name}, your teammate.`}>
+          <FoePortraitDisc art={face.art} gauntlet={false} frame={null} extraClass=" duosdock-disc" />
+        </div>
+      ) : (
       <div
         className="duosdock-hold"
         data-duos-mate=""
@@ -69,6 +76,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching }: { watching:
         <span className="duosdock-no" aria-hidden="true" />
         <FoePortraitDisc art={face.art} gauntlet={false} frame={null} extraClass=" duosdock-disc" />
       </div>
+      )}
       <span className="duosdock-name hudpill-name">{face.name}</span>
       {shownNote && <span key={shownNote + (note ?? '')} className="duosdock-note hudpill-name">{shownNote}</span>}
     </div>

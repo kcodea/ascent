@@ -229,7 +229,9 @@ export function VersusHud() {
     <>
       {held && !paused && <div className="vshold" aria-hidden="true" />}
       {match.group?.duos && !paused && phase === 'recruit' && <DuosOrderPlate />}
-      {match.group?.duos && !paused && phase === 'recruit' && <DuosMateDock watching={false} />}
+      {/* The teammate portrait stays bottom right in combat too (owner 2026-10-25: "also keep the teammate portrait in the
+          bottom right during combat too"); there it only shows who your teammate is (passing and watching are shop-only). */}
+      {match.group?.duos && !paused && (phase === 'recruit' || phase === 'combat') && <DuosMateDock watching={false} inCombat={phase === 'combat'} />}
       {paused && (
         <div className="vsveil" role="status" aria-live="polite" onContextMenuCapture={blockInspect}>
           {match.resume_at ? (

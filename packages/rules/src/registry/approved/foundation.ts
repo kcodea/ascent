@@ -8712,6 +8712,39 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusTestBots.db.test.ts', 'packages/ui/src/versus/duosDevTuner.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-DUOS-PASS-02',
+    title: 'Versus Duos: a passed card grows as it flies from the teammate portrait into your hand',
+    statement:
+      'When a teammate\x27s pass lands in your hand, the card leaves their portrait (bottom right) at about the portrait\x27s size and grows '
+      + 'continuously the whole way, faster as it nears your hand, landing at full hand-card size in its slot; it turns face up along the way. '
+      + 'Its size never shrinks on the way. Transform and opacity only, one-shot.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'the pass animation is solid but can be improved, can you make the passed card get larger as it gets closer to hand?' },
+      { kind: 'code', ref: 'packages/ui/src/versus/passLob.ts (emergeFrames, emergeStartScale, playEmerge)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish).',
+    example: 'Bob passes Ann a Taunt: on Ann\x27s screen a small face-down card rises out of Bob\x27s portrait, swells as it arcs left, flips face up and lands full size in her hand.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-VIEW-02',
+    title: 'Versus Duos: the teammate portrait stays bottom right during combat',
+    statement:
+      'The teammate portrait in the bottom right (its name pill and cap) stays on screen through the combat as well as the shop, in the same spot. '
+      + 'In combat it is a face only: the fight is the team\x27s and passing is shop-only, so it takes no click and shows no pass glow or note.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'also keep the teammate portrait in the bottom right during combat too' },
+      { kind: 'code', ref: 'packages/ui/src/versus/VersusHud.tsx (mounts DuosMateDock in recruit and combat); packages/ui/src/versus/DuosMateDock.tsx (inCombat)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish).',
+    example: 'Ann ends her turn; while the team fight plays, Bob\x27s portrait is still at the bottom right with his name under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-DUOS-VIEW-01',
     title: 'Versus Duos: watch your teammate full screen, live, and it must never look like your own board',
     statement:

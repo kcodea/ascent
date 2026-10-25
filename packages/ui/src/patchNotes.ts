@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Duos: a card your teammate passes you now grows as it flies from their portrait to your hand, and their portrait stays in the bottom right during fights.',
+        details: [
+          'The passed card leaves their portrait at the size of the portrait and keeps growing until it lands full size in your hand, turning face up on the way.',
+          'The portrait of your teammate stays bottom right while the fight plays, so you always see who you are fighting beside.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Versus Duos: who fights first on your team is now picked at random each round.',
         details: [
           'Each round it is a 50/50 for each team. Nobody can change it.',

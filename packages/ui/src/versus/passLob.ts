@@ -8,7 +8,9 @@
  *    over onto its BACK (your equipped card plate) and shrinking into the disc as it goes under. One of your coins
  *    follows it in from your Gold (the pass's 1 Gold). The portrait catches it with a short pop.
  *  - RECEIVING: the reverse, through the same door. A face-down card rises OUT of your teammate's portrait (bottom
- *    right on your screen), grows as it flies to its slot in your hand and turns face up as it lands.
+ *    right on your screen) at the portrait's size and GROWS the whole way as it nears your hand (owner 2026-10-25: "can
+ *    you make the passed card get larger as it gets closer to hand?"), turning face up on the way and landing at full
+ *    hand-card size (`emergeFrames`: the size follows how close it is, eased, never shrinking).
  * Not a coalesce (which collapses to a point in place): the card visibly travels between the two players' portraits.
  *
  * PERFORMANCE: imperative DOM + the Web Animations API, transform / opacity only, on one fixed layer created per pass
@@ -19,7 +21,7 @@ import { stageHost, toStage } from '../stage';
 /** The send: hop and sink into the portrait (ms). */
 export const DROP_MS = 440;
 /** The arrival: out of the portrait into the hand (ms). */
-export const EMERGE_MS = 580;
+export const EMERGE_MS = 640;
 /** How small the card gets inside the portrait disc. */
 const SUNK = 0.14;
 const SAMPLES = 14;
@@ -117,8 +119,35 @@ export function playDrop(opts: { from: Box; to: Box; face: HTMLElement | null; b
   a.oncancel = done;
 }
 
-/** RECEIVE: a face-down card (`back`) rises out of the portrait at `from` and flies into `to` (its hand slot), turning
- *  face up as it lands. */
+/** The arrival's size at its start: about the portrait disc's width (a card that fits inside it), never a speck. */
+export function emergeStartScale(discWidth: number, cardWidth: number): number {
+  if (!(discWidth > 0) || !(cardWidth > 0)) return 0.3;
+  return Math.max(0.18, Math.min(0.6, (discWidth * 0.55) / cardWidth));
+}
+
+/**
+ * THE ARRIVAL'S PATH (pure, for the test and the animation). The card leaves the disc briskly (an ease-out on the
+ * position) and its SIZE follows how close it is to the hand: `start` at the portrait, eased up continuously (slow
+ * first, fastest in the last stretch) to exactly 1 in the slot. Size never shrinks on the way. `dx`/`dy`: from the slot
+ * to the portrait centre.
+ */
+export function emergeFrames(dx: number, dy: number, start: number, samples = SAMPLES): Keyframe[] {
+  const apex = Math.max(40, Math.min(120, Math.hypot(dx, dy) * 0.14));
+  const frames: Keyframe[] = [];
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const go = 1 - (1 - t) * (1 - t); // how far along the path (ease-out)
+    const grow = go * go * (3 - 2 * go) * 0.35 + go * go * 0.65; // smooth, back-weighted: larger as it gets closer
+    const x = dx * (1 - go);
+    const y = dy * (1 - go) - apex * Math.sin(go * Math.PI);
+    const sc = start + (1 - start) * grow;
+    frames.push({ transform: `translate(${x}px, ${y}px) rotate(${6 * Math.sin(go * Math.PI)}deg) scale(${sc})`, opacity: t < 0.12 ? t / 0.12 : 1, offset: t });
+  }
+  return frames;
+}
+
+/** RECEIVE: a face-down card (`back`) rises out of the portrait at `from` and flies into `to` (its hand slot), growing
+ *  from the portrait's size to full size as it nears the hand, turning face up along the way. */
 export function playEmerge(opts: { from: Box; to: Box; back: string; onLand?: () => void }): void {
   if (typeof document === 'undefined' || typeof Element === 'undefined' || !('animate' in Element.prototype)) { opts.onLand?.(); return; }
   const host = stageHost();
@@ -131,19 +160,10 @@ export function playEmerge(opts: { from: Box; to: Box; back: string; onLand?: ()
   const cx0 = from.left + from.width / 2, cy0 = from.top + from.height / 2;
   const cx1 = to.left + w / 2, cy1 = to.top + h / 2;
   const dx = cx0 - cx1, dy = cy0 - cy1;
-  const apex = Math.max(40, Math.min(120, Math.hypot(dx, dy) * 0.14));
-  const frames: Keyframe[] = [];
-  for (let i = 0; i <= SAMPLES; i++) {
-    const t = i / SAMPLES;
-    // Out of the disc fast (ease-out), arcing a little, landing in the slot.
-    const go = 1 - (1 - t) * (1 - t) * (1 - t);
-    const x = dx * (1 - go);
-    const y = dy * (1 - go) - apex * Math.sin(go * Math.PI);
-    const sc = SUNK + (1 - SUNK) * go;
-    frames.push({ transform: `translate(${x}px, ${y}px) rotate(${6 * Math.sin(go * Math.PI)}deg) scale(${sc})`, opacity: t < 0.14 ? t / 0.14 : 1, offset: t });
-  }
+  const frames = emergeFrames(dx, dy, emergeStartScale(from.width, w));
   const a = layer.animate(frames, { duration: EMERGE_MS, easing: 'linear', fill: 'forwards' });
-  flip.animate([{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(180deg)', offset: 0.55 }, { transform: 'rotateY(360deg)', offset: 0.92 }, { transform: 'rotateY(360deg)' }], { duration: EMERGE_MS, easing: 'ease-in-out', fill: 'forwards' });
+  // Face up along the way (it has grown past half size by then), settled before it lands.
+  flip.animate([{ transform: 'rotateY(180deg)' }, { transform: 'rotateY(180deg)', offset: 0.35 }, { transform: 'rotateY(360deg)', offset: 0.8 }, { transform: 'rotateY(360deg)' }], { duration: EMERGE_MS, easing: 'ease-in-out', fill: 'forwards' });
   const done = (): void => {
     layer.remove();
     opts.onLand?.();

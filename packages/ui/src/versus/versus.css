@@ -818,3 +818,5 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 .duostuner-check { flex: 1 0 100%; display: flex; gap: 6px; align-items: center; font-size: 12px; font-weight: 700; }
 .duostuner-num { width: 56px; }
 .duostuner-select { flex: 1 0 100%; font-size: 12px; padding: 4px; }
+/* IN COMBAT the teammate portrait stays as a face only (owner 2026-10-25): no click, no pass target. */
+.duosdock.combat .duosdock-hold { pointer-events: none; }

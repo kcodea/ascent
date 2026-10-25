@@ -1236,8 +1236,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   into their hand and lands face up. **Watching your teammate:** click their portrait (their rail row works too, or hold
   Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). A team-colour panel sweeps
   across from their side on the way in and back on the way out, the screens swapping behind it; while you watch, their hero is in the hero slot, a strong team-colour
-  frame rims the screen, your shop controls are greyed, the bottom-right portrait is YOURS (click it to go back), and the
-  "Watching <Name>" plate beside the clock has "Back to your board" (Esc and letting go of Tab work too). You come back
+  frame rims the screen, your shop controls are greyed, and the bottom-right portrait is YOURS (click or tap anywhere on it to go back; Esc and
+  letting go of Tab work too). There is no "Watching" plate or "Back to your board" button up top (owner 2026-10-25: the
+  view change and colour make it obvious). You come back
   on your own when the shop ends, the match pauses, or your clock has under 5 seconds.
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)

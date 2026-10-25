@@ -8768,12 +8768,12 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In Versus Duos a player can watch their teammate\x27s whole screen live (shop, hand, board, Gold, cursor, drags) by clicking the teammate\x27s '
       + 'portrait at the bottom right of the screen (the mirror of their own hero bottom left; the teammate\x27s rail row works too) or holding Tab. '
-      + 'While watching, the bottom-right portrait is the player\x27s OWN, and clicking it goes back to their board. The way in and out is a team-colour panel sweeping across the screen with the screens swapping behind it (one pre-made layer, transform only; the panel waits, covering, until the new screen has finished building, so nothing visible moves over a busy frame). While watching, the '
+      + 'While watching, the bottom-right portrait is the player\x27s OWN, and clicking or tapping anywhere on it (its cap, disc or name pill) goes back to their board; it is the one control the watch screen keeps live (the screen\x27s inert-controls rule must never out-rank it), and with no plate up top it is the only on-screen way back. The way in and out is a team-colour panel sweeping across the screen with the screens swapping behind it (one pre-made layer, transform only; the panel waits, covering, until the new screen has finished building, so nothing visible moves over a busy frame). While watching, the '
       + 'teammate\x27s hero is in the hero slot, a team-colour vignette rims the screen, the player\x27s own shop controls are greyed and take no '
-      + 'input, and a "Watching <Name>" plate offers "Back to your board" (Esc and letting go of Tab also return). The player\x27s own game is set '
+      + 'input; there is NO "Watching <Name>" plate and NO "Back to your board" button up top (the view change and colour say it), and the bottom-right portrait, Esc and letting go of Tab return. The player\x27s own game is set '
       + 'aside untouched and comes back exactly as it was; it returns on its own when the shop ends, the match pauses, or the player\x27s clock '
       + 'has under 5 seconds, so watching never holds the player\x27s turn up. The team frame is static and strong enough to read on the '
-      + 'purple stage (a solid team-colour band and glow at every edge), and the "Watching <Name>" plate sits beside the shop clock. On the '
+      + 'purple stage (a solid team-colour band and glow at every edge). On the '
       + 'rail, team rows stay together: the player\x27s row and their teammate\x27s are always next to each other, never split by hearts.',
     domain: 'foundation',
     status: 'approved',
@@ -8781,12 +8781,14 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'we need the viewing in real time for sure and it needs to be really high quality as a mechanic.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'We need full screen view for teammates, and there needs to be some animation/change somehow to distinguish viewing the teammates board vs yours' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (bottom-right portrait)', quote: 'i think we should have our teammate\x27s hero portrait in the bottom right area which is how we should pass and click their portrait to view their board, then our portrait is in the bottom right to click on to return to our board.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (the way back)', quote: 'Clicking your portrait should take you back to your board from viewing your teammates, just making that clear' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (no plates)', quote: 'You can remove the \x27watching xyz\x27 and \x27back to your board\x27 info up top because it\x27s pretty obvious from our view change/color etc' },
       { kind: 'owner-chat', ref: 'Lead ruling 2026-10-25 (owner can override)', quote: 'keep your teammate\x27s row pinned right next to yours on the rail (team rows grouped), not sorted by hearts' },
       { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx; packages/ui/src/versus/versusGroupView.ts (groupDuosRailRows); packages/ui/src/versus/teammateView.tsx; packages/ui/src/versus/spectate.ts (trackDuosMatch, watchTeammate, leaveTeammate, ownRunWhileWatching); packages/ui/src/versus/versusStore.ts (the 5 s return)' },
     ],
-    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2).',
+    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2). The top plate and its button were removed 2026-10-25 (fix/duos-remove-watching-plate). Same PR: the watch screen\x27s inert rule (`.app.viewing [role="button"]`) had out-ranked the portrait, so clicking it while watching did nothing; the whole portrait is now the live button (mouse, touch release, keyboard).',
     example: 'Ann holds Tab: the screen turns toward the rail and shows Bob\x27s shop as he rolls; she lets go and is back on her own board, her clock still running.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/teammateSweep.test.ts'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/teammateSweep.test.ts', 'packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-SLOTS-01',

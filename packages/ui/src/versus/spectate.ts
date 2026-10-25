@@ -62,7 +62,7 @@ export interface SpectateState {
   /** Each watched player's minimized shop overlays (`spectateTap.tapOverlay`); absent = an older player: all open. */
   overlay?: Partial<Record<VersusGroupSeat, WireOverlay>>;
   /** VERSUS DUOS (R-DUOS-VIEW-01): a PLAYER is watching their TEAMMATE's screen live ("View teammate"). The watch
-   *  screen is the same one the stands use; only its chrome differs (TeammateBar), and leaving it restores the
+   *  screen is the same one the stands use; only its chrome differs (TeammateFrame), and leaving it restores the
    *  player's own run exactly as it was, with no trip to the room. */
   teammate?: boolean;
 }

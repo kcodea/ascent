@@ -8,10 +8,11 @@
  *  - on your board it is your TEAMMATE: click it to watch their screen; drag a card onto it to pass the card. While a
  *    drag hovers it the disc glows teal (a STATIC shadow on its own layer whose opacity breathes, the `kwglow` pattern:
  *    no animated paint); a refused pass shows a red ring and the reason instead;
- *  - while you watch them it is YOU: click it to come back to your board.
+ *  - while you watch them it is YOU: click or tap anywhere on it (cap, disc or name) to come back to your board. With
+ *    no plate up top (owner 2026-10-25) it is the only on-screen way back (Esc and letting go of Tab work too).
  * A pass drops INTO this disc (`passLob.playDrop`), and a pass to you rises OUT of it (`playArrival`).
  */
-import { memo, useMemo } from 'react';
+import { memo, useMemo, type KeyboardEvent, type PointerEvent } from 'react';
 import { parseCosmeticSnapshot } from '@game/progression';
 import { FoePortraitDisc } from '../FoePortraitDisc';
 import { useDragSlice } from '../dragStore';
@@ -21,6 +22,10 @@ import { opponentSkins } from '../skins/skins';
 import { useDuosPassNote } from './duosPassUi';
 import { enterTeammateView, exitTeammateView } from './teammateView';
 import { useVersus } from './versusStore';
+
+/** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. */
+const TAP_CLICK_MS = 700;
+let lastTap = -Infinity;
 
 export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = false }: { watching: boolean; inCombat?: boolean }): JSX.Element | null {
   // Whose face: my teammate on my board, me while I watch them. One primitive key, so the dock only re-renders when
@@ -55,8 +60,23 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   if (!face) return null;
   const refusal = passOver === 'no' ? passReason : null;
   const shownNote = refusal ?? (note && !inCombat ? note.slice(note.indexOf('|') + 1) : null);
+  // WHILE WATCHING (owner 2026-10-25: "Clicking your portrait should take you back to your board from viewing your
+  // teammates"): with no plate up top this is the only on-screen way back, so the WHOLE portrait (cap, disc and name
+  // pill) is the button, and a tap answers on the finger's release (a touch drag layer can swallow the synthetic click);
+  // the click that follows a tap is ignored, so one tap is one swap.
+  const back = watching && !inCombat;
   return (
-    <div className={`duosdock${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${passOver ? ` pass-${passOver}` : ''}`}>
+    <div
+      className={`duosdock${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${passOver ? ` pass-${passOver}` : ''}`}
+      {...(back ? {
+        role: 'button',
+        tabIndex: 0,
+        'aria-label': 'Your portrait. Click to go back to your board.',
+        onPointerUp: (e: PointerEvent) => { if (e.pointerType !== 'mouse') { lastTap = performance.now(); exitTeammateView(); } },
+        onClick: () => { if (performance.now() - lastTap > TAP_CLICK_MS) exitTeammateView(); },
+        onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); exitTeammateView(); } },
+      } : {})}
+    >
       <span className="duosdock-cap hudpill-name">{watching ? 'Back to your board' : away ? 'Away' : 'Teammate'}</span>
       {/* IN COMBAT (owner 2026-10-25) the portrait stays but is only a face: the fight is the team's (both of you watch
           the same one) and passing is shop-only, so it takes no click. */}
@@ -64,13 +84,19 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
         <div className="duosdock-hold" data-duos-mate="" aria-label={`${face.name}, your teammate.`}>
           <FoePortraitDisc art={face.art} gauntlet={false} frame={null} extraClass=" duosdock-disc" />
         </div>
+      ) : back ? (
+      <div className="duosdock-hold" data-duos-mate="">
+        <span className="duosdock-glow" aria-hidden="true" />
+        <span className="duosdock-no" aria-hidden="true" />
+        <FoePortraitDisc art={face.art} gauntlet={false} frame={null} extraClass=" duosdock-disc" />
+      </div>
       ) : (
       <div
         className="duosdock-hold"
         data-duos-mate=""
         role="button"
-        aria-label={watching ? 'Your portrait. Click to go back to your board.' : `${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
-        onClick={() => (watching ? exitTeammateView() : enterTeammateView())}
+        aria-label={`${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
+        onClick={() => enterTeammateView()}
       >
         <span className="duosdock-glow" aria-hidden="true" />
         <span className="duosdock-no" aria-hidden="true" />

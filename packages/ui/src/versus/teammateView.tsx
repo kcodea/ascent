@@ -11,8 +11,9 @@
  *  - THE SWEEP (on the way in and out): a team-colour panel crosses the screen from my teammate's side and the other
  *    screen is there behind it (about 400 ms in all; one pre-made layer, transform only, one-shot Web Animations);
  *  - while watching: their hero, name and hearts in the hero slot (it is their screen), a calm team-colour vignette
- *    over the edges (a static layer that fades in), my shop controls visibly inert, and the "Watching <Name>" plate with
- *    "Back to your board" (the room's own plate buttons). Esc, Tab (when held to peek) or the button come back.
+ *    over the edges (a static layer that fades in), and my shop controls visibly inert. No plate or button up top (owner
+ *    2026-10-25: the view change and colour say it already). The bottom-right portrait (mine, while watching), Esc and
+ *    Tab (when held to peek) come back.
  * Watching never holds my game up: back to my board on its own when the shop ends, the match pauses, or my clock has
  * under 5 seconds (versusStore's tick, `TEAMMATE_VIEW_RETURN_MS`).
  */
@@ -135,22 +136,11 @@ export function useTeammateViewKeys(enabled: boolean): void {
   }, [enabled]);
 }
 
-/** The "Watching <Name>" plate and the way back (the room's plate buttons, top centre), plus the edge vignette. */
-export function TeammateBar(): JSX.Element | null {
+/** While watching: the static team-colour edge vignette. No "Watching <Name>" plate and no "Back to your board" button
+ *  (owner 2026-10-25: "pretty obvious from our view change/color"); the bottom-right portrait (my own, DuosMateDock),
+ *  Esc and letting go of Tab are the ways back. */
+export function TeammateFrame(): JSX.Element | null {
   const on = useSpectate((s) => s.teammate === true);
-  const name = useVersus((s) => {
-    const raw = s.match?.group?.raw;
-    const mate = s.match?.group?.duos?.mate;
-    return raw?.seats.find((x) => x.seat === mate)?.name ?? '';
-  });
   if (!on) return null;
-  return (
-    <>
-      <div className="duosview-vignette" aria-hidden="true" />
-      <div className="duosview-bar" role="status" aria-label={`Watching ${name}`}>
-        <span className="duosview-name hudpill-name">Watching {name}</span>
-        <button type="button" className="vsplate vsprimary duosview-back" onClick={exitTeammateView}>Back to your board</button>
-      </div>
-    </>
-  );
+  return <div className="duosview-vignette" aria-hidden="true" />;
 }

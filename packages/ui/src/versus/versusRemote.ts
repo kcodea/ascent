@@ -161,7 +161,19 @@ export interface VersusGroupMatchRaw {
   end_reason: 'hearts' | 'forfeit' | 'missed' | 'abandoned' | null;
   completed_at: string | null;
   serverNow?: string;
+  /** VERSUS DUOS (2026-10-25-versus-duos.sql): which seat of each team fights first this round (null in a group match). */
+  duos_first?: { a: VersusGroupSeat; b: VersusGroupSeat } | null;
   seats: VersusGroupSeatRow[];
+}
+
+/** VERSUS DUOS: one recorded pass (`versus_duos_passes`). */
+export interface VersusDuosPassRow {
+  match_id: string;
+  round: number;
+  from_seat: VersusGroupSeat;
+  to_seat: VersusGroupSeat;
+  seq: number;
+  card: Record<string, unknown>;
 }
 
 /** One fight of a committed group round (`versus_group_fights`). */
@@ -200,6 +212,8 @@ export interface VersusGroupView {
   /** Who caused the pause (the pause panel names them). */
   pausedName: string | null;
   pausedUser: string | null;
+  /** VERSUS DUOS (R-DUOS-01): my team, my teammate's seat and this round's fight order. Absent in a group match. */
+  duos?: { team: 'a' | 'b'; mate: VersusGroupSeat | null; first: { a: VersusGroupSeat; b: VersusGroupSeat } };
 }
 
 export interface VersusPrivate {
@@ -445,6 +459,26 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     if (error) fail(error);
     return (data as { seat: VersusGroupSeat; seq: number; round: number; frame: unknown }[]) ?? [];
   },
+  /** VERSUS DUOS: ask the resolver to settle a Duos round (`finalize_duos`, idempotent server-side). */
+  async finalizeDuos(matchId: string, round: number, contentRevision: string): Promise<void> {
+    const { error } = await db().functions.invoke('versus-resolve', {
+      body: { action: 'finalize_duos', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
+    });
+    if (error) throw new VersusError('finalize_failed', (error as Error).message);
+  },
+  /** VERSUS DUOS: flip which of my team's boards fights first this round (until my team locks). */
+  duosFlipOrder: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_duos_flip_order', { p_match: matchId }),
+  /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
+  duosPass: (matchId: string, round: number, seq: number, card: unknown) =>
+    rpc<VersusDuosPassRow>('versus_duos_pass', { p_match: matchId, p_round: round, p_seq: seq, p_card: card }),
+  /** VERSUS DUOS: my team's passes from `fromRound` on (RLS: only the two teammates read them). */
+  async duosPasses(matchId: string, fromRound: number): Promise<VersusDuosPassRow[]> {
+    // rows: at most 10 passes per seat per round, two seats, read from the current round (R-NET-01).
+    const { data, error } = await db().from('versus_duos_passes').select('match_id, round, from_seat, to_seat, seq, card')
+      .eq('match_id', matchId).gte('round', fromRound).order('seq').limit(200);
+    if (error) fail(error);
+    return (data as VersusDuosPassRow[]) ?? [];
+  },
   /** Ask the resolver to settle a group round (`finalize_group`, idempotent server-side). */
   async finalizeGroup(matchId: string, round: number, contentRevision: string): Promise<void> {
     const { error } = await db().functions.invoke('versus-resolve', {
@@ -466,7 +500,7 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
    * rounds (each just a wake-up), plus the match's BROADCAST events (spectator deltas, emotes). `onBroadcast`
    * receives `{ event, payload }`.
    */
-  subscribeRoom(roomId: string, matchId: string | null, onChange: (what: 'room' | 'members' | 'match' | 'rounds', row?: Record<string, unknown>) => void,
+  subscribeRoom(roomId: string, matchId: string | null, onChange: (what: 'room' | 'members' | 'match' | 'rounds' | 'passes', row?: Record<string, unknown>) => void,
     onBroadcast?: (event: string, payload: unknown) => void): { channel: RealtimeChannel; send: (event: string, payload: unknown) => void; close: () => void } {
     const c = db();
     let ch = c.channel(`versus:${roomId}`, { config: { broadcast: { self: false } } })
@@ -478,7 +512,9 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
         .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_group_matches', filter: `id=eq.${matchId}` }, () => onChange('match'))
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'));
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_group_rounds', filter: `match_id=eq.${matchId}` }, () => onChange('rounds'))
+        // VERSUS DUOS: a teammate's pass (RLS lets only the team see the row, so only the teammates wake).
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'versus_duos_passes', filter: `match_id=eq.${matchId}` }, (p: { new?: Record<string, unknown> }) => onChange('passes', p.new));
     }
     if (onBroadcast) ch = ch.on('broadcast', { event: '*' }, (msg: { event: string; payload: unknown }) => onBroadcast(msg.event, msg.payload));
     ch.subscribe();

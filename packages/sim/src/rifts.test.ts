@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { RIFTS, RIFT_BONUS_ARMOR, activeRift, maxTierFor, CONFIG, createRun, reduce, type RunState } from './index';
+import { RIFTS, RIFT_BONUS_ARMOR, activeRift, maxTierFor, riftBonusArmor, CONFIG, createRun, reduce, type RunState } from './index';
 import { pinSet1Era } from './testPin';
 
 // This suite predates set 2 going live (2026-07-31) and tests set-1-era content + the quest-era run loop —
@@ -168,6 +168,14 @@ describe('rifts are OPT-IN — only a rift-mode run adopts the active rift', () 
       expect(rift.maxArmor).toBe(ascent.maxArmor + (RIFT_BONUS_ARMOR.summit ?? 0));
       expect(maxTierFor(ascent.rift)).toBe(CONFIG.maxTier);
       expect(maxTierFor(rift.rift)).toBe(7);
+    });
+  });
+
+  it('a recorded Summit Rift run keeps its +10 Armor (only Versus drops it, R-VERSUS-SUMMIT-01)', () => {
+    withSummit(() => {
+      expect(createRun(1, 'warden', 'rift').armor).toBe(createRun(1, 'warden', 'ascent').armor + 10);
+      expect(riftBonusArmor('summit', 'rift')).toBe(10);
+      expect(riftBonusArmor('summit', 'versus')).toBe(0);
     });
   });
 

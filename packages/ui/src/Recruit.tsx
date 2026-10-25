@@ -49,7 +49,7 @@ if (import.meta.env.DEV) {
   (window as unknown as { __choreoEot?: boolean }).__choreoEot = CHOREO_EOT;
 }
 import { relatedCardIds, relatedPickOneIds } from './cardRefs';
-import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, RIFTS, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
+import { type Action, battlecryTargetAllowed, ancientEnchantedSpellCut, grimToastFold, unityAuraFold, EQUIPMENT_FX_ANCHOR, ancientRiseTint, spiritsPlayedThisTurn, anySpellsCastThisTurn, unusedEquipmentCount, playerOpponent, alignmentsOf, boardHasCelestial, chooseBothActive, chooseBothStateOf, type ChooseBothState, chooseOneNeedsChoice, computeCombatOdds, type CombatOdds, rubyCastCount, giftCastCount, rubyStatBonus, CONFIG, riftDefFor, type RiftDef, hasTier7Access, maxTierFor, conjuredStats, cardBuff, getHero, isTribe, defIsTribe, magnetizesTo, magnetizeTargets, endOfTurnRepeats, endOfTurnTicksOf, projectEndOfTurnSteps, questEndOfTurnBeats, sellValueWithBonus, spellDisplayText, chooseOneBranchText, spellAttackBonus, spellHealthBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, squirlScoutBuffLive, conductorBuffLive, spellCasts, runeExtraCasts, spellCostReduction, implosionCasts, dragonflameCasts, minionCostOf, heldOfferPrice, heroOfferPrice, offerBuyPrice, dominantBoardTribe, effectiveTargetTribe, boardManaBonus, upgradeCostOf, nextRefreshCostOf, poolOf, type RunState, type ShopCard, type CardBuff, type BoardCard, type BoardSnapshot, gildCopiesNeeded, activePowers, gateUses, runeStacksOf, starformSpellAimsToken, createOddsProbe, COMBAT_ODDS_SIMS, runLossCap, selectedEquipment, selectedEquipmentDef, runTallyFor } from '@game/sim';
 import { createPortal } from 'react-dom';
 import { setCardId, setCardStats, toggleCardKeyword, setEnemyStats, setEnemyCardId, toggleEnemyKeyword, toggleEnemyGolden, removeEnemy, foeSnapshotOf } from './sandboxEdit';
 import { UnitEditor } from './UnitEditor';
@@ -8408,7 +8408,7 @@ export function Recruit() {
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
         refreshCost={(eotRes?.freeRefresh ?? 0) > 0 ? 0 : nextRefreshCostOf(run)} freeRolls={run.freeRolls + (eotRes?.freeRefresh ?? 0)} tier={run.tier} maxTier={maxTierFor(run.rift)}
         upgradeCost={Math.max(0, upgradeCostOf(run) + (eotRes?.upgradeCost ?? 0))}
-        nextTurnGold={nextTurnGold + (eotRes?.nextTurnGold ?? 0)} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift}
+        nextTurnGold={nextTurnGold + (eotRes?.nextTurnGold ?? 0)} afterNextGold={afterNextGold} wave={run.wave} rift={run.rift ? riftDefFor(run.rift, run.mode) : null}
         combatRoundNo={combatRound(run.lobby, run.wave)}
         onSummary={openSummary} onEndTurn={endTurnStable} onEndCombat={endCombat} onFreeze={onFreeze} onRefresh={onRefresh} onUpgrade={onUpgrade} onSkip={skipCombat}
       />
@@ -8760,7 +8760,7 @@ const ShopControls = memo(function ShopControls({
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
   refreshCost: number; freeRolls: RunState['freeRolls']; tier: number; maxTier: number; upgradeCost: number;
-  nextTurnGold: number; afterNextGold: number; wave: number; rift: RunState['rift']; combatRoundNo: number | null;
+  nextTurnGold: number; afterNextGold: number; wave: number; rift: RiftDef | null; combatRoundNo: number | null;
   onSummary: () => void; onEndTurn: () => void; onEndCombat: () => void; onFreeze: () => void;
   onRefresh: () => void; onUpgrade: () => void; onSkip: () => void;
 }) {
@@ -8825,8 +8825,8 @@ const ShopControls = memo(function ShopControls({
       {/* RIFT — the purple swirling plaque directly above the diamond, mounted only while this run has a
           pinned rift and only in the SHOP phase (in combat that slot belongs to the Summary pill). Reads
           the run's pinned rift, never the live registry, so a replayed run still shows the rift it was played under. */}
-      {!inCombat && rift && RIFTS[rift] && (
-        <RiftButton rift={RIFTS[rift]} />
+      {!inCombat && rift && (
+        <RiftButton rift={rift} />
       )}
       {/* A LOSS normally holds End Combat until the loss-damage blast has landed (`lossPhase === 'done'`).
           In a sandbox REPLAY that sequence never runs at all — it early-returns on `run.combatSettled`,

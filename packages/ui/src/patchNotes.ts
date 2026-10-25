@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-25',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Versus: the Summit modifier now only unlocks Tier 7. It no longer adds Armor.',
+      },
+    ],
+  },
+  {
     date: '2026-10-24',
     changes: [
       {

@@ -6,7 +6,7 @@ import type { HeroReroll } from './heroReroll';
 import { makeRng } from '@game/core';
 import type { BoardMinion, BounceKind, CombatConfig, CombatOutcome, CombatResult, CombatSideState, EffectDef, Keyword, QuestObjectiveEvent, Rng, RubyRider, Tribe } from '@game/core';
 import { ARCHIVED_RUNES, CARD_INDEX, EPIC_RUNES, LEGACY_CARD_IDS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
-import { CONFIG, HENCHMEN_ARCHIVED, RIFT_BONUS_ARMOR, activeRift, type RiftId } from './config';
+import { CONFIG, HENCHMEN_ARCHIVED, activeRift, riftBonusArmor, type RiftId } from './config';
 import { DEFAULT_HERO_ID, getHero, powerDiscoverPool, type PowerLatch } from './heroes';
 import { generateQuestOffer, questOfferPlan } from './quests';
 import { queueDiscover } from './recruit';
@@ -3120,7 +3120,7 @@ export function createRun(seed: number, heroId: string = DEFAULT_HERO_ID, mode: 
   // (or Practice) climb is unmodified. Still pinned at creation, so a saved/replayed rift run keeps its
   // rules after the global switch flips off.
   const pinnedRift = mode === 'rift' ? (activeRift()?.id ?? null) : null;
-  const riftArmor = RIFT_BONUS_ARMOR[pinnedRift as RiftId] ?? 0; // Summit: +10 to every hero
+  const riftArmor = riftBonusArmor(pinnedRift as RiftId | null, mode); // Summit: +10 to every hero (never in Versus)
   const state: RunState = {
     seed,
     mode,

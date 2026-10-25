@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RIFTS, CONFIG, isCalibrationRound, runLossCap, runRecord } from '@game/sim';
+import { riftDefFor, CONFIG, isCalibrationRound, runLossCap, runRecord } from '@game/sim';
 import { recordText } from './leaderboardData';
 import { RiftPill } from './RiftPill';
 import { Icon } from './Icon';
@@ -18,7 +18,7 @@ export const HudBar = memo(function HudBar() {
   const practice = run.mode === 'practice';
   const calibration = isCalibrationRound(run.wave);
   // The limited-time rift this run is pinned under (see RIFTS) — telegraphed under the round plaque.
-  const rift = run.rift ? RIFTS[run.rift] : null;
+  const rift = run.rift ? riftDefFor(run.rift, run.mode) : null; // Versus shows its own Summit text (no Armor)
   return (
     <div className="bar">
       {/* The round/record plaque is REDUNDANT with the lobby rail (which shows the round + seats left), so it

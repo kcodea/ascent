@@ -8310,6 +8310,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {
+    id: 'R-VERSUS-SUMMIT-01',
+    title: 'Summit in Versus only unlocks Tier 7; it adds no Armor',
+    statement:
+      'A Versus room with the Summit modifier (1v1 or the 3-4 player group) raises every seat\x27s shop ceiling to Tier 7 and '
+      + 'gives Tier 7 access for every Tier 7 effect, but grants NO bonus Armor: each seat starts on its hero\x27s own Armor. '
+      + 'The modifier text in Versus reads "The shop unlocks Tier 7." and never promises Armor. Outside Versus nothing changes: a '
+      + 'Summit Rift run keeps its +10 Armor, so a recorded Summit run replays exactly as it was played.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'summit rift shouldnt add armor in versus, just have it unlock tier 7.' },
+      { kind: 'code', ref: 'packages/sim/src/config.ts (riftBonusArmor, riftDefFor); packages/sim/src/versus/run.ts createVersusRun; packages/ui/src/versus/versusOptionsUi.tsx; packages/ui/src/HudBar.tsx; packages/ui/src/Recruit.tsx (RiftButton)' },
+    ],
+    currentBehaviour: 'Since 2026-10-25 (fix/versus-summit-no-armor). Before, a Versus Summit seat started with +10 Armor (cosmetic: Versus fights land with no Resolve or Armor damage).',
+    example: 'A host picks Summit for a 1v1. Both players start on their heroes\x27 own Armor, and either can tavern up from Tier 6 to Tier 7.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/rifts.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-PROG-VERSUS-XP-01',
     title: 'Versus pays half the Ranked XP of the lobby result holding the same share of the table',
     statement:

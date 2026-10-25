@@ -12,8 +12,8 @@
 import { getTitleText } from './titleTextConfig';
 import { FadeImg } from './FadeImg';
 
-// The brand mark (owner art, `Reference Art/Ascent Logo Fantasy.svg` — a raster logo, extracted to
-// `frames/title-logo.png`). Public-folder art carries BASE_URL: itch serves from a CDN sub-path, so a
+// The brand mark (owner art, `Reference Art/Ascent Logo.png`, refreshed 2026-10-25; the same file is the
+// boot splash `ascenticon.png`). Public-folder art carries BASE_URL: itch serves from a CDN sub-path, so a
 // root-absolute '/frames/…' 404s there.
 export const TITLE_LOGO_SRC = `${import.meta.env.BASE_URL}frames/title-logo.png`;
 

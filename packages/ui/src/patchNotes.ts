@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-25',
     changes: [
+      { category: 'Systems', text: 'A refreshed ASCENT logo on the loading screen, title screen and hero select.' },
       {
         category: 'Systems',
         text: 'Versus Duos: who fights first on your team is now picked at random each round.',

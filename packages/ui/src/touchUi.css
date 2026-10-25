@@ -76,7 +76,7 @@ html[data-touch-ui] .lbpage, html[data-touch-ui] .modepick.sb-host { --sb-w: cal
 html[data-touch-ui] .msb {
   zoom: var(--touch-sb); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
   width: calc((var(--sb-w) + var(--safe-l)) / var(--touch-sb));
-  padding: calc(20px + var(--safe-t) / var(--touch-sb)) 16px calc(22px + var(--safe-b) / var(--touch-sb)) calc(16px + var(--safe-l) / var(--touch-sb));
+  padding: calc(20px + var(--safe-t) / var(--touch-sb)) 16px calc(22px + var(--pz-safe-b, var(--safe-b)) / var(--touch-sb)) calc(16px + var(--safe-l) / var(--touch-sb));
 }
 html[data-touch-ui] .lbpage > :not(.msb):not(.mbd) { zoom: var(--touch-p); }
 html[data-touch-ui] .lbpage .lbscroll { overflow-y: auto; }
@@ -93,7 +93,7 @@ html[data-touch-ui][data-touch-small] .mpview.mp-home { --hs-zoom: calc(var(--sc
    sidebar it centres in the space right of it instead. */
 html[data-touch-ui] .mpview.mp-home { padding-left: calc(var(--sb-w) + var(--safe-l)); }
 /* The bigger corner buttons sit over the bottom-right of these pages: their content keeps clear of that strip. */
-html[data-touch-ui] .modepick.sb-host:not(.mp-shell), html[data-touch-ui] .mpview { padding-bottom: calc(var(--touch-cb) + 40px + var(--safe-b)); }
+html[data-touch-ui] .modepick.sb-host:not(.mp-shell), html[data-touch-ui] .mpview { padding-bottom: calc(var(--touch-cb) + 40px + var(--pz-safe-b, var(--safe-b))); }
 html[data-touch-ui]:not([data-touch-small]) .mpview.mp-home { --hs-zoom: calc(var(--scale, 0.745) / 0.745); }
 /* Recent Games' placement sparkline takes its own full-width row instead of a sliver beside the stats. */
 html[data-touch-ui] .rg-summary { grid-template-columns: auto minmax(0, 1fr); row-gap: 14px; }
@@ -220,7 +220,7 @@ html[data-touch-ui][data-phone-gpu] .wipevista-dive-title { z-index: 1; }
 html[data-touch-ui][data-phone-zoom] {
   --gw: 1920px; --gh: 1080px; --bar-x: var(--pz-bx); --bar-y: var(--pz-by);
   --pz-sx: calc(var(--pz-bx) - (var(--lvw, 100vw) - 1920px) / 2); --pz-sy: calc(var(--pz-by) - (var(--lvh, 100dvh) - 1080px) / 2);
-  --edge-l: var(--safe-l); --edge-r: var(--safe-r); --edge-t: var(--safe-t); --edge-b: var(--safe-b);
+  --edge-l: var(--safe-l); --edge-r: var(--safe-r); --edge-t: var(--safe-t); --edge-b: var(--pz-safe-b, var(--safe-b));
 }
 html[data-touch-ui][data-phone-zoom] .app { left: var(--pz-sx); top: var(--pz-sy); }
 html[data-touch-ui][data-phone-zoom] :is(.boardbg, .statusbar) { --board-x: calc(var(--pz-sx) / var(--scale)); --board-y: calc(5px + var(--pz-sy) / var(--scale)); }
@@ -230,6 +230,10 @@ html[data-touch-ui][data-phone-zoom] :is(.combatopp, .heropowerbtn.opp-power, .h
 html[data-touch-ui][data-phone-zoom] { --pz-bxr: calc(var(--lvw, 100vw) - var(--pz-bx) - 1920px); --pz-byb: calc(var(--lvh, 100dvh) - var(--pz-by) - 1080px); }
 html[data-touch-ui][data-phone-zoom] .goldpill { --bar-x: var(--pz-bxr); --bar-y: var(--pz-byb); }
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --bar-x: var(--pz-bxr); }
+/* ONE PHONE, ONE GAME (owner 2026-10-24, R-PHONE-PARITY-01: "Pixel and iPhone should be 1:1 experience"): the bottom-edge
+   pieces (the hand's resting line, the corner buttons, anything on `--edge-b`) sit on `--pz-safe-b`, the gesture strip at
+   the same share of the screen on every phone (stage.ts `phoneBottomStrip`), never on the raw bottom inset each browser
+   reports differently; their offsets are layout px (they scale with the game), not screen px. */
 /* PIECES WITH NO HOUSING, placed where they fit tidily inside the zoomed view:
    - the lobby rail: the right margin between End Turn / Refresh and the box edge, its header on top;
    - a LEFT COLUMN beside the board frame: the rail's Guides tab, then help / Compendium / Settings (slightly smaller);
@@ -237,12 +241,14 @@ html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailt
 /* The lobby rail at the right, vertically centred in the shop view like desktop (below Refresh, right of End Turn), its
    Guides tab attached on its RIGHT side (owner 2026-10-24). */
 html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead, .lobbyrailtab) { --lby-top: 214px; --lby-y: 0; --lby-scale: 0.72; }
-html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: max(-110px, calc(56px + var(--edge-r) - var(--bar-x))); --lr-w: 222px; }
-html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(max(-110px, calc(56px + var(--edge-r) - var(--bar-x))) - 4px); top: 368px; scale: -1 1; }
+/* …at the SAME distance from the right safe edge on every phone (R-PHONE-PARITY-01: a clamp to the box's edge left it 95
+   layout px in on a Pixel, whose wider safe width leaves more room, and 56 on an iPhone). */
+html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: calc(56px + var(--edge-r) - var(--bar-x)); --lr-w: 222px; }
+html[data-touch-ui][data-phone-zoom] .lobbyrailtab { right: calc(56px + var(--edge-r) - var(--bar-x) - 4px); top: 368px; scale: -1 1; }
 html[data-touch-ui][data-phone-zoom] .lobbyrailtab > * { scale: -1 1; }
 html[data-touch-ui][data-phone-zoom] .app.staged .lobbyrailtab { transform: none; }
 /* help / Compendium / Settings: the BOTTOM-RIGHT corner like desktop (owner 2026-10-24), on the safe bottom and edge. */
-html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--safe-b) + 6px * var(--touch-inv-s)); }
+html[data-touch-ui][data-phone-zoom] :is(.gearbtn, .bookbtn, .rulesbtn) { --touch-cb: 66px; left: auto; top: auto; bottom: calc(var(--pz-safe-b, var(--safe-b)) + 15px); }
 html[data-touch-ui][data-phone-zoom] .gearbtn { right: calc(var(--pz-bxr) + 1920px - 1897px); }
 html[data-touch-ui][data-phone-zoom] .bookbtn { right: calc(var(--pz-bxr) + 1920px - 1823px); }
 html[data-touch-ui][data-phone-zoom] .rulesbtn { right: calc(var(--pz-bxr) + 1920px - 1749px); }
@@ -253,7 +259,7 @@ html[data-touch-ui][data-phone-zoom] .statusbar .hero .hpbox { translate: 0 -6.5
    running off the bottom edge on one clean line. A finger on a card (`.tt-press`, touchInput.ts) POPS it: straightened,
    lifted and scaled so the whole card, plate and text, is on screen above the rest of the fan; it drops back on
    release. Transform only (compositor), one short transition. Centred under the felt. */
-html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--safe-b) - 115px + 19px * var(--touch-inv-s)); left: calc(var(--pz-bx) + 1006px); }
+html[data-touch-ui][data-phone-zoom] .zone[data-zone='hand'] { --bar-y: calc(var(--pz-safe-b, var(--safe-b)) - 115px + 49px); left: calc(var(--pz-bx) + 1006px); }
 
 /* The hand's tribe labels hang below the box (a desktop window clips them at its bottom edge); on a zoomed phone they
    would sit under the home indicator, so they stay hidden as on desktop. The card's tribe is on its Inspect. */
@@ -343,7 +349,7 @@ html[data-touch-ui][data-phone-zoom] body.tt-handpress:not(.dragging) .app .zone
    the composition did, so they carry over as they were. Desktop never has `data-touch-ui`. ── */
 /* ── Settings (Esc): stays inside the safe area; its notes read at ~9 pt and its labels at ~10 pt, Mute is a real
    button. ─────────────────────────────────────────────────────────────────────────────────────────────────── */
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel { max-height: calc((var(--lvh, 100dvh) - 2 * var(--safe-y)) * 0.9 / var(--ui-zoom)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel { max-height: calc((var(--lvh, 100dvh) - 2 * max(var(--safe-t), var(--pz-safe-b, var(--safe-b)))) * 0.9 / var(--ui-zoom)); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escnote { font-size: 21px; line-height: 1.3; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel :is(.ebl, .evl, .escselect-value) { font-size: 23px; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .escpanel .escmute { font-size: 18px; padding: 10px 22px; min-height: 64px; }
@@ -364,8 +370,8 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .mp-practice .pos
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --touch-cb: calc(40 * var(--u) * var(--touch-k) * 1.6); }
 /* Scrolling pages stop above the home indicator: their scroller ends at the bottom inset (the backdrop and the sidebar
    are fixed, so they still reach the edge). */
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host { bottom: var(--safe-b); }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lbpage { padding-bottom: var(--safe-b); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .modepick.sb-host { bottom: var(--pz-safe-b, var(--safe-b)); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lbpage { padding-bottom: var(--pz-safe-b, var(--safe-b)); }
 /* Collection's body scrolls when its filters and grid outgrow the screen (they ran under the home indicator). */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .colls-body { overflow-y: auto; }
 /* Its category tabs break between words only ("Attack Animations" was splitting mid-word), a size smaller to fit. */
@@ -405,7 +411,7 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-nav { g
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --pm-z: 2.1; --pm-book: 1.7; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .pnpanel { zoom: var(--pm-z); width: min(820px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .bgrpanel { zoom: var(--pm-z); width: min(640px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { zoom: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--safe-b)) / var(--pm-book))); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { zoom: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b))) / var(--pm-book))); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lvend .vspanel { zoom: var(--pm-z); }
 /* Phone menus, round 2 of the critic. The Leaderboard's top-three podium at a third of its zoomed size, so the table (and
    its pinned "you" row) has room below it. */

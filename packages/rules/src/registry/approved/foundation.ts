@@ -7449,6 +7449,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {
+    id: 'R-PHONE-PARITY-01',
+    title: 'Every phone gets the same game at the same proportions',
+    statement:
+      'On any phone in landscape (the iPhone and the Pixel are the references) the game is shown at the same share of the '
+      + 'screen height: in a run the housed span is framed against the height above one shared bottom gesture strip, and '
+      + 'the menus and hero select fit the full height, so the board, minions, hero, hand, hand pop, Discover, Runeforge, '
+      + 'rail, End Turn, the menu sidebar, Settings and the Compendium are the same size relative to the screen on every '
+      + 'phone. The gesture strip (home indicator or gesture bar) is the same share of the screen on every phone, or the '
+      + 'reported inset when that is larger, whatever inset the browser reports: the housed art, the resting hand, the '
+      + 'pop\x27s foot, the corner buttons, the menu pages\x27 foot, Settings and the Compendium keep it clear. Side cut-outs '
+      + 'are still respected. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (phone parity)', quote: 'Pixel and iPhone should be 1:1 experience' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (fitStage `phone` flag, PHONE_GESTURE_FRAC, phoneBottomStrip, --pz-safe-b); packages/ui/src/touchInput.ts (popSafe); packages/ui/src/touchUi.css (--pz-safe-b)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-24 (fix/phone-parity). Before, the same game was ~6% smaller relative to the screen in a run, and ~12% smaller on the menus and in the Compendium, on an iPhone than on a Pixel, because the iPhone\x27s 21 pt home indicator inset was taken off the fit (twice on the menus) while a Pixel reports none.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
+  },
+  {
     id: 'R-TOUCH-KEYBOARD-01',
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:

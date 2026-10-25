@@ -58,6 +58,18 @@ export const PHONE_HOUSED_SPAN = { left: 55, top: 18, right: 1887, bottom: 1055 
 export const PHONE_SIDE_GAP = 20;
 /** The lowest housed piece (your Health / Armor plate under the hero ring, at its desktop seat): inside the safe area. */
 export const PHONE_ART_BOTTOM = 1028; // the Health plate's foot (1044, raised 20 onto the ring's rim on a phone) + a breath
+/**
+ * THE GESTURE STRIP every phone keeps clear at its bottom edge (owner 2026-10-24, R-PHONE-PARITY-01: "Pixel and iPhone
+ * should be 1:1 experience"), as a share of the screen height: the iPhone 15 Pro's home indicator inset (21 of 393 pt).
+ * The hand's resting line, the pop's foot and the corner buttons sit on top of it. A phone whose browser reports a
+ * bigger bottom inset keeps that instead; one that reports none (Chrome on a Pixel, whose gesture bar still sits there)
+ * keeps the same share as an iPhone, so the bottom-edge pieces sit at the same place on every phone.
+ */
+export const PHONE_GESTURE_FRAC = 21 / 393;
+/** Pure: the bottom strip a phone keeps clear, SCREEN px: the reported bottom inset or the shared share, the larger. */
+export function phoneBottomStrip(vh: number, insetBottom: number): number {
+  return Math.max(0, insetBottom, PHONE_GESTURE_FRAC * vh);
+}
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
   return phone && !off && inRun && w > h;
@@ -103,11 +115,17 @@ export const NO_INSETS: SafeInsets = { top: 0, right: 0, bottom: 0, left: 0 };
  * The insets come back in LAYOUT px (`safe`) for the stylesheet's `--safe-*` vars. Before this the stylesheet added raw
  * `env()` inside the scaled stage, where the transform shrank a 59 px island inset to about 21 px on screen.
  */
-export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W, zoom = 1): StageFit {
+export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS, designW: number = DESIGN_W, zoom = 1, phone = false): StageFit {
   const w = vw > 0 ? vw : designW;
   const h = vh > 0 ? vh : DESIGN_H;
   const ix = Math.max(0, insets.left, insets.right);
-  const iy = Math.max(0, insets.top, insets.bottom);
+  // ONE PHONE, ONE GAME (R-PHONE-PARITY-01): on a phone in landscape the bottom inset is the system's gesture strip (the
+  // iPhone's home indicator, Android's gesture bar), not a cut-out, so it never shrinks the plain fit (the menus, hero
+  // select). Each browser reports it differently (iOS 21 pt, Chrome on a Pixel 0), and counting it (twice: the fit is
+  // symmetric per axis) made the menus ~12% smaller, relative to the screen, on an iPhone than on a Pixel. The strip is
+  // still kept clear, by the same share of the screen on every phone, by the bottom-edge pieces themselves
+  // (`phoneBottomStrip`, `--pz-safe-b`); the run's zoom frames above it (below).
+  const iy = phone && w > h ? Math.max(0, insets.top) : Math.max(0, insets.top, insets.bottom);
   const aw = w - 2 * ix > 0 ? w - 2 * ix : w;
   const ah = h - 2 * iy > 0 ? h - 2 * iy : h;
   const s = Math.min(1, aw / designW, ah / DESIGN_H);
@@ -127,7 +145,11 @@ export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS,
     // between phases), so the span's top is always a breath above the foe's name plaque, the highest housed piece.
     const top = e.top;
     const spanH = PHONE_ART_BOTTOM - top;
-    const sz = Math.min(1, s * zoom, sw / spanW, (h - iT - iB) / spanH);
+    // The bottom bound: the safe bottom; on a phone (R-PHONE-PARITY-01) the shared gesture strip instead, the same share of
+    // the screen on every phone (an iPhone's 21 pt home indicator inset, the same share on a Pixel that reports none), so
+    // every phone shows the game at the same share of its height. (Framing an iPhone against its full height instead does
+    // not fit: its Dynamic Island insets leave the lobby rail no room right of Refresh, R-PHONE-ZOOM-01.)
+    const sz = Math.min(1, s * zoom, sw / spanW, (h - iT - (phone ? phoneBottomStrip(h, iB) : iB)) / spanH);
     const sf = { top: iT / sz, right: iR / sz, bottom: iB / sz, left: iL / sz };
     const barX = iL / sz + (sw / sz - (e.right - e.left)) / 2 - e.left;
     const barY = iT / sz - top; // top-pinned: any slack goes to the bottom (the hand, the hero cluster)
@@ -276,7 +298,8 @@ export function applyStage(): StageFit {
   // …and whether it is on the MENUS (title, mode pages) rather than hero select or a run: the in-game composition's
   // corner-button seats do not apply there (phoneLayout.css).
   document.documentElement.toggleAttribute('data-phone-menus', phoneLayout && menuZoom);
-  const next = fitStage(w, h, readSafeInsets(), phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom ? phoneZoomOf(PHONE_DIAG) : 1);
+  const insets = readSafeInsets();
+  const next = fitStage(w, h, insets, phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom ? phoneZoomOf(PHONE_DIAG) : 1, isPhone() && !phoneLayout);
   fit = next;
   const de = document.documentElement.style;
   // The SAFE AREA in layout px (R-TOUCH-SAFEAREA-01): the 16:9 box (`--gw` / `--gh`) and the edge-anchored HUD
@@ -293,6 +316,11 @@ export function applyStage(): StageFit {
     // keep their desktop proportions at the design height and scale by this to fit.
     de.setProperty('--pz-vfit', String(Math.min(1, next.lh / DESIGN_H)));
   } else { de.removeProperty('--pz-bx'); de.removeProperty('--pz-by'); de.removeProperty('--pz-vfit'); }
+  // THE GESTURE STRIP (R-PHONE-PARITY-01): on a phone in landscape, the bottom strip its bottom-edge pieces keep clear (the
+  // hand, the corner buttons, the menu pages' foot, the Compendium and Settings), in layout px: the same share of the
+  // screen on every phone, whatever bottom inset its browser reports. Never written off a phone (they fall back to --safe-b).
+  if (isPhone() && w > h && !phoneLayout) de.setProperty('--pz-safe-b', `${phoneBottomStrip(h, insets.bottom) / next.s}px`);
+  else de.removeProperty('--pz-safe-b');
   // A TABLET may play upright, letterboxed (owner 2026-10-18, R-TOUCH-ROTATE-01): the rotate prompt is phones only.
   document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
   const root = stageHost();

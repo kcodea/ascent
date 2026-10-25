@@ -2,10 +2,10 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_GESTURE_FRAC, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneBottomStrip, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
-import { POP_FOOT_GAP, POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry } from './touchInput';
+import { POP_FOOT_GAP, POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry, popSafe } from './touchInput';
 
 /**
  * THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01): a phone in landscape lays the game out in a 2:1 box and
@@ -112,6 +112,72 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
   });
 });
 
+/**
+ * ONE PHONE, ONE GAME (owner 2026-10-24, R-PHONE-PARITY-01: "Pixel and iPhone should be 1:1 experience"). The same game at
+ * the same share of the screen on every phone, whatever bottom inset its browser reports (iOS 21 pt for the home
+ * indicator, Chrome on a Pixel 0 for the same gesture strip).
+ */
+describe('R-PHONE-PARITY-01: Pixel and iPhone are one experience', () => {
+  const PHONES = [
+    { name: 'iPhone 15 Pro', w: 852, h: 393, ins: { top: 0, right: 59, bottom: 21, left: 59 } },
+    { name: 'Pixel 8', w: 915, h: 412, ins: { top: 0, right: 0, bottom: 0, left: 24 } },
+    { name: 'iPhone 15 Pro Max', w: 932, h: 430, ins: { top: 0, right: 59, bottom: 21, left: 59 } },
+    { name: 'iPhone 13 mini', w: 812, h: 375, ins: { top: 0, right: 50, bottom: 21, left: 50 } },
+    { name: 'Galaxy S23', w: 780, h: 360, ins: { top: 0, right: 0, bottom: 0, left: 30 } },
+  ] as const;
+  it('a run shows the game at the same share of the screen height on every phone (was 101% vs 107% of the box)', () => {
+    const shares = PHONES.filter((q) => q.h >= 393 || q.ins.bottom === 0).map((p) => { const f = fitStage(p.w, p.h, p.ins, DESIGN_W, 1.35, true); return (DESIGN_H * f.s) / p.h; });
+    for (const v of shares) expect(v).toBeCloseTo(shares[0], 6);
+  });
+  it('every housed piece stays on screen and clear of the side cut-outs, top-pinned, one framing', () => {
+    const e = PHONE_HOUSED_SPAN;
+    for (const p of PHONES) {
+      const f = fitStage(p.w, p.h, p.ins, DESIGN_W, 1.35, true);
+      const box = gameBoxOf(f);
+      expect(box.left + e.left * f.s).toBeGreaterThanOrEqual(p.ins.left - 1e-6);
+      expect(box.left + e.right * f.s).toBeLessThanOrEqual(p.w - p.ins.right + 1e-6);
+      expect(box.top + e.top * f.s).toBeCloseTo(p.ins.top, 6);
+      expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(p.h - phoneBottomStrip(p.h, p.ins.bottom) + 1e-6);
+    }
+  });
+  it('the menus and hero select (the plain fit) are the same share of the screen on every phone (was 12% apart)', () => {
+    const shares = PHONES.map((p) => fitStage(p.w, p.h, p.ins, DESIGN_W, 1, true).s / p.h);
+    for (const v of shares) expect(v).toBeCloseTo(shares[0], 9);
+  });
+  it('the bottom gesture strip is the same share of the screen on every phone, or the reported inset when larger', () => {
+    for (const p of PHONES) expect(phoneBottomStrip(p.h, p.ins.bottom)).toBeCloseTo(Math.max(p.ins.bottom, PHONE_GESTURE_FRAC * p.h), 9);
+    // the reference phones and every larger one: exactly the shared share (a smaller iPhone keeps its full 21 pt indicator)
+    for (const p of PHONES.filter((q) => q.h >= 393)) expect(phoneBottomStrip(p.h, p.ins.bottom) / p.h).toBeCloseTo(PHONE_GESTURE_FRAC, 9);
+    expect(phoneBottomStrip(393, 21)).toBeCloseTo(21, 9); // the iPhone keeps exactly its home indicator
+    expect(phoneBottomStrip(400, 60)).toBe(60);
+  });
+  it('the hand pop is one proportion on every phone: the same share of the height, its foot on the strip', () => {
+    const fracs = PHONES.filter((q) => q.h >= 393 || q.ins.bottom === 0).map((p) => {
+      const g = popGeometry({ width: 50, extentTop: -10, extentBottom: 110, k: 0.4, left: p.w / 2, top: p.h * 0.8, vw: p.w, vh: p.h, safe: popSafe(p.h, p.ins) });
+      const foot = p.h * 0.8 + 0.4 * g.ty + g.s * 110;
+      expect(p.h - foot).toBeCloseTo(phoneBottomStrip(p.h, p.ins.bottom) + POP_FOOT_GAP, 6);
+      return (g.s * 120) / p.h;
+    });
+    for (const v of fracs) expect(v).toBeCloseTo(fracs[0], 9);
+  });
+  it('the bottom-edge pieces ride the shared strip in layout px, never the raw inset or screen px', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    expect(css).toMatch(/\[data-phone-zoom\] \.zone\[data-zone='hand'\] \{ --bar-y: calc\(var\(--pz-safe-b, var\(--safe-b\)\) - 115px \+ 49px\);/);
+    expect(css).toMatch(/\[data-phone-zoom\] :is\(\.gearbtn, \.bookbtn, \.rulesbtn\) \{[^}]*bottom: calc\(var\(--pz-safe-b, var\(--safe-b\)\) \+ 15px\);/);
+    expect(css).toContain('--edge-b: var(--pz-safe-b, var(--safe-b));');
+    // the lobby rail: the same distance from the right safe edge on every phone (no clamp to the box edge)
+    expect(css).toContain("html[data-touch-ui][data-phone-zoom] :is(.lobbyrail, .lobbyrailhead) { --lr-right: calc(56px + var(--edge-r) - var(--bar-x));");
+    expect(css).not.toMatch(/data-phone-zoom\][^{]*lobbyrail[^{]*\{[^}]*max\(-110px/);
+    const zoomRules = css.split('\n').filter((l) => l.includes('[data-phone-zoom]'));
+    for (const l of zoomRules) expect(l).not.toMatch(/var\(--safe-b\)\s*[+-]/);
+  });
+  it('a desktop never takes the phone path: the same fit with or without the flag when there are no insets', () => {
+    for (const [w, h] of [[1920, 1080], [2560, 1080], [1366, 768]]) expect(fitStage(w, h, undefined, DESIGN_W, 1, false)).toEqual(fitStage(w, h));
+    const src = readFileSync(join(__dirname, 'stage.ts'), 'utf8');
+    expect(src).toMatch(/if \(isPhone\(\) && w > h && !phoneLayout\) de\.setProperty\('--pz-safe-b'/);
+  });
+});
+
 describe('the phone box', () => {
   it('is 2:1 at the desktop design height, so --scale keeps its meaning', () => {
     expect(PHONE_DESIGN_W).toBe(2160);
@@ -180,7 +246,7 @@ describe('the phone layout is written by stage.ts, never by a desktop', () => {
     expect(src).toMatch(/const phoneLayout = phoneLayoutApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.phonelayout\)/);
     expect(src).toMatch(/toggleAttribute\('data-phone-layout', phoneLayout\)/);
     expect(src).toMatch(/const phoneZoom = !phoneLayout && phoneZoomApplies\(isPhone\(\), w, h, !!PHONE_DIAG\.nophonezoom, inRun\)/);
-    expect(src).toMatch(/fitStage\(w, h, readSafeInsets\(\), phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1\)/);
+    expect(src).toMatch(/fitStage\(w, h, insets, phoneLayout \? PHONE_DESIGN_W : DESIGN_W, phoneZoom \? phoneZoomOf\(PHONE_DIAG\) : 1, isPhone\(\) && !phoneLayout\)/);
   });
   it('Discover shows full cards on a phone only', () => {
     expect(readFileSync(join(__dirname, 'Recruit.tsx'), 'utf8')).toMatch(/full=\{phoneLayoutOn\(\)\}/);

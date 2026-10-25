@@ -31,7 +31,7 @@
  * Nothing here runs for a mouse or a pen: every handler returns on `pointerType !== 'touch'`.
  */
 
-import { readSafeInsets } from './stage';
+import { phoneBottomStrip, readSafeInsets } from './stage';
 
 /** px a touch may travel and still count as a tap (screen px, a physical distance). Matches the drag threshold's
  *  intent: a finger wobbles more than a mouse. */
@@ -233,6 +233,11 @@ export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; t
   const k = p.k > 0 ? p.k : 1;
   return { s, tx: (cx - w / 2 - p.left) / k, ty: (top - s * p.extentTop - p.top) / k };
 }
+/** Pure: the safe area a pop fits in. Its foot clears the phone's gesture strip, the same share of the screen on every
+ *  phone (R-PHONE-PARITY-01), whatever bottom inset this browser reports, so the pop has one proportion everywhere. */
+export function popSafe(vh: number, safe: { top: number; right: number; bottom: number; left: number }): { top: number; right: number; bottom: number; left: number } {
+  return { ...safe, bottom: phoneBottomStrip(vh, safe.bottom) };
+}
 /** Reads a pressed hand card's geometry ONCE (on the press, never per frame) and writes its pop as CSS variables. */
 function writePop(el: HTMLElement): void {
   if (!document.documentElement.hasAttribute('data-phone-zoom')) return;
@@ -251,7 +256,7 @@ function writePop(el: HTMLElement): void {
   }
   const g = popGeometry({
     left: pr.left + (el.offsetLeft + op.clientLeft) * k, top: pr.top + (el.offsetTop + op.clientTop) * k, width: el.offsetWidth * k,
-    extentTop: top * k, extentBottom: bottom * k, k, vw: innerWidth, vh: innerHeight, safe: readSafeInsets(),
+    extentTop: top * k, extentBottom: bottom * k, k, vw: innerWidth, vh: innerHeight, safe: popSafe(innerHeight, readSafeInsets()),
   });
   el.style.setProperty('--pop-s', String(g.s));
   el.style.setProperty('--pop-tx', g.tx + 'px');

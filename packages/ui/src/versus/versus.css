@@ -317,21 +317,41 @@ body.vsroom-on .pixifx { z-index: 470; }
 .vsenter .vspcard-p4 { animation: vsinright 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) 0.36s both; }
 .vsenter .vsmcard-p3 > .vsmcard-in, .vsenter .vsmcard-p4 > .vsmcard-in { animation: vsinrightc 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.08) both; }
 
-/* ── ROOM OPTIONS (owner 2026-10-24, R-VERSUS-OPTIONS-01): the mode chip under the room's name (it opens the panel), the
-   panel on the Gem plate (Practice's own segmented pills inside), and the "options changed" notice. */
+/* ── ROOM OPTIONS (owner 2026-10-24, R-VERSUS-OPTIONS-01): the mode chip under the room's name (it opens the window),
+   the centered options window, and the "options changed" notice. */
 .vsroommode { pointer-events: auto; margin-top: calc(4 * var(--u)); padding: calc(2 * var(--u)) calc(12 * var(--u)); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); line-height: 1.2;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
-.vsoptions { position: absolute; z-index: 40; left: calc(var(--edge-l, 0px) + 24 * var(--u)); bottom: calc(var(--edge-b, 0px) + 84 * var(--u));
-  width: min(calc(560 * var(--u)), 92%); box-sizing: border-box; padding: calc(14 * var(--u)) calc(20 * var(--u)) calc(16 * var(--u));
-  display: flex; flex-direction: column; gap: calc(6 * var(--u));
-  border-radius: calc(14 * var(--u)); border: 2px solid transparent;
-  background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box;
-  box-shadow: var(--ui-bevel), inset 0 0 0 1px rgba(0, 0, 0, 0.5), 0 10px 26px -8px rgba(0, 0, 0, 0.8); }
-.vsoptions-head { display: flex; align-items: center; justify-content: space-between; }
-.vsoptions-title { font-family: var(--font-title), serif; font-weight: 800; font-size: calc(22 * var(--u)); color: #f7ecd2; text-shadow: 0 2px 0 rgba(40, 20, 6, 0.85); }
-.vsoptions-note { font-family: var(--font-ui); font-weight: 600; font-size: calc(13 * var(--u)); color: #b7ad9b; }
-.vsoptions .porow { grid-template-columns: calc(150 * var(--u)) 1fr; }
+/* THE OPTIONS WINDOW (owner 2026-10-25, R-VERSUS-OPTIONS-02): the Match details dialog (`.mdd-scrim` + `.mdd-panel`,
+   matchDetails.css) at a settings width, centered over the darkened room. Its open is the dialog's own one-shot
+   fade + rise (`fadein` / `mddin`); the close plays the same pair backwards (`.closing`), then the room unmounts it.
+   Transform/opacity only, nothing loops. */
+.mdd-panel.vsoptions { width: min(760px, calc(92 * var(--vw, 1vw))); gap: 16px; padding: 20px 24px 24px; }
+:root[data-lv~="w2200"]:not([data-lv~="h1200"]) .mdd-panel.vsoptions { width: min(760px, calc(70 * var(--vw, 1vw))); }
+html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(760px, calc(92 * var(--vw, 1vw) / var(--touch-p, 1)));
+  max-height: calc(90 * var(--vh, 1vh) / var(--touch-p, 1)); }
+.vsopt-scrim.closing { animation: vsoptout 0.14s ease-in both; pointer-events: none; }
+.vsopt-scrim.closing > .vsoptions { animation: vsoptpanelout 0.14s ease-in both; }
+@keyframes vsoptout { to { opacity: 0; } }
+@keyframes vsoptpanelout { to { opacity: 0; transform: translateY(8px) scale(0.985); } }
+.vsopt-lock { align-self: flex-start; padding: 6px 14px; border-radius: 999px; font-family: var(--font-ui); font-weight: 700; font-size: 15px;
+  color: #f0d089; background: rgba(196, 160, 92, 0.12); border: 1px solid rgba(196, 160, 92, 0.4); }
+.vsopt-sec { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid rgba(196, 160, 92, 0.16); }
+.vsopt-h { margin: 0; font-family: var(--font-ui); font-weight: 900; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.62); }
+.vsopt-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+/* One option: its name over one plain line. The picked one carries the gold edge and a lifted plate. */
+.vsopt-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-height: 84px; padding: 12px 14px; text-align: left;
+  font: inherit; color: #f4eee2; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.12); border-radius: 12px;
+  transition: border-color 0.12s, background-color 0.12s; }
+.vsopt-card:hover:not(:disabled):not(.on) { border-color: rgba(232, 200, 119, 0.55); background: rgba(255, 255, 255, 0.06); }
+.vsopt-card:focus-visible { outline: 2px solid #f0d089; outline-offset: 2px; }
+.vsopt-card.on { border-color: #e8c877; background: rgba(196, 160, 92, 0.18); box-shadow: inset 0 0 0 1px rgba(232, 200, 119, 0.35); }
+.vsopt-name { font-family: var(--font-ui); font-weight: 900; font-size: 19px; line-height: 1.15; color: #f4eee2; }
+.vsopt-card.on .vsopt-name { color: #ffd98a; }
+.vsopt-desc { font-family: var(--font-ui); font-weight: 600; font-size: 14px; line-height: 1.35; color: rgba(255, 255, 255, 0.68); }
+/* Read-only (not the host, or between-games lock): the picked option stays bright, the rest step back. */
+.vsopt-card:disabled { opacity: 1; }
+.vsopt-card:disabled:not(.on) { opacity: 0.5; }
 .vsrcard-mode { font-family: var(--font-ui); font-weight: 700; font-size: 12px; letter-spacing: 0.04em; color: var(--ui-title, #ffd98a); }
 .vsoptions-notice { position: absolute; z-index: 41; top: calc(var(--bar-y, 0px) + 140 * var(--u)); left: 50%; translate: -50% 0;
   padding: calc(8 * var(--u)) calc(18 * var(--u)); border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u));

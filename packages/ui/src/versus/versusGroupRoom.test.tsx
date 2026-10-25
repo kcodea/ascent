@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * THE GROUP ROOM AND ROOM OPTIONS on screen (owner 2026-10-24; R-VERSUS-GROUP-05, R-VERSUS-OPTIONS-01): a group room
- * shows four seats and starts with three; the host changes the options from the panel (Practice's pills) while the
+ * shows four seats and starts with three; the host changes the options from the centered window while the
  * room is Open, everyone else sees them read-only; the options ride the heading and the room browser; a change made by
  * the host shows everyone else the "options changed" notice.
  */
@@ -50,7 +50,6 @@ function enter(me: string, room: Room) {
   return mount(<VersusRoom />);
 }
 const press = (el: Element | null | undefined): void => { act(() => { el?.dispatchEvent(new MouseEvent('click', { bubbles: true })); }); };
-const pointer = (el: Element | null | undefined): void => { act(() => { el?.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true })); }); };
 
 describe('Versus Group rooms (R-VERSUS-GROUP-05)', () => {
   it('a group room has four seats; Start shows for the host with three seated (not with two)', () => {
@@ -80,11 +79,12 @@ describe('Room options (R-VERSUS-OPTIONS-01)', () => {
     try {
       expect(ui.container.querySelector('.vsroommode')?.textContent).toBe('3-4 players');
       press(ui.container.querySelector('.vsroommode'));
-      const panel = ui.container.querySelector('.vsoptions')!;
+      // The window is portalled to the stage (R-VERSUS-OPTIONS-02), so it is looked up on the document.
+      const panel = document.querySelector('.vsoptions')!;
       expect(panel).not.toBeNull();
-      const summit = [...panel.querySelectorAll('.poseg-btn')].find((b) => b.textContent === 'Summit')!;
+      const summit = [...panel.querySelectorAll('.vsopt-card')].find((b) => b.querySelector('.vsopt-name')?.textContent === 'Summit')!;
       expect((summit as HTMLButtonElement).disabled).toBe(false);
-      pointer(summit);
+      press(summit);
       await act(async () => { await Promise.resolve(); });
       expect(set).toHaveBeenCalledWith('r', { v: 1, mode: 'group', modifiers: ['summit'] });
       expect(ui.container.querySelector('.vsroommode')?.textContent).toBe('3-4 players · Summit');
@@ -96,10 +96,10 @@ describe('Room options (R-VERSUS-OPTIONS-01)', () => {
     const ui = enter('b', roomOf([member('host', 'p1'), member('b', 'spectator')]));
     try {
       press(ui.container.querySelector('.vsroommode'));
-      const buttons = [...ui.container.querySelectorAll('.vsoptions .poseg-btn')] as HTMLButtonElement[];
+      const buttons = [...document.querySelectorAll('.vsoptions .vsopt-card')] as HTMLButtonElement[];
       expect(buttons.length).toBeGreaterThan(0);
       expect(buttons.every((b) => b.disabled)).toBe(true);
-      pointer(buttons.find((b) => b.textContent === '1v1'));
+      press(buttons.find((b) => b.querySelector('.vsopt-name')?.textContent === '1v1'));
       expect(set).not.toHaveBeenCalled();
       act(() => { useVersus.setState({ room: roomOf([member('host', 'p1'), member('b', 'spectator')], { options: { v: 1, mode: 'duel', modifiers: ['freedom'] }, options_rev: 2 }) } as never); });
       expect(ui.container.querySelector('.vsoptions-notice')?.textContent).toBe('Room options changed: 1v1 · Freedom');

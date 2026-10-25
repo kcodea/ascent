@@ -1148,6 +1148,19 @@ and `run.test.ts` (~3.9k → per-area suites); extract `RECRUIT_FACTORIES` from
 
 The hardening gate before ASCENT faces a public (non-friend-scale) audience.
 
+- **Versus Shop turns are not server-checked (cheating gap, MUST FIX before go-live; owner 2026-10-25).**
+  `versus-resolve` only resolves fights: it takes each player's locked board on trust and never checks how the
+  Shop produced it. So Gold, buys, sells, rolls, level-ups, hero power and Duos card passes (1 Gold each,
+  charged by the sender's own client) can all be faked by a modified client, in 1v1, Group and Duos alike.
+  The server does enforce shop phase, the clock, the lock, teammate-only, exactly-once and a per-round cap on
+  passes, but not their Gold. Owner: "We will handle the cheating gap later, just note it in our pre-go live
+  notes somewhere that it needs fixing." **Fix:** each client sends its turn's action log with the board; the
+  server replays it deterministically from the match's pinned seed/state (the sim is deterministic) and
+  refuses a turn whose rebuilt board does not match, falling back to the player's last valid board. Covers
+  Gold, passes, shop odds and card effects in every Versus mode, and is the same idea as the C4 replay audit for
+  rated runs. Cost: medium-large (bundle the shop reducer into the Edge Function, per-round server CPU,
+  extend `versus:parity` to shop turns).
+
 - **Decide whether `main` should actually be protected.** It is not, and apparently never has been: no
   classic branch protection (the API 404s) and no rulesets — verified 2026-08-05, when a
   `gh pr merge --squash` went straight through with no review, against a CLAUDE.md line asserting that was

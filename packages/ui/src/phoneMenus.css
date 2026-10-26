@@ -220,7 +220,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-meter-
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bar { height: calc(4 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-level { min-width: 0; column-gap: calc(6 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-lvbadge { width: calc(28 * var(--pt)); height: calc(28 * var(--pt)); font-size: calc(12 * var(--pt)); }
-html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-lvbadge span { font-size: calc(7 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-lvbadge span { font-size: calc(8 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-level-xp { font-size: calc(10 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-wallet-gem.aether-icon { width: calc(14 * var(--pt)); height: calc(14 * var(--pt)); margin-right: calc(3 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-markall { font-size: calc(11 * var(--pt)); min-height: calc(32 * var(--pt)); }
@@ -428,3 +428,13 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay { 
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-art { height: calc(42 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-art .colls-bay-chest { width: calc(44 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-actions { justify-content: center; }
+/* Round 6. A podium card's numbers: MMR, then games played on the line under it (a narrow phone card cut them). */
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn,
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) { grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto auto auto; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-heroframe { grid-row: 1 / span 4; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn :is(.lb-who, > .lb-c-rating) { grid-column: 2; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-games { grid-column: 2; grid-row: 4; margin-left: 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-unit { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table > .lb-trow-btn .lb-unit { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankcrest-row { --ring: calc(18 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankbar-label { font-size: calc(10.5 * var(--pt)); letter-spacing: 0.03em; }

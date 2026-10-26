@@ -9286,4 +9286,96 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann leaves the game on the main menu for an hour with three friends: about 60 small calls, no list reads unless she opens Friends.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-RANKED-DUOS-GATE-01',
+    title: 'Ranked Duos: the round waits for both End Turns; 0:00 + 5 s once one has ended; shopping stops at 0:00',
+    statement:
+      'In Ranked Duos the shop clock never stops and there is no Gold Fuse. The round goes to combat at once when both live teammates have ended their turn. If one has ended, the other has until 0:00 and then 5 more seconds. If neither has ended at 0:00 the game waits; the first End Turn then gives the other 5 seconds (or the round goes at once when both have ended). From 0:00 nobody can buy, sell, roll, play, tier up or use the hero power, but re-ordering and freezing the board and viewing the teammate stay open until the round goes. A teammate who is disconnected or has left counts as ended. If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'the game will still halt/not progress into combat, and back to shop, until both players hit their end turn/combat gem' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'you can\x27t keep shopping, but can re-order board etc, same as the normal mode when you have no time left' },
+      { kind: 'code', ref: 'packages/sim/src/versus/rankedDuos.ts (rankedDuosCloseAt); supabase/migrations/2026-10-29-ranked-duos.sql (versus_ranked_duos__close_at, versus_ranked_duos_submit, versus_ranked_duos_reconcile)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1). The client clock and the shop refusal at 0:00 come with phase 2.',
+    example: 'The clock reads 0:00 and Lemon has not ended; Kevin presses End Turn at 0:00 + 12 s. Lemon can still re-order for 5 seconds, then the round goes to combat with her board as it stands.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-RATING-01',
+    title: 'Ranked Duos: the rating, medal and promotion state belong to the PAIR; +34 / +11 / -11 / -34 by team place',
+    statement:
+      'A Ranked Duos team is the unordered pair of accounts, so two different pairs have two different ratings. The team climbs the same medal ladder: 1st +34, 2nd +11, 3rd -11, 4th -34; a division promotion game needs a top-2 finish and a medal promotion game 1st (2nd holds at 100); a demotion game demotes on 3rd or 4th; a won promotion lands at 10; no instant demotions; Bronze I floors. The server settles it from its own placement, once per game; no client sends a placement. A table with a generated member (it fields no board until server-side recordings exist), a test bot or a forced dev match is unrated. The team\x27s own medal sets its opponents\x27 strength band. XP stays per player.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'the team gets their own matchmaking rating i think, so me and lemon have a different duos rating than me and ionlime' },
+      { kind: 'code', ref: 'packages/sim/src/rank.ts (DUOS_RANK_RULES); supabase/migrations/2026-10-29-ranked-duos.sql (settle_duos_rank, versus_ranked_duos__place_team)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1): the round commit places teams and settles the team; the rating UI comes with phase 3.',
+    example: 'Kevin and Lemon finish 2nd at Bronze I 90: +11 takes the team to 100 and its next game is a promotion game. Kevin and Ionlime keep their own rating.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-NAME-01',
+    title: 'Ranked Duos: a pair can name its team',
+    statement:
+      'Either teammate can name or rename the team between games (not while it is in a game). A name is 2 to 16 letters, digits and single spaces, passes the game\x27s word filter and is not unique. Unnamed, the team shows as "Name1 & Name2".',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'i think it\x27d also be fun to be able to name your team. so me and lemon could name our team CITRUS' },
+      { kind: 'code', ref: 'packages/sim/src/versus/rankedDuos.ts (teamNameProblem, defaultTeamName); supabase/migrations/2026-10-29-ranked-duos.sql (duos_team_set_name, duos__name_blocked)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (P1); the rename UI comes with phase 3.',
+    example: 'Lemon renames "Kevin & Lemon" to CITRUS between games; a name with a slur is refused.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-SEATING-01',
+    title: 'Ranked Duos: recorded duo runs first, else two different solo players paired, pinned for the whole game',
+    statement:
+      'The three recorded teams are picked once, on the server, when both live heroes are locked, and copied whole into the match so every round, reconnect and replay serves exactly those recordings. Inside the team\x27s strength band (widened as the ranked lobby widens; the overall cap never relaxes): recorded duo runs first, then solo runs paired as two DIFFERENT players. All eight heroes are unique, no run sits twice, at most 2 of the 6 recorded seats are one player\x27s. Generated seats fill only what nothing else can, and any generated seat makes the game unrated (it fields no board yet). A duo run keeps its recorded fight order; a paired team fights in a seeded 50/50 order. Duo runs never feed the solo pool.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'duo\x27s snapshots are the priority to be served, but until we have enough duo\x27s snapshots, just put random single player snapshots together and serve them as teammate boards' },
+      { kind: 'code', ref: 'packages/sim/src/versus/rankedDuosSeating.ts; packages/sim/src/versus/rankedDuosSeat.ts; supabase/migrations/2026-10-29-ranked-duos.sql (versus_ranked_duos_seat, duo_runs, duo_runs_sample)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1). Generated members field no board until a server-side recording exists, so such a game is unrated (rare: only when the pool cannot fill the table).',
+    example: 'The duo pool has one run in Silver\x27s band: it sits as team b; teams c and d are two pairs of solo runs, each from two different players.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-LEAVE-01',
+    title: 'Ranked Duos: a leaver\x27s board plays on and the team plays on; both gone = the lowest open place',
+    statement:
+      'A teammate who leaves or concedes is not out: their last locked board fights for them every round and the team plays on to its real place, which settles the team rating once. There is no pause and the team is never put out for missed rounds. When both have left, or both have been silent for 10 minutes, the team is placed at once in the lowest open place.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'the absent teammate\x27s last board fights on auto' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-29-ranked-duos.sql (versus_group__eliminate Ranked Duos branch, versus_ranked_duos_sweep_abandoned)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (P1). The 10-minute sweep needs a schedule (pg_cron) on the live project.',
+    example: 'Lemon closes the game in round 6; Kevin plays on with her round-5 board fighting every round and the team finishes 3rd: -11 to the team.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-ROUND-01',
+    title: 'Ranked Duos rounds follow the lobby: team pairing, ghost byes, one tag-team fight per pairing, lobby damage to the team pool, round-exact recorded boards',
+    statement:
+      'Each round the teams still in are paired by the lobby\x27s own rule (never the same pair within 3 rounds unless nothing else is left; at an odd count the bye goes to one of the bottom three, fairest first, and fights the most recently fallen team\x27s boards from the round it fell). Each pairing is ONE tag-team fight: a team\x27s first board, then its teammate\x27s board steps in (an empty first board hands straight over). The losing team\x27s pool takes the lobby damage of the board that ended the fight (its tier + its survivors\x27 tiers), capped by the lobby round cap, Armor first; a draw costs nobody and a ghost never loses Health. A recorded member fields exactly its own round (a hole = an empty board in the previous round\x27s state, before it began = nothing, past its end = its final board). Teams out in the same round share the lower place; the last team in is 1st; round 60 places the rest by Health + Armor. Players see only their own fight; the other pairing is a result on the rail.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'follow the lobby rule set' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos, spectating)', quote: 'no you dont watch other opponents in the lobby mode either, same experience as single player lobby' },
+      { kind: 'code', ref: 'packages/sim/src/versus/rankedDuosRound.ts; packages/sim/src/versus/rankedDuosFinalize.ts; supabase/migrations/2026-10-29-ranked-duos.sql (versus_ranked_duos__member_board, versus_ranked_duos_round_input, versus_ranked_duos_commit_round)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1). Generated members (only when the pool cannot fill the table) field no board until a server-side recording exists; such a game is unrated.',
+    example: 'Round 5, three teams in: Kevin and Lemon fight team c; team b has the bye and fights team d\x27s boards from round 4, when d fell. Lemon\x27s board is empty, so Kevin\x27s fights first; they lose to c\x27s last board (tier 4, two tier-3 survivors): 10 damage, capped at 10, all of it off their 12 Armor.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosRound.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

@@ -27,6 +27,15 @@
  *                 team's two boards in sequence, in the seeded 50/50 fight order (`duosRandomFirst`), committed through
  *                 `versus_duos_commit_round` (idempotent). Logic: `packages/sim/src/versus/duosFinalize.ts`.
  *   - `parity_duos` → `{ digest, canonical }`: resolve one DUOS round from posted sides (no database, no auth).
+ *   - `seat_ranked_duos` → `{ matchId }`: seat a RANKED DUOS table once both live heroes lock (owner 2026-10-26): samples
+ *                 recorded duo runs and solo runs SERVER SIDE (no client downloads the pool), picks the three recorded
+ *                 teams (`selectRankedDuosTable`) and pins them, whole recordings copied, through `versus_ranked_duos_seat`
+ *                 (idempotent). Logic: `packages/sim/src/versus/rankedDuosSeat.ts`.
+ *   - `finalize_ranked_duos` → `{ matchId, round }`: a RANKED DUOS round: seats the table first if it is not yet, reads
+ *                 the round in one call (`versus_ranked_duos_round_input`: only this round's boards), pairs the four
+ *                 teams by the lobby rule, one tag-team simulate() per pairing, lobby damage to the team pools, placements,
+ *                 committed through `versus_ranked_duos_commit_round` (idempotent; it settles the team rating when the
+ *                 live team is placed). Logic: `packages/sim/src/versus/rankedDuosFinalize.ts` + `rankedDuosRound.ts`.
  *
  * HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01, protocol 2): every finalize reads each seat's (Duos: team's)
  * stored pools and heroes, charges the lobby's capped damage and commits the pools with `p_vitals`. A stored side that
@@ -44,6 +53,8 @@ import {
   handleVersusFinalize,
   handleVersusGroupFinalize,
   handleVersusDuosFinalize,
+  handleRankedDuosSeat,
+  handleRankedDuosFinalize,
   parityGroupRecord,
   parityDuosRecord,
   resolveVersusDuosRound,
@@ -210,6 +221,92 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
   return json(res.status, res.body);
 }
 
+async function seatRankedDuos(req: Request, body: Record<string, unknown>): Promise<Response> {
+  const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
+  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const admin = createClient(url, serviceKey);
+  const store = {
+    async match(id: string) {
+      const { data, error } = await admin.from('versus_group_matches').select('id, phase, seed, set_id, options, ranked_team, seated_at').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    async liveHeroes(matchId: string) {
+      // rows: two rows, the live seats (primary key match_id + seat) (R-NET-01).
+      const { data, error } = await admin.from('versus_group_seats').select('seat, hero').eq('match_id', matchId).in('seat', ['p1', 'p2']).order('seat');
+      if (error) throw error;
+      return (data ?? []).map((r: { hero: string | null }) => r.hero);
+    },
+    async teamDivision(teamId: string | null) {
+      if (!teamId) return 0;
+      // rows: at most one row (primary key team_id) (R-NET-01).
+      const { data, error } = await admin.from('duos_team_ranks').select('division, season').eq('team_id', teamId).maybeSingle();
+      if (error) throw error;
+      return data && data.season === 3 ? data.division : 0;
+    },
+    async soloSample(args: Record<string, unknown>) {
+      // rows: bounded by p_limit (60) whole runs (R-NET-01); the RPC's other filters stay null (the band is applied in TS).
+      const { data, error } = await admin.rpc('pool_runs_sample', args);
+      if (error) throw error;
+      return data ?? [];
+    },
+    async duoSample(args: Record<string, unknown>) {
+      // rows: bounded by p_limit (40, server cap 100) (R-NET-01).
+      const { data, error } = await admin.rpc('duo_runs_sample', args);
+      if (error) throw error;
+      return data ?? [];
+    },
+    async commit(args: Record<string, unknown>) {
+      // rows: the seat RPC returns one jsonb value (R-NET-01).
+      const { data, error } = await admin.rpc('versus_ranked_duos_seat', args);
+      if (error) throw error;
+      return data;
+    },
+    log: (msg: string, detail?: unknown) => console.error(msg, detail),
+  };
+  const res = await handleRankedDuosSeat(userId, body, store);
+  return json(res.status, res.body);
+}
+
+async function finalizeRankedDuos(req: Request, body: Record<string, unknown>): Promise<Response> {
+  const url = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
+  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
+  const { data: userData, error: userErr } = await userClient.auth.getUser();
+  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const admin = createClient(url, serviceKey);
+  const store = {
+    async input(matchId: string, round: number) {
+      // rows: one jsonb value (R-NET-01); only this round's boards leave the database.
+      const { data, error } = await admin.rpc('versus_ranked_duos_round_input', { p_match: matchId, p_round: round });
+      if (error) throw error;
+      return data;
+    },
+    async commit(args: Record<string, unknown>) {
+      // rows: the commit RPC returns one jsonb value (R-NET-01).
+      const { data, error } = await admin.rpc('versus_ranked_duos_commit_round', args);
+      if (error) throw error;
+      return data;
+    },
+    log: (msg: string, detail?: unknown) => console.error(msg, detail),
+  };
+  let res = await handleRankedDuosFinalize(userId, body, CONTENT, store);
+  if (res.status === 409 && res.body.error === 'not_seated') {
+    // The table seats on the first finalize if no client asked for it yet (idempotent).
+    const seated = await seatRankedDuos(req, { matchId: body.matchId });
+    if (seated.status !== 200) return seated;
+    res = await handleRankedDuosFinalize(userId, body, CONTENT, store);
+  }
+  return json(res.status, res.body);
+}
+
 const GROUP_SEATS = ['p1', 'p2', 'p3', 'p4'];
 
 function parityDuos(body: Record<string, unknown>): Response {
@@ -268,6 +365,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (body.action === 'parity_group') return parityGroup(body);
     if (body.action === 'finalize_duos') return await finalizeDuos(req, body);
     if (body.action === 'parity_duos') return parityDuos(body);
+    if (body.action === 'seat_ranked_duos') return await seatRankedDuos(req, body);
+    if (body.action === 'finalize_ranked_duos') return await finalizeRankedDuos(req, body);
     return json(400, { error: 'unknown_action' });
   } catch (e) {
     console.error('versus-resolve failed', e);

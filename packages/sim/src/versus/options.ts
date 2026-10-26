@@ -28,8 +28,10 @@ import type { RiftId } from '../config';
 
 /** The room's game mode: today's 1v1, the 3-4 player round robin ("Versus Group"), or the 2v2 tag-team ("Versus
  *  Duos", owner 2026-10-25: exactly 4 players, p1 + p2 vs p3 + p4). */
-export type VersusMode = 'duel' | 'group' | 'duos';
-export const VERSUS_MODES: readonly VersusMode[] = ['duel', 'group', 'duos'];
+/** `ranked_duos` (owner 2026-10-26): the RANKED DUOS party: two live teammates (p1 + p2) against three recorded teams. It
+ *  plays the live rules, so it takes no modifier. Design: docs/design/2026-10-26-ranked-duos.md. */
+export type VersusMode = 'duel' | 'group' | 'duos' | 'ranked_duos';
+export const VERSUS_MODES: readonly VersusMode[] = ['duel', 'group', 'duos', 'ranked_duos'];
 
 /**
  * MODIFIERS: an existing RIFT applied to one room. The rift is pinned onto every seat's run at creation
@@ -65,6 +67,7 @@ export const VERSUS_MODE_SEATS: Readonly<Record<VersusMode, { min: number; max: 
   duel: { min: 2, max: 2 },
   group: { min: 3, max: 4 },
   duos: { min: 4, max: 4 },
+  ranked_duos: { min: 2, max: 2 },
 };
 
 /** Why a requested options object is refused, or null when it is valid. Mirrors `versus__options_error` in SQL. */
@@ -78,6 +81,7 @@ export function versusOptionsError(raw: unknown): string | null {
     if (!Array.isArray(o.modifiers) || o.modifiers.length > VERSUS_MAX_MODIFIERS) return 'bad_modifiers';
     if (new Set(o.modifiers).size !== o.modifiers.length) return 'bad_modifiers';
     for (const m of o.modifiers) if (!VERSUS_MODIFIERS.includes(m as VersusModifierId)) return 'bad_modifiers';
+    if (o.mode === 'ranked_duos' && o.modifiers.length > 0) return 'bad_modifiers'; // ranked plays the live rules
   }
   return null;
 }

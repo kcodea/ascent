@@ -36,6 +36,8 @@ const ORDER = [
 const FIX = '2026-10-26-versus-lock-order.sql';
 /** The egress migration rewrites the heartbeat and the list prune again; the order must still hold. */
 const EGRESS = '2026-10-27-versus-egress.sql';
+/** Ranked Duos (2026-10-26): the gate, leaving, placement and the abandoned sweep. */
+const RANKED_DUOS = '2026-10-29-ranked-duos.sql';
 
 type Cls = 'match' | 'seats' | 'room' | 'member';
 const RANK: Record<Cls, number> = { match: 1, seats: 0, room: 2, member: 3 };
@@ -113,8 +115,9 @@ function violation(seq: Cls[]): string | null {
   return null;
 }
 
-/** The RPCs callers reach (helpers are `versus__*` / `versus_group__*` / `versus_duos__*` / `versus_dev__*`). */
-const isEntry = (n: string): boolean => /^versus_/.test(n) && !/^versus_(group_|duos_|dev_)?_/.test(n);
+/** The RPCs callers reach (helpers are `versus__*` / `versus_group__*` / `versus_duos__*` / `versus_dev__*` /
+ *  `versus_ranked_duos__*`). */
+const isEntry = (n: string): boolean => /^versus_/.test(n) && !/^versus_(group_|duos_|dev_|ranked_duos_)?_/.test(n);
 
 function report(files: string[]): Record<string, string> {
   const fns = functionsOf(files);
@@ -142,5 +145,9 @@ describe('R-VERSUS-LOCK-ORDER-01: every Versus RPC takes its row locks in one gl
 
   it('after 2026-10-27-versus-egress.sql (heartbeat presence + room bump, rate-limited prune) the order still holds', () => {
     expect(report([...ORDER, FIX, EGRESS])).toEqual({});
+  });
+
+  it('after 2026-10-29-ranked-duos.sql (submit / reconcile hand-over, leaving, placement, the sweep) the order still holds', () => {
+    expect(report([...ORDER, FIX, EGRESS, '2026-10-28-versus-health.sql', RANKED_DUOS])).toEqual({});
   });
 });

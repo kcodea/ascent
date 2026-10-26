@@ -13,13 +13,13 @@ import { flashFriends, registerInviteHandler } from './friendsStore';
 import type { Friend, FriendInvite } from './friendsRemote';
 
 /** Open Versus and enter a room (as a player: into the room's hand, a seat one drag away; or in the stands). */
-export async function goToVersusRoom(roomId: string, as: 'player' | 'spectator'): Promise<boolean> {
+export async function goToVersusRoom(roomId: string, as: 'player' | 'spectator', area: 'versus' | 'duos' = 'versus'): Promise<boolean> {
   if (!versusEnabled()) { flashFriends('Versus is not available on this build.'); return false; }
   const vs = useVersus.getState();
   if (vs.room && vs.room.id !== roomId) { flashFriends('Leave your Versus room first.'); return false; }
   const g = useGame.getState();
   g.goTo('menu'); // closes every ladder page, the Friends page included
-  openVersus();
+  openVersus(area);
   if (vs.room?.id === roomId) return true;
   await joinRoom(roomId, as);
   return useVersus.getState().room?.id === roomId;
@@ -41,10 +41,16 @@ export async function watchFriend(f: Partial<Pick<Friend, 'watchKind' | 'watchId
   return false;
 }
 
+/** RANKED DUOS (phase 3): accepting a party invite opens the Duos play area and takes the party's free seat. */
+export async function acceptDuosPartyInvite(invite: FriendInvite): Promise<void> {
+  await goToVersusRoom(invite.target, 'player', 'duos');
+}
+
 let installed = false;
 /** Register the built-in invite handlers (once, at boot). */
 export function installFriendInvites(): void {
   if (installed) return;
   installed = true;
   registerInviteHandler('versus_room', acceptVersusRoomInvite);
+  registerInviteHandler('duos_party', acceptDuosPartyInvite);
 }

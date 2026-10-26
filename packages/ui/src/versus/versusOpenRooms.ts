@@ -28,7 +28,11 @@ export function versusMatchLive(): boolean {
 const rooms = menuCount(
   async () => {
     try {
-      return (await versusRemote.openRooms(contentRevision())).open;
+      // One call answers both play areas: the Versus rooms and the Ranked Duos parties with a free seat (`duosOpen`,
+      // 2026-11-01-ranked-duos-party.sql). Packed into one number (duos x 1000 + versus) so the one menu poll keeps one
+      // value; each hook unpacks its half.
+      const r = await versusRemote.openRooms(contentRevision());
+      return Math.min(999, r.open) + 1000 * Math.min(999, r.duosOpen ?? 0);
     } catch (e) {
       if ((e as VersusError).code === 'not_deployed') deployed = false;
       throw e;
@@ -39,7 +43,17 @@ const rooms = menuCount(
 
 /** Open Versus rooms I could join right now (0 when unknown). */
 export function useVersusOpenRooms(): number {
-  return rooms.use();
+  return rooms.use() % 1000;
+}
+
+/** RANKED DUOS: open parties with a free seat I could join right now (0 when unknown). */
+export function useDuosOpenParties(): number {
+  return Math.floor(rooms.use() / 1000);
+}
+
+/** The Duos tile's hover line: "1 Ranked Duos party open". */
+export function duosPartiesTip(n: number): string {
+  return `${n} Ranked Duos ${n === 1 ? 'party' : 'parties'} open`;
 }
 
 /** The hover bubble's line: "2 Versus rooms open" / "1 Versus room open". */

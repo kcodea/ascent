@@ -12,7 +12,7 @@ import { PortraitFrame, pfClass, usePortraitFrame } from './portraitFrame/Portra
 import { sfx } from './sfx';
 import { useGame, tempHandle } from './store';
 import { abandonWarningOf, withAbandonWarning } from './rank/ratedRun';
-import { RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
+import { DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE, RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES } from './rank/rankedEntry';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { warmRankedGate } from './rankedGate/RankedGate';
 import { requestRankedGate } from './rankedGate/rankedGateController';
@@ -29,7 +29,8 @@ import { GuestSignInButton, PortraitSignInGate } from './GuestSignIn';
 import { schedulePrefetchSocial } from './socialPrefetch';
 import { VersusTitle } from './versus/VersusTitle';
 import { VersusRoom } from './versus/VersusRoom';
-import { openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
+import { enterDuosParty, openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
+import { defaultPartyName, onDuoPlayRequest, playParty, PlayPartyToggle } from './versus/playParty';
 import { versusEnabled } from './versus/versusFlag';
 import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
 import { VsOpenBadge } from './versus/VsOpenBadge';
@@ -106,6 +107,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const setPlayerName = useGame((s) => s.setPlayerName);
   const playerAvatar = useGame((s) => s.playerAvatar);
   const versusScreen = useVersus((s) => s.screen);
+  // RANKED DUOS (phase 3): the room browser shows the Ranked Duos parties when the Duos tile opened it.
+  const versusArea = useVersus((s) => s.area);
   const practiceOpen = useGame((s) => s.practiceSetupOpen);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
@@ -137,6 +140,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const vsOpen = useVersusOpenRooms();
   const focused = useWindowFocused();
   const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
+
   const txt = getTitleText();
 
   const [editing, setEditing] = useState(false);
@@ -152,6 +156,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // blurred and darkened ... this window expands out with a little bit of a bounce"): `open` plays the entrance,
   // `closing` is the short reverse "No, go back." plays before the card unmounts.
   const [rankedConfirm, setRankedConfirm] = useState<'open' | 'closing' | null>(null);
+  // Which ranked door the confirmation answers: the solo lobby (Play) or the Ranked Duos play area (owner 2026-10-26).
+  const [confirmKind, setConfirmKind] = useState<'solo' | 'duos'>('solo');
   const rankedCloseTimer = useRef<number | null>(null);
   useEffect(() => () => { if (rankedCloseTimer.current != null) window.clearTimeout(rankedCloseTimer.current); }, []);
   // A GUEST's portrait click opens the portrait sign-in gate, not the avatar picker (owner 2026-09-29: "don't let
@@ -186,11 +192,14 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // once before the real game, rather than dropping them in cold.
   const learnStatus = getCourseProgress(LEARN_ASCENT.id)?.status;
   const isNewPlayer = !learnStatus || learnStatus === 'not_started';
-  const openRankedConfirm = (): void => {
+  const openRankedConfirm = (kind: 'solo' | 'duos' = 'solo'): void => {
     if (rankedCloseTimer.current != null) { window.clearTimeout(rankedCloseTimer.current); rankedCloseTimer.current = null; }
+    setConfirmKind(kind);
     setRankedConfirm('open');
     warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
   };
+  // The sidebar's Play with Duo selected asks for the same confirmation (playParty.tsx). It uses only setters + refs.
+  useEffect(() => { onDuoPlayRequest(() => openRankedConfirm('duos')); return () => onDuoPlayRequest(null); }, []);
   // "Yes, let's go." (owner 2026-10-12): the window leaves, the ranked gate slams shut over the mode picker, and
   // `startLobby` (the entry + hero select) runs BEHIND the shut doors, so they open on hero select. With no gate
   // (reduced motion, a test) `requestRankedGate` runs it at once.
@@ -206,6 +215,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // plain menu click here. (The cinematic hit that played here on 2026-10-12 moved to the crystal's shatter.)
     sfx.combatStart();
     closeRankedConfirm();
+    // RANKED DUOS: "Yes" puts me in my party room (owner 2026-10-26); the gate plays when the party starts its game.
+    if (confirmKind === 'duos') { void enterDuosParty(defaultPartyName(playerName)); return; }
     void requestRankedGate(startLobby);
   };
   // "No, go back." (or a press on the dimmed picker around the card): play the exit, then unmount.
@@ -237,7 +248,11 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // bubble on a WRAPPER (`.tn-item`, positioned like the sidebar's `.msb-item`): the plaque's own ::after is
   // its sheen, so a tip on the plaque itself is inert by the tooltip rule. No native `title=` on the title.
   const playPlaque = (
-    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { crumb('play pressed'); sfx.pulse(); setTitleView('modes'); }}>
+    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => {
+      crumb('play pressed'); sfx.pulse();
+      // SOLO / DUO (owner 2026-10-26): Duo + Play asks the Ranked Duos confirmation, then opens my party room.
+      if (playParty() === 'duo') openRankedConfirm('duos'); else setTitleView('modes');
+    }}>
       <span className="mbicon"><Crest /></span>
       <span className="mblabel">{txt.play}</span>
       {vsTip && <VsOpenBadge n={vsOpen} paused={!focused} />}
@@ -255,7 +270,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     // The Versus tile breathes (the Live Games plaque's kwglow recipe) with an "N open" chip while rooms are open.
     const vsLit = mp === 'versus' && vsTip !== null;
     return (
-    <button className={`modecard mc-tile${vsLit ? ` vs-open${focused ? '' : ' paused'}` : ''}`} data-mp={mp} onClick={onClick} data-tip={vsLit ? vsTip : undefined}>
+    <button className={`modecard mc-tile${vsLit ? ` vs-open${focused ? '' : ' paused'}` : ''}`} data-mp={mp} onClick={onClick} data-tip={vsLit ? vsTip ?? undefined : undefined}>
       <div className="mcframe" data-mode={mode} data-mp={mp}>
         <div className="mcname hudpill-name">{name}</div>
         {modeArt(mode)
@@ -357,7 +372,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
       // VERSUS: the lobby browser (versus/VersusTitle.tsx). The room is its own stage over this screen (below).
       case 'versus': return (
         <div className="mpbox">
-          {subHead('Versus')}
+          {subHead(versusArea === 'duos' ? 'Ranked Duos' : 'Versus')}
           <VersusTitle />
         </div>
       );
@@ -483,6 +498,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           )}
+          <PlayPartyToggle className="tn-playparty" />
           {playTip ? <div className="tn-item" data-tip={playTip}>{playPlaque}</div> : playPlaque}
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the
@@ -580,9 +596,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
           <div className="rankedconfirm">
             <span className="rc-crest" aria-hidden="true" />
             <span className="rc-crest rc-crest-foot" aria-hidden="true" />
-            <div className="rc-title">{RANKED_CONFIRM_TITLE}</div>
-            <p className="rankedconfirm-text">{RANKED_CONFIRM_TEXT}</p>
-            {savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
+            <div className="rc-title">{confirmKind === 'duos' ? DUOS_CONFIRM_TITLE : RANKED_CONFIRM_TITLE}</div>
+            <p className="rankedconfirm-text">{confirmKind === 'duos' ? DUOS_CONFIRM_TEXT : RANKED_CONFIRM_TEXT}</p>
+            {confirmKind === 'solo' && savedGameWarning && <p className="rankedconfirm-save">Picking a hero also gives up your saved game. {savedGameWarning}</p>}
             <div className="rankedconfirm-actions">
               <button className="rc-btn rc-btn-yes" disabled={rankedConfirm === 'closing'} onPointerDown={(e) => { if (e.button === 0) confirmRanked(); }} onClick={confirmRanked}>{RANKED_CONFIRM_YES}</button>
               <button className="rc-btn" onClick={() => { sfx.pulse(); closeRankedConfirm(); }}>{RANKED_CONFIRM_NO}</button>

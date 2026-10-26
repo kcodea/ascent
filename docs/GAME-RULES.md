@@ -1281,10 +1281,28 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   never at a clock mark. If your clock runs out while you watch, your turn locks at 0:00 as usual (your own board, as
   you left it) and you come back when the fight starts.
 
-## Ranked Duos (owner design 2026-10-26; IN DEVELOPMENT, not reachable by players yet)
+## Ranked Duos (owner design 2026-10-26; R-RANKED-DUOS-*)
 
-> Design: `docs/design/2026-10-26-ranked-duos.md`. Server phase 1 on `feat/ranked-duos`. This section records the
-> owner's rulings so the build cannot drift; it becomes the player-facing rules when the mode ships.
+> Design: `docs/design/2026-10-26-ranked-duos.md`. Server: `2026-10-29-ranked-duos.sql` through
+> `2026-11-01-ranked-duos-party.sql` (+ the `ranked-duos-sweep` pg_cron job, `2026-11-01-ranked-duos-sweep-cron.sql`).
+
+- **Getting in** (phase 3, R-RANKED-DUOS-PARTY-01; owner 2026-10-26: "a toggle above 'play' that says solo/duo. if
+  duo is selected it then puts you into a room specific for duo's where you can invite a friend"). A **Solo | Duo**
+  switch sits directly above Play (the menu sidebar and the main menu), remembered per viewer. Solo + Play is the usual
+  flow. Duo + Play asks the ranked confirmation, then puts you in YOUR PARTY: a two-seat room playing Ranked Duos with
+  you in the first seat (back into it if you are already in one). The teammate takes the second seat by accepting a
+  friend invite (Invite a friend; kind `duos_party`, accounts only) or by Join on the open parties list ("Open duo
+  parties", reached from a party you are alone in with Join a party). The host starts the game once both seats are
+  filled (the room's own entry gate and Hero Select follow). The host can keep the party to **friends only** (default:
+  listed publicly): a friends-only party is left off everyone else's list and counts, only the host's friends (and
+  anyone already in it) can join, and it is never shown on Live Games. The party uses the live rules; its Room options
+  are a test tool only.
+- **After a game** each teammate returns to the party and sees the team's place out of 4, its rating change and medal
+  on the ranked end sequence (the solo rank screen). The party stays together for the next game.
+- **Boards.** The Leaderboard has Solo | Duos tabs; Duos lists the top teams (team name, both players, medal, games).
+  A player's Career shows their Ranked Duos teams (each with its partner, medal and games).
+- **Live Games.** A live team is one row (`duos:<room>`, published by its first seat): the team name, the first seat's
+  hero and the team's medal. Watch joins the party's stands and watches the two live teammates.
 
 - **The mode.** A ranked lobby for two players playing live together: 4 teams of 2. Your team is the two of you; the
   other three teams are recorded runs. It follows the lobby rules (pairing, ghost fights, damage formula, round loss cap,
@@ -1318,8 +1336,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   rating, medal, promotion / demotion games and leaderboard entry belong to the PAIR. Points by team place: 1st +34,
   2nd +11, 3rd -11, 4th -34; a division promotion game needs top 2, a medal promotion game 1st; a demotion game
   demotes on 3rd or 4th. The team's own medal sets its opponents' strength band. A pair can name its team (2 to 16
-  letters, digits and spaces, the handle word filter, not unique; either teammate renames it between games; default
-  "Name1 & Name2"). XP stays per player. The Leaderboard gets a Duos tab listing teams. Resets with the season.
+  letters, digits and spaces, the handle word filter, not unique; either teammate renames it between games from the
+  party's Team name button, accounts only; default "Name1 & Name2"). XP stays per player. The Leaderboard's Duos tab
+  lists teams. Resets with the season.
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 
@@ -1348,7 +1367,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 ## Friends (owner 2026-10-26; R-FRIENDS-01, R-FRIENDS-02, R-FRIENDS-03, R-FRIENDS-04, R-FRIENDS-05)
 
 The owner (2026-10-26): yes to a friends list that shows online players, to simplify invites (Versus rooms now, the
-Ranked Duos party later).
+Ranked Duos party).
 
 - **Accounts only.** Friends need a saved account (email). A guest (anonymous) sees "Save your account to add friends"
   and the existing Save account panel; a guest can never be added.
@@ -1362,7 +1381,7 @@ Ranked Duos party later).
   stands neither can request or invite the other (block wins). The blocked player is never told. Unblock lifts it.
 - **The Friends page** (menu sidebar, Community > Friends): your own handle to share, Add by handle, Requests (with a
   count), Friends (online first, then in a game, then offline with last seen), Blocked. A friend in a game shows its
-  mode (Ranked, Casual, Practice, Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos later) and Watch when it is
+  mode (Ranked, Casual, Practice, Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos) and Watch when it is
   watchable: a ranked lobby game through Live Games, a Versus match from their room's stands. The sidebar plaque shows
   requests waiting, else how many friends are online.
 - **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
@@ -1370,7 +1389,7 @@ Ranked Duos party later).
 - **Invites.** From a Versus room (Invite friends) or the Friends page while you are in an open room: only to a friend
   who is Online (not in a game). The invitee gets a corner notice with Accept / Decline on any menu (never over a game);
   it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
-  friend replaces the older one. 30 invites an hour. The Ranked Duos party will use the same invite (kind `duos_party`).
+  friend replaces the older one. 30 invites an hour. The Ranked Duos party uses the same invite (kind `duos_party`): Accept opens the Ranked Duos play area and takes the party's free seat.
 - **Cost (egress).** One small presence call (it also answers requests and invites) every 60 s while the tab is
   visible, 120 s while hidden, at once on a status change (at most every 5 s), every 3 minutes with no friends; the
   friends list is read only while a friends surface is open, every 60 s, never while hidden; the only Realtime

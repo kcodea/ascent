@@ -24,6 +24,7 @@ import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
 import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurn } from './versusTurn';
 import { SpectatorBar } from './SpectatorBar';
+import { useDuosLivePublisher } from './duosLive';
 import { isRankedDuosRaw, rankedCloseIso, rankedSomeoneEnded } from './rankedDuosView';
 import './versus.css';
 
@@ -191,6 +192,8 @@ function useSecondsTo(iso: string | null | undefined, on: boolean): number {
  *    The opponent sees the reconnect time; the player who came back gets Unpause; then both see 3, 2, 1.
  */
 export function VersusHud() {
+  // RANKED DUOS: the team's Live Games row (first seat only; R-RANKED-DUOS-PARTY-01).
+  useDuosLivePublisher();
   const match = useVersus((s) => s.match);
   const room = useVersus((s) => s.room);
   const mode = useGame((s) => s.run.mode);

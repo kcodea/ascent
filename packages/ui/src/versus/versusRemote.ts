@@ -5,7 +5,7 @@
  * (blueprint 4). See supabase/migrations/2026-10-13-versus.sql for every RPC this wraps.
  */
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { ownSeatPerspective, VERSUS_PROTOCOL, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
+import { ownSeatPerspective, VERSUS_PROTOCOL, type RankResult, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
 import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 
@@ -43,6 +43,8 @@ export interface VersusRoom {
   /** Bumped on every options change (the room's "options changed" notice). */
   options_rev?: number;
   options_changed_at?: string | null;
+  /** RANKED DUOS (2026-11-01-ranked-duos-party.sql): the party is listed for the host's friends only. */
+  friends_only?: boolean;
   members: VersusMember[];
   serverNow: string;
 }
@@ -63,6 +65,8 @@ export interface VersusRoomSummary {
   /** The room's seats for its mode (2 or 4) and its options (absent before 2026-10-24-versus-group.sql). */
   maxPlayers?: number;
   options?: VersusRoomOptions | null;
+  /** RANKED DUOS: a friends-only party (listed only to the host's friends). */
+  friendsOnly?: boolean;
 }
 
 export interface VersusMatch {
@@ -410,7 +414,32 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   /** How many rooms I could join right now (open, fresh, my version, not mine): two integers, no rows
    *  (2026-10-17-versus-open-rooms.sql, R-VERSUS-OPEN-ROOMS-01). The menus' "2 open" indicator. */
   openRooms: (contentRevision: string) =>
-    rpc<{ open: number; seatOpen: number }>('versus_open_rooms', { p_protocol: VERSUS_PROTOCOL, p_content: contentRevision }),
+    rpc<{ open: number; seatOpen: number; duosOpen?: number }>('versus_open_rooms', { p_protocol: VERSUS_PROTOCOL, p_content: contentRevision }),
+  // ── RANKED DUOS (phase 3) ──────────────────────────────────────────────────────────────────────────────────────
+  /** The host keeps the party to friends (or lists it). */
+  setFriendsOnly: (roomId: string, on: boolean) => rpc<VersusRoom>('versus_set_friends_only', { p_room: roomId, p_on: on }),
+  /** Name my team with `partner` (blank = the default "Name1 & Name2"). */
+  setTeamName: (partner: string, name: string) => rpc<{ id: string; name: string | null }>('duos_team_set_name', { p_partner: partner, p_name: name }),
+  /** My team's result for one match (RLS: only the two teammates read it), as the rank screen reads a result. */
+  async duosResult(matchId: string): Promise<RankResult | null> {
+    // rows: at most one row per team per match (primary key team_id + match_id) (R-NET-01).
+    const { data, error } = await db().from('duos_rank_results').select('*').eq('match_id', matchId).limit(1);
+    if (error) fail(error);
+    const r = (data as Record<string, unknown>[] | null)?.[0];
+    return r ? duosRankResultOfRow(r) : null;
+  },
+  /** The pair's team row (name), or null before the pair has played or named itself. */
+  async duosTeam(a: string, b: string): Promise<{ id: string; name: string | null } | null> {
+    const [lo, hi] = a < b ? [a, b] : [b, a];
+    // rows: at most one (unique user_lo + user_hi) (R-NET-01).
+    const { data, error } = await db().from('duos_teams').select('id, name').eq('user_lo', lo).eq('user_hi', hi).limit(1);
+    if (error) fail(error);
+    return ((data as { id: string; name: string | null }[] | null) ?? [])[0] ?? null;
+  },
+  /** The Duos leaderboard: teams by division then points (this season). */
+  duosLeaderboard: (limit = 50, offset = 0) => rpc<DuosLeaderboardRow[]>('duos_leaderboard', { p_limit: limit, p_offset: offset }),
+  /** A player's Duos teams (the Career). */
+  duosTeamsOf: (userId: string) => rpc<DuosTeamOfRow[]>('duos_teams_of', { p_user: userId }),
   createRoom: (name: string, me: VersusIdentity, options?: VersusRoomOptions | null) =>
     rpc<VersusRoom>('versus_create_room', {
       p_name: name, p_display: me.displayName, p_profile: me.profile, p_set_id: me.setId, p_content: me.contentRevision, p_protocol: VERSUS_PROTOCOL,
@@ -703,4 +732,28 @@ export function groupSeatOfRow(r: Record<string, unknown>): VersusGroupSeatRow {
     ...(r.team !== undefined ? { team: (r.team as string | null) ?? null } : {}),
   };
 }
+/** A `duos_rank_results` row as the rank screen's `RankResult` (the match id stands in for the run id). */
+export function duosRankResultOfRow(r: Record<string, unknown>): RankResult {
+  const n = (k: string): number => Number(r[k] ?? 0);
+  const b = (k: string): boolean => r[k] === true;
+  return {
+    runId: String(r.match_id), seasonId: n('season'), rulesVersion: n('rules_version'),
+    revisionBefore: n('revision_before'), revisionAfter: n('revision_after'), placement: n('placement'),
+    before: { divisionIndex: n('division_before'), points: n('points_before'), demotionReady: b('demotion_ready_before') },
+    after: { divisionIndex: n('division_after'), points: n('points_after'), demotionReady: b('demotion_ready_after') },
+    baseDelta: n('base_delta'), strengthBonus: 0, lobbyStrength: null, appliedDelta: n('applied_delta'), cappedPoints: n('capped_points'),
+    wasPromotionGame: b('was_promotion_game'), promotionKind: (r.promotion_kind as RankResult['promotionKind']) ?? null,
+    requiredFinish: r.required_finish == null ? null : n('required_finish'),
+    promotionUnlocked: b('promotion_unlocked'), promoted: b('promoted'),
+    wasDemotionGame: b('was_demotion_game'), demotionUnlocked: b('demotion_unlocked'), demoted: b('demoted'),
+    highestAfter: { divisionIndex: n('highest_division_after'), points: n('highest_points_after') },
+  };
+}
+
+/** One Duos leaderboard row (`duos_leaderboard`). */
+export interface DuosPlayerCard { userId: string; name: string | null; discriminator: string | null; hero: string | null }
+export interface DuosLeaderboardRow { teamId: string; name: string | null; division: number; points: number; demotionReady: boolean; games: number; players: [DuosPlayerCard | null, DuosPlayerCard | null] }
+/** One of a player's Duos teams (`duos_teams_of`). */
+export interface DuosTeamOfRow { teamId: string; name: string | null; partner: DuosPlayerCard | null; division: number; points: number; games: number }
+
 export const versusRemote: VersusRemote = makeVersusRemote(supabaseClient);

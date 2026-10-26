@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import postcss from 'postcss';
 import { describe, expect, it } from 'vitest';
-import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_GESTURE_FRAC, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, fitStage, gameBoxOf, phoneBottomStrip, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
+import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_GESTURE_FRAC, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, PHONE_FOOT_FRAC, PHONE_RAIL_FOOTPRINT, PHONE_RAIL_GAP, PHONE_REFRESH_RIGHT, fitStage, gameBoxOf, phoneBottomStrip, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
 import { POP_FOOT_GAP, POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry, popSafe } from './touchInput';
@@ -137,8 +137,19 @@ describe('R-PHONE-PARITY-01: Pixel and iPhone are one experience', () => {
       expect(box.left + e.left * f.s).toBeGreaterThanOrEqual(p.ins.left - 1e-6);
       expect(box.left + e.right * f.s).toBeLessThanOrEqual(p.w - p.ins.right + 1e-6);
       expect(box.top + e.top * f.s).toBeCloseTo(p.ins.top, 6);
-      expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(p.h - phoneBottomStrip(p.h, p.ins.bottom) + 1e-6);
+      // R-PHONE-ZOOM-02: the Health plate frames down to a thin foot above the bottom edge (not above the whole strip).
+      expect(box.top + PHONE_ART_BOTTOM * f.s).toBeLessThanOrEqual(p.h - PHONE_FOOT_FRAC * p.h + 1e-6);
+      // ...and the lobby rail (outside the box, at the right safe edge) stays clear of Refresh.
+      const railLeft = p.w - p.ins.right - PHONE_RAIL_FOOTPRINT * f.s;
+      expect(railLeft - (box.left + PHONE_REFRESH_RIGHT * f.s)).toBeGreaterThanOrEqual(PHONE_RAIL_GAP - 1e-6);
     }
+  });
+  it('R-PHONE-ZOOM-02: the run is ~4.6% larger on the reference phones than the 2026-10-24 framing, and the same share on both', () => {
+    const iphone = fitStage(852, 393, { top: 0, right: 59, bottom: 21, left: 59 }, DESIGN_W, 1.35, true);
+    const pixel = fitStage(915, 412, { top: 0, right: 0, bottom: 0, left: 24 }, DESIGN_W, 1.35, true);
+    expect(iphone.s / 0.36832).toBeGreaterThan(1.04);
+    expect(pixel.s / 0.38614).toBeGreaterThan(1.04);
+    expect((DESIGN_H * iphone.s) / 393).toBeCloseTo((DESIGN_H * pixel.s) / 412, 6);
   });
   it('the menus and hero select (the plain fit) are the same share of the screen on every phone (was 12% apart)', () => {
     const shares = PHONES.map((p) => fitStage(p.w, p.h, p.ins, DESIGN_W, 1, true).s / p.h);

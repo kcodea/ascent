@@ -6923,9 +6923,10 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'On touch, tap and hold is the right-click: Inspect, emotes, muting a spectator, pinning a scout',
     statement:
       'A finger held still for about 350 ms (moving less than about 10 px) does what a right-click does on that spot: '
-      + 'the enlarged Inspect view of any card (shop, board, hand, Discover, Choose One), the emote menu on your own '
-      + 'portrait, muting a spectator\x27s emotes, or pinning a lobby seat\x27s scout card. Where there is no right-click '
-      + '(a hero select card, a Runeforge offer) it opens the hover view instead. A short tap keeps its old action. '
+      + 'the emote menu on your own portrait, muting a spectator\x27s emotes, or pinning a lobby seat\x27s scout card. '
+      + 'Never on a card or a Runeforge offer (R-TOUCH-TAPINSPECT-01, 2026-10-25: a tap inspects those, a hold does '
+      + 'nothing). Where there is no right-click (a hero select card) it opens the hover view instead. A short tap keeps '
+      + 'its old action. '
       + 'Moving past the slop cancels the hold and the drag starts as before, and once the hold has fired that finger '
       + 'cannot start a drag. The browser\x27s own long-press menu is swallowed so nothing fires twice, the release does '
       + 'not also count as a tap, and iOS shows no text selection or callout. Phones that support it give a short '
@@ -7490,6 +7491,64 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Conforms as of 2026-10-25 (fix/iphone-real-layout). Before, a phone shrank the stage with CSS zoom (R-TOUCH-RUN-MEMORY-01) and every phone check ran in Chromium device emulation, where zoom lays out correctly; in WebKit the Shop cards measured ~20 px wide (--ccw 54 px instead of 146) and every font under 24 layout px was raised to 24.4 (9 screen px).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/stagePageScale.test.ts', 'packages/ui/src/phoneRunMemory.test.ts', 'scripts/phone-webkit.mjs'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-TOUCH-TAPINSPECT-01',
+    title: 'On touch, a tap on a card opens Inspect; holding a card never does',
+    statement:
+      'On a touch device a short tap on any card opens its enlarged Inspect view: the Shop, your board and hand, both '
+      + 'sides in a fight, a Discover or Choose One option, a scouted board, the Compendium; a tap on a Runeforge rune '
+      + 'opens the rune enlarged with the cards it grants. The views keep their actions: a Shop card\x27s has Buy, a '
+      + 'Discover or Choose One option\x27s and an affordable rune\x27s have Pick (the commit the tap used to be). A finger '
+      + 'held on a card or a rune does nothing: no Inspect, no pick, no buy when it lifts without moving, and holding then '
+      + 'moving is an ordinary drag (buy, play, sell). Long-press stays for everything that is not a card (emotes on your '
+      + 'portrait, muting a spectator, pinning a lobby seat, a hero select card\x27s hover view). Never while a hero power, '
+      + 'Equipment, targeted Battlecry or spell aim is live (there the tap is the target). Mouse play is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-25 (after testing main on his real iPhone)', quote: 'on mobile -> holding on a minion shouldnt do the inspect, only tapping should.' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (NO_HOLD, isHeldRelease, tapInspectAllowed, clickAsPick); packages/ui/src/Card.tsx (onClick); packages/ui/src/RuneCard.tsx; packages/ui/src/RuneInspect.tsx; packages/ui/src/runeInspectStore.ts; packages/ui/src/Inspect.tsx (act)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-25 (fix/phone-tap-inspect-zoom). Before, a hold of ~350 ms on any card opened Inspect (and then blocked the drag that finger started), and a tap on a Discover or Choose One option or a Runeforge rune took it at once.',
+    example: 'Tap a Discover option: its big view opens with Pick. Hold a Shop minion and slide it down: it is bought.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tapInspect.test.ts', 'packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-PHONE-CRISP-01',
+    title: 'On a phone the enlarged card (Inspect, the popped hand card) is drawn from its full-resolution art',
+    statement:
+      'A phone holds the small copies of the card art, frames and plates (memory), but the card it enlarges loads the '
+      + 'originals: the Inspect view\x27s card (and a Runeforge rune\x27s view) while it is open, and a hand card while a '
+      + 'finger pops it (given back when the finger lifts). The small copy stays on screen until the original has decoded, '
+      + 'so it never blinks empty. Text and badges stay vector. Desktop is unchanged (it always draws the originals).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-25 (after testing main on his real iPhone)', quote: 'also the inspect looks grainy/not crisp. please fix this to make sure the game looks pristine' },
+      { kind: 'code', ref: 'packages/ui/src/phoneArt.ts (fullResUrl); packages/ui/src/fullResArt.ts (upgradeImages); packages/ui/src/Inspect.tsx; packages/ui/src/RuneInspect.tsx; packages/ui/src/touchInput.ts (restorePop)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-25 (fix/phone-tap-inspect-zoom). Before, an iPhone 15 Pro drew the Inspect card\x27s 256 px art and its 329 x 512 plate stretched ~1.4-1.7x.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-PHONE-ZOOM-02',
+    title: 'A phone run frames the game as large as its housed pieces and the lobby rail allow',
+    statement:
+      'On a phone in landscape the run is drawn as large as fits with every housed piece at its desktop seat and on '
+      + 'screen: the Health plate at the bottom left frames down to a thin foot above the bottom edge (the home indicator '
+      + 'or gesture bar is a short bar at the bottom centre), the foe\x27s name plaque keeps its breath at the top, and the '
+      + 'lobby rail at the right safe edge keeps a clear gap right of Refresh (the span slides left when it must, never past '
+      + 'the left safe edge). The hand, the corner buttons and the pop still keep the shared gesture strip clear. One '
+      + 'proportion on every phone (R-PHONE-PARITY-01). Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-25 (after testing main on his real iPhone)', quote: 'also the mobile version still looks really small. i feel like we can increase the scale of the game / zoom it a bit more since everything looks really small' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (fitStage, PHONE_FOOT_FRAC, PHONE_RAIL_FOOTPRINT, PHONE_REFRESH_RIGHT, PHONE_RAIL_GAP)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-25 (fix/phone-tap-inspect-zoom): +4.6% on the iPhone 15 Pro (0.3683 -> 0.3852) and the Pixel 8 (0.3861 -> 0.4038). Larger needs pieces to leave their painted seats (the vertical span from the foe\x27s name plaque to your Health plate, and the rail right of Refresh, both bind): an owner call.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts', 'scripts/phone-webkit.mjs'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-TOUCH-KEYBOARD-01',

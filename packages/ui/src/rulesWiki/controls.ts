@@ -72,7 +72,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     topic: 'controls',
     q: 'How do I look at a card up close?',
     a: "**Right-click** any card. You'll get a big version with every buff it has picked up and what its keywords mean. Hovering a card also shows the full card, plus any card it makes (like a token it summons). On a touchscreen, just tap it.",
-    aTouch: "**Tap** a card in the shop, on your board or in your hand, or **tap and hold** any card (a Discover or Choose One pick too). You'll get a big version with every buff it has picked up and what its keywords mean. From the big view of a shop card or a pick, the **Buy** or **Pick** button takes it.",
+    aTouch: "**Tap** any card: in the shop, on your board or in your hand, in a fight, a Discover or Choose One pick, or a rune in the Runeforge. You'll get a big version with every buff it has picked up and what its keywords mean. From the big view of a shop card, a pick or a rune, the **Buy** or **Pick** button takes it. Holding a card does not open it: hold and move to drag it.",
     aliases: ['zoom', 'enlarge', 'card details', 'buffs', 'hover', 'right click'],
     seeAlso: ['open-compendium'],
   },

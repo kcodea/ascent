@@ -36,6 +36,7 @@ import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
 import { StatusBar } from './StatusBar';
 import { Inspect } from './Inspect';
+import { RuneInspect } from './RuneInspect';
 import { MinionBook } from './MinionBook';
 import compendiumBookArt from './compendium-book.png';
 import rulesQuestionArt from './rules-question.png';
@@ -580,6 +581,8 @@ export function Game() {
       {!preRun && <CastPreviewLayer />}
       {showBook && <MinionBook />}
       <Inspect />
+      {/* A Runeforge offer's tap-to-inspect view (touch only, R-TOUCH-TAPINSPECT-01): renders nothing until a finger opens it. */}
+      <RuneInspect />
       </OwnSkins>
       {/* THE CORNER BUTTONS (owner asks 2026-09-28/29), right to left beside the gear: the golden book (Compendium, the
           mouse twin of the Tab key) and the golden question mark (the Compendium opened straight onto its Rules page).

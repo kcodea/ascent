@@ -92,6 +92,17 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Phones: tap a card to inspect it. A bigger game and a sharper Inspect.',
+        details: [
+          'Tap any card to see it big: the Shop, your board and hand, fights, Discover and Choose One picks, Runeforge runes and scouted boards. Buy and Pick buttons on the big view take the card.',
+          'Holding a card no longer opens it. Hold and move to drag it as before.',
+          'Holding still works for emotes on your portrait, muting a spectator and pinning a lobby seat.',
+          'The game is drawn about 5% larger on phones, with every piece still in its place.',
+          'The big card view and a card popped up from your hand now load their art at full detail, so they look crisp.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: fixed the Shop not drawing on iPhone.',
         details: [
           'On an iPhone the Shop minions showed only their Attack and Health in one spot, the lobby list was tiny and Tier, Freeze and the Refresh cost were huge. The whole game now draws at its proper size in Safari and from the Home Screen.',

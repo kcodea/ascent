@@ -204,3 +204,23 @@ export function applyPhoneCssArt(): void {
     if (u.endsWith(`${MANIFEST.dir}/${rel}`)) root.style.setProperty(name, `url("${new URL(u, document.baseURI).href}")`);
   }
 }
+
+/**
+ * THE FULL-RESOLUTION URL of a phone copy (owner 2026-10-25, R-PHONE-CRISP-01: "the inspect looks grainy/not crisp").
+ * The enlarged card views on a phone (Inspect, the popped hand card) draw a card at 350-850 device px, past what the
+ * 256 / 512 px phone copies hold, so they load the original for the one card they show (`fullResArt.ts`). Pure given its
+ * inputs: any URL that is not a phone copy (desktop, a CSS url, a data: URL) comes back unchanged.
+ */
+export function fullResUrl(url: string, manifest: PhoneArtManifest | null = MANIFEST, base: string = import.meta.env?.BASE_URL ?? '/'): string {
+  if (!manifest || !url || /^(data|blob):/i.test(url)) return url;
+  const dir = manifest.dir;
+  const a = url.indexOf(`/assets/${dir}/`);
+  if (a >= 0) return url.slice(0, a) + '/assets/' + url.slice(a + `/assets/${dir}/`.length);
+  // A public copy: `<base><dir>/<rel>` (relative or absolute), whose `<rel>` is in the manifest.
+  const p = url.indexOf(`${base}${dir}/`);
+  if (p >= 0) {
+    const rel = url.slice(p + `${base}${dir}/`.length);
+    if (manifest.public.includes(rel)) return url.slice(0, p) + base + rel;
+  }
+  return url;
+}

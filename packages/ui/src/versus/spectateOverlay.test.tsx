@@ -116,7 +116,8 @@ describe('R-SPECTATE-RUNEHOVER-01: the spectator hovers runes themselves', () =>
 
   it('a viewer reads a forge rune but never picks it, hears no pick, and keeps the gauntlet cursor', () => {
     const card = readFileSync(join(__dirname, '..', 'RuneCard.tsx'), 'utf8');
-    expect(card).toContain('if (useGame.getState().replaying) return; onBuy(');
+    // The viewer guard runs first, before the touch tap-to-inspect (R-TOUCH-TAPINSPECT-01) and before the buy.
+    expect(card).toMatch(/if \(useGame\.getState\(\)\.replaying\) return;\s*const el = e\.currentTarget;[\s\S]*if \(affordable\) onBuy\(el\);/);
     const game = readFileSync(join(__dirname, '..', 'Game.tsx'), 'utf8');
     expect(game).toContain("if (pick.closest('.app.viewing')) return;");
     const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');

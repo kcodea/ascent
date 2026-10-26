@@ -505,3 +505,15 @@ html[data-touch-ui][data-touch-small] .inspect-ov.rune-inspect-ov .inspect-card.
    an offscreen pass per frame). On a phone the card keeps only its own lifted frame shadow (`.cshadow`, static inside
    the tilt). Desktop keeps both. */
 html[data-touch-ui][data-phone-gpu] .dragcard { filter: none; }
+
+/* ── Phone compositor relief in the run (R-PHONE-RUN-PAINT-01, owner 2026-10-26: "general performance is abysmal") ──
+   - The Gold pill's backdrop blur sits over the board, under a fill that is 92-94% opaque: the blur barely shows, but
+     WebKit re-blurs the region behind it whenever anything there moves (the FX canvases, the charge glyph). Dropped.
+   - The Inspect scrim's full-screen backdrop blur is re-computed whenever the FX canvases behind it draw. A phone gets
+     a slightly darker plain tint instead (same dim, no blur). A frosted-glass plate still frosts its own card.
+   - The lobby rail keeps a permanent `will-change` for its slide: two tall layers held the whole run. Its slide is a
+     transition, which promotes it for the slide's duration on its own.
+   Desktop never matches (both attributes are phone-only). */
+html[data-touch-ui][data-phone-gpu] .goldpill { -webkit-backdrop-filter: none; backdrop-filter: none; }
+html[data-touch-ui][data-phone-gpu] .inspect-ov::before { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(20, 12, 4, 0.74); }
+html[data-touch-ui][data-phone-gpu] :is(.lobbyrail, .lobbyrailhead) { will-change: auto; }

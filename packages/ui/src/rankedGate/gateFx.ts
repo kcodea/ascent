@@ -122,7 +122,7 @@ class GateFxController {
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     guardAppRender(app, 'gateFx');
-    watchContextLoss(app, 'gateFx');
+    watchContextLoss(app, 'gateFx', () => this.recover()); // a loss empties its textures: rebuild (R-PHONE-FX-CTX-01)
     crumb('gate fx created'); // phones: every gate (the layer is freed after each one); desktop: once a session
     const c = app.canvas;
     c.className = 'gatefx-canvas pixi-screen';
@@ -235,6 +235,14 @@ class GateFxController {
       // Never tear the app down from inside its own ticker callback: let this frame finish first.
       if (this.releaseWhenIdle) window.setTimeout(() => { if (this.releaseWhenIdle && this.app && !this.busy()) this.destroy(); }, 0);
     }
+  }
+
+  /** After a WebGL context loss (R-PHONE-FX-CTX-01): free the app (its generated textures came back empty) and, on
+   *  desktop where the layer is kept for the session, build a fresh one now. */
+  recover(): void {
+    try { this.clear(); } catch { /* a lost context may refuse the clearing frame */ }
+    this.destroy();
+    if (!PHONE_GPU) this.warm();
   }
 
   /** Kill everything now (the gate unmounted mid-sequence). */

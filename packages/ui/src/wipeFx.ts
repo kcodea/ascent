@@ -69,7 +69,7 @@ class WipeFxController {
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     guardAppRender(app, 'wipeFx');
-    watchContextLoss(app, 'wipeFx');
+    watchContextLoss(app, 'wipeFx', () => this.recover()); // a loss empties its textures: rebuild on next use (R-PHONE-FX-CTX-01)
     crumb('pixi init wipe');
     const c = app.canvas;
     c.className = 'wipefx-canvas pixi-screen';
@@ -152,6 +152,13 @@ class WipeFxController {
     this.dotTex = this.sparkTex = null;
     this.pending.length = 0;
     destroyPixiApp(app, { children: true, texture: true });
+  }
+
+  /** After a WebGL context loss (R-PHONE-FX-CTX-01): drop what is in flight and free the app, so the next wipe builds a
+   *  fresh one (its generated textures came back empty with the restored context). */
+  recover(): void {
+    try { this.clear(); } catch { /* a lost context may refuse the clearing frame */ }
+    this.release();
   }
 
   /** Kill everything instantly (a decisive combat snapping the wipe home). */

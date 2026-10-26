@@ -35,6 +35,7 @@ import { perfMonitor } from './perfMonitor';
 
 let faults = 0;
 let contextLosses = 0;
+let contextRecoveries = 0;
 const loggedPerSite = new Map<string, number>();
 let countersRegistered = false;
 /** Canvases torn down on purpose: their destroy-time context loss is not counted. */
@@ -45,6 +46,7 @@ function ensureCounters(): void {
   countersRegistered = true;
   perfMonitor.registerCounter('fx:faults', () => faults);
   perfMonitor.registerCounter('fx:ctx lost', () => contextLosses);
+  perfMonitor.registerCounter('fx:ctx rebuilt', () => contextRecoveries);
 }
 
 /** Count and log a caught FX fault. A site logs its first 5 faults, then every 100th, so a fault that repeats
@@ -119,18 +121,64 @@ export function reviveTicker(ticker: Ticker, site: string): void {
   });
 }
 
-/** Count WebGL context losses on this app's canvas. Pixi restores the context itself, so this only reports. */
-export function watchContextLoss(app: Application, site: string): void {
+/** How long a lost context may stay lost (while the page is visible) before the owner rebuilds it anyway. */
+export const CONTEXT_RECOVER_MS = 2500;
+
+/**
+ * Count WebGL context losses on this app's canvas, and RECOVER from them (R-PHONE-FX-CTX-01, owner 2026-10-26 on his
+ * iPhone: "Lots of animations aren't showing on phone").
+ *
+ * Pixi restores a lost context itself (`GlContextSystem`), but a restore only brings back what has a CPU-side source.
+ * Every texture made with `renderer.generateTexture` (the FX controllers' spark / glow / shard textures, the def
+ * shapes in `fx/shapeTextures.ts`, the wipe and gate textures) lived only on the GPU and comes back EMPTY: measured in
+ * Chromium as an iPhone, a particle burst after a lose + restore drew only its ring, every spark and glow gone, for the
+ * rest of the session. iOS loses contexts under GPU memory pressure and when a Home Screen app goes to the background.
+ *
+ * So `onRecover` (when given) runs ONCE per loss: on the restore, or, when the context is still lost
+ * `CONTEXT_RECOVER_MS` after the loss while the page is visible (the browser may never restore it), then. The owner
+ * rebuilds its Application there (a new context, fresh textures, the warm-up again). A teardown's own loss is never
+ * counted or recovered (`destroyPixiApp`).
+ */
+export function watchContextLoss(app: Application, site: string, onRecover?: () => void): void {
   const canvas = app.canvas as HTMLCanvasElement | undefined;
   if (!canvas || typeof canvas.addEventListener !== 'function') return;
   ensureCounters();
+  let pending = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const recover = (why: string): void => {
+    if (!pending || tornDown.has(canvas)) return;
+    pending = false;
+    if (timer !== undefined) { clearTimeout(timer); timer = undefined; }
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisible);
+    contextRecoveries++;
+    console.warn(`[pixi fault] ${site}: rebuilding after a WebGL context loss (${why})`);
+    try { onRecover?.(); } catch (e) { reportFxFault(`${site}:recover`, e); }
+  };
+  const arm = (): void => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return; // wait for visible
+      recover('still lost');
+    }, CONTEXT_RECOVER_MS);
+  };
+  const onVisible = (): void => { if (pending && document.visibilityState === 'visible') arm(); };
   canvas.addEventListener('webglcontextlost', () => {
     if (tornDown.has(canvas)) return;
     contextLosses++;
-    console.warn(`[pixi fault] ${site}: WebGL context lost (x${contextLosses} this session); Pixi will restore it`);
+    console.warn(`[pixi fault] ${site}: WebGL context lost (x${contextLosses} this session)${onRecover ? '; it will be rebuilt' : '; Pixi will restore it'}`);
+    if (!onRecover || pending) return;
+    pending = true;
+    arm();
+    if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisible);
   });
   canvas.addEventListener('webglcontextrestored', () => {
     if (tornDown.has(canvas)) return;
     console.warn(`[pixi fault] ${site}: WebGL context restored`);
+    // Off the event: Pixi's own restore handler runs first, then the owner rebuilds.
+    if (onRecover) setTimeout(() => recover('restored'), 0);
   });
 }
+
+/** Rebuilds after a context loss since load (the perf log and tests read it). */
+export function contextRecoveryCount(): number { return contextRecoveries; }

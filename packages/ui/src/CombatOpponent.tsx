@@ -79,6 +79,7 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
   const cached = useRef<ReturnType<typeof playerOpponent> | null>(null);
   // VERSUS DUOS (R-DUOS-TAGTEAM-01): once the other team's second board steps in, the portrait is that player's.
   const duosFoe = useDuosCombat((s) => s.foeSeatId);
+  const duosOn = useDuosCombat((s) => s.on);
   const forcedFoe = active && lobby ? playerOpponent(lobby) : null;
   const duosSeat = duosFoe && lobby ? lobby.seats.find((x) => x.id === duosFoe) : undefined;
   const live = forcedFoe && duosSeat ? { ...forcedFoe, seat: duosSeat } : forcedFoe;
@@ -160,6 +161,8 @@ export const CombatOpponent = memo(function CombatOpponent(): JSX.Element | null
             extraClass={`${hasBuffs ? ' hasbuffs' : ''}${buffsOpen ? ' buffsopen' : ''}`}
             onClick={() => { if (hasBuffs) setBuffsOpen((o) => !o); }}
             role={hasBuffs ? 'button' : undefined}
+            // VERSUS DUOS (owner 2026-10-26): the slot swaps to whoever's board is live, the new face fading in.
+            artKey={duosOn && duosFoe && !gauntlet ? `duos:${seat.id}` : undefined}
           >
             {/* Hover affordance — the same darkened prompt the player's portrait wears (owner ask 2026-08-30). */}
             {hasBuffs && (

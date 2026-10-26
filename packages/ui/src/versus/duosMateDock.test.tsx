@@ -2,10 +2,12 @@
 /**
  * VERSUS DUOS — THE TEAMMATE PORTRAIT, BOTTOM RIGHT (owner 2026-10-25; R-DUOS-VIEW-01, R-DUOS-PASS-01): on my board it
  * is my TEAMMATE (the pass target, a click watches them); while I watch them it is ME (a click comes back). A drag over
- * it glows for a pass and shows the reason for a refusal. The pass animation drops INTO it and an arrival comes OUT of it.
+ * it glows for a pass and shows the reason for a refusal. A pass streams INTO it and an arrival streams OUT of it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 vi.hoisted(() => { HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext']; });
 vi.mock('./teammateView', () => ({ enterTeammateView: vi.fn(), exitTeammateView: vi.fn() }));
@@ -15,7 +17,8 @@ const { DuosMateDock } = await import('./DuosMateDock');
 const { useVersus } = await import('./versusStore');
 const { dragStore } = await import('../dragStore');
 const view = await import('./teammateView');
-const { playDrop, playEmerge, mateDoor, emergeFrames, emergeStartScale } = await import('./passLob');
+const { playDrop, playEmerge, playArrival, isPassArrival, mateDoor, coinPoses, catchFrames } = await import('./passLob');
+const { mirrorOfHero } = await import('./DuosMateDock');
 
 const seat = (s: string, userId: string, name: string, hero: string) => ({ seat: s, userId, name, hero });
 function setMatch(): void {
@@ -70,7 +73,8 @@ describe('the teammate portrait, bottom right', () => {
     } finally { ui.unmount(); }
   });
 
-  it('the pass goes INTO this portrait and an arrival comes OUT of it (transform / opacity keyframes only)', () => {
+  it('R-DUOS-PASS-05: the send dissolves the card where it was (transform / opacity only) and lands in this portrait', () => {
+    vi.useFakeTimers();
     const ui = mount(<DuosMateDock watching={false} />);
     const calls: Keyframe[][] = [];
     const proto = Element.prototype as { animate?: unknown };
@@ -78,38 +82,89 @@ describe('the teammate portrait, bottom right', () => {
     proto.animate = function (frames: Keyframe[]) { calls.push(frames); return { onfinish: null, oncancel: null, finish() {}, cancel() {} }; };
     try {
       expect(mateDoor()?.classList.contains('duosdock-disc')).toBe(true);
-      const box = { left: 0, top: 0, width: 100, height: 140 };
-      playDrop({ from: box, to: { left: 800, top: 600, width: 200, height: 200 }, face: null, back: 'b.png', coin: false });
-      playEmerge({ from: { left: 800, top: 600, width: 200, height: 200 }, to: box, back: 'b.png' });
-      expect(calls.length).toBeGreaterThanOrEqual(4);
-      for (const frames of calls) for (const f of frames) for (const k of Object.keys(f)) expect(['transform', 'opacity', 'offset']).toContain(k);
-      // The drop ends small and gone inside the disc; the arrival starts small and invisible there.
-      const drop = calls[0]!;
-      expect(drop[drop.length - 1]!.opacity).toBe(0);
-      expect(String(drop[drop.length - 1]!.transform)).toMatch(/scale\(0\.1\d*\)/);
-      const emerge = calls[2]!;
-      expect(emerge[0]!.opacity).toBe(0);
-    } finally { proto.animate = prev; ui.unmount(); document.querySelectorAll('.duoslob').forEach((n) => n.remove()); }
+      const face = document.createElement('div');
+      face.className = 'card';
+      let landed = 0;
+      playDrop({ from: { cx: 900, cy: 700, w: 150, h: 230 }, plate: null, to: { left: 800, top: 600, width: 250, height: 250 }, face, coin: false, onLand: () => { landed++; } });
+      // The released card's copy fades (no flip: no rotateY anywhere in the pass).
+      expect(calls.length).toBeGreaterThanOrEqual(1);
+      for (const frames of calls) for (const f of frames) {
+        for (const k of Object.keys(f)) expect(['transform', 'opacity', 'offset']).toContain(k);
+        expect(String(f.transform ?? '')).not.toMatch(/rotateY/);
+      }
+      expect(calls[0]![calls[0]!.length - 1]!.opacity).toBe(0);
+      // No FX renderer here (jsdom): the pass still lands, once.
+      vi.advanceTimersByTime(2000);
+      expect(landed).toBe(1);
+    } finally { proto.animate = prev; ui.unmount(); document.querySelectorAll('.duoslob').forEach((n) => n.remove()); vi.useRealTimers(); }
   });
 
-  it('R-DUOS-PASS-02: the arrival starts portrait-sized and GROWS the whole way, landing at full size in the slot', () => {
-    const scaleOf = (f: Keyframe): number => Number(/scale\(([\d.]+)\)/.exec(String(f.transform))![1]);
-    const start = emergeStartScale(200, 120);
-    expect(start).toBeGreaterThan(0.15);
-    expect(start).toBeLessThanOrEqual(0.6);
-    const frames = emergeFrames(700, 300, start);
-    const sizes = frames.map(scaleOf);
-    expect(sizes[0]).toBeCloseTo(start, 5);
-    expect(sizes[sizes.length - 1]).toBeCloseTo(1, 5);
-    for (let i = 1; i < sizes.length; i++) expect(sizes[i]!).toBeGreaterThanOrEqual(sizes[i - 1]!); // never shrinks
-    // Larger as it gets closer: by the time it is halfway to the hand it has grown less than half of the way.
-    const along = frames.map((f) => 1 - Number(/^translate\(([-\d.]+)px/.exec(String(f.transform))![1]) / 700);
-    const half = along.findIndex((g) => g >= 0.5);
-    expect((sizes[half]! - start) / (1 - start)).toBeLessThan(0.45);
-    expect(along[along.length - 1]).toBe(1); // it lands exactly in the slot
-    // Clamped: never a speck, never bigger than a card.
-    expect(emergeStartScale(10, 120)).toBe(0.18);
-    expect(emergeStartScale(900, 120)).toBe(0.6);
+  it('R-DUOS-PASS-05: an arrival is the hand card coalescing in its slot (it is hidden until then, never flipped)', () => {
+    vi.useFakeTimers();
+    const card = document.createElement('div');
+    card.className = 'card';
+    document.body.appendChild(card);
+    try {
+      let landed = 0;
+      playEmerge({ from: { left: 800, top: 600, width: 250, height: 250 }, target: card, onLand: () => { landed++; } });
+      expect(landed).toBe(1); // no FX renderer: the coalesce starts at once
+      // Never left hidden: with no plate on screen to coalesce over (jsdom has no layout), the card simply shows.
+      expect(card.style.opacity).toBe('');
+      vi.advanceTimersByTime(3000);
+      // A pass's arrival is not the generic "generated card" coalesce: the hand stands its own down for it.
+      playArrival('u-arrive');
+      expect(isPassArrival('u-arrive')).toBe(true);
+      vi.advanceTimersByTime(6000);
+      expect(isPassArrival('u-arrive')).toBe(false);
+    } finally { card.remove(); vi.useRealTimers(); }
+  });
+
+  it('R-DUOS-PASS-05: the streams are the two committed Pixi defs (teal, one-shot); the send lands with a ripple on the portrait', () => {
+    const read = (f: string) => readFileSync(join(__dirname, f), 'utf8');
+    const lob = read('passLob.ts');
+    expect(lob).not.toMatch(/rotateY/); // owner 2026-10-26: "the flipping around just doesn't look great"
+    expect(lob).toMatch(/playDef\('duos-pass-send'/);
+    expect(lob).toMatch(/playDef\('duos-pass-arrive'/);
+    expect(lob).toMatch(/playPlateCoalesce\(/);
+    expect(lob).toMatch(/playPlateDissolve\(/);
+    const def = (id: string) => JSON.parse(read(`../fx/defs/${id}.json`)) as { layers: { primitive: string; anchor: string; muted?: boolean }[] };
+    const send = def('duos-pass-send'), arrive = def('duos-pass-arrive');
+    expect(send.layers.some((l) => l.primitive === 'ribbon' && l.anchor === 'travel')).toBe(true);
+    expect(send.layers.some((l) => l.primitive === 'shockwave' && l.anchor === 'target' && !l.muted)).toBe(true); // the portrait ripple
+    expect(arrive.layers.some((l) => l.primitive === 'ribbon' && l.anchor === 'travel')).toBe(true);
+    // The arrival's landing is the card's own coalesce: its target bursts / ripple stand down.
+    expect(arrive.layers.filter((l) => l.anchor === 'target' && l.primitive !== 'sound').every((l) => l.muted)).toBe(true);
+  });
+
+  it('R-DUOS-TAGTEAM-01 (owner 2026-10-26): no "steps in" plate; each side\'s hero slot swaps to the live player', () => {
+    const read = (f: string) => readFileSync(join(__dirname, f), 'utf8');
+    expect(read('duosCombat.tsx')).not.toMatch(/steps in`|DuosTagInPlate|duostag/);
+    expect(read('../Recruit.tsx')).not.toMatch(/DuosTagInPlate/);
+    expect(read('versus.css')).not.toMatch(/\.duostag\b/);
+    // The swap: the player slot keys its art by the live teammate, the foe slot by the live foe, and the new face fades in.
+    expect(read('../StatusBar.tsx')).toMatch(/key=\{duosOn && duosSelfId \? `duos:\$\{duosSelfId\}` : 'me'\}/);
+    expect(read('../CombatOpponent.tsx')).toMatch(/artKey=\{duosOn && duosFoe && !gauntlet \? `duos:\$\{seat\.id\}` : undefined\}/);
+    expect(read('versus.css')).toMatch(/@keyframes duosswapin \{ from \{ opacity: 0; scale: 0\.94; \}/);
+  });
+
+  it('the coin lands in the portrait and the portrait pop returns exactly to rest', () => {
+    const poses = coinPoses(300, 120, 0.3, 0.45);
+    const last = poses[poses.length - 1]!;
+    expect([Math.round(last.x), Math.round(last.y), last.opacity]).toEqual([300, 120, 0]);
+    const pop = catchFrames(1.07).map((f) => Number(/scale\(([\d.]+)\)/.exec(String(f.transform))![1]));
+    expect(pop[0]).toBe(1);
+    expect(pop[pop.length - 1]).toBe(1);
+    expect(Math.max(...pop)).toBeCloseTo(1.07, 2);
+  });
+
+  it('R-DUOS-VIEW-03: the teammate portrait mirrors your own (same size, same distance in from the other corner)', () => {
+    const stage = { left: 0, top: 0, width: 1920, height: 1080 };
+    // Your hero disc: 270 px wide, 135 px in from the left, 93 px up from the bottom.
+    const g = mirrorOfHero({ left: 135, top: 1080 - 93 - 270, width: 270, height: 270 }, stage, (v) => v);
+    expect(g).toEqual({ d: 270, right: 135, bottom: 93 });
+    // A scaled stage converts to stage px; a missing portrait places nothing.
+    expect(mirrorOfHero({ left: 67.5, top: 0, width: 135, height: 135 }, { left: 0, top: 0, width: 960, height: 540 }, (v) => v * 2)?.d).toBe(270);
+    expect(mirrorOfHero(null, stage, (v) => v)).toBeNull();
   });
 
   it('R-DUOS-VIEW-02: in combat the portrait stays bottom right as a face only (no click, no pass glow, no note)', () => {

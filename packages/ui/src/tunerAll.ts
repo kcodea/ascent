@@ -91,6 +91,7 @@ import { SPEC as LungeSpec } from './LungeTuner';
 import { SPEC as PlateCoalesceSpec } from './PlateCoalesceTuner';
 import { SPEC as PlateDissolveSpec } from './PlateDissolveTuner';
 import { SPEC as HandSummonSpec } from './HandSummonTuner';
+import { SPEC as DuosPassSpec } from './versus/DuosPassTuner';
 import { SPEC as QuestTendrilSpec } from './QuestTendrilTuner';
 import { SPEC as RefreshSpec } from './RefreshTuner';
 import { SPEC as RubyPowerFxSpec } from './RubyPowerFxTuner';
@@ -192,6 +193,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   PlateCoalesceSpec,
   PlateDissolveSpec,
   HandSummonSpec,
+  DuosPassSpec,
   QuestTendrilSpec,
   RefreshSpec,
   RubyPowerFxSpec,

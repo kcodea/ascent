@@ -8835,20 +8835,61 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-DUOS-PASS-02',
-    title: 'Versus Duos: a passed card grows as it flies from the teammate portrait into your hand',
+    title: 'Versus Duos: a passed card streams out of the teammate portrait and coalesces in your hand',
     statement:
-      'When a teammate\x27s pass lands in your hand, the card leaves their portrait (bottom right) at about the portrait\x27s size and grows '
-      + 'continuously the whole way, faster as it nears your hand, landing at full hand-card size in its slot; it turns face up along the way. '
-      + 'Its size never shrinks on the way. Transform and opacity only, one-shot.',
+      'When a teammate\x27s pass lands in your hand, a teal magic stream leaves their portrait (bottom right) and arcs over to the card\x27s '
+      + 'slot in your hand, and the card COALESCES there (the game\x27s own generated-card coalesce) as the stream pours in. The card never '
+      + 'flips and never shows before it forms; the hand opens its slot as the card is added. The game\x27s generic "card generated" coalesce '
+      + 'stands down for that card (the pass plays its own, timed to the stream). One-shot.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass polish)', quote: 'the pass animation is solid but can be improved, can you make the passed card get larger as it gets closer to hand?' },
-      { kind: 'code', ref: 'packages/ui/src/versus/passLob.ts (emergeFrames, emergeStartScale, playEmerge)' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (pass, stream + coalesce)', quote: 'can you make it look more like magic/pixi stream and then a coalesce in hand? the flipping around just doesn\x27t look great when it comes in.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/passLob.ts (playArrival, playEmerge, isPassArrival); packages/ui/src/fx/defs/duos-pass-arrive.json; packages/ui/src/plateCoalesce.ts' },
     ],
-    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish).',
-    example: 'Bob passes Ann a Taunt: on Ann\x27s screen a small face-down card rises out of Bob\x27s portrait, swells as it arcs left, flips face up and lands full size in her hand.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-25' },
+    currentBehaviour: 'Changed 2026-10-26 (feat/duos-pass-9). Until then (fix/duos-pass-polish, 2026-10-25) a face-down card rose out of the portrait, grew as it arced over and flipped face up in the hand.',
+    example: 'Bob passes Ann a Taunt: on Ann\x27s screen a teal stream leaves Bob\x27s portrait, arcs over to her hand and the Taunt coalesces in its slot as the stream lands.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-PASS-05',
+    title: 'Versus Duos: a sent card dissolves into a stream that enters the teammate portrait, with a small effect there',
+    statement:
+      'When a hand card is released over the teammate portrait and passes, it dissolves where it was (the game\x27s own plate dissolve, the card '
+      + 'fading with it) and a teal Pixi stream rises off it and arcs into the teammate\x27s bottom-right portrait, which plays a small burst '
+      + 'and ripple and pops as the stream lands. One coin follows it in from the Gold (the pass\x27s 1 Gold). No card flips anywhere in the '
+      + 'pass, on either screen. The stream is one-shot GPU FX, pre-warmed when the portrait first shows, and its timings, speed and colours '
+      + 'are the dev tuner\x27s (✈ Duos Pass); its shape is the committed `duos-pass-send` / `duos-pass-arrive` defs.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (pass, stream + coalesce)', quote: 'when a card is dropped into the teammates portrait to pass, have it coalesce and turn into a stream that enters the hero portrait and plays a simple little effect over the portrait' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (pass smoothness)', quote: 'the pass animation isn\x27t great. it looks okay but it\x27s just not smooth enough. it\x27s a 3/10 and we need a 9/10 here.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/passLob.ts (playDrop, prewarmPassFx); packages/ui/src/versus/duosPassConfig.ts; packages/ui/src/versus/DuosPassTuner.tsx; packages/ui/src/fx/defs/duos-pass-send.json' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/duos-pass-9). Before, the card hopped, flipped face down and shrank into the portrait.',
+    example: 'Ann lets go of a Taunt over Bob\x27s portrait: the Taunt dissolves into arcane dust, a teal stream lifts off it and curls into Bob\x27s portrait, which flashes and pops; one coin drops in after it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/fx/directCalls.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-VIEW-03',
+    title: 'Versus Duos: the teammate portrait is the mirror of your own, with their portrait frame',
+    statement:
+      'The teammate portrait bottom right is the same size as your own hero portrait bottom left and sits the same distance in from the '
+      + 'right edge as yours from the left, at the same height (measured off your own portrait, so the two always match). It wears the '
+      + 'teammate\x27s equipped portrait frame (through "Show opponent cosmetics"), the default look when they have none, with the same name '
+      + 'pill eclipsing its bottom and the same Hearts box under it (the team\x27s hearts). Its cap reads "Teammate" (or "Back to your board" '
+      + 'while watching them).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (teammate portrait)', quote: 'can you make the teammate portrait as large as the player\x27s and make sure it\x27s wired to show their custom frame as well if they have one.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (mirrorOfHero, usePortraitFrame); packages/ui/src/versus/versus.css (.duosdock); packages/ui/src/healthPills.css' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/duos-pass-9). Before, it was a smaller disc with no frame and no Hearts box.',
+    example: 'Ann\x27s hero is 270 px wide and 135 px in from the left: Bob\x27s portrait is 270 px wide and 135 px in from the right, ringed by the frost frame he equipped.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-DUOS-PASS-03',
@@ -8942,17 +8983,19 @@ export const FOUNDATION_RULES: GameRule[] = [
       'In a Duos fight each side\x27s hero slot shows the player whose board is fighting on that side right now, by one rule for both sides: '
       + 'the foe slot switches to the other team\x27s second player when their board steps in, and the player\x27s own slot shows their '
       + 'teammate (portrait, skin, frame and name) while the teammate\x27s board fights first or after a hand-off, and the player again once '
-      + 'their own board is fighting. The player\x27s own buttons stay theirs.',
+      + 'their own board is fighting. The player\x27s own buttons stay theirs. That swap is the ONLY sign of a hand-off: no "steps in" plate, no '
+      + 'extra portrait; the new face fades in on the slot. The boards still fly in.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner rule 2026-10-13 (combat sides symmetric)', quote: 'player/enemy combat sides must be 1:1 identical; any asymmetry is a bug' },
       { kind: 'owner-chat', ref: 'Lead ruling 2026-10-25', quote: 'Our own hero portrait must follow our board too' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (no steps-in plate)', quote: 'just have the current portrait of the player side or opponent side swap to the player who\x27s board is live. we dont need to add more ui elements that are unnecessary' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusGroupView.ts (duosCombatAt); packages/ui/src/StatusBar.tsx; packages/ui/src/CombatOpponent.tsx' },
     ],
-    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2). Before, only the foe slot followed its board.',
+    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2). Before, only the foe slot followed its board. The "<Name> steps in" plate (a portrait disc and a name pill on that side) was removed 2026-10-26 (feat/duos-pass-9); the slot\x27s new face fades in instead.',
     example: 'Bob\x27s board fights first for Ann\x27s team: Ann\x27s hero slot shows Bob; when his board falls and hers steps in, her own portrait is back.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts'], lastVerifiedAt: '2026-10-25' },
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-SPECTATE-WATCHERS-02',

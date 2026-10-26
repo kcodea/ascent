@@ -181,6 +181,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'down-rank' joined on 2026-09-21: the owner-authored demotion hit on the post-game rank screen (`rank/rankTimeline.ts`),
       // the down twin of `rank-up` — fired for both demotion kinds (division and medal).
       'down-rank',
+      // 'duos-pass-arrive' / 'duos-pass-send' joined on 2026-10-26: the Duos pass streams (`versus/passLob.ts`), out of the
+      // released card into the teammate portrait and out of the portrait into the hand slot (R-DUOS-PASS-05).
+      'duos-pass-arrive', 'duos-pass-send',
       'equipment-spark', 'equipment-used-up',
       // 'final-countdown-tick' joined on 2026-10-07: the owner-authored burst from the shop timer's digits on each of
       // the last five seconds (`ShopTimer` in Recruit.tsx), replacing the CSS gold flash.

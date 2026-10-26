@@ -56,6 +56,21 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-26',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Duos: passing a card is now a magic stream, and your teammate\'s portrait matches yours.',
+        details: [
+          'A card you pass dissolves where you let go and streams into your teammate\'s portrait, which flashes as it lands.',
+          'A card passed to you streams out of their portrait and forms in your hand. No more flipping cards.',
+          "Your teammate's portrait is now the same size as yours, wears their portrait frame, and shows the team's hearts.",
+          'In fights, the hero portrait on each side simply switches to whoever is fighting. The "steps in" sign is gone.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-25',
     changes: [
       { category: 'Systems', text: 'Fixed the trip back to the Shop flickering or showing its scene late, especially the first time in a game.' },

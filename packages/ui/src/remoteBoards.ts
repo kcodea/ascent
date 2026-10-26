@@ -1181,7 +1181,8 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
       timeout,
     ]);
     // The chosen profile picture (2026-10-16) when the backend has the column; else the plain ranked read.
-    const withAvatar = await byId(', avatar');
+    const withAvatar = avatarReadable ? await byId(', avatar') : null;
+    noteProfileAvatarRead(withAvatar?.error);
     const ranked = withAvatar && !withAvatar.error && withAvatar.data ? withAvatar : await byId('');
     const result = ranked && !ranked.error && ranked.data
       ? ranked
@@ -1210,19 +1211,33 @@ export async function fetchPlayerById(userId: string): Promise<PlayerRow | null>
  * Career show it to everyone. Its own best-effort UPDATE, never part of the run-end profile sync: a backend without
  * the column rejects only this write, and nothing else waits on it.
  */
+/**
+ * CAN THIS CLIENT READ `profiles.avatar`? The live backend grants column-level SELECT on `profiles` to every column
+ * EXCEPT `avatar` and `email` (owner report 2026-10-25: "permission denied for table profiles" (42501) every few
+ * seconds in the Postgres log). Every avatar-first read below used to ask for the column, get refused and fall back,
+ * on EVERY call (each Versus room seat refresh, each leaderboard / Career read), so the log filled with refusals. The
+ * first refusal (or a backend without the column, 42703) now settles it for the session: the reads skip the column.
+ */
+let avatarReadable = true;
+export const canReadProfileAvatar = (): boolean => avatarReadable;
+export function noteProfileAvatarRead(error: { code?: string } | null | undefined): void {
+  if (error && (error.code === '42501' || error.code === '42703')) avatarReadable = false;
+}
+
 /** BACKFILL (owner 2026-10-16: other players saw a favourite hero, not the picture they chose). A pick made before
  *  the `profiles.avatar` column existed lives only in this browser's `ascent.avatar`; once per session, if the
  *  server's column is still null, write the local choice up so every viewer sees it. One one-row read (R-NET-01) and
  *  at most one update; never overwrites a server value. */
 let avatarBackfilled = false;
 export async function backfillProfileAvatar(local: string | null): Promise<void> {
-  if (avatarBackfilled || !local) return;
+  if (avatarBackfilled || !local || !avatarReadable) return;
   const c = client();
   const userId = currentUserId();
   if (!c || !userId) return;
   avatarBackfilled = true;
   try {
     const { data, error } = await c.from('profiles').select('avatar').eq('user_id', userId).limit(1);
+    noteProfileAvatarRead(error);
     if (error || !data?.length) return; // no column yet, or no row yet (the next run's profile upsert makes one)
     if ((data[0] as { avatar?: unknown }).avatar == null) await c.from('profiles').update({ avatar: local }).eq('user_id', userId);
   } catch { /* best-effort */ }
@@ -1488,7 +1503,8 @@ export async function fetchTopPlayers(limit = 10): Promise<PlayerRow[]> {
       timeout,
     ]);
     // AVATAR (2026-10-16): the chosen profile picture rides the same read; a backend without the column falls back.
-    const withAvatar = await rankedSelect(', equipped_title_id, avatar');
+    const withAvatar = avatarReadable ? await rankedSelect(', equipped_title_id, avatar') : null;
+    noteProfileAvatarRead(withAvatar?.error);
     const titled = withAvatar && !withAvatar.error && withAvatar.data ? withAvatar : await rankedSelect(', equipped_title_id');
     const ranked = titled && !titled.error && titled.data ? titled : await rankedSelect('');
     const result = ranked && !ranked.error && ranked.data

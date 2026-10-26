@@ -1233,16 +1233,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
   side by side, never split by hearts); hearts are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
-  it is display only (no click, no hover). **The hand-off:** when a board falls ("<Name> steps in" rises on that side with their
-  portrait), the next board's minions fly in from their team's edge of the screen one after another, and BOTH hero slots
-  follow the boards: the opponent portrait becomes whoever is fighting now, and your own slot shows your teammate while
-  their board fights on your side. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left. **Passing:** drag a
-  hand card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not
-  ("Their hand is full", "You need 1 Gold", "Your teammate is away", "Passing is closed"); the held card's own border
-  glows the same (teal when releasing will pass, red when it will not; owner 2026-10-25); a refused drop springs back. On
-  release the card DROPS into their portrait, turning face down, with one of your coins following it in from your Gold;
-  the portrait pops as it catches it. On their screen the card comes out of YOUR portrait (bottom right for them), flies
-  into their hand and lands face up. **Watching your teammate:** click their portrait (their rail row works too, or hold
+  it is display only (no click, no hover). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
+  after another, and BOTH hero slots follow the boards: the opponent portrait becomes whoever is fighting now, and your own
+  slot shows your teammate while their board fights on your side (name pill and hearts with it), the new face fading in.
+  That swap is the only sign of a hand-off (owner 2026-10-26): no "steps in" plate. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left: the same size, the same distance in from the corner, their portrait frame, their name pill and the team's Hearts box under it. **Passing:** drag a
+  hand card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not; a refused
+  drop springs back. On release the card dissolves where it was into arcane dust and a teal stream rises off it and curls
+  into their portrait, which flashes and pops; one of your coins follows it in from your Gold. On their screen a stream
+  leaves YOUR portrait (bottom right for them), arcs over to their hand and the card coalesces in its slot. No card
+  flips. **Watching your teammate:** click their portrait (their rail row works too, or hold
   Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). The swap is a quick, clean
   cross-fade both ways: the screen you leave stays still on top for a moment while the other one is built under it, then
   fades out over it (no panel, no sweep); while you watch, their hero is in the hero slot, a strong team-colour

@@ -81,7 +81,7 @@ export function friendsAccount(): boolean {
 export type PresenceMode = 'ranked' | 'casual' | 'practice' | 'tutorial' | 'gauntlet' | 'solo' | 'versus_room' | 'versus_1v1'
   | 'versus_group' | 'versus_duos' | 'ranked_duos' | 'watching' | 'replay';
 
-const VERSUS_MODE_OF = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos' } as const;
+const VERSUS_MODE_OF = { duel: 'versus_1v1', group: 'versus_group', duos: 'versus_duos', ranked_duos: 'ranked_duos' } as const;
 
 /** My presence, from the stores. Cheap (a few field reads); pure for the tests. */
 export function presenceNow(): PresenceReport {

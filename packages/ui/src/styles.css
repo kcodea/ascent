@@ -496,7 +496,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    plain Cinzel over a tapered rule, the name in bold Fraunces over a rule with a diamond in its middle. (Sizes 46 / 40 at first,
    then 56 / 50: owner 2026-10-23, "increase the size of the font for both now facing and player name".) (The return trip's sky
    text keeps the white lettering; this is the poster only.) All static: nothing here animates. */
-.wipeposter .wipevs-label, .wipeposter .wipevs-name { position: relative; color: #3a2210; -webkit-text-stroke: 0; opacity: 0.92;
+/* `paint-order: normal` (R-WEBKIT-SHADOW-01): `.wipevs-label` / `.wipevs-name` below set `paint-order: stroke fill`, and
+   WebKit (every iPhone browser) draws NO text-shadow at all on text whose paint-order is not normal. With no stroke here
+   the two orders paint the same, so the poster keeps its inked bleed on iPhone and nothing changes elsewhere. */
+.wipeposter .wipevs-label, .wipeposter .wipevs-name { position: relative; color: #3a2210; -webkit-text-stroke: 0; paint-order: normal; opacity: 0.92;
   text-shadow: 0 0 calc(1 * var(--u, 1px)) rgba(40, 20, 6, 0.75), 0 0 calc(5 * var(--u, 1px)) rgba(110, 58, 22, 0.35); }
 .wipeposter .wipevs-label { font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
   font-size: calc(67 * var(--u, 1px)); /* 56 -> 67 and bold (owner 2026-10-23: "scale up the now facing text by 20% and make it bold") */ letter-spacing: 0.06em; padding-bottom: calc(10 * var(--u, 1px));
@@ -711,6 +714,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista .wipevista-title { --u: calc(var(--lvh, 100dvh) * 0.00089333);
   top: max(15.5%, calc((var(--vista-hi) - var(--lvh, 100dvh)) / 2 + 140 * var(--u))); font-family: 'Cinzel', var(--title-font, 'Cinzel Decorative'), serif; font-weight: 900;
   font-size: calc(98 * var(--u, 1px)); letter-spacing: 0.12em; line-height: 1.02; color: #fff; -webkit-text-stroke: 0;
+  /* `paint-order: normal`, NOT the `stroke fill` it would get from `.wipevs-label` (R-WEBKIT-SHADOW-01; tester report
+     2026-10-26, iPhone: "the return to shop is missing the glow on the lettering"): WebKit skips EVERY text-shadow on
+     text whose paint-order is not normal, so on iPhone the magic glow never drew. No stroke here, so nothing else changes. */
+  paint-order: normal;
   text-shadow: 0 0 calc(6 * var(--u, 1px)) #9ff7ef, 0 0 calc(18 * var(--u, 1px)) #36cfd6, 0 0 calc(40 * var(--u, 1px)) rgba(54, 207, 214, 0.8),
     0 calc(4 * var(--u, 1px)) calc(10 * var(--u, 1px)) rgba(10, 40, 80, 0.5); }
 /* THE ENTRANCE (owner 2026-10-23: first "have it grow and pop out and spring back into place with a little settle ...

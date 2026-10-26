@@ -70,6 +70,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'On iPhone, the Returning To Shop letters glow again, and the Now Facing poster lettering has its inked edge.',
+      },
+      {
+        category: 'Systems',
         text: "Versus now uses Health and Armor like a normal game, with the same damage and cap. Duos teams share 30 Health plus both heroes' Armor. Summit adds +10 Armor in Versus again.",
         details: [
           "Hearts are gone from 1v1, 3-4 player and Duos games. Each player starts on their hero's Health and Armor.",

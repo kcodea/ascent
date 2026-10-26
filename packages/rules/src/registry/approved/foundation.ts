@@ -8374,6 +8374,35 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'blank hold frame; after, 44 to 57 ms and none (vista-harness recordings, 2026-10-25).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
+  // ── iPhone text keeps its glow (tester report 2026-10-26, a9afafa5a) ─────────────────────────────────────────────
+  {
+    id: 'R-WEBKIT-SHADOW-01',
+    title: 'Glowing or shadowed text draws its glow on iPhone too',
+    statement:
+      'Any text the game gives a glow or shadow shows it on every browser, iPhone included. WebKit (every iPhone browser) '
+      + 'draws no text-shadow at all on text whose paint-order is not normal, so text that has a text-shadow never gets '
+      + '`paint-order: stroke fill`, from its own rule or inherited. Text with no stroke resets it to normal.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Tester Lemon via the owner, 2026-10-26 (Netlify build a9afafa5a, on a phone)',
+        quote: 'the return to shop is missing the glow on the lettering',
+      },
+      { kind: 'fix-pr', ref: 'fix/visual-regressions-1026' },
+      { kind: 'code', ref: 'packages/ui/src/styles.css (.wipevista .wipevista-title, .wipeposter .wipevs-label / .wipevs-name: paint-order normal)' },
+    ],
+    currentBehaviour:
+      'Conforms for the return trip title and the gate poster as of 2026-10-26. Both inherited `paint-order: stroke fill` '
+      + 'from `.wipevs-label` / `.wipevs-name`, so on iPhone the title drew plain white and the poster lost its inked bleed '
+      + '(desktop Chrome was unaffected). PARTIAL as a general rule: older text pairs a stroke under the fill with a shadow '
+      + 'and still loses the shadow on iPhone (the damage tallies and hero blast numbers, the plate tribe label, spell / '
+      + 'Ruby power floats, the compact drawer tribe, Collection skin tiles); webkitTextShadow.test.ts lists them and fails '
+      + 'on any new one.',
+    example: 'iPhone, End Combat: RETURNING TO SHOP rises in the sky with its turquoise glow, as on desktop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/webkitTextShadow.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
   {
     id: 'R-SKIP-DIAMOND-01',
     title: 'Skip lives on the End Turn diamond, which glows yellow while the fight can be skipped',

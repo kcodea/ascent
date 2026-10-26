@@ -105,6 +105,7 @@
     "task:list": "node scripts/worktree.mjs list",
     "task:done": "node scripts/worktree.mjs done",
     "task:serve": "node scripts/worktree.mjs serve",
+    "worktrees:prune": "node scripts/worktree.mjs prune",
     "dev": "npm run dev -w apps/web",
     "dev:active": "node scripts/dev-active.mjs",
     "build:web": "npm run build -w apps/web",

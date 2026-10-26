@@ -78,7 +78,8 @@ export interface VersusBotOptions {
   watchMs?: number;
   /** Heartbeat spacing in ms. Default 4000. */
   beatMs?: number;
-  /** Duos: how often the bot reads its team's passes, in ms. Default 1000. */
+  /** Duos: how often the bot reads its team's passes, in ms. Default 1000 (the browser host passes 5000 and wakes it
+   *  on each pass row change instead, `wakePasses`). */
   passPollMs?: number;
 }
 
@@ -133,15 +134,33 @@ export class VersusBotDriver {
     this.rng = makeRng(opts.seed ?? 0x5eed);
   }
 
-  /** One step of the bot's life. Never throws (a failed call is retried on a later step). */
+  /** Steps in a row that failed (R-NET-BACKOFF-01): the host waits `retryDelayMs` before the next one. */
+  private failures = 0;
+  private finalizeFails = 0;
+
+  /** One step of the bot's life. Never throws (a failed call is retried on a later step, backing off). A bot whose
+   *  room or membership is gone answers 'done' (its host then stops it) instead of retrying forever. */
   async step(): Promise<BotStepResult> {
     if (this.disconnected) return 'idle';
     try {
-      return await this.inner();
-    } catch {
+      const r = await this.inner();
+      this.failures = 0;
+      return r;
+    } catch (e) {
+      const code = (e as { code?: string }).code;
+      if (code === 'not_a_member' || code === 'no_room') return 'done';
+      this.failures++;
       return 'idle';
     }
   }
+
+  /** How long the host should wait before the next step after failures: 0 while healthy, then 1 s doubling to 15 s. */
+  get retryDelayMs(): number {
+    return this.failures === 0 ? 0 : Math.min(15_000, 500 * 2 ** this.failures);
+  }
+
+  /** Duos: a pass row changed on the server (the host's Realtime wake-up): read the passes on the next step. */
+  wakePasses(): void { this.lastPassPoll = -Infinity; }
 
   private async inner(): Promise<BotStepResult> {
     const now = this.opts.now();
@@ -187,9 +206,16 @@ export class VersusBotDriver {
       case 'shop':
         return this.shop(m, now);
       case 'resolving':
-        if (now - this.lastFinalize > 2500) {
+        // 2.5 s apart, doubling after failures up to 30 s (a resolver that keeps refusing is not asked twice a second).
+        if (now - this.lastFinalize > Math.min(30_000, 2500 * 2 ** this.finalizeFails)) {
           this.lastFinalize = now;
-          await this.api.finalize(m.id, m.round, m.content_revision);
+          try {
+            await this.api.finalize(m.id, m.round, m.content_revision);
+            this.finalizeFails = 0;
+          } catch (e) {
+            this.finalizeFails++;
+            throw e;
+          }
           this.match = (await this.api.match(m.id)) ?? m;
           return 'acted';
         }

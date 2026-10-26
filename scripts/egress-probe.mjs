@@ -101,7 +101,7 @@ function wireMeter(cdp, who) {
     // CORS preflights: their own bucket (a few hundred bytes of headers each, but one per cross-origin call).
     const auth = e.request.headers?.Authorization ?? e.request.headers?.authorization ?? '';
     const sub = auth.startsWith('Bearer ') ? subOf(auth.slice(7)) : null;
-    if (k) reqs.set(e.requestId, { key: `${who(sub)}|${e.request.method === 'OPTIONS' ? 'preflight (OPTIONS)' : k}` });
+    if (k) reqs.set(e.requestId, { key: `${who(sub)}|${e.request.method === 'OPTIONS' ? 'preflight (OPTIONS)' : k}`, url: e.request.url });
   });
   cdp.on('Network.responseReceived', (e) => {
     const q = reqs.get(e.requestId);
@@ -115,6 +115,8 @@ function wireMeter(cdp, who) {
     const r = row(q.key);
     r.calls++;
     r.wire += e.encodedDataLength;
+    if (!r.urls) r.urls = [];
+    if (r.urls.length < 3) r.urls.push(`${Math.round(e.encodedDataLength / 1024)}KB ${decodeURIComponent(q.url).replace(/^https:\/\/[^/]+/, '').slice(0, 400)}`);
     if (q.status >= 400) { r.errors++; r.codes[q.status] = (r.codes[q.status] ?? 0) + 1; }
   });
   cdp.on('Network.loadingFailed', (e) => {

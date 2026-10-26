@@ -11,6 +11,7 @@
  * Existing primitives only (the Gem plate, the name pill, the portrait ring, the game's icons); motion is the plate's
  * own one-shot hover nudge.
  */
+import { pageHidden } from '../net/backoff';
 import { useEffect, useState } from 'react';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
@@ -56,15 +57,24 @@ function RoomCard({ r }: { r: VersusRoomSummary }) {
   );
 }
 
+const ROOMS_VISIBLE_MS = 5000;
+const ROOMS_HIDDEN_MS = 30_000;
+
 function Browser() {
   const rooms = useVersus((s) => s.rooms);
   const loading = useVersus((s) => s.loading);
   const playerName = useGame((s) => s.playerName);
   const [name, setName] = useState(() => defaultRoomName(playerName));
+  // The open-rooms list refreshes every 5 s while the page is visible; a background tab asks only every 30 s, and
+  // coming back to the tab refreshes at once (R-NET-BACKOFF-01, perf 2026-10-26).
   useEffect(() => {
-    void refreshRooms();
-    const id = window.setInterval(() => void refreshRooms(), 5000);
-    return () => window.clearInterval(id);
+    let last = 0;
+    const ask = (): void => { last = Date.now(); void refreshRooms(); };
+    ask();
+    const id = window.setInterval(() => { if (!pageHidden() || Date.now() - last >= ROOMS_HIDDEN_MS) ask(); }, ROOMS_VISIBLE_MS);
+    const onVis = (): void => { if (!pageHidden() && Date.now() - last >= ROOMS_VISIBLE_MS) ask(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
   }, []);
   const create = (): void => { sfx.pulse(); void createRoom(name.trim() || defaultRoomName(playerName)); };
   return (

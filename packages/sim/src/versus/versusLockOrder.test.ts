@@ -34,6 +34,8 @@ const ORDER = [
   '2026-10-25-versus-duos-xp.sql', '2026-10-25-versus-test-bots.sql',
 ];
 const FIX = '2026-10-26-versus-lock-order.sql';
+/** The egress migration rewrites the heartbeat and the list prune again; the order must still hold. */
+const EGRESS = '2026-10-27-versus-egress.sql';
 
 type Cls = 'match' | 'seats' | 'room' | 'member';
 const RANK: Record<Cls, number> = { match: 1, seats: 0, room: 2, member: 3 };
@@ -136,5 +138,9 @@ describe('R-VERSUS-LOCK-ORDER-01: every Versus RPC takes its row locks in one gl
 
   it('after 2026-10-26-versus-lock-order.sql no RPC takes a lock out of order', () => {
     expect(report([...ORDER, FIX])).toEqual({});
+  });
+
+  it('after 2026-10-27-versus-egress.sql (heartbeat presence + room bump, rate-limited prune) the order still holds', () => {
+    expect(report([...ORDER, FIX, EGRESS])).toEqual({});
   });
 });

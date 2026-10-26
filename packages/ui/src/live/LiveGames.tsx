@@ -11,6 +11,7 @@ import { LbHeroFrame } from '../LadderBits';
 import { MenuSidebar, SidebarHost } from '../MenuSidebar';
 import { RankCrest } from '../rank/RankBar';
 import { remoteEnabled } from '../remoteBoards';
+import { pageHidden } from '../net/backoff';
 import { sfx } from '../sfx';
 import { frameIdOf } from '../portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins } from '../skins/skins';
@@ -37,15 +38,23 @@ export function LiveGames(): JSX.Element | null {
   const [failed, setFailed] = useState(false);
   const [joining, setJoining] = useState<string | null>(null);
 
+  // Every 10 s while visible (R-NET-BACKOFF-01): nothing while the tab is hidden (a refresh on coming back), and a
+  // failing read waits 20, 40, 60 s before the next try instead of asking every 10 s forever.
   useEffect(() => {
     if (!show || !remoteEnabled()) return undefined;
     let live = true;
+    let fails = 0;
+    let nextAt = 0;
     const load = (): void => {
-      liveRemote.list(page).then((r) => { if (live) { setRows(r); setFailed(false); } }).catch(() => { if (live) setFailed(true); });
+      nextAt = Date.now() + Math.min(60_000, REFRESH_MS * 2 ** fails);
+      liveRemote.list(page).then((r) => { if (live) { fails = 0; setRows(r); setFailed(false); } })
+        .catch(() => { if (live) { fails++; nextAt = Date.now() + Math.min(60_000, REFRESH_MS * 2 ** fails); setFailed(true); } });
     };
     load();
-    const id = window.setInterval(load, REFRESH_MS);
-    return () => { live = false; window.clearInterval(id); };
+    const id = window.setInterval(() => { if (!pageHidden() && Date.now() >= nextAt) load(); }, 1000);
+    const onVis = (): void => { if (!pageHidden() && Date.now() >= nextAt) load(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => { live = false; window.clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
   }, [show, page]);
 
   if (!show) return null;

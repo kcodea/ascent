@@ -27,7 +27,8 @@ const DUOS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos
 const EDGES = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-edges.sql'), 'utf8');
 const ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-random-order.sql'), 'utf8');
 const PASS_BACK = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-pass-back.sql'), 'utf8');
-const LOCK_ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8');
+const LOCK_ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;

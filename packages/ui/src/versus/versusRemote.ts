@@ -324,7 +324,8 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   startGame: (roomId: string) => rpc<VersusRoom>('versus_start_game', { p_room: roomId }),
   pressGate: (roomId: string) => rpc<VersusRoom>('versus_press_gate', { p_room: roomId }),
   reconcileRoom: (roomId: string) => rpc<VersusRoom>('versus_reconcile_room', { p_room: roomId }),
-  heartbeat: (roomId: string) => rpc<{ serverNow: string; match?: VersusMatch; groupMatch?: VersusGroupMatchRaw }>('versus_heartbeat', { p_room: roomId }),
+  /** `seen` (2026-10-27-versus-egress.sql): the room members' last heartbeats, sent only while the match is paused. */
+  heartbeat: (roomId: string) => rpc<{ serverNow: string; match?: VersusMatch; groupMatch?: VersusGroupMatchRaw; seen?: Record<string, string> }>('versus_heartbeat', { p_room: roomId }),
 
   async room(roomId: string): Promise<VersusRoom | null> {
     const { data, error } = await db().from('versus_rooms').select('*').eq('id', roomId).maybeSingle();
@@ -511,16 +512,18 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   },
 
   /**
-   * One Realtime channel per room: row changes on the room, its members, its current match and that match's
-   * rounds (each just a wake-up), plus the match's BROADCAST events (spectator deltas, emotes). `onBroadcast`
-   * receives `{ event, payload }`.
+   * One Realtime channel per room: row changes on the room, its current match and that match's rounds (each just a
+   * wake-up), plus the match's BROADCAST events (spectator deltas, emotes). `onBroadcast` receives `{ event, payload }`.
+   * NOT the room's members (R-NET-REALTIME-01, perf 2026-10-26): every member's 4-second heartbeat rewrote its row, and
+   * each rewrite went to every subscriber (~0.9 KB x members x subscribers per beat, the biggest Versus egress line).
+   * Every membership change that matters (join, leave, seat move, knockout, prune) bumps the ROOM's revision, which is
+   * the wake-up; presence while a match is paused comes back on the heartbeat.
    */
   subscribeRoom(roomId: string, matchId: string | null, onChange: (what: 'room' | 'members' | 'match' | 'rounds' | 'passes', row?: Record<string, unknown>) => void,
     onBroadcast?: (event: string, payload: unknown) => void): { channel: RealtimeChannel; send: (event: string, payload: unknown) => void; close: () => void } {
     const c = db();
     let ch = c.channel(`versus:${roomId}`, { config: { broadcast: { self: false } } })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_rooms', filter: `id=eq.${roomId}` }, () => onChange('room'))
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_members', filter: `room_id=eq.${roomId}` }, (p: { eventType?: string; new?: Record<string, unknown> }) => onChange('members', p.eventType === 'UPDATE' ? p.new : undefined));
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'versus_rooms', filter: `id=eq.${roomId}` }, () => onChange('room'));
     if (matchId) {
       // A match id lives in exactly one of the two match tables (1v1 or group): listening on both costs nothing.
       ch = ch

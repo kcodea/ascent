@@ -19,6 +19,7 @@
 import { create } from 'zustand';
 import { spectateRunId, type SpectateKind } from '@game/progression';
 import { supabaseClient } from '../remoteBoards';
+import { pageHidden } from '../net/backoff';
 import { currentUserId } from '../identity';
 import { beginSpectateProgression } from '../progression/progressionStore';
 import { requestRankedGate } from '../rankedGate/rankedGateController';
@@ -28,6 +29,8 @@ import { useGame } from '../store';
 
 /** How often an open watch screen beats. Well inside the server's 45 s continuity window. */
 export const SPECTATE_BEAT_MS = 10_000;
+/** A hidden watch screen's beat spacing: well inside the 45 s continuity window. */
+export const SPECTATE_HIDDEN_BEAT_MS = 25_000;
 
 export interface SpectatorEndNoticeState {
   /** The watched player's name. */
@@ -80,7 +83,15 @@ export function startSpectatorBeat(kind: SpectateKind, target: string): void {
   const s: NonNullable<typeof current> = { kind, target, timer: null };
   current = s;
   void beat(kind, target);
-  if (typeof window !== 'undefined') s.timer = window.setInterval(() => { if (current === s) void beat(kind, target); }, SPECTATE_BEAT_MS);
+  // A background tab beats every 30 s (the first 10 s tick past 25 s) instead of every 10 s (R-NET-BACKOFF-01): still inside the server's 45 s
+  // continuity window, so the watch record (and the XP for watching) is exactly the same.
+  let last = Date.now();
+  if (typeof window !== 'undefined') s.timer = window.setInterval(() => {
+    if (current !== s) return;
+    if (pageHidden() && Date.now() - last < SPECTATE_HIDDEN_BEAT_MS) return;
+    last = Date.now();
+    void beat(kind, target);
+  }, SPECTATE_BEAT_MS);
 }
 
 /** The watch screen closed (Leave, the room left, the end): no more beats. */

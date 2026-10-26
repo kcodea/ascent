@@ -40,6 +40,7 @@ function fail(e: { message?: string; code?: string } | null | undefined): never 
 export const LIVE_PAGE = 30;
 
 export function makeLiveRemote(getClient: () => SupabaseClient | null) {
+  let watchAsMissing = false;
   const db = (): SupabaseClient => {
     const c = getClient();
     if (!c) throw new LiveError('no_backend');
@@ -95,10 +96,14 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
      * answers `not_deployed`, and the plain `watch` is used instead (the player then sees a plain "Spectator").
      */
     async watchAs(gameId: string, name: string, profile: Record<string, unknown>): Promise<LiveGameRow> {
+      // A server without the identity RPC answers not_deployed once; every later poll goes straight to the plain watch
+      // (it used to ask the missing function first on every 5 s poll: one error per poll, R-NET-BACKOFF-01).
+      if (watchAsMissing) return rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId });
       try {
         return await rpc<LiveGameRow>('lobby_live_watch_as', { p_game: gameId, p_name: name, p_profile: profile });
       } catch (e) {
         if ((e as LiveError).code !== 'not_deployed') throw e;
+        watchAsMissing = true;
         return rpc<LiveGameRow>('lobby_live_watch', { p_game: gameId });
       }
     },

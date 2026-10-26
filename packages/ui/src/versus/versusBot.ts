@@ -127,8 +127,9 @@ async function loop(h: BotHost): Promise<void> {
       if (free) await h.remote.takeSeat(room.id, free).catch(() => undefined);
     }
   }
-  // Small random gaps so it feels alive; the driver itself ends its turn with time to spare.
-  schedule(h, r === 'acted' ? 250 + Math.random() * 550 : 500);
+  // Small random gaps so it feels alive; the driver itself ends its turn with time to spare. After failed steps it
+  // backs off (R-NET-BACKOFF-01) instead of retrying every 500 ms forever.
+  schedule(h, Math.max(d.retryDelayMs, r === 'acted' ? 250 + Math.random() * 550 : 500));
 }
 
 /**
@@ -145,7 +146,8 @@ function publishBotFrame(h: BotHost): void {
   if (!info || !run || !matchId || !seat) return;
   if (h.pub?.matchId !== matchId || h.pub.p.seat !== seat) {
     h.pub?.channel.close();
-    const ch = h.remote.subscribeRoom(info.roomId, matchId, () => undefined, (event) => { if (event === SPECTATE_KEY_EVENT) h.keyWanted = true; });
+    // The room channel also wakes the bot's Duos pass sync on each pass row change (it polls only every 5 s otherwise).
+    const ch = h.remote.subscribeRoom(info.roomId, matchId, (what) => { if (what === 'passes') h.driver?.wakePasses(); }, (event) => { if (event === SPECTATE_KEY_EVENT) h.keyWanted = true; });
     h.pub = { matchId, p: newPublisher(seat), channel: ch };
     h.lastRun = null;
     h.keyWanted = true;
@@ -197,7 +199,7 @@ async function addBot(roomId: string, seat?: VersusRole): Promise<void> {
     const room = await h.remote.joinRoom(roomId, 'player', { displayName: name, profile: { avatar: AVATARS[slot - 1] }, setId: activeSet().id, contentRevision: contentRevision() });
     const mine = room.members?.find((m) => m.userId === userId);
     if (seat && seat !== 'spectator' && mine && mine.role !== seat) await h.remote.takeSeat(roomId, seat).catch(() => undefined);
-    h.driver = new VersusBotDriver(h.api, roomId, { userId, now: versusServerNow, seed: ((Date.now() + slot * 7919) & 0x7fffffff) | 1, watchMs: 25000 });
+    h.driver = new VersusBotDriver(h.api, roomId, { userId, now: versusServerNow, seed: ((Date.now() + slot * 7919) & 0x7fffffff) | 1, watchMs: 25000, passPollMs: 5000 });
     h.driver.hooks = sharedHooks;
     patchBot(slot, { status: 'playing' });
     schedule(h, 200);

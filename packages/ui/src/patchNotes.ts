@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-25',
     changes: [
+      { category: 'Systems', text: 'Fixed the trip back to the Shop flickering or showing its scene late, especially the first time in a game.' },
       {
         category: 'Balance',
         text: "Gilded Kennelmaster now adds up its two best copies' bonuses instead of doubling them.",

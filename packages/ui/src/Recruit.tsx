@@ -250,7 +250,8 @@ import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
 import { publicArt } from './phoneArt';
 import { crumbLight } from './crashLog';
-import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
+import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, vistaDrivesMachine, vistaWarmClassFor, VISTA_WARM_MS, wipeExiting, wipeSweeping, wipeUp, type VistaWarmStep, type WipeState } from './wipeMachine';
+import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID } from './vistaDoor';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { stageHost, toStage, toScreen, rectToStage, stageScale, phoneLayoutOn, pageScale } from './stage';
 import { aimReleaseResolves, longPressActive, tapSlopPx } from './touchInput';
@@ -2374,18 +2375,13 @@ export function Recruit() {
     document.body.classList.toggle('wipe-up', wipeOnScreen);
   }, [wipeOnScreen]);
   useEffect(() => () => document.body.classList.remove('wipe-up'), []);
-  // THE DOOR'S CUT-OUT MUST BE READY BEFORE IT IS USED (owner clip 2026-10-23: "part of the image disappears and
-  // returns"). `.wipevista-masked` (sky, hills, title, shop) wears `vista-doormask.png` as a CSS mask once the land has
-  // settled; a mask whose image is not decoded yet hides the WHOLE group, so for four frames the fight showed through
-  // everything but the flowers. It was the one vista picture never preloaded. Now it is fetched and DECODED on mount
-  // (kept referenced, like the layers), and each trip decides at its start whether to cut the door (`maskok`): only if
-  // the cut-out is already decoded, so it can never switch on half-ready or mid-flight. Without it the trip simply dives
-  // without the hole once (the doorway's painted interior and the end fade still carry it): never a blank scene.
+  // The vista's art, fetched on mount and kept referenced (the network is never the wait). This does NOT keep it ready to
+  // draw: the compositor decodes for itself, and drops it again (R-PRESENT-36). THE WARM-UP below does that part.
   const vistaArtRef = useRef<HTMLImageElement[]>([]);
-  const vistaMaskReadyRef = useRef(false);
-  const [vistaMaskTrip, setVistaMaskTrip] = useState(false);
+  // The live state, for the vista's animation handlers: only a real trip moves the machine (`vistaDrivesMachine`).
+  const wipeNowRef = useRef(wipe);
+  wipeNowRef.current = wipe;
   useEffect(() => {
-    if (wipe === 'coverOut') setVistaMaskTrip(vistaMaskReadyRef.current);
     // Crash-log steps for the falling gate and the trip back (phones; R-TOUCH-CRASH-REPORT-02). Light: mid-animation.
     if (wipe === 'coverIn' || wipe === 'combat' || wipe === 'coverOut' || wipe === 'revealOut') crumbLight(`gate ${wipe}`);
   }, [wipe]);
@@ -2395,16 +2391,14 @@ export function Recruit() {
     new Image().src = `${import.meta.env.BASE_URL}transition-gate.webp`;
     new Image().src = `${import.meta.env.BASE_URL}transition-poster.webp`;
     // …and the return trip's vista: its six layers, or (phones) its one flattened picture.
-    // Decoded up front and kept referenced, so the first trip never waits on a decode; the door's cut-out among them.
-    // Through `publicArt`: on a phone the flat picture and the cut-out are their 1280 px copies (the same URLs the
-    // stylesheet's `--vista-flat` / `--vista-doormask` point at, R-TOUCH-RUN-MEMORY-02); desktop, the originals.
+    // Fetched and decoded up front and kept referenced. Through `publicArt`: on a phone the flat picture is its 1280 px
+    // copy (the same URL the stylesheet's `--vista-flat` points at, R-TOUCH-RUN-MEMORY-02); desktop, the originals.
     const art = (PHONE_GPU ? ['flat', 'doorfill', 'doorglow'] : [...VISTA_LAYERS, 'doorfill', 'doorglow']).map((n) => `vista-${n}.webp`);
-    vistaArtRef.current = [...art, 'vista-doormask.png'].map((f) => {
+    vistaArtRef.current = art.map((f) => {
       const img = new Image();
       img.src = publicArt(f);
       const decoded = typeof img.decode === 'function' ? img.decode() : Promise.resolve();
-      if (f === 'vista-doormask.png') decoded.then(() => { vistaMaskReadyRef.current = true; }, () => { /* no hole this session */ });
-      else decoded.catch(() => { /* a background still loads on its own */ });
+      decoded.catch(() => { /* a background still loads on its own */ });
       return img;
     });
     sfx.warmGate();
@@ -2563,14 +2557,14 @@ export function Recruit() {
   // `wipeslam`, plays inside the hold, which its own timer ends.)
   // The return trip's vista: its fade IN ends the cover (opacity transition), its fade OUT ends the reveal (`vistafade`).
   const onVistaEnd = useCallback((e: ReactTransitionEvent<HTMLDivElement>): void => {
-    if (e.propertyName !== 'opacity' || e.target !== e.currentTarget) return;
+    if (e.propertyName !== 'opacity' || e.target !== e.currentTarget || !vistaDrivesMachine(wipeNowRef.current)) return;
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);
   const onVistaAnimEnd = useCallback((e: ReactAnimationEvent<HTMLDivElement>): void => {
     // The cover ends when the last layer has risen into place (`vistarisefore`, the flowers); the reveal when the vista fades out.
     const ends = e.animationName === 'vistarisefore' || (e.animationName === 'vistafade' && e.target === e.currentTarget);
-    if (!ends) return;
+    if (!ends || !vistaDrivesMachine(wipeNowRef.current)) return; // (a warm-up's own animations, unseen, never count)
     window.clearTimeout(wipeTimeoutRef.current);
     advanceWipe();
   }, [advanceWipe]);
@@ -3036,6 +3030,21 @@ export function Recruit() {
   // that commit was a drag decision that never re-rendered `Recruit`. The refs above are theirs to write.
 
   const replay = useCombatReplay(run.lastCombat, { active: fighting, findEl, combatSpeed, paused: overlayOpen || versusPaused, rampEnabled });
+  // THE VISTA'S WARM-UP (R-PRESENT-36; wipeMachine.ts `vistaWarmClassFor`): the moment a fight's replay ends, while it
+  // still sits on screen (End Combat only opens now), the return trip's hold and dive play once, unseen, behind the
+  // game, so the compositor has drawn every layer at every scale the trip needs. Once per fight. A press during it ends
+  // it at once (the real trip takes the element over): whatever it had drawn by then still counts.
+  const [vistaWarm, setVistaWarm] = useState<VistaWarmStep | null>(null);
+  const vistaWarmedForRef = useRef<unknown>(null);
+  useEffect(() => {
+    if (wipe !== 'combat' || !replay.done || !run.lastCombat || vistaWarmedForRef.current === run.lastCombat) return undefined;
+    vistaWarmedForRef.current = run.lastCombat;
+    setVistaWarm('hold');
+    const t1 = window.setTimeout(() => setVistaWarm('dive'), VISTA_WARM_MS.hold);
+    const t2 = window.setTimeout(() => setVistaWarm(null), VISTA_WARM_MS.hold + VISTA_WARM_MS.dive);
+    return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
+  }, [wipe, replay.done, run.lastCombat]);
+  useEffect(() => { if (wipe !== 'combat') setVistaWarm(null); }, [wipe]);
   // VERSUS DUOS: who is fighting on each side as the hand-offs play (the opponent portrait, the "steps in" plate).
   useDuosCombatSync(run.lastCombat, replay.replayEvents, replay.processedEnd, fighting);
   // A VERSUS SPECTATOR switching seats mid-fight continues from the same moment on the other side (both sides of the
@@ -8379,7 +8388,11 @@ export function Recruit() {
       {/* THE RETURN TRIP (owner 2026-10-23): the exit pass's own transition, the shop's VISTA (six parallax layers; one
           flattened picture on phones), RETURNING TO SHOP in its sky (`vistaClassFor`, `.wipevista` in styles.css). The
           fade in and the dive out drive the machine like the gate does (`onVistaEnd` / `onVistaAnimEnd`). */}
-      <div className={vistaClassFor(wipe) + (vistaMaskTrip ? ' maskok' : '')} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
+      <div className={vistaWarm && wipe === 'combat' ? vistaWarmClassFor(vistaWarm) : vistaClassFor(wipe)} aria-hidden="true" onTransitionEnd={onVistaEnd} onAnimationEnd={onVistaAnimEnd} style={wipeVars}>
+        {/* The doorway's hole, as a shape (vistaDoor.ts, R-PRESENT-36): `.wipevista-masked` clips to it. No picture to decode. */}
+        <svg className="wipevista-defs" width="0" height="0" aria-hidden="true" focusable="false">
+          <clipPath id={VISTA_DOOR_CLIP_ID} clipPathUnits="objectBoundingBox"><path clipRule="evenodd" d={VISTA_DOOR_CLIP} /></clipPath>
+        </svg>
         {/* The Shop seen through the door starts in shadow and brightens as you go through (`.wipevista-dusk`). */}
         <div className="wipevista-dusk" />
         <div className="wipevista-stage">

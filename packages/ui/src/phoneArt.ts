@@ -50,9 +50,10 @@ export function phonePublicCap(rel: string): number | null {
   // (R-TOUCH-GPU-MEMORY-01). `hall-dim` is already 960 wide and a stylesheet names it.
   if (rel === 'backdrops/hall-soft.webp' || rel === 'backdrops/hall.webp') return 1280;
   // The return trip's vista on a phone (owner 2026-10-24: "Phone-sized return-trip images: yea send em"): the one
-  // flattened picture and the door's cut-out, 2560 x 1440 masters decoded on Shop mount and held for the run
-  // (R-PRESENT-36). About a phone screen's width; both are CSS custom properties `applyPhoneCssArt` re-points.
-  if (rel === 'vista-flat.webp' || rel === 'vista-doormask.png') return 1280;
+  // flattened picture, a 2560 x 1440 master decoded on Shop mount and held for the run. About a phone screen's width;
+  // a CSS custom property `applyPhoneCssArt` re-points. (The door's cut-out was a second one until 2026-10-25: it is a
+  // vector clip now, vistaDoor.ts, R-PRESENT-36.)
+  if (rel === 'vista-flat.webp') return 1280;
   // Card frames, plates, desc boxes, tier stars, the shop buttons. NOT the title logo (drawn huge on the title), the
   // Compendium frame (a border-image sliced in image pixels) or the ranked gate (CSS-painted).
   if (/^frames\/(?!title-logo|compendium-|ranked-gate)/.test(rel)) return 512;
@@ -185,9 +186,8 @@ export const publicArt = (rel: string): string => phonePublicUrl(rel);
 export const PHONE_CSS_VARS: ReadonlyArray<readonly [string, string]> = [
   ['--board', 'augustfullboard.webp'],
   ['--board-combat', 'augustboardcombat.webp'],
-  // The return trip's vista (R-TOUCH-RUN-MEMORY-02): `.wipevista-flat` and the door's mask read these.
+  // The return trip's vista (R-TOUCH-RUN-MEMORY-02): `.wipevista-flat` reads this.
   ['--vista-flat', 'vista-flat.webp'],
-  ['--vista-doormask', 'vista-doormask.png'],
 ];
 
 /**

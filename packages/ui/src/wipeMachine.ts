@@ -106,3 +106,23 @@ export const WIPE_EXIT: readonly WipeState[] = ['combat', 'primeOut', 'coverOut'
 export function vistaClassFor(w: WipeState): string {
   return `wipevista${w === 'coverOut' ? ' on in' : w === 'coveredOut' ? ' on in held' : w === 'revealOut' ? ' on dive' : ''}`;
 }
+
+/**
+ * THE WARM-UP (owner report 2026-10-25, "images glitching and not loading straight away"; R-PRESENT-36). The vista's
+ * five layers are 2560 x 1440 pictures that Chromium's compositor decodes and draws only when they are shown, and it
+ * drops that work again after a while (measured: a warm-up at load had decayed a minute later). Cold, the first trip
+ * showed nothing for ~0.12 s (the fight stayed up, then the scene popped in) and its dive started a frame late. So the
+ * moment a fight's replay ends (End Combat can only be pressed after it), the vista plays its hold and its dive once,
+ * INVISIBLY: `warming` puts it behind the game at 1% (the compositor still draws covered content, measured). By the
+ * press it is warm, and the trip is frame-for-frame the same as a warm one. `null` = not warming.
+ */
+export type VistaWarmStep = 'hold' | 'dive';
+/** How long each warm step is shown (ms): long enough for the compositor to draw it at every scale it will need. */
+export const VISTA_WARM_MS: Readonly<Record<VistaWarmStep, number>> = { hold: 400, dive: 450 };
+export function vistaWarmClassFor(step: VistaWarmStep): string {
+  return `wipevista warming${step === 'hold' ? ' on in held' : ' on dive'}`;
+}
+/** Only a REAL trip's own animations may move the machine on (a warm-up plays the same ones, unseen). */
+export function vistaDrivesMachine(w: WipeState): boolean {
+  return w === 'coverOut' || w === 'revealOut';
+}

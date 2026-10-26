@@ -4,8 +4,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   WIPE_ENTRY, WIPE_EXIT, WIPE_STATES, afterBeat, afterSweep, barClassFor, combatBackdropShown, curtainClassFor,
-  frontClassFor, vistaClassFor, wipeCovered, wipeSweeping, wipeUp, type WipeState,
+  frontClassFor, vistaClassFor, vistaDrivesMachine, vistaWarmClassFor, VISTA_WARM_MS, wipeCovered, wipeSweeping, wipeUp,
+  type WipeState,
 } from './wipeMachine';
+import { VISTA_DOOR_CLIP, VISTA_DOOR_CLIP_ID, VISTA_DOOR_OUTLINE } from './vistaDoor';
 import { WIPE_DEFAULTS, sanitizeWipeConfig, wipeCssVars } from './screenWipeConfig';
 import { wipeOriginFor } from './wipeGeometry';
 
@@ -152,9 +154,43 @@ describe('the return trip is the vista, not the gate', () => {
     const flight = /\.wipevista\.on \.wipevista-shop \{ animation: (vistariseshop [^;]*?) both; \}/.exec(css)?.[1];
     expect(flight).toBeTruthy();
     expect(css).toContain(`.wipevista.on .wipevista-doorwrap { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both, ${flight} both; }`);
-    // (…and only on a trip whose cut-out was decoded before it began: a mask still loading blanks the group.)
-    expect(css).toContain(".wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: var(--vista-doormask, url('/vista-doormask.png'))");
-    expect(css).not.toMatch(/^\.wipevista\.(held|dive) \.wipevista-masked[^{]*\{[^}]*mask/m);
+    // (…as a SHAPE, never a picture: R-PRESENT-36, below.)
+    expect(css).toContain('.wipevista.held .wipevista-masked, .wipevista.dive .wipevista-masked { clip-path: url(#wipevista-door); }');
+  });
+
+  // R-PRESENT-36 (owner reports 2026-10-23 and 2026-10-25: "images glitching and not loading straight away"). Measured in
+  // real Chrome on the GPU: the door's PICTURE mask blanked 79% of the screen for a frame as it switched on (a session's
+  // first trip), and the cold layers showed nothing for ~0.12 s. A vector clip and a warm-up fixed both.
+  it('cuts the door with a shape, never a picture the compositor has to decode first', () => {
+    expect(VISTA_DOOR_CLIP_ID).toBe('wipevista-door');
+    expect(VISTA_DOOR_CLIP.startsWith('M0,0H1V1H0Z M')).toBe(true); // the whole picture, then the doorway (even-odd)
+    // The outline is the owner's door: inside the 0..1 art, at his shape's box (1124..1316 x 947..1202 of 2560 x 1440).
+    const pts = [...VISTA_DOOR_OUTLINE.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map((m) => [Number(m[1]) * 2560, Number(m[2]) * 1440]);
+    expect(pts.length).toBeGreaterThan(20);
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    expect(Math.min(...xs)).toBeGreaterThan(1120); expect(Math.max(...xs)).toBeLessThan(1320);
+    expect(Math.min(...ys)).toBeGreaterThan(943); expect(Math.max(...ys)).toBeLessThan(1206);
+    const recruit = readFileSync(join(here, 'Recruit.tsx'), 'utf8');
+    expect(recruit).toContain('<clipPath id={VISTA_DOOR_CLIP_ID} clipPathUnits="objectBoundingBox"><path clipRule="evenodd" d={VISTA_DOOR_CLIP} /></clipPath>');
+    // No vista rule masks with a picture (the cut-out picture is gone from the build).
+    for (const rule of css.match(/\.wipevista[^{]*\{[^}]*\}/g) ?? []) {
+      const body = rule.slice(rule.indexOf('{'));
+      expect(body, rule.slice(0, 80)).not.toMatch(/(?:^|[;{\s])(?:-webkit-)?mask(?:-image)?\s*:[^;]*url\(/);
+    }
+  });
+
+  it('warms the trip up unseen as a fight ends, and the warm-up never moves the machine', () => {
+    expect(vistaWarmClassFor('hold')).toBe('wipevista warming on in held');
+    expect(vistaWarmClassFor('dive')).toBe('wipevista warming on dive');
+    expect(VISTA_WARM_MS.hold + VISTA_WARM_MS.dive).toBeLessThanOrEqual(1000); // done well inside a reaction to End Combat
+    // Behind the game and all but transparent; !important outranks the dive's own fade.
+    expect(css).toContain('.wipevista.warming { z-index: -1; opacity: 0.01 !important; }');
+    // Only a real trip's animations advance the state machine.
+    for (const w of WIPE_STATES) expect(vistaDrivesMachine(w), w).toBe(w === 'coverOut' || w === 'revealOut');
+    const recruit = readFileSync(join(here, 'Recruit.tsx'), 'utf8');
+    expect(recruit).toContain("if (wipe !== 'combat' || !replay.done || !run.lastCombat || vistaWarmedForRef.current === run.lastCombat) return undefined;");
+    expect(recruit).toContain('className={vistaWarm && wipe === \'combat\' ? vistaWarmClassFor(vistaWarm) : vistaClassFor(wipe)}');
+    expect((recruit.match(/!vistaDrivesMachine\(wipeNowRef\.current\)/g) ?? []).length).toBe(2); // both handlers guarded
   });
 
   it("keeps the floor covered through the gate's landing bounce, on any screen shape", () => {

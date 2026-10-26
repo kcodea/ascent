@@ -67,6 +67,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'In a Versus room, press Invite friends. Your friend gets an invite they can accept for 2 minutes.',
           'Friends need a saved account. You can also block a player.',
         ],
+        text: 'On iPhone, the Returning To Shop letters glow again, and the Now Facing poster lettering has its inked edge.',
       },
       {
         category: 'Systems',

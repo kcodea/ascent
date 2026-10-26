@@ -5722,24 +5722,50 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-VERSUS-HEARTS-01',
-    title: 'Versus is played to seven hearts: a lost round strikes one, a draw strikes nobody, Resolve never moves',
+    title: 'Versus no longer plays to hearts (retired 2026-10-26): Health and Armor as in the lobby (R-VERSUS-HEALTH-01)',
     statement:
-      'In Versus each player starts with 7 hearts. Each round the two players fight each other once; the loser of '
-      + 'that fight loses one heart and the winner loses nothing. A draw costs nobody a heart. A player at 0 hearts '
-      + 'loses the match and the other player wins; no further shop opens. Combat never changes either player\x27s '
-      + 'Resolve or Armor in Versus, and the match never ends by Resolve, by the old course length or by lobby '
-      + 'placement. Cards and heroes that touch Resolve or Armor stay in the Versus pool unchanged; their effects '
-      + 'simply do not change hearts.',
+      'Hearts are gone from every Versus mode. From 2026-10-13 to 2026-10-26 each player had 7 hearts and a lost round struck one; '
+      + 'since 2026-10-26 each player plays on their hero\x27s Health and Armor and a lost fight costs the lobby\x27s damage, capped, '
+      + 'Armor first (R-VERSUS-HEALTH-01). A draw still costs nobody. A match committed before the change keeps its recorded hearts '
+      + 'and still displays them.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Health: each player has 7 hearts; you lose a heart when you lose a round (struck by the enemy). 0 hearts = you lose. Combat never touches Resolve.' },
       { kind: 'owner-chat', ref: 'Owner rulings for Versus, 2026-10-13, relayed verbatim by the coordinator', quote: 'Draws: nobody loses a heart.' },
-      { kind: 'code', ref: 'packages/sim/src/versus/combat.ts resolveVersusFight (heartLostBy); packages/sim/src/reducer.ts settleCombat + advanceCombat (mode versus: no Resolve damage, no course victory, no Resolve gameover); supabase/migrations/2026-10-13-versus.sql versus_commit_round' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Versus Health and Armor)', quote: 'I want to move the normal lobby mode health/damage system to versus so the experience is the same' },
+      { kind: 'code', ref: 'packages/sim/src/versus/vitals.ts; packages/sim/src/versus/combat.ts resolveVersusFight; supabase/migrations/2026-10-28-versus-health.sql (the hearts columns kept readable)' },
     ],
-    currentBehaviour: 'Conforms in code from 2026-10-13 (feat/versus-phase0); live once the Versus migration and the versus-resolve finalize deploy are applied.',
-    example: 'Round 9, you lose the fight: 4 hearts become 3; your opponent keeps 6. Round 10 is a draw: both stay.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusRun.test.ts', 'packages/sim/src/versus/versusSchema.db.test.ts', 'packages/sim/src/versus/versusMatch.db.test.ts'], lastVerifiedAt: '2026-10-13' },
+    currentBehaviour: 'Hearts retired 2026-10-26 (feat/versus-lobby-health); live once 2026-10-28-versus-health.sql is applied and versus-resolve redeployed.',
+    example: 'Round 9, you lose the fight to a tier 4 board with two tier 3 survivors: 10 damage (the round 9 cap is 15), taken from your Armor first. A draw costs both of you nothing.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusCombat.test.ts', 'packages/sim/src/versus/versusMatch.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-VERSUS-HEALTH-01',
+    title: 'Versus plays on Health and Armor like a lobby game: the hero\x27s start, the lobby damage, the lobby cap, Armor first, 0 is out',
+    statement:
+      'In every Versus mode (1v1, the 3-4 player group, Duos) each player starts on their hero\x27s own Health and Armor, exactly like a '
+      + 'lobby seat. The loser of a fight takes the lobby\x27s damage: the winning side\x27s tavern tier plus the tier of each of its '
+      + 'surviving minions, read off the one authoritative fight, capped by the lobby\x27s round cap (5 on rounds 1-3, 10 on 4-7, 15 on '
+      + '8-11, 20 on 12-14, none from 15). Armor absorbs it before Health. A draw costs nobody. A player at 0 Health is knocked out: '
+      + 'in a 1v1 the match ends; in a group they go to the stands as before. In a group a Copy and a ghost never take damage, but '
+      + 'their win damages the facing player; players knocked out together share the lower placement, and if every player still in '
+      + 'would go out in one round, the one who entered it with the most Health + Armor (then by seat) survives. The game shows it '
+      + 'all exactly as the lobby does: the Health box under your hero, the rail rows (Health and Armor), the opponent block\x27s '
+      + 'Health box and the round\x27s Max dmg beside its Round plate, the damage formation and Fight Recap, the spectator plates, '
+      + 'the room\x27s seats during a match and the Previous match stats. The server owns the numbers (it stores every seat\x27s pools '
+      + 'after each round); a fresh lock reports the run\x27s pools so a shop effect that sets Armor (Mend) counts, bounded by the '
+      + 'highest Armor any card sets, and never raises Health. XP by placement is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Versus Health and Armor)', quote: 'I want to move the normal lobby mode health/damage system to versus so the experience is the same' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'The lobby\x27s per-round damage cap (MAX DMG on the rail) applies, same curve as lobby.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'Draws: no damage (as lobby).' },
+      { kind: 'code', ref: 'packages/sim/src/versus/vitals.ts (versusStartingVitals, versusVitalsBefore, hitVitals, stampVersusDamage); packages/sim/src/versus/{combat,group,duos}.ts; packages/sim/src/versus/{finalize,groupFinalize,duosFinalize}.ts; packages/sim/src/reducer.ts settleCombat (lands versusVitals); supabase/migrations/2026-10-28-versus-health.sql; supabase/functions/versus-resolve/index.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/versus-lobby-health, protocol 2). Live once 2026-10-28-versus-health.sql is applied and versus-resolve redeployed.',
+    example: 'Ann (Warden) loses round 2 to a tier 2 board with three tier 1 survivors: 2 + 3 = 5 damage, the round 2 cap is 5, all of it off her Armor. In round 16 the same loss to a full tier 6 board is uncapped.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusCombat.test.ts', 'packages/sim/src/versus/versusLobby.test.ts', 'packages/sim/src/versus/versusGroupLobby.test.ts', 'packages/sim/src/versus/versusMatch.db.test.ts', 'packages/sim/src/versus/versusSchema.db.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts', 'packages/ui/src/versus/versusFoe.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-VERSUS-RANK-01',
@@ -5765,7 +5791,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'progression.sql is applied and submit-progression is redeployed. Match history is the versus_matches / '
       + 'versus_rounds rows. The 100 / +60 numbers and the placement-gate exclusion are the builder\x27s proposal, '
       + 'pending owner tuning.',
-    example: 'You win a Versus match 7 hearts to 0: you earn 160 XP and any achievement progress a game earns; your medal and division do not move.',
+    example: 'You win a Versus match by knocking your opponent out: you earn 160 XP and any achievement progress a game earns; your medal and division do not move.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusIsolation.test.ts', 'packages/progression/src/versusProgression.db.test.ts', 'packages/progression/src/sqlParity.test.ts'], lastVerifiedAt: '2026-10-14' },
   },
   {
@@ -5838,10 +5864,10 @@ export const FOUNDATION_RULES: GameRule[] = [
       'A Versus match uses the ordinary lobby UI: the entry gate and crystal, Hero Select with a 20 second clock, the '
       + 'shop, the rail, the combat scene (opponent portrait, name, skin, hero attack, Fight Recap), the clock, the Esc '
       + 'menu (Concede, two taps), emotes, the announcer and the music, and the end gate back to the room. The deltas: '
-      + 'two seats with one opponent, hearts in the Resolve slot under your hero, the opponent as a hero block on the right '
-      + 'mirroring yours (portrait, name, hearts, status, shop tier) in place of the seat rail, server timers with no Gold Fuse, the room, no rank, no Pre-emptive Assault. The run carries a '
+      + 'two seats with one opponent, your Health box under your hero, the opponent as a hero block on the right '
+      + 'mirroring yours (portrait, name, Health box, status, shop tier, the round\x27s Max dmg) in place of the seat rail, server timers with no Gold Fuse, the room, no rank, no Pre-emptive Assault. The run carries a '
       + 'two-seat lobby built from the match (the opponent fields the board they fought each round with) only so those '
-      + 'screens can read it: the reducer never settles it or ends the run by it, Resolve and Armor never move, and it '
+      + 'screens can read it: the reducer never settles it or ends the run by it (the run lands the resolver\x27s Health and Armor, R-VERSUS-HEALTH-01), and it '
       + 'is never a save, a snapshot or pool board, a fight-ledger or Hall row, run history, a rank change or a replay. '
       + 'The game start is a lobby game\'s: the full Hero Select ceremony (a timeout pick plays it for the server\'s hero), '
       + 'then the Good Luck intro; round 1\'s clock starts when both intros have played out (or 45 s after the heroes lock). '
@@ -6378,7 +6404,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The spectator sees themselves top left; the watched player and the switcher sit bottom right',
     statement:
       'On the watch screen the TOP LEFT shows the spectator as a spectator: their portrait ring in their own frame, their name and a Spectating pill (the plate the player sees for them), then the other spectators, then Leave. '
-      + 'The BOTTOM RIGHT, above the corner Settings, book and rules buttons, shows who is being watched: in Versus the two seat buttons (portrait, name, hearts, the 1 and 2 keys) to switch players; in a live ranked game one compact name and rank plate, with no second portrait (that player hero is already bottom left). '
+      + 'The BOTTOM RIGHT, above the corner Settings, book and rules buttons, shows who is being watched: in Versus the two seat buttons (portrait, name, Health and Armor, the 1 and 2 keys) to switch players; in a live ranked game one compact name and rank plate, with no second portrait (that player hero is already bottom left). '
       + 'Built from existing pieces only (MemberRing, the name and heart pills, RankCrest, the Gem plate). It does not collide with the Versus Guides plate, the Summary pill or the corner buttons in shop or combat.',
     domain: 'foundation',
     status: 'approved',
@@ -8366,7 +8392,7 @@ export const FOUNDATION_RULES: GameRule[] = [
   // ── Versus Group: the 3-4 player round robin (owner 2026-10-24) ──────────────────────────────────────────────────
   {
     id: 'R-VERSUS-GROUP-01',
-    title: 'Versus Group: 3 or 4 players, a round robin, a COPY for the odd player, 7 hearts, last one standing',
+    title: 'Versus Group: 3 or 4 players, a round robin, a COPY for the odd player, Health and Armor, last one standing',
     statement:
       'A Versus room set to the group mode seats 3 or 4 players and starts with 3 or 4; the 1v1 mode is unchanged. Each round '
       + 'pairs the players still in so everyone meets everyone before any repeat: with 4 in, the three pairings of four in turn '
@@ -8375,9 +8401,9 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'is copied once (never a copy of yourself); with 2 in, they face each other. When the players still in change, the cycle '
       + 'restarts on them, avoiding a rematch of the round just played when it can. The pairing is derived from public data (the '
       + 'seats and when each went out), so every client and the server agree before a round is fought. One server call resolves '
-      + 'every fight of the round, one simulation per fight. The loser of a fight loses one heart of 7, a draw costs nobody, a copy '
-      + 'never loses a heart (damage to a copy never hurts the copied player) but its win costs the facing player one. Players at '
-      + '0 hearts after a round are out together and share the lower placement (the lobby\x27s rule for simultaneous knockouts); '
+      + 'every fight of the round, one simulation per fight. The loser of a fight takes the lobby damage (R-VERSUS-HEALTH-01; 7 hearts '
+      + 'until 2026-10-26), a draw costs nobody, a copy never takes damage (damage to a copy never hurts the copied player) but its win '
+      + 'damages the facing player. Players at 0 Health after a round are out together and share the lower placement (the lobby\x27s rule for simultaneous knockouts); '
       + 'the last one standing is 1st. Unrated: no rank, rating, MMR or medal.',
     domain: 'foundation',
     status: 'approved',
@@ -8388,7 +8414,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/versus/group.ts (versusGroupPairings, resolveVersusGroupRound); packages/sim/src/versus/groupFinalize.ts; supabase/migrations/2026-10-24-versus-group.sql (versus_group_commit_round); supabase/functions/versus-resolve/index.ts finalize_group' },
     ],
     currentBehaviour: 'Server side live 2026-10-24 (#2280: migration applied, versus-resolve redeployed, parity 31/31); playable from the room and in game since phase 2 (feat/versus-group-ui). Readings approved by the owner 2026-10-24.',
-    example: 'Four players: round 1 is Ann vs Bob and Cat vs Dan, round 2 Ann vs Cat and Bob vs Dan, round 3 Ann vs Dan and Bob vs Cat. Dan runs out of hearts in round 3: round 4 is one fight (not a rematch of round 3) and the third player faces a copy of one of the other two boards.',
+    example: 'Four players: round 1 is Ann vs Bob and Cat vs Dan, round 2 Ann vs Cat and Bob vs Dan, round 3 Ann vs Dan and Bob vs Cat. Dan is knocked out in round 3: round 4 is one fight (not a rematch of round 3) and the third player faces a copy of one of the other two boards.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusGroup.test.ts', 'packages/sim/src/versus/versusGroup.db.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {
@@ -8397,9 +8423,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'In a group match a player who leaves the room or concedes is out at once and placed below everyone still in; the match '
       + 'goes on while two or more remain and ends when one does. If that happens during a round, the round\x27s pairing does not '
-      + 'change: the departed seat fights it as a ghost of its last locked board (or an empty board), which can never lose a heart '
-      + 'while its win still costs its opponent one. If every player still in would go out in the same round, the one who '
-      + 'entered it with the most hearts (then by seat) survives it, as in the lobby. Disconnects work as in 1v1 over the players '
+      + 'change: the departed seat fights it as a ghost of its last locked board (or an empty board), which never takes damage '
+      + 'while its win still damages its opponent. If every player still in would go out in the same round, the one who '
+      + 'entered it with the most Health + Armor (then by seat) survives it, as in the lobby. Disconnects work as in 1v1 over the players '
       + 'still in: a pause, the 30 second grace, then any other player still in may unpause and the absent seat plays on auto (its '
       + 'last locked board); three auto rounds in a row is out; coming back clears auto. A player who is out never pauses or '
       + 'holds up the match. Back from a fight: when all but one player still in are back, the last has 5 seconds (90 seconds at '
@@ -8426,7 +8452,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'outside the list. Each change is counted so every member can be told the options changed. Switching to 1v1 with more than '
       + 'two seated moves the extra players to the stands (the lowest seats keep theirs; a player in seat 3 or 4 first fills an '
       + 'empty seat 1 or 2). Every new match keeps a copy of the options it started with, so a game in progress never changes; a '
-      + 'modifier is pinned onto every player\x27s run at creation exactly as a Rift run pins its rift. Hearts (7) and the round '
+      + 'modifier is pinned onto every player\x27s run at creation exactly as a Rift run pins its rift. The round '
       + 'timer are not options yet. Versus stays unrated whatever the options.',
     domain: 'foundation',
     status: 'approved',
@@ -8442,21 +8468,24 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-VERSUS-SUMMIT-01',
-    title: 'Summit in Versus only unlocks Tier 7; it adds no Armor',
+    title: 'Summit in Versus adds +10 Armor (as the lobby Summit rift) and unlocks Tier 7; in Duos, +10 per hero',
     statement:
-      'A Versus room with the Summit modifier (1v1 or the 3-4 player group) raises every seat\x27s shop ceiling to Tier 7 and '
-      + 'gives Tier 7 access for every Tier 7 effect, but grants NO bonus Armor: each seat starts on its hero\x27s own Armor. '
-      + 'The modifier text in Versus reads "The shop unlocks Tier 7." and never promises Armor. Outside Versus nothing changes: a '
-      + 'Summit Rift run keeps its +10 Armor, so a recorded Summit run replays exactly as it was played.',
+      'A Versus room with the Summit modifier (1v1, the 3-4 player group or Duos) raises every seat\x27s shop ceiling to Tier 7 and '
+      + 'gives Tier 7 access for every Tier 7 effect, AND adds +10 Armor to every hero, as the lobby\x27s Summit rift does. In Duos the '
+      + '+10 applies per hero, so the team\x27s shared pool gets both (30 Health + both Armors + 20). The modifier reads with the rift\x27s '
+      + 'usual text ("All heroes gain +10 Armor, and the shop unlocks Tier 7."). From 2026-10-25 to 2026-10-26 a Versus Summit added no '
+      + 'Armor (hearts made Armor meaningless there).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25', quote: 'summit rift shouldnt add armor in versus, just have it unlock tier 7.' },
-      { kind: 'code', ref: 'packages/sim/src/config.ts (riftBonusArmor, riftDefFor); packages/sim/src/versus/run.ts createVersusRun; packages/ui/src/versus/versusOptionsUi.tsx; packages/ui/src/HudBar.tsx; packages/ui/src/Recruit.tsx (RiftButton)' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (since reversed)', quote: 'summit rift shouldnt add armor in versus, just have it unlock tier 7.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'Summit in Versus: add +10 Armor again (like the lobby Summit rift) in addition to unlocking Tier 7' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'For Duos the +10 applies per hero (so the pool gets both).' },
+      { kind: 'code', ref: 'packages/sim/src/config.ts (riftBonusArmor, riftDefFor); packages/sim/src/versus/run.ts createVersusRun; packages/sim/src/versus/vitals.ts (versusModifierArmor, versusStartingVitals, versusDuosStartingVitals)' },
     ],
-    currentBehaviour: 'Since 2026-10-25 (fix/versus-summit-no-armor). Before, a Versus Summit seat started with +10 Armor (cosmetic: Versus fights land with no Resolve or Armor damage).',
-    example: 'A host picks Summit for a 1v1. Both players start on their heroes\x27 own Armor, and either can tavern up from Tier 6 to Tier 7.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/rifts.test.ts'], lastVerifiedAt: '2026-10-25' },
+    currentBehaviour: 'Since 2026-10-26 (feat/versus-lobby-health). From 2026-10-25 (fix/versus-summit-no-armor) to then, no Armor.',
+    example: 'A host picks Summit for a 1v1: a Warden starts on 30 Health and her Armor + 10, and either player can tavern up from Tier 6 to Tier 7. A Summit Duos team of two Wardens starts on 30 Health and both Armors + 20.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusOptions.test.ts', 'packages/sim/src/rifts.test.ts', 'packages/sim/src/versus/versusCombat.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-PROG-VERSUS-XP-01',
@@ -8575,13 +8604,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-VERSUS-GROUP-03',
-    title: 'In a 3-4 player Versus game the ranked lobby rail shows every player on their hearts, and a Copy row names who is copied this round',
+    title: 'In a 3-4 player Versus game the ranked lobby rail shows every player on their Health and Armor, and a Copy row names who is copied this round',
     statement:
       'A 3-4 player Versus game replaces the 1v1 opponent block with the ordinary ranked lobby rail: one row per player, the player included, on '
-      + 'their hearts out of 7 (no Armor, no loss cap), the round\x27s opponent marked, players out shown below with their placement, hover and pin '
+      + 'their Health and Armor with the lobby\x27s Max dmg (R-VERSUS-HEALTH-01; hearts out of 7 until 2026-10-26), the round\x27s opponent marked, players out shown below with their placement, hover and pin '
       + 'scouting as in a lobby, and the rail\x27s Guides tab. While the round has a copy fight, one more row reads "Copy of <name>" (who is copied '
-      + 'changes each round) with that player\x27s hearts and board; when the player is the one facing it, the Copy is their opponent: the combat '
-      + 'scene names "Copy of <name>" and shows the copied board. Hearts move with the 1v1 timing (yours when your fight settles, the others\x27 '
+      + 'changes each round) with that player\x27s pools and board; when the player is the one facing it, the Copy is their opponent: the combat '
+      + 'scene names "Copy of <name>" and shows the copied board. Pools move with the 1v1 timing (yours when your fight settles, the others\x27 '
       + 'when you leave the fight). An emote shows on its sender\x27s own row. A 1v1 game keeps its opponent block.',
     domain: 'foundation',
     status: 'approved',
@@ -8619,7 +8648,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'A Versus room in the 3-4 player mode has four seats and starts with three or four seated',
     statement:
       'A room set to 3-4 players shows four player seats, two each side of the VS mark, a size down from the 1v1 seats; members take and leave them '
-      + 'by drag or Join exactly as in 1v1. Start game shows for the host once three are seated. Each seat shows its hearts during a match. Switching '
+      + 'by drag or Join exactly as in 1v1. Start game shows for the host once three are seated. Each seat shows its Health and Armor during a match. Switching '
       + 'the room back to 1v1 moves the extra players to the stands (R-VERSUS-OPTIONS-01).',
     domain: 'foundation',
     status: 'approved',
@@ -8635,9 +8664,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-VERSUS-GROUP-06',
     title: 'Knocked out of a 3-4 player Versus game: into the stands of the same match, watching the rest, placement shown on arrival',
     statement:
-      'When a player goes out of a group match (out of hearts, three missed rounds, or a concede), the server moves them from their seat to the '
+      'When a player goes out of a group match (knocked out at 0 Health, three missed rounds, or a concede), the server moves them from their seat to the '
       + 'stands of the room at once (past a full stand: the 20-spectator cap only gates joins and seat moves); their seat in the match keeps its '
-      + 'placement and takes no more locks or inputs. On their screen they watch the fight that knocked them out (out of hearts), then the end '
+      + 'placement and takes no more locks or inputs. On their screen they watch the fight that knocked them out (0 Health), then the end '
       + 'gate closes and opens on the watch screen of the same match, the normal spectator view with the fight picker, with their placement in '
       + 'the end screen\x27s numeral on the game\x27s dark panel ("3RD", "You are out. Watch the rest of the match from the stands.") for a few '
       + 'seconds or until Watch is pressed. A conceded player arrives there at once. Leave returns them to the room, Watch brings them back, and '
@@ -8658,9 +8687,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Previous match stats after a 3-4 player Versus game show the whole table and who each round was fought',
     statement:
       'After a group match the room\x27s Previous match stats shows the player\x27s place in the end screen\x27s numeral (Victory, 2nd, 3rd, 4th), '
-      + 'then every player of the table in order with their place, hero and hearts (the player\x27s own row lit; a player still in while the stats are '
+      + 'then every player of the table in order with their place, hero, Health and Armor (the player\x27s own row lit; a player still in while the stats are '
       + 'opened reads "Playing"), then the player\x27s own rounds as pips. Each round\x27s opponent row names who they fought that round (another '
-      + 'player, or "Copy of <name>"), with that board and hearts. A player knocked out has the stats in the room, filling in as the table finishes; '
+      + 'player, or "Copy of <name>"), with that board and their Health and Armor. A player knocked out has the stats in the room, filling in as the table finishes; '
       + 'the winner\x27s end gate opens on them.',
     domain: 'foundation',
     status: 'approved',
@@ -8669,7 +8698,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/versus/versusMatchRecord.ts (buildGroupMatchRecord); packages/ui/src/versus/VersusMatchStats.tsx (.vsms-table, per-round foeName); packages/ui/src/versus/versusStore.ts (groupRecord)' },
     ],
     currentBehaviour: 'Since 2026-10-24 (feat/versus-group-edges, phase 3). Before, the stats showed only the player\x27s fights, all under the last opponent\x27s name.',
-    example: 'Ann wins a four-player game: Victory, then Ann 7 hearts, Cat 2nd, Bob 3rd, Dan 4th; round 6\x27s pip shows the fight against "Copy of Cat".',
+    example: 'Ann wins a four-player game: Victory, then Ann on 24 Health, Cat 2nd, Bob 3rd, Dan 4th; round 6\x27s pip shows the fight against "Copy of Cat".',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusGroupView.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {
@@ -8767,13 +8796,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-DUOS-01',
-    title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, 7 team hearts, 2 for a stomp, concede = the team out',
+    title: 'Versus Duos: 2v2 by seat pairs, one tag-team fight a round, one shared team Health pool, concede = the team out',
     statement:
       'A Versus room set to Duos seats exactly 4 players and starts only with 4: seats 1 and 2 are one team, seats 3 and 4 the other. Each '
       + 'round is ONE tag-team fight, team against team. Who fights first on each team is a 50/50 pick every round that no player can change '
-      + '(R-DUOS-ORDER-01); an empty board hands straight over to the teammate. Each team has 7 hearts: the losing team loses 1, or 2 when the winning team never needed its second board; a draw '
-      + 'costs nobody. A team at 0 hearts is out together and the other team wins. Placement is by team: the winning team is 1st and the '
-      + 'losing team 2nd, both players each; teams are their own record (id, hearts, placement), so more teams place the same way. '
+      + '(R-DUOS-ORDER-01); an empty board hands straight over to the teammate. Each team shares ONE Health pool (R-DUOS-HEALTH-01: 30 Health plus both heroes\x27 Armor; 7 team hearts, 2 for a stomp, until '
+      + '2026-10-26): the losing team takes the lobby damage, a draw costs nobody. A team at 0 Health is out together and the other team wins. Placement is by team: the winning team is 1st and the '
+      + 'losing team 2nd, both players each; teams are their own record (id, pool, placement), so more teams place the same way. '
       + 'Leaving or conceding puts the whole team out. Three auto-played rounds in a row put the team out. Gold and shops are separate. '
       + 'Unrated. XP: 125 for each winner, 50 for each loser.',
     domain: 'foundation',
@@ -8785,8 +8814,47 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/sim/src/versus/duos.ts (resolveVersusDuosRound, duosMemberView, duosTeamOf); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-25-versus-duos.sql (versus_group_teams, versus_duos_commit_round, versus_group__eliminate); supabase/migrations/2026-10-25-versus-duos-xp.sql (settle_progression); supabase/functions/versus-resolve/index.ts finalize_duos' },
     ],
     currentBehaviour: 'Engine + server built 2026-10-25 (feat/versus-duos phase 1); the migration and the versus-resolve redeploy are the lead\x27s to apply. The room and in-game UI are phase 2.',
-    example: 'Round 1: Ann (seat 1) and Cat (seat 3) are picked to fight first. Ann\x27s board beats Cat\x27s and then Dan\x27s without Bob ever stepping in: Cat and Dan\x27s team drops from 7 hearts to 5.',
+    example: 'Round 1: Ann (seat 1) and Cat (seat 3) are picked to fight first. Ann\x27s board beats Cat\x27s and then Dan\x27s without Bob ever stepping in: Cat and Dan\x27s team takes Ann\x27s tier plus her survivors\x27 tiers, capped, off their shared Armor first.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/progression/src/versusSpectatorXp.db.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-HEALTH-01',
+    title: 'Versus Duos: the team shares 30 Health plus both heroes\x27 Armor; the loss is the lobby damage of the board that ended the fight',
+    statement:
+      'A Duos team plays on ONE shared pool: 30 Health plus the sum of both heroes\x27 Armor (a Summit room adds +10 per hero). Both '
+      + 'teammates\x27 Health boxes, rail rows and the teammate portrait show that one pool. The losing team takes the lobby\x27s damage, '
+      + 'capped by the lobby\x27s round cap, Armor first: the tavern tier of the winning side\x27s board that ENDED the fight (the one '
+      + 'still standing, the teammate\x27s when it stepped in) plus the tiers of its surviving minions; a fallen first board\x27s tier '
+      + 'never counts. A draw costs nobody. A team at 0 Health is out together; placement stays by team (1st and 2nd). The old "2 '
+      + 'for a stomp" has no Health equivalent: the second board never stepping in already shows as more survivors.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Versus Health and Armor)', quote: 'I want to move the normal lobby mode health/damage system to versus so the experience is the same' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'The duo gets 30 hp plus the sum of both armors' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (the board whose tier counts: proposed in the PR)', quote: 'think through which board\x27s tier/hero counts in tag-team and propose it in the PR' },
+      { kind: 'code', ref: 'packages/sim/src/versus/vitals.ts (versusDuosStartingVitals); packages/sim/src/versus/duos.ts resolveVersusDuosRound (damage, vitals); packages/core/src/combat/simulate.ts stepIn (the side\x27s run context becomes the reserve\x27s); packages/sim/src/versus/duosFinalize.ts; supabase/migrations/2026-10-28-versus-health.sql versus_duos_commit_round' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/versus-lobby-health). The tier-of-the-board-that-ended-it reading is the builder\x27s proposal, flagged in the PR for the owner.',
+    example: 'Two Wardens (Armor 10 each in this example) start on 30 Health and 20 Armor. Round 1 they lose to a tier 2 board with three tier 1 survivors: 5 damage (round 1 cap 5), the pool reads 30 Health and 15 Armor on both of their screens.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/sim/src/versus/versusCombat.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-VIEW-04',
+    title: 'Versus Duos: the teammate-view haze sits under the HUD plates and the hand pop, never over them',
+    statement:
+      'While a Duos player watches their teammate\x27s screen, the team-colour vignette is a static layer over the board only: the hero '
+      + 'portrait, its name pill, the Health box, the hero power, the teammate portrait and a popped hand card always draw at full colour '
+      + 'above it, whatever is hovered.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug via the coordinator, 2026-10-26', quote: 'the teammate-view tint/vignette must sit BELOW the HUD plates' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versus.css (.duosview-vignette z-index 39, under .statusbar 40 and .duosdock 41, over .app 1)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-26 (feat/versus-lobby-health). Before, the vignette sat at z70 and washed the bottom-left plates teal.',
+    example: 'Watching a teammate, you hover their hand card: it pops at full colour and your bottom-left name pill and Health box stay white, while the board edges keep the teal frame.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/teammateFrame.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-DUOS-ORDER-01',
@@ -8856,7 +8924,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'the same RPCs and run actions a person\x27s client uses, and registers itself as that host\x27s bot. The dev menu\x27s "Versus Bots + Duos" '
       + 'panel forces the Duos mechanics on demand through the real paths where it can (a bot passing through its run and the pass RPCs, '
       + 'the bot answering passes, real refusals, real fights, real concedes) and labels the rest dev: a set-up board for the next fight, a '
-      + 'full bot hand, no Gold, and the server RPCs to set hearts and end the shop, which open only to the room\x27s host '
+      + 'full bot hand, no Gold, and the server RPCs to set Health / Armor and end the shop, which open only to the room\x27s host '
       + 'on a table of only that host\x27s bots and mark the match as forced. A bot account, and every player and spectator of a forced match, '
       + 'never earns XP from it (the server refuses the progression row). Bots never count toward Versus records (anonymous accounts never do).',
     domain: 'foundation',
@@ -8915,7 +8983,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       'The teammate portrait bottom right is the same size as your own hero portrait bottom left and sits the same distance in from the '
       + 'right edge as yours from the left, at the same height (measured off your own portrait, so the two always match). It wears the '
       + 'teammate\x27s equipped portrait frame (through "Show opponent cosmetics"), the default look when they have none, with the same name '
-      + 'pill eclipsing its bottom and the same Hearts box under it (the team\x27s hearts). Its cap reads "Teammate" (or "Back to your board" '
+      + 'pill eclipsing its bottom and the same Health box under it (the team\x27s shared Health and Armor). Its cap reads "Teammate" (or "Back to your board" '
       + 'while watching them).',
     domain: 'foundation',
     status: 'approved',
@@ -8923,7 +8991,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (teammate portrait)', quote: 'can you make the teammate portrait as large as the player\x27s and make sure it\x27s wired to show their custom frame as well if they have one.' },
       { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (mirrorOfHero, usePortraitFrame); packages/ui/src/versus/versus.css (.duosdock); packages/ui/src/healthPills.css' },
     ],
-    currentBehaviour: 'Built 2026-10-26 (feat/duos-pass-9). Before, it was a smaller disc with no frame and no Hearts box.',
+    currentBehaviour: 'Built 2026-10-26 (feat/duos-pass-9). Before, it was a smaller disc with no frame and no Health box (a Hearts box until 2026-10-26).',
     example: 'Ann\x27s hero is 270 px wide and 135 px in from the left: Bob\x27s portrait is 270 px wide and 135 px in from the right, ringed by the frost frame he equipped.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
@@ -8993,7 +9061,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'aside untouched and comes back exactly as it was; it stays until the turn is over: it returns on its own only when the round\x27s fight starts (so the fight plays from the player\x27s own side) or the match pauses, '
       + 'never at a clock mark (there is no return at 5 seconds). If the player\x27s clock reaches 0:00 while they watch, their own turn locks as usual (their set-aside board, as they left it, is their final side) and they come back when the fight starts. The team frame is static and strong enough to read on the '
       + 'purple stage (a solid team-colour band and glow at every edge). On the '
-      + 'rail, team rows stay together: the player\x27s row and their teammate\x27s are always next to each other, never split by hearts.',
+      + 'rail, team rows stay together: the player\x27s row and their teammate\x27s are always next to each other, never split by Health.',
     domain: 'foundation',
     status: 'approved',
     evidence: [

@@ -2,7 +2,7 @@
  * VERSUS end to end, two scripted clients (blueprint 12 Phase 0/1 "exercise two scripted clients against a local
  * coordinator"): the REAL migration in PGlite, the REAL finalize handler, two greedy runs that shop, upload
  * candidates, lock (or time out), land the one authoritative fight and acknowledge the barrier, until a player is
- * out of hearts. Then a reconnect: a client rebuilt from its last lock checkpoint plus the committed rounds lands
+ * out of Health (R-VERSUS-HEALTH-01: the lobby's damage and cap, Armor first). Then a reconnect: a client rebuilt from its last lock checkpoint plus the committed rounds lands
  * on exactly the run that never disconnected.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -16,7 +16,9 @@ import { reduce } from '../reducer';
 import { modalOpen } from '../recruit';
 import { deserialize, serialize, type RunState } from '../state';
 import { canonicalJson } from './canonical';
-import { VERSUS_HEARTS, type VersusSeat } from './constants';
+import type { VersusSeat } from './constants';
+import { lossDamageCap } from '../lossCap';
+import { versusFreshSide, versusStartingVitals } from './vitals';
 import { handleVersusFinalize, type VersusFinalizeStore } from './finalize';
 import { buildVersusCandidate, catchUpVersusRun, createVersusRun, versusAutoResolve, versusHeroOffer, versusTimeoutRng } from './run';
 
@@ -27,7 +29,8 @@ const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-10-13-versus
   + readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-ready-pause.sql'), 'utf8')
   // The 2026-10-24 group + options migration replaces the room RPCs: every 1v1 test here runs against it (R-VERSUS-GROUP-01).
   + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8') + readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8')
-  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-28-versus-health.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -52,14 +55,14 @@ async function as<T = any>(user: string | null, sql: string, params: unknown[] =
   }
 }
 const store: VersusFinalizeStore = {
-  async match(id) { return (await db.query<any>('select id, phase, round, seed, content_revision, p1_user, p2_user from public.versus_matches where id = $1', [id])).rows[0] ?? null; },
+  async match(id) { return (await db.query<any>('select id, phase, round, seed, content_revision, p1_user, p2_user, p1_hero, p2_hero, options, p1_health, p1_armor, p2_health, p2_armor from public.versus_matches where id = $1', [id])).rows[0] ?? null; },
   async finalSides(matchId, round) {
     const out: Record<VersusSeat, unknown> = { p1: null, p2: null };
-    for (const r of (await db.query<any>('select seat, prepared_side, final from public.versus_submissions where match_id = $1 and round = $2', [matchId, round])).rows) if (r.final) out[r.seat as VersusSeat] = r.prepared_side;
+    for (const r of (await db.query<any>('select seat, prepared_side, final, source from public.versus_submissions where match_id = $1 and round = $2', [matchId, round])).rows) if (r.final) out[r.seat as VersusSeat] = versusFreshSide(r.prepared_side, r.source);
     return out;
   },
   async commit(a) {
-    return as(null, 'select public.versus_commit_round($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)', [a.p_match, a.p_round, a.p_chair, a.p_outcome, a.p_heart_lost_by, JSON.stringify(a.p_p1), JSON.stringify(a.p_p2), a.p_digest]);
+    return as(null, 'select public.versus_commit_round($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb)', [a.p_match, a.p_round, a.p_chair, a.p_outcome, a.p_loser, JSON.stringify(a.p_p1), JSON.stringify(a.p_p2), a.p_digest, JSON.stringify(a.p_vitals)]);
   },
   log: () => undefined,
 };
@@ -88,7 +91,7 @@ function shop(run: RunState, round: number): RunState {
 }
 
 describe('Versus: two scripted clients, one match', () => {
-  it('plays to seven hearts with one fight per round, landed identically on both clients; a reconnect converges', async () => {
+  it('plays to 0 Health with one fight per round (the lobby damage + cap, Armor first), landed identically on both clients; a reconnect converges', async () => {
     const room = await as<any>(USER.p1, `select public.versus_create_room('E2E', 'Ann', '{}', 'set2', $1, 1)`, [contentRevision()]);
     await as(USER.p2, `select public.versus_join_room($1, 'player', 'Bob', '{}', $2, 1)`, [room.id, contentRevision()]);
     await as(USER.p1, 'select public.versus_start_game($1)', [room.id]);
@@ -156,9 +159,9 @@ describe('Versus: two scripted clients, one match', () => {
         r = reduce(r, { type: 'landCombat', fight: { result: fight, damageTaken: 0 } });
         r = reduce(r, { type: 'settleCombat' });
         r = reduce(r, { type: 'resolveCombat' });
-        // Hearts, never Resolve: the fight moved neither Resolve nor Armor (whatever the result).
-        const before = versusAutoResolve(runs[s]!, versusTimeoutRng(Number(m.seed), round, s));
-        expect([r.resolve, r.armor]).toEqual([reduce(before, { type: 'faceOmen', deferFight: true }).resolve, reduce(before, { type: 'faceOmen', deferFight: true }).armor]);
+        // The run lands exactly the server's pools for its seat (R-VERSUS-HEALTH-01).
+        expect([r.resolve, r.armor]).toEqual([row[`${s}_health`], row[`${s}_armor`]]);
+        expect(row[`${s}_damage`]).toBe(fight.result === 'lose' ? Math.min(fight.playerDamageUncapped!, lossDamageCap(round)) : 0);
         runs[s] = r;
       }
       rounds = round;
@@ -169,15 +172,22 @@ describe('Versus: two scripted clients, one match', () => {
       await as(USER.p2, 'select public.versus_combat_ready($1, $2)', [matchId, round]);
     }
 
-    // The score is exactly the committed rounds' outcomes; the match ended on the 7th lost heart, no shop after.
+    // The score is exactly the committed rounds' damage; the match ended when a pool reached 0 Health, no shop after.
     m = await matchRow(matchId);
-    const rows = (await db.query<any>('select outcome, heart_lost_by from public.versus_rounds where match_id = $1 order by round', [matchId])).rows;
+    const rows = (await db.query<any>('select outcome, heart_lost_by, p1_damage, p2_damage, p1_hearts from public.versus_rounds where match_id = $1 order by round', [matchId])).rows;
     expect(rows).toHaveLength(rounds);
-    const lost = { p1: rows.filter((r) => r.heart_lost_by === 'p1').length, p2: rows.filter((r) => r.heart_lost_by === 'p2').length };
-    expect([m.p1_hearts, m.p2_hearts]).toEqual([VERSUS_HEARTS - lost.p1, VERSUS_HEARTS - lost.p2]);
+    expect(rows.every((r) => r.p1_hearts === null)).toBe(true); // new rounds write no hearts
+    const taken = { p1: rows.reduce((n, r) => n + r.p1_damage, 0), p2: rows.reduce((n, r) => n + r.p2_damage, 0) };
+    const start = { p1: versusStartingVitals(m.p1_hero, null), p2: versusStartingVitals(m.p2_hero, null) };
+    for (const s of ['p1', 'p2'] as const) {
+      const total = start[s].health + start[s].armor;
+      expect(m[`${s}_health`] + m[`${s}_armor`]).toBe(Math.max(0, total - taken[s]));
+    }
     expect(m.phase).toBe('complete');
-    expect(Math.max(lost.p1, lost.p2)).toBe(VERSUS_HEARTS);
-    expect(m.winner_seat).toBe(lost.p1 === VERSUS_HEARTS ? 'p2' : 'p1');
+    expect(m.end_reason).toBe('hearts'); // the knockout reason's legacy id
+    const out: VersusSeat = m.p1_health <= 0 ? 'p1' : 'p2';
+    expect(m[`${out}_health`]).toBe(0);
+    expect(m.winner_seat).toBe(out === 'p1' ? 'p2' : 'p1');
     expect(m.round).toBe(rounds);
     // Each client's history agrees with the canonical outcomes.
     const hist = (s: VersusSeat): string[] => rows.map((r) => (r.outcome === 'draw' ? 'draw' : r.outcome === s ? 'win' : 'lose'));

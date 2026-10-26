@@ -3732,6 +3732,11 @@ export interface CombatResult {
    *  OPTIONAL like every other non-core result field: dozens of tests build partial `CombatResult` fixtures,
    *  and making a lobby-only number required would tax all of them for nothing. Absent = 0. */
   enemyDamage?: number;
+  /** VERSUS (owner 2026-10-26, R-VERSUS-HEALTH-01): this seat's Health and Armor once the round settled (Duos: its
+   *  TEAM's shared pool), stamped by the authoritative resolver. The run lands its pools on these when the fight
+   *  settles, so every client agrees with the server. Absent outside Versus and on a Versus result recorded before
+   *  2026-10-26 (the hearts era: nothing to land). */
+  versusVitals?: { health: number; armor: number };
   /** Player-side Deathrattles that fired this combat — the run loop accumulates these into the run-wide
    *  "this game" count Grim reads. */
   playerDeathrattles: number;

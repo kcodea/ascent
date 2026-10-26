@@ -85,6 +85,9 @@ export interface LobbySeatState {
   seed: number;
   resolve: number;
   armor: number;
+  /** The Armor this seat STARTED on, when the lobby knows it better than the hero table (VERSUS, 2026-10-26: a Summit
+   *  room's +10, a Duos team's shared pool). Read only through `seatStartingArmor` (the rail's full bar). */
+  startArmor?: number;
   alive: boolean;
   /** Which policy drives this seat. Absent = the default in `botSeat`; 'legacy' selects the old greedy bot. */
   policy?: SeatPolicy;

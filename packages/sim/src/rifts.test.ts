@@ -171,11 +171,11 @@ describe('rifts are OPT-IN — only a rift-mode run adopts the active rift', () 
     });
   });
 
-  it('a recorded Summit Rift run keeps its +10 Armor (only Versus drops it, R-VERSUS-SUMMIT-01)', () => {
+  it('a recorded Summit Rift run keeps its +10 Armor; Versus adds it too since 2026-10-26 (R-VERSUS-SUMMIT-01)', () => {
     withSummit(() => {
       expect(createRun(1, 'warden', 'rift').armor).toBe(createRun(1, 'warden', 'ascent').armor + 10);
       expect(riftBonusArmor('summit', 'rift')).toBe(10);
-      expect(riftBonusArmor('summit', 'versus')).toBe(0);
+      expect(riftBonusArmor('summit', 'versus')).toBe(10);
     });
   });
 

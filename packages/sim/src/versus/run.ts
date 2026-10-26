@@ -2,7 +2,7 @@
  * VERSUS — the client run (blueprint 2 + 5; owner rulings 2026-10-13).
  *
  *  - `createVersusRun`: an ordinary run stamped `mode: 'versus'`. The mode keeps it out of every other mode's
- *    machinery: no course clock, no Resolve elimination (hearts live on the server match), no lobby, no rank, no
+ *    machinery: no course clock, no local elimination (the server match owns Health, Armor and knockouts), no rank, no
  *    uploads (the UI gates key on mode), and `poolOf` drops every attack-first card (R-VERSUS-POOL-01).
  *  - `versusHeroOffer`: the seat's hidden three, from its PRIVATE hero seed (server-pinned, owner-only), so the
  *    opponent cannot see or predict it (ruling 3; duplicates across seats allowed).
@@ -22,28 +22,45 @@ import { riftBonusArmor } from '../config';
 import { VERSUS_HERO_OFFER_SIZE } from './constants';
 import type { VersusGroupSeat } from './group';
 import { normalizeVersusOptions, versusOptionsRift, type VersusRoomOptions } from './options';
+import { versusDuosStartingVitals } from './vitals';
 import { snapshotBoard } from '../snapshot';
 import type { VersusSeatScout } from '../lobby/runLobby';
 
 /**
  * A fresh Versus run for one seat. `runSeed` is the seat's private run seed (server-pinned). `options` is the MATCH's
  * pinned room options (R-VERSUS-OPTIONS-01): a modifier pins its rift onto the run here, exactly as a Rift run pins
- * the live rift in `createRun`, so a saved, restored or replayed run keeps it. A Versus modifier adds NO Armor (owner
- * 2026-10-25, R-VERSUS-SUMMIT-01): Summit only unlocks Tier 7 here.
+ * the live rift in `createRun`, so a saved, restored or replayed run keeps it. Summit adds its +10 Armor, as in the
+ * lobby (owner 2026-10-26, R-VERSUS-SUMMIT-01).
+ * HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01): the run's pools are the seat's, on its hero's own Health
+ * and Armor like a lobby seat. A DUOS seat's run carries its TEAM's shared pool instead (`duosMateHeroId`: 30 Health +
+ * both heroes' Armor, R-DUOS-HEALTH-01); every settled fight lands the resolver's numbers on it either way.
  * The opening shop is Tier 1 and reads no rift, so pinning after `createRun` draws the same shop a Rift run would.
  * No options (or the defaults) = today's run, byte for byte.
  */
-export function createVersusRun(runSeed: number, heroId: string, setId: SetId, options?: VersusRoomOptions | null): RunState {
+export function createVersusRun(
+  runSeed: number,
+  heroId: string,
+  setId: SetId,
+  options?: VersusRoomOptions | null,
+  duosMateHeroId?: string | null,
+): RunState {
   const run = createRun(runSeed, heroId, 'versus', undefined, setId);
   const opts = normalizeVersusOptions(options);
   const rift = versusOptionsRift(opts);
   // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate.
   if (opts.mode === 'duos') run.duos = { outbox: [], received: [], refused: [] };
   if (rift) {
-    const bonus = riftBonusArmor(rift, run.mode); // 0 in Versus
+    const bonus = riftBonusArmor(rift, run.mode);
     run.rift = rift;
     run.armor += bonus;
     run.maxArmor += bonus;
+  }
+  if (opts.mode === 'duos' && duosMateHeroId) {
+    const team = versusDuosStartingVitals(heroId, duosMateHeroId, opts);
+    run.resolve = team.health;
+    run.maxResolve = team.health;
+    run.armor = team.armor;
+    run.maxArmor = team.armor;
   }
   return run;
 }

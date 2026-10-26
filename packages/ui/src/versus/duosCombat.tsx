@@ -4,7 +4,7 @@
  * The fight itself is one ordinary combat replay: a `tagIn` event replaces that side's row with the teammate's board,
  * whose bodies fly in (`.unit.tagin`, styles.css). This module adds what a replay alone cannot know: WHO is fighting
  * now on each side. The foe's hero slot (`useDuosCombat.foeSeatId`, read by CombatOpponent) and yours
- * (`selfSeatId`, read by StatusBar) swap to the player whose board is live, name pill and hearts with it, the new face
+ * (`selfSeatId`, read by StatusBar) swap to the player whose board is live, name pill and the team's Health box with it, the new face
  * fading in (`.duosswap`). That is the ONLY sign of a hand-off (owner 2026-10-26: "dont show the 'xyz swoops in' or
  * whatever. just have the current portrait of the player side or opponent side swap to the player who's board is live.
  * we dont need to add more ui elements that are unnecessary"): the "steps in" plate is gone.

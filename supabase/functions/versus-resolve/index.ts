@@ -28,6 +28,11 @@
  *                 `versus_duos_commit_round` (idempotent). Logic: `packages/sim/src/versus/duosFinalize.ts`.
  *   - `parity_duos` → `{ digest, canonical }`: resolve one DUOS round from posted sides (no database, no auth).
  *
+ * HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01, protocol 2): every finalize reads each seat's (Duos: team's)
+ * stored pools and heroes, charges the lobby's capped damage and commits the pools with `p_vitals`. A stored side that
+ * was not locked or promoted this round (`source` auto / empty) has its stale pool report dropped (`versusFreshSide`).
+ * Needs `supabase/migrations/2026-10-28-versus-health.sql` applied first (the commit signatures changed).
+ *
  * A client on another protocol or content revision is refused with 409 rather than resolved under rules it did not
  * show (same posture as `submit-rating`).
  *
@@ -49,6 +54,7 @@ import {
   parityRecord,
   preparedSideError,
   resolveVersusFight,
+  versusFreshSide,
 } from './engine.generated.js';
 
 const CORS: Record<string, string> = {
@@ -90,16 +96,18 @@ async function finalize(req: Request, body: Record<string, unknown>): Promise<Re
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
-      const { data, error } = await admin.from('versus_matches').select('id, phase, round, seed, content_revision, p1_user, p2_user').eq('id', id).maybeSingle();
+      const { data, error } = await admin.from('versus_matches')
+        .select('id, phase, round, seed, content_revision, p1_user, p2_user, p1_hero, p2_hero, options, p1_health, p1_armor, p2_health, p2_armor')
+        .eq('id', id).maybeSingle();
       if (error) throw error;
       return data;
     },
     async finalSides(matchId: string, round: number) {
       // rows: at most two rows, one per seat (primary key match_id + round + seat) (R-NET-01).
-      const { data, error } = await admin.from('versus_submissions').select('seat, prepared_side, final').eq('match_id', matchId).eq('round', round);
+      const { data, error } = await admin.from('versus_submissions').select('seat, prepared_side, final, source').eq('match_id', matchId).eq('round', round);
       if (error) throw error;
       const out = { p1: null, p2: null };
-      for (const r of data ?? []) if (r.final) out[r.seat] = r.prepared_side;
+      for (const r of data ?? []) if (r.final) out[r.seat] = versusFreshSide(r.prepared_side, r.source);
       return out;
     },
     async commit(args: Record<string, unknown>) {
@@ -131,16 +139,16 @@ async function finalizeGroup(req: Request, body: Record<string, unknown>): Promi
     },
     async seats(matchId: string) {
       // rows: at most four rows, one per seat (primary key match_id + seat) (R-NET-01).
-      const { data, error } = await admin.from('versus_group_seats').select('seat, eliminated_round').eq('match_id', matchId);
+      const { data, error } = await admin.from('versus_group_seats').select('seat, eliminated_round, hero, health, armor').eq('match_id', matchId);
       if (error) throw error;
       return data ?? [];
     },
     async finalSides(matchId: string, round: number) {
       // rows: at most four rows, one per seat (primary key match_id + round + seat) (R-NET-01).
-      const { data, error } = await admin.from('versus_group_submissions').select('seat, prepared_side, final').eq('match_id', matchId).eq('round', round);
+      const { data, error } = await admin.from('versus_group_submissions').select('seat, prepared_side, final, source').eq('match_id', matchId).eq('round', round);
       if (error) throw error;
       const out: Record<string, unknown> = {};
-      for (const r of data ?? []) if (r.final) out[r.seat] = r.prepared_side;
+      for (const r of data ?? []) if (r.final) out[r.seat] = versusFreshSide(r.prepared_side, r.source);
       return out;
     },
     async commit(args: Record<string, unknown>) {
@@ -172,10 +180,10 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
     },
     async finalSides(matchId: string, round: number) {
       // rows: four rows, one per seat (primary key match_id + round + seat) (R-NET-01).
-      const { data, error } = await admin.from('versus_group_submissions').select('seat, prepared_side, final').eq('match_id', matchId).eq('round', round);
+      const { data, error } = await admin.from('versus_group_submissions').select('seat, prepared_side, final, source').eq('match_id', matchId).eq('round', round);
       if (error) throw error;
       const out: Record<string, unknown> = {};
-      for (const r of data ?? []) if (r.final) out[r.seat] = r.prepared_side;
+      for (const r of data ?? []) if (r.final) out[r.seat] = versusFreshSide(r.prepared_side, r.source);
       return out;
     },
     async commit(args: Record<string, unknown>) {
@@ -183,6 +191,18 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
       const { data, error } = await admin.rpc('versus_duos_commit_round', args);
       if (error) throw error;
       return data;
+    },
+    async seats(matchId: string) {
+      // rows: four rows, one per seat (primary key match_id + seat) (R-NET-01).
+      const { data, error } = await admin.from('versus_group_seats').select('seat, hero').eq('match_id', matchId);
+      if (error) throw error;
+      return data ?? [];
+    },
+    async teams(matchId: string) {
+      // rows: two rows, one per team (primary key match_id + team) (R-NET-01).
+      const { data, error } = await admin.from('versus_group_teams').select('team, health, armor').eq('match_id', matchId);
+      if (error) throw error;
+      return data ?? [];
     },
     log: (msg: string, detail?: unknown) => console.error(msg, detail),
   };
@@ -193,7 +213,7 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
 const GROUP_SEATS = ['p1', 'p2', 'p3', 'p4'];
 
 function parityDuos(body: Record<string, unknown>): Response {
-  const { matchSeed, round, sides } = body as Record<string, any>;
+  const { matchSeed, round, sides, vitals } = body as Record<string, any>;
   if (!Number.isInteger(matchSeed) || !Number.isInteger(round) || round < 1 || round > 999) return json(400, { error: 'bad_round' });
   if (!sides || typeof sides !== 'object') return json(400, { error: 'bad_side' });
   for (const s of GROUP_SEATS) {
@@ -201,13 +221,13 @@ function parityDuos(body: Record<string, unknown>): Response {
     const e = preparedSideError(sides[s]);
     if (e) return json(400, { error: 'bad_side', detail: e });
   }
-  const out = resolveVersusDuosRound({ matchSeed, round, sides });
+  const out = resolveVersusDuosRound({ matchSeed, round, sides, ...(vitals && typeof vitals === 'object' ? { vitals } : {}) });
   const rec = parityDuosRecord(out);
   return json(200, { digest: rec.digest, canonical: rec.canonical, contentRevision: CONTENT, protocol: VERSUS_PROTOCOL });
 }
 
 function parityGroup(body: Record<string, unknown>): Response {
-  const { matchSeed, round, seats, eliminated, sides } = body as Record<string, any>;
+  const { matchSeed, round, seats, eliminated, sides, vitals } = body as Record<string, any>;
   if (!Number.isInteger(matchSeed) || !Number.isInteger(round) || round < 1 || round > 999) return json(400, { error: 'bad_round' });
   if (!Array.isArray(seats) || seats.length < 2 || seats.length > 4 || seats.some((s: unknown) => !GROUP_SEATS.includes(s as string))) return json(400, { error: 'bad_seats' });
   if (!sides || typeof sides !== 'object' || (eliminated != null && typeof eliminated !== 'object')) return json(400, { error: 'bad_side' });
@@ -215,7 +235,7 @@ function parityGroup(body: Record<string, unknown>): Response {
     const e = preparedSideError(sides[s]);
     if (e) return json(400, { error: 'bad_side', detail: e });
   }
-  const out = resolveVersusGroupRound({ matchSeed, round, seats, eliminated: eliminated ?? {}, sides });
+  const out = resolveVersusGroupRound({ matchSeed, round, seats, eliminated: eliminated ?? {}, sides, ...(vitals && typeof vitals === 'object' ? { vitals } : {}) });
   const rec = parityGroupRecord(out);
   return json(200, { digest: rec.digest, canonical: rec.canonical, contentRevision: CONTENT, protocol: VERSUS_PROTOCOL });
 }
@@ -227,7 +247,8 @@ function parity(body: Record<string, unknown>): Response {
   const e1 = preparedSideError(body.p1);
   const e2 = preparedSideError(body.p2);
   if (e1 || e2) return json(400, { error: 'bad_side', detail: e1 ?? e2 });
-  const out = resolveVersusFight({ matchSeed, round, p1: body.p1, p2: body.p2 });
+  const vitals = body.vitals && typeof body.vitals === 'object' ? { vitals: body.vitals } : {};
+  const out = resolveVersusFight({ matchSeed, round, p1: body.p1, p2: body.p2, ...vitals });
   const rec = parityRecord(out);
   return json(200, { digest: rec.digest, canonical: rec.canonical, contentRevision: CONTENT, protocol: VERSUS_PROTOCOL });
 }

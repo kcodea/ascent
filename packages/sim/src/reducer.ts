@@ -45,6 +45,7 @@ import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerT
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
 import { captureHeroGrantRune, releaseHeroGrant } from './heroGrant';
+import { lossDamageCap } from './lossCap';
 
 /** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
  *  Shifter adopter), else the run's own hero. The forge's once-per-game charge is spent on THAT power's latch. */
@@ -533,13 +534,9 @@ export function nextOpponent(s: RunState): BoardSnapshot | null {
   return pickOpponent(s.wave, s.turnStartPower, makeRng(mixSeed(s.seed, s.wave, TAG.ENEMY)), undefined, exclude, streakSoftenerLosses(s), setIdOf(s));
 }
 
-/** Loss-damage cap by round — the most Resolve (Health) a single loss can cost, ramping up as the game escalates:
- *  5 (rounds 1–3), 10 (4–7), 15 (8–11), 20 (12–14), then UNCAPPED (full damage) from round 15 on (owner ask
- *  2026-10-02: "on turn 15 it should become uncapped"; it was 20 through round 15 before). The normal game's
- *  table only: a lobby with its own `lossCaps` (the Gauntlet) reads that instead, via `roundLossCap`. */
-export function lossDamageCap(wave: number): number {
-  return wave <= 3 ? 5 : wave <= 7 ? 10 : wave <= 11 ? 15 : wave <= 14 ? 20 : Infinity;
-}
+/** The normal game's loss-damage cap by round (`lossCap.ts`, a dependency-free module so the Versus resolver bundle
+ *  shares it). Re-exported here, where every caller already imports it from. */
+export { lossDamageCap };
 
 /** The loss cap for `round` under a lobby's rules: its own `lossCaps` table when it has one (Gauntlet), else the
  *  normal game's `lossDamageCap`. The ONE cap every reader asks — the reducer's fight, the lobby settle, the
@@ -3873,6 +3870,8 @@ function reduceCore(state: RunState, action: Action): RunState {
       // result on both runs through `resolveCombat { fight }`. Until then the run sits in `combat` with the
       // prepared side parked on `pendingCombatSide`; `settleCombat` / a bare `resolveCombat` refuse it.
       if (action.deferFight) {
+        // VERSUS: the side reports the run's pools (the resolver honours Mend's Armor from them, R-VERSUS-HEALTH-01).
+        if (s.mode === 'versus') prep.vitals = { resolve: s.resolve, armor: s.armor };
         s.pendingCombatSide = prep;
         s.combatSettled = false;
         s.phase = 'combat';
@@ -4879,7 +4878,7 @@ function landDeferredFight(s: RunState, fight: DeferredFight): void {
 function settleLobbyRound(s: RunState, result: CombatResult): void {
   if (!s.lobby) return; // practice carries a lobby too (2026-07-31) — the machinery keys on its presence
   // VERSUS (2026-10-14): its two-seat lobby is a DISPLAY of the server match (`versus/lobbyView.ts`), rebuilt by the
-  // client; the server owns the hearts and the end, so the table is never settled here.
+  // client; the server owns every seat's Health and Armor and the end, so the table is never settled here.
   if (s.mode === 'versus') return;
   if (s.lobbySettledRound === s.lobby.round) return;
   s.lobbySettledRound = s.lobby.round;
@@ -5517,7 +5516,7 @@ function settleCombat(s: RunState, result: CombatResult): void {
   // LOBBY / TUTORIAL: the seat already took this hit (with the lobby's own cap and stall pressure) and the run
   // was synced to it above, so applying it again here charges the player twice — visible as the HUD reading 2
   // lower than the table for the same fight. A tutorial or Gauntlet carries a lobby too, so each is excluded for the same reason.
-  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.mode !== 'versus') { // VERSUS: hearts, never Resolve (R-VERSUS-HEARTS-01)
+  if (result.result === 'lose' && s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.mode !== 'versus') { // VERSUS: the resolver's pools, below
     // Armor absorbs the hit first (extra effective HP), the overflow chips Resolve. Practice: unlimited health.
     const absorbed = Math.min(s.armor, result.playerDamage);
     s.armor -= absorbed;
@@ -5534,7 +5533,16 @@ function settleCombat(s: RunState, result: CombatResult): void {
   //
   // PRACTICE INVULNERABILITY is excluded on purpose: there `settleLobbyRound` restores the seat FROM the run
   // (`me.resolve = s.resolve`), so damaging the run here would leak into the seat and undo the invulnerability.
-  if (s.lobby && s.mode !== 'versus' && !(s.mode === 'practice' && s.practiceConfig?.health !== 'normal')) { // VERSUS: hearts, never Resolve
+  // VERSUS (owner 2026-10-26, R-VERSUS-HEALTH-01: "move the normal lobby mode health/damage system to versus"): the
+  // authoritative resolver charged the lobby's capped damage, Armor first, to the pools it owns, and stamped this
+  // seat's (Duos: its team's) result with them. The run lands on them HERE, as the replay settles (the lobby's own
+  // timing for your number), so the Health box, the rail and the server never disagree. A result from before
+  // 2026-10-26 (the hearts era) carries none, and nothing moves.
+  if (s.mode === 'versus' && result.versusVitals) {
+    s.resolve = Math.max(0, result.versusVitals.health);
+    s.armor = Math.max(0, result.versusVitals.armor);
+  }
+  if (s.lobby && s.mode !== 'versus' && !(s.mode === 'practice' && s.practiceConfig?.health !== 'normal')) { // VERSUS: lands the resolver's pools above
     // The RUN's pools are authoritative going INTO the hit: the seat was seeded from them once at creation and
     // otherwise only ever loses, so anything that RAISED them during the shop — Mend's "set Armor to 5", a
     // Resolve grant — lived on the run alone, and `settleLobbyRound`'s seat→run write-back snapped it straight
@@ -5639,7 +5647,7 @@ function advanceCombat(s: RunState): void {
   // and every late round was fought with a stale board — the exact pacing failure the prototype measured.
   // Tutorial (and Gauntlet) are excluded alongside lobby/practice: each carries a lobby and ends by the lobby's round cap (above),
   // never by the 17-round course clock.
-  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.mode !== 'versus' && s.wave >= CONFIG.courseRounds) { // VERSUS ends by hearts, server-side
+  if (s.mode !== 'practice' && s.mode !== 'lobby' && s.mode !== 'tutorial' && s.mode !== 'gauntlet' && s.mode !== 'versus' && s.wave >= CONFIG.courseRounds) { // VERSUS ends by knockouts, server-side
     s.phase = 'victory';
     return;
   }

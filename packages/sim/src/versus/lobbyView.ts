@@ -8,15 +8,14 @@
  * fight (read off this seat's own result, `initial.enemy`). Pure data, rebuilt by the client whenever the match moves.
  *
  * WHAT IT IS NOT. It is display state only:
- *  - HEARTS ride the seats' `resolve` (startingResolve = 7, no Armor), so the rail's health number and bar are the
- *    hearts. The RUN's own Resolve is never touched (R-VERSUS-HEARTS-01): the reducer skips every lobby charge,
- *    settle and elimination for `mode: 'versus'`.
+ *  - HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01; hearts until then) ride the seats' `resolve` / `armor`,
+ *    read off the server's per-round record (each seat's pools after every committed round; before round 1, its hero's
+ *    start, `versusStartingVitals`). The rules are the lobby's: the normal round cap (the rail's MAX DMG), Health 30.
  *  - The opponent seat is `invulnerable` and the lobby is never settled locally: the server match ends the game.
  *  - It is never a rated table, a snapshot, a pool board or a replay (the UI's persistence gates key on the mode).
  *
- * HEART TIMING mirrors a lobby seat's health: YOUR hearts drop when the fight settles (as your Resolve would), the
- * opponent's when you leave the fight (as their seat settles at `resolveCombat`), so nothing is shown before it is
- * watched.
+ * TIMING mirrors a lobby seat's health: YOUR pools drop when the fight settles (as your Health would), the opponent's
+ * when you leave the fight (as their seat settles at `resolveCombat`), so nothing is shown before it is watched.
  */
 import type { CombatResult } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
@@ -24,15 +23,18 @@ import type { SetId } from '@game/content';
 import type { RunLobby, LobbySeatState, VersusSeatScout } from '../lobby/runLobby';
 import type { LobbyEncounter } from '../lobby/types';
 import type { AuthoredOmen } from '../lobby/tutorialSeats';
-import { VERSUS_HEARTS, type VersusSeat } from './constants';
+import type { VersusSeat } from './constants';
+import { versusStartingVitals, type VersusVitals } from './vitals';
 
 /** One committed round, from this seat's side. */
 export interface VersusLobbyRound {
   round: number;
-  /** The seat that lost a heart (`null` on a draw). */
-  heartLostBy: VersusSeat | null;
-  /** This seat's own perspective of the round's one fight. */
+  /** The seat that lost the fight (`null` on a draw). */
+  loser: VersusSeat | null;
+  /** This seat's own perspective of the round's one fight (stamped with the cap and its pools). */
   mine: CombatResult;
+  /** Both seats' Health and Armor after the round, as the server recorded them. */
+  vitals?: Partial<Record<VersusSeat, VersusVitals>>;
   /** The OPPONENT's public state at that round's lock (server-recorded, `versus_rounds.pN_scout`): tier, triples,
    *  quests, runes. Absent on a round recorded before scouts existed. */
   foeScout?: VersusSeatScout | null;
@@ -48,13 +50,15 @@ export interface VersusLobbyInput {
   matchSeed: number;
   setId?: SetId;
   seat: VersusSeat;
-  /** The run's wave, phase and settle flag (heart timing, see the header). */
+  /** The run's wave, phase and settle flag (the pools' timing, see the header). */
   wave: number;
   inCombat: boolean;
   combatSettled: boolean;
   me: VersusLobbySeatInfo;
   foe: VersusLobbySeatInfo;
   rounds: readonly VersusLobbyRound[];
+  /** The match's pinned room options (a modifier's Armor in each seat's start). */
+  options?: unknown;
 }
 
 /** The opponent seat's id in the two-seat lobby. */
@@ -71,13 +75,11 @@ function omenOf(m: CombatResult['initial']['enemy'][number]): AuthoredOmen {
   };
 }
 
-/**
- * Hearts a seat still holds at this point of the run. `throughRound`: the last round whose heart is shown.
- */
-function heartsOf(seat: VersusSeat, rounds: readonly VersusLobbyRound[], throughRound: number): number {
-  let lost = 0;
-  for (const r of rounds) if (r.round <= throughRound && r.heartLostBy === seat) lost++;
-  return Math.max(0, VERSUS_HEARTS - lost);
+/** A seat's pools at this point of the run: after the last round shown (`throughRound`), else its start. */
+function vitalsOf(seat: VersusSeat, rounds: readonly VersusLobbyRound[], throughRound: number, start: VersusVitals): VersusVitals {
+  let v = start;
+  for (const r of rounds) if (r.round <= throughRound && r.vitals?.[seat]) v = r.vitals[seat]!;
+  return { health: Math.max(0, v.health), armor: Math.max(0, v.armor) };
 }
 
 export function versusLobby(input: VersusLobbyInput): RunLobby {
@@ -102,11 +104,13 @@ export function versusLobby(input: VersusLobbyInput): RunLobby {
   }
   const mineThrough = input.inCombat && input.combatSettled ? input.wave : input.wave - 1;
   const foeThrough = input.wave - 1;
-  const myHearts = heartsOf(input.seat, rounds, mineThrough);
-  const foeHearts = heartsOf(other, rounds, foeThrough);
+  const myStart = versusStartingVitals(input.me.heroId, input.options);
+  const foeStart = versusStartingVitals(input.foe.heroId, input.options);
+  const mine = vitalsOf(input.seat, rounds, mineThrough, myStart);
+  const theirs = vitalsOf(other, rounds, foeThrough, foeStart);
   const me: LobbySeatState = {
     id: 's0', label: input.me.label, heroId: input.me.heroId, kind: 'player', seed: 0,
-    resolve: myHearts, armor: 0, alive: true,
+    resolve: mine.health, armor: mine.armor, startArmor: myStart.armor, alive: true,
     ...(input.me.cosmetics ? { cosmetics: input.me.cosmetics } : {}),
   };
   const foe: LobbySeatState = {
@@ -115,12 +119,13 @@ export function versusLobby(input: VersusLobbyInput): RunLobby {
     seed: (input.matchSeed ^ 0x7e55a11d) | 0,
     authoredBoards: boards, authoredTiers: tiers, invulnerable: true,
     ...(scouts.some((x) => x) ? { authoredScouts: scouts } : {}),
-    resolve: foeHearts, armor: 0, alive: true,
+    resolve: theirs.health, armor: theirs.armor, startArmor: foeStart.armor, alive: true,
     ...(input.foe.cosmetics ? { cosmetics: input.foe.cosmetics } : {}),
   };
+  // The fight log's damage: the stamped (capped) blow each way, off my own view of the one result.
   const encounters: LobbyEncounter[] = rounds.filter((r) => r.round <= foeThrough).map((r) => ({
     round: r.round, a: 's0', b: VERSUS_FOE_SEAT_ID, outcome: r.mine.result,
-    damageToA: r.heartLostBy === input.seat ? 1 : 0, damageToB: r.heartLostBy === other ? 1 : 0, fought: true,
+    damageToA: r.loser === input.seat ? r.mine.playerDamage : 0, damageToB: r.loser === other ? r.mine.enemyDamage ?? 0 : 0, fought: true,
   }));
   return {
     version: 1,
@@ -130,8 +135,9 @@ export function versusLobby(input: VersusLobbyInput): RunLobby {
     seats: [me, foe],
     encounters,
     finished: false,
-    // Hearts are the health: 7, no Armor, no loss cap (a lost round costs one heart). Never settled locally.
-    rules: { seatCount: 2, startingResolve: VERSUS_HEARTS, startingArmor: 0, exhaustion: 'repeatFinal', maxRounds: 1000, lossCaps: [] },
+    // The lobby's rules: Health from the hero, the seats' own start Armor, the normal round cap (no `lossCaps`: the
+    // rail's MAX DMG reads `lossDamageCap`). Never settled locally.
+    rules: { seatCount: 2, startingResolve: myStart.health, startingArmor: 0, exhaustion: 'repeatFinal', maxRounds: 1000 },
     unrated: 'all-generated',
   };
 }
@@ -140,5 +146,6 @@ export function versusLobby(input: VersusLobbyInput): RunLobby {
 export function versusLobbyKey(input: VersusLobbyInput): string {
   const last = input.rounds.reduce((n, r) => Math.max(n, r.round), 0);
   const scouted = input.rounds.filter((r) => r.foeScout).length;
-  return `${input.seat}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${scouted}|${input.me.heroId}|${input.foe.heroId}|${input.foe.label}`;
+  const vit = input.rounds.filter((r) => r.vitals).length;
+  return `${input.seat}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${scouted}|${vit}|${input.me.heroId}|${input.foe.heroId}|${input.foe.label}`;
 }

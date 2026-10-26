@@ -98,7 +98,7 @@ export function projectGroupMatch(raw: VersusGroupMatchRaw, userId: string | nul
     phase, revision: raw.revision, round,
     p1_user: p1?.userId ?? '', p2_user: p2 && !(me && foe?.copy) ? p2.userId : `copy:${p2?.userId ?? ''}`,
     p1_name: p1?.name ?? '', p2_name: p2Name,
-    p1_hearts: p1?.hearts ?? 0, p2_hearts: p2?.hearts ?? 0,
+    p1_health: p1?.health ?? null, p1_armor: p1?.armor ?? null, p2_health: p2?.health ?? null, p2_armor: p2?.armor ?? null,
     p1_hero: p1?.hero ?? null, p2_hero: p2?.hero ?? null,
     heroes_revealed: raw.heroes_revealed, hero_deadline: raw.hero_deadline, shop_starts_at: raw.shop_starts_at,
     shop_deadline: out ? null : raw.shop_deadline, combat_deadline: raw.combat_deadline,
@@ -117,6 +117,16 @@ export function projectGroupMatch(raw: VersusGroupMatchRaw, userId: string | nul
       raw, me, foe, counts, pausedName: paused?.name ?? null, pausedUser: paused?.userId ?? null,
       ...(isDuosRaw(raw) ? { duos: { team: me ? duosTeamOf(me) : 'a', mate: me ? duosMateOf(me) : null, first: duosFirstAt(raw, Math.max(1, round)) } } : {}),
     },
+  };
+}
+
+/** The 1v1 row's pools from my side: my seat's and my opponent's after the round, and the damage the loser took. */
+function poolsOf(r: VersusGroupRoundRaw, meSeat: VersusGroupSeat, foeSeat: VersusGroupSeat, loser: 'p1' | 'p2' | null, damage: number | null | undefined) {
+  const mine = r.vitals?.[meSeat];
+  const theirs = r.vitals?.[foeSeat];
+  return {
+    p1_health: mine?.health ?? null, p1_armor: mine?.armor ?? null, p2_health: theirs?.health ?? null, p2_armor: theirs?.armor ?? null,
+    p1_damage: loser === 'p1' ? damage ?? null : 0, p2_damage: loser === 'p2' ? damage ?? null : 0,
   };
 }
 
@@ -141,7 +151,7 @@ export function resultsOf(r: VersusGroupRoundRaw): Partial<Record<VersusGroupSea
 
 /**
  * The 1v1-shaped round rows from `userId`'s seat: p1_result = my fight from my side, p2_result = the same fight from my
- * opponent's (or the Copy's) side, hearts mine and theirs. Every row also carries every seat's own result (`results`,
+ * opponent's (or the Copy's) side, pools mine and theirs. Every row also carries every seat's own result (`results`,
  * for a spectator) and the raw round. A viewer who is out gets the rounds up to the one they went out in.
  */
 export function projectGroupRounds(raw: VersusGroupMatchRaw, rounds: readonly VersusGroupRoundRaw[], userId: string | null): Record<number, VersusRoundRow> {
@@ -153,7 +163,7 @@ export function projectGroupRounds(raw: VersusGroupMatchRaw, rounds: readonly Ve
     if (r.round > cutoff) continue;
     const results = resultsOf(r);
     // VERSUS DUOS: the one team fight. p1 = me (my own board's view: `duosMemberView`), p2 = the other team's first
-    // board's view; the outcome and the hearts are my team's.
+    // board's view; the outcome, the damage and the pool are my team's.
     const d = r.fights[0];
     if (d && isDuosFight(d)) {
       const meSeat = me ?? d.a_seat;
@@ -167,8 +177,7 @@ export function projectGroupRounds(raw: VersusGroupMatchRaw, rounds: readonly Ve
         p1_result: results[meSeat] ?? null,
         p2_result: results[foeSeat] ?? null,
         digest: '',
-        p1_hearts: r.hearts[meSeat] ?? 0,
-        p2_hearts: r.hearts[foeSeat] ?? 0,
+        ...poolsOf(r, meSeat, foeSeat, d.heart_lost_by == null ? null : duosTeamOf(d.heart_lost_by) === duosTeamOf(meSeat) ? 'p1' : 'p2', d.damage),
         p1_scout: iAmA ? d.a_scout : d.b_scout,
         p2_scout: iAmA ? d.b_scout : d.a_scout,
         results,
@@ -192,8 +201,7 @@ export function projectGroupRounds(raw: VersusGroupMatchRaw, rounds: readonly Ve
       p1_result: iAmA ? f.a_result : f.b_result,
       p2_result: iAmA ? f.b_result : f.a_result,
       digest: '',
-      p1_hearts: r.hearts[meSeat] ?? 0,
-      p2_hearts: r.hearts[foeSeat] ?? 0,
+      ...poolsOf(r, meSeat, foeSeat, lost == null ? null : lost === meSeat ? 'p1' : 'p2', f.damage),
       p1_scout: iAmA ? f.a_scout : f.b_scout,
       p2_scout: iAmA ? f.b_scout : f.a_scout,
       results,

@@ -151,7 +151,7 @@ describe('R-SPECTATE-SAMEHERO-01: the watch screen rebuilds its lobby\'s authore
     const lobbyOf = (seat: 'p1' | 'p2', atk: number): RunState['lobby'] => versusLobby({
       matchSeed: 3, setId: 'set2', seat, wave: 2, inCombat: true, combatSettled: false,
       me: { label: 'Player', heroId: 'warden' }, foe: { label: 'Player', heroId: 'warden' },
-      rounds: [{ round: 1, heartLostBy: null, mine: res(atk) }],
+      rounds: [{ round: 1, loser: null, mine: res(atk) }],
     });
     const two = { 1: { round: 1, p1_result: fight, p2_result: fight }, 2: { round: 2, p1_result: fight, p2_result: fight } } as never;
     const run1 = { ...shopRun(), wave: 2, lobby: lobbyOf('p1', 4) } as RunState;

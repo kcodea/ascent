@@ -278,7 +278,10 @@ export class VersusBotDriver {
     const offer = this.offer ?? versusHeroOffer(Number(this.priv.hero_seed), Number(this.priv.run_seed), m.set_id as SetId);
     const hero = (this.seat === 'p1' ? m.p1_hero : m.p2_hero) ?? offer[this.priv.hero_index ?? 0] ?? offer[0]!;
     // The match's pinned options (a modifier's rift; Duos gives the run its pass state), as a person's client builds it.
-    let run = createVersusRun(Number(this.priv.run_seed), hero, m.set_id as SetId, m.options ? normalizeVersusOptions(m.options) : null);
+    // Duos: the run carries the team's shared pool (R-DUOS-HEALTH-01), from both heroes.
+    const mateSeat = m.group?.duos?.mate ?? null;
+    const mateHero = mateSeat ? m.group?.raw.seats.find((x) => x.seat === mateSeat)?.hero ?? null : null;
+    let run = createVersusRun(Number(this.priv.run_seed), hero, m.set_id as SetId, m.options ? normalizeVersusOptions(m.options) : null, mateHero);
     if (m.round > 1) {
       const rows = await this.api.rounds(m.id, 1);
       run = catchUpVersusRun(run, new Map(rows.map((r) => [r.round, (this.seat === 'p1' ? r.p1_result : r.p2_result) as CombatResult])), Number(m.seed), this.seat!);

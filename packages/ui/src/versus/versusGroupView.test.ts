@@ -12,7 +12,7 @@ import { versusTurn, versusTurnNote } from './versusTurn';
 
 const U: Record<VersusGroupSeat, string> = { p1: 'u1', p2: 'u2', p3: 'u3', p4: 'u4' };
 const seat = (s: VersusGroupSeat, over: Partial<VersusGroupSeatRow> = {}): VersusGroupSeatRow => ({
-  seat: s, userId: U[s], name: s.toUpperCase(), hearts: 7, hero: 'warden', locked: false, ready: false, intro: true, auto: false,
+  seat: s, userId: U[s], name: s.toUpperCase(), health: 30, armor: 0, hero: 'warden', locked: false, ready: false, intro: true, auto: false,
   missed: 0, eliminatedRound: null, outReason: null, placement: null, ...over,
 });
 const raw = (n: 3 | 4, over: Partial<VersusGroupMatchRaw> = {}, seats?: VersusGroupSeatRow[]): VersusGroupMatchRaw => ({
@@ -42,7 +42,7 @@ describe('Versus Group projection (R-VERSUS-GROUP-01)', () => {
   });
 
   it('a seat that is out sees its own match end at the round it went out in; the others play on', () => {
-    const seats = [seat('p1'), seat('p2', { eliminatedRound: 3, outReason: 'hearts', hearts: 0, placement: 4 }), seat('p3'), seat('p4')];
+    const seats = [seat('p1'), seat('p2', { eliminatedRound: 3, outReason: 'hearts', health: 0, placement: 4 }), seat('p3'), seat('p4')];
     const out = projectGroupMatch(raw(4, { round: 4 }, seats), 'u2');
     expect([out.phase, out.round, out.end_reason, out.winner_seat]).toEqual(['complete', 3, 'hearts', 'p2']);
     const on = projectGroupMatch(raw(4, { round: 4 }, seats), 'u1');
@@ -60,14 +60,14 @@ describe('Versus Group projection (R-VERSUS-GROUP-01)', () => {
 
   it('rounds: my fight from my side (p1_result), my opponent\x27s side as p2_result, and every seat\x27s own result', () => {
     const r: VersusGroupRoundRaw = {
-      round: 1, hearts: { p1: 7, p2: 6, p3: 7, p4: 7 }, eliminated: [],
+      round: 1, vitals: { p1: { health: 30, armor: 0 }, p2: { health: 25, armor: 0 }, p3: { health: 30, armor: 0 }, p4: { health: 30, armor: 0 } }, eliminated: [],
       fights: [
         { round: 1, fight: 0, a_seat: 'p1', b_seat: 'p2', b_copy: false, chair: 'a', outcome: 'a', heart_lost_by: 'p2', a_result: res('A', 'win'), b_result: res('B', 'lose'), a_scout: null, b_scout: null },
         { round: 1, fight: 1, a_seat: 'p3', b_seat: 'p4', b_copy: false, chair: 'a', outcome: 'draw', heart_lost_by: null, a_result: res('C', 'draw'), b_result: res('D', 'draw'), a_scout: null, b_scout: null },
       ],
     };
     const mine = projectGroupRounds(raw(4), [r], 'u2')[1]!;
-    expect([(mine.p1_result as { tag: string }).tag, (mine.p2_result as { tag: string }).tag, mine.heart_lost_by, mine.outcome, mine.p1_hearts]).toEqual(['B', 'A', 'p1', 'p2', 6]);
+    expect([(mine.p1_result as { tag: string }).tag, (mine.p2_result as { tag: string }).tag, mine.heart_lost_by, mine.outcome, mine.p1_health]).toEqual(['B', 'A', 'p1', 'p2', 25]);
     expect((roundResultFor(mine, 'p4') as unknown as { tag: string }).tag).toBe('D');
     expect(roundResultFor({ p1_result: res('X', 'win'), p2_result: res('Y', 'lose') } as never, 'p2')).toEqual(res('Y', 'lose'));
   });
@@ -78,12 +78,12 @@ describe('Versus Group "Previous match stats" (R-VERSUS-GROUP-07)', () => {
     const { buildGroupMatchRecord } = await import('./versusMatchRecord');
     const fr = (result: 'win' | 'lose' | 'draw'): CombatResult => ({ result, initial: { player: [], enemy: [] }, events: [], playerDamage: 0 } as unknown as CombatResult);
     const rounds: VersusGroupRoundRaw[] = [
-      { round: 1, hearts: { p1: 7, p2: 6, p3: 7 }, eliminated: [], fights: [
+      { round: 1, vitals: { p1: { health: 30, armor: 0 }, p2: { health: 25, armor: 0 }, p3: { health: 30, armor: 0 } }, eliminated: [], fights: [
         { round: 1, fight: 0, a_seat: 'p1', b_seat: 'p2', b_copy: false, chair: 'a', outcome: 'a', heart_lost_by: 'p2', a_result: fr('win'), b_result: fr('lose'), a_scout: null, b_scout: null },
         { round: 1, fight: 1, a_seat: 'p3', b_seat: 'p1', b_copy: true, chair: 'a', outcome: 'draw', heart_lost_by: null, a_result: fr('draw'), b_result: fr('draw'), a_scout: null, b_scout: null },
       ] },
     ];
-    const seats = [seat('p1', { placement: null }), seat('p2', { eliminatedRound: 1, outReason: 'hearts', hearts: 0, placement: 3 }), seat('p3', { hearts: 7, eliminatedRound: 1, outReason: 'forfeit', placement: 2 })];
+    const seats = [seat('p1', { placement: null }), seat('p2', { eliminatedRound: 1, outReason: 'hearts', health: 0, placement: 3 }), seat('p3', { health: 30, eliminatedRound: 1, outReason: 'forfeit', placement: 2 })];
     const done = raw(3, { phase: 'complete', winner_seat: 'p1', end_reason: 'hearts', round: 1 }, seats);
     const mine = buildGroupMatchRecord(done, rounds, 'u3', null)!;
     expect(mine.rounds[0]!.foeName).toBe('Copy of P1');

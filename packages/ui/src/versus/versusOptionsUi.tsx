@@ -32,9 +32,9 @@ export function versusOptionsSummary(raw: VersusRoomOptions | null | undefined):
 export const VERSUS_OPTIONS_CLOSE_MS = 140;
 
 const MODE_OPTIONS: { value: VersusMode; desc: string }[] = [
-  { value: 'duel', desc: 'Two players. Seven hearts each.' },
+  { value: 'duel', desc: 'Two players. Health and Armor, like a normal game.' },
   { value: 'group', desc: 'Three or four players. Last one standing wins.' },
-  { value: 'duos', desc: 'Two teams of two. Seven hearts per team.' },
+  { value: 'duos', desc: 'Two teams of two. Each team shares 30 Health plus both Armors.' },
 ];
 const MODIFIER_OPTIONS: { value: VersusModifierId | null; label: string; desc: string }[] = [
   { value: null, label: 'None', desc: 'The usual rules.' },

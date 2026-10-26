@@ -2894,6 +2894,11 @@ export interface PreparedCombatSide {
   fleeting?: { attack: number; health: number } | null;
   fleetingCovered?: number;
   twilightMult?: number;
+  /** VERSUS (owner 2026-10-26, R-VERSUS-HEALTH-01): the run's Health and Armor as it ended its turn. The resolver
+   *  owns the pools, but a shop effect that raises one (Mend's "Set your Armor to 5") lives on the run, so the locked
+   *  side reports them and the server honours a fresh report within the content's bounds (`versus/vitals.ts`). Stamped
+   *  only on a Versus run's deferred side. */
+  vitals?: { resolve: number; armor: number };
 }
 
 /** The landing payload of a deferred fight — see `Action` `resolveCombat`. */

@@ -58,7 +58,7 @@ export const withEmptyHand = (run: RunState): RunState => ({ ...run, hand: [] })
  *  - `ourHandoff`: my team's first board falls and my teammate's board steps in (and wins).
  *  - `theirHandoff`: the foe's first board falls and their reserve flies in.
  *  - `doubleWipe`: all four boards trade 1 for 1: both first boards fall together, both reserves step in, both fall:
- *    a draw, no hearts.
+ *    a draw, no damage.
  *  - `allEmpty`: every board empty: a draw round.
  * Plain minions only (no keywords, no effects); a hero power can still nudge a fight.
  */

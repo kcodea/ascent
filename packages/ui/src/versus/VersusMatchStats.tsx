@@ -4,7 +4,7 @@
  * (`.endpip`, on the Gem plate), the stored-board renderer (`StoredTeam`) and Match details' own seat portrait and rune
  * row (`SeatPortrait`, `SeatRunes`). Victory / Defeat on top, then the pips (owner: no "Previous match" heading or summary
  * line, "completely unnecessary here"). A pip picks the round; each player's row shows their portrait (skin + frame),
- * hearts after the fight, their board as it entered it, and their runes as of that round's lock.
+ * Health and Armor after the fight (Match details' own pills, R-VERSUS-HEALTH-01), their board as it entered it, and their runes as of that round's lock.
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { MinionSnapshot } from '@game/core';
@@ -67,14 +67,14 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
         <button ref={closeRef} type="button" className="mdd-close pressable vsms-close" aria-label="Close match stats" onClick={() => { sfx.tick(); onClose(); }}>
           <span aria-hidden="true">✕</span>
         </button>
-        {/* THE WHOLE TABLE of a group match: every player's place, hero and hearts (the match details row look). */}
+        {/* THE WHOLE TABLE of a group match: every player's place, hero, Health and Armor (the match details row look). */}
         {record.table && (
           <div className="vsms-table" aria-label="Final standings">
             {record.table.map((t) => (
               <div key={t.name} className={`vsms-trow${t.me ? ' me' : ''}`}>
                 <span className="vsms-tplace">{t.placement != null ? placementText(t.placement) : 'Playing'}</span>
                 <span className="vsms-name">{t.name}{t.heroId && <span className="vsms-hero">{getHero(t.heroId).name}</span>}</span>
-                <span className="mds-hp-v vsms-hearts"><Icon name="heartPill" />{t.hearts}</span>
+                <Pools hp={t.hp} armor={t.armor} />
               </div>
             ))}
           </div>
@@ -95,9 +95,9 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
               <section className="vsms-round">
                 <div className="mds-board-caption">Round {shown.round} · {RESULT_WORD[shown.result]}</div>
                 {/* A group round names the player (or Copy) fought that round. */}
-                <VsSide name={shown.foeName ?? record.foeName} heroId={shown.foeHero !== undefined ? shown.foeHero : record.foeHero} skins={foeSkins} self={false} hearts={shown.foeHearts}
+                <VsSide name={shown.foeName ?? record.foeName} heroId={shown.foeHero !== undefined ? shown.foeHero : record.foeHero} skins={foeSkins} self={false} hp={shown.foeHp} armor={shown.foeArmor}
                   minions={shown.foe} snaps={shown.foeSnap} tier={shown.foeTier} runes={shown.foeRunes} runeLive={shown.foeRuneLive} label={`${shown.foeName ?? record.foeName}'s board`} />
-                <VsSide name={record.myName} heroId={record.myHero} skins={mySkins} self hearts={shown.myHearts}
+                <VsSide name={record.myName} heroId={record.myHero} skins={mySkins} self hp={shown.myHp} armor={shown.myArmor}
                   minions={shown.mine} snaps={shown.mineSnap} tier={shown.myTier} runes={shown.myRunes} runeLive={shown.myRuneLive} label="Your board" />
               </section>
             )}
@@ -109,9 +109,19 @@ export function VersusMatchStats({ record, onClose }: { record: VersusMatchRecor
   );
 }
 
-/** One player's row for the picked round: portrait, name + hero, hearts, then their board and runes. */
-function VsSide({ name, heroId, skins, self, hearts, minions, snaps, tier, runes, runeLive, label }: {
-  name: string; heroId: string | null; skins: ReturnType<typeof internSnapshot>; self: boolean; hearts: number;
+/** A player's Health and Armor, as Match details' scoreboard prints a seat's (the same spans). */
+function Pools({ hp, armor }: { hp: number; armor: number }) {
+  return (
+    <span className="vsms-pools">
+      <span className="mds-hp-v"><Icon name="heart" />{hp}</span>
+      {armor > 0 && <span className="mds-hp-v armor"><Icon name="shield" />{armor}</span>}
+    </span>
+  );
+}
+
+/** One player's row for the picked round: portrait, name + hero, Health and Armor, then their board and runes. */
+function VsSide({ name, heroId, skins, self, hp, armor, minions, snaps, tier, runes, runeLive, label }: {
+  name: string; heroId: string | null; skins: ReturnType<typeof internSnapshot>; self: boolean; hp: number; armor: number;
   minions: VersusMatchRecord['rounds'][number]['mine']; snaps: readonly MinionSnapshot[] | undefined; tier: number | undefined;
   runes: readonly string[]; runeLive?: RuneLiveState; label: string;
 }) {
@@ -123,7 +133,7 @@ function VsSide({ name, heroId, skins, self, hearts, minions, snaps, tier, runes
       <div className="vsms-who">
         {heroId && <SeatPortrait heroId={heroId} skins={skins} self={self} />}
         <span className="vsms-name">{name}{heroId && <span className="vsms-hero">{getHero(heroId).name}</span>}</span>
-        <span className="mds-hp-v vsms-hearts"><Icon name="heartPill" />{hearts}</span>
+        <Pools hp={hp} armor={armor} />
       </div>
       <div className="mds-team"><StoredTeam minions={minions} views={views} skins={skins} label={label} compact /></div>
       <SeatRunes runes={runes} live={runeLive} />

@@ -1,5 +1,5 @@
 /**
- * VERSUS DUOS (owner 2026-10-25, R-DUOS-01 / R-DUOS-PASS-01): the 2v2 tag-team round (teams, fight order, team hearts,
+ * VERSUS DUOS (owner 2026-10-25, R-DUOS-01 / R-DUOS-PASS-01): the 2v2 tag-team round (teams, fight order, the team pool,
  * one seat's own view of the fight) and passing a card to your teammate (1 Gold, once per card per turn, a full hand
  * waits, a pass lands once).
  */
@@ -8,15 +8,16 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { CARD_INDEX } from '@game/content';
 import { combatSide } from '@game/core';
-import type { BoardMinion } from '@game/core';
+import type { BoardMinion, CombatResult } from '@game/core';
 import { reduce } from '../reducer';
 import { handCap, type BoardCard, type PreparedCombatSide, type RunState } from '../state';
 import { DUOS_PASS_GOLD, duosPassBlocked } from '../duosPass';
 import { canonicalJson } from './canonical';
 import {
   duosMateOf, duosRandomFirst, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
-  VERSUS_DUOS_PASS_GOLD, VERSUS_DUOS_STOMP_HEARTS,
+  VERSUS_DUOS_PASS_GOLD,
 } from './duos';
+import { CARD_INDEX as CARDS } from '@game/content';
 import { versusCombatSeed } from './combat';
 import { versusGroupCombatSeed } from './group';
 import { mirrorForEnemySeat } from './mirror';
@@ -108,26 +109,45 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
   const fb = pick.b;
   const mb = duosMateOf(pick.b);
 
-  it('the winner that never needed its second board costs the losers 2 hearts; one that did, 1; a draw 0', () => {
-    const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: big, [ma]: small, [fb]: small, [mb]: small } });
+  // R-DUOS-HEALTH-01 (owner 2026-10-26): "The duo gets 30 hp plus the sum of both armors." The losing team takes the
+  // lobby damage of the winning board that ENDED the fight (its tavern tier + its survivors' tiers), capped, Armor first.
+  const tierOf = (id: string): number => CARDS[id]?.tier ?? 1;
+  const at = (tier: number, s: PreparedCombatSide): PreparedCombatSide => ({ ...s, state: { ...s.state, tier } });
+  const pools = { a: { health: 30, armor: 2 }, b: { health: 30, armor: 2 } };
+
+  it('the losing team takes the lobby damage of the board that ended the fight (capped, Armor first); a draw costs nobody', () => {
+    // Team A's first board (tier 4) never needs its teammate: 4 + its survivor's tier, capped at round 1's 5.
+    const stomp = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: at(4, big), [ma]: small, [fb]: small, [mb]: small }, vitals: pools });
     expect(stomp.outcome).toBe('a');
     expect(stomp.losingTeam).toBe('b');
-    expect(stomp.heartsLost).toBe(VERSUS_DUOS_STOMP_HEARTS);
-    // Team A's first board is small this time: it falls, its teammate steps in and wins: 1 heart.
-    const needed = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: small, [ma]: big, [fb]: small, [mb]: small } });
+    expect(stomp.bResult.playerDamageUncapped).toBe(4 + tierOf('sandbag'));
+    expect(stomp.damage).toBe(Math.min(5, 4 + tierOf('sandbag'))); // round 1: the lobby cap is 5
+    expect(stomp.vitals).toEqual({ a: pools.a, b: { health: 30 - Math.max(0, stomp.damage - 2), armor: Math.max(0, 2 - stomp.damage) } });
+    expect(stomp.bResult.versusVitals).toEqual(stomp.vitals!.b);
+    // Team A's first board (tier 6) falls; its teammate (tier 2) steps in and wins: ITS tier counts, not the fallen one's.
+    const needed = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: at(6, small), [ma]: at(2, big), [fb]: small, [mb]: small }, vitals: pools });
     expect(needed.outcome).toBe('a');
-    expect(needed.heartsLost).toBe(1);
     expect(needed.aResult.events.some((e) => e.type === 'tagIn' && e.side === 'player')).toBe(true);
-    const draw = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: {} });
+    expect(needed.bResult.playerDamageUncapped).toBe(2 + tierOf('sandbag'));
+    expect(needed.damage).toBe(Math.min(5, 2 + tierOf('sandbag'))); // round 1: cap 5 (a fallen tier 6 would read 7+)
+    const draw = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: {}, vitals: pools });
     expect(draw.outcome).toBe('draw');
-    expect(draw.heartsLost).toBe(0);
+    expect(draw.damage).toBe(0);
     expect(draw.losingTeam).toBeNull();
+    expect(draw.vitals).toEqual(pools);
+  });
+
+  it('a lethal round takes the losing team to 0 Health (out)', () => {
+    const out = resolveVersusDuosRound({ matchSeed: 9, round: 20, sides: { [fa]: at(6, big), [fb]: small }, vitals: { a: { health: 30, armor: 0 }, b: { health: 3, armor: 1 } } });
+    expect(out.losingTeam).toBe('b');
+    expect(out.vitals!.b).toEqual({ health: 0, armor: 0 });
   });
 
   it('an empty first board hands straight over to its teammate', () => {
     const empty = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [ma]: big, [fb]: small } });
     expect(empty.first).toEqual({ a: ma, b: fb });
-    expect(empty.heartsLost).toBe(VERSUS_DUOS_STOMP_HEARTS);
+    expect(empty.losingTeam).toBe('b');
+    expect(empty.damage).toBeGreaterThan(0);
   });
 
   it('is deterministic over real recorded sides, and its parity record is stable', () => {
@@ -141,7 +161,9 @@ describe('a Duos round: one tag-team fight (R-DUOS-01)', () => {
 
   it('team B\'s view is the mirror, with the member ledger flipped to its side', () => {
     const r = resolveVersusDuosRound({ matchSeed: 9, round: 1, sides: { [fa]: small, [ma]: big, [fb]: small, [mb]: small } });
-    expect(r.bResult).toEqual(mirrorForEnemySeat(r.aResult));
+    // Both views are stamped with the round's cap (R-DUOS-HEALTH-01); the mirror carries the rest unchanged.
+    const unstamp = ({ damageCap: _c, playerDamageUncapped: _u, ...rest }: CombatResult): CombatResult => rest as CombatResult;
+    expect(unstamp(r.bResult)).toEqual(unstamp(mirrorForEnemySeat(r.aResult)));
     expect(r.bResult.tagTeam?.members.player).toEqual(r.aResult.tagTeam?.members.enemy);
     expect(r.bResult.tagTeam?.tagInAt.enemy).toBe(r.aResult.tagTeam?.tagInAt.player);
   });

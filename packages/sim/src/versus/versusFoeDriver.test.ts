@@ -24,7 +24,7 @@ const input = (seat: 'p1' | 'p2', wave: number, rounds: number, foeAttack: numbe
   matchSeed: 77, setId: 'set2', seat, wave, inCombat: true, combatSettled: false,
   me: { label: seat === 'p1' ? 'Rooks' : 'LEMON', heroId: 'warden' },
   foe: { label: seat === 'p1' ? 'LEMON' : 'Rooks', heroId: 'warden' },
-  rounds: Array.from({ length: rounds }, (_, i) => ({ round: i + 1, heartLostBy: null, mine: fight(foeAttack) })),
+  rounds: Array.from({ length: rounds }, (_, i) => ({ round: i + 1, loser: null, mine: fight(foeAttack) })),
 });
 
 describe('R-SPECTATE-SAMEHERO-01: the opponent seat is read from the lobby on screen', () => {

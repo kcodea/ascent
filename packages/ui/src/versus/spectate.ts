@@ -986,7 +986,7 @@ function enter(view: VersusSpectatorView): void {
 
 /**
  * THE FIGHT IS WATCHED WHOLE (live playtest 2026-10-14: "spectating makes the combat look really weird too, not getting
- * full lunge logic"). The watched player's client settles its fight on its own clock, and its settled view (hearts
+ * full lunge logic"). The watched player's client settles its fight on its own clock, and its settled view (Health
  * dropped, `combatSettled`) used to arrive while the spectator's replay was still playing, cutting the hero strike.
  * The first combat view of a fight is PINNED (unsettled) until the spectator's own replay has finished and its hero
  * strike has had its time; then the screen catches up to the latest view.

@@ -334,8 +334,8 @@ const GROUPS: Group[] = [
     id: 'versus',
     title: 'Versus',
     items: [
-      { key: 'versusbots', icon: '🤝', label: 'Versus Bots + Duos', C: VersusBotsTuner, hint: 'Up to three bots in your room, and buttons that force each Duos mechanic: passes, refusals, the teammate view, hand-offs, hearts, the clock',
-        alt: 'versus duos bot teammate pass refuse handoff tag team hearts concede group test' },
+      { key: 'versusbots', icon: '🤝', label: 'Versus Bots + Duos', C: VersusBotsTuner, hint: 'Up to three bots in your room, and buttons that force each Duos mechanic: passes, refusals, the teammate view, hand-offs, Health and Armor, the clock',
+        alt: 'versus duos bot teammate pass refuse handoff tag team health armor concede group test' },
     ],
   },
   {

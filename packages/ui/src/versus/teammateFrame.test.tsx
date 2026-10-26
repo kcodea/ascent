@@ -107,6 +107,21 @@ describe('watching my teammate: no plate up top', () => {
     expect(css).not.toMatch(/\.duosview-bar|\.duosview-name/);
   });
 
+  // R-DUOS-VIEW-04 (owner bug 2026-10-26): the teal haze washed the bottom-left hero plate (name pill + Health box) while a
+  // teammate's hand card popped. The vignette stays a static layer UNDER every HUD plate and the hand pop, over the board.
+  it('the team vignette sits under the hero cluster, the teammate portrait and the hand pop, over the board', () => {
+    const z = (css: string, sel: RegExp): number => Number(css.match(sel)![1]);
+    const vs = readFileSync(join(__dirname, 'versus.css'), 'utf8');
+    const main = readFileSync(join(__dirname, '../styles.css'), 'utf8');
+    const vignette = z(vs, /\.duosview-vignette \{[^}]*?z-index: (\d+)/);
+    expect(vignette).toBeLessThan(z(main, /\.statusbar \{ position: fixed;[^}]*?z-index: (\d+)/)); // portrait, name, Health, power
+    expect(vignette).toBeLessThan(z(vs, /\.duosdock \{[^}]*?z-index: (\d+)/)); // the teammate portrait + its Health box
+    expect(vignette).toBeLessThan(z(main, /\.app:has\(\.row\.hand \.card:hover\) \.zone\[data-zone='hand'\] \{ z-index: (\d+)/)); // the hand pop
+    expect(vignette).toBeGreaterThan(z(main, /^\.app \{ position: relative; z-index: (\d+)/m)); // still over the board
+    // Static paint: only the one-shot fade-in, never a looping animation.
+    expect(vs.match(/\.duosview-vignette \{[^}]*\}/)![0]).not.toMatch(/infinite/);
+  });
+
   it('not watching: nothing at all', () => {
     useSpectate.setState({ teammate: false });
     const ui = mount(<view.TeammateFrame />);

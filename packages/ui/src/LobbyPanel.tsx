@@ -32,12 +32,12 @@ import './lobbyRail.css'; // the Gem / Classic rail looks (switch: `data-lobby-r
 /** The max-damage readout on the rail's top edge: "Max dmg 5", or "No cap" once the round is uncapped. It is this
  *  round's LOSS CAP (`roundLossCap`): the most Health a loss can cost. Labelled since 2026-10-09 (owner: "a bit clearer
  *  on what it's saying"); it used to be a bare "−5". */
-function maxDamageLabel(cap: number): string {
+export function maxDamageLabel(cap: number): string {
   return Number.isFinite(cap) ? `Max dmg ${cap}` : 'No cap';
 }
 
 /** The hover tip on the max-damage readout, with the live number (owner ask 2026-10-02). */
-function maxDamageTip(cap: number): { title: string; rule: string } {
+export function maxDamageTip(cap: number): { title: string; rule: string } {
   return Number.isFinite(cap)
     ? { title: 'Max damage this round', rule: `A loss this round costs at most ${cap} Health.` }
     : { title: 'No max damage this round', rule: 'A loss deals full damage.' };
@@ -331,7 +331,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
 
   if (!lobby) return null;
   // A full bar is the seat's OWN start: Resolve + its hero's Armor (R-LOBBY-SEAT-ARMOR-01, owner 2026-10-17).
-  const maxHpOf = (seat: { kind: string; heroId: string }): number => lobby.rules.startingResolve + seatStartingArmor(seat, lobby.rules);
+  // VERSUS seats carry their own start Armor (`startArmor`: a Summit room's +10, a Duos team's pool).
+  const maxHpOf = (seat: { kind: string; heroId: string; startArmor?: number }): number => lobby.rules.startingResolve + seatStartingArmor(seat, lobby.rules);
   // YOUR OWN row reads the RUN's health, not the seat's. The seat is only re-synced when the table settles (at
   // `resolveCombat`), while the run takes your hit the moment combat ends — so between those two the seat is
   // stale and the rail would disagree with the HUD for the whole post-combat screen (owner report 2026-08-25).
@@ -339,28 +340,29 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // everywhere, just never stale. Opponent seats keep reading their own seat, which is their only source.
   const myResolve = useGame((st) => st.run.resolve);
   const myArmor = useGame((st) => st.run.armor);
-  // VERSUS (owner 2026-10-14): the run's Resolve is not the score there. Every seat's health is its HEARTS, which the
-  // two-seat display lobby carries on the seats (`versusLobby`), so every row reads its seat.
+  // VERSUS (owner 2026-10-26, R-VERSUS-HEALTH-01: "the experience is the same"): every seat plays on Health + Armor like
+  // a lobby seat. The other seats read the server's record off the display lobby (`versusLobby` / `versusGroupLobby`);
+  // your own row reads the RUN, exactly as in a lobby game (the run lands the resolver's pools when the fight settles).
   const versus = useGame((st) => st.run.mode === 'versus');
   // EVERY NUMBER THE RAIL PRINTS comes from ONE pure read, `lobbyRailView` (R-LOBBY-RAIL-01): the round, the max
   // damage, "N left", the row order (living by Resolve + Armor, ties in seat order; the fallen by placement), each
   // row's health and placement, and the next-opponent / ghost marks. `railAccuracy.test.ts` plays real lobbies and
   // checks every field against what each round actually did. Your own row reads the RUN, which takes your hit the
-  // moment the fight settles (owner report 2026-08-25), except in VERSUS, whose seats carry the hearts. VERSUS shows a
-  // ONE-ROW rail, the opponent and their hearts (owner 2026-10-14); your own hearts sit under your hero.
-  // VERSUS GROUP (R-VERSUS-GROUP-03): the ranked rail with every player (you included) on their hearts, the Copy in
-  // the last slot while one is in play. A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
+  // moment the fight settles (owner report 2026-08-25), in VERSUS too. A VERSUS 1v1 shows the opponent's block (their
+  // Health + Armor, owner 2026-10-14); your own pools sit under your hero. VERSUS GROUP (R-VERSUS-GROUP-03): the ranked
+  // rail with every player (you included) on their Health + Armor, the Copy in the last slot while one is in play.
+  // A 1v1 (two seats) keeps its one-opponent block (`versusDuel`).
   const versusDuel = versus && lobby.seats.length <= 2;
   // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1), kept next to yours. A click opens their live screen
   // (R-DUOS-VIEW-01), a second way in beside the bottom-right teammate portrait (the pass target, DuosMateDock).
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
-  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : versus ? {} : { self: { resolve: myResolve, armor: myArmor } }) });
+  const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : { self: { resolve: myResolve, armor: myArmor } }) });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
   // The foe's board is already prepared by `playerOpponent`, so reading it is free, and the imminent opponent has
   // CURRENT intel even on round 1. Every card reads the round you are IN, by one rule (`railSeatIntel`).
   const foeIntel: SeatIntel | undefined = foe ? railSeatIntel(lobby, foe, next) : undefined;
-  // VERSUS DUOS: team rows grouped (you next to your teammate), never split by hearts.
+  // VERSUS DUOS: team rows grouped (you next to your teammate), never split by Health.
   const rows = duosMate ? groupDuosRailRows(rail.rows) : rail.rows;
   // The rail's height in seat rows (`--lby-n`): VERSUS's head-to-head card takes three; its Guides view takes the
   // lobby's full eight, so the guides read exactly as in a lobby game.
@@ -386,8 +388,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
           <span aria-hidden="true">✕</span>
         </button>
       )}
-      {/* VERSUS has no loss cap: a lost round costs one heart. */}
-      {!versus && <>
+      {/* VERSUS reads the lobby's own cap (R-VERSUS-HEALTH-01); a 1v1's opponent block carries it too (VersusFoe). */}
       {/* Max loss: the most Health a loss this round can cost. Hover explains it with the live number, in the
           game's standard HUD tip panel (`.herotip`, the hero-power / Equipment hover), not the small `.gtip`
           bubble: owner 2026-10-02, "fix this tooltip, it's unreadable". */}
@@ -400,7 +401,6 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
         <b>{capTip.title}</b>
         <span className="herotip-rule">{capTip.rule}</span>
       </span>
-      </>}
     </div>}
     {/* THE VIEW TAB on the rail's left edge (owner ask 2026-10-09). A SIBLING of the rail like the header (the rail
         clips its children), placed off the rail's own position + height vars (guides/lobbyGuides.css). Two stacked
@@ -427,6 +427,8 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
             art={heroPortrait(foeSeat.heroId, foeSkins)}
             frame={resolvePortraitFrame('opp', foeFrameId ?? 'default', 'socket')}
             round={lobby.round}
+            cap={cap}
+            capPop={capPop}
             onGuides={toggleVsGuides}
             guidesOpen={showGuides && !vsClosing}
             faceProps={{
@@ -608,8 +610,8 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
     try { localStorage.setItem(SCOUT_VARIANT_KEY, String(next)); } catch { /* ignore */ }
   };
 
-  // VERSUS (owner 2026-10-14): a round costs a heart, not damage, so the fight log reads in hearts, and a seat with no
-  // runes yet says so instead of drawing three empty sockets.
+  // VERSUS: a seat with no runes yet says so instead of drawing three empty sockets. (The fight log reads damage, as
+  // in a lobby game, since 2026-10-26: R-VERSUS-HEALTH-01.)
   const versusCard = useGame((st) => st.run.mode === 'versus');
   // Shared reads + building blocks; each layout below arranges the SAME data differently.
   const heroName = getHero(seat.heroId).name;
@@ -659,7 +661,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
             <span className="lobbyscout-colhead">Round</span>
             <span className="lobbyscout-colhead">Vs</span>
             <span className="lobbyscout-colhead">Outcome</span>
-            <span className="lobbyscout-colhead">{versusCard ? 'Hearts' : 'Dmg'}</span>
+            <span className="lobbyscout-colhead">Dmg</span>
           </div>
           {results.map((r) => (
             <div className={`lobbyscout-row ${r.outcome}`} key={r.round}>
@@ -671,9 +673,7 @@ function ScoutCard({ lobby, seat, intel, at, pinned }: {
               </span>
               {/* The outcome sits BETWEEN the portrait and the damage (owner ask 2026-08-31). */}
               <span className="lobbyscout-result">{OUTCOME_LABEL[r.outcome] ?? ''}</span>
-              {versusCard
-                ? <span className={`lobbyscout-dmg lobbyscout-hearts${r.taken > 0 ? ' lost' : ''}`}><Icon name="heartPill" />{r.taken > 0 ? `−${r.taken}` : '0'}</span>
-                : <span className="lobbyscout-dmg"><img decoding="sync" className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>}
+              <span className="lobbyscout-dmg"><img decoding="sync" className="lobbyscout-blast" src="/blast-dmg-icon.webp" alt="" aria-hidden />{r.taken > 0 ? `−${r.taken}` : r.dealt > 0 ? `+${r.dealt}` : '0'}</span>
             </div>
           ))}
         </>

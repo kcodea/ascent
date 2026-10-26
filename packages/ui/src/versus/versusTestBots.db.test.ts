@@ -2,7 +2,7 @@
  * THE TEST BOTS IN EVERY SEAT + THE DUOS DEV TUNER'S SERVER SIDE, against the real SQL (PGlite) and the real
  * `finalize_duos` handler (owner 2026-10-25: "id like the ability to test the various mechanics with bots").
  *
- *  - 2026-10-25-versus-test-bots.sql: only an anonymous account registers as a bot; the dev RPCs (hearts, skip the
+ *  - 2026-10-25-versus-test-bots.sql: only an anonymous account registers as a bot; the dev RPCs (Health / Armor, skip the
  *    shop) open only to the room's host on a table of that host's own bots, and mark the match
  *    `dev_forced`; no XP row is ever written for a bot or for a forced match.
  *  - Four `VersusBotDriver`s (through `makeBotMatchApi`, the adapter the browser uses) fill a Duos room, gate, pick,
@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contentRevision } from '@game/content';
 import { handleVersusDuosFinalize, type VersusDuosFinalizeStore } from '@game/sim/versus/server';
-import type { VersusGroupSeat } from '@game/sim';
+import { versusFreshSide, type VersusGroupSeat } from '@game/sim';
 import { VersusBotDriver } from './versusBotDriver';
 import { withAddedCard } from './duosDevTuner';
 import { makeBotMatchApi, type BotRemote } from './versusBotApi';
@@ -28,7 +28,9 @@ const FILES = [
   '2026-10-24-versus-group.sql', '2026-10-24-versus-group-knockout-stands.sql', '2026-10-25-versus-duos.sql', '2026-10-25-versus-duos-edges.sql', '2026-10-25-versus-duos-pass-back.sql', '2026-10-26-versus-lock-order.sql', '2026-10-27-versus-egress.sql',
 ];
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
-const BOTS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-test-bots.sql'), 'utf8');
+const BOTS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-test-bots.sql'), 'utf8')
+  // Health and Armor (R-VERSUS-HEALTH-01): the new commits and `versus_dev_set_vitals` (after the dev gate it uses).
+  + readFileSync(join(root, 'supabase/migrations/2026-10-28-versus-health.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -81,10 +83,12 @@ const store: VersusDuosFinalizeStore = {
   async match(id) { return (await rows<any>('select id, phase, round, seed, content_revision, duos_first, options from public.versus_group_matches where id = $1', [id]))[0] ?? null; },
   async finalSides(matchId, round) {
     const out: Partial<Record<VersusGroupSeat, unknown>> = {};
-    for (const r of await rows<any>('select seat, prepared_side, final from public.versus_group_submissions where match_id = $1 and round = $2', [matchId, round])) if (r.final) out[r.seat as VersusGroupSeat] = r.prepared_side;
+    for (const r of await rows<any>('select seat, prepared_side, final, source from public.versus_group_submissions where match_id = $1 and round = $2', [matchId, round])) if (r.final) out[r.seat as VersusGroupSeat] = versusFreshSide(r.prepared_side, r.source);
     return out;
   },
-  async commit(a) { return as(null, 'select public.versus_duos_commit_round($1, $2, $3::jsonb, $4)', [a.p_match, a.p_round, JSON.stringify(a.p_fight), a.p_digest]); },
+  async seats(id) { return rows<any>('select seat, hero from public.versus_group_seats where match_id = $1', [id]); },
+  async teams(id) { return rows<any>('select team, health, armor from public.versus_group_teams where match_id = $1', [id]); },
+  async commit(a) { return as(null, 'select public.versus_duos_commit_round($1, $2, $3::jsonb, $4, $5::jsonb)', [a.p_match, a.p_round, JSON.stringify(a.p_fight), a.p_digest, JSON.stringify(a.p_vitals)]); },
   log: () => undefined,
 };
 
@@ -112,9 +116,9 @@ function remoteFor(user: string): BotRemote {
     reconcile: nope, finalize: nope, forfeit: nope, publishFrame: nope, finalizeGroup: nope,
     groupMatch,
     async groupRounds(id, from = 1) {
-      const rs = await rows<any>('select round, hearts, eliminated from public.versus_group_rounds where match_id = $1 and round >= $2 order by round', [id, from]);
+      const rs = await rows<any>('select round, vitals, eliminated from public.versus_group_rounds where match_id = $1 and round >= $2 order by round', [id, from]);
       const fights = await rows<VersusGroupFightRow>('select * from public.versus_group_fights where match_id = $1 and round >= $2 order by round, fight', [id, from]);
-      return rs.map((r) => ({ round: r.round, hearts: r.hearts, eliminated: r.eliminated, fights: fights.filter((f) => f.round === r.round) }));
+      return rs.map((r) => ({ round: r.round, vitals: r.vitals ?? {}, eliminated: r.eliminated, fights: fights.filter((f) => f.round === r.round) }));
     },
     async groupMyPrivate(id) { return (await rows<any>('select * from public.versus_group_seat_private where match_id = $1 and user_id = $2', [id, user]))[0] ?? null; },
     groupRegisterOffer: (id, offer) => as(user, 'select public.versus_group_register_offer($1, $2)', [id, offer]),
@@ -168,7 +172,7 @@ async function stepAll(ds: VersusBotDriver[], until: () => Promise<boolean>, max
     if (await until()) return;
   }
   const m = await theMatch();
-  const seats = m ? await rows<any>('select seat, locked, ready, intro, hearts, auto from public.versus_group_seats where match_id = $1 order by seat', [m.id]) : [];
+  const seats = m ? await rows<any>('select seat, locked, ready, intro, health, armor, auto from public.versus_group_seats where match_id = $1 order by seat', [m.id]) : [];
   throw new Error(`did not get there: ${JSON.stringify({ phase: m?.phase, round: m?.round, paused: m?.paused_seat, deadline: m?.shop_deadline, seats, runs: ds.map((d) => [d.realSeat, d.run?.phase, d.run?.wave, d.lockedFor]) })}`);
 }
 const theMatch = async (): Promise<any> => (await rows<any>('select * from public.versus_group_matches'))[0];
@@ -185,17 +189,17 @@ describe('test bot registry (2026-10-25-versus-test-bots.sql)', () => {
 });
 
 describe('the bots fill a Duos room and play it through (the browser adapter over the real SQL)', () => {
-  it('four bots gate, pick, shop, lock and play a Duos match to its end; hearts are by team', async () => {
+  it('four bots gate, pick, shop, lock and play a Duos match to its end; the Health pool is by team', async () => {
     const roomId = await duosRoom();
     // Team b never buys: team a's random minions win.
     const ds = drivers(roomId, { [B3]: { maxActions: 0 }, [B4]: { maxActions: 0 } });
     await as(HOST, 'select public.versus_start_game($1)', [roomId]);
     await stepAll(ds, async () => (await theMatch())?.phase === 'complete', 8000);
     const m = await theMatch();
-    const seats = await rows<any>('select seat, team, hearts, placement from public.versus_group_seats where match_id = $1 order by seat', [m.id]);
+    const seats = await rows<any>('select seat, team, health, armor, placement from public.versus_group_seats where match_id = $1 order by seat', [m.id]);
     expect(seats.map((s) => s.placement)).toEqual([1, 1, 2, 2]);
-    expect(seats[0].hearts).toBe(seats[1].hearts);
-    expect(seats[2].hearts).toBe(0);
+    expect([seats[0].health, seats[0].armor]).toEqual([seats[1].health, seats[1].armor]);
+    expect([seats[2].health, seats[3].health]).toEqual([0, 0]);
     // The bots' own runs agree with the server's rounds (each from its own seat).
     const n = (await rows<any>('select count(*)::int n from public.versus_group_rounds where match_id = $1', [m.id]))[0].n;
     expect(ds[0]!.run!.history.length).toBeGreaterThanOrEqual(n - 1);
@@ -248,13 +252,14 @@ describe('the dev forcing RPCs', () => {
   it('host only, on a table of only the host\'s bots; using one marks the match dev_forced', async () => {
     const id = await running();
     expect((await theMatch()).dev_forced).toBe(false);
-    expect(await fails(B2, 'select public.versus_dev_set_hearts($1, $2, 3)', [id, 'p1'])).toMatch(/not_host/);
-    await as(HOST, `select public.versus_dev_set_hearts($1, 'p3', 2)`, [id]);
-    const seats = await rows<any>('select seat, hearts from public.versus_group_seats where match_id = $1 order by seat', [id]);
-    expect(seats.map((s) => s.hearts)).toEqual([7, 7, 2, 2]); // Duos: the team's hearts, both seats
-    expect((await rows<any>(`select hearts from public.versus_group_teams where match_id = $1 and team = 'b'`, [id]))[0].hearts).toBe(2);
+    expect(await fails(B2, 'select public.versus_dev_set_vitals($1, $2, 3, 0)', [id, 'p1'])).toMatch(/not_host/);
+    await as(HOST, `select public.versus_dev_set_vitals($1, 'p3', 2, 4)`, [id]);
+    const seats = await rows<any>('select seat, health, armor from public.versus_group_seats where match_id = $1 order by seat', [id]);
+    // Duos: the team's pool, both seats (the other team has none stored yet: its start).
+    expect(seats.map((s) => [s.health, s.armor])).toEqual([[null, null], [null, null], [2, 4], [2, 4]]);
+    expect((await rows<any>(`select health, armor from public.versus_group_teams where match_id = $1 and team = 'b'`, [id]))[0]).toEqual({ health: 2, armor: 4 });
     expect((await theMatch()).dev_forced).toBe(true);
-    expect(await fails(HOST, `select public.versus_dev_set_hearts($1, 'p1', 0)`, [id])).toMatch(/bad_hearts/);
+    expect(await fails(HOST, `select public.versus_dev_set_vitals($1, 'p1', 0, 0)`, [id])).toMatch(/bad_vitals/);
   });
 
   it('refuses a table with anyone who is not one of the host\'s bots', async () => {

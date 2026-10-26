@@ -265,12 +265,13 @@ export function HeroSelect() {
                         height, so an extra line there spills over the card in the next row (measured). */}
                     {hero.practiceOnly && <span className="hcpractice">Not currently enabled in Play</span>}
                     <PortraitFrame frame={frame} />
-                    {/* VERSUS plays to hearts, never Resolve: no Health pill on its picks. */}
-                    {mode !== 'versus' && <div className="hchp hudpill-hp">
+                    {/* Every mode shows the Health pill (Versus too since 2026-10-26: R-VERSUS-HEALTH-01, the hero's own
+                        Health and Armor are what that seat starts on). */}
+                    <div className="hchp hudpill-hp">
                       <Icon name="heartPill" />
                       {hero.resolve}
                       {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
-                    </div>}
+                    </div>
                   </div>
                   {/* One box, two crossfading faces (owner ask 2026-08-20): at rest the card answers "how hard
                       is this hero, and what is the idea"; hovering answers "what does the button actually do".

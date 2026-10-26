@@ -207,24 +207,19 @@ export const RIFTS: Record<RiftId, RiftDef> = {
 export const RIFT_BONUS_ARMOR: Partial<Record<RiftId, number>> = { summit: 10 };
 
 /**
- * VERSUS MODIFIERS skip the Armor bonus (owner 2026-10-25, R-VERSUS-SUMMIT-01: "summit rift shouldnt add armor in
- * versus, just have it unlock tier 7"). A Versus room's Summit only raises the tier ceiling (`maxTierFor`); every other
- * mode keeps `RIFT_BONUS_ARMOR`, so a recorded Summit Rift run replays exactly as it was played.
+ * The Armor a rift adds at run creation. VERSUS adds it too (owner 2026-10-26, R-VERSUS-SUMMIT-01: Summit in Versus
+ * "add +10 Armor again (like the lobby Summit rift)"; from 2026-10-25 to 2026-10-26 a Versus Summit added none). `mode`
+ * is kept for the callers' signature; every mode reads the same table now.
  */
-export function riftBonusArmor(rift: RiftId | null | undefined, mode: string | undefined): number {
-  if (!rift || mode === 'versus') return 0;
+export function riftBonusArmor(rift: RiftId | null | undefined, _mode?: string): number {
+  if (!rift) return 0;
   return RIFT_BONUS_ARMOR[rift] ?? 0;
 }
 
-/** The rule text a rift shows in Versus, where it differs from its usual blurb (no Armor there). */
-const VERSUS_RIFT_BLURB: Partial<Record<RiftId, string>> = { summit: 'The shop unlocks Tier 7.' };
-const VERSUS_RIFT_DEFS: Partial<Record<RiftId, RiftDef>> = Object.fromEntries(
-  (Object.keys(VERSUS_RIFT_BLURB) as RiftId[]).map((id) => [id, Object.freeze({ ...RIFTS[id], blurb: VERSUS_RIFT_BLURB[id]! })]),
-);
-
-/** The rift as a run of `mode` plays it (its name + rule text). Stable references, safe as memo'd props. */
-export function riftDefFor(rift: RiftId, mode: string | undefined): RiftDef {
-  return (mode === 'versus' ? VERSUS_RIFT_DEFS[rift] : undefined) ?? RIFTS[rift];
+/** The rift as a run of `mode` plays it (its name + rule text). Versus reads the ordinary rift since 2026-10-26 (its
+ *  Summit adds the +10 Armor again). Stable references, safe as memo'd props. */
+export function riftDefFor(rift: RiftId, _mode?: string): RiftDef {
+  return RIFTS[rift];
 }
 
 /**

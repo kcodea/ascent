@@ -5,11 +5,11 @@
  *
  * TOP LEFT: me, as a spectator (`SpectatorSelf`: my plate and emotes, the rest of the stands, Leave). BOTTOM RIGHT: the
  * switcher (`WatchedPanel`): both players as plates (Match details' seat portrait in their skin and frame, name pill,
- * heart pill), the watched one lit; click a plate, or press 1 / 2, to watch that player's screen. Instant: both views
+ * Health box), the watched one lit; click a plate, or press 1 / 2, to watch that player's screen. Instant: both views
  * are cached (spectate.ts). In a fight the same plates pick whose side it is shown from.
  */
 import { useEffect, useMemo, useRef } from 'react';
-import type { VersusGroupSeat, VersusSeat } from '@game/sim';
+import { versusDuosStartingVitals, versusStartingVitals, type VersusGroupSeat, type VersusSeat } from '@game/sim';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { leaveSpectating, useSpectate, watchSeat } from './spectate';
@@ -27,9 +27,12 @@ export function SpectatorBar(): JSX.Element | null {
   const seat = useSpectate((s) => s.seat);
   const match = useVersus((s) => s.match);
   const room = useVersus((s) => s.room);
-  // Hearts as the SCREEN shows them (the watched run's two-seat lobby: settled when the fight on screen lands), so the
-  // bar never tells the result of a fight that is still playing. The match row is the fallback.
-  const shown = useGame((s) => { const l = s.run.lobby; return l ? `${l.seats[0]?.resolve ?? ''}|${l.seats[1]?.resolve ?? ''}` : ''; });
+  // Health and Armor as the SCREEN shows them (the watched run's two-seat lobby: settled when the fight on screen
+  // lands), so the bar never tells the result of a fight that is still playing. The match row is the fallback.
+  const shown = useGame((s) => {
+    const l = s.run.lobby;
+    return l ? `${l.seats[0]?.resolve ?? ''}/${l.seats[0]?.armor ?? ''}|${l.seats[1]?.resolve ?? ''}/${l.seats[1]?.armor ?? ''}` : '';
+  });
   useEffect(() => {
     if (!active) return undefined;
     const onKey = (e: KeyboardEvent): void => {
@@ -74,12 +77,16 @@ export function SpectatorBar(): JSX.Element | null {
       const row = raw.seats.find((x) => x.seat === key)!;
       const foe = row.eliminatedRound == null ? foeIn(pairing, key) : null;
       const foeRow = foe ? raw.seats.find((x) => x.seat === foe.seat) : null;
+      // The seat's stored pools (Duos: its team's), else its start (R-VERSUS-HEALTH-01, R-DUOS-HEALTH-01).
+      const mateHero = raw.seats.find((x) => x.seat === ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[key])?.hero;
+      const start = duos ? versusDuosStartingVitals(row.hero, mateHero, raw.options) : versusStartingVitals(row.hero, raw.options);
       return {
         key,
         name: row.name,
         heroId: row.hero,
         profile: room?.members.find((m) => m.userId === row.userId)?.profile,
-        hearts: row.hearts,
+        health: row.health ?? start.health,
+        armor: row.armor ?? start.armor,
         on: seat === key,
         pick: () => watchSeat(key),
         vs: duos ? (row.eliminatedRound == null ? (key === 'p1' || key === 'p2' ? 'Team 1' : 'Team 2') : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
@@ -103,13 +110,18 @@ export function SpectatorBar(): JSX.Element | null {
     const [mine, theirs] = shown.split('|');
     return SEATS.map((s) => {
       const user = s === 'p1' ? match.p1_user : match.p2_user;
-      const fromScreen = shown ? Number(s === seat ? mine : theirs) : NaN;
+      const [hs, as] = (shown ? (s === seat ? mine : theirs) ?? '' : '').split('/');
+      const fromScreen = { health: hs ? Number(hs) : NaN, armor: as ? Number(as) : NaN };
+      const hero = s === 'p1' ? match.p1_hero : match.p2_hero;
+      const start = versusStartingVitals(hero, match.options);
+      const stored = { health: (s === 'p1' ? match.p1_health : match.p2_health) ?? start.health, armor: (s === 'p1' ? match.p1_armor : match.p2_armor) ?? start.armor };
       return {
         key: s,
         name: s === 'p1' ? match.p1_name : match.p2_name,
-        heroId: s === 'p1' ? match.p1_hero : match.p2_hero,
+        heroId: hero,
         profile: room?.members.find((m) => m.userId === user)?.profile,
-        hearts: Number.isFinite(fromScreen) ? fromScreen : s === 'p1' ? match.p1_hearts : match.p2_hearts,
+        health: Number.isFinite(fromScreen.health) ? fromScreen.health : stored.health,
+        armor: Number.isFinite(fromScreen.armor) ? fromScreen.armor : stored.armor,
         on: seat === s,
         pick: () => watchSeat(s),
       };

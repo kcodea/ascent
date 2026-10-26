@@ -7,12 +7,12 @@
  * them, and the real code paths, to show a mechanic on demand: a bot passes you a card through its run and the pass
  * RPCs; your pass lands in the bot's run, which answers the server; a refusal is a real refusal (a full hand, an away
  * teammate, no Gold, the clock); a forced fight is the real resolver on boards set up for it; a concede is the real
- * forfeit. What only a test needs (a hand topped up, a board replaced, the hearts, the clock, the fight order) is a
+ * forfeit. What only a test needs (a hand topped up, a board replaced, Health and Armor, the clock, the fight order) is a
  * dev edit or a dev RPC (`versus_dev_*`, the host's bot-only tables, no XP), labelled "dev" here. Who fights first is
  * the server's seeded 50/50 (R-DUOS-ORDER-01) and the resolver reads only the seed, so the panel shows it, never sets it.
  */
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { duosTeamOf, handCap, poolOf, type RunState, type VersusGroupSeat } from '@game/sim';
+import { duosMateOf, duosTeamOf, handCap, poolOf, versusDuosStartingVitals, versusStartingVitals, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useDraggablePanel } from '../useDraggablePanel';
 import { useGame } from '../store';
 import { currentUserId } from '../identity';
@@ -96,7 +96,7 @@ export function VersusBotsTuner(): JSX.Element {
   const run = useGame((s) => s.run);
   const me = currentUserId();
   const [cardId, setCardId] = useState('');
-  const [hearts, setHearts] = useState<Record<string, number>>({});
+  const [pools, setPools] = useState<Record<string, { h: number; a: number }>>({});
 
   const raw = match?.group?.raw ?? null;
   const duos = match?.group?.duos ?? null;
@@ -142,9 +142,25 @@ export function VersusBotsTuner(): JSX.Element {
       + (lockedBots.length ? ` Already locked: ${lockedBots.join(', ')}.` : ' End your turn to see it.'));
   };
 
-  const setSeatHearts = (seat: VersusGroupSeat, n: number): void => {
-    if (!match) return;
-    say(versusRemote.devSetHearts(match.id, seat, n), `Hearts set to ${n}.`);
+  /** DEV: set a seat's (Duos: its team's) Health and Armor on the server (`versus_dev_set_vitals`), and on every run in
+   *  this tab that carries that pool (mine, and the bots'), so the next lock reports the new numbers (R-VERSUS-HEALTH-01). */
+  const setSeatPools = (seat: VersusGroupSeat, h: number, a: number): void => {
+    if (!match || !raw) return;
+    const owners = duos ? raw.seats.filter((x) => duosTeamOf(x.seat) === duosTeamOf(seat)).map((x) => x.seat) : [seat];
+    const land = (r: RunState): RunState => ({ ...r, resolve: h, armor: a, maxArmor: Math.max(r.maxArmor, a) });
+    say(versusRemote.devSetVitals(match.id, seat, h, a).then(() => {
+      for (const o of owners) {
+        if (o === mySeat) editMine(land);
+        else { const slot = slotAt(o); if (slot != null) versusBotDriver(slot)?.edit(land); }
+      }
+    }), `Health ${h}, Armor ${a}.`);
+  };
+  /** A seat's pools now (stored, else its start). */
+  const poolNow = (row: NonNullable<typeof raw>['seats'][number]): { h: number; a: number } => {
+    const start = duos
+      ? versusDuosStartingVitals(row.hero, raw!.seats.find((x) => x.seat === duosMateOf(row.seat))?.hero, raw!.options)
+      : versusStartingVitals(row.hero, raw!.options);
+    return { h: row.health ?? start.health, a: row.armor ?? start.armor };
   };
 
   const teams = duos && raw ? (['a', 'b'] as const).map((t, i) => ({ t, label: `Team ${i + 1}`, seat: raw.seats.find((s) => duosTeamOf(s.seat) === t) ?? null })) : [];
@@ -197,17 +213,22 @@ export function VersusBotsTuner(): JSX.Element {
       )}
 
       {live && raw && (
-        <Section title={duos ? 'Team hearts (dev)' : 'Hearts (dev)'}>
-          {(duos ? teams.filter((x) => x.seat).map((x) => ({ key: x.t, label: x.label, seat: x.seat!.seat, now: x.seat!.hearts, out: x.seat!.eliminatedRound != null }))
-            : raw.seats.map((s) => ({ key: s.seat, label: s.name, seat: s.seat, now: s.hearts, out: s.eliminatedRound != null }))).map((x) => (
-            <div className="duostuner-bot" key={x.key}>
-              <span className="duostuner-line">{x.label}: {x.now}</span>
-              <input className="duostuner-num" type="number" min={1} max={30} value={hearts[x.key] ?? x.now} aria-label={`${x.label} hearts`}
-                onChange={(e) => setHearts((h) => ({ ...h, [x.key]: Number(e.target.value) }))} />
-              <Btn label="Set" hint="Dev: set these hearts now" disabled={x.out} run={() => setSeatHearts(x.seat, hearts[x.key] ?? x.now)} />
-              <Btn label="1 left" hint="Dev: one heart left (the next lost fight ends it)" disabled={x.out} run={() => setSeatHearts(x.seat, 1)} />
-            </div>
-          ))}
+        <Section title={duos ? 'Team Health / Armor (dev)' : 'Health / Armor (dev)'}>
+          {(duos ? teams.filter((x) => x.seat).map((x) => ({ key: x.t, label: x.label, seat: x.seat!.seat, now: poolNow(x.seat!), out: x.seat!.eliminatedRound != null }))
+            : raw.seats.map((s) => ({ key: s.seat, label: s.name, seat: s.seat, now: poolNow(s), out: s.eliminatedRound != null }))).map((x) => {
+            const want = pools[x.key] ?? x.now;
+            return (
+              <div className="duostuner-bot" key={x.key}>
+                <span className="duostuner-line">{x.label}: {x.now.h}{x.now.a > 0 ? ` +${x.now.a}` : ''}</span>
+                <input className="duostuner-num" type="number" min={1} max={999} value={want.h} aria-label={`${x.label} Health`}
+                  onChange={(e) => setPools((p) => ({ ...p, [x.key]: { ...want, h: Number(e.target.value) } }))} />
+                <input className="duostuner-num" type="number" min={0} max={999} value={want.a} aria-label={`${x.label} Armor`}
+                  onChange={(e) => setPools((p) => ({ ...p, [x.key]: { ...want, a: Number(e.target.value) } }))} />
+                <Btn label="Set" hint="Dev: set this Health and Armor now" disabled={x.out} run={() => setSeatPools(x.seat, want.h, want.a)} />
+                <Btn label="1 Health" hint="Dev: 1 Health, no Armor (the next lost fight ends it)" disabled={x.out} run={() => setSeatPools(x.seat, 1, 0)} />
+              </div>
+            );
+          })}
         </Section>
       )}
 

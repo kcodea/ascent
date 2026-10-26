@@ -2,15 +2,19 @@
  * VERSUS DUOS: the 2v2 tag-team mode (owner design 2026-10-25, R-DUOS-01; docs/design/2026-10-25-versus-duos.md).
  *
  *   "TAG-TEAM, like Hearthstone Battlegrounds Duos: one combat per round, team vs team. Your board fights first; when
- *    it is wiped, your teammate's board steps in against whatever survived on the other side." SHARED team hearts;
+ *    it is wiped, your teammate's board steps in against whatever survived on the other side." SHARED team pool;
  *    EXACTLY 2v2 (4 players, the 4-seat Versus room); unrated.
  *
  * Owner rulings (2026-10-25: "you have all the rules right except passing should cost 1 gold"):
  *   - TEAMS are seat pairs: p1 + p2 (left of the VS mark) vs p3 + p4 (right). Team ids are letters by seat pair
  *     (`duosTeamOf`: p1 + p2 = a, p3 + p4 = b, and on), so a future 4-team Duos (8 seats, owner: "We will likely add 4
  *     team duos at some point") extends the same helpers; today's room and server enforce 2 teams.
- *   - 7 hearts PER TEAM. The losing team loses 1 heart, 2 when the winner never needed its second board. A draw costs
- *     nobody. A team at 0 is out; the other team wins.
+ *   - ONE HEALTH POOL PER TEAM (owner 2026-10-26, R-DUOS-HEALTH-01: "The duo gets 30 hp plus the sum of both armors";
+ *     7 team hearts until then). The losing team takes the lobby's damage, round-capped, Armor first: the tavern tier
+ *     of the winning side's board that ENDED the fight plus its survivors' tiers (`simulate` swaps a side's run context
+ *     when its reserve steps in, so its damage already reads that board). A draw costs nobody. A team at 0 is out; the
+ *     other team wins. (The old "2 hearts for a stomp" has no Health equivalent: the second board never stepping in
+ *     already shows in the damage, as more survivors.)
  *   - PLACEMENT IS BY TEAM (owner: "In duos you only place 1 and 2 in a 2v2"): the winners are both 1st, the losers
  *     both 2nd (with N teams: a team placed by how many teams were still in when it went out).
  *   - WHO FIGHTS FIRST is a 50/50 pick per team per round (owner ruling 2026-10-25, R-DUOS-ORDER-01: "I want the 'who
@@ -32,6 +36,7 @@ import { makeRng, simulate, type CombatCarryBacks, type CombatResult } from '@ga
 import type { PreparedCombatSide } from '../state';
 import { versusSideOrEmpty } from './combat';
 import { carryAsPlayerFields, mirrorForEnemySeat } from './mirror';
+import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
 import type { VersusGroupSeat } from './group';
 
 /** A team id: a letter per seat pair (a = p1 + p2, b = p3 + p4, ...). The 2v2 round uses a and b. */
@@ -41,10 +46,6 @@ export const VERSUS_DUOS_TEAMS: Readonly<Record<VersusDuosTeam, readonly [Versus
   a: ['p1', 'p2'],
   b: ['p3', 'p4'],
 };
-/** Team hearts (owner 2026-10-25: 7 per team). */
-export const VERSUS_DUOS_HEARTS = 7;
-/** Hearts a loss costs when the winner never needed its second board. */
-export const VERSUS_DUOS_STOMP_HEARTS = 2;
 /** The Gold a pass costs the sender (owner 2026-10-25: "passing should cost 1 gold"). */
 export const VERSUS_DUOS_PASS_GOLD = 1;
 /** Server cap on passes per seat per round (Gold bounds it anyway; this bounds a misbehaving client). Mirrored in SQL. */
@@ -107,6 +108,9 @@ export interface VersusDuosRoundInput {
   round: number;
   /** Each seat's FINAL side for this round (missing / malformed = the empty side). */
   sides: Partial<Record<VersusGroupSeat, unknown>>;
+  /** Each team's shared Health and Armor going INTO the round (`versusVitalsBefore`). Absent (a parity fixture from
+   *  before 2026-10-26) = damage is computed and stamped, but no pool is charged. */
+  vitals?: Partial<Record<VersusDuosTeam, VersusVitals>>;
 }
 
 export interface VersusDuosRoundResult {
@@ -115,9 +119,11 @@ export interface VersusDuosRoundResult {
   first: Record<VersusDuosTeam, VersusGroupSeat>;
   chair: VersusDuosTeam;
   outcome: VersusDuosTeam | 'draw';
-  /** The team that loses hearts this round (null on a draw), and how many. */
+  /** The team that lost the fight (null on a draw), and the damage its pool takes (the lobby formula, round-capped). */
   losingTeam: VersusDuosTeam | null;
-  heartsLost: number;
+  damage: number;
+  /** Each team's pool after the round (only when the input carried `vitals`). */
+  vitals?: Partial<Record<VersusDuosTeam, VersusVitals>>;
   /** Team A's view (simulate's `player`) and team B's (the mirror). Each carries `tagTeam` with every member's
    *  carry-backs; a seat lands `duosMemberView(teamView, member)`. */
   aResult: CombatResult;
@@ -166,11 +172,22 @@ export function resolveVersusDuosRound(input: VersusDuosRoundInput): VersusDuosR
   result.duosFirst = { a: first.a as 'p1' | 'p2', b: first.b as 'p3' | 'p4' };
   const outcome: VersusDuosRoundResult['outcome'] = result.result === 'draw' ? 'draw' : result.result === 'win' ? 'a' : 'b';
   const losingTeam: VersusDuosTeam | null = outcome === 'draw' ? null : outcome === 'a' ? 'b' : 'a';
-  // "2 when the winner never needed its second board": the winning side's reserve never stepped in.
-  const winnerSide = outcome === 'a' ? 'player' : 'enemy';
-  const stomp = outcome !== 'draw' && result.tagTeam?.tagInAt[winnerSide] === undefined;
-  const heartsLost = outcome === 'draw' ? 0 : stomp ? VERSUS_DUOS_STOMP_HEARTS : 1;
-  return { round: input.round, first, chair, outcome, losingTeam, heartsLost, aResult: result, bResult: mirrorForEnemySeat(result), refused };
+  const cap = versusRoundCap(input.round);
+  const aResult = stampVersusDamage(result, cap);
+  const bResult = stampVersusDamage(mirrorForEnemySeat(result), cap);
+  const damage = losingTeam === 'a' ? aResult.playerDamage : losingTeam === 'b' ? bResult.playerDamage : 0;
+  let vitals: Partial<Record<VersusDuosTeam, VersusVitals>> | undefined;
+  if (input.vitals) {
+    vitals = {};
+    for (const t of ['a', 'b'] as const) {
+      const before = input.vitals[t];
+      if (!before) continue;
+      vitals[t] = hitVitals(before, losingTeam === t ? damage : 0);
+    }
+    if (vitals.a) aResult.versusVitals = { ...vitals.a };
+    if (vitals.b) bResult.versusVitals = { ...vitals.b };
+  }
+  return { round: input.round, first, chair, outcome, losingTeam, damage, ...(vitals ? { vitals } : {}), aResult, bResult, refused };
 }
 
 /** The member index of `seat` in a round: 0 = its board fought first, 1 = it was the reserve. */
@@ -180,11 +197,12 @@ export const duosMemberOf = (seat: VersusGroupSeat, first: Record<VersusDuosTeam
 /**
  * ONE SEAT's view of the round: its team's view of the fight (`player` = its team), with the `player*` carry-back
  * fields replaced by ITS OWN board's (`tagTeam.members.player[member]`; none at all when its board never fought). The
- * events, the outcome and the hearts are the team's. Never mutates.
+ * events, the outcome, the damage and the pool are the team's. Never mutates.
  */
 export function duosMemberView(teamView: CombatResult, member: number): CombatResult {
   const out: Record<string, unknown> = { ...teamView };
-  for (const k of Object.keys(out)) if (k.startsWith('player') && k !== 'playerDamage') delete out[k];
+  // The blow fields are the TEAM's (the team's damage, before and after the cap), like the outcome and the pool.
+  for (const k of Object.keys(out)) if (k.startsWith('player') && k !== 'playerDamage' && k !== 'playerDamageUncapped') delete out[k];
   const c: CombatCarryBacks | undefined = teamView.tagTeam?.members.player?.[member];
   return {
     ...(out as unknown as CombatResult),

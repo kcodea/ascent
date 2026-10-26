@@ -7,7 +7,7 @@
  *    are), then the other people in the stands (the player's plates, `StandsPlates`), then Leave. My plate is my emote
  *    access: click or right-click it for the emote menu, which opens under it (R-SPECTATE-EMOTE-01).
  *  - BOTTOM RIGHT, `WatchedPanel`: who I am watching. In Versus (two players) the two seat buttons (portrait, name,
- *    hearts, the 1 / 2 key): the switcher. In a live ranked game (one player) a compact name + rank plate, without a
+ *    Health and Armor, the 1 / 2 key): the switcher. In a live ranked game (one player) a compact name + rank plate, without a
  *    second portrait, because that player's hero portrait is already on screen bottom left.
  *
  * All existing pieces: `MemberRing`, the name / heart pills (`.vsspec-*`), `RankCrest`, the Gem plate (`.vsplate`).
@@ -66,13 +66,14 @@ export const SpectatorSelf = memo(function SpectatorSelf({ onLeave }: { onLeave:
   );
 });
 
-/** One player I can watch (Versus): their portrait, name and hearts, the key that picks them. */
+/** One player I can watch (Versus): their portrait, name, Health and Armor (R-VERSUS-HEALTH-01), the key that picks them. */
 export interface WatchSeat {
   key: string;
   name: string;
   heroId: string | null;
   profile: Record<string, unknown> | null | undefined;
-  hearts: number;
+  health: number;
+  armor: number;
   on: boolean;
   pick: () => void;
   /** VERSUS GROUP (R-VERSUS-GROUP-04): who this player fights this round ("vs Bob", "vs Copy of Bob"): the fight picker. */
@@ -93,11 +94,11 @@ export function WatchedPanel({ seats, single }: {
         <div className="vsspec-seats">
           {seats.map((s, i) => (
             <button key={s.key} type="button" className={`vsspec-seat${s.on ? ' on' : ''}${s.out ? ' out' : ''}`} aria-pressed={s.on} disabled={s.out}
-              aria-label={`Watch ${s.name}, ${s.hearts} hearts${s.vs ? `, ${s.vs}` : ''} (${i + 1})`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
+              aria-label={`Watch ${s.name}, Health ${s.health}${s.armor > 0 ? `, Armor ${s.armor}` : ''}${s.vs ? `, ${s.vs}` : ''} (${i + 1})`} onClick={() => { if (!s.on && !s.out) { sfx.tick(); s.pick(); } }}>
               <MemberRing name={s.name} heroId={s.heroId} profile={s.profile} className="vsspec-ring" />
               <span className="vsspec-info">
                 <span className="vsspec-name hudpill-name">{s.name}</span>
-                <span className="vsspec-hp hudpill-hp"><HeartIcon />{s.hearts}</span>
+                <span className="vsspec-hp hudpill-hp"><HeartIcon />{s.health}{s.armor > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{s.armor}</b>}</span>
                 {s.vs && <span className="vsspec-vs">{s.vs}</span>}
               </span>
               <kbd className="vsspec-key" aria-hidden="true">{i + 1}</kbd>

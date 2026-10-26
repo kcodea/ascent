@@ -151,11 +151,11 @@ export const ANNOUNCER_GAUNTLET_ROUNDS = 10;
  *  refuses anything else while a Gauntlet is on screen (`enqueue`). */
 export const GAUNTLET_ANNOUNCER_EVENTS: readonly AnnouncerEvent[] = ['gauntletRound'];
 /** VERSUS (owner 2026-10-14: the announcer 1:1 with the lobby): every line speaks EXCEPT the ones that read the 8-seat
- *  table, Resolve / Armor, damage numbers, placement or rank, which would misfire on a two-seat match played to hearts. */
+ *  table, placement or rank, which would misfire on a Versus table. Since 2026-10-26 Versus plays on Health and Armor
+ *  with the lobby's damage (R-VERSUS-HEALTH-01), so the Health, Armor and damage lines speak there too. */
 export const VERSUS_SILENT_EVENTS: readonly AnnouncerEvent[] = [
   'topFour', 'topTwo', 'gameWon', 'gameLoss', 'secondPlace', 'knockout', 'finalShowdown', 'lobbyLast', 'firstOut',
-  'leaderboardTop', 'playersRemain', 'startCombatUnder10hp', 'surviveUnder10hp', 'armorUp', 'armorGone', 'oneResolve',
-  'bigHit', 'blowoutLoss', 'comebackWin', 'rankUp', 'ghostFight', 'resumeGame',
+  'leaderboardTop', 'playersRemain', 'comebackWin', 'rankUp', 'ghostFight', 'resumeGame',
 ];
 /** The one take round `round` may play ("Round N"), or none past the recorded rounds. */
 export function gauntletRoundTakes(round: number): readonly string[] {

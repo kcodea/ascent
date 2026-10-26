@@ -58,6 +58,17 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-26',
     changes: [
+      {
+        category: 'Systems',
+        text: "Versus now uses Health and Armor like a normal game, with the same damage and cap. Duos teams share 30 Health plus both heroes' Armor. Summit adds +10 Armor in Versus again.",
+        details: [
+          "Hearts are gone from 1v1, 3-4 player and Duos games. Each player starts on their hero's Health and Armor.",
+          "A lost fight costs the winner's tier plus each surviving minion's tier, capped each round like a normal game (Max dmg is shown beside the Round). Armor goes first. A draw costs nothing.",
+          'Duos: the team shares one pool. The damage comes from the board that finished the fight.',
+          "Your Health box, the rail, the opponent's block, the room seats and Previous match stats all show Health and Armor.",
+          'Duos: the team colour while watching your teammate no longer covers your hero, name and Health box.',
+        ],
+      },
       { category: 'Systems', text: "Compendium: Rune Rewards now lists every minion your set's runes can give, and search finds them." },
       {
         category: 'Systems',

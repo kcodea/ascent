@@ -38,11 +38,12 @@ describe('the Duos dev tuner (R-DUOS-DEVTUNER-01)', () => {
     expect(Object.keys(DUOS_SCENARIO_LABEL)).toEqual(['ourHandoff', 'theirHandoff', 'doubleWipe', 'allEmpty']);
   });
 
-  it('"Our hand-off": my first board falls, my teammate steps in and wins (1 heart)', () => {
+  it('"Our hand-off": my first board falls, my teammate steps in and wins (the foe team takes the damage)', () => {
     const r = fight('ourHandoff');
     expect(tagIns(r)).toContain('player');
     expect(r.outcome).toBe('a');
-    expect(r.heartsLost).toBe(1);
+    expect(r.losingTeam).toBe('b');
+    expect(r.damage).toBeGreaterThan(0);
   });
 
   it('"Their hand-off": the foe\'s first board falls and their reserve flies in', () => {
@@ -56,12 +57,12 @@ describe('the Duos dev tuner (R-DUOS-DEVTUNER-01)', () => {
     expect(r.outcome).toBe('a');
   });
 
-  it('"Both teams wiped": both reserves step in and fall: a draw, no hearts; all empty is a draw too', () => {
+  it('"Both teams wiped": both reserves step in and fall: a draw, no damage; all empty is a draw too', () => {
     const wipe = fight('doubleWipe');
     expect(tagIns(wipe).sort()).toEqual(['enemy', 'player']);
-    expect([wipe.outcome, wipe.heartsLost]).toEqual(['draw', 0]);
+    expect([wipe.outcome, wipe.damage]).toEqual(['draw', 0]);
     const empty = fight('allEmpty');
-    expect([empty.outcome, empty.heartsLost]).toEqual(['draw', 0]);
+    expect([empty.outcome, empty.damage]).toEqual(['draw', 0]);
   });
 
   it('the dev hand, board and Gold edits', () => {

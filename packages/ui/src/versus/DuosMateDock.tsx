@@ -7,7 +7,7 @@
  * player's and make sure it's wired to show their custom frame as well if they have one"): the same disc size, the same
  * distance in from the stage's bottom corner (measured off your own portrait, `mirrorOfHero`, so the two can never
  * drift apart), the same frame surface wearing THEIR equipped portrait frame, the same name pill eclipsing the disc's
- * bottom and the same Hearts box under it (the team's hearts, which are theirs too).
+ * bottom and the same Health box under it (the team's shared Health and Armor, which are theirs too; R-DUOS-HEALTH-01).
  *  - on your board it is your TEAMMATE: click it to watch their screen; drag a card onto it to pass the card. While a
  *    drag hovers it the disc glows teal (a STATIC shadow on its own layer whose opacity breathes, the `kwglow` pattern:
  *    no animated paint); a refused pass shows a red ring and the reason instead;
@@ -84,8 +84,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
     return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
   });
-  // The TEAM's hearts, exactly as your own Hearts box shows them (they drop when a lost fight settles, not before).
-  const hearts = useGame((s) => (s.run.mode === 'versus' ? s.run.lobby?.seats[0]?.resolve ?? null : null));
+  // The TEAM's pool, exactly as your own Health box shows it (the run carries the team's shared Health and Armor and
+  // lands the resolver's numbers when a lost fight settles, not before).
+  const pool = useGame((s) => (s.run.mode === 'versus' ? `${s.run.resolve}|${s.run.armor}` : null));
   const showOppSkins = useGame((s) => s.showOpponentSkins);
   const passOver = useDragSlice((st) => (watching || inCombat ? null : st.passOver), Object.is);
   const passReason = useDragSlice((st) => (watching || inCombat ? null : st.passReason), Object.is);
@@ -167,12 +168,15 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
       )}
       <span className="duosdock-cap hudpill-name">{watching ? 'Back to your board' : away ? 'Away' : 'Teammate'}</span>
       <span className="duosdock-name hudpill-name">{face.name}</span>
-      {hearts != null && (
-        <div className="duosdock-hp hudpill-hp" aria-label={`Team hearts: ${hearts}`}>
-          <Icon name="heartPill" />
-          <span className="hpval">{hearts}</span>
-        </div>
-      )}
+      {pool != null && (() => {
+        const [hp, arm] = pool.split('|').map(Number) as [number, number];
+        return (
+          <div className="duosdock-hp hudpill-hp" aria-label={`Team Health: ${hp}${arm > 0 ? ` · Armor ${arm}` : ''}`}>
+            <Icon name="heartPill" />
+            <span className="hpval">{hp}{arm > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{arm}</b>}</span>
+          </div>
+        );
+      })()}
       {shownNote && <span key={shownNote + (note ?? '')} className="duosdock-note hudpill-name">{shownNote}</span>}
     </div>
   );

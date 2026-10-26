@@ -29,7 +29,8 @@ export const DEFAULT_LOBBY_RULES: LobbyRules = {
  * bots, tutorial and Gauntlet rivals wear a hero portrait only) and for a lobby whose rules are not 'hero' (one
  * created before the ruling, or a caller that pins the Armor). The player seat is overwritten from its run.
  */
-export function seatStartingArmor(seat: { kind: string; heroId: string }, rules: Pick<LobbyRules, 'startingArmor' | 'seatArmor'>): number {
+export function seatStartingArmor(seat: { kind: string; heroId: string; startArmor?: number }, rules: Pick<LobbyRules, 'startingArmor' | 'seatArmor'>): number {
+  if (seat.startArmor != null) return seat.startArmor; // VERSUS: the seat's own start (Summit, a Duos team pool)
   if (rules.seatArmor !== 'hero' || seat.kind === 'authored') return rules.startingArmor;
   return HERO_INDEX[seat.heroId]?.armor ?? rules.startingArmor;
 }

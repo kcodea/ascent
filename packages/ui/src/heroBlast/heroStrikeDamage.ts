@@ -9,8 +9,8 @@ import { playerLossDamage, playerOpponent, runLossCap, type RunState } from '@ga
  * mirror of the same formula (`enemyDamage`), capped the same way.
  */
 export function heroStrikeDamage(run: Pick<RunState, 'lobby' | 'mode' | 'lastCombat' | 'wave'>, won: boolean): number {
-  // VERSUS (owner 2026-10-14): a lost round costs exactly one heart, whatever the board (R-VERSUS-HEARTS-01).
-  if (run.mode === 'versus') return run.lastCombat && run.lastCombat.result === (won ? 'win' : 'lose') ? 1 : 0;
+  // VERSUS reads the same blow since 2026-10-26 (R-VERSUS-HEALTH-01): the resolver stamped the lobby cap on its result,
+  // and its display lobby carries the lobby's own cap table, so the lines below land on the resolver's number.
   const cap = runLossCap(run); // the run's own cap table (the Gauntlet has its own)
   if (won) return Math.min(run.lastCombat?.enemyDamage ?? 0, cap);
   return run.lobby && run.mode !== 'practice' && run.lastCombat
@@ -74,10 +74,11 @@ export function heroStrikeKnockout(
 ): boolean {
   const dmg = heroStrikeDamage(run, won);
   if (!(dmg > 0)) return false;
-  // VERSUS: the struck player's LAST heart (hearts ride the two-seat display lobby's seats, `versusLobby`).
-  if (run.mode === 'versus') {
-    const seat = run.lobby?.seats[won ? 1 : 0];
-    return !!seat && seat.resolve <= dmg;
+  // VERSUS (R-VERSUS-HEALTH-01): the struck player's pools. Its display lobby's foe seat is `invulnerable` only so that
+  // nothing local ever settles it; it does take the blow, so its pools (the server's record) decide the knockout.
+  if (run.mode === 'versus' && won) {
+    const foe = run.lobby ? playerOpponent(run.lobby) : null;
+    return !!foe && Math.max(0, foe.seat.resolve) + Math.max(0, foe.seat.armor) <= dmg;
   }
   if (!won) {
     if (run.mode === 'practice' && run.practiceConfig?.health !== 'normal') return false;

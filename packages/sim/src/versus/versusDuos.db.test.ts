@@ -1,8 +1,8 @@
 /**
  * VERSUS DUOS, EXECUTED (owner 2026-10-25; R-DUOS-01, R-DUOS-PASS-01). PGlite runs every Versus migration in order, then
  * `2026-10-25-versus-duos.sql`, `-duos-edges.sql`, `-duos-random-order.sql` and `-duos-pass-back.sql` (each twice: idempotent), against a stubbed
- * `auth.uid()`: a Duos room starts only with four, the round's fight order (the seeded 50/50, no flip path; R-DUOS-ORDER-01), team hearts through the REAL
- * `finalize_duos` handler (1 heart, 2 for a stomp), a team out together and the other team winning, a concede taking
+ * `auth.uid()`: a Duos room starts only with four, the round's fight order (the seeded 50/50, no flip path; R-DUOS-ORDER-01), the team's shared pool through the REAL
+ * `finalize_duos` handler (30 Health + both heroes' Armor, the lobby damage of the board that ended the fight; R-DUOS-HEALTH-01), a team out together and the other team winning, a concede taking
  * the team out, three auto rounds, passes (exactly once, only in the shop, only to the teammate, capped), and that a
  * group room still plays exactly as before.
  */
@@ -13,7 +13,8 @@ import { join } from 'node:path';
 import { combatSide, type BoardMinion } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import type { VersusGroupSeat } from './group';
-import { duosMateOf, duosRandomFirst, VERSUS_DUOS_HEARTS, VERSUS_DUOS_PASS_CAP } from './duos';
+import { duosMateOf, duosRandomFirst, VERSUS_DUOS_PASS_CAP } from './duos';
+import { hitVitals, versusDuosStartingVitals, versusFreshSide } from './vitals';
 import { handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 
 const root = join(__dirname, '../../../..');
@@ -28,7 +29,9 @@ const EDGES = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duo
 const ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-random-order.sql'), 'utf8');
 const PASS_BACK = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-pass-back.sql'), 'utf8');
 const LOCK_ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8')
-  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8')
+  // Health and Armor (R-VERSUS-HEALTH-01, R-DUOS-HEALTH-01).
+  + readFileSync(join(root, 'supabase/migrations/2026-10-28-versus-health.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -96,10 +99,12 @@ const store: VersusDuosFinalizeStore = {
   async match(id) { return (await db.query<any>('select id, phase, round, seed, content_revision, options from public.versus_group_matches where id = $1', [id])).rows[0] ?? null; },
   async finalSides(matchId, round) {
     const out: Partial<Record<VersusGroupSeat, unknown>> = {};
-    for (const r of (await db.query<any>('select seat, prepared_side, final from public.versus_group_submissions where match_id = $1 and round = $2', [matchId, round])).rows) if (r.final) out[r.seat as VersusGroupSeat] = r.prepared_side;
+    for (const r of (await db.query<any>('select seat, prepared_side, final, source from public.versus_group_submissions where match_id = $1 and round = $2', [matchId, round])).rows) if (r.final) out[r.seat as VersusGroupSeat] = versusFreshSide(r.prepared_side, r.source);
     return out;
   },
-  async commit(a) { return as(null, 'select public.versus_duos_commit_round($1, $2, $3::jsonb, $4)', [a.p_match, a.p_round, JSON.stringify(a.p_fight), a.p_digest]); },
+  async seats(id) { return (await db.query<any>('select seat, hero from public.versus_group_seats where match_id = $1', [id])).rows; },
+  async teams(id) { return (await db.query<any>('select team, health, armor from public.versus_group_teams where match_id = $1', [id])).rows; },
+  async commit(a) { return as(null, 'select public.versus_duos_commit_round($1, $2, $3::jsonb, $4, $5::jsonb)', [a.p_match, a.p_round, JSON.stringify(a.p_fight), a.p_digest, JSON.stringify(a.p_vitals)]); },
   log: () => undefined,
 };
 const finalize = (m: string, round: number) => handleVersusDuosFinalize(A, { matchId: m, round }, CONTENT, store);
@@ -144,9 +149,10 @@ describe('Versus Duos room (R-DUOS-01)', () => {
     for (const u of ALL) r = await as(u, `select public.versus_press_gate($1)`, [room]);
     const m = await matchRow(r.current_match_id);
     expect([m.options.mode, m.seat_count]).toEqual(['duos', 4]);
-    expect(Object.values(await seatRows(m.id)).map((s: any) => [s.team, s.hearts])).toEqual([['a', VERSUS_DUOS_HEARTS], ['a', VERSUS_DUOS_HEARTS], ['b', VERSUS_DUOS_HEARTS], ['b', VERSUS_DUOS_HEARTS]]);
-    const teams = (await db.query<any>('select team, hearts from public.versus_group_teams where match_id = $1 order by team', [m.id])).rows;
-    expect(teams).toEqual([{ team: 'a', hearts: VERSUS_DUOS_HEARTS }, { team: 'b', hearts: VERSUS_DUOS_HEARTS }]);
+    // No stored pool until round 1 commits (each team then starts on 30 + both heroes' Armor, R-DUOS-HEALTH-01).
+    expect(Object.values(await seatRows(m.id)).map((s: any) => [s.team, s.health])).toEqual([['a', null], ['a', null], ['b', null], ['b', null]]);
+    const teams = (await db.query<any>('select team, health, armor from public.versus_group_teams where match_id = $1 order by team', [m.id])).rows;
+    expect(teams).toEqual([{ team: 'a', health: null, armor: null }, { team: 'b', health: null, armor: null }]);
   });
 });
 
@@ -166,39 +172,50 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
     expect((await matchRow(m)).duos_first).toBeNull();
   });
 
-  it('team hearts: 1 when the winner needed its second board, 2 when it did not; both seats keep the same count', async () => {
+  // R-DUOS-HEALTH-01 (owner 2026-10-26): "The duo gets 30 hp plus the sum of both armors."
+  const START = versusDuosStartingVitals('warden', 'warden', null); // every seat picks offer index 0 (warden)
+
+  it('the team pool: 30 + both Armors; the losing team takes the lobby damage (capped, Armor first); both seats mirror it', async () => {
     const [, m] = await startDuos();
     await toShop(m);
     const seed = Number((await matchRow(m)).seed);
     // Round 1: team A's first board is a stomp (team B's lone board sits on its own pick; an empty pick hands over).
     const f1 = duosRandomFirst(seed, 1);
     const r1 = await playRound(m, 1, { [f1.a]: bags(1, 40, 400, 'a'), [f1.b]: bags(1, 1, 2, 'c') });
-    expect([r1.outcome, r1.heartsLost]).toEqual(['a', 2]);
+    expect(r1.outcome).toBe('a');
+    expect(r1.damage).toBeGreaterThan(0);
+    expect(r1.damage).toBeLessThanOrEqual(5); // round 1's lobby cap
+    const b1 = hitVitals(START, r1.damage);
     let s = await seatRows(m);
-    expect([s.p1.hearts, s.p2.hearts, s.p3.hearts, s.p4.hearts]).toEqual([7, 7, 5, 5]);
+    expect([s.p1.health, s.p1.armor, s.p2.health, s.p2.armor]).toEqual([START.health, START.armor, START.health, START.armor]);
+    expect([s.p3.health, s.p3.armor, s.p4.health, s.p4.armor]).toEqual([b1.health, b1.armor, b1.health, b1.armor]);
     const fight = (await db.query<any>('select * from public.versus_group_fights where match_id = $1 and round = 1', [m])).rows;
-    expect(fight.map((f) => [f.a_seat, f.b_seat, f.outcome, f.heart_lost_by])).toEqual([[f1.a, f1.b, 'a', f1.b]]);
+    expect(fight.map((f) => [f.a_seat, f.b_seat, f.outcome, f.heart_lost_by, f.damage])).toEqual([[f1.a, f1.b, 'a', f1.b, r1.damage]]);
+    const round = (await db.query<any>('select hearts, vitals from public.versus_group_rounds where match_id = $1 and round = 1', [m])).rows[0];
+    expect(round.hearts).toBeNull();
+    expect(round.vitals.p3).toEqual(b1);
     await ready(m, 1);
-    // Round 2: team A's first board falls, its teammate steps in and wins: 1 heart.
+    // Round 2: team A's first board falls, its teammate steps in and wins: the damage is the board that ENDED it.
     const f2 = duosRandomFirst(seed, 2);
     const r2 = await playRound(m, 2, { [f2.a]: bags(1, 1, 1, 'b'), [duosMateOf(f2.a)]: bags(1, 40, 400, 'a'), [f2.b]: bags(1, 2, 3, 'd') });
-    expect([r2.first, r2.outcome, r2.heartsLost]).toEqual([f2, 'a', 1]);
+    expect([r2.first, r2.outcome]).toEqual([f2, 'a']);
     s = await seatRows(m);
-    expect([s.p3.hearts, s.p4.hearts]).toEqual([4, 4]);
+    const b2 = hitVitals(b1, r2.damage);
+    expect([s.p3.health, s.p3.armor, s.p4.health, s.p4.armor]).toEqual([b2.health, b2.armor, b2.health, b2.armor]);
     // A re-run of the finalize is a free no-op.
     expect((await finalize(m, 2)).body.status).toBe('not_resolving');
   });
 
-  it('a team at 0 hearts is out together (2nd: placement is by team) and the other team wins (both 1st); the room opens', async () => {
+  it('a team at 0 Health is out together (2nd: placement is by team) and the other team wins (both 1st); the room opens', async () => {
     const [room, m] = await startDuos();
     await toShop(m);
-    await db.query(`update public.versus_group_teams set hearts = 2 where match_id = $1 and team = 'b'`, [m]);
+    await db.query(`update public.versus_group_teams set health = 2, armor = 0 where match_id = $1 and team = 'b'`, [m]);
     await playRound(m, 1, { p1: bags(1, 40, 400, 'a') });
     const s = await seatRows(m);
     expect([s.p1.placement, s.p2.placement, s.p3.placement, s.p4.placement]).toEqual([1, 1, 2, 2]);
     expect([s.p3.out_reason, s.p4.out_reason]).toEqual(['hearts', 'hearts']);
-    const teams = (await db.query<any>('select team, hearts, placement, eliminated_round from public.versus_group_teams where match_id = $1 order by team', [m])).rows;
-    expect(teams.map((x) => [x.team, x.hearts, x.placement, x.eliminated_round])).toEqual([['a', 7, 1, null], ['b', 0, 2, 1]]);
+    const teams = (await db.query<any>('select team, health, placement, eliminated_round from public.versus_group_teams where match_id = $1 order by team', [m])).rows;
+    expect(teams.map((x) => [x.team, x.health, x.placement, x.eliminated_round])).toEqual([['a', START.health, 1, null], ['b', 0, 2, 1]]);
     const row = await matchRow(m);
     expect([row.phase, row.winner_seat, row.end_reason]).toEqual(['complete', 'p1', 'hearts']);
     expect((await as<any>(A, 'select public.versus_reconcile_room($1)', [room])).status).toBe('open');
@@ -218,19 +235,24 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
     const [, m] = await startDuos();
     await toShop(m);
     const r = await playRound(m, 1, {});
-    expect([r.outcome, r.heartsLost]).toEqual(['draw', 0]);
-    expect(Object.values(await seatRows(m)).every((x: any) => x.hearts === 7)).toBe(true);
+    expect([r.outcome, r.damage]).toEqual(['draw', 0]);
+    expect(Object.values(await seatRows(m)).every((x: any) => x.health === START.health && x.armor === START.armor)).toBe(true);
   });
 
   it('the group commit refuses nothing of Duos it was not asked for: a crafted bad Duos commit is refused', async () => {
     const [, m] = await startDuos();
     await toShop(m);
     for (const u of ALL) await lock(u, m, 1);
-    const bad = { a: 'p3', b: 'p1', chair: 'a', outcome: 'a', losingTeam: 'b', heartsLost: 1, aResult: {}, bResult: {} };
-    expect(await fails(null, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd')`, [m, JSON.stringify(bad)])).toMatch(/bad_fight/);
-    const three = { ...bad, a: 'p1', b: 'p3', heartsLost: 3 };
-    expect(await fails(null, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd')`, [m, JSON.stringify(three)])).toMatch(/bad_fight/);
-    expect(await fails(A, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd')`, [m, JSON.stringify(bad)])).toMatch(/permission denied/);
+    const vit = JSON.stringify({ a: { health: 30, armor: 0, damage: 0, before: 30 }, b: { health: 27, armor: 0, damage: 3, before: 30 } });
+    const bad = { a: 'p3', b: 'p1', chair: 'a', outcome: 'a', losingTeam: 'b', damage: 3, aResult: {}, bResult: {} };
+    expect(await fails(null, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd', $3::jsonb)`, [m, JSON.stringify(bad), vit])).toMatch(/bad_fight/);
+    // The losing team's pool must record exactly the fight's damage; the winners take none.
+    const good = { ...bad, a: 'p1', b: 'p3' };
+    const wrong = JSON.stringify({ a: { health: 30, armor: 0, damage: 3, before: 30 }, b: { health: 27, armor: 0, damage: 3, before: 30 } });
+    expect(await fails(null, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd', $3::jsonb)`, [m, JSON.stringify(good), wrong])).toMatch(/bad_vitals/);
+    const drawHit = { ...good, outcome: 'draw', losingTeam: null };
+    expect(await fails(null, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd', $3::jsonb)`, [m, JSON.stringify(drawHit), vit])).toMatch(/bad_fight/);
+    expect(await fails(A, `select public.versus_duos_commit_round($1, 1, $2::jsonb, 'd', $3::jsonb)`, [m, JSON.stringify(good), vit])).toMatch(/permission denied/);
   });
 });
 

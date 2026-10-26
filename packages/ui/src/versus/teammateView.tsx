@@ -10,7 +10,7 @@
  * THE DISTINCTION, so it can never be mistaken for my own board:
  *  - THE CROSS-FADE (on the way in and out): the screen I leave fades out over the one I arrive at (about 150-200 ms;
  *    one frozen layer, opacity / transform only, one-shot Web Animations);
- *  - while watching: their hero, name and hearts in the hero slot (it is their screen), a calm team-colour vignette
+ *  - while watching: their hero, name and the team's Health in the hero slot (it is their screen), a calm team-colour vignette
  *    over the edges (a static layer that fades in), and my shop controls visibly inert. No plate or button up top (owner
  *    2026-10-25: the view change and colour say it already). The bottom-right portrait (mine, while watching), Esc and
  *    Tab (when held to peek) come back.

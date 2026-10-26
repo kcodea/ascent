@@ -26,6 +26,7 @@ import { destroyPixiApp, guardAppRender, watchContextLoss } from './pixiAppSafet
 import { crumb } from './crashLog';
 import { PIXI_ANTIALIAS } from './phoneArt';
 import { phonePixiOptions, pixiAllowed } from './phoneDiag';
+import { followStage } from './pixiStageFollow';
 
 const PALETTE = [0x9fc0f5, 0xcfe0ff, 0xffffff, 0xbcd4ff] as const;
 
@@ -66,6 +67,7 @@ class WipeFxController {
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
     })); // phone: low power, no depth buffer, `res1` switch (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     guardAppRender(app, 'wipeFx');
     watchContextLoss(app, 'wipeFx');
     crumb('pixi init wipe');

@@ -951,8 +951,9 @@ export const Card = memo(function Card({
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
-      /* TOUCH (R-TOUCH-TAPINSPECT-01): a finger TAP on any card opens the Inspect overlay (touchInput.ts), the cards whose
-         tap commits (Discover, Choose One) included: their Inspect carries the Pick. A mouse click is unchanged. */
+      /* TOUCH (R-TOUCH-TAPINSPECT-01): a finger TAP on a card opens the Inspect overlay (touchInput.ts), except a choice
+         option (Discover, Choose One: R-TOUCH-TAPSELECT-01), whose tap picks it; holding one opens its Inspect (the
+         long-press right-click below), which carries Pick. A mouse click is unchanged. */
       onClick={(e) => {
         if (tapInspectAllowed(e.currentTarget)) { inspectCard(inspectViewOf(card, skinArtUrl)); return; }
         onClick?.();

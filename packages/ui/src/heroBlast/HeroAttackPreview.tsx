@@ -52,6 +52,7 @@ import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender } from '../pixiAppSafety';
 import { PIXI_ANTIALIAS } from '../phoneArt';
 import { phonePixiOptions, pixiAllowed } from '../phoneDiag';
+import { followStage } from '../pixiStageFollow';
 
 /** The styles the sandbox can play, and the runner for each (every runner takes the same options). */
 const RUNNERS: Record<string, { play: (o: HeroAttackOptions & { textures?: null }) => HeroAttackHandle; speed: () => number }> = {
@@ -120,6 +121,7 @@ export function HeroAttackPreview({ style, reducedMotion }: { style: string; red
         const a = new Application();
         await a.init(phonePixiOptions({ resizeTo: host, backgroundAlpha: 0, antialias: PIXI_ANTIALIAS, autoDensity: true, resolution: Math.min(window.devicePixelRatio || 1, 2) * stageScale(), preference: 'webgl' }, stageScale()));
         detachPixiDomEvents(a); // no Pixi DOM events: see pixiNoDomEvents.ts
+        followStage(a); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
         guardAppRender(a, 'heroAttackPreview');
         if (gone.current) { destroyPixiApp(a, { children: true, texture: false }); return null; }
         a.canvas.setAttribute('aria-hidden', 'true');

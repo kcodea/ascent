@@ -14,7 +14,7 @@ import { liveRuneText } from './runeText';
 import { usePlayerRuneLive } from './useRuneLive';
 import { rectToStage, stageHost, stageViewport } from './stage';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
-import { isTouchDevice, tapInspectAllowed } from './touchInput';
+import { isTouchDevice, lastPointerWasTouch } from './touchInput';
 import { openRuneInspect } from './runeInspectStore';
 import { useSpectate } from './versus/spectate';
 
@@ -148,17 +148,19 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       data-spec={`runecard:${rune.id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
       style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       // A viewer (a replay, or a spectator hovering the watched player's forge, R-SPECTATE-RUNEHOVER-01) reads, never picks.
-      // TOUCH (owner 2026-10-25, R-TOUCH-TAPINSPECT-01): a finger TAP on a forge offer opens its enlarged view (RuneInspect),
-      // whose Pick buys it; so an offer you cannot afford stays tappable on a touch device (to read it), never buyable.
+      // TOUCH (owner 2026-10-26, R-TOUCH-TAPSELECT-01: "tapping in a discover/etc should select"): a finger TAP on a forge
+      // offer buys it, as a click does; a HOLD (the long-press right-click) opens its enlarged view (RuneInspect), whose
+      // Pick buys it. So an offer you cannot afford stays pressable on a touch device (to hold and read it), never buyable.
       onClick={pickSfx || affordable ? (e) => {
         if (useGame.getState().replaying) return;
+        if (affordable) onBuy(e.currentTarget);
+      } : undefined}
+      onContextMenu={pickSfx ? (e) => {
+        if (!lastPointerWasTouch()) return; // a mouse right-click is unchanged
+        e.preventDefault();
         const el = e.currentTarget;
-        if (pickSfx && tapInspectAllowed(el)) {
-          const viewer = useSpectate.getState().active;
-          openRuneInspect({ rune, cost, duplicating, affordable: affordable && !viewer, pick: () => { if (el.isConnected) onBuy(el); } });
-          return;
-        }
-        if (affordable) onBuy(el);
+        const viewer = useSpectate.getState().active || useGame.getState().replaying;
+        openRuneInspect({ rune, cost, duplicating, affordable: affordable && !viewer, pick: () => { if (el.isConnected) onBuy(el); } });
       } : undefined}
       disabled={!affordable && !(pickSfx && isTouchDevice())}
       data-pick-sfx={pickSfx || undefined}

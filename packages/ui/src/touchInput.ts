@@ -25,10 +25,13 @@
  *    would send is eaten. A haptic tick (`navigator.vibrate(10)`) marks the moment it fires where the browser supports
  *    it (not iOS Safari).
  *  - CARDS NEVER LONG-PRESS (owner 2026-10-25, R-TOUCH-TAPINSPECT-01: "holding on a minion shouldnt do the inspect,
- *    only tapping should"). A hold on a card or a Runeforge offer (`NO_HOLD`) does nothing, so holding then moving is
- *    an ordinary drag. A TAP on any card opens the full Inspect overlay instead (Card.tsx, `tapInspectAllowed`; a
- *    Runeforge offer opens RuneInspect), including the cards whose tap used to commit (Discover, Choose One): their
- *    Inspect carries the Pick button (`inspectActionFor`, `clickAsPick`).
+ *    only tapping should"). A hold on a card (`NO_HOLD`) does nothing, so holding then moving is an ordinary drag. A
+ *    TAP on a card opens the full Inspect overlay instead (Card.tsx, `tapInspectAllowed`): the Shop, your board and
+ *    hand, combat, and read-only cards (scout, Compendium, end screens).
+ *  - CHOICES PICK ON A TAP (owner 2026-10-26, R-TOUCH-TAPSELECT-01: "tapping in a discover/etc should select. the tap to
+ *    inspect should only work on board/shop etc"). A Discover / Choose One / power offer option or a Runeforge rune
+ *    (`isSelectOption`) is picked by a tap, as before; a HOLD there is the long-press again and opens its Inspect (the
+ *    card's, with Pick; a rune's RuneInspect).
  *
  * Nothing here runs for a mouse or a pen: every handler returns on `pointerType !== 'touch'`.
  */
@@ -87,7 +90,25 @@ export function tapInspectAllowed(el: Element): boolean {
   if (b.contains('aiming') || b.contains('dragging')) return false;
   const card = el.closest('.card, .runecard');
   if (!card) return false;
+  if (isSelectOption(card)) return false; // a choice's tap PICKS it (R-TOUCH-TAPSELECT-01); its Inspect is a hold
   return !card.parentElement?.closest('button, [role="button"], a[href]');
+}
+/**
+ * Is this a CHOICE OPTION (owner 2026-10-26, R-TOUCH-TAPSELECT-01: "in a discover select, you can't select an option
+ * because tapping a minion inspects. tapping in a discover/etc should select. the tap to inspect should only work on
+ * board/shop etc")? A clickable card outside the play zones (a Discover, Choose One or hero power offer option: the
+ * cards `inspectActionFor` gives Pick) or a Runeforge rune. A TAP there picks it at once, as before #2312; a HOLD opens
+ * its Inspect (the long-press right-click: the card Inspect with Pick, or the rune's RuneInspect).
+ */
+export function isSelectOption(el: Element | null): boolean {
+  if (!el || typeof el.closest !== 'function') return false;
+  if (el.closest('.runecard')) return true;
+  return inspectActionFor(el)?.kind === 'pick';
+}
+/** Pure: does a long-press fire on `target`? Not on a play-zone card (its Inspect is a tap; holding it starts a drag),
+ *  but on a choice option, whose tap is the pick. */
+export function holdFiresOn(target: Element): boolean {
+  return !target.closest(NO_HOLD) || isSelectOption(target);
 }
 /** Click `el` as the commit it always was (the Inspect view's Pick), past the tap-to-inspect above. */
 export function clickAsPick(el: HTMLElement): void {
@@ -133,7 +154,7 @@ export function aimReleaseResolves(moved: boolean, pressedSinceArm: boolean): bo
 
 /** Pure: is a release after `heldMs` on `target` a HOLD on a card (no tap, R-TOUCH-TAPINSPECT-01)? */
 export function isHeldRelease(heldMs: number, target: Element | null): boolean {
-  return heldMs >= LONG_PRESS_MS && !!target?.closest?.(NO_HOLD);
+  return heldMs >= LONG_PRESS_MS && !!target?.closest?.(NO_HOLD) && !isSelectOption(target);
 }
 
 /** The long-press state machine, pure apart from the timer it is handed (unit-tested in touchInput.test.ts). */
@@ -222,6 +243,9 @@ export function isTap(x0: number, y0: number, x1: number, y1: number, slop = tap
   return Math.hypot(x1 - x0, y1 - y0) <= slop;
 }
 
+/** ms a finger must rest on a hand card before its pop loads the full-resolution art (R-PHONE-DRAG-01): a press that
+ *  turns into a drag inside it never fetches or decodes the originals. */
+export const POP_UPGRADE_DELAY_MS = 160;
 /** The class a finger's press puts on the hand card under it (see `installTouchInput`). */
 export const PRESS_CLASS = 'tt-press';
 /** How tall the popped hand card is, as a share of the safe screen height (owner 2026-10-24: "it should be very large",
@@ -305,8 +329,9 @@ export function handCardOf(el: Element | null): Element | null {
 
 /** Elements with a HOVER face worth opening on a long-press when they have no right-click of their own. */
 const HOVER_FACE = 'button, [role="button"], .gtip, [data-tip], .lobbyseat, .herocard';
-/** What a long-press never fires on (R-TOUCH-TAPINSPECT-01): cards and Runeforge offers, whose Inspect is a TAP. A hold
- *  there does nothing, so holding then moving is a plain drag. */
+/** What a long-press never fires on (R-TOUCH-TAPINSPECT-01): cards, whose Inspect is a TAP. A hold there does nothing,
+ *  so holding then moving is a plain drag. Choice options (`isSelectOption`, R-TOUCH-TAPSELECT-01) are the exception:
+ *  their tap picks, so their hold inspects. */
 export const NO_HOLD = '.card, .runecard';
 
 let installed = false;
@@ -323,7 +348,7 @@ export function installTouchInput(): () => void {
     if (!target || !target.isConnected) return false;
     const b = document.body.classList;
     if (b.contains('dragging') || b.contains('aiming')) return false; // there the finger is the drag / the aim
-    if (target.closest(NO_HOLD)) return false; // a card's Inspect is a tap; holding it is (the start of) a drag
+    if (!holdFiresOn(target)) return false; // a card's Inspect is a tap; holding it is (the start of) a drag
     // 1. The game's own right-click, wherever there is one (Inspect, emotes, mute, rail scout).
     // "Took it" is read at DOCUMENT level: the app's window listener (main.tsx) cancels every contextmenu to hide the
     // browser menu, so `dispatchEvent`'s own return value would say "handled" for anything.
@@ -368,7 +393,12 @@ export function installTouchInput(): () => void {
   let pressed: Element | null = null;
   // The popped card loads its full-resolution art while it is up (R-PHONE-CRISP-01) and gives it back on release.
   let restorePop: () => void = () => {};
-  const unpress = (): void => { if (pressed) { restorePop(); restorePop = () => {}; pressed.classList.remove(PRESS_CLASS); document.body.classList.remove(BODY_PRESS_CLASS); pressed = null; } };
+  // The upgrade waits for the press to SETTLE (R-PHONE-DRAG-01, owner 2026-10-26: "the drag seems to be low fps/not as
+  // smooth"): every hand drag starts as a press, and upgrading at once fetched, decoded and swapped in ~16 MB of
+  // originals while the card was already flying. A press that becomes a drag (past the slop) never upgrades.
+  let upgradeTimer = 0;
+  const dropUpgrade = (): void => { if (upgradeTimer) { window.clearTimeout(upgradeTimer); upgradeTimer = 0; } restorePop(); restorePop = () => {}; };
+  const unpress = (): void => { if (pressed) { dropUpgrade(); pressed.classList.remove(PRESS_CLASS); document.body.classList.remove(BODY_PRESS_CLASS); pressed = null; } };
   const onDown = (e: PointerEvent): void => {
     lastType = e.pointerType;
     unpress();
@@ -376,7 +406,7 @@ export function installTouchInput(): () => void {
     downX = e.clientX; downY = e.clientY; moved = false; lastTapWasTap = false; downAt = performance.now();
     const t = e.target as Element | null;
     lastTouchEl = t;
-    if (e.isPrimary !== false) { pressed = handCardOf(t); if (pressed) { writePop(pressed as HTMLElement); pressed.classList.add(PRESS_CLASS); document.body.classList.add(BODY_PRESS_CLASS); if (document.documentElement.hasAttribute('data-phone-zoom')) restorePop = upgradeImages(pressed); } }
+    if (e.isPrimary !== false) { pressed = handCardOf(t); if (pressed) { writePop(pressed as HTMLElement); pressed.classList.add(PRESS_CLASS); document.body.classList.add(BODY_PRESS_CLASS); if (document.documentElement.hasAttribute('data-phone-zoom')) { const card = pressed; upgradeTimer = window.setTimeout(() => { upgradeTimer = 0; if (pressed === card && !moved) restorePop = upgradeImages(card); }, POP_UPGRADE_DELAY_MS); } } }
     if (e.isPrimary !== false) lp.down(t, e.clientX, e.clientY);
     else lp.cancel(); // a second finger is a pinch / two-finger gesture, never a long-press
     // Tap-away: a touch anywhere but on the tapped element closes its tip (a touch on it keeps it open).
@@ -386,7 +416,7 @@ export function installTouchInput(): () => void {
     if (e.pointerType !== 'touch') return;
     lp.move(e.clientX, e.clientY);
     if (moved) return;
-    if (!isTap(downX, downY, e.clientX, e.clientY)) moved = true;
+    if (!isTap(downX, downY, e.clientX, e.clientY)) { moved = true; dropUpgrade(); }
   };
   const onUp = (e: PointerEvent): void => {
     if (e.pointerType !== 'touch') return;

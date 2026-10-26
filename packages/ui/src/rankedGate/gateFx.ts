@@ -38,6 +38,7 @@ import { RANKED_GATE_CRYSTAL_BODY, rankedGateCrystalGrowth } from './rankedGateT
 import { PIXI_ANTIALIAS } from '../phoneArt';
 import { crumb } from '../crashLog';
 import { PHONE_GPU, phonePixiOptions, pixiAllowed } from '../phoneDiag';
+import { followStage } from '../pixiStageFollow';
 
 /** The gate's centre seam, in screen px. */
 export interface GateSeam { x: number; top: number; bottom: number }
@@ -119,6 +120,7 @@ class GateFxController {
       resolution: Math.min(window.devicePixelRatio || 1, 1.5),
     })); // phone: low power, no depth buffer, `res1` switch (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     guardAppRender(app, 'gateFx');
     watchContextLoss(app, 'gateFx');
     crumb('gate fx created'); // phones: every gate (the layer is freed after each one); desktop: once a session

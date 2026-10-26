@@ -6950,8 +6950,9 @@ export const FOUNDATION_RULES: GameRule[] = [
     statement:
       'A finger held still for about 350 ms (moving less than about 10 px) does what a right-click does on that spot: '
       + 'the emote menu on your own portrait, muting a spectator\x27s emotes, or pinning a lobby seat\x27s scout card. '
-      + 'Never on a card or a Runeforge offer (R-TOUCH-TAPINSPECT-01, 2026-10-25: a tap inspects those, a hold does '
-      + 'nothing). Where there is no right-click (a hero select card) it opens the hover view instead. A short tap keeps '
+      + 'Never on a card in the Shop, on your board, in your hand or in a fight (R-TOUCH-TAPINSPECT-01, 2026-10-25: a tap '
+      + 'inspects those, a hold does nothing); a Discover, Choose One or Runeforge option holds to inspect again '
+      + '(R-TOUCH-TAPSELECT-01, 2026-10-26). Where there is no right-click (a hero select card) it opens the hover view instead. A short tap keeps '
       + 'its old action. '
       + 'Moving past the slop cancels the hold and the drag starts as before, and once the hold has fired that finger '
       + 'cannot start a drag. The browser\x27s own long-press menu is swallowed so nothing fires twice, the release does '
@@ -7520,14 +7521,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-TOUCH-TAPINSPECT-01',
-    title: 'On touch, a tap on a card opens Inspect; holding a card never does',
+    title: 'On touch, a tap on a Shop, board, hand or fight card opens Inspect; holding one never does',
     statement:
-      'On a touch device a short tap on any card opens its enlarged Inspect view: the Shop, your board and hand, both '
-      + 'sides in a fight, a Discover or Choose One option, a scouted board, the Compendium; a tap on a Runeforge rune '
-      + 'opens the rune enlarged with the cards it grants. The views keep their actions: a Shop card\x27s has Buy, a '
-      + 'Discover or Choose One option\x27s and an affordable rune\x27s have Pick (the commit the tap used to be). A finger '
-      + 'held on a card or a rune does nothing: no Inspect, no pick, no buy when it lifts without moving, and holding then '
-      + 'moving is an ordinary drag (buy, play, sell). Long-press stays for everything that is not a card (emotes on your '
+      'On a touch device a short tap on a card opens its enlarged Inspect view: the Shop, your board and hand, both '
+      + 'sides in a fight, a scouted board, the Compendium. A Shop card\x27s view has Buy. A finger held on one of those '
+      + 'cards does nothing: no Inspect, no buy when it lifts without moving, and holding then moving is an ordinary drag '
+      + '(buy, play, sell). A choice option (a Discover, Choose One or hero power offer card, a Runeforge rune) is the '
+      + 'exception: its tap picks it and its hold inspects it (R-TOUCH-TAPSELECT-01). Long-press stays for everything that is not a card (emotes on your '
       + 'portrait, muting a spectator, pinning a lobby seat, a hero select card\x27s hover view). Never while a hero power, '
       + 'Equipment, targeted Battlecry or spell aim is live (there the tap is the target). Mouse play is unchanged.',
     domain: 'foundation',
@@ -7536,17 +7536,18 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-25 (after testing main on his real iPhone)', quote: 'on mobile -> holding on a minion shouldnt do the inspect, only tapping should.' },
       { kind: 'code', ref: 'packages/ui/src/touchInput.ts (NO_HOLD, isHeldRelease, tapInspectAllowed, clickAsPick); packages/ui/src/Card.tsx (onClick); packages/ui/src/RuneCard.tsx; packages/ui/src/RuneInspect.tsx; packages/ui/src/runeInspectStore.ts; packages/ui/src/Inspect.tsx (act)' },
     ],
-    currentBehaviour: 'Conforms as of 2026-10-25 (fix/phone-tap-inspect-zoom). Before, a hold of ~350 ms on any card opened Inspect (and then blocked the drag that finger started), and a tap on a Discover or Choose One option or a Runeforge rune took it at once.',
-    example: 'Tap a Discover option: its big view opens with Pick. Hold a Shop minion and slide it down: it is bought.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tapInspect.test.ts', 'packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-25' },
+    currentBehaviour: 'Conforms as of 2026-10-26 (fix/phone-discover-tap-and-fx-offset). 2026-10-25 (fix/phone-tap-inspect-zoom) made a tap inspect EVERY card, the choice options included, so a Discover could not be picked by a tap (owner report 2026-10-26); choice options moved to R-TOUCH-TAPSELECT-01. Before 2026-10-25, a hold of ~350 ms on any card opened Inspect (and then blocked the drag that finger started).',
+    example: 'Tap a Shop minion: its big view opens with Buy. Hold a Shop minion and slide it down: it is bought.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tapInspect.test.ts', 'packages/ui/src/touchInput.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-PHONE-CRISP-01',
     title: 'On a phone the enlarged card (Inspect, the popped hand card) is drawn from its full-resolution art',
     statement:
       'A phone holds the small copies of the card art, frames and plates (memory), but the card it enlarges loads the '
-      + 'originals: the Inspect view\x27s card (and a Runeforge rune\x27s view) while it is open, and a hand card while a '
-      + 'finger pops it (given back when the finger lifts). The small copy stays on screen until the original has decoded, '
+      + 'originals: the Inspect view\x27s card (and a Runeforge rune\x27s view) while it is open, and a hand card once a '
+      + 'finger has rested on it for a moment (given back when the finger lifts; a press that becomes a drag never loads '
+      + 'them, R-PHONE-DRAG-01). The small copy stays on screen until the original has decoded, '
       + 'so it never blinks empty. Text and badges stay vector. Desktop is unchanged (it always draws the originals).',
     domain: 'foundation',
     status: 'approved',
@@ -9439,5 +9440,63 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-26 (feat/hero-select-spectate). A suggestion / ping on a hero of a teammate is a later step (owner 2026-10-26).',
     example: 'Dee is offered Gorr, Flash and Vale. She clicks the portrait of her teammate, sees Eli has Emissary, Myra and Hunch and has just picked Emissary, clicks her own portrait and picks Vale.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateHeroSelect.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-TOUCH-TAPSELECT-01',
+    title: 'On touch, a tap on a choice option picks it; holding it opens its Inspect',
+    statement:
+      'On a touch device a short tap on an option in a choice picks it at once: a Discover, Choose One or hero power offer '
+      + 'card and a Runeforge rune (buying it when you can afford it), exactly as a mouse click does. Holding the option '
+      + '(the long-press, ~350 ms) opens its enlarged view instead and picks nothing: the card Inspect with a Pick button, '
+      + 'or the rune enlarged with the cards it grants and Pick when affordable. A rune you cannot afford can still be held '
+      + 'and read, never bought. Hero select and quest offers keep their tap (pick) and hold (hover view). Tap-to-inspect '
+      + 'stays only on the Shop, your board and hand, fights and read-only cards (R-TOUCH-TAPINSPECT-01). Mouse play is '
+      + 'unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (after testing Netlify build a9afafa5a on his iPhone)', quote: 'in a discover select, you can\x27t select an option because tapping a minion inspects. tapping in a discover/etc should select. the tap to inspect should only work on board/shop etc' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (isSelectOption, holdFiresOn, tapInspectAllowed, isHeldRelease); packages/ui/src/Card.tsx (onClick, onContextMenu); packages/ui/src/RuneCard.tsx (onClick, onContextMenu)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-26 (fix/phone-discover-tap-and-fx-offset). Before (since #2312), a tap on a Discover / Choose One option or a rune opened its Inspect, and a pick took a second tap on Pick. Checked in Playwright WebKit (iPhone 15 Pro) and Chromium (Pixel 8) on a prod build: Discover tap picks, hold inspects; rune tap buys, hold opens RuneInspect; a Shop card tap still inspects.',
+    example: 'Tap a Discover option: it goes to your hand. Hold it instead: its big view opens with Pick.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-PHONE-FXSIZE-01',
+    title: 'Pixi effects land on their targets on a phone, whatever page scale the screen uses',
+    statement:
+      'Every screen-wide effects canvas (the board effects and their under / above layers, the turn wipe, the ranked gate) '
+      + 'and every effects canvas sized to its host (hero select ceremony, hero attack preview, crate opening) keeps its '
+      + 'drawing surface the size of the box it is shown in, at a resolution matched to the current page scale, through every '
+      + 'change of the phone\x27s page scale (menus, hero select and the run each fit their own; a rotation; a browser bar). '
+      + 'An effect aimed at a card is drawn on that card, on iPhone and Android alike. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (relaying a tester, Lemon, on Netlify build a9afafa5a)', quote: 'lemon is saying that some pixi effects dont seem to be firing and that animations also seem to be offset up and to the left' },
+      { kind: 'code', ref: 'packages/ui/src/pixiStageFollow.ts (followStage); pixiFx.ts, wipeFx.ts, rankedGate/gateFx.ts, hero-select/HeroCeremonyPixi.ts, progression/crateFx/crateFxPixi.ts, heroBlast/HeroAttackPreview.tsx' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-26 (fix/phone-discover-tap-and-fx-offset). Before, WebKit fired no window resize when the page scale changed, so a renderer made at hero select (2341 x 1079 layout px) kept that size in the run (2212 x 1020) and drew every effect at 0.945 of its position: up and to the left, worst at the bottom right (a Shop card centre ~46 layout px left, ~19 up). Its resolution also kept the old page scale (softer), on Chromium too.',
+    example: 'A buff burst on the rightmost Shop minion on an iPhone sits on that minion, not up and to its left.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/pixiStageFollow.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-PHONE-DRAG-01',
+    title: 'A card drag on a phone does no avoidable work per frame',
+    statement:
+      'While a card is dragged on a phone, each frame writes only the dragged card\x27s moving transform and tilt (the lift, '
+      + 'depth and recentred origin are written once they change, not every frame), the floating card carries no filter over '
+      + 'its tilting content (its own lifted frame shadow stays), and a hand press loads the popped card\x27s full-resolution '
+      + 'art only after the finger has rested on it (a press that turns into a drag never fetches or decodes the originals). '
+      + 'Desktop keeps its drag shadow; everything else about the drag (feel, tilt, follow) is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (on Netlify build a9afafa5a, iPhone)', quote: 'iphone is running okay, but the drag seems to be low fps/not as smooth or something for some reason. can you clean that up?' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (writePos, the weighted-drag rAF); packages/ui/src/touchInput.ts (POP_UPGRADE_DELAY_MS, dropUpgrade); packages/ui/src/touchUi.css (html[data-touch-ui][data-phone-gpu] .dragcard)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (fix/phone-discover-tap-and-fx-offset). The iOS compositor cost (the drag shadow) could not be measured headless (Playwright WebKit on Windows recomposites the whole screen in software for ANY moving element); it needs the owner\x27s iPhone.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchPopUpgrade.test.ts', 'packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
 ];

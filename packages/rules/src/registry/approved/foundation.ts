@@ -8377,11 +8377,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   // ── iPhone text keeps its glow (tester report 2026-10-26, a9afafa5a) ─────────────────────────────────────────────
   {
     id: 'R-WEBKIT-SHADOW-01',
-    title: 'Glowing or shadowed text draws its glow on iPhone too',
+    title: 'Glowing or shadowed text draws its glow on iPhone too, outline included',
     statement:
-      'Any text the game gives a glow or shadow shows it on every browser, iPhone included. WebKit (every iPhone browser) '
-      + 'draws no text-shadow at all on text whose paint-order is not normal, so text that has a text-shadow never gets '
-      + '`paint-order: stroke fill`, from its own rule or inherited. Text with no stroke resets it to normal.',
+      'Any text the game gives a glow or shadow shows it on every browser, iPhone included, and looks the same there as on '
+      + 'desktop Chrome. WebKit (every iPhone browser, Safari) draws no text-shadow at all on text whose paint-order is not '
+      + 'normal. Text with no stroke resets paint-order to normal. Text with an outline under its fill writes its stroke and '
+      + 'shadow through `--wk-stroke` / `--wk-ts` and carries `data-wkt` (its text), and on WebKit (`html[data-webkit-text]`) '
+      + 'it is drawn as three layers: the outline, then the shadows, then the letters, the order Chromium paints it in.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8391,16 +8393,23 @@ export const FOUNDATION_RULES: GameRule[] = [
         quote: 'the return to shop is missing the glow on the lettering',
       },
       { kind: 'fix-pr', ref: 'fix/visual-regressions-1026' },
-      { kind: 'code', ref: 'packages/ui/src/styles.css (.wipevista .wipevista-title, .wipeposter .wipevs-label / .wipevs-name: paint-order normal)' },
+      {
+        kind: 'owner-chat',
+        ref: 'Owner via the coordinator, 2026-10-26',
+        quote: 'yes, build the iPhone-friendly versions',
+      },
+      { kind: 'fix-pr', ref: 'fix/webkit-outline-glows' },
+      { kind: 'code', ref: 'packages/ui/src/webkitText.ts (isWebKitEngine, installWebKitText, setGlowText); packages/ui/src/styles.css ("OUTLINED TEXT WITH A GLOW ON WEBKIT", .wipevista .wipevista-title, .wipeposter labels); Card.tsx (plate / drawer tribe words), heroAttack/damageFormation.ts, spellPowerFxConfig.ts, rubyPowerFxConfig.ts, progression/CollectionScreen.tsx (data-wkt)' },
     ],
     currentBehaviour:
-      'Conforms for the return trip title and the gate poster as of 2026-10-26. Both inherited `paint-order: stroke fill` '
-      + 'from `.wipevs-label` / `.wipevs-name`, so on iPhone the title drew plain white and the poster lost its inked bleed '
-      + '(desktop Chrome was unaffected). PARTIAL as a general rule: older text pairs a stroke under the fill with a shadow '
-      + 'and still loses the shadow on iPhone (the damage tallies and hero blast numbers, the plate tribe label, spell / '
-      + 'Ruby power floats, the compact drawer tribe, Collection skin tiles); webkitTextShadow.test.ts lists them and fails '
-      + 'on any new one.',
-    example: 'iPhone, End Combat: RETURNING TO SHOP rises in the sky with its turquoise glow, as on desktop.',
+      'Conforms as of 2026-10-26. The return trip title and the gate poster reset paint-order (they draw no stroke). The '
+      + 'damage numbers (minion tallies, the minion and hero totals, the full blow and its flash, the hit number), the plate '
+      + 'and drawer tribe labels (and a spell kind), the spell / Ruby power floats and the Collection skin tile lines use '
+      + 'the WebKit layering. Before, every one of them drew its outline but no glow or shadow on iPhone. Chromium (desktop, '
+      + 'Android) renders pixel-identical to before: the variables carry the same values and the layering rules apply only '
+      + 'under html[data-webkit-text].',
+    example: 'iPhone, a 12-damage hero attack: the big 12 has its dark outline, its hard drop shadow and the attacking '
+      + 'side gold glow, as on desktop. A Beast in the Shop reads BEAST on the plate gem with its outline and heavy shadow.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/webkitTextShadow.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {

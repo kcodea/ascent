@@ -21,6 +21,7 @@ import type { AttackVoices } from './attackSound';
 import { arcPoint, clamp01, easeInBack, easeInOutSine, easeOutBack, easeOutCubic, spring, type Pt } from './easing';
 import { FORMATION_CLIP_KEYS, formationPlan, getFormationConfig, type FormationBeat, type FormationConfig, type FormationPlan } from './formationConfig';
 import './damageFormation.css';
+import { setGlowText } from '../webkitText';
 
 /** One surviving minion's contribution: its tier (the engine's), where its tier badge is, and the badge to pulse. */
 export interface FormationMinion {
@@ -176,7 +177,7 @@ export class DamageFormation {
       return d;
     };
     const cap = (parent: HTMLElement, num: string, caption: string): HTMLElement => {
-      const b = doc.createElement('b'); b.textContent = num;
+      const b = doc.createElement('b'); setGlowText(b, num); // (+ its iPhone glow copy, webkitText.ts)
       const i = doc.createElement('i'); i.textContent = caption;
       parent.append(b, i);
       return b;
@@ -190,7 +191,7 @@ export class DamageFormation {
       this.rings.push(el('dform-ring', at));
       // No caption on a single tier: the badge it rises off says what it is.
       const chip = el('dform-chip', at);
-      const num = doc.createElement('b'); num.textContent = `+${Math.max(0, Math.round(m.value))}`;
+      const num = doc.createElement('b'); setGlowText(num, `+${Math.max(0, Math.round(m.value))}`);
       chip.appendChild(num);
       this.chips.push(chip);
       this.badges.push((plan.reduced ? [] : (m.badges ?? [])).map((b) => {
@@ -214,8 +215,8 @@ export class DamageFormation {
     // 5-6. The full blow (and the cap stamp riding under it). The CSS class names are the old combine's, kept so the
     // total and the hit number read the same in every test and capture rig.
     const totalEl = el('hblast-total dform-total', this.pts.formed);
-    const totalNum = doc.createElement('div'); totalNum.className = 'hblast-total-n'; totalNum.textContent = String(data.full);
-    const totalFlash = doc.createElement('div'); totalFlash.className = 'hblast-total-n hblast-total-flash'; totalFlash.textContent = String(data.full);
+    const totalNum = doc.createElement('div'); totalNum.className = 'hblast-total-n'; setGlowText(totalNum, String(data.full));
+    const totalFlash = doc.createElement('div'); totalFlash.className = 'hblast-total-n hblast-total-flash'; setGlowText(totalFlash, String(data.full));
     const totalLbl = doc.createElement('div'); totalLbl.className = 'hblast-total-l'; totalLbl.textContent = 'Damage';
     const stamp = doc.createElement('div'); stamp.className = 'dform-stamp'; stamp.textContent = 'Damage capped';
     totalFlash.style.opacity = '0';
@@ -231,7 +232,7 @@ export class DamageFormation {
       this.bursts.push({ el: el('dform-burst cap', this.pts.formed), at: plan.stampAt, size: 1.15, dur: 480 });
     }
     // THE HIT NUMBER: the blow, punched onto the struck hero on the impact frame (above every flash).
-    if (Number.isFinite(o.beats.impactAt)) this.hitEl = el('hblast-hit', this.pts.hit, `-${data.total}`);
+    if (Number.isFinite(o.beats.impactAt)) { this.hitEl = el('hblast-hit', this.pts.hit); setGlowText(this.hitEl, `-${data.total}`); }
     host.appendChild(layer);
   }
 
@@ -405,7 +406,7 @@ export class DamageFormation {
     let landed = 0;
     for (let i = 0; i < p.n; i++) if (t >= p.lands[i]!) landed = i + 1;
     const n = this.counts[landed - 1] ?? 0;
-    if (n !== this.lastMerge) { num.textContent = `+${n}`; this.lastMerge = n; }
+    if (n !== this.lastMerge) { setGlowText(num, `+${n}`); this.lastMerge = n; }
     const lastAt = p.lands[landed - 1]!;
     const since = t - lastAt;
     let sc: number;
@@ -468,7 +469,7 @@ export class DamageFormation {
       value = Math.round(data.full - (data.full - data.total) * easeInOutSine(v));
     }
     if (!p.capped) value = data.total;
-    if (value !== this.lastTotal) { totalNum.textContent = String(value); totalFlash.textContent = String(value); this.lastTotal = value; }
+    if (value !== this.lastTotal) { setGlowText(totalNum, String(value)); setGlowText(totalFlash, String(value)); this.lastTotal = value; }
     // THE SLAM: it lands big and settles with an overshoot.
     const since = t - p.joinAt;
     let sc = 1 + (c.fullPop - 1) * Math.max(-0.12, spring(since, 3, c.slamMs * 0.32));
@@ -558,7 +559,7 @@ export class DamageFormation {
     this.chips.forEach((el, i) => { el.style.opacity = fade(p.pulses[i]!, p.lands[i]!).toFixed(3); this.xf(el, this.pts.badges[i]!, this.pts.rests[i]!, 1); });
     for (const r of this.rings) r.style.opacity = '0';
     if (this.mergeEl && this.mergeNum) {
-      if (this.lastMerge < 0) { const n = this.counts[p.n - 1] ?? 0; this.mergeNum.textContent = `+${n}`; this.lastMerge = n; }
+      if (this.lastMerge < 0) { const n = this.counts[p.n - 1] ?? 0; setGlowText(this.mergeNum, `+${n}`); this.lastMerge = n; }
       this.mergeEl.style.opacity = fade(p.mergeAt, p.joinAt).toFixed(3);
       this.xf(this.mergeEl, this.pts.merge, this.pts.merge, 1);
     }
@@ -566,7 +567,7 @@ export class DamageFormation {
     const { totalEl, totalNum, totalLbl, stampEl } = this;
     if (totalEl && totalNum && totalLbl && stampEl) {
       const value = p.capped && t >= p.capFrom ? data.total : (p.capped ? data.full : data.total);
-      if (value !== this.lastTotal) { totalNum.textContent = String(value); this.lastTotal = value; }
+      if (value !== this.lastTotal) { setGlowText(totalNum, String(value)); this.lastTotal = value; }
       totalEl.style.opacity = fade(p.joinAt, Number.isFinite(end) ? end : beats.absorbEnd).toFixed(3);
       this.xf(totalEl, this.pts.formed, this.pts.formed, 1);
       const st = p.capped ? clamp01((t - p.capFrom) / f) : 0;

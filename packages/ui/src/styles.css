@@ -3434,7 +3434,7 @@ img.tierbadge.tierstars,
     0 1px 2px rgba(255, 225, 150, 0.55),
     0 0 7px rgba(210, 175, 255, 0.5);
 }
-.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, #f4ecdb); -webkit-text-stroke: 4px #000; paint-order: stroke fill; text-shadow: 0 2px 3px #000, 0 3px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85); }   /* same 2px outline + heavy shadow as the plate gem label (owner 2026-10-18) */
+.card.compact.showtext .drawer .dtribe { display: flex; align-items: center; gap: calc(var(--ccw) * 0.02); margin-top: calc(var(--ccw) * 0.05); font-family: var(--font-ui); font-weight: 800; font-size: calc(var(--ccw) * 0.062); letter-spacing: 0.05em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 70%, #f4ecdb); --wk-stroke: 4px #000; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill; --wk-ts: 0 2px 3px #000, 0 3px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85); text-shadow: var(--wk-ts); }   /* same 2px outline + heavy shadow as the plate gem label (owner 2026-10-18) */
 .card.compact.showtext .drawer .dtribe svg { width: calc(var(--ccw) * 0.075); height: calc(var(--ccw) * 0.075); color: var(--c); }
 .card.compact.showtext .drawer .dtribe svg:last-of-type { color: var(--c2); }   /* 2nd tribe in its own hue */
 
@@ -5419,11 +5419,27 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   /* 2px black outline (owner 2026-10-18): a 4px stroke painted UNDER the fill, so exactly 2px shows outside
      the glyph and none eats into it. Plus a much heavier drop shadow than the old 1px/3px pair. Static, no
      animation, so the paint cost is one-off. */
-  -webkit-text-stroke: 4px #000;
+  --wk-stroke: 4px #000; -webkit-text-stroke: var(--wk-stroke);
   paint-order: stroke fill;
-  text-shadow: 0 2px 3px #000, 0 3px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85);
+  --wk-ts: 0 2px 3px #000, 0 3px 8px rgba(0, 0, 0, 0.95), 0 0 14px rgba(0, 0, 0, 0.85); text-shadow: var(--wk-ts);
 }
 .card.plated .plate-tribe .ctype-sep { opacity: 0.6; margin: 0 0.1em; }
+/* OUTLINED TEXT WITH A GLOW ON WEBKIT (R-WEBKIT-SHADOW-01; owner 2026-10-26: "build the iPhone-friendly versions").
+   An outline under the fill (`-webkit-text-stroke` + `paint-order: stroke fill`) plus a `text-shadow` is how the damage
+   numbers, the tribe labels, the spell / Ruby power floats and the Collection skin tiles read over anything. Chromium
+   paints it as outline, then the letters' shadows, then the letters. WebKit (every iPhone browser, Safari) paints NO
+   text-shadow on text whose paint-order is not normal, so on iPhone the glow was simply gone. Here, on WebKit only
+   (`html[data-webkit-text]`, webkitText.ts), each such label (`data-wkt`, a copy of its text) is rebuilt from the
+   same three layers: ::before the outline (`--wk-stroke`), ::after the shadows (`--wk-ts`, paint-order normal so they
+   draw), and the label itself on top, letters only. The rules that style these labels write their stroke and shadow
+   through `--wk-stroke` / `--wk-ts` (same values, so other browsers are untouched). All static: no animation here. */
+:where(html[data-webkit-text] [data-wkt]) { position: relative; } /* (zero specificity: an absolute label stays absolute) */
+html[data-webkit-text] [data-wkt] { isolation: isolate; -webkit-text-stroke-width: 0 !important; text-shadow: none !important; }
+html[data-webkit-text] [data-wkt]::before, html[data-webkit-text] [data-wkt]::after {
+  content: attr(data-wkt); position: absolute; inset: 0; z-index: -1; padding: inherit; display: inherit; align-items: inherit;
+  justify-content: inherit; pointer-events: none; paint-order: normal; -webkit-text-fill-color: transparent; }
+html[data-webkit-text] [data-wkt]::before { -webkit-text-stroke: var(--wk-stroke); text-shadow: none; }
+html[data-webkit-text] [data-wkt]::after { -webkit-text-stroke-width: 0; text-shadow: var(--wk-ts); }
 /* A spell's KIND label (Card.tsx `spellKind`) wears its medallion's colour instead of the tribe tint (owner
    2026-10-09): Shop Spell blue, Ruby red, Gift purple. Covers the plate gem and the unplated drawer line. */
 .card.plated .plate-tribe.spellkind[data-kind='spell'], .card.compact.showtext .drawer .dtribe.spellkind[data-kind='spell'] { color: #7cc4ff; }
@@ -9930,9 +9946,9 @@ body.dragging .herobuffs-tab, body.dragging .herobuffs-body { pointer-events: no
   /* Outline drawn with -webkit-text-stroke where supported (crisp at any size) plus a shadow ring as the
      universal fallback + glow. Both colours come from the tuner's pickers. Static — set once on a one-shot
      element, never animated, so it costs one paint rather than a per-frame repaint. */
-  -webkit-text-stroke: calc(0.5 * var(--u)) var(--spf-outline, #7a2bd0);
+  --wk-stroke: calc(0.5 * var(--u)) var(--spf-outline, #7a2bd0); -webkit-text-stroke: var(--wk-stroke);
   paint-order: stroke fill;
-  text-shadow: 0 0 calc(6 * var(--u)) var(--spf-outline, #7a2bd0), 0 0 calc(14 * var(--u)) var(--spf-outline, #7a2bd0), 0 2px 3px rgba(0, 0, 0, 0.75);
+  --wk-ts: 0 0 calc(6 * var(--u)) var(--spf-outline, #7a2bd0), 0 0 calc(14 * var(--u)) var(--spf-outline, #7a2bd0), 0 2px 3px rgba(0, 0, 0, 0.75); text-shadow: var(--wk-ts);
   will-change: transform, opacity;
 }
 @media (prefers-reduced-motion: reduce) {

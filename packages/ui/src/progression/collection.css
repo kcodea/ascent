@@ -300,8 +300,8 @@
   margin: 0 -14px; padding: 4px 14px 6px;
   background: linear-gradient(90deg, rgba(4, 8, 18, 0) 8%, rgba(4, 8, 18, 0.6) 28%, rgba(4, 8, 18, 0.6) 72%, rgba(4, 8, 18, 0) 92%); }
 .colls-tile.skin .colls-tile-for, .colls-tile.skin .colls-tile-rar, .colls-tile.skin.owned .colls-tile-name {
-  -webkit-text-stroke: 2px #000; paint-order: stroke fill;
-  text-shadow: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); }
+  --wk-stroke: 2px #000; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --wk-ts: 0 2px 2px #000, 0 3px 6px #000, 0 5px 14px #000, 0 0 18px rgba(0, 0, 0, 0.9); text-shadow: var(--wk-ts); }
 .colls-tile.skin.missing .colls-tile-art { filter: saturate(0) brightness(0.3) contrast(1.2); }
 .colls-tile.skin.missing .colls-tile-for { color: rgba(255, 246, 228, 0.55); }
 /* A PORTRAIT FRAME's tile (2026-10-01): the ring shown whole, centred above the name (static). */

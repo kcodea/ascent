@@ -30,6 +30,8 @@ import { PerfScreen } from './PerfScreen';
 import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { CrashLogReadout } from './CrashLogReadout';
+import { PerfLogReadout } from './PerfLogReadout';
+import { installPerfLog } from './phonePerfLog';
 import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
 import { anonRestInsert, supabaseClient } from './remoteBoards';
 import { PHONE_GPU } from './phoneDiag';
@@ -203,6 +205,12 @@ export function Game() {
   // PHONE CRASH REPORTS (R-TOUCH-CRASH-REPORT-01): a crash the crash log found on this load is sent to Supabase once, on
   // idle a few seconds after mount. A no-op on desktop (unless ?crashlog=1) and without a backend.
   useEffect(() => scheduleCrashReportUpload(() => {
+    const c = supabaseClient();
+    return c ? (row) => c.from(CRASH_REPORT_TABLE).insert([row]) : null;
+  }, () => anonRestInsert(CRASH_REPORT_TABLE)), []);
+  // THE PHONE PERF + FX LOG (R-PHONE-PERFLOG-01): frames per scene, WebGL / Pixi state and the FX ledger, sent to the same
+  // table when the page goes hidden (and a session never sent, on the next load). A no-op on desktop without ?perflog=1.
+  useEffect(() => installPerfLog(() => {
     const c = supabaseClient();
     return c ? (row) => c.from(CRASH_REPORT_TABLE).insert([row]) : null;
   }, () => anonRestInsert(CRASH_REPORT_TABLE)), []);
@@ -711,6 +719,7 @@ export function Game() {
       {/* The phone crash log's readout (R-TOUCH-PLAY-MEMORY-01): renders nothing unless `?crashlog=1` or a crash in a
           standalone phone app. Counter-scaled so it reads at full size. */}
       <CrashLogReadout />
+      <PerfLogReadout />
       {/* First-launch welcome RETIRED as an auto-popup (owner 2026-08-17): the tutorial nudge now fires when a
           new player first hits Play (see Title's `onPlay` + tutorial prompt), not on load. */}
     </ErrorBoundary>

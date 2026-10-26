@@ -30,6 +30,7 @@ import { driveLayerHeads } from './fx/anchors';
 import type { FxAnchors, FxHeadSink } from './fx/anchors';
 import { detachPixiDomEvents } from './pixiNoDomEvents';
 import { destroyPixiApp, reportFxFault, reviveTicker, watchContextLoss } from './pixiAppSafety';
+import { ledgerWrapMethods, type TrackedPixiApp } from './fxLedger';
 import { LITE_ART, PIXI_ANTIALIAS } from './phoneArt';
 // Registers the ParticleContainer / NineSliceSprite render pipes at entry, before any renderer exists (see there).
 import { checkScenePipes } from './pixiScenePipes';
@@ -3510,6 +3511,20 @@ discoverFx.setPerfLabel('discover'); // keep its counters out of the board layer
 // The Discover burst layer only ever draws the one-shot burst — idle its ticker between/after bursts so a
 // second full-viewport WebGL context isn't rendering an empty stage every frame during all other play.
 discoverFx.enableAutoIdle();
+
+// THE FX LEDGER (R-PHONE-PERFLOG-01): on a load the phone perf log records, every hand-written effect call is counted
+// with whether its controller could draw it. Nothing is wrapped otherwise (desktop without `?perflog=1`).
+const LEDGER_METHODS = [
+  'auraWave', 'blastBolt', 'buffTendril', 'cleaveSlash', 'critImpact', 'deathrattle', 'descend', 'discoverBurst',
+  'executeStrike', 'flashBloom', 'heroPowerBurst', 'impactPulse', 'procCritText', 'pulse', 'rebornSummon', 'refreshBlast',
+  'rubyPower', 'shatterAt', 'spellPower', 'swapArc', 'trail', 'weldPulse', 'windSlash',
+] as const;
+for (const [ctrl, prefix] of [[pixiFx, 'pixi'], [discoverFx, 'discover']] as const) {
+  ledgerWrapMethods(ctrl, LEDGER_METHODS, prefix, () => {
+    const c = ctrl as unknown as { ready: boolean; app: Application | null };
+    return { ready: c.ready, renderer: c.app?.renderer as unknown as TrackedPixiApp['renderer'] ?? null };
+  });
+}
 
 /**
  * Create the Discover overlay's Pixi app AHEAD of time, on idle, so opening a Discover doesn't pay for it.

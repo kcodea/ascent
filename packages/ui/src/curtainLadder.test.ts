@@ -61,6 +61,7 @@ const ABOVE_CURTAIN: Record<string, string> = {
   '.uned': 'dev tools (UI editor)',
   '.bl-overlay': 'dev tools (Beat Lab)',
   '.crashlog': 'the crash log, which must show over anything',
+  '.perflog': 'the phone perf log readout (R-PHONE-PERFLOG-01), which must show over anything',
   '.nrw-scrim.cloudmoved-scrim': '"your game moved": blocks a stale run above every HUD and menu',
 };
 

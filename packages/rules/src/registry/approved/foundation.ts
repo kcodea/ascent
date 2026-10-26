@@ -9666,4 +9666,28 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'In Ranked Duos the eight-row rail ends low on the right: the teammate portrait drops to the Health box line and shrinks a little so its "Teammate" cap sits just under the rail.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-PHONE-PERFLOG-01',
+    title: 'A phone measures its own frames per scene, its WebGL state and every effect that did not draw, and sends them home',
+    statement:
+      'On every phone (and any browser with ?perflog=1) the game files each presented frame under a scene (menu, hero '
+      + 'select, shop, drag, combat, Runeforge, game over, transition) and keeps per scene the frames, p50 / p95 / p99 / '
+      + 'worst and the frames over 16.7, 33.3, 50 and 100 ms, plus a 10 s window timeline. Every 15 s it records the WebGL '
+      + 'contexts (made, alive, lost in the page, loss and restore events), each live Pixi renderer (size, resolution, '
+      + 'context lost), decoded images, the heap where reported, and the measured refresh. An FX ledger counts every '
+      + 'effect asked for against the ones that started, and names why the rest did not draw (no renderer, context lost, '
+      + 'not ready, budget, phone gate, offscreen, no def). It adds no rAF loop and no per-frame work (it reads the perf '
+      + 'monitor frame ring once a second). ?perflog=1 shows it on screen with a Send button; the log uploads into the '
+      + 'crash-report table (last_step perf-report) when the page goes hidden, at most 4 times a session, and a session '
+      + 'that never sent is sent on the next load. Desktop without the flag records, wraps and sends nothing.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren't showing on phone, and general performance is abysmal. How do we optimize this??" },
+      { kind: 'code', ref: 'packages/ui/src/phonePerfLog.ts; fxLedger.ts; perfLogFlag.ts; PerfLogReadout.tsx; crashLog.ts (trackWebGl, webglSnapshot); fx/playDef.ts (ledger outcomes); pixiFx.ts (ledgerWrapMethods); pixiStageFollow.ts (trackPixiApp); Game.tsx (installPerfLog)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-26 (perf/phone-fx-and-frames). Before, a phone reported only crashes: frame times, context losses and dropped effects were invisible without a Mac.',
+    example: 'The owner plays three rounds on his iPhone and switches apps. A row lands with scenes.combat p95 22 ms, 40 frames over 33 ms, "gl lost" at 212 s, and fx.misses topped by def:impact-slam ctx-lost 31.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePerfLog.test.ts', 'packages/ui/src/phonePerfLogDesktop.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

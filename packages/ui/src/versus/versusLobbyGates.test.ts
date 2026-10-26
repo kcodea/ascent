@@ -50,7 +50,7 @@ describe('a Versus run with its two-seat lobby never reaches a lobby persistence
       foe = reduce(versusAutoResolve(foe, makeRng(round + 50)), { type: 'faceOmen', deferFight: true });
       const fight = resolveVersusFight({ matchSeed: 9, round, p1: mine.pendingCombatSide!, p2: foe.pendingCombatSide! });
       fights.set(round, fight);
-      rounds.push({ round, heartLostBy: fight.heartLostBy, mine: fight.p1 });
+      rounds.push({ round, loser: fight.loser, mine: fight.p1 });
       useGame.setState({ run: versusAutoResolve(lobbyOf(useGame.getState().run), makeRng(round)) });
       useGame.getState().dispatch({ type: 'faceOmen' }); // parks + lands in one commit
       expect(useGame.getState().run.phase).toBe('combat');

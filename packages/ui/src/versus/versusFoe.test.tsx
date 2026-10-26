@@ -25,10 +25,10 @@ let ui: Mounted | null = null;
 afterEach(() => { ui?.unmount(); ui = null; useVersus.setState({ match: null }); setIdentity(null); });
 
 const onGuides = vi.fn();
-const render = (resolve: number) => <VersusFoe foe={seat(resolve)} art={undefined} frame={null} round={4} faceProps={{}} onGuides={onGuides} guidesOpen={false} />;
+const render = (resolve: number, armor = 0, cap = 10) => <VersusFoe foe={{ ...seat(resolve), armor }} art={undefined} frame={null} round={4} cap={cap} capPop={0} faceProps={{}} onGuides={onGuides} guidesOpen={false} />;
 
 describe('the Versus opponent block', () => {
-  it('mirrors your block: portrait, name plate, hearts, Round plate, a Guides plate; no tier badge, no round pips', () => {
+  it('mirrors your block: portrait, name plate, Health box, Round plate + MAX DMG, a Guides plate; no tier badge, no round pips', () => {
     setIdentity({ userId: 'me' } as never);
     useVersus.setState({ match: match({}) });
     ui = mount(render(5));
@@ -36,6 +36,8 @@ describe('the Versus opponent block', () => {
     expect(document.querySelector('.vsfoe-name.hudpill-name')?.textContent).toBe('LazerLemon');
     expect(document.querySelector('.vsfoe-hp.hudpill-hp .hpval')?.textContent).toBe('5');
     expect(document.querySelector('.vsfoe-round')?.textContent).toBe('Round 4');
+    // The lobby rail's cap, beside the Round plate (R-VERSUS-HEALTH-01).
+    expect(document.querySelector('.vsfoe-max')?.textContent).toBe('Max dmg 10');
     expect(document.querySelector('.vsfoe-tier, .vsfoe-socket, .vsfoe-pips, .endpip')).toBeNull();
     const guides = document.querySelector<HTMLButtonElement>('button.vsfoe-guides');
     expect(guides?.textContent).toBe('Guides');
@@ -56,7 +58,13 @@ describe('the Versus opponent block', () => {
     expect(document.querySelector('.vsfoe-status.away')?.textContent).toBe('Disconnected');
   });
 
-  it('a lost heart ticks down with your heart pill hit (shake + "-1"), never on mount', () => {
+  it('Armor shows as your Health box shows it; an uncapped round reads No cap', () => {
+    ui = mount(render(30, 7, Infinity));
+    expect(document.querySelector('.vsfoe-hp .hpval')?.textContent).toBe('30+7');
+    expect(document.querySelector('.vsfoe-max')?.textContent).toBe('No cap');
+  });
+
+  it('damage ticks down with your Health box hit (shake + "-N"), never on mount', () => {
     vi.useFakeTimers();
     try {
       ui = mount(render(5));

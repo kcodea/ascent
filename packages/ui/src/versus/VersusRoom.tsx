@@ -19,7 +19,8 @@
  * is one-shot transform / opacity (the entrance, the seat moves); the gauntlet cursor comes from the global rule.
  */
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from 'react';
-import { normalizeVersusOptions, VERSUS_HEARTS, VERSUS_MODE_SEATS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat } from '@game/sim';
+import { duosMateOf, normalizeVersusOptions, versusDuosStartingVitals, versusStartingVitals, VERSUS_MODE_SEATS, VERSUS_SPECTATOR_CAP, type VersusGroupSeat } from '@game/sim';
+import { Icon } from '../Icon';
 import { currentUserId } from '../identity';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
@@ -156,11 +157,25 @@ function useStartPresence(full: boolean): [boolean, boolean] {
   return [full || leaving, !full && leaving];
 }
 
-/** A seat's hearts in the running match: the 1v1 row, or the group table's seat (R-VERSUS-GROUP-05). */
-function seatHearts(match: VersusState['match'], side: VersusGroupSeat): number | null {
+/** A seat's Health and Armor in the running match (R-VERSUS-HEALTH-01): the 1v1 row, or the group table's seat (Duos: its
+ *  team's pool); before round 1 commits, its hero's start. Null for a seat that is not in the match. */
+function seatPools(match: VersusState['match'], side: VersusGroupSeat): { health: number; armor: number } | null {
   if (!match) return null;
-  if (match.group) return match.group.raw.seats.find((x) => x.seat === side)?.hearts ?? null;
-  return side === 'p1' ? match.p1_hearts : side === 'p2' ? match.p2_hearts : null;
+  if (match.group) {
+    const raw = match.group.raw;
+    const row = raw.seats.find((x) => x.seat === side);
+    if (!row) return null;
+    const start = raw.options?.mode === 'duos'
+      ? versusDuosStartingVitals(row.hero, raw.seats.find((x) => x.seat === duosMateOf(side))?.hero, raw.options)
+      : versusStartingVitals(row.hero, raw.options);
+    return { health: row.health ?? start.health, armor: row.armor ?? start.armor };
+  }
+  if (side !== 'p1' && side !== 'p2') return null;
+  const start = versusStartingVitals(side === 'p1' ? match.p1_hero : match.p2_hero, match.options);
+  return {
+    health: (side === 'p1' ? match.p1_health : match.p2_health) ?? start.health,
+    armor: (side === 'p1' ? match.p1_armor : match.p2_armor) ?? start.armor,
+  };
 }
 
 function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat; m: VersusMember | null; room: NonNullable<VersusState['room']>; match: VersusState['match']; me: string | null; drag: SeatDragState | null; arena: RefObject<HTMLDivElement> }) {
@@ -204,7 +219,16 @@ function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat
         )}
       </div>
       <div className={`vsgatebox vsgatebox-${side}`}>
-        {running && m && seatHearts(match, side) != null && <span className="vsgatestate">{seatHearts(match, side)} / {VERSUS_HEARTS} hearts</span>}
+        {running && m && (() => {
+          const p = seatPools(match, side);
+          // The Health box's own content (heart + Health, the Armor badge): the same numbers the game shows.
+          return p && (
+            <span className="vsgatestate vsgate-hp" aria-label={`Health ${p.health}${p.armor > 0 ? `, Armor ${p.armor}` : ''}`}>
+              <Icon name="heartPill" />{p.health}
+              {p.armor > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{p.armor}</b>}
+            </span>
+          );
+        })()}
       </div>
     </>
   );

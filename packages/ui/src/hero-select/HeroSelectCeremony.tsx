@@ -416,12 +416,12 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
           <div ref={frameRef} className="hcframe">
             <div className="hcname hudpill-name">{hero.name}</div>
             {art ? <img decoding="sync" className="hcframe-art" src={art} alt="" draggable={false} /> : <Icon name="anvil" />}
-            {/* VERSUS plays to hearts: no Health pill (as on its Hero Select cards). */}
-            {!versusPick && <div className="hchp hudpill-hp">
+            {/* The Health pill, as on its Hero Select card (Versus too since 2026-10-26, R-VERSUS-HEALTH-01). */}
+            <div className="hchp hudpill-hp">
               <Icon name="heartPill" />
               {hero.resolve}
               {hero.armor > 0 && <span className="hcarmor hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{hero.armor}</span>}
-            </div>}
+            </div>
           </div>
           {/* The resting face only (difficulty + tip) — the hover face never shows on a clone nobody can
               hover, and it dissolves with the rest of the chrome. */}

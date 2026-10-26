@@ -79,8 +79,15 @@ export interface VersusMatch {
   p2_user: string;
   p1_name: string;
   p2_name: string;
-  p1_hearts: number;
-  p2_hearts: number;
+  /** LEGACY (hearts era, before 2026-10-26): still on the row for old matches; never moved now. */
+  p1_hearts?: number | null;
+  p2_hearts?: number | null;
+  /** Each seat's Health and Armor after the last committed round (R-VERSUS-HEALTH-01, 2026-10-28-versus-health.sql).
+   *  Null before round 1 commits: the seat is on its hero's start (`versusStartingVitals`). */
+  p1_health?: number | null;
+  p1_armor?: number | null;
+  p2_health?: number | null;
+  p2_armor?: number | null;
   p1_hero: string | null;
   p2_hero: string | null;
   heroes_revealed: boolean;
@@ -122,7 +129,11 @@ export interface VersusGroupSeatRow {
   seat: VersusGroupSeat;
   userId: string;
   name: string;
-  hearts: number;
+  /** LEGACY (hearts era): kept readable for old matches. */
+  hearts?: number | null;
+  /** The seat's Health and Armor after the last committed round (Duos: its team's pool); null before round 1. */
+  health: number | null;
+  armor: number | null;
   hero: string | null;
   locked: boolean;
   ready: boolean;
@@ -187,17 +198,23 @@ export interface VersusGroupFightRow {
   b_copy: boolean;
   chair: 'a' | 'b';
   outcome: 'a' | 'b' | 'draw';
+  /** The seat that took the fight's damage (named for the hearts era; null on a draw or a copy / ghost loss). */
   heart_lost_by: VersusGroupSeat | null;
+  /** The damage it took (the lobby formula, capped). Null on a hearts-era round. */
+  damage?: number | null;
   a_result: CombatResult;
   b_result: CombatResult;
   a_scout: VersusSeatScout | null;
   b_scout: VersusSeatScout | null;
 }
 
-/** A committed group round: every seat's hearts after it and its fights. */
+/** A committed group round: every seat's Health and Armor after it and its fights. */
 export interface VersusGroupRoundRaw {
   round: number;
-  hearts: Partial<Record<VersusGroupSeat, number>>;
+  /** Every seat's pools after the round (R-VERSUS-HEALTH-01). Empty on a hearts-era round. */
+  vitals: Partial<Record<VersusGroupSeat, { health: number; armor: number }>>;
+  /** LEGACY (hearts era). */
+  hearts?: Partial<Record<VersusGroupSeat, number>> | null;
   eliminated: VersusGroupSeat[];
   fights: VersusGroupFightRow[];
 }
@@ -243,12 +260,21 @@ export interface VersusRoundRow {
   round: number;
   chair: VersusSeat;
   outcome: VersusSeat | 'draw';
+  /** The seat that lost the round and took its damage (named for the hearts era). */
   heart_lost_by: VersusSeat | null;
   p1_result: unknown;
   p2_result: unknown;
   digest: string;
-  p1_hearts: number;
-  p2_hearts: number;
+  /** LEGACY (hearts era): null on a round committed since 2026-10-26. */
+  p1_hearts?: number | null;
+  p2_hearts?: number | null;
+  /** Each seat's Health and Armor after the round, and the damage it took (R-VERSUS-HEALTH-01). Null on an old round. */
+  p1_health?: number | null;
+  p1_armor?: number | null;
+  p2_health?: number | null;
+  p2_armor?: number | null;
+  p1_damage?: number | null;
+  p2_damage?: number | null;
   /** Each seat's public state at its lock (tier from the locked side), for the scout card. Null on older rounds. */
   p1_scout?: VersusSeatScout | null;
   p2_scout?: VersusSeatScout | null;
@@ -358,7 +384,7 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     return (data as VersusPrivate | null) ?? null;
   },
   async rounds(matchId: string, fromRound = 1): Promise<VersusRoundRow[]> {
-    // rows: a match has one row per round and ends long before 1,000 rounds (7 hearts; the slowest is a draw run) (R-NET-01).
+    // rows: a match has one row per round and ends long before 1,000 rounds (the lobby cap is off from round 15; the slowest is a draw run) (R-NET-01).
     const { data, error } = await db().from('versus_rounds').select('*').eq('match_id', matchId).gte('round', fromRound).order('round');
     if (error) fail(error);
     // THE ONE READ of stored rounds: p2's result in p2's own perspective, whichever resolver stored it (a round stored
@@ -418,8 +444,8 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     return { ...(data as Omit<VersusGroupMatchRaw, 'seats'>), seats: ((seats ?? []) as Record<string, unknown>[]).map(groupSeatOfRow) };
   },
   async groupRounds(matchId: string, fromRound = 1): Promise<VersusGroupRoundRaw[]> {
-    // rows: one row per round; a group match ends long before 1,000 rounds (7 hearts each) (R-NET-01).
-    const { data, error } = await db().from('versus_group_rounds').select('round, hearts, eliminated').eq('match_id', matchId).gte('round', fromRound).order('round');
+    // rows: one row per round; a group match ends long before 1,000 rounds (uncapped damage from round 15) (R-NET-01).
+    const { data, error } = await db().from('versus_group_rounds').select('round, vitals, eliminated').eq('match_id', matchId).gte('round', fromRound).order('round');
     if (error) fail(error);
     if (!data?.length) return [];
     // rows: at most two fights per round (R-NET-01).
@@ -427,8 +453,8 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     if (e2) fail(e2);
     const byRound = new Map<number, VersusGroupFightRow[]>();
     for (const f of (fights ?? []) as VersusGroupFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
-    return (data as { round: number; hearts: VersusGroupRoundRaw['hearts']; eliminated: VersusGroupSeat[] }[])
-      .map((r) => ({ round: r.round, hearts: r.hearts ?? {}, eliminated: r.eliminated ?? [], fights: byRound.get(r.round) ?? [] }))
+    return (data as { round: number; vitals: VersusGroupRoundRaw['vitals'] | null; eliminated: VersusGroupSeat[] }[])
+      .map((r) => ({ round: r.round, vitals: r.vitals ?? {}, eliminated: r.eliminated ?? [], fights: byRound.get(r.round) ?? [] }))
       .filter((r) => r.fights.length > 0);
   },
   async groupMyPrivate(matchId: string): Promise<VersusPrivate | null> {
@@ -489,9 +515,9 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   // ── DEV / TEST TOOLS (2026-10-25-versus-test-bots.sql): the host's test bots and the Duos dev tuner. ────────────
   /** The calling (anonymous) bot account names the host whose browser drives it. */
   testBotRegister: (host: string, slot: number) => rpc<unknown>('versus_test_bot_register', { p_host: host, p_slot: slot }),
-  /** DEV: set a living seat's hearts (Duos: its team's). Host only, every other seat one of the host's bots. */
-  devSetHearts: (matchId: string, seat: VersusGroupSeat, hearts: number) =>
-    rpc<VersusGroupMatchRaw>('versus_dev_set_hearts', { p_match: matchId, p_seat: seat, p_hearts: hearts }),
+  /** DEV: set a living seat's Health and Armor (Duos: its team's pool). Host only, every other seat one of the host's bots. */
+  devSetVitals: (matchId: string, seat: VersusGroupSeat, health: number, armor: number) =>
+    rpc<VersusGroupMatchRaw>('versus_dev_set_vitals', { p_match: matchId, p_seat: seat, p_health: health, p_armor: armor }),
   /** DEV: the shop clock jumps to 5 seconds. */
   devSkipShop: (matchId: string) => rpc<VersusGroupMatchRaw>('versus_dev_skip_shop', { p_match: matchId }),
 
@@ -550,7 +576,8 @@ export type VersusRemote = ReturnType<typeof makeVersusRemote>;
 /** A `versus_group_seats` table row in the RPC json's camelCase shape. */
 export function groupSeatOfRow(r: Record<string, unknown>): VersusGroupSeatRow {
   return {
-    seat: r.seat as VersusGroupSeat, userId: String(r.user_id), name: String(r.name ?? ''), hearts: Number(r.hearts ?? 0),
+    seat: r.seat as VersusGroupSeat, userId: String(r.user_id), name: String(r.name ?? ''),
+    health: r.health == null ? null : Number(r.health), armor: r.armor == null ? null : Number(r.armor),
     hero: (r.hero as string | null) ?? null, locked: !!r.locked, ready: !!r.ready, intro: !!r.intro, auto: !!r.auto,
     missed: Number(r.missed ?? 0), eliminatedRound: r.eliminated_round == null ? null : Number(r.eliminated_round),
     outReason: (r.out_reason as VersusGroupSeatRow['outReason']) ?? null, placement: r.placement == null ? null : Number(r.placement),

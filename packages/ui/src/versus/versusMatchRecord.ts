@@ -5,7 +5,7 @@
  */
 import type { BoardMinion, CombatResult, MinionSnapshot } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { VERSUS_HEARTS, runeCarryOf, runeLiveStateOfCarries, type RuneLiveState, type VersusGroupSeat, type VersusSeat } from '@game/sim';
+import { runeCarryOf, runeLiveStateOfCarries, versusDuosStartingVitals, versusStartingVitals, type RuneLiveState, type VersusGroupSeat, type VersusSeat } from '@game/sim';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusMatch, VersusRoundRow } from './versusRemote';
 import { copyName, groupSeatOf, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 
@@ -13,9 +13,12 @@ export interface VersusRecordRound {
   round: number;
   /** From my side. */
   result: 'win' | 'lose' | 'draw';
-  /** Hearts after this round. */
-  myHearts: number;
-  foeHearts: number;
+  /** Health and Armor after this round (R-VERSUS-HEALTH-01). A hearts-era round (before 2026-10-26) shows its hearts
+   *  as the Health, no Armor. */
+  myHp: number;
+  myArmor: number;
+  foeHp: number;
+  foeArmor: number;
   /** The two boards as they entered the fight. */
   mine: BoardMinion[];
   foe: BoardMinion[];
@@ -38,12 +41,13 @@ export interface VersusRecordRound {
   foeHero?: string | null;
 }
 
-/** VERSUS GROUP's table in the record (R-VERSUS-GROUP-07): every player, their final (or current) place and hearts. */
+/** VERSUS GROUP's table in the record (R-VERSUS-GROUP-07): every player, their final (or current) place, Health and Armor. */
 export interface VersusRecordSeat {
   name: string;
   heroId: string | null;
   placement: number | null;
-  hearts: number;
+  hp: number;
+  armor: number;
   me: boolean;
 }
 
@@ -59,13 +63,22 @@ export interface VersusMatchRecord {
   /** 'win' | 'lose' | 'none' (no contest). */
   outcome: 'win' | 'lose' | 'none';
   endReason: VersusMatch['end_reason'];
-  myHearts: number;
-  foeHearts: number;
+  myHp: number;
+  myArmor: number;
+  foeHp: number;
+  foeArmor: number;
   rounds: VersusRecordRound[];
   /** VERSUS GROUP (3-4 players): my place of `of`, and the whole table (standings order). Absent on a 1v1 record. */
   placement?: number | null;
   of?: number;
   table?: VersusRecordSeat[];
+}
+
+/** A seat's pools on a row: the Health + Armor columns, else a hearts-era row's hearts (shown as the Health), else `start`. */
+function poolOn(health: number | null | undefined, armor: number | null | undefined, hearts: number | null | undefined, start: { health: number; armor: number }): { hp: number; armor: number } {
+  if (health != null) return { hp: Math.max(0, health), armor: Math.max(0, armor ?? 0) };
+  if (hearts != null) return { hp: Math.max(0, hearts), armor: 0 };
+  return { hp: start.health, armor: start.armor };
 }
 
 const boardOf = (ms: readonly MinionSnapshot[] | undefined): BoardMinion[] =>
@@ -77,6 +90,9 @@ export function buildVersusMatchRecord(
 ): VersusMatchRecord {
   const other: VersusSeat = seat === 'p1' ? 'p2' : 'p1';
   const rows = Object.values(rounds).sort((a, b) => a.round - b.round);
+  const startOf = (s: VersusSeat) => versusStartingVitals(s === 'p1' ? match.p1_hero : match.p2_hero, match.options);
+  const myEnd = poolOn(seat === 'p1' ? match.p1_health : match.p2_health, seat === 'p1' ? match.p1_armor : match.p2_armor, seat === 'p1' ? match.p1_hearts : match.p2_hearts, startOf(seat));
+  const foeEnd = poolOn(other === 'p1' ? match.p1_health : match.p2_health, other === 'p1' ? match.p1_armor : match.p2_armor, other === 'p1' ? match.p1_hearts : match.p2_hearts, startOf(other));
   return {
     matchId: match.id,
     myName: seat === 'p1' ? match.p1_name : match.p2_name,
@@ -87,16 +103,16 @@ export function buildVersusMatchRecord(
     foeCosmetics,
     outcome: match.winner_seat === seat ? 'win' : match.winner_seat ? 'lose' : 'none',
     endReason: match.end_reason,
-    myHearts: seat === 'p1' ? match.p1_hearts : match.p2_hearts,
-    foeHearts: other === 'p1' ? match.p1_hearts : match.p2_hearts,
+    myHp: myEnd.hp, myArmor: myEnd.armor, foeHp: foeEnd.hp, foeArmor: foeEnd.armor,
     rounds: rows.map((r, i) => {
       const mine = (seat === 'p1' ? r.p1_result : r.p2_result) as CombatResult;
       const before = rows.slice(0, i).map((p) => (seat === 'p1' ? p.p1_result : p.p2_result) as CombatResult | null);
+      const my = poolOn(seat === 'p1' ? r.p1_health : r.p2_health, seat === 'p1' ? r.p1_armor : r.p2_armor, seat === 'p1' ? r.p1_hearts : r.p2_hearts, startOf(seat));
+      const foe = poolOn(other === 'p1' ? r.p1_health : r.p2_health, other === 'p1' ? r.p1_armor : r.p2_armor, other === 'p1' ? r.p1_hearts : r.p2_hearts, startOf(other));
       return {
         round: r.round,
         result: mine.result,
-        myHearts: (seat === 'p1' ? r.p1_hearts : r.p2_hearts) ?? VERSUS_HEARTS,
-        foeHearts: (other === 'p1' ? r.p1_hearts : r.p2_hearts) ?? VERSUS_HEARTS,
+        myHp: my.hp, myArmor: my.armor, foeHp: foe.hp, foeArmor: foe.armor,
         mine: boardOf(mine.initial?.player),
         foe: boardOf(mine.initial?.enemy),
         myRunes: [...((seat === 'p1' ? r.p1_scout : r.p2_scout)?.runes ?? [])],
@@ -114,7 +130,7 @@ export function buildVersusMatchRecord(
 
 /**
  * VERSUS GROUP's "Previous match stats" (owner ask 2026-10-24, R-VERSUS-GROUP-07): my fights round by round (each with
- * the player, or Copy, I fought that round) plus the whole table: every player's place and hearts. Built from the raw
+ * the player, or Copy, I fought that round) plus the whole table: every player's place, Health and Armor. Built from the raw
  * group rows from MY seat (never the spectator view a player who is out is shown later), so it reads the same whenever it
  * is (re)built; rebuilt as the table finishes so the places fill in.
  */
@@ -140,9 +156,15 @@ export function buildGroupMatchRecord(
   });
   const won = raw.phase === 'complete' && raw.winner_seat === mine.seat;
   const placement = won ? 1 : mine.placement;
+  const duos = raw.options?.mode === 'duos';
+  const pairOf = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const;
   const table = [...raw.seats]
-    .map((x) => ({ name: x.name, heroId: x.hero, placement: raw.phase === 'complete' && raw.winner_seat === x.seat ? 1 : x.placement, hearts: Math.max(0, x.hearts), me: x.seat === mine.seat }))
-    .sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || b.hearts - a.hearts);
+    .map((x) => {
+      const start = duos ? versusDuosStartingVitals(x.hero, raw.seats.find((y) => y.seat === pairOf[x.seat])?.hero, raw.options) : versusStartingVitals(x.hero, raw.options);
+      const pool = poolOn(x.health, x.armor, x.hearts, start);
+      return { name: x.name, heroId: x.hero, placement: raw.phase === 'complete' && raw.winner_seat === x.seat ? 1 : x.placement, hp: pool.hp, armor: pool.armor, me: x.seat === mine.seat };
+    })
+    .sort((a, b) => (a.placement ?? 0) - (b.placement ?? 0) || (b.hp + b.armor) - (a.hp + a.armor));
   return {
     ...base,
     outcome: placement === 1 ? 'win' : placement != null ? 'lose' : 'none',

@@ -182,8 +182,8 @@ describe('R-SPECTATE-HUD-01: me top left, the watched player and the switcher bo
   it('bottom right: Versus shows the two-seat switcher; a live game one compact name + rank plate', () => {
     const pick = vi.fn();
     ui = mount(<WatchedPanel seats={[
-      { key: 'p1', name: 'Rooks', heroId: 'warden', profile: null, hearts: 7, on: true, pick: () => undefined },
-      { key: 'p2', name: 'Claudebot1', heroId: 'warden', profile: null, hearts: 6, on: false, pick },
+      { key: 'p1', name: 'Rooks', heroId: 'warden', profile: null, health: 30, armor: 5, on: true, pick: () => undefined },
+      { key: 'p2', name: 'Claudebot1', heroId: 'warden', profile: null, health: 24, armor: 0, on: false, pick },
     ]} />);
     const panel = ui.container.querySelector('.vswatchpanel')!;
     expect(panel.querySelectorAll('button.vsspec-seat')).toHaveLength(2);

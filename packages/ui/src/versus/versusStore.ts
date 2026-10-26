@@ -698,7 +698,7 @@ function settleVersusProgression(match: VersusMatch): void {
 
 /**
  * THE TWO-SEAT LOBBY (owner 2026-10-14: the Versus match is played on the lobby screens 1:1). The live run carries
- * `versusLobby(...)`: me as seat s0 and the opponent as s1, hearts as their health, the opponent fielding the board
+ * `versusLobby(...)`: me as seat s0 and the opponent as s1 on their Health and Armor (R-VERSUS-HEALTH-01), the opponent fielding the board
  * they actually fought each committed round with. Rebuilt only when its key moves (a round commits, the run lands,
  * settles or leaves a fight, the heroes are revealed), never per frame or per shop click. Display state only: the
  * reducer never settles it, and no persistence path takes it (the gates key on `mode: 'versus'`).
@@ -733,9 +733,13 @@ function lobbyInputFor(match: VersusMatch, seat: VersusSeat, run: Pick<RunState,
     me: { label: seat === 'p1' ? match.p1_name : match.p2_name, heroId: run.heroId, ...(run.cosmetics ? { cosmetics: run.cosmetics } : {}) },
     foe: { label: other === 'p1' ? match.p1_name : match.p2_name, heroId: (other === 'p1' ? match.p1_hero : match.p2_hero) ?? run.heroId, ...(foeCosmetics ? { cosmetics: foeCosmetics } : {}) },
     rounds: Object.values(get().rounds).map((r) => ({
-      round: r.round, heartLostBy: r.heart_lost_by, mine: (seat === 'p1' ? r.p1_result : r.p2_result) as CombatResult,
+      round: r.round, loser: r.heart_lost_by, mine: (seat === 'p1' ? r.p1_result : r.p2_result) as CombatResult,
       foeScout: (seat === 'p1' ? r.p2_scout : r.p1_scout) ?? null,
+      ...(r.p1_health != null && r.p2_health != null
+        ? { vitals: { p1: { health: r.p1_health, armor: r.p1_armor ?? 0 }, p2: { health: r.p2_health, armor: r.p2_armor ?? 0 } } }
+        : {}),
     })),
+    options: match.options ?? null,
   };
 }
 /** A SPECTATOR's two-seat lobby for the player it watches, when that player's view carries none (a test bot). */
@@ -909,9 +913,10 @@ function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run
       };
     }),
     rounds: Object.values(groupRoundsRaw).map((r) => ({
-      round: r.round, hearts: r.hearts,
-      fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: f.b_copy, heartLostBy: f.heart_lost_by, aResult: f.a_result, aScout: f.a_scout, bScout: f.b_scout })),
+      round: r.round, vitals: r.vitals ?? {},
+      fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: f.b_copy, loser: f.heart_lost_by, ...(f.damage != null ? { damage: f.damage } : {}), aResult: f.a_result, aScout: f.a_scout, bScout: f.b_scout })),
     })),
+    options: raw.options ?? null,
     pairing: groupPairingAt(raw, run.wave),
     ...(isDuosRaw(raw) ? { duos: { first: duosFirstAt(raw, run.wave) } } : {}),
   };
@@ -944,7 +949,10 @@ function ensureRun(match: VersusMatch, seat: VersusSeat): void {
   void (async () => {
     const hero = (seat === 'p1' ? match.p1_hero : match.p2_hero) ?? offer[priv.hero_index ?? 0] ?? offer[0]!;
     // The MATCH's pinned room options (R-VERSUS-OPTIONS-01): a modifier pins its rift onto the run.
-    let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId, match.options ? normalizeVersusOptions(match.options) : null);
+    // VERSUS DUOS (R-DUOS-HEALTH-01): the run carries the TEAM's pool, so it needs my teammate's hero too.
+    const mateSeat = match.group?.duos?.mate ?? null;
+    const mateHero = mateSeat ? match.group?.raw.seats.find((x) => x.seat === mateSeat)?.hero ?? null : null;
+    let run: RunState = createVersusRun(Number(priv.run_seed), hero, match.set_id as SetId, match.options ? normalizeVersusOptions(match.options) : null, mateHero);
     const rr = get().priv?.hero_reroll;
     if (isHeroReroll(rr)) run.heroReroll = { ...rr }; // the hero select's one re-roll (R-HERO-REROLL-01)
     const ck = await mx.myLatestCheckpoint(match.id).catch(() => null);

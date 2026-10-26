@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { contentRevision } from '@game/content';
 import { handleVersusFinalize, type VersusFinalizeStore } from '@game/sim/versus/server';
-import { VERSUS_HEARTS } from '@game/sim';
+import { versusFreshSide, versusStartingVitals } from '@game/sim';
 import { VersusBotDriver, type VersusBotApi } from './versusBotDriver';
 import type { VersusRoom } from './versusRemote';
 
@@ -23,7 +23,8 @@ const MIGRATION = readFileSync(join(root, 'supabase/migrations/2026-10-13-versus
   + readFileSync(join(root, 'supabase/migrations/2026-10-14-versus-ready-pause.sql'), 'utf8')
   + readFileSync(join(root, 'supabase/migrations/2026-10-16-versus-clock-grace.sql'), 'utf8')
   // The 2026-10-24 group + options migration replaces the room RPCs: every 1v1 test here runs against it (R-VERSUS-GROUP-01).
-  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-28-versus-health.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -59,14 +60,14 @@ function as<T = any>(user: string | null, sql: string, params: unknown[] = []): 
 const rows = async <T,>(sql: string, params: unknown[] = []): Promise<T[]> => { await queue; return (await db.query<T>(sql, params)).rows; };
 
 const store: VersusFinalizeStore = {
-  async match(id) { return (await rows<any>('select id, phase, round, seed, content_revision, p1_user, p2_user from public.versus_matches where id = $1', [id]))[0] ?? null; },
+  async match(id) { return (await rows<any>('select id, phase, round, seed, content_revision, p1_user, p2_user, p1_hero, p2_hero, options, p1_health, p1_armor, p2_health, p2_armor from public.versus_matches where id = $1', [id]))[0] ?? null; },
   async finalSides(matchId, round) {
     const out: Record<'p1' | 'p2', unknown> = { p1: null, p2: null };
-    for (const r of await rows<any>('select seat, prepared_side, final from public.versus_submissions where match_id = $1 and round = $2', [matchId, round])) if (r.final) out[r.seat as 'p1' | 'p2'] = r.prepared_side;
+    for (const r of await rows<any>('select seat, prepared_side, final, source from public.versus_submissions where match_id = $1 and round = $2', [matchId, round])) if (r.final) out[r.seat as 'p1' | 'p2'] = versusFreshSide(r.prepared_side, r.source);
     return out;
   },
   async commit(a) {
-    return as(null, 'select public.versus_commit_round($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8)', [a.p_match, a.p_round, a.p_chair, a.p_outcome, a.p_heart_lost_by, JSON.stringify(a.p_p1), JSON.stringify(a.p_p2), a.p_digest]);
+    return as(null, 'select public.versus_commit_round($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8, $9::jsonb)', [a.p_match, a.p_round, a.p_chair, a.p_outcome, a.p_loser, JSON.stringify(a.p_p1), JSON.stringify(a.p_p2), a.p_digest, JSON.stringify(a.p_vitals)]);
   },
   log: () => undefined,
 };
@@ -104,7 +105,7 @@ beforeAll(async () => {
 afterAll(async () => { await db?.close(); });
 
 describe('the Versus test bot', () => {
-  it('joins, gates, picks, shops random minions, locks, acks every fight and reaches the 7-heart finish', async () => {
+  it('joins, gates, picks, shops random minions, locks, acks every fight and knocks the empty board out (Health 0)', async () => {
     const room = await as<any>(DUMMY, `select public.versus_create_room('Bot test', 'Dummy', '{}', 'set2', $1, 1)`, [contentRevision()]);
     await as(BOT, `select public.versus_join_room($1, 'player', 'Test Bot', '{}', $2, 1)`, [room.id, contentRevision()]);
     const now = () => clock;
@@ -124,12 +125,16 @@ describe('the Versus test bot', () => {
     const m = (await rows<any>('select * from public.versus_matches'))[0];
     expect(m.phase).toBe('complete');
     const botSeat = m.p1_user === BOT ? 'p1' : 'p2';
-    const hearts = { p1: m.p1_hearts, p2: m.p2_hearts };
-    expect(Math.min(hearts.p1, hearts.p2)).toBe(0);
+    const foeSeat = botSeat === 'p1' ? 'p2' : 'p1';
+    expect(m[`${foeSeat}_health`]).toBe(0);
     expect(m.winner_seat).toBe(botSeat); // random minions beat an empty board
-    expect(hearts[botSeat as 'p1' | 'p2']).toBe(VERSUS_HEARTS);
+    // The bot never lost a round: its pools are its hero's start, untouched (R-VERSUS-HEALTH-01).
+    const start = versusStartingVitals(m[`${botSeat}_hero`], null);
+    expect([m[`${botSeat}_health`], m[`${botSeat}_armor`]]).toEqual([start.health, start.armor]);
+    // ...and its run landed the same pools.
+    expect([bot.run!.resolve, bot.run!.armor]).toEqual([start.health, start.armor]);
     const committed = await rows<any>('select outcome from public.versus_rounds order by round');
-    expect(committed.length).toBeGreaterThanOrEqual(VERSUS_HEARTS);
+    expect(committed.length).toBeGreaterThanOrEqual(3);
     // The bot's own run agrees with the server: it won every round it fought.
     // Round by round, every fight the bot landed matches the server's outcome from its own side.
     expect(bot.run!.history.length).toBeGreaterThanOrEqual(committed.length - 1);

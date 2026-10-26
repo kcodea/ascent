@@ -312,7 +312,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
             </button>
             <div className="mpside">
               {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}
-              {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Seven hearts each. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
+              {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Health and Armor, like a normal game. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
             </div>
             <div className="mprow2">
               {modeTile('gauntlet', 'gauntlet', 'Gauntlet', 'Survive 10 rounds against a hand-built foe.', () => { rememberMode('gauntlet'); sfx.pulse(); setTitleView('gauntlet'); }, <Crest />)}

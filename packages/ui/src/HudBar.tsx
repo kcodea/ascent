@@ -18,13 +18,13 @@ export const HudBar = memo(function HudBar() {
   const practice = run.mode === 'practice';
   const calibration = isCalibrationRound(run.wave);
   // The limited-time rift this run is pinned under (see RIFTS) — telegraphed under the round plaque.
-  const rift = run.rift ? riftDefFor(run.rift, run.mode) : null; // Versus shows its own Summit text (no Armor)
+  const rift = run.rift ? riftDefFor(run.rift, run.mode) : null; // every mode reads the same rift text since 2026-10-26
   return (
     <div className="bar">
       {/* The round/record plaque is REDUNDANT with the lobby rail (which shows the round + seats left), so it
           is hidden in a lobby (owner ask 2026-08-11) — the rail carries the round, seats-left, and the max-loss
           readout now. It stays for a course/Ascent run, which has no rail. VERSUS hides it too (owner 2026-10-14): its
-          round and hearts live in the Versus HUD, and an Oath / record plaque means nothing there. */}
+          round and max damage live on the opponent block / rail, and an Oath / record plaque means nothing there. */}
       {!lobby && run.mode !== 'versus' && (
       <div className="alt">
         <span className="wavecol">

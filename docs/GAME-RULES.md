@@ -977,7 +977,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 ---
 
-## Versus (real-time 1v1, owner rulings 2026-10-13; R-VERSUS-HEARTS-01, R-VERSUS-RANK-01, R-VERSUS-TIMEOUT-01, R-VERSUS-PAUSE-01, R-VERSUS-POOL-01, R-VERSUS-LOBBY-UI-01, R-VERSUS-PLAYER-CARD-01)
+## Versus (real-time 1v1, owner rulings 2026-10-13; R-VERSUS-HEALTH-01, R-VERSUS-HEARTS-01, R-VERSUS-RANK-01, R-VERSUS-TIMEOUT-01, R-VERSUS-PAUSE-01, R-VERSUS-POOL-01, R-VERSUS-LOBBY-UI-01, R-VERSUS-PLAYER-CARD-01)
 
 > Built on `feat/versus-phase0`; the mode's door on the mode picker stays behind `versusEnabled()` until the
 > Versus migration (`supabase/migrations/2026-10-13-versus.sql`) and the `versus-resolve` finalize deploy are live.
@@ -1013,10 +1013,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **The lobby screens, 1:1** (owner 2026-10-14). A match is played on the ordinary lobby UI: the shop, the rail,
   the combat scene (opponent portrait, name, skin, board, hero attack, round label, Fight Recap), scouting, End Turn,
   the clock, the Esc menu, emotes, the announcer and the music. The only differences: two seats with the same
-  opponent every round; **hearts** in the Health box under your hero; no seat rail: the **opponent's hero block** floats on the
-  right like your own (portrait, name, hearts, what they are doing, their shop tier; the scout card on hover), with the
-  Round header and the Guides tab; no loss cap, no "N left"; server timers with no Gold Fuse; the room; no rank; no Pre-emptive Assault. The
-  announcer skips the lines about the 8-seat table, Health, damage, placement and rank.
+  opponent every round; no seat rail: the **opponent's hero block** floats on the right like your own (portrait, name,
+  their Health box, what they are doing, their shop tier; the scout card on hover), with the Round plate, the round's
+  **Max dmg** beside it and the Guides tab; no "N left"; server timers with no Gold Fuse; the room; no rank; no Pre-emptive
+  Assault. The announcer skips the lines about the 8-seat table, placement and rank (its Health, Armor and damage lines
+  speak, as in a lobby game).
 - **Start.** Only the host presses Start, and only with both seats filled. The room seals (no player-seat changes)
   and each player gets the ranked entry gate: the doors close and the crystal forms. Pressing the crystal is that
   player's "ready"; it holds until both are in, then shatters onto Hero Select. If the 30 second window runs out the
@@ -1049,8 +1050,15 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **One fight per round.** The server resolves the two locked boards once (Player 1 takes the first position on odd
   rounds, Player 2 on even ones) and both players watch that fight from their own side. The next shop opens the
   moment both are back from the fight (or after 90 seconds), and its clock starts then, for both.
-- **Hearts.** 7 each. The loser of a round loses one heart; a draw costs nobody. 0 hearts loses the match. Resolve
-  and Armor never change in Versus; cards and heroes that touch them stay in the pool and simply do not change hearts.
+- **Health and Armor, as in a lobby game** (owner 2026-10-26: "I want to move the normal lobby mode health/damage system to
+  versus so the experience is the same"; R-VERSUS-HEALTH-01). Each player starts on their hero's own Health and Armor
+  (Summit adds +10 Armor, R-VERSUS-SUMMIT-01). The loser of a fight takes the lobby's damage: the winner's tavern tier plus
+  each surviving minion's tier, read off the one authoritative fight, capped by the lobby's round cap (5 on rounds 1-3, 10
+  on 4-7, 15 on 8-11, 20 on 12-14, none from 15; the Max dmg beside the Round plate). Armor absorbs first. A draw costs
+  nobody. 0 Health loses the match. Your Health box drops when the fight settles, the opponent's when you leave the fight.
+  The server owns the numbers (each seat's pools after every round); a locked turn reports the run's pools so Mend's "Set
+  your Armor to 5" counts (never more Armor than a card sets, never Health). *(Hearts, 7 each with one struck per lost
+  round, were the rule from 2026-10-13 to 2026-10-26; an older match keeps its recorded hearts.)*
 - **Disconnects.** A disconnect pauses the match for up to 30 seconds (deadlines stop, and move later by the pause).
   After 30 seconds the opponent may unpause: the absent player's last locked board then fights for them every
   round, and three such rounds in a row forfeit. Coming back ends it. Leaving the room mid-match concedes.
@@ -1058,12 +1066,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   at once for both, wherever they are, mid-fight included, and opens it on the room. The other player wins.
 - **The end.** When the match is decided, the last fight plays out; its End Combat gem (or, with nothing left to
   watch, the moment it ends) closes the end gate, which opens on the room. The room then has **Previous match
-  stats**: the round-by-round result pips, and both boards as they entered each fight with each player's hearts.
+  stats**: the round-by-round result pips, and both boards as they entered each fight with each player's Health and
+  Armor after it.
 - **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP (half a
   normal game, see Account Level: R-PROG-VERSUS-XP-01) and achievements are earned (R-VERSUS-RANK-01).
 - **Spectators** watch live (Phase 2). From the shop onwards a spectator sees ONE player's full game screen at a time,
   the real shop and combat screens from that player's side (shop, hand, board, Gold, tier, hero and power, runes,
-  quests, Equipment, open choices, the clock, hearts, every fight and its recap), and switches players instantly from
+  quests, Equipment, open choices, the clock, Health and Armor, every fight and its recap), and switches players instantly from
   the bar at the top left (click a player, or press 1 / 2); in a fight it picks whose side the fight is shown from. It
   is view only: no action, no aim and no emote goes through, but a right-click inspect of what is on screen works.
   Joining mid-match lands on the current moment; Leave (or the Esc menu) returns to the room, and Watch goes back. The
@@ -1121,10 +1130,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 - **Room options.** A room has ONE options object on the server, kept on the ROOM (it outlives its matches): the
   **mode** (1v1, or Group for 3-4 players) and up to one **modifier**, an existing rift (Freedom: the first minion
-  bought each turn is free; Summit: +10 Armor and the shop reaches Tier 7). Defaults are today's Versus (1v1, no
-  modifier). Only the host changes them, only while the room is Open (between games), and the server refuses anything
-  off its list. Each change bumps a counter so the room can say the options changed. Hearts (7) and the round timer are
-  not options yet; the object is versioned so they can be added later with today's values as their defaults.
+  bought each turn is free; Summit: +10 Armor to every hero, as in the lobby, and the shop reaches Tier 7; R-VERSUS-SUMMIT-01).
+  Defaults are today's Versus (1v1, no modifier). Only the host changes them, only while the room is Open (between games),
+  and the server refuses anything off its list. Each change bumps a counter so the room can say the options changed. The
+  round timer is not an option yet; the object is versioned so it can be added later with today's value as its default.
 - **Each match pins its copy.** A new match (1v1 or group) copies the room's options when it starts. A game in progress
   never changes, and a modifier is pinned onto every player's run at creation exactly as a Rift run pins its rift, so
   a restored or replayed run keeps it. Versus is unrated whatever the options.
@@ -1140,14 +1149,16 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   still in change, the cycle restarts on them and avoids a rematch of the round just played when it can. The pairing is
   derived from public data (the seats and when each went out), so every client and the server agree on it before the
   round is fought.
-- **Hearts.** 7 each. The loser of a fight loses one heart; a draw costs nobody. A Copy never loses a heart (damage to a
-  Copy never hurts the copied player), but a Copy's win costs the facing player one. Players at 0 hearts after a round
-  are out together and share the lower placement (the lobby's rule: two out at once from four are both 4th). The last
-  one standing is 1st and the room goes back to Open.
+- **Health and Armor** (R-VERSUS-HEALTH-01), as in 1v1: each player on their hero's own pools, the loser of a fight takes
+  the lobby's capped damage, Armor first, a draw costs nobody. A Copy never takes damage (damage to a Copy never hurts the
+  copied player), but a Copy's win damages the facing player. Players at 0 Health after a round are out together and
+  share the lower placement (the lobby's rule: two out at once from four are both 4th). The last one standing is 1st and
+  the room goes back to Open.
 - **Leaving and conceding** puts that player out at once, placed below everyone still in; the match goes on while two
   or more remain. A player who goes out during a round still fights that round as a **ghost** of their last locked
-  board: the pairing never changes under the others, the ghost never loses a heart, and its win still costs a heart. If
-  every player still in would go out in one round, the one who entered it with the most hearts (then by seat) survives.
+  board: the pairing never changes under the others, the ghost never takes damage, and its win still damages its
+  opponent. If every player still in would go out in one round, the one who entered it with the most Health + Armor (then
+  by seat) survives.
 - **Disconnects** as 1v1, over the players still in: a pause, the 30 second grace, then any other player still in may
   unpause and the absent seat plays on auto (its last locked board); three auto rounds in a row is out; coming back
   clears auto. A player who is out never pauses or holds up the match.
@@ -1161,7 +1172,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   room's mode and as many seat sockets as it has. A 3-4 player room shows four seats, two each side of the VS mark,
   and Start game appears for the host once three are seated.
 - **In the game** (R-VERSUS-GROUP-03). The 1v1 opponent block is replaced by the ordinary ranked lobby rail: one row
-  per player (you included) on their hearts out of 7, your opponent this round marked, the players out below with
+  per player (you included) on their Health and Armor with the round's Max dmg above it, your opponent this round marked, the players out below with
   their placement, hover/pin scouting and the Guides tab. While the round has a copy fight a last row reads
   "Copy of <name>" (who is copied changes each round); when you face it, the fight names "Copy of <name>" and shows
   the copied board. The End Turn / End Combat pill counts every player still in ("Players ready 3/4"; "Everyone else
@@ -1180,8 +1191,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   is final (knocked out, or the match over): four players earn 125 / 80 / 50 / 50, three 125 / 50 / 50. A spectator
   who watched to the end earns 50 (R-PROG-SPECTATE-XP-01); a player watching their own match does not. A full group
   room reads every card's record (24 ids). The room cards' records still count 1v1 matches only.
-- **Previous match stats** (R-VERSUS-GROUP-07). Your place (Victory, 2nd, 3rd, 4th), the whole table with places, heroes
-  and hearts, then your rounds; each round names who you fought (a player, or "Copy of <name>").
+- **Previous match stats** (R-VERSUS-GROUP-07). Your place (Victory, 2nd, 3rd, 4th), the whole table with places, heroes,
+  Health and Armor, then your rounds; each round names who you fought (a player, or "Copy of <name>").
 
 ### Versus Duos (2v2 tag-team) (owner 2026-10-25; R-DUOS-01, R-DUOS-TAGTEAM-01, R-DUOS-PASS-01)
 
@@ -1205,10 +1216,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   and shown the whole shop. It comes from the match seed, the round and the team through the one seeded RNG
   (`duosRandomFirst`), so every client, the server's resolver and a replay land the same pick. (Before 2026-10-25 it
   alternated by round and either teammate could flip it; that flip is gone.)
-- **Team hearts and placement.** 7 per team. The losing team loses 1 heart, or 2 when the winning team never needed
-  its second board; a draw costs nobody. A team at 0 is out together. Placement is by TEAM (owner: "In duos you only
+- **One shared Health pool and placement** (owner 2026-10-26: "The duo gets 30 hp plus the sum of both armors";
+  R-DUOS-HEALTH-01). Each team plays on ONE pool: 30 Health plus both heroes' Armor (Summit: +10 Armor per hero). The
+  losing team takes the lobby's damage, capped by the lobby's round cap, Armor first: the tavern tier of the winning
+  side's board that ENDED the fight (the one still standing; the teammate's if it stepped in) plus its survivors' tiers.
+  A draw costs nobody. A team at 0 Health is out together. *(7 team hearts, 2 for a stomp, until 2026-10-26.)* Placement is by TEAM (owner: "In duos you only
   place 1 and 2 in a 2v2"): the winning team is 1st (both players), the losing team 2nd (both). XP: 125 for each winner,
-  50 for each loser. Teams are kept as their own record (id, hearts, placement), so a future 4-team Duos places teams
+  50 for each loser. Teams are kept as their own record (id, pool, placement), so a future 4-team Duos places teams
   1st to 4th the same way.
 - **Passing.** During the shop a player may drag a minion or a spell from their **hand** onto their teammate's
   portrait to give it to them, for 1 Gold. **Hand only** (owner 2026-10-25: "you aren't supposed to be able to pass a
@@ -1232,11 +1246,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   screen shows the hand-off from their side: both hero slots follow the boards.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
-  side by side, never split by hearts); hearts are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
+  side by side, never split by Health); the Health and Armor are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
   it is display only (no click, no hover). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
   after another, and BOTH hero slots follow the boards: the opponent portrait becomes whoever is fighting now, and your own
-  slot shows your teammate while their board fights on your side (name pill and hearts with it), the new face fading in.
-  That swap is the only sign of a hand-off (owner 2026-10-26): no "steps in" plate. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left: the same size, the same distance in from the corner, their portrait frame, their name pill and the team's Hearts box under it. **Passing:** drag a
+  slot shows your teammate while their board fights on your side (name pill and the team's Health box with it), the new face fading in.
+  That swap is the only sign of a hand-off (owner 2026-10-26): no "steps in" plate. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left: the same size, the same distance in from the corner, their portrait frame, their name pill and the team's Health box under it. **Passing:** drag a
   hand card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not; a refused
   drop springs back. On release the card dissolves where it was into arcane dust and a teal stream rises off it and curls
   into their portrait, which flashes and pops; one of your coins follows it in from your Gold. On their screen a stream
@@ -1245,7 +1259,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   Tab to peek) to see their whole screen live (shop, hand, board, Gold, cursor, drags). The swap is a quick, clean
   cross-fade both ways: the screen you leave stays still on top for a moment while the other one is built under it, then
   fades out over it (no panel, no sweep); while you watch, their hero is in the hero slot, a strong team-colour
-  frame rims the screen, your shop controls are greyed, and the bottom-right portrait is YOURS (click or tap anywhere on it to go back; Esc and
+  frame rims the screen (under the hero plates, the Health boxes, the portraits and a popped hand card, which always
+  draw at full colour: R-DUOS-VIEW-04), your shop controls are greyed, and the bottom-right portrait is YOURS (click or tap anywhere on it to go back; Esc and
   letting go of Tab work too). There is no "Watching" plate or "Back to your board" button up top (owner 2026-10-25: the
   view change and colour make it obvious). You stay on their screen until your turn is over (owner 2026-10-25): you
   come back on your own when the round's fight starts (so you watch the fight from your own side) or the match pauses,

@@ -130,10 +130,15 @@
 .vshostmark { position: absolute; left: 50%; top: 0; translate: -50% -58%; z-index: 7; pointer-events: none; display: grid; place-items: center;
   width: calc(var(--ccw) * 0.2); height: calc(var(--ccw) * 0.2); color: var(--ui-title, #ffd98a); filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.9)); }
 .vshostmark svg { width: 100%; height: 100%; }
-/* Gate state + hearts, under each seat's tag (in a match only). */
+/* Gate state + Health and Armor, under each seat's tag (in a match only). */
 .vsgatebox { position: absolute; top: 70%; width: 14%; display: flex; justify-content: center; }
 .vsgatebox-p1 { left: 32.4%; }
 .vsgatebox-p2 { left: 53.6%; }
+/* The seat's Health + Armor in a match (R-VERSUS-HEALTH-01): the Health box's heart and Armor badge on the room pill. */
+.vsgate-hp { display: inline-flex; align-items: center; gap: calc(5 * var(--u)); }
+.vsgate-hp > svg { width: 1.1em; height: 1.1em; color: var(--ui-heart, #e5484d); }
+.vsgate-hp .armval { display: inline-flex; align-items: center; gap: 2px; margin-left: calc(4 * var(--u)); }
+.vsgate-hp .armval svg { width: 1em; height: 1em; }
 /* Room labels: the gold-rimmed navy pill of the End Turn gem's tip (uiTheme tokens), never a plain dark box. */
 .vsgatestate, .vsstatus { padding: calc(5 * var(--u)) calc(14 * var(--u)); border-radius: calc(11 * var(--u)); border: 1px solid transparent;
   background: var(--ui-sheen) padding-box, var(--ui-plate) padding-box, var(--ui-edge) border-box; box-shadow: var(--ui-bevel);
@@ -418,8 +423,7 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
 .vsms-name { display: flex; flex-direction: column; min-width: 0; font-family: var(--font-ui); font-weight: 800; font-size: 18px; color: #f4eee2;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .vsms-hero { font-weight: 700; font-size: 13px; color: rgba(255, 255, 255, 0.6); }
-.vsms-hearts { font-size: 18px; }
-.vsms-hearts svg { width: 18px; height: 18px; color: var(--threat); }
+.vsms-pools { display: inline-flex; align-items: center; gap: 8px; font-size: 18px; }
 .vsms-side .mds-runes { min-height: 0; padding: 2px 0 0; border-top: none; }
 /* VERSUS GROUP's standings in Previous match stats (R-VERSUS-GROUP-07): one row per player, mine lit. */
 .vsms-table { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 8px; border-bottom: 1px solid rgba(196, 160, 92, 0.16); }
@@ -498,6 +502,20 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold);
 }
 :root[data-hp-look="gem"] .vsfoe-round.hudpill-name { color: var(--ui-title); }
+/* MAX DMG beside the Round plate (owner 2026-10-26, R-VERSUS-HEALTH-01: the lobby's cap, as the rail prints it). The
+   same plate chrome as Round; its tip is the rail chip's HUD tip, opening above. `pointer-events` only on the chip. */
+.vsfoe-roundline { position: relative; display: flex; align-items: center; gap: calc(6 * var(--u)); margin-bottom: calc(19 * var(--u)); }
+.vsfoe-roundline .vsfoe-round { margin-bottom: 0; }
+.vsfoe-max { gap: calc(3 * var(--u)); pointer-events: auto; }
+.vsfoe-max svg { width: 1.1em; height: 1.1em; color: var(--ui-heart, #e5484d); }
+.vsfoe-roundline > .herotip.lobbymax-tip {
+  left: auto; right: 0; transform: none; width: max-content; max-width: var(--atip-z-maxw);
+  text-transform: none; letter-spacing: normal; white-space: normal;
+}
+.vsfoe-max:hover + .herotip.lobbymax-tip { opacity: 1; transition-delay: 0.35s; }
+/* The step-up punch: one-shot, transform only (the rail chip's idea, never looped). */
+.vsfoe-max.vsfoe-max-pop { animation: vsfoeMaxPop 700ms cubic-bezier(0.2, 0.9, 0.3, 1.3) 1; }
+@keyframes vsfoeMaxPop { 0% { transform: scale(1); } 35% { transform: scale(1.35); } 100% { transform: scale(1); } }
 /* The face: the disc in its frame, the name plate on its bottom rim. The hover / pin target (the scout card), so it
    alone (and the Guides plate) takes the pointer. */
 .vsfoe-face { position: relative; width: calc(116 * var(--u)); height: calc(116 * var(--u)); pointer-events: auto; }
@@ -592,13 +610,8 @@ html[data-touch-ui] .mdd-panel.vsoptions { zoom: var(--touch-p, 1); width: min(7
 .lobbyrailhead .vsdrawer-close { width: 30px; height: 30px; font-size: 14px; pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .vsfoe-status, .vsfoe-hp.hit, .vsfoe-shine > span, .lobbyrail.vsdrawer, .lobbyrailhead.vsdrawer { animation: none; } .vsfoe-shine { display: none; } }
 
-/* VERSUS scout card (owner 2026-10-14): the fight log reads in HEARTS (the heart pill icon, "-1" on a lost round, a quiet
-   0 otherwise) instead of the lobby's damage starburst, and a seat with no runes says "None yet" rather than three
-   empty sockets. */
-.lobbyscout-row .lobbyscout-dmg.lobbyscout-hearts { color: rgba(255, 255, 255, 0.45); }
-.lobbyscout-row .lobbyscout-dmg.lobbyscout-hearts.lost { color: #ff9db0; }
-.lobbyscout-hearts svg { width: calc(10 * var(--lfont) * var(--sc-histtext, 2)); height: calc(10 * var(--lfont) * var(--sc-histtext, 2)); color: var(--threat); }
-.lobbyscout-hearts:not(.lost) svg { opacity: 0.45; }
+/* VERSUS scout card: a seat with no runes says "None yet" rather than three empty sockets. (Its fight log read in hearts
+   until 2026-10-26; it reads damage like the lobby's now: R-VERSUS-HEALTH-01.) */
 .lobbyscout-norunes { text-align: center; font-family: var(--font-ui); font-weight: 700; font-size: calc(7 * var(--lfont) * var(--sc-statlabel, 2)); color: rgba(255, 255, 255, 0.5); padding: calc(2 * var(--lu)) 0; }
 
 /* The match stats overlay's card inspect opens ABOVE it (the overlay is z560): its own boards are inspectable. */
@@ -728,8 +741,12 @@ body:has(.vsms-scrim) .inspect-ov { z-index: 590; }
 
 /* VERSUS DUOS (R-DUOS-VIEW-01): WATCHING YOUR TEAMMATE. A static team-colour vignette over the screen's edges (it fades
    in once: opacity only) and my own shop controls visibly inert. No plate or button up top (owner 2026-10-25). Nothing
-   loops. */
-.duosview-vignette { position: fixed; inset: 0; z-index: 70; pointer-events: none;
+   loops.
+   UNDER THE HUD (owner bug 2026-10-26, R-DUOS-VIEW-04): the vignette sat at z70, over the hero cluster (`.statusbar` z40:
+   portrait, name pill, Health box, hero power) and the teammate portrait (`.duosdock` z41), washing them teal (worst while
+   a hand card popped, the hover lifts the hand zone to z70 beside it). It sits at z39 now: over the board (`.app` z1),
+   under every HUD plate and the hand pop (z70), so those always draw at full colour. */
+.duosview-vignette { position: fixed; inset: 0; z-index: 39; pointer-events: none;
   /* Static (never animated; only the one-shot fade-in touches its opacity): a teal team frame that cannot be missed on
      the purple stage, a solid band at the edge plus a wide glow into the screen. */
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 42%, rgba(40, 170, 200, 0.42) 72%, rgba(18, 120, 150, 0.78) 100%);

@@ -1,6 +1,6 @@
 /**
  * VERSUS DUOS through the client (R-DUOS-01, R-DUOS-TAGTEAM-01): the projection from one seat (my foe is the other
- * team's FIRST board; my round result is my own board's view; the outcome and the hearts are my team's; my teammate's
+ * team's FIRST board; my round result is my own board's view; the outcome and the pool are my team's; my teammate's
  * win is mine), the rail (my teammate right under me; every seat's locked board), the replay fold of a hand-off (the
  * row becomes the teammate's board), and the rail seat ids.
  */
@@ -13,7 +13,7 @@ import { computeFrame } from '../useCombatReplay';
 
 const U: Record<VersusGroupSeat, string> = { p1: 'u1', p2: 'u2', p3: 'u3', p4: 'u4' };
 const seat = (s: VersusGroupSeat, over: Partial<VersusGroupSeatRow> = {}): VersusGroupSeatRow => ({
-  seat: s, userId: U[s], name: s.toUpperCase(), hearts: 7, hero: 'warden', locked: false, ready: false, intro: true, auto: false,
+  seat: s, userId: U[s], name: s.toUpperCase(), health: 30, armor: 0, hero: 'warden', locked: false, ready: false, intro: true, auto: false,
   missed: 0, eliminatedRound: null, outReason: null, placement: null, ...over,
 });
 const raw = (over: Partial<VersusGroupMatchRaw> = {}, seats?: VersusGroupSeatRow[]): VersusGroupMatchRaw => ({
@@ -37,7 +37,7 @@ function round(): VersusGroupRoundRaw {
     heart_lost_by: out.losingTeam === 'b' ? out.first.b : out.losingTeam === 'a' ? out.first.a : null,
     a_result: out.aResult, b_result: out.bResult, a_scout: null, b_scout: null,
   };
-  return { round: 1, hearts: { p1: 7, p2: 7, p3: 6, p4: 6 }, eliminated: [], fights: [f] };
+  return { round: 1, vitals: { p1: { health: 30, armor: 0 }, p2: { health: 30, armor: 0 }, p3: { health: 25, armor: 0 }, p4: { health: 25, armor: 0 } }, eliminated: [], fights: [f] };
 }
 
 describe('Versus Duos projection (R-DUOS-01)', () => {
@@ -63,7 +63,7 @@ describe('Versus Duos projection (R-DUOS-01)', () => {
     expect(projectGroupMatch(done, 'u4').end_reason).toBe('hearts');
   });
 
-  it('my round row: my own board view (its carry-backs only), my team outcome and hearts', () => {
+  it('my round row: my own board view (its carry-backs only), my team outcome and pool', () => {
     const r = round();
     const rows1 = projectGroupRounds(raw(), [r], 'u1');
     const rows2 = projectGroupRounds(raw(), [r], 'u2');
@@ -75,7 +75,7 @@ describe('Versus Duos projection (R-DUOS-01)', () => {
     const mine2 = rows2[1]!.p1_result as { duosMember?: number; playerDeaths?: number };
     expect([mine1.duosMember, mine1.playerDeaths]).toEqual([0, 1]);
     expect([mine2.duosMember, mine2.playerDeaths]).toEqual([1, 0]);
-    expect([rows3[1]!.p1_hearts, rows3[1]!.p2_hearts]).toEqual([6, 7]);
+    expect([rows3[1]!.p1_health, rows3[1]!.p2_health]).toEqual([25, 30]);
   });
 
   it('the rail: my teammate right under me, every seat locked board, my foe the other team first', () => {
@@ -83,7 +83,7 @@ describe('Versus Duos projection (R-DUOS-01)', () => {
     const lobby = versusGroupLobby({
       matchSeed: 5, me: 'p3', wave: 2, inCombat: false, combatSettled: false,
       seats: (['p1', 'p2', 'p3', 'p4'] as VersusGroupSeat[]).map((s) => ({ seat: s, label: s.toUpperCase(), heroId: 'warden', eliminatedRound: null, placement: null })),
-      rounds: [{ round: 1, hearts: r.hearts, fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: false, heartLostBy: f.heart_lost_by, aResult: f.a_result })) }],
+      rounds: [{ round: 1, vitals: r.vitals, fights: r.fights.map((f) => ({ a: f.a_seat, b: f.b_seat, copy: false, loser: f.heart_lost_by, aResult: f.a_result })) }],
       pairing: [{ a: 'p2', b: 'p4', copy: false, duos: true }],
       duos: { first: { a: 'p2', b: 'p4' } },
     });
@@ -111,7 +111,7 @@ describe('the hand-off in the replay (R-DUOS-TAGTEAM-01)', () => {
 });
 
 describe('Duos rail: team rows stay together (lead ruling 2026-10-25)', () => {
-  it('the ranked order picks the team; you and your teammate are never split by hearts', () => {
+  it('the ranked order picks the team; you and your teammate are never split by Health', () => {
     const rows = ['s2', 's0', 's3', 's1'].map((id) => ({ id }));
     expect(groupDuosRailRows(rows).map((r) => r.id)).toEqual(['s2', 's3', 's0', 's1']);
     expect(groupDuosRailRows(['s0', 's2', 's3', 's1'].map((id) => ({ id }))).map((r) => r.id)).toEqual(['s0', 's1', 's2', 's3']);

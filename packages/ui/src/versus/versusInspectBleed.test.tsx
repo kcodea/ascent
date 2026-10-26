@@ -21,9 +21,9 @@ const CID = Object.keys((await import('@game/content')).CARD_INDEX)[0]!;
 const snap = { uid: 'u1', cardId: CID, name: 'Snap', tribe: 'neutral', attack: 5, health: 6, keywords: [], buffs: [{ source: 'Tome', attack: 3, health: 4, count: 1 }] };
 const record = {
   matchId: 'm', myName: 'Alpha', foeName: 'Test Bot', myHero: null, foeHero: null, myCosmetics: null, foeCosmetics: null,
-  outcome: 'win' as const, endReason: 'hearts' as const, myHearts: 3, foeHearts: 0,
-  rounds: [{ round: 1, result: 'win' as const, myHearts: 7, foeHearts: 6, mine: [{ cardId: CID, attack: 5, health: 6 }], foe: [], myRunes: [], foeRunes: ['rune_broodpit'], mineSnap: [snap] as never[], foeSnap: [] },
-    { round: 2, result: 'lose' as const, myHearts: 6, foeHearts: 6, mine: [], foe: [], myRunes: [], foeRunes: [] }],
+  outcome: 'win' as const, endReason: 'hearts' as const, myHp: 24, myArmor: 0, foeHp: 0, foeArmor: 0,
+  rounds: [{ round: 1, result: 'win' as const, myHp: 30, myArmor: 5, foeHp: 25, foeArmor: 0, mine: [{ cardId: CID, attack: 5, health: 6 }], foe: [], myRunes: [], foeRunes: ['rune_broodpit'], mineSnap: [snap] as never[], foeSnap: [] },
+    { round: 2, result: 'lose' as const, myHp: 24, myArmor: 0, foeHp: 25, foeArmor: 0, mine: [], foe: [], myRunes: [], foeRunes: [] }],
 };
 
 let ui: Mounted | null = null;
@@ -72,13 +72,14 @@ describe('Versus overlays never let an inspect through', () => {
     expect(document.querySelector('.vsms-verdict.won .endplace-num')?.textContent).toBe('Victory');
   });
 
-  it('no "Previous match" heading or summary; each player row has a portrait, hearts and the round runes', () => {
+  it('no "Previous match" heading or summary; each player row has a portrait, Health + Armor and the round runes', () => {
     ui = mount(<VersusMatchStats record={{ ...record, myHero: 'warden', foeHero: 'indy' }} onClose={() => undefined} />);
     act(() => { (document.querySelector('.vsms-pips .endpip') as HTMLButtonElement).click(); }); // round 1
     expect(document.body.textContent).not.toMatch(/Previous match|Pick a round/);
     expect(document.querySelector('.mdd-head, .mdd-sub')).toBeNull();
     expect(document.querySelectorAll('.vsms-side .mds-portrait')).toHaveLength(2);
-    expect([...document.querySelectorAll('.vsms-hearts')].map((n) => n.textContent)).toEqual(['6', '7']);
+    // Match details' own Health and Armor spans (R-VERSUS-HEALTH-01): the foe first (25, no Armor), then me (30 + 5).
+    expect([...document.querySelectorAll('.vsms-side .vsms-pools')].map((n) => n.textContent)).toEqual(['25', '305']);
     const runeRows = [...document.querySelectorAll('.vsms-side .mds-runes')];
     expect(runeRows[0]!.querySelectorAll('.cv2-rune').length).toBe(1);
     expect(runeRows[1]!.querySelector('.mds-norunes')?.textContent).toBe('No runes');

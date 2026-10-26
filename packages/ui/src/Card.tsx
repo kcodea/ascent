@@ -951,8 +951,12 @@ export const Card = memo(function Card({
         transform: handSlidePx
           ? `translateX(${handSlidePx}px) translateY(var(--hand-tuck, 0px)) rotate(var(--fan-rot, 0deg))` /* hand reorder: keep the tuck + fan tilt while parting */
           : slideDir ? `translateX(calc((var(--ccw) + 22px) * ${slideDir}))` : undefined } as CSSProperties}
-      /* TOUCH: with no click action of its own, a finger tap opens the Inspect overlay (touchInput.ts). */
-      onClick={onClick ?? ((e) => { if (tapInspectAllowed(e.currentTarget)) inspectCard(inspectViewOf(card, skinArtUrl)); })}
+      /* TOUCH (R-TOUCH-TAPINSPECT-01): a finger TAP on any card opens the Inspect overlay (touchInput.ts), the cards whose
+         tap commits (Discover, Choose One) included: their Inspect carries the Pick. A mouse click is unchanged. */
+      onClick={(e) => {
+        if (tapInspectAllowed(e.currentTarget)) { inspectCard(inspectViewOf(card, skinArtUrl)); return; }
+        onClick?.();
+      }}
       /* Card Art tuner: double-click targets this card. Only while that panel is open (`isPickingCardArt`),
          so normal play never has a hidden double-click meaning. `onDoubleClick` rather than `onClick`
          deliberately - a single click is already play/drag, and stealing it would break the board. */

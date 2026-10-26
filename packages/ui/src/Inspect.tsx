@@ -1,10 +1,11 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { bareRuneLabel } from '@game/content';
 import { Card } from './Card';
 import { KeywordDefs } from './KeywordDefs';
 import { resolveMech } from './mechIcon';
 import { useGame } from './store';
-import { inspectActionFor, lastPointerWasTouch, lastTouchTarget } from './touchInput';
+import { upgradeImages } from './fullResArt';
+import { clickAsPick, inspectActionFor, lastPointerWasTouch, lastTouchTarget } from './touchInput';
 import { useSpectate } from './versus/spectate';
 import './discoverEntrance/discoverEntrance.css'; // the gold action pill the touch Buy / Pick button reuses
 
@@ -39,12 +40,17 @@ export function Inspect() {
     return inspectActionFor(lastTouchTarget());
   }, [inspect]);
 
+  // CRISP ON A PHONE (R-PHONE-CRISP-01): the enlarged card loads its full-resolution art, frame and plate (a phone
+  // otherwise holds the small copies). A no-op on desktop. Re-run per inspected card; the originals go with the view.
+  const cardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => (inspect ? upgradeImages(cardRef.current) : undefined), [inspect]);
+
   if (!inspect) return null;
   const act = (): void => {
     if (!action) return;
     clearInspect();
     if (action.kind === 'buy') useGame.getState().dispatch({ type: 'buy', uid: action.uid });
-    else if (action.el.isConnected) action.el.click();
+    else if (action.el.isConnected) clickAsPick(action.el); // the commit itself, not another tap-to-inspect
   };
   return (
     <div
@@ -57,7 +63,7 @@ export function Inspect() {
       role="dialog"
       aria-label={`${inspect.name}. Close to dismiss.`}
     >
-      <div className="inspect-card" onClick={(e) => e.stopPropagation()}>
+      <div className="inspect-card" ref={cardRef} onClick={(e) => e.stopPropagation()}>
         {inspect.buffs && inspect.buffs.length > 0 && (
           <div className="inspect-buffs">
             <div className="ib-title">Buffs</div>

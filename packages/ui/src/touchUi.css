@@ -465,3 +465,13 @@ html[data-touch-ui][data-page-scale], html[data-touch-ui][data-page-scale] body 
 /* The rotate prompt sits outside the stage, so the page scale shrinks it too (to ~0.2 upright on a phone): it takes the
    scale back out, and reads at its own size on the screen. */
 html[data-touch-ui][data-page-scale] .rotate-prompt { zoom: calc(1 / var(--stage-s, 1)); }
+
+/* ── A Runeforge offer's tap-to-inspect view (R-TOUCH-TAPINSPECT-01, RuneInspect.tsx; touch only) ──────────────────────
+   The rune tablet at the forge's own card size, the cards its reward grants beside it, the whole row enlarged as one
+   like the card Inspect. The tablet is a picture here (its Pick button is the gold pill below), never a second tap. */
+html[data-touch-ui] .inspect-card.rune-inspect { gap: calc(24 * var(--u, 1px)); transform: translateY(-8%); animation: none;
+  --ch: calc(var(--ch-base) * var(--card-scale, 0.75) * 1.29); --cw: calc(var(--ch) * 0.752); --ccw: calc(var(--cw) * 0.85); }
+html[data-touch-ui] .rune-inspect .rune-inspect-tablet { display: flex; pointer-events: none; }
+html[data-touch-ui] .rune-inspect .rune-inspect-rewards { display: flex; gap: calc(16 * var(--u, 1px)); align-items: center; }
+html[data-touch-ui] .rune-inspect .rune-inspect-rewards .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
+html[data-touch-ui][data-touch-small] .inspect-ov.rune-inspect-ov .inspect-card.rune-inspect { scale: calc(var(--touch-forge) * 1.25); translate: 0 calc(-4 * var(--vh, 1vh)); }

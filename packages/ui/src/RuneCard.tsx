@@ -14,6 +14,9 @@ import { liveRuneText } from './runeText';
 import { usePlayerRuneLive } from './useRuneLive';
 import { rectToStage, stageHost, stageViewport } from './stage';
 import { useFitRefPopup, type RefPopupPos } from './useFitRefPopup';
+import { isTouchDevice, tapInspectAllowed } from './touchInput';
+import { openRuneInspect } from './runeInspectStore';
+import { useSpectate } from './versus/spectate';
 
 /** The card ids a rune's reward GRANTS (Pillaging → the Pillager) — for the hover preview. GILDED grants
  *  (Frontline Glory's Gilded Yazzus) are included and marked, so the preview shows the golden card. */
@@ -65,6 +68,12 @@ function cardViewOf(id: string, golden = false): CardView | null {
   };
 }
 
+/** The cards a rune previews (its reward's grants, then `previewCards`), as card views: its hover preview and the
+ *  touch RuneInspect. */
+export function runeRewardViews(rune: Pick<RuneDef, 'reward' | 'previewCards'>): CardView[] {
+  return previewIdsOf(rune).map((x) => cardViewOf(x.id, x.golden)).filter((v): v is CardView => v !== null);
+}
+
 /**
  * One rune offered in the Runeforge — a stone-carved, engraved tablet: a rune sigil, the name, its Gold cost, and
  * the effect it grants for the run. Bought for its cost on click (greyed when you can't afford it). A rune that
@@ -94,7 +103,7 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
   // A self-improving rune the run already grew (a second copy, a re-offer) prints its CURRENT value, never the base
   // (R-RUNE-LIVE-TEXT-01). An unowned rune has no live state and reads exactly as printed.
   const runeLive = usePlayerRuneLive();
-  const rewardCards = previewIdsOf(rune).map((x) => cardViewOf(x.id, x.golden)).filter((v): v is CardView => v !== null);
+  const rewardCards = runeRewardViews(rune);
   // The glossary pills a rune's text raises (Amplified, Equip, Rebirth, …) — the same `KeywordDefs` column a card
   // hover shows, so a term is explained wherever it is printed (owner ask 2026-09-18). Runes carry no badges.
   const kwCard = { keywords: NO_KEYWORDS, text: rune.text };
@@ -139,8 +148,19 @@ export function RuneCard({ rune, affordable, onBuy, cost, duplicating, pickSfx }
       data-spec={`runecard:${rune.id}`} // the spectator cursor / hover anchor (versus/cursorSpace.ts)
       style={{ '--rt': `var(--t-${accent})` } as CSSProperties}
       // A viewer (a replay, or a spectator hovering the watched player's forge, R-SPECTATE-RUNEHOVER-01) reads, never picks.
-      onClick={affordable ? (e) => { if (useGame.getState().replaying) return; onBuy(e.currentTarget); } : undefined}
-      disabled={!affordable}
+      // TOUCH (owner 2026-10-25, R-TOUCH-TAPINSPECT-01): a finger TAP on a forge offer opens its enlarged view (RuneInspect),
+      // whose Pick buys it; so an offer you cannot afford stays tappable on a touch device (to read it), never buyable.
+      onClick={pickSfx || affordable ? (e) => {
+        if (useGame.getState().replaying) return;
+        const el = e.currentTarget;
+        if (pickSfx && tapInspectAllowed(el)) {
+          const viewer = useSpectate.getState().active;
+          openRuneInspect({ rune, cost, duplicating, affordable: affordable && !viewer, pick: () => { if (el.isConnected) onBuy(el); } });
+          return;
+        }
+        if (affordable) onBuy(el);
+      } : undefined}
+      disabled={!affordable && !(pickSfx && isTouchDevice())}
       data-pick-sfx={pickSfx || undefined}
       onMouseEnter={hasPreview ? (e) => show(e.currentTarget) : undefined}
       onMouseLeave={hasPreview ? hide : undefined}

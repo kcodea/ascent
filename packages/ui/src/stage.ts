@@ -70,6 +70,21 @@ export const PHONE_GESTURE_FRAC = 21 / 393;
 export function phoneBottomStrip(vh: number, insetBottom: number): number {
   return Math.max(0, insetBottom, PHONE_GESTURE_FRAC * vh);
 }
+/**
+ * THE RUN'S FOOT ON A PHONE (owner 2026-10-25, R-PHONE-ZOOM-02: "the mobile version still looks really small ... increase
+ * the scale of the game / zoom it a bit more"): the lowest housed piece (your Health plate, display only, at the bottom
+ * LEFT) frames down to this share of the screen height above the bottom edge, not above the whole gesture strip: the
+ * home indicator / gesture bar is a short bar at the bottom CENTRE, nowhere near it. The strip still holds the hand's
+ * resting line, the corner buttons and the pop's foot (`phoneBottomStrip`). A share, so every phone keeps one proportion.
+ */
+export const PHONE_FOOT_FRAC = 4 / 393;
+/** The lobby rail's footprint at the right safe edge on a phone, layout px: its width (222) plus its margin (56), as
+ *  touchUi.css places it (`--lr-w`, `--lr-right`). It sits outside the housed span, right of Refresh. */
+export const PHONE_RAIL_FOOTPRINT = 222 + 56;
+/** Refresh's right edge in the box (layout px): the housed piece the rail must stay clear of. */
+export const PHONE_REFRESH_RIGHT = 1666;
+/** The clear gap kept between Refresh and the rail, SCREEN px. */
+export const PHONE_RAIL_GAP = 6;
 /** Pure: does the phone zoom apply? A phone, in landscape, in a run (not the menus or hero select), not switched off. */
 export function phoneZoomApplies(phone: boolean, w: number, h: number, off = false, inRun = true): boolean {
   return phone && !off && inRun && w > h;
@@ -153,9 +168,22 @@ export function fitStage(vw: number, vh: number, insets: SafeInsets = NO_INSETS,
     // the screen on every phone (an iPhone's 21 pt home indicator inset, the same share on a Pixel that reports none), so
     // every phone shows the game at the same share of its height. (Framing an iPhone against its full height instead does
     // not fit: its Dynamic Island insets leave the lobby rail no room right of Refresh, R-PHONE-ZOOM-01.)
-    const sz = Math.min(1, s * zoom, sw / spanW, (h - iT - (phone ? phoneBottomStrip(h, iB) : iB)) / spanH);
+    // R-PHONE-ZOOM-02: on a phone the Health plate frames down to a thin foot above the bottom edge (`PHONE_FOOT_FRAC`),
+    // and the lobby rail joins the width: the housed span from its left edge to Refresh, then the rail's footprint,
+    // must fit the safe width with `PHONE_RAIL_GAP` between Refresh and the rail.
+    // Whatever bottom inset the browser reports (iOS: the home indicator, 21 pt in the app and in Safari; Chrome on a
+    // Pixel: 0) it is a bar at the bottom centre, never under the Health plate at the bottom left.
+    const foot = phone ? PHONE_FOOT_FRAC * h : iB;
+    const railW = phone ? (sw - PHONE_RAIL_GAP) / (PHONE_REFRESH_RIGHT - e.left + PHONE_RAIL_FOOTPRINT) : Infinity;
+    const sz = Math.min(1, s * zoom, sw / spanW, railW, (h - iT - foot) / spanH);
     const sf = { top: iT / sz, right: iR / sz, bottom: iB / sz, left: iL / sz };
-    const barX = iL / sz + (sw / sz - (e.right - e.left)) / 2 - e.left;
+    let barX = iL / sz + (sw / sz - (e.right - e.left)) / 2 - e.left;
+    if (phone) {
+      // Centred, unless that would bring the rail within the gap of Refresh: then the span slides left (never past the
+      // left safe edge), the same rule on every phone (a wide Pixel never needs it).
+      const railMax = (w - iR - PHONE_RAIL_GAP) / sz - PHONE_RAIL_FOOTPRINT - PHONE_REFRESH_RIGHT;
+      barX = Math.max(iL / sz - e.left, Math.min(barX, railMax));
+    }
     const barY = iT / sz - top; // top-pinned: any slack goes to the bottom (the hand, the hero cluster)
     return { s: sz, lw: w / sz, lh: h / sz, safe: sf, zoom: sz / s, barX, barY };
   }

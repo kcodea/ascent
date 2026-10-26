@@ -31,11 +31,14 @@
  * Nothing here runs for a mouse or a pen: every handler returns on `pointerType !== 'touch'`.
  */
 
-import { phoneBottomStrip, readSafeInsets } from './stage';
+import { cssSafeInsets, pageScale, phoneBottomStrip } from './stage';
 
 /** px a touch may travel and still count as a tap (screen px, a physical distance). Matches the drag threshold's
  *  intent: a finger wobbles more than a mouse. */
 export const TAP_SLOP = 10;
+/** `TAP_SLOP` in CSS px: on the page scale (R-PHONE-PAGESCALE-01) pointer coordinates are layout px, `1 / scale` per
+ *  screen px, so a finger's wobble is measured on the SCREEN, as before. `TAP_SLOP` everywhere else. */
+export function tapSlopPx(): number { return TAP_SLOP / pageScale(); }
 /** ms a finger must stay down (inside `TAP_SLOP`) for a long-press (owner 2026-10-18 audit: "hold ~350 ms"). */
 export const LONG_PRESS_MS = 350;
 /** ms after a long-press release during which the browser's follow-up click is swallowed. */
@@ -138,7 +141,7 @@ export interface LongPressDeps {
 }
 export function createLongPress(deps: LongPressDeps): LongPress {
   const delay = deps.delay ?? LONG_PRESS_MS;
-  const slop = deps.slop ?? TAP_SLOP;
+  const slop = (): number => deps.slop ?? tapSlopPx();
   let timer: unknown = null;
   let down = false;
   let didFire = false;
@@ -157,7 +160,7 @@ export function createLongPress(deps: LongPressDeps): LongPress {
     },
     move(x, y) {
       if (!down || timer === null) return;
-      if (!isTap(x0, y0, x, y, slop)) stop();
+      if (!isTap(x0, y0, x, y, slop())) stop();
     },
     up() { stop(); down = false; return didFire; },
     cancel() { stop(); down = false; },
@@ -195,7 +198,7 @@ export function inspectActionFor(el: Element | null): InspectAction {
 }
 
 /** Pure: does a gesture from (x0,y0) to (x1,y1) stay inside the tap slop? */
-export function isTap(x0: number, y0: number, x1: number, y1: number, slop = TAP_SLOP): boolean {
+export function isTap(x0: number, y0: number, x1: number, y1: number, slop = tapSlopPx()): boolean {
   return Math.hypot(x1 - x0, y1 - y0) <= slop;
 }
 
@@ -215,6 +218,9 @@ export interface PopInput {
   k: number;
   vw: number; vh: number;
   safe: { top: number; right: number; bottom: number; left: number };
+  /** The input's px per SCREEN px: 1, except on the page scale (R-PHONE-PAGESCALE-01), where rects are layout px and
+   *  one screen px is `1 / scale` of them. The fixed gaps are screen px. */
+  u?: number;
 }
 /**
  * Pure: the pop of a hand card on a zoomed phone, as `translate(tx, ty) scale(s)` about the card's top-left (layout px).
@@ -227,9 +233,10 @@ export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; t
   const s = (frac * availH) / h;
   const w = s * p.width;
   const want = p.left + p.width / 2;
-  const lo = p.safe.left + 8 + w / 2, hi = p.vw - p.safe.right - 8 - w / 2;
+  const u = p.u ?? 1;
+  const lo = p.safe.left + 8 * u + w / 2, hi = p.vw - p.safe.right - 8 * u - w / 2;
   const cx = lo > hi ? p.vw / 2 : Math.min(hi, Math.max(lo, want));
-  const top = p.vh - p.safe.bottom - POP_FOOT_GAP - s * h;
+  const top = p.vh - p.safe.bottom - POP_FOOT_GAP * u - s * h;
   const k = p.k > 0 ? p.k : 1;
   return { s, tx: (cx - w / 2 - p.left) / k, ty: (top - s * p.extentTop - p.top) / k };
 }
@@ -256,7 +263,7 @@ function writePop(el: HTMLElement): void {
   }
   const g = popGeometry({
     left: pr.left + (el.offsetLeft + op.clientLeft) * k, top: pr.top + (el.offsetTop + op.clientTop) * k, width: el.offsetWidth * k,
-    extentTop: top * k, extentBottom: bottom * k, k, vw: innerWidth, vh: innerHeight, safe: popSafe(innerHeight, readSafeInsets()),
+    extentTop: top * k, extentBottom: bottom * k, k, vw: innerWidth, vh: innerHeight, safe: popSafe(innerHeight, cssSafeInsets()), u: 1 / pageScale(),
   });
   el.style.setProperty('--pop-s', String(g.s));
   el.style.setProperty('--pop-tx', g.tx + 'px');

@@ -21,7 +21,7 @@
  * renderer is sized to the window, their CSS box to the stage), so rects go into Pixi unconverted.
  */
 
-import { PHONE_DIAG, PHONE_GPU } from './phoneDiag';
+import { PHONE_DIAG, PHONE_GPU, setPixiPageScale } from './phoneDiag';
 import { isPhone } from './deviceClass';
 
 /** The design viewport: the layout never goes smaller than this. The owner's 1080p desktop look. */
@@ -98,6 +98,10 @@ export interface StageFit {
   /** With the phone zoom: the box's left / top edge in layout px. */
   barX?: number;
   barY?: number;
+  /** THE SCREEN SCALE (screen px per layout px) when it differs from `s`: on the page scale (R-PHONE-PAGESCALE-01) the
+   *  browser scales the page, so coordinates are already layout px (`s === 1`) while the game is drawn `vs` times its
+   *  layout size. Absent = `s`. Read it through `screenScale()`. */
+  vs?: number;
 }
 
 /** Safe-area insets (`env(safe-area-inset-*)`), per side. */
@@ -185,8 +189,21 @@ const listeners = new Set<(f: StageFit) => void>();
 
 /** The phone layout is on (R-PHONE-LAYOUT-01): the fit was made for the 2:1 phone box. False on desktop, always. */
 export function phoneLayoutOn(): boolean { return fit.aspect !== undefined; }
-/** The current stage scale (screen px per layout px). */
+/** The current stage scale: CSS px per layout px, what every measured coordinate is converted by. 1 on the page scale,
+ *  where the browser scales the page and CSS px ARE layout px (R-PHONE-PAGESCALE-01). */
 export function stageScale(): number { return fit.s; }
+/** The SCREEN scale: screen px per layout px, how large the game is drawn (the touch UI's sizing reads it). Equals
+ *  `stageScale()` except on the page scale. */
+export function screenScale(): number { return fit.vs ?? fit.s; }
+/** The safe area in CSS px (what a measured rect is in): the layout-px insets times the stage scale. */
+export function cssSafeInsets(): SafeInsets {
+  const k = fit.s;
+  return { top: fit.safe.top * k, right: fit.safe.right * k, bottom: fit.safe.bottom * k, left: fit.safe.left * k };
+}
+/** The window in SCREEN px (CSS px at page scale 1), whatever path shrinks the stage. */
+export function screenSize(): { w: number; h: number } {
+  return pageScaleNow !== 1 ? windowSize(screenViewport()) : windowSize();
+}
 /** The current fit (scale + layout viewport). */
 export function stageFit(): StageFit { return fit; }
 /** The LAYOUT viewport size, i.e. `window.innerWidth/innerHeight` expressed in stage px. */
@@ -262,9 +279,9 @@ export function readSafeInsets(): SafeInsets {
  * and the stage then leaves a bar of bare background down one side (owner report 2026-10-18: "Make sure it fills the
  * screen too"). So the screen's own size, oriented by the current orientation, wins whenever it is the larger.
  */
-export function windowSize(): { w: number; h: number } {
-  let w = window.innerWidth;
-  let h = window.innerHeight;
+export function windowSize(base?: { w: number; h: number }): { w: number; h: number } {
+  let w = base ? base.w : window.innerWidth;
+  let h = base ? base.h : window.innerHeight;
   try {
     const nav = navigator as Navigator & { standalone?: boolean };
     const standalone = nav.standalone === true
@@ -285,8 +302,176 @@ export function windowSize(): { w: number; h: number } {
   return { w, h };
 }
 
+/**
+ * THE PAGE SCALE (R-PHONE-PAGESCALE-01, owner report 2026-10-25, a real iPhone: "Mobile looks like this", the Shop
+ * minions collapsed to their badges in one spot, the lobby rail tiny, Tier / Freeze / the Refresh cost huge).
+ *
+ * A phone does not shrink the stage with a transform or CSS `zoom`. It lays the page out at the stage's layout size and
+ * lets the BROWSER scale the page, the way it shows a desktop site: the meta viewport is written as
+ * `width=<lw>, initial-scale=minimum-scale=maximum-scale=<s>`, and the stage itself is unscaled (`s === 1` for every
+ * coordinate helper: rects, pointers and `innerWidth` are all in layout px, as on a desktop window of that size).
+ *  - Why not CSS `zoom` (what phones used before): WebKit applies it in two ways Chromium does not. Every registered
+ *    `@property` length DECLARED inside the zoomed subtree (`--ch` / `--cw` / `--ccw` / `--u`, re-declared per zone) is
+ *    zoomed at the declaration AND again where it is used (the Shop cards came out 0.37^2 to 0.37^3 their size), and its
+ *    minimum logical font size lifts every font that the zoom takes under 9 SCREEN px back to 9 px, before any transform
+ *    (so text inside a scaled-up pill, Tier / Freeze, came out about twice its size). Neither can be turned off in CSS.
+ *  - Why not the transform (what phones used before the zoom): WebKit backs every composited layer inside a transformed
+ *    stage at its full stage size, about 9x the memory, and the owner's iPhone crashed at the hero pick on it
+ *    (R-TOUCH-RUN-MEMORY-01).
+ *  - A page scale is neither: style and layout are untouched (no zoom, so no clamp and no double-zoomed property) and
+ *    the browser rasterises its layers at the page scale (their on-screen size), as it does for any zoomed-out page.
+ * The Pixi renderers are sized in layout px, so their resolution folds in the page scale (`phonePixiOptions`).
+ * Desktop never takes this path (`PHONE_GPU` is false there).
+ */
+export type StageMode = 'page' | 'zoom' | 'transform';
+/**
+ * Pure: how the stage is shrunk. Desktop: the transform, always. A phone: the page scale, unless a diagnostics switch
+ * asks for an old path (`zoom`: CSS zoom everywhere; `nozoom`: the transform on the menus; `gamexf`: the transform in
+ * hero select, the gate and the run).
+ */
+export function stageModeFor(phone: boolean, onMenus: boolean, flags: { zoom?: 1; nozoom?: 1; gamexf?: 1 }): StageMode {
+  if (!phone) return 'transform';
+  if (flags.zoom) return 'zoom';
+  if (onMenus) return flags.nozoom ? 'transform' : 'page';
+  return flags.gamexf ? 'transform' : 'page';
+}
+
+let pageScaleNow = 1;
+/** The page scale the browser applies (screen px per CSS px), 1 off the page-scale path. Pixi resolutions fold it in. */
+export function pageScale(): number { return pageScaleNow; }
+
+/**
+ * The visible viewport in SCREEN px (CSS px at page scale 1): the visual viewport's size times its scale, so it is the
+ * same whatever page scale is applied. Falls back to the window size where there is no visualViewport.
+ */
+export function screenViewport(): { w: number; h: number } {
+  const vv = window.visualViewport;
+  if (vv && vv.width > 0 && vv.height > 0 && vv.scale > 0) return { w: vv.width * vv.scale, h: vv.height * vv.scale };
+  return { w: window.innerWidth, h: window.innerHeight };
+}
+
+/**
+ * Whether `env(safe-area-inset-*)` is reported in SCREEN px (unchanged by the page scale, as Chrome does) or in CSS px
+ * of the scaled page (divided by it). Learnt once, the first time the page scale is applied, by comparing with the
+ * insets read at scale 1; until then (and with no insets to compare) screen px.
+ */
+let insetsAt1: SafeInsets | null = null;
+let insetsScaled: boolean | null = null;
+function screenInsets(raw: SafeInsets, scale: number): SafeInsets {
+  if (scale === 1 || insetsScaled !== true) return raw;
+  return { top: raw.top * scale, right: raw.right * scale, bottom: raw.bottom * scale, left: raw.left * scale };
+}
+function learnInsetUnits(raw: SafeInsets, scale: number): void {
+  if (insetsScaled !== null || !insetsAt1 || scale === 1) return;
+  const a = Math.max(insetsAt1.left, insetsAt1.right, insetsAt1.top, insetsAt1.bottom);
+  const b = Math.max(raw.left, raw.right, raw.top, raw.bottom);
+  if (a < 1 || b < 1) return;
+  insetsScaled = Math.abs(b * scale - a) < Math.abs(b - a);
+}
+
+let viewportMeta = '';
+/** Write the meta viewport (only when it changes, so a resize it causes settles at once). */
+function setViewportMeta(content: string): void {
+  if (content === viewportMeta) return;
+  let m = document.querySelector('meta[name="viewport"]');
+  if (!m) { m = document.createElement('meta'); m.setAttribute('name', 'viewport'); document.head.appendChild(m); }
+  if (!viewportMeta) viewportMeta = m.getAttribute('content') ?? '';
+  if (content === viewportMeta) return;
+  m.setAttribute('content', content);
+  viewportMeta = content;
+}
+/** The page's own meta viewport (index.html): every path but the page scale keeps it. */
+export const DEVICE_VIEWPORT = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+/** Pure: the meta viewport for a page scale `s` over a layout `lw` px wide. */
+export function pageViewportContent(lw: number, s: number): string {
+  const k = Number(s.toFixed(6));
+  return `width=${Math.round(lw)}, initial-scale=${k}, minimum-scale=${k}, maximum-scale=${k}, user-scalable=no, viewport-fit=cover`;
+}
+
+let pinchBlocked = false;
+/** iOS Safari ignores `user-scalable=no`; its own gesture events are the only way to keep a pinch from zooming the page. */
+function blockPinch(): void {
+  if (pinchBlocked) return;
+  pinchBlocked = true;
+  const stop = (e: Event): void => { if (document.documentElement.hasAttribute('data-page-scale')) e.preventDefault(); };
+  for (const t of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(t, stop, { passive: false });
+}
+
 export function applyStage(): StageFit {
   if (typeof window === 'undefined') return fit;
+  const mode = stageMode();
+  if (mode === 'page') return applyPageStage();
+  if (pageScaleNow !== 1 || document.documentElement.hasAttribute('data-page-scale')) leavePageScale();
+  return applyScaledStage();
+}
+
+/** Back from the page scale to a scale-1 page (a diagnostics switch, or a big tablet). */
+function leavePageScale(): void {
+  pageScaleNow = 1;
+  setPixiPageScale(1);
+  document.documentElement.removeAttribute('data-page-scale');
+  setViewportMeta(DEVICE_VIEWPORT);
+}
+
+function applyPageStage(): StageFit {
+  const de = document.documentElement;
+  const cur = window.visualViewport?.scale ?? 1;
+  const raw = readSafeInsets();
+  if (cur === 1 && !de.hasAttribute('data-page-scale')) insetsAt1 = raw;
+  learnInsetUnits(raw, cur);
+  const insets = screenInsets(raw, cur);
+  const { w, h } = windowSize(screenViewport());
+  const phoneLayout = phoneLayoutApplies(isPhone(), w, h, !!PHONE_DIAG.phonelayout);
+  de.toggleAttribute('data-phone-layout', phoneLayout);
+  const phoneZoom = !phoneLayout && phoneZoomApplies(isPhone(), w, h, !!PHONE_DIAG.nophonezoom, inRun);
+  de.toggleAttribute('data-phone-zoom', phoneZoom);
+  de.toggleAttribute('data-phone-menus', phoneLayout && menuZoom);
+  const vis = fitStage(w, h, insets, phoneLayout ? PHONE_DESIGN_W : DESIGN_W, phoneZoom ? phoneZoomOf(PHONE_DIAG) : 1, isPhone() && !phoneLayout);
+  if (vis.s === 1) { leavePageScale(); return applyScaledStage(); } // at or above the design size: nothing to scale
+  // The page is laid out at the layout size and the browser scales it by `vis.s`: every coordinate the game reads is
+  // already in layout px, so the fit it sees is unscaled (`s === 1`); the box, the safe area and the bars stay as fitted.
+  // The meta viewport takes a whole layout width, so the scale is snapped to it (under 0.05%): the browser's own scale,
+  // width / layout width, is then exactly the one the layout is sized for.
+  const k = w / Math.max(1, Math.round(vis.lw));
+  fit = { ...vis, s: 1, vs: k, lw: w / k, lh: h / k };
+  pageScaleNow = k;
+  setPixiPageScale(k);
+  blockPinch();
+  de.setAttribute('data-page-scale', String(Number(k.toFixed(4))));
+  setViewportMeta(pageViewportContent(fit.lw, k));
+  writeFitVars(fit, w, h, insets, phoneLayout);
+  // The stage-scale var stays the screen scale (screen px per layout px): the crash readout counter-scales by it.
+  de.style.setProperty('--stage-s', String(k));
+  const root = stageHost();
+  if (root) {
+    root.style.width = `${fit.lw}px`;
+    root.style.height = `${fit.lh}px`;
+    root.style.removeProperty('transform'); root.style.removeProperty('zoom');
+  }
+  listeners.forEach((l) => l(fit));
+  return fit;
+}
+
+/** The layout vars every scaled path writes (safe area, breakpoints, the phone zoom's box, the gesture strip). */
+function writeFitVars(next: StageFit, w: number, h: number, insets: SafeInsets, phoneLayout: boolean): void {
+  const de = document.documentElement.style;
+  de.setProperty('--safe-t', `${next.safe.top}px`); de.setProperty('--safe-r', `${next.safe.right}px`);
+  de.setProperty('--safe-b', `${next.safe.bottom}px`); de.setProperty('--safe-l', `${next.safe.left}px`);
+  document.documentElement.setAttribute('data-lv', layoutBreakpoints(next).join(' '));
+  if (next.barX !== undefined && next.barY !== undefined) {
+    de.setProperty('--pz-bx', `${next.barX}px`); de.setProperty('--pz-by', `${next.barY}px`);
+    de.setProperty('--pz-vfit', String(Math.min(1, next.lh / DESIGN_H)));
+  } else { de.removeProperty('--pz-bx'); de.removeProperty('--pz-by'); de.removeProperty('--pz-vfit'); }
+  // The gesture strip in layout px: screen px over the SCREEN scale (h / lh), whatever path shrinks the stage.
+  if (isPhone() && w > h && !phoneLayout) de.setProperty('--pz-safe-b', `${phoneBottomStrip(h, insets.bottom) * (next.lh / h)}px`);
+  else de.removeProperty('--pz-safe-b');
+  document.documentElement.toggleAttribute('data-tablet', isTabletSize(w, h));
+  de.setProperty('--lvw', `${next.lw}px`); de.setProperty('--lvh', `${next.lh}px`);
+  de.setProperty('--vw', `${next.lw / 100}px`); de.setProperty('--vh', `${next.lh / 100}px`);
+  document.documentElement.setAttribute('data-stage-scaled', '');
+}
+
+function applyScaledStage(): StageFit {
   const { w, h } = windowSize();
   // THE PHONE LAYOUT (R-PHONE-LAYOUT-01): a phone in landscape lays out in the 2:1 box. Decided per fit (a rotation to
   // portrait drops it), written as `data-phone-layout` for phoneLayout.css. Desktop never has the attribute.
@@ -338,10 +523,9 @@ export function applyStage(): StageFit {
     if (root) {
       root.style.width = `${next.lw}px`;
       root.style.height = `${next.lh}px`;
-      // PHONE MENUS (R-TOUCH-GPU-MEMORY-01): shrink with CSS `zoom`, whose layers WebKit lays out at their on-screen
-      // size, instead of a transform, whose layers it pays at their full stage size x 3 x 3. See `setStageMenuZoom`.
+      // The `zoom` phone diagnostics switch only (the old phone path, before the page scale, R-PHONE-PAGESCALE-01).
       // Desktop never takes this branch (`PHONE_GPU` is false there).
-      if (stageZoomed()) { root.style.removeProperty('transform'); root.style.zoom = String(next.s); }
+      if (stageMode() === 'zoom') { root.style.removeProperty('transform'); root.style.zoom = String(next.s); }
       else { root.style.removeProperty('zoom'); root.style.transform = `scale(${next.s})`; }
     }
   }
@@ -358,57 +542,9 @@ export function setStageInRun(on: boolean): void {
   inRun = on;
   if (installed && isPhone()) applyStage();
 }
-/**
- * Pure: does the stage zoom instead of transform? Only on a phone (desktop: never, whatever else is passed).
- *   - On its MENUS: yes, unless the `nozoom` switch (R-TOUCH-GPU-MEMORY-01).
- *   - In HERO SELECT, THE GATE AND THE RUN (R-TOUCH-RUN-MEMORY-01, owner 2026-10-22: "I still can't even play it
- *     because of the crashing"): yes when this browser reports geometry under CSS zoom the standard way
- *     (`standardZoom`, see `zoomGeometryIsStandard`), because the game measures the screen with getBoundingClientRect
- *     and a browser that reports unzoomed rects would put every drag and effect in the wrong place. The `gamexf`
- *     switch keeps the games on the transform; the `zoom` switch zooms them even when the probe says no.
- * Why: a transformed stage makes WebKit pay every composited layer inside it at its full stage size times 3x3 (a
- * full-screen layer is about 87 MB); a zoomed stage lays them out at their on-screen size (about 11.5 MB).
- */
-export function zoomedStage(
-  phone: boolean, onMenus: boolean, flags: { zoom?: 1; nozoom?: 1; gamexf?: 1 }, standardZoom = false,
-): boolean {
-  if (!phone) return false;
-  if (onMenus) return !flags.nozoom;
-  if (flags.zoom) return true;
-  return standardZoom && !flags.gamexf;
-}
-
-let zoomProbe: boolean | null = null;
-/**
- * Does this browser report element geometry under CSS `zoom` the STANDARD way (getBoundingClientRect scaled by the
- * zoom, as a transform would)? Chrome since 128 and Safari since the CSS zoom standardisation do; older WebKit
- * returned the unzoomed size and divided the position by the zoom (WebKit bug 77998 / 185034). Measured once, with a
- * hidden 100 px box at left 100 px inside a zoom-0.5 host: standard reports 50 / 50. Phone only (never called on
- * desktop); false when it cannot measure.
- */
-export function zoomGeometryIsStandard(): boolean {
-  if (zoomProbe !== null) return zoomProbe;
-  zoomProbe = false;
-  try {
-    if (typeof document === 'undefined' || !document.body) { zoomProbe = null; return false; }
-    const host = document.createElement('div');
-    host.style.cssText = 'position:fixed;left:0;top:0;width:400px;height:400px;zoom:0.5;visibility:hidden;pointer-events:none;';
-    const box = document.createElement('div');
-    box.style.cssText = 'position:absolute;left:100px;top:100px;width:100px;height:100px;';
-    host.appendChild(box);
-    document.body.appendChild(host);
-    const h = host.getBoundingClientRect();
-    const r = box.getBoundingClientRect();
-    host.remove();
-    zoomProbe = Math.abs(r.width - 50) < 1.5 && Math.abs(r.height - 50) < 1.5
-      && Math.abs(r.left - h.left - 50) < 1.5 && Math.abs(r.top - h.top - 50) < 1.5 && Math.abs(h.width - 200) < 1.5;
-  } catch { zoomProbe = false; }
-  return zoomProbe;
-}
-
-function stageZoomed(): boolean {
-  if (!PHONE_GPU) return false;
-  return zoomedStage(PHONE_GPU, menuZoom, PHONE_DIAG, menuZoom ? false : zoomGeometryIsStandard());
+/** How this device shrinks the stage on the current screen (see `stageModeFor`). Desktop: the transform. */
+function stageMode(): StageMode {
+  return PHONE_GPU ? stageModeFor(true, menuZoom, PHONE_DIAG) : 'transform';
 }
 /** Game.tsx: a phone is on the menus (title, mode pages, ladder pages; not hero select, not a run). Re-applies the fit
  *  only when that changes. A no-op on desktop. */

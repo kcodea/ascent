@@ -58,6 +58,13 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-25',
     changes: [
+      {
+        category: 'Systems',
+        text: 'Phones: fixed the Shop not drawing on iPhone.',
+        details: [
+          'On an iPhone the Shop minions showed only their Attack and Health in one spot, the lobby list was tiny and Tier, Freeze and the Refresh cost were huge. The whole game now draws at its proper size in Safari and from the Home Screen.',
+        ],
+      },
       { category: 'Systems', text: "Duos: switching to your teammate's board and back is now a quick, clean cross-fade instead of a sliding panel, and twice as fast." },
       { category: 'Systems', text: 'A refreshed ASCENT logo on the loading screen, title screen and hero select.' },
       {

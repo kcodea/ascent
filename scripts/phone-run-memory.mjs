@@ -228,6 +228,7 @@ async function layerModel(c) {
   for (let i = 0; i < 40 && !layers; i++) await sleep(100);
   await c.send('LayerTree.disable').catch(() => {});
   const byId = new Map((layers || []).map((l) => [l.layerId, l]));
+  const ps = Number(await evaluate(c, `document.documentElement.getAttribute('data-page-scale')`)) || 1;
   const scaleOf = (l) => { let s = 1; let cur = l; let n = 0; while (cur && n++ < 200) { const t = cur.transform; if (t) s *= Math.hypot(t[0], t[1]); cur = cur.parentLayerId ? byId.get(cur.parentLayerId) : null; } return s; };
   let bytes = 0; const list = [];
   for (const l of layers || []) {
@@ -239,7 +240,11 @@ async function layerModel(c) {
     try { tag = (await c.send('DOM.describeNode', { backendNodeId: l.backendNodeId })).node.localName; } catch { /* pseudo / anonymous */ }
     if (tag === 'canvas') continue; // a canvas layer's contents ARE its drawing buffer (counted under WebGL / 2D)
     const k = scaleOf(l) || 1;
-    const b = Math.min(l.width, W / k) * Math.min(l.height, H / k) * 4 * DPR * DPR;
+    // THE PAGE SCALE (R-PHONE-PAGESCALE-01): the browser rasterises the page's layers at the page scale (their size on
+    // the screen); a layer inside a transformed stage is paid at its full stage size.
+    const b = ps < 1
+      ? Math.min(l.width * ps, W) * Math.min(l.height * ps, H) * 4 * DPR * DPR
+      : Math.min(l.width, W / k) * Math.min(l.height, H / k) * 4 * DPR * DPR;
     bytes += b;
     list.push({ mb: b / 1048576, size: `${Math.round(l.width)}x${Math.round(l.height)}`, why: why.split(',')[0], node: l.backendNodeId });
   }

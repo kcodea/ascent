@@ -176,9 +176,9 @@ html[data-touch-ui][data-pd-litebd] .mbd-lite { background: #0a1220; }
 
 /* ── Phone run start: fewer full-screen layers from hero select to the first shop (owner 2026-10-22, "I still can't
    even play it because of the crashing", R-TOUCH-RUN-MEMORY-01) ────────────────────────────────────────────────────
-   Hero select and the run keep the stage `transform` (their drag and FX maths read the screen, and Safari's geometry
-   under CSS zoom is not the standard one), so every composited layer inside the stage is paid at its full stage size
-   times 3x3: about 87 MB for a full-screen one. `npm run perf:phone-run` measured up to five of them at once on the way
+   Under the stage `transform` (the old path; since R-PHONE-PAGESCALE-01 a phone scales the page instead, and only the
+   `gamexf` / `nozoom` diagnostics switches bring the transform back) every composited layer inside the stage is paid at
+   its full stage size times 3x3: about 87 MB for a full-screen one. `npm run perf:phone-run` measured up to five of them at once on the way
    into a game. Same look on a phone, fewer layers; desktop never matches (`data-phone-gpu` is LITE_ART only).
      1. The falling gate (`.wipecurtain`, R-PRESENT-35) hides while it is PARKED above the screen (idle, armed, or
         parked after the combat crank). It sat there as an 87 MB layer (plus its 26 MB poster) through every shop and
@@ -450,3 +450,18 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom
    (they read at 4-6 px). */
 html[data-touch-ui][data-phone-zoom] .lobbyrailhead { --lby-font: 1.5; }
 html[data-touch-ui][data-phone-zoom] .fr-odds-dmg-label { font-size: calc(16 * var(--u)); }
+
+/* ── THE PAGE SCALE (R-PHONE-PAGESCALE-01, owner report 2026-10-25, a real iPhone: "Mobile looks like this"). A phone
+   lays the page out at the stage's layout size and the browser scales the page (stage.ts `applyPageStage`, the meta
+   viewport), instead of a CSS zoom WebKit mis-lays-out or a transform it pays 9x the layer memory for. Written only on a
+   phone (`data-page-scale`, the scale). Two things a scaled-down page would otherwise get from the browser:
+     - text inflation: iOS (text autosizing) and Chrome on Android (font boosting) enlarge text on a page laid out wider
+       than the screen. `100%` keeps every font exactly as authored.
+     - pinch and double-tap zoom: `pan-x pan-y` leaves scrolling (menu pages) and drops both (iOS Safari also ignores
+       `user-scalable=no`, so stage.ts cancels its gesture events too). It intersects with every element's own value,
+       so the board's `touch-action: none` is unchanged. ── */
+html[data-touch-ui][data-page-scale] { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+html[data-touch-ui][data-page-scale], html[data-touch-ui][data-page-scale] body { touch-action: pan-x pan-y; }
+/* The rotate prompt sits outside the stage, so the page scale shrinks it too (to ~0.2 upright on a phone): it takes the
+   scale back out, and reads at its own size on the screen. */
+html[data-touch-ui][data-page-scale] .rotate-prompt { zoom: calc(1 / var(--stage-s, 1)); }

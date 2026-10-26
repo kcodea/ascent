@@ -158,6 +158,7 @@ async function measureScreen(name, clicks, profile) {
     await evaluate(c, 'new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))');
     for (let i = 0; i < 40 && !layers; i++) await sleep(100);
     const byId = new Map((layers || []).map((l) => [l.layerId, l]));
+    const ps = Number(await evaluate(c, `document.documentElement.getAttribute('data-page-scale')`)) || 1;
     const scaleOf = (l) => { let s = 1; let cur = l; let n = 0; while (cur && n++ < 200) { const t = cur.transform; if (t) s *= Math.hypot(t[0], t[1]); cur = cur.parentLayerId ? byId.get(cur.parentLayerId) : null; } return s; };
     let bytes = 0; const big = [];
     for (const l of layers || []) {
@@ -166,7 +167,10 @@ async function measureScreen(name, clicks, profile) {
       const why = (r.compositingReasonIds || r.compositingReasons || []).join(',');
       if (/Canvas/.test(why)) continue;
       const k = scaleOf(l);
-      const b = Math.min(l.width, W / k) * Math.min(l.height, H / k) * 4 * DPR * DPR;
+      // THE PAGE SCALE (R-PHONE-PAGESCALE-01): layers rasterised at the page scale (their size on the screen).
+      const b = ps < 1
+        ? Math.min(l.width * ps, W) * Math.min(l.height * ps, H) * 4 * DPR * DPR
+        : Math.min(l.width, W / k) * Math.min(l.height, H / k) * 4 * DPR * DPR;
       bytes += b;
       big.push({ mb: b / 1048576, size: `${Math.round(l.width)}x${Math.round(l.height)}`, why: why.split(',')[0], node: l.backendNodeId });
     }

@@ -3,41 +3,41 @@
  * R-TOUCH-RUN-MEMORY-01 (owner 2026-10-22: "I still can't even play it because of the crashing"). From hero select to
  * the first shop a phone kept the stage `transform`, so every composited layer inside it cost its full stage size
  * times 3x3 on iOS (about 87 MB for a full-screen one), and up to five were up at once (`npm run perf:phone-run`).
- *   1. A phone whose browser reports zoomed geometry the standard way zooms the stage in games too.
+ *   1. A phone shrinks the stage in games without a transform too (CSS zoom then; the page scale since
+ *      R-PHONE-PAGESCALE-01).
  *   2. The parked falling gate, the hero ceremony's finished entrances and the hero select under the opaque launch
  *      curtain stop holding layers (touchUi.css, phone only).
- * Desktop is untouched: `zoomedStage` is false off a phone whatever else is passed, every CSS rule is keyed off
+ * Desktop is untouched: `stageModeFor` is the transform off a phone whatever else is passed, every CSS rule is keyed off
  * `html[data-touch-ui][data-phone-gpu]`, and `setLaunchCovered` / the fade's cancel are gated on PHONE_GPU.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import postcss from 'postcss';
 import { afterEach, describe, expect, it } from 'vitest';
-import { zoomedStage } from './stage';
+import { stageModeFor } from './stage';
 import { setLaunchCovered } from './hero-select/HeroLaunchCurtain';
 
 const src = (f: string): string => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
-describe('the stage zoom in games (phone only)', () => {
-  it('desktop never zooms, whatever the probe or the switches say', () => {
-    for (const menus of [true, false]) for (const std of [true, false]) {
-      expect(zoomedStage(false, menus, { zoom: 1 }, std)).toBe(false);
-      expect(zoomedStage(false, menus, {}, std)).toBe(false);
+describe('the stage in games (phone only)', () => {
+  it('desktop always takes the transform, whatever the switches say', () => {
+    for (const menus of [true, false]) {
+      expect(stageModeFor(false, menus, { zoom: 1 })).toBe('transform');
+      expect(stageModeFor(false, menus, {})).toBe('transform');
     }
   });
-  it('a phone zooms hero select and the run only when the zoom-geometry probe passes', () => {
-    expect(zoomedStage(true, false, {}, true)).toBe(true);
-    expect(zoomedStage(true, false, {}, false)).toBe(false);
+  it('a phone page-scales hero select and the run (R-PHONE-PAGESCALE-01), never the stage transform by default', () => {
+    expect(stageModeFor(true, false, {})).toBe('page');
   });
-  it('gamexf keeps the games on the transform; zoom forces the zoom; the menus are unchanged', () => {
-    expect(zoomedStage(true, false, { gamexf: 1 }, true)).toBe(false);
-    expect(zoomedStage(true, false, { zoom: 1 }, false)).toBe(true);
-    expect(zoomedStage(true, true, {}, false)).toBe(true);
-    expect(zoomedStage(true, true, { gamexf: 1 }, true)).toBe(true);
-    expect(zoomedStage(true, true, { nozoom: 1 }, true)).toBe(false);
+  it('gamexf keeps the games on the transform; zoom forces the old CSS zoom; the menus are unchanged', () => {
+    expect(stageModeFor(true, false, { gamexf: 1 })).toBe('transform');
+    expect(stageModeFor(true, false, { zoom: 1 })).toBe('zoom');
+    expect(stageModeFor(true, true, {})).toBe('page');
+    expect(stageModeFor(true, true, { gamexf: 1 })).toBe('page');
+    expect(stageModeFor(true, true, { nozoom: 1 })).toBe('transform');
   });
-  it('stage.ts asks the probe only off the menus, and only on a phone', () => {
-    expect(src('stage.ts')).toMatch(/if \(!PHONE_GPU\) return false;\s*\n\s*return zoomedStage\(PHONE_GPU, menuZoom, PHONE_DIAG, menuZoom \? false : zoomGeometryIsStandard\(\)\);/);
+  it('stage.ts asks for the mode only on a phone', () => {
+    expect(src('stage.ts')).toMatch(/return PHONE_GPU \? stageModeFor\(true, menuZoom, PHONE_DIAG\) : 'transform';/);
   });
 });
 

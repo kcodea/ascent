@@ -17,7 +17,7 @@
  * The size is a LOCAL preference (Settings, "Touch UI size", shown on touch devices only), defaulting by device: a phone
  * gets Larger, a tablet Large. Normal keeps the desktop proportions (the hit slop and the text-entry lift still apply).
  */
-import { onStageChange, stageFit, windowSize, type StageFit } from './stage';
+import { onStageChange, screenSize, stageFit, type StageFit } from './stage';
 import { isTouchDevice } from './touchInput';
 
 export type TouchUiSize = 'normal' | 'large' | 'larger';
@@ -99,8 +99,9 @@ const TOUCH_VARS = ['--touch-k', '--touch-p', '--touch-inv-s', '--touch-card', '
 /** Write the state onto `<html>` (or clear every trace of it on a mouse device). */
 export function applyTouchUi(fit: StageFit = stageFit()): TouchUiState {
   if (typeof document === 'undefined') return current;
-  const { w, h } = windowSize();
-  const next = touchUiState(isTouchDevice(), fit, readTouchUiSize(), w, h);
+  const { w, h } = screenSize();
+  // The SCREEN scale (how large the game is drawn): on the page scale (R-PHONE-PAGESCALE-01) the stage scale is 1.
+  const next = touchUiState(isTouchDevice(), { s: fit.vs ?? fit.s }, readTouchUiSize(), w, h);
   current = next;
   const de = document.documentElement;
   if (next.on) {

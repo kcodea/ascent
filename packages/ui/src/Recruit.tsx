@@ -252,8 +252,8 @@ import { publicArt } from './phoneArt';
 import { crumbLight } from './crashLog';
 import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, wipeExiting, wipeSweeping, wipeUp, type WipeState } from './wipeMachine';
 import { getScreenWipeConfig, wipeCssVars } from './screenWipeConfig';
-import { stageHost, toStage, toScreen, rectToStage, stageScale, phoneLayoutOn } from './stage';
-import { aimReleaseResolves, longPressActive, TAP_SLOP } from './touchInput';
+import { stageHost, toStage, toScreen, rectToStage, stageScale, phoneLayoutOn, pageScale } from './stage';
+import { aimReleaseResolves, longPressActive, tapSlopPx } from './touchInput';
 import { touchBuyLine, touchUi } from './touchUi';
 import { GOD_ROUND_KEY, GodRoundPrompt, loadGodRound } from './godMode/GodRoundPrompt';
 import { findGodBoard, liveGodBoardDeps } from './godMode/godBoards';
@@ -677,7 +677,8 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     const engine = new ChargeMotes(canvas);
     const gr = glyph.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
     const glyphCssW = gr.width, glyphCssH = gr.height;
-    engine.resize(cr.width, cr.height, Math.min(window.devicePixelRatio || 1, 2));
+    // Backing px = the canvas's ON-SCREEN size x DPR: on the page scale (R-PHONE-PAGESCALE-01) a rect is layout px.
+    engine.resize(cr.width, cr.height, Math.min(window.devicePixelRatio || 1, 2) * pageScale());
     engine.reset();
     let raf = 0, last = performance.now();
     const loop = (t: number): void => {
@@ -4481,7 +4482,7 @@ export function Recruit() {
     // A finger always wobbles: below TAP_SLOP a touch stays a TAP (inspect / pick), never a micro-drag. Mouse keeps
     // the DEV-tuned threshold (0 = engage at once). Screen px on purpose: the slop is a physical distance.
     // A fired LONG-PRESS (Inspect / emotes, R-TOUCH-LONGPRESS-01) owns the rest of that finger: no drag starts under it.
-    const dragThreshold = (): number => (touch ? (longPressActive() ? Infinity : Math.max(TAP_SLOP, getDragFeel().threshold)) : getDragFeel().threshold);
+    const dragThreshold = (): number => (touch ? (longPressActive() ? Infinity : Math.max(tapSlopPx(), getDragFeel().threshold)) : getDragFeel().threshold);
     endSessionRef.current?.(); // never two sessions at once
     const token = ++dragSessionSeq.current;
     dragStore.pos = null;

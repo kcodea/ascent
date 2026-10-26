@@ -18,7 +18,8 @@
  * Cards are never slop TARGETS (they are big, and a card's gesture is a drag), but a tap on a card is a direct hit.
  * Hit testing reads rects once per missed tap, never per frame.
  */
-import { TAP_SLOP, isTap } from './touchInput';
+import { isTap, tapSlopPx } from './touchInput';
+import { pageScale } from './stage';
 
 /** The minimum touch target, screen px (Apple HIG / Material: 44 to 48). */
 export const TOUCH_TARGET_PX = 44;
@@ -108,7 +109,9 @@ export function gatherCandidates(x: number, y: number, min = TOUCH_TARGET_PX): S
 /** The control a missed tap at (x, y) on `target` should go to, or null (a direct hit, or nothing near). */
 export function resolveTouchTarget(target: Element | null, x: number, y: number): HTMLElement | null {
   if (isDirectHit(target)) return null;
-  return pickSlopTarget(x, y, gatherCandidates(x, y))?.item ?? null;
+  // The 44 px target is SCREEN px: on the page scale (R-PHONE-PAGESCALE-01) the coordinates are layout px.
+  const min = TOUCH_TARGET_PX / pageScale();
+  return pickSlopTarget(x, y, gatherCandidates(x, y, min), min)?.item ?? null;
 }
 
 const SYNTH = '__slopSynthetic';
@@ -152,7 +155,7 @@ export function installTouchSlop(enabled: () => boolean): () => void {
   };
   const onMove = (e: PointerEvent): void => {
     if (!retarget || isSynth(e) || e.pointerId !== pid || cancelled) return;
-    if (!isTap(x0, y0, e.clientX, e.clientY, TAP_SLOP)) {
+    if (!isTap(x0, y0, e.clientX, e.clientY, tapSlopPx())) {
       // A drag or a scroll, not a tap: the replayed press is cancelled and the real gesture carries on.
       cancelled = true;
       replay('pointercancel', retarget, e);

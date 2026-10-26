@@ -1208,10 +1208,14 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   place 1 and 2 in a 2v2"): the winning team is 1st (both players), the losing team 2nd (both). XP: 125 for each winner,
   50 for each loser. Teams are kept as their own record (id, hearts, placement), so a future 4-team Duos places teams
   1st to 4th the same way.
-- **Passing.** During the shop a player may drag a minion or a spell from their hand or board onto their teammate's
-  portrait to give it to them, for 1 Gold. It arrives in the teammate's hand with everything it carried (stats,
-  keywords, enchantments, Gilded) and cannot be passed again that turn. Passing closes at your own End Turn and when
-  the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
+- **Passing.** During the shop a player may drag a minion or a spell from their **hand** onto their teammate's
+  portrait to give it to them, for 1 Gold. **Hand only** (owner 2026-10-25: "you aren't supposed to be able to pass a
+  card off your board, only from hand"): a board minion dragged over the portrait gets no pass glow and drops like any
+  board drag, and the run and the server refuse a board pass. It arrives in the teammate's hand with everything it
+  carried (stats, keywords, enchantments, Gilded). **It can be passed straight back** (owner 2026-10-25: "you should be
+  able to pass cards back to your teammate"), and a card can be passed again later the same turn: every pass costs its
+  own 1 Gold. The server caps passes at 10 per player per round (an anti-spam limit). Passing closes at your own End
+  Turn and when the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
   the refusal and the card stays yours, and you are not charged. If the teammate's hand fills up while the pass is on
   its way, it is refused when it arrives and the card and the Gold come back to you. Arriving is "a card added to your
   hand" like any other. Runes, Equipment, quests and the Starform cannot be passed.
@@ -1219,7 +1223,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   (30 s, then the absent player's last locked board plays on auto); three auto rounds in a row put the team out. A
   teammate who is away cannot be passed to: their portrait reads "Away" and a drop is refused ("Your teammate is away").
   A pass that comes back to you (their hand was full, the clock) says so on the portrait. A reload keeps every pass
-  exactly once (the restored run lines its passes up with the server by card and round).
+  exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
+  and round, then replays the round's passes both ways in the order the server recorded them, so a card passed back
+  and forth (A to B to A) lands once per pass and every pass is paid once.
 - **Spectating a Duos match.** The fight picker lists the players by team ("Team 1", "Team 2"), and a watched player's
   screen shows the hand-off from their side: both hero slots follow the boards.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
@@ -1229,8 +1235,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   portrait), the next board's minions fly in from their team's edge of the screen one after another, and BOTH hero slots
   follow the boards: the opponent portrait becomes whoever is fighting now, and your own slot shows your teammate while
   their board fights on your side. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left. **Passing:** drag a
-  hand or board card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not
-  ("Their hand is full", "You need 1 Gold", "Just passed to you", "Passing is closed"); a refused drop springs back. On
+  hand card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not
+  ("Their hand is full", "You need 1 Gold", "Your teammate is away", "Passing is closed"); the held card's own border
+  glows the same (teal when releasing will pass, red when it will not; owner 2026-10-25); a refused drop springs back. On
   release the card DROPS into their portrait, turning face down, with one of your coins following it in from your Gold;
   the portrait pops as it catches it. On their screen the card comes out of YOUR portrait (bottom right for them), flies
   into their hand and lands face up. **Watching your teammate:** click their portrait (their rail row works too, or hold

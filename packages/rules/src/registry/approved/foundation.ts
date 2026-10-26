@@ -8680,18 +8680,23 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-DUOS-PASS-01',
-    title: 'Versus Duos passing: give a hand or board card to your teammate for 1 Gold, once per card per turn',
+    title: 'Versus Duos passing: give a HAND card to your teammate for 1 Gold; it can be passed straight back',
     statement:
-      'In Versus Duos a player may pass a minion or a spell from their hand or board to their teammate during the shop, for 1 Gold (the '
-      + 'sender pays, as any Gold spend). The card arrives in the teammate\x27s hand with everything it carried: stats, keywords, enchantments, '
-      + 'Gilded. A card that arrived by a pass cannot be passed again that turn. Passing closes at your own End Turn and when the shop clock '
+      'In Versus Duos a player may pass a minion or a spell from their HAND to their teammate during the shop, for 1 Gold (the '
+      + 'sender pays, as any Gold spend). Never from the board: a board minion dragged over the teammate portrait gets no pass glow and '
+      + 'drops like any board drag, the run refuses a board pass and the server refuses any pass not marked as leaving the hand. The card '
+      + 'arrives in the teammate\x27s hand with everything it carried: stats, keywords, enchantments, Gilded. A card that arrived by a pass '
+      + 'CAN be passed straight back, and any card can be passed again later the same turn: every pass is its own pass and costs its own '
+      + '1 Gold. Passing closes at your own End Turn and when the shop clock '
       + 'runs out. A pass to a full hand is refused: the sender keeps the card and is not charged; if the hand fills while the pass is on '
       + 'its way, it is refused on arrival and the card and the Gold go back to the sender. Arriving in hand is a card added to the hand '
       + 'like any other. The server records each pass exactly once, only between teammates, at most 10 per player per round. '
       + 'A teammate who is away (their board plays on auto, or the match is paused for them) cannot be passed to: the portrait says '
       + '"Away" and a drop is refused with "Your teammate is away" (the server refuses it too). A pass that comes back (a full hand, '
-      + 'the clock) says so on the portrait, "You got it back". After a reload the sender\x27s restored passes line up with the '
-      + 'server\x27s by card and round, never by position, so a card is never passed twice.',
+      + 'the clock) says so on the portrait, "You got it back". After a reload the restored run lines its passes up with the server\x27s by '
+      + 'card (uid and the pass it last arrived through) and round, never by position, then replays the round\x27s passes both ways in the '
+      + 'order the server recorded them, finding a re-landed card by the pass it came through: a card passed A to B to A lands exactly '
+      + 'once per pass and every pass is paid once, never duplicated and never lost.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8699,16 +8704,20 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (rulings)', quote: 'passing should cost 1 gold' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (full hand)', quote: 'Pass is refused if hand is full.' },
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (bottom-right portrait)', quote: 'dragging a minion over their portrait should have it glow that teal/blue glow to showcase it is going to pass, then it \x27drops\x27 into their portrait kinda' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (passing back)', quote: 'you should be able to pass cards back to your teammate' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (hand only)', quote: 'you aren\x27t supposed to be able to pass a card off your board, only from hand.' },
+      { kind: 'code', ref: 'fix/duos-pass-back: packages/sim/src/duosPass.ts (duosPassBlocked hand only, passKey, duosWireCard); packages/ui/src/versus/duosPasses.ts (lineUpOutbox by uid + passKey, replayRestore); supabase/migrations/2026-10-25-versus-duos-pass-back.sql (passFrom hand check, cap 10 kept)' },
       { kind: 'code', ref: 'phase 3 (live 4-account test 2026-10-25): packages/ui/src/versus/duosPasses.ts (lineUpOutbox, sayReturned); packages/ui/src/versus/duosPassUi.ts (mateAway); supabase/migrations/2026-10-25-versus-duos-edges.sql (teammate_away)' },
       { kind: 'code', ref: 'packages/sim/src/duosPass.ts (passCard / receivePass / passRefunded); supabase/migrations/2026-10-25-versus-duos.sql (versus_duos_passes, versus_duos_pass, versus_duos_hand_room, versus_duos_answer_pass)' },
     ],
     currentBehaviour: 'Run actions + server built 2026-10-25 (phase 1). Phase 2 (owner direction 2026-10-25): the pass target is the teammate portrait BOTTOM RIGHT. '
-      + 'While a dragged card hovers it the portrait glows teal (a pass) or shows a red ring and the reason (refused: full hand, no Gold, '
-      + 'closed, just passed to you). On release the card drops INTO the portrait, turning face down, with one coin following it from the '
+      + 'While a dragged hand card hovers it the portrait glows teal (a pass) or shows a red ring and the reason (refused: full hand, no Gold, '
+      + 'away, closed). Changed 2026-10-25 (fix/duos-pass-back): the "Just passed to you" refusal is gone (a card can go straight back), and '
+      + 'board cards no longer pass (they used to). On release the card drops INTO the portrait, turning face down, with one coin following it from the '
       + 'Gold, and the portrait pops; on the teammate\x27s screen the card comes OUT of the sender\x27s portrait (bottom right there) and flies into '
       + 'their hand, landing face up. Transform and opacity only, one-shot. Not a coalesce.',
-    example: 'Ann has 3 Gold and drags a Gilded Taunt from her board to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob cannot send it straight back this turn.',
-    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/duosPassesRestore.test.ts'], lastVerifiedAt: '2026-10-25' },
+    example: 'Ann has 3 Gold and drags a Gilded Taunt from her hand to Bob\x27s portrait: she has 2 Gold left and Bob gets the Gilded Taunt in his hand. Bob sends it straight back (he pays 1 Gold) and Ann passes it to him again (another 1 Gold): Bob ends with it, Ann with 1 Gold. Ann reloads mid-way: her hand and Gold come back exactly as they were. A minion on Ann\x27s board dragged over Bob\x27s portrait does not glow and never passes.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusDuos.test.ts', 'packages/sim/src/versus/versusDuos.db.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx', 'packages/ui/src/versus/duosPassesRestore.test.ts', 'packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-DUOS-DEVTUNER-01',
@@ -8753,7 +8762,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-DUOS-PASS-03',
     title: 'Versus Duos: a pass happens only when the card is released over the teammate portrait frame',
     statement:
-      'A hand or board card is passed only when the player RELEASES it (mouse button up, or the finger lifted) while the pointer is over the '
+      'A hand card is passed only when the player RELEASES it (mouse button up, or the finger lifted) while the pointer is over the '
       + 'teammate portrait\x27s visible frame, the round disc bottom right. Hovering over it only shows the glow (or the refusal); moving away and '
       + 'releasing elsewhere, releasing near it or in the corners of its box, over the board or over the teammate\x27s rail row never passes: the '
       + 'drag resolves as it would anywhere else. A cancelled touch never passes.',
@@ -8765,6 +8774,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     ],
     currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-polish). Before: the hit area was the square box around the disc and a pointercancel over it could pass.',
     example: 'Ann drags a minion over Bob\x27s portrait (it glows), changes her mind and lets go over the board: the minion is played, nothing is passed.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
+    id: 'R-DUOS-PASS-04',
+    title: 'Versus Duos: the held card\x27s border glows teal over the teammate portrait when it will pass, red when it will not',
+    statement:
+      'While a HAND card is held over the teammate portrait\x27s frame, the held card\x27s own border (its plate) glows: TEAL when releasing '
+      + 'there will pass it (every check passes), RED when it will not (not enough Gold, the teammate\x27s hand is full, the teammate is away, '
+      + 'passing is closed), matching the portrait\x27s teal glow or its red ring and reason pill. Off the portrait there is no pass glow. A '
+      + 'board minion never gets it (board cards cannot pass). The glow is a static shadow whose opacity alone moves (no animated shadow or '
+      + 'filter).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (held card glow)', quote: 'when holding a card over your teammate where it\x27ll pass, have the card\x27s border glow blue/green' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-25 (held card glow, refused)', quote: 'if you dont have enough gold to pass, or if their hand is full, have it glow red, signalling that you cant' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (DragOverlay: the .dragcard pass-ok / pass-no class from dragStore.passOver, hand drags only); packages/ui/src/versus/versus.css (.dragcard.pass-ok / .pass-no .plateglow)' },
+    ],
+    currentBehaviour: 'Built 2026-10-25 (fix/duos-pass-back).',
+    example: 'Ann has 0 Gold and holds a spell over Bob\x27s portrait: the spell\x27s border glows red and the portrait says "You need 1 Gold". With 1 Gold the border glows teal and letting go passes it.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosPassRelease.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {

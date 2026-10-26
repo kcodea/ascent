@@ -10,7 +10,7 @@
  *  - HAND ROOM: my free hand slots, reported whenever they change, so the server refuses a pass to a full hand up front.
  * Network only off the hot path: nothing here runs per frame; a shop click never waits on it.
  */
-import { handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
+import { duosWireCard, handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
 import { oppHandBackSrc } from '../oppHandModel';
 import { publicArt } from '../phoneArt';
@@ -64,7 +64,7 @@ export function duosAfterRun(matchId: string, me: VersusGroupSeat, run: RunState
     const seq = seqFor(s, idx);
     s.inFlight.add(idx);
     lastRefusal = null;
-    void versusRemote.duosPass(matchId, e.wave, seq, stripCard(e.card)).then(() => {
+    void versusRemote.duosPass(matchId, e.wave, seq, duosWireCard(e.card)).then(() => {
       s.shipped.add(idx);
     }).catch((err: unknown) => {
       const code = err instanceof VersusError ? err.code : '';
@@ -94,35 +94,38 @@ const idxFor = (s: DuosSession, seq: number): number | null => {
 
 /**
  * HOW MY RESTORED OUTBOX LINES UP WITH THE SERVER'S ROWS (pure). Matched by IDENTITY, never by position: an entry and a
- * row are the same pass when they carry the same card (uid) in the same round, and a row the receiver refused pairs
- * with a refunded entry while a sent or landed row pairs with one that was not. (By position was wrong: a pass the
- * server refused up front never gets a row, so every later entry slid onto the wrong row and a restored run could pass
- * a card twice; found in the phase-3 live test, 2026-10-25.)
+ * row are the same pass when they carry the same card in the same round, where the card is its uid AND the pass key it
+ * last arrived through (`passKey`, absent on a card I never received), and a row the receiver refused pairs with a
+ * refunded entry while a sent or landed row pairs with one that was not. (By position was wrong: a pass the server
+ * refused up front never gets a row, so every later entry slid onto the wrong row and a restored run could pass a card
+ * twice; found in the phase-3 live test, 2026-10-25. The pass key keeps a card passed back and forth in one round,
+ * A->B->A, one pass per row: owner 2026-10-25, "you should be able to pass cards back to your teammate".)
  *  - `seqOf`: outbox index -> the server seq it already is;
  *  - `repass`: rows the server holds that my restored run has no entry for (played again on my run when the card is
  *    still here, so the card leaves and the Gold is paid as it was the first time);
  *  - `unsent`: entries the server never recorded and never refused (they still go out, under fresh numbers).
  */
-export function lineUpOutbox(
-  outbox: readonly { wave: number; card: { uid?: unknown }; refunded?: true }[],
-  rows: readonly Pick<VersusDuosPassRow, 'seq' | 'round' | 'card' | 'status'>[],
-): { seqOf: Map<number, number>; repass: Pick<VersusDuosPassRow, 'seq' | 'round' | 'card' | 'status'>[]; unsent: number[] } {
+type LineUpRow = Pick<VersusDuosPassRow, 'seq' | 'round' | 'card' | 'status'> & { created_at?: string };
+export function lineUpOutbox<R extends LineUpRow>(
+  outbox: readonly { wave: number; card: { uid?: unknown; passKey?: unknown }; refunded?: true }[],
+  rows: readonly R[],
+): { seqOf: Map<number, number>; repass: R[]; unsent: number[] } {
   const seqOf = new Map<number, number>();
-  const repass: Pick<VersusDuosPassRow, 'seq' | 'round' | 'card' | 'status'>[] = [];
+  const repass: R[] = [];
   const sorted = [...rows].sort((a, b) => a.seq - b.seq);
   for (const r of sorted) {
     const uid = typeof r.card.uid === 'string' ? r.card.uid : null;
+    const key = keyOf(r.card);
     const refusedRow = r.status === 'refused';
+    const same = (e: (typeof outbox)[number]): boolean => e.wave === r.round && e.card.uid === uid && keyOf(e.card) === key;
     let hit = -1;
     for (let i = 0; i < outbox.length && hit < 0; i++) {
       const e = outbox[i]!;
-      if (seqOf.has(i) || e.wave !== r.round || e.card.uid !== uid) continue;
-      if (!!e.refunded === refusedRow) hit = i;
+      if (!seqOf.has(i) && same(e) && !!e.refunded === refusedRow) hit = i;
     }
     // A row still 'sent' whose entry my run already refunded (the answer crossed the reload): the same pass.
     if (hit < 0) for (let i = 0; i < outbox.length && hit < 0; i++) {
-      const e = outbox[i]!;
-      if (!seqOf.has(i) && e.wave === r.round && e.card.uid === uid) hit = i;
+      if (!seqOf.has(i) && same(outbox[i]!)) hit = i;
     }
     if (hit >= 0) seqOf.set(hit, r.seq); else repass.push(r);
   }
@@ -131,33 +134,104 @@ export function lineUpOutbox(
   return { seqOf, repass, unsent };
 }
 
-/** RESTORE (a reload mid-match): line my run's outbox up with the passes the server already holds from me. */
+const keyOf = (card: { passKey?: unknown }): string | null => (typeof card.passKey === 'string' ? card.passKey : null);
+
+/** A server timestamp in microseconds (Postgres text keeps them: `2026-10-25T12:00:00.12345+00:00`), for the replay
+ *  order. Null when absent or unreadable (the replay then falls back to round and seq). */
+export function atMicros(at: unknown): number | null {
+  if (at instanceof Date) return at.getTime() * 1000;
+  if (typeof at !== 'string' || !at) return null;
+  const m = /^([^.]*?)(?:\.(\d+))?(Z|[+-]\d\d(?::?\d\d)?)?$/.exec(at.replace(' ', 'T'));
+  if (!m) return null;
+  const whole = Date.parse(`${m[1]}${m[3] ?? 'Z'}`);
+  if (!Number.isFinite(whole)) return null;
+  return whole * 1000 + Number(`${m[2] ?? ''}000000`.slice(0, 6));
+}
+
+type ReplayAction =
+  | { type: 'receivePass'; from: string; seq: number; card: BoardCard }
+  | { type: 'passCard'; uid: string }
+  | { type: 'passRefunded'; seq: number };
+
+/**
+ * THE RESTORE REPLAY (pure over the injected run access; a reload mid-match). My run came back from its last lock, so
+ * this round's passes, both ways, are missing from it. Line my outbox up with my rows (`lineUpOutbox`), then replay the
+ * round in the ORDER THE SERVER RECORDED IT: a teammate's pass lands (`receivePass`; a refused row never lands, its
+ * sender already got the card back), and one of mine is played again (`passCard`, so the card leaves and the Gold is
+ * paid; a receiver-refused one is refunded at once, so the card is there for a later pass of it). The card a row names
+ * is found by the pass key it arrived through when it has one (a restored run gives a re-landed card a fresh uid), else
+ * by its uid among the cards I never received. So A->B->A->B lands exactly once per hop after a reload, with each hop's
+ * Gold paid once: nothing duplicates, nothing vanishes (owner 2026-10-25, passing back).
+ */
+export function replayRestore(
+  getRun: () => RunState,
+  act: (a: ReplayAction) => void,
+  me: VersusGroupSeat,
+  rows: readonly VersusDuosPassRow[],
+): { seqOf: Map<number, number>; shipped: Set<number>; next: number; answers: { from: VersusGroupSeat; seq: number; landed: boolean }[] } {
+  const mine = rows.filter((r) => r.from_seat === me);
+  const plan = lineUpOutbox(getRun().duos?.outbox ?? [], mine);
+  let next = mine.length ? Math.max(...mine.map((r) => r.seq)) + 1 : 0;
+  const seqOf = new Map<number, number>();
+  const shipped = new Set<number>();
+  for (const [i, q] of plan.seqOf) { seqOf.set(i, q); shipped.add(i); }
+  // Entries the server never saw keep their place in line, under fresh numbers.
+  for (const i of plan.unsent) seqOf.set(i, next++);
+  // Refunded entries with no row (refused up front) are done.
+  (getRun().duos?.outbox ?? []).forEach((e, i) => { if (!seqOf.has(i) && e.refunded) shipped.add(i); });
+  const answered = (r: VersusDuosPassRow): boolean => {
+    const d = getRun().duos;
+    const key = `${r.from_seat}:${r.seq}`;
+    return !d || d.received.includes(key) || d.refused.includes(key);
+  };
+  const at = (r: VersusDuosPassRow): number => atMicros(r.created_at) ?? 0;
+  const events = [
+    ...rows.filter((r) => r.to_seat === me && r.status !== 'refused' && !answered(r)).map((r) => ({ r, inbound: true })),
+    ...plan.repass.map((r) => ({ r, inbound: false })),
+  ].sort((a, b) => a.r.round - b.r.round || at(a.r) - at(b.r) || (a.inbound === b.inbound ? a.r.seq - b.r.seq : a.inbound ? -1 : 1));
+  const answers: { from: VersusGroupSeat; seq: number; landed: boolean }[] = [];
+  for (const { r, inbound } of events) {
+    if (inbound) {
+      if (answered(r)) continue;
+      act({ type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard });
+      const d = getRun().duos;
+      const key = `${r.from_seat}:${r.seq}`;
+      const landed = !!d?.received.includes(key);
+      if (r.status === 'sent' && (landed || d?.refused.includes(key))) answers.push({ from: r.from_seat, seq: r.seq, landed });
+      continue;
+    }
+    const live = getRun();
+    if (r.round !== live.wave) continue;
+    const key = keyOf(r.card);
+    const uid = typeof r.card.uid === 'string' ? r.card.uid : null;
+    const card = key ? live.hand.find((c) => c.passKey === key) : live.hand.find((c) => c.uid === uid && !c.passKey);
+    if (!card) continue;
+    const before = live.duos?.outbox.length ?? 0;
+    act({ type: 'passCard', uid: card.uid });
+    if ((getRun().duos?.outbox.length ?? 0) <= before) continue;
+    seqOf.set(before, r.seq);
+    shipped.add(before);
+    if (r.status === 'refused') act({ type: 'passRefunded', seq: before });
+  }
+  return { seqOf, shipped, next, answers };
+}
+
+/** RESTORE (a reload mid-match): line my run's outbox up with the passes the server already holds, both ways. */
 async function reconcile(s: DuosSession): Promise<void> {
   s.reconciling = true;
   try {
-    const rows = (await versusRemote.duosPasses(s.matchId, 1)).filter((r) => r.from_seat === s.me);
+    const rows = await versusRemote.duosPasses(s.matchId, 1);
     if (ses !== s) return;
-    const plan = lineUpOutbox(useGame.getState().run.duos?.outbox ?? [], rows);
-    let next = rows.length ? Math.max(...rows.map((r) => r.seq)) + 1 : 0;
-    for (const [i, q] of plan.seqOf) { s.seqOf.set(i, q); s.shipped.add(i); }
-    // Entries the server never saw keep their place in line, under fresh numbers.
-    for (const i of plan.unsent) s.seqOf.set(i, next++);
-    // Refunded entries with no row (refused up front) are done.
-    (useGame.getState().run.duos?.outbox ?? []).forEach((e, i) => { if (!s.seqOf.has(i) && e.refunded) s.shipped.add(i); });
-    for (const r of plan.repass) {
-      const uid = typeof r.card.uid === 'string' ? r.card.uid : null;
-      const live = useGame.getState().run;
-      const here = !!uid && [...live.hand, ...live.board].some((c) => c.uid === uid);
-      if (!here || r.round !== live.wave) continue;
-      const before = live.duos?.outbox.length ?? 0;
-      dispatch({ type: 'passCard', uid: uid! });
-      const after = useGame.getState().run.duos?.outbox.length ?? 0;
-      if (after > before) { s.seqOf.set(before, r.seq); s.shipped.add(before); }
-    }
+    const res = replayRestore(() => useGame.getState().run, dispatch, s.me, rows);
+    for (const [i, q] of res.seqOf) s.seqOf.set(i, q);
+    for (const i of res.shipped) s.shipped.add(i);
+    for (const a of res.answers) void versusRemote.duosAnswerPass(s.matchId, a.from, a.seq, a.landed).catch(() => undefined);
     s.firstNew = useGame.getState().run.duos?.outbox.length ?? 0;
-    s.base = next;
+    s.base = res.next;
     s.ready = true;
   } catch { /* retried on the next run change */ } finally { s.reconciling = false; }
+  // Anything recorded while the replay ran (the pull waits for the replay: it must never land a pass out of order).
+  if (s.ready && ses === s) void duosPull(s.matchId, s.me, useGame.getState().run.wave);
 }
 
 /** A pass arrived or was answered (a realtime wake, or a match refresh): land / refund what is new. */
@@ -176,13 +250,16 @@ export async function duosPull(matchId: string, me: VersusGroupSeat, round: numb
 }
 
 function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
+  // Until the restore replay has run, nothing lands here: it lands this round's passes itself, in the server's order.
+  if (!s.ready) return;
   for (const r of rows) {
     const run = useGame.getState().run;
     if (!run.duos) return;
     if (r.to_seat === s.me) {
       const key = `${r.from_seat}:${r.seq}`;
       const answered = run.duos.received.includes(key) || run.duos.refused.includes(key);
-      if (!answered) {
+      // A row my run already refused (before a reload) never lands: its sender has that card back.
+      if (!answered && r.status !== 'refused') {
         const before = new Set(run.hand.map((c) => c.uid));
         dispatch({ type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard });
         // The lob in (R-DUOS-PASS-01): the card drops out of my teammate's portrait into my hand.
@@ -194,7 +271,7 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
         const landed = !!after?.received.includes(key);
         if (landed || after?.refused.includes(key)) void versusRemote.duosAnswerPass(s.matchId, r.from_seat, r.seq, landed).catch(() => undefined);
       }
-    } else if (r.from_seat === s.me && r.status === 'refused' && s.ready) {
+    } else if (r.from_seat === s.me && r.status === 'refused') {
       const idx = idxFor(s, r.seq);
       const e = idx == null ? undefined : run.duos.outbox[idx];
       if (e && !e.refunded) { lastRefusal = { seq: idx!, reason: 'hand_full' }; dispatch({ type: 'passRefunded', seq: idx! }); sayReturned('hand_full'); }
@@ -202,12 +279,6 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
   }
 }
 
-/** The card as it travels: its own fields only (run-scoped presentation scratch never rides along). */
-function stripCard(card: BoardCard): BoardCard {
-  const { passedWave: _p, ...rest } = card;
-  void _p;
-  return rest as BoardCard;
-}
 
 /** Leaving the match. */
 export function duosReset(): void { ses = null; lastRefusal = null; }

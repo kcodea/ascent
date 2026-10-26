@@ -14,7 +14,7 @@
 import { makeRng, type CombatResult, type Rng } from '@game/core';
 import type { SetId } from '@game/content';
 import {
-  CONFIG, catchUpVersusRun, createVersusRun, handCap, legalModalAnswers, modalOpen, normalizeVersusOptions, offerBuyPrice, reduce, versusAutoResolve, versusHeroOffer,
+  CONFIG, catchUpVersusRun, createVersusRun, duosPassBlocked, duosWireCard, handCap, legalModalAnswers, modalOpen, normalizeVersusOptions, offerBuyPrice, reduce, versusAutoResolve, versusHeroOffer,
   type Action, type BoardCard, type RunState, type VersusGroupSeat, type VersusSeat,
   versusScoutOf,
 } from '@game/sim';
@@ -300,15 +300,21 @@ export class VersusBotDriver {
     return true;
   }
 
-  /** DEV (Duos): the bot passes `uid` (or a random hand / board card) to its teammate through the real run action; the
-   *  next pass sync ships it. Null = passed; otherwise why not (the run's own refusal). */
+  /** DEV (Duos): the bot passes `uid` (or a random HAND card: passing is hand only, owner 2026-10-25) to its teammate
+   *  through the real run action; the next pass sync ships it. Null = passed; otherwise why not (the run's own refusal
+   *  reason from `duosPassBlocked`, or 'refused' when the reducer still declined). A choice the bot's shop has open (a
+   *  Discover, a hero's turn-1 pick) would refuse every shop action, so it is answered first, as the bot's own step
+   *  answers it. */
   forcePass(uid?: string): string | null {
-    const run = this.run;
+    let run = this.run;
     if (!run?.duos) return 'not_duos';
     if (run.phase !== 'recruit') return 'phase';
-    const cards = [...run.hand, ...run.board].filter((c) => c.passedWave !== run.wave);
+    if (modalOpen(run)) run = versusAutoResolve(run, this.rng);
+    const cards = run.hand; // hand only (owner 2026-10-25); a card just passed in can go straight back
     const pick = uid ?? cards[this.rng.int(Math.max(1, cards.length))]?.uid;
     if (!pick) return 'no_card';
+    const why = duosPassBlocked(run, pick);
+    if (why) return why;
     const next = reduce(run, { type: 'passCard', uid: pick });
     if (next === run) return 'refused';
     this.run = next;
@@ -346,9 +352,7 @@ export class VersusBotDriver {
       if (this.shipped.has(e.seq) || this.inFlight.has(e.seq) || e.refunded) continue;
       this.inFlight.add(e.seq);
       try {
-        const { passedWave: _p, ...card } = e.card;
-        void _p;
-        await api.pass(m.id, e.wave, e.seq, card);
+        await api.pass(m.id, e.wave, e.seq, duosWireCard(e.card));
         this.shipped.add(e.seq);
       } catch (err) {
         const code = (err as { code?: string }).code ?? '';

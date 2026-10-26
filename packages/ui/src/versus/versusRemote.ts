@@ -174,6 +174,8 @@ export interface VersusDuosPassRow {
   card: Record<string, unknown>;
   /** 'sent' until the receiver's run answers: 'landed', or 'refused' (its hand was full). */
   status: 'sent' | 'landed' | 'refused';
+  /** When the server recorded it: a reload replays the round's passes in this order (passing back, 2026-10-25). */
+  created_at?: string;
 }
 
 /** One fight of a committed group round (`versus_group_fights`). */
@@ -476,9 +478,10 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     rpc<VersusDuosPassRow>('versus_duos_answer_pass', { p_match: matchId, p_from_seat: fromSeat, p_seq: seq, p_landed: landed }),
   /** VERSUS DUOS: my team's passes from `fromRound` on (RLS: only the two teammates read them). */
   async duosPasses(matchId: string, fromRound: number): Promise<VersusDuosPassRow[]> {
-    // rows: at most 10 passes per seat per round, two seats, read from the current round (R-NET-01).
-    const { data, error } = await db().from('versus_duos_passes').select('match_id, round, from_seat, to_seat, seq, card, status')
-      .eq('match_id', matchId).gte('round', fromRound).order('seq').limit(200);
+    // rows: at most 10 passes per seat per round (VERSUS_DUOS_PASS_CAP), two seats, read from `fromRound` (R-NET-01);
+    // a reload reads from round 1, so the cap leaves room for a long match.
+    const { data, error } = await db().from('versus_duos_passes').select('match_id, round, from_seat, to_seat, seq, card, status, created_at')
+      .eq('match_id', matchId).gte('round', fromRound).order('seq').limit(600);
     if (error) fail(error);
     return (data as VersusDuosPassRow[]) ?? [];
   },

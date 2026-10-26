@@ -149,9 +149,11 @@ export interface BoardCard {
    * start of a turn were both waiting for the same first card, so they are redundancy, not two cards' worth.
    */
   chooseBothLeft?: number;
-  /** VERSUS DUOS (R-DUOS-PASS-01): the wave this card arrived by a teammate's pass. It cannot be passed again that wave
-   *  (no passing straight back). Absent on every card that was never passed. */
-  passedWave?: number;
+  /** VERSUS DUOS (R-DUOS-PASS-01): the pass key (`<fromSeat>:<seq>`) this card last arrived through from the teammate.
+   *  Identity only, never a restriction (owner 2026-10-25: "you should be able to pass cards back to your teammate"): a
+   *  reload re-finds the card by it when the server says it was passed on again (the restored run gives it a fresh uid).
+   *  Absent on every card that was never passed. */
+  passKey?: string;
   tribe: Tribe;
   attack: number;
   health: number;

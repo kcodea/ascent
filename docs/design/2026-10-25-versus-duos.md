@@ -19,7 +19,8 @@ other bespoke mechanics (5.2 onward) are parked.
 - **Fights: tag-team**, like Hearthstone Battlegrounds Duos. One combat per round, team vs team. Your board fights
   first; when it is wiped, your teammate's board steps in against whatever survived on the other side.
 - **Health: shared team hearts.** A team loses when it hits zero.
-- **Passing: yes.** Drag a card from your hand or board onto your teammate's portrait to give it to them.
+- **Passing: yes.** Drag a card from your hand onto your teammate's portrait to give it to them (hand only since the
+  2026-10-25 ruling, rulings 6-7).
 - **Size: exactly 2v2.** 4 players, 2 teams, the current 4-seat room and server. Unrated, like Group.
 
 Standing rules that bind it: combat sides 1:1 symmetric; reuse existing UI (rail, Resolve slot, gates, hero select,
@@ -123,7 +124,7 @@ the record but nothing reads it). See open detail 4 for the alternative.
 - A **pass packet**: `{ matchId, round, from, to, seq, card }`, where `card` is the canonical card instance as it
   sits in the sender's run (`cardId`, stats, granted keywords, enchantments, golden, per-instance counters such as
   spell progress), validated by the same whitelist as a locked side's minions (`preparedSideError`).
-- Sender: a reducer action `passCard(uid)` removes the card from hand/board and records `passedOut` in the run's
+- Sender: a reducer action `passCard(uid)` removes the card from the hand (hand only, ruling 7) and records `passedOut` in the run's
   action log. Receiver: `receivePass(packet)` adds it to hand and records `passedIn`. Both are in each run's log, so
   a restore or replay reproduces them exactly (the run never reads the network on replay).
 - Transport: a `versus_duos_pass` RPC inserts into `versus_duos_passes`; the receiver reads it on its reconcile
@@ -153,8 +154,9 @@ side, as today), so it trusts the card body exactly as it trusts a locked board 
 ### Cost (owner ruling 2026-10-25: "passing should cost 1 gold")
 
 Each pass costs the SENDER 1 Gold, paid when the pass is made. No Gold: the pass is refused (the drag springs back,
-the deny buzz; the teammate's portrait shows the disabled state while you hold a card with 0 Gold). Each card once per
-turn, refused on the receiver's full hand, closed at your own End Turn. The server charges the Gold as part of the
+the deny buzz; the teammate's portrait shows the disabled state while you hold a card with 0 Gold). Any card can be
+passed back or passed again the same turn, each pass paid (ruling 6, 2026-10-25), refused on the receiver's full hand,
+closed at your own End Turn; the server caps a player at 10 passes a round. The server charges the Gold as part of the
 pass RPC's bookkeeping (it counts the passes per seat per round and refuses past the sender's Gold for that round as
 reported with the pass); the run's own reducer is the authority on the sender's Gold, as for every other shop action.
 
@@ -313,9 +315,16 @@ worry about the deep duo mechanics yet").
 3. The second board's Start of Combat, hero effects, next-combat spells and rune/quest mods: **fire on step-in**.
 4. Hearts: **1 per lost fight, 2 when the winner never needed its second board.**
 5. Attack order at step-in: **the turn pointer continues; the incoming board starts from its leftmost.**
-6. Passing: **costs 1 Gold**; each card once per turn; closes at your End Turn; **"Pass is refused if hand is full"**
-   (the sender keeps the card and is not charged; a race on arrival refunds it).
-7. What passes: **minions and spells** (stats, enchantments, Gilded); not runes, Equipment, the Starform, quests.
+6. Passing: **costs 1 Gold**; closes at your End Turn; **"Pass is refused if hand is full"** (the sender keeps the card
+   and is not charged; a race on arrival refunds it). ~~Each card once per turn~~ **SUPERSEDED (owner 2026-10-25):** "you
+   should be able to pass cards back to your teammate": a card just passed to you can go straight back and any card can
+   be passed again the same turn, each pass its own 1 Gold; the server's 10-a-round cap stays as an anti-spam limit.
+   A reload replays the round's passes in the server's order and finds a re-landed card by the pass it came through
+   (`passKey`), so A->B->A lands once per pass (`2026-10-25-versus-duos-pass-back.sql`).
+7. What passes: **minions and spells in your HAND** (stats, enchantments, Gilded); not runes, Equipment, the Starform,
+   quests. **Owner 2026-10-25:** "you aren't supposed to be able to pass a card off your board, only from hand." Board
+   minions never pass (no pass glow; the run refuses it; the server refuses a pass not marked as leaving the hand). The
+   held card's border glows teal over the portrait when releasing will pass and red when it will not.
 8. Teams: **seat pairs p1+p2 vs p3+p4**, picked by dragging to a seat.
 9. Gold and shops: **separate**.
 10. Disconnects: **as Group**; three auto rounds in a row puts the team out.

@@ -11,7 +11,7 @@ import { combatSide } from '@game/core';
 import type { BoardMinion } from '@game/core';
 import { reduce } from '../reducer';
 import { handCap, type BoardCard, type PreparedCombatSide, type RunState } from '../state';
-import { DUOS_PASS_GOLD } from '../duosPass';
+import { DUOS_PASS_GOLD, duosPassBlocked } from '../duosPass';
 import { canonicalJson } from './canonical';
 import {
   duosMateOf, duosRandomFirst, duosMemberOf, duosMemberView, duosTeamOf, duosTeamSeats, resolveVersusDuosRound, versusDuosCombatSeed,
@@ -185,17 +185,49 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(DUOS_PASS_GOLD).toBe(VERSUS_DUOS_PASS_GOLD);
   });
 
-  it('a pass costs 1 Gold, takes the card out of the hand or the board and records it as it left', () => {
+  it('a pass costs 1 Gold, takes the card out of the hand and records it as it left', () => {
     const run = duosRun();
     const a = reduce(run, { type: 'passCard', uid: 'h1' });
     expect(a.embers).toBe(2);
     expect(a.hand.map((c) => c.uid)).toEqual([]);
     expect(a.duos!.outbox).toHaveLength(1);
-    expect(a.duos!.outbox[0]).toMatchObject({ seq: 0, wave: run.wave, card: { uid: 'h1', attack: run.hand[0]!.attack } });
-    const b = reduce(a, { type: 'passCard', uid: 'b1' });
-    expect(b.board).toHaveLength(0);
-    expect(b.duos!.outbox.map((o) => o.seq)).toEqual([0, 1]);
-    expect(b.embers).toBe(1);
+    expect(a.duos!.outbox[0]).toMatchObject({ seq: 0, wave: run.wave, from: 'hand', card: { uid: 'h1', attack: run.hand[0]!.attack } });
+  });
+
+  it('"you aren\'t supposed to be able to pass a card off your board, only from hand": a board minion never passes', () => {
+    const run = duosRun();
+    expect(duosPassBlocked(run, 'b1')).toBe('board');
+    expect(reduce(run, { type: 'passCard', uid: 'b1' })).toBe(run);
+    expect(duosPassBlocked(run, 'h1')).toBeNull();
+  });
+
+  it('"you should be able to pass cards back to your teammate": ping-pong A->B->A->B, 1 Gold each time', () => {
+    // Ann (p1) and Bob (p2), each with 3 Gold. Ann passes h1; Bob receives it and sends it straight back; Ann sends it
+    // again; Bob lands it. Every pass is charged, every landing is exactly once, the card is never duplicated.
+    let ann: RunState = { ...duosRun(), hand: [duosRun().hand[0]!], board: [] };
+    let bob: RunState = { ...duosRun(), hand: [], board: [], uidSeq: 500 };
+    const ship = (from: RunState, fromSeat: string, to: RunState): [RunState, RunState] => {
+      const e = from.duos!.outbox[from.duos!.outbox.length - 1]!;
+      return [from, reduce(to, { type: 'receivePass', from: fromSeat, seq: e.seq, card: e.card })];
+    };
+    ann = reduce(ann, { type: 'passCard', uid: 'h1' });
+    [ann, bob] = ship(ann, 'p1', bob);
+    expect(bob.hand).toHaveLength(1);
+    expect(bob.hand[0]!.passKey).toBe('p1:0');
+    expect(duosPassBlocked(bob, bob.hand[0]!.uid)).toBeNull(); // no "just passed to you"
+    bob = reduce(bob, { type: 'passCard', uid: bob.hand[0]!.uid });
+    [bob, ann] = ship(bob, 'p2', ann);
+    expect([ann.hand.length, bob.hand.length]).toEqual([1, 0]);
+    ann = reduce(ann, { type: 'passCard', uid: ann.hand[0]!.uid });
+    [ann, bob] = ship(ann, 'p1', bob);
+    expect([ann.hand.length, bob.hand.length]).toEqual([0, 1]);
+    expect([ann.embers, bob.embers]).toEqual([1, 2]);
+    expect(ann.duos!.outbox.map((e) => e.seq)).toEqual([0, 1]);
+    expect(bob.duos!.received).toEqual(['p1:0', 'p1:1']);
+    expect(ann.duos!.received).toEqual(['p2:0']);
+    // The stats rode every hop; re-delivering any hop changes nothing.
+    expect(bob.hand[0]).toMatchObject({ cardId: duosRun().hand[0]!.cardId, attack: duosRun().hand[0]!.attack, passKey: 'p1:1' });
+    expect(reduce(bob, { type: 'receivePass', from: 'p1', seq: 0, card: ann.duos!.outbox[0]!.card })).toBe(bob);
   });
 
   it('no Gold, no pass', () => {
@@ -211,11 +243,15 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(got.hand).toHaveLength(1);
     const arrived = got.hand[0]!;
     expect(arrived.uid).not.toBe(card.uid);
-    expect(arrived).toMatchObject({ cardId: card.cardId, attack: card.attack, health: card.health, golden: true, keywords: ['T'], passedWave: recv.wave });
+    expect(arrived).toMatchObject({ cardId: card.cardId, attack: card.attack, health: card.health, golden: true, keywords: ['T'], passKey: 'p2:0' });
     // Re-delivered: nothing changes.
     expect(reduce(got, { type: 'receivePass', from: 'p2', seq: 0, card })).toBe(got);
-    // ...and it cannot be passed straight back this turn.
-    expect(reduce({ ...got, embers: 5 }, { type: 'passCard', uid: arrived.uid }).hand).toHaveLength(1);
+    // ...and it CAN be passed straight back (owner 2026-10-25), for its 1 Gold.
+    const back = reduce({ ...got, embers: 5 }, { type: 'passCard', uid: arrived.uid });
+    expect([back.hand.length, back.embers]).toEqual([0, 4]);
+    // The transport's hand-only marker never lands in the hand.
+    const marked = reduce(recv, { type: 'receivePass', from: 'p2', seq: 1, card: { ...card, passFrom: 'hand' } as BoardCard });
+    expect('passFrom' in marked.hand[0]!).toBe(false);
   });
 
   it('"Pass is refused if hand is full": a full hand refuses it; the sender gets the card and the Gold back', () => {
@@ -228,20 +264,20 @@ describe('passing a card (R-DUOS-PASS-01: "passing should cost 1 gold")', () => 
     expect(got.duos!.received).toEqual([]);
     // Answered once: the same pass again changes nothing, even with room now.
     expect(reduce({ ...got, hand: [] }, { type: 'receivePass', from: 'p1', seq: 3, card: base.board[0]! }).hand).toHaveLength(0);
-    // The sender: the board card goes back to its slot, the Gold and the Gold-spent tallies come back, once.
+    // The sender: the card goes back to its hand slot, the Gold and the Gold-spent tallies come back, once.
     const sender = duosRun();
-    const sent = reduce(sender, { type: 'passCard', uid: 'b1' });
-    expect([sent.embers, sent.board.length]).toEqual([sender.embers - 1, 0]);
+    const sent = reduce(sender, { type: 'passCard', uid: 'h1' });
+    expect([sent.embers, sent.hand.length]).toEqual([sender.embers - 1, 0]);
     const back = reduce(sent, { type: 'passRefunded', seq: 0 });
-    expect(back.board.map((c) => c.uid)).toEqual(['b1']);
+    expect(back.hand.map((c) => c.uid)).toEqual(['h1']);
     expect(back.embers).toBe(sender.embers);
     expect(back.goldSpentThisTurn ?? 0).toBe(sender.goldSpentThisTurn ?? 0);
     expect(back.goldSpent ?? 0).toBe(sender.goldSpent ?? 0);
     expect(back.duos!.outbox[0]!.refunded).toBe(true);
     expect(reduce(back, { type: 'passRefunded', seq: 0 })).toBe(back);
-    // A hand card goes back to the hand.
-    const h = reduce(reduce(sender, { type: 'passCard', uid: 'h1' }), { type: 'passRefunded', seq: 0 });
-    expect(h.hand.map((c) => c.uid)).toEqual(['h1']);
+    // An older checkpoint's board pass (before the hand-only ruling) still goes back to its board slot.
+    const old: RunState = { ...sender, board: [], duos: { outbox: [{ seq: 0, wave: sender.wave, card: sender.board[0]!, from: 'board', index: 0 }], received: [], refused: [] } };
+    expect(reduce(old, { type: 'passRefunded', seq: 0 }).board.map((c) => c.uid)).toEqual(['b1']);
   });
 
   it('a pass that arrives during the fight lands in the hand at once (when there is room)', () => {

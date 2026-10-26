@@ -123,7 +123,8 @@ export function VersusBotsTuner(): JSX.Element {
   const matePasses = (chosen: boolean): void => {
     if (!mate) { tunerNote('No bot teammate.'); return; }
     let uid: string | undefined;
-    if (chosen) {
+    // Passing is hand only (owner 2026-10-25): a bot with an empty hand is given the picked card to pass.
+    if (chosen || !mate.run?.hand.length) {
       mate.edit((r) => withAddedCard(r, pick, 'hand'));
       uid = mate.run?.hand[mate.run.hand.length - 1]?.uid;
     }
@@ -231,7 +232,7 @@ export function VersusBotsTuner(): JSX.Element {
               run={() => say(versusRemote.devSkipShop(match!.id), 'The shop ends in 5 seconds; passing closes at 0:00.')} />
             <Btn label="Arm full-hand race" hint="Your next pass to the bot is accepted, then its hand fills before it lands: the server refuses it and refunds you"
               run={() => { if (mate) { mate.raceArmed = true; tunerNote('Race armed: pass a card to your teammate now.'); } }} disabled={!mate} />
-            <span className="duostuner-line">Just passed to you: a card your teammate passed cannot go straight back.</span>
+            <span className="duostuner-line">Passing back: a card your teammate passed can go straight back (1 Gold). Hand cards only.</span>
           </Section>
 
           <Section title="Teammate view">

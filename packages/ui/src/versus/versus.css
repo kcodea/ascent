@@ -772,6 +772,33 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 .duosdock-no { box-shadow: 0 0 0 calc(5 * var(--u)) rgba(214, 70, 60, 0.95); }
 .duosdock.pass-no .duosdock-no { opacity: 1; }
 .duosdock.pass-no .duosdock-disc { opacity: 0.7; }
+/* THE HELD CARD over the teammate portrait (owner 2026-10-25: "when holding a card over your teammate where it'll pass,
+   have the card's border glow blue/green"; "if you dont have enough gold to pass, or if their hand is full, have it glow
+   red, signalling that you cant"). `.dragcard.pass-ok` / `.pass-no` mirror the portrait's own state (dragStore.passOver,
+   hand cards only). The ring is the card's own hover-glow layer (`.plateglow`, the PLATE's silhouette, behind the opaque
+   art) recoloured with a STATIC drop-shadow: the filter is set once when the state flips (a one-shot repaint), and only
+   the layer's OPACITY moves after that, the kwglow rule (teal breathes; red holds still, like the portrait's red ring).
+   A Choose One's (Both) marker keeps its own colour. An unplated card (none today) gets the same ring on a ::before. */
+.dragcard.pass-ok .card.plated .plateglow:not(.bothglow) {
+  filter: drop-shadow(0 0 2px #bff6ff) drop-shadow(0 0 4px rgba(64, 214, 236, 0.95)) drop-shadow(0 0 4px rgba(64, 214, 236, 0.95))
+    drop-shadow(0 0 12px rgba(64, 214, 236, 0.9));
+  opacity: 1; transition: none; animation: duospassglow 0.9s ease-in-out infinite; will-change: opacity;
+}
+.dragcard.pass-no .card.plated .plateglow:not(.bothglow) {
+  filter: drop-shadow(0 0 2px #ffd2cc) drop-shadow(0 0 4px rgba(214, 70, 60, 0.95)) drop-shadow(0 0 4px rgba(214, 70, 60, 0.95))
+    drop-shadow(0 0 10px rgba(214, 70, 60, 0.85));
+  opacity: 1; transition: none;
+}
+.dragcard.pass-ok .card:not(.plated), .dragcard.pass-no .card:not(.plated) { position: relative; }
+.dragcard.pass-ok .card:not(.plated)::before, .dragcard.pass-no .card:not(.plated)::before {
+  content: ''; position: absolute; inset: 0; border-radius: var(--arch-radius); pointer-events: none; }
+.dragcard.pass-ok .card:not(.plated)::before { box-shadow: 0 0 0 4px rgba(96, 226, 244, 0.95), 0 0 28px 8px rgba(64, 214, 236, 0.9);
+  animation: duospassglow 0.9s ease-in-out infinite; will-change: opacity; }
+.dragcard.pass-no .card:not(.plated)::before { box-shadow: 0 0 0 4px rgba(214, 70, 60, 0.95), 0 0 22px 6px rgba(214, 70, 60, 0.75); }
+@keyframes duospassglow { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) {
+  .dragcard.pass-ok .card.plated .plateglow:not(.bothglow), .dragcard.pass-ok .card:not(.plated)::before { animation: none; }
+}
 /* The teammate dropped out (their board plays on auto): the portrait greys, static. */
 .duosdock.away .duosdock-disc { opacity: 0.55; }
 .duosdock-name { white-space: nowrap; display: inline-flex; align-items: center; height: calc(34 * var(--u)); box-sizing: border-box; padding: 0 calc(16 * var(--u));

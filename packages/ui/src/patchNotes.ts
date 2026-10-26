@@ -68,6 +68,15 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Duos: you can now pass a card back to your teammate.',
+        details: [
+          'A card your teammate just passed you can go straight back. You can pass the same card again later in the turn too. Each pass costs 1 Gold.',
+          'Only cards in your hand can be passed. Minions on your board stay with you.',
+          "While you hold a card over your teammate's portrait, its border glows teal if letting go will pass it, or red if it will not (not enough Gold, a full hand, a teammate who is away).",
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: fixed the Shop not drawing on iPhone.',
         details: [
           'On an iPhone the Shop minions showed only their Attack and Health in one spot, the lobby list was tiny and Tier, Freeze and the Refresh cost were huge. The whole game now draws at its proper size in Safari and from the Home Screen.',
@@ -99,7 +108,7 @@ export const PATCH_NOTES: PatchNote[] = [
           'Pick 2v2 in Room options. The left seats are one team, the right seats the other.',
           'One fight a round. When your board falls, your teammate\'s board flies in against whatever is left.',
           'Seven hearts per team. A loss costs 1 heart, or 2 if the winners never needed their second board.',
-          'Your teammate\'s portrait sits bottom right. Drag a card from your hand or board onto it to give it to them. It glows when the pass will work. It costs 1 Gold. A full hand refuses it, and so does a teammate who is away.',
+          'Your teammate\'s portrait sits bottom right. Drag a card from your hand onto it to give it to them. It glows when the pass will work. It costs 1 Gold. A full hand refuses it, and so does a teammate who is away.',
           'Click your teammate\'s portrait, or hold Tab, to watch their board live. Click your own portrait, press Esc, or let go of Tab to return.',
           'The plate above the rail says who fights first.',
         ],

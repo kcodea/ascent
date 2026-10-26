@@ -90,7 +90,7 @@ function boardCardExemplar(): Required<BoardCard> {
     sellOverride: 4,
     clearanceBuy: true, // Frank × Ancients: a Clearance minion — shop-only, see the registry
     chooseBothLeft: 1, // Dealer's own latch — per instance, so a snapshot has to carry it
-    passedWave: 3, // Versus Duos: arrived by a pass this wave (no passing straight back) — shop-only, see the registry
+    passKey: 'p2:3', // Versus Duos: the pass key it arrived through (restore identity only) — shop-only, see the registry
     keywords: ['DS'] as Keyword[],
     golden: true,
     addedTribes: ['mech'],

@@ -2106,4 +2106,26 @@ export const HEROES_RULES: GameRule[] = [
     example: "Mimic wears Copy Machine (unused), then Masterwork and Gilds a minion, then finds Copy Machine again: it is ready and copies a minion.",
     enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroPowerArrivesReady.test.ts"], lastVerifiedAt: '2026-10-20' },
   },
+  {
+    id: "R-HERO-GRANT-RELEASE-01",
+    title: "A new hero power replaces the old one fully: the button shows it, and the old power's rune stops",
+    statement:
+      "When a run gains a NEW power in its main slot (Power Shifter, Mimic's pick, Void's first pick), the hero's own power "
+      + "is replaced completely. The rune or quest that power granted (Runesmith's turn-5 forge rune, Guardian's turn-8 Epic "
+      + "rune, Fi / Coran's hero quest) leaves the power slot, so the button shows the new power's art, name, rule and cost. "
+      + "A granted RUNE also stops working, in the Shop, at End of Turn and in combat: what it switched on is switched off and it "
+      + "leaves the rune list. What it already delivered stays (cards, Gold, stats already given, a cost cut already taken). "
+      + "Runes bought at a Runeforge are not affected, including another copy of the same rune. A second power added BESIDE the "
+      + "main one (Second Calling, Void's second pick) replaces nothing. A granted quest keeps running as an ordinary quest.",
+    domain: 'heroes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-26 (Runesmith screenshot: Shopkeep label, bell art)", quote: "runemaster got a new hero power here but the art didnt change to it. can you fix that" },
+      { kind: 'owner-chat', ref: "Claude Code session, 2026-10-26 (ruling relayed by the coordinator)", quote: "this would replace whatever rune mechanic he has, so if he had a rune that was passively doing something, that would not be active anymore. (the one he selected from his hero power)" },
+      { kind: 'code', ref: "packages/sim/src/heroGrant.ts heroGrantOf / captureHeroGrantRune / releaseHeroGrant; packages/sim/src/reducer.ts buyRune, pickPower; packages/ui/src/StatusBar.tsx, heroSlotRune.ts, QuestBadges.tsx" },
+    ],
+    currentBehaviour: "Conforms (built 2026-10-26). Before: the slot grant (`heroGrantArt`) was never released, so the button kept the old rune's art and name over the new power's cost, and the rune kept working.",
+    example: "Runesmith takes Rune of Shopkeep at his forge, then Power Shifter gives him Goldspring: the button shows Goldspring's art and name, and his upgrade cost no longer drops by 3 each End of Turn.",
+    enforcement: { kind: 'scenario', refs: ["packages/sim/src/heroGrantRelease.test.ts", "packages/ui/src/heroPowerArtFollowsPower.test.tsx"], lastVerifiedAt: '2026-10-26' },
+  },
 ];

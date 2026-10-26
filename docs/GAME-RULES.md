@@ -1673,6 +1673,12 @@ card's kicker.
   (Runesmith and Guardian are ARCHIVED heroes since 2026-09-24, see *Heroes: archived*; their forges still run
   for a stored run or a Scene Builder sandbox on them.)
 - **Guardian** (Runeguard): an extra Epic forge on **turn 8**, booked at run creation (`epicForgeWave`).
+- **The hero's forge rune belongs to the power** (owner ruling 2026-10-26, R-HERO-GRANT-RELEASE-01): the rune
+  bought at Runesmith's / Guardian's own forge sits in the hero-power slot. If a NEW power later replaces the
+  hero's (Power Shifter, a Mimic / Void pick), that rune leaves the slot and **stops working** (Shop, End of Turn
+  and combat); what it already delivered stays. Runes bought at any other forge, including another copy of the
+  same rune, are unaffected, and a forge visited after the swap is an ordinary forge. Same release for Fi /
+  Coran's hero quest, which leaves the slot and keeps running as an ordinary quest.
 - **Epic Forge** (Basic 2): books an extra Epic forge for **turn 8** (next turn, if 8 has
   passed). A Guardian holding it gets **TWO Epic forges on turn 8**, opened one after the other — the second
   opens the moment the first is bought or skipped, before the turn's Basic forge or Discovers (owner

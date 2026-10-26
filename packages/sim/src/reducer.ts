@@ -44,6 +44,7 @@ import { withWhisperMult, spendNextSpellCharge, spendLastCall } from './recruit'
 import { borrowedFlameValue, clearVoicesOnHandCast, payRunicPrimer, runicPrimerTurnStart, SPELL_TEMPERING_PER } from './dragonRunesBasic';
 import { HUM_PER_TURN, castWhisperFromHand, expireWhisperBuffs, grantWhispersOnPlay, mergeWhisperBuffs, seedEchoMerge, vanishWhispers, whisperTargetLegal } from './whisper';
 import { MATCHMAKING } from './matchmaking';
+import { captureHeroGrantRune, releaseHeroGrant } from './heroGrant';
 
 /** The hero id whose Runeforge power the hero forge belongs to: the slot that wields it (a Mimic / Void / Power
  *  Shifter adopter), else the run's own hero. The forge's once-per-game charge is spent on THAT power's latch. */
@@ -3125,7 +3126,23 @@ function reduceCore(state: RunState, action: Action): RunState {
       spendGold(s, runeCost);
       // R-HAND-RUNE-TURN-01: only this rune's own reward resolution (and Duplication's copy of it) may over-cap the hand.
       const applyRuneCopy = (isDuplicate: boolean): void => withRuneAcquisition(() => applyRuneCopyTo(s, rune, isDuplicate));
-      applyRuneCopy((s.ownedRunes ?? []).includes(rune.id));
+      // The power button wears this rune — but only when the forge was the HERO's, not a quest's, and only while
+      // the hero's OWN power still holds the slot (an adopted power has no forge rune; R-HERO-GRANT-RELEASE-01).
+      // GUARDIAN (R-RUNESLOT-01): every Epic forge is `runeforgeEpic`, the universal turn-9 one included, so
+      // "any Epic forge" let the turn-9 pick overwrite his turn-8 rune in the power slot (owner report
+      // 2026-10-06). His forge is the FIRST Epic pick from turn 8 on: the slot is claimed once and never
+      // re-stamped, and an earlier Epic forge (Rune of the Ornate Clock's "next turn") is not his.
+      const heroRune = ((): boolean => {
+        if (wieldedPowerId(s, 0) !== s.heroId) return false;
+        const kind = getHero(s.heroId).power.kind;
+        const guardianForge = kind === 'epicRuneforge' && !!s.runeforgeEpic && s.wave >= GUARDIAN_FORGE_WAVE
+          && s.heroGrantArt?.kind !== 'rune';
+        return (kind === 'runeforge' && !s.runeforgeNoCharge) || guardianForge;
+      })();
+      const firstCopy = (): void => applyRuneCopy((s.ownedRunes ?? []).includes(rune.id));
+      // The hero's rune records what it switches on, so a later power swap can switch exactly that off.
+      if (heroRune) captureHeroGrantRune(s, rune.id, firstCopy);
+      else firstCopy();
       // Rune of Duplication: "Copy the first Epic Rune you select" (R-RUNESLOT-02) — the NEXT Epic bought has its
       // reward applied a SECOND time (owner ruling 2026-07-30: a rune that grants a minion grants two). Spent on
       // use, and only on an EPIC buy, so the basic forge that sold you Duplication cannot consume it. The copy
@@ -3140,18 +3157,7 @@ function reduceCore(state: RunState, action: Action): RunState {
       // The Runesmith's forge is a once-per-game HERO POWER; the quest-opened Epic forge is not — leave the
       // hero-power charge alone for it.
       if (!s.runeforgeEpic && !s.runeforgeNoCharge) markPowerLatchSpent(s, runeforgeHolderId(s));
-      // The power button now wears this rune — but only when the forge was the HERO's, not a quest's.
-      // GUARDIAN (R-RUNESLOT-01): every Epic forge is `runeforgeEpic`, the universal turn-9 one included, so
-      // "any Epic forge" let the turn-9 pick overwrite his turn-8 rune in the power slot (owner report
-      // 2026-10-06). His forge is the FIRST Epic pick from turn 8 on: the slot is claimed once and never
-      // re-stamped, and an earlier Epic forge (Rune of the Ornate Clock's "next turn") is not his.
-      {
-        const kind = getHero(s.heroId).power.kind;
-        const guardianForge = kind === 'epicRuneforge' && !!s.runeforgeEpic && s.wave >= GUARDIAN_FORGE_WAVE
-          && s.heroGrantArt?.kind !== 'rune';
-        const mine = (kind === 'runeforge' && !s.runeforgeNoCharge) || guardianForge;
-        if (mine) s.heroGrantArt = { kind: 'rune', id: rune.id };
-      }
+      if (heroRune) s.heroGrantArt = { kind: 'rune', id: rune.id };
       closeRuneforge(s);
       checkTriples(s); // a rune-granted copy might complete a triple (opens its own Discover)
       openNextStartOfTurnModal(s); // forge closed — open the next queued start-of-turn modal (unless a Discover just opened)
@@ -3777,6 +3783,10 @@ function reduceCore(state: RunState, action: Action): RunState {
       const heroId = offer.heroIds[action.index];
       if (heroId == null || !getHero(heroId)) return state;
       s.powerOffer = undefined;
+      // A NEW power in slot 0 REPLACES the hero's own (owner ruling 2026-10-26, R-HERO-GRANT-RELEASE-01): the rune
+      // or quest that power granted leaves the slot, and a granted rune stops working. Void's second pick adds a
+      // power beside slot 0 and replaces nothing.
+      if (offer.slot !== 'void2' && wieldedPowerId(s, 0) === s.heroId) releaseHeroGrant(s);
       if (offer.slot === 'shifter') {
         // POWER SHIFTER (T5 spell): replace the power the run is wielding, for the rest of the run.
         // On VOID that means slot 0 in place — collapsing his pair to one would delete a power the shifter

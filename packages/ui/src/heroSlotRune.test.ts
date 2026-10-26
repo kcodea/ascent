@@ -43,8 +43,8 @@ describe('R-RUNESLOT-01: the rack leaves the hero-power rune to the power slot',
 
   it('is the identity with no rune in the power slot (every other hero, or a quest grant)', () => {
     expect(rackRunes(['a', 'b'], null)).toEqual(['a', 'b']);
-    expect(heroSlotRuneId({ heroGrantArt: { kind: 'quest', id: 'q' } })).toBeNull();
-    expect(heroSlotRuneId({ heroGrantArt: undefined })).toBeNull();
+    expect(heroSlotRuneId({ heroId: 'fi', heroGrantArt: { kind: 'quest', id: 'q' } })).toBeNull();
+    expect(heroSlotRuneId({ heroId: 'warden', heroGrantArt: undefined })).toBeNull();
   });
 
   it("the arrival ceremony holds the rack COPY back when Duplication copies the hero's pick, and nothing when it has none", () => {

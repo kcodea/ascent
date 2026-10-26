@@ -1,5 +1,6 @@
 export * from './config';
 export * from './heroes';
+export { heroGrantOf } from './heroGrant';
 export * from './heroTips';
 export * from './heroReroll'; // the one hero re-roll per hero select (owner 2026-10-15, R-HERO-REROLL-01)
 export * from './threats';

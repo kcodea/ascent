@@ -10,11 +10,14 @@
  * Kept free of React and of the store so the rack, the arrival ceremony and the FX anchors all read the same
  * answer from one place.
  */
-import type { RunState } from '@game/sim';
+import { heroGrantOf, type RunState } from '@game/sim';
 
 /** The rune the hero-power slot is wearing, if any (a QUEST grant is not a rune). */
-export function heroSlotRuneId(run: Pick<RunState, 'heroGrantArt'>): string | null {
-  return run.heroGrantArt?.kind === 'rune' ? run.heroGrantArt.id : null;
+export function heroSlotRuneId(run: Pick<RunState, 'heroGrantArt' | 'heroId' | 'adoptedPowerId' | 'mimicPowerId' | 'voidPowerIds'>): string | null {
+  // Only while the hero's own power holds the slot (R-HERO-GRANT-RELEASE-01): once a new power replaced it, the
+  // slot wears no rune.
+  const grant = heroGrantOf(run);
+  return grant?.kind === 'rune' ? grant.id : null;
 }
 
 /**

@@ -848,6 +848,21 @@ export function procRuneId(s: RunState, id: string | undefined, times = 1): void
   s.runeProcs[id] = (s.runeProcs[id] ?? 0) + times;
 }
 
+/** One run-state field's share of a hero-power rune's footprint (`RunState.heroGrantRune`): a NUMBER it added
+ *  (`n`, subtracted back), a value it SWITCHED ON from nothing (`set`, removed), ENTRIES it pushed onto a list
+ *  (`items`, spliced back out), or, for a record it wrote into, the same per sub-key (`sub`). */
+export type HeroGrantDelta =
+  | { n: number }
+  | { set: true }
+  | { items: unknown[] }
+  | { sub: Record<string, HeroGrantDelta> };
+
+/** What a hero-power rune switched on when it was applied — see `heroGrant.ts`. */
+export interface HeroGrantRuneFootprint {
+  runeId: string;
+  fields: Record<string, HeroGrantDelta>;
+}
+
 export interface RunState {
   seed: number;
   /** MEDAL RANK (2026-09-20): the run's stable RANKED identity — a client-minted UUID stamped on a rated
@@ -1419,6 +1434,10 @@ export interface RunState {
    *  wears its art from then on (owner ask 2026-08-17) — the grant IS the power, so it takes the power's slot
    *  rather than sitting in one of the three quest/rune slots. `kind` picks the art index to look it up in. */
   heroGrantArt?: { kind: 'rune' | 'quest'; id: string };
+  /** The run state the hero-power RUNE (`heroGrantArt.kind === 'rune'`) switched on when it was applied — its
+   *  footprint, recorded once at the forge pick so a later power swap can switch exactly that off again
+   *  (owner ruling 2026-10-26, R-HERO-GRANT-RELEASE-01; see `heroGrant.ts`). Absent for every other run. */
+  heroGrantRune?: HeroGrantRuneFootprint;
   /** Juggler (Baldgecoin): minions bought toward the next Gold Pouch. Wraps at 3 rather than accumulating. */
   jugglerBuys?: number;
   /** Flash: which end of next combat's kills he is claiming — armed in the shop, spent at settle. Absent when

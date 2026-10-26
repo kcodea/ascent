@@ -60,6 +60,30 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus: End Turn is now a ready signal. You can keep playing after pressing it, and press it again to take it back.',
+        details: [
+          'After End Turn you can still buy, sell, roll, play, level up, pass, move your board, freeze and watch your teammate. Nothing greys out.',
+          'Your board as it is when the round starts is the board that fights.',
+          'Press End Turn again before the clock reaches 0:00 to take your ready back.',
+          'At 0:00 shopping still ends as before, and you stay ready.',
+          'Works the same in every Versus mode: 1v1, 3 to 4 players, Duos and Ranked Duos.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Versus: the fight starts much sooner once everyone is ready or the clock runs out.',
+      },
+      {
+        category: 'Systems',
+        text: 'Duos: your hero portrait stays yours in combat. Your teammate tags in beside it while their board fights.',
+        details: [
+          'The teammate portrait fades out of the bottom right and fades in over your hero, then goes back when your board steps in.',
+          'The teammate portrait no longer shows a Health box (the team Health shows under your own hero).',
+          'The teammate portrait now sits clear of the lobby rail.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ranked Duos: team up with a friend and face three other teams.',
         details: [
           'Pick Duo above Play, then Play. You land in your own party. Invite a friend, or join an open party.',

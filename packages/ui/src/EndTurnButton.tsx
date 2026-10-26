@@ -119,6 +119,13 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
       onEndCombat?.();
       return;
     }
+    // VERSUS READY (R-VERSUS-READY-01): a pressed gem that is still live is a ready signal; pressing it again takes the signal
+    // back, so it relights with the clean shine instead of striking again.
+    if (pressed) {
+      playRelight();
+      onEndTurn();
+      return;
+    }
     playStrike();
     onEndTurn();
   };

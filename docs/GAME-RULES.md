@@ -1032,11 +1032,16 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   starts when both players' intros have played out (or 45 seconds after the heroes lock, so a stuck client cannot
   stall it). There is no countdown anywhere.
 - **Rounds.** Both players shop at the same time on the normal round-by-round timer (`standardTurnSeconds`, no Gold
-  Fuse), counted down from one server deadline that nothing pauses locally. End Turn locks the round (irreversible);
-  a player who locks early waits, and never shortens the other's turn. While a player waits on the other (locked
-  early, back from the fight early, or past the Good Luck intro first) their board stays as it is, takes no input,
-  and the End Turn gem's pill reads "Players ready 1/2" (then 2/2); the clock keeps counting but goes quiet for them
-  (no ticks, the 20 s glyph fades), as after a lobby End Turn. At zero the turn is locked for the player;
+  Fuse), counted down from one server deadline that nothing pauses locally. **End Turn is a ready signal, not a lock**
+  (owner 2026-10-26: "it's a ready signal, not a 'i cant do anything anymore'"; R-VERSUS-READY-01, every Versus mode):
+  the gem shows pressed with "Players ready 1/2" (then 2/2), and while the clock is above 0:00 you can still buy, sell,
+  roll, play, tier up, re-order, freeze and inspect, and you stay ready. Every change after End Turn is sent again as
+  your board, so the board that fights is your board when the round actually closes. Press the gem again above 0:00
+  to take the signal back (a double click is one press). The round closes at once when both are ready, and only then
+  is the shop held while the fight comes. A player who readies early never shortens the other's turn. While a player
+  waits between rounds (back from the fight early, or past the Good Luck intro first) their board stays as it is and
+  takes no input. After End Turn the clock keeps counting but goes quiet (no ticks, the 20 s glyph fades). (Until
+  2026-10-26 End Turn locked the board for good and held the shop.) At zero the turn is locked for the player;
   any open decision gets a random legal pick seeded by match, round and seat. **The 0:00 lock** (owner 2026-10-16,
   R-VERSUS-CLOCK-LOCK-01, in the lobby too): the clock face and the lock read one time-left value, shown as
   ceil(ms / 1000) and locked only at ms <= 0, so the clock reads 0:01 for the whole last second and every Shop
@@ -1147,7 +1152,7 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Switching modes.** Group opens seats 3 and 4. Switching back to 1v1 with more than two seated moves the extras to
   the stands: the lowest seats keep theirs, and a player in seat 3 or 4 first fills an empty seat 1 or 2.
 - **Group start.** The host starts with 3 or 4 seated; every seated player presses their gate gem within 30 seconds.
-  Hero Select, the intro, the server shop clock (with its 250 ms grace), End Turn locks, the timeout policy and the
+  Hero Select, the intro, the server shop clock (with its 250 ms grace), End Turn as a ready signal, the timeout policy and the
   90 second combat cap all work as in 1v1, over every player still in.
 - **Round robin.** Each round pairs the players still in so everyone meets everyone before any repeat. 4 in: the three
   pairings of four in turn (two fights a round). 3 in: one fight, and the odd player faces a **Copy** of another
@@ -1237,8 +1242,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   board drag, and the run and the server refuse a board pass. It arrives in the teammate's hand with everything it
   carried (stats, keywords, enchantments, Gilded). **It can be passed straight back** (owner 2026-10-25: "you should be
   able to pass cards back to your teammate"), and a card can be passed again later the same turn: every pass costs its
-  own 1 Gold. The server caps passes at 10 per player per round (an anti-spam limit). Passing closes at your own End
-  Turn and when the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
+  own 1 Gold. The server caps passes at 10 per player per round (an anti-spam limit). Passing stays open after your End
+  Turn (it is a ready signal, below) and closes when the clock runs out. **A pass to a full hand is refused** (owner: "Pass is refused if hand is full"): the drag shows
   the refusal and the card stays yours, and you are not charged. If the teammate's hand fills up while the pass is on
   its way, it is refused when it arrives and the card and the Gold come back to you. Arriving is "a card added to your
   hand" like any other. Runes, Equipment, quests and the Starform cannot be passed.
@@ -1256,15 +1261,34 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   teammate view in the shop. Your own portrait then takes that spot: click it (or Esc, or let go of Tab) to come back to
   your own choices, exactly as you left them. Your clock and your pick keep running underneath, and the view closes when
   your game starts. (Suggesting a hero to your teammate is a later step.)
+- **End Turn is a ready signal** (owner 2026-10-26: "hitting end turn shouldn't restrict anything, it should just signal
+  that you are ready to move on, but you should be able to move things around on your board/view your teammate's board
+  etc still"; R-VERSUS-READY-01, the same in every Versus mode). Pressing End Turn marks you ready ("Players ready N/M" on
+  the gem, which stays pressed) and holds nothing: while the clock is above 0:00 you can still buy, sell, roll, play,
+  tier up, pass, re-order, freeze, inspect and watch your teammate, and you stay ready. The board that fights is your
+  board when the round actually closes (every change after End Turn is sent again as your board). Press the gem again
+  above 0:00 to take the signal back. The 0:00 rules are unchanged: from 0:00 no shopping (re-order, freeze and the
+  teammate view stay open) and the signal stands. A double click is one press. The round closes when everyone is ready
+  (or by the mode's clock rule), and only then is the shop held while the fight comes.
 - **Spectating a Duos match.** The fight picker lists the players by team ("Team 1", "Team 2"), and a watched player's
-  screen shows the hand-off from their side: both hero slots follow the boards.
+  screen shows the hand-off from their side: the opponent slot follows the boards, and the teammate tags in beside the
+  watched player's hero.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
   pairs carry "Team 1" / "Team 2". In game the rail keeps each team's two rows together (you and your teammate are always
   side by side, never split by Health); the Health and Armor are the team's. A plate above the rail says who fights first ("You fight first" / "<Name> fights first") all shop long;
   it is display only (no click, no hover). **The hand-off:** when a board falls, the next board's minions fly in from their team's edge of the screen one
-  after another, and BOTH hero slots follow the boards: the opponent portrait becomes whoever is fighting now, and your own
-  slot shows your teammate while their board fights on your side (name pill and the team's Health box with it), the new face fading in.
-  That swap is the only sign of a hand-off (owner 2026-10-26): no "steps in" plate. **Your teammate's portrait** sits bottom right, the mirror of your own hero bottom left: the same size, the same distance in from the corner, their portrait frame, their name pill and the team's Health box under it. **Passing:** drag a
+  after another. The opponent portrait becomes whoever is fighting now, the new face fading in. **Your own hero slot never
+  changes** (owner 2026-10-26: "the player frame doesn't need to swap to the teammate's when they come in to attack. we
+  can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left";
+  R-DUOS-SLOTS-02): while your teammate's board fights on your side, their bottom-right portrait fades out and fades in
+  over your own hero, a little up and to the right (a tag-team pair), and goes back when your own board steps in or the
+  fight ends. No "steps in" plate (owner 2026-10-26). **Your teammate's portrait** sits bottom right, the mirror of your
+  own hero bottom left: the same distance in from the corner, their portrait frame and their name pill, the same size
+  unless the lobby rail needs the room (owner 2026-10-26: "the teammate is behind the lobby rail, so we need to modify the
+  size/position of that a bit. we dont need the health there since we have it under the player frame and it's the
+  same"; R-DUOS-VIEW-05): it sits as low as your own Health box, has NO Health box of its own (the team's pool shows once,
+  under your hero), and shrinks only as much as it must to stay clear below the rail (the eight-row Ranked Duos rail is
+  the tall case). **Passing:** drag a
   hand card onto it: it glows teal when the pass is allowed and shows a red ring with the reason when not; a refused
   drop springs back. On release the card dissolves where it was into arcane dust and a teal stream rises off it and curls
   into their portrait, which flashes and pops; one of your coins follows it in from your Gold. On their screen a stream
@@ -1312,7 +1336,9 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   to 4th per team.
 - **No Gold Fuse; the clock never stops.** Every shop runs the standard round clock from the shop opening. No pause.
 - **End Turn** (owner: "the game will still halt/not progress into combat, and back to shop, until both players hit
-  their end turn/combat gem"). Both ended: the round goes at once. One ended with time left: it waits for the other
+  their end turn/combat gem"). End Turn is a ready signal, not a lock, exactly as in Versus (R-VERSUS-READY-01): you
+  keep playing after it, the board that fights is your board when the round closes, and pressing the gem again above
+  0:00 takes it back (the 5 s windows below count from your first ready). Both ended: the round goes at once. One ended with time left: it waits for the other
   until 0:00, then the other has 5 seconds. Neither ended at 0:00: it waits until one ends, then the other has 5
   seconds (or it goes at once when both have). From 0:00 you cannot shop (buy, sell, roll, play, tier up, hero power),
   but you can re-order and freeze your board and view your teammate's board (owner: "same as the normal mode when you

@@ -8922,7 +8922,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'drops like any board drag, the run refuses a board pass and the server refuses any pass not marked as leaving the hand. The card '
       + 'arrives in the teammate\x27s hand with everything it carried: stats, keywords, enchantments, Gilded. A card that arrived by a pass '
       + 'CAN be passed straight back, and any card can be passed again later the same turn: every pass is its own pass and costs its own '
-      + '1 Gold. Passing closes at your own End Turn and when the shop clock '
+      + '1 Gold. Passing stays open after your own End Turn (a ready signal since 2026-10-26, R-VERSUS-READY-01) and closes when the shop clock '
       + 'runs out. A pass to a full hand is refused: the sender keeps the card and is not charged; if the hand fills while the pass is on '
       + 'its way, it is refused on arrival and the card and the Gold go back to the sender. Arriving in hand is a card added to the hand '
       + 'like any other. The server records each pass exactly once, only between teammates, at most 10 per player per round. '
@@ -9022,8 +9022,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       'The teammate portrait bottom right is the same size as your own hero portrait bottom left and sits the same distance in from the '
       + 'right edge as yours from the left, at the same height (measured off your own portrait, so the two always match). It wears the '
       + 'teammate\x27s equipped portrait frame (through "Show opponent cosmetics"), the default look when they have none, with the same name '
-      + 'pill eclipsing its bottom and the same Health box under it (the team\x27s shared Health and Armor). Its cap reads "Teammate" (or "Back to your board" '
-      + 'while watching them).',
+      + 'pill eclipsing its bottom. Its cap reads "Teammate" (or "Back to your board" while watching them). Since 2026-10-26 it has no Health '
+      + 'box, sits as low as your Health box and gives way to the lobby rail (R-DUOS-VIEW-05).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -9121,13 +9121,11 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-DUOS-SLOTS-01',
-    title: 'Versus Duos: both hero slots follow the board fighting on their side',
+    title: 'Versus Duos: the foe hero slot follows the board fighting on its side (the player side: R-DUOS-SLOTS-02)',
     statement:
-      'In a Duos fight each side\x27s hero slot shows the player whose board is fighting on that side right now, by one rule for both sides: '
-      + 'the foe slot switches to the other team\x27s second player when their board steps in, and the player\x27s own slot shows their '
-      + 'teammate (portrait, skin, frame and name) while the teammate\x27s board fights first or after a hand-off, and the player again once '
-      + 'their own board is fighting. The player\x27s own buttons stay theirs. That swap is the ONLY sign of a hand-off: no "steps in" plate, no '
-      + 'extra portrait; the new face fades in on the slot. The boards still fly in.',
+      'In a Duos fight the foe\x27s hero slot shows the player whose board is fighting on that side right now: it switches to the other '
+      + 'team\x27s second player when their board steps in, the new face fading in. No "steps in" plate. The boards still fly in. The player\x27s '
+      + 'OWN slot no longer swaps (owner 2026-10-26): their teammate tags in beside it instead (R-DUOS-SLOTS-02).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -9136,8 +9134,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (no steps-in plate)', quote: 'just have the current portrait of the player side or opponent side swap to the player who\x27s board is live. we dont need to add more ui elements that are unnecessary' },
       { kind: 'code', ref: 'packages/ui/src/versus/versusGroupView.ts (duosCombatAt); packages/ui/src/StatusBar.tsx; packages/ui/src/CombatOpponent.tsx' },
     ],
-    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2). Before, only the foe slot followed its board. The "<Name> steps in" plate (a portrait disc and a name pill on that side) was removed 2026-10-26 (feat/duos-pass-9); the slot\x27s new face fades in instead.',
-    example: 'Bob\x27s board fights first for Ann\x27s team: Ann\x27s hero slot shows Bob; when his board falls and hers steps in, her own portrait is back.',
+    currentBehaviour: 'Built 2026-10-25 (feat/versus-duos-ui, phase 2). The "<Name> steps in" plate (a portrait disc and a name pill on that side) was removed 2026-10-26 (feat/duos-pass-9); the slot\x27s new face fades in instead. Until 2026-10-26 (fix/duos-ready-flow-portraits) the player\x27s own slot swapped to the teammate too.',
+    example: 'Cat\x27s board falls and Dan\x27s steps in: the opponent portrait fades from Cat to Dan.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusDuosView.test.ts', 'packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
@@ -9555,5 +9553,84 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-26 on feat/ranked-duos-p3.',
     example: 'Kevin picks Duo, presses Play, confirms, and lands in his own party; he invites Lemon, who accepts and takes the second seat. Kevin sets Friends only, so Ionlime never sees the party. After the game both see 2nd of 4, +11.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosParty.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-VERSUS-READY-01',
+    title: 'Versus (every mode): End Turn is a ready signal; the shop stays playable, the fight takes the board as it is at the close, a second press un-readies above 0:00',
+    statement:
+      'In every Versus mode (1v1, Versus Group, Versus Duos, Ranked Duos), End Turn marks the player READY and holds nothing: while the clock is above 0:00 they may still buy, sell, '
+      + 'roll, play, tier up, pass, re-order, freeze, inspect and open the teammate view, and they stay ready. Every change after End Turn is sent '
+      + 'again as their final side (a re-lock with a newer number; the seat stays ready; Ranked Duos keeps the first ready time for its gate), so '
+      + 'the board that fights is the board at the moment the server closes the round. Pressing the gem again while the clock is above 0:00 takes '
+      + 'the signal back (`versus_unready` / `versus_group_unready`); a second click inside a double-click is the same press. From 0:00 the existing rules hold: no '
+      + 'shopping, re-order / freeze / teammate view open, the signal stands. Only once the server has closed the round is the shop held while '
+      + 'the fight comes. Nothing else greys out or blocks after ready; the End Turn gem shows pressed with "Players ready N/M". A failed lock '
+      + 'leaves no stale "Connection problem" notice for the room screen, and a second gate press after the room started is not a network error.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (after playing Ranked Duos with a friend)', quote: 'hitting end turn shouldn\x27t restrict anything, it should just signal that you are ready to move on, but you should be able to move things around on your board/view your teammate\x27s board etc still.' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (all Versus modes)', quote: 'the end turn ready-signal should be the same for versus modes too. it's a ready signal, not a 'i cant do anything anymore'' },
+      { kind: 'owner-chat', ref: 'Lead via the coordinator, 2026-10-26', quote: 'Pressing End Turn again while the clock is above 0:00 un-readies (default).' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-01-versus-ready-signal.sql (versus_submit / versus_group_submit / versus_ranked_duos_submit re-lock, versus_unready, versus_group_unready, versus_duos_pass); packages/ui/src/versus/versusTurn.ts (ready); packages/ui/src/versus/versusStore.ts (lockTurn, relocks, unreadyTurn, inOrder); packages/ui/src/versus/VersusHud.tsx; packages/ui/src/EndTurnButton.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits). Before, End Turn locked the board for good and held the whole shop (an invisible input hold) until the fight.',
+    example: 'Ann presses End Turn at 0:41, then buys a minion and drags it to the front: her gem still reads "Players ready 1/2", the new board is sent again, and when Bob ends the round fights Ann\x27s new board. At 0:20 she presses the gem again: she is no longer ready.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusReady.db.test.ts', 'packages/ui/src/versus/versusTurn.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-FLOW-01',
+    title: 'Versus: the closed round is settled and shown without waiting on polls (one resolver call, parallel reads, an on-time close)',
+    statement:
+      'The client whose own call closes a round (its lock, re-lock or reconcile answering `resolving`) asks the resolver at once; other players '
+      + 'ask only as a backstop after 1.5 s. When the resolver answers, the match row and the committed round are read in parallel (also on the '
+      + 'round\x27s realtime insert), so the fight lands in one round trip. The shop\x27s close (deadline plus grace; Ranked Duos: the end-turn '
+      + 'gate) is reconciled on a timer at that moment instead of the next 500 ms tick. Realtime wake-ups coalesce for 50 ms (was 120 ms). No new '
+      + 'polling: every loop keeps its backoff (R-NET-BACKOFF-01).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'there\x27s a ton of hang time when time hits 0 / when both players ready up, id like to make that more seamless.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (onOwnAnswer, kickFinalize, armCloseTimer, prefetchRounds, WAKE_COALESCE_MS); packages/ui/src/versus/versusRemote.ts (parallel reads); packages/ui/src/versus/flowTiming.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits); timings in docs/devlog/2026-10-26-duos-ready-flow-portraits.md. Before, every player waited for its next 500 ms tick to ask the resolver, then read the match row, its seats, the round and its fights one after another.',
+    example: 'Bob presses End Turn last: his own lock answer says the round closed, he asks the resolver immediately, and both players read the fight with the match row in one round trip.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/flowTiming.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-SLOTS-02',
+    title: 'Duos: your own hero slot never swaps; your teammate tags in over it while their board fights on your side',
+    statement:
+      'In a Duos fight the player\x27s own hero slot always shows the player. While the teammate\x27s board fights on the player\x27s side (first, or '
+      + 'after a hand-off), the bottom-right teammate portrait fades out and its copy fades in over the player\x27s own hero, offset up and to the '
+      + 'right and a little smaller (in front), then goes back when the player\x27s own board steps in or the fight ends. Opacity and scale only, '
+      + 'one-shot; the copy takes no input, so the hero keeps its clicks and its lunge.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'the player frame doesn\x27t need to swap to the teammate\x27s when they come in to attack. we can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left or slightly offset' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (DuosTagIn, tagged); packages/ui/src/versus/versus.css (.duosdock.tagged, .duostagin); packages/ui/src/StatusBar.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits). Before, the player\x27s own slot switched to the teammate\x27s portrait and name (R-DUOS-SLOTS-01).',
+    example: 'Bob\x27s board fights first for Ann\x27s team: Ann\x27s hero stays Ann, Bob\x27s portrait leaves the bottom right and appears over Ann\x27s hero; when Bob\x27s board falls and Ann\x27s steps in, it goes back.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-VIEW-05',
+    title: 'Duos: the teammate portrait has no Health box and stays clear of the lobby rail',
+    statement:
+      'The bottom-right teammate portrait carries no Health box (the team\x27s pool shows once, under the player\x27s own hero). Its disc sits as low '
+      + 'as the player\x27s Health box, and shrinks around its centre, only as far as it must and never below 55% of the player\x27s hero, for its '
+      + 'cap to clear the lobby rail\x27s bottom (the eight-row Ranked Duos rail is the tall case). It re-fits when the rail changes size or the '
+      + 'window resizes, never per frame.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'the teammate is behind the lobby rail, so we need to modify the size/position of that a bit. we dont need the health there since we have it under the player frame and it\x27s the same.' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (fitDock, measureDock); packages/ui/src/versus/versus.css' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits). Before, it mirrored the hero exactly with a team Health box under it, and the Ranked Duos rail covered it.',
+    example: 'In Ranked Duos the eight-row rail ends low on the right: the teammate portrait drops to the Health box line and shrinks a little so its "Teammate" cap sits just under the rail.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosMateDock.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
 ];

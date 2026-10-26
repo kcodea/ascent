@@ -78,6 +78,35 @@ const json = (status: number, body: unknown): Response =>
 
 const CONTENT = engineContentRevision();
 
+/** The signed-in caller's user id from the request's bearer token (null when there is none or it is not valid). */
+function callerId(url: string, anonKey: string, req: Request): Promise<string | null> {
+  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
+  return userClient.auth.getUser().then(({ data, error }) => (!error && data?.user ? data.user.id : null), () => null);
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** May this request's reads start before the caller is verified? Only a request that carries a bearer token and names a
+ *  well-formed match and round (anything else is refused by the handler before it reads). */
+function prefetchable(req: Request, body: Record<string, unknown>): boolean {
+  return /^Bearer\s+\S+/.test(req.headers.get('Authorization') ?? '') && typeof body.matchId === 'string' && UUID_RE.test(body.matchId)
+    && Number.isInteger(body.round) && (body.round as number) >= 1;
+}
+
+/** A store whose named reads are memoized by their arguments, so a read started early is the one the handler awaits. */
+function memoReads<T extends Record<string, any>>(store: T, names: string[]): T {
+  const cache = new Map<string, Promise<unknown>>();
+  const out: Record<string, any> = { ...store };
+  for (const n of names) {
+    const fn = store[n];
+    out[n] = (...args: unknown[]) => {
+      const key = `${n}|${JSON.stringify(args)}`;
+      if (!cache.has(key)) cache.set(key, Promise.resolve().then(() => fn(...args)));
+      return cache.get(key);
+    };
+  }
+  return out as T;
+}
+
 /** Shared request gate: size cap, JSON, protocol + content identity. Returns the body or an error Response. */
 async function readBody(req: Request): Promise<Record<string, unknown> | Response> {
   const declared = Number(req.headers.get('content-length') ?? '0');
@@ -101,9 +130,7 @@ async function finalize(req: Request, body: Record<string, unknown>): Promise<Re
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
-  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
-  const { data: userData, error: userErr } = await userClient.auth.getUser();
-  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const userP = callerId(url, anonKey, req);
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
@@ -129,7 +156,12 @@ async function finalize(req: Request, body: Record<string, unknown>): Promise<Re
     },
     log: (msg: string, detail?: unknown) => console.error(msg, detail),
   };
-  const res = await handleVersusFinalize(userId, body, CONTENT, store);
+  // R-DUOS-FLOW-01: the reads the handler makes start NOW, beside the caller check (one auth round trip, not one
+  // before every read); the handler gets these same promises. Only for a signed-in caller with a well-formed request.
+  const early = memoReads(store, ['match', 'finalSides']);
+  if (prefetchable(req, body)) for (const p of [early.match(body.matchId), early.finalSides(body.matchId, body.round)]) p.catch(() => undefined);
+  const userId = await userP;
+  const res = await handleVersusFinalize(userId, body, CONTENT, early);
   return json(res.status, res.body);
 }
 
@@ -138,9 +170,7 @@ async function finalizeGroup(req: Request, body: Record<string, unknown>): Promi
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
-  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
-  const { data: userData, error: userErr } = await userClient.auth.getUser();
-  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const userP = callerId(url, anonKey, req);
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
@@ -170,7 +200,12 @@ async function finalizeGroup(req: Request, body: Record<string, unknown>): Promi
     },
     log: (msg: string, detail?: unknown) => console.error(msg, detail),
   };
-  const res = await handleVersusGroupFinalize(userId, body, CONTENT, store);
+  // R-DUOS-FLOW-01: the reads the handler makes start NOW, beside the caller check (one auth round trip, not one
+  // before every read); the handler gets these same promises. Only for a signed-in caller with a well-formed request.
+  const early = memoReads(store, ['match', 'seats', 'finalSides']);
+  if (prefetchable(req, body)) for (const p of [early.match(body.matchId), early.seats(body.matchId), early.finalSides(body.matchId, body.round)]) p.catch(() => undefined);
+  const userId = await userP;
+  const res = await handleVersusGroupFinalize(userId, body, CONTENT, early);
   return json(res.status, res.body);
 }
 
@@ -179,9 +214,7 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
-  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
-  const { data: userData, error: userErr } = await userClient.auth.getUser();
-  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const userP = callerId(url, anonKey, req);
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
@@ -217,7 +250,12 @@ async function finalizeDuos(req: Request, body: Record<string, unknown>): Promis
     },
     log: (msg: string, detail?: unknown) => console.error(msg, detail),
   };
-  const res = await handleVersusDuosFinalize(userId, body, CONTENT, store);
+  // R-DUOS-FLOW-01: the reads the handler makes start NOW, beside the caller check (one auth round trip, not one
+  // before every read); the handler gets these same promises. Only for a signed-in caller with a well-formed request.
+  const early = memoReads(store, ['match', 'finalSides', 'seats', 'teams']);
+  if (prefetchable(req, body)) for (const p of [early.match(body.matchId), early.finalSides(body.matchId, body.round), early.seats(body.matchId), early.teams(body.matchId)]) p.catch(() => undefined);
+  const userId = await userP;
+  const res = await handleVersusDuosFinalize(userId, body, CONTENT, early);
   return json(res.status, res.body);
 }
 
@@ -226,9 +264,7 @@ async function seatRankedDuos(req: Request, body: Record<string, unknown>): Prom
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
-  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
-  const { data: userData, error: userErr } = await userClient.auth.getUser();
-  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const userId = await callerId(url, anonKey, req);
   const admin = createClient(url, serviceKey);
   const store = {
     async match(id: string) {
@@ -278,9 +314,7 @@ async function finalizeRankedDuos(req: Request, body: Record<string, unknown>): 
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !anonKey || !serviceKey) return json(500, { error: 'not_configured' });
-  const userClient = createClient(url, anonKey, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } });
-  const { data: userData, error: userErr } = await userClient.auth.getUser();
-  const userId = !userErr && userData?.user ? userData.user.id : null;
+  const userP = callerId(url, anonKey, req);
   const admin = createClient(url, serviceKey);
   const store = {
     async input(matchId: string, round: number) {
@@ -297,7 +331,12 @@ async function finalizeRankedDuos(req: Request, body: Record<string, unknown>): 
     },
     log: (msg: string, detail?: unknown) => console.error(msg, detail),
   };
-  let res = await handleRankedDuosFinalize(userId, body, CONTENT, store);
+  // R-DUOS-FLOW-01: the reads the handler makes start NOW, beside the caller check (one auth round trip, not one
+  // before every read); the handler gets these same promises. Only for a signed-in caller with a well-formed request.
+  const early = memoReads(store, ['input']);
+  if (prefetchable(req, body)) for (const p of [early.input(body.matchId, body.round)]) p.catch(() => undefined);
+  const userId = await userP;
+  let res = await handleRankedDuosFinalize(userId, body, CONTENT, early);
   if (res.status === 409 && res.body.error === 'not_seated') {
     // The table seats on the first finalize if no client asked for it yet (idempotent).
     const seated = await seatRankedDuos(req, { matchId: body.matchId });

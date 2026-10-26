@@ -18,11 +18,12 @@ import { useGame } from '../store';
 import { standardTurnSeconds, turnClock } from '../turnClock';
 import { displaySeconds, shopClockAt } from './versusClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
-import { expireVersusShop, lockTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, versusShopRemainingMs, type VersusState } from './versusStore';
+import { expireVersusShop, lockTurn, unreadyTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, versusShopRemainingMs, type VersusState } from './versusStore';
 import { ownRunWhileWatching, useSpectate } from './spectate';
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
-import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurn } from './versusTurn';
+import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurn } from './versusTurn';
+import { markFlow } from './flowTiming';
 import { SpectatorBar } from './SpectatorBar';
 import { useDuosLivePublisher } from './duosLive';
 import { isRankedDuosRaw, rankedCloseIso, rankedSomeoneEnded } from './rankedDuosView';
@@ -63,7 +64,7 @@ function useSecondsUntil(ms: number | undefined, on: boolean): number {
  * Recruit's Versus seam. `endTurn` is Recruit's stable End Turn; `endCombat` its End Combat (the fight's exit).
  * `readyNote` is the End Turn / End Combat gem's pill; `gemLocked` says the gem is spent while this player waits.
  */
-export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; clockQuiet: boolean } {
+export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: () => void): { intercept: () => boolean; readyNote: string | null; gemLocked: boolean; gemReady: boolean; clockQuiet: boolean } {
   const versus = run.mode === 'versus';
   const endTurnWave = useVersus((s) => s.endTurnWave);
   const match = useVersus((s) => s.match);
@@ -84,7 +85,11 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   useEffect(() => {
     if (!versus || paused || run.phase !== 'recruit' || endTurnWave !== run.wave || firedRef.current === run.wave) return;
     const wave = run.wave;
-    const t = window.setTimeout(() => { firedRef.current = wave; endTurn(); }, 0); // marked when it plays, not when queued
+    const t = window.setTimeout(() => {
+      firedRef.current = wave;
+      markFlow(useVersus.getState().match?.id, wave, 'endturn:fired');
+      endTurn();
+    }, 0); // marked when it plays, not when queued
     return () => window.clearTimeout(t);
   }, [versus, paused, endTurnWave, run.wave, run.phase, endTurn]);
   // The shared clock: the server deadline, offset-adjusted, never paused locally (a pause is the server's). A shop
@@ -162,11 +167,15 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
       // my own turn still locks at 0:00, `expireVersusShop`). R-DUOS-VIEW-01.
       if (ownRunWhileWatching()) return true;
       if (useVersus.getState().endTurnWave === run.wave) return false; // the fight is in: the real End Turn
+      // VERSUS (R-VERSUS-READY-01): End Turn is a ready signal; pressed again above 0:00 it takes the signal back.
+      if (unreadyTurn()) return true;
       void lockTurn();
       return true;
     },
     readyNote: versus ? versusTurnNote(turn, secondsLeft) : null,
-    gemLocked: versus && versusTurnLocksGem(turn),
+    // Ready stays pressable (to un-ready) until 0:00; from 0:00 the signal stands, so the gem is spent.
+    gemLocked: versus && (versusTurnLocksGem(turn) || (versusTurnReady(turn) && !!run.shopClockExpired)),
+    gemReady: versus && versusTurnReady(turn),
     clockQuiet: versus && clockQuiet,
   };
 }

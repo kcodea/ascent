@@ -528,6 +528,8 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   /** Back from a disconnect: start the 3-2-1 that resumes the match (`resume_at`). */
   requestResume: (matchId: string) => rpc<VersusMatch>('versus_request_resume', { p_match: matchId }),
   reconcile: (matchId: string) => rpc<VersusMatch>('versus_reconcile', { p_match: matchId }),
+  /** 1v1 (R-VERSUS-READY-01): take back my End Turn while the clock is above 0:00 (`versus_unready`). */
+  unready: (matchId: string, round: number, seq: number) => rpc<VersusMatch>('versus_unready', { p_match: matchId, p_round: round, p_seq: seq }),
   publishFrame: (matchId: string, seq: number, round: number, frame: unknown) =>
     rpc<void>('versus_publish_frame', { p_match: matchId, p_seq: seq, p_round: round, p_frame: frame }),
   async latestFrames(matchId: string): Promise<{ seat: VersusSeat; seq: number; round: number; frame: unknown }[]> {
@@ -539,21 +541,28 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
 
   // ── VERSUS GROUP (R-VERSUS-GROUP-01, 2026-10-24-versus-group.sql): the 3-4 player match's tables and RPCs. ──────
   async groupMatch(matchId: string): Promise<VersusGroupMatchRaw | null> {
-    const { data, error } = await db().from('versus_group_matches').select('*').eq('id', matchId).maybeSingle();
+    // The match row and its seats are read TOGETHER (DUOS FLOW 2026-10-26: one round trip, not two, between a commit and
+    // the fight on screen).
+    const [{ data, error }, { data: seats, error: e2 }] = await Promise.all([
+      db().from('versus_group_matches').select('*').eq('id', matchId).maybeSingle(),
+      // rows: at most four rows, one per seat (primary key match_id + seat) (R-NET-01).
+      db().from('versus_group_seats').select('*').eq('match_id', matchId).order('seat'),
+    ]);
     if (error) fail(error);
     if (!data) return null;
-    // rows: at most four rows, one per seat (primary key match_id + seat) (R-NET-01).
-    const { data: seats, error: e2 } = await db().from('versus_group_seats').select('*').eq('match_id', matchId).order('seat');
     if (e2) fail(e2);
     return { ...(data as Omit<VersusGroupMatchRaw, 'seats'>), seats: ((seats ?? []) as Record<string, unknown>[]).map(groupSeatOfRow) };
   },
   async groupRounds(matchId: string, fromRound = 1): Promise<VersusGroupRoundRaw[]> {
-    // rows: one row per round; a group match ends long before 1,000 rounds (uncapped damage from round 15) (R-NET-01).
-    const { data, error } = await db().from('versus_group_rounds').select('round, vitals, eliminated').eq('match_id', matchId).gte('round', fromRound).order('round');
+    // Rounds and their fights in ONE round trip (DUOS FLOW 2026-10-26).
+    const [{ data, error }, { data: fights, error: e2 }] = await Promise.all([
+      // rows: one row per round; a group match ends long before 1,000 rounds (uncapped damage from round 15) (R-NET-01).
+      db().from('versus_group_rounds').select('round, vitals, eliminated').eq('match_id', matchId).gte('round', fromRound).order('round'),
+      // rows: at most two fights per round (R-NET-01).
+      db().from('versus_group_fights').select('*').eq('match_id', matchId).gte('round', fromRound).order('round').order('fight'),
+    ]);
     if (error) fail(error);
     if (!data?.length) return [];
-    // rows: at most two fights per round (R-NET-01).
-    const { data: fights, error: e2 } = await db().from('versus_group_fights').select('*').eq('match_id', matchId).gte('round', fromRound).order('round').order('fight');
     if (e2) fail(e2);
     const byRound = new Map<number, VersusGroupFightRow[]>();
     for (const f of (fights ?? []) as VersusGroupFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
@@ -625,14 +634,17 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
   /** RANKED DUOS: committed rounds from `fromRound`: every team's pool, every fight's result, and the live team's own fight
    *  in full (owner Q11: the other pairing is a result only, so only one full fight per round is ever read). */
   async rankedRounds(matchId: string, fromRound = 1): Promise<RankedDuosRoundRow[]> {
-    // rows: one row per round, a match ends by round 60 at the latest (R-NET-01).
-    const { data, error } = await db().from('versus_group_rounds').select('round, vitals').eq('match_id', matchId).gte('round', fromRound).order('round');
+    // Rounds and their fights in ONE round trip (DUOS FLOW 2026-10-26).
+    const [{ data, error }, { data: fights, error: e2 }] = await Promise.all([
+      // rows: one row per round, a match ends by round 60 at the latest (R-NET-01).
+      db().from('versus_group_rounds').select('round, vitals').eq('match_id', matchId).gte('round', fromRound).order('round'),
+      // rows: at most two fights per round (R-NET-01); only the live team's carries `live_result`.
+      db().from('versus_ranked_duos_fights')
+        .select('round, fight, a_team, b_team, ghost, chair, outcome, loser, damage, first, live_result')
+        .eq('match_id', matchId).gte('round', fromRound).order('round').order('fight'),
+    ]);
     if (error) fail(error);
     if (!data?.length) return [];
-    // rows: at most two fights per round (R-NET-01); only the live team's carries `live_result`.
-    const { data: fights, error: e2 } = await db().from('versus_ranked_duos_fights')
-      .select('round, fight, a_team, b_team, ghost, chair, outcome, loser, damage, first, live_result')
-      .eq('match_id', matchId).gte('round', fromRound).order('round').order('fight');
     if (e2) fail(e2);
     const byRound = new Map<number, RankedDuosFightRow[]>();
     for (const f of (fights ?? []) as RankedDuosFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
@@ -640,6 +652,11 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
       .map((r) => ({ round: r.round, vitals: r.vitals ?? {}, fights: byRound.get(r.round) ?? [] }))
       .filter((r) => r.fights.length > 0);
   },
+  /** VERSUS GROUP / DUOS / RANKED DUOS (R-VERSUS-READY-01): take back my End Turn while the clock is above 0:00
+   *  (`versus_group_unready`). `seq` fences out a re-lock still in flight from before the press. Answers the match row
+   *  (group json, Ranked Duos json for that mode). */
+  groupUnready: (matchId: string, round: number, seq: number) =>
+    rpc<VersusGroupMatchRaw>('versus_group_unready', { p_match: matchId, p_round: round, p_seq: seq }),
   /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
   duosPass: (matchId: string, round: number, seq: number, card: unknown) =>
     rpc<VersusDuosPassRow>('versus_duos_pass', { p_match: matchId, p_round: round, p_seq: seq, p_card: card }),

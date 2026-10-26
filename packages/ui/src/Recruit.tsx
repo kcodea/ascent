@@ -8474,7 +8474,7 @@ export function Recruit() {
           onPick={(r) => { void pickGodRound(r); }} onClose={closeGodPrompt} />
       )}
       <ShopControls
-        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked}
+        fighting={fighting} inCombat={inCombat} mode={run.mode} sandbox={!!run.sandbox} godMode={run.godMode === true} goldClockGold={goldClockGold} readyNote={versusGate.readyNote} gemLocked={versusGate.gemLocked} gemReady={versusGate.gemReady}
         replayDone={replay.done} replayTurboing={replay.turboing} replayResult={replay.result} sandboxReplay={sandboxReplay} lossPhase={lossPhase} combatSettled={run.combatSettled}
         eotAnimating={eotAnimating} hasQuestOffer={!!run.questOffer} hasPowerOffer={!!run.powerOffer} hasRuneforgeOffer={!!run.runeforgeOffer}
         roundSettled={roundSettled} timeUp={timeUp} combatBgShown={combatBgShown} frozen={!!run.frozen} embers={run.embers}
@@ -8817,7 +8817,7 @@ const ShopControls = memo(function ShopControls({
   fighting, inCombat, mode, sandbox, godMode, replayDone, replayTurboing, replayResult, sandboxReplay, lossPhase, combatSettled, eotAnimating,
   hasQuestOffer, hasPowerOffer, hasRuneforgeOffer, roundSettled, timeUp, combatBgShown, frozen, embers,
   refreshCost, freeRolls, tier, maxTier, upgradeCost, nextTurnGold, afterNextGold, wave, rift, combatRoundNo,
-  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked,
+  onSummary, onEndTurn, onEndCombat, onFreeze, onRefresh, onUpgrade, onSkip, goldClockGold, readyNote, gemLocked, gemReady = false,
 }: {
   fighting: boolean; inCombat: boolean; mode: RunState['mode']; sandbox: boolean; replayDone: boolean; replayTurboing: boolean;
   /** GOD MODE (owner 2026-10-08): no clock, so no timer plaque at all. */
@@ -8828,6 +8828,9 @@ const ShopControls = memo(function ShopControls({
   readyNote: string | null;
   /** VERSUS: the gem is spent while this player waits on the other (End Turn or End Combat pressed early). */
   gemLocked: boolean;
+  /** VERSUS (R-VERSUS-READY-01): End Turn pressed as a READY signal: the gem shows pressed but stays live (a second press
+   *  takes the signal back) and nothing else on the screen is held. */
+  gemReady?: boolean;
   replayResult: 'win' | 'lose' | 'draw' | null; sandboxReplay: boolean; lossPhase: null | 'tally' | 'blast' | 'done'; combatSettled: boolean;
   eotAnimating: boolean; hasQuestOffer: boolean; hasPowerOffer: boolean; hasRuneforgeOffer: boolean;
   roundSettled: boolean; timeUp: boolean; combatBgShown: boolean; frozen: boolean; embers: number;
@@ -8916,7 +8919,7 @@ const ShopControls = memo(function ShopControls({
         disabled={inCombat
           ? !(combatGateOpen || skipReady) || gemLocked
           : eotAnimating || hasQuestOffer || hasPowerOffer || hasRuneforgeOffer || !roundSettled || gemLocked}
-        pressed={inCombat || eotAnimating || gemLocked}
+        pressed={inCombat || eotAnimating || gemLocked || gemReady}
         note={readyNote}
         urgent={timeUp && !inCombat}
       />

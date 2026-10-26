@@ -60,6 +60,11 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Versus: Watch now opens a live 3-4 player match.',
+        details: ['Joining a running 3-4 player match, or pressing Watch in the room, now always opens on a player still in the match, even when some players are already knocked out.'],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: fixed the Shop not drawing on iPhone.',
         details: [
           'On an iPhone the Shop minions showed only their Attack and Health in one spot, the lobby list was tiny and Tier, Freeze and the Refresh cost were huge. The whole game now draws at its proper size in Safari and from the Home Screen.',

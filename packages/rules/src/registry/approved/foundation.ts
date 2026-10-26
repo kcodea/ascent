@@ -8580,6 +8580,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRecords.db.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {
+    id: 'R-VERSUS-GROUP-WATCH-01',
+    title: 'Watching a Versus Group match always opens on a player still in it',
+    statement:
+      'A spectator who joins a running 3-4 player match, or presses the room\x27s Watch, lands on the live watch screen of a player still in the '
+      + 'match: when the seat it would watch is a player already knocked out, or a seat no one sat in, it moves to the first player still in '
+      + '(seat order) before the screen opens, and asks that player\x27s client for a keyframe when none is cached. Watch after Leave never goes back '
+      + 'onto a player who went out meanwhile. A 1v1 match keeps watching p1 first, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug report 2026-10-25/26 (room test3, 2 of 4 seated at round 10)', quote: 'i just jumped into this game and \x27watch\x27 isnt taking me into the lobby to watch it' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts watchableSeat / pickLivingSeat (spectateSync, resumeSpectating)' },
+    ],
+    currentBehaviour: 'Since 2026-10-25 (fix/group-room-watch). Before the fix the watched seat started at p1 and the move off an out player lived in the spectator bar, which only mounts once the screen is open: with p1 knocked out (its last frame its end screen, never drawn) or never seated, nothing rendered and Watch did nothing.',
+    example: 'Ann (p1) and Cal (p3) are out by round 10; Orangez joins the room and presses Watch: the screen opens on Bea (p2), and the fight picker offers Bea and Dan.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateGroupWatch.test.ts'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-SPECTATE-END-02',
     title: 'A watch screen closed by the match end never reopens, and its XP settles even when the last fight held it past the server window',
     statement:

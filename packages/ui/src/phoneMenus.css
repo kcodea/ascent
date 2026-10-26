@@ -127,7 +127,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .lbtitle .esch.
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-kicker { font-size: calc(10 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-body { overflow-y: auto; }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-cols {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto calc(var(--lvh, 100dvh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b)) - 150 * var(--pt)) auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto;
   grid-template-areas: 'left left' 'center center' 'right right'; gap: calc(10 * var(--pt)); flex: none; margin: 0;
 }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-panel { padding: calc(10 * var(--pt)) calc(12 * var(--pt)); gap: calc(8 * var(--pt)); border-radius: calc(12 * var(--pt)); border-width: 1.5px; }
@@ -282,7 +282,7 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-fact {
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-shopbtn, .colls-detail-actions button, .colls-bay-actions button) { font-size: calc(12 * var(--pt)); min-height: calc(38 * var(--pt)); padding: calc(6 * var(--pt)) calc(12 * var(--pt)); }
 
 /* The title's Solo / Duo switch: finger-sized and readable (the title column is zoomed by --ui-zoom, so it divides back out). */
-html[data-touch-ui][data-touch-small][data-page-scale] .tn-playparty .playparty-btn { font-size: calc(12 * var(--pt) / var(--ui-zoom, 1)); padding: calc(6 * var(--pt) / var(--ui-zoom, 1)) 0; min-height: calc(32 * var(--pt) / var(--ui-zoom, 1)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .tn-playparty .playparty-btn { font-size: calc(12.5 * var(--pt) / var(--ui-zoom, 1)); padding: calc(6 * var(--pt) / var(--ui-zoom, 1)) 0; min-height: calc(38 * var(--pt) / var(--ui-zoom, 1)); }
 
 /* ── Round 2 (blind critic, judged against Hearthstone's phone menus) ─────────────────────────────────────────────── */
 /* Every page's tab switch (Career's Match History / Heroes / Practice, the Leaderboard's Solo / Duos) is finger-sized. */
@@ -292,8 +292,8 @@ html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .cv2-tabs > butto
 html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .lbtopbar { justify-content: space-between; }
 /* A row that scrolls sideways fades out at its right edge, so a cut-off chip reads as "more this way". Static paint. */
 html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-tabs, .colls-filters) {
-  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28 * var(--pt)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28 * var(--pt)), transparent);
-  padding-right: calc(28 * var(--pt));
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 56 * var(--pt)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 56 * var(--pt)), transparent);
+  padding-right: calc(48 * var(--pt));
 }
 /* A list that scrolls fades at its foot, so the half row there reads as "more below". */
 html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-list {
@@ -339,3 +339,55 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-n
 /* Career's stat labels break between words only; the tiles share the strip by their content. */
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat { flex: 1 1 auto; padding-left: calc(4 * var(--pt)); padding-right: calc(4 * var(--pt)); }
 html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { overflow-wrap: normal; word-break: normal; overflow: visible; }
+/* Round 3. Every inner scroller fades at its foot, so a cut row reads as "more below" (static paint). */
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.colls-page .colls-gridwrap, .colls-page .colls-side, .lbpage .lbscroll) {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 24 * var(--pt)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 24 * var(--pt)), transparent);
+}
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-gridwrap, .colls-side) { padding-bottom: calc(26 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .lbscroll { padding-bottom: calc(28 * var(--pt) + var(--pz-safe-b, var(--safe-b))); }
+/* Career: the open match shows whole (no scroller of its own); the list beside it scrolls at a phone-high height. */
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-cols > .cv2-center { min-height: 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-list { overflow: visible; }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-list > .gsplit { align-items: start; flex: none; }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .gs-list { max-height: calc(var(--lvh, 100dvh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b)) - 100 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .gs-detail { overflow: visible; }
+/* Career's stat tiles: 11 pt labels, the values on one baseline whatever the label wraps to. */
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat { align-content: start; }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { font-size: calc(11 * var(--pt)); }
+/* Collection: the picked item's small captions read at 10.5 pt. */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-detail :is([class*='-lbl'], [class*='kicker'], .colls-fact > :first-child) { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-kicker, .colls-fact span) { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-fact { padding: calc(6 * var(--pt)) calc(8 * var(--pt)); font-size: calc(12 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-plate-rar { font-size: calc(11 * var(--pt)); }
+/* The rail's live / online / new chips ride the plaque's top-right corner instead of pushing past its edge. */
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn :is(.sb-livechip, .newpill) { position: absolute; top: calc(2 * var(--pt)); right: calc(3 * var(--pt)); margin: 0; padding: calc(1 * var(--pt)) calc(5 * var(--pt)); font-size: calc(9.5 * var(--pt)); line-height: 1.2; z-index: 2; }
+/* Collection: three tiles across on every phone (the side column a little slimmer). */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-body { grid-template-columns: minmax(0, 1fr) calc(176 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-grid { grid-template-columns: repeat(auto-fill, minmax(calc(98 * var(--pt)), 1fr)); gap: calc(7 * var(--pt)); }
+/* Round 4. The rail a little wider so a plaque's live / online chip sits at its right edge beside the label. */
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.lbpage, .modepick.sb-host) { --sb-w: calc(168 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn :is(.sb-livechip, .newpill) { top: 50%; right: calc(5 * var(--pt)); transform: translateY(-50%); font-size: calc(9 * var(--pt)); padding: calc(1 * var(--pt)) calc(4 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn:has(:is(.sb-livechip, .newpill)) .mblabel { padding-right: calc(30 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn .mblabel { letter-spacing: 0.01em; }
+/* The mode home's side tiles: their captions carry a dark halo so they read over busy art (static). */
+html[data-touch-ui][data-touch-small][data-page-scale] .mp-home .mcdesc { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.9), 0 0 18px rgba(0, 0, 0, 0.7); }
+/* Career: the open match's facts read at 11 pt, lighter, with room under them. */
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .gc-meta { padding-bottom: calc(12 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .gc-meta .cv2-meta-l { font-size: calc(11 * var(--pt)); color: rgba(255, 246, 228, 0.72); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { letter-spacing: 0; }
+/* Leaderboard: your own row pins to the foot of the list again (it is what you look for), the list has no fade under it,
+   and the podium is a little shorter so more rows show. */
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage :is(.lb-mepin, .lb-table > .lb-trow-btn.me) { position: sticky; bottom: 0; z-index: 3; background-color: #0d1528; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lbscroll { -webkit-mask-image: none; mask-image: none; padding-bottom: calc(8 * var(--pt) + var(--pz-safe-b, var(--safe-b))); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn { padding: calc(7 * var(--pt)) calc(8 * var(--pt)) calc(6 * var(--pt)); gap: calc(2 * var(--pt)) calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-heroframe .hero { width: calc(34 * var(--pt)); height: calc(34 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-heroframe .hero { width: calc(40 * var(--pt)); height: calc(40 * var(--pt)); }
+/* Collection: three tiles across on every phone, their body text at 11 pt. */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-tile-how, .colls-tile-for, .colls-tile-text) { font-size: calc(11 * var(--pt)); }
+/* The sideways chip rows fade at both ends (the left fade sits over their own lead-in, so the first chip is never dimmed at rest). */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-tabs, .colls-filters) {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 calc(14 * var(--pt)), #000 calc(100% - 56 * var(--pt)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 calc(14 * var(--pt)), #000 calc(100% - 56 * var(--pt)), transparent);
+  padding-left: calc(14 * var(--pt)); margin-left: calc(-14 * var(--pt)); scroll-padding-inline: calc(20 * var(--pt)) calc(56 * var(--pt));
+}

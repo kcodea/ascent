@@ -114,9 +114,14 @@ describe('the Versus test bot', () => {
     const dummy = new VersusBotDriver(apiFor(DUMMY), room.id, { userId: DUMMY, now, seed: 9, maxActions: 0, beatMs: 3000 });
     await as(DUMMY, 'select public.versus_start_game($1)', [room.id]);
     let steps = 0;
+    // Its Hero Select as a watcher sees it (R-SPECTATE-HEROSELECT-01): its three, then its pick.
+    let shownOffer: string[] | null = null;
+    let shownPick: string | null = null;
     while (steps < 6000) {
       steps++;
       await bot.step();
+      const hs = bot.heroSelectShown;
+      if (hs) { shownOffer = hs.offer; shownPick = hs.picked ?? shownPick; }
       await dummy.step();
       clock += 500;
       const m = (await rows<any>('select phase from public.versus_matches'))[0];
@@ -140,6 +145,9 @@ describe('the Versus test bot', () => {
     expect(bot.run!.history.length).toBeGreaterThanOrEqual(committed.length - 1);
     bot.run!.history.forEach((h, i) => expect(h, `round ${i + 1}`).toBe(committed[i].outcome === 'draw' ? 'draw' : committed[i].outcome === botSeat ? 'win' : 'lose'));
     expect(bot.run!.board.length).toBeGreaterThan(0);
+    expect(shownOffer).toHaveLength(3);
+    expect(shownOffer).toContain(shownPick);
+    expect(bot.run!.heroId).toBe(shownPick); // the pick its Hero Select showed is the hero it played
   }, 180_000);
 
   it('a "disconnected" bot stops heartbeating, so the match pauses on its seat', async () => {

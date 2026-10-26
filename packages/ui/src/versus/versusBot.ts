@@ -17,7 +17,7 @@ import { currentUserId } from '../identity';
 import { VersusBotDriver, type BotStepResult, type VersusBotHooks } from './versusBotDriver';
 import { makeBotMatchApi, type BotMatchApi } from './versusBotApi';
 import { makeVersusRemote, type VersusRemote, type VersusRole } from './versusRemote';
-import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
+import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
 import { SPECTATE_KEY_EVENT } from './spectate';
 import { versusServerNow } from './versusStore';
 
@@ -143,7 +143,10 @@ function publishBotFrame(h: BotHost): void {
   const run = h.driver?.run ?? null;
   const matchId = h.driver?.currentMatchId ?? null;
   const seat = h.driver?.realSeat ?? null;
-  if (!info || !run || !matchId || !seat) return;
+  // Its Hero Select, before the run exists (R-SPECTATE-HEROSELECT-01), as a person's client sends it.
+  const hs = h.driver?.heroSelectShown ?? null;
+  const hero = hs ? heroSelectFrame({ offer: hs.offer, picked: hs.picked, reroll: null, canReroll: false, mode: 'versus' }) : null;
+  if (!info || (!run && !hero) || !matchId || !seat) return;
   if (h.pub?.matchId !== matchId || h.pub.p.seat !== seat) {
     h.pub?.channel.close();
     // The room channel also wakes the bot's Duos pass sync on each pass row change (it polls only every 5 s otherwise).
@@ -151,6 +154,12 @@ function publishBotFrame(h: BotHost): void {
     h.pub = { matchId, p: newPublisher(seat), channel: ch };
     h.lastRun = null;
     h.keyWanted = true;
+  }
+  if (!run) {
+    const hm = hero ? nextHeroSelectMessage(h.pub.p, hero, h.keyWanted) : null;
+    h.keyWanted = false;
+    if (hm) { hm.m = matchId; h.pub.channel.send('spectate', hm); }
+    return;
   }
   if (run === h.lastRun && !h.keyWanted) return;
   const shopOpened = h.lastRun?.phase !== 'recruit' && run.phase === 'recruit';

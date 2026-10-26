@@ -1070,6 +1070,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   Armor after it.
 - **Unranked.** No rank, rating, MMR, abandon penalty, opponent-pool upload or ranked save slot, ever. XP (half a
   normal game, see Account Level: R-PROG-VERSUS-XP-01) and achievements are earned (R-VERSUS-RANK-01).
+- **Spectators watch Hero Select too** (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01).
+  From the moment a player reaches Hero Select, a spectator sees that player's Hero Select live on the real screen, read
+  only: their three heroes (hover still shows each power), their re-roll (the buttons while it is unused; the swap when
+  they spend it), their pick and its ceremony, and the Hero Select clock. Then the screen flows into their shop. The
+  player switcher works there as in the shop (1v1, Group and Duos). Nothing the spectator does picks or re-rolls. An
+  opponent never sees another player's options: only the stands (and a Duos teammate, below) draw them, and an offer is
+  never stored where other members can read it (a spectator joining mid Hero Select asks the player for it).
 - **Spectators** watch live (Phase 2). From the shop onwards a spectator sees ONE player's full game screen at a time,
   the real shop and combat screens from that player's side (shop, hand, board, Gold, tier, hero and power, runes,
   quests, Equipment, open choices, the clock, Health and Armor, every fight and its recap), and switches players instantly from
@@ -1242,6 +1249,13 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   exactly once: the restored run lines its passes up with the server by card (and the pass it last arrived through)
   and round, then replays the round's passes both ways in the order the server recorded them, so a card passed back
   and forth (A to B to A) lands once per pass and every pass is paid once.
+- **Your teammate's hero choices** (owner 2026-10-26: "in duos, the teammate's hero options should be visible as well";
+  R-DUOS-HEROSELECT-01). On Hero Select your teammate's portrait sits bottom right, as in game (their picked hero once they
+  have one, else their profile picture). Click it to see their Hero Select live over yours, read
+  only (their three heroes, their re-roll, their pick), in the team-colour frame, with the same quick cross-fade as the
+  teammate view in the shop. Your own portrait then takes that spot: click it (or Esc, or let go of Tab) to come back to
+  your own choices, exactly as you left them. Your clock and your pick keep running underneath, and the view closes when
+  your game starts. (Suggesting a hero to your teammate is a later step.)
 - **Spectating a Duos match.** The fight picker lists the players by team ("Team 1", "Team 2"), and a watched player's
   screen shows the hand-off from their side: both hero slots follow the boards.
 - **On screen** (phase 2; R-DUOS-01, R-DUOS-VIEW-01, R-DUOS-SLOTS-01, R-DUOS-PASS-01). The room's options panel has 2v2; the two seat
@@ -1309,6 +1323,11 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 
+- **Listed from Hero Select** (owner 2026-10-26, R-SPECTATE-HEROSELECT-01; needs
+  `supabase/migrations/2026-10-26-lobby-live-hero-select.sql`). A ranked game is listed the moment its player reaches the
+  ranked Hero Select (the list says "Hero Select" and "Picking a hero"); watching it then shows their Hero Select live, read
+  only (their three heroes, their re-roll, their pick and its ceremony), and flows into their game when they press Start
+  Game. Backing out of that Hero Select delists it.
 - **What is listed.** Every RANKED lobby game in progress (a rated table: not Practice, the tutorial, Gauntlet, a
   sandbox, God Mode, a replay or an all-generated table). Always on for now; a "hide my game" setting is a future seam
   (one gate on the player's side). No delay: watchers see the game as it happens.

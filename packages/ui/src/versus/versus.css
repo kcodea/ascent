@@ -869,3 +869,16 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 .duostuner-select { flex: 1 0 100%; font-size: 12px; padding: 4px; }
 /* IN COMBAT the teammate portrait stays as a face only (owner 2026-10-25): no click, no pass target. */
 .duosdock.combat .duosdock-hold { pointer-events: none; }
+
+/* HERO SELECT, WATCHED (owner 2026-10-26; R-SPECTATE-HEROSELECT-01, R-DUOS-HEROSELECT-01): another player's Hero Select
+   drawn with the real screen (`HeroSelect` watch mode, `.hswatch`), read only. Its cards still lift on hover so their
+   powers can be read, but they take no pick: the gauntlet's DEFAULT hand on them (never the "open" pointer of a control),
+   and the re-roll buttons are shown inert. It sits over a Duos player's own Hero Select (same z, later in the DOM); the
+   spectator chrome, the team frame and the teammate portrait come up above both. Nothing here animates. */
+.heroselect.hswatch .herocard, .heroselect.hswatch .hcreroll { cursor: url('/cursors/gauntlet_default.svg') 6 2, auto; }
+.heroselect.hswatch .hcreroll { pointer-events: none; }
+body:has(.heroselect.hswatch) .vsspec { z-index: 410; }
+.duosview-vignette.hsvignette { z-index: 405; }
+.duosdock.hsdock { z-index: 410; }
+.duosdock .duosdock-initial { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; border-radius: 50%; font-family: var(--font-ui);
+  font-weight: 900; font-size: calc(var(--duos-d) * 0.42); line-height: 1; color: #f4ecdb; background: radial-gradient(circle at 50% 35%, #3a2d55, #15111f); }

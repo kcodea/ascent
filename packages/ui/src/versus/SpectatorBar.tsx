@@ -28,10 +28,12 @@ export function SpectatorBar(): JSX.Element | null {
   const match = useVersus((s) => s.match);
   const room = useVersus((s) => s.room);
   // Health and Armor as the SCREEN shows them (the watched run's two-seat lobby: settled when the fight on screen
-  // lands), so the bar never tells the result of a fight that is still playing. The match row is the fallback.
+  // lands), so the bar never tells the result of a fight that is still playing. The match row is the fallback, and the
+  // only source on Hero Select (R-SPECTATE-HEROSELECT-01: no watched run on screen yet).
+  const heroStage = useSpectate((s) => !!s.hero);
   const shown = useGame((s) => {
     const l = s.run.lobby;
-    return l ? `${l.seats[0]?.resolve ?? ''}/${l.seats[0]?.armor ?? ''}|${l.seats[1]?.resolve ?? ''}/${l.seats[1]?.armor ?? ''}` : '';
+    return !heroStage && l ? `${l.seats[0]?.resolve ?? ''}/${l.seats[0]?.armor ?? ''}|${l.seats[1]?.resolve ?? ''}/${l.seats[1]?.armor ?? ''}` : '';
   });
   useEffect(() => {
     if (!active) return undefined;

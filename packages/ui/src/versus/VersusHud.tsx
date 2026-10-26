@@ -190,7 +190,9 @@ export function VersusHud() {
   const held = versusTurnHolds(useVersusTurn({ mode, phase, wave }));
   // VERSUS DUOS (R-DUOS-VIEW-01): watching my teammate's screen (Tab / their rail portrait), and the way back.
   const watchingMate = useSpectate((s) => s.teammate === true);
-  useTeammateViewKeys(!!seat && !!match?.group?.duos);
+  // (On Hero Select the Hero Select watch layer owns these keys: `hero-select/HeroSelectWatch.tsx`.)
+  const heroSelectUp = useGame((s) => s.heroChoices !== null);
+  useTeammateViewKeys(!!seat && !!match?.group?.duos && !heroSelectUp);
   // A SPECTATOR (Versus phase 2): the seat switcher, and no player controls.
   if (match && !seat) return <SpectatorBar />;
   if (!match || !seat) return null;

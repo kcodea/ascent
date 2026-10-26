@@ -33,7 +33,7 @@ import { decodePoint } from './cursorSpace';
 import { addPoint, localTimeOf, newRemoteClock, noteDelivery, playbackTime, type PlaybackPoint, type RemoteClock } from './cursorPlayback';
 import { setSpectatorHover, watchLocalHover } from './spectatorHover';
 import type { CursorSample, SpectatorAct, WireDecision, WireOdds, WireOverlay } from './spectateTap';
-import { applySpectatorMessage, newReceiver, type CombatBeat, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
+import { applySpectatorMessage, newReceiver, type CombatBeat, type HeroSelectFrame, type SpectatorMessage, type SpectatorReceiver, type VersusSpectatorView } from './spectatorView';
 import type { VersusMatch, VersusRoundRow } from './versusRemote';
 import { endWatchedGame, startSpectatorBeat, stopSpectatorBeat } from '../live/spectatorEnd';
 import { roundResultFor } from './versusGroupView';
@@ -65,6 +65,15 @@ export interface SpectateState {
    *  screen is the same one the stands use; only its chrome differs (TeammateFrame), and leaving it restores the
    *  player's own run exactly as it was, with no trip to the room. */
   teammate?: boolean;
+  /** HERO SELECT, WATCHED (R-SPECTATE-HEROSELECT-01): the watched player's Hero Select, while they are on it (no run yet).
+   *  The watch layer (`hero-select/HeroSelectWatch.tsx`) draws the real Hero Select screen from it, read only. Null
+   *  otherwise. One object per distinct screen, so an unchanged frame never re-renders it. */
+  hero?: HeroSelectFrame | null;
+  /** VERSUS DUOS at Hero Select (R-DUOS-HEROSELECT-01): a PLAYER is looking at their TEAMMATE's hero choices (their
+   *  bottom-right portrait). Their own Hero Select stays mounted, untouched, under it. */
+  teammateHero?: boolean;
+  /** VERSUS DUOS: my teammate's hero pick as their Hero Select last showed it (the bottom-right portrait's face), or null. */
+  matePick?: string | null;
 }
 
 export const useSpectate = create<SpectateState>(() => ({ active: false, seat: 'p1', optedOut: null, seek: null }));
@@ -104,17 +113,38 @@ let asPlayer = false;
 export function trackDuosMatch(match: VersusMatch | null, allRounds: Record<number, VersusRoundRow>): void {
   asPlayer = !!match;
   rounds = allRounds;
-  if (!match) { if (useSpectate.getState().teammate) leaveTeammate(); return; }
+  if (!match) { if (useSpectate.getState().teammate) leaveTeammate(); leaveTeammateHero(); return; }
   if (matchId !== match.id) {
     if (useSpectate.getState().teammate) leaveTeammate();
+    leaveTeammateHero();
     matchId = match.id;
     rx = newReceivers();
     lobbyCache = null;
     last = null;
     resumeAt = null;
+    if (useSpectate.getState().matePick) useSpectate.setState({ matePick: null });
     void fetchKeyframes();
   }
-  if (useSpectate.getState().teammate) schedule();
+  if (useSpectate.getState().teammate || useSpectate.getState().teammateHero) schedule();
+}
+/**
+ * VERSUS DUOS AT HERO SELECT (owner 2026-10-26: "in duos, the teammate's hero options should be visible as well ... have
+ * the player's portrait to be clickable and view the hero options so they can work together on who to pick";
+ * R-DUOS-HEROSELECT-01): show my teammate's Hero Select (their three, their re-roll, their pick, live) over my own, which
+ * stays mounted and untouched underneath (my ceremony, my clock, my pick). Nothing in the game store changes.
+ */
+export function watchTeammateHero(seat: VersusGroupSeat): void {
+  if (!matchId || !asPlayer) return;
+  // The seat and its Hero Select change in ONE update: the screen never draws the other seat's heroes for a frame.
+  useSpectate.setState({ seat, teammateHero: true, hero: heroOnScreen(seat, true) });
+  if (!rx[seat].hero && !rx[seat].view) askForKey(true);
+  schedule();
+}
+/** Back to my own Hero Select. */
+export function leaveTeammateHero(): void {
+  const st = useSpectate.getState();
+  if (!st.teammateHero && !(asPlayer && st.hero)) return;
+  useSpectate.setState({ teammateHero: false, ...(asPlayer || st.teammateHero ? { hero: null } : {}) });
 }
 /** Open the teammate's live screen (the watch screen, from their side). */
 export function watchTeammate(seat: VersusGroupSeat): void {
@@ -198,7 +228,8 @@ function watchedLobby(lobby: NonNullable<RunState['lobby']>, name: string): NonN
 /** Live match state from the session: enter, keep, or leave the watch screen. Only ever called for a seatless member. */
 export function spectateSync(match: VersusMatch | null, allRounds: Record<number, VersusRoundRow>): void {
   rounds = allRounds;
-  const live = !!match && (match.phase === 'shop' || match.phase === 'resolving' || match.phase === 'combat');
+  // HERO SELECT is watched too (owner 2026-10-26, R-SPECTATE-HEROSELECT-01): the players' frames start there.
+  const live = !!match && (match.phase === 'hero_select' || match.phase === 'shop' || match.phase === 'resolving' || match.phase === 'combat');
   // THE MATCH ENDED while this spectator watched it (owner 2026-10-24, R-SPECTATE-END-01): the screen plays the last fight
   // out, then the end gate shuts over it and opens on the room with the result and the XP for watching it.
   if (match && match.phase === 'complete' && match.id === matchId && useSpectate.getState().active && useSpectate.getState().optedOut !== match.id) {
@@ -226,6 +257,10 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
   // the screen is open. So the seat is moved to a player still in BEFORE the screen opens.
   pickLivingSeat();
   if (useSpectate.getState().optedOut === match.id) { stopSpectatorBeat(); return; }
+  // At Hero Select nothing is stored for a late joiner (offers are never persisted): the players are asked for their
+  // screen (throttled; they answer on their ordinary publish).
+  const seatNow = useSpectate.getState().seat;
+  if (match.phase === 'hero_select' && !rx[seatNow].hero && !rx[seatNow].view) askForKey();
   // The watch record for the XP of watching it to the end (R-PROG-SPECTATE-XP-01): beats while this screen is the one on.
   startSpectatorBeat(match.group ? 'group' : 'versus', match.id);
   schedule();
@@ -371,7 +406,10 @@ export function receiveSpectate(payload: unknown): void {
   // Where the watched player's fight is (a broadcast keyframe while it plays): catch the screen up to it.
   if (msg.cb && msg.seat === useSpectate.getState().seat) syncFightBeat(msg.cb);
   if (needKeyframe) { askForKey(); void fetchKeyframes(); return; }
+  // A Duos player's teammate on Hero Select: their pick is my bottom-right portrait's face (R-DUOS-HEROSELECT-01).
+  if (asPlayer && msg.kind === 'hero' && next.hero && useSpectate.getState().matePick !== next.hero.picked) useSpectate.setState({ matePick: next.hero.picked });
   if (msg.seat !== useSpectate.getState().seat) return;
+  if (msg.kind === 'hero') { schedule(); return; } // a whole screen, no actions to replay
   if (asPlayer && !useSpectate.getState().teammate) return; // a Duos player not watching: cached only
   // The watched player's ACTIONS: their screen moves one action at a time, each with the animation and cue the
   // player saw (`playActs`). A message with no actions just renders (coalesced).
@@ -873,6 +911,8 @@ async function fetchKeyframes(): Promise<void> {
       if (msg?.kind === 'key') {
         const k = applySpectatorMessage(rx[r.seat], msg).rx;
         rx[r.seat] = msg.fight && k.view ? { ...k, view: { ...k.view, lastCombat: msg.fight } } : k;
+      } else if (msg?.kind === 'hero') {
+        rx[r.seat] = applySpectatorMessage(rx[r.seat], msg).rx; // a live ranked game's stored Hero Select
       }
     }
     schedule();
@@ -887,14 +927,19 @@ function schedule(): void {
 
 function render(): void {
   if (!matchId || useSpectate.getState().optedOut === matchId) return;
-  // A SEATED Duos player caches the teammate's frames but sees their screen only while they asked to (R-DUOS-VIEW-01).
-  if (asPlayer && !useSpectate.getState().teammate) return;
   // The match's end already closed this watch screen: a frame the winner still publishes (from their last fight) must
   // not open it again (found in the Versus Group live test, 2026-10-24).
   if (watchDone === matchId) return;
+  // HERO SELECT (R-SPECTATE-HEROSELECT-01, R-DUOS-HEROSELECT-01): the watched player's Hero Select while they have no run.
+  const hero = heroOnScreen();
+  if (useSpectate.getState().hero !== hero) useSpectate.setState({ hero });
+  // A SEATED Duos player caches the teammate's frames but sees their screen only while they asked to (R-DUOS-VIEW-01).
+  if (asPlayer && !useSpectate.getState().teammate) return;
   const seat = useSpectate.getState().seat;
   const latest = shownView ?? rx[seat].view;
-  if (!latest) return; // nothing to show for this seat yet: the keyframe is on its way
+  // Nothing to show for this seat yet (the keyframe is on its way), or the player is still on Hero Select: the watch
+  // screen opens on it (the store's own screen is set aside, as for the shop) and the layer draws it.
+  if (!latest) { if (hero && !snapshot && !asPlayer) enter(null); return; }
   // THE PLAYER LEFT THE FIGHT: the screen follows them out at once, however far its own replay has got (owner 2026-10-20:
   // "if a player skips combat the spectator should follow their view back to shop in real time", R-SPECTATE-SKIP-01).
   // The pin only ever holds a fight the player is still IN (their settle arriving before this screen's strike); it never
@@ -968,10 +1013,19 @@ export function spectatorFightCovered(): void {
   render();
 }
 
-function enter(view: VersusSpectatorView): void {
+/** The Hero Select to draw (one object per distinct screen), or null. The stands: the watched seat while it has no run
+ *  view. A seated Duos player: their teammate's, only while they asked to see it. */
+function heroOnScreen(seat?: VersusGroupSeat, teammateHero?: boolean): HeroSelectFrame | null {
+  const st = useSpectate.getState();
+  const r = rx[seat ?? st.seat];
+  if (asPlayer) return teammateHero ?? st.teammateHero ? r.hero ?? null : null;
+  return !r.view && !shownView ? r.hero ?? null : null;
+}
+
+function enter(view: VersusSpectatorView | null): void {
   // Arriving mid-fight: the fight on screen is a late one, and the player is asked where it is (their keyframe answer
   // carries the beat, `cb`, which the screen seeks to).
-  if (view.phase === 'combat') askForKey(true);
+  if (view?.phase === 'combat') askForKey(true);
   const s = useGame.getState();
   const snap: Record<string, unknown> = {};
   for (const k of SNAPSHOT_KEYS) snap[k] = s[k];
@@ -1071,7 +1125,10 @@ export function watchSeat(seat: VersusGroupSeat): void {
   useGame.setState({ inspect: null });
   clearQueue();
   resetCursor();
-  useSpectate.setState({ seat });
+  // The seat and its Hero Select (if they are on it) change in ONE update: never a frame of the other player's heroes.
+  useSpectate.setState({ seat, hero: heroOnScreen(seat) });
+  // Nothing cached for that player yet (a Hero Select is never stored): ask them for their screen.
+  if (!rx[seat].view && !rx[seat].hero) askForKey(true);
   schedule();
 }
 
@@ -1121,7 +1178,7 @@ export function stopSpectating(restoreOnly = false): void {
   if (useSpectate.getState().seek || useSpectate.getState().skip) useSpectate.setState({ seek: null, skip: null });
   leaving = 'no';
   if (leaveTimer != null) { window.clearTimeout(leaveTimer); leaveTimer = null; }
-  useSpectate.setState({ active: false });
+  useSpectate.setState({ active: false, ...(asPlayer ? {} : { hero: null }) });
   watchLocalHover(false);
   // Back where the spectator came from: the Versus room (its title view), whatever the snapshot says, or the live
   // games list for a ranked lobby game (`Io.returnTo`).
@@ -1143,7 +1200,7 @@ export function resetSpectate(): void {
   asPlayer = false;
   rx = newReceivers();
   rounds = {};
-  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {}, teammate: false });
+  useSpectate.setState({ seat: 'p1', optedOut: null, name: null, odds: {}, overlay: {}, teammate: false, teammateHero: false, hero: null, matePick: null });
 }
 
 /**

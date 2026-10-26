@@ -7314,20 +7314,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-TOUCH-RUN-MEMORY-02',
     title: "A phone holds the return trip's vista at about its own screen size",
     statement:
-      'On a phone (the lite art path), the return trip’s flattened vista picture and the door’s cut-out are the build’s '
-      + '1280 px copies (the 2560 x 1440 masters cost 14.1 MB each decoded; a copy about 3.5 MB). They are still fetched and '
-      + 'decoded when the Shop mounts and held for the run, so the trip never waits on a decode or pops in (R-PRESENT-36): '
-      + 'the decoded image and the stylesheet (the --vista-flat / --vista-doormask custom properties, set at boot) point at '
-      + 'the same copy. Desktop, and a build without phone copies, keep the originals.',
+      'On a phone (the lite art path), the return trip’s flattened vista picture is the build’s 1280 px copy (the '
+      + '2560 x 1440 master costs 14.1 MB decoded; the copy about 3.5 MB). It is still fetched and decoded when the Shop '
+      + 'mounts and held for the run: the decoded image and the stylesheet (the --vista-flat custom property, set at boot) '
+      + 'point at the same copy. Desktop, and a build without phone copies, keep the original. (The door’s cut-out was a '
+      + 'second such picture until 2026-10-25; it is a vector clip now, R-PRESENT-36.)',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Owner, 2026-10-24 (the #2266 vista held ~28 MB of decoded images on phones from the first shop on)', quote: 'Phone-sized return-trip images: yea send em' },
-      { kind: 'code', ref: 'packages/ui/src/phoneArt.ts (phonePublicCap, PHONE_CSS_VARS, applyPhoneCssArt); apps/web/phoneArtPlugin.ts (CSS_OVERRIDDEN); styles.css (.wipevista-flat, the maskok mask); Recruit.tsx (the vista decode, through publicArt)' },
+      { kind: 'code', ref: 'packages/ui/src/phoneArt.ts (phonePublicCap, PHONE_CSS_VARS, applyPhoneCssArt); apps/web/phoneArtPlugin.ts (CSS_OVERRIDDEN); styles.css (.wipevista-flat); Recruit.tsx (the vista decode, through publicArt)' },
     ],
     currentBehaviour:
       'Conforms from 2026-10-24 (perf/phone-vista-images). Before, a phone decoded and held both 2560 x 1440 originals '
-      + '(28.1 MB) from the first shop to the end of the run.',
+      + '(28.1 MB) from the first shop to the end of the run. Since 2026-10-25 (fix/vista-cold-start) the cut-out is gone, '
+      + 'so a phone holds the one flat copy.',
     example: 'iPhone landscape 852x393 @3x, prod build (npm run perf:phone-run -- --interact): decoded images at the first shop 126 to 106 MB, as the gate falls 127 to 107 MB; the iOS estimate there 260 to 242 MB.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneVistaArt.test.ts', 'apps/web/phoneArtPlugin.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
@@ -8214,11 +8215,13 @@ export const FOUNDATION_RULES: GameRule[] = [
   // ── A transition never shows a picture before it is ready (owner clip 2026-10-23, the vista's 4-frame blank) ──────
   {
     id: 'R-PRESENT-36',
-    title: 'A transition only uses art that is already loaded and decoded, so no piece of it blanks out mid-play',
+    title: 'A transition is ready to draw before it plays, so no piece of it is late, missing or blinks, even the first time',
     statement:
-      'Every picture a screen transition draws or cuts with (its layers, masks and overlays) is fetched and decoded before '
-      + 'the transition can start, and a piece that is still not ready when its moment comes is left out for that play '
-      + 'rather than switched on half-loaded. No part of a transition may disappear and come back while it plays.',
+      'No part of a screen transition may arrive late, be missing, or disappear and come back while it plays, and the '
+      + 'first time it plays in a session must look exactly like every later time. Its art is made ready to DRAW before '
+      + 'its moment (fetching or decoding it in script is not enough: the browser draws from its own cache, which it fills '
+      + 'only when the art is first drawn and empties again over time), and it never depends on a big picture the browser '
+      + 'decodes only on first use, such as a picture used as a cut-out or mask. A shape is drawn with geometry instead.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -8228,15 +8231,27 @@ export const FOUNDATION_RULES: GameRule[] = [
         quote: 'you can see  briefly that part of the image disappears and returns',
       },
       { kind: 'fix-pr', ref: 'feat/vista-return' },
-      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (vistaArtRef / vistaMaskReadyRef / vistaMaskTrip, the maskok class); packages/ui/src/styles.css .wipevista.maskok.held .wipevista-masked' },
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-25 (after the first fix shipped)',
+        quote: 'we are still getting reports of the images glitching and not loading straight away for the return to shop animation. i need a deep dive on this issue. we cannot have it continue.',
+      },
+      { kind: 'fix-pr', ref: 'fix/vista-cold-start' },
+      { kind: 'code', ref: 'packages/ui/src/vistaDoor.ts (the door as a vector clip); packages/ui/src/wipeMachine.ts (vistaWarmClassFor, VISTA_WARM_MS, vistaDrivesMachine); packages/ui/src/Recruit.tsx (the warm-up on replay.done, the clipPath, the guarded vista handlers); packages/ui/src/styles.css (.wipevista.held .wipevista-masked clip-path, .wipevista.warming, .wipevista-doordark)' },
     ],
     currentBehaviour:
-      'Conforms as of 2026-10-23. Before, the return trip’s door cut-out (vista-doormask.png) was the one vista picture '
-      + 'never preloaded; when the mask switched on as the land settled, the browser hid the whole masked group (sky, hills, '
-      + 'title, shop) until it decoded, and for four frames the fight showed through behind the flowers. Now every vista '
-      + 'picture is decoded on mount and kept referenced, and each trip uses the cut-out only if it was decoded before the '
-      + 'trip began. PARTIAL as a general rule: the test pins the vista’s mask, not every transition’s art.',
-    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-23' },
+      'Conforms for the return trip as of 2026-10-25. The 2026-10-23 fix (decode the door cut-out in script, use it only '
+      + 'once decoded) did NOT hold: measured in real Chrome on the GPU, a session’s first trip still blanked 79% of the '
+      + 'screen for a frame as the cut-out switched on (a picture mask hides everything it applies to until the COMPOSITOR '
+      + 'has decoded it, and script decoding fills a different cache), and its five 2560 x 1440 layers showed nothing for '
+      + '~0.15 s before popping in, with the dive a frame late. A warm-up at load decayed within a minute. Now the door is '
+      + 'a vector clip (no picture), the doorway darkening uses no mask, and the moment a fight’s replay ends the trip’s hold '
+      + 'and dive play once unseen behind the game: the first trip measures the same as a warm one (scene at ~45 to 57 ms, '
+      + 'no missing frames) even with End Combat pressed 0.2 s after it opens. PARTIAL as a general rule: the falling gate '
+      + '(one 2455 x 1381 picture) is not warmed and was not measured.',
+    example: 'Real Chrome, GPU, 1920 x 1080, 60 s after load: before, the first trip showed the scene at 153 to 175 ms and one '
+      + 'blank hold frame; after, 44 to 57 ms and none (vista-harness recordings, 2026-10-25).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/wipeMachine.test.ts'], lastVerifiedAt: '2026-10-25' },
   },
   {
     id: 'R-SKIP-DIAMOND-01',

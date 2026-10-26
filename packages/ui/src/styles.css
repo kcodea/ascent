@@ -581,8 +581,10 @@ canvas.spr { image-rendering: pixelated; display: block; }
    its dark, it fades to the darkened board that lightens up as it goes through"): the SAME veil as the Shop's dusk (its
    colour, at its 0.78), cut to the door's shape, darkens the painted interior over the dive's first 28%. It lives INSIDE
    the interior, so the two fade out as one: a darkened doorway crossfading into an equally darkened Shop. Opacity only. */
-.wipevista-doordark { position: absolute; inset: 0; background: #04060c; opacity: 0; will-change: opacity;
-  -webkit-mask: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; mask: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat; }
+/* (Its shape is the painted interior's own picture, the one `.wipevista-doorfill` already draws, turned into a black
+   silhouette by a STATIC filter: no picture mask for the compositor to wait on, R-PRESENT-36.) */
+.wipevista-doordark { position: absolute; inset: 0; background: url('/vista-doorfill.webp') 0 0 / 100% 100% no-repeat;
+  filter: brightness(0); opacity: 0; will-change: opacity; }
 .wipevista.dive .wipevista-doordark { animation: vistadoordark var(--wipe-reveal-dur, 450ms) both; }
 @keyframes vistadoordark { 0% { opacity: 0; animation-timing-function: ease-out; } 28% { opacity: 0.78; } 100% { opacity: 0.78; } }
 /* THE DIVE KEEPS ITS PARALLAX (owner 2026-10-23: "the background shouldnt zoom in as fast as the house and foreground").
@@ -632,13 +634,22 @@ canvas.spr { image-rendering: pixelated; display: block; }
 
 /* The hole moves WITH THE SHOP: the masked group and the door's wrapper carry the shop's push, and the layers inside the
    group push RELATIVE to it (sky 1.03 / 1.12 and so on), so each layer still ends at the same scale as before while the
-   hole stays exactly on the shop's doorway the whole way. The mask (`vista-doormask.png`: the whole picture, minus the
-   doorway the OWNER PAINTED, his soft edge kept, 2026-10-23) is static, so it is drawn once and only carried by the transform. */
+   hole stays exactly on the shop's doorway the whole way. The hole is the outline of the door shape the OWNER PAINTED
+   (2026-10-23), traced into vector geometry (vistaDoor.ts, the SVG clipPath in Recruit): static, so it is drawn once and
+   only carried by the transform. */
 .wipevista-masked, .wipevista-doorwrap { position: absolute; inset: 0; transform-origin: 47.7% 83%; will-change: transform; }
 /* The hole exists only once every piece has landed (the hold and the dive), so nothing shows through it mid-flight. */
-/* …only on a trip that started with the cut-out already decoded (`maskok`, Recruit.tsx): a mask still loading hides
-   the whole group (owner clip 2026-10-23: the fight showed through for four frames). */
-.wipevista.maskok.held .wipevista-masked, .wipevista.maskok.dive .wipevista-masked { -webkit-mask: var(--vista-doormask, url('/vista-doormask.png')) 0 0 / 100% 100% no-repeat; mask: var(--vista-doormask, url('/vista-doormask.png')) 0 0 / 100% 100% no-repeat; }
+/* A SHAPE, NOT A PICTURE (R-PRESENT-36; owner reports 2026-10-23 and 10-25). The cut-out was a 2560 x 1440 picture used
+   as a CSS mask; the compositor decodes a picture that size only when it first needs it, and a mask whose picture is
+   not decoded hides everything it applies to: the sky, hills, title and shop vanished as it switched on, on a session's
+   first trip. A clip path has no picture to decode, so it is there the frame it switches on. */
+.wipevista.held .wipevista-masked, .wipevista.dive .wipevista-masked { clip-path: url(#wipevista-door); }
+.wipevista-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+/* THE WARM-UP (R-PRESENT-36; `vistaWarmClassFor`): as a fight's replay ends, the hold and the dive play once BEHIND the
+   game (z -1: under #root) at 1%, so the compositor draws every layer at every scale before the real trip asks for
+   it. It draws covered content too (measured), and the game covers it, so nothing of it is seen. !important outranks
+   the dive's own fade. */
+.wipevista.warming { z-index: -1; opacity: 0.01 !important; }
 /* The doorway's interior (`vista-doorfill.webp`: the owner's door shape grown 3 px, so it overlaps the frame and no
    hairline can show), at its box. */
 .wipevista-doorfill { position: absolute; left: 43.75%; top: 65.4861%; width: 7.8516%; height: 18.2639%;
@@ -669,8 +680,8 @@ canvas.spr { image-rendering: pixelated; display: block; }
 .wipevista-shop { background-image: url('/vista-shop.webp'); }
 .wipevista-fore { background-image: url('/vista-fore.webp'); }
 /* Phones: one flattened picture instead of six full-screen layers (touchUi.css swaps them). */
-/* `--vista-flat` / `--vista-doormask` are set only on a phone (applyPhoneCssArt: its 1280 px copies, R-TOUCH-RUN-MEMORY-02);
-   desktop reads the fallback, the 2560 px original. */
+/* `--vista-flat` is set only on a phone (applyPhoneCssArt: its 1280 px copy, R-TOUCH-RUN-MEMORY-02); desktop reads the
+   fallback, the 2560 px original. */
 .wipevista-flat { background-image: var(--vista-flat, url('/vista-flat.webp')); display: none; }
 .wipevista.on .wipevista-masked { animation: vistapushshop 1.7s cubic-bezier(.25, .6, .35, 1) both; }
 /* The door's interior and glow rise WITH the shop (same rise, same moment), then push with it. */

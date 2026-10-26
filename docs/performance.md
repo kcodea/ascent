@@ -793,6 +793,15 @@ method: `docs/devlog/2026-10-11-restyle-pass.md`.
 - **A running CSS animation costs a main-thread restyle of its element every frame**, even a composited
   transform/opacity one (Chrome ticks it on the main thread). A heavy board's 43 idle animations cost ~0.15 ms a
   frame. It grows with the count, so do not add a looping animation per card where one shared element would do.
+- **Decoding a picture in script does not make it ready to DRAW** (2026-10-25, the return trip's vista, R-PRESENT-36).
+  `new Image()` + `img.decode()` fills Blink's cache; the compositor draws from its own, which it fills only when a
+  picture is first drawn (big ones, over ~512 KB decoded, are drawn WITHOUT the picture first and filled in later)
+  and empties again over time (a warm-up at load had decayed a minute later). Two traps follow. (1) A picture used
+  as a CSS `mask` hides everything it applies to until the compositor has decoded it: draw a shape with geometry
+  (an SVG `clipPath`, `clip-path: url(#id)`) instead. (2) Big CSS background layers shown for the first time pop in
+  late: warm them shortly before they are needed by drawing them once out of sight (behind the game, it still draws
+  covered content). `<img decoding="sync">` did not fix (2) for this scene. Measure with a real-GPU Chrome screencast,
+  first trip vs second (`docs/devlog/2026-10-25-vista-cold-start.md` has the method).
 - **Decoding art ahead does not fix a roll.** Pre-decoding the next roll's art removed all ~60 ms of decode work
   but not one frame over budget: a roll's long frames are its React commit and the GPU upload of full-size art.
   Card-size art would fix the upload, and it is an owner decision (it changes how art is delivered).

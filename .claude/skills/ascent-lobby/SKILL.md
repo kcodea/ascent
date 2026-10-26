@@ -30,7 +30,12 @@ behaviour from a legacy symbol.**
   `practiceStrengthBand`, applied inside `createLobbyRun`, so the table is the one a rated lobby of that medal
   seats; read old values through `normalizePracticeRank`). Practice is **always unrated**
   regardless of these (rating/upload gates key on `mode === 'lobby'`). There is no standalone `bots` RunMode —
-  bots live inside Practice.
+  bots live inside Practice. **DEV ONLY: `setId`** (the Set row, 2026-10-26, `practiceSetOf`): a Practice game on a
+  set other than the live one pins that set and seats ONLY generated seats stamped with it (`setScopedBots` ->
+  `LobbySeatState.setId`, threaded into `hybridSeat` / `botSeat` / `autoplayRun` and the recording cache key); the run
+  keeps `practiceConfig.setId` only then (`isPracticeDevSetRun`), which skips the Practice row + XP. Player builds strip it.
+  A generated seat with no `setId` plays `createRun`'s default (the live set), so pass the set on any new door that
+  seats generated seats on a non-live set.
 - `DEFAULT_LOBBY_RULES`: `seatCount: 8`, `startingResolve: 30`, `startingArmor: 15` (only for seats with no hero;
   a seat that plays a hero starts on its hero's Armor via `seatStartingArmor`, R-LOBBY-SEAT-ARMOR-01), `maxRounds: 60`. The
   round cap is a **stalemate backstop**, not a course length.

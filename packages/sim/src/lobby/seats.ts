@@ -1,5 +1,5 @@
 import type { BoardMinion } from '@game/core';
-import { CARD_INDEX } from '@game/content';
+import { CARD_INDEX, type SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { autoplayRun, snapshotBoard } from '../snapshot';
 import { createRun, type RunState } from '../state';
@@ -140,11 +140,16 @@ const RECORDINGS = new Map<string, BoardSnapshot[]>();
 /** Bounded so a long session of lobbies can't grow it without limit; eviction only costs a recompute. */
 const RECORDING_CAP = 128;
 
-function recordingFor(seed: number, heroId?: string): BoardSnapshot[] {
-  const key = `${seed}|${heroId ?? ''}`;
+/** The recording cache key. A seat stamped with a card set (Practice's DEV set picker, 2026-10-26) keys on it too, so
+ *  a set-3 recording can never answer for a live-set seat of the same seed + hero. Unstamped seats key as before. */
+const recordingKey = (seed: number, heroId: string | undefined, setId?: SetId): string =>
+  `${seed}|${heroId ?? ''}${setId ? `|${setId}` : ''}`;
+
+function recordingFor(seed: number, heroId?: string, setId?: SetId): BoardSnapshot[] {
+  const key = recordingKey(seed, heroId, setId);
   const hit = RECORDINGS.get(key);
   if (hit) return hit;
-  const snaps = autoplayRun(seed, heroId);
+  const snaps = autoplayRun(seed, heroId, undefined, Infinity, setId);
   if (RECORDINGS.size >= RECORDING_CAP) {
     const oldest = RECORDINGS.keys().next().value;
     if (oldest !== undefined) RECORDINGS.delete(oldest);
@@ -160,11 +165,11 @@ function recordingFor(seed: number, heroId?: string): BoardSnapshot[] {
  * seat. The save stores each built recording (`builtRecording`) and the resume primes it back (`primeRecording`), so
  * the seat keeps fielding the boards it fielded before. Priming never overwrites a recording built this session.
  */
-export function builtRecording(seed: number, heroId: string): BoardSnapshot[] | null {
-  return RECORDINGS.get(`${seed}|${heroId}`) ?? null;
+export function builtRecording(seed: number, heroId: string, setId?: SetId): BoardSnapshot[] | null {
+  return RECORDINGS.get(recordingKey(seed, heroId, setId)) ?? null;
 }
-export function primeRecording(seed: number, heroId: string, snaps: readonly BoardSnapshot[]): void {
-  const key = `${seed}|${heroId}`;
+export function primeRecording(seed: number, heroId: string, snaps: readonly BoardSnapshot[], setId?: SetId): void {
+  const key = recordingKey(seed, heroId, setId);
   if (RECORDINGS.has(key) || !snaps.length) return;
   if (RECORDINGS.size >= RECORDING_CAP) {
     const oldest = RECORDINGS.keys().next().value;
@@ -177,10 +182,10 @@ export function primeRecording(seed: number, heroId: string, snaps: readonly Boa
  * Does this seat's recording field at least one board? Answered from the memoized full recording when it already
  * exists, else from a one-board prefix autoplay (the prefix is identical to the full recording's first board).
  */
-export function recordingFieldsBoard(seed: number, heroId?: string): boolean {
-  const hit = RECORDINGS.get(`${seed}|${heroId ?? ''}`);
+export function recordingFieldsBoard(seed: number, heroId?: string, setId?: SetId): boolean {
+  const hit = RECORDINGS.get(recordingKey(seed, heroId, setId));
   if (hit) return hit.length > 0;
-  return autoplayRun(seed, heroId, undefined, 1).length > 0;
+  return autoplayRun(seed, heroId, undefined, 1, setId).length > 0;
 }
 
 /**
@@ -193,10 +198,10 @@ export function recordingFieldsBoard(seed: number, heroId?: string): boolean {
  * frame of the run. Deferring it means a seat that is built only to be probed, or one whose recording is never
  * reached, costs nothing.
  */
-export function recordRun(seed: number, heroId?: string, label?: string): SeatDriver & { readonly lastWave: number } {
+export function recordRun(seed: number, heroId?: string, label?: string, setId?: SetId): SeatDriver & { readonly lastWave: number } {
   const name = label ?? `${heroId ?? 'run'}#${seed}`;
   let inner: (SeatDriver & { readonly lastWave: number }) | null = null;
-  const rec = (): SeatDriver & { readonly lastWave: number } => (inner ??= recordedSeat(name, recordingFor(seed, heroId)));
+  const rec = (): SeatDriver & { readonly lastWave: number } => (inner ??= recordedSeat(name, recordingFor(seed, heroId, setId)));
   return {
     kind: 'recorded',
     label: name,
@@ -229,8 +234,9 @@ export function recordRun(seed: number, heroId?: string, label?: string): SeatDr
  * `prepareSeatForCombat` / `settleSeatCombat` so the lobby can drive recruit and settle the real result back.
  * That is a further step; this one buys the scaling, which is what the pacing measurement asked for.
  */
-export function botSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard'): SeatDriver {
-  let run: RunState = createRun(seed, heroId, 'lobby');
+export function botSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard', setId?: SetId): SeatDriver {
+  // `setId`: the card set this seat plays (Practice's DEV set picker, 2026-10-26); absent = `createRun`'s default.
+  let run: RunState = createRun(seed, heroId, 'lobby', undefined, setId);
   const ctrl: { c: BotControllerState | null } = { c: null };
   const terminal = (r: RunState): boolean => r.phase === 'gameover' || r.phase === 'victory';
 
@@ -297,11 +303,11 @@ export function botSeat(seed: number, heroId?: string, label?: string, policy: S
  * all", and the live bot answers in ~5ms where forcing a candidate's recording costs ~100ms — and rejected
  * candidates would pay that cost for a recording nobody ever uses.
  */
-export function hybridSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard'): SeatDriver & { readonly lastRecordedWave: number } {
-  const recorded = recordRun(seed, heroId, label);
+export function hybridSeat(seed: number, heroId?: string, label?: string, policy: SeatPolicy = 'hard', setId?: SetId): SeatDriver & { readonly lastRecordedWave: number } {
+  const recorded = recordRun(seed, heroId, label, setId);
   // Lazy: the probe run is only built if seat selection actually asks. A seated driver never pays for it.
   let probe: SeatDriver | null = null;
-  const live = (): SeatDriver => (probe ??= botSeat(seed, heroId, label, policy));
+  const live = (): SeatDriver => (probe ??= botSeat(seed, heroId, label, policy, setId));
   return {
     kind: 'recorded',
     label: recorded.label,
@@ -317,7 +323,7 @@ export function hybridSeat(seed: number, heroId?: string, label?: string, policy
     // the live probe seated it anyway, so the seat fielded no board all game. The probe replays only up to the
     // first board (an exact prefix of the real recording) so it stays cheap. The live-bot check is kept so seat
     // selection doesn't change for heroes it already rejects (Disco Dan).
-    canFieldBoard: () => !!(live().prepare(1) ?? live().finalBoard?.()) && recordingFieldsBoard(seed, heroId),
+    canFieldBoard: () => !!(live().prepare(1) ?? live().finalBoard?.()) && recordingFieldsBoard(seed, heroId, setId),
     settle: (o) => recorded.settle(o),
   };
 }

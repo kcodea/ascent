@@ -114,3 +114,5 @@ those fields when a set wants its own — the seam is there, the wiring isn't.
 | Opponent boards | `BoardSnapshot.setId`, filtered in `pickOpponent` |
 | Synthetic boards | `CurveSynthOptions.setId`, via `SET=… npm run pool` |
 | Broken save | `missingCardIds(state)` — refuse Continue instead of crashing on a dangling id |
+| Generated seats on a non-live set | `LobbySeatState.setId` (stamped by `setScopedBots`) → `hybridSeat` / `botSeat` / `autoplayRun` |
+| Practice on another set (DEV) | `PracticeConfig.setId` → `practiceSetOf` → `createLobbyRun` (bots only, writes nothing) |

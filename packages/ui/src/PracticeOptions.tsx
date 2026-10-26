@@ -3,7 +3,8 @@ import { modeArt } from './art';
 import { FadeImg } from './FadeImg';
 import { sfx } from './sfx';
 import { phoneLayoutOn } from './stage';
-import { PRACTICE_RANKS, normalizePracticeRank, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
+import { PRACTICE_RANKS, normalizePracticeRank, normalizePracticeTribes, practiceSetOf, practiceSetOptions, practiceTribeOptions, togglePracticeTribe, type PracticeConfig, type PracticeRank, type PracticeTribe } from '@game/sim';
+import type { SetId } from '@game/content';
 
 /**
  * PRACTICE OPTIONS (owner ask 2026-08-24) — the setup screen shown after choosing Practice and before the hero
@@ -74,12 +75,19 @@ const rankHint = (rank: PracticeRank): string => (rank === 'all'
   ? 'Your opponents are recorded players of every rank.'
   : `Your opponents are the recorded players a ${RANK_LABEL[rank]} player meets in ranked games.`);
 
-/** "Normal" (the usual random tribes) plus the tribes of the set a new run uses, in that set's order (owner
- *  2026-09-27: multi-select, "reword 'none' to 'Normal'"). Normal is `null`; the draft holds the picked list. */
-const TRIBE_OPTIONS: { value: PracticeTribe | null; label: string }[] = [
+/** "Normal" (the usual random tribes) plus the tribes of the set the game is created on, in that set's order (owner
+ *  2026-09-27: multi-select, "reword 'none' to 'Normal'"). Normal is `null`; the draft holds the picked list. The set
+ *  is the live one unless the dev-only Set row picked another (`practiceSetOf`). */
+const tribeOptionsFor = (setId: SetId): { value: PracticeTribe | null; label: string }[] => [
   { value: null, label: 'Normal' },
-  ...practiceTribeOptions().map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
+  ...practiceTribeOptions(setId).map((t) => ({ value: t, label: t.charAt(0).toUpperCase() + t.slice(1) })),
 ];
+
+/** DEV ONLY (owner 2026-10-26): the Set row's choices, every defined set by its display name. Never built in a player
+ *  build: the row below renders only under `import.meta.env.DEV`. */
+const SET_OPTIONS: { value: SetId; label: string }[] = import.meta.env.DEV
+  ? practiceSetOptions().map((o) => ({ value: o.id, label: o.live ? `${o.name} (live)` : o.name }))
+  : [];
 
 /** One of the Practice screen's two modes as a SELECTABLE TILE (UI refinement 2026-10-16; owner sketch 2026-10-08 for
  *  the two modes): the mode's art, its name and its one-line description, the selected one lit with a clear state.
@@ -124,6 +132,12 @@ export function PracticeOptions() {
   // GOD MODE (owner sketch 2026-10-08): God Mode ignores the Sandbox options (it always plays every hero, Unlimited
   // health, every tribe, no timer), so they are greyed out and inert until Sandbox Mode is selected.
   const god = cfg.godMode === true;
+  // DEV SET PICKER (owner 2026-10-26): the set this game is created on. A set other than the live one plays against
+  // generated bots on that set (recorded player runs belong to their own set), so the Opponent Rank row has no say.
+  // A player build never honours a pick (the store strips one too): it always reads the live set.
+  const setId = practiceSetOf(import.meta.env.DEV ? cfg : undefined);
+  const devSet = import.meta.env.DEV && setId !== practiceSetOptions().find((o) => o.live)?.id;
+  const tribeOptions = tribeOptionsFor(setId);
 
   // Back to the mode picker (the crumb), the way the Learn / Gauntlet / Versus views lead back. ONE store write
   // (`goTo('modes')` closes the setup, raises the title flag and lands on the home together): two separate writes
@@ -154,6 +168,16 @@ export function PracticeOptions() {
         {/* GOD MODE (owner sketch 2026-10-08): it ignores the Sandbox options (it always plays every hero, Unlimited
             health, every tribe, no timer), so they are inert (and folded away) while God Mode is selected. */}
         <div className={`posandbox${god ? ' off' : ''}`} aria-disabled={god}>
+          {import.meta.env.DEV && (
+            <Segmented
+              label="Set"
+              hint={devSet ? 'Dev only. Your opponents are bots playing this set.' : 'Dev only. The set this game is played with.'}
+              value={setId}
+              options={SET_OPTIONS}
+              onPick={(v) => setDraft({ setId: v, tribes: normalizePracticeTribes(cfg.tribes, v) })}
+              disabled={god}
+            />
+          )}
           <Segmented
             label="Heroes"
             hint={(cfg.heroes ?? 'beginner') === 'beginner' ? 'Pick from three starter heroes: Indy, Warden and Keshi.' : 'Pick from every hero.'}
@@ -180,18 +204,18 @@ export function PracticeOptions() {
           />
           <Segmented
             label="Opponent Rank"
-            hint={rankHint(normalizePracticeRank(cfg.rank))}
+            hint={devSet ? 'Not used. Bots play this set.' : rankHint(normalizePracticeRank(cfg.rank))}
             value={normalizePracticeRank(cfg.rank)}
             options={RANKS}
             onPick={(v) => setDraft({ rank: v })}
-            disabled={god}
+            disabled={god || devSet}
           />
           <Segmented
             label="Tribes"
-            hint={`Select as many as you'd like. Selected tribes join the Neutrals. Normal contains all ${TRIBE_OPTIONS.length - 1}.`}
+            hint={`Select as many as you'd like. Selected tribes join the Neutrals. Normal contains all ${tribeOptions.length - 1}.`}
             isOn={(v) => (v === null ? cfg.tribes.length === 0 : cfg.tribes.includes(v))}
-            options={TRIBE_OPTIONS}
-            onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v) })}
+            options={tribeOptions}
+            onPick={(v) => setDraft({ tribes: togglePracticeTribe(cfg.tribes, v, setId) })}
             disabled={god}
           />
         </div>

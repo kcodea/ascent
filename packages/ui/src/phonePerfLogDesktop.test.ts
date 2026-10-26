@@ -30,6 +30,17 @@ describe('the perf log on desktop', () => {
     expect(localStorage.length).toBe(0);
     cancel();
   });
+  it('?phonebench=1 records too, and the bench itself is fetched only with the flag', { timeout: 30_000 }, async () => {
+    vi.resetModules();
+    window.history.replaceState(null, '', '/?phonebench=1');
+    vi.doMock('./phoneArt', async (orig) => ({ ...(await orig<typeof import('./phoneArt')>()), LITE_ART: false }));
+    const flag = await import('./perfLogFlag');
+    expect(flag.PHONE_BENCH_ON).toBe(true);
+    expect(flag.PERF_LOG_ON).toBe(true);
+    const game = (await import('node:fs')).readFileSync((await import('node:path')).join(__dirname, 'Game.tsx'), 'utf8');
+    expect(game).toMatch(/const PhoneBenchCard = lazy\(\(\) => import\('\.\/PhoneBenchCard'\)\)/);
+    expect(game).toMatch(/\{PHONE_BENCH_ON && <Suspense/);
+  });
   it('?perflog=1 opts a desktop in', { timeout: 30_000 }, async () => {
     vi.resetModules();
     window.history.replaceState(null, '', '/?perflog=1');

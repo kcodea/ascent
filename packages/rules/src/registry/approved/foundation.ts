@@ -9727,4 +9727,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A 120 Hz iPhone in the last 20 s of a shop repaints the charge glyph 30 times a second instead of 120.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneFxRecovery.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-PHONE-BENCH-01',
+    title: 'One link benchmarks a phone: ?phonebench=1 drives a fixed sequence on the device, uploads one report and shows a summary',
+    statement:
+      'Opening the game with ?phonebench=1 runs a fixed sequence with no input: the title and mode home, a God Mode '
+      + 'Practice game (never saved: the player save is untouched, and the Practice and God Mode preferences it touches are '
+      + 'put back), hero select and the ceremony, then four rounds of an idle shop, a tier-up and refresh, scripted drags '
+      + '(buy, play, reorder), End Turn with a late-round opponent board, the gate and the fight, then back to the title. '
+      + 'The phone perf log records it (frames per scene, WebGL, images counted per element and per distinct URL, decoded '
+      + 'audio, the FX ledger), one report is uploaded with payload.bench, and a card shows the summary with Copy. The perf '
+      + 'log also records decoded image MB de-duplicated by URL and decoded audio MB on every phone session. A CI workflow '
+      + '(phone-budgets.yml, not required) fails a UI PR whose iPhone walk goes over the memory, WebGL, audio or image ceilings.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (relayed by the coordinator; no Mac, no device farm)', quote: 'make this game run flawlessly on mobile devices ... performance is a pillar' },
+      { kind: 'code', ref: 'packages/ui/src/phoneBench.ts; PhoneBenchCard.tsx; perfLogFlag.ts (PHONE_BENCH_ON); phonePerfLog.ts (setPerfBenchInfo, audioMb, imgUniqueMb); crashLog.ts (decodedImagesSnapshot urls/umb, audioMbSnapshot); scripts/phone-run-memory.mjs (--max-gl/--max-audio/--max-img); .github/workflows/phone-budgets.yml' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 on perf/phone-bench. The fights need the network (God Mode fetches a real opponent board); offline the bench still records the menus, hero select, shop and drags.',
+    example: 'The owner opens https://<build>/?phonebench=1 on his iPhone and waits about three minutes; the card reads "shop: p50 8.3 p95 16.7 ... WebGL 5 alive / 7 made ... report sent", and the same row lands in client_crash_reports.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePerfLogDesktop.test.ts', 'packages/ui/src/phonePerfLog.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

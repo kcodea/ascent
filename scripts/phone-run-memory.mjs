@@ -401,5 +401,17 @@ if (lastSfx) {
   console.log(`SFX: ${lastSfx.plays} plays, ${lastSfx.misses} missed (${lastSfx.demandMisses} on demand), miss to decoded avg ${lag} ms; missed: ${lastSfx.missed.join(', ') || 'none'}`);
 }
 console.log(`Peak iOS estimate: ${peak.toFixed(0)} MB (budget ${BUDGET_MB} MB)${missed ? `; ${missed} step(s) missed their tap` : ''}`);
+// PHONE BUDGETS (R-PHONE-BENCH-01, CI `phone-budgets.yml`): optional ceilings on the peak live WebGL contexts, decoded
+// audio and decoded images over the walk, so a regression in any one of them fails before merge.
+const peakOf = (k) => rows.reduce((m, [, s]) => Math.max(m, s[k] ?? 0), 0);
+const over = [];
+for (const [flag, key, unit] of [['max-gl', 'glAlive', ''], ['max-audio', 'audioMB', ' MB'], ['max-img', 'imgMB', ' MB']]) {
+  const cap = arg(flag, null);
+  if (cap === null) continue;
+  const v = peakOf(key);
+  console.log(`Peak ${key}: ${v.toFixed(key === 'glAlive' ? 0 : 1)}${unit} (budget ${cap}${unit})`);
+  if (v > Number(cap)) over.push(`${key} ${v.toFixed(1)} > ${cap}`);
+}
+if (over.length) console.log(`OVER BUDGET: ${over.join('; ')}`);
 if (args.includes('--json')) fs.writeFileSync(arg('json'), JSON.stringify(rows.map(([l, s]) => ({ step: l, ...s })), null, 1));
-if (missed || peak > BUDGET_MB) process.exit(1);
+if (missed || peak > BUDGET_MB || over.length) process.exit(1);

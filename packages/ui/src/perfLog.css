@@ -21,3 +21,6 @@
 .perflog-line { margin-top: 3px; opacity: 0.9; }
 .perflog-miss { margin: 3px 0 0; padding-left: 16px; opacity: 0.85; }
 .perflog-miss b { color: #9fd6f5; font-weight: 600; }
+/* The on-device bench's card (PhoneBenchCard.tsx): the same box as the readout, top left so it never covers it. */
+.perfbench { right: auto; left: 8px; transform-origin: 0 0; }
+.perfbench-sum { margin: 4px 0 0; white-space: pre-wrap; font: inherit; user-select: text; -webkit-user-select: text; }

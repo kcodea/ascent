@@ -84,6 +84,16 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Phones: the main menus are rebuilt for phone screens.',
+        details: [
+          'The menu, Play, Career, Leaderboard and Collection now have their own phone layouts, with bigger text and buttons.',
+          'The side menu fits the screen. Lists scroll, and they fade at the edge when there is more.',
+          'Leaderboard: the top three sit in compact cards above the list, and your own row stays at the bottom.',
+          'Collection: the categories are one row you swipe sideways.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Ranked Duos: team up with a friend and face three other teams.',
         details: [
           'Pick Duo above Play, then Play. You land in your own party. Invite a friend, or join an open party.',

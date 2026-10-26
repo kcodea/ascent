@@ -14205,7 +14205,9 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .rankcrest-row { --ring: 44px; }
 .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-mmr { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; }
 .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-mmr { font-size: 24px; }
-.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-games, .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-act { display: none; }
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-act { display: none; }
+/* Games played on the podium cards too (owner 2026-10-26: "add games played for podium players too so all the info is shown"). */
+.rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-games { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 6px; }
 /* List rows: no button column, just a chevron that says the row opens. */
 .rankpage .lb-table .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px 40px; }
 .rankpage .lb-table.lb-has-mmr .lb-trow { grid-template-columns: 84px minmax(0, 1fr) 260px 130px 130px 40px; }

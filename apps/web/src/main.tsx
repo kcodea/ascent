@@ -1,7 +1,11 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import gsap from 'gsap';
-import { Boot, Game, installStage } from '@game/ui';
+import { Boot, Game, installEgressMeter, installStage } from '@game/ui';
+
+// DEV / measurement builds only (VITE_EGRESS_METER=1): count every byte the Supabase backend sends this tab, before
+// any client connects (`window.__egress`, packages/ui/src/net/egressMeter.ts). A no-op in a player build.
+installEgressMeter();
 
 // A main-thread frame hitch (a Pixi FX burst, GC, a heavy render) makes GSAP apply the whole missed
 // delta on its next tick — JUMPING an in-flight lunge past its motion, so the swing snaps home unseen

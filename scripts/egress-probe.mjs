@@ -172,9 +172,13 @@ async function click(page, t) {
         ?? [...document.querySelectorAll('a,div,span')].filter(vis).find(same);
     }
     if (!e) return `MISS ${t}`;
-    e.click();
+    const b = e.getBoundingClientRect();
+    return [b.left + b.width / 2, b.top + b.height / 2];
+  }, t).then(async (r) => {
+    if (typeof r === 'string') return r;
+    await page.mouse.click(r[0], r[1]); // a real pointer click (some controls act on pointer events, not .click())
     return 'ok';
-  }, t);
+  });
 }
 
 async function run(steps, page, wire, log) {
@@ -188,6 +192,15 @@ async function run(steps, page, wire, log) {
       await page.mouse.move(x1, y1); await page.mouse.down();
       for (let i = 1; i <= 12; i++) { await page.mouse.move(x1 + ((x2 - x1) * i) / 12, y1 + ((y2 - y1) * i) / 12); await sleep(30); }
       await page.mouse.up(); log(`drag ${s.drag}`); await sleep(s.after ?? 2500);
+    }
+    else if (s.dragTo) {
+      // Drag from a point onto the centre of the first visible element matching a selector.
+      const r = await page.evaluate((sel) => { const e = [...document.querySelectorAll(sel)].find((x) => x.getClientRects().length); if (!e) return null; const b = e.getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; }, s.dragTo);
+      if (!r) { log(`dragTo ${s.dragTo}: MISS`); continue; }
+      const [x1, y1] = s.from;
+      await page.mouse.move(x1, y1); await page.mouse.down();
+      for (let i = 1; i <= 12; i++) { await page.mouse.move(x1 + ((r[0] - x1) * i) / 12, y1 + ((r[1] - y1) * i) / 12); await sleep(30); }
+      await page.mouse.up(); log(`dragTo ${s.dragTo} ${r.map(Math.round)}`); await sleep(s.after ?? 2500);
     }
     else if (s.key) { await page.keyboard.press(s.key); log(`key ${s.key}`); await sleep(s.after ?? 1500); }
     else if (s.at) { await page.mouse.click(s.at[0], s.at[1]); log(`click at ${s.at}`); await sleep(s.after ?? 2500); }
@@ -224,12 +237,24 @@ const SCENARIOS = {
   // human's turn), then concede + leave so no test room is left open.
   versus: [
     { wait: 12000 }, { mark: 'launch' },
-    { click: 'PLAY' }, { click: '~Versus', after: 4000 }, { wait: 30000 }, { mark: 'versus-browser-30s' },
-    { click: 'Create room', after: 5000 }, { wait: 60000 }, { mark: 'room-idle-60s' },
+    { click: 'PLAY' }, { click: '~Versus', after: 4000 }, { wait: 20000 }, { mark: 'versus-browser-24s' },
+    { click: 'Create room', after: 5000 }, { wait: 30000 }, { mark: 'room-idle-35s' },
     { click: 'Add bot', after: 8000 }, { drag: [800, 780, 1025, 350], after: 4000 }, { mark: 'room-setup' },
     { at: [800, 607], after: 1500 }, { until: '!!document.querySelector(".rgate.is-armed .rgate-crystal")', max: 15000 },
     { click: '.rgate.is-armed .rgate-crystal', after: 6000 }, { wait: 30000 }, { mark: 'gate+hero' },
-    { wait: 180000 }, { shot: 'match' }, { mark: 'match-180s' },
+    { wait: 150000 }, { shot: 'match' }, { mark: 'match-150s' },
+    'LEAVE',
+  ],
+  // Versus Duos (2v2) with three in-tab test bots (Claudebot6..8): ~2 min of the match, then concede + leave.
+  duos: [
+    { wait: 12000 }, { mark: 'launch' },
+    { click: 'PLAY' }, { click: '~Versus', after: 4000 }, { click: 'Create room', after: 5000 },
+    { click: 'Room options', after: 2000 }, { at: [989, 432], after: 2000 }, { at: [1064, 317], after: 2000 },
+    { click: 'Add bot', after: 7000 }, { click: 'Add bot', after: 7000 }, { click: 'Add bot', after: 7000 },
+    { dragTo: '.vspcard-open:not(.gone), .vspcard-joinable', from: [800, 780], after: 4000 }, { shot: 'duos-room' }, { mark: 'duos-room-setup' },
+    { click: 'Start game', after: 1500 }, { until: '!!document.querySelector(".rgate.is-armed .rgate-crystal")', max: 15000 },
+    { click: '.rgate.is-armed .rgate-crystal', after: 6000 }, { wait: 30000 }, { mark: 'gate+hero' },
+    { wait: 120000 }, { shot: 'duos-match' }, { mark: 'duos-match-120s' },
     'LEAVE',
   ],
   // A spectator: watch the newest in-game room for 120 s (run beside `versus`, as another identity), then leave.
@@ -239,7 +264,7 @@ const SCENARIOS = {
     // Only the probe host's own room (never another tester's): the row naming "<host>'s room" with a Watch button.
     { until: `(() => { const name = ${JSON.stringify(`${arg('host', 'Claudebot5')}'s room`)}; const own = (x) => { let p = x.parentElement; while (p && p.querySelectorAll('button').length === 1) { if (p.innerText.includes(name)) return true; p = p.parentElement; } return false; }; const b = [...document.querySelectorAll('button')].find((x) => x.innerText.trim() === 'Watch' && own(x)); if (b) { b.click(); return true; } return false; })()`, max: 150000 },
     { wait: 8000 }, { shot: 'watch' }, { mark: 'watch-join' },
-    { wait: 120000 }, { shot: 'watching' }, { mark: 'watch-120s' },
+    { wait: 90000 }, { shot: 'watching' }, { mark: 'watch-90s' },
     'LEAVE',
   ],
 };

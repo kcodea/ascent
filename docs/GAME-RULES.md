@@ -1267,6 +1267,41 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   never at a clock mark. If your clock runs out while you watch, your turn locks at 0:00 as usual (your own board, as
   you left it) and you come back when the fight starts.
 
+## Ranked Duos (owner design 2026-10-26; IN DEVELOPMENT, not reachable by players yet)
+
+> Design: `docs/design/2026-10-26-ranked-duos.md`. Server phase 1 on `feat/ranked-duos`. This section records the
+> owner's rulings so the build cannot drift; it becomes the player-facing rules when the mode ships.
+
+- **The mode.** A ranked lobby for two players playing live together: 4 teams of 2. Your team is the two of you; the
+  other three teams are recorded runs. It follows the lobby rules (pairing, ghost fights, damage formula, round loss cap,
+  placement), with tag-team fights as in Versus Duos and passing as in Versus Duos (1 Gold, hand only, refused on a full
+  hand). Attack-first cards are allowed. Duo runs never feed the solo pool.
+- **Team pool.** 30 Health plus both heroes' Armor; Armor absorbs first. A team at 0 is out together; placement is 1st
+  to 4th per team.
+- **No Gold Fuse; the clock never stops.** Every shop runs the standard round clock from the shop opening. No pause.
+- **End Turn** (owner: "the game will still halt/not progress into combat, and back to shop, until both players hit
+  their end turn/combat gem"). Both ended: the round goes at once. One ended with time left: it waits for the other
+  until 0:00, then the other has 5 seconds. Neither ended at 0:00: it waits until one ends, then the other has 5
+  seconds (or it goes at once when both have). From 0:00 you cannot shop (buy, sell, roll, play, tier up, hero power),
+  but you can re-order and freeze your board and view your teammate's board (owner: "same as the normal mode when you
+  have no time left"). If neither ends within 30 seconds of 0:00 the round goes anyway (an idle safeguard).
+- **Disconnects and leaving.** A teammate who drops or leaves has their last locked board fight for them on auto; the
+  team is never put out for missed rounds. If both have left, the team is out at once in the lowest open place.
+- **Opponents.** Recorded duo runs first, each served exactly as it played on that round number (both boards and its
+  own fight order). Until there are enough, two solo runs from two DIFFERENT players are paired as a team (same
+  round-by-round serving, ranked strength rules, a seeded 50/50 fight order).
+- **Watching** (owner 2026-10-26: "no you dont watch other opponents in the lobby mode either, same experience as single
+  player lobby. a spectator in this mode only watches the 2 live players, not the snapshot boards"). Players see what a
+  solo lobby shows: their own fight, other pairings only as results on the rail. A spectator can watch only the two
+  live teammates, switching between them, never a recorded team's boards or fights. (Versus Duos is unchanged:
+  spectators watch any live player.)
+- **Team rating and team names** (owner: "me and lemon have a different duos rating than me and ionlime"). The Duos
+  rating, medal, promotion / demotion games and leaderboard entry belong to the PAIR. Points by team place: 1st +34,
+  2nd +11, 3rd -11, 4th -34; a division promotion game needs top 2, a medal promotion game 1st; a demotion game
+  demotes on 3rd or 4th. The team's own medal sets its opponents' strength band. A pair can name its team (2 to 16
+  letters, digits and spaces, the handle word filter, not unique; either teammate renames it between games; default
+  "Name1 & Name2"). XP stays per player. The Leaderboard gets a Duos tab listing teams. Resets with the season.
+
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 
 - **What is listed.** Every RANKED lobby game in progress (a rated table: not Practice, the tutorial, Gauntlet, a

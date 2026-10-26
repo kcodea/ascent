@@ -195,7 +195,7 @@ copy through the lobby's own recorded-seat `prepare`), pair teams (`pairRunLobby
 once with `reserve`, apply damage, commit through a new `versus_ranked_duos_commit_round` (team pools, eliminations,
 placements, the duo-run write for a finished live team, and the rating settle; idempotent, the existing lock order
 R-VERSUS-LOCK-ORDER-01). The fight rows store our team's fight in full; the other fight stores only its outcome and the
-damage (the rail needs no more; Q11 if spectators should see it).
+damage (the rail needs no more, and nobody may watch it: owner Q11).
 
 ## 6. Teams, rating, ranks (owner 2026-10-26: the rating belongs to the PAIR)
 
@@ -237,7 +237,11 @@ ionlime could name our team Goats or something like that."
 - **Career / Recent Games:** a Duos tab beside Ranked / Practice; a Duos row names the team, the teammate and the place.
   Match details: the four teams with places and their boards per round (from the pinned copy, never a driver).
 - **Live Games:** one row per live team (team name, both players); Watch joins the match's stands and uses the Versus
-  Duos spectator screen (player picker by team). Hero select spectating comes from `feat/hero-select-spectate`.
+  Duos spectator screen, but the player picker holds ONLY the two live teammates (owner Q11): a spectator never sees a
+  recorded team's boards or fights, exactly as a solo lobby's watcher sees only the player. Hero select spectating comes
+  from `feat/hero-select-spectate`.
+- **What a player sees** is a solo lobby's view: their own team's fight, the other pairing only as a result and damage on
+  the rail, recorded teams' current boards through the ordinary scouting.
 
 ## 8. Party lobby and invites (reuse, no new chrome)
 
@@ -299,7 +303,7 @@ boards cannot be swapped by a client.
 | Q8 | Attack-first cards | Allowed. |
 | Q9 | Served team order | A duo run keeps its recorded order; a fallback pair is a seeded 50/50. |
 | Q10 | XP / Live Games | Yes (XP per player by the matching solo places averaged; one Live Games row per team). |
-| Q11 | Watching recorded-vs-recorded fights | Default kept: no live view, result and damage on the rail only. |
+| Q11 | Watching recorded-vs-recorded fights | "no you dont watch other opponents in the lobby mode either, same experience as single player lobby. a spectator in this mode only watches the 2 live players, not the snapshot boards." Players see what a solo lobby shows (their own fight; other pairings only as rail results). A spectator watches only the two live teammates (switching between them), never a recorded team's boards or fights. Versus Duos is unchanged (spectators watch any live player). |
 
 Readings made (flag, no answer needed unless wrong): **R1** the fight's damage is the lobby formula on the one result,
 read from the board standing at the end (its owner's tier plus its surviving minions), capped by the round loss cap;

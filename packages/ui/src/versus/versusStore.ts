@@ -862,7 +862,8 @@ function groupRecord(myCos: RunCosmeticSnapshot | null): VersusMatchRecord | nul
   const me = currentUserId();
   if (!raw || !me) return null;
   const members = get().room?.members ?? [];
-  return buildGroupMatchRecord(raw, Object.values(groupRoundsRaw), me, myCos,
+  // RANKED DUOS: the table includes the recorded teams (`viewRaw` seats them), so the stats show all four teams.
+  return buildGroupMatchRecord(viewRaw(raw), Object.values(groupRoundsRaw), me, myCos,
     (uid) => parseCosmeticSnapshot(members.find((m) => m.userId === uid)?.profile?.cosmetics) ?? null);
 }
 

@@ -9525,4 +9525,19 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Round 6 at 0:00: Kevin has ended, Lemon is still dragging minions into order; her shop buttons are dark but the board moves, and the clock reads 0:05 and counts down. At 0:00 again the round goes to combat against team "Goats", whose two boards Kevin scouted on the rail during the shop.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosView.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-RANKED-DUOS-LIVE-01',
+    title: 'Ranked Duos: a knockout or a win always settles; a spectator only ever sees the live teammates; the match stats list all four teams',
+    statement:
+      'The round that knocks the live team out (or leaves it last) commits, places the team and settles its rating, whether or not the project has the test-bot table. A spectator\x27s player picker and default seat are only the two live teammates, also before the recorded table has loaded. After a Ranked Duos game the room\x27s match stats list every team (the recorded ones included) and the place is out of 4 teams.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Lead via the coordinator, 2026-10-26 (Ranked Duos live test)', quote: 'live-test Ranked Duos with Claudebot accounts ... knockouts to placement, rating settlement ... a spectator limited to the two live players' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-31-ranked-duos-live-fixes.sql; packages/ui/src/versus/SpectatorBar.tsx; packages/ui/src/versus/spectate.ts (watchableSeat); packages/ui/src/versus/versusMatchRecord.ts; packages/ui/src/versus/versusStore.ts (groupRecord)' },
+    ],
+    currentBehaviour: 'Fixed 2026-10-26 (fix/ranked-duos-p2-live) after the first live test: placement raised "column b.user_id does not exist" (the test-bot table\\x27s column is bot_user), the spectator bar crashed before the recorded table loaded, and the stats listed only the live pair.',
+    example: 'Kevin and Lemon are knocked out in round 10: the round commits, both are 4th, the pair\\x27s rating settles, and the stats show the other three teams still playing.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.db.test.ts', 'packages/ui/src/versus/rankedDuosView.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

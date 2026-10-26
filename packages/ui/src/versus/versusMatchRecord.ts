@@ -5,7 +5,7 @@
  */
 import type { BoardMinion, CombatResult, MinionSnapshot } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
-import { runeCarryOf, runeLiveStateOfCarries, versusDuosStartingVitals, versusStartingVitals, type RuneLiveState, type VersusGroupSeat, type VersusSeat } from '@game/sim';
+import { duosMateOf, runeCarryOf, runeLiveStateOfCarries, versusDuosStartingVitals, versusStartingVitals, type RuneLiveState, type VersusGroupSeat, type VersusSeat } from '@game/sim';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusMatch, VersusRoundRow } from './versusRemote';
 import { copyName, groupSeatOf, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 
@@ -156,11 +156,12 @@ export function buildGroupMatchRecord(
   });
   const won = raw.phase === 'complete' && raw.winner_seat === mine.seat;
   const placement = won ? 1 : mine.placement;
-  const duos = raw.options?.mode === 'duos';
-  const pairOf = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const;
+  // Duos and RANKED DUOS (the recorded teams ride the row as virtual seats, `withServedSeats`): every row on its team's pool.
+  const ranked = raw.options?.mode === 'ranked_duos';
+  const duos = raw.options?.mode === 'duos' || ranked;
   const table = [...raw.seats]
     .map((x) => {
-      const start = duos ? versusDuosStartingVitals(x.hero, raw.seats.find((y) => y.seat === pairOf[x.seat])?.hero, raw.options) : versusStartingVitals(x.hero, raw.options);
+      const start = duos ? versusDuosStartingVitals(x.hero, raw.seats.find((y) => y.seat === duosMateOf(x.seat))?.hero, raw.options) : versusStartingVitals(x.hero, raw.options);
       const pool = poolOn(x.health, x.armor, x.hearts, start);
       return { name: x.name, heroId: x.hero, placement: raw.phase === 'complete' && raw.winner_seat === x.seat ? 1 : x.placement, hp: pool.hp, armor: pool.armor, me: x.seat === mine.seat };
     })
@@ -170,7 +171,7 @@ export function buildGroupMatchRecord(
     outcome: placement === 1 ? 'win' : placement != null ? 'lose' : 'none',
     rounds: recRounds,
     placement,
-    of: raw.seat_count,
+    of: ranked ? 4 : raw.seat_count, // Ranked Duos places TEAMS, 1st to 4th
     table,
   };
 }

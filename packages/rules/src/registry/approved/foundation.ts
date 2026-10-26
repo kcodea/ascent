@@ -9521,6 +9521,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchPopUpgrade.test.ts', 'packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
+    id: 'R-PHONE-LASSO-01',
+    title: 'The targeting lasso runs from its source to the finger at any frame rate (a 60 Hz phone included)',
+    statement:
+      'The aim line drawn while targeting (a Ruby or a targeted spell dragged from the hand, a hero power, a targeted Shout) '
+      + 'runs from its source to the pointer or finger and settles onto that line, at every frame rate from 20 fps up. Its '
+      + 'spring motion is integrated in as many sub-steps per frame as stability needs (each keeps h x (c + sqrt k) <= 1.5 '
+      + 'at the stiffest, cursor end), so a 60 Hz phone, a 60 Hz monitor and a slow frame never throw it off the screen. A '
+      + '240 Hz desktop still takes one step per frame for every shipped aim effect, so it draws exactly as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone, Netlify build 792caa34a)', quote: 'The Ruby targeting lasso is bugged on mobile.' },
+      { kind: 'code', ref: 'packages/ui/src/aimLasso.ts (stepLasso, lassoSubsteps); packages/ui/src/fx/defs/ruby-target.json (springDamping 60)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-26 (fix/phone-ruby-lasso). Before, one semi-implicit Euler step per frame diverged below ~120 fps for ruby-target (damping 60, 232/s at the gripped cursor end; h x c = 3.9 at 60 Hz) and below ~45 fps for spell-target: in WebKit as an iPhone the Ruby line\x27s points reached (156691, 645576) layout px mid-drag and the ribbon shot off the screen. The cast itself always landed on the right minion (the hit test was never wrong). Latent since the ruby-target def (2026-09-14); only a high-refresh screen hid it.',
+    example: 'Drag a Ruby from the hand toward a Shop minion on an iPhone: the red line runs from the Ruby to your finger and lights the minion under it.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/aimLassoStability.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
     id: 'R-RANKED-DUOS-CLIENT-01',
     title: 'Ranked Duos on screen: no Gold Fuse, shopping stops at 0:00 but the turn stays open, a 5 s countdown once a teammate ended, the lobby rail with every team, only the two live teammates watchable',
     statement:

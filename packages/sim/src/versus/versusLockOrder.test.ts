@@ -148,6 +148,6 @@ describe('R-VERSUS-LOCK-ORDER-01: every Versus RPC takes its row locks in one gl
   });
 
   it('after 2026-10-29-ranked-duos.sql (submit / reconcile hand-over, leaving, placement, the sweep) the order still holds', () => {
-    expect(report([...ORDER, FIX, EGRESS, RANKED_DUOS])).toEqual({});
+    expect(report([...ORDER, FIX, EGRESS, '2026-10-28-versus-health.sql', RANKED_DUOS])).toEqual({});
   });
 });

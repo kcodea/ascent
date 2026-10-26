@@ -194,6 +194,12 @@ export function CollectionPage({ reducedMotion }: { reducedMotion?: boolean }): 
   const playBought = useCallback((item: CrateQueueItem, open: OpenFn) => { setTheatre({ queue: [item], openAll: false, open }); }, []);
 
   useEffect(() => { void refreshCrates(); }, []);
+  // PHONES (R-PHONE-MENUS-03): the categories are one row that scrolls sideways (phoneMenus.css), so the picked one is
+  // brought into view, never left under the row's fade. A no-op on desktop: the categories are a grid that never scrolls.
+  useEffect(() => {
+    if (!document.documentElement.hasAttribute('data-page-scale')) return;
+    document.querySelector('.colls-tabs .colls-tab.on')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  }, [category]);
   // Aether switched off under an open shop: back to the Collection, and it stays there if Aether returns.
   useEffect(() => { if (!aetherOn) setShopOpen(false); }, [aetherOn]);
   const shopShown = shopOpen && aetherOn;

@@ -9570,7 +9570,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (after playing Ranked Duos with a friend)', quote: 'hitting end turn shouldn\x27t restrict anything, it should just signal that you are ready to move on, but you should be able to move things around on your board/view your teammate\x27s board etc still.' },
-      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (all Versus modes)', quote: 'the end turn ready-signal should be the same for versus modes too. it's a ready signal, not a 'i cant do anything anymore'' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (all Versus modes)', quote: 'the end turn ready-signal should be the same for versus modes too. it\x27s a ready signal, not a \x27i cant do anything anymore\x27' },
       { kind: 'owner-chat', ref: 'Lead via the coordinator, 2026-10-26', quote: 'Pressing End Turn again while the clock is above 0:00 un-readies (default).' },
       { kind: 'code', ref: 'supabase/migrations/2026-11-01-versus-ready-signal.sql (versus_submit / versus_group_submit / versus_ranked_duos_submit re-lock, versus_unready, versus_group_unready, versus_duos_pass); packages/ui/src/versus/versusTurn.ts (ready); packages/ui/src/versus/versusStore.ts (lockTurn, relocks, unreadyTurn, inOrder); packages/ui/src/versus/VersusHud.tsx; packages/ui/src/EndTurnButton.tsx' },
     ],
@@ -9583,7 +9583,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'Versus: the closed round is settled and shown without waiting on polls (one resolver call, parallel reads, an on-time close)',
     statement:
       'The client whose own call closes a round (its lock, re-lock or reconcile answering `resolving`) asks the resolver at once; other players '
-      + 'ask only as a backstop after 1.5 s. When the resolver answers, the match row and the committed round are read in parallel (also on the '
+      + 'ask only as a backstop after 4 s (a duplicate resolver call in flight went with the slowest answers). The resolver itself checks the caller and reads the round in parallel. When the resolver answers, the match row and the committed round are read in parallel (also on the '
       + 'round\x27s realtime insert), so the fight lands in one round trip. The shop\x27s close (deadline plus grace; Ranked Duos: the end-turn '
       + 'gate) is reconciled on a timer at that moment instead of the next 500 ms tick. Realtime wake-ups coalesce for 50 ms (was 120 ms). No new '
       + 'polling: every loop keeps its backoff (R-NET-BACKOFF-01).',
@@ -9591,7 +9591,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26', quote: 'there\x27s a ton of hang time when time hits 0 / when both players ready up, id like to make that more seamless.' },
-      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (onOwnAnswer, kickFinalize, armCloseTimer, prefetchRounds, WAKE_COALESCE_MS); packages/ui/src/versus/versusRemote.ts (parallel reads); packages/ui/src/versus/flowTiming.ts' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (onOwnAnswer, kickFinalize, armCloseTimer, prefetchRounds, WAKE_COALESCE_MS); packages/ui/src/versus/versusRemote.ts (parallel reads); packages/ui/src/versus/flowTiming.ts; supabase/functions/versus-resolve/index.ts (callerId beside the prefetched reads, memoReads)' },
     ],
     currentBehaviour: 'Built 2026-10-26 (fix/duos-ready-flow-portraits); timings in docs/devlog/2026-10-26-duos-ready-flow-portraits.md. Before, every player waited for its next 500 ms tick to ask the resolver, then read the match row, its seats, the round and its fights one after another.',
     example: 'Bob presses End Turn last: his own lock answer says the round closed, he asks the resolver immediately, and both players read the fight with the match row in one round trip.',

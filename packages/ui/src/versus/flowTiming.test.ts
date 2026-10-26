@@ -40,7 +40,7 @@ describe('the store keeps the flow tight (structure)', () => {
   const remote = readFileSync(join(__dirname, 'versusRemote.ts'), 'utf8');
   it('the closer asks the resolver at once; the tick only backstops after FINALIZE_BACKSTOP_MS', () => {
     expect(store).toMatch(/async function onOwnAnswer\(m: VersusMatch\)[\s\S]{0,120}if \(m\.phase === 'resolving'\) kickFinalize\(m\);/);
-    expect(store).toMatch(/const FINALIZE_BACKSTOP_MS = 1500;/);
+    expect(store).toMatch(/const FINALIZE_BACKSTOP_MS = 4000;/);
     expect(store).toMatch(/await onOwnAnswer\(await inOrder\(\(\) => mx\.submit\(match\.id, match\.round, seq, ready\.side, true/);
   });
   it('after the resolver answers, the row and the round are read in parallel', () => {

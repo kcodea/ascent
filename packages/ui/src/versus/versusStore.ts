@@ -622,8 +622,10 @@ function onTick(): void {
     expireVersusShop();
   }
 }
-/** How long a closed round may wait on another client's resolver call before this one asks too (the backstop). */
-const FINALIZE_BACKSTOP_MS = 1500;
+/** How long a closed round may wait on another client's resolver call before this one asks too (the backstop). Long
+ *  enough that a second call rarely overlaps the first: measured live 2026-10-26, a duplicate call in flight went with
+ *  the 8-11 s resolver answers (a second resolver instance spinning up), the single calls with 1.6-2.6 s. */
+const FINALIZE_BACKSTOP_MS = 4000;
 /** When this client first saw the current round closed (`resolving`). */
 let closedSeen: { key: string; at: number } | null = null;
 

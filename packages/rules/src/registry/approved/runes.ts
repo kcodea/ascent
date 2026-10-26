@@ -2703,4 +2703,25 @@ export const RUNES_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-23.',
     enforcement: { kind: 'scenario', refs: ['packages/content/src/runeCosts1023.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-COMPENDIUM-RUNE-REWARDS-SET-01',
+    title: "Compendium Rune Rewards list exactly what the shown set's runes can hand you, and search finds them by tribe",
+    statement:
+      "The Compendium's Rune Rewards section lists every card a rune OFFERED IN THE SHOWN SET grants by name (named "
+      + '`grant` cards / Gilded grants, recurring grants, nested multi rewards), using the same set test the Runes tab and '
+      + 'the game use (`sets` absent = every set, else it must name the set) and the id the grant delivers in that set. A '
+      + "card granted only by another set's rune is never listed (Reconfigurator, from the Set-1-only Rune of "
+      + 'Reconfiguration, is not in a Set 2 book). Quest rewards are set-scoped the same way. The search box also matches a '
+      + "minion's tribe (id and rail label, either tribe of a dual body), so 'mech' finds Clockwork Assistant and Ancient "
+      + 'Wanderer, whose text never says Mech; spells, Gifts and Rubies match on name and text only.',
+    domain: 'runes',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug 2026-10-26 (Compendium, Set 2, Rune Rewards, search "mech")', quote: "searching mech returns this minion, which isnt even possible in set 2 - but the other mechs from rune rewards don't show up. like clockwork assistant and wanderer" },
+      { kind: 'code', ref: 'packages/ui/src/compendiumRewards.ts (runeRewardCardsFor / questRewardCardsFor); packages/ui/src/MinionBook.tsx (matchText tribe match)' },
+    ],
+    contentIds: ['reconfiguredcombinator', 'n2_clockwork', 'n2_wanderer'],
+    currentBehaviour: "Conforms as of 2026-10-26 (fix/compendium-rune-rewards-search). Before, the list walked every rune in the registry, so another set's rune rewards leaked into the shown set, and search matched only name and text.",
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/compendiumRuneRewards.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

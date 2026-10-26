@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-26',
     changes: [
+      { category: 'Systems', text: "Compendium: Rune Rewards now lists every minion your set's runes can give, and search finds them." },
       { category: 'Systems', text: "Other players' portraits now show in Versus rooms and the Leaderboard." },
       {
         category: 'Systems',

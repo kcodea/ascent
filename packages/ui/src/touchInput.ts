@@ -34,7 +34,8 @@
  */
 
 import { upgradeImages } from './fullResArt';
-import { cssSafeInsets, pageScale, phoneBottomStrip } from './stage';
+import { PHONE_FOOT_FRAC, cssSafeInsets, pageScale, phoneBottomStrip } from './stage';
+import { PHONE_POP_DEFAULTS, getPhonePopConfig } from './phonePopConfig';
 
 /** px a touch may travel and still count as a tap (screen px, a physical distance). Matches the drag threshold's
  *  intent: a finger wobbles more than a mouse. */
@@ -224,10 +225,9 @@ export function isTap(x0: number, y0: number, x1: number, y1: number, slop = tap
 /** The class a finger's press puts on the hand card under it (see `installTouchInput`). */
 export const PRESS_CLASS = 'tt-press';
 /** How tall the popped hand card is, as a share of the safe screen height (owner 2026-10-24: "it should be very large",
- *  then "It's still popping very vertically": it grows in place from the hand row, its top around the board's top row). */
-export const POP_HEIGHT_FRAC = 0.68;
-/** Screen px kept between the popped card's foot and the safe bottom edge: it grows up from just above its resting row. */
-export const POP_FOOT_GAP = 4;
+ *  then "It's still popping very vertically"; 2026-10-26, R-PHONE-POP-01: "the hand pop still goes a bit too vertical"):
+ *  its top just below the Shop row, at the board's lower row. The live value is the dev tuner's (`phonePopConfig.ts`). */
+export const POP_HEIGHT_FRAC = PHONE_POP_DEFAULTS.heightFrac;
 export interface PopInput {
   /** The card's untransformed box on screen (px): its rest transform taken back out. */
   left: number; top: number; width: number;
@@ -237,14 +237,18 @@ export interface PopInput {
   k: number;
   vw: number; vh: number;
   safe: { top: number; right: number; bottom: number; left: number };
+  /** Screen px the foot sits above the resting card's own foot (R-PHONE-POP-01; the tuner's `footLift`, default 0). */
+  footLift?: number;
   /** The input's px per SCREEN px: 1, except on the page scale (R-PHONE-PAGESCALE-01), where rects are layout px and
    *  one screen px is `1 / scale` of them. The fixed gaps are screen px. */
   u?: number;
 }
 /**
  * Pure: the pop of a hand card on a zoomed phone, as `translate(tx, ty) scale(s)` about the card's top-left (layout px).
- * The whole card fills `POP_HEIGHT_FRAC` of the safe height, its foot just above the safe bottom edge (it rises only as far
- * as it must), and horizontally as close to where it rests as the screen allows (never past a safe edge).
+ * The whole card fills `frac` of the safe height. Its FOOT stays on the resting hand row's foot (R-PHONE-POP-01: the card
+ * grows up from where it rests, never lifting off the hand), raised by `footLift` screen px, and never below the run's
+ * foot line (`PHONE_FOOT_FRAC` of the screen above the bottom edge). Horizontally as close to where it rests as the
+ * screen allows, its ends nudged inside the safe edges.
  */
 export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; tx: number; ty: number } {
   const availH = p.vh - p.safe.top - p.safe.bottom;
@@ -255,7 +259,8 @@ export function popGeometry(p: PopInput, frac = POP_HEIGHT_FRAC): { s: number; t
   const u = p.u ?? 1;
   const lo = p.safe.left + 8 * u + w / 2, hi = p.vw - p.safe.right - 8 * u - w / 2;
   const cx = lo > hi ? p.vw / 2 : Math.min(hi, Math.max(lo, want));
-  const top = p.vh - p.safe.bottom - POP_FOOT_GAP * u - s * h;
+  const foot = Math.min(p.top + p.extentBottom - (p.footLift ?? 0) * u, p.vh - PHONE_FOOT_FRAC * p.vh);
+  const top = Math.max(p.safe.top, foot - s * h);
   const k = p.k > 0 ? p.k : 1;
   return { s, tx: (cx - w / 2 - p.left) / k, ty: (top - s * p.extentTop - p.top) / k };
 }
@@ -280,10 +285,12 @@ function writePop(el: HTMLElement): void {
     if (p !== el) continue;
     top = Math.min(top, y); bottom = Math.max(bottom, y + part.offsetHeight);
   }
+  const tune = getPhonePopConfig();
   const g = popGeometry({
+    footLift: tune.footLift,
     left: pr.left + (el.offsetLeft + op.clientLeft) * k, top: pr.top + (el.offsetTop + op.clientTop) * k, width: el.offsetWidth * k,
     extentTop: top * k, extentBottom: bottom * k, k, vw: innerWidth, vh: innerHeight, safe: popSafe(innerHeight, cssSafeInsets()), u: 1 / pageScale(),
-  });
+  }, tune.heightFrac);
   el.style.setProperty('--pop-s', String(g.s));
   el.style.setProperty('--pop-tx', g.tx + 'px');
   el.style.setProperty('--pop-ty', g.ty + 'px');

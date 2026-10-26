@@ -37,6 +37,7 @@ import { SPEC as ConsumeFxSpec } from './ConsumeFxTuner';
 import { SPEC as CritFxSpec } from './CritFxTuner';
 import { SPEC as DiceRollSpec } from './DiceRollTuner';
 import { SPEC as DragSpec } from './DragTuner';
+import { SPEC as PhonePopSpec } from './phonePopConfig';
 import { SPEC as EndTurnSpec } from './EndTurnTuner';
 import { SPEC as ExecuteFxSpec } from './ExecuteFxTuner';
 import { SPEC as ExecuteSpec } from './ExecuteTuner';
@@ -214,6 +215,7 @@ export const ALL_TUNER_SPECS: TunerSpec<never>[] = [
   WardSpec,
   WeldFxSpec,
   ScreenWipeSpec,
+  PhonePopSpec,
   PortraitFramesSpec,
   TooltipsSpec,] as unknown as TunerSpec<never>[];
 

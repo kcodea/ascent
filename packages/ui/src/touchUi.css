@@ -411,7 +411,7 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-nav { g
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) { --pm-z: 2.1; --pm-book: 1.7; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .pnpanel { zoom: var(--pm-z); width: min(820px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .bgrpanel { zoom: var(--pm-z); width: min(640px, calc(92 * var(--vw, 1vw) / var(--pm-z))); max-height: calc(88 * var(--vh, 1vh) / var(--pm-z)); }
-html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { zoom: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b))) / var(--pm-book))); }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .book { scale: var(--pm-book); width: min(2300px, calc((100 * var(--vw, 1vw) - var(--safe-l) - var(--safe-r)) / var(--pm-book))); height: min(1450px, calc((100 * var(--vh, 1vh) - var(--safe-t) - var(--pz-safe-b, var(--safe-b))) / var(--pm-book))); }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lvend .vspanel { zoom: var(--pm-z); }
 /* Phone menus, round 2 of the critic. The Leaderboard's top-three podium at a third of its zoomed size, so the table (and
    its pinned "you" row) has room below it. */
@@ -438,6 +438,29 @@ html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .gc.gc-detail .gc
    and the podium is smaller still so rows show under it. */
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) :is(.lb-mepin, .lb-table > .lb-trow-btn.me) { position: static; }
 html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .lb-podium { zoom: 0.48; }
+
+/* ── Phone menus, the real-WebKit pass (R-PHONE-MENUS-02, 2026-10-26). The menus were last checked in Chromium (#2287),
+   before the page scale (#2304) and the bigger game (#2312). In WebKit (iPhone) and Chromium (Pixel):
+   1. The Compendium grows by `scale` (above), not `zoom`: WebKit zooms a registered length (`--ch` / `--cw` / `--ccw`,
+      styles.css `@property`) a second time inside a zoomed subtree, so its cards drew ~3x too large (one card filled the
+      gallery). A scale draws the same as the zoom did in Chromium (it lays out at the same divided size), and the lifted
+      search field already measures its containing block's scale (touchKeyboard.ts). */
+/* 2. The menu sidebar: with Collection in it, its plaques ran past their column and LIVE GAMES sat on top of SETTINGS.
+      The column scrolls instead of overlapping (as its comment always said), and its spacing tightens so it fits. The
+      long label (LEADERBOARD) lost its last letter to the plaque's clip: a hair less tracking and icon gap. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb { gap: 8px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-nav { flex: 1 0 auto; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .msb-group { margin-top: 8px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .sbbtn { gap: 9px; }
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .msb .sbbtn .mblabel { letter-spacing: 0.03em; }
+/* 3. The title: the menu column (logo + plaques) is centred on the screen and the footer (Report a Problem, the build
+      stamp) sits under it, so SETTINGS ran into the footer, and with a saved run and Collection the column ran off
+      both edges. It centres a little above the middle and steps down a size as it gains plaques. */
+html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlemenu { top: calc(50% - 50px); }
+@media (hover: none) and (pointer: coarse) {
+  html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlemenu:has(.titlenav > :nth-child(5)) { zoom: calc(var(--ui-zoom) * 0.86); }
+  html[data-touch-ui][data-touch-small]:not([data-phone-layout]) .titlemenu:has(.titlenav > :nth-child(6)) { zoom: calc(var(--ui-zoom) * 0.78); }
+}
 @media (hover: none) and (pointer: coarse) {
   /* Practice is the one mode page that scrolls on a phone: its help / Compendium squares step away there rather than
      float over its options (both stay on the Play page and in a game). */

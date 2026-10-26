@@ -7551,6 +7551,42 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts', 'scripts/phone-webkit.mjs'], lastVerifiedAt: '2026-10-25' },
   },
   {
+    id: 'R-PHONE-POP-01',
+    title: 'Pressing a hand card on a phone grows it in place without covering the board',
+    statement:
+      'On a phone, a finger on a hand card pops it up so it can be read, but it never lifts off the hand: the popped card\x27s '
+      + 'foot stays on the resting hand row\x27s own foot, and it grows only as tall as keeps its top below the Shop row (at the '
+      + 'board\x27s lower row), as large as possible within that, its ends nudged inside the safe edges. Its name, full text box '
+      + 'and Attack / Health stay readable (full-resolution art while it is up). One proportion on every phone. The height and '
+      + 'the foot\x27s lift are dev tuner values (Phone hand pop). Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (after the phone captures)', quote: 'Generally looks really good, I think the hand pop still goes a bit too vertical is really my biggest gripe.' },
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (on the first captures of the lower pop)', quote: 'The hand pop location is better but needs to be a bit larger' },
+      { kind: 'code', ref: 'packages/ui/src/touchInput.ts (popGeometry, writePop), packages/ui/src/phonePopConfig.ts' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-26 (fix/phone-hand-pop-lower): 0.57 of the safe height (was 0.68), foot on the resting hand\x27s foot (~8 pt above the bottom edge, was ~30 pt); in WebKit (iPhone app and Safari sizes) and Chromium (Pixel 8) the top lands at 0.45 of the screen, just below the Shop row (0.29 before, over it).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-PHONE-MENUS-02',
+    title: 'Phone menus lay out cleanly in real WebKit as well as Chromium',
+    statement:
+      'On a phone (iPhone in WebKit and Android in Chromium) every menu screen fits: the Compendium shows its cards at their '
+      + 'size (never one card filling the gallery), the menu sidebar never draws a plaque over another (it scrolls when it '
+      + 'outgrows the height) and its labels are never clipped, and the title\x27s menu column (with a saved run and the '
+      + 'Collection too) stays on screen and clear of the Report a Problem footer. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (after the phone captures)', quote: 'How about the menu screens? Do they all look good' },
+      { kind: 'code', ref: 'packages/ui/src/touchUi.css (R-PHONE-MENUS-02 block; .book scale instead of zoom)' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-26 (fix/phone-hand-pop-lower), verified by captures in Playwright WebKit (iPhone 15 Pro, Home Screen size) and Chromium (Pixel 8). Card tiles inside the zoomed menu pages (Career, Leaderboard, Recent Games boards) need backend data and were not captured.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
     id: 'R-TOUCH-KEYBOARD-01',
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:

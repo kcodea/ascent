@@ -18,7 +18,7 @@
  */
 import type { BeatConfigSnapshot } from './resolveTiming';
 import { EMPTY_CONFIG, clampTiming, resolveTiming, timingViolations } from './resolveTiming';
-import { repeatChainSchedule, type RepeatTickPace } from './repeatPacing';
+import { REPEAT_PACING, isLongChain, repeatChainCapMs, repeatChainSchedule, type RepeatTickPace } from './repeatPacing';
 import type {
   AuthoredBeatConfig,
   CompiledBeat,
@@ -255,12 +255,23 @@ export function compileTimeline(input: NormalizedTimelineInput, options: Compile
   // REPEAT CHAIN PACING (owner 2026-09-27, R-REPEAT-04): End of Turn only. The previous paced tick, so a batched
   // tick can share its slot's start.
   const schedules = new Map<string, RepeatTickPace[]>();
+  // SEVERAL LONG CHAINS SHARE ONE BUDGET (R-REPEAT-05): count this End of Turn's long chains first, so four Kringles
+  // split the phase's repeat budget instead of each taking the full single-chain cap.
+  const longChains = new Set<string>();
+  if (input.phase === 'endOfTurn') {
+    for (const node of ordered) {
+      if (node.simultaneousGroupId) continue;
+      const key = repeatPaceKeyOf(node, resolved.get(node.id)!.value);
+      if (key && isLongChain(node.repeat!.count)) longChains.add(key);
+    }
+  }
+  const longCapMs = repeatChainCapMs(longChains.size);
   let prevPaced: { key: string; index: number; startMs: number } | null = null;
   let i = 0;
   while (i < ordered.length) {
     const node = ordered[i];
     const groupId = node.simultaneousGroupId;
-    const pace = input.phase === 'endOfTurn' && !groupId ? repeatPaceOf(node, resolved.get(node.id)!.value, schedules) : null;
+    const pace = input.phase === 'endOfTurn' && !groupId ? repeatPaceOf(node, resolved.get(node.id)!.value, schedules, longCapMs) : null;
     if (pace) {
       const prev: { key: string; index: number; startMs: number } | null = prevPaced;
       const shares: boolean = pace.tick.sharesSlot && prev !== null && prev.key === pace.key && prev.index === pace.index - 1;
@@ -370,20 +381,29 @@ function scaleTiming(v: ResolvedBeatConfig, k: number): ResolvedBeatConfig {
  * beat that carries a repeat of 2 or more (a "Repeat for every …" tick, a Chronos repeat, a rune replay), keyed
  * by its source + identity + count so two chains never share a schedule slot.
  */
-function repeatPaceOf(
-  node: TimelineSourceNode,
-  value: ResolvedBeatConfig,
-  schedules: Map<string, RepeatTickPace[]>,
-): { key: string; index: number; scale: number; tick: RepeatTickPace } | null {
+function repeatPaceKeyOf(node: TimelineSourceNode, value: ResolvedBeatConfig): string | null {
   const rep = node.repeat;
   if (!rep || rep.count < 2 || rep.index < 0 || rep.index >= rep.count) return null;
   if (value.mode !== 'ownBeat') return null;
   const full = value.completionOffsetMs + value.recoveryMs;
   if (!(full > 0)) return null;
   const s = node.source;
-  const key = `${s.kind}:${s.id}:${s.uid ?? ''}:${node.policyKey ?? node.trigger}:${rep.count}:${full}`;
+  return `${s.kind}:${s.id}:${s.uid ?? ''}:${node.policyKey ?? node.trigger}:${rep.count}:${full}`;
+}
+
+function repeatPaceOf(
+  node: TimelineSourceNode,
+  value: ResolvedBeatConfig,
+  schedules: Map<string, RepeatTickPace[]>,
+  /** The cap a LONG chain gets this End of Turn (R-REPEAT-05, `repeatChainCapMs`). */
+  longCapMs: number = REPEAT_PACING.capMs,
+): { key: string; index: number; scale: number; tick: RepeatTickPace } | null {
+  const key = repeatPaceKeyOf(node, value);
+  if (!key) return null;
+  const rep = node.repeat!;
+  const full = value.completionOffsetMs + value.recoveryMs;
   let schedule = schedules.get(key);
-  if (!schedule) { schedule = repeatChainSchedule(rep.count, full); schedules.set(key, schedule); }
+  if (!schedule) { schedule = repeatChainSchedule(rep.count, full, REPEAT_PACING, isLongChain(rep.count) ? longCapMs : REPEAT_PACING.capMs); schedules.set(key, schedule); }
   const tick = schedule[rep.index]!;
   return { key, index: rep.index, scale: tick.spanMs / full, tick };
 }

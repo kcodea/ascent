@@ -68,6 +68,14 @@ let ghostEl: HTMLDivElement | null = null;
 let ghostPos = { x: 0, y: 0 };
 let liveTeardown: (() => void) | null = null;
 
+/** Where the ghost is drawn at the drop (screen px: centre + width): its card box as transformed now. Falls back to the
+ *  held size at the pointer when the ghost is not measurable (jsdom). */
+function releaseBoxOf(d: SeatDragState): { cx: number; cy: number; w: number } {
+  const r = ghostEl?.querySelector<HTMLElement>('.dragshrink')?.getBoundingClientRect();
+  if (r && r.width > 0 && r.height > 0) return { cx: r.left + r.width / 2, cy: r.top + r.height / 2, w: r.width };
+  return { cx: ghostPos.x, cy: ghostPos.y, w: toScreen(d.w) * getDragFeel().scale };
+}
+
 function writeGhost(): void {
   const d = useSeatDragStore.getState().drag;
   if (!ghostEl || !d || d.snap) return;
@@ -171,8 +179,10 @@ export function beginSeatDrag(e: ReactPointerEvent<HTMLElement>, userId: string,
     if (drop.kind === 'take' && me) {
       const d = useSeatDragStore.getState().drag;
       if (drop.role === 'spectator') sfx.sell(); else sfx.play();
-      // The card lands from where it was let go: the FLIP starts the seat (or hand) card at the ghost.
-      if (d) flipFrom.set(me, { cx: ghostPos.x, cy: ghostPos.y, w: toScreen(d.w) * getDragFeel().scale });
+      // The card lands from where it was let go: the FLIP starts the seat (or hand) card at the ghost, measured as it is
+      // drawn right now (one read, on the drop). The grab-shrink may still be growing a hand card (a quick flick), so
+      // the held size alone would start the landing bigger than the card the player let go of (R-VERSUS-SEAT-DROP-01).
+      if (d) flipFrom.set(me, releaseBoxOf(d));
       // The ghost goes and the optimistic move lands in the SAME render (React batches both writes).
       teardown();
       void takeSeat(drop.role);

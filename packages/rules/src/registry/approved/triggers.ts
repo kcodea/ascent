@@ -464,7 +464,7 @@ export const TRIGGERS_RULES: GameRule[] = [
       'An End-of-Turn effect that repeats (a "Repeat for every ..." tick of Kringle, Striker, Mother Moss, Rope Wrangler '
       + 'or Action, and any Chronos or rune repeat of an End-of-Turn trigger) still plays every repeat as its own '
       + 'tick and beat (R-REPEAT-01), but the chain speeds up: the first three ticks play near-normal (100%, 70% and 45% '
-      + 'of the beat), the next shrink quickly to a floor of about one frame, and once the count outruns the cap several '
+      + 'of the beat), the next shrink quickly to a short floor (40 ms since R-REPEAT-05), and once the count outruns the cap several '
       + 'ticks share one visual slot. The whole chain for one source never takes longer than 2.5 seconds, whatever the '
       + 'count, and the last tick holds briefly so the final number reads. The stats update as each tick (or slot) lands '
       + 'and finish on the exact committed values. Only accent ticks (the lead-in, the final tick, and slot starts at least '
@@ -489,6 +489,42 @@ export const TRIGGERS_RULES: GameRule[] = [
       kind: 'scenario',
       refs: ['packages/ui/src/choreographer/fastRepeatPacing.test.ts', 'packages/ui/src/choreographer/repeatPerTickBeats.test.ts'],
       lastVerifiedAt: '2026-09-27',
+    },
+  },
+  {
+    id: 'R-REPEAT-05',
+    title: 'Several repeating End-of-Turn chains share one short budget, and a long chain stays smooth',
+    statement:
+      'When more than one LONG repeat chain (5 or more ticks: several Kringles, Mother Moss, Striker, Rope Wrangler, a '
+      + 'rune repeat) plays in the same End of Turn, the chains split a 4 second budget between them, each between 1 and '
+      + '2.5 seconds, so four Kringles finish in about 4 seconds instead of 10. A lone chain keeps the R-REPEAT-04 pace, '
+      + 'and a Chronos double keeps its full pace. A shortened chain still opens with its lead-in and rolls its tail over '
+      + 'several updates (never one jump to the end). Every tick still lands as its own beat and the numbers finish on the '
+      + 'exact committed values. Batched ticks update the numbers at most every 40 ms, sped-up accent ticks draw their '
+      + 'ribbons at 40% of the authored particles (the first tick plays as authored), and the live player folds all of '
+      + 'one frame\'s deliveries at once, so a long chain costs about the same per frame as a short one. Presentation only: '
+      + 'no outcome changes.',
+    domain: 'triggers',
+    status: 'approved',
+    evidence: [
+      {
+        kind: 'owner-chat',
+        ref: 'Claude Code session, 2026-10-26 (several golden Kringles, Ale-heavy turn)',
+        quote: 'kringle was triggering super slowly and causing freezes/massive slow downs',
+      },
+      { kind: 'owner-chat', ref: 'Kevin, FPS bar 2026-10-09', quote: '>160 fps at all times' },
+      { kind: 'code', ref: 'packages/ui/src/choreographer/repeatPacing.ts repeatChainCapMs / repeatTickFxIntensity; compileTimeline.ts longChains; projection.ts applyConsequencesToProjection; livePlayer.ts crossForward' },
+    ],
+    contentIds: ['dw_foreman', 'dw3_striker', 'sp3_nurturer'],
+    currentBehaviour:
+      'Conforms as of 2026-10-26. Before, each chain took up to 2.5 s on its own (four golden Kringles after 60 cards: '
+      + '10.7 s of End of Turn on the prod bench), and the player copied the delivered-id set once per delivery, so one '
+      + 'frame of a 480-card chain spent 74 ms folding. Now 4.7 s, and that frame is under 2 ms.',
+    example: 'Four golden Kringles after a 60-card turn: each rolls its Dwarves for about a second, all four done in about 4 seconds.',
+    enforcement: {
+      kind: 'scenario',
+      refs: ['packages/ui/src/choreographer/repeatPhaseBudget.test.ts', 'packages/ui/src/choreographer/fastRepeatPacing.test.ts'],
+      lastVerifiedAt: '2026-10-26',
     },
   },
   {

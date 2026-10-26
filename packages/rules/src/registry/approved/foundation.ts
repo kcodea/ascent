@@ -6829,6 +6829,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatMounted.test.tsx'], lastVerifiedAt: '2026-10-21' },
   },
   {
+    id: 'R-VERSUS-SEAT-DROP-01',
+    title: 'A card dropped on a Versus seat lands from where it was let go, at its own size, in one smooth settle',
+    statement:
+      'Dropping your card on a seat (from the hand, or from another seat) lands it from exactly the box the drag ghost was drawn in at the release, then settles into the seat at the seat size in one transform-only glide. A hand card that was hover-popped when it was picked up does not carry its pop into the seat: a seated card has no hand pop and drops it with no transition. Dropping to the stands keeps the sale (coins, then the card forms in the hand).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-26 (Versus room seat drag)', quote: 'when dragging the player portrait to a lobby slot it kinda does a pop/plop that looks janky. the card gets really big like it\'s being dropped from higher than where it was when it actually was dropped.' },
+    ],
+    currentBehaviour: 'Before, the hand card\'s hover pop (one card up, x2) eased away over 0.14 s on top of the landing glide, and a quick flick started the landing at the held size rather than the size the ghost had grown to, so the card landed big and from above.',
+    example: 'Drag your card from the hand onto an open seat and let go: it shrinks from under the cursor straight into the seat, with no bounce up first.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusSeatDrop.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
     id: 'R-VERSUS-BROWSER-01',
     title: 'The Versus room list is a clean panel of room cards with Create room as the call to action',
     statement:

@@ -1,7 +1,8 @@
 import { Fragment, memo, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
-import { inRunTribes, type CardDef, type QuestReward, type Tribe } from '@game/core';
+import { inRunTribes, type CardDef, type Tribe } from '@game/core';
 import { CARD_INDEX, EPIC_RUNES, GIFTS, QUEST_DEFS, RUNES, SETS, activeSet, poolFor, type SetId } from '@game/content';
+import { questRewardCardsFor, runeRewardCardsFor } from './compendiumRewards';
 import { HEROES, chooseBothActive, rubyStatBonus, type RunState } from '@game/sim';
 import { Card, mdBold, type CardView } from './Card';
 import { chooseBothText } from './cardText';
@@ -46,51 +47,11 @@ const evolutionCardsFor = (buyable: readonly CardDef[]): CardDef[] => {
   return [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
 };
 
-/** Quest-reward cards — the token minions/spells a completed quest grants. They're reward-exclusive
- *  (`token: true`), so they never appear in `BUYABLE_CARDS`/`SPELL_CARDS`; the Compendium surfaces them in
- *  their own "Quest Rewards" category. Walks every quest's reward (including nested `multi` rewards) for
- *  concrete `cards` grants, mapping each to the granting quest's tribe (for run-scoping — neutral wins when a
- *  card is granted by quests of more than one tribe, since neutral quests are always offered). */
-const QUEST_REWARD_CARDS: { card: CardDef; tribe: Tribe }[] = (() => {
-  const byId = new Map<string, Tribe>();
-  const walk = (r: QuestReward, tribe: Tribe): void => {
-    if (r.kind === 'grant' || r.kind === 'recurringGrant') {
-      for (const id of r.cards ?? []) if (byId.get(id) !== 'neutral') byId.set(id, tribe);
-    } else if (r.kind === 'multi') {
-      for (const sub of r.rewards) walk(sub, tribe);
-    }
-  };
-  for (const q of QUEST_DEFS) walk(q.reward, q.tribe);
-  return [...byId]
-    .map(([id, tribe]) => ({ card: CARD_INDEX[id], tribe }))
-    .filter((x): x is { card: CardDef; tribe: Tribe } => !!x.card);
-})();
-const QUEST_REWARD_IDS = new Set(QUEST_REWARD_CARDS.map((x) => x.card.id));
-
-/** Rune-reward cards — the specific minions/spells a purchased rune grants (named `cards` / `grantGolden`
- *  grants; random-tier / random-tribe / random-filter grants have no fixed card to show). Mirrors
- *  QUEST_REWARD_CARDS, but runes aren't tribe-bound (the Runeforge is hero-reached), so this is a flat,
- *  un-scoped list — shown always, like the Runes tab. Surfaces the rune-exclusive tokens (Feasting Bogrot,
- *  Reconfigured Combinator) that otherwise appear nowhere in the Compendium, plus the buyable minions a rune
- *  hands you (Mama Bear, Pillager, Soulsman…). */
-const RUNE_REWARD_CARDS: CardDef[] = (() => {
-  const ids = new Set<string>();
-  const walk = (r: QuestReward): void => {
-    if (r.kind === 'grant') {
-      for (const id of r.cards ?? []) ids.add(id);
-      for (const id of r.grantGolden ?? []) ids.add(id);
-    } else if (r.kind === 'recurringGrant') {
-      for (const id of r.cards) ids.add(id);
-    } else if (r.kind === 'multi') {
-      for (const sub of r.rewards) walk(sub);
-    }
-  };
-  for (const rune of [...RUNES, ...EPIC_RUNES]) walk(rune.reward);
-  return [...ids].map((id) => CARD_INDEX[id]).filter((c): c is CardDef => !!c);
-})();
-const RUNE_REWARD_IDS = new Set(RUNE_REWARD_CARDS.map((c) => c.id));
+// Quest-reward and rune-reward cards are SET-SCOPED: see `compendiumRewards.ts` (owner report 2026-10-26, a
+// Set-1-only rune's Reconfigurator listed in a Set-2 book). The component reads them per shown set.
 /** Gifts — the hand spells a rune or hero hands out (a card class outside every set, never drawable). Shown in
- *  their own left-rail section under Spells (owner ask 2026-09-18), un-scoped like the Rune Rewards. */
+ *  their own left-rail section under Spells (owner ask 2026-09-18). Un-scoped: a random Gift draws from the whole
+ *  class (`grantRandomGift`), and Happy Birthday has no set restriction. */
 const GIFT_IDS = new Set(GIFTS.map((c) => c.id));
 /** Cards that belong in the MINION gallery: buyable minions + evolution units. A card can *also* be a quest
  *  reward (Badgington is a normal Tier-4 Beast that Apex Hunt grants) — it then shows in BOTH its tribe and the
@@ -343,6 +304,11 @@ export function MinionBook() {
   );
   const pool = poolFor(setId);
   const { minions: MINION_POOL_IDS, spells: SPELL_POOL_IDS, evolutions: EVOLUTION_CARDS, rubies: RUBIES } = poolIds(setId);
+  // The reward buckets of the SHOWN set (owner report 2026-10-26): only what that set's runes / quests can hand you.
+  const RUNE_REWARD_CARDS = runeRewardCardsFor(setId);
+  const RUNE_REWARD_IDS = useMemo(() => new Set(RUNE_REWARD_CARDS.map((c) => c.id)), [RUNE_REWARD_CARDS]);
+  const QUEST_REWARD_CARDS = questRewardCardsFor(setId);
+  const QUEST_REWARD_IDS = useMemo(() => new Set(QUEST_REWARD_CARDS.map((x) => x.card.id)), [QUEST_REWARD_CARDS]);
 
   const [tiers, setTiers] = useState<Set<number>>(() => new Set());
   const [cats, setCats] = useState<Set<Category>>(() => new Set());
@@ -428,7 +394,7 @@ export function MinionBook() {
     const hero = HEROES.find((h) => !h.wip && !!heroArt(h.id));
     m.set('heroes', hero ? heroArt(hero.id) : undefined);
     return m;
-  }, [pool, tribes, setId]);
+  }, [pool, tribes, setId, RUNE_REWARD_CARDS]);
 
   // Heroes for the Heroes tab — every shippable hero (WIP ones are withheld, like the picker), searchable by
   // name or power. Not run-scoped (heroes aren't tribe-bound), same as the Runes tab.
@@ -499,11 +465,12 @@ export function MinionBook() {
     const tribeSel = [...cats].filter((x): x is Tribe => !NON_TRIBE_CATS.has(x));
     const m = makeSearchMatcher(searchQ);
     return QUEST_DEFS
+      .filter((qd) => !qd.sets || qd.sets.includes(setId)) // the shown set's quests only
       .filter((qd) => qd.tribe === 'neutral' || tribes.includes(qd.tribe))
       .filter((qd) => tribeSel.length === 0 || tribeSel.includes(qd.tribe))
       .filter((qd) => m(qd.name)) // search matches the quest name
       .sort((a, b) => questTierOrder[a.tier] - questTierOrder[b.tier] || a.name.localeCompare(b.name));
-  }, [tribes, cats, searchQ]);
+  }, [tribes, cats, searchQ, setId]);
 
   // Every eligible card: minions whose tribe is neutral or in `tribes`, plus every tavern spell and every
   // quest-reward card whose granting quest is in scope. Buyable tokens are dropped by `BUYABLE_CARDS`; the
@@ -519,20 +486,26 @@ export function MinionBook() {
     // reward). The category filter below re-derives which gallery it shows in from the pool-membership sets.
     const seen = new Set<string>();
     const out: CardDef[] = [];
-    // Rune rewards are un-scoped (the Runeforge isn't tribe-bound) — added unconditionally, like spells. The set's
+    // Rune rewards are not tribe-scoped (the Runeforge isn't tribe-bound; `grantRune` ignores the gate) but ARE
+    // set-scoped (`runeRewardCardsFor`) — added like spells. The set's
     // Rubies ride with its spells (un-scoped too: Ruby spells are neutral, so a Ruby is findable in any run of it).
     for (const c of [...minions, ...evolutions, ...pool.spells, ...RUBIES, ...rewards, ...RUNE_REWARD_CARDS, ...GIFTS]) {
       if (!seen.has(c.id)) { seen.add(c.id); out.push(c); }
     }
     return out;
-  }, [tribes, pool, RUBIES]); // `pool` changes only when the run's set does — but it IS an input now
+  }, [tribes, pool, RUBIES, QUEST_REWARD_CARDS, RUNE_REWARD_CARDS]); // all per-set: they change only when the shown set does
 
 
   const query = searchQ.trim().toLowerCase();
   // Free-text match over a card's name + printed text (and golden text) — powers the search box. Quote the query
   // ("Imp") for a whole-word match; leave it unquoted (Imp) for a loose substring.
   const searchMatch = makeSearchMatcher(searchQ);
-  const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '');
+  // A minion also matches on its TRIBE (owner report 2026-10-26: "mech" must find the Mech rune rewards, whose text
+  // never says Mech), by id and rail label ("mech" / "Mechs"), either tribe of a dual body. Spells, Gifts and
+  // Rubies carry a placeholder neutral tribe, so they are matched on name + text only.
+  const tribeMatch = (t: Tribe | undefined): boolean => !!t && (searchMatch(t) || searchMatch(CAT_META[t].label));
+  const matchText = (c: CardDef): boolean => searchMatch(c.name) || searchMatch(c.text ?? '') || searchMatch(c.goldenText ?? '')
+    || (!c.spell && !c.ruby && (tribeMatch(c.tribe) || tribeMatch(c.tribe2)));
 
   // The Runes / Heroes / Quests tabs render their own galleries — the card gallery (and its tier chart) is empty there.
   const ownGalleryTab = guidesOn || cats.has('quests') || cats.has('runes') || cats.has('heroes');
@@ -578,7 +551,7 @@ export function MinionBook() {
       if (!MINION_POOL_IDS.has(c.id)) return false;
       return tribeSel.length === 0 || tribeSel.includes(c.tribe) || (!!c.tribe2 && tribeSel.includes(c.tribe2));
     });
-  }, [allCards, cats, kw, query, ownGalleryTab]); // (matchText derives from `query`, the listed dep)
+  }, [allCards, cats, kw, query, ownGalleryTab, RUNE_REWARD_IDS, QUEST_REWARD_IDS, SPELL_POOL_IDS, MINION_POOL_IDS]); // (matchText derives from `query`, the listed dep)
 
   const filtered = useMemo(
     () => inCategory.filter((c) => tiers.size === 0 || tiers.has(c.tier)).sort((a, b) => a.tier - b.tier || a.name.localeCompare(b.name)),

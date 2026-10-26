@@ -194,7 +194,9 @@ function Seat({ side, m, room, match, me, drag, arena }: { side: VersusGroupSeat
   const joinable = !m && open && !!mine && !iSit;
   // The drop-target state while a card is dragged over this seat: open = lit, taken = no light (the drop is refused).
   const over = drag && !drag.snap && drag.zone === side ? (drag.valid ? ' vsseat-over' : ' vsseat-bad') : '';
-  const live = !open ? 'Waiting for a player' : joinable ? 'Drag your card here' : 'Waiting for an opponent';
+  // A Ranked Duos party's other seat is a TEAMMATE, never an opponent.
+  const partySeat = normalizeVersusOptions(room.options).mode === 'ranked_duos';
+  const live = !open ? 'Waiting for a player' : joinable ? 'Drag your card here' : partySeat ? 'Waiting for a teammate' : 'Waiting for an opponent';
   // Under a seated card the open-seat card is invisible: its text holds still until the seat empties again, so a card
   // landing never re-lays out text no one can see (R-VERSUS-ROOM-MOUNTED-01).
   const shownHint = useRef(live);
@@ -410,7 +412,8 @@ export function VersusRoom() {
         {/* RANKED DUOS: the party's team name over its two seats ("Name1 & Name2" until it is named). */}
         {party && <TeamPlate room={room} name={teamName} />}
         {/* The VS mark between the two cards: the game's display font with a static glow until it has its own art. */}
-        <div key={vsBeat} className={`vsmark${vsBeat > 0 ? ' vsmark-full' : ''}`} aria-hidden="true">VS</div>
+        {/* (A Ranked Duos party seats two TEAMMATES: no VS between them.) */}
+        {!party && <div key={vsBeat} className={`vsmark${vsBeat > 0 ? ' vsmark-full' : ''}`} aria-hidden="true">VS</div>}
         {seatRoles.map((side, i) => <Seat key={side} side={side} m={seated[i] ?? null} room={room} match={match} me={me} drag={drag} arena={arenaRef} />)}
 
         {/* THE ACTION AREA (owner 2026-10-21, R-VERSUS-ROOM-POLISH-03): EMPTY until both seats are filled. Then the host's
@@ -463,7 +466,7 @@ export function VersusRoom() {
           <button className="vsplate" onClick={() => { sfx.pulse(); setNameOpen(true); }}>Team name</button>
         )}
         {lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
-        <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</button>
+        <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : party ? 'Leave party' : 'Leave room'}</button>
         {roomBots.length > 0 && (
           <>
             <button className="vsplate" onClick={() => setVersusBotDisconnected(!allOff)}>

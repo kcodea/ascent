@@ -107,7 +107,7 @@ export function FriendsOnlyToggle({ room }: { room: VersusRoom }) {
   const on = !!room.friends_only;
   return (
     <button className={`vsplate${on ? ' on' : ''}`} aria-pressed={on}
-      onClick={() => { sfx.pulse(); void setFriendsOnly(!on); }}>{on ? 'Friends only' : 'Listed publicly'}</button>
+      onClick={() => { sfx.pulse(); void setFriendsOnly(!on); }}>{on ? 'Friends only: On' : 'Friends only: Off'}</button>
   );
 }
 

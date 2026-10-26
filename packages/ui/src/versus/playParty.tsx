@@ -5,7 +5,7 @@
  * - The choice is per viewer and remembered (localStorage, a convenience: it reads Solo when storage is unavailable).
  * - Solo + Play: today's flow, unchanged. Duo + Play: the Ranked Duos confirmation, then my party room
  *   (`enterDuosParty`). The confirmation lives on the title (`Title.tsx`), so Play here only REQUESTS it.
- * - The control is the Career page's segmented control (`.cv2-seg`), reused; no animation.
+ * - The control wears the Career page's segmented-control look (`.cv2-seg`, the same values); no animation.
  */
 import { useSyncExternalStore } from 'react';
 import { sfx } from '../sfx';
@@ -54,9 +54,9 @@ export function PlayPartyToggle({ className = '' }: { className?: string }) {
   if (!versusEnabled()) return null;
   const pick = (v: PlayParty): void => { if (v !== p) { sfx.pulse(); setPlayParty(v); } };
   return (
-    <div className={`cv2-seg playparty ${className}`} role="group" aria-label="Play solo or with a teammate">
-      <button type="button" className={`cv2-seg-btn${p === 'solo' ? ' on' : ''}`} aria-pressed={p === 'solo'} onClick={() => pick('solo')}>Solo</button>
-      <button type="button" className={`cv2-seg-btn${p === 'duo' ? ' on' : ''}`} aria-pressed={p === 'duo'} onClick={() => pick('duo')}>Duo</button>
+    <div className={`playparty ${className}`} role="group" aria-label="Play solo or with a teammate">
+      <button type="button" className={`playparty-btn${p === 'solo' ? ' on' : ''}`} aria-pressed={p === 'solo'} onClick={() => pick('solo')}>Solo</button>
+      <button type="button" className={`playparty-btn${p === 'duo' ? ' on' : ''}`} aria-pressed={p === 'duo'} onClick={() => pick('duo')}>Duo</button>
     </div>
   );
 }

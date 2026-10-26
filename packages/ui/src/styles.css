@@ -14844,7 +14844,11 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-duos-rank { grid-row: 1 / span 2; grid-column: 2; }
 
 /* SOLO / DUO over Play (owner 2026-10-26): the Career's segmented control, full width above the Play plaque. Static. */
-.cv2-seg.playparty { display: flex; width: 100%; box-sizing: border-box; }
-.cv2-seg.playparty > .cv2-seg-btn { flex: 1; padding: 7px 0; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase; }
+.playparty { display: flex; width: 100%; box-sizing: border-box; border-radius: 8px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.4); }
+.playparty-btn { flex: 1; padding: 7px 0; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.28); border: none; }
+.playparty-btn + .playparty-btn { border-left: 1px solid rgba(196, 160, 92, 0.3); }
+.playparty-btn:hover { color: #fff; }
+.playparty-btn.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
 .msb-playparty { margin-bottom: -2px; }
 .tn-playparty { margin-bottom: 6px; }

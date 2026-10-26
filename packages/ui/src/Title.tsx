@@ -186,6 +186,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
   // Practice's setup closes the title flag (`startPractice`: showTitle false), but it is a view of the mode screen, so
   // the title stays mounted under it: the sidebar and backdrop stay put and only the content shifts (R-MENU-VIEW-SWAP-01).
+  // SOLO / DUO: the sidebar's Duo + Play asks this title for the Ranked Duos confirmation (set once the title renders).
+  const duoPlayRef = useRef<(() => void) | null>(null);
+  useEffect(() => { onDuoPlayRequest(() => duoPlayRef.current?.()); return () => onDuoPlayRequest(null); }, []);
   if (!showTitle && !practiceOpen) return null;
 
   // A player who has never finished (or skipped) the guided course is "new" — hitting Play offers the tutorial
@@ -198,8 +201,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     setRankedConfirm('open');
     warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
   };
-  // The sidebar's Play with Duo selected asks for the same confirmation (playParty.tsx). It uses only setters + refs.
-  useEffect(() => { onDuoPlayRequest(() => openRankedConfirm('duos')); return () => onDuoPlayRequest(null); }, []);
+  // The sidebar's Play with Duo selected asks for the same confirmation (playParty.tsx; registered above the early return).
+  duoPlayRef.current = () => openRankedConfirm('duos');
   // "Yes, let's go." (owner 2026-10-12): the window leaves, the ranked gate slams shut over the mode picker, and
   // `startLobby` (the entry + hero select) runs BEHIND the shut doors, so they open on hero select. With no gate
   // (reduced motion, a test) `requestRankedGate` runs it at once.

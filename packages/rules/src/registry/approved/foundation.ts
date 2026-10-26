@@ -9013,4 +9013,38 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Claudebot3 is knocked out in round 12: during the last fight his top left shows Claudebot4 Spectating, not himself.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
+  {
+    id: 'R-VERSUS-LOCK-ORDER-01',
+    title: 'Versus RPCs take their row locks in one global order (match, then room, then members), so they never deadlock',
+    statement:
+      'Every Versus RPC that touches a match and its room, seats or members takes the MATCH row first, then the room row, then member '
+      + 'rows; seats are written only under the match lock (or as the last lock of a transaction). The knockout trigger locks the room before '
+      + 'it moves the player to the stands, the heartbeat of a spectator takes no match lock, and the room list prune skips rows another '
+      + 'transaction holds. No two Versus RPCs can deadlock on these rows.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (live Postgres log, ~22:58 2026-10-25)', quote: 'deadlock detected' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-26-versus-lock-order.sql (versus_heartbeat, versus_leave_room, versus_group__seat_out_to_stands, versus_list_rooms)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (perf/supabase-egress-audit). Before: heartbeat took its member row before the match, leave took the room before the match, the knockout trigger took the member before the room.',
+    example: 'A Duos round commits and knocks out Bob while the client of Bob heartbeats: both now queue on the match row, and nothing waits in a circle.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-PROFILE-AVATAR-READ-01',
+    title: 'The avatar a player chose is readable by every client (profiles.avatar is in the client column grant)',
+    statement:
+      'profiles.avatar (the chosen portrait id) is readable by the anon and authenticated roles, like the other public profile columns, so '
+      + 'Versus seat cards, the Leaderboard and the avatar backfill read it without a permission error. profiles.email stays hidden.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (live Postgres log)', quote: 'permission denied for table profiles' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-26-profiles-avatar-grant.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (perf/supabase-egress-audit). Before: avatar was added after the column grant and never granted, so every read naming it failed (42501) and fell back.',
+    example: 'Ann picked the Lantern portrait. Bob opens the Leaderboard and sees her Lantern portrait, with no failed read first.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/profilesGrant.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

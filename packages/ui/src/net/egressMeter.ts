@@ -268,7 +268,6 @@ export function installEgressMeter(): void {
     marks: () => m.marks,
     dump: (): string => JSON.stringify({ totals: api.totals(), rows: api.rows(), marks: m.marks }, null, 1),
     table(): void {
-      // eslint-disable-next-line no-console
       console.table(api.rows().map((r) => ({ key: r.key, calls: r.calls, KB: +(r.bytes / 1024).toFixed(1), wireKB: +(r.wire / 1024).toFixed(1), sentKB: +(r.sent / 1024).toFixed(1), errors: r.errors })));
     },
   };

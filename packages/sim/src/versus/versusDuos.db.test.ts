@@ -27,6 +27,7 @@ const DUOS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos
 const EDGES = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-edges.sql'), 'utf8');
 const ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-random-order.sql'), 'utf8');
 const PASS_BACK = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-pass-back.sql'), 'utf8');
+const LOCK_ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -123,6 +124,7 @@ beforeAll(async () => {
   await db.exec(ORDER); // idempotent
   await db.exec(PASS_BACK);
   await db.exec(PASS_BACK); // idempotent
+  await db.exec(LOCK_ORDER); // R-VERSUS-LOCK-ORDER-01: heartbeat / leave / knockout trigger / list prune in one lock order
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {

@@ -20,6 +20,7 @@
 import type { Application } from 'pixi.js';
 import { onStageChange, stageFit } from './stage';
 import { PHONE_GPU, pixiPageScaleNow } from './phoneDiag';
+import { trackPixiApp, type TrackedPixiApp } from './fxLedger';
 
 /** Pure: the renderer resolution after the page scale moved from `k0` (at creation) to `k`. */
 export function followedResolution(r0: number, k0: number, k: number): number {
@@ -43,6 +44,8 @@ interface Resizable {
  * right after `app.init`. Returns the unsubscribe (also run by `app.destroy`).
  */
 export function followStage(app: Application, phone: boolean = PHONE_GPU): () => void {
+  // Every Application in the UI passes through here, so the phone perf log registers it here (a no-op when it is off).
+  trackPixiApp(app as unknown as TrackedPixiApp);
   if (!phone || typeof window === 'undefined') return () => {};
   const a = app as unknown as Resizable;
   const r0 = app.renderer.resolution;

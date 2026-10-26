@@ -19,6 +19,7 @@
  */
 import { LITE_ART } from './phoneArt';
 import { activeDiagLabel } from './phoneDiag';
+import { PERF_LOG_ON } from './perfLogFlag';
 
 export const CRASH_LOG_KEY = 'ascent.crashlog.v1';
 export const CRASH_LOG_SHOW_KEY = 'ascent.crashlog.show';
@@ -284,19 +285,66 @@ export function crashReadoutWanted(): boolean {
   return LITE_ART && standalone && crashedSessions().length > 0;
 }
 
-function start(): void {
-  if (!enabled()) return;
-  const id = Math.random().toString(36).slice(2, 8); // presentation only: the Math.random ban covers core/content/sim
-  store = beginSession(readStore(), id, Date.now());
-  // Count WebGL contexts as they are made (one wrapper call per getContext; nothing per frame).
+let glTracked = false;
+let glLost = 0;
+let glRestored = 0;
+/**
+ * Count WebGL contexts as they are made (one wrapper call per getContext; nothing per frame), and their losses and
+ * restores (R-PHONE-PERFLOG-01: iOS loses contexts under GPU pressure and on backgrounding, a prime suspect for effects
+ * that stop showing). Idempotent. Runs for the crash log and for the phone perf log (perfLogFlag.ts).
+ */
+export function trackWebGl(): void {
+  if (glTracked || typeof HTMLCanvasElement === 'undefined') return;
+  glTracked = true;
   try {
     const orig = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, opts?: unknown) {
       const ctx = (orig as (this: HTMLCanvasElement, t: string, o?: unknown) => RenderingContext | null).call(this, type, opts);
-      if (ctx && /webgl/.test(type) && !glCanvases.includes(this)) { glCanvases.push(this); glContexts.push(ctx as WebGLRenderingContext); }
+      if (ctx && /webgl/.test(type) && !glCanvases.includes(this)) {
+        glCanvases.push(this); glContexts.push(ctx as WebGLRenderingContext);
+        try {
+          // Counted only (never a crumb: a teardown loses its context on purpose, and a step scans the DOM).
+          this.addEventListener('webglcontextlost', () => { glLost++; });
+          this.addEventListener('webglcontextrestored', () => { glRestored++; });
+        } catch { /* no events: the counts stay 0 */ }
+      }
       return ctx;
     } as typeof orig;
   } catch { /* leave getContext alone */ }
+}
+
+/** The WebGL contexts as they stand: made, still in the page, alive (not lost) and their drawing buffers, plus the loss
+ *  and restore events since load (a context destroyed on purpose fires a loss too: compare with `alive`). */
+export function webglSnapshot(): { made: number; inPage: number; alive: number; mb: number; sizes: string; lostEvents: number; restoredEvents: number; lostNow: number } {
+  let alive = 0; let px = 0; let lostNow = 0;
+  const sizes: string[] = [];
+  for (let k = 0; k < glCanvases.length; k++) {
+    let lost = false;
+    try { lost = glContexts[k]?.isContextLost() === true; } catch { lost = true; }
+    if (lost) { if (glCanvases[k]!.isConnected) lostNow++; continue; }
+    alive++; px += glCanvases[k]!.width * glCanvases[k]!.height;
+    sizes.push(`${glCanvases[k]!.width}x${glCanvases[k]!.height}`);
+  }
+  return {
+    made: glCanvases.length, inPage: glCanvases.filter((cv) => cv.isConnected).length, alive, mb: round((px * 4) / 1048576),
+    sizes: sizes.join(','), lostEvents: glLost, restoredEvents: glRestored, lostNow,
+  };
+}
+
+/** Decoded <img> elements on the page right now: count and MB (w x h x 4). A model of the image memory, not a reading. */
+export function decodedImagesSnapshot(): { n: number; mb: number } {
+  let n = 0; let b = 0;
+  try {
+    for (const img of Array.from(document.images)) if (img.complete && img.naturalWidth) { n++; b += img.naturalWidth * img.naturalHeight * 4; }
+  } catch { /* no DOM */ }
+  return { n, mb: round(b / 1048576) };
+}
+
+function start(): void {
+  if (!enabled()) return;
+  const id = Math.random().toString(36).slice(2, 8); // presentation only: the Math.random ban covers core/content/sim
+  store = beginSession(readStore(), id, Date.now());
+  trackWebGl();
   crumb('boot', { w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 });
   const markClean = (): void => { if (store?.cur && !store.cur.clean) { store.cur.clean = true; save(); } };
   window.addEventListener('pagehide', markClean);
@@ -316,3 +364,5 @@ function start(): void {
 }
 
 start();
+// The phone perf log (R-PHONE-PERFLOG-01) counts WebGL contexts too, on any load it records (`?perflog=1` on desktop).
+if (PERF_LOG_ON) trackWebGl();

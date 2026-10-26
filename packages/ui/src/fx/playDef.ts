@@ -21,6 +21,7 @@ import type { FxHeadSink } from './anchors';
 import { recolorDef } from './recolorDef';
 import { holdStat, revealStat } from './statHold';
 import { PHONE_GPU } from '../phoneDiag';
+import { FX_LEDGER_ON, fxNote, fxOutcome, fxRequest, rendererContextLost } from '../fxLedger';
 
 /**
  * Play a COMMITTED def once, in the real game, and clean itself up. The runtime half of the workbench →
@@ -388,7 +389,10 @@ export function createRetire(t: FxPlayTeardown): FxRetire {
 export function canPlayDefs(): boolean {
   // `hasPrimitives()` (a Map `.size` read), NOT `listPrimitives().length` — the latter spreads and sorts the
   // whole registry on every call, and this sits on the cue runner's per-moment path for all 25 moment kinds.
-  return hasPrimitives() && pixiFx.renderer !== null;
+  const ok = hasPrimitives() && pixiFx.renderer !== null;
+  // The FX ledger (R-PHONE-PERFLOG-01): a moment that asked and was told no. One constant check when the log is off.
+  if (!ok && FX_LEDGER_ON) fxNote(hasPrimitives() ? 'defs:no-renderer' : 'defs:no-primitives', 'defs-unavailable');
+  return ok;
 }
 
 /** Memoised so N callers awaiting readiness share ONE dynamic import. A failed import is not retried: the
@@ -542,7 +546,16 @@ export function playDef(id: string, anchors: FxAnchors, opts: PlayDefOptions = {
   // and a big allocation all land here, which is exactly where the 160 ms collision freeze of §3b lived.
   //
   // Free when the monitor is off — `measure` is a bare passthrough with no clock reads (see perfMonitor).
+  if (FX_LEDGER_ON) fxRequest(`def:${id}`); // the FX ledger (R-PHONE-PERFLOG-01); its outcome is noted in playDefInner
   return perfMonitor.measure(`fx:${id}`, () => playDefInner(id, anchors, opts));
+}
+
+/** Pure: every given source / target anchor lies off the screen (by more than `margin` px), so the play draws nothing
+ *  a player can see. False when neither is given (a camera-anchored def). */
+export function anchorsOffscreen(a: FxAnchors, w: number, h: number, margin = 40): boolean {
+  const pts = [a.source, a.target].filter((p): p is { x: number; y: number } => !!p);
+  if (pts.length === 0) return false;
+  return pts.every((p) => p.x < -margin || p.y < -margin || p.x > w + margin || p.y > h + margin);
 }
 
 /**
@@ -578,6 +591,7 @@ function playDefInner(
     // ships now, so this can fire in prod, but a player can't fix a dangling binding and the console noise
     // would repeat for every moment that hit it. `bindings.test.ts` is what catches this before it ships.
     if (import.meta.env.DEV) console.warn(`[fx] playDef: no committed def '${id}' — nothing fired.`);
+    if (FX_LEDGER_ON) fxOutcome(`def:${id}`, 'no-def');
     return null;
   }
   // Anchor PARTS ("a target within a source", see `anchorParts.ts`): resolved here, once, for exactly the
@@ -619,7 +633,11 @@ function playDefInner(
     const ensure = slot === 'under' ? pixiFx.ensureUnderSlot()
       : slot === 'above' ? pixiFx.ensureAboveSlot()
         : null;
-    if (!ensure || retried) return null;
+    if (!ensure || retried) {
+      if (FX_LEDGER_ON) fxOutcome(`def:${id}`, 'no-renderer');
+      return null;
+    }
+    if (FX_LEDGER_ON) fxOutcome(`def:${id}`, 'waiting');
     let cancelled = false;
     let stop: (() => void) | null = null;
     void ensure.then(() => {
@@ -639,7 +657,10 @@ function playDefInner(
   const sized = gainScaledDef(staggerLayers(recolorDef(scaleDef(playableDef(stored), opts), opts.recolor, { glow: opts.recolorGlow }), opts.index ?? 0), opts.gain, opts.muteSound);
   // Every layer muted = an effect that renders nothing. Declining is cheaper and more honest than mounting
   // a container and running an updater for a guaranteed-empty play.
-  if (sized.layers.length === 0) return null;
+  if (sized.layers.length === 0) {
+    if (FX_LEDGER_ON) fxOutcome(`def:${id}`, 'empty');
+    return null;
+  }
 
   // THE BUDGET (see `fxBudget.ts`): make room BEFORE this play exists, so it is never its own victim. Over a
   // cap, the OLDEST play of this same def is retired first — a pile-up pays for itself — then the oldest of
@@ -665,12 +686,22 @@ function playDefInner(
     thinnable: !persistent, key: opts.dedupeKey, coalesceMs: opts.coalesceMs, authoredScale: opts.intensity,
   });
   // Deduped (`opts.dedupeKey`): the same moment is already playing on this key, so nothing new spawns.
-  if (admission.skip) { filterSeat?.release(); return null; }
+  if (admission.skip) {
+    filterSeat?.release();
+    if (FX_LEDGER_ON) fxOutcome(`def:${id}`, 'budget');
+    return null;
+  }
   const def = admission.particleScale < 1 || (admission.lifeScale ?? 1) < 1
     ? thinDef(shared, admission.particleScale, admission.lifeScale)
     : shared;
   const layers = def.layers;
   const load = def === shared ? admissionLoad : expectedLoad(def);
+  if (FX_LEDGER_ON) {
+    // Started, unless its canvas has lost its WebGL context (it would draw nothing); a thinned play is a degrade.
+    fxOutcome(`def:${id}`, rendererContextLost(renderer as unknown as Parameters<typeof rendererContextLost>[0]) ? 'ctx-lost' : 'started');
+    if (def !== shared) fxOutcome(`def:${id}`, 'thinned');
+    if (typeof window !== 'undefined' && anchorsOffscreen(anchors, window.innerWidth, window.innerHeight)) fxOutcome(`def:${id}`, 'offscreen');
+  }
 
   // A def can author "ride my source" (`FxDef.followSource`) instead of the caller passing a per-frame
   // `follow`. An explicit `opts.follow` still wins; otherwise, when the def opts in AND a source uid was

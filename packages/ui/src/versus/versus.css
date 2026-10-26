@@ -874,11 +874,12 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
    can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left or slightly
    offset"; R-DUOS-SLOTS-02). While my teammate's board fights on my side the bottom-right portrait fades out
    (`.tagged`: an opacity TRANSITION, one-shot) and its copy (`.duostagin`, DuosMateDock) fades in over my own hero, up
-   and to the right by `--duos-tag-x` / `--duos-tag-y` of the disc, a touch smaller (`--duos-tag-s`), in front of it.
+   and to the left by `--duos-tag-x` / `--duos-tag-y` of the disc, a touch smaller (`--duos-tag-s`), in front of it.
    Back the same way. Opacity and the individual `scale` property only (the offset is a static transform), no loops. */
 .duosdock { transition: opacity 0.22s ease; }
 .duosdock.tagged { opacity: 0; }
-.duostagin { --duos-tag-x: 0.42; --duos-tag-y: 0.3; --duos-tag-s: 0.82; position: fixed; z-index: 41; pointer-events: none;
+/* Owner 2026-10-26: "Move it more to the left so it isn't covering the hero so much": the copy now sits up and to the LEFT. */
+.duostagin { --duos-tag-x: -0.5; --duos-tag-y: 0.22; --duos-tag-s: 0.82; position: fixed; z-index: 41; pointer-events: none;
   width: var(--duos-d); height: var(--duos-d);
   transform: translate(calc(var(--duos-d) * var(--duos-tag-x)), calc(var(--duos-d) * var(--duos-tag-y) * -1)) scale(var(--duos-tag-s));
   transform-origin: 50% 50%; animation: duostagin 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) both; }

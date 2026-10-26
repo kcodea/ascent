@@ -24,6 +24,14 @@
  * trigger sound and the per-buff ribbons only on accents; the other ticks still land their stats (the
  * projection folds every delivery), so the numbers roll without a wall of ribbons or a wall of noise.
  *
+ * SEVERAL CHAINS SHARE ONE BUDGET (owner report 2026-10-26, R-REPEAT-05: "kringle was triggering super slowly and
+ * causing freezes/massive slow downs"). Each long chain used to get the whole 2.5 s cap, so four Kringles played ten
+ * seconds of End of Turn. Now the long chains of one End of Turn split `phaseCapMs` between them
+ * (`repeatChainCapMs`), never below `minChainCapMs` each and never above `capMs`, and the lead-in never takes more
+ * than `leadShare` of a chain's cap, so even a short chain still rolls its tail instead of jumping it. The slot floor
+ * is `floorMs` (about 25 updates a second), so a batched tail changes the numbers a few times per second of chain, not
+ * every frame: each change is one React commit and one repaint of the changed cards.
+ *
  * PURE and deterministic, like the compiler that calls it: no clock, no DOM. Presentation only, it can never
  * change an outcome: the sim already resolved every tick before any of this runs.
  */
@@ -43,17 +51,55 @@ export interface RepeatPacingConfig {
   settleMs: number;
   /** Minimum spacing between accent ticks (FX + sound), in ms. */
   accentGapMs: number;
+  /** The most of a chain's cap its lead-in may take (the rest is the tail and the settle). */
+  leadShare: number;
+  /** Total budget all the LONG chains of one End of Turn share, in ms (R-REPEAT-05). */
+  phaseCapMs: number;
+  /** The least a long chain gets when several share `phaseCapMs`, in ms. */
+  minChainCapMs: number;
+  /** A chain is LONG (shares the phase budget) from this many ticks. Shorter chains (a Chronos double) keep their pace. */
+  longChainTicks: number;
+  /** Particle quantity (`playDef` intensity) of a SPED-UP accent tick's ribbons: the first tick plays as authored. */
+  accentFxIntensity: number;
 }
 
 export const REPEAT_PACING: RepeatPacingConfig = {
   leadScales: [1, 0.7, 0.45],
   tailFirstMs: 160,
   tailDecay: 0.6,
-  floorMs: 20,
+  floorMs: 40,
   capMs: 2500,
   settleMs: 240,
   accentGapMs: 130,
+  leadShare: 0.62,
+  phaseCapMs: 4000,
+  minChainCapMs: 1000,
+  longChainTicks: 5,
+  accentFxIntensity: 0.4,
 };
+
+/**
+ * How many of its authored particles a repeat tick's ribbons draw (`playDef` intensity, R-REPEAT-05). A plain beat and
+ * a chain's first tick (played at full pace) are as authored; every sped-up accent after it draws `accentFxIntensity`,
+ * so a long chain of overlapping ribbons (four Kringles paying the same two Dwarves) stays a light stream instead of a
+ * pile of full bursts. The ribbon itself (its path, colour and timing) is unchanged.
+ */
+export function repeatTickFxIntensity(pace: { scale: number } | undefined, p: RepeatPacingConfig = REPEAT_PACING): number {
+  return pace && pace.scale < 0.999 ? p.accentFxIntensity : 1;
+}
+
+/** Is a chain of `count` ticks LONG, so it shares the End of Turn's repeat budget (R-REPEAT-05)? */
+export const isLongChain = (count: number, p: RepeatPacingConfig = REPEAT_PACING): boolean => Math.floor(count) >= p.longChainTicks;
+
+/**
+ * The cap ONE long chain gets when `longChains` long chains play in the same End of Turn (R-REPEAT-05): one chain keeps
+ * the full `capMs`; several split `phaseCapMs`, each between `minChainCapMs` and `capMs`.
+ */
+export function repeatChainCapMs(longChains: number, p: RepeatPacingConfig = REPEAT_PACING): number {
+  const n = Math.max(1, Math.floor(longChains));
+  if (n <= 1) return p.capMs;
+  return Math.min(p.capMs, Math.max(p.minChainCapMs, p.phaseCapMs / n));
+}
 
 /** One tick of a repeat chain, as the compiler places it. */
 export interface RepeatTickPace {
@@ -69,22 +115,24 @@ export interface RepeatTickPace {
  * The schedule for a chain of `count` ticks whose un-paced beat spans `fullSpanMs` (completion + recovery).
  * `count <= 1` is a plain effect and comes back untouched (one full, accented tick).
  */
-export function repeatChainSchedule(count: number, fullSpanMs: number, p: RepeatPacingConfig = REPEAT_PACING): RepeatTickPace[] {
+export function repeatChainSchedule(count: number, fullSpanMs: number, p: RepeatPacingConfig = REPEAT_PACING, capMs: number = p.capMs): RepeatTickPace[] {
   const n = Math.max(0, Math.floor(count));
   const full = Math.max(0, fullSpanMs);
   if (n <= 1) return n === 1 ? [{ spanMs: full, sharesSlot: false, accent: true }] : [];
 
   // The cap never STRETCHES a short chain: a chain that fits at full pace keeps its budget below full pace.
-  const cap = Math.min(p.capMs, n * full);
+  const cap = Math.min(capMs, n * full);
   const settle = Math.min(p.settleMs, full);
   const spans: { span: number; shares: boolean }[] = [];
 
   // 1. Lead-in (never the final tick: the final tick is the settle below).
   const leadCount = Math.min(p.leadScales.length, n - 1);
-  // A beat tuned very long could push the lead-in alone past the cap: shrink the lead-in to fit, never the cap.
+  // A beat tuned very long (or a chain sharing the End of Turn's budget, R-REPEAT-05) could push the lead-in alone past
+  // its share of the cap: shrink the lead-in to fit, never the cap. A chain whose ticks all fit at full pace is untouched.
   let leadSum = 0;
   for (let i = 0; i < leadCount; i++) leadSum += full * p.leadScales[i]!;
-  const leadFit = leadSum > 0 && leadSum + settle > cap ? Math.max(0, cap - settle) / leadSum : 1;
+  const leadRoom = n * full <= cap ? cap - settle : Math.min(cap - settle, cap * p.leadShare);
+  const leadFit = leadSum > 0 && leadSum > leadRoom ? Math.max(0, leadRoom) / leadSum : 1;
   let used = 0;
   for (let i = 0; i < leadCount; i++) {
     const span = full * p.leadScales[i]! * leadFit;

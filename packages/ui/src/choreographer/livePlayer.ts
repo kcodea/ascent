@@ -18,13 +18,14 @@
  * timers, no `requestAnimationFrame`, and no wall-clock flakiness.
  */
 import type { ConsequenceEvent } from '@game/core';
-import { EMPTY_PROJECTION, applyConsequenceToProjection, projectionAt, type PresentationProjection } from './projection';
+import { EMPTY_PROJECTION, applyConsequencesToProjection, projectionAt, type PresentationProjection } from './projection';
 import type { CompiledBeat, CompiledConsequenceDelivery, CompiledTimeline } from './timelineTypes';
 
 export interface TimelinePlayerCallbacks {
   /** A source beat became visible — fire its source cue (medallion pulse, rune tendril…). */
   onBeatActivate?: (beat: CompiledBeat) => void;
-  /** A consequence landed — update visuals. NEVER dispatch gameplay from here (§25). */
+  /** A consequence landed — update visuals. NEVER dispatch gameplay from here (§25). `projection` is the projection
+   *  with every delivery of this ADVANCE folded in (one fold per advance, R-REPEAT-05), not one per delivery. */
   onConsequence?: (delivery: CompiledConsequenceDelivery, projection: PresentationProjection) => void;
   /** A beat finished being readable. */
   onBeatComplete?: (beat: CompiledBeat) => void;
@@ -67,12 +68,14 @@ export function createTimelinePlayer(timeline: CompiledTimeline, callbacks: Time
         callbacks.onBeatActivate?.(b);
       }
     }
-    for (const d of deliveries) {
-      if (d.atMs > fromMs && d.atMs <= toMs) {
-        projection = applyConsequenceToProjection(projection, d.consequence.payload as ConsequenceEvent);
-        changed = true;
-        callbacks.onConsequence?.(d, projection);
-      }
+    // ONE fold for every delivery in the window (R-REPEAT-05): a batched repeat slot lands dozens of deliveries in one
+    // frame, and folding them one by one copied the delivered-id set once per delivery (quadratic in a long chain).
+    const crossed: CompiledConsequenceDelivery[] = [];
+    for (const d of deliveries) if (d.atMs > fromMs && d.atMs <= toMs) crossed.push(d);
+    if (crossed.length) {
+      projection = applyConsequencesToProjection(projection, crossed.map((d) => d.consequence.payload as ConsequenceEvent));
+      changed = true;
+      for (const d of crossed) callbacks.onConsequence?.(d, projection);
     }
     for (const b of beats) {
       if (b.completionMs > fromMs && b.completionMs <= toMs && !completed.has(b.id)) {

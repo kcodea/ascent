@@ -242,7 +242,7 @@ export const ENTRIES: readonly WikiEntry[] = [
     a: "It does the effect **once, then once more for each** thing it counts this turn. With zero it still goes once. A Gilded one makes each repeat bigger, not more repeats. Long chains speed up so you're never stuck watching for ages.",
     aliases: ['repeat for every', 'end of turn repeat', 'ticks'],
     seeAlso: ['end-of-turn'],
-    covers: [{ rule: 'R-REPEAT-01', fp: '88688c67' }, { rule: 'R-REPEAT-04', fp: '138ed798' }],
+    covers: [{ rule: 'R-REPEAT-01', fp: '88688c67' }, { rule: 'R-REPEAT-04', fp: '688b185c' }],
   },
   {
     id: 'end-of-turn-multiple',

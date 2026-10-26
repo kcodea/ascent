@@ -7,6 +7,7 @@ import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
 import { normalizePresentationBatch } from './choreographer/adapters/presentationBatchAdapter';
 import { createTimelinePlayer, runTimeline } from './choreographer/livePlayer';
+import { repeatTickFxIntensity } from './choreographer/repeatPacing';
 import { presentConsequence, type PresenterContext } from './choreographer/consequencePresenters';
 import { clearCastPreviews, fireCastPreviewAt, type CastPreviewSource } from './castPreview';
 import { playCastFanOutBuffFx, playGenericCastSound, playMinionSpellCastFx, playRecordedCastFx, playRuneCastBuffFx, playRuneSpellCastFx, playSpellCastFx } from './fx/spellCastFx';
@@ -7075,6 +7076,8 @@ export function Recruit() {
       const el = document.querySelector<HTMLElement>(`[data-uid="${uid}"]`);
       return el ? restingCenterOf(el) : null;
     };
+    // R-REPEAT-05: the particle quantity of the consequence being presented (`repeatTickFxIntensity`), set per delivery.
+    let tickFxIntensity = 1;
     const presenterCtx: PresenterContext = {
       // A spell the beat's RUNE or MINION cast (owner ask 2026-09-23): its card preview above the caster, on the
       // beat. A hero / quest / spell-sourced beat has no badge or body to hang it on and is skipped.
@@ -7145,6 +7148,7 @@ export function Recruit() {
         fireBuffFx({
           source: source ?? undefined, target, cardId: from.cardId, tribe: CARD_INDEX[from.cardId]?.tribe ?? 'neutral', sourceless: !source,
           uids: { source: from.uid, target: uid },
+          ...(tickFxIntensity < 1 ? { intensity: tickFxIntensity } : {}),
         });
       },
       heroPowerGain: (uid, heroId) => {
@@ -7380,7 +7384,9 @@ export function Recruit() {
         // folds every delivery), but its ribbon and cast flourish are skipped, so 100+ fast ticks do not throw 200
         // ribbons at the board. Accent ticks (the lead-in, spaced slot starts, the final tick) still draw theirs.
         if (beat.pace && !beat.pace.accent && QUIET_TICK_SKIPS.has(consequence.type)) return;
-        presentConsequence({ consequence, beat, ctx: presenterCtx });
+        // A sped-up accent tick draws its ribbons lighter (R-REPEAT-05); the chain's first tick plays as authored.
+        tickFxIntensity = repeatTickFxIntensity(beat.pace);
+        try { presentConsequence({ consequence, beat, ctx: presenterCtx }); } finally { tickFxIntensity = 1; }
       },
       onBeatActivate: (beat) => {
         beatsById.set(beat.id, beat); // indexed here so a consequence can always resolve its source beat

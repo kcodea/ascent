@@ -71,6 +71,20 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fixed: Kringle and other repeating buffs no longer slow the game down.',
+        details: [
+          'Several Kringles (or Mother Moss, Striker and other "Repeat for every" cards) at End of Turn now share one short window, so four of them finish in about 4 seconds instead of 10.',
+          'Every repeat still counts and the numbers still roll up to the exact final values.',
+          'The sped-up repeats draw lighter ribbons, so a long chain no longer floods the board with effects.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Versus rooms: taking a seat no longer pops.',
+        details: ['Your card now lands in the seat from exactly where you let go of it, at its own size, with one smooth settle.'],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: tapping a Discover or choice option picks it again.',
         details: [
           'A tap on a Discover, Choose One or hero power option picks it, and a tap on a Runeforge rune buys it.',

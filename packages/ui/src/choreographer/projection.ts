@@ -93,31 +93,55 @@ export function applyConsequenceToProjection(
   if (projection.deliveredEventIds.has(c.id)) return projection; // idempotent: a re-crossed marker changes nothing
   const delivered = new Set(projection.deliveredEventIds);
   delivered.add(c.id);
-  const base = { ...projection, deliveredEventIds: delivered };
+  return foldUndelivered({ ...projection, deliveredEventIds: delivered }, c);
+}
 
+/**
+ * Fold MANY consequences in order: the same result as folding them one at a time with `applyConsequenceToProjection`,
+ * but the delivered-id set is copied ONCE for the whole batch instead of once per consequence (R-REPEAT-05). Copying it
+ * per delivery made a long repeat chain quadratic: four Kringles at 480 cards played (3,848 deliveries) spent 74 ms in
+ * one frame copying the set. The input is never mutated.
+ */
+export function applyConsequencesToProjection(
+  projection: PresentationProjection,
+  cs: readonly ConsequenceEvent[],
+): PresentationProjection {
+  let p = projection;
+  let owned: Set<string> | null = null;
+  for (const c of cs) {
+    if (p.deliveredEventIds.has(c.id)) continue;
+    if (!owned) owned = new Set(p.deliveredEventIds);
+    owned.add(c.id);
+    p = foldUndelivered({ ...p, deliveredEventIds: owned }, c);
+  }
+  return p;
+}
+
+/** The fold of one consequence whose id `base.deliveredEventIds` already holds. */
+function foldUndelivered(base: PresentationProjection, c: ConsequenceEvent): PresentationProjection {
   switch (c.type) {
     case 'statsChanged': {
       const zone = c.target.zone;
       const uid = c.target.uid;
       if (!uid) return base;
-      if (zone === 'hand') return { ...base, handStats: bumpStat(projection.handStats, uid, c.attack, c.health) };
-      if (zone === 'shop' || zone === 'spellShop') return { ...base, shopStats: bumpStat(projection.shopStats, uid, c.attack, c.health) };
-      return { ...base, boardStats: bumpStat(projection.boardStats, uid, c.attack, c.health) };
+      if (zone === 'hand') return { ...base, handStats: bumpStat(base.handStats, uid, c.attack, c.health) };
+      if (zone === 'shop' || zone === 'spellShop') return { ...base, shopStats: bumpStat(base.shopStats, uid, c.attack, c.health) };
+      return { ...base, boardStats: bumpStat(base.boardStats, uid, c.attack, c.health) };
     }
     case 'shopChanged': {
       const uid = c.target.uid;
       if (!uid) return base;
       if (c.change === 'consumed' || c.change === 'destroyed') {
-        const gone = new Set(projection.destroyedUids);
+        const gone = new Set(base.destroyedUids);
         gone.add(uid);
         return { ...base, destroyedUids: gone };
       }
-      return { ...base, shopStats: bumpStat(projection.shopStats, uid, c.attack ?? 0, c.health ?? 0) };
+      return { ...base, shopStats: bumpStat(base.shopStats, uid, c.attack ?? 0, c.health ?? 0) };
     }
     case 'keywordChanged': {
       const uid = c.target.uid;
       if (!uid) return base;
-      const next = new Map(projection.keywordChanges);
+      const next = new Map(base.keywordChanges);
       const cur = new Set(next.get(uid) ?? []);
       if (c.gained) cur.add(c.keyword); else cur.delete(c.keyword);
       next.set(uid, cur);
@@ -126,7 +150,7 @@ export function applyConsequenceToProjection(
     case 'cardGranted':
       return {
         ...base,
-        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'hand', eventId: c.id }],
+        grantedCards: [...base.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'hand', eventId: c.id }],
       };
     case 'echoFired':
       return base; // the fire itself changes no projected state — its effects arrive as their own consequences
@@ -135,25 +159,25 @@ export function applyConsequenceToProjection(
       // `index` rides through so the ghost renders in its committed slot (adjacent to its summoner).
       return {
         ...base,
-        grantedCards: [...projection.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'board', eventId: c.id, ...(c.index !== undefined ? { index: c.index } : {}) }],
+        grantedCards: [...base.grantedCards, { uid: c.target.uid ?? c.id, cardId: c.cardId, zone: 'board', eventId: c.id, ...(c.index !== undefined ? { index: c.index } : {}) }],
       };
     case 'cardDestroyed': {
-      const gone = new Set(projection.destroyedUids);
+      const gone = new Set(base.destroyedUids);
       if (c.target.uid) gone.add(c.target.uid);
       return { ...base, destroyedUids: gone };
     }
     case 'cardTransformed': {
       if (!c.target.uid) return base;
-      const next = new Map(projection.transformedCards);
+      const next = new Map(base.transformedCards);
       next.set(c.target.uid, c.toCardId);
       return { ...base, transformedCards: next };
     }
     case 'resourceChanged':
-      return { ...base, resources: bumpNum(projection.resources, c.resource, c.amount) };
+      return { ...base, resources: bumpNum(base.resources, c.resource, c.amount) };
     case 'counterChanged':
-      return { ...base, counters: bumpNum(projection.counters, c.counter, c.amount) };
+      return { ...base, counters: bumpNum(base.counters, c.counter, c.amount) };
     case 'auraChanged': {
-      const next = new Map(projection.auras);
+      const next = new Map(base.auras);
       const cur = next.get(c.aura) ?? { attack: 0, health: 0 };
       // Single-axis auras carry only `amount`; two-axis ones carry both parts.
       next.set(c.aura, { attack: cur.attack + (c.attack ?? c.amount), health: cur.health + (c.health ?? 0) });
@@ -163,16 +187,16 @@ export function applyConsequenceToProjection(
       if (!c.target.uid) return base;
       // Rubies move BOTH channels: the gem cascade reads `rubies`, the numbers read the stat delta. Tracking
       // only the count meant the cascade played while the stats stayed frozen until commit.
-      const withCount = { ...base, rubies: bumpNum(projection.rubies, c.target.uid, c.count) };
+      const withCount = { ...base, rubies: bumpNum(base.rubies, c.target.uid, c.count) };
       if (!c.attack && !c.health) return withCount;
       const zone = c.target.zone;
-      const bumped = bumpStat(zone === 'hand' ? projection.handStats : projection.boardStats, c.target.uid, c.attack ?? 0, c.health ?? 0);
+      const bumped = bumpStat(zone === 'hand' ? base.handStats : base.boardStats, c.target.uid, c.attack ?? 0, c.health ?? 0);
       return zone === 'hand' ? { ...withCount, handStats: bumped } : { ...withCount, boardStats: bumped };
     }
     case 'fodderEaten': {
       // The eater's stat gain arrives as its own `statsChanged`; this records the DEPARTURE so the token
       // stops rendering the moment it is eaten rather than at commit.
-      const gone = new Set(projection.destroyedUids);
+      const gone = new Set(base.destroyedUids);
       gone.add(`fodder:${c.fodderId}`);
       return { ...base, destroyedUids: gone };
     }
@@ -187,12 +211,12 @@ export function applyConsequenceToProjection(
  * zero is imperceptible (§6.2). Deterministic: deliveries are already sorted by the compiler.
  */
 export function projectionAt(timeline: CompiledTimeline, ms: number): PresentationProjection {
-  let p = EMPTY_PROJECTION;
+  const upTo: ConsequenceEvent[] = [];
   for (const d of timeline.consequenceDeliveries) {
     if (d.atMs > ms) break;
-    p = applyConsequenceToProjection(p, d.consequence.payload as ConsequenceEvent);
+    upTo.push(d.consequence.payload as ConsequenceEvent);
   }
-  return p;
+  return applyConsequencesToProjection(EMPTY_PROJECTION, upTo);
 }
 
 /** Convenience for tests + the hand-off check: the projection with everything delivered. */

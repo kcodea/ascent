@@ -31,10 +31,12 @@ describe('gilding never resets an accrued improvement — the four audit leakers
     expect(gild('b2_oona', 'beast', [2, 1, 0])).toBe(3);
   });
   it('Broodwright keeps its Avenge improvement', () => {
-    expect(gild('dm_broodwright', 'demon', [4, 1, 0])).toBe(5);
+    // (2 + sb) x golden: copies +6 and +3 -> half-sum 2.5 -> (2 + 2.5) x 2 = +9 (R-GILD-SUM-01).
+    expect(gild('dm_broodwright', 'demon', [4, 1, 0])).toBe(2.5);
   });
   it('Trophy Stalker keeps its per-attack Rally growth', () => {
-    expect(gild('trophystalker', 'beast', [10, 5, 0])).toBe(15);
+    // (5 + sb) x golden: copies +15 and +10 -> half-sum 7.5 -> (5 + 7.5) x 2 = +25 (R-GILD-SUM-01).
+    expect(gild('trophystalker', 'beast', [10, 5, 0])).toBe(7.5);
   });
   it('a card with NO accrual still gilds with summonBonus unset', () => {
     expect(gild('drummer', 'neutral', [0, 0, 0])).toBeUndefined();

@@ -2085,6 +2085,21 @@ Code: one rule for both phases, `combatTierCeiling(shopTier)` in `packages/core/
   copy grants, the shop-open check for End-of-Turn and combat carry-back copies) goes through the one
   consumption point, `pullCopies` in `packages/sim/src/reducer.ts`.
 
+### A Gilded improver is the SUM of its two best copies (owner ruling 2026-10-25, R-GILD-SUM-01)
+
+*"it should be at the sum of the 2 highest buff values. so if you had a +16 and a +10 and gilded it, it should be at
++26."*
+
+- A card that improves itself (Kennelmaster, Trophy Stalker, Beardsley, Vicious, Alchemist Brisbane) gilds into the
+  **sum of its two highest copies' current values**: a +16 and a +10 Kennelmaster make a +26 Gilded one; two fresh
+  copies make the printed Gilded +4. The third copy's value is ignored. Each later improvement adds the **Gilded step**
+  (+4 per Avenge on Kennelmaster); what the copies earned is never doubled.
+- Code: these cards pay `(base + step x accrual) x golden` (`GOLD_SCALED_ACCRUAL_CARDS`, `packages/sim/src/recruit.ts`),
+  so `combineIntoGolden` stores HALF the two best accruals and the x2 read lands on the sum. An in-place gild already
+  halves the accrual the same way. Saved runs and replays keep whatever accrual was stored when they gilded.
+- Not yet covered (open owner call): Pack Leader, Den Mother and Hunter still keep the highest copy's accrual and read
+  it doubled.
+
 ---
 
 ### "A card buffed in hand keeps the buff" — permanent, every phase (owner rule 2026-09-09, R-HAND-02)

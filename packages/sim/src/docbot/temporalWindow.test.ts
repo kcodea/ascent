@@ -406,9 +406,9 @@ describe('temporal windows — copy semantics (QaScenarioV1 fixtures)', () => {
     // The combine pushes the golden copy to the HAND (with its triple-reward Discover).
     const gilded = [...after.board, ...after.hand].find((c) => c.cardId === 'kennel' && c.golden);
     expect(gilded, 'the three Kennelmasters combined into a Gilded one').toBeDefined();
-    // The combine writes base(+1) + top-two accruals (3 + 2) = 6 into the golden's summonBonus channel —
-    // the granted magnitude is base + summonBonus, i.e. the SUM of the copies' progressions, per the ruling.
-    expect(gilded!.summonBonus, 'progression is additive across the combined copies').toBe(6);
+    // Copies at summonBonus 3 / 2 grant +8 / +6 Attack. The golden stores the half-sum 2.5, so its x2 read is
+    // (2 + 2 x 2.5) x 2 = +14 = +8 + +6: the SUM of the copies' progressions (R-AVWIN-05, R-GILD-SUM-01).
+    expect(gilded!.summonBonus, 'progression is additive across the combined copies').toBe(2.5);
   });
 });
 

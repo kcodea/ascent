@@ -742,10 +742,9 @@ describe('run loop (@game/sim)', () => {
   });
 
   it("a Kennelmaster triple folds its accrued Avenge bonus into the golden's summon bonus", () => {
-    // Kennelmaster's Beast buff is now a Start-of-Combat aura (+(1 + summonBonus)/+(same)); the recruit
-    // triple still carries the accrual, so the golden's summonBonus = base + the two highest copies'
-    // bonuses. Three copies (bonuses 2 / 1 / 0) → golden summonBonus 2 + 2 + 1 = 5.
-    // Kennelmaster rebalance 2026-08-02 (owner): back to base +1 Attack improving +1 per Avenge.
+    // R-GILD-SUM-01 (owner 2026-10-25): the golden grants the SUM of the two best copies' grants. Copies at
+    // summonBonus 2 / 1 / 0 grant +6 / +4 / +2; the golden stores the half-sum 1.5 so its x2 read is
+    // (2 + 2 x 1.5) x 2 = +10 = +6 + +4.
     let s: RunState = {
       ...createRun(1), embers: 0, shop: [],
       board: [
@@ -756,7 +755,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'play', uid: 'k3' }); // 3 Kennelmasters → triple → one golden in hand
     const golden = [...s.board, ...s.hand].find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(4); // base 1 + top-two bonuses (2 + 1)
+    expect(golden?.summonBonus).toBe(1.5); // (2 + 1) / 2
   });
 
   it("persists a Kennelmaster's Avenge improvement across combat (whole-run)", () => {
@@ -811,8 +810,8 @@ describe('run loop (@game/sim)', () => {
   });
 
   it('tripling a Kennelmaster combines its accrued Avenge buffs', () => {
-    // Two Kennelmasters at summonBonus 5 and 3 + a fresh one → the golden folds the two highest
-    // (summonBonus 9 = base 1 + top-two 5 + 3).
+    // Two Kennelmasters at summonBonus 5 and 3 (+12, +8) + a fresh one → the golden grants +20 (R-GILD-SUM-01):
+    // it stores the half-sum 4, read (2 + 2 x 4) x 2 = +20.
     let s: RunState = {
       ...createRun(1),
       embers: 3,
@@ -824,7 +823,7 @@ describe('run loop (@game/sim)', () => {
     };
     s = reduce(s, { type: 'buy', uid: 'x' }); // the 3rd copy completes the triple
     const golden = s.hand.find((c) => c.cardId === 'kennel' && c.golden);
-    expect(golden?.summonBonus).toBe(9); // base 1 + (5 + 3)
+    expect(golden?.summonBonus).toBe(4); // (5 + 3) / 2
   });
 
   it("tripling a Flowing Monk combines the two highest copies' CURRENT grants into the golden's start", () => {

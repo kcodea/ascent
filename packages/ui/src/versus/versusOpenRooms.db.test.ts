@@ -16,7 +16,9 @@ const root = join(__dirname, '../../../..');
 const SQL = readFileSync(join(root, 'supabase/migrations/2026-10-13-versus.sql'), 'utf8')
   + readFileSync(join(root, 'supabase/migrations/2026-10-17-versus-open-rooms.sql'), 'utf8')
   // The 2026-10-24 group + options migration replaces the room RPCs: every 1v1 test here runs against it (R-VERSUS-GROUP-01).
-  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;

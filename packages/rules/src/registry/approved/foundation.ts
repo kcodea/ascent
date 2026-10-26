@@ -9013,4 +9013,98 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Claudebot3 is knocked out in round 12: during the last fight his top left shows Claudebot4 Spectating, not himself.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectatorHud.test.tsx'], lastVerifiedAt: '2026-10-25' },
   },
+  {
+    id: 'R-VERSUS-LOCK-ORDER-01',
+    title: 'Versus RPCs take their row locks in one global order (match, then room, then members), so they never deadlock',
+    statement:
+      'Every Versus RPC that touches a match and its room, seats or members takes the MATCH row first, then the room row, then member '
+      + 'rows; seats are written only under the match lock (or as the last lock of a transaction). The knockout trigger locks the room before '
+      + 'it moves the player to the stands, the heartbeat of a spectator takes no match lock, and the room list prune skips rows another '
+      + 'transaction holds. No two Versus RPCs can deadlock on these rows.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (live Postgres log, ~22:58 2026-10-25)', quote: 'deadlock detected' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-26-versus-lock-order.sql (versus_heartbeat, versus_leave_room, versus_group__seat_out_to_stands, versus_list_rooms)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (perf/supabase-egress-audit). Before: heartbeat took its member row before the match, leave took the room before the match, the knockout trigger took the member before the room.',
+    example: 'A Duos round commits and knocks out Bob while the client of Bob heartbeats: both now queue on the match row, and nothing waits in a circle.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-PROFILE-AVATAR-READ-01',
+    title: 'The avatar a player chose is readable by every client (profiles.avatar is in the client column grant)',
+    statement:
+      'profiles.avatar (the chosen portrait id) is readable by the anon and authenticated roles, like the other public profile columns, so '
+      + 'Versus seat cards, the Leaderboard and the avatar backfill read it without a permission error. profiles.email stays hidden.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (live Postgres log)', quote: 'permission denied for table profiles' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-26-profiles-avatar-grant.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (perf/supabase-egress-audit). Before: avatar was added after the column grant and never granted, so every read naming it failed (42501) and fell back.',
+    example: 'Ann picked the Lantern portrait. Bob opens the Leaderboard and sees her Lantern portrait, with no failed read first.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/profilesGrant.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-BACKOFF-01',
+    title: 'Polling loops back off when nothing changes, slow down in a background tab, and stop when they no longer apply',
+    statement:
+      'Every client loop that asks the server on a timer (the Versus tick reconcile, finalize and room reconcile, the heartbeat, the room list, Live Games, the live watch, the spectate beat, the test bots) asks at its old pace while the situation is new, then waits longer and longer while the answer changes nothing or fails (up to 15 s for a reconcile, 30 s for a finalize, 60 s for a list), asks less often while the tab is hidden, and stops when the match is over or the player is no longer in the room. Spectators never reconcile or finalize. Game timing is unchanged: a deadline is still asked about on the same 500 ms tick.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/net/backoff.ts; packages/ui/src/versus/versusStore.ts (onTick gates, heartbeat stop); packages/ui/src/versus/versusBotDriver.ts; VersusTitle.tsx; live/LiveGames.tsx; live/liveWatch.ts; live/spectatorEnd.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (perf/supabase-egress-audit). Before: a tab on a paused match called versus_reconcile twice a second for as long as it stayed open (~10 MB an hour).',
+    example: 'Ann leaves her tab on a paused match overnight: it now asks the server a few times a minute, not twice a second.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-REALTIME-01',
+    title: 'Versus heartbeats are not pushed to every client; the room revision is the wake-up for membership changes',
+    statement:
+      'Clients do not subscribe to versus_members row changes. Joins, leaves, seat moves, knockouts and prunes bump the room revision, which wakes every client. A member coming back after a lapsed lease bumps the room once, so the is back notice shows at once, and while a match is paused the heartbeat answers every member last beat so the notice stays right.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (subscribeRoom); packages/ui/src/versus/versusStore.ts (patchSeen); supabase/migrations/2026-10-27-versus-egress.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-26. Before: each member heartbeat (every 4 s) reached every subscriber, about 0.9 KB each.',
+    example: 'Bob drops out and comes back: Ann sees Bob is back as soon as his first heartbeat lands, as before.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusEgress.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-ROUNDS-01',
+    title: 'A Versus client reads a round only once the server has committed it',
+    statement:
+      'Committed rounds (and group fights) are read only up to the current round once its fight is in (combat or complete), else the round before. No read during the shop asks for a round that cannot exist yet.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (committedRound, loadRounds, loadGroupRounds)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26. Before: about 50 empty rounds reads per match.',
+    example: 'During round 4 shop the client reads nothing; when round 4 fight is committed it reads round 4 once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-CACHE-01',
+    title: 'Launch reads keep their last answer and ask only for newer rows',
+    statement:
+      'The board-results window and the Recent Games feed are kept in IndexedDB; a boot or a run end asks only for rows newer than the cached ones (both are append-only), and reads the whole window again once a day. Without IndexedDB it reads everything, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/net/idbKv.ts; packages/ui/src/remoteBoards.ts (fetchAndRegisterBoardRecords, fetchRecentGames)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26. Before: ~255 KB of these two reads on every boot.',
+    example: 'A player opens the game twice in an hour: the second boot reads a few new rows instead of the whole board-results window.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

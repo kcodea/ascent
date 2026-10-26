@@ -181,18 +181,26 @@ export async function watchLiveGame(gameId: string): Promise<boolean> {
 }
 
 /** Keep the watcher seat warm and follow the game's row: its end, or its disappearance. */
+/** Failed follows in a row (R-NET-BACKOFF-01): after a failure the next ones wait 10, 20, 40 s (capped at 60 s). */
+let followFails = 0;
+let followNextAt = 0;
 async function follow(s: NonNullable<typeof session>): Promise<void> {
   if (session !== s) return;
+  if (Date.now() < followNextAt) return;
   if (useSpectate.getState().active) useLiveWatch.setState({ joining: false });
   if (++s.polls % FELLOWS_EVERY_POLLS === 0) void readFellows(s);
   try {
     const me = myWatcherIdentity();
     const row = await remote.watchAs(s.gameId, me.name, me.profile);
     if (session !== s) return;
+    followFails = 0;
+    followNextAt = 0;
     useLiveWatch.setState({ game: row });
     if (row.phase === 'end' && !useLiveWatch.getState().ended) gameEnded(s, row);
   } catch (e) {
     if (session !== s) return;
+    followFails++;
+    followNextAt = Date.now() + Math.min(60_000, LIVE_WATCH_POLL_MS * 2 ** followFails);
     // Gone (abandoned, or silent past a minute): back to the list with a word why.
     if ((e as LiveError).code === 'no_game') { leaveLiveGame(true); useLiveWatch.setState({ error: 'That game has ended.' }); }
   }

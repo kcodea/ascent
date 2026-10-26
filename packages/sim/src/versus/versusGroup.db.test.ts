@@ -24,7 +24,8 @@ const FILES = [
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
 const GROUP = readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8')
   // A knocked-out player goes to the stands (R-VERSUS-GROUP-06).
-  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group-knockout-stands.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group-knockout-stands.sql'), 'utf8') + readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;

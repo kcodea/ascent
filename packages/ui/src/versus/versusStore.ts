@@ -25,6 +25,7 @@ import type { CombatResult } from '@game/core';
 import type { SetId } from '@game/content';
 import { versusRunId } from '@game/progression';
 import { createDeferredWriter } from '../idleWork';
+import { keyedBackoff, pageHidden } from '../net/backoff';
 import { beginRunProgression } from '../progression/progressionStore';
 import { currentUserId } from '../identity';
 import { currentRunCosmetics, tempHandle, useGame } from '../store';
@@ -387,10 +388,9 @@ function subscribe(matchId: string | null): void {
   if (!session) return;
   session.channel?.close();
   session.matchId = matchId;
-  session.channel = versusRemote.subscribeRoom(session.roomId, matchId, (what, row) => {
-    // A heartbeat only moves `last_seen_at`: patch it in place instead of re-reading the room (every member beats
-    // every 4 s; re-reading on each would cost every client a query per beat).
-    if (what === 'members' && row && patchMemberSeen(row)) return;
+  session.channel = versusRemote.subscribeRoom(session.roomId, matchId, (what) => {
+    // Membership changes arrive as the ROOM's revision bump (join, leave, seat moves, knockouts and prunes all bump it);
+    // heartbeats are not subscribed to at all (R-NET-REALTIME-01).
     scheduleRefresh(what);
   }, (event, payload) => {
     // A player's emote: the other player shows it on its foe; a SPECTATOR shows both players' where the watched seat's
@@ -423,17 +423,6 @@ function syncSpectatorEmotes(): void {
   else if (session) uninstallSpectatorEmotes();
 }
 useSpectate.subscribe((s, prev) => { if (s.active !== prev.active && session) syncSpectatorEmotes(); });
-
-function patchMemberSeen(row: Record<string, unknown>): boolean {
-  const room = get().room;
-  if (!room) return false;
-  const i = room.members.findIndex((m) => m.userId === row.user_id);
-  if (i < 0 || room.members[i]!.role !== row.role) return false; // a seat change: re-read
-  const members = room.members.slice();
-  members[i] = { ...members[i]!, lastSeenAt: String(row.last_seen_at ?? members[i]!.lastSeenAt) };
-  set({ room: { ...room, members } });
-  return true;
-}
 
 /** Realtime is a wake-up only: coalesce bursts and re-read the rows. */
 let pendingWhat = new Set<string>();
@@ -480,38 +469,95 @@ async function refreshMatch(matchId: string): Promise<void> {
   } catch { /* transient */ }
 }
 
+let beats = 0;
 async function heartbeat(): Promise<void> {
   if (!session) return;
   try {
     const r = await timed(() => versusRemote.heartbeat(session!.roomId), (x) => x.serverNow);
     if (r.match) await onMatch(r.match);
-    else if (r.groupMatch) { await onMatch(ingestGroup(r.groupMatch)); pullDuosPasses(r.groupMatch.id); } // Duos: the heartbeat is the passes' backstop
+    // Duos: the heartbeat is the passes' BACKSTOP only (each pass row change already wakes the pull over Realtime), so it
+    // reads them every third beat (12 s) rather than every beat (R-NET-BACKOFF-01).
+    else if (r.groupMatch) { await onMatch(ingestGroup(r.groupMatch)); if (++beats % 3 === 0) pullDuosPasses(r.groupMatch.id); }
     // Pause detection rides the heartbeat: a running match is reconciled every beat, so an opponent who went
     // silent pauses the clock within a lease plus one beat (live test 2026-10-14: a 12 s modulo window let it slip
     // to ~20 s).
     const m = get().match;
     if (m && mySeat(m) && m.phase !== 'complete' && !m.paused_at) void mx.reconcile(m.id).then((x) => onMatch(x)).catch(() => undefined);
+    // WHO IS BACK, while a match is paused (the "<name> is back" notice reads the absent player's last heartbeat).
+    // Heartbeats no longer reach every client as Realtime member updates (R-NET-REALTIME-01: that was ~0.9 KB per
+    // member per 4 s to every subscriber); a paused match reads presence from the heartbeat's answer instead, or, from
+    // a server without that field, re-reads the room's members once per beat while paused.
+    if (m && m.paused_at && m.phase !== 'complete') {
+      if (r.seen) patchSeen(r.seen);
+      else void refreshRoom();
+    }
   } catch (e) {
-    if ((e as VersusError).code === 'not_a_member') await leaveRoom();
+    // Not in this room any more (left elsewhere, pruned, or the room is gone): stop the session instead of beating forever.
+    const code = (e as VersusError).code;
+    if (code === 'not_a_member' || code === 'no_room') await leaveRoom();
   }
 }
+
+/** Patch the members' last-seen times from a heartbeat's `seen` map (user id -> ISO time). */
+function patchSeen(seen: Record<string, string>): void {
+  const room = get().room;
+  if (!room) return;
+  let changed = false;
+  const members = room.members.map((m) => {
+    const t = seen[m.userId];
+    if (!t || t === m.lastSeenAt) return m;
+    changed = true;
+    return { ...m, lastSeenAt: t };
+  });
+  if (changed) set({ room: { ...room, members } });
+}
+
+/**
+ * THE TICK'S SERVER ASKS BACK OFF (R-NET-BACKOFF-01, perf 2026-10-26). Each ask is keyed by what it waits on: the
+ * match's revision (a reconcile), the round (a finalize), the gate deadline (a room reconcile). A new key is asked at
+ * once and then at the old 500 ms (2.5 s for a finalize) pace for the first few tries, so a deadline still lands on the
+ * same tick as before; an answer that changes nothing (the same revision) or an error then doubles the wait, up to 15 s
+ * (30 s for a finalize). A paused match used to be reconciled twice a second for as long as the tab stayed open.
+ */
+const reconcileGate = keyedBackoff({ base: 500, fastTries: 10, max: 15_000, hiddenFloor: 5_000 });
+const finalizeGate = keyedBackoff({ base: 2500, fastTries: 4, max: 30_000, hiddenFloor: 10_000 });
+const roomGate = keyedBackoff({ base: 500, fastTries: 6, max: 15_000, hiddenFloor: 5_000 });
 
 /** Every 500 ms: deadlines that passed get reconciled, a resolving round gets finalized, my deadline locks. */
 function onTick(): void {
   if (!session) return;
   const { room, match } = get();
-  if (room?.status === 'sealed' && (versusRemainingMs(room.gate_deadline) ?? 1) <= 0) void versusRemote.reconcileRoom(room.id).then((r) => set({ room: r })).catch(() => undefined);
-  if (!match || match.phase === 'complete') return;
-  const due = (iso: string | null): boolean => (versusRemainingMs(iso) ?? 1) <= 0;
-  const leaseLate = !!match.paused_at && Date.now() % (VERSUS_LEASE_SECONDS * 1000) < 500; // a paused match re-checks for the return
-  if (match.paused_at ? due(match.pause_grace_until) || leaseLate || (!!match.resume_at && due(match.resume_at))
-    : (match.phase === 'hero_select' && due(match.hero_deadline)) || (match.phase === 'shop' && due(match.shop_deadline))
-      || (match.phase === 'combat' && due(match.combat_deadline)) || leaseLate) {
-    void mx.reconcile(match.id).then((m) => onMatch(m)).catch(() => undefined);
+  const now = Date.now();
+  const hidden = pageHidden();
+  if (room?.status === 'sealed' && (versusRemainingMs(room.gate_deadline) ?? 1) <= 0) {
+    const key = `${room.id}|${room.gate_deadline ?? ''}|${room.revision}`;
+    if (roomGate.ready(key, now)) {
+      roomGate.asked(key, now, hidden);
+      void versusRemote.reconcileRoom(room.id).then((r) => set({ room: r })).catch(() => undefined);
+    }
   }
-  if (match.phase === 'resolving' && Date.now() - session.lastFinalize > 2500) {
-    session.lastFinalize = Date.now();
-    void mx.finalize(match.id, match.round, match.content_revision).then(() => refreshMatch(match.id)).catch(() => undefined);
+  if (!match || match.phase === 'complete') return;
+  // A SPECTATOR never reconciles or finalizes (and so never takes the match row's lock): the players' clients drive
+  // every deadline and every round, exactly as before; the stands only watch.
+  const player = !!mySeat(match);
+  const due = (iso: string | null): boolean => (versusRemainingMs(iso) ?? 1) <= 0;
+  const leaseLate = !!match.paused_at && now % (VERSUS_LEASE_SECONDS * 1000) < 500; // a paused match re-checks for the return
+  if (player && (match.paused_at ? due(match.pause_grace_until) || leaseLate || (!!match.resume_at && due(match.resume_at))
+    : (match.phase === 'hero_select' && due(match.hero_deadline)) || (match.phase === 'shop' && due(match.shop_deadline))
+      || (match.phase === 'combat' && due(match.combat_deadline)) || leaseLate)) {
+    const key = `${match.id}|${match.revision}|${match.phase}|${match.paused_at ? 'p' : ''}|${match.resume_at ?? ''}`;
+    if (reconcileGate.ready(key, now)) {
+      reconcileGate.asked(key, now, hidden);
+      void mx.reconcile(match.id).then((m) => onMatch(m)).catch(() => undefined);
+    }
+  }
+  if (player && match.phase === 'resolving') {
+    const key = `${match.id}|${match.round}`;
+    if (finalizeGate.ready(key, now)) {
+      finalizeGate.asked(key, now, hidden);
+      session.lastFinalize = now;
+      void mx.finalize(match.id, match.round, match.content_revision).then(() => refreshMatch(match.id)).catch(() => undefined);
+    }
   }
   // My shared deadline, the fallback for a screen that is not driving the clock (`useVersusRecruit` locks on the
   // exact edge). It locks AT 0:00, never before (R-VERSUS-CLOCK-LOCK-01: it used to lock 400 ms early on a 500 ms tick,
@@ -607,12 +653,21 @@ async function onMatch(match: VersusMatch): Promise<void> {
 /** The match the cached `rounds` belong to. */
 let roundsOf: string | null = null;
 
+/**
+ * The newest round the server has COMMITTED (R-NET-ROUNDS-01, perf 2026-10-26): the current round once its fight is in
+ * (`combat`, or `complete` for the deciding one), else the one before. Rounds are read only up to here: a read during
+ * the shop asked for a round that could not exist yet, on every wake and every heartbeat (~50 empty reads a match).
+ */
+export function committedRound(match: Pick<VersusMatch, 'phase' | 'round'>): number {
+  return match.phase === 'combat' || match.phase === 'complete' ? match.round : match.round - 1;
+}
+
 async function loadRounds(match: VersusMatch): Promise<void> {
   if (match.group) { await loadGroupRounds(match); return; }
   const have = get().rounds;
   const known = Object.keys(have).map(Number);
   const from = known.length ? Math.max(...known) + 1 : 1;
-  if (from > match.round) return;
+  if (from > committedRound(match)) return;
   try {
     const rows = (await versusRemote.rounds(match.id, from)).filter((r) => r.match_id === match.id);
     if (roundsOf !== match.id) return; // the room moved on to another match while this read was in flight
@@ -775,7 +830,7 @@ async function loadGroupRounds(match: VersusMatch): Promise<void> {
   if (!raw || raw.id !== match.id) return;
   const known = Object.keys(groupRoundsRaw).map(Number);
   const from = known.length ? Math.max(...known) + 1 : 1;
-  if (from <= raw.round) {
+  if (from <= committedRound(raw)) {
     try {
       const rows = await versusRemote.groupRounds(match.id, from);
       if (roundsOf !== match.id) return;

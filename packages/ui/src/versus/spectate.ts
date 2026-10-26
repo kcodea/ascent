@@ -276,7 +276,8 @@ let syncMatch: VersusMatch | null = null;
 export function watchableSeat(match: Pick<VersusMatch, 'group'> | null, seat: VersusGroupSeat): VersusGroupSeat {
   const raw = match?.group?.raw;
   if (!raw) return seat;
-  const living = SEATS.filter((s) => raw.seats.some((x) => x.seat === s && x.eliminatedRound == null));
+  // A Ranked Duos recorded member (`served`) is never watchable: only the two live teammates (owner 2026-10-26).
+  const living = SEATS.filter((s) => raw.seats.some((x) => x.seat === s && x.eliminatedRound == null && !x.served));
   return living.includes(seat) || !living.length ? seat : living[0]!;
 }
 

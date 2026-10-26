@@ -92,6 +92,24 @@ export const RANK_RULES: RankRules = Object.freeze({
   promotionLanding: 10,
 });
 
+/**
+ * RANKED DUOS (owner 2026-10-26): the same medal ladder, owned by a TEAM (an unordered pair of accounts), over FOUR
+ * team places. Owner: "+34/+11/-11/-34" (the solo table averaged in pairs); a division promotion game needs a top-2
+ * finish, a medal promotion game 1st; a demotion game demotes on 3rd / 4th. No strength bonus (callers pass none).
+ * Mirrored by `settle_duos_rank` (supabase/migrations/2026-10-29-ranked-duos.sql); the db test proves parity.
+ */
+export const DUOS_RANK_RULES: RankRules = Object.freeze({
+  rulesVersion: 1,
+  medals: RANK_MEDALS,
+  divisionsPerMedal: 3,
+  divisionPoints: 100,
+  placementAwards: Object.freeze([34, 11, -11, -34]),
+  divisionPromotionFinish: 2,
+  medalPromotionFinish: 1,
+  demotionEscapeFinish: 2,
+  promotionLanding: 10,
+});
+
 /** The medal-ladder season. Season 1 = the course-rating era, 2 = the numeric lobby ladder, 3 = medals.
  *  Everyone starts season 3 at Bronze I 0/100 (owner 2026-09-20); the server's `settle_rank` carries the
  *  same constant and refuses a submission from another season. */

@@ -5,6 +5,7 @@ import { OPPONENT_POOL } from '../opponents';
 import { CONFIG } from '../config';
 import { MAX_FIRST_WAVE, MAX_MISSING_WAVES, recordedSeat, type SeatPolicy } from './seats';
 import type { PreparedBoard, SeatDriver } from './types';
+import { MAX_SEATS_PER_PLAYER } from './seatCap';
 
 /**
  * REAL PLAYER RUNS AS LOBBY SEATS.
@@ -112,12 +113,8 @@ export function runWavesCover(waves: readonly number[]): boolean {
 /** A run's identity, the key a seat stores: `author|heroId|seed` (GAME-RULES, "sides named by run key"). */
 export const runKeyOf = (s: Pick<BoardSnapshot, 'author' | 'heroId' | 'seed'>): string => `${s.author ?? 'anon'}|${s.heroId}|${s.seed}`;
 
-/**
- * THE PER-PLAYER SEAT CAP (owner 2026-09-29: "let's have a cap of 4 snapshots from a player i guess, so it's not
- * literally like 7 of me always or something"). Selection stays a uniform shuffle over every whole run; a run
- * whose player already holds this many seats is passed over for the next one in the shuffle (R-LOBBY-08).
- */
-export const MAX_SEATS_PER_PLAYER = 4;
+/** THE PER-PLAYER SEAT CAP (R-LOBBY-08): defined in `./seatCap` (bundle-safe), re-exported here. */
+export { MAX_SEATS_PER_PLAYER };
 
 /** Who a run belongs to, for the seat cap: the uploading account when the pool stamped it, else the display
  *  author (a run with neither is nobody's, and is never capped). */

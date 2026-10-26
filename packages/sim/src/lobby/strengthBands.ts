@@ -1,5 +1,5 @@
 import { medalOf, type RankMedal } from '../rank';
-import { MAX_SEATS_PER_PLAYER } from './snapshotSeats';
+import { MAX_SEATS_PER_PLAYER } from './seatCap';
 import type { PracticeRank } from '../state';
 
 /**

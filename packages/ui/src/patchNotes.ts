@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Phones: pressing a card in hand no longer covers the board.',
+        details: [
+          'The card grows up from where it rests in your hand and stops below the Shop, still large enough to read.',
+          'Phones: the Compendium shows its cards at their normal size on iPhone.',
+          'Phones: the menu side bar and the title menu no longer overlap themselves when you have a saved run and the Collection.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Duos: passing a card is now a magic stream, and your teammate\'s portrait matches yours.',
         details: [
           'A card you pass dissolves where you let go and streams into your teammate\'s portrait, which flashes as it lands.',

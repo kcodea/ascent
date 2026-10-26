@@ -5,7 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { DESIGN_H, DESIGN_W, DESK_BOX_ASPECT, PHONE_BOX_ASPECT, PHONE_DESIGN_W, PHONE_ART_BOTTOM, PHONE_GESTURE_FRAC, PHONE_HOUSED_SPAN, PHONE_ZOOM_VARIANTS, PHONE_FOOT_FRAC, PHONE_RAIL_FOOTPRINT, PHONE_RAIL_GAP, PHONE_REFRESH_RIGHT, fitStage, gameBoxOf, phoneBottomStrip, phoneLayoutApplies, phoneZoomApplies, phoneZoomOf } from './stage';
 import { classifyPhone } from './deviceClass';
 import { PHONE_DIAG_FLAGS, parseDiagQuery } from './phoneDiag';
-import { POP_FOOT_GAP, POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry, popSafe } from './touchInput';
+import { POP_HEIGHT_FRAC, PRESS_CLASS, handCardOf, popGeometry, popSafe } from './touchInput';
+import { PHONE_POP_DEFAULTS, PHONE_POP_RANGES, sanitizePhonePop } from './phonePopConfig';
 
 /**
  * THE PHONE LAYOUT (owner 2026-10-23, R-PHONE-LAYOUT-01): a phone in landscape lays the game out in a 2:1 box and
@@ -75,30 +76,59 @@ describe('R-PHONE-ZOOM-01: phones get the desktop game, slightly zoomed', () => 
     expect(pop?.[1]).toMatch(/transform:/);
     expect(pop?.[1]).not.toMatch(/box-shadow|filter|top:|bottom:|margin/);
   });
-  it('the pop fills ~68% of the safe height, its foot just above the safe bottom, never past a safe edge', () => {
+  it('R-PHONE-POP-01: the pop fills its share of the safe height, its foot on the resting hand row foot, never past a safe edge', () => {
     const safe = { top: 0, right: 59, bottom: 21, left: 59 };
-    const base = { width: 50, extentTop: -10, extentBottom: 110, k: 0.4, vw: 852, vh: 393, safe };
+    // A resting hand card whose whole extent (plates included) runs from y 300 - 4 to 300 + 82 = 382 (11 px above the edge).
+    const base = { width: 50, extentTop: -4, extentBottom: 82, k: 0.4, vw: 852, vh: 393, safe };
     for (const left of [60, 400, 780]) {
       const g = popGeometry({ ...base, left, top: 300 });
-      const h = g.s * 120; const avail = 393 - 21;
+      const h = g.s * 86; const avail = 393 - 21;
       expect(h / avail).toBeCloseTo(POP_HEIGHT_FRAC, 6);
-      // the popped extent's foot: top + k*ty + s*extentBottom, just above the safe bottom
-      const foot = 300 + 0.4 * g.ty + g.s * 110;
-      expect(foot).toBeCloseTo(393 - 21 - POP_FOOT_GAP, 6);
-      // horizontally inside the safe area
+      // the popped extent's foot: top + k*ty + s*extentBottom, ON the resting foot (it grows up from where it rests)
+      const foot = 300 + 0.4 * g.ty + g.s * 82;
+      expect(foot).toBeCloseTo(382, 6);
+      // horizontally inside the safe area, ends nudged in
       const l = left + 0.4 * g.tx; const r = l + g.s * 50;
       expect(l).toBeGreaterThanOrEqual(59 + 8 - 1e-6);
       expect(r).toBeLessThanOrEqual(852 - 59 - 8 + 1e-6);
     }
   });
+  it('R-PHONE-POP-01: less vertical than the 2026-10-24 pop (68%), the foot lift raises it, the foot never leaves the screen', () => {
+    expect(POP_HEIGHT_FRAC).toBe(PHONE_POP_DEFAULTS.heightFrac);
+    expect(POP_HEIGHT_FRAC).toBeLessThan(0.68);
+    expect(POP_HEIGHT_FRAC).toBeGreaterThanOrEqual(0.5);
+    expect(PHONE_POP_DEFAULTS.footLift).toBe(0);
+    const safe = { top: 0, right: 59, bottom: 21, left: 59 };
+    const p = { width: 50, extentTop: -4, extentBottom: 82, k: 0.4, vw: 852, vh: 393, safe, left: 400, top: 300 };
+    const lifted = popGeometry({ ...p, footLift: 10 });
+    expect(300 + 0.4 * lifted.ty + lifted.s * 82).toBeCloseTo(372, 6);
+    // a resting card that runs off the bottom edge: the foot stops at the run's foot line (4 / 393 of the height)
+    const low = popGeometry({ ...p, top: 380 });
+    expect(380 + 0.4 * low.ty + low.s * 82).toBeCloseTo(393 - 4, 6);
+  });
+  it('R-PHONE-POP-01: the dev tuner values are clamped into their ranges', () => {
+    expect(sanitizePhonePop({ heightFrac: 5, footLift: -500 })).toEqual({ heightFrac: PHONE_POP_RANGES.heightFrac[1], footLift: PHONE_POP_RANGES.footLift[0] });
+    expect(sanitizePhonePop({ heightFrac: Number.NaN })).toEqual(PHONE_POP_DEFAULTS);
+  });
   it('R-PHONE-MENUS-01: the phone menu rules are touch-phone only and zoom the modal panels', () => {
     const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
     const K = 'html[data-touch-ui][data-touch-small]:not([data-phone-layout])';
-    for (const sel of ['.pnpanel { zoom: var(--pm-z)', '.bgrpanel { zoom: var(--pm-z)', '.book { zoom: var(--pm-book)', '.lvend .vspanel { zoom: var(--pm-z)']) expect(css).toContain(`${K} ${sel}`);
+    for (const sel of ['.pnpanel { zoom: var(--pm-z)', '.bgrpanel { zoom: var(--pm-z)', '.book { scale: var(--pm-book)', '.lvend .vspanel { zoom: var(--pm-z)']) expect(css).toContain(`${K} ${sel}`);
     // the menu page zoom on a phone
     expect(css).toContain(`${K} { --touch-p: 2.1 !important; }`);
     // board badges step in on a zoomed phone only
     expect(css).toMatch(/html\[data-touch-ui\]\[data-phone-zoom\] \.zone:is\(\[data-zone='tavern'\], \[data-zone='warband'\]\) \.card\.compact \.atk \{ left: var\(--pz-badge-in/);
+  });
+  it('R-PHONE-MENUS-02: the Compendium grows by scale (WebKit double-zooms its card sizes), the sidebar never overlaps, the title column fits', () => {
+    const css = readFileSync(join(__dirname, 'touchUi.css'), 'utf8');
+    const K = 'html[data-touch-ui][data-touch-small]:not([data-phone-layout])';
+    expect(css).toContain(`${K} .book { scale: var(--pm-book);`);
+    expect(css).not.toMatch(/\.book \{ zoom:/);
+    expect(css).toContain(`${K} .msb .msb-nav { flex: 1 0 auto; }`);
+    // the title column steps down as it gains plaques; its :has() rules sit in the touch media query (desktop never matches)
+    const media = css.split('@media (hover: none) and (pointer: coarse) {').slice(1).join('');
+    expect(media).toContain(`${K} .titlemenu:has(.titlenav > :nth-child(5))`);
+    expect(media).toContain(`${K} .titlemenu:has(.titlenav > :nth-child(6))`);
   });
   it('a press marks only a hand card', () => {
     // a stand-in for the DOM (this suite runs in node): `closest` answers for the hand-card selector only
@@ -162,12 +192,14 @@ describe('R-PHONE-PARITY-01: Pixel and iPhone are one experience', () => {
     expect(phoneBottomStrip(393, 21)).toBeCloseTo(21, 9); // the iPhone keeps exactly its home indicator
     expect(phoneBottomStrip(400, 60)).toBe(60);
   });
-  it('the hand pop is one proportion on every phone: the same share of the height, its foot on the strip', () => {
+  it('the hand pop is one proportion on every phone: the same share of the height, its foot on the resting hand foot', () => {
     const fracs = PHONES.filter((q) => q.h >= 393 || q.ins.bottom === 0).map((p) => {
-      const g = popGeometry({ width: 50, extentTop: -10, extentBottom: 110, k: 0.4, left: p.w / 2, top: p.h * 0.8, vw: p.w, vh: p.h, safe: popSafe(p.h, p.ins) });
-      const foot = p.h * 0.8 + 0.4 * g.ty + g.s * 110;
-      expect(p.h - foot).toBeCloseTo(phoneBottomStrip(p.h, p.ins.bottom) + POP_FOOT_GAP, 6);
-      return (g.s * 120) / p.h;
+      // the resting hand runs to the same share of the screen on every phone (it rides the shared strip)
+      const top = p.h * 0.75, extentBottom = p.h * 0.22;
+      const g = popGeometry({ width: 50, extentTop: -10, extentBottom, k: 0.4, left: p.w / 2, top, vw: p.w, vh: p.h, safe: popSafe(p.h, p.ins) });
+      const foot = top + 0.4 * g.ty + g.s * extentBottom;
+      expect(foot).toBeCloseTo(top + extentBottom, 6);
+      return (g.s * (extentBottom + 10)) / p.h;
     });
     for (const v of fracs) expect(v).toBeCloseTo(fracs[0], 9);
   });

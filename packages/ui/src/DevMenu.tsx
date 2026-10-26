@@ -99,6 +99,7 @@ import { CrateFxTuner } from './CrateFxTuner';
 import { PortraitFrameTuner } from './PortraitFrameTuner';
 import { TooltipTuner } from './TooltipTuner';
 import { ScreenWipeTuner } from './ScreenWipeTuner';
+import { PhonePopTuner } from './PhonePopTuner';
 import { ChargeGlyphTuner } from './ChargeGlyphTuner';
 import { RuneforgeLookTuner } from './RuneforgeLookTuner';
 import { OpponentsBackplateTuner } from './OpponentsBackplateTuner';
@@ -256,6 +257,7 @@ const GROUPS: Group[] = [
     title: 'Card Feel',
     items: [
       { key: 'drag', icon: '🎴', label: 'Drag Feel', C: DragTuner, hint: 'Weight, tilt and lag while dragging a card' },
+      { key: 'phonepop', icon: '📱', label: 'Phone hand pop', C: PhonePopTuner, hint: 'Phones: how tall a pressed hand card grows and where its foot sits (read on the next press)', alt: 'phone mobile hand pop press card height foot touch' },
       { key: 'flip', icon: '🔀', label: 'Reposition', C: FlipTuner, hint: 'The slide when cards make room or close a gap', alt: 'flip slide reorder' },
       { key: 'glow', icon: '🔆', label: 'Hover Glow', C: GlowTuner, hint: 'The bright rim when you hover or select a card' },
       { key: 'alignarc', icon: '🌗', label: 'Alignment Arc', C: AlignArcTuner, hint: 'The Celestial Dawn/Dusk crescent beneath each minion' },

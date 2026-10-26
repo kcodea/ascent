@@ -74,6 +74,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   heropowerbtn: '💠',
   tavernupbtn: '🍺',
   drag: '🎴',
+  phonepop: '📱',
   flip: '🔀',
   glow: '🔆',
   alignhud: '🌗',

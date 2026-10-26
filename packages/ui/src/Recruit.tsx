@@ -249,6 +249,7 @@ import { chargeTune, useChargePreview } from './chargeGlyphTune';
 import { ChargeMotes } from './chargeMotes';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
+import { fxNote } from './fxLedger';
 import { publicArt } from './phoneArt';
 import { crumbLight } from './crashLog';
 import { afterBeat, afterSweep, combatBackdropShown, curtainClassFor, vistaClassFor, vistaDrivesMachine, vistaWarmClassFor, VISTA_WARM_MS, wipeExiting, wipeSweeping, wipeUp, type VistaWarmStep, type WipeState } from './wipeMachine';
@@ -560,6 +561,8 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
   );
 });
 
+/** A phone repaints the charge glyph at most this often (R-PHONE-CHARGE-30HZ-01): ~30 Hz. */
+const PHONE_CHARGE_PAINT_MS = 32;
 /** The end-of-turn CHARGE GLYPH turn timer — the board's etched sigil charging with white-hot blue energy over the
  *  final `window` seconds, building from BOTH sides inward along the midline conduit and filling the centre sigil
  *  LAST, completing exactly as the clock hits 0. Anchored to the measured board midline (`--charge-y`); replaces the
@@ -659,8 +662,13 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     const chargeNow = (): number => (chargeWindow > 0 ? chargeElapsed(chargeWindow, performance.now()) / chargeWindow : 0);
     if (held) { paint(chargeNow()); return; } // frozen where the clock stopped: one paint, no rAF while held
     let raf = 0;
-    const draw = (): void => {
-      paint(chargeNow());
+    // PHONES (R-PHONE-CHARGE-30HZ-01): each write of --charge changes the glyph's mask, which repaints the whole glyph
+    // under its two big drop-shadow glows. A 120 Hz iPhone paid that 120 times a second for the last 20 s of every
+    // shop. The fill moves about a layout px a frame, so ~30 writes a second look the same and cost a quarter.
+    // Desktop paints every frame, as before.
+    let last = -Infinity;
+    const draw = (now: number): void => {
+      if (!PHONE_GPU || now - last >= PHONE_CHARGE_PAINT_MS) { last = now; paint(chargeNow()); }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
@@ -2448,6 +2456,7 @@ export function Recruit() {
     const t = window.setTimeout(() => {
       sfx.vistaTrip('portal');
       if (!PHONE_GPU) gateFx.portal(vistaGemOnScreen(), charge);
+      else fxNote('gate:portal', 'phone-gate');
     // 0.3 s earlier than it first fired (owner 2026-10-23: "have the gem flash ... .3 seconds earlier, so it has a bit more time to flair").
     }, Math.max(0, getScreenWipeConfig().holdOutMs - charge - 420));
     return () => window.clearTimeout(t);
@@ -2460,6 +2469,7 @@ export function Recruit() {
       // …and the dust it knocks up from the floor (owner 2026-10-21: "create the dust from the bottom"), on the ranked
       // gate's particle layer (lifted over the curtain while it is up). Desktop only: phones keep no extra FX context.
       if (!PHONE_GPU) gateFx.land({ left: 0, right: window.innerWidth, bottom: window.innerHeight });
+      else fxNote('gate:land', 'phone-gate'); // the FX ledger: skipped on a phone on purpose (no extra FX context)
     }
     else if (wipe === 'revealIn') sfx.wipeGate('crank');
   }, [wipe]);

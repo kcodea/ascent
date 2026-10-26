@@ -9690,4 +9690,41 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The owner plays three rounds on his iPhone and switches apps. A row lands with scenes.combat p95 22 ms, 40 frames over 33 ms, "gl lost" at 212 s, and fx.misses topped by def:impact-slam ctx-lost 31.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePerfLog.test.ts', 'packages/ui/src/phonePerfLogDesktop.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-PHONE-FX-CTX-01',
+    title: 'A lost WebGL context rebuilds the effect layer, so effects never silently vanish for the rest of a session',
+    statement:
+      'When a long-lived Pixi layer (the board FX overlay and its under / above slots, the Discover layer, the wipe, the '
+      + 'gate) loses its WebGL context, it is rebuilt with a new Application on the restore, or after 2.5 s still lost '
+      + 'while the page is visible. A restored context brings textures made with generateTexture back empty, so without '
+      + 'the rebuild every spark, glow and shard drew nothing until a reload. The board overlay skips its render while '
+      + 'its context is lost (no render faults). A teardown losing its own context is never rebuilt.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren't showing on phone, and general performance is abysmal. How do we optimize this??" },
+      { kind: 'code', ref: 'packages/ui/src/pixiAppSafety.ts (watchContextLoss onRecover, CONTEXT_RECOVER_MS); pixiFx.ts (scheduleRebuild, ctxLost); wipeFx.ts / rankedGate/gateFx.ts (recover)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-26 (perf/phone-fx-fixes). Before, after a loss and restore a particle burst drew only its ring (measured in Chromium as an iPhone).',
+    example: 'The owner switches away from the Home Screen app mid-shop and iOS drops the GPU contexts; back in the game the next combat hit still throws its sparks.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneFxRecovery.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-PHONE-RUN-PAINT-01',
+    title: 'Phones skip the paint work in the run that buys no visible change',
+    statement:
+      'On a phone only: the charge glyph writes its fill at most about 30 times a second (each write repaints the glyph '
+      + 'under its glows; the fill moves about a layout px a frame); the Gold pill drops its backdrop blur (its fill is '
+      + '92-94% opaque); the Inspect scrim is a plain darker tint instead of a full-screen backdrop blur; the lobby rail '
+      + 'drops its permanent will-change. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone 15/16/17 Pro class, live Netlify build 792caa34a)', quote: "Lots of animations aren't showing on phone, and general performance is abysmal. How do we optimize this??" },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx (PHONE_CHARGE_PAINT_MS); touchUi.css (R-PHONE-RUN-PAINT-01 block)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-26 (perf/phone-fx-fixes).',
+    example: 'A 120 Hz iPhone in the last 20 s of a shop repaints the charge glyph 30 times a second instead of 120.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneFxRecovery.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

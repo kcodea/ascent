@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Phones: smoother play and effects no longer go missing.',
+        details: [
+          'Effects come back on their own if the phone drops its graphics, for example after you switch apps.',
+          'Lighter work for the phone during the shop timer, the Gold coin and Inspect.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Versus: End Turn is now a ready signal. You can keep playing after pressing it, and press it again to take it back.',
         details: [
           'After End Turn you can still buy, sell, roll, play, level up, pass, move your board, freeze and watch your teammate. Nothing greys out.',

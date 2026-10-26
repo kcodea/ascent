@@ -618,7 +618,7 @@ class FxController {
     })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
-    watchContextLoss(app, 'pixiFx under');
+    watchContextLoss(app, 'pixiFx under', () => this.scheduleRebuild('WebGL context lost')); // a loss empties the generated textures: rebuild (R-PHONE-FX-CTX-01)
     crumb('pixi init under');
     checkScenePipes(app, 'pixiFx under');
     const c = app.canvas;
@@ -659,7 +659,7 @@ class FxController {
     })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
-    watchContextLoss(app, 'pixiFx above');
+    watchContextLoss(app, 'pixiFx above', () => this.scheduleRebuild('WebGL context lost')); // R-PHONE-FX-CTX-01
     crumb('pixi init above');
     checkScenePipes(app, 'pixiFx above');
     const c = app.canvas;
@@ -701,7 +701,8 @@ class FxController {
   /** The main stage's render, guarded (see `init`). */
   private renderOver = (): void => {
     const app = this.app;
-    if (!app) return;
+    if (!app || this.ctxLost) return; // a lost context draws nothing; it is rebuilt (R-PHONE-FX-CTX-01), not faulted
+
     try {
       app.render();
       this.renderFaultStreak = 0;
@@ -715,13 +716,15 @@ class FxController {
   };
 
   private renderFaultStreak = 0;
+  /** The main canvas's WebGL context is lost right now (between the loss and the rebuild, R-PHONE-FX-CTX-01). */
+  private ctxLost = false;
   private rebuildQueued = false;
   /** Rebuilds since load (DEV console: `__pixiFx.rebuilds`). */
   rebuilds = 0;
 
   /** Tear the overlay down and bring it back up on the same parent: a new Application, a new GL context. Every
    *  live play is retired by `detach`; the next `setAimLine` (every pointer move while aiming) respawns the aim. */
-  private scheduleRebuild(): void {
+  private scheduleRebuild(why = 'renderer kept failing'): void {
     if (this.rebuildQueued) return;
     this.rebuildQueued = true;
     setTimeout(() => {
@@ -729,7 +732,7 @@ class FxController {
       const app = this.app;
       if (!app) return;
       const parent = app.canvas.parentElement;
-      console.warn(`[pixi fault] pixiFx${this.label ? ` ${this.label}` : ''}: renderer kept failing; rebuilding the FX layer`);
+      console.warn(`[pixi fault] pixiFx${this.label ? ` ${this.label}` : ''}: ${why}; rebuilding the FX layer`);
       this.rebuilds++;
       this.renderFaultStreak = 0;
       this.detach();
@@ -945,7 +948,9 @@ class FxController {
     })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
     followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
-    watchContextLoss(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
+    watchContextLoss(app, `pixiFx${this.label ? ` ${this.label}` : ''}`, () => this.scheduleRebuild('WebGL context lost')); // R-PHONE-FX-CTX-01
+    this.ctxLost = false;
+    app.canvas.addEventListener('webglcontextlost', () => { if (this.app === app) this.ctxLost = true; });
     crumb(`pixi init ${this.label || 'main'}`);
     checkScenePipes(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
     // The replay may have remounted before init resolved; only attach if still wanted.

@@ -1174,6 +1174,8 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 - **Spectators** (R-VERSUS-GROUP-04) pick a player at the bottom right (keys 1 to 4), grouped by this round's fights,
   each plate saying who that player fights; players out are dimmed. Watching shows that player's screen and fight;
   switching within the same fight continues from the same moment, switching to the other fight joins it where it is.
+  Joining a running match, or pressing the room's Watch, always opens on a player still in it: never on a player
+  already out or a seat no one sat in (the first player still in, in seat order; R-VERSUS-GROUP-WATCH-01).
 - **XP** (R-VERSUS-GROUP-08, R-PROG-VERSUS-XP-01). A group player settles under the match the moment their own result
   is final (knocked out, or the match over): four players earn 125 / 80 / 50 / 50, three 125 / 50 / 50. A spectator
   who watched to the end earns 50 (R-PROG-SPECTATE-XP-01); a player watching their own match does not. A full group

@@ -219,10 +219,40 @@ export function spectateSync(match: VersusMatch | null, allRounds: Record<number
     endWatch = null;
     void fetchKeyframes();
   }
+  syncMatch = match;
+  // VERSUS GROUP (owner 2026-10-26: "'watch' isnt taking me into the lobby to watch it"; R-VERSUS-GROUP-WATCH-01): the
+  // watched seat starts at p1, which may be a player already out (their last frame is their end screen, which is never
+  // drawn) or a seat no one sat in. Nothing would ever render, and the bar that moves off an out player only mounts once
+  // the screen is open. So the seat is moved to a player still in BEFORE the screen opens.
+  pickLivingSeat();
   if (useSpectate.getState().optedOut === match.id) { stopSpectatorBeat(); return; }
   // The watch record for the XP of watching it to the end (R-PROG-SPECTATE-XP-01): beats while this screen is the one on.
   startSpectatorBeat(match.group ? 'group' : 'versus', match.id);
   schedule();
+}
+
+/** The live match last synced (the seat pick reads its table). */
+let syncMatch: VersusMatch | null = null;
+
+/**
+ * THE SEAT TO WATCH in a match: the one asked for while that player is still in, else the first player still in (seat
+ * order). A 1v1 match (no table) keeps the seat. Pure. R-VERSUS-GROUP-WATCH-01.
+ */
+export function watchableSeat(match: Pick<VersusMatch, 'group'> | null, seat: VersusGroupSeat): VersusGroupSeat {
+  const raw = match?.group?.raw;
+  if (!raw) return seat;
+  const living = SEATS.filter((s) => raw.seats.some((x) => x.seat === s && x.eliminatedRound == null));
+  return living.includes(seat) || !living.length ? seat : living[0]!;
+}
+
+/** Move the watched seat onto a player still in, and ask for that seat's frames when none are here yet. */
+function pickLivingSeat(): void {
+  const seat = useSpectate.getState().seat;
+  const want = watchableSeat(syncMatch && syncMatch.id === matchId ? syncMatch : null, seat);
+  if (want === seat) return;
+  if (useSpectate.getState().active) watchSeat(want);
+  else useSpectate.setState({ seat: want });
+  if (!rx[want].view) { askForKey(true); void fetchKeyframes(); }
 }
 
 /** The match whose end closed this watch screen (render never reopens it). */
@@ -1065,7 +1095,11 @@ export function resumeSpectating(): void {
   useSpectate.setState({ optedOut: null });
   // Coming back mid-fight is a late join: ask where the fight is (R-SPECTATE-JOIN-01).
   lateEntry = true;
-  if (rx[useSpectate.getState().seat].view?.phase === 'combat') askForKey(true);
+  pickLivingSeat(); // a group match: never back onto a player who went out meanwhile (R-VERSUS-GROUP-WATCH-01)
+  // Nothing cached for the seat yet (or mid-fight): the players are asked for a keyframe, and the stored ones re-read.
+  const v = rx[useSpectate.getState().seat].view;
+  if (!v || v.phase === 'combat') askForKey(true);
+  if (!v) void fetchKeyframes();
   schedule();
 }
 
@@ -1105,6 +1139,7 @@ export function resetSpectate(): void {
   stopSpectatorBeat();
   stopSpectating();
   matchId = null;
+  syncMatch = null;
   asPlayer = false;
   rx = newReceivers();
   rounds = {};

@@ -51,3 +51,17 @@ describe('R-NET-ROUNDS-01: committedRound', () => {
     expect(committedRound({ phase: 'hero_select', round: 0 })).toBe(-1);
   });
 });
+
+/** R-NET-CACHE-01: an incremental read merges into the cached newest-first window without duplicates. */
+describe('R-NET-CACHE-01: mergeNewestFirst', () => {
+  it('new rows first, a re-sent id once, cut to the window', async () => {
+    const { mergeNewestFirst, maxId } = await import('./idbKv');
+    const cached = [{ id: 5, o: 'a' }, { id: 4, o: 'b' }, { id: 3, o: 'c' }];
+    const fresh = [{ id: 7, o: 'n' }, { id: 6, o: 'm' }, { id: 5, o: 'a2' }];
+    const out = mergeNewestFirst(fresh, cached, 4);
+    expect(out.map((r) => r.id)).toEqual([7, 6, 5, 4]);
+    expect(out.find((r) => r.id === 5)!.o).toBe('a2'); // the fresh copy wins
+    expect(maxId(cached)).toBe(5);
+    expect(maxId([])).toBe(0);
+  });
+});

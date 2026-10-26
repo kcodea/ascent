@@ -27,6 +27,7 @@ import { careerRunOf, joinTelemetry, lengthFieldsOf, type CareerRun, type RunHis
 import { telemetryGameRankOf } from './gameRankData';
 import { hallHistoryKeyOf, ownGameRecordsOf, type HallLedgerFight, type HallOwnRecord } from './leaderboardData';
 import { fetchAllRows } from './supabaseRows';
+import { kvGet, kvSet, maxId, mergeNewestFirst } from './net/idbKv';
 import { careerTotalsOf } from './runHistory';
 import { matchLength } from './activePlayClock';
 
@@ -985,6 +986,12 @@ export const RECENT_GAMES_SELECTS: readonly string[] = [
 
 /** The last N finished games across ALL players (public read on `run_telemetry`) — newest first. Best-effort +
  *  time-boxed; `[]` when no backend / on any failure. */
+interface RecentCache { v: 1; savedAt: number; rows: Array<Record<string, unknown>> }
+const RECENT_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+/** Newest game first: created_at, then id. */
+const newerGame = (a: Record<string, unknown>, b: Record<string, unknown>): number =>
+  String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')) || Number(b.id) - Number(a.id);
+
 export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
   const c = client();
   if (!c) return [];
@@ -1004,9 +1011,28 @@ export async function fetchRecentGames(limit = 20): Promise<RecentGameRow[]> {
       }
       return result;
     };
+    // R-NET-CACHE-01 (perf 2026-10-26): the feed's last answer is kept in IndexedDB and, with the replay-facts columns,
+    // only games NEWER than it are read (the feed is the newest `limit` rows; a game row is written once). The title's
+    // idle prefetch used to pull all of it (~160 KB) on every boot. A cache older than a day is read whole again.
+    const cacheKey = `recentGames:${limit}`;
+    const cached = await kvGet<RecentCache>(cacheKey);
+    const usable = !!cached && cached.v === 1 && Date.now() - cached.savedAt < RECENT_CACHE_MAX_AGE_MS && cached.rows.length > 0 && replayFacts.run_telemetry !== false;
+    if (usable) {
+      const inc = await Promise.race([
+        Promise.resolve(c.from('run_telemetry').select(RECENT_GAMES_FAST_SELECT).gt('id', maxId(cached!.rows as Array<{ id: number }>)).order('created_at', { ascending: false }).limit(limit)),
+        timeout(),
+      ]);
+      if (inc && !inc.error && inc.data) {
+        const rows = mergeNewestFirst(inc.data as unknown as Array<Record<string, unknown> & { id: number }>, cached!.rows as Array<Record<string, unknown> & { id: number }>, limit, newerGame);
+        void kvSet(cacheKey, { v: 1, savedAt: cached!.savedAt, rows } satisfies RecentCache);
+        return rows.map(asRecentGameRow);
+      }
+    }
     // The precomputed replay-facts columns first (one cheap read); the JSON-path ladder without them.
     const result = await withReplayFacts('run_telemetry', () => query(RECENT_GAMES_FAST_SELECT), ladder);
-    if (!result || result.error || !result.data) return [];
+    if (!result || result.error || !result.data) return usable ? (cached!.rows as Array<Record<string, unknown>>).map(asRecentGameRow) : [];
+    // Only the fast (replay facts) shape is cached: an incremental read always asks for that shape.
+    if (replayFacts.run_telemetry === true) void kvSet(cacheKey, { v: 1, savedAt: Date.now(), rows: result.data as unknown as Array<Record<string, unknown>> } satisfies RecentCache);
     // Runtime-built select list → supabase-js can't infer the row type; read the columns by hand.
     return (result.data as unknown as Array<Record<string, unknown>>).map(asRecentGameRow);
   } catch {
@@ -2266,15 +2292,27 @@ export async function fetchAndRegisterBoardRecords(): Promise<number> {
   const c = client();
   if (!c) return 0;
   try {
-    const request = Promise.resolve(
+    // R-NET-CACHE-01 (perf 2026-10-26): the window is kept in IndexedDB and only rows NEWER than it are read (the table
+    // is append-only, identity ids), so a boot or a run end costs a few rows instead of the whole 8,000-row window
+    // (~96 KB every time). A cache older than a day (or none) is read whole, exactly as before.
+    const cached = await kvGet<BoardRecordsCache>(RECORDS_CACHE_KEY);
+    const usable = !!cached && cached.v === 1 && Date.now() - cached.savedAt < RECORDS_CACHE_MAX_AGE_MS && cached.rows.length > 0;
+    const request = Promise.resolve(usable
+      ? fetchAllRows<BoardResultRow>((from, to) => c.from('board_results').select('id, board_id, outcome').gt('id', maxId(cached!.rows)).order('id', { ascending: false }).range(from, to), { maxRows: RECORDS_FETCH_LIMIT })
       // The newest RECORDS_FETCH_LIMIT results ON PURPOSE (a recency window), read in pages so the window is whole.
-      fetchAllRows((from, to) => c.from('board_results').select('board_id, outcome').order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to), { maxRows: RECORDS_FETCH_LIMIT }),
-    );
+      : fetchAllRows<BoardResultRow>((from, to) => c.from('board_results').select('id, board_id, outcome').order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to), { maxRows: RECORDS_FETCH_LIMIT }));
     const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), FETCH_TIMEOUT_MS));
     const result = await Promise.race([request, timeout]);
-    if (!result || result.error || !result.data) return 0;
+    let rows: BoardResultRow[];
+    if (!result || result.error || !result.data) {
+      if (!usable) return 0;
+      rows = cached!.rows; // the network failed: the last good window still registers
+    } else {
+      rows = usable ? mergeNewestFirst(result.data, cached!.rows, RECORDS_FETCH_LIMIT) : result.data;
+      void kvSet(RECORDS_CACHE_KEY, { v: 1, savedAt: usable ? cached!.savedAt : Date.now(), rows } satisfies BoardRecordsCache);
+    }
     const agg = new Map<string, { wins: number; fights: number }>();
-    for (const r of result.data as { board_id: string; outcome: string }[]) {
+    for (const r of rows) {
       const rec = agg.get(r.board_id) ?? { wins: 0, fights: 0 };
       rec.fights += 1;
       if (r.outcome === 'win') rec.wins += 1;      // board-perspective: 'win' = the served board beat the player
@@ -2287,6 +2325,11 @@ export async function fetchAndRegisterBoardRecords(): Promise<number> {
     return 0;
   }
 }
+interface BoardResultRow { id: number; board_id: string; outcome: string }
+/** `savedAt` is when the window was last read WHOLE (incremental reads keep it), so it is re-read whole once a day. */
+interface BoardRecordsCache { v: 1; savedAt: number; rows: BoardResultRow[] }
+const RECORDS_CACHE_KEY = 'boardResults';
+const RECORDS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 /** Between-runs refresh (owner ask 2026-07-18): re-pull the shared pool (registerOpponents dedupes, so only
  *  NEW boards append) + the fight-ledger records, so consecutive runs in one session see fresh opponents and

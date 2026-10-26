@@ -56,3 +56,4 @@ packages/tools/src/balance/out/
 # Voiceover drafts from `npm run vo:generate` (ElevenLabs takes awaiting approval) — never committed.
 vo-drafts/
 supabase/functions/versus-resolve/engine.generated.js
+.egress-profile/

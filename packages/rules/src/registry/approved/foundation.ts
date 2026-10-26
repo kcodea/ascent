@@ -9047,4 +9047,64 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Ann picked the Lantern portrait. Bob opens the Leaderboard and sees her Lantern portrait, with no failed read first.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/profilesGrant.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-NET-BACKOFF-01',
+    title: 'Polling loops back off when nothing changes, slow down in a background tab, and stop when they no longer apply',
+    statement:
+      'Every client loop that asks the server on a timer (the Versus tick reconcile, finalize and room reconcile, the heartbeat, the room list, Live Games, the live watch, the spectate beat, the test bots) asks at its old pace while the situation is new, then waits longer and longer while the answer changes nothing or fails (up to 15 s for a reconcile, 30 s for a finalize, 60 s for a list), asks less often while the tab is hidden, and stops when the match is over or the player is no longer in the room. Spectators never reconcile or finalize. Game timing is unchanged: a deadline is still asked about on the same 500 ms tick.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/net/backoff.ts; packages/ui/src/versus/versusStore.ts (onTick gates, heartbeat stop); packages/ui/src/versus/versusBotDriver.ts; VersusTitle.tsx; live/LiveGames.tsx; live/liveWatch.ts; live/spectatorEnd.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (perf/supabase-egress-audit). Before: a tab on a paused match called versus_reconcile twice a second for as long as it stayed open (~10 MB an hour).',
+    example: 'Ann leaves her tab on a paused match overnight: it now asks the server a few times a minute, not twice a second.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-REALTIME-01',
+    title: 'Versus heartbeats are not pushed to every client; the room revision is the wake-up for membership changes',
+    statement:
+      'Clients do not subscribe to versus_members row changes. Joins, leaves, seat moves, knockouts and prunes bump the room revision, which wakes every client. A member coming back after a lapsed lease bumps the room once, so the is back notice shows at once, and while a match is paused the heartbeat answers every member last beat so the notice stays right.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (subscribeRoom); packages/ui/src/versus/versusStore.ts (patchSeen); supabase/migrations/2026-10-27-versus-egress.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-26. Before: each member heartbeat (every 4 s) reached every subscriber, about 0.9 KB each.',
+    example: 'Bob drops out and comes back: Ann sees Bob is back as soon as his first heartbeat lands, as before.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusEgress.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-ROUNDS-01',
+    title: 'A Versus client reads a round only once the server has committed it',
+    statement:
+      'Committed rounds (and group fights) are read only up to the current round once its fight is in (combat or complete), else the round before. No read during the shop asks for a round that cannot exist yet.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusStore.ts (committedRound, loadRounds, loadGroupRounds)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26. Before: about 50 empty rounds reads per match.',
+    example: 'During round 4 shop the client reads nothing; when round 4 fight is committed it reads round 4 once.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-NET-CACHE-01',
+    title: 'Launch reads keep their last answer and ask only for newer rows',
+    statement:
+      'The board-results window and the Recent Games feed are kept in IndexedDB; a boot or a run end asks only for rows newer than the cached ones (both are append-only), and reads the whole window again once a day. Without IndexedDB it reads everything, as before.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (egress Step 2 approval)', quote: 'Yeah start on this work to fix these issues' },
+      { kind: 'code', ref: 'packages/ui/src/net/idbKv.ts; packages/ui/src/remoteBoards.ts (fetchAndRegisterBoardRecords, fetchRecentGames)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26. Before: ~255 KB of these two reads on every boot.',
+    example: 'A player opens the game twice in an hour: the second boot reads a few new rows instead of the whole board-results window.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

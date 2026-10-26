@@ -183,6 +183,7 @@ async function click(page, t) {
   });
 }
 
+const T0 = Date.now();
 async function run(steps, page, wire, log) {
   const marks = [];
   let n = 0;
@@ -203,6 +204,20 @@ async function run(steps, page, wire, log) {
       await page.mouse.move(x1, y1); await page.mouse.down();
       for (let i = 1; i <= 12; i++) { await page.mouse.move(x1 + ((r[0] - x1) * i) / 12, y1 + ((r[1] - y1) * i) / 12); await sleep(30); }
       await page.mouse.up(); log(`dragTo ${s.dragTo} ${r.map(Math.round)}`); await sleep(s.after ?? 2500);
+    }
+    else if (s.trace) {
+      // Record every change of an expression's value for `s.trace` ms (a behaviour timeline, e.g. the pause veil text).
+      const t0 = Date.now(); let prev;
+      while (Date.now() - t0 < s.trace) {
+        const v = await page.evaluate(s.expr).catch(() => null);
+        if (JSON.stringify(v) !== JSON.stringify(prev)) { log(`trace +${((Date.now() - T0) / 1000).toFixed(1)}s ${JSON.stringify(v)?.slice(0, 160)}`); prev = v; }
+        await sleep(s.every ?? 500);
+      }
+    }
+    else if (s.untilEval) {
+      const t0 = Date.now(); let v = null;
+      while (Date.now() - t0 < (s.max ?? 60000)) { v = await page.evaluate(s.untilEval).catch(() => null); if (v) break; await sleep(1000); }
+      log(`untilEval +${((Date.now() - T0) / 1000).toFixed(1)}s: ${JSON.stringify(v)?.slice(0, 120)}`);
     }
     else if (s.key) { await page.keyboard.press(s.key); log(`key ${s.key}`); await sleep(s.after ?? 1500); }
     else if (s.at) { await page.mouse.click(s.at[0], s.at[1]); log(`click at ${s.at}`); await sleep(s.after ?? 2500); }
@@ -257,6 +272,45 @@ const SCENARIOS = {
     { click: 'Start game', after: 1500 }, { until: '!!document.querySelector(".rgate.is-armed .rgate-crystal")', max: 15000 },
     { click: '.rgate.is-armed .rgate-crystal', after: 6000 }, { wait: 30000 }, { mark: 'gate+hero' },
     { wait: 120000 }, { shot: 'duos-match' }, { mark: 'duos-match-120s' },
+    'LEAVE',
+  ],
+  // TWO HUMANS (no bots): the host waits for the guest to sit, starts, and records the pause veil's text over time
+  // while the guest disconnects (its browser closes) and comes back (`guest` then `guestBack`).
+  host2: [
+    { wait: 12000 }, { click: 'PLAY' }, { click: '~Versus', after: 4000 }, { click: 'Create room', after: 5000 },
+    { drag: [800, 780, 1025, 350], after: 3000 },
+    { untilEval: '[...document.querySelectorAll("button")].some((b) => b.innerText.trim() === "Start game")', max: 120000 },
+    { click: 'Start game', after: 1500 }, { until: '!!document.querySelector(".rgate.is-armed .rgate-crystal")', max: 15000 },
+    { click: '.rgate.is-armed .rgate-crystal', after: 2000 }, { mark: 'start' },
+    { trace: 240000, every: 500, expr: '(() => { const v = document.querySelector(".vsveil"); return v ? v.innerText.replace(/\s+/g, " ").replace(/\d+s$/, "Ns") : null; })()' },
+    { mark: 'pause-test' },
+    'LEAVE',
+  ],
+  guest: [
+    { wait: 12000 }, { click: 'PLAY' }, { click: '~Versus', after: 4000 },
+    { untilEval: `(() => { const name = ${JSON.stringify(`${arg('host', 'Claudebot5')}'s room`)}; const own = (x) => { let p = x.parentElement; while (p && p.querySelectorAll('button').length === 1) { if (p.innerText.includes(name)) return true; p = p.parentElement; } return false; }; const b = [...document.querySelectorAll('button')].find((x) => x.innerText.trim() === 'Join' && own(x)); if (b) { b.click(); return true; } return false; })()`, max: 120000 },
+    { wait: 5000 }, { dragTo: '.vspcard-open:not(.gone), .vspcard-joinable', from: [800, 780], after: 3000 },
+    { until: '!!document.querySelector(".rgate.is-armed .rgate-crystal")', max: 60000 },
+    { click: '.rgate.is-armed .rgate-crystal', after: 2000 }, { wait: 45000 }, { mark: 'guest-played' },
+  ],
+  guestBack: [
+    { wait: 14000 },
+    { untilEval: '[...document.querySelectorAll("button")].some((b) => /Unpause/.test(b.innerText))', max: 40000 },
+    { wait: 6000 }, { click: 'Unpause', after: 8000 }, { wait: 20000 }, { mark: 'guest-back' },
+    'LEAVE',
+  ],
+  // A paused-tab measurement: a short 1v1 against an in-tab bot that ends with the tab closing (the bot goes with it);
+  // then `rejoinIdle` reopens, lands back in the match (the bot is gone, so it pauses) and sits there, then leaves.
+  versusShort: [
+    { wait: 12000 }, { click: 'PLAY' }, { click: '~Versus', after: 4000 }, { click: 'Create room', after: 5000 },
+    { click: 'Add bot', after: 8000 }, { drag: [800, 780, 1025, 350], after: 4000 },
+    { at: [800, 607], after: 1500 }, { until: '!!document.querySelector(".rgate.is-armed .rgate-crystal")', max: 15000 },
+    { click: '.rgate.is-armed .rgate-crystal', after: 6000 }, { wait: 40000 },
+  ],
+  rejoinIdle: [
+    { wait: 14000 }, { mark: 'launch+rejoin' },
+    { trace: 60000, every: 1000, expr: '(() => { const v = document.querySelector(".vsveil"); return v ? v.innerText.split(String.fromCharCode(10))[0] : null; })()' },
+    { mark: 'paused-first-60s' }, { wait: 120000 }, { mark: 'paused-next-120s' },
     'LEAVE',
   ],
   // A spectator: watch the newest in-game room for 120 s (run beside `versus`, as another identity), then leave.

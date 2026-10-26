@@ -469,12 +469,15 @@ async function refreshMatch(matchId: string): Promise<void> {
   } catch { /* transient */ }
 }
 
+let beats = 0;
 async function heartbeat(): Promise<void> {
   if (!session) return;
   try {
     const r = await timed(() => versusRemote.heartbeat(session!.roomId), (x) => x.serverNow);
     if (r.match) await onMatch(r.match);
-    else if (r.groupMatch) { await onMatch(ingestGroup(r.groupMatch)); pullDuosPasses(r.groupMatch.id); } // Duos: the heartbeat is the passes' backstop
+    // Duos: the heartbeat is the passes' BACKSTOP only (each pass row change already wakes the pull over Realtime), so it
+    // reads them every third beat (12 s) rather than every beat (R-NET-BACKOFF-01).
+    else if (r.groupMatch) { await onMatch(ingestGroup(r.groupMatch)); if (++beats % 3 === 0) pullDuosPasses(r.groupMatch.id); }
     // Pause detection rides the heartbeat: a running match is reconciled every beat, so an opponent who went
     // silent pauses the clock within a lease plus one beat (live test 2026-10-14: a 12 s modulo window let it slip
     // to ~20 s).

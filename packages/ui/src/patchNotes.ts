@@ -58,6 +58,7 @@ export const PATCH_NOTES: PatchNote[] = [
   {
     date: '2026-10-26',
     changes: [
+      { category: 'Systems', text: "Other players' portraits now show in Versus rooms and the Leaderboard." },
       {
         category: 'Systems',
         text: 'Duos: passing a card is now a magic stream, and your teammate\'s portrait matches yours.',

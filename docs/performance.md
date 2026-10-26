@@ -872,6 +872,17 @@ Numbers and method: `docs/devlog/2026-10-22-hand-buff-pileup.md` (R-PERF-HANDBUF
   (thin, then shorten, then trim); `PlayDefOptions.dedupeKey` keeps one live play per key. Use them for any cue that
   several watchers or a chain can fire on the same target.
 
+## 3l. Network egress, 2026-10-26: measure bytes, not just frames
+
+Supabase bills egress (REST responses with their headers, Edge Function answers, Realtime frames). Measure it with a
+measurement build (`VITE_EGRESS_METER=1 npm run build:web`, then `window.__egress.table()` in the console) or the
+headless probe (`node scripts/egress-probe.mjs --scenario menus|versus|duos|spectate|idle --name ClaudebotN --profile
+<dir>`), which counts wire bytes per account and endpoint. The rules that came out of it: every timer that asks the
+server backs off when nothing changes and stops when it no longer applies (`net/backoff.ts`, R-NET-BACKOFF-01); never
+subscribe to a row that a heartbeat rewrites (R-NET-REALTIME-01); read a round only once it is committed
+(R-NET-ROUNDS-01); a launch read of an append-only table keeps its last answer and asks for newer rows
+(R-NET-CACHE-01). Numbers: `docs/devlog/2026-10-26-supabase-egress.md`.
+
 ## 4. Established anti-patterns (don't reintroduce these)
 
 These are the rules the audits surfaced; the codebase already follows them — keep it that way.

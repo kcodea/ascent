@@ -71,6 +71,13 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'Fixed: Ruby targeting on phones.',
+        details: [
+          'The line from a Ruby or a targeted spell runs straight from the card to your finger again, on phones and on 60 Hz screens.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Fixed: Kringle and other repeating buffs no longer slow the game down.',
         details: [
           'Several Kringles (or Mother Moss, Striker and other "Repeat for every" cards) at End of Turn now share one short window, so four of them finish in about 4 seconds instead of 10.',

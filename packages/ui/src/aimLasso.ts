@@ -141,6 +141,12 @@ export function stepLasso(
   const swayScale = 1 + Math.max(0, speed) * cfg.motionInfluence;
   const baseK = cfg.springStiffness;
   const baseC = cfg.springDamping;
+  // SUB-STEPS (R-PHONE-LASSO-01): the frame is split into `lassoSubsteps` equal steps so the integration is stable at
+  // ANY frame rate. One step per frame blew up below ~120 fps for a stiff, heavily damped def (`ruby-target`: damping
+  // 60, so 232/s at the gripped cursor end): on a 60 Hz phone the ribbon flew off the screen within a few frames.
+  // A high-refresh desktop (>= ~200 fps for that def) still takes exactly one step, unchanged.
+  const subs = lassoSubsteps(h, cfg);
+  const hs = h / subs;
   for (let idx = 0; idx < state.pos.length; idx++) {
     const t = (idx + 1) / n;
     const rest = restAt(t, from, to, perp, ctl, timeS, swayScale, cfg, state.seed);
@@ -151,19 +157,33 @@ export function stepLasso(
     const grip = 1 + CURSOR_GRIP * t * t;
     const k = baseK * grip;
     const c = baseC * Math.sqrt(grip);
-    // Semi-implicit Euler: a = k·(rest − p) − c·v ; v += a·h ; p += v·h. Stable for the default k/c at 60fps,
-    // and dt is clamped so a long frame can't overshoot into a blow-up.
-    const ax = k * (rest.x - p.x) - c * v.x;
-    const ay = k * (rest.y - p.y) - c * v.y;
-    v.x += ax * h;
-    v.y += ay * h;
-    p.x += v.x * h;
-    p.y += v.y * h;
+    // Semi-implicit Euler: a = k·(rest − p) − c·v ; v += a·h ; p += v·h, per sub-step (stable: see `lassoSubsteps`).
+    for (let s = 0; s < subs; s++) {
+      const ax = k * (rest.x - p.x) - c * v.x;
+      const ay = k * (rest.y - p.y) - c * v.y;
+      v.x += ax * hs;
+      v.y += ay * hs;
+      p.x += v.x * hs;
+      p.y += v.y * hs;
+    }
   }
   const out: Vec2[] = [{ x: from.x, y: from.y }];
   for (const p of state.pos) out.push({ x: p.x, y: p.y });
   out.push({ x: to.x, y: to.y });
   return out;
+}
+
+/**
+ * How many integration sub-steps a frame of `h` seconds needs to stay stable (R-PHONE-LASSO-01). Semi-implicit Euler
+ * on a damped spring diverges once `h·c` or `h·√k` grows past ~2; the stiffest point is the gripped cursor end
+ * (`k·(1+CURSOR_GRIP)`, `c·√(1+CURSOR_GRIP)`), so each sub-step keeps `h·(c + √k)` there at or under 1.5. Capped so a
+ * pathological tuner value cannot stall a frame.
+ */
+export function lassoSubsteps(h: number, cfg: Pick<AimLassoCfg, 'springStiffness' | 'springDamping'>): number {
+  const grip = 1 + CURSOR_GRIP;
+  const rate = Math.max(0, cfg.springDamping) * Math.sqrt(grip) + Math.sqrt(Math.max(0, cfg.springStiffness) * grip);
+  const n = Math.ceil((Math.max(0, h) * rate) / 1.5);
+  return Math.min(64, Math.max(1, Number.isFinite(n) ? n : 1));
 }
 
 /** Grow/shrink the interior arrays to `n-1` points when the segment count changes live. New points seed at rest. */

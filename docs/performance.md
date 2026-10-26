@@ -825,6 +825,11 @@ throttle) and at 1920x1080 with no throttle. Numbers and method: `docs/devlog/20
   an idle main thread (`GLContextEGL::MakeCurrent` blocked on the GPU thread, DOM raster flushes of 400+ ms) are a
   software-GPU artifact. Main-thread numbers (busy %, long tasks, script/style time) are reliable; GPU-side frame
   spikes need a real device (Safari Web Inspector timeline on an iPhone).
+- **Chromium emulation is not WebKit (2026-10-25, R-PHONE-PAGESCALE-01).** A phone layout that looks right in every
+  Chromium capture broke on a real iPhone: WebKit lays out CSS `zoom` differently (registered `@property` lengths zoomed
+  twice, small text lifted to 9 screen px). Phones now scale the page instead of the stage. Check any phone change in
+  WebKit too: `npm run build:web && npm run phone:webkit` (Playwright WebKit as an iPhone, Home Screen app and Safari
+  sizes, with layout checks; `npx playwright-core install webkit` once).
 
 ## 3j. Desktop jank pass, 2026-10-21: featureless `:has()` subjects and body-class rules
 

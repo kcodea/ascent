@@ -15,6 +15,7 @@
  * Focus never moves, so every field keeps its own handlers exactly (Enter submits, the name editor commits on blur).
  * Repositioning runs on focus and on `visualViewport` resize / scroll only, never per frame.
  */
+import { cssSafeInsets, pageScale } from './stage';
 
 /** The field kinds that bring up a text keyboard. */
 const TEXT_TYPES = new Set(['', 'text', 'email', 'search', 'url', 'tel', 'password', 'number']);
@@ -65,29 +66,26 @@ export function installTouchKeyboard(enabled: () => boolean): () => void {
   let lifted: HTMLInputElement | HTMLTextAreaElement | null = null;
   let savedStyle = '';
 
-  const safe = (): { l: number; r: number; b: number } => {
-    const probe = document.getElementById('safe-probe');
-    if (!probe) return { l: 0, r: 0, b: 0 };
-    const c = getComputedStyle(probe);
-    return { l: parseFloat(c.paddingLeft) || 0, r: parseFloat(c.paddingRight) || 0, b: parseFloat(c.paddingBottom) || 0 };
-  };
   const place = (): void => {
     const el = lifted;
     if (!el) return;
+    // Everything below is SCREEN px. On the page scale (R-PHONE-PAGESCALE-01) the viewport and rects are layout px,
+    // `k` screen px each; everywhere else `k` is 1.
+    const k = pageScale();
     const vv = window.visualViewport;
     const view: ViewportBox = vv
-      ? { left: vv.offsetLeft, top: vv.offsetTop, width: vv.width, height: vv.height }
-      : { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
-    const sa = safe();
-    const target = liftBox(view, sa.l, sa.r, sa.b);
+      ? { left: vv.offsetLeft * k, top: vv.offsetTop * k, width: vv.width * k, height: vv.height * k }
+      : { left: 0, top: 0, width: window.innerWidth * k, height: window.innerHeight * k };
+    const ins = cssSafeInsets();
+    const target = liftBox(view, ins.left * k, ins.right * k, ins.bottom * k);
     // Where does the fixed element's containing block sit, and at what scale? Two probes (focus / resize only).
     const st = el.style;
     st.left = '0px'; st.top = '0px';
     const a = el.getBoundingClientRect();
     st.left = '100px';
     const b = el.getBoundingClientRect();
-    const scale = (b.left - a.left) / 100 || 1;
-    const box = toContainingBlock(target, a.left, a.top, scale);
+    const scale = ((b.left - a.left) / 100 || 1) * k;
+    const box = toContainingBlock(target, a.left * k, a.top * k, scale);
     st.left = `${box.left}px`; st.top = `${box.top}px`;
     st.width = `${box.width}px`; st.height = `${box.height}px`;
     st.fontSize = `${LIFT_FONT / scale}px`;

@@ -48,6 +48,7 @@ export interface Crumb {
   /** the phone diagnostics switches active this session (phoneDiag.ts), `nofx+res1` */ pd?: string;
   /** the stage was shrunk with CSS zoom at this step (a phone's menus), not a transform */ z?: 1;
   /** the stage was shrunk with a transform at this step (layers paid at stage size) */ xf?: 1;
+  /** the browser scaled the PAGE at this step (R-PHONE-PAGESCALE-01): the page scale (layers paid at on-screen size) */ ps?: number;
   /** JS heap MB (Chrome only) */ h?: number;
   /** step details */ x?: Record<string, string | number>;
 }
@@ -90,6 +91,7 @@ export function describeCrumb(c: Crumb): string {
   if (c.gs) parts.push(`GL buffers ${c.gs}`);
   if (c.z) parts.push('stage zoom');
   if (c.xf) parts.push('stage transform');
+  if (c.ps) parts.push(`page scale ${c.ps}`);
   if (c.pd) parts.push(`switches ${c.pd}`);
   if (c.h !== undefined) parts.push(`heap ${c.h} MB`);
   if (c.x) for (const [k, v] of Object.entries(c.x)) parts.push(`${k} ${v}`);
@@ -154,13 +156,15 @@ function layerEstimate(els: Set<Element>): { mb: number; n: number } {
   const stage = document.getElementById('stage');
   const m = stage?.style.transform ? /scale\(([\d.]+)\)/.exec(stage.style.transform) : null;
   const s = m ? Number(m[1]) || 1 : 1; // a transformed stage: WebKit backs a layer at its stage size
+  // A page scale (R-PHONE-PAGESCALE-01): rects are in layout px and the browser backs each layer at its on-screen size.
+  const ps = Number(document.documentElement.getAttribute('data-page-scale')) || 1;
   let px = 0; let n = 0;
   for (const el of els) {
     if (++n > 400) break;
     const r = el.getBoundingClientRect();
     const w = Math.max(0, Math.min(r.right, vw) - Math.max(r.left, 0));
     const h = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
-    px += (w / s) * (h / s);
+    px += (w / s) * (h / s) * ps * ps;
   }
   return { mb: round((px * dpr * dpr * 4) / 1048576), n: Math.min(n, els.size) };
 }
@@ -195,6 +199,8 @@ function measure(s: string, x?: Record<string, string | number>, scan: 'full' | 
     const st = document.getElementById('stage')?.style;
     if (st?.zoom) c.z = 1;
     else if (st?.transform) c.xf = 1;
+    const ps = Number(document.documentElement.getAttribute('data-page-scale'));
+    if (ps > 0) c.ps = ps;
   } catch { /* no DOM */ }
   const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
   if (mem) c.h = round(mem.usedJSHeapSize / 1048576);

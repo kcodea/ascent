@@ -1,4 +1,4 @@
-import { Application, Container, GCSystem, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
+import { Application, Container, Filter, GCSystem, Graphics, Sprite, Texture, UPDATE_PRIORITY, type BLEND_MODES, type Renderer, type Ticker } from 'pixi.js';
 import type { RiseTint } from '@game/core';
 import { liveAim } from './aimState';
 import { getSmokeConfig } from './smokeConfig';
@@ -34,7 +34,13 @@ import { LITE_ART, PIXI_ANTIALIAS } from './phoneArt';
 // Registers the ParticleContainer / NineSliceSprite render pipes at entry, before any renderer exists (see there).
 import { checkScenePipes } from './pixiScenePipes';
 import { crumb } from './crashLog';
-import { phonePixiOptions, pixiAllowed } from './phoneDiag';
+import { onPixiPageScale, phonePixiOptions, pixiAllowed } from './phoneDiag';
+
+// THE PAGE SCALE (R-PHONE-PAGESCALE-01): a filter renders each pass into a pooled texture sized by its bounds (layout px
+// on the page scale) times its own resolution, 1 by default, so a full-screen filter took four 4096 x 2048 textures
+// (128 MB, a hero attack) where the old stage paid 2 MB each. Folding the page scale in brings each pass back to its
+// on-screen size. 1 everywhere else (desktop never leaves 1: the page scale is phones only).
+onPixiPageScale((k) => { Filter.defaultOptions.resolution = k; });
 
 // PHONES: hand idle GPU textures back sooner (mobile memory pass, owner 2026-10-18: "the iPhone crashes a lot"). Pixi's
 // GCSystem unloads a texture's GPU copy once it has gone unused for `gcMaxUnusedTime` (default 60 s, checked every

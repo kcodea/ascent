@@ -9,13 +9,12 @@
  *    none of it). The WebGL canvases are lazy and short-lived on a phone: no FX canvas exists on the title, the mode
  *    home or any menu page (PixiFxLayer brings the board layers up for hero select and the run, and tears them down
  *    on the way back); each one renders at `PHONE_PIXI_RES` (1.5) instead of 2, with `powerPreference: 'low-power'`.
- *    The menus stop their looping animations after one cycle (touchUi.css, keyed off `html[data-phone-gpu]`). And on
- *    the menus the stage is shrunk with CSS `zoom` instead of `transform: scale()` (stage.ts `setStageMenuZoom`):
- *    WebKit pays a layer inside a transformed stage at its full stage size times 3x3, while a zoomed stage lays its
- *    layers out at their on-screen size. Measured layout matches within 1-2 px. Hero select, the gate and the run zoom
- *    too (R-TOUCH-RUN-MEMORY-01, 2026-10-22) when the browser passes the zoom-geometry probe (`zoomGeometryIsStandard`
- *    in stage.ts: their drag and FX maths measure the screen, so they need zoomed rects reported the standard way);
- *    otherwise they keep the transform.
+ *    The menus stop their looping animations after one cycle (touchUi.css, keyed off `html[data-phone-gpu]`). And the
+ *    stage is never shrunk with `transform: scale()` on a phone: WebKit pays a layer inside a transformed stage at its
+ *    full stage size times 3x3. It used CSS `zoom` (the menus from R-TOUCH-GPU-MEMORY-01, the games from
+ *    R-TOUCH-RUN-MEMORY-01), which WebKit mis-lays-out (registered lengths zoomed twice, small text lifted to 9 screen
+ *    px); since R-PHONE-PAGESCALE-01 the browser scales the PAGE instead (stage.ts `applyPageStage`), and every Pixi
+ *    renderer folds that page scale into its resolution here.
  *
  * 2. THE DIAGNOSTICS SWITCHES. We can only test on the owner's phone, through the crash log. A Home Screen web app
  *    cannot be given a query string and keeps its own storage (separate from Safari's), so the switches are toggles in
@@ -24,10 +23,10 @@
  *      nofx    no WebGL FX canvases at all (the game plays with no Pixi effects)
  *      res1    every Pixi canvas at resolution 1 (CSS px), not 1.5
  *      noanim  no animations or transitions at all on the menus (not just the loops)
- *      zoom    the stage is shrunk with CSS `zoom` in games even when the geometry probe says not to (see stage.ts)
- *      nozoom  the menus go back to `transform: scale()` (the old way), to bisect the menu zoom
- *      gamexf  hero select, the gate and the run go back to `transform: scale()` (R-TOUCH-RUN-MEMORY-01 zooms them
- *              by default on a phone whose browser reports zoomed geometry the standard way)
+ *      zoom    the stage is shrunk with CSS `zoom` everywhere (the old phone path, before the page scale of
+ *              R-PHONE-PAGESCALE-01; WebKit mis-sizes registered lengths and small text under it, see stage.ts)
+ *      nozoom  the menus go back to `transform: scale()` (the old way)
+ *      gamexf  hero select, the gate and the run go back to `transform: scale()`
  *      litebd  no painted menu backdrop (a flat dark ground)
  *      pz125 / pz135 / pz145  the phone's game zoom variant (R-PHONE-ZOOM-01, stage.ts; 1.35 when none is set)
  *      nophonezoom  the game at its plain fit, without the phone zoom
@@ -44,7 +43,7 @@ export const PHONE_DIAG_FLAGS: ReadonlyArray<{ id: PhoneDiagFlag; label: string;
   { id: 'nofx', label: 'No effect canvases', hint: 'No WebGL effects at all.' },
   { id: 'res1', label: 'Effects at resolution 1', hint: 'Sharper effects off, less GPU memory.' },
   { id: 'noanim', label: 'No menu animations', hint: 'Menus stand still.' },
-  { id: 'zoom', label: 'Flat stage everywhere', hint: 'Zoom the stage in games even if this browser fails the zoom check.' },
+  { id: 'zoom', label: 'Zoomed stage everywhere', hint: 'Shrink the stage with CSS zoom, the old phone path.' },
   { id: 'nozoom', label: 'Old stage on menus', hint: 'Scale the menus by transform, as before.' },
   { id: 'gamexf', label: 'Old stage in games', hint: 'Scale hero select and games by transform, as before.' },
   { id: 'litebd', label: 'Lite menu backdrop', hint: 'No painted backdrop on the menus.' },
@@ -119,6 +118,20 @@ export function phonePixiResolution(dpr: number, flags: PhoneDiagFlags = PHONE_D
   return Math.min(dpr || 1, flags.res1 ? 1 : PHONE_PIXI_RES);
 }
 
+let pixiPageScale = 1;
+/** stage.ts: the page scale the browser applies (R-PHONE-PAGESCALE-01). A renderer sized in layout px renders at its
+ *  ON-SCREEN size only if its resolution folds this in (else a phone's ~2300 px wide layout is ~2.7x the pixels per axis). */
+const pageScaleListeners = new Set<(k: number) => void>();
+export function setPixiPageScale(k: number): void {
+  const next = k > 0 && k < 1 ? k : 1;
+  if (next === pixiPageScale) return;
+  pixiPageScale = next;
+  pageScaleListeners.forEach((fn) => fn(next));
+}
+/** The page scale Pixi renders under (1 off it), and its changes. pixiFx.ts folds it into the filters' resolution. */
+export function pixiPageScaleNow(): number { return pixiPageScale; }
+export function onPixiPageScale(fn: (k: number) => void): void { pageScaleListeners.add(fn); fn(pixiPageScale); }
+
 /**
  * A Pixi `app.init` option set with the phone policy applied. `phone` false returns `opts` UNCHANGED (desktop).
  * On a phone: the resolution is capped (see `phonePixiResolution`; times `scale` for a renderer sized in stage px), the GPU asked for low power, no antialias, no
@@ -131,7 +144,7 @@ export function phonePixiOptions(
   flags: PhoneDiagFlags = PHONE_DIAG,
 ): Partial<ApplicationOptions> {
   if (!phone) return opts;
-  const cap = phonePixiResolution(dpr, flags) * scale;
+  const cap = phonePixiResolution(dpr, flags) * scale * pixiPageScale;
   const out: Partial<ApplicationOptions> = {
     ...opts,
     resolution: Math.min(opts.resolution ?? cap, cap),

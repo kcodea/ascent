@@ -9,7 +9,7 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { activeDiagLabel, parseDiagFlags, parseDiagQuery, phonePixiOptions, phonePixiResolution, pixiAllowed, PHONE_DIAG_FLAGS } from './phoneDiag';
 import { describeCrumb } from './crashLog';
-import { zoomedStage } from './stage';
+import { stageModeFor } from './stage';
 
 const src = (f: string): string => fs.readFileSync(path.join(__dirname, f), 'utf8');
 
@@ -65,13 +65,13 @@ describe('phone diagnostics switches', () => {
   });
 });
 
-describe('the stage zoom', () => {
-  it('zooms only on a phone: its menus by default, everywhere with zoom, never with nozoom on the menus', () => {
-    expect(zoomedStage(false, true, { zoom: 1 })).toBe(false); // desktop: never
-    expect(zoomedStage(true, true, {})).toBe(true);
-    expect(zoomedStage(true, false, {})).toBe(false); // hero select / a run keep the transform unless the zoom probe passes (R-TOUCH-RUN-MEMORY-01)
-    expect(zoomedStage(true, false, { zoom: 1 })).toBe(true);
-    expect(zoomedStage(true, true, { nozoom: 1 })).toBe(false);
+describe('the phone stage', () => {
+  it('never transforms a phone menu by default: the page scale (R-PHONE-PAGESCALE-01); zoom / nozoom pick the old paths', () => {
+    expect(stageModeFor(false, true, { zoom: 1 })).toBe('transform'); // desktop: always the transform
+    expect(stageModeFor(true, true, {})).toBe('page');
+    expect(stageModeFor(true, false, {})).toBe('page');
+    expect(stageModeFor(true, false, { zoom: 1 })).toBe('zoom');
+    expect(stageModeFor(true, true, { nozoom: 1 })).toBe('transform');
   });
 });
 

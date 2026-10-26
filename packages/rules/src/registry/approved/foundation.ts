@@ -7470,6 +7470,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
   {
+    id: 'R-PHONE-PAGESCALE-01',
+    title: 'A phone draws the game at its real size in every browser engine, by scaling the page',
+    statement:
+      'On a phone the game is drawn exactly as its desktop layout, uniformly smaller, in Safari, the Home Screen app and '
+      + 'Chrome alike: every Shop and board minion at its size and in its own seat, the lobby rail, Tier, Freeze, the '
+      + 'Refresh cost, the timer, the hand and its pop, the menus. The browser scales the PAGE (the meta viewport is the '
+      + 'stage layout width at the fit scale); the stage is never shrunk with CSS zoom (WebKit zooms registered size '
+      + 'variables twice and lifts small text to 9 screen px under it) nor with a transform (WebKit pays every layer under '
+      + 'it at full size, the memory that crashed the iPhone). Text is never inflated and a pinch never zooms the page. '
+      + 'Touch distances (tap slop, the 44 px hit slop, the keyboard field, the hand pop gaps) stay screen px, and the '
+      + 'effect canvases render at their on-screen size. Desktop is unchanged.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-25 (a real iPhone 15/16/17 Pro, landscape, round 1 Shop screenshot: the Shop minions showed only their Attack / Health badges stacked in one spot, the lobby rail tiny, Tier / Freeze / the Refresh cost huge; the same in Safari and the Home Screen app)', quote: 'Mobile looks like this' },
+      { kind: 'code', ref: 'packages/ui/src/stage.ts (stageModeFor, applyPageStage, pageViewportContent, screenScale, cssSafeInsets); packages/ui/src/phoneDiag.ts (setPixiPageScale); packages/ui/src/touchUi.css (data-page-scale); packages/ui/src/touchInput.ts (tapSlopPx, popGeometry u); packages/ui/src/touchSlop.ts; packages/ui/src/touchKeyboard.ts; scripts/phone-webkit.mjs' },
+    ],
+    currentBehaviour: 'Conforms as of 2026-10-25 (fix/iphone-real-layout). Before, a phone shrank the stage with CSS zoom (R-TOUCH-RUN-MEMORY-01) and every phone check ran in Chromium device emulation, where zoom lays out correctly; in WebKit the Shop cards measured ~20 px wide (--ccw 54 px instead of 146) and every font under 24 layout px was raised to 24.4 (9 screen px).',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/stagePageScale.test.ts', 'packages/ui/src/phoneRunMemory.test.ts', 'scripts/phone-webkit.mjs'], lastVerifiedAt: '2026-10-25' },
+  },
+  {
     id: 'R-TOUCH-KEYBOARD-01',
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:

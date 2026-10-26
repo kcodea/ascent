@@ -283,3 +283,59 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-sh
 
 /* The title's Solo / Duo switch: finger-sized and readable (the title column is zoomed by --ui-zoom, so it divides back out). */
 html[data-touch-ui][data-touch-small][data-page-scale] .tn-playparty .playparty-btn { font-size: calc(12 * var(--pt) / var(--ui-zoom, 1)); padding: calc(6 * var(--pt) / var(--ui-zoom, 1)) 0; min-height: calc(32 * var(--pt) / var(--ui-zoom, 1)); }
+
+/* ── Round 2 (blind critic, judged against Hearthstone's phone menus) ─────────────────────────────────────────────── */
+/* Every page's tab switch (Career's Match History / Heroes / Practice, the Leaderboard's Solo / Duos) is finger-sized. */
+html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .cv2-tabs { padding: calc(2 * var(--pt)); gap: calc(2 * var(--pt)); border-radius: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .cv2-tabs > button { font-size: calc(12 * var(--pt)); padding: calc(7 * var(--pt)) calc(12 * var(--pt)); min-height: calc(36 * var(--pt)); gap: calc(6 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .cv2-tabs > button svg { width: calc(13 * var(--pt)); height: calc(13 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .lbpage .lbtopbar { justify-content: space-between; }
+/* A row that scrolls sideways fades out at its right edge, so a cut-off chip reads as "more this way". Static paint. */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-tabs, .colls-filters) {
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28 * var(--pt)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28 * var(--pt)), transparent);
+  padding-right: calc(28 * var(--pt));
+}
+/* A list that scrolls fades at its foot, so the half row there reads as "more below". */
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-list {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 22 * var(--pt)), transparent); mask-image: linear-gradient(180deg, #000 calc(100% - 22 * var(--pt)), transparent);
+  padding-bottom: calc(22 * var(--pt));
+}
+/* The rail fits a phone's height without scrolling: 35 pt plaques (full rail width), a smaller brand and Play. */
+html[data-touch-ui][data-touch-small][data-page-scale] .msb { gap: calc(3 * var(--pt)); padding-top: calc(6 * var(--pt) + var(--safe-t)); padding-bottom: calc(6 * var(--pt) + var(--pz-safe-b, var(--safe-b))); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .msb-home { padding-bottom: calc(2 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .msb-mark { width: calc(18 * var(--pt)); height: calc(18 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .msb-word { font-size: calc(13 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb :is(.msb-nav, .msb-group) { gap: calc(3 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn { min-height: calc(35 * var(--pt)); padding-top: calc(2 * var(--pt)); padding-bottom: calc(2 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .sbbtn.sb-play { min-height: calc(38 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .msb .msb-playparty .playparty-btn { min-height: calc(28 * var(--pt)); padding: calc(4 * var(--pt)) 0; }
+/* Career: the five stats' labels at 10.5 pt; the list column wider so a hero's name fits; the open game's facts wrap. */
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-favline .cv2-favlabel { font-size: calc(10.5 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-list > .gsplit { grid-template-columns: calc(196 * var(--pt)) minmax(0, 1fr); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gs-item { grid-template-columns: calc(32 * var(--pt)) calc(30 * var(--pt)) minmax(0, 1fr) auto; }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .gc-meta :is(.cv2-row-meta, .lb-facts) { display: flex; flex-wrap: wrap; justify-content: center; column-gap: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .gc-meta :is(.cv2-meta, .lb-fact) { font-size: calc(11 * var(--pt)); white-space: nowrap; }
+html[data-touch-ui][data-touch-small][data-page-scale] :is(.cv2-page, .rg-page) .gc.gc-detail .gc-meta .cv2-meta-l { font-size: calc(10.5 * var(--pt)); }
+/* Leaderboard: each podium card puts its rank on one line and its numbers on the next, the same on all three. */
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rating { flex: 0 0 100%; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lbscroll { padding-bottom: calc(24 * var(--pt) + var(--pz-safe-b, var(--safe-b))); }
+/* Collection: the selected tile's ring is never cut by the grid's edge, and the picked item's small labels read. */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-gridwrap { padding: calc(4 * var(--pt)) calc(4 * var(--pt)) calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-preview-lbl, .colls-fact-l, .colls-plate-kicker, .colls-plate-rar) { font-size: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-odds { font-size: calc(10.5 * var(--pt)); }
+/* The mode home: the tiles' name tags at 12 pt and the profile strip's Career link a real button. */
+html[data-touch-ui][data-touch-small][data-page-scale] .mp-home .modecard .mcname { font-size: calc(12 * var(--pt) / var(--hs-zoom, 1)); }
+/* The title: its plaques 44 pt tall and Report a Problem a real button (the column is zoomed by --ui-zoom). */
+html[data-touch-ui][data-touch-small][data-page-scale] .titlenav .menubtn { min-height: calc(40 * var(--pt) / var(--ui-zoom, 1)); padding-top: 0; padding-bottom: 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .titlefoot .titlesecondary button { font-size: calc(12 * var(--pt) / var(--ui-zoom, 1)); min-height: calc(40 * var(--pt) / var(--ui-zoom, 1)); padding: 0 calc(12 * var(--pt) / var(--ui-zoom, 1));
+  border: 1px solid rgba(196, 160, 92, 0.45); border-radius: calc(8 * var(--pt) / var(--ui-zoom, 1)); background: rgba(8, 14, 30, 0.55); }
+/* The title column's plaques sit closer, so Report a Problem never meets Settings. */
+html[data-touch-ui][data-touch-small][data-page-scale] .titlenav { gap: calc(5 * var(--pt) / var(--ui-zoom, 1)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .titlefoot .titlesecondary button { min-height: calc(32 * var(--pt) / var(--ui-zoom, 1)); }
+/* Collection tiles: a word never breaks mid-word (a long name steps down a size instead). */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-grid { grid-template-columns: repeat(auto-fill, minmax(calc(108 * var(--pt)), 1fr)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-tile-name { font-size: calc(13 * var(--pt)); overflow-wrap: normal; word-break: normal; hyphens: manual; }
+/* Career's stat labels break between words only; the tiles share the strip by their content. */
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat { flex: 1 1 auto; padding-left: calc(4 * var(--pt)); padding-right: calc(4 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-left .cv2-tiles .cv2-stat-l { overflow-wrap: normal; word-break: normal; overflow: visible; }

@@ -70,7 +70,7 @@ export function SpectatorBar(): JSX.Element | null {
     const duos = isDuosRaw(raw);
     if (duos) {
       const first = duosFirstAt(raw, Math.max(1, raw.round));
-      for (const [lead, other] of [[first.a, first.a === 'p1' ? 'p2' : 'p1'], [first.b, first.b === 'p3' ? 'p4' : 'p3']] as const) order.push(lead, other);
+      for (const [lead, other] of [[first.a, duosMateOf(first.a)], [first.b, duosMateOf(first.b)]] as const) order.push(lead, other);
     }
     for (const p of pairing) {
       for (const s of p.copy ? [p.a] : [p.a, p.b]) if (!order.includes(s)) order.push(s);
@@ -79,7 +79,8 @@ export function SpectatorBar(): JSX.Element | null {
     // RANKED DUOS (owner 2026-10-26: "a spectator in this mode only watches the 2 live players, not the snapshot
     // boards"): only the two live teammates can be picked; the recorded teams are never watchable.
     const ranked = isRankedDuosRaw(raw);
-    return order.filter((key) => !raw.seats.find((x) => x.seat === key)?.served).map((key) => {
+    // Only seats the row really has (a Ranked Duos table may not be read yet), and never a recorded one.
+    return order.filter((key) => { const r = raw.seats.find((x) => x.seat === key); return !!r && !r.served; }).map((key) => {
       const row = raw.seats.find((x) => x.seat === key)!;
       const foe = row.eliminatedRound == null ? foeIn(pairing, key) : null;
       const foeRow = foe ? raw.seats.find((x) => x.seat === foe.seat) : null;

@@ -11,6 +11,8 @@ import type { RankedDuosFightRow, RankedDuosRoundRow, RankedDuosTableRaw, Ranked
 import { rankedCloseAtMs, rankedFoeAt, rankedRoundsAsGroup, rankedTeamLabels, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import { duosFirstAt, duosLobbySeatId, groupDuosRailRows, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { versusTurn, versusTurnNote } from './versusTurn';
+import { buildGroupMatchRecord } from './versusMatchRecord';
+import { watchableSeat } from './spectate';
 
 const seat = (s: 'p1' | 'p2', over: Partial<VersusGroupSeatRow> = {}): VersusGroupSeatRow => ({
   seat: s, userId: s === 'p1' ? 'u1' : 'u2', name: s === 'p1' ? 'Kevin' : 'Lemon', health: null, armor: null, hero: s === 'p1' ? 'warden' : 'indy',
@@ -131,5 +133,16 @@ describe('Ranked Duos: the table on the client (R-RANKED-DUOS-CLIENT-01)', () =>
     const theirs = projectGroupMatch(withServedSeats(raw({ phase: 'combat', round: 2, combat_deadline: '2026-10-26T12:02:00.000Z',
       seats: [seat('p1'), seat('p2', { ready: true })] }), ctx()), 'u1');
     expect(versusTurnNote(versusTurn({ match: theirs, seat: 'p1', lockedRound: null, readyRound: null, run, now: 0 }), 4)).toBe('Lemon is ready · 4s');
+  });
+
+  it('live test fixes: the match stats list all four teams (places 1st to 4th); a spectator never lands on a recorded seat', () => {
+    const done = withServedSeats(raw({ phase: 'complete', round: 9, end_reason: 'hearts',
+      seats: [seat('p1', { placement: 4, eliminatedRound: 9 }), seat('p2', { placement: 4, eliminatedRound: 9 })] }), ctx());
+    const rec = buildGroupMatchRecord(done, [], 'u1', null)!;
+    expect(rec.of).toBe(4);
+    expect(rec.table).toHaveLength(8);
+    expect(rec.placement).toBe(4);
+    const view = projectGroupMatch(withServedSeats(raw(), ctx()), null);
+    expect(watchableSeat(view, 'p3')).toBe('p1');
   });
 });

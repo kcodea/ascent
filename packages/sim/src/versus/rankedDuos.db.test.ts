@@ -34,7 +34,8 @@ const FILES = [
 ];
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
 const RANKED = readFileSync(join(root, 'supabase/migrations/2026-10-29-ranked-duos.sql'), 'utf8');
-const CLIENT = readFileSync(join(root, 'supabase/migrations/2026-10-30-ranked-duos-client.sql'), 'utf8');
+const CLIENT = readFileSync(join(root, 'supabase/migrations/2026-10-30-ranked-duos-client.sql'), 'utf8')
+  + readFileSync(join(root, 'supabase/migrations/2026-10-31-ranked-duos-live-fixes.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -125,12 +126,15 @@ beforeAll(async () => {
   await db.exec(RANKED); // idempotent
   await db.exec(CLIENT);
   await db.exec(CLIENT); // idempotent
+  // The live project HAS the test-bots table (2026-10-25-versus-test-bots.sql), so every placement reads it: the suite
+  // builds its real shape (the bot account is `bot_user`), empty unless a test seats a bot.
+  await db.exec('create table if not exists public.versus_test_bots (bot_user uuid primary key, host_user uuid not null, slot int not null, registered_at timestamptz not null default now())');
 }, 90_000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
   await db.exec(`delete from public.versus_group_matches; delete from public.versus_matches; delete from public.versus_rooms;
     delete from public.duo_runs; delete from public.duos_rank_results; delete from public.duos_team_ranks; delete from public.duos_teams;
-    drop table if exists public.versus_test_bots;`);
+    delete from public.versus_test_bots;`);
 });
 
 describe('the Ranked Duos party (R-RANKED-DUOS-01)', () => {
@@ -564,8 +568,7 @@ describe('leaving and placement (R-RANKED-DUOS-LEAVE-01, R-RANKED-DUOS-RATING-01
     await q(`select public.versus_ranked_duos__place_team(m, 'a', 2, 'hearts') from public.versus_group_matches m where id = $1`, [m]);
     expect((await q<any>('select count(*)::int n from public.duos_rank_results where match_id = $1', [m]))[0].n).toBe(0);
 
-    await db.exec('create table if not exists public.versus_test_bots (user_id uuid primary key)');
-    await db.query('insert into public.versus_test_bots values ($1) on conflict do nothing', [B]);
+    await db.query('insert into public.versus_test_bots (bot_user, host_user, slot) values ($1, $2, 1) on conflict do nothing', [B, A]);
     await db.exec('delete from public.versus_rooms');
     const [, m2] = await startRanked();
     await toShop(m2);
@@ -573,7 +576,6 @@ describe('leaving and placement (R-RANKED-DUOS-LEAVE-01, R-RANKED-DUOS-RATING-01
     await q(`select public.versus_ranked_duos__place_team(m, 'a', 1, 'hearts') from public.versus_group_matches m where id = $1`, [m2]);
     expect((await matchRow(m2)).unrated).toBe('bot');
     expect((await q<any>('select count(*)::int n from public.duos_rank_results where match_id = $1', [m2]))[0].n).toBe(0);
-    await db.exec('drop table public.versus_test_bots');
   });
 
   it('both silent for 10 minutes: the sweep places and settles the team (a disconnect cannot dodge a loss)', async () => {

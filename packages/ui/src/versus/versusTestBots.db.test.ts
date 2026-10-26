@@ -25,7 +25,7 @@ const root = join(__dirname, '../../../..');
 const FILES = [
   '2026-10-13-versus.sql', '2026-10-14-versus-shop-start.sql', '2026-10-14-versus-scout.sql', '2026-10-14-versus-ready-pause.sql',
   '2026-10-15-versus-hero-reroll.sql', '2026-10-16-versus-clock-grace.sql', '2026-10-17-versus-open-rooms.sql',
-  '2026-10-24-versus-group.sql', '2026-10-24-versus-group-knockout-stands.sql', '2026-10-25-versus-duos.sql', '2026-10-25-versus-duos-edges.sql',
+  '2026-10-24-versus-group.sql', '2026-10-24-versus-group-knockout-stands.sql', '2026-10-25-versus-duos.sql', '2026-10-25-versus-duos-edges.sql', '2026-10-25-versus-duos-pass-back.sql',
 ];
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
 const BOTS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-test-bots.sql'), 'utf8');
@@ -215,7 +215,7 @@ describe('the bots fill a Duos room and play it through (the browser adapter ove
     expect(p1.forcePass()).toBeNull();
     await stepAll(ds, async () => (await rows<any>(`select status from public.versus_duos_passes where seq = 0`))[0]?.status === 'landed');
     expect(p2.run!.duos!.received).toEqual(['p1:0']);
-    expect(p2.run!.hand.some((c) => c.passedWave === p2.run!.wave)).toBe(true);
+    expect(p2.run!.hand.some((c) => c.passKey === 'p1:0')).toBe(true);
     expect(p1.run!.embers).toBe(Math.max(gold, 2) - 1);
     // The race: the server takes the pass (one slot reported), then the hand fills before it lands.
     p2.raceArmed = true;

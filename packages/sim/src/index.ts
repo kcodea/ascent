@@ -15,7 +15,7 @@ export * from './quests';
 export * from './buildTags';
 export * from './contribution';
 export * from './reducer';
-export { DUOS_PASS_GOLD, duosPassBlocked, type DuosRunState, type DuosOutboxEntry } from './duosPass'; // VERSUS DUOS passing (R-DUOS-PASS-01)
+export { DUOS_PASS_GOLD, duosPassBlocked, duosWireCard, type DuosRunState, type DuosOutboxEntry } from './duosPass'; // VERSUS DUOS passing (R-DUOS-PASS-01)
 export * from './shopClock';
 export * from './preparedAction';
 export * from './beatProbe';

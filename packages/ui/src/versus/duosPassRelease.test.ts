@@ -24,7 +24,7 @@ describe('passing needs a release over the teammate frame (R-DUOS-PASS-03)', () 
     expect(passOnRelease(box, up(1605, 805))).toBe(false); // inside the box, outside the round frame
     expect(passOnRelease(box, up(1795, 995))).toBe(false);
     expect(passOnRelease(box, up(1500, 900))).toBe(false); // the board side
-    expect(passOnRelease(null, up(1700, 900))).toBe(false); // no portrait (not Duos / not a hand or board drag)
+    expect(passOnRelease(null, up(1700, 900))).toBe(false); // no portrait (not Duos / not a hand drag)
   });
 
   it('hovering then moving away and releasing never passes: only the release point decides', () => {
@@ -46,5 +46,32 @@ describe('passing needs a release over the teammate frame (R-DUOS-PASS-03)', () 
     expect(gate).toBeGreaterThan(0);
     expect(i - gate).toBeLessThan(900);
     expect(src).not.toMatch(/inRect\(/); // the old square box hit test is gone
+  });
+});
+
+describe('hand cards only, and the held card glows (owner 2026-10-25)', () => {
+  const src = readFileSync(join(__dirname, '../Recruit.tsx'), 'utf8');
+  const css = readFileSync(join(__dirname, 'versus.css'), 'utf8');
+
+  it('"you aren\'t supposed to be able to pass a card off your board, only from hand": only a hand drag measures the portrait', () => {
+    const i = src.indexOf('duosMateRectRef.current = run.duos');
+    expect(i).toBeGreaterThan(0);
+    const line = src.slice(i, src.indexOf('\n', i));
+    expect(line).toContain("drag.source === 'hand'");
+    expect(line).not.toContain("'board'");
+  });
+
+  it('"have the card\'s border glow blue/green" when it will pass, red when it cannot: the drag card mirrors the portrait', () => {
+    expect(src).toMatch(/\$\{passOver && drag\.source === 'hand' \? ` pass-\$\{passOver\}` : ''\}/);
+    const ok = /\.dragcard\.pass-ok \.card\.plated \.plateglow:not\(\.bothglow\) \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    const no = /\.dragcard\.pass-no \.card\.plated \.plateglow:not\(\.bothglow\) \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(ok).toMatch(/rgba\(64, 214, 236/); // the portrait's teal
+    expect(no).toMatch(/rgba\(214, 70, 60/); // the portrait's red
+    // The kwglow rule: the shadow is static; the only animation is an opacity one.
+    expect(ok).toMatch(/animation: duospassglow/);
+    expect(no).not.toMatch(/animation/);
+    const kf = /@keyframes duospassglow \{([^]*?)\}\s*\n/.exec(css)?.[1] ?? '';
+    expect(kf).toMatch(/opacity/);
+    expect(kf).not.toMatch(/filter|box-shadow|background/);
   });
 });

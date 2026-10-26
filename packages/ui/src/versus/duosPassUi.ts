@@ -18,7 +18,7 @@ const STANDARD_BACK = publicArt('frames/cardplate-standard.webp');
 const REASON_TEXT: Record<string, string> = {
   hand_full: 'Their hand is full',
   gold: 'You need 1 Gold',
-  passed_this_turn: 'Just passed to you',
+  board: 'Pass from your hand',
   phase: 'Passing is closed',
   no_card: 'Passing is closed',
   not_duos: 'Passing is closed',

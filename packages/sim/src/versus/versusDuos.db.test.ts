@@ -1,6 +1,6 @@
 /**
  * VERSUS DUOS, EXECUTED (owner 2026-10-25; R-DUOS-01, R-DUOS-PASS-01). PGlite runs every Versus migration in order, then
- * `2026-10-25-versus-duos.sql`, `-duos-edges.sql` and `-duos-random-order.sql` (each twice: idempotent), against a stubbed
+ * `2026-10-25-versus-duos.sql`, `-duos-edges.sql`, `-duos-random-order.sql` and `-duos-pass-back.sql` (each twice: idempotent), against a stubbed
  * `auth.uid()`: a Duos room starts only with four, the round's fight order (the seeded 50/50, no flip path; R-DUOS-ORDER-01), team hearts through the REAL
  * `finalize_duos` handler (1 heart, 2 for a stomp), a team out together and the other team winning, a concede taking
  * the team out, three auto rounds, passes (exactly once, only in the shop, only to the teammate, capped), and that a
@@ -13,7 +13,7 @@ import { join } from 'node:path';
 import { combatSide, type BoardMinion } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import type { VersusGroupSeat } from './group';
-import { duosMateOf, duosRandomFirst, VERSUS_DUOS_HEARTS } from './duos';
+import { duosMateOf, duosRandomFirst, VERSUS_DUOS_HEARTS, VERSUS_DUOS_PASS_CAP } from './duos';
 import { handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 
 const root = join(__dirname, '../../../..');
@@ -26,6 +26,7 @@ const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f),
 const DUOS = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos.sql'), 'utf8');
 const EDGES = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-edges.sql'), 'utf8');
 const ORDER = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-random-order.sql'), 'utf8');
+const PASS_BACK = readFileSync(join(root, 'supabase/migrations/2026-10-25-versus-duos-pass-back.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -120,6 +121,8 @@ beforeAll(async () => {
   await db.exec(EDGES); // idempotent
   await db.exec(ORDER);
   await db.exec(ORDER); // idempotent
+  await db.exec(PASS_BACK);
+  await db.exec(PASS_BACK); // idempotent
 }, 60_000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
@@ -229,7 +232,30 @@ describe('Versus Duos rounds (R-DUOS-01)', () => {
 });
 
 describe('Versus Duos passes (R-DUOS-PASS-01)', () => {
-  const card = (n: number) => JSON.stringify({ uid: `b${n}`, cardId: 'sandbag', attack: 3, health: 3, keywords: [], golden: false, tribe: 'neutral' });
+  const card = (n: number, extra: Record<string, unknown> = {}) =>
+    JSON.stringify({ uid: `b${n}`, cardId: 'sandbag', attack: 3, health: 3, keywords: [], golden: false, tribe: 'neutral', passFrom: 'hand', ...extra });
+
+  it('"you should be able to pass cards back to your teammate": A->B->A->B, each its own row (pass back + again)', async () => {
+    const [, m] = await startDuos();
+    await toShop(m);
+    await as(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1)]);
+    await as(B, `select public.versus_duos_answer_pass($1, 'p1', 0, true)`, [m]);
+    // Bob sends the same card straight back (it carries the key it arrived through), then Ann sends it again.
+    expect((await as<any>(B, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(40, { passKey: 'p1:0' })])).to_seat).toBe('p1');
+    await as(A, `select public.versus_duos_answer_pass($1, 'p2', 0, true)`, [m]);
+    expect((await as<any>(A, 'select public.versus_duos_pass($1, 1, 1, $2::jsonb)', [m, card(7, { passKey: 'p2:0' })])).seq).toBe(1);
+    const rows = (await db.query<any>('select from_seat, seq, card from public.versus_duos_passes where match_id = $1 order by created_at, from_seat', [m])).rows;
+    expect(rows.map((r) => [r.from_seat, r.seq, r.card.passKey ?? null])).toEqual([['p1', 0, null], ['p2', 0, 'p1:0'], ['p1', 1, 'p2:0']]);
+  });
+
+  it('"only from hand": a pass not marked as leaving the hand is refused (bad_card, so an older client refunds it)', async () => {
+    const [, m] = await startDuos();
+    await toShop(m);
+    expect(await fails(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1, { passFrom: 'board' })])).toMatch(/bad_card/);
+    expect(await fails(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1, { passFrom: undefined })])).toMatch(/bad_card/);
+    expect((await db.query<any>('select count(*)::int n from public.versus_duos_passes where match_id = $1', [m])).rows[0].n).toBe(0);
+    expect((await as<any>(A, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1)])).seq).toBe(0);
+  });
 
   it('a pass goes to my teammate only, exactly once per seq, during my shop only', async () => {
     const [, m] = await startDuos();
@@ -291,10 +317,12 @@ describe('Versus Duos passes (R-DUOS-PASS-01)', () => {
     expect(await fails(C, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(2)])).toMatch(/teammate_away/);
   });
 
-  it('closes with the clock (past its grace) and is capped at 10 a round', async () => {
+  it('closes with the clock (past its grace) and is capped at 10 a round (the anti-spam cap, VERSUS_DUOS_PASS_CAP)', async () => {
+    expect(VERSUS_DUOS_PASS_CAP).toBe(10);
     const [, m] = await startDuos();
     await toShop(m);
-    for (let i = 0; i < 10; i++) await as(C, 'select public.versus_duos_pass($1, 1, $2, $3::jsonb)', [m, i, card(i)]);
+    // The SAME card ten times (passed back and forth): every pass is its own row, until the cap.
+    for (let i = 0; i < 10; i++) await as(C, 'select public.versus_duos_pass($1, 1, $2, $3::jsonb)', [m, i, card(1, i ? { passKey: `p4:${i - 1}` } : {})]);
     expect(await fails(C, 'select public.versus_duos_pass($1, 1, 10, $2::jsonb)', [m, card(10)])).toMatch(/too_many_passes/);
     at(3600);
     expect(await fails(D, 'select public.versus_duos_pass($1, 1, 0, $2::jsonb)', [m, card(1)])).toMatch(/deadline_passed/);

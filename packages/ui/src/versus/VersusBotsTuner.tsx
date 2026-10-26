@@ -231,7 +231,7 @@ export function VersusBotsTuner(): JSX.Element {
               run={() => say(versusRemote.devSkipShop(match!.id), 'The shop ends in 5 seconds; passing closes at 0:00.')} />
             <Btn label="Arm full-hand race" hint="Your next pass to the bot is accepted, then its hand fills before it lands: the server refuses it and refunds you"
               run={() => { if (mate) { mate.raceArmed = true; tunerNote('Race armed: pass a card to your teammate now.'); } }} disabled={!mate} />
-            <span className="duostuner-line">Just passed to you: a card your teammate passed cannot go straight back.</span>
+            <span className="duostuner-line">Passing back: a card your teammate passed can go straight back (1 Gold). Hand cards only.</span>
           </Section>
 
           <Section title="Teammate view">

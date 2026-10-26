@@ -4563,7 +4563,9 @@ export function Recruit() {
     // the cards visibly flatten then re-fan on every pickup, the jiggle we're avoiding.)
     const handSlots = measureSlots('.row.hand .card[data-uid]');
     // VERSUS DUOS (R-DUOS-PASS-01): the teammate's portrait, the pass target, measured ONCE per drag (never per frame).
-    duosMateRectRef.current = run.duos && (drag.source === 'hand' || drag.source === 'board') && !useSpectate.getState().active
+    // HAND cards only (owner 2026-10-25: "you aren't supposed to be able to pass a card off your board, only from
+    // hand"): a board drag never measures it, so it gets no pass glow and drops like any board drag.
+    duosMateRectRef.current = run.duos && drag.source === 'hand' && !useSpectate.getState().active
       ? document.querySelector('[data-duos-mate]')?.getBoundingClientRect() ?? null : null;
     insertRectsRef.current = {
       warband: measureSlots('[data-zone="warband"] .row .card[data-uid]'),
@@ -9710,7 +9712,7 @@ const RowFlip = memo(function RowFlip({ rowsKey, shopFxSeq, shopDeathFx, findEl,
 });
 
 const selectOverlayDrag = (s: DragSnapshot) => ({
-  drag: s.drag, castingSpell: s.castingSpell, snapping: s.snapping, magSlide: s.magSlide,
+  drag: s.drag, castingSpell: s.castingSpell, snapping: s.snapping, magSlide: s.magSlide, passOver: s.passOver,
   wouldMagnetize: s.decision.wouldMagnetize, overWarband: s.decision.overWarband, castTargetUid: s.decision.castTargetUid,
   overZone: s.overZone, sellTop: s.sellTop, buyTop: s.buyTop, touch: s.touch,
 });
@@ -9724,7 +9726,7 @@ const selectOverlayDrag = (s: DragSnapshot) => ({
 const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, hasPendingTarget }: {
   timeUp: boolean; heroArmed: boolean; equipArmed: boolean; hasPendingTarget: boolean;
 }) {
-  const { drag, castingSpell, snapping, magSlide, wouldMagnetize, overWarband, castTargetUid, overZone, sellTop, buyTop, touch } = useDragSlice(selectOverlayDrag);
+  const { drag, castingSpell, snapping, magSlide, passOver, wouldMagnetize, overWarband, castTargetUid, overZone, sellTop, buyTop, touch } = useDragSlice(selectOverlayDrag);
   // A viewer (replay / spectator) aims nothing of their own (R-SPECTATE-AIM-01).
   const viewing = useGame((st) => !!st.replaySession || st.replaying);
   // Weighted-drag motion: the floating .dragcard lags slightly behind the cursor and tilts toward its
@@ -9879,7 +9881,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       {drag?.active && !drag.ghost && !castingSpell && createPortal((
         <div
           ref={dragCardRef}
-          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}`}
+          className={`dragcard${snapping ? ' snap' : ''}${wouldMagnetize ? ' electric' : ''}${magSlide ? ' magslide' : ''}${overWarband && drag.source === 'hand' ? ' willplay' : ''}${drag.source === 'hand' ? ' fromhand' : ''}${passOver && drag.source === 'hand' ? ` pass-${passOver}` : ''}`}
           style={{
             width: toStage(drag.w), // drag geometry is screen px -> stage (stage.ts)
             height: toStage(drag.h),

@@ -212,7 +212,7 @@ describe('the bots fill a Duos room and play it through (the browser adapter ove
     await stepAll(ds, async () => (await theMatch())?.phase === 'shop' && !!(await theMatch()).shop_deadline && !!p1.run?.duos && !!p2.run?.duos);
     const gold = p1.run!.embers;
     p1.edit((r) => withAddedCard({ ...r, embers: Math.max(r.embers, 2) }, 'sandbag', 'hand'));
-    expect(p1.forcePass()).toBeNull();
+    expect(p1.forcePass(p1.run!.hand.at(-1)!.uid)).toBeNull(); // the added HAND card (passing is hand only)
     await stepAll(ds, async () => (await rows<any>(`select status from public.versus_duos_passes where seq = 0`))[0]?.status === 'landed');
     expect(p2.run!.duos!.received).toEqual(['p1:0']);
     expect(p2.run!.hand.some((c) => c.passKey === 'p1:0')).toBe(true);
@@ -220,8 +220,8 @@ describe('the bots fill a Duos room and play it through (the browser adapter ove
     // The race: the server takes the pass (one slot reported), then the hand fills before it lands.
     p2.raceArmed = true;
     await stepAll(ds, async () => true); // the armed room goes up first
-    p1.edit((r) => withAddedCard(r, 'sandbag', 'hand'));
-    expect(p1.forcePass()).toBeNull();
+    p1.edit((r) => withAddedCard({ ...r, embers: Math.max(r.embers, 1) }, 'sandbag', 'hand'));
+    expect(p1.forcePass(p1.run!.hand.at(-1)!.uid)).toBeNull();
     await stepAll(ds, async () => !!p1.run!.duos!.outbox[1]?.refunded);
     expect((await rows<any>('select status from public.versus_duos_passes where seq = 1'))[0].status).toBe('refused');
     expect(p2.run!.duos!.refused).toEqual(['p1:1']);

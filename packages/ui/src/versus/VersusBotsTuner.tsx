@@ -123,7 +123,8 @@ export function VersusBotsTuner(): JSX.Element {
   const matePasses = (chosen: boolean): void => {
     if (!mate) { tunerNote('No bot teammate.'); return; }
     let uid: string | undefined;
-    if (chosen) {
+    // Passing is hand only (owner 2026-10-25): a bot with an empty hand is given the picked card to pass.
+    if (chosen || !mate.run?.hand.length) {
       mate.edit((r) => withAddedCard(r, pick, 'hand'));
       uid = mate.run?.hand[mate.run.hand.length - 1]?.uid;
     }

@@ -18,6 +18,7 @@ import { normalizeVersusOptions, versusOptionsError } from './options';
 import { resolveVersusDuosRound, type VersusDuosRoundInput, type VersusDuosRoundResult } from './duos';
 import { duosFightPayload, duosRoundDigest, handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 import { handleRankedDuosSeat, type RankedDuosSeatStore } from './rankedDuosSeat';
+import { handleRankedDuosFinalize, type RankedDuosFinalizeStore } from './rankedDuosFinalize';
 
 export { canonicalDigest, canonicalJson, digestOf, emptyVersusSide, preparedSideError, versusSideOrEmpty, resolveVersusFight, versusChair, versusCombatSeed, VERSUS_LIMITS, VERSUS_PROTOCOL };
 export { handleVersusFinalize };
@@ -31,8 +32,8 @@ export type { VersusGroupFinalizeStore, VersusGroupRoundInput, VersusGroupRoundR
 export { handleVersusDuosFinalize, resolveVersusDuosRound };
 export type { VersusDuosFinalizeStore, VersusDuosRoundInput, VersusDuosRoundResult };
 // RANKED DUOS (owner 2026-10-26): the table seating (`seat_ranked_duos`).
-export { handleRankedDuosSeat };
-export type { RankedDuosSeatStore };
+export { handleRankedDuosSeat, handleRankedDuosFinalize };
+export type { RankedDuosSeatStore, RankedDuosFinalizeStore };
 
 /** The content identity this engine was built from (FNV over every card, rune and quest definition). */
 export function engineContentRevision(): string {

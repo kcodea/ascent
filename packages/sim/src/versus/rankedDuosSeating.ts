@@ -14,7 +14,7 @@
  *   2. then SOLO runs inside the step, in a seeded shuffle, paired in walk order: a run joins the open team when its
  *      player differs from its partner's;
  *   and only when both are exhausted does the band widen. Then generated seats fill what is left (a half pair gets a
- *   generated partner), never a smaller table. All three teams generated = unrated (R-LOBBY-06's rule).
+ *   generated partner), never a smaller table. Any generated member = unrated (it has no server-side recording yet).
  *
  * Every step: all eight heroes unique (the live pair's included), one run never seated twice, at most
  * `RANKED_DUOS_MAX_SEATS_PER_PLAYER` of the six served seats per player (the solo 4-of-7 cap scaled; your own runs are
@@ -93,7 +93,7 @@ export interface RankedDuosSeating {
   teams: RankedDuosServedTeam[];
   /** The band step the last real run came from (0 = the team's own band). */
   usedStep: number;
-  /** Every served team generated: the game is unrated. */
+  /** Any served member generated (it fields no board until server-side recordings exist): the game is unrated. */
   unrated: boolean;
 }
 
@@ -220,6 +220,8 @@ export function selectRankedDuosTable(input: RankedDuosSeatingInput): RankedDuos
     if (!a || !b) break; // not enough heroes in the roster: the caller refuses the table
     teams.push({ team: nextTeam(), kind: 'generated', order: 'random', members: [a, b] });
   }
-  const unrated = teams.every((t) => t.members.every((m) => m.kind === 'generated'));
+  // UNRATED when ANY member is generated: a generated member has no server-side recording yet, so it fields no board
+  // (a free win would move the rating). All three generated is also the lobby's own "offline = unrated" (R-LOBBY-06).
+  const unrated = teams.some((t) => t.members.some((m) => m.kind === 'generated'));
   return { teams, usedStep, unrated };
 }

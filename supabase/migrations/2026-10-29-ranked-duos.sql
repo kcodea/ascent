@@ -6,8 +6,8 @@
 --   "the team gets their own matchmaking rating i think, so me and lemon have a different duos rating than me and
 --    ionlime. i think it'd also be fun to be able to name your team."
 --
--- APPLY AFTER every Versus migration through 2026-10-27-versus-egress.sql (and after 2026-10-28-versus-health.sql once
--- that lands; nothing here depends on it). Idempotent: safe to re-run. Nothing is reachable by players until the client
+-- APPLY AFTER every Versus migration through 2026-10-28-versus-health.sql (the round commit writes the team pools it
+-- added). Idempotent: safe to re-run. Nothing is reachable by players until the client
 -- ships the Ranked Duos door (phase 3): no existing mode changes behaviour.
 --
 -- WHAT IT ADDS
@@ -32,8 +32,10 @@
 --  7. LEAVING (owner Q3 under the team rating): a leaver's board plays on auto and the team plays on, settled once at
 --     its real place; when BOTH have left the team is placed at once in the lowest open place and the match ends.
 --  8. `versus_ranked_duos__place_team`: the one place a team's placement is written. For the live team it settles the
---     rating (rated tables only), records the duo run and ends the match. The round commit (part 2, with Health / Armor)
---     calls it.
+--     rating (rated tables only), records the duo run and ends the match.
+--  9. THE ROUND: `versus_ranked_duos_round_input` (one read: each recorded member's board for the round by the
+--     round-exact rule, the live sides, the pools, the meetings) and `versus_ranked_duos_commit_round` (the fights, the
+--     team pools, the placements; the live team through place_team), driven by `versus-resolve`'s `finalize_ranked_duos`.
 
 -- ── 1. Options and modes (mirror of packages/sim/src/versus/options.ts) ──────────────────────────────────────────
 create or replace function public.versus__options_error(p jsonb)
@@ -96,7 +98,7 @@ alter table public.versus_group_matches add constraint versus_group_matches_seat
 -- The live pair's team identity (duos_teams.id), when the table was seated, and why it is unrated (null = rated).
 alter table public.versus_group_matches add column if not exists ranked_team uuid;
 alter table public.versus_group_matches add column if not exists seated_at timestamptz;
-alter table public.versus_group_matches add column if not exists unrated text check (unrated is null or unrated in ('all_generated', 'not_seated', 'bot', 'dev'));
+alter table public.versus_group_matches add column if not exists unrated text check (unrated is null or unrated in ('generated', 'not_seated', 'bot', 'dev'));
 -- When a seat ended its turn (End Turn), went auto (disconnected / left), and left the match for good.
 alter table public.versus_group_seats add column if not exists locked_at timestamptz;
 alter table public.versus_group_seats add column if not exists auto_since timestamptz;
@@ -565,7 +567,7 @@ begin
       where match_id = p_match and team = t->>'team';
   end loop;
   update public.versus_group_matches set seated_at = public.versus_clock(),
-    unrated = case when coalesce((p_table->>'unrated')::boolean, false) then 'all_generated' else unrated end,
+    unrated = case when coalesce((p_table->>'unrated')::boolean, false) then 'generated' else unrated end,
     revision = revision + 1, updated_at = public.versus_clock()
     where id = p_match;
   return jsonb_build_object('seated', true, 'already', false);
@@ -1103,6 +1105,209 @@ begin
 end;
 $$;
 
+-- ── 10b. The round: input, fights and the commit (needs 2026-10-28-versus-health.sql: the team pools) ─────────────
+-- Every fight of a Ranked Duos round. The live team's own fight keeps its full view (`live_result`); every other fight
+-- keeps only who met, the outcome and the damage (owner 2026-10-26: "you dont watch other opponents in the lobby mode
+-- either"). `ghost`: `b_team` is a fallen team's boards (the bye team's ghost fight).
+create table if not exists public.versus_ranked_duos_fights (
+  match_id     uuid not null references public.versus_group_matches(id) on delete cascade,
+  round        int  not null,
+  fight        smallint not null,
+  a_team       text not null check (a_team in ('a', 'b', 'c', 'd')),
+  b_team       text not null check (b_team in ('a', 'b', 'c', 'd')),
+  ghost        boolean not null default false,
+  chair        text not null check (chair in ('a', 'b')),
+  outcome      text not null check (outcome in ('a', 'b', 'draw')),
+  loser        text check (loser is null or loser in ('a', 'b', 'c', 'd')),
+  damage       int  not null default 0 check (damage >= 0),
+  first        jsonb,
+  live_result  jsonb,
+  primary key (match_id, round, fight)
+);
+alter table public.versus_ranked_duos_fights enable row level security;
+drop policy if exists "ranked duos fights read" on public.versus_ranked_duos_fights;
+create policy "ranked duos fights read" on public.versus_ranked_duos_fights for select to authenticated using (true);
+grant select on public.versus_ranked_duos_fights to authenticated;
+
+-- One served member's board for round p_round from its pinned recording: THE ROUND-EXACT RULE (R-LOBBY-SERVE-01 /
+-- R-LOBBY-08, the SQL twin of `boardAt` + `recordedSeat.prepare` + the lobby's repeatFinal): its own round; a hole
+-- inside the recording = an EMPTY board in the previous recorded round's state; before the recording begins = nothing
+-- (an empty tier-1 board); past its end = its FINAL board. A solo run serves a `BoardSnapshot`, a duo member its
+-- recorded prepared side as it fought. The first board of a round wins (a re-uploaded duplicate is ignored).
+create or replace function public.versus_ranked_duos__member_board(p_rec jsonb, p_round int)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+  v_kind text := p_rec->>'kind';
+  v_list jsonb;
+  v_key text;
+  v_exact jsonb;
+  v_prev jsonb;
+  v_lo int;
+  v_hi int;
+begin
+  if v_kind = 'solo' then
+    v_list := coalesce(p_rec->'boards', '[]'::jsonb); v_key := 'wave';
+  elsif v_kind = 'duo' then
+    v_list := coalesce(p_rec->'rounds', '[]'::jsonb); v_key := 'round';
+  else
+    return jsonb_build_object('form', 'none', 'board', null);
+  end if;
+  if jsonb_typeof(v_list) <> 'array' then return jsonb_build_object('form', 'none', 'board', null); end if;
+  select min((x.e->>v_key)::int), max((x.e->>v_key)::int) into v_lo, v_hi from jsonb_array_elements(v_list) x(e);
+  if v_hi is null or p_round < v_lo then return jsonb_build_object('form', 'none', 'board', null); end if;
+  select x.e into v_exact from jsonb_array_elements(v_list) with ordinality x(e, i)
+    where (x.e->>v_key)::int = least(p_round, v_hi) order by x.i limit 1;
+  if p_round <= v_hi and v_exact is not null or p_round > v_hi then
+    -- Its own round, or past its end: the final board as it stood.
+    if v_kind = 'solo' then return jsonb_build_object('form', 'snapshot', 'board', v_exact); end if;
+    return jsonb_build_object('form', case when v_exact->'side' is null or v_exact->'side' = 'null'::jsonb then 'none' else 'side' end, 'board', v_exact->'side');
+  end if;
+  -- A hole: the previous recorded round's state, nothing on board.
+  select x.e into v_prev from jsonb_array_elements(v_list) with ordinality x(e, i)
+    where (x.e->>v_key)::int < p_round order by (x.e->>v_key)::int desc, x.i limit 1;
+  if v_kind = 'solo' then
+    return jsonb_build_object('form', 'snapshot', 'board', (v_prev - 'id') || '{"minions": [], "power": 0, "tribes": []}'::jsonb);
+  end if;
+  if v_prev->'side' is null or v_prev->'side' = 'null'::jsonb then return jsonb_build_object('form', 'none', 'board', null); end if;
+  return jsonb_build_object('form', 'side', 'board', jsonb_set(v_prev->'side', '{board}', '[]'::jsonb));
+end;
+$$;
+
+-- Everything one round needs, in ONE read (service role: `finalize_ranked_duos`). Only the boards this round fights
+-- with leave the database: each recorded member's board for the round (a fallen team: for the round it fell), the live
+-- pair's final sides, every team's pools and the meetings so far.
+create or replace function public.versus_ranked_duos_round_input(p_match uuid, p_round int)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+declare
+  m public.versus_group_matches;
+  t record;
+  v_at int;
+  v_order jsonb;
+  v_teams jsonb := '[]'::jsonb;
+begin
+  select * into m from public.versus_group_matches where id = p_match;
+  if not found then return null; end if;
+  for t in select * from public.versus_group_teams where match_id = p_match order by team loop
+    v_at := case when t.eliminated_round is not null and t.eliminated_round < p_round then t.eliminated_round else p_round end;
+    v_order := t.recorded_order;
+    v_teams := v_teams || jsonb_build_object(
+      'team', t.team,
+      'kind', case when t.team = 'a' then 'live' else coalesce(t.served_kind, 'generated') end,
+      'health', t.health, 'armor', t.armor, 'eliminatedRound', t.eliminated_round, 'at', v_at,
+      'heroes', case when t.team = 'a'
+        then (select coalesce(jsonb_agg(s.hero order by s.seat), '[]'::jsonb) from public.versus_group_seats s where s.match_id = p_match and s.seat in ('p1', 'p2'))
+        else (select coalesce(jsonb_agg(v.hero order by v.member), '[]'::jsonb) from public.versus_ranked_duos_served v where v.match_id = p_match and v.team = t.team) end,
+      -- A duo run's recorded order for the round served (past its end: its last recorded round's order).
+      'recordedFirst', case when jsonb_typeof(v_order) = 'object' then coalesce(
+          (v_order->>(v_at::text))::int,
+          (select (v_order->>k)::int from jsonb_object_keys(v_order) k order by k::int desc limit 1)) end,
+      'members', case when t.team = 'a' then '[]'::jsonb else (select coalesce(jsonb_agg(
+          jsonb_build_object('member', v.member, 'kind', v.kind) || public.versus_ranked_duos__member_board(v.recording, v_at)
+          order by v.member), '[]'::jsonb)
+        from public.versus_ranked_duos_served v where v.match_id = p_match and v.team = t.team) end);
+  end loop;
+  return jsonb_build_object(
+    'match', jsonb_build_object('id', m.id, 'phase', m.phase, 'round', m.round, 'seed', m.seed, 'content_revision', m.content_revision,
+      'options', m.options, 'seated', m.seated_at is not null),
+    'teams', v_teams,
+    'live', jsonb_build_object(
+      'p1', (select jsonb_build_object('side', su.prepared_side, 'source', su.source) from public.versus_group_submissions su
+        where su.match_id = p_match and su.round = p_round and su.seat = 'p1' and su.final),
+      'p2', (select jsonb_build_object('side', su.prepared_side, 'source', su.source) from public.versus_group_submissions su
+        where su.match_id = p_match and su.round = p_round and su.seat = 'p2' and su.final)),
+    'history', coalesce((select jsonb_agg(jsonb_strip_nulls(jsonb_build_object('round', f.round, 'a', f.a_team, 'b', f.b_team,
+        'bye', case when f.ghost then f.a_team end)) order by f.round, f.fight)
+      from public.versus_ranked_duos_fights f where f.match_id = p_match and f.round < p_round), '[]'::jsonb));
+end;
+$$;
+
+-- THE ROUND COMMIT (service role: `finalize_ranked_duos`, after its simulate()s). Idempotent under the match lock.
+-- p_result: { fights: [{ fight, a, b, ghost, chair, outcome, loser, damage, first, liveResult? }], vitals: { team: { health,
+-- armor } } (every team still in), placed: [{ team, placement }], liveFirst: 0 | 1 | null }.
+create or replace function public.versus_ranked_duos_commit_round(p_match uuid, p_round int, p_result jsonb, p_digest text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_now timestamptz := public.versus_clock();
+  m public.versus_group_matches;
+  f jsonb;
+  p jsonb;
+  t record;
+  v_live_place int;
+  v_dead jsonb := '[]'::jsonb;
+begin
+  select * into m from public.versus_group_matches where id = p_match for update;
+  if not found then raise exception 'no_match'; end if;
+  if not public.versus_ranked_duos__is(m) then raise exception 'not_ranked_duos'; end if;
+  if exists (select 1 from public.versus_group_rounds where match_id = p_match and round = p_round) then
+    return jsonb_build_object('alreadyCommitted', true, 'match', public.versus_ranked_duos__json(m));
+  end if;
+  if m.phase <> 'resolving' or m.round <> p_round then raise exception 'not_resolving'; end if;
+  if p_result is null or jsonb_typeof(p_result->'fights') <> 'array' or jsonb_typeof(p_result->'vitals') <> 'object'
+     or jsonb_typeof(p_result->'placed') <> 'array' then
+    raise exception 'bad_result';
+  end if;
+  for f in select * from jsonb_array_elements(p_result->'fights') loop
+    if f->>'a' not in ('a', 'b', 'c', 'd') or f->>'b' not in ('a', 'b', 'c', 'd') or f->>'a' = f->>'b'
+       or f->>'outcome' not in ('a', 'b', 'draw') or f->>'chair' not in ('a', 'b')
+       or (f ? 'loser' and f->>'loser' is not null and f->>'loser' not in (f->>'a', f->>'b'))
+       or coalesce((f->>'damage')::int, -1) < 0 then
+      raise exception 'bad_fight';
+    end if;
+    insert into public.versus_ranked_duos_fights (match_id, round, fight, a_team, b_team, ghost, chair, outcome, loser, damage, first, live_result)
+      values (p_match, p_round, (f->>'fight')::int, f->>'a', f->>'b', coalesce((f->>'ghost')::boolean, false), f->>'chair', f->>'outcome',
+        f->>'loser', (f->>'damage')::int, f->'first',
+        case when 'a' in (f->>'a', f->>'b') then f->'liveResult' end);
+  end loop;
+  -- Every team still in carries its pool after the round.
+  for t in select team from public.versus_group_teams where match_id = p_match and eliminated_round is null loop
+    update public.versus_group_teams set health = public.versus__vital(p_result->'vitals'->t.team, 'health'),
+      armor = public.versus__vital(p_result->'vitals'->t.team, 'armor')
+      where match_id = p_match and team = t.team;
+  end loop;
+  update public.versus_group_seats s set health = tt.health, armor = tt.armor
+    from public.versus_group_teams tt where s.match_id = p_match and tt.match_id = p_match and tt.team = 'a' and s.team = 'a';
+  -- Placements: a recorded team is simply out (or 1st); the live team goes through place_team (after the round row).
+  for p in select * from jsonb_array_elements(p_result->'placed') loop
+    if p->>'team' not in ('a', 'b', 'c', 'd') or (p->>'placement')::int not between 1 and 4 then raise exception 'bad_placement'; end if;
+    if p->>'team' = 'a' then
+      v_live_place := (p->>'placement')::int;
+    else
+      update public.versus_group_teams set placement = (p->>'placement')::int,
+        eliminated_round = case when (p->>'placement')::int = 1 then eliminated_round else p_round end,
+        out_reason = case when (p->>'placement')::int = 1 then out_reason else 'hearts' end
+        where match_id = p_match and team = p->>'team' and placement is null;
+    end if;
+    if (p->>'placement')::int > 1 then v_dead := v_dead || to_jsonb(p->>'team'); end if;
+  end loop;
+  insert into public.versus_group_rounds (match_id, round, digest, hearts, vitals, eliminated, first)
+    values (p_match, p_round, p_digest, null, p_result->'vitals', v_dead,
+      case when p_result->>'liveFirst' in ('0', '1') then jsonb_build_object('a', 'p' || ((p_result->>'liveFirst')::int + 1)::text) end);
+  update public.versus_group_seats set ready = false where match_id = p_match;
+  update public.versus_group_matches set phase = 'combat', combat_deadline = v_now + interval '90 seconds',
+    revision = revision + 1, updated_at = v_now
+    where id = p_match returning * into m;
+  if v_live_place is null and not exists (select 1 from public.versus_group_teams where match_id = p_match and team <> 'a' and eliminated_round is null) then
+    v_live_place := 1; -- every recorded team is out: the live team wins
+  end if;
+  if v_live_place is not null then
+    m := public.versus_ranked_duos__place_team(m, 'a', v_live_place, 'hearts');
+  end if;
+  return jsonb_build_object('alreadyCommitted', false, 'match', public.versus_ranked_duos__json(m));
+end;
+$$;
+
 -- ── 11. Grants ────────────────────────────────────────────────────────────────────────────────────────────────────
 -- Internal helpers: no client may call them.
 revoke all on function public.versus_ranked_duos__is(public.versus_group_matches) from public, anon, authenticated;
@@ -1125,3 +1330,8 @@ grant execute on function public.versus_ranked_duos_seat(uuid, jsonb) to service
 grant execute on function public.duos_team_set_name(uuid, text) to authenticated;
 grant execute on function public.versus_ranked_duos_submit(uuid, int, int, jsonb, boolean, jsonb, jsonb) to authenticated;
 grant execute on function public.versus_ranked_duos_reconcile(uuid) to authenticated;
+revoke all on function public.versus_ranked_duos__member_board(jsonb, int) from public, anon, authenticated;
+revoke all on function public.versus_ranked_duos_round_input(uuid, int) from public, anon, authenticated;
+revoke all on function public.versus_ranked_duos_commit_round(uuid, int, jsonb, text) from public, anon, authenticated;
+grant execute on function public.versus_ranked_duos_round_input(uuid, int) to service_role;
+grant execute on function public.versus_ranked_duos_commit_round(uuid, int, jsonb, text) to service_role;

@@ -144,11 +144,11 @@ describe('the table seating (owner 2026-10-26, R-RANKED-DUOS-SEATING-01)', () =>
     expect(t.usedStep).toBeGreaterThan(0);
   });
 
-  it('too few runs: generated seats fill the table (a half pair gets a generated partner); all generated = unrated', () => {
+  it('too few runs: generated seats fill the table (a half pair gets a generated partner); any generated member = unrated', () => {
     const half = selectRankedDuosTable({ ...base, duoRuns: [], soloRuns: [solo('s1', 'u1', 'h3')] });
     expect(half.teams).toHaveLength(3);
     expect(half.teams[0]!.members.map((m) => m.kind)).toEqual(['solo', 'generated']);
-    expect(half.unrated).toBe(false);
+    expect(half.unrated).toBe(true); // a generated member fields no board yet: never rated
     const none = selectRankedDuosTable({ ...base, duoRuns: [], soloRuns: [] });
     expect(none.teams.map((x) => x.kind)).toEqual(['generated', 'generated', 'generated']);
     expect(none.unrated).toBe(true);

@@ -17,3 +17,5 @@ export { handleVersusDuosFinalize, duosFightPayload, duosRoundDigest, type Versu
 export * from './rankedDuos';
 export * from './rankedDuosSeating';
 export { handleRankedDuosSeat, rankedDuosTablePayload, RANKED_DUOS_DUO_SAMPLE, RANKED_DUOS_SOLO_SAMPLE, type RankedDuosSeatStore, type RankedDuosSeatMatchRow, type RankedDuosSoloRow, type RankedDuosDuoRow } from './rankedDuosSeat';
+export * from './rankedDuosRound';
+export { handleRankedDuosFinalize, rankedDuosFirstOf, rankedDuosMemberSide, rankedDuosPayload, rankedDuosRoundDigest, type RankedDuosFinalizeStore, type RankedDuosRoundRaw, type RankedDuosTeamRow, type RankedDuosMemberBoard } from './rankedDuosFinalize';

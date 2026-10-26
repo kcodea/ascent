@@ -1,6 +1,6 @@
 # Ranked Duos: design (STEP A, no code yet)
 
-Status: RULED (owner answers 2026-10-26, section 11); P1 (server) building on `feat/ranked-duos`. Section 12 is the
+Status: RULED (owner answers 2026-10-26, section 11); P1 (server) BUILT on `feat/ranked-duos` (devlog 2026-10-26-ranked-duos-p1-server). Section 12 is the
 phased plan.
 
 ## The owner's design (2026-10-26)

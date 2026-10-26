@@ -22,6 +22,7 @@ import { DUOS_RANK_RULES, resolveRank, type RankPosition } from '../rank';
 import { isBlockedText, isReservedByline } from '../../../guides/src/wordFilter';
 import { handleRankedDuosSeat, type RankedDuosSeatStore, type RankedDuosSoloRow } from './rankedDuosSeat';
 import { RANKED_DUOS_END_GRACE_MS, RANKED_DUOS_OVERTIME_BACKSTOP_MS } from './rankedDuos';
+import { handleRankedDuosFinalize, type RankedDuosFinalizeStore } from './rankedDuosFinalize';
 
 const root = join(__dirname, '../../../..');
 const FILES = [
@@ -253,7 +254,7 @@ describe('the table seating (R-RANKED-DUOS-SEATING-01)', () => {
     const [, m] = await startRanked();
     await toShop(m);
     await seat(m, fakeTable(true));
-    expect((await matchRow(m)).unrated).toBe('all_generated');
+    expect((await matchRow(m)).unrated).toBe('generated');
   });
 });
 
@@ -352,6 +353,90 @@ describe('the end-turn gate (R-RANKED-DUOS-GATE-01)', () => {
     await as(A, 'select public.versus_group_submit($1, 1, 1, $2::jsonb, true, null, null)', [m, JSON.stringify(sideOf([]))]);
     expect((await seatRows(m)).p1.locked_at).not.toBeNull();
   });
+});
+
+describe('the round (R-RANKED-DUOS-ROUND-01, R-LOBBY-SERVE-01 for served teams)', () => {
+  const snap = (wave: number, n: number, atk: number, hero: string) => ({
+    id: `id-${hero}-${wave}`, wave, heroId: hero, tier: Math.min(6, 1 + Math.floor(wave / 2)), setId: 'set3', power: n * atk, tribes: [],
+    minions: Array.from({ length: n }, (_, i) => ({ cardId: 'sandbag', attack: atk, health: atk, sourceUid: `${hero}${wave}${i}` })),
+  });
+  const memberBoard = (rec: unknown, round: number) => q<any>('select public.versus_ranked_duos__member_board($1::jsonb, $2) b', [JSON.stringify(rec), round]).then((r) => r[0].b);
+
+  it('a served member fields EXACTLY its round: its own board, a hole = empty in the previous state, before = nothing, after = its final', async () => {
+    const rec = { kind: 'solo', boards: [snap(2, 1, 1, 'keshi'), snap(3, 2, 2, 'keshi'), snap(5, 3, 3, 'keshi'), snap(6, 4, 4, 'keshi')] };
+    expect((await memberBoard(rec, 1)).form).toBe('none');
+    expect((await memberBoard(rec, 3)).board).toEqual(snap(3, 2, 2, 'keshi'));
+    const hole = (await memberBoard(rec, 4)).board;
+    expect([hole.wave, hole.minions, hole.tier, hole.id]).toEqual([3, [], snap(3, 2, 2, 'keshi').tier, undefined]);
+    expect((await memberBoard(rec, 9)).board).toEqual(snap(6, 4, 4, 'keshi'));
+    const duo = { kind: 'duo', rounds: [{ round: 1, side: sideOf(bag('x')) }, { round: 2, side: sideOf([]) }] };
+    expect(await memberBoard(duo, 1)).toEqual({ form: 'side', board: JSON.parse(JSON.stringify(sideOf(bag('x')))) });
+    expect((await memberBoard(duo, 2)).board.board).toEqual([]); // an empty round is a round
+    expect((await memberBoard(duo, 7)).board.board).toEqual([]); // past its end: its final side
+    expect((await memberBoard({ kind: 'generated', heroId: 'x', seed: 1 }, 3)).form).toBe('none');
+  });
+
+  it('a whole match: four teams, the lobby pairing, team pools, only the live fight in full, placement settles the TEAM', async () => {
+    const [, m] = await startRanked();
+    await toShop(m);
+    const heroes = [['keshi', 'nadja'], ['drumline', 'mimic'], ['yazzus', 'fi']];
+    const table = {
+      unrated: false,
+      teams: ['b', 'c', 'd'].map((team, i) => ({
+        team, kind: 'pair', order: 'random', recordedOrder: null,
+        members: [0, 1].map((member) => ({
+          member, kind: 'solo', key: `run-${team}${member}`, ownerId: null, name: `P${team}${member}`, heroId: heroes[i]![member],
+          // Weak recorded teams: one 1/1 per round, so the live pair's 7 x 20/20 wins every fight it plays.
+          recording: { kind: 'solo', boards: [1, 2, 3, 4].map((w) => snap(w, 1, 1, heroes[i]![member]!)) },
+        })),
+      })),
+    };
+    await seat(m, table);
+    const fstore: RankedDuosFinalizeStore = {
+      async input(id, round) { return (await q<any>('select public.versus_ranked_duos_round_input($1, $2) x', [id, round]))[0].x; },
+      async commit(a) { return q('select public.versus_ranked_duos_commit_round($1, $2, $3::jsonb, $4)', [a.p_match, a.p_round, JSON.stringify(a.p_result), a.p_digest]); },
+      log: () => undefined,
+    };
+    const strong = (tag: string) => sideOf(Array.from({ length: 7 }, (_, i) => ({ cardId: 'sandbag', attack: 20, health: 20, sourceUid: `${tag}${i}` })));
+    let round = 1;
+    for (; round <= 25; round++) {
+      await beat();
+      await submit(A, m, round, true, 1, strong('a'));
+      await submit(B, m, round, true, 1, strong('b'));
+      expect((await matchRow(m)).phase).toBe('resolving');
+      const res = await handleRankedDuosFinalize(A, { matchId: m, round }, CONTENT, fstore);
+      expect(res.body.status).toBe('committed');
+      const again = await handleRankedDuosFinalize(B, { matchId: m, round }, CONTENT, fstore);
+      expect(again.body.status).toBe('not_resolving'); // idempotent: a second caller only catches up
+      if ((await matchRow(m)).phase === 'complete') break;
+      for (const u of [A, B]) await as(u, 'select public.versus_group_combat_ready($1, $2)', [m, round]);
+      expect((await matchRow(m)).phase).toBe('shop');
+    }
+    const row = await matchRow(m);
+    expect([row.phase, row.winner_seat]).toEqual(['complete', 'p1']);
+    const fights = await q<any>('select round, fight, a_team, b_team, ghost, loser, damage, live_result is not null as full from public.versus_ranked_duos_fights where match_id = $1 order by round, fight', [m]);
+    // Every round the live team fought exactly once, in full; every other fight kept only its result.
+    for (let r = 1; r <= round; r++) {
+      const ours = fights.filter((f) => f.round === r && (f.a_team === 'a' || f.b_team === 'a'));
+      expect(ours).toHaveLength(1);
+      expect(ours[0].full).toBe(true);
+      expect(fights.filter((f) => f.round === r && f.a_team !== 'a' && f.b_team !== 'a').every((f) => !f.full)).toBe(true);
+    }
+    // No pairing repeats inside the first 3 rounds while 4 teams are in.
+    const early = fights.filter((f) => f.round <= 3 && !f.ghost).map((f) => [f.a_team, f.b_team].sort().join(''));
+    expect(new Set(early).size).toBe(early.length);
+    const teams = await q<any>('select team, health, armor, placement from public.versus_group_teams where match_id = $1 order by team', [m]);
+    expect(teams[0]).toMatchObject({ team: 'a', placement: 1 });
+    expect(teams.slice(1).every((t) => t.placement >= 2 && t.health === 0)).toBe(true);
+    const seats = await seatRows(m);
+    expect([seats.p1.placement, seats.p2.placement]).toEqual([1, 1]);
+    expect(seats.p1.health).toBe(teams[0].health);
+    expect((await q<any>('select placement, applied_delta from public.duos_rank_results where match_id = $1', [m]))).toEqual([{ placement: 1, applied_delta: 34 }]);
+    const run = (await q<any>('select * from public.duo_runs where match_id = $1', [m]))[0];
+    expect(run.round_count).toBe(round);
+    const firsts = (await q<any>('select first from public.duo_run_rounds where duo_run_id = $1 order by round', [run.id])).map((r) => r.first);
+    expect(firsts.every((f) => f === 'p1' || f === 'p2')).toBe(true);
+  }, 120_000);
 });
 
 describe('leaving and placement (R-RANKED-DUOS-LEAVE-01, R-RANKED-DUOS-RATING-01)', () => {

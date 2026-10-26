@@ -9306,14 +9306,14 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-RANKED-DUOS-RATING-01',
     title: 'Ranked Duos: the rating, medal and promotion state belong to the PAIR; +34 / +11 / -11 / -34 by team place',
     statement:
-      'A Ranked Duos team is the unordered pair of accounts, so two different pairs have two different ratings. The team climbs the same medal ladder: 1st +34, 2nd +11, 3rd -11, 4th -34; a division promotion game needs a top-2 finish and a medal promotion game 1st (2nd holds at 100); a demotion game demotes on 3rd or 4th; a won promotion lands at 10; no instant demotions; Bronze I floors. The server settles it from its own placement, once per game; no client sends a placement. A table of only generated teams, a test bot or a forced dev match is unrated. The team\x27s own medal sets its opponents\x27 strength band. XP stays per player.',
+      'A Ranked Duos team is the unordered pair of accounts, so two different pairs have two different ratings. The team climbs the same medal ladder: 1st +34, 2nd +11, 3rd -11, 4th -34; a division promotion game needs a top-2 finish and a medal promotion game 1st (2nd holds at 100); a demotion game demotes on 3rd or 4th; a won promotion lands at 10; no instant demotions; Bronze I floors. The server settles it from its own placement, once per game; no client sends a placement. A table with a generated member (it fields no board until server-side recordings exist), a test bot or a forced dev match is unrated. The team\x27s own medal sets its opponents\x27 strength band. XP stays per player.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'the team gets their own matchmaking rating i think, so me and lemon have a different duos rating than me and ionlime' },
       { kind: 'code', ref: 'packages/sim/src/rank.ts (DUOS_RANK_RULES); supabase/migrations/2026-10-29-ranked-duos.sql (settle_duos_rank, versus_ranked_duos__place_team)' },
     ],
-    currentBehaviour: 'Server built 2026-10-26 (P1). The round commit that places teams by Health comes with Versus Health / Armor (P1 part 2).',
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1): the round commit places teams and settles the team; the rating UI comes with phase 3.',
     example: 'Kevin and Lemon finish 2nd at Bronze I 90: +11 takes the team to 100 and its next game is a promotion game. Kevin and Ionlime keep their own rating.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
@@ -9336,14 +9336,14 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-RANKED-DUOS-SEATING-01',
     title: 'Ranked Duos: recorded duo runs first, else two different solo players paired, pinned for the whole game',
     statement:
-      'The three recorded teams are picked once, on the server, when both live heroes are locked, and copied whole into the match so every round, reconnect and replay serves exactly those recordings. Inside the team\x27s strength band (widened as the ranked lobby widens; the overall cap never relaxes): recorded duo runs first, then solo runs paired as two DIFFERENT players. All eight heroes are unique, no run sits twice, at most 2 of the 6 recorded seats are one player\x27s. Generated seats fill only what nothing else can; all three generated is unrated. A duo run keeps its recorded fight order; a paired team fights in a seeded 50/50 order. Duo runs never feed the solo pool.',
+      'The three recorded teams are picked once, on the server, when both live heroes are locked, and copied whole into the match so every round, reconnect and replay serves exactly those recordings. Inside the team\x27s strength band (widened as the ranked lobby widens; the overall cap never relaxes): recorded duo runs first, then solo runs paired as two DIFFERENT players. All eight heroes are unique, no run sits twice, at most 2 of the 6 recorded seats are one player\x27s. Generated seats fill only what nothing else can, and any generated seat makes the game unrated (it fields no board yet). A duo run keeps its recorded fight order; a paired team fights in a seeded 50/50 order. Duo runs never feed the solo pool.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'duo\x27s snapshots are the priority to be served, but until we have enough duo\x27s snapshots, just put random single player snapshots together and serve them as teammate boards' },
       { kind: 'code', ref: 'packages/sim/src/versus/rankedDuosSeating.ts; packages/sim/src/versus/rankedDuosSeat.ts; supabase/migrations/2026-10-29-ranked-duos.sql (versus_ranked_duos_seat, duo_runs, duo_runs_sample)' },
     ],
-    currentBehaviour: 'Server built 2026-10-26 (P1); serving each round\x27s boards into the fight comes with P1 part 2.',
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1). Generated members field no board until a server-side recording exists, so such a game is unrated (rare: only when the pool cannot fill the table).',
     example: 'The duo pool has one run in Silver\x27s band: it sits as team b; teams c and d are two pairs of solo runs, each from two different players.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
@@ -9361,5 +9361,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Server built 2026-10-26 (P1). The 10-minute sweep needs a schedule (pg_cron) on the live project.',
     example: 'Lemon closes the game in round 6; Kevin plays on with her round-5 board fighting every round and the team finishes 3rd: -11 to the team.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-ROUND-01',
+    title: 'Ranked Duos rounds follow the lobby: team pairing, ghost byes, one tag-team fight per pairing, lobby damage to the team pool, round-exact recorded boards',
+    statement:
+      'Each round the teams still in are paired by the lobby\x27s own rule (never the same pair within 3 rounds unless nothing else is left; at an odd count the bye goes to one of the bottom three, fairest first, and fights the most recently fallen team\x27s boards from the round it fell). Each pairing is ONE tag-team fight: a team\x27s first board, then its teammate\x27s board steps in (an empty first board hands straight over). The losing team\x27s pool takes the lobby damage of the board that ended the fight (its tier + its survivors\x27 tiers), capped by the lobby round cap, Armor first; a draw costs nobody and a ghost never loses Health. A recorded member fields exactly its own round (a hole = an empty board in the previous round\x27s state, before it began = nothing, past its end = its final board). Teams out in the same round share the lower place; the last team in is 1st; round 60 places the rest by Health + Armor. Players see only their own fight; the other pairing is a result on the rail.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'follow the lobby rule set' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos, spectating)', quote: 'no you dont watch other opponents in the lobby mode either, same experience as single player lobby' },
+      { kind: 'code', ref: 'packages/sim/src/versus/rankedDuosRound.ts; packages/sim/src/versus/rankedDuosFinalize.ts; supabase/migrations/2026-10-29-ranked-duos.sql (versus_ranked_duos__member_board, versus_ranked_duos_round_input, versus_ranked_duos_commit_round)' },
+    ],
+    currentBehaviour: 'Server built 2026-10-26 (feat/ranked-duos, P1). Generated members (only when the pool cannot fill the table) field no board until a server-side recording exists; such a game is unrated.',
+    example: 'Round 5, three teams in: Kevin and Lemon fight team c; team b has the bye and fights team d\x27s boards from round 4, when d fell. Lemon\x27s board is empty, so Kevin\x27s fights first; they lose to c\x27s last board (tier 4, two tier-3 survivors): 10 damage, capped at 10, all of it off their 12 Armor.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosRound.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
 ];

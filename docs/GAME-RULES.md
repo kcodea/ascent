@@ -1289,7 +1289,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   team is never put out for missed rounds. If both have left, the team is out at once in the lowest open place.
 - **Opponents.** Recorded duo runs first, each served exactly as it played on that round number (both boards and its
   own fight order). Until there are enough, two solo runs from two DIFFERENT players are paired as a team (same
-  round-by-round serving, ranked strength rules, a seeded 50/50 fight order).
+  round-by-round serving, ranked strength rules, a seeded 50/50 fight order). The team's own medal sets the strength
+  band. Generated seats fill only what nothing else can, and a game with one is unrated (they have no board yet).
+- **Rounds** follow the lobby: the teams still in are paired (no repeat within 3 rounds unless nothing else is left; at
+  three teams the bye fights the most recently fallen team's boards from the round it fell), each pairing is one
+  tag-team fight, the loser's pool takes the lobby damage (capped by the lobby round cap, Armor first), teams out in
+  the same round share the lower place, and round 60 places the rest by Health + Armor.
 - **Watching** (owner 2026-10-26: "no you dont watch other opponents in the lobby mode either, same experience as single
   player lobby. a spectator in this mode only watches the 2 live players, not the snapshot boards"). Players see what a
   solo lobby shows: their own fight, other pairings only as results on the rail. A spectator can watch only the two

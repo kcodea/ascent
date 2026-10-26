@@ -10,6 +10,7 @@ import { resolveRankedDuosRound, versusGroupLobby, RANKED_DUOS_END_GRACE_MS, RAN
 import type { RankedDuosFightRow, RankedDuosRoundRow, RankedDuosTableRaw, RankedDuosTeamRead, VersusGroupMatchRaw, VersusGroupSeatRow } from './versusRemote';
 import { rankedCloseAtMs, rankedFoeAt, rankedRoundsAsGroup, rankedTeamLabels, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import { duosFirstAt, duosLobbySeatId, groupDuosRailRows, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { versusTurn, versusTurnNote } from './versusTurn';
 
 const seat = (s: 'p1' | 'p2', over: Partial<VersusGroupSeatRow> = {}): VersusGroupSeatRow => ({
   seat: s, userId: s === 'p1' ? 'u1' : 'u2', name: s === 'p1' ? 'Kevin' : 'Lemon', health: null, armor: null, hero: s === 'p1' ? 'warden' : 'indy',
@@ -120,5 +121,15 @@ describe('Ranked Duos: the table on the client (R-RANKED-DUOS-CLIENT-01)', () =>
     const order = groupDuosRailRows([{ id: 's5' }, { id: 's0' }, { id: 's2' }, { id: 's4' }, { id: 's1' }, { id: 's7' }, { id: 's3' }, { id: 's6' }]);
     expect(order.map((x) => x.id)).toEqual(['s5', 's4', 's0', 's1', 's2', 's3', 's7', 's6']);
     expect(rankedTeamLabels(r, 'p1', { c: 'Goats' })).toEqual({ s0: 'CITRUS', s2: 'B0 & B1', s4: 'Goats', s6: 'D0 & D1' });
+  });
+
+  it('after End Combat the pills name the teammate (lead 2026-10-26)', () => {
+    const combat = withServedSeats(raw({ phase: 'combat', round: 2, combat_deadline: '2026-10-26T12:02:00.000Z' }), ctx());
+    const run = { mode: 'versus' as const, phase: 'combat' as const, wave: 2 };
+    const mine = versusTurn({ match: projectGroupMatch(combat, 'u1'), seat: 'p1', lockedRound: null, readyRound: 2, run, now: 0 });
+    expect(versusTurnNote(mine)).toBe('Waiting for Lemon');
+    const theirs = projectGroupMatch(withServedSeats(raw({ phase: 'combat', round: 2, combat_deadline: '2026-10-26T12:02:00.000Z',
+      seats: [seat('p1'), seat('p2', { ready: true })] }), ctx()), 'u1');
+    expect(versusTurnNote(versusTurn({ match: theirs, seat: 'p1', lockedRound: null, readyRound: null, run, now: 0 }), 4)).toBe('Lemon is ready · 4s');
   });
 });

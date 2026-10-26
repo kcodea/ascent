@@ -37,6 +37,8 @@ export interface VersusTurn {
   stale?: true;
   /** foeReady: when the 5 s run out (server time, ms). */
   deadline?: number;
+  /** RANKED DUOS (lead 2026-10-26): the only other player is my TEAMMATE, so the fight pills name them. */
+  mate?: string;
 }
 
 export interface VersusTurnInput {
@@ -95,8 +97,11 @@ function fightTurn(m: VersusMatch, seat: VersusSeat, readyRound: number | null, 
     // VERSUS GROUP: ready = every living seat back (auto counts); the 5 s run for the LAST one back (server rule).
     const mineG = readyRound === wave || !!m.p1_ready;
     const back = Math.min(g.counts.living, g.counts.ready + (mineG && !m.p1_ready ? 1 : 0));
-    if (mineG) return { kind: 'fightReady', ready: back, of: g.counts.living };
-    if (back >= g.counts.living - 1) return { kind: 'foeReady', of: g.counts.living, ...(m.combat_deadline ? { deadline: Date.parse(m.combat_deadline) } : {}) };
+    // RANKED DUOS: the one other player is my teammate (the recorded teams are never waited on): name them.
+    const mateSeat = g.raw.options?.mode === 'ranked_duos' ? g.duos?.mate ?? null : null;
+    const mate = mateSeat ? g.raw.seats.find((x) => x.seat === mateSeat)?.name : undefined;
+    if (mineG) return { kind: 'fightReady', ready: back, of: g.counts.living, ...(mate ? { mate } : {}) };
+    if (back >= g.counts.living - 1) return { kind: 'foeReady', of: g.counts.living, ...(mate ? { mate } : {}), ...(m.combat_deadline ? { deadline: Date.parse(m.combat_deadline) } : {}) };
     return { kind: 'fight' };
   }
   const other: VersusSeat = seat === 'p1' ? 'p2' : 'p1';
@@ -111,8 +116,10 @@ function fightTurn(m: VersusMatch, seat: VersusSeat, readyRound: number | null, 
 export const versusTurnHolds = (t: VersusTurn): boolean => t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'waiting';
 /** The End Turn / End Combat gem's pill. `secondsLeft` feeds the opponent-ready countdown. */
 export const versusTurnNote = (t: VersusTurn, secondsLeft = 0): string | null =>
-  t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' ? `Players ready ${t.ready}/${t.of ?? 2}`
-    : t.kind === 'foeReady' ? `${t.of && t.of > 2 ? 'Everyone else' : 'Opponent'} is ready · ${Math.max(0, secondsLeft)}s` : null;
+  // RANKED DUOS (lead 2026-10-26): after End Combat the pills name the teammate.
+  t.kind === 'fightReady' && t.mate && (t.ready ?? 0) < (t.of ?? 2) ? `Waiting for ${t.mate}`
+    : t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' ? `Players ready ${t.ready}/${t.of ?? 2}`
+    : t.kind === 'foeReady' ? `${t.mate ?? (t.of && t.of > 2 ? 'Everyone else' : 'Opponent')} is ready · ${Math.max(0, secondsLeft)}s` : null;
 /** The gem is spent (pressed, not pressable) while this player waits on the other. */
 export const versusTurnLocksGem = (t: VersusTurn): boolean => t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' || t.kind === 'leave';
 

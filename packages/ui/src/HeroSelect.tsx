@@ -22,7 +22,8 @@ import { crumb } from './crashLog';
 import { lockVersusHeroPick, markVersusPickShown, rerollVersusHero, useVersus, useVersusTimeoutHero, versusRerollCandidates } from './versus/versusStore';
 import type { HeroSelectFrame } from './versus/spectatorView';
 import { setOwnHeroPick } from './hero-select/ownHeroPick';
-import { leaveTeammateHero } from './versus/spectate';
+import { leaveTeammateHero, useSpectate } from './versus/spectate';
+import { isRankedDuosRaw } from './versus/rankedDuosView';
 
 /**
  * A WATCHED Hero Select (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01, and the Duos
@@ -78,6 +79,10 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const rerollHero = useGame((s) => s.rerollHero);
   const versusCanReroll = useVersus((s) => mode === 'versus' && !!choices && versusRerollCandidates(s).length > 0);
   const versusRerollPending = useVersus((s) => s.rerollPending);
+  // RANKED DUOS (lead 2026-10-26): the two live teammates never play the same hero, so the hero my teammate picked is
+  // taken on my screen (the server refuses it too, `hero_taken`).
+  const rankedDuos = useVersus((s) => mode === 'versus' && !!s.match?.group && isRankedDuosRaw(s.match.group.raw));
+  const mateTaken = useSpectate((s) => (rankedDuos && !watch ? s.matePick ?? null : null));
   const soloCanReroll = useMemo(
     () => !!choices && mode !== 'versus' && !heroReroll
       && heroRerollCandidates(choices, heroRerollPoolOf({ pendingMode: mode, pendingSeed, practiceDraft })).length > 0,
@@ -205,6 +210,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
   const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => {
     if (watch || !ceremonyAcceptsClicks(ceremony)) return; // a watched screen picks nothing // repeats during the ceremony are ignored (§16)
     if (mode === 'versus' && versusRerollPending) return; // the slot may be about to change under the click
+    if (mateTaken && id === mateTaken) { sfx.deny(); return; } // Ranked Duos: my teammate's hero
     sfx.pulse();
     if (mode === 'versus') lockVersusHeroPick(id); // VERSUS: the pick locks now, not at Start Game (the clock runs on)
     dispatch({
@@ -288,8 +294,9 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                 <button
                   key={id}
                   ref={(el) => { cardRefs.current[i] = el; }}
-                  className={`herocard big${swapHere ? ' hcswapping' : ''}`}
+                  className={`herocard big${swapHere ? ' hcswapping' : ''}${mateTaken === id ? ' hctaken' : ''}`}
                   disabled={active}
+                  {...(mateTaken === id ? { 'aria-label': `${hero.name}, your teammate's pick` } : {})}
                   onClick={onPick(id, i)}
                 >
                   <div className={`hcframe${pfClass(frame)}`} style={frame?.hostStyle}>
@@ -303,6 +310,7 @@ export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
                         It rides the PORTRAIT rather than the text block below it — `.hcbelow` reserves a fixed
                         height, so an extra line there spills over the card in the next row (measured). */}
                     {hero.practiceOnly && <span className="hcpractice">Not currently enabled in Play</span>}
+                    {mateTaken === id && <span className="hcpractice hctaken-note">Your teammate's pick</span>}
                     <PortraitFrame frame={frame} />
                     {/* Every mode shows the Health pill (Versus too since 2026-10-26: R-VERSUS-HEALTH-01, the hero's own
                         Health and Armor are what that seat starts on). */}

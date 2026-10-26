@@ -154,6 +154,31 @@ describe('the Ranked Duos party (R-RANKED-DUOS-01)', () => {
     expect(await as(null, 'select public.duos__ensure_team($1, $2)', [B, A])).toBe(t1);
     expect(await as(null, 'select public.duos__ensure_team($1, $2)', [A, C])).not.toBe(t1);
   });
+  it('the two live teammates never play the same hero: a pick of the teammate\'s hero is refused; a clock pick avoids it', async () => {
+    const [, m] = await startRanked();
+    const same = ['warden', 'indy', 'keshi'];
+    for (const u of [A, B]) await as(u, 'select public.versus_group_register_offer($1, $2::text[])', [m, same]);
+    await as(A, 'select public.versus_group_pick_hero($1, 0)', [m]);
+    expect(await fails(B, 'select public.versus_group_pick_hero($1, 0)', [m])).toMatch(/hero_taken/);
+    await as(B, 'select public.versus_group_pick_hero($1, 2)', [m]);
+    const s = await seatRows(m);
+    expect([s.p1.hero, s.p2.hero]).toEqual(['warden', 'keshi']);
+
+    await db.exec('delete from public.versus_rooms');
+    for (let t = 0; t < 6; t++) {
+      // Many seeds: whatever the clock picks for B, it is never A's hero.
+      await db.exec('delete from public.versus_rooms');
+      const [, m2] = await startRanked();
+      for (const u of [A, B]) await as(u, 'select public.versus_group_register_offer($1, $2::text[])', [m2, same]);
+      const idx = (await q<any>("select public.versus__pick(seed, 'hero:p2', 3) i from public.versus_group_matches where id = $1", [m2]))[0].i;
+      await as(A, 'select public.versus_group_pick_hero($1, $2)', [m2, idx]); // A takes exactly the hero the clock would give B
+      at(25_000);
+      await beat();
+      await reconcile(A, m2);
+      const s2 = await seatRows(m2);
+      expect(s2.p1.hero).not.toBe(s2.p2.hero);
+    }
+  });
 });
 
 describe('team names (R-RANKED-DUOS-NAME-01)', () => {

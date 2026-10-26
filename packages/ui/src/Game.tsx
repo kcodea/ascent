@@ -113,6 +113,10 @@ import { installLivePublisher } from './live/livePublisher';
 import { LiveGames } from './live/LiveGames';
 import { LiveJoining, LiveWatchBar } from './live/LiveWatchBar';
 import { SpectatorEndNotice } from './live/SpectatorEndNotice';
+import { FriendsPage } from './friends/FriendsPage';
+import { InviteNotice } from './friends/InviteNotice';
+import { startFriendsPresence } from './friends/friendsStore';
+import { installFriendInvites } from './friends/friendsGo';
 // The tuned look (R-PRESENT-TUNED-01): every config module that applies its defaults at load, so a production build
 // applies them too now that the DEV menu, their old importer, is DEV-only (the medallion circle came back).
 import './tunedDefaults';
@@ -189,6 +193,9 @@ export function Game() {
   useEffect(() => {
     void ensureDefsReady();
   }, []);
+  // FRIENDS (owner 2026-10-26, R-FRIENDS-05): the one presence + inbox beat (accounts only; 60 s visible, 120 s hidden),
+  // and the built-in Versus room invite. Nothing runs for a guest or without a backend.
+  useEffect(() => { installFriendInvites(); return startFriendsPresence(); }, []);
   // LIVE RANKED LOBBY GAMES (2026-10-15): list the player's ranked lobby game and publish to its watchers (only while
   // someone watches; see live/livePublisher.ts).
   useEffect(() => installLivePublisher(), []);
@@ -656,11 +663,14 @@ export function Game() {
       <Rankings />
       <RecentGames />
       <LiveGames />
+      <FriendsPage />
       {/* The watched player's held card (SpectatorCursor) is THEIR run's card: their skins (R-PROG-SKINS-17). */}
       <RunSkins><LiveWatchBar /></RunSkins>
       <LiveJoining />
       {/* A watched game's end (owner 2026-10-24, R-SPECTATE-END-01): the end gate opens on the menu with this over it. */}
       <SpectatorEndNotice />
+      {/* A friend's invite (R-FRIENDS-04): a corner notice over the menus, never over a game. */}
+      <InviteNotice />
       <Career />
       {/* The Collection page (2026-09-28). After Career in DOM order, so a Collection opened from your Career's
           Account Level card paints on top of it and Back returns there. */}

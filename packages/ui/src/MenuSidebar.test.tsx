@@ -2,7 +2,7 @@
 /**
  * THE MENU SIDEBAR (owner ask 2026-09-21) — jsdom renders of the four ladder pages (backend disabled, so each
  * paints its designed "unavailable" state; the sidebar is the subject) plus the store's `goTo`. Pins: the
- * sidebar renders inside every page's `.lbpage` with the ASCENT mark (Home) first and the eight plaques in the
+ * sidebar renders inside every page's `.lbpage` with the ASCENT mark (Home) first and the nine plaques in the
  * regrouped order (Play; Progress: Career, Collection; Community: the four ladder pages; Settings at the foot);
  * the CURRENT page's plaque is the blue `.active` one and `aria-current="page"`; a plaque hop goes through
  * `goTo`, which closes EVERY page flag before opening the destination (the pages are z-470 siblings that
@@ -37,7 +37,7 @@ import { sfx } from './sfx';
 import { useGame } from './store';
 
 // Collection (2026-09-28) shows once crates are live, and always in DEV builds, which is what this test runs as.
-const LABELS = ['Play', 'Career', 'Collection', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Live Games', 'Settings'];
+const LABELS = ['Play', 'Career', 'Collection', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Live Games', 'Friends', 'Settings'];
 const PAGES_CLOSED = { showRankings: false, showLeaderboard: false, showRecentGames: false, showCareer: false, careerOf: null } as const;
 const flagsOf = () => {
   const s = useGame.getState();
@@ -65,7 +65,7 @@ describe('the sidebar on each ladder page', () => {
     ['Recent Games', () => <RecentGames />, { showRecentGames: true }, 'Recent Games'],
   ];
   for (const [name, render, open, active] of cases) {
-    it(`${name}: renders inside .lbpage with Home first, the eight plaques in the rail's order, and its own plaque current`, () => {
+    it(`${name}: renders inside .lbpage with Home first, the nine plaques in the rail's order, and its own plaque current`, () => {
       useGame.setState(open);
       ui = mount(render());
       const page = ui.container.querySelector('.lbpage');

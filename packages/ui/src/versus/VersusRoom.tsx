@@ -39,6 +39,8 @@ import { VersusOptionsPanel, versusOptionsSummary } from './versusOptionsUi';
 import { canDragSeatCard, roomWithSeatMove } from './seatDrag';
 import { beginSeatDrag, endSeatDrag, SeatDragGhost, useRoomCards, useSeatDragStore, type SeatDragState } from './useSeatDrag';
 import type { VersusMember } from './versusRemote';
+import { RoomInvitePanel } from '../friends/RoomInvitePanel';
+import { friendsAccount } from '../friends/friendsStore';
 import './versus.css';
 
 
@@ -349,6 +351,8 @@ export function VersusRoom() {
   const [startShown, startLeaving] = useStartPresence(!!serverRoom && serverRoom.status === 'open' && enough);
   const vsBeat = useFullBeat(stageRef, enough);
   const [optionsOpen, setOptionsOpen] = useState(false);
+  // FRIENDS (R-FRIENDS-04): Invite friends to this room (accounts only).
+  const [inviteOpen, setInviteOpen] = useState(false);
   const optionsNotice = useVersus((s) => s.optionsNotice);
   const match = useVersus((s) => s.match);
   const error = useVersus((s) => s.error);
@@ -440,6 +444,7 @@ export function VersusRoom() {
       </div>
       <div className="vsroomctl">
         <button className="vsplate" onClick={() => { sfx.pulse(); setOptionsOpen((v) => !v); }}>Room options</button>
+        {friendsAccount() && <button className="vsplate" onClick={() => { sfx.pulse(); setInviteOpen(true); }}>Invite friends</button>}
         {lastMatch && open && <button className="vsplate" onClick={() => { sfx.pulse(); setVersusStatsOpen(true); }}>Previous match stats</button>}
         <button className="vsplate" onClick={() => { sfx.pulse(); void stopVersusBot().then(() => leaveRoom()); }}>{running && isPlayer ? 'Leave (concede)' : 'Leave room'}</button>
         {roomBots.length > 0 && (
@@ -464,6 +469,7 @@ export function VersusRoom() {
           onChange={(next) => { void setRoomOptions(next); }} />
       )}
       {optionsNotice && <div className="vsoptions-notice hudpill-name" role="status">{optionsNotice}</div>}
+      {inviteOpen && <RoomInvitePanel room={room} me={me} onClose={() => setInviteOpen(false)} />}
       {statsOpen && lastMatch && <VersusMatchStats record={lastMatch} onClose={() => setVersusStatsOpen(false)} />}
       {error && <div className="vserror vsroomerror" role="alert">{error}</div>}
       {/* The entrance's dark: fades out as the room opens, and takes the click that skips the entrance. */}

@@ -19,7 +19,7 @@ import { phonePublicUrl } from './phoneArt';
 import { PHONE_DIAG } from './phoneDiag';
 import { crumb } from './crashLog';
 
-export type MenuScreen = 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection';
+export type MenuScreen = 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'friends';
 
 /** `scene`: the painting is the point (a light vignette). `data`: the screen is rows and panels (a deeper veil). */
 export type BackdropVeil = 'scene' | 'data';
@@ -43,6 +43,7 @@ export const MENU_BACKDROPS: Record<MenuScreen, BackdropPlate> = {
   recent: HALL_DIM,
   live: HALL_DIM,
   collection: HALL_DIM,
+  friends: HALL_DIM,
 };
 
 // The plate the last mounted backdrop painted. A sidebar hop unmounts one host and mounts the next in the same

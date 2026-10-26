@@ -20,6 +20,7 @@ import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { recordText } from './leaderboardData';
 import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
+import { AddFriendButton } from './friends/AddFriendButton';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
 import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
@@ -902,6 +903,9 @@ export function Career() {
             </div>
           </div>
         </div>
+        {/* ADD FRIEND (owner 2026-10-26, R-FRIENDS-01): on another player's Career, where a Leaderboard row, a Recent Games
+            row and a match's players lead. Hidden on your own page, for a guest, and on a blocked player. */}
+        {viewing && <AddFriendButton userId={viewing.userId} />}
       </div>
       <CareerSkinContext.Provider value={careerSkins}>
         <div className="lbscroll cv2-body">{body}</div>

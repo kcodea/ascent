@@ -9782,12 +9782,20 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
     // `staticRotate` rides here too. LIFT via CSS `zoom` (a crisp LAYOUT scale), NOT `transform: scale` — a
     // 3D-transformed layer rasterises at 1× and a scale upscales that one texture, blurring the card; `zoom`
     // re-rasterises at the enlarged size. Because zoom also scales the translate, divide it by the lift.
+    // Only what CHANGED is written (R-PHONE-DRAG-01): the lift, the depth and (once the recentre has settled) the origin
+    // hold still for the whole drag, and re-setting any of them can cost a restyle + layer update of the card (a `zoom`
+    // write may be treated as a layout change), so a frame carries only the values that moved.
+    const written = { zoom: '', persp: '', origin: '', tf: '' };
     const writePos = (f: ReturnType<typeof getDragFeel>): void => {
-      el.style.setProperty('zoom', String(f.scale));
-      el.style.perspective = `${f.perspective}px`;
+      const zoom = String(f.scale);
+      if (zoom !== written.zoom) { el.style.setProperty('zoom', zoom); written.zoom = zoom; }
+      const persp = `${f.perspective}px`;
+      if (persp !== written.persp) { el.style.perspective = persp; written.persp = persp; }
       // m.* are screen px (pointer + grab) -> stage px for the CSS writes (stage.ts)
-      el.style.transformOrigin = `${toStage(m.ax)}px ${toStage(m.ay)}px`;
-      el.style.transform = `translate(${toStage(m.rx) / f.scale - toStage(m.ax)}px, ${toStage(m.ry) / f.scale - toStage(m.ay)}px) rotate(${f.staticRotate}deg)`;
+      const origin = `${toStage(m.ax)}px ${toStage(m.ay)}px`;
+      if (origin !== written.origin) { el.style.transformOrigin = origin; written.origin = origin; }
+      const tf = `translate(${toStage(m.rx) / f.scale - toStage(m.ax)}px, ${toStage(m.ry) / f.scale - toStage(m.ay)}px) rotate(${f.staticRotate}deg)`;
+      if (tf !== written.tf) { el.style.transform = tf; written.tf = tf; }
     };
     if (d0) {
       m.rx = d0.x; m.ry = d0.y;        // start at the cursor so the lift doesn't jump
@@ -9796,6 +9804,7 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       writePos(getDragFeel());
       if (tiltEl) tiltEl.style.transform = 'rotateX(0deg) rotateY(0deg)'; // flat before-paint, no flash
     }
+    let lastTilt = tiltEl?.style.transform ?? '';
     let raf = 0;
     let last = performance.now();
     const tick = (now: number): void => {
@@ -9803,7 +9812,10 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       last = now;
       raf = requestAnimationFrame(tick);
       const d = dragStore.get().drag;
-      if (!d || reactDrivesDragRef.current) return; // snap/magslide → React+CSS own the transform
+      if (!d || reactDrivesDragRef.current) { // snap/magslide → React+CSS own the transform; rewrite all once they hand back
+        written.zoom = written.persp = written.origin = written.tf = lastTilt = '';
+        return;
+      }
       const f = getDragFeel();
       // On touch, override the mouse-tuned weighted lag with a near-instant catch-up so the card tracks the
       // fingertip (trailing under a finger reads as stutter, not weight). Mouse keeps the dialed `follow`.
@@ -9839,7 +9851,8 @@ const DragOverlay = memo(function DragOverlay({ timeUp, heroArmed, equipArmed, h
       const rotX = clamp(-f.tiltGain * m.vy);
       const rotY = clamp(f.tiltGain * m.vx);
       writePos(f);
-      if (tiltEl) tiltEl.style.transform = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      const tilt = `rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      if (tiltEl && tilt !== lastTilt) { tiltEl.style.transform = tilt; lastTilt = tilt; }
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);

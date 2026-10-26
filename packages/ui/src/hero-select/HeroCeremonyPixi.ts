@@ -27,6 +27,7 @@ import { detachPixiDomEvents } from '../pixiNoDomEvents';
 import { destroyPixiApp, guardAppRender, watchContextLoss } from '../pixiAppSafety';
 import { crumbOnce } from '../crashLog';
 import { phonePixiOptions, pixiAllowed } from '../phoneDiag';
+import { followStage } from '../pixiStageFollow';
 import { PIXI_ANTIALIAS } from '../phoneArt';
 
 // ─── pure math (exported for tests) ───────────────────────────────────────────────────────────────────────
@@ -255,6 +256,7 @@ class HeroCeremonyFx implements HeroCeremonyFxController {
       powerPreference: 'high-performance',
     }, stageScale())); // phone: 1.5 x stage scale, low power, no depth buffer (phoneDiag.ts)
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     guardAppRender(app, 'heroCeremony');
     watchContextLoss(app, 'heroCeremony');
     crumbOnce('pixi init hero ceremony');

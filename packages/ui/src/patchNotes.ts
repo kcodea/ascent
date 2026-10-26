@@ -60,6 +60,24 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Phones: tapping a Discover or choice option picks it again.',
+        details: [
+          'A tap on a Discover, Choose One or hero power option picks it, and a tap on a Runeforge rune buys it.',
+          'Hold an option to see it big first. Its Pick button takes it.',
+          'Tapping a card in the Shop, on your board, in your hand or in a fight still shows it big.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Fixed: effects drawing in the wrong place on phones.',
+        details: [
+          'On iPhone, effects could land up and to the left of the card they were meant for, or partly off the card. They now land on it.',
+          'Effects on phones are also drawn a little sharper.',
+          'Dragging a card on a phone does less work each frame, for a smoother drag.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'You can now watch a player pick their hero. In Duos, click your teammate to see their hero choices.',
         details: [
           'Spectators see Hero Select live in every mode you can watch: Versus 1v1, Group and Duos, and ranked games in Live Games. They see the heroes on offer, a re-roll, and the pick, then follow the player into the game.',

@@ -35,6 +35,7 @@ import { LITE_ART, PIXI_ANTIALIAS } from './phoneArt';
 import { checkScenePipes } from './pixiScenePipes';
 import { crumb } from './crashLog';
 import { onPixiPageScale, phonePixiOptions, pixiAllowed } from './phoneDiag';
+import { followStage } from './pixiStageFollow';
 
 // THE PAGE SCALE (R-PHONE-PAGESCALE-01): a filter renders each pass into a pooled texture sized by its bounds (layout px
 // on the page scale) times its own resolution, 1 by default, so a full-screen filter took four 4096 x 2048 textures
@@ -615,6 +616,7 @@ class FxController {
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     watchContextLoss(app, 'pixiFx under');
     crumb('pixi init under');
     checkScenePipes(app, 'pixiFx under');
@@ -655,6 +657,7 @@ class FxController {
       resolution: res, preference: 'webgl', powerPreference: 'high-performance',
     })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     watchContextLoss(app, 'pixiFx above');
     crumb('pixi init above');
     checkScenePipes(app, 'pixiFx above');
@@ -940,6 +943,7 @@ class FxController {
       powerPreference: 'high-performance',
     })); // phone: resolution 1.5, low power, no depth buffer (phoneDiag.ts); desktop unchanged
     detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+    followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
     watchContextLoss(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);
     crumb(`pixi init ${this.label || 'main'}`);
     checkScenePipes(app, `pixiFx${this.label ? ` ${this.label}` : ''}`);

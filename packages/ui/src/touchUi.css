@@ -489,7 +489,7 @@ html[data-touch-ui][data-page-scale], html[data-touch-ui][data-page-scale] body 
    scale back out, and reads at its own size on the screen. */
 html[data-touch-ui][data-page-scale] .rotate-prompt { zoom: calc(1 / var(--stage-s, 1)); }
 
-/* ── A Runeforge offer's tap-to-inspect view (R-TOUCH-TAPINSPECT-01, RuneInspect.tsx; touch only) ──────────────────────
+/* ── A Runeforge offer's inspect view, opened by a hold (R-TOUCH-TAPSELECT-01, RuneInspect.tsx; touch only) ──────────────────────
    The rune tablet at the forge's own card size, the cards its reward grants beside it, the whole row enlarged as one
    like the card Inspect. The tablet is a picture here (its Pick button is the gold pill below), never a second tap. */
 html[data-touch-ui] .inspect-card.rune-inspect { gap: calc(24 * var(--u, 1px)); transform: translateY(-8%); animation: none;
@@ -498,3 +498,10 @@ html[data-touch-ui] .rune-inspect .rune-inspect-tablet { display: flex; pointer-
 html[data-touch-ui] .rune-inspect .rune-inspect-rewards { display: flex; gap: calc(16 * var(--u, 1px)); align-items: center; }
 html[data-touch-ui] .rune-inspect .rune-inspect-rewards .card.plated { margin-inline: calc(var(--ccw) * (var(--plate-scale, 1.5) - 1) / 2); }
 html[data-touch-ui][data-touch-small] .inspect-ov.rune-inspect-ov .inspect-card.rune-inspect { scale: calc(var(--touch-forge) * 1.25); translate: 0 calc(-4 * var(--vh, 1vh)); }
+
+/* ── The dragged card on a phone (R-PHONE-DRAG-01, owner 2026-10-26: "the drag seems to be low fps/not as smooth") ──
+   The floating `.dragcard` carries a `filter: drop-shadow` over a child that tilts in 3D every frame, so the shadow is a
+   filter over CHANGING content: the compositor re-renders it every frame of a drag (on iOS a Core Animation shadow,
+   an offscreen pass per frame). On a phone the card keeps only its own lifted frame shadow (`.cshadow`, static inside
+   the tilt). Desktop keeps both. */
+html[data-touch-ui][data-phone-gpu] .dragcard { filter: none; }

@@ -5,8 +5,8 @@ import type { WikiEntry } from './types';
 // packages/ui/src LobbyPanel.tsx, Title.tsx, PracticeOptions.tsx, EscMenu.tsx, Recruit.tsx (drag/cast/timer),
 // Career.tsx, Rankings.tsx, Leaderboard.tsx, RecentGames.tsx, EndScreen.tsx, replay/ReplayOverlay.tsx,
 // touchInput.ts, bug-report/ and store.ts on 2026-09-28.
-/** The touchscreen answer (owner 2026-10-18 mobile pass, R-TOUCH-LONGPRESS-01 / R-TOUCH-AIMTAP-01). */
-const TOUCH_CONTROLS = "Yep. Drag cards with your finger just like a mouse. A quick **tap** works like hovering: it opens tooltips and scout cards, and they stay open until you tap somewhere else. **Tapping a card** opens its big inspect view (Discover and Choose One picks and Runeforge runes too, with a **Pick** button); tap the backdrop to close it. Holding a card never opens it: hold and move to drag. **Tap and hold** works like a right-click everywhere else: the emote menu on your portrait, and a pinned scout card on a lobby seat. To use a targeted hero power, tap the power, then tap the minion.";
+/** The touchscreen answer (owner 2026-10-18 mobile pass, R-TOUCH-LONGPRESS-01 / R-TOUCH-AIMTAP-01; R-TOUCH-TAPSELECT-01). */
+const TOUCH_CONTROLS = "Yep. Drag cards with your finger just like a mouse. A quick **tap** works like hovering: it opens tooltips and scout cards, and they stay open until you tap somewhere else. **Tapping a card** in the shop, on your board, in your hand or in a fight opens its big inspect view; tap the backdrop to close it. Holding one of those never opens it: hold and move to drag. In a Discover, a Choose One or the Runeforge, a **tap** picks the option. **Tap and hold** works like a right-click: it opens the big view of a Discover, Choose One or Runeforge option (with a **Pick** button), the emote menu on your portrait, and a pinned scout card on a lobby seat. To use a targeted hero power, tap the power, then tap the minion.";
 
 export const ENTRIES: readonly WikiEntry[] = [
   // ── Lobby: placements and how a game ends ─────────────────────────────────────────────────────────────

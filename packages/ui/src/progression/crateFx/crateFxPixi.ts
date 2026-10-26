@@ -49,6 +49,7 @@ import {
 } from './crateTextures';
 import { PIXI_ANTIALIAS } from '../../phoneArt';
 import { phonePixiOptions, pixiAllowed } from '../../phoneDiag';
+import { followStage } from '../../pixiStageFollow';
 
 export interface CrateFx {
   /**
@@ -163,6 +164,7 @@ export class CrateFxPixi implements CrateFx {
         powerPreference: 'high-performance',
       }, stageScale())); // phone policy (phoneDiag.ts)
       detachPixiDomEvents(app); // no Pixi DOM events: see pixiNoDomEvents.ts
+      followStage(app); // phones: the renderer follows the stage's box + page scale (pixiStageFollow.ts)
       guardAppRender(app, 'crateFx');
       watchContextLoss(app, 'crateFx');
       if (this.destroyed) {

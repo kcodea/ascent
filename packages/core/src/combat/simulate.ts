@@ -3781,6 +3781,21 @@ export function simulate(
       minion.sellBonus = undefined;
       minion.overflowBonus = undefined;
       minion.chefGrantedLast = undefined;
+      // THE RUBIES PLAYED ON THIS BODY reset too (owner report 2026-10-26, R-RISE-07): "the golems summoned should have
+      // been 1/1's since the risen copy had 0 rubies played on it". Every Ruby read (`rubyTallyOf`: Gem Carver, Geode,
+      // Kurse; Ruby Shrapnel; Gem Golem; Porkbelly) is the carried shop 'Ruby' entry plus this fight's `rubyGain`, so
+      // both go. `buffs` is SHARED BY REFERENCE with the run board card, so it is REPLACED, never mutated — the Shop
+      // card keeps its Ruby ledger (R-RISE-06). Only the per-card run enchant entry stays: `applyAuras(m, true)` below
+      // reads it as the fallback for a served board's Eternal Knight (an Aura, which R-RISE-01 re-applies). The
+      // carry-back is unaffected: `riseCarry` froze the original's `permaRuby` above. Gem Crypt keeps the Rubies
+      // explicitly, below, by re-seeding `rubyGain` with them.
+      {
+        const kept = def ? minion.buffs?.filter((b) => b.source === def.name) : undefined;
+        minion.buffs = kept && kept.length > 0 ? kept : undefined;
+      }
+      minion.rubyGain = undefined;
+      // Ashen Heir's bank of Imp stats is accrued BY this body, waiting for its next Imp: a fresh copy holds none.
+      minion.impBank = undefined;
       resetPerCombatLimits(minion, def); // every per-body per-combat limit starts fresh (R-RETURN-RESET-01, owner 2026-10-21)
       // …and its AVENGE progress restarts (owner: "1/3 should reset to 0/3"). Avenge counts are a side-level
       // deaths tally, so the reset is a per-instance BASELINE: everything before this moment no longer counts
@@ -3791,6 +3806,9 @@ export function simulate(
         minion.attack += gemCryptRuby.attack;
         minion.health += gemCryptRuby.health;
         minion.maxHealth += gemCryptRuby.health;
+        // The kept Rubies are still "this minion's Rubies" for every Ruby read (R-SET3RUNE-31), now that the Rise
+        // cleared the ledger above (R-RISE-07): a Gem Crypt Carver's risen copy still summons Ruby Golems.
+        minion.rubyGain = { attack: gemCryptRuby.attack, health: gemCryptRuby.health };
         fireTrigger('runeGemCrypt', minion.side);
       }
       // Re-slot the risen body to just after the contiguous block its Deathrattle summoned into its old slot

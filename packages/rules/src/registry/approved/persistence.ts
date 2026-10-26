@@ -956,4 +956,27 @@ export const PERSISTENCE_RULES: GameRule[] = [
     currentBehaviour: 'Conforms from 2026-10-24 (was "Keeps all stats gained during combat."). Owner confirmed 2026-10-24: keep the current behaviour (stats + combat keywords; grafted triggers are not kept).',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/engravedWording1024.test.ts'], lastVerifiedAt: '2026-10-24' },
   },
+  {
+    id: 'R-RISE-07',
+    title: 'A combat Rise copy has no Rubies played on it (and no banked Imp stats)',
+    statement:
+      'A minion that Rises in combat is a fresh copy (R-RISE-06), so it returns with NO Rubies played on it: neither the '
+      + 'Shop Rubies of the original nor the Rubies played on the original earlier that fight count as "this minion\'s '
+      + 'Rubies" for the risen copy. A Risen Gem Carver summons plain 1/1 Golems (2/2 Gilded); Ruby Shrapnel, Rune of the '
+      + 'Gem Golem and Porkbelly read the same zero. Rubies played on the risen copy after it returns count as usual. The '
+      + 'Shop card keeps its Rubies (R-RISE-06). Rune of the Gem Crypt is the exception: its kept Rubies are still the '
+      + 'Rubies of the risen copy (R-SET3RUNE-31). The same fresh-copy rule empties a risen Ashen Heir\'s bank of Imp '
+      + 'stats. Unchanged on purpose: Rebirth (a full body), the lifetime Pummel tally (R-PUMMEL-01), per-turn latches '
+      + '(R-RETURN-RESET-01) and Crypt Drake\'s attack cadence. Both combat sides share the one Rise path.',
+    domain: 'persistence',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner report 2026-10-26 (Gem Carver with Rise, four 2939/2939 Golems)', quote: 'the gem carver had rise and when the risen copy died it summoned full-ruby buffed golems. the golems summoned should have been 1/1\'s since the risen copy had 0 rubies played on it.' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts the Rise body (buffs replaced without the Ruby entry, rubyGain + impBank cleared; gemCryptRuby re-seeds rubyGain)' },
+    ],
+    currentBehaviour:
+      'Conforms from 2026-10-26. Before, the combat Rise reset the stats but left the carried Shop "Ruby" buff entry and '
+      + 'this fight\'s `rubyGain` on the body, so every Ruby read on the risen copy still saw the original\'s Rubies.',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/riseFreshRubies1026.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

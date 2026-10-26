@@ -81,6 +81,15 @@ export const PATCH_NOTES: PatchNote[] = [
         details: ['Joining a running 3-4 player match, or pressing Watch in the room, now always opens on a player still in the match, even when some players are already knocked out.'],
       },
       {
+        category: 'Balance',
+        text: 'Fixed: a Risen Gem Carver no longer summons Golems with the Rubies of the original.',
+        details: [
+          'A minion that Rises in combat comes back as a fresh copy with no Rubies on it, so a Risen Gem Carver summons plain 1/1 Golems. The card in your Shop keeps all its Rubies.',
+          'Gem Crypt still lets a Risen minion keep its Rubies.',
+          'A Risen Ashen Heir also starts with no stored Imp stats.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Phones: fixed the Shop not drawing on iPhone.',
         details: [

@@ -17,6 +17,8 @@
 //   npm run task:list                      list every worktree.
 //   npm run task:serve -- <branch>         point port 5173 at that worktree (the WORKING BRANCH host).
 //   npm run task:done -- <branch>          remove that worktree + delete its local branch (after the PR merges).
+//   npm run worktrees:prune [-- --apply]   list (or with --apply, remove) every FINISHED worktree: clean, pushed,
+//                                          PR merged/closed, idle 24h+ (--min-age-hours=N). Dry run by default.
 //
 // PORT 5173 FOLLOWS THE WORKING BRANCH (owner ask 2026-09-14). `new` and `serve` write the tree's path to
 // `.claude/active-worktree` in the PRIMARY checkout and bounce whatever is listening on 5173; `npm run
@@ -28,7 +30,7 @@
 // sibling — Windows leaves hollow husks when siblings are torn down).
 // -----------------------------------------------------------------------------
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -147,9 +149,72 @@ if (sub === 'done') {
   process.exit(0);
 }
 
+/* PRUNE (owner 2026-10-26: every agent worktree kept a full checkout + node_modules forever, ~465 of them).
+ * Removes worktrees that are provably finished: clean (no tracked changes, no untracked files), nothing unpushed
+ * (HEAD is on some origin branch), the branch's PR is merged/closed or the branch is gone from origin, no open PR,
+ * not the 5173 target, and idle for --min-age-hours (default 24) so a live session's tree is never touched.
+ * Dry run by default; `--apply` deletes. Everything it removes is recoverable from origin. */
+if (sub === 'prune') {
+  const apply = flags.has('--apply');
+  const ageArg = rest.find((a) => a.startsWith('--min-age-hours='));
+  const minAgeMs = Number(ageArg ? ageArg.split('=')[1] : 24) * 3600e3;
+  console.log('→ fetching origin …');
+  git(['fetch', 'origin', '--prune', '--quiet']);
+  git(['worktree', 'prune']);
+  let prs = null;
+  try {
+    prs = JSON.parse(execFileSync('gh', ['pr', 'list', '--state', 'all', '--limit', '3000', '--json', 'headRefName,state'], { encoding: 'utf8' }));
+  } catch { console.log('(gh unavailable: judging by the remote branch only)'); }
+  const prState = new Map();
+  for (const p of prs ?? []) if (p.state === 'OPEN' || !prState.has(p.headRefName)) prState.set(p.headRefName, p.state);
+  const pointer = existsSync(POINTER) ? resolve(readFileSync(POINTER, 'utf8').trim()) : null;
+  const trees = cap(['worktree', 'list', '--porcelain']).split(/\r?\n\r?\n/).map((blk) => ({
+    path: (blk.match(/^worktree (.+)$/m) ?? [])[1],
+    branch: ((blk.match(/^branch refs\/heads\/(.+)$/m) ?? [])[1]) ?? null,
+  })).filter((t) => t.path && resolve(t.path) !== PRIMARY);
+  const remove = []; const keep = [];
+  for (const t of trees) {
+    const why = (() => {
+      if (!existsSync(t.path)) return null; // registration only; `git worktree prune` cleared it
+      if (pointer && resolve(t.path) === pointer) return 'serves 5173';
+      const at = (args) => cap(['-C', t.path, ...args]);
+      // Age first, from HEAD's reflog (commits, checkouts, rebases) — NOT the index, which `git status` itself rewrites.
+      const gitDir = resolve(t.path, at(['rev-parse', '--git-dir']));
+      const touched = Math.max(...['HEAD', 'logs/HEAD', 'ORIG_HEAD', 'FETCH_HEAD'].map((f) => { try { return statSync(join(gitDir, f)).mtimeMs; } catch { return 0; } }));
+      if (Date.now() - touched < minAgeMs) return 'active recently';
+      if (at(['status', '--porcelain'])) return 'uncommitted or untracked changes';
+      const head = at(['rev-parse', 'HEAD']);
+      if (!cap(['branch', '-r', '--contains', head])) return 'commits not on origin';
+      if (t.branch) {
+        const st = prState.get(t.branch);
+        if (st === 'OPEN') return 'open PR';
+        const onOrigin = (() => { try { cap(['show-ref', '--verify', '--quiet', `refs/remotes/origin/${t.branch}`]); return true; } catch { return false; } })();
+        if (!st && onOrigin) return 'no PR yet';
+      }
+      return '';
+    })();
+    if (why === null) continue;
+    (why ? keep : remove).push({ ...t, why });
+  }
+  for (const k of keep) console.log(`  keep    ${k.path}  (${k.why})`);
+  for (const r of remove) console.log(`  ${apply ? 'remove' : 'would remove'}  ${r.path}${r.branch ? `  [${r.branch}]` : ''}`);
+  console.log(`\n${remove.length} finished worktree(s) ${apply ? 'to remove' : 'would be removed'}, ${keep.length} kept.`);
+  if (!apply) { console.log('Dry run. Re-run with --apply to delete them.'); process.exit(0); }
+  let done = 0;
+  for (const r of remove) {
+    try { cap(['worktree', 'remove', '--force', r.path]); }
+    catch { try { rmSync(r.path, { recursive: true, force: true }); cap(['worktree', 'prune']); } catch (e) { console.log(`  ✗ ${r.path}: ${e.message}`); continue; } }
+    if (r.branch && branchExists(r.branch)) { try { cap(['branch', '-D', r.branch]); } catch { /* checked out elsewhere */ } }
+    done++;
+  }
+  ok(`removed ${done} worktree(s)`);
+  process.exit(0);
+}
+
 if (sub === 'new' || sub === 'serve') { /* handled above; the serve timer finishes the run */ } else
 die(`unknown command "${sub ?? ''}".
   npm run task -- <branch> [--install]   create an isolated worktree off latest origin/main
   npm run task:list                      list worktrees
   npm run task:serve -- <branch>         point 5173 at that worktree
-  npm run task:done -- <branch>          remove a worktree + its local branch`);
+  npm run task:done -- <branch>          remove a worktree + its local branch
+  npm run worktrees:prune [-- --apply]   remove every finished worktree (dry run by default)`);

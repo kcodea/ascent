@@ -32,6 +32,10 @@ Never do feature work as two live sessions in the same folder.
 - Treat the **primary `Desktop/ascent` checkout as a shared reference**, not a place anyone does feature edits
   or branch switches.
 - **Never `git worktree remove` / `prune` a tree you didn't create.** Remove only your own, when you're done.
+  The one exception is `npm run worktrees:prune` (owner 2026-10-26: ~465 finished agent worktrees, each a full
+  checkout plus its own node_modules, had piled up). It removes only provably finished trees: clean, nothing
+  unpushed, PR merged/closed (or branch gone), no open PR, not serving 5173, and idle 24h+. Dry run by default;
+  `-- --apply` deletes. Remove your own tree with `npm run task:done -- <branch>` when its PR merges.
 
 ## 2. Commit + push early — origin is the only durable copy
 

@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-26',
     changes: [
       { category: 'Systems', text: "Compendium: Rune Rewards now lists every minion your set's runes can give, and search finds them." },
+      {
+        category: 'Systems',
+        text: 'Fixed: a hero power you gain mid-game now shows its own art.',
+        details: [
+          'The new power fully replaces your old one. Its name, text and art now show on the button.',
+          'A rune you picked with your old hero power (the Runesmith and Guardian forges) stops working when the power is replaced. Runes you bought at a Runeforge keep working.',
+        ],
+      },
       { category: 'Systems', text: "Other players' portraits now show in Versus rooms and the Leaderboard." },
       {
         category: 'Systems',

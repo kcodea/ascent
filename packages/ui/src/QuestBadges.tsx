@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { runeAccentTribe } from './RuneCard';
 import type { QuestObjective, Tribe } from '@game/core';
 import { QUEST_INDEX, RUNE_INDEX } from '@game/content';
-import type { RunState } from '@game/sim';
+import { heroGrantOf, type RunState } from '@game/sim';
 import { mdBold } from './Card';
 import { Icon } from './Icon';
 import { questArt, runeArt } from './art';
@@ -137,7 +137,7 @@ export function QuestBadges() {
   // filtered out here rather than appearing twice.
   const nodes = (run.activeQuests ?? [])
     .filter((aq) => QUEST_INDEX[aq.questId])
-    .filter((aq) => !(run.heroGrantArt?.kind === 'quest' && run.heroGrantArt.id === aq.questId));
+    .filter((aq) => { const g = heroGrantOf(run); return !(g?.kind === 'quest' && g.id === aq.questId); });
   // The hero-power forge's rune (Runesmith / Guardian) sits in the POWER SLOT, so the rack leaves out one copy of
   // it (R-RUNESLOT-01) — drawing it here too put a 4th badge with no socket floating beside the 3rd.
   const heroRune = heroSlotRuneId(run);

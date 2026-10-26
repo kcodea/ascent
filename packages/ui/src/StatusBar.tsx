@@ -7,7 +7,7 @@ import { renameTerms } from './terms';
 import { Card, mdBold } from './Card';
 import { instView } from './instView';
 import { ANCIENTS, dragonTamerCostOf, heroPowerCostOf, INDY_GILD_RECHARGE_GOLD, KESHI_CROWN_THRESHOLD, roundedSpellbookCostOf, allInPayoutOf, exhibitionGrantOf, tempestGrantOf, bladeMasteryGrantOf, hoardWhelpStatsOf, TEMPEST_KILLS_PER_STEP, BLADE_ATTACKS_PER_STEP, heroPowerText, commissionOffer, COMMISSION_NAME, COMMISSION_REWARD, commissionDelayOf, ancientDrumlineNeed, getHero, spellAmplifyBonus, spellAttackBonusLive, spellHealthBonusLive, spellEscalationLive, rubyStatBonus, heroPowerLockTurns, activePowers, type RunState, type HeroPower } from '@game/sim';
-import { shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
+import { heroGrantOf, shopLocked, henchmanOffer, ancientAvengeCountdown, ancientCopyCharges, ancientClearanceStacks, ancientClearanceUsesBadge, ancientInvestmentTally, ancientSwapCharges, ancientSwapUsesBadge } from '@game/sim';
 import { useEotAmplified } from './choreographer/equipmentFx';
 import { equipmentWillAmplify, equipmentCostOf, equipmentPool, equipmentState, equipmentText, equipmentUsesLeft, selectedEquipment, selectedEquipmentDef } from '@game/sim';
 import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
@@ -462,7 +462,9 @@ export function StatusBar() {
   const committed = power.kind === 'commission' && !!run.commission;
   // Once a quest/rune has been granted, the slot IS that grant: its own rule replaces the hero's ("get a quest
   // on turn 3" is no longer true or useful), and a quest also shows its objective progress.
-  const grant = run.heroGrantArt;
+  // `heroGrantOf`, never `run.heroGrantArt`: the grant only counts while the hero's OWN power holds the slot, so a
+  // power gained mid-run shows its own art, name and rule (owner report 2026-10-26, R-HERO-GRANT-RELEASE-01).
+  const grant = heroGrantOf(run);
   const grantQuest = grant?.kind === 'quest' ? run.activeQuests?.find((q) => q.questId === grant.id) : undefined;
   const grantQuestDef = grant?.kind === 'quest' ? QUEST_INDEX[grant.id] : undefined;
   const grantRuneDef = grant?.kind === 'rune' ? RUNE_INDEX[grant.id] : undefined;
@@ -487,8 +489,8 @@ export function StatusBar() {
   // folder degrades instead of rendering nothing (there is no CassenHP3 yet).
   // Fi / Coran / Runesmith / Guardian: once their granted quest or rune is chosen, the button wears ITS art —
   // the grant is the power. Falls back to the hero's own art if that piece is unwired.
-  const grantArt = run.heroGrantArt
-    ? (run.heroGrantArt.kind === 'rune' ? runeArt(run.heroGrantArt.id) : questArt(run.heroGrantArt.id))
+  const grantArt = grant
+    ? (grant.kind === 'rune' ? runeArt(grant.id) : questArt(grant.id))
     : undefined;
   // The art follows the WIELDED power's hero (Mimic's disguise / Void's first pick) — the native id for
   // everyone else. Suit/commission variants resolve against the same id, so a mimicked Lucky Seat shows the

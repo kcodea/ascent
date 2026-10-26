@@ -564,8 +564,9 @@ const BOOTSTRAP_HEROES = HEROES.map((h) => h.id); // vary the hero per seed → 
  * selection asks `autoplayRun(seed, hero, undefined, 1)` "will this seat's recording field anything at all?"
  * for a fraction of a full recording's cost.
  */
-export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, maxBoards = Infinity): BoardSnapshot[] {
-  let s = createRun(seed, heroId);
+export function autoplayRun(seed: number, heroId?: string, opts?: BotOptions, maxBoards = Infinity, setId?: SetId): BoardSnapshot[] {
+  // `setId` (Practice's DEV set picker, 2026-10-26): record on that card set. Absent = `createRun`'s default.
+  let s = createRun(seed, heroId, undefined, undefined, setId);
   // Separate RNG for bot pick decisions — doesn't touch the game's own seeded stream.
   const botRng: Rng | null = opts?.preferTribe || opts?.cardWeight ? makeRng(seed ^ 0xb07b07) : null;
   const snaps: BoardSnapshot[] = [];

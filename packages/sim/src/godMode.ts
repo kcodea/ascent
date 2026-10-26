@@ -18,7 +18,11 @@ export const GOD_MODE_GOLD = 999;
  *  Mode is selected, so God Mode ignores them - every hero, Unlimited health, every tribe, no timer, opponents of
  *  every rank. */
 export function godPracticeConfig(cfg: PracticeConfig): PracticeConfig {
-  return { ...cfg, godMode: true, heroes: 'all', health: 'unlimited', tribes: [], timeMult: 0, rank: 'all' };
+  // The dev-only Set pick (`setId`) is a Sandbox Mode option: God Mode always plays the live set (its chosen-round
+  // boards are recorded runs, which only exist for the live set).
+  const { setId: _devSet, ...rest } = cfg;
+  void _devSet;
+  return { ...rest, godMode: true, heroes: 'all', health: 'unlimited', tribes: [], timeMult: 0, rank: 'all' };
 }
 
 export function isGodMode(run: Pick<RunState, 'godMode'>): boolean {

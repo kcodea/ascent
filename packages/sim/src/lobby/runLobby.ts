@@ -10,7 +10,7 @@ import { CARD_INDEX } from '@game/content';
 import { HEROES, playableHeroes } from '../heroes';
 import { roundLossCap } from '../reducer';
 import { createRun, type RunState, type PracticeConfig } from '../state';
-import { normalizePracticeTribes } from '../practiceTribes';
+import { normalizePracticeTribes, practiceSetOf } from '../practiceTribes';
 import { runeLiveStateOfSnapshot, type RuneLiveState } from '../runeLiveState';
 import { createPracticeBotLobby } from './practiceBots';
 import { botSeat, hybridSeat, type SeatPolicy } from './seats';
@@ -88,6 +88,10 @@ export interface LobbySeatState {
   alive: boolean;
   /** Which policy drives this seat. Absent = the default in `botSeat`; 'legacy' selects the old greedy bot. */
   policy?: SeatPolicy;
+  /** GENERATED seats of a set-scoped bot table only (`LobbySeatOptions.setScopedBots`, Practice's DEV set picker,
+   *  2026-10-26): the card set this seat's run plays, so its recording and probe draw from that set's pool, not the
+   *  live one. Absent everywhere else: the seat plays `createRun`'s default set, exactly as before. */
+  setId?: SetId;
   placement?: number;
   eliminatedRound?: number;
   /** Scouting intel about the board this seat last fielded against another SEAT (a fight against the player never
@@ -303,7 +307,7 @@ const DRIVERS = new Map<string, SeatDriver>();
  * hero), is never served a driver built from another table (R-SPECTATE-SAMEHERO-01). Every other seat is unchanged.
  */
 const driverKey = (seat: LobbySeatState): string =>
-  `${seat.kind}:${seat.seed}:${seat.heroId}:${seat.runKey ?? ''}${seat.kind === 'authored' ? `:${seat.label}:${seat.authoredBoards?.length ?? 0}` : ''}`;
+  `${seat.kind}:${seat.seed}:${seat.heroId}:${seat.runKey ?? ''}${seat.kind === 'authored' ? `:${seat.label}:${seat.authoredBoards?.length ?? 0}` : ''}${seat.setId ? `:${seat.setId}` : ''}`;
 
 /** Evict cached drivers for these seats, so a newly created lobby starts them from round 1. */
 export function resetLobbyDrivers(seats: readonly LobbySeatState[]): void {
@@ -381,11 +385,11 @@ export function driverFor(seat: LobbySeatState, setId?: SetId): SeatDriver | nul
       // patch, backend offline). Falling back to a bot keeps the table full instead of silently dropping a
       // seat and changing the shape of someone's saved game.
       const run = seat.runKey ? (WATCHED_RUNS.get(seat.runKey) ?? playerRunByKey(seat.runKey, undefined, setId)) : null;
-      d = run ? snapshotSeat(run, seat.policy) : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
+      d = run ? snapshotSeat(run, seat.policy) : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy, seat.setId);
     } else {
       d = seat.kind === 'bot'
-        ? botSeat(seat.seed, seat.heroId, seat.label, seat.policy)
-        : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy);
+        ? botSeat(seat.seed, seat.heroId, seat.label, seat.policy, seat.setId)
+        : hybridSeat(seat.seed, seat.heroId, seat.label, seat.policy, seat.setId);
     }
     DRIVERS.set(key, d);
   }
@@ -419,6 +423,10 @@ export interface LobbySeatOptions {
    *  set to a lower rank would hand a rated lobby that rank's weaker runs. Absent / empty = every run is a
    *  candidate, the selection of before, seat for seat. */
   excludeRuns?: ReadonlySet<string>;
+  /** SET-SCOPED BOTS (Practice's DEV set picker, owner 2026-10-26: "this would then just use the bot runs for that
+   *  sandbox test environment"): seat NO recorded player run, only generated seats, each stamped with the lobby's set
+   *  (`LobbySeatState.setId`) so its recording plays that set's pool. Absent / false = the selection of before. */
+  setScopedBots?: boolean;
 }
 
 export function createRunLobby(seed: number, playerHeroId: string, rules: Partial<LobbyRules> = {}, setId?: SetId, opts: LobbySeatOptions = {}): RunLobby {
@@ -478,7 +486,7 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
   const shuffled = shuffleRuns(playerRunsFrom(undefined, undefined, setId), makeRng(seed ^ 0x2545f491));
   const available = exclude ? shuffled.filter((run) => !exclude.has(run.key)) : shuffled;
   const seatsByOwner = new Map<string, number>();
-  const maxSnapshotSeats = Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
+  const maxSnapshotSeats = opts.setScopedBots ? 0 : Math.min(r.snapshotSeats ?? r.seatCount - 1, available.length);
   const tableFull = (): boolean => picked >= r.seatCount - 1 || seats.filter((x) => x.kind === 'snapshot').length >= maxSnapshotSeats;
   // THE MATCHMAKING BAND (R-LOBBY-09, owner 2026-09-30). The same shuffle, walked once per band step: first only the
   // runs inside the player's band (an unscored run is inside every band), then, while the table is not full, the
@@ -546,6 +554,8 @@ export function createRunLobby(seed: number, playerHeroId: string, rules: Partia
       resolve: r.startingResolve,
       armor: seatStartingArmor({ kind: 'hybrid', heroId: hero.id }, r), // the hero's own Armor (owner 2026-10-17)
       alive: true,
+      // SET-SCOPED BOTS: the seat's recording plays the lobby's set (Practice's DEV set picker).
+      ...(opts.setScopedBots && setId ? { setId } : {}),
     };
     if (!canPlay(seat)) continue; // this hero can't be driven — try the next
     taken.add(seat.label.toLowerCase());
@@ -1168,7 +1178,15 @@ export function createLobbyRun(
   // way. Omitted = the live set, exactly as `createRun` defaults it.
   // PRACTICE TRIBES (owner 2026-09-27): picked tribes replace the run's seeded tribe roll, so the pool, shop,
   // Discovers, spells, runes and quests all follow them. None picked (Normal) = the usual roll.
-  const pinnedSet = setId ?? activeSet().id;
+  // PRACTICE'S DEV SET PICKER (owner 2026-10-26): a Practice config may name the set to play (`practiceSetOf`); an
+  // explicit `setId` argument (the Scene Builder) still wins. Pinned exactly like the default, so `poolOf(state)`
+  // returns it for the whole run, replays included. The global switch (`activeSet()`) is never touched.
+  const pinnedSet = setId ?? (mode === 'practice' ? practiceSetOf(practiceConfig) : activeSet().id);
+  // A Practice game on a set that is NOT the live one: recorded player runs belong to their own set, so the table is
+  // GENERATED seats that play this set's pool (`setScopedBots`), never recorded snapshots. The authored-bot table
+  // (`opponents: 'bots'`, the Scene Builder's) is left as it is. Only a set picked ON THE CONFIG counts: an explicit
+  // `setId` argument (the Scene Builder, tests seating another set's recorded runs) keeps the table of before.
+  const devSet = mode === 'practice' && setId === undefined && pinnedSet !== activeSet().id;
   const picked = mode === 'practice' && practiceConfig ? normalizePracticeTribes(practiceConfig.tribes, pinnedSet) : [];
   const run = createRun(seed, heroId, mode, undefined, pinnedSet, picked.length > 0 ? picked : undefined);
   // The run pins its set at creation; the lobby seats from the SAME set, so a set-2 run never faces a seat
@@ -1176,12 +1194,17 @@ export function createLobbyRun(
   // BOTS opponents: seat seven authored, scaling omen boards instead of recorded player runs.
   const lobby = practiceConfig?.opponents === 'bots'
     ? createPracticeBotLobby(seed, heroId, practiceConfig.botDifficulty, rules)
-    : createRunLobby(seed, heroId, rules, run.setId, practiceSeatOptions(mode, practiceConfig, seatOpts));
+    : createRunLobby(seed, heroId, rules, run.setId, devSet ? { setScopedBots: true } : practiceSeatOptions(mode, practiceConfig, seatOpts));
   const me = lobby.seats[0]!;
   // The seat's pools ARE the run's health, so the HUD and every health-aware effect read one number.
   me.resolve = run.resolve;
   me.armor = run.armor;
-  return { ...run, lobby, ...(practiceConfig ? { practiceConfig: { ...practiceConfig, tribes: picked } } : {}) };
+  // The run's config carries `setId` ONLY for a dev-set game (a set other than the live one), so "this run is a dev-set
+  // Practice game" is one field read (`isPracticeDevSetRun`) that a later flip of the live switch cannot change.
+  if (!practiceConfig) return { ...run, lobby };
+  const { setId: _chosen, ...cfgRest } = practiceConfig;
+  void _chosen;
+  return { ...run, lobby, practiceConfig: { ...cfgRest, tribes: picked, ...(devSet ? { setId: pinnedSet } : {}) } };
 }
 
 /**

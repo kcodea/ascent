@@ -1,3 +1,4 @@
+import type { SetId } from '@game/content';
 import type { BoardSnapshot } from '../snapshot';
 import { registerOpponentRuns } from '../opponents';
 import { builtRecording, primeRecording } from './seats';
@@ -23,7 +24,8 @@ export interface LobbySeatRecordings {
   /** Each recorded (`snapshot`) seat's whole run, as the pool delivered it. */
   runs: BoardSnapshot[][];
   /** Each generated seat's recording, keyed the way the recording cache keys it. */
-  hybrids: { seed: number; heroId: string; snaps: BoardSnapshot[] }[];
+  // `setId` only on a seat stamped with a card set (Practice's DEV set picker, 2026-10-26); absent everywhere else.
+  hybrids: { seed: number; heroId: string; snaps: BoardSnapshot[]; setId?: SetId }[];
 }
 
 /**
@@ -49,8 +51,8 @@ export function lobbyHybridRecordings(lobby: Pick<RunLobby, 'seats'>, heldRunKey
   const out: LobbySeatRecordings['hybrids'] = [];
   for (const s of lobby.seats) {
     if (s.kind !== 'hybrid' && !(s.kind === 'snapshot' && !(s.runKey && heldRunKeys.has(s.runKey)))) continue;
-    const snaps = builtRecording(s.seed, s.heroId);
-    if (snaps?.length) out.push({ seed: s.seed, heroId: s.heroId, snaps });
+    const snaps = builtRecording(s.seed, s.heroId, s.setId);
+    if (snaps?.length) out.push({ seed: s.seed, heroId: s.heroId, snaps, ...(s.setId ? { setId: s.setId } : {}) });
   }
   return out;
 }
@@ -78,6 +80,6 @@ export function parseLobbySeatRecordings(raw: unknown): LobbySeatRecordings | nu
 export function restoreLobbySeatRecordings(rec: LobbySeatRecordings | null | undefined): { runs: number; hybrids: number } {
   if (!rec) return { runs: 0, hybrids: 0 };
   const reg = rec.runs.length ? registerOpponentRuns(rec.runs) : { runs: 0 };
-  for (const h of rec.hybrids) primeRecording(h.seed, h.heroId, h.snaps);
+  for (const h of rec.hybrids) primeRecording(h.seed, h.heroId, h.snaps, h.setId);
   return { runs: reg.runs, hybrids: rec.hybrids.length };
 }

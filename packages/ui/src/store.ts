@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { loadFpsCap, saveFpsCap } from './fpsCap';
 import { CARD_INDEX, activeSet, gauntletStage, type SetId } from '@game/content';
-import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
+import { type CombatOdds, HEROES, playableHeroes, practiceHeroChoiceIds, rollHeroReroll, applyHeroReroll, type HeroReroll, runTribesForSeed, OPPONENT_POOL, OPPONENT_POOL_DATA, registerOpponents, createRun, deserialize, initialProfile, resolveServerRank, adoptServerRank, legacyRatingChangeOf, type RankResult, type RankedProfile, isPlayerAction, missingCardIds, parseQaScenario, reconstructRunTelemetry, recordTelemetryAction, emptyTelemetryLog, lobbyRunTelemetry, currentRegime, rankAtStartForTelemetry, telemetrySourceOf, setIdOf, type TelemetryLog, beginDerive, observeAction, finishDerive, progressionFactsOf, type DeriveState, reduce, reduceWithPresentation, serialize, snapshotBoard, type Action, type BoardSnapshot, type PlayerProfile, type RatingChange, type Replay, type RunMode, type RunState, combatFrameOf, eotRecordOf, type EotRecord, deltaShopFrameOf, shopFrameOf, runRecord, type DragPath, type ReplayFrame, type ReplayV2, type ReplayStream, type ShopView, appendInspectEvent, type InspectEvent, type InspectSnapshot, createLobbyRun, DEFAULT_HERO_ID, enableAncients, createTutorialRun, type TutorialCourse, type PracticeConfig, type BotLevel, DEFAULT_PRACTICE_CONFIG, normalizeBotDifficulty, normalizePracticeTribes, practiceRunTribes, practiceSetOf, isPracticeDevSetRun, warmLobbySeat, prepareActionWithPresentation, type PreparedPresentationAction, resetLobbyDrivers, lobbySeatRuns, lobbyHybridRecordings, runKeyOfRun, parseLobbySeatRecordings, restoreLobbySeatRecordings, lobbyStandIns, type LobbySeatRecordings, fightRowsOf, opponentFightKeys, type LobbyStrength, type FightRow, buildMatchDetails, type MatchDetails, lobbyPoolTelemetryOf, lobbyIsUnrated, createGauntletRun, gauntletOutcome, makeGodModeRun, godPracticeConfig, GOD_MODE_MAX_ROUNDS, GOD_MODE_GOLD } from '@game/sim';
 import type { PresentationBatch } from '@game/core';
 import { combatTimelineFrom } from './choreographer/combatTimeline';
 import type { RuneLockInCard } from './RuneLockIn';
@@ -1005,8 +1005,11 @@ function loadPracticeConfig(): PracticeConfig {
       opponents: 'players',
       // Drafts saved before 2026-09-02 hold 'easy' | 'medium' | 'hard'; the ladder is 1–10 now.
       botDifficulty: normalizeBotDifficulty(parsed.botDifficulty),
-      // Only the live set's tribes, in set order (a tribe saved while another set was live is dropped).
-      tribes: normalizePracticeTribes(parsed.tribes),
+      // Only the draft's set's tribes (the live set unless a dev build picked another), in set order (a tribe saved
+      // while another set was live is dropped).
+      tribes: normalizePracticeTribes(parsed.tribes, practiceSetOf(devPracticeSet(parsed))),
+      // DEV ONLY (owner 2026-10-26): the Set row's pick. A player build never keeps one (`devPracticeSet`).
+      ...devPracticeSet(parsed),
       // Practice hero offer (2026-09-27): only the two known modes; anything else (an old draft) opens on Beginner.
       heroes: parsed.heroes === 'all' ? 'all' : 'beginner',
       // GOD MODE (owner 2026-10-08): the Practice screen remembers which mode was selected.
@@ -1016,6 +1019,20 @@ function loadPracticeConfig(): PracticeConfig {
     };
   } catch { return { ...DEFAULT_PRACTICE_CONFIG }; }
 }
+/** The dev-only Practice Set pick (owner 2026-10-26) as a partial config: `{ setId }` in a DEV build when it names a
+ *  defined set, else `{}`. A player build NEVER carries one, whatever storage or a draft holds, so a player can never
+ *  start a game on an unreleased set. */
+function devPracticeSet(cfg: Pick<PracticeConfig, 'setId'> | null | undefined): Pick<PracticeConfig, 'setId'> {
+  if (!import.meta.env.DEV || !cfg?.setId) return {};
+  return practiceSetOf(cfg) === cfg.setId ? { setId: cfg.setId } : {};
+}
+/** A Practice draft with any Set pick a player build must not honour removed (see `devPracticeSet`). */
+function practiceDraftForRun(cfg: PracticeConfig): PracticeConfig {
+  const { setId: _pick, ...rest } = cfg;
+  void _pick;
+  return { ...rest, ...devPracticeSet(cfg) };
+}
+
 function savePracticeConfig(cfg: PracticeConfig): void {
   try { localStorage.setItem('ascent.practiceconfig', JSON.stringify(cfg)); } catch { /* ignore */ }
 }
@@ -2122,7 +2139,10 @@ function commitResolvedAction(
       s.run.phase !== 'gameover' &&
       s.run.phase !== 'victory' &&
       next.mode === 'practice' &&
-      !next.sandbox
+      !next.sandbox &&
+      // A DEV-SET Practice game (owner 2026-10-26: a set other than the live one, generated bots only) writes nothing:
+      // no Practice row, no replay upload, no XP. It is a test table on an unreleased set, not a game to keep.
+      !isPracticeDevSetRun(next)
     ) {
       const author = s.playerName || tempHandle(s.account.userId);
       const frames = replayFrames;
@@ -2723,7 +2743,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       // the player's Sandbox settings are untouched), no round cap, then stamped sandbox + godMode + 999 Gold.
       const god = mode === 'practice' && !stage && s.practiceDraft.godMode === true;
       const built = stage ? createGauntletRun(seed, heroId, stage) : createLobbyRun(seed, heroId, god ? { maxRounds: GOD_MODE_MAX_ROUNDS } : {}, mode,
-        mode === 'practice' ? (god ? godPracticeConfig(s.practiceDraft) : s.practiceDraft) : undefined, undefined,
+        mode === 'practice' ? (god ? godPracticeConfig(s.practiceDraft) : practiceDraftForRun(s.practiceDraft)) : undefined, undefined,
         // MATCHMAKING BAND (R-LOBBY-09): a RATED lobby draws its recorded seats from the band of the player's medal.
         // Your own runs are seated like anyone else's (owner 2026-09-30). A PRACTICE game draws the band of the
         // Opponent Rank picked on its setup screen (R-PRACTICE-RANK-01; `createLobbyRun` reads it off the config, All
@@ -2800,7 +2820,8 @@ export const useGame = create<GameStore>((rawSet, get) => {
     try { localStorage.setItem('ascent.practicetimer', String(s.practiceDraft.timeMult)); } catch { /* ignore */ }
     const seed = randomSeed();
     // Practice is always vs players (2026-09-29); the bots option is gone from the setup screen.
-    const draft: PracticeConfig = { ...s.practiceDraft, opponents: 'players' };
+    // The dev-only Set pick never survives into a player build (`practiceDraftForRun`).
+    const draft: PracticeConfig = { ...practiceDraftForRun(s.practiceDraft), opponents: 'players' };
     // GOD MODE (owner 2026-10-08) offers every hero: the offer reads God Mode's fixed config, while `practiceDraft`
     // keeps the player's Sandbox Mode settings untouched (only the run uses the God Mode ones).
     const effective = draft.godMode === true ? godPracticeConfig(draft) : draft;

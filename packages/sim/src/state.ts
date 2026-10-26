@@ -500,6 +500,11 @@ export interface PracticeConfig {
   /** GOD MODE (owner 2026-10-08): 999 Gold, no clock, the God Mode panel, and a chosen-round real board each fight.
    *  Absent / false = a normal practice run. See `godMode.ts`. */
   godMode?: boolean;
+  /** DEV ONLY (owner 2026-10-26): the card SET this Practice game plays. On a DRAFT it is what the dev-only Set row
+   *  picked (absent = the live set); read it through `practiceSetOf`. On a RUN it is present only when the game was
+   *  created on a set other than the live one (`isPracticeDevSetRun`): its seats are generated bots on that set, and
+   *  it writes no Practice row. Player builds never set it (the row is dev-only and the store strips it). */
+  setId?: SetId;
 }
 
 /** The default Practice options — the classic Practice experience, so an untouched setup screen plays exactly

@@ -22,6 +22,7 @@ import { stageHost, stageViewport, toStage } from './stage';
 import { useSpectate } from './versus/spectate';
 import { useVersus } from './versus/versusStore';
 import { groupDuosRailRows } from './versus/versusGroupView';
+import { isRankedDuosRaw, rankedTeamLabels } from './versus/rankedDuosView';
 import { enterTeammateView } from './versus/teammateView';
 import { LobbyGuides } from './guides/LobbyGuides';
 import { VersusFoe } from './versus/VersusFoe';
@@ -356,6 +357,10 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
   // VERSUS DUOS (R-DUOS-01): the teammate's row (always s1), kept next to yours. A click opens their live screen
   // (R-DUOS-VIEW-01), a second way in beside the bottom-right teammate portrait (the pass target, DuosMateDock).
   const duosMate = useVersus((st) => (versus && st.match?.group?.duos?.mate && st.match.group.me ? 's1' : null));
+  // RANKED DUOS (owner 2026-10-26: team names "shown on the rail"): each team's name on its first row.
+  const rankedRaw = useVersus((st) => (versus && st.match?.group && isRankedDuosRaw(st.match.group.raw) ? st.match.group.raw : null));
+  const rankedMe = useVersus((st) => st.match?.group?.me ?? null);
+  const teamLabels = useMemo(() => (rankedRaw && rankedMe ? rankedTeamLabels(rankedRaw, rankedMe, rankedRaw.servedTeamNames ?? {}) : null), [rankedRaw, rankedMe]);
   const rail = lobbyRailView(lobby, { opponent: playerOpponent(lobby), ...(versusDuel ? { hideSelf: true } : { self: { resolve: myResolve, armor: myArmor } }) });
   const next = rail.opponent;
   const foe = next?.seat ?? null;
@@ -503,6 +508,7 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               <span className="lobbynameline">
                 <span className="lobbyname">{seat.label}</span>
               </span>
+              {teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
               {row.alive ? (
                 <span className="lobbyhp">
                   {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}

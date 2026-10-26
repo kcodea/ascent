@@ -24,6 +24,7 @@ import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
 import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurn } from './versusTurn';
 import { SpectatorBar } from './SpectatorBar';
+import { isRankedDuosRaw, rankedCloseIso, rankedSomeoneEnded } from './rankedDuosView';
 import './versus.css';
 
 /** This player's turn state (`versusTurn`), from the session store and the run. */
@@ -89,6 +90,12 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   // whose clock has not started (the other player is not back yet, or round 1 before both intros) shows its full turn.
   const deadline = match?.shop_deadline ?? null;
   const pausedAt = match?.paused_at ?? null;
+  // RANKED DUOS (owner 2026-10-26, R-RANKED-DUOS-GATE-01): past 0:00 the round waits for the End Turns; once a teammate
+  // has ended, the clock face counts the last 5 seconds down to the close (`closeAt`). Before anyone ends it reads 0:00.
+  const graceAt = useVersus((s) => {
+    const raw = s.match?.group?.raw;
+    return raw && isRankedDuosRaw(raw) && rankedSomeoneEnded(raw) ? rankedCloseIso(raw) : null;
+  });
   const live = versus && match?.phase === 'shop' && match.round === run.wave && !!deadline;
   // QUIET AFTER END TURN (owner 2026-10-16, R-VERSUS-TIMER-FX-01): the player on screen ended the turn early and waits
   // on the other one, so the clock's sounds stop and the charge glyph fades, as a lobby End Turn does. The clock face
@@ -133,13 +140,20 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     let id = 0;
     const update = (): void => {
       const remaining = pausedAt ? end - Date.parse(pausedAt) : (versusShopRemainingMs(deadline) ?? 0);
-      driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, quiet: quietRef.current, announceWave: useGame.getState().replaying ? null : run.wave });
+      const grace = !pausedAt && remaining <= 0 && graceAt ? versusShopRemainingMs(graceAt) ?? 0 : null;
+      if (grace != null) {
+        // The 5 s window (Ranked Duos): the same face, counting to the close; no explosion, the 0:00 already played.
+        driveVersusClock({ key: `${key}|grace`, remainingMs: Math.max(0, grace), moving: true, explode: false, quiet: quietRef.current, announceWave: null });
+      } else {
+        driveVersusClock({ key, remainingMs: remaining, moving: !pausedAt, explode: true, quiet: quietRef.current, announceWave: useGame.getState().replaying ? null : run.wave });
+      }
       if (!pausedAt && shopClockAt(remaining).locked) expireVersusShop();
       if (!pausedAt && remaining > 0) id = window.setTimeout(update, nextObserveMs(remaining));
+      else if (grace != null && grace > 0) id = window.setTimeout(update, nextObserveMs(grace));
     };
     update();
     return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
-  }, [versus, live, deadline, pausedAt, run.phase, run.wave, match?.round, match?.id]);
+  }, [versus, live, deadline, pausedAt, graceAt, run.phase, run.wave, match?.round, match?.id]);
   return {
     intercept: () => {
       if (!versus) return false;

@@ -9,7 +9,7 @@
  * are cached (spectate.ts). In a fight the same plates pick whose side it is shown from.
  */
 import { useEffect, useMemo, useRef } from 'react';
-import { versusDuosStartingVitals, versusStartingVitals, type VersusGroupSeat, type VersusSeat } from '@game/sim';
+import { duosMateOf, versusDuosStartingVitals, versusStartingVitals, type VersusGroupSeat, type VersusSeat } from '@game/sim';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { leaveSpectating, useSpectate, watchSeat } from './spectate';
@@ -19,6 +19,7 @@ import { SpectatorCursor } from './SpectatorCursor';
 import { SpectatorSelf, WatchedPanel, type WatchSeat } from './SpectatorHud';
 import '../live/live.css';
 import { copyName, duosFirstAt, foeIn, groupPairingAt, isDuosRaw } from './versusGroupView';
+import { isRankedDuosRaw } from './rankedDuosView';
 
 const SEATS: readonly VersusSeat[] = ['p1', 'p2'];
 
@@ -75,12 +76,15 @@ export function SpectatorBar(): JSX.Element | null {
       for (const s of p.copy ? [p.a] : [p.a, p.b]) if (!order.includes(s)) order.push(s);
     }
     for (const s of raw.seats) if (!order.includes(s.seat)) order.push(s.seat);
-    return order.map((key) => {
+    // RANKED DUOS (owner 2026-10-26: "a spectator in this mode only watches the 2 live players, not the snapshot
+    // boards"): only the two live teammates can be picked; the recorded teams are never watchable.
+    const ranked = isRankedDuosRaw(raw);
+    return order.filter((key) => !raw.seats.find((x) => x.seat === key)?.served).map((key) => {
       const row = raw.seats.find((x) => x.seat === key)!;
       const foe = row.eliminatedRound == null ? foeIn(pairing, key) : null;
       const foeRow = foe ? raw.seats.find((x) => x.seat === foe.seat) : null;
       // The seat's stored pools (Duos: its team's), else its start (R-VERSUS-HEALTH-01, R-DUOS-HEALTH-01).
-      const mateHero = raw.seats.find((x) => x.seat === ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[key])?.hero;
+      const mateHero = raw.seats.find((x) => x.seat === duosMateOf(key))?.hero;
       const start = duos ? versusDuosStartingVitals(row.hero, mateHero, raw.options) : versusStartingVitals(row.hero, raw.options);
       return {
         key,
@@ -91,7 +95,7 @@ export function SpectatorBar(): JSX.Element | null {
         armor: row.armor ?? start.armor,
         on: seat === key,
         pick: () => watchSeat(key),
-        vs: duos ? (row.eliminatedRound == null ? (key === 'p1' || key === 'p2' ? 'Team 1' : 'Team 2') : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
+        vs: ranked ? (raw.teamName ?? null) : duos ? (row.eliminatedRound == null ? (key === 'p1' || key === 'p2' ? 'Team 1' : 'Team 2') : null) : foeRow ? `vs ${foe!.copy ? copyName(foeRow.name) : foeRow.name}` : null,
         out: row.eliminatedRound != null,
       };
     });

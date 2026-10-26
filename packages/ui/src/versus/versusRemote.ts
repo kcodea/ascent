@@ -6,7 +6,7 @@
  */
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { ownSeatPerspective, VERSUS_PROTOCOL, type HeroReroll, type PreparedCombatSide, type VersusGroupSeat, type VersusRoomOptions, type VersusSeat, type VersusSeatScout } from '@game/sim';
-import type { CombatResult } from '@game/core';
+import type { BoardMinion, CombatResult } from '@game/core';
 import { supabaseClient } from '../remoteBoards';
 
 export type VersusRoomStatus = 'open' | 'sealed' | 'in_game';
@@ -143,6 +143,69 @@ export interface VersusGroupSeatRow {
   eliminatedRound: number | null;
   outReason: 'hearts' | 'forfeit' | 'left' | 'missed' | null;
   placement: number | null;
+  /** RANKED DUOS (2026-10-29-ranked-duos.sql): when the seat ended its turn, went auto, left the match for good (table
+   *  reads only; an RPC answer carries `VersusGroupMatchRaw.endedAt` / `leftAt` instead). */
+  lockedAt?: string | null;
+  autoSince?: string | null;
+  leftAt?: string | null;
+  /** RANKED DUOS (client only): a recorded team's member, seated virtually (p3..p8) for the Duos helpers. */
+  served?: boolean;
+  /** A seat's team letter (Duos / Ranked Duos). */
+  team?: string | null;
+}
+
+/** RANKED DUOS: one recorded team member as the rail shows it (`versus_ranked_duos_table`). */
+export interface RankedDuosServedRow {
+  team: string;
+  member: 0 | 1;
+  name: string;
+  hero: string;
+  kind: 'duo' | 'solo' | 'generated';
+  /** This round's board (a team that is out: the round it fell), null before its recording begins. */
+  board: { minions: BoardMinion[]; tier: number | null } | null;
+}
+
+/** RANKED DUOS: the recorded teams (one read per shop). */
+export interface RankedDuosTableRaw {
+  round: number;
+  teamName: string | null;
+  served: RankedDuosServedRow[];
+  /** A recorded duo run's own fight order for the round served (team -> member first); absent = the seeded 50/50. */
+  orders?: Record<string, 0 | 1>;
+  /** A recorded duo run's team name (when that pair named itself). */
+  teamNames?: Record<string, string>;
+}
+
+/** RANKED DUOS: one team's row (`versus_group_teams`). */
+export interface RankedDuosTeamRead {
+  team: string;
+  health: number | null;
+  armor: number | null;
+  eliminated_round: number | null;
+  placement: number | null;
+  served_kind: string | null;
+}
+
+/** RANKED DUOS: one fight row (`versus_ranked_duos_fights`): the live team's own fight carries `live_result`. */
+export interface RankedDuosFightRow {
+  round: number;
+  fight: number;
+  a_team: string;
+  b_team: string;
+  ghost: boolean;
+  chair: 'a' | 'b';
+  outcome: 'a' | 'b' | 'draw';
+  loser: string | null;
+  damage: number;
+  first: Record<string, 0 | 1> | null;
+  live_result: CombatResult | null;
+}
+
+/** RANKED DUOS: a committed round (`versus_group_rounds`: every team's pool after it, keyed by team letter). */
+export interface RankedDuosRoundRow {
+  round: number;
+  vitals: Record<string, { health: number; armor: number }>;
+  fights: RankedDuosFightRow[];
 }
 
 /** A group match row with its seats (`versus_group_matches` + `versus_group_seats`). */
@@ -173,6 +236,18 @@ export interface VersusGroupMatchRaw {
   completed_at: string | null;
   serverNow?: string;
   seats: VersusGroupSeatRow[];
+  /** RANKED DUOS (`versus_ranked_duos__json` / the table row): when the round closes, who ended when, who left, the
+   *  pair's team identity and name, the table seated, why it is unrated. Absent on every other mode. */
+  closeAt?: string | null;
+  endedAt?: Record<string, string | null>;
+  leftAt?: Record<string, string | null>;
+  teamName?: string | null;
+  ranked_team?: string | null;
+  seated_at?: string | null;
+  seated?: boolean;
+  unrated?: string | null;
+  /** RANKED DUOS (client only, `withServedSeats`): the recorded duo runs' team names. */
+  servedTeamNames?: Record<string, string>;
 }
 
 /** VERSUS DUOS: one recorded pass (`versus_duos_passes`). */
@@ -495,6 +570,47 @@ export function makeVersusRemote(getClient: () => SupabaseClient | null) {
     });
     if (error) throw new VersusError('finalize_failed', (error as Error).message);
   },
+  /** RANKED DUOS: settle a round (`finalize_ranked_duos`: seats the table first if needed; idempotent server-side). */
+  async finalizeRankedDuos(matchId: string, round: number, contentRevision: string): Promise<void> {
+    const { error } = await db().functions.invoke('versus-resolve', {
+      body: { action: 'finalize_ranked_duos', protocol: VERSUS_PROTOCOL, contentRevision, matchId, round },
+    });
+    if (error) throw new VersusError('finalize_failed', (error as Error).message);
+  },
+  /** RANKED DUOS: seat the recorded teams once both heroes are locked (`seat_ranked_duos`, idempotent server-side). */
+  async seatRankedDuos(matchId: string, contentRevision: string): Promise<void> {
+    const { error } = await db().functions.invoke('versus-resolve', {
+      body: { action: 'seat_ranked_duos', protocol: VERSUS_PROTOCOL, contentRevision, matchId },
+    });
+    if (error) throw new VersusError('seat_failed', (error as Error).message);
+  },
+  /** RANKED DUOS: the recorded teams, their names and heroes and this round's boards (one small read per shop). */
+  rankedTable: (matchId: string) => rpc<RankedDuosTableRaw>('versus_ranked_duos_table', { p_match: matchId }),
+  /** RANKED DUOS: the four teams' rows (pools, placements). */
+  async rankedTeams(matchId: string): Promise<RankedDuosTeamRead[]> {
+    // rows: four rows, one per team (primary key match_id + team) (R-NET-01).
+    const { data, error } = await db().from('versus_group_teams').select('team, health, armor, eliminated_round, placement, served_kind').eq('match_id', matchId).order('team');
+    if (error) fail(error);
+    return (data as RankedDuosTeamRead[]) ?? [];
+  },
+  /** RANKED DUOS: committed rounds from `fromRound`: every team's pool, every fight's result, and the live team's own fight
+   *  in full (owner Q11: the other pairing is a result only, so only one full fight per round is ever read). */
+  async rankedRounds(matchId: string, fromRound = 1): Promise<RankedDuosRoundRow[]> {
+    // rows: one row per round, a match ends by round 60 at the latest (R-NET-01).
+    const { data, error } = await db().from('versus_group_rounds').select('round, vitals').eq('match_id', matchId).gte('round', fromRound).order('round');
+    if (error) fail(error);
+    if (!data?.length) return [];
+    // rows: at most two fights per round (R-NET-01); only the live team's carries `live_result`.
+    const { data: fights, error: e2 } = await db().from('versus_ranked_duos_fights')
+      .select('round, fight, a_team, b_team, ghost, chair, outcome, loser, damage, first, live_result')
+      .eq('match_id', matchId).gte('round', fromRound).order('round').order('fight');
+    if (e2) fail(e2);
+    const byRound = new Map<number, RankedDuosFightRow[]>();
+    for (const f of (fights ?? []) as RankedDuosFightRow[]) byRound.set(f.round, [...(byRound.get(f.round) ?? []), f]);
+    return (data as { round: number; vitals: Record<string, { health: number; armor: number }> | null }[])
+      .map((r) => ({ round: r.round, vitals: r.vitals ?? {}, fights: byRound.get(r.round) ?? [] }))
+      .filter((r) => r.fights.length > 0);
+  },
   /** VERSUS DUOS: record a pass to my teammate (exactly once per seq; the run already paid the Gold). */
   duosPass: (matchId: string, round: number, seq: number, card: unknown) =>
     rpc<VersusDuosPassRow>('versus_duos_pass', { p_match: matchId, p_round: round, p_seq: seq, p_card: card }),
@@ -581,6 +697,10 @@ export function groupSeatOfRow(r: Record<string, unknown>): VersusGroupSeatRow {
     hero: (r.hero as string | null) ?? null, locked: !!r.locked, ready: !!r.ready, intro: !!r.intro, auto: !!r.auto,
     missed: Number(r.missed ?? 0), eliminatedRound: r.eliminated_round == null ? null : Number(r.eliminated_round),
     outReason: (r.out_reason as VersusGroupSeatRow['outReason']) ?? null, placement: r.placement == null ? null : Number(r.placement),
+    ...(r.locked_at !== undefined ? { lockedAt: (r.locked_at as string | null) ?? null } : {}),
+    ...(r.auto_since !== undefined ? { autoSince: (r.auto_since as string | null) ?? null } : {}),
+    ...(r.left_at !== undefined ? { leftAt: (r.left_at as string | null) ?? null } : {}),
+    ...(r.team !== undefined ? { team: (r.team as string | null) ?? null } : {}),
   };
 }
 export const versusRemote: VersusRemote = makeVersusRemote(supabaseClient);

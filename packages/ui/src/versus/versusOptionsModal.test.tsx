@@ -18,6 +18,7 @@ vi.mock('../remoteBoards', async (orig) => {
 
 const { mount } = await import('../renderedText.mount');
 const { setIdentity } = await import('../identity');
+const { versusTestToolsEnabled } = await import('./versusFlag');
 const { sfx } = await import('../sfx');
 const { VersusRoom } = await import('./VersusRoom');
 const { useVersus } = await import('./versusStore');
@@ -114,7 +115,8 @@ describe('Room options window (R-VERSUS-OPTIONS-02)', () => {
       open(ui);
       expect(panel()!.querySelector('.vsopt-lock')?.textContent).toBe('Only the host can change these.');
       const cards = [...panel()!.querySelectorAll('.vsopt-card')] as HTMLButtonElement[];
-      expect(cards).toHaveLength(6);
+      // 3 modes + 3 modifiers; with the Versus test tools on (dev / test builds) the Ranked Duos test mode too.
+      expect(cards).toHaveLength(versusTestToolsEnabled() ? 7 : 6);
       expect(cards.every((c) => c.disabled)).toBe(true);
       click(cards.find((c) => c.querySelector('.vsopt-name')?.textContent === '2v2'));
       expect(set).not.toHaveBeenCalled();

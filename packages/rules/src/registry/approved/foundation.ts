@@ -9508,4 +9508,21 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-26 (fix/phone-discover-tap-and-fx-offset). The iOS compositor cost (the drag shadow) could not be measured headless (Playwright WebKit on Windows recomposites the whole screen in software for ANY moving element); it needs the owner\x27s iPhone.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/touchPopUpgrade.test.ts', 'packages/ui/src/tapInspect.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-RANKED-DUOS-CLIENT-01',
+    title: 'Ranked Duos on screen: no Gold Fuse, shopping stops at 0:00 but the turn stays open, a 5 s countdown once a teammate ended, the lobby rail with every team, only the two live teammates watchable',
+    statement:
+      'A Ranked Duos shop runs the round\x27s clock from the shop opening (no Gold Fuse). At 0:00 the shop locks for buying, selling, rolling, playing, tiering up and the hero power, but the turn does not end: re-ordering, freezing and the teammate view stay open, and the round goes when both have ended (or the server\x27s 5 s window after the first End Turn, or its 30 s idle safeguard). Once a teammate has ended past 0:00 the clock face counts that 5 s window down. The rail is the solo lobby\x27s: eight rows, you and your teammate together, each recorded team\x27s two players together, every row on its team\x27s Health + Armor, each team\x27s name on its first row (a pair\x27s own name, else "Name1 & Name2"), each recorded player\x27s board for this round on its scout card. Your opponent this round is marked from the shop on (the lobby\x27s pairing, the same one the server fights). You watch your own team\x27s fight only; the other pairing is a result on the rail. A spectator can pick only the two live teammates.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos)', quote: 'the only difference is it won\x27t have a gold fuse, and timer cannot stop since both players are playing live' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos, 0:00)', quote: 'you can\x27t keep shopping, but can re-order board etc, same as the normal mode when you have no time left. freeze/re-order board, view teammate\x27s board' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (Ranked Duos, spectating)', quote: 'a spectator in this mode only watches the 2 live players, not the snapshot boards' },
+      { kind: 'code', ref: 'packages/ui/src/versus/rankedDuosView.ts; packages/ui/src/versus/versusStore.ts (syncRankedTable, expireVersusShop); packages/ui/src/versus/VersusHud.tsx (graceAt); packages/ui/src/versus/SpectatorBar.tsx; packages/ui/src/LobbyPanel.tsx (lobbyteam); supabase/migrations/2026-10-30-ranked-duos-client.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/ranked-duos-p2, phase 2). Reachable only from a Versus room with the test tools on until the phase 3 door ships.',
+    example: 'Round 6 at 0:00: Kevin has ended, Lemon is still dragging minions into order; her shop buttons are dark but the board moves, and the clock reads 0:05 and counts down. At 0:00 again the round goes to combat against team "Goats", whose two boards Kevin scouted on the rail during the shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/rankedDuosView.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

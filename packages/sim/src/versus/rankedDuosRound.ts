@@ -15,7 +15,7 @@
  *   `maxRounds` (60) is the lobby's stalemate backstop: the teams still in are then placed by Health + Armor.
  */
 import { CARD_INDEX } from '@game/content';
-import { makeRng, simulate, type CombatResult } from '@game/core';
+import { makeRng, simulate, type BoardMinion, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import { versusSideOrEmpty } from './combat';
 import { mirrorForEnemySeat } from './mirror';
@@ -180,6 +180,14 @@ export interface RankedDuosRoundResult {
   refused: Record<string, string>;
 }
 
+/** A team member's SEAT as the client sees it: the live pair (`a`) are p1 / p2; a recorded team has stable virtual
+ *  seats by its letter (b = p3 / p4, c = p5 / p6, d = p7 / p8), so every Duos helper (`duosTeamOf`, `duosMateOf`) reads
+ *  it unchanged. */
+export function rankedDuosSeatOf(team: string, member: 0 | 1): string {
+  const k = team.charCodeAt(0) - 97;
+  return `p${2 * k + 1 + member}`;
+}
+
 /** A fight's seed: (matchSeed, round, combat tag, ranked salt, fight index), the Versus mixer. */
 export function rankedDuosCombatSeed(matchSeed: number, round: number, fight: number): number {
   let h = 0x811c9dc5 | 0;
@@ -192,7 +200,7 @@ export function rankedDuosCombatSeed(matchSeed: number, round: number, fight: nu
 
 export function resolveRankedDuosRound(input: RankedDuosRoundInput): RankedDuosRoundResult {
   const refused: Record<string, string> = {};
-  const sidesOf = (t: RankedDuosTeamSides): { first: PreparedCombatSide; second: PreparedCombatSide; firstMember: 0 | 1 } => {
+  const sidesOf = (t: RankedDuosTeamSides): { first: PreparedCombatSide; second: PreparedCombatSide; firstMember: 0 | 1; members: [PreparedCombatSide, PreparedCombatSide] } => {
     const s = t.sides.map((raw, i) => {
       const r = versusSideOrEmpty(raw);
       if (r.error && r.error !== 'missing') refused[`${t.team}:${i}`] = r.error;
@@ -201,7 +209,7 @@ export function resolveRankedDuosRound(input: RankedDuosRoundInput): RankedDuosR
     let firstMember = t.first;
     // An empty first board hands straight over.
     if (s[firstMember].board.length === 0 && s[1 - firstMember]!.board.length > 0) firstMember = (1 - firstMember) as 0 | 1;
-    return { first: s[firstMember], second: s[1 - firstMember]!, firstMember };
+    return { first: s[firstMember], second: s[1 - firstMember]!, firstMember, members: s };
   };
   const pairing = pairRankedDuosTeams({
     seed: input.matchSeed, round: input.round,
@@ -234,6 +242,20 @@ export function resolveRankedDuosRound(input: RankedDuosRoundInput): RankedDuosR
         },
       },
     );
+    // The live team's fight carries every board and the order by SEAT, perspective-free (the Versus Duos shape, so the
+    // Duos client plays it unchanged): the live pair are p1 / p2, a recorded team its stable virtual seats
+    // (`rankedDuosSeatOf`: b = p3 / p4, c = p5 / p6, d = p7 / p8).
+    if (a === input.liveTeam || b === input.liveTeam) {
+      const boards: Record<string, BoardMinion[]> = {};
+      for (const [team, t] of [[a, A], [b, B]] as const) {
+        t.members.forEach((m, i) => { boards[rankedDuosSeatOf(team, i as 0 | 1)] = structuredClone(m.board); });
+      }
+      const live = a === input.liveTeam ? A : B;
+      const foe = a === input.liveTeam ? b : a;
+      const foeT = a === input.liveTeam ? B : A;
+      result.duosBoards = boards as CombatResult['duosBoards'];
+      result.duosFirst = { a: rankedDuosSeatOf(input.liveTeam, live.firstMember), b: rankedDuosSeatOf(foe, foeT.firstMember) } as CombatResult['duosFirst'];
+    }
     const outcome: RankedDuosFight['outcome'] = result.result === 'draw' ? 'draw' : result.result === 'win' ? 'a' : 'b';
     const aView = stampVersusDamage(result, cap);
     const bView = stampVersusDamage(mirrorForEnemySeat(result), cap);

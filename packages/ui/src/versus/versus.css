@@ -882,3 +882,6 @@ body:has(.heroselect.hswatch) .vsspec { z-index: 410; }
 .duosdock.hsdock { z-index: 410; }
 .duosdock .duosdock-initial { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; border-radius: 50%; font-family: var(--font-ui);
   font-weight: 900; font-size: calc(var(--duos-d) * 0.42); line-height: 1; color: #f4ecdb; background: radial-gradient(circle at 50% 35%, #3a2d55, #15111f); }
+
+/* RANKED DUOS (lead 2026-10-26): my teammate's hero is taken on my Hero Select. Static dim (no animation). */
+.herocard.hctaken { filter: grayscale(0.85) brightness(0.6); }

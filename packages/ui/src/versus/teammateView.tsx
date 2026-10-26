@@ -14,8 +14,9 @@
  *    over the edges (a static layer that fades in), and my shop controls visibly inert. No plate or button up top (owner
  *    2026-10-25: the view change and colour say it already). The bottom-right portrait (mine, while watching), Esc and
  *    Tab (when held to peek) come back.
- * Watching never holds my game up: back to my board on its own when the shop ends, the match pauses, or my clock has
- * under 5 seconds (versusStore's tick, `TEAMMATE_VIEW_RETURN_MS`).
+ * Watching holds until the turn is over (owner 2026-10-25: "don't force the player back from the teammate view until the
+ * turn is 'over.'"): back to my board on its own only when the fight starts or the match pauses, never at a clock mark
+ * (versusStore's `teammateViewReturns`). My clock still runs and still locks MY turn at 0:00 while I watch.
  */
 import { useEffect } from 'react';
 import { sfx } from '../sfx';

@@ -19,7 +19,7 @@ import { standardTurnSeconds, turnClock } from '../turnClock';
 import { displaySeconds, shopClockAt } from './versusClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
 import { expireVersusShop, lockTurn, mySeat, rereadVersusMatch, resumeMatch, unpauseMatch, useVersus, useVersusPaused, versusRemainingMs, versusServerNow, versusShopRemainingMs, type VersusState } from './versusStore';
-import { useSpectate } from './spectate';
+import { ownRunWhileWatching, useSpectate } from './spectate';
 import { VERSUS_LEASE_SECONDS } from '@game/sim';
 import { sfx } from '../sfx';
 import { versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurn } from './versusTurn';
@@ -143,6 +143,9 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
   return {
     intercept: () => {
       if (!versus) return false;
+      // VERSUS DUOS: watching my teammate, my End Turn is inert (their screen's run is on screen, never mine to end;
+      // my own turn still locks at 0:00, `expireVersusShop`). R-DUOS-VIEW-01.
+      if (ownRunWhileWatching()) return true;
       if (useVersus.getState().endTurnWave === run.wave) return false; // the fight is in: the real End Turn
       void lockTurn();
       return true;

@@ -391,3 +391,40 @@ html[data-touch-ui][data-touch-small][data-page-scale] .colls-page :is(.colls-ta
   mask-image: linear-gradient(90deg, transparent, #000 calc(14 * var(--pt)), #000 calc(100% - 56 * var(--pt)), transparent);
   padding-left: calc(14 * var(--pt)); margin-left: calc(-14 * var(--pt)); scroll-padding-inline: calc(20 * var(--pt)) calc(56 * var(--pt));
 }
+/* Round 5. The podium cards lie flat: portrait on the left (its place medal on its corner), then the name, the rank, and the
+   numbers stacked beside it, so the three cards take ~75 pt and the list below gets the screen. */
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium { align-items: stretch; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn,
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) {
+  position: relative; display: grid; grid-template-columns: auto max-content minmax(0, 1fr); grid-template-rows: auto auto auto; align-items: center; justify-items: start;
+  column-gap: calc(8 * var(--pt)); row-gap: calc(1 * var(--pt)); padding: calc(7 * var(--pt)) calc(9 * var(--pt)); text-align: left;
+}
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-player { display: contents; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-heroframe { grid-column: 1; grid-row: 1 / span 3; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-heroframe .hero,
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-heroframe .hero { width: calc(42 * var(--pt)); height: calc(42 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-who { grid-column: 2 / span 2; grid-row: 1; align-items: flex-start; max-width: 100%; gap: 0; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-handle { flex-direction: column; align-items: flex-start; gap: calc(2 * var(--pt)); max-width: 100%; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-herosub { display: none; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rating { grid-column: 2 / span 2; grid-row: 2; justify-content: flex-start; flex: none; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-mmr { grid-column: 2; grid-row: 3; justify-content: flex-start; }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-games { grid-column: 3; grid-row: 3; justify-content: flex-start; margin-left: calc(8 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn > .lb-c-rank,
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) > .lb-c-rank {
+  position: absolute; left: calc(36 * var(--pt)); top: calc(3 * var(--pt)); height: auto; margin: 0; transform: none; width: auto;
+}
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-medal,
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn:nth-child(1) .lb-medal { width: calc(17 * var(--pt)); height: calc(17 * var(--pt)); font-size: calc(10 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lb-table .lb-podium > .lb-trow.lb-trow-btn .lb-medal svg { display: none; }
+/* The pinned YOU row sits on the list's foot (no band of padding under it). */
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage .lbscroll { padding-bottom: var(--pz-safe-b, var(--safe-b)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .rankpage.lbpage { padding-bottom: 0; }
+/* The mode home's side tiles: each caption on a dark plate of its own, so it reads over any art. */
+html[data-touch-ui][data-touch-small][data-page-scale] .mp-home .mpside .modecard .mcdesc { background: linear-gradient(0deg, rgba(4, 8, 18, 0.88), rgba(4, 8, 18, 0.55) 70%, rgba(4, 8, 18, 0.2)); }
+/* Career: the centre column grows with the open match (nothing of it is cut). */
+html[data-touch-ui][data-touch-small][data-page-scale] .cv2-page .cv2-cols > .cv2-center { overflow: visible; max-height: none; height: auto; }
+/* Collection: the chest panel stacks its text under the chest, at the column's full width. */
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-art { height: calc(42 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-art .colls-bay-chest { width: calc(44 * var(--pt)); }
+html[data-touch-ui][data-touch-small][data-page-scale] .colls-page .colls-bay-actions { justify-content: center; }

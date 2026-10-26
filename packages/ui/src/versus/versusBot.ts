@@ -122,7 +122,8 @@ async function loop(h: BotHost): Promise<void> {
     // host can start the next test straight away.
     const me = room.members.find((m) => m.userId === info?.userId);
     if (room.status === 'open' && me?.role === 'spectator') {
-      const roles = normalizeVersusOptions(room.options).mode === 'duel' ? ['p1', 'p2'] : ['p1', 'p2', 'p3', 'p4'];
+      const mode = normalizeVersusOptions(room.options).mode;
+      const roles = mode === 'duel' || mode === 'ranked_duos' ? ['p1', 'p2'] : ['p1', 'p2', 'p3', 'p4'];
       const free = roles.find((r) => !room.members.some((m) => m.role === r)) as VersusRole | undefined;
       if (free) await h.remote.takeSeat(room.id, free).catch(() => undefined);
     }

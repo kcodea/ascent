@@ -35,6 +35,8 @@ import { installSpectatorEmotes, receiveSpectatorEmote, SPECTATOR_EMOTE_EVENT, u
 import { installVersusHandlers, type VersusFreeze } from './versusHooks';
 import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRoundRaw, type VersusMatch, type VersusPrivate, type VersusRoom, type VersusRoomSummary, type VersusRole, type VersusRoundRow } from './versusRemote';
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { isRankedDuosRaw, rankedCloseIso, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
+import type { RankedDuosRoundRow } from './versusRemote';
 import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type HeroSelectFrame, type SpectatorPublisher } from './spectatorView';
@@ -554,8 +556,10 @@ function onTick(): void {
   const player = !!mySeat(match);
   const due = (iso: string | null): boolean => (versusRemainingMs(iso) ?? 1) <= 0;
   const leaseLate = !!match.paused_at && now % (VERSUS_LEASE_SECONDS * 1000) < 500; // a paused match re-checks for the return
+  // RANKED DUOS: the shop closes at the end-turn gate's moment (`closeAt`), not at 0:00 (R-RANKED-DUOS-GATE-01).
+  const rankedClose = match.group && isRankedDuosRaw(match.group.raw) ? rankedCloseIso(match.group.raw) : undefined;
   if (player && (match.paused_at ? due(match.pause_grace_until) || leaseLate || (!!match.resume_at && due(match.resume_at))
-    : (match.phase === 'hero_select' && due(match.hero_deadline)) || (match.phase === 'shop' && due(match.shop_deadline))
+    : (match.phase === 'hero_select' && due(match.hero_deadline)) || (match.phase === 'shop' && (rankedClose !== undefined ? !!rankedClose && due(rankedClose) : due(match.shop_deadline)))
       || (match.phase === 'combat' && due(match.combat_deadline)) || leaseLate)) {
     const key = `${match.id}|${match.revision}|${match.phase}|${match.paused_at ? 'p' : ''}|${match.resume_at ?? ''}`;
     if (reconcileGate.ready(key, now)) {
@@ -794,6 +798,45 @@ let builtFor: string | null = null;
  *  their projection from my seat (`versusGroupView.ts`). */
 let groupRaw: VersusGroupMatchRaw | null = null;
 let groupRoundsRaw: Record<number, VersusGroupRoundRaw> = {};
+
+// ── RANKED DUOS (owner 2026-10-26): the recorded teams, read once per shop (`versus_ranked_duos_table`) ─────────────
+/** What this client knows about the recorded teams of the current Ranked Duos match. */
+let ranked: RankedDuosContext & { matchId: string | null; tableRound: number; rows: Record<number, RankedDuosRoundRow> } =
+  { matchId: null, table: null, teams: [], rounds: [], tableRound: -1, rows: {} };
+/** The match row as the Duos helpers read it: a Ranked Duos row gets its recorded teams seated virtually. */
+const viewRaw = (raw: VersusGroupMatchRaw): VersusGroupMatchRaw => (isRankedDuosRaw(raw) && ranked.matchId === raw.id ? withServedSeats(raw, ranked) : raw);
+const rankedSeatGate = keyedBackoff({ base: 2000, fastTries: 3, max: 30_000, hiddenFloor: 10_000 });
+const rankedTableGate = keyedBackoff({ base: 1000, fastTries: 3, max: 30_000, hiddenFloor: 10_000 });
+/**
+ * Keep the recorded table current (R-NET-BACKOFF-01: one ask per round, backed off on failure): once the heroes are in,
+ * ask the server to seat it (idempotent; the first round's finalize would also seat it), then read it ONCE per shop
+ * (the boards of the round, the pools after the last one). Players and spectators alike; never more than that.
+ */
+function syncRankedTable(raw: VersusGroupMatchRaw): void {
+  if (!isRankedDuosRaw(raw) || !session) return;
+  if (ranked.matchId !== raw.id) ranked = { matchId: raw.id, table: null, teams: [], rounds: [], tableRound: -1, rows: {} };
+  const now = Date.now();
+  const hidden = pageHidden();
+  const player = !!groupSeatOf(raw, currentUserId());
+  if (player && raw.phase !== 'hero_select' && raw.phase !== 'complete' && !raw.seated_at && !raw.seated) {
+    const key = `${raw.id}|seat`;
+    if (rankedSeatGate.ready(key, now)) {
+      rankedSeatGate.asked(key, now, hidden);
+      void versusRemote.seatRankedDuos(raw.id, raw.content_revision).then(() => rankedTableGate.reset()).catch(() => undefined);
+    }
+  }
+  const seated = !!(raw.seated_at || raw.seated);
+  const want = raw.phase === 'shop' || raw.phase === 'complete' || ranked.tableRound < 0;
+  if (!seated || !want || ranked.tableRound === raw.round) return;
+  const key = `${raw.id}|${raw.round}`;
+  if (!rankedTableGate.ready(key, now)) return;
+  rankedTableGate.asked(key, now, hidden);
+  void Promise.all([versusRemote.rankedTable(raw.id), versusRemote.rankedTeams(raw.id)]).then(([table, teams]) => {
+    if (ranked.matchId !== raw.id) return;
+    ranked = { ...ranked, table, teams, tableRound: raw.round };
+    if (groupRaw?.id === raw.id) void onMatch(ingestGroup(groupRaw));
+  }).catch(() => undefined);
+}
 /** Which table each match id lives in (learned on its first read). */
 const groupIds = new Set<string>();
 const duelIds = new Set<string>();
@@ -840,7 +883,8 @@ function ingestGroup(raw: VersusGroupMatchRaw): VersusMatch {
     const p = groupSeatOf(groupRaw, currentUserId())?.placement ?? null;
     if (p != null) set({ knockout: { ...ko, placement: p } });
   }
-  return projectGroupMatch(groupRaw, groupViewer(groupRaw));
+  syncRankedTable(groupRaw);
+  return projectGroupMatch(viewRaw(groupRaw), groupViewer(groupRaw));
 }
 
 async function loadGroupRounds(match: VersusMatch): Promise<void> {
@@ -850,12 +894,21 @@ async function loadGroupRounds(match: VersusMatch): Promise<void> {
   const from = known.length ? Math.max(...known) + 1 : 1;
   if (from <= committedRound(raw)) {
     try {
-      const rows = await versusRemote.groupRounds(match.id, from);
-      if (roundsOf !== match.id) return;
-      for (const r of rows) groupRoundsRaw[r.round] = r;
+      if (isRankedDuosRaw(raw)) {
+        // RANKED DUOS: the committed rounds in the Duos shape (the live team's own fight in full, the other a result).
+        const rows = await versusRemote.rankedRounds(match.id, from);
+        if (roundsOf !== match.id || ranked.matchId !== raw.id) return;
+        for (const r of rows) ranked.rows[r.round] = r;
+        ranked = { ...ranked, rounds: Object.values(ranked.rows).sort((a, b) => a.round - b.round) };
+        for (const r of rankedRoundsAsGroup(rows)) groupRoundsRaw[r.round] = r;
+      } else {
+        const rows = await versusRemote.groupRounds(match.id, from);
+        if (roundsOf !== match.id) return;
+        for (const r of rows) groupRoundsRaw[r.round] = r;
+      }
     } catch { /* retried on the next wake */ }
   }
-  set({ rounds: projectGroupRounds(raw, Object.values(groupRoundsRaw), groupViewer(raw)) });
+  set({ rounds: projectGroupRounds(viewRaw(raw), Object.values(groupRoundsRaw), groupViewer(raw)) });
 }
 
 /**
@@ -875,7 +928,8 @@ const mx = {
   },
   reconcile: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupReconcile(id).then(ingestGroup) : versusRemote.reconcile(id)),
   finalize: (id: string, round: number, content: string): Promise<void> => (G(id)
-    ? (groupRaw?.id === id && isDuosRaw(groupRaw) ? versusRemote.finalizeDuos(id, round, content) : versusRemote.finalizeGroup(id, round, content))
+    ? (groupRaw?.id === id && isRankedDuosRaw(groupRaw) ? versusRemote.finalizeRankedDuos(id, round, content)
+      : groupRaw?.id === id && isDuosRaw(groupRaw) ? versusRemote.finalizeDuos(id, round, content) : versusRemote.finalizeGroup(id, round, content))
     : versusRemote.finalize(id, round, content)),
   myPrivate: (id: string) => (G(id) ? versusRemote.groupMyPrivate(id) : versusRemote.myPrivate(id)),
   registerOffer: (id: string, offer: string[]): Promise<unknown> => (G(id) ? versusRemote.groupRegisterOffer(id, offer) : versusRemote.registerOffer(id, offer)),
@@ -933,6 +987,10 @@ function groupLobbyInputFor(raw: VersusGroupMatchRaw, seat: VersusGroupSeat, run
     options: raw.options ?? null,
     pairing: groupPairingAt(raw, run.wave),
     ...(isDuosRaw(raw) ? { duos: { first: duosFirstAt(raw, run.wave) } } : {}),
+    // RANKED DUOS: each recorded member's board for the round being played (the rail and scout cards, R-LOBBY-SCOUT-01).
+    ...(isRankedDuosRaw(raw) && ranked.matchId === raw.id && ranked.table && ranked.tableRound === run.wave
+      ? { current: Object.fromEntries(ranked.table.served.filter((x) => x.board).map((x) => [`p${2 * (x.team.charCodeAt(0) - 97) + 1 + x.member}`, x.board!])) }
+      : {}),
   };
 }
 /** Build / refresh the group rail. True when this is a group match (the 1v1 builder then stays out). */
@@ -1239,6 +1297,16 @@ function watchMyHeroSelect(): () => void {
  * Idempotent: the reducer ignores a second expiry and `lockTurn` a second lock.
  */
 export function expireVersusShop(): void {
+  // RANKED DUOS (owner 2026-10-26, R-RANKED-DUOS-GATE-01): 0:00 ends SHOPPING (the lobby's lock), not the turn: re-order,
+  // freeze and the teammate view stay open, and the round goes when the server closes it (both ended, or 5 s after the
+  // first End Turn). My own run takes the engine lock even while I watch my teammate.
+  if (groupRaw && isRankedDuosRaw(groupRaw)) {
+    // Watching my teammate: nothing to buy on that screen; my own run takes the lock when I am back (`onTick`).
+    if (ownRunWhileWatching()) return;
+    const g = useGame.getState();
+    if (g.run.mode === 'versus' && g.run.phase === 'recruit' && !g.replaying && !g.run.shopClockExpired) g.dispatch({ type: 'shopClockExpired' });
+    return;
+  }
   // VERSUS DUOS: 0:00 while I watch my teammate locks MY turn (my run, set aside), never the one on screen; I stay on
   // the view until the fight starts (R-DUOS-VIEW-01).
   if (ownRunWhileWatching()) { void lockTurn(); return; }
@@ -1335,7 +1403,7 @@ export function returnToRoom(): void {
   if (groupRaw && match && groupRaw.id === match.id) {
     const mine = groupSeatOf(groupRaw, currentUserId());
     if (groupRaw.phase !== 'complete' && mine) {
-      set({ knockout: { matchId: match.id, placement: mine.placement, of: groupRaw.seat_count }, statsOpen: false });
+      set({ knockout: { matchId: match.id, placement: mine.placement, of: isRankedDuosRaw(groupRaw) ? RANKED_DUOS_TEAM_COUNT : groupRaw.seat_count }, statsOpen: false });
       useSpectate.setState({ optedOut: null });
     }
     void onMatch(ingestGroup(groupRaw));

@@ -136,6 +136,9 @@ function remoteFor(user: string): BotRemote {
     duosPass: (id, round, seq, card) => as(user, 'select public.versus_duos_pass($1, $2, $3, $4::jsonb)', [id, round, seq, JSON.stringify(card)]),
     duosAnswerPass: (id, from, seq, landed) => as(user, 'select public.versus_duos_answer_pass($1, $2, $3, $4)', [id, from, seq, landed]),
     duosHandRoom: (id, room) => as(user, 'select public.versus_duos_hand_room($1, $2)', [id, room]),
+    // Ranked Duos is not played by this suite (rankedDuos.db.test.ts covers it).
+    rankedRounds: async () => [],
+    finalizeRankedDuos: async () => undefined,
   } as BotRemote;
 }
 

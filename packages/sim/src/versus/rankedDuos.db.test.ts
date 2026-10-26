@@ -34,6 +34,7 @@ const FILES = [
 ];
 const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f), 'utf8')).join('\n');
 const RANKED = readFileSync(join(root, 'supabase/migrations/2026-10-29-ranked-duos.sql'), 'utf8');
+const CLIENT = readFileSync(join(root, 'supabase/migrations/2026-10-30-ranked-duos-client.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -122,6 +123,8 @@ beforeAll(async () => {
   await db.exec(BASE);
   await db.exec(RANKED);
   await db.exec(RANKED); // idempotent
+  await db.exec(CLIENT);
+  await db.exec(CLIENT); // idempotent
 }, 90_000);
 afterAll(async () => { await db?.close(); });
 beforeEach(async () => {
@@ -374,6 +377,30 @@ describe('the round (R-RANKED-DUOS-ROUND-01, R-LOBBY-SERVE-01 for served teams)'
     expect((await memberBoard(duo, 2)).board.board).toEqual([]); // an empty round is a round
     expect((await memberBoard(duo, 7)).board.board).toEqual([]); // past its end: its final side
     expect((await memberBoard({ kind: 'generated', heroId: 'x', seed: 1 }, 3)).form).toBe('none');
+  });
+
+  it('the client table read (phase 2): the recorded teams, this round\'s boards by the round-exact rule, only for room members', async () => {
+    const [, m] = await startRanked();
+    await toShop(m);
+    const heroes = [['keshi', 'nadja'], ['drumline', 'mimic'], ['yazzus', 'fi']];
+    await seat(m, {
+      unrated: false,
+      teams: ['b', 'c', 'd'].map((team, i) => ({
+        team, kind: i === 0 ? 'duo' : 'pair', order: i === 0 ? 'recorded' : 'random', recordedOrder: i === 0 ? { 1: 1, 2: 0 } : null,
+        members: [0, 1].map((member) => ({
+          member, kind: i === 0 ? 'duo' : 'solo', key: `run-${team}${member}`, ownerId: null, name: `P${team}${member}`, heroId: heroes[i]![member],
+          recording: i === 0
+            ? { kind: 'duo', rounds: [{ round: 1, side: sideOf(bag(`${team}${member}`)) }] }
+            : { kind: 'solo', boards: [2, 3].map((w) => snap(w, 2, 2, heroes[i]![member]!)) },
+        })),
+      })),
+    });
+    const t = await as<any>(A, 'select public.versus_ranked_duos_table($1)', [m]);
+    expect(t.served).toHaveLength(6);
+    expect(t.served.find((x: any) => x.team === 'b' && x.member === 0).board.minions).toHaveLength(1); // a duo side's board
+    expect(t.served.find((x: any) => x.team === 'c' && x.member === 0).board).toBeNull(); // its recording starts at round 2
+    expect(t.orders).toEqual({ b: 1 });
+    expect(await fails(D, 'select public.versus_ranked_duos_table($1)', [m])).toMatch(/not_a_member/);
   });
 
   it('a whole match: four teams, the lobby pairing, team pools, only the live fight in full, placement settles the TEAM', async () => {

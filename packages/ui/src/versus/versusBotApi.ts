@@ -11,6 +11,7 @@
  */
 import type { PreparedCombatSide, VersusGroupSeat, VersusSeatScout } from '@game/sim';
 import { isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
+import { isRankedDuosRaw, rankedRoundsAsGroup } from './rankedDuosView';
 import type { VersusBotApi, VersusBotDuosApi } from './versusBotDriver';
 import type { VersusGroupMatchRaw, VersusMatch, VersusRemote, VersusRoundRow } from './versusRemote';
 
@@ -18,6 +19,7 @@ import type { VersusGroupMatchRaw, VersusMatch, VersusRemote, VersusRoundRow } f
 export type BotRemote = Pick<VersusRemote,
   | 'room' | 'pressGate' | 'heartbeat'
   | 'match' | 'myPrivate' | 'registerOffer' | 'pickHero' | 'submit' | 'combatReady' | 'introDone' | 'requestResume' | 'rounds' | 'reconcile' | 'finalize' | 'forfeit' | 'publishFrame'
+  | 'rankedRounds' | 'finalizeRankedDuos'
   | 'groupMatch' | 'groupRounds' | 'groupMyPrivate' | 'groupRegisterOffer' | 'groupPickHero' | 'groupSubmit' | 'groupIntroDone' | 'groupCombatReady'
   | 'groupForfeit' | 'groupRequestResume' | 'groupReconcile' | 'groupPublishFrame' | 'finalizeGroup' | 'finalizeDuos'
   | 'duosPasses' | 'duosPass' | 'duosAnswerPass' | 'duosHandRoom'>;
@@ -82,11 +84,13 @@ export function makeBotMatchApi(remote: BotRemote, userId: () => string | null):
       if (!G(id)) return remote.rounds(id, from);
       const raw = raws.get(id) ?? (await remote.groupMatch(id).then((g) => (g ? (ingest(g), raws.get(id)!) : null)));
       if (!raw) return [];
-      const rows = await remote.groupRounds(id, from);
+      // RANKED DUOS: the committed rounds in the Duos shape (the bot only needs its own fight).
+      const rows = isRankedDuosRaw(raw) ? rankedRoundsAsGroup(await remote.rankedRounds(id, from)) : await remote.groupRounds(id, from);
       return Object.values(projectGroupRounds(raw, rows, userId())).sort((a, b) => a.round - b.round);
     },
     finalize(id, round, content) {
       if (!G(id)) return remote.finalize(id, round, content);
+      if (isRankedDuosRaw(raws.get(id))) return remote.finalizeRankedDuos(id, round, content);
       return isDuosRaw(raws.get(id)) ? remote.finalizeDuos(id, round, content) : remote.finalizeGroup(id, round, content);
     },
     duos: {

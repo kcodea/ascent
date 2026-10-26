@@ -13,19 +13,30 @@
  */
 import { duosMateOf, duosMemberView, duosTeamOf, versusGroupPairings, duosRandomFirst, type VersusGroupPairing, type VersusGroupSeat } from '@game/sim';
 import type { CombatEvent, CombatResult } from '@game/core';
+import { isRankedDuosRaw } from './rankedDuosView';
 import type { VersusGroupMatchRaw, VersusGroupRoundRaw, VersusGroupSeatRow, VersusMatch, VersusRoundRow } from './versusRemote';
 
 const seatsOf = (raw: VersusGroupMatchRaw): VersusGroupSeat[] => raw.seats.map((s) => s.seat);
 const elimOf = (raw: VersusGroupMatchRaw): Partial<Record<VersusGroupSeat, number | null>> =>
   Object.fromEntries(raw.seats.map((s) => [s.seat, s.eliminatedRound]));
 
-/** VERSUS DUOS (R-DUOS-01): this group-table match is a 2v2 Duos match. */
-export const isDuosRaw = (raw: Pick<VersusGroupMatchRaw, 'options'> | null | undefined): boolean => raw?.options?.mode === 'duos';
+/** VERSUS DUOS (R-DUOS-01): this group-table match is played as Duos (a 2v2 room, or RANKED DUOS: the live pair against
+ *  recorded teams seated virtually, `rankedDuosView.ts`). */
+export const isDuosRaw = (raw: Pick<VersusGroupMatchRaw, 'options'> | null | undefined): boolean =>
+  raw?.options?.mode === 'duos' || isRankedDuosRaw(raw);
+
+/** RANKED DUOS: this round's opponent, as `withServedSeats` pinned it on the row. */
+const rankedFoeOf = (raw: VersusGroupMatchRaw, round: number): { seat: VersusGroupSeat } | null => {
+  const f = (raw as { rankedFoe?: { round: number; seat: VersusGroupSeat } | null }).rankedFoe;
+  return f && f.round === round ? f : null;
+};
 
 /** A Duos round's fight order: the seeded 50/50 pick from the match seed + round (R-DUOS-ORDER-01), the same one the
  *  resolver fights (a committed fight's result carries the order it actually used, after an empty-board hand-over). */
 export function duosFirstAt(raw: VersusGroupMatchRaw, round: number): { a: VersusGroupSeat; b: VersusGroupSeat } {
   const f = duosRandomFirst(Number(raw.seed), Math.max(1, round));
+  // RANKED DUOS: the opponent is the round's recorded team (its board that fights first), by the lobby pairing.
+  if (isRankedDuosRaw(raw)) return { a: f.a, b: rankedFoeOf(raw, Math.max(1, round))?.seat ?? f.b };
   return { a: f.a, b: f.b };
 }
 
@@ -33,6 +44,7 @@ export function duosFirstAt(raw: VersusGroupMatchRaw, round: number): { a: Versu
  *  each team's FIRST board (both teammates are in it; `fightOf` / `foeIn` know). */
 export function groupPairingAt(raw: VersusGroupMatchRaw, round: number): VersusGroupPairing[] {
   if (round < 1) return [];
+  if (isRankedDuosRaw(raw) && !rankedFoeOf(raw, round)) return []; // the recorded table is not known yet
   if (isDuosRaw(raw)) { const f = duosFirstAt(raw, round); return [{ a: f.a, b: f.b, copy: false, duos: true }]; }
   return versusGroupPairings(seatsOf(raw), elimOf(raw), round);
 }
@@ -76,7 +88,8 @@ export function projectGroupMatch(raw: VersusGroupMatchRaw, userId: string | nul
   const byseat = (s: VersusGroupSeat | null | undefined): VersusGroupSeatRow | null => (s ? raw.seats.find((x) => x.seat === s) ?? null : null);
   const p1 = me ? meRow! : byseat('p1');
   const p2 = me ? byseat(foe?.seat) : byseat('p2');
-  const living = raw.seats.filter((s) => s.eliminatedRound == null);
+  // The pill counts the PLAYERS still in (a Ranked Duos recorded member is never waited on).
+  const living = raw.seats.filter((s) => s.eliminatedRound == null && !s.served);
   const counts = {
     locked: living.filter((s) => s.locked || s.auto).length,
     ready: living.filter((s) => s.ready || s.auto).length,
@@ -136,7 +149,8 @@ export function resultsOf(r: VersusGroupRoundRaw): Partial<Record<VersusGroupSea
   // Duos: ONE team fight; each seat's own view carries only its board's carry-backs (`duosMemberView`).
   const d = r.fights[0];
   if (d && isDuosFight(d)) {
-    for (const seat of ['p1', 'p2', 'p3', 'p4'] as const) {
+    // Both teams of the fight (Ranked Duos: the recorded team sits at its virtual seats, `rankedDuosView.ts`).
+    for (const seat of [d.a_seat, duosMateOf(d.a_seat), d.b_seat, duosMateOf(d.b_seat)]) {
       const teamA = duosTeamOf(seat) === 'a';
       out[seat] = duosMemberView(teamA ? d.a_result : d.b_result, (teamA ? d.a_seat : d.b_seat) === seat ? 0 : 1);
     }
@@ -236,7 +250,8 @@ export function duosLobbySeatId(raw: VersusGroupMatchRaw, viewer: VersusGroupSea
  *  which TEAM comes first; inside a team the rows keep their ranked order. Teams are the seat pairs `s0`+`s1` (you and
  *  your teammate, `duosLobbySeatId`) and `s2`+`s3`. Pure: the same rows, regrouped. */
 export function groupDuosRailRows<R extends { id: string }>(rows: readonly R[]): R[] {
-  const team = (id: string): number => (id === 's0' || id === 's1' ? 0 : 1);
+  // Teams are seat pairs: s0+s1, s2+s3, and in Ranked Duos s4+s5 and s6+s7 (four teams of two).
+  const team = (id: string): number => { const n = Number(id.slice(1)); return Number.isFinite(n) ? Math.floor(n / 2) : 99; };
   const first = new Map<number, number>();
   rows.forEach((r, i) => { const t = team(r.id); if (!first.has(t)) first.set(t, i); });
   return rows.map((r, i) => ({ r, i })).sort((a, b) => (first.get(team(a.r.id))! - first.get(team(b.r.id))!) || a.i - b.i).map((x) => x.r);

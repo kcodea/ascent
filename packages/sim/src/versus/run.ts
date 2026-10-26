@@ -47,15 +47,17 @@ export function createVersusRun(
   const run = createRun(runSeed, heroId, 'versus', undefined, setId);
   const opts = normalizeVersusOptions(options);
   const rift = versusOptionsRift(opts);
-  // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate.
-  if (opts.mode === 'duos') run.duos = { outbox: [], received: [], refused: [] };
+  // VERSUS DUOS (R-DUOS-PASS-01): a Duos seat's run can pass cards to its teammate. RANKED DUOS passes the same way
+  // (owner 2026-10-26) and plays on the same team pool.
+  const duos = opts.mode === 'duos' || opts.mode === 'ranked_duos';
+  if (duos) run.duos = { outbox: [], received: [], refused: [] };
   if (rift) {
     const bonus = riftBonusArmor(rift, run.mode);
     run.rift = rift;
     run.armor += bonus;
     run.maxArmor += bonus;
   }
-  if (opts.mode === 'duos' && duosMateHeroId) {
+  if (duos && duosMateHeroId) {
     const team = versusDuosStartingVitals(heroId, duosMateHeroId, opts);
     run.resolve = team.health;
     run.maxResolve = team.health;

@@ -18,7 +18,7 @@
  *  - `forcedOpponent` pins the player's opponent to the server's round-robin pairing, so nothing here pairs the table.
  * Display state only: the reducer never settles it, and no persistence path takes it (the UI gates key on the mode).
  */
-import type { CombatResult, Keyword } from '@game/core';
+import type { BoardMinion, CombatResult, Keyword } from '@game/core';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import type { SetId } from '@game/content';
 import type { RunLobby, LobbySeatState, VersusSeatScout } from '../lobby/runLobby';
@@ -26,6 +26,7 @@ import type { LobbyEncounter } from '../lobby/types';
 import type { AuthoredOmen } from '../lobby/tutorialSeats';
 import type { VersusGroupPairing, VersusGroupSeat } from './group';
 import { versusDuosStartingVitals, versusStartingVitals, type VersusVitals } from './vitals';
+import { duosMateOf } from './duos';
 
 /** The Copy row's seat id. */
 export const VERSUS_COPY_SEAT_ID = 'sc';
@@ -80,6 +81,9 @@ export interface VersusGroupLobbyInput {
    *  yours, every seat's board is the one it LOCKED for the round (its teammate's included, even when it never stepped
    *  in), and your opponent is the other team's first board. */
   duos?: { first: { a: VersusGroupSeat; b: VersusGroupSeat } };
+  /** RANKED DUOS: a recorded member's board for THIS round (`versus_ranked_duos_table`), shown on its row and scout card
+   *  exactly as a solo lobby shows a seat's current board (R-LOBBY-SCOUT-01). Keyed by its (virtual) seat. */
+  current?: Partial<Record<string, { minions: BoardMinion[]; tier: number | null }>>;
 }
 
 /** The Copy row's name: who is copied this round. */
@@ -128,16 +132,15 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
   const othersThrough = input.wave - 1;
   const ordered = [...input.seats].sort((x, y) => x.seat.localeCompare(y.seat));
   const me = ordered.find((s) => s.seat === input.me);
-  const mate = input.duos ? ({ p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const)[input.me] : null;
+  const mate = input.duos ? duosMateOf(input.me) : null;
   // Duos: the teammate's row sits right under yours, then the other team in seat order.
   const others = ordered.filter((s) => s.seat !== input.me).sort((x, y) => (x.seat === mate ? -1 : y.seat === mate ? 1 : 0));
   const idOf = new Map<VersusGroupSeat, string>([[input.me, 's0'], ...others.map((s, i) => [s.seat, `s${i + 1}`] as const)]);
   const seed = (n: number): number => (input.matchSeed ^ (0x7e55a11d + n * 0x9e37)) | 0;
   // Each seat's start: its hero's Health and Armor (+ the modifier's Armor); Duos: the team's shared pool.
   const heroOf = (seat: VersusGroupSeat): string | undefined => ordered.find((s) => s.seat === seat)?.heroId;
-  const pairOf = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const;
   const startOf = (seat: VersusGroupSeat): VersusVitals => (input.duos
-    ? versusDuosStartingVitals(heroOf(seat), heroOf(pairOf[seat]), input.options)
+    ? versusDuosStartingVitals(heroOf(seat), heroOf(duosMateOf(seat)), input.options)
     : versusStartingVitals(heroOf(seat), input.options));
   const poolOf = (seat: VersusGroupSeat, through: number): { resolve: number; armor: number; startArmor: number } => {
     const start = startOf(seat);
@@ -169,6 +172,14 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
   }];
   others.forEach((s, i) => {
     const t = seatTrack(s.seat);
+    // RANKED DUOS: this round's board of a recorded member stands in for the round being played.
+    const now = input.current?.[s.seat];
+    if (now && t.boards.length < input.wave) {
+      while (t.boards.length < input.wave - 1) t.boards.push(t.boards[t.boards.length - 1] ?? []);
+      while (t.tiers.length < input.wave - 1) t.tiers.push(t.tiers[t.tiers.length - 1] ?? 1);
+      t.boards.push(now.minions.map(omenOf));
+      t.tiers.push(now.tier ?? t.tiers[t.tiers.length - 1] ?? 1);
+    }
     const out = s.eliminatedRound != null && s.eliminatedRound <= othersThrough;
     seats.push({
       id: idOf.get(s.seat)!, label: s.label, heroId: s.heroId, kind: 'authored', seed: seed(i + 1),
@@ -250,5 +261,6 @@ export function versusGroupLobbyKey(input: VersusGroupLobbyInput): string {
   const seats = input.seats.map((s) => `${s.seat}:${s.heroId}:${s.label}:${s.eliminatedRound ?? ''}:${s.placement ?? ''}:${s.cosmetics ? 1 : 0}`).join(',');
   const pairing = input.pairing.map((p) => `${p.a}${p.copy ? '~' : '-'}${p.b}`).join(',') + (input.duos ? `|d${input.duos.first.a}${input.duos.first.b}` : '');
   const vit = input.rounds.filter((r) => Object.keys(r.vitals ?? {}).length).length;
-  return `g|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${vit}|${seats}|${pairing}`;
+  const cur = Object.entries(input.current ?? {}).map(([k, v]) => `${k}:${v?.minions.length ?? 0}:${v?.tier ?? ''}`).join(',');
+  return `g|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${vit}|${seats}|${pairing}|${cur}`;
 }

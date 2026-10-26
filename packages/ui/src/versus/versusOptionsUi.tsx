@@ -13,11 +13,13 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { RIFTS, riftDefFor, normalizeVersusOptions, VERSUS_MODIFIERS, type VersusModifierId, type VersusMode, type VersusRoomOptions } from '@game/sim';
 import { sfx } from '../sfx';
+import { versusTestToolsEnabled } from './versusFlag';
 import { stageHost } from '../stage';
 import '../matchDetails/matchDetails.css';
 
 /** The mode as players read it. */
-export const versusModeLabel = (mode: VersusMode): string => (mode === 'group' ? '3-4 players' : mode === 'duos' ? '2v2' : '1v1');
+export const versusModeLabel = (mode: VersusMode): string =>
+  (mode === 'group' ? '3-4 players' : mode === 'duos' ? '2v2' : mode === 'ranked_duos' ? 'Ranked Duos' : '1v1');
 
 /** A modifier's name (its rift's). */
 export const versusModifierName = (id: VersusModifierId): string => RIFTS[id]?.name ?? id;
@@ -36,6 +38,9 @@ const MODE_OPTIONS: { value: VersusMode; desc: string }[] = [
   { value: 'group', desc: 'Three or four players. Last one standing wins.' },
   { value: 'duos', desc: 'Two teams of two. Each team shares 30 Health plus both Armors.' },
 ];
+/** RANKED DUOS (phase 2): reachable from a Versus room ONLY with the test tools on (dev / test builds), until the Ranked
+ *  Duos party door ships in phase 3. Two live teammates against three recorded teams. */
+const RANKED_DUOS_OPTION: { value: VersusMode; desc: string } = { value: 'ranked_duos', desc: 'Test: you and a teammate against three recorded teams.' };
 const MODIFIER_OPTIONS: { value: VersusModifierId | null; label: string; desc: string }[] = [
   { value: null, label: 'None', desc: 'The usual rules.' },
   ...VERSUS_MODIFIERS.map((id) => ({ value: id as VersusModifierId | null, label: versusModifierName(id), desc: riftDefFor(id, 'versus').blurb })),
@@ -110,9 +115,9 @@ export function VersusOptionsPanel({ options, editable, onChange, onClose }: {
         <section className="vsopt-sec" aria-label="Mode">
           <h3 className="vsopt-h">Mode</h3>
           <div className="vsopt-grid" role="radiogroup" aria-label="Mode">
-            {MODE_OPTIONS.map((m) => (
+            {(versusTestToolsEnabled() ? [...MODE_OPTIONS, RANKED_DUOS_OPTION] : MODE_OPTIONS).map((m) => (
               <OptionCard key={m.value} name={versusModeLabel(m.value)} desc={m.desc} on={o.mode === m.value} editable={editable}
-                onPick={() => onChange({ ...o, mode: m.value })} />
+                onPick={() => onChange({ ...o, mode: m.value, ...(m.value === 'ranked_duos' ? { modifiers: [] } : {}) })} />
             ))}
           </div>
         </section>

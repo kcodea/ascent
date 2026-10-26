@@ -162,7 +162,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // top of the title, which stays mounted under it so Back is instant. Once the page's 0.2 s fade-in is done the
   // title is skipped by the browser (`.titlescreen.covered`: no style, paint or animation work under an opaque page);
   // closing the page un-skips it at once.
-  const pageOpen = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showCollection);
+  const pageOpen = useGame((s) => s.showCareer || s.showRankings || s.showLeaderboard || s.showRecentGames || s.showLiveGames || s.showFriends || s.showCollection);
   const [covered, setCovered] = useState(false);
   useEffect(() => {
     if (!pageOpen) { setCovered(false); return undefined; }

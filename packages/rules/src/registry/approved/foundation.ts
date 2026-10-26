@@ -9211,4 +9211,79 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'A player opens the game twice in an hour: the second boot reads a few new rows instead of the whole board-results window.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/net/backoff.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-FRIENDS-01',
+    title: 'Friends are for accounts only; requests can be sent, accepted, declined, cancelled and removed, with no self, no duplicate and rate limits',
+    statement:
+      'Only a saved account (not an anonymous guest) can add friends or be added; a guest sees Save your account to add friends. A request goes by handle Name#1234 (name case-insensitive, the tag exact, the name is everything before the last #) or by player. The other player accepts or declines; the sender may cancel; either friend may remove. A second request in the other direction accepts the first. No friending yourself, no duplicate request. Limits: 200 friends, 50 waiting requests, 20 requests an hour.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-28-friends.sql (friends_request, friends_respond, friends_cancel, friends_remove); packages/ui/src/friends/friendsStore.ts; packages/ui/src/friends/AddFriendButton.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    example: 'Ann types Bob#2222 and presses Add friend. Bob sees Wants to be friends with Accept and Decline. A guest who opens Friends sees the Save account prompt instead.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.db.test.ts', 'packages/ui/src/friends/friendsFlow.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-FRIENDS-02',
+    title: 'The Friends page lists requests and friends with their presence; online first, then in a game with its mode and Watch, then offline with last seen',
+    statement:
+      'The menu sidebar has a Friends page: your own handle, Add by handle, Requests with a count, Friends sorted online, in a game, offline. A friend in a game shows its mode (Ranked, Casual, Practice, Tutorial, Gauntlet, Versus 1v1, Versus Group, Versus Duos) and a Watch button when the game is watchable through the existing paths (Live Games for a ranked game, the room stands for a Versus match). An offline friend shows when they were last seen. The sidebar plaque shows requests waiting, else friends online.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
+      { kind: 'code', ref: 'packages/ui/src/friends/FriendsPage.tsx; packages/ui/src/MenuSidebar.tsx; packages/ui/src/friends/friendsGo.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    example: 'Gus is in a ranked game: his row reads In a game: Ranked with Watch. Zed closed the game two hours ago: Last seen 2 hours ago.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-FRIENDS-03',
+    title: 'A block ends the friendship, cancels open invites and stops requests and invites both ways',
+    statement:
+      'Blocking a player deletes any friendship or request between the two and cancels their open invites. While the block stands neither side can request or invite the other, and the blocked player is never told. Unblock lifts it. Only you see your blocks.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-28-friends.sql (friends_block, friends_unblock, friends__blocked)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    example: 'Pia blocks Quin: they are no longer friends, and Quin trying to add Pia is refused.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-FRIENDS-04',
+    title: 'Invites go only to an online friend, last 2 minutes, and accepting joins the Versus room through the normal join',
+    statement:
+      'From a Versus room (Invite friends, or the Friends page while in an open room) a player invites a friend who is online, meaning on a menu and heard from in the last 3 minutes, never in a game. The room must be open and the inviter in it. The invitee sees a corner notice with Accept and Decline on any menu, never over a game, for 2 minutes. Accept opens Versus and joins the room with the existing join. A newer invite to the same friend replaces the older one; 30 invites an hour. The Ranked Duos party uses the same invite with its own kind.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
+      { kind: 'code', ref: 'supabase/migrations/2026-10-28-friends.sql (friends_invite, friends_invite_respond, friends_invite_cancel); packages/ui/src/friends/InviteNotice.tsx; packages/ui/src/friends/RoomInvitePanel.tsx; packages/ui/src/friends/friendsGo.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    example: 'Ann is in her open Versus room and invites Bob, who is on the main menu. Bob sees Ann invites you to their Versus room with 2 minutes to answer; Accept puts him in the room.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.db.test.ts', 'packages/ui/src/friends/friends.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-FRIENDS-05',
+    title: 'Presence is one small call per minute that also answers requests and invites; the list is read only while open; nothing is broadcast',
+    statement:
+      'The client writes its presence and reads its inbox (friends, friends online, requests, open invites) in ONE call every 60 s while the tab is visible, 120 s while hidden, at once on a status change but never more than every 5 s, and every 3 minutes for an account with no friends. Failures back off. Guests never call it. The friends list is one batched read only while a friends surface is open, every 60 s, never while hidden. Presence is readable by the player and their friends only and is never pushed over Realtime; the only subscription is invites addressed to the player, only with at least one friend and a visible tab.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-26 (friends list scope)', quote: 'yes to adding a friends list that shows online players, to simplify invites' },
+      { kind: 'code', ref: 'packages/ui/src/friends/friendsStore.ts (startFriendsPresence, useFriendsListLoop, syncInviteSub); supabase/migrations/2026-10-28-friends.sql (friends_beat, friends_list, the player_presence policy)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/friends-list). New: there was no friends list before.',
+    example: 'Ann leaves the game on the main menu for an hour with three friends: about 60 small calls, no list reads unless she opens Friends.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/friends/friends.test.tsx', 'packages/ui/src/friends/friends.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

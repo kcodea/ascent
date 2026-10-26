@@ -1286,6 +1286,37 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   nothing else. While watched it publishes off the render path (idle time, coalesced). Spectating never touches the
   run, its timing, uploads, rating or placement.
 
+## Friends (owner 2026-10-26; R-FRIENDS-01, R-FRIENDS-02, R-FRIENDS-03, R-FRIENDS-04, R-FRIENDS-05)
+
+The owner (2026-10-26): yes to a friends list that shows online players, to simplify invites (Versus rooms now, the
+Ranked Duos party later).
+
+- **Accounts only.** Friends need a saved account (email). A guest (anonymous) sees "Save your account to add friends"
+  and the existing Save account panel; a guest can never be added.
+- **Adding.** By handle (`Name#1234`: the name is everything before the last `#`, case-insensitive; the tag exact), or
+  Add friend on another player's Career page (where a Leaderboard row, a Recent Games row and a match's players lead;
+  the Leaderboard rows themselves stay button-free per the owner's 2026-10-16 ruling), or from the Versus room's
+  Invite friends panel ("In this room"). A request is accepted or declined by the other player, or cancelled by the
+  sender. If both ask, the second request accepts the first. Either friend may remove the friendship. No friending
+  yourself, no duplicates. Limits: 200 friends, 50 requests waiting, 20 requests an hour.
+- **Blocking.** Block ends any friendship or request between the two players and cancels their open invites; while it
+  stands neither can request or invite the other (block wins). The blocked player is never told. Unblock lifts it.
+- **The Friends page** (menu sidebar, Community > Friends): your own handle to share, Add by handle, Requests (with a
+  count), Friends (online first, then in a game, then offline with last seen), Blocked. A friend in a game shows its
+  mode (Ranked, Casual, Practice, Tutorial, Gauntlet, Versus 1v1 / Group / Duos, Ranked Duos later) and Watch when it is
+  watchable: a ranked lobby game through Live Games, a Versus match from their room's stands. The sidebar plaque shows
+  requests waiting, else how many friends are online.
+- **Presence.** Online = on a menu (including a Versus room between matches); In a game = playing; Offline = nothing
+  heard for 3 minutes. Only you and your friends can read your presence. It is never broadcast.
+- **Invites.** From a Versus room (Invite friends) or the Friends page while you are in an open room: only to a friend
+  who is Online (not in a game). The invitee gets a corner notice with Accept / Decline on any menu (never over a game);
+  it lasts 2 minutes. Accept opens Versus and joins the room (a seat is then one drag away). A newer invite to the same
+  friend replaces the older one. 30 invites an hour. The Ranked Duos party will use the same invite (kind `duos_party`).
+- **Cost (egress).** One small presence call (it also answers requests and invites) every 60 s while the tab is
+  visible, 120 s while hidden, at once on a status change (at most every 5 s), every 3 minutes with no friends; the
+  friends list is read only while a friends surface is open, every 60 s, never while hidden; the only Realtime
+  subscription is invites addressed to you, only with at least one friend and a visible tab.
+
 ## Health & economy
 
 - **Health** is the hero's life total. All heroes start with **30 Health**, plus per-hero **Armor**

@@ -60,6 +60,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: "Friends: add friends, see who's online, and invite them to your Versus room.",
+        details: [
+          'Open Friends from the side menu. Add a friend by name and tag (like Name#1234) or from their Career page.',
+          'See who is online, who is in a game and in which mode, and watch their ranked or Versus game.',
+          'In a Versus room, press Invite friends. Your friend gets an invite they can accept for 2 minutes.',
+          'Friends need a saved account. You can also block a player.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Versus now uses Health and Armor like a normal game, with the same damage and cap. Duos teams share 30 Health plus both heroes' Armor. Summit adds +10 Armor in Versus again.",
         details: [
           "Hearts are gone from 1v1, 3-4 player and Duos games. Each player starts on their hero's Health and Armor.",

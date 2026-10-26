@@ -252,6 +252,15 @@ const ICONS: Record<string, ReactNode> = {
   // WARN: a triangle with a bang, for "Couldn't reach the server" and other error states (it borrowed the muted
   // speaker before, 2026-10-16 audit).
   warn: <path fill="currentColor" fillRule="evenodd" d="M12 2.5L1.5 21h21L12 2.5zM11 9.5h2v6h-2zm0 7.5h2v2h-2z" />,
+  // FRIENDS (2026-10-26): two figures, the nearer one in front (the Friends plaque and page).
+  friends: (
+    <>
+      <circle cx="15.5" cy="7.5" r="3" fill="currentColor" opacity="0.65" />
+      <path fill="currentColor" opacity="0.65" d="M10.5 18.5c.4-3.6 2.4-5.5 5-5.5s4.6 1.9 5 5.5z" />
+      <circle cx="9" cy="8.5" r="3.4" fill="currentColor" />
+      <path fill="currentColor" d="M3 20.5c.4-4.2 2.8-6.4 6-6.4s5.6 2.2 6 6.4z" />
+    </>
+  ),
   lock: (
     <>
       <path fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" d="M7.5 10.5V8a4.5 4.5 0 019 0v2.5" />

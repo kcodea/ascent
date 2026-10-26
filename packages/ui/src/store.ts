@@ -39,9 +39,9 @@ export interface CareerView {
 /** The title screen's view: the main menu, the MODE picker, or the LEARN hub / GAUNTLET stage select inside it. */
 export type TitleView = 'menu' | 'modes' | 'learn' | 'gauntlet' | 'versus';
 /** Where the menu sidebar can send the player: the title menu / mode picker, or one of the four ladder pages. */
-export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection';
+export type MenuDest = 'menu' | 'modes' | 'career' | 'rankings' | 'hall' | 'recent' | 'live' | 'collection' | 'friends';
 /** Every ladder page closed — the set `goTo` / `openTitle` clear (and the one `startReplay` clears). */
-const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false } as const;
+const PAGES_CLOSED = { showCareer: false, careerOf: null, showRankings: false, showLeaderboard: false, showRecentGames: false, showLiveGames: false, showCollection: false, showFriends: false } as const;
 /** The clock `navHopAt` is stamped with — the reader (`useMountedFromHop`) MUST use the same one. */
 export const navClockNow = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -821,6 +821,8 @@ interface GameStore {
   showRecentGames: boolean;
   /** The Live games page (live ranked lobby games to watch, 2026-10-15). */
   showLiveGames: boolean;
+  /** The Friends page (owner 2026-10-26, R-FRIENDS-01). */
+  showFriends: boolean;
   openLiveGames: () => void;
   closeLiveGames: () => void;
   openRecentGames: () => void;
@@ -3017,6 +3019,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
       case 'recent': set({ ...PAGES_CLOSED, ...off, showRecentGames: true, navHopAt }); break;
       case 'live': set({ ...PAGES_CLOSED, ...off, showLiveGames: true, navHopAt }); break;
       case 'collection': set({ ...PAGES_CLOSED, ...off, showCollection: true, navHopAt }); break;
+      case 'friends': set({ ...PAGES_CLOSED, ...off, showFriends: true, navHopAt }); break;
     }
   },
   navHopAt: -1e9,
@@ -3030,6 +3033,7 @@ export const useGame = create<GameStore>((rawSet, get) => {
   closeRankings: () => set({ showRankings: false }),
   showRecentGames: false,
   showLiveGames: false,
+  showFriends: false,
   openLiveGames: () => set({ showLiveGames: true }),
   closeLiveGames: () => set({ showLiveGames: false }),
   openRecentGames: () => set({ showRecentGames: true }),

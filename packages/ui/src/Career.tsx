@@ -22,6 +22,7 @@ import { sfx } from './sfx';
 import { MenuSidebar, SidebarHost } from './MenuSidebar';
 import { AddFriendButton } from './friends/AddFriendButton';
 import { useGame, syncProfileFromServer, tempHandle, type CareerFocus } from './store';
+import { CareerDuosTeams } from './versus/DuosBoards';
 import { fetchMyPracticeGames, fetchPracticeReplay, fetchPlayerById, fetchReplayPayload, fetchRunDetails, remoteEnabled, type PracticeGameConfig, type PracticeGameRow } from './remoteBoards';
 import { startReplay } from './replay/replayPlayer';
 import type { RunHistoryRowLike } from './careerData';
@@ -877,6 +878,8 @@ export function Career() {
                 top 4 rate, APM and games as small multiples with rolling averages and the change vs the period before. */}
             <TrendsBody runs={runs ?? []} window_={window_} nowMs={trendNow} live={trends.mmr.avg} own={!viewing} />
           </div>
+          {/* RANKED DUOS (owner 2026-10-26, Q5): the player's teams, each with its own medal (hidden with none). */}
+          <CareerDuosTeams userId={userId ?? null} />
         </aside>
       </div>
     );

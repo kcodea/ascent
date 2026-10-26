@@ -505,10 +505,12 @@ export const LobbyPanel = memo(function LobbyPanel({ lobby }: { lobby: RunLobby 
               })()}
               {/* The opponent name owns its own full-width row (styles.css `.lobbynameline`). The next foe is
                   marked by the seat's own bright pulsing glow (the `foe` class → `.lobbyseat.foe`), not a pill. */}
-              <span className="lobbynameline">
+              <span className={`lobbynameline${teamLabels?.[seat.id] ? ' hasteam' : ''}`}>
+                {/* RANKED DUOS: the team's name heads its first row on a line of its own, above the player's name (owner
+                    live test 2026-10-26: laid over the row it collided with the name). */}
+                {teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
                 <span className="lobbyname">{seat.label}</span>
               </span>
-              {teamLabels?.[seat.id] && <span className="lobbyteam" aria-label={`Team ${teamLabels[seat.id]}`}>{teamLabels[seat.id]}</span>}
               {row.alive ? (
                 <span className="lobbyhp">
                   {/* The health pill heart: its facet + gloss show in the Gem rail and hide in Classic (lobbyRail.css). */}

@@ -44,6 +44,10 @@ export const RANKED_CONFIRM_YES = "Yes, let's go.";
 export const RANKED_CONFIRM_NO = 'No, go back.';
 /** How long "No, go back." plays the card's exit before it unmounts. Mirrors `rc-out` in styles.css. */
 export const RANKED_CONFIRM_EXIT_MS = 160;
+/** RANKED DUOS (owner 2026-10-26): the same confirmation at the Ranked Duos door. The team's rating, not yours alone,
+ *  is what a game left after it starts costs. Plain sentences, no em dashes. */
+export const DUOS_CONFIRM_TITLE = 'Ranked Duos';
+export const DUOS_CONFIRM_TEXT = 'Ranked Duos is ranked. You and a teammate face three other teams, and your team has its own rating. Would you like to proceed?';
 
 function isRankedEntry(x: unknown): x is RankedEntry {
   if (!x || typeof x !== 'object') return false;

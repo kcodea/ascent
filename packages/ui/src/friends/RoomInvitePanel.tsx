@@ -22,6 +22,9 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
   const friends = list ? sortFriends(list.friends).filter((f) => !inRoom.has(f.userId)) : [];
   const others = room.members.filter((m) => m.userId !== me && (!list || relationOf(m.userId, { list }) !== 'friend'));
   const open = room.status === 'open';
+  // RANKED DUOS (phase 3): a party's invite is a `duos_party` invite (the notice reads "invites you to their Ranked
+  // Duos party"); every other room's is `versus_room`.
+  const kind = room.options?.mode === 'ranked_duos' ? 'duos_party' as const : 'versus_room' as const;
   return (
     <div className="vsveil" role="dialog" aria-label="Invite friends" onClick={onClose}>
       <div className="vspanel fr-roompanel" onClick={(e) => e.stopPropagation()}>
@@ -40,7 +43,7 @@ export function RoomInvitePanel({ room, me, onClose }: { room: VersusRoom; me: s
                   <div className="fr-who"><div className="fr-name">{handleOf(f)}</div><div className="fr-status"><span className="fr-dot" aria-hidden="true" />{statusText(f)}</div></div>
                   {open && f.status === 'online' && f.mode !== 'versus_room' && (
                     <button type="button" className="vsplate" disabled={!!busy[`invite:${f.userId}`] || sent?.status === 'pending'}
-                      onClick={() => { sfx.pulse(); void inviteFriend(f.userId, 'versus_room', room.id); }}>{label}</button>
+                      onClick={() => { sfx.pulse(); void inviteFriend(f.userId, kind, room.id); }}>{label}</button>
                   )}
                 </div>
               );

@@ -44,6 +44,8 @@ import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
 import { VsOpenBadge } from './versus/VsOpenBadge';
 import { HALL_VISIBLE } from './hallFlag';
 import { useFriends } from './friends/friendsStore';
+import { defaultPartyName, PlayPartyToggle, requestDuoPlay, usePlayParty } from './versus/playParty';
+import { enterDuosParty } from './versus/versusStore';
 import './friends/friends.css';
 
 /** How long after a `goTo` a mounting host counts as "opened by the sidebar". A hop mounts its destination in
@@ -133,6 +135,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
   // read of its own). Accounts only: a guest's beat never runs, so both stay 0.
   const frIncoming = useFriends((s) => s.inbox?.incoming ?? 0);
   const frOnline = useFriends((s) => s.inbox?.online ?? 0);
+  const party = usePlayParty();
 
   const progress: Item[] = [
     { dest: 'career', label: txt.career, icon: <IconHelm /> },
@@ -147,7 +150,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
     { dest: 'friends', label: 'Friends', icon: <Icon name="friends" /> },
   ];
 
-  const plaque = (it: Item, extra = '', badge: ReactNode = null): JSX.Element => {
+  const plaque = (it: Item, extra = '', badge: ReactNode = null, onPress?: () => void): JSX.Element => {
     const active = it.dest === current;
     const fresh = it.dest === 'collection' && newRewards;
     // LIVE (owner 2026-10-16): the Live Games plaque breathes while ranked games are being played, with the count.
@@ -157,7 +160,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         key={it.dest}
         className={`sbbtn${extra}${active ? ' active' : ''}${fresh ? ' hasnew' : ''}${live ? ` sb-live${focused ? '' : ' paused'}` : ''}`}
         aria-current={active ? 'page' : undefined}
-        onClick={() => { sfx.pulse(); goTo(it.dest); }}
+        onClick={() => { sfx.pulse(); if (onPress) onPress(); else goTo(it.dest); }}
       >
         <span className="mbicon">{it.icon}</span>
         <span className="mblabel">{it.label}</span>
@@ -170,7 +173,14 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
     );
   };
 
-  const play = plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null);
+  // SOLO / DUO (owner 2026-10-26): Duo + Play goes to the title and asks the Ranked Duos confirmation there (then the
+  // party room); with no title to answer, straight into the party room. Solo + Play: unchanged.
+  const duoPlay = (): void => {
+    goTo('modes');
+    if (!requestDuoPlay()) void enterDuosParty(defaultPartyName(useGame.getState().playerName));
+  };
+  const play = plaque({ dest: 'modes', label: txt.play, icon: <Crest /> }, ' sb-play', vsOpen > 0 ? <VsOpenBadge n={vsOpen} paused={!focused} /> : null,
+    party === 'duo' ? duoPlay : undefined);
   const playWarn = savedRun ? withAbandonWarning('New run. Replaces your saved run.', savedRun) : null;
   const vsTip = vsOpen > 0 ? versusRoomsTip(vsOpen) : null;
   const playTip = playWarn && vsTip ? `${playWarn} ${vsTip}.` : playWarn ?? vsTip;
@@ -190,6 +200,7 @@ export function MenuSidebar({ current }: { current: SidebarCurrent }) {
         <span className="msb-ind" ref={indRef} aria-hidden="true" />
         {/* Play with a run saved and/or Versus rooms open: the same bubble the title's Play carries, on a WRAPPER
             (the plaque's own ::after is its sheen). Attribute text, not visible textContent. */}
+        <PlayPartyToggle className="msb-playparty" />
         {playTip
           ? <div className="msb-item" data-tip={playTip}>{play}</div>
           : play}

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getHero } from '@game/sim';
 import type { RunCosmeticSnapshot } from '@game/progression';
 import { Icon } from './Icon';
@@ -16,6 +16,8 @@ import { scalarCaption } from './rank/rankFormat';
 import { fetchPortraitLoadouts } from './progression/progressionRemote';
 import { frameIdOf } from './portraitFrame/PortraitFrame';
 import { heroPortrait, opponentSkins, useLiveLoadout } from './skins/skins';
+import { DuosLeaderboard, DUOS_ROWS } from './versus/DuosBoards';
+import { versusEnabled } from './versus/versusFlag';
 
 /**
  * Rankings — the player LEADERBOARD (owner request 2026-07-13; polished 2026-09-20 to the Career page's
@@ -90,6 +92,9 @@ export function Rankings() {
   // YOUR row wears your live loadout (always current, never filtered); everyone else's through "Show opponent skins".
   const myLoadout = useLiveLoadout();
   const mineRef = useRef<HTMLDivElement | null>(null);
+  // RANKED DUOS (owner 2026-10-26, Q5): Solo players | Duos teams (the Career's tab style).
+  const [board, setBoard] = useState<'solo' | 'duos'>('solo');
+  const duosTab = versusEnabled() && board === 'duos';
 
   // Bring YOUR row into view once the list has painted — one scroll, not a per-frame read.
   useEffect(() => {
@@ -191,14 +196,26 @@ export function Rankings() {
           <Icon name="crown" />
           <div>
             <div className="esch disp">Leaderboard</div>
-            <div className="lbsub">Top {RANKED_ROWS} players by MMR</div>
+            <div className="lbsub">{duosTab ? `Top ${DUOS_ROWS} Ranked Duos teams` : `Top ${RANKED_ROWS} players by MMR`}</div>
           </div>
         </div>
+        {versusEnabled() && (
+          <div className="cv2-tabs lb-boardtabs" role="tablist" aria-label="Leaderboard">
+            <button type="button" role="tab" className={`cv2-tab${board === 'solo' ? ' on' : ''}`} aria-selected={board === 'solo'} onClick={() => setBoard('solo')}>
+              <Icon name="crown" />Solo
+            </button>
+            <button type="button" role="tab" className={`cv2-tab${board === 'duos' ? ' on' : ''}`} aria-selected={board === 'duos'} onClick={() => setBoard('duos')}>
+              <Icon name="shield" />Duos
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="lbscroll">
         {!remoteEnabled() ? (
           <div className="lbempty lb-state"><Icon name="gear" /><div>Leaderboard unavailable. No backend configured.</div></div>
+        ) : duosTab ? (
+          <DuosLeaderboard show={show} myId={myId ?? null} />
         ) : rows === null ? (
           <div className="lbempty lb-state loading"><span className="lb-spin" aria-hidden /><div>Summoning the ladder…</div></div>
         ) : rows.length === 0 ? (

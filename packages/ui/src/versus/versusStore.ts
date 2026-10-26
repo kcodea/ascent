@@ -37,6 +37,7 @@ import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRo
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { isRankedDuosRaw, rankedCloseIso, rankedRoundsAsGroup, RANKED_DUOS_TEAM_COUNT, withServedSeats, type RankedDuosContext } from './rankedDuosView';
 import type { RankedDuosRoundRow } from './versusRemote';
+import type { RankResult } from '@game/sim';
 import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
 import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type HeroSelectFrame, type SpectatorPublisher } from './spectatorView';
@@ -91,12 +92,21 @@ export interface VersusState {
   optionsNotice: string | null;
   /** VERSUS GROUP KNOCKOUT (R-VERSUS-GROUP-06): my placement, shown as I am moved into the stands to watch the rest. */
   knockout: { matchId: string; placement: number | null; of: number } | null;
+  /** RANKED DUOS (phase 3): which play area the browser shows: Versus rooms, or Ranked Duos parties. */
+  area: VersusArea;
+  /** RANKED DUOS: my team's rating result for the match I just finished (`duos_rank_results`), shown after it. */
+  duosResult: DuosResultView | null;
 }
+
+/** The two play areas over the one room system: Versus rooms, and Ranked Duos parties (owner 2026-10-26). */
+export type VersusArea = 'versus' | 'duos';
+/** My team's result for a finished Ranked Duos match (a RankResult-shaped row, team-owned). */
+export interface DuosResultView { matchId: string; placement: number; result: RankResult | null; teamName: string | null; pending: boolean }
 
 export const useVersus = create<VersusState>(() => ({
   screen: 'browser', rooms: [], loading: false, error: null, room: null, match: null, priv: null, heroOffer: null,
   rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null, offsetMs: 0, lastMatch: null, statsOpen: false, pickedFor: null, runReady: false,
-  rerollPending: false, rerollOffFor: null, seatMove: null, optionsNotice: null, knockout: null,
+  rerollPending: false, rerollOffFor: null, seatMove: null, optionsNotice: null, knockout: null, area: 'versus', duosResult: null,
 }));
 
 const clock = new ServerClock();
@@ -170,6 +180,11 @@ const ERROR_TEXT: Record<string, string> = {
   no_room: 'That room is gone.',
   network: 'Connection problem. Try again.',
   not_deployed: 'Versus is not open on the server yet.',
+  // RANKED DUOS (phase 3)
+  friends_only: 'That party is for the host\'s friends.',
+  hero_taken: 'Your teammate picked that hero.',
+  room_not_sealed: 'The game is already starting.',
+  team_in_game: 'Rename your team between games.',
 };
 const errorText = (e: unknown): string => ERROR_TEXT[(e as VersusError)?.code] ?? ERROR_TEXT.network!;
 
@@ -259,6 +274,12 @@ export async function joinRoom(roomId: string, as: 'player' | 'spectator'): Prom
         return timed(() => versusRemote.joinRoom(roomId, 'player', myIdentity()), (r) => r.serverNow);
       });
     enterRoom(room);
+    // RANKED DUOS (phase 3): a party is two players, so joining one as a player takes its free seat at once.
+    if (as === 'player' && room.options?.mode === 'ranked_duos' && room.status === 'open') {
+      set({ area: 'duos' });
+      const free = (['p1', 'p2'] as const).find((r) => !room.members.some((m) => m.role === r));
+      if (free) await takeSeat(free);
+    }
   } catch (e) {
     set({ error: errorText(e) });
     void refreshRooms();
@@ -1385,6 +1406,12 @@ export function returnToRoom(): void {
   } else if (match && seat) {
     set({ statsOpen: true }); // conceded at once: the record is built when the server confirms the result (`onMatch`)
   }
+  // RANKED DUOS: the team's rating change and medal, as the solo end screen shows them (R-RANKED-DUOS-RATING-01).
+  if (match && seat && groupRaw && groupRaw.id === match.id && isRankedDuosRaw(groupRaw)) {
+    const mine = groupSeatOf(groupRaw, currentUserId());
+    const place = mine?.placement ?? (groupRaw.winner_seat ? 1 : null);
+    if (place != null && !groupRaw.unrated) void loadDuosResult(match.id, place, groupRaw.teamName ?? null);
+  }
   builtFor = null;
   pendingPresent = null;
   lobbyKey = '';
@@ -1413,14 +1440,82 @@ export function returnToRoom(): void {
 }
 
 /** The title's Versus card. */
-export function openVersus(): void {
-  set({ screen: get().room ? 'room' : 'browser', error: null });
+export function openVersus(area: VersusArea = 'versus'): void {
+  set({ screen: get().room ? 'room' : 'browser', error: null, area });
   useGame.getState().setTitleView('versus');
   if (get().room) return;
   void refreshRooms();
   // A returning player (reload, new tab, crash) is still a member server-side: put them straight back in their room,
   // and from there into their running match (live test 2026-10-14: they used to see only "Watch").
   void rejoinMyRoom();
+}
+
+// ── RANKED DUOS (phase 3): the party ───────────────────────────────────────────────────────────────────────────────
+/** The room options of a Ranked Duos party (the live rules: no modifier). */
+export const RANKED_DUOS_OPTIONS: VersusRoomOptions = Object.freeze({ v: 1, mode: 'ranked_duos', modifiers: [] }) as VersusRoomOptions;
+
+/** The Ranked Duos play area: the open parties, Create party (owner 2026-10-26: "if i go into play ranked, duos, it
+ *  should open a lobby that's visible in the duo's play area"). */
+export function openDuos(): void {
+  openVersus('duos');
+}
+
+/** Open a party: a Ranked Duos room with me in the first seat (a party is two players; nobody needs the hand). */
+export async function createDuosParty(name: string): Promise<void> {
+  try {
+    const room = await timed(() => versusRemote.createRoom(name, myIdentity(), RANKED_DUOS_OPTIONS), (r) => r.serverNow);
+    set({ area: 'duos' });
+    enterRoom(room);
+  } catch (e) {
+    set({ error: errorText(e) });
+  }
+}
+
+/** THE DUO DOOR (owner 2026-10-26: "a toggle above 'play' that says solo/duo. if duo is selected it then puts you into a
+ *  room specific for duo's where you can invite a friend"): Duo + Play lands in MY party. Already in a room (a party I
+ *  left the screen of, or a reload): back into it. Otherwise a new party, me in the first seat. */
+export async function enterDuosParty(name: string): Promise<void> {
+  set({ area: 'duos', error: null, screen: get().room ? 'room' : 'browser' });
+  useGame.getState().setTitleView('versus');
+  if (get().room) return;
+  await rejoinMyRoom();
+  if (get().room) return;
+  await createDuosParty(name);
+}
+
+/** The host lists the party publicly (default) or keeps it to friends (owner Q6). */
+export async function setFriendsOnly(on: boolean): Promise<void> {
+  const room = get().room;
+  if (!room) return;
+  try {
+    set({ room: { ...(await versusRemote.setFriendsOnly(room.id, on)) }, error: null });
+  } catch (e) {
+    flashError(errorText(e));
+    void refreshRoom();
+  }
+}
+
+/** Name (or, blank, un-name) my team with my partner (R-RANKED-DUOS-NAME-01). Resolves the stored name, or throws the
+ *  server's reason (`name_length`, `name_chars`, `name_blocked`, `name_reserved`, `team_in_game`). */
+export async function saveTeamName(partner: string, name: string): Promise<string | null> {
+  const out = await versusRemote.setTeamName(partner, name);
+  return out.name ?? null;
+}
+
+/** Read my team's result for a finished Ranked Duos match (once; the server settles it in the round commit). */
+export async function loadDuosResult(matchId: string, placement: number, teamName: string | null): Promise<void> {
+  set({ duosResult: { matchId, placement, result: null, teamName, pending: true } });
+  for (let i = 0; i < 4; i++) {
+    const row = await versusRemote.duosResult(matchId).catch(() => null);
+    if (get().duosResult?.matchId !== matchId) return;
+    if (row) { set({ duosResult: { matchId, placement: row.placement, result: row, teamName, pending: false } }); return; }
+    await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+  }
+  if (get().duosResult?.matchId === matchId) set({ duosResult: { matchId, placement, result: null, teamName, pending: false } });
+}
+
+export function closeDuosResult(): void {
+  set({ duosResult: null });
 }
 
 /**

@@ -17,8 +17,9 @@ import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { Icon } from '../Icon';
 import { MemberRing } from './MemberRing';
+import { defaultPartyName } from './playParty';
 import {
-  clearVersusError, createRoom, joinRoom, refreshRooms, useVersus,
+  clearVersusError, createDuosParty, createRoom, joinRoom, refreshRooms, useVersus,
 } from './versusStore';
 import type { VersusRoomSummary } from './versusRemote';
 import { versusOptionsSummary } from './versusOptionsUi';
@@ -45,7 +46,7 @@ function RoomCard({ r }: { r: VersusRoomSummary }) {
       <div className="vsrcard-who">
         <span className="vsrcard-name">{r.name || `${host}'s room`}</span>
         <span className="vsrcard-host"><Icon name="crown" /> {host}</span>
-        <span className="vsrcard-mode">{versusOptionsSummary(r.options)}</span>
+        <span className="vsrcard-mode">{versusOptionsSummary(r.options)}{r.friendsOnly ? ' · Friends only' : ''}</span>
       </div>
       <div className="vsrcard-seats" aria-label={`${r.players} of ${cap} seats taken`}>
         {Array.from({ length: cap }, (_, i) => <span key={i} className={`vsrseat${i < r.players ? ' on' : ''}`} />)}
@@ -60,11 +61,19 @@ function RoomCard({ r }: { r: VersusRoomSummary }) {
 const ROOMS_VISIBLE_MS = 5000;
 const ROOMS_HIDDEN_MS = 30_000;
 
+/** RANKED DUOS (phase 3): a Ranked Duos party (listed in the Duos play area, never in the Versus browser). */
+export const isDuosParty = (r: Pick<VersusRoomSummary, 'options'>): boolean => r.options?.mode === 'ranked_duos';
+
+/** The party name the Create field starts with: "<name>'s party". */
+
 function Browser() {
-  const rooms = useVersus((s) => s.rooms);
+  // The two play areas over the one room list (owner 2026-10-26): Versus rooms, or the Ranked Duos parties.
+  const duos = useVersus((s) => s.area === 'duos');
+  const allRooms = useVersus((s) => s.rooms);
+  const rooms = allRooms.filter((r) => isDuosParty(r) === duos);
   const loading = useVersus((s) => s.loading);
   const playerName = useGame((s) => s.playerName);
-  const [name, setName] = useState(() => defaultRoomName(playerName));
+  const [name, setName] = useState(() => (duos ? defaultPartyName(playerName) : defaultRoomName(playerName)));
   // The open-rooms list refreshes every 5 s while the page is visible; a background tab asks only every 30 s, and
   // coming back to the tab refreshes at once (R-NET-BACKOFF-01, perf 2026-10-26).
   useEffect(() => {
@@ -76,19 +85,24 @@ function Browser() {
     document.addEventListener('visibilitychange', onVis);
     return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', onVis); };
   }, []);
-  const create = (): void => { sfx.pulse(); void createRoom(name.trim() || defaultRoomName(playerName)); };
+  const create = (): void => {
+    sfx.pulse();
+    if (duos) void createDuosParty(name.trim() || defaultPartyName(playerName));
+    else void createRoom(name.trim() || defaultRoomName(playerName));
+  };
   return (
     <div className="vsbrowser">
       <form className="vscreate" onSubmit={(e) => { e.preventDefault(); create(); }}>
-        <input className="vsinput" maxLength={40} placeholder={defaultRoomName(playerName)} value={name} onChange={(e) => setName(e.target.value)} aria-label="Room name" />
-        <button type="submit" className="vsplate vscreatebtn">Create room</button>
+        <input className="vsinput" maxLength={40} placeholder={duos ? defaultPartyName(playerName) : defaultRoomName(playerName)} value={name} onChange={(e) => setName(e.target.value)} aria-label={duos ? 'Party name' : 'Room name'} />
+        <button type="submit" className="vsplate vscreatebtn">{duos ? 'Create party' : 'Create room'}</button>
       </form>
       <div className="vsrooms-head">
-        <span className="vsrooms-title">Open rooms</span>
+        <span className="vsrooms-title">{duos ? 'Open duo parties' : 'Open rooms'}</span>
         <span className="vsrooms-live" aria-hidden="true">Updates live</span>
       </div>
       <div className="vsrooms" role="list">
-        {rooms.length === 0 && <div className="vsempty">{loading ? 'Looking for rooms...' : 'No rooms open. Create one and invite a friend.'}</div>}
+        {rooms.length === 0 && <div className="vsempty">{loading ? (duos ? 'Looking for parties...' : 'Looking for rooms...')
+          : duos ? 'No parties open. Create one and invite a friend, or wait for someone to join.' : 'No rooms open. Create one and invite a friend.'}</div>}
         {rooms.map((r) => <RoomCard key={r.id} r={r} />)}
       </div>
     </div>

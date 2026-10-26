@@ -18,6 +18,8 @@ import { heroPortrait, opponentSkins } from '../skins/skins';
 import { useGame } from '../store';
 import { LIVE_PAGE, liveRemote, type LiveGameRow } from './liveRemote';
 import { useLiveWatch, watchLiveGame } from './liveWatch';
+import { duosLiveRoomOf } from '../versus/duosLive';
+import { goToVersusRoom } from '../friends/friendsGo';
 import './live.css';
 
 const REFRESH_MS = 10_000;
@@ -63,7 +65,9 @@ export function LiveGames(): JSX.Element | null {
     if (joining) return;
     sfx.pulse();
     setJoining(r.game_id);
-    void watchLiveGame(r.game_id).then((ok) => {
+    // RANKED DUOS (R-RANKED-DUOS-PARTY-01): a team's row watches the party room from the stands (the two live teammates).
+    const duosRoom = duosLiveRoomOf(r.game_id);
+    void (duosRoom ? goToVersusRoom(duosRoom, 'spectator', 'duos') : watchLiveGame(r.game_id)).then((ok) => {
       setJoining(null);
       if (ok) useGame.setState({ showLiveGames: false });
     });
@@ -105,7 +109,7 @@ export function LiveGames(): JSX.Element | null {
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.hero_id} art={heroPortrait(r.hero_id, skins)} frameId={frameIdOf(skins)} />
                     <div className="lb-row-name">{r.display_name}</div>
-                    <div className="lb-row-herosub">{r.phase === 'hero' ? 'Picking a hero' : hero?.name ?? 'Unknown hero'}</div>
+                    <div className="lb-row-herosub">{duosLiveRoomOf(r.game_id) ? 'Ranked Duos team' : r.phase === 'hero' ? 'Picking a hero' : hero?.name ?? 'Unknown hero'}</div>
                   </div>
                   <div className="lv-rank">
                     <RankCrest divisionIndex={r.division_index} size="row" />

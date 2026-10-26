@@ -9540,4 +9540,20 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Kevin and Lemon are knocked out in round 10: the round commits, both are 4th, the pair\\x27s rating settles, and the stats show the other three teams still playing.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuos.db.test.ts', 'packages/ui/src/versus/rankedDuosView.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-RANKED-DUOS-PARTY-01',
+    title: 'Ranked Duos: Solo | Duo above Play; Duo + Play opens my party; friends-only parties stay private; the team owns its boards and Live Games row',
+    statement:
+      'A Solo | Duo switch sits above Play (sidebar and main menu), remembered per viewer; Solo + Play is unchanged, Duo + Play asks the ranked confirmation then puts the player in their own two-seat Ranked Duos party (re-entering one they are already in). A teammate joins by a duos_party friend invite or from the open parties list. The host may set the party friends-only: it is then listed, counted and joinable only for the host\x27s friends and its members, and never on Live Games. Ranked Duos parties are counted apart from Versus rooms. The Leaderboard has a Duos tab of TEAMS ordered by division then points; the Career lists a player\x27s rated teams. Live Games carries one row per live team (duos:<room>), published by the first seat only, named by the team, removed at the game\x27s end. After a game each teammate sees the team\x27s place out of 4 and its rating change on the ranked end sequence.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (Ranked Duos phase 3 entry point)', quote: "i think we should add a toggle above 'play' that says solo/duo. if duo is selected it then puts you into a room specific for duo's where you can invite a friend" },
+      { kind: 'owner-chat', ref: 'Owner Q6, 2026-10-26', quote: 'Listed by default, friends-only toggle' },
+      { kind: 'code', ref: 'supabase/migrations/2026-11-01-ranked-duos-party.sql; packages/ui/src/versus/playParty.tsx; packages/ui/src/versus/DuosParty.tsx; packages/ui/src/versus/DuosBoards.tsx; packages/ui/src/versus/duosLive.ts' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 on feat/ranked-duos-p3.',
+    example: 'Kevin picks Duo, presses Play, confirms, and lands in his own party; he invites Lemon, who accepts and takes the second seat. Kevin sets Friends only, so Ionlime never sees the party. After the game both see 2nd of 4, +11.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosParty.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

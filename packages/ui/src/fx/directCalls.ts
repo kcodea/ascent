@@ -39,6 +39,10 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // The Auctioneer's Pulse — played on the TARGET minion instead of the generic `hero-power-target` spark.
   'auctioneer-hp': ['Recruit.tsx'],
   'cia-hp': ['useCiaEnchantedFx.ts'],
+  // The Duos pass (owner 2026-10-26, R-DUOS-PASS-05): the stream out of a released card into the teammate portrait, and
+  // the stream out of the portrait into the hand slot where the card coalesces. Fired by literal id from the pass.
+  'duos-pass-arrive': ['versus/passLob.ts'],
+  'duos-pass-send': ['versus/passLob.ts'],
   // The persistent ON LOAN smoke on a Funeral on Loan hand card (owner-authored 2026-10-13): a looping play that
   // follows the card, fired by literal id from its hook.
   'funeral-on-loan': ['useOnLoanFx.ts'],

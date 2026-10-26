@@ -4340,9 +4340,9 @@ body.dragging .statusbar .hero { pointer-events: none; }
    shrinks symmetrically when the armor chip appears or vanishes — the heart never drifts left. The 🧍
    resolve dials stack onto that base (see heroPanelConfig). */
 .statusbar .hero .hpbox { position: absolute; left: 50%; top: 50%; transform: var(--hpn-hp-t, translate(-50%, -50%) translate(calc(0 * var(--u)), calc(53 * var(--u))) scale(0.51)); padding: calc(8 * var(--u)) calc(15 * var(--u)); }
-.statusbar .hero .hpbox svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
-.statusbar .hero .hpbox .hpval { font-size: calc(26 * var(--u)); }
-.statusbar .hero .hpbox .armval { font-size: calc(18 * var(--u)); }
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) svg { width: calc(26 * var(--u)); height: calc(26 * var(--u)); }
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .hpval { font-size: calc(26 * var(--u)); }
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .armval { font-size: calc(18 * var(--u)); }
 
 /* THE PLAYER PORTRAIT'S LUNGE TARGET (owner ask 2026-08-25). `.f` keeps its base `scale(1.2)` and positioning;
    this wrapper is transform-CLEAN so the hero strike's GSAP lunge owns it without fighting a base matrix. It
@@ -4435,14 +4435,14 @@ body.dragging .statusbar .heropanel { pointer-events: none; } /* let a corner-re
   box-shadow: none;
 }
 .statusbar .hero .nm { color: #f4ecdb; }
-.statusbar .hero .hpbox {
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) {
   background: linear-gradient(180deg, #241a13, #17110c);
   border-color: color-mix(in srgb, var(--gold) 55%, #000);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 6px rgba(0, 0, 0, 0.3);
 }
-.statusbar .hero .hpbox svg { color: var(--threat); }
-.statusbar .hero .hpbox .hpval { color: #ff9db0; } /* threat, lightened to read on the dark box */
-.statusbar .hero .hpbox .armval { color: #b7c2cf; }
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) svg { color: var(--threat); }
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .hpval { color: #ff9db0; } /* threat, lightened to read on the dark box */
+:is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .armval { color: #b7c2cf; }
 /* Hover tip: the rule (muted) + the live status (tangerine) stacked under the bold power name. */
 .herotip-rule { display: block; }
 .herotip-live { margin-top: 2px; }

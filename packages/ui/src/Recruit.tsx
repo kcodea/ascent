@@ -1,7 +1,7 @@
 import { Fragment, Suspense, lazy, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type TransitionEvent as ReactTransitionEvent, type AnimationEvent as ReactAnimationEvent } from 'react';
-import { catchPulse, mateDoor, playDrop } from './versus/passLob';
-import { duosPassRefusal, myCardBack, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
-import { DuosTagInPlate, useDuosCombatSync } from './versus/duosCombat';
+import { catchPulse, isPassArrival, mateDoor, playDrop } from './versus/passLob';
+import { duosPassRefusal, notePassRefused, overMateFrame, passOnRelease } from './versus/duosPassUi';
+import { useDuosCombatSync } from './versus/duosCombat';
 import { CARD_INDEX, EQUIPMENT_INDEX, QUEST_INDEX, RUNE_INDEX, activeSet } from '@game/content';
 import { createOddsStepper } from './oddsStepper';
 import { compileTimeline } from './choreographer/compileTimeline';
@@ -3045,7 +3045,7 @@ export function Recruit() {
     return () => { window.clearTimeout(t1); window.clearTimeout(t2); };
   }, [wipe, replay.done, run.lastCombat]);
   useEffect(() => { if (wipe !== 'combat') setVistaWarm(null); }, [wipe]);
-  // VERSUS DUOS: who is fighting on each side as the hand-offs play (the opponent portrait, the "steps in" plate).
+  // VERSUS DUOS: who is fighting on each side as the hand-offs play (each side's hero slot follows its live board).
   useDuosCombatSync(run.lastCombat, replay.replayEvents, replay.processedEnd, fighting);
   // A VERSUS SPECTATOR switching seats mid-fight continues from the same moment on the other side (both sides of the
   // one fight have the same beats, R-VERSUS-PERSPECTIVE-01): report the beat on screen, and resume at it after a switch.
@@ -3765,6 +3765,8 @@ export function Recruit() {
        The real gate is whether the card is actually on screen, which the element lookup below does. Combat
        grants can't double-fire here: the filter above consumed them out of `grantPlayedRef`. */
     for (const c of fresh) {
+      // VERSUS DUOS (R-DUOS-PASS-05): a teammate's pass enters by its own flight out of their portrait.
+      if (isPassArrival(c.uid)) continue;
       const card = document.querySelector<HTMLElement>(`[data-zone="hand"] .card[data-uid="${c.uid}"]`);
       if (!card) continue;
       const plate = card.querySelector<HTMLElement>('.cardplate');
@@ -4760,11 +4762,18 @@ export function Recruit() {
         const sent = (live.duos?.outbox.length ?? 0);
         if (!why) dispatch({ type: 'passCard', uid: d.uid });
         if (!why && (useGame.getState().run.duos?.outbox.length ?? 0) > sent) {
-          const face = document.querySelector<HTMLElement>('.dragcard');
-          const from = face?.getBoundingClientRect() ?? { left: e.clientX - d.w / 2, top: e.clientY - d.h / 2, width: d.w, height: d.h };
-          // It DROPS into the teammate's bottom-right portrait disc (owner 2026-10-25), then the disc pops.
+          // The pass (R-DUOS-PASS-05, owner 2026-10-26): the card dissolves where it is and streams into the portrait.
+          // It starts EXACTLY on the floating drag card: its centre, its visual size (layout size times its lift zoom)
+          // and its plate. One layout read, at the release.
+          const dc = document.querySelector<HTMLElement>('.dragcard');
+          const dr = dc?.getBoundingClientRect();
+          const zoom = parseFloat(dc?.style.zoom || '1') || 1;
+          const from = dc && dr && dr.width > 0
+            ? { cx: dr.left + dr.width / 2, cy: dr.top + dr.height / 2, w: dc.offsetWidth * zoom, h: dc.offsetHeight * zoom }
+            : { cx: e.clientX, cy: e.clientY, w: toStage(d.w), h: toStage(d.h) };
+          const plate = dc?.querySelector<HTMLElement>('.cardplate:not(.plate-interior)')?.getBoundingClientRect() ?? null;
           const door = mateDoor();
-          playDrop({ from, to: door?.getBoundingClientRect() ?? mateRect, face: face?.querySelector<HTMLElement>('.card') ?? face, back: myCardBack(), coin: true, onLand: () => catchPulse(door) });
+          playDrop({ from, zoom, plate, to: door?.getBoundingClientRect() ?? mateRect, face: dc?.querySelector<HTMLElement>('.dragshrink > .card') ?? dc?.querySelector<HTMLElement>('.card') ?? null, coin: true, onLand: () => catchPulse(door) });
           sfx.sell?.();
           endSession();
           return;
@@ -8454,7 +8463,6 @@ export function Recruit() {
       {/* The foe's face for the duel — drops onto the Refresh button's anchor while the rail slides away
           (owner ask 2026-08-25). Self-gates on lobby + combat. Also the lunge target for the hero strike. */}
       <CombatOpponent />
-      <DuosTagInPlate />
       {/* The foe's hand, face down, left of its runes (R-OPP-HAND-01): the count, the mid-fight grants, the greys. */}
       <OpponentHand events={replay.replayEvents} through={replay.processedEnd} summoned={replay.enemyHandSummonedShown} live={inCombat} />
       {run.mode === 'versus' && <VersusHud />}

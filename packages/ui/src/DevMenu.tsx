@@ -111,6 +111,7 @@ import { CardPlateEditorTuner } from './CardPlateEditorTuner';
 import { CardTextTuner } from './CardTextTuner';
 import { PlateDissolveTuner } from './PlateDissolveTuner';
 import { HandSummonTuner } from './HandSummonTuner';
+import { DuosPassTuner } from './versus/DuosPassTuner';
 import { PlateCoalesceTuner } from './PlateCoalesceTuner';
 import { EndTurnTuner } from './EndTurnTuner';
 import { HeroPowerTuner } from './HeroPowerTuner';
@@ -311,6 +312,7 @@ const GROUPS: Group[] = [
       { key: 'platedissolve', icon: '🌀', label: 'Dissolve', C: PlateDissolveTuner, hint: "What plays when a hand card's backplate leaves", alt: 'plate' },
       { key: 'platecoalesce', icon: '🪄', label: 'Coalesce', C: PlateCoalesceTuner, hint: 'What plays when a card is generated into hand', alt: 'plate' },
       { key: 'handsummon', icon: '🃏', label: 'Hand Summon', C: HandSummonTuner, hint: 'A minion summoned from the hand (Spirits, Waking Reserve): pick Lift and land / Quick fly / Spirit pull, every timing and size, the landing ring, dust and sound. Live. ▶ Preview plays it on screen', alt: 'summon from hand spirit ghost lift fly pull landing' },
+      { key: 'duospass', icon: '✈', label: 'Duos Pass', C: DuosPassTuner, hint: 'The Duos pass on both screens: the card dissolving into a stream into your teammate portrait, the coin, the portrait pop, and the stream out of it that coalesces into your hand. Timings, stream speed and colours. Live. ▶ Send / ▶ Arrive play it on screen', alt: 'versus duos pass teammate stream coalesce dissolve arrival card' },
     ],
   },
   {

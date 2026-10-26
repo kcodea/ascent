@@ -1,18 +1,12 @@
 /**
  * VERSUS DUOS — the pass drag's decisions on screen (R-DUOS-PASS-01): whether a card can be passed right now and, if
- * not, why, in plain player text; the refusal note the teammate's portrait shows; the face-down card's picture.
+ * not, why, in plain player text; the refusal note the teammate's portrait shows.
  * Pure reads of the run, the teammate's live frame and the match; nothing here touches the network.
  */
 import { create } from 'zustand';
 import { duosPassBlocked, handCap, type RunState } from '@game/sim';
-import { cardPlateLookOf } from '../cardPlate/cardPlateLook';
-import { oppHandBackSrc } from '../oppHandModel';
-import { publicArt } from '../phoneArt';
-import { useGame } from '../store';
 import { teammateViewOf } from './spectate';
 import { useVersus } from './versusStore';
-
-const STANDARD_BACK = publicArt('frames/cardplate-standard.webp');
 
 /** The refusal shown on the teammate's portrait (player text: short, plain, no em dashes). */
 const REASON_TEXT: Record<string, string> = {
@@ -69,11 +63,6 @@ export function overMateFrame(r: { left: number; top: number; right: number; bot
 /** Does this pointer event, ending a drag at (x, y), pass the card? Only a release over the frame. */
 export const passOnRelease = (r: { left: number; top: number; right: number; bottom: number } | null, e: { type: string; clientX: number; clientY: number }): boolean =>
   !!r && e.type === 'pointerup' && overMateFrame(r, e.clientX, e.clientY);
-
-/** My face-down card: my equipped card plate, else the standard plate (the opponent hand's own picture). */
-export function myCardBack(): string {
-  return oppHandBackSrc(cardPlateLookOf(useGame.getState().run.cosmetics ?? null), STANDARD_BACK);
-}
 
 /** The latest refusal, for the portrait's note (keyed so the same reason twice shows twice). */
 export const useDuosPassNote = create<{ text: string | null; n: number }>(() => ({ text: null, n: 0 }));

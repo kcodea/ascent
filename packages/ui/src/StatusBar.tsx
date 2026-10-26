@@ -199,6 +199,7 @@ export function StatusBar() {
   // VERSUS DUOS (R-SYMMETRY-01, lead ruling 2026-10-25): while my TEAMMATE's board fights on my side, my hero slot
   // shows THEIR portrait, skin, frame and name, exactly as the foe's slot follows the foe's board. My buttons stay mine.
   const duosSelfId = useDuosCombat((s) => s.selfSeatId);
+  const duosOn = useDuosCombat((s) => s.on);
   const duosSelf = useGame((s) => (duosSelfId && s.run.phase === 'combat' ? s.run.lobby?.seats.find((x) => x.id === duosSelfId) ?? null : null));
   const showOppSkins = useGame((s) => s.showOpponentSkins);
   const playerName = duosSelf ? duosSelf.label : watchedName ?? ownName;
@@ -862,7 +863,8 @@ export function StatusBar() {
             {/* (The post-combat green attack pill and the red damage-taken number were retired 2026-09-28: the shared
                 damage formation builds the blow and every hero attack punches the same big -N onto the target.) */}
             {heroImg ? (
-              <img decoding="sync" className="heroimg" src={heroImg} alt={hero.name} draggable={false} />
+              // VERSUS DUOS (owner 2026-10-26): the slot swaps to whoever's board is live on my side, the face fading in.
+              <img key={duosOn && duosSelfId ? `duos:${duosSelfId}` : 'me'} decoding="sync" className={`heroimg${duosOn && duosSelfId ? ' duosswap' : ''}`} src={heroImg} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

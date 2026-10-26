@@ -17,7 +17,7 @@ import { TRIBE_ICON } from './gauntlet/tribeIcon';
  * ring (the combat portrait's Buffs-panel hover prompt lives there).
  */
 export function FoePortraitDisc({
-  art, gauntlet, tribe, frame, extraClass = '', onClick, role, children,
+  art, gauntlet, tribe, frame, extraClass = '', onClick, role, children, artKey,
 }: {
   art?: string;
   gauntlet: boolean;
@@ -28,6 +28,8 @@ export function FoePortraitDisc({
   onClick?: () => void;
   role?: string;
   children?: ReactNode;
+  /** Versus Duos: who this face is. A new key remounts the art so the new player's face fades in (`.duosswap`). */
+  artKey?: string;
 }): JSX.Element {
   return (
     <div
@@ -37,7 +39,7 @@ export function FoePortraitDisc({
       role={role}
     >
       {art
-        ? <img decoding="sync" className={`combatopp-img${gauntlet ? ' combatopp-cardart' : ''}`} src={art} alt="" draggable={false} />
+        ? <img key={artKey} decoding="sync" className={`combatopp-img${gauntlet ? ' combatopp-cardart' : ''}${artKey ? ' duosswap' : ''}`} src={art} alt="" draggable={false} />
         : gauntlet
         ? <span className="combatopp-emblem"><Icon name={tribe ? TRIBE_ICON[tribe] : 'anvil'} /></span>
         : <Icon name="anvil" />}

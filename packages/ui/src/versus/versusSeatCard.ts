@@ -25,7 +25,7 @@ import { parseCosmeticSnapshot, titleName, type RunCosmeticSnapshot } from '@gam
 import type { CardView } from '../Card';
 import { avatarSrc } from '../art';
 import { heroPortrait } from '../skins/skinArt';
-import { supabaseClient } from '../remoteBoards';
+import { canReadProfileAvatar, noteProfileAvatarRead, supabaseClient } from '../remoteBoards';
 import type { VersusMember } from './versusRemote';
 
 /** A player's lifetime Versus record. */
@@ -148,7 +148,9 @@ async function fetchProfiles(ids: readonly string[]): Promise<Map<string, Omit<S
     timeout(READ_TIMEOUT_MS, null),
   ]);
   try {
-    let res = await read('user_id, favorite_hero, equipped_title_id, avatar');
+    // `avatar` only while this client may read it (column grants: `canReadProfileAvatar`); a refusal settles it.
+    let res = canReadProfileAvatar() ? await read('user_id, favorite_hero, equipped_title_id, avatar') : null;
+    noteProfileAvatarRead(res?.error);
     if (!res || res.error) res = await read('user_id, favorite_hero, equipped_title_id');
     if (!res || res.error) res = await read('user_id, favorite_hero');
     if (!res || res.error || !Array.isArray(res.data)) return out;

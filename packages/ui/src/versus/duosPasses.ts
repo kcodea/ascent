@@ -12,8 +12,6 @@
  */
 import { duosWireCard, handCap, type BoardCard, type RunState, type VersusGroupSeat } from '@game/sim';
 import { useGame } from '../store';
-import { oppHandBackSrc } from '../oppHandModel';
-import { publicArt } from '../phoneArt';
 import { playArrival } from './passLob';
 import { notePassRefused } from './duosPassUi';
 import { sfx } from '../sfx';
@@ -264,7 +262,7 @@ function applyRows(s: DuosSession, rows: readonly VersusDuosPassRow[]): void {
         dispatch({ type: 'receivePass', from: r.from_seat, seq: r.seq, card: r.card as unknown as BoardCard });
         // The lob in (R-DUOS-PASS-01): the card drops out of my teammate's portrait into my hand.
         const got = useGame.getState().run.hand.find((c) => !before.has(c.uid));
-        if (got && !ownRunWhileWatching()) playArrival(got.uid, oppHandBackSrc(null, publicArt('frames/cardplate-standard.webp')));
+        if (got && !ownRunWhileWatching()) playArrival(got.uid);
       }
       if (r.status === 'sent') {
         const after = useGame.getState().run.duos;

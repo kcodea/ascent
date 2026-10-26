@@ -1,4 +1,5 @@
 import { stageHost, toStage } from './stage';
+import { setGlowText } from './webkitText';
 /**
  * Tunable parameters for the RUBY POWER FX — the "your Rubies just got stronger" cue (owner ask 2026-07-24):
  * the Ruby-side sibling of the Spell Power FX, with its own independent dials so the two reads can diverge.
@@ -175,7 +176,7 @@ export function floatRubyPowerNumber(x: number, y: number, atk: number, hp: numb
   const label = atk > 0 && hp > 0 ? `+${atk}/+${hp}` : atk > 0 ? `+${atk} Atk` : `+${hp} HP`;
   const el = document.createElement('div');
   el.className = 'rubypower-float';
-  el.textContent = label;
+  setGlowText(el, label); // (+ its iPhone glow copy, webkitText.ts)
   el.style.left = `${toStage(x)}px`; // a screen point -> stage px (stage.ts)
   el.style.top = `${toStage(y)}px`;
   el.style.fontSize = `${c.numSize}px`;

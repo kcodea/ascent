@@ -12,8 +12,8 @@
 /* A minion's tier number, rising off its badge. */
 .dform-chip b {
   display: block; font-family: var(--font-ui); font-weight: 900; font-style: normal; font-size: var(--df-chip); line-height: 1;
-  color: #fff; -webkit-text-stroke: calc(var(--df-chip) * 0.17) #1b0f06; paint-order: stroke fill;
-  text-shadow: 0 calc(var(--df-chip) * 0.08) 0 #1b0f06, 0 0 calc(var(--df-chip) * 0.32) var(--hb-side);
+  color: #fff; --wk-stroke: calc(var(--df-chip) * 0.17) #1b0f06; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --wk-ts: 0 calc(var(--df-chip) * 0.08) 0 #1b0f06, 0 0 calc(var(--df-chip) * 0.32) var(--hb-side); text-shadow: var(--wk-ts);
 }
 /* The minion total and the hero's number: a number with its caption under it. */
 .dform-merge, .dform-hero { display: grid; justify-items: center; }
@@ -22,13 +22,13 @@
 }
 .dform-merge b {
   font-size: var(--df-merge); color: #fff;
-  -webkit-text-stroke: calc(var(--df-merge) * 0.14) #1b0f06; paint-order: stroke fill;
-  text-shadow: 0 calc(var(--df-merge) * 0.07) 0 #1b0f06, 0 0 calc(var(--df-merge) * 0.3) var(--hb-side);
+  --wk-stroke: calc(var(--df-merge) * 0.14) #1b0f06; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --wk-ts: 0 calc(var(--df-merge) * 0.07) 0 #1b0f06, 0 0 calc(var(--df-merge) * 0.3) var(--hb-side); text-shadow: var(--wk-ts);
 }
 .dform-hero b {
   font-size: var(--df-hero); color: #ffe9a8;
-  -webkit-text-stroke: calc(var(--df-hero) * 0.15) #1b0f06; paint-order: stroke fill;
-  text-shadow: 0 calc(var(--df-hero) * 0.07) 0 #1b0f06, 0 0 calc(var(--df-hero) * 0.34) var(--hb-side);
+  --wk-stroke: calc(var(--df-hero) * 0.15) #1b0f06; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --wk-ts: 0 calc(var(--df-hero) * 0.07) 0 #1b0f06, 0 0 calc(var(--df-hero) * 0.34) var(--hb-side); text-shadow: var(--wk-ts);
 }
 .dform-merge i, .dform-hero i {
   grid-area: 2 / 1; display: block; margin-top: 2px; font-family: var(--font-ui); font-weight: 900; font-style: normal;
@@ -69,11 +69,11 @@
 .hblast-total { display: grid; justify-items: center; }
 .hblast-total-n {
   grid-area: 1 / 1; font-family: var(--font-ui); font-weight: 900; font-size: var(--hb-total); line-height: 0.95; color: var(--hb-side);
-  -webkit-text-stroke: calc(var(--hb-total) * 0.12) #1b0f06; paint-order: stroke fill;
-  text-shadow: 0 calc(var(--hb-total) * 0.06) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.35) color-mix(in srgb, var(--hb-side) 70%, transparent);
+  --wk-stroke: calc(var(--hb-total) * 0.12) #1b0f06; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --wk-ts: 0 calc(var(--hb-total) * 0.06) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.35) color-mix(in srgb, var(--hb-side) 70%, transparent); text-shadow: var(--wk-ts);
 }
 /* The slam's white-hot copy, stacked on the number and faded out by OPACITY (never a colour transition). */
-.hblast-total-flash { color: #fff; text-shadow: 0 0 calc(var(--hb-total) * 0.25) #fff; }
+.hblast-total-flash { color: #fff; --wk-ts: 0 0 calc(var(--hb-total) * 0.25) #fff; text-shadow: var(--wk-ts); }
 .hblast-total-l {
   grid-area: 2 / 1; margin-top: calc(var(--hb-total) * 0.02); font-family: var(--font-ui); font-weight: 900;
   font-size: calc(var(--hb-total) * 0.17); letter-spacing: 0.2em; text-transform: uppercase; color: #fff;
@@ -92,8 +92,8 @@
 /* The hit number on the struck hero: white-hot fill, a thick dark outline, the attacker's glow. */
 .hblast-hit {
   font-family: var(--font-ui); font-weight: 900; font-size: calc(var(--hb-total) * 0.8); line-height: 1; color: #fff;
-  -webkit-text-stroke: calc(var(--hb-total) * 0.1) #1b0f06; paint-order: stroke fill;
-  text-shadow: 0 calc(var(--hb-total) * 0.05) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.3) var(--hb-side);
+  --wk-stroke: calc(var(--hb-total) * 0.1) #1b0f06; -webkit-text-stroke: var(--wk-stroke); paint-order: stroke fill;
+  --wk-ts: 0 calc(var(--hb-total) * 0.05) 0 #1b0f06, 0 0 calc(var(--hb-total) * 0.3) var(--hb-side); text-shadow: var(--wk-ts);
 }
 /* The big tiers' dim: everything but the two heroes (two static mask spotlights set once), faded by opacity only. */
 .hblast-dim { position: fixed; z-index: 150; pointer-events: none; background: rgba(6, 3, 14, 0.9); will-change: opacity; mask-composite: intersect; -webkit-mask-composite: source-in; }

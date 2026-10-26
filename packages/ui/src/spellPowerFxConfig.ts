@@ -1,4 +1,5 @@
 import { stageHost, toStage } from './stage';
+import { setGlowText } from './webkitText';
 /**
  * Tunable parameters for the SPELL POWER FX — the "a spell just resolved, and here's the power behind it"
  * cue (owner ask 2026-07-21): a fan of pink/purple/gold ARROWS rises from the caster, a BLAST of motes pops
@@ -170,7 +171,7 @@ export function floatSpellPowerNumber(x: number, y: number, atk: number, hp: num
   const label = atk > 0 && hp > 0 ? `+${atk}/+${hp}` : atk > 0 ? `+${atk} Atk` : `+${hp} HP`;
   const el = document.createElement('div');
   el.className = 'spellpower-float';
-  el.textContent = label;
+  setGlowText(el, label); // (+ its iPhone glow copy, webkitText.ts)
   el.style.left = `${toStage(x)}px`; // a screen point -> stage px (stage.ts)
   el.style.top = `${toStage(y)}px`;
   el.style.fontSize = `${c.numSize}px`;

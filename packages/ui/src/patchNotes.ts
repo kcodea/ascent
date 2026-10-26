@@ -79,6 +79,10 @@ export const PATCH_NOTES: PatchNote[] = [
       },
       {
         category: 'Systems',
+        text: 'iPhone: damage numbers, tribe labels and other text now have their glow.',
+      },
+      {
+        category: 'Systems',
         text: 'On iPhone, the Returning To Shop letters glow again, and the Now Facing poster lettering has its inked edge.',
       },
       {

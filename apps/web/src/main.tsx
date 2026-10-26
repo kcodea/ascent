@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import gsap from 'gsap';
-import { Boot, Game, installEgressMeter, installStage } from '@game/ui';
+import { Boot, Game, installEgressMeter, installStage, installWebKitText } from '@game/ui';
 
 // DEV / measurement builds only (VITE_EGRESS_METER=1): count every byte the Supabase backend sends this tab, before
 // any client connects (`window.__egress`, packages/ui/src/net/egressMeter.ts). A no-op in a player build.
@@ -22,6 +22,9 @@ if (!root) throw new Error('Missing #root');
 // The scaled stage (packages/ui/src/stage.ts): wrap #root in #stage and apply the first fit BEFORE the first
 // render, so a phone never paints a frame of the unscaled layout.
 installStage();
+
+// iPhone / Safari (WebKit): outlined labels get their glow from layered copies (packages/ui/src/webkitText.ts).
+installWebKitText();
 
 // Disable the browser context menu — right-click does nothing in-game.
 window.addEventListener('contextmenu', (e) => e.preventDefault());

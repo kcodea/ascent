@@ -544,12 +544,13 @@ const ItemTile = memo(function ItemTile({ id, name, rarity, owned, equipped, fre
       {/* The text block. `display: contents` everywhere except a skin tile, where it becomes the faint dark band
           behind the text (collection.css, "LEGIBILITY OVER ART"). */}
       <span className="colls-tile-text">
-        {target && <span className="colls-tile-for">{target}</span>}
+        {/* A skin tile's lines are outlined + shadowed: `data-wkt` is their iPhone copy (webkitText.ts, R-WEBKIT-SHADOW-01). */}
+        {target && <span className="colls-tile-for" data-wkt={art ? target : undefined}>{target}</span>}
         <span className="colls-tile-top">
           <span className="colls-gem" aria-hidden />
-          <span className="colls-tile-rar">{RARITY_LABELS[rarity]}</span>
+          <span className="colls-tile-rar" data-wkt={art ? RARITY_LABELS[rarity] : undefined}>{RARITY_LABELS[rarity]}</span>
         </span>
-        <span className="colls-tile-name">{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
+        <span className="colls-tile-name" data-wkt={art && owned && !master ? name : undefined}>{master ? <TitleBadge id={id} className="colls-titleplate" /> : name}</span>
         {how && <span className="colls-tile-how">{how}</span>}
       </span>
       {!owned && <span className="colls-tile-lock" aria-hidden><LockGlyph /></span>}

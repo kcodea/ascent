@@ -1027,15 +1027,16 @@ export const Card = memo(function Card({
           />
           {/* Tribe NAME on the plate's bottom gem — the tribe-plated card's tribe label lives here (no icon)
               instead of in the drawer (owner 2026-07-25). Positioned over the plate's bottom diamond. */}
-          {spellLike && <div className="plate-tribe spellkind" data-kind={spellKindAttr} aria-hidden="true">{spellKind}</div>}
+          {spellLike && <div className="plate-tribe spellkind" data-kind={spellKindAttr} data-wkt={spellKind} aria-hidden="true">{spellKind}</div>}
           {tribePlated && (
             <div className="plate-tribe" aria-hidden="true">
               {/* ALL replaces the printed tribe for an every-type card — NEUTRAL would say the opposite of
                   what it does. Plain text, no icon, exactly like every other tribe on this gem. */}
-              {universalTribe ? 'ALL' : (
+              {/* Each word carries `data-wkt`, its iPhone outline + glow copy (webkitText.ts, R-WEBKIT-SHADOW-01). */}
+              {universalTribe ? <span data-wkt="ALL">ALL</span> : (
                 <>
-                  {TRIBE_LABEL[card.tribe]}
-                  {card.tribe2 && <> <span className="ctype-sep">/</span> {TRIBE_LABEL[card.tribe2]}</>}
+                  <span data-wkt={TRIBE_LABEL[card.tribe]}>{TRIBE_LABEL[card.tribe]}</span>
+                  {card.tribe2 && <> <span className="ctype-sep" data-wkt="/">/</span> <span data-wkt={TRIBE_LABEL[card.tribe2]}>{TRIBE_LABEL[card.tribe2]}</span></>}
                 </>
               )}
             </div>
@@ -1385,18 +1386,19 @@ export const Card = memo(function Card({
             <span dangerouslySetInnerHTML={{ __html: rulesHtmlMemo }} />
           </div>
         )}
-        {spellLike && !usePlate && <div className="dtribe spellkind" data-kind={spellKindAttr}>{spellKind}</div>}
+        {spellLike && !usePlate && <div className="dtribe spellkind" data-kind={spellKindAttr} data-wkt={spellKind}>{spellKind}</div>}
         {!spellLike && !tribePlated && (
           <div className="dtribe">
             {/* An "All" type prints ALL rather than its printed tribe — Lab Experiment reads `neutral` in data
                 but counts as every tribe, and showing NEUTRAL made it look like it took no tribal buffs. */}
             {universalTribe ? (
-              <><Icon name="star" /> All</>
+              <><Icon name="star" /> <span data-wkt="All">All</span></>
             ) : (
               <>
-                <Icon name={TRIBE_ICON[card.tribe]} /> {TRIBE_LABEL[card.tribe]}
+                {/* The words carry `data-wkt`, their iPhone outline + glow copy (webkitText.ts, R-WEBKIT-SHADOW-01). */}
+                <Icon name={TRIBE_ICON[card.tribe]} /> <span data-wkt={TRIBE_LABEL[card.tribe]}>{TRIBE_LABEL[card.tribe]}</span>
                 {card.tribe2 && (
-                  <> <span className="ctype-sep">/</span> <Icon name={TRIBE_ICON[card.tribe2]} /> {TRIBE_LABEL[card.tribe2]}</>
+                  <> <span className="ctype-sep" data-wkt="/">/</span> <Icon name={TRIBE_ICON[card.tribe2]} /> <span data-wkt={TRIBE_LABEL[card.tribe2]}>{TRIBE_LABEL[card.tribe2]}</span></>
                 )}
               </>
             )}

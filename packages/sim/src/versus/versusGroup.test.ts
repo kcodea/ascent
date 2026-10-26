@@ -9,6 +9,7 @@ import type { PreparedCombatSide } from '../state';
 import { resolveVersusGroupRound, versusGroupAliveAt, versusGroupCombatSeed, versusGroupPairings, type VersusGroupPairing, type VersusGroupSeat } from './group';
 import { canonicalJson } from './canonical';
 import { versusCombatSeed } from './combat';
+import { hitVitals, versusRoundCap } from './vitals';
 
 const FOUR: VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
 const THREE: VersusGroupSeat[] = ['p1', 'p2', 'p3'];
@@ -100,28 +101,35 @@ describe('Versus Group round resolution (one simulate per fight, hearts rules)',
     expect(a.fights).toHaveLength(2);
   });
 
-  it('a loser loses one heart; a draw nobody; side b holds the mirrored perspective; the chair rotates', () => {
+  it('a loser takes the lobby damage (capped, Armor first); a draw nobody; side b holds the mirrored perspective; the chair rotates', () => {
     for (const round of [1, 2, 3, 4]) {
-      const out = resolveVersusGroupRound({ matchSeed: 5, round, seats: FOUR, eliminated: {}, sides });
+      const vitals = { p1: { health: 30, armor: 3 }, p2: { health: 30, armor: 3 }, p3: { health: 30, armor: 3 }, p4: { health: 30, armor: 3 } };
+      const out = resolveVersusGroupRound({ matchSeed: 5, round, seats: FOUR, eliminated: {}, sides, vitals });
       for (const f of out.fights) {
         expect(f.chair).toBe(round % 2 === 1 ? 'a' : 'b');
-        if (f.outcome === 'draw') expect(f.heartLostBy).toBeNull();
-        else expect(f.heartLostBy).toBe(f.outcome === 'a' ? f.b : f.a);
+        if (f.outcome === 'draw') { expect(f.loser).toBeNull(); expect(f.damage).toBe(0); }
+        else {
+          expect(f.loser).toBe(f.outcome === 'a' ? f.b : f.a);
+          const view = f.loser === f.a ? f.aResult : f.bResult;
+          expect(f.damage).toBe(Math.min(view.playerDamageUncapped!, versusRoundCap(round)));
+          expect(out.vitals![f.loser!]).toEqual(hitVitals(vitals[f.loser!], f.damage));
+          expect(view.versusVitals).toEqual(out.vitals![f.loser!]);
+        }
         expect(f.aResult.result).toBe(f.outcome === 'a' ? 'win' : f.outcome === 'b' ? 'lose' : 'draw');
         expect(f.bResult.result).toBe(f.outcome === 'b' ? 'win' : f.outcome === 'a' ? 'lose' : 'draw');
       }
     }
   });
 
-  it('a COPY never loses a heart, but beating the facing player costs them one', () => {
+  it('a COPY never takes damage, but beating the facing player damages them', () => {
     let copyLosses = 0;
     let copyWins = 0;
     for (let seed = 1; seed <= 30; seed++) {
       for (const round of [1, 2, 3]) {
         const out = resolveVersusGroupRound({ matchSeed: seed, round, seats: THREE, eliminated: {}, sides });
         const f = out.fights.find((x) => x.copy)!;
-        if (f.outcome === 'a') { copyLosses++; expect(f.heartLostBy).toBeNull(); }
-        if (f.outcome === 'b') { copyWins++; expect(f.heartLostBy).toBe(f.a); }
+        if (f.outcome === 'a') { copyLosses++; expect(f.loser).toBeNull(); expect(f.damage).toBe(0); }
+        if (f.outcome === 'b') { copyWins++; expect(f.loser).toBe(f.a); expect(f.damage).toBeGreaterThan(0); }
       }
     }
     expect(copyLosses + copyWins).toBeGreaterThan(0);
@@ -134,9 +142,9 @@ describe('Versus Group round resolution (one simulate per fight, hearts rules)',
     expect(f.aResult.initial.enemy.map((m) => m.cardId)).toEqual(copiedBoard);
   });
 
-  it('a ghost (a seat out during the round) never loses a heart; a missing or malformed side fights empty', () => {
+  it('a ghost (a seat out during the round) never takes damage; a missing or malformed side fights empty', () => {
     const out = resolveVersusGroupRound({ matchSeed: 4, round: 1, seats: FOUR, eliminated: { p2: 1 }, sides: { ...sides, p4: { board: 'x' } } });
-    for (const f of out.fights) expect(f.heartLostBy).not.toBe('p2');
+    for (const f of out.fights) expect(f.loser).not.toBe('p2');
     expect(out.refused.p4).toBe('board_not_array');
   });
 });

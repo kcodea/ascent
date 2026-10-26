@@ -6,14 +6,18 @@
  *    current phase (a late or duplicate caller is a client catching up, not an error).
  * 2. The deployed engine must be the one the match was created under (content revision), or it refuses.
  * 3. Read every seat's FINAL side, resolve the round's ONE tag-team fight in the seeded 50/50 fight order
- *    (`duosRandomFirst` from the match seed + round, R-DUOS-ORDER-01; no player input) (`resolveVersusDuosRound`) and commit through `versus_duos_commit_round` (idempotent in SQL;
- *    team hearts, the knockout and the match end are applied there, under the row lock).
+ *    (`duosRandomFirst` from the match seed + round, R-DUOS-ORDER-01; no player input) (`resolveVersusDuosRound`), charge
+ *    the losing team's shared pool the lobby's capped damage (R-DUOS-HEALTH-01: stored, else 30 Health + both heroes'
+ *    Armor), and commit through `versus_duos_commit_round` (idempotent in SQL; the pools, the knockout and the match end
+ *    are applied there, under the row lock).
  *
  * Bundle-safe: imports only pure Versus siblings.
  */
 import { canonicalDigest } from './canonical';
-import { resolveVersusDuosRound, type VersusDuosRoundResult } from './duos';
+import { duosTeamSeats, resolveVersusDuosRound, type VersusDuosRoundResult, type VersusDuosTeam } from './duos';
+import type { VersusVitalsCommit } from './finalize';
 import type { VersusGroupSeat } from './group';
+import { reportedVitals, versusDuosStartingVitals, versusVitalsBefore, vitalsTotal, type VersusVitals } from './vitals';
 
 export interface VersusDuosMatchRow {
   id: string;
@@ -21,14 +25,25 @@ export interface VersusDuosMatchRow {
   round: number;
   seed: number | string;
   content_revision: string;
-  options?: { mode?: string } | null;
+  options?: { mode?: string; modifiers?: unknown } | null;
+}
+
+/** A team's stored pool (null until round 1 commits). */
+export interface VersusDuosTeamRow {
+  team: string;
+  health?: number | null;
+  armor?: number | null;
 }
 
 export interface VersusDuosFinalizeStore {
   match(id: string): Promise<VersusDuosMatchRow | null>;
   /** Every seat's final prepared side for the round (absent / null = none stored). */
   finalSides(matchId: string, round: number): Promise<Partial<Record<VersusGroupSeat, unknown>>>;
-  commit(args: { p_match: string; p_round: number; p_fight: unknown; p_digest: string }): Promise<unknown>;
+  /** Every seat's hero (a team's starting pool reads both). */
+  seats(matchId: string): Promise<{ seat: string; hero?: string | null }[]>;
+  /** Every team's stored pool. */
+  teams(matchId: string): Promise<VersusDuosTeamRow[]>;
+  commit(args: { p_match: string; p_round: number; p_fight: unknown; p_digest: string; p_vitals: Partial<Record<VersusDuosTeam, VersusVitalsCommit>> }): Promise<unknown>;
   log(msg: string, detail?: unknown): void;
 }
 
@@ -36,13 +51,13 @@ export interface VersusDuosFinalizeStore {
 export function duosFightPayload(out: VersusDuosRoundResult): Record<string, unknown> {
   return {
     a: out.first.a, b: out.first.b, chair: out.chair, outcome: out.outcome, losingTeam: out.losingTeam,
-    heartsLost: out.heartsLost, aResult: out.aResult, bResult: out.bResult,
+    damage: out.damage, aResult: out.aResult, bResult: out.bResult,
   };
 }
 
-/** The digest the commit stores and the parity proof compares (the fight, both team perspectives). */
+/** The digest the commit stores and the parity proof compares (the fight, both team perspectives, the pools). */
 export function duosRoundDigest(out: VersusDuosRoundResult): string {
-  return canonicalDigest({ round: out.round, fight: duosFightPayload(out) });
+  return canonicalDigest({ round: out.round, fight: duosFightPayload(out), ...(out.vitals ? { vitals: out.vitals } : {}) });
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -67,12 +82,30 @@ export async function handleVersusDuosFinalize(
     return { status: 409, body: { error: 'engine_mismatch', contentRevision: engineContent } };
   }
   const sides = await store.finalSides(matchId, m.round);
-  const out = resolveVersusDuosRound({ matchSeed: Number(m.seed), round: m.round, sides });
+  const [seatRows, teamRows] = await Promise.all([store.seats(matchId), store.teams(matchId)]);
+  const heroOf = (seat: VersusGroupSeat): string | null => seatRows.find((r) => r.seat === seat)?.hero ?? null;
+  // Each team fights on its stored shared pool (none yet = 30 Health + both heroes' Armor); a fresh Mend report from
+  // either teammate may raise its Armor.
+  const before: Partial<Record<VersusDuosTeam, VersusVitals>> = {};
+  for (const t of ['a', 'b'] as const) {
+    const [x, y] = duosTeamSeats(t);
+    const row = teamRows.find((r) => r.team === t);
+    const stored = row && row.health != null && row.armor != null
+      ? { health: Number(row.health), armor: Number(row.armor) }
+      : versusDuosStartingVitals(heroOf(x), heroOf(y), m.options);
+    before[t] = versusVitalsBefore(stored, [reportedVitals(sides[x]), reportedVitals(sides[y])]);
+  }
+  const out = resolveVersusDuosRound({ matchSeed: Number(m.seed), round: m.round, sides, vitals: before });
   for (const [seat, why] of Object.entries(out.refused)) store.log(`versus duos finalize: ${seat} side refused, fighting empty`, why);
   const digest = duosRoundDigest(out);
-  const committed = await store.commit({ p_match: matchId, p_round: m.round, p_fight: duosFightPayload(out), p_digest: digest });
+  const vitals: Partial<Record<VersusDuosTeam, VersusVitalsCommit>> = {};
+  for (const t of ['a', 'b'] as const) {
+    const v = out.vitals?.[t];
+    if (v) vitals[t] = { ...v, damage: out.losingTeam === t ? out.damage : 0, before: vitalsTotal(before[t]!) };
+  }
+  const committed = await store.commit({ p_match: matchId, p_round: m.round, p_fight: duosFightPayload(out), p_digest: digest, p_vitals: vitals });
   return {
     status: 200,
-    body: { status: 'committed', round: m.round, first: out.first, outcome: out.outcome, heartsLost: out.heartsLost, digest, committed },
+    body: { status: 'committed', round: m.round, first: out.first, outcome: out.outcome, damage: out.damage, digest, committed },
   };
 }

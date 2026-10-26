@@ -61,12 +61,12 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
     }
   });
 
-  it('a modifier pins its rift onto the run (no Armor in Versus); the run then plays by it', () => {
+  it('a modifier pins its rift onto the run (Summit adds its +10 Armor, R-VERSUS-SUMMIT-01); the run then plays by it', () => {
     for (const id of VERSUS_MODIFIERS) {
       const run = createVersusRun(123, 'warden', 'set3', { v: 1, mode: 'duel', modifiers: [id] });
       const plain = createRun(123, 'warden', 'versus', undefined, 'set3');
       expect(run.rift).toBe(id);
-      expect(run.armor).toBe(plain.armor); // R-VERSUS-SUMMIT-01: a Versus modifier never adds Armor
+      expect(run.armor).toBe(plain.armor + (id === 'summit' ? 10 : 0)); // R-VERSUS-SUMMIT-01 (2026-10-26): Summit adds +10 again
       expect(run.shop.map((o) => o.cardId)).toEqual(plain.shop.map((o) => o.cardId)); // same opening shop
       expect(serialize(createVersusRun(123, 'warden', 'set3', { v: 1, mode: 'duel', modifiers: [id] }))).toBe(serialize(run));
     }
@@ -80,13 +80,14 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
     expect(boughtFree.embers).toBe(free.embers);
   });
 
-  // R-VERSUS-SUMMIT-01 (owner 2026-10-25): "summit rift shouldnt add armor in versus, just have it unlock tier 7".
-  it('Summit in Versus (1v1 and group) starts on the hero own Armor and can reach Tier 7', () => {
+  // R-VERSUS-SUMMIT-01 (owner 2026-10-26, reversing 2026-10-25): Summit in Versus "add +10 Armor again (like the lobby
+  // Summit rift) in addition to unlocking Tier 7".
+  it('Summit in Versus (1v1 and group) adds +10 Armor to the hero own Armor and can reach Tier 7', () => {
     for (const mode of ['duel', 'group'] as const) {
       const run = createVersusRun(77, 'warden', 'set3', { v: 1, mode, modifiers: ['summit'] });
       expect(run.rift).toBe('summit');
-      expect(run.armor).toBe(getHero('warden').armor); // no +10
-      expect(run.maxArmor).toBe(getHero('warden').armor);
+      expect(run.armor).toBe(getHero('warden').armor + 10);
+      expect(run.maxArmor).toBe(getHero('warden').armor + 10);
       expect(maxTierFor(run.rift)).toBe(7);
       expect(hasTier7Access(run)).toBe(true);
       let s: typeof run = { ...run, tier: 6, embers: 99 };
@@ -98,10 +99,9 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
     expect(maxTierFor(createVersusRun(77, 'warden', 'set3').rift)).toBe(CONFIG.maxTier);
   });
 
-  it('Versus shows Summit without the Armor promise; other modes keep the usual text', () => {
-    expect(riftDefFor('summit', 'versus').blurb).toBe('The shop unlocks Tier 7.');
-    expect(riftDefFor('summit', 'versus').blurb).not.toMatch(/armor/i);
-    expect(riftDefFor('summit', 'versus')).toBe(riftDefFor('summit', 'versus')); // stable (memo'd props)
+  it('Versus shows Summit with its usual text (the +10 Armor is back); every mode reads the same rift', () => {
+    expect(riftDefFor('summit', 'versus').blurb).toMatch(/\+10 Armor/);
+    expect(riftDefFor('summit', 'versus')).toBe(RIFTS.summit); // stable (memo'd props)
     expect(riftDefFor('summit', 'rift')).toBe(RIFTS.summit);
     expect(riftDefFor('freedom', 'versus')).toBe(RIFTS.freedom);
   });

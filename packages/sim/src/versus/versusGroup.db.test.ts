@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { combatSide } from '@game/core';
 import type { PreparedCombatSide } from '../state';
-import { VERSUS_HEARTS } from './constants';
+import { versusFreshSide } from './vitals';
 import { versusGroupPairings, type VersusGroupSeat } from './group';
 import { handleVersusGroupFinalize, type VersusGroupFinalizeStore } from './groupFinalize';
 
@@ -25,7 +25,9 @@ const BASE = FILES.map((f) => readFileSync(join(root, 'supabase/migrations', f),
 const GROUP = readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group.sql'), 'utf8')
   // A knocked-out player goes to the stands (R-VERSUS-GROUP-06).
   + readFileSync(join(root, 'supabase/migrations/2026-10-24-versus-group-knockout-stands.sql'), 'utf8') + readFileSync(join(root, 'supabase/migrations/2026-10-26-versus-lock-order.sql'), 'utf8')
-  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8');
+  + readFileSync(join(root, 'supabase/migrations/2026-10-27-versus-egress.sql'), 'utf8')
+  // Health and Armor (R-VERSUS-HEALTH-01).
+  + readFileSync(join(root, 'supabase/migrations/2026-10-28-versus-health.sql'), 'utf8');
 const STUB = `
   create role anon; create role authenticated; create role service_role;
   create schema auth;
@@ -89,26 +91,37 @@ const beat = async (room: string, users: string[]): Promise<void> => { for (cons
 const EMPTY = (): PreparedCombatSide => ({ board: [], state: combatSide(), config: {} });
 const lock = (u: string, m: string, round: number, side: unknown = EMPTY()) =>
   as(u, `select public.versus_group_submit($1, $2, 1, $3::jsonb, true, null, null)`, [m, round, JSON.stringify(side)]);
-/** A crafted commit (service role), for the SQL's own rules. */
-const commitFights = (m: string, round: number, fights: unknown[]) =>
-  as<any>(null, `select public.versus_group_commit_round($1, $2, $3::jsonb, 'd')`, [m, round, JSON.stringify(fights)]);
-const fight = (i: number, a: VersusGroupSeat, b: VersusGroupSeat, outcome: 'a' | 'b' | 'draw', copy = false) => ({
-  fight: i, a, b, copy, chair: 'a', outcome, aResult: {}, bResult: {},
-  heartLostBy: outcome === 'draw' ? null : outcome === 'a' ? (copy ? null : b) : a,
-});
+/** The crafted commits charge a flat HIT to each loser (a seat with no stored pool starts on 30 Health, no Armor). */
+const HIT = 5;
+/** A crafted commit (service role), for the SQL's own rules: every seat still in carries its pools after the round. */
+async function commitFights(m: string, round: number, fights: { loser: string | null; damage: number }[]): Promise<any> {
+  const vitals: Record<string, { health: number; armor: number; damage: number; before: number }> = {};
+  for (const r of (await db.query<any>('select seat, health, armor from public.versus_group_seats where match_id = $1 and eliminated_round is null', [m])).rows) {
+    const health = r.health ?? 30;
+    const armor = r.armor ?? 0;
+    const damage = fights.filter((f) => f.loser === r.seat).reduce((n, f) => n + f.damage, 0);
+    const fromArmor = Math.min(armor, damage);
+    vitals[r.seat] = { health: Math.max(0, health - (damage - fromArmor)), armor: armor - fromArmor, damage, before: health + armor };
+  }
+  return as<any>(null, `select public.versus_group_commit_round($1, $2, $3::jsonb, 'd', $4::jsonb)`, [m, round, JSON.stringify(fights), JSON.stringify(vitals)]);
+}
+const fight = (i: number, a: VersusGroupSeat, b: VersusGroupSeat, outcome: 'a' | 'b' | 'draw', copy = false) => {
+  const loser = outcome === 'draw' ? null : outcome === 'a' ? (copy ? null : b) : a;
+  return { fight: i, a, b, copy, chair: 'a', outcome, aResult: {}, bResult: {}, loser, damage: loser ? HIT : 0 };
+};
 const ready = async (m: string, round: number, users: string[]): Promise<void> => {
   for (const u of users) await as(u, `select public.versus_group_combat_ready($1, $2)`, [m, round]);
 };
 
 const store: VersusGroupFinalizeStore = {
-  async match(id) { return (await db.query<any>('select id, phase, round, seed, content_revision from public.versus_group_matches where id = $1', [id])).rows[0] ?? null; },
-  async seats(id) { return (await db.query<any>('select seat, eliminated_round from public.versus_group_seats where match_id = $1', [id])).rows; },
+  async match(id) { return (await db.query<any>('select id, phase, round, seed, content_revision, options from public.versus_group_matches where id = $1', [id])).rows[0] ?? null; },
+  async seats(id) { return (await db.query<any>('select seat, eliminated_round, hero, health, armor from public.versus_group_seats where match_id = $1', [id])).rows; },
   async finalSides(matchId, round) {
     const out: Partial<Record<VersusGroupSeat, unknown>> = {};
-    for (const r of (await db.query<any>('select seat, prepared_side, final from public.versus_group_submissions where match_id = $1 and round = $2', [matchId, round])).rows) if (r.final) out[r.seat as VersusGroupSeat] = r.prepared_side;
+    for (const r of (await db.query<any>('select seat, prepared_side, final, source from public.versus_group_submissions where match_id = $1 and round = $2', [matchId, round])).rows) if (r.final) out[r.seat as VersusGroupSeat] = versusFreshSide(r.prepared_side, r.source);
     return out;
   },
-  async commit(a) { return as(null, 'select public.versus_group_commit_round($1, $2, $3::jsonb, $4)', [a.p_match, a.p_round, JSON.stringify(a.p_fights), a.p_digest]); },
+  async commit(a) { return as(null, 'select public.versus_group_commit_round($1, $2, $3::jsonb, $4, $5::jsonb)', [a.p_match, a.p_round, JSON.stringify(a.p_fights), a.p_digest, JSON.stringify(a.p_vitals)]); },
   log: () => undefined,
 };
 
@@ -151,7 +164,8 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
     await as(A, `select public.versus_press_gate($1)`, [room.id]);
     const r = await as<any>(B, `select public.versus_press_gate($1)`, [room.id]);
     const m = r.current_match_id;
-    expect((await db.query<any>('select options, p1_hearts from public.versus_matches where id = $1', [m])).rows[0]).toEqual({ options: { v: 1, mode: 'duel', modifiers: ['freedom'] }, p1_hearts: VERSUS_HEARTS });
+    // No stored pools until round 1 commits (each seat then starts on its hero's own, R-VERSUS-HEALTH-01).
+    expect((await db.query<any>('select options, p1_health from public.versus_matches where id = $1', [m])).rows[0]).toEqual({ options: { v: 1, mode: 'duel', modifiers: ['freedom'] }, p1_health: null });
     await as(A, `select public.versus_forfeit($1)`, [m]);
     await as(A, `select public.versus_set_options($1, $2::jsonb)`, [room.id, JSON.stringify({ modifiers: [] })]);
     expect((await db.query<any>('select options from public.versus_matches where id = $1', [m])).rows[0].options.modifiers).toEqual(['freedom']);
@@ -178,13 +192,13 @@ describe('Versus room options (R-VERSUS-OPTIONS-01)', () => {
 });
 
 describe('Versus Group: knocked out = into the stands (R-VERSUS-GROUP-06)', () => {
-  it('out of hearts or conceding moves the player to the stands of the room, past a full stand; they lock nothing more', async () => {
+  it('out of Health or conceding moves the player to the stands of the room, past a full stand; they lock nothing more', async () => {
     const users = [A, B, C, D];
     const [room, m] = await startGroup(users);
     // A full stand: 20 spectators.
     for (let i = 0; i < 20; i++) await as(U(40 + i), `select public.versus_join_room($1, 'spectator', 'S', '{}', $2, 1)`, [room, CONTENT]);
     await toShop(m, users);
-    await db.query(`update public.versus_group_seats set hearts = 1 where match_id = $1 and seat = 'p2'`, [m]);
+    await db.query(`update public.versus_group_seats set health = 1, armor = 0 where match_id = $1 and seat = 'p2'`, [m]);
     for (const u of users) await lock(u, m, 1);
     await commitFights(m, 1, [fight(0, 'p1', 'p2', 'a'), fight(1, 'p3', 'p4', 'draw')]);
     expect((await roles(room)).Bob).toBe('spectator');
@@ -217,7 +231,7 @@ describe('Versus Group rooms', () => {
     expect([m.phase, m.seat_count, m.options.mode]).toEqual(['hero_select', 3, 'group']);
     const seats = await seatRows(m.id);
     expect(Object.keys(seats).sort()).toEqual(['p1', 'p2', 'p3']);
-    expect(Object.values(seats).every((s) => s.hearts === VERSUS_HEARTS)).toBe(true);
+    expect(Object.values(seats).every((s) => s.health === null && s.armor === null)).toBe(true); // the hero's start until round 1
     // Private seeds are owner-only.
     expect(await as<number>(B, `select count(*)::int from public.versus_group_seat_private where seat = 'p1'`)).toBe(0);
   });
@@ -257,40 +271,49 @@ describe('Versus Group rooms', () => {
     expect(sawCopy).toBe(true);
     const seats = await seatRows(m);
     expect(seats.p1.placement).toBe(1);
-    expect([seats.p2, seats.p3, seats.p4].every((s) => s.hearts <= 0 && s.out_reason === 'hearts' && s.placement >= 2)).toBe(true);
+    expect([seats.p2, seats.p3, seats.p4].every((s) => s.health <= 0 && s.out_reason === 'hearts' && s.placement >= 2)).toBe(true);
+    expect(seats.p1.health).toBeGreaterThan(0);
+    // Every round recorded every pool; the knockout fights recorded their damage.
+    const fights = (await db.query<any>('select heart_lost_by, damage from public.versus_group_fights where match_id = $1 and heart_lost_by is not null', [m])).rows;
+    expect(fights.length).toBeGreaterThan(0);
+    expect(fights.every((f) => f.damage > 0)).toBe(true);
     // The room is Open again with everyone in it.
     const r = await as<any>(A, `select public.versus_reconcile_room($1)`, [room]);
     expect([r.status, r.members.length]).toEqual(['open', 4]);
   });
 
-  it('simultaneous knockouts share a placement; a copy never loses a heart; the commit is idempotent and validated', async () => {
+  it('simultaneous knockouts share a placement; a copy never takes damage; the commit is idempotent and validated', async () => {
     const users = [A, B, C, D];
     const [, m] = await startGroup(users);
     await toShop(m, users);
-    await db.query(`update public.versus_group_seats set hearts = 1 where match_id = $1 and seat in ('p2', 'p4')`, [m]);
+    await db.query(`update public.versus_group_seats set health = 1, armor = 0 where match_id = $1 and seat in ('p2', 'p4')`, [m]);
     for (const u of users) await lock(u, m, 1);
-    expect(await fails(A, `select public.versus_group_commit_round($1, 1, '[]'::jsonb, 'd')`, [m])).toMatch(/permission denied/);
-    expect(await fails(null, `select public.versus_group_commit_round($1, 1, $2::jsonb, 'd')`, [m, JSON.stringify([{ ...fight(0, 'p1', 'p2', 'a'), heartLostBy: 'p1' }])])).toMatch(/bad_fights/);
+    expect(await fails(A, `select public.versus_group_commit_round($1, 1, '[]'::jsonb, 'd', '{}'::jsonb)`, [m])).toMatch(/permission denied/);
+    const ok = { health: 30, armor: 0, damage: 0, before: 30 };
+    const all = { p1: ok, p2: ok, p3: ok, p4: ok };
+    expect(await fails(null, `select public.versus_group_commit_round($1, 1, $2::jsonb, 'd', $3::jsonb)`, [m, JSON.stringify([{ ...fight(0, 'p1', 'p2', 'a'), loser: 'p1' }]), JSON.stringify(all)])).toMatch(/bad_fights/);
+    // A seat still in with no pools, or a pool for nobody, is refused.
+    expect(await fails(null, `select public.versus_group_commit_round($1, 1, '[]'::jsonb, 'd', $2::jsonb)`, [m, JSON.stringify({ p1: ok })])).toMatch(/bad_vitals/);
     const c = await commitFights(m, 1, [fight(0, 'p1', 'p2', 'a'), fight(1, 'p3', 'p4', 'a')]);
     expect(c.alreadyCommitted).toBe(false);
     expect((await commitFights(m, 1, [fight(0, 'p1', 'p2', 'b')])).alreadyCommitted).toBe(true);
     let seats = await seatRows(m);
     expect([seats.p2.placement, seats.p4.placement, seats.p2.eliminated_round]).toEqual([4, 4, 1]); // the lobby rule: a tie takes the lower place
-    const round = (await db.query<any>('select hearts, eliminated from public.versus_group_rounds where match_id = $1', [m])).rows[0];
-    expect(round).toEqual({ hearts: { p1: VERSUS_HEARTS, p2: 0, p3: VERSUS_HEARTS, p4: 0 }, eliminated: ['p2', 'p4'] });
+    const round = (await db.query<any>('select hearts, vitals, eliminated from public.versus_group_rounds where match_id = $1', [m])).rows[0];
+    expect(round).toEqual({ hearts: null, vitals: { p1: { health: 30, armor: 0 }, p2: { health: 0, armor: 0 }, p3: { health: 30, armor: 0 }, p4: { health: 0, armor: 0 } }, eliminated: ['p2', 'p4'] });
     // Two left: round 2 is p1 vs p3.
     await ready(m, 1, [A, C]);
     expect((await groupRow(m)).round).toBe(2);
-    // A crafted copy fight claiming the copy lost a heart is refused.
+    // A crafted copy fight claiming the copy took the damage is refused.
     await lock(A, m, 2);
     await lock(C, m, 2);
-    expect(await fails(null, `select public.versus_group_commit_round($1, 2, $2::jsonb, 'd')`, [m, JSON.stringify([{ ...fight(0, 'p1', 'p3', 'a', true), heartLostBy: 'p3' }])])).toMatch(/bad_fights/);
+    expect(await fails(null, `select public.versus_group_commit_round($1, 2, $2::jsonb, 'd', $3::jsonb)`, [m, JSON.stringify([{ ...fight(0, 'p1', 'p3', 'a', true), loser: 'p3', damage: 5 }]), JSON.stringify({ p1: ok, p3: { ...ok, health: 25, damage: 5 } })])).toMatch(/bad_fights/);
     await commitFights(m, 2, [fight(0, 'p1', 'p3', 'draw')]);
     seats = await seatRows(m);
-    expect([seats.p1.hearts, seats.p3.hearts]).toEqual([VERSUS_HEARTS, VERSUS_HEARTS]);
+    expect([seats.p1.health, seats.p3.health]).toEqual([30, 30]);
   });
 
-  it('leaving mid-shop: the seat is out at once (placed), still fights the round as a ghost that cannot lose a heart; the last one standing wins', async () => {
+  it('leaving mid-shop: the seat is out at once (placed), still fights the round as a ghost that never takes damage; the last one standing wins', async () => {
     const users = [A, B, C];
     const [room, m] = await startGroup(users);
     await toShop(m, users);
@@ -316,7 +339,8 @@ describe('Versus Group rooms', () => {
     const users = [A, B, C, D];
     const [room, m] = await startGroup(users);
     await toShop(m, users);
-    await db.query(`update public.versus_group_seats set hearts = 1 where match_id = $1`, [m]);
+    await db.query(`update public.versus_group_seats set health = 1, armor = 0 where match_id = $1`, [m]);
+    await db.query(`update public.versus_group_seats set armor = 1 where match_id = $1 and seat = 'p4'`, [m]); // p4 enters healthier
     await as(A, `select public.versus_leave_room($1)`, [room]); // p1 out (4th)
     await as(C, `select public.versus_leave_room($1)`, [room]); // p3 out (3rd)
     await lock(B, m, 1);
@@ -325,8 +349,9 @@ describe('Versus Group rooms', () => {
     await commitFights(m, 1, [fight(0, 'p1', 'p2', 'a'), fight(1, 'p3', 'p4', 'a')]);
     const row = await groupRow(m);
     const seats = await seatRows(m);
-    expect([row.phase, row.winner_seat]).toEqual(['complete', 'p2']);
-    expect([seats.p2.placement, seats.p4.placement, seats.p1.placement, seats.p3.placement]).toEqual([1, 2, 4, 3]);
+    // Both pools hit 0; p4 entered the round with more Health + Armor (2 vs 1), so p4 survives it (the lobby's tiebreak).
+    expect([row.phase, row.winner_seat]).toEqual(['complete', 'p4']);
+    expect([seats.p4.placement, seats.p2.placement, seats.p1.placement, seats.p3.placement]).toEqual([1, 2, 4, 3]);
   });
 
   it('disconnects: a pause, the grace, another living player unpauses (auto), three auto rounds = out; coming back clears auto', async () => {

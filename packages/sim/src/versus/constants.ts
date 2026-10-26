@@ -4,8 +4,8 @@
  * `versusConstants.test.ts` pins them against the migration text).
  */
 
-/** Hearts each player starts with. A lost round strikes one; 0 hearts loses the match (owner ruling 1). */
-export const VERSUS_HEARTS = 7;
+/** (Hearts are gone since 2026-10-26: each player plays on their hero's Health and Armor, the lobby's damage and cap.
+ *  R-VERSUS-HEALTH-01, `vitals.ts`. Old matches keep their `*_hearts` columns for the record.) */
 /** Hero Select length in seconds. An unchosen seat gets a deterministic random pick from its three (ruling 2). */
 export const VERSUS_HERO_SELECT_SECONDS = 20;
 /** Heroes offered to each seat. Offers are hidden and may repeat across seats (ruling 3). */
@@ -30,7 +30,7 @@ export const VERSUS_LEASE_SECONDS = 12;
  * The wire protocol version. Bump it when a payload shape changes so an older client or an older deployed
  * resolver refuses the other side instead of mis-reading it (the function answers 409 `protocol_mismatch`).
  */
-export const VERSUS_PROTOCOL = 1;
+export const VERSUS_PROTOCOL = 2; // 2 (2026-10-26): Health + Armor (sides report `vitals`, results carry `versusVitals`)
 
 /** Byte caps on JSON accepted into rows / the resolver (blueprint 14). Generous: a full prepared side is ~20-60 KB. */
 export const VERSUS_LIMITS = {

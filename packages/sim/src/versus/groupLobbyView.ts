@@ -8,11 +8,13 @@
  * combat scene (portrait, name, skin, board), the scout cards and the FightRecap all read it unchanged:
  *  - `s0` is the player, `s1..` every other seat in seat order, each an `authored` seat whose per-round board is the
  *    board that seat actually fielded in its fight that round (public fight rows), its tier from that round's scout.
- *  - HEARTS ride `resolve` (7, no Armor), with the 1v1 timing: YOUR hearts drop when your fight settles, everyone
- *    else's when you leave the fight. A seat out of the match is `alive: false` with its server placement, shown from
- *    the round after it went out.
+ *  - HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01; hearts until then) ride `resolve` / `armor`, read off the
+ *    server's per-round record (before round 1: each hero's start), with the 1v1 timing: YOUR pools drop when your
+ *    fight settles, everyone else's when you leave the fight. The rules are the lobby's (the normal round cap). A seat
+ *    out of the match is `alive: false` with its server placement, shown from the round after it went out.
+ *  - DUOS: both teammates' rows carry the TEAM's shared pool (R-DUOS-HEALTH-01).
  *  - THE COPY (`sc`): while the current round has a copy fight, one more row, "Copy of <name>", carrying that round's
- *    copied board (and the copied player's hearts); it is the player's opponent when they are the one facing it.
+ *    copied board (and the copied player's pools); it is the player's opponent when they are the one facing it.
  *  - `forcedOpponent` pins the player's opponent to the server's round-robin pairing, so nothing here pairs the table.
  * Display state only: the reducer never settles it, and no persistence path takes it (the UI gates key on the mode).
  */
@@ -22,8 +24,8 @@ import type { SetId } from '@game/content';
 import type { RunLobby, LobbySeatState, VersusSeatScout } from '../lobby/runLobby';
 import type { LobbyEncounter } from '../lobby/types';
 import type { AuthoredOmen } from '../lobby/tutorialSeats';
-import { VERSUS_HEARTS } from './constants';
 import type { VersusGroupPairing, VersusGroupSeat } from './group';
+import { versusDuosStartingVitals, versusStartingVitals, type VersusVitals } from './vitals';
 
 /** The Copy row's seat id. */
 export const VERSUS_COPY_SEAT_ID = 'sc';
@@ -42,17 +44,20 @@ export interface VersusGroupLobbyFight {
   a: VersusGroupSeat;
   b: VersusGroupSeat;
   copy: boolean;
-  heartLostBy: VersusGroupSeat | null;
+  /** The seat that took the fight's damage (null: a draw, or a copy / ghost lost). */
+  loser: VersusGroupSeat | null;
+  /** The damage `loser` took (capped). */
+  damage?: number;
   /** Side a's own perspective (initial.player = a's board, initial.enemy = b's or the copy's). */
-  aResult: Pick<CombatResult, 'initial' | 'result'> & Partial<Pick<CombatResult, 'damageBreakdown' | 'duosBoards'>>;
+  aResult: Pick<CombatResult, 'initial' | 'result'> & Partial<Pick<CombatResult, 'damageBreakdown' | 'duosBoards' | 'playerDamage' | 'enemyDamage'>>;
   aScout?: VersusSeatScout | null;
   bScout?: VersusSeatScout | null;
 }
 
 export interface VersusGroupLobbyRound {
   round: number;
-  /** Every seat's hearts after the round. */
-  hearts: Partial<Record<VersusGroupSeat, number>>;
+  /** Every seat's Health and Armor after the round (Duos: each seat carries its team's pool). */
+  vitals: Partial<Record<VersusGroupSeat, VersusVitals>>;
   fights: VersusGroupLobbyFight[];
 }
 
@@ -69,6 +74,8 @@ export interface VersusGroupLobbyInput {
   rounds: readonly VersusGroupLobbyRound[];
   /** The fights of the round being played (`versusGroupPairings` for `wave`). */
   pairing: readonly VersusGroupPairing[];
+  /** The match's pinned room options (a modifier's Armor in each seat's start). */
+  options?: unknown;
   /** VERSUS DUOS (R-DUOS-01): the round's fight order. Present = a Duos match: the teammate's row comes first after
    *  yours, every seat's board is the one it LOCKED for the round (its teammate's included, even when it never stepped
    *  in), and your opponent is the other team's first board. */
@@ -88,11 +95,11 @@ function omenOf(m: Pick<CombatResult['initial']['enemy'][number], 'cardId' | 'at
   };
 }
 
-/** A seat's hearts after the last round shown (`through`), from the rounds' snapshots. */
-function heartsThrough(seat: VersusGroupSeat, rounds: readonly VersusGroupLobbyRound[], through: number): number {
-  let h = VERSUS_HEARTS;
-  for (const r of rounds) if (r.round <= through && r.hearts[seat] != null) h = r.hearts[seat]!;
-  return Math.max(0, h);
+/** A seat's pools after the last round shown (`through`), from the rounds' snapshots; before any, its `start`. */
+function vitalsThrough(seat: VersusGroupSeat, rounds: readonly VersusGroupLobbyRound[], through: number, start: VersusVitals): VersusVitals {
+  let v = start;
+  for (const r of rounds) if (r.round <= through && r.vitals?.[seat]) v = r.vitals[seat]!;
+  return { health: Math.max(0, v.health), armor: Math.max(0, v.armor) };
 }
 
 /** Per-round boards / tiers / scouts for one board source (a seat, or the Copy), index = round - 1. */
@@ -126,6 +133,17 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
   const others = ordered.filter((s) => s.seat !== input.me).sort((x, y) => (x.seat === mate ? -1 : y.seat === mate ? 1 : 0));
   const idOf = new Map<VersusGroupSeat, string>([[input.me, 's0'], ...others.map((s, i) => [s.seat, `s${i + 1}`] as const)]);
   const seed = (n: number): number => (input.matchSeed ^ (0x7e55a11d + n * 0x9e37)) | 0;
+  // Each seat's start: its hero's Health and Armor (+ the modifier's Armor); Duos: the team's shared pool.
+  const heroOf = (seat: VersusGroupSeat): string | undefined => ordered.find((s) => s.seat === seat)?.heroId;
+  const pairOf = { p1: 'p2', p2: 'p1', p3: 'p4', p4: 'p3' } as const;
+  const startOf = (seat: VersusGroupSeat): VersusVitals => (input.duos
+    ? versusDuosStartingVitals(heroOf(seat), heroOf(pairOf[seat]), input.options)
+    : versusStartingVitals(heroOf(seat), input.options));
+  const poolOf = (seat: VersusGroupSeat, through: number): { resolve: number; armor: number; startArmor: number } => {
+    const start = startOf(seat);
+    const v = vitalsThrough(seat, rounds, through, start);
+    return { resolve: v.health, armor: v.armor, startArmor: start.armor };
+  };
 
   // The board a seat fielded in its own fight each round.
   const seatTrack = (seat: VersusGroupSeat) => track(rounds, (r) => {
@@ -146,7 +164,7 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
 
   const seats: LobbySeatState[] = [{
     id: 's0', label: me?.label ?? '', heroId: me?.heroId ?? '', kind: 'player', seed: 0,
-    resolve: heartsThrough(input.me, rounds, mineThrough), armor: 0, alive: true,
+    ...poolOf(input.me, mineThrough), alive: true,
     ...(me?.cosmetics ? { cosmetics: me.cosmetics } : {}),
   }];
   others.forEach((s, i) => {
@@ -156,7 +174,7 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
       id: idOf.get(s.seat)!, label: s.label, heroId: s.heroId, kind: 'authored', seed: seed(i + 1),
       authoredBoards: t.boards, authoredTiers: t.tiers, invulnerable: true,
       ...(t.scouts.some((x) => x) ? { authoredScouts: t.scouts } : {}),
-      resolve: heartsThrough(s.seat, rounds, othersThrough), armor: 0, alive: !out,
+      ...poolOf(s.seat, othersThrough), alive: !out,
       ...(out ? { eliminatedRound: s.eliminatedRound!, ...(s.placement != null ? { placement: s.placement } : {}) } : {}),
       ...(s.cosmetics ? { cosmetics: s.cosmetics } : {}),
     });
@@ -185,7 +203,7 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
     seats.push({
       id: VERSUS_COPY_SEAT_ID, label: versusCopyLabel(copied?.label ?? ''), heroId: copied?.heroId ?? me?.heroId ?? '',
       kind: 'authored', seed: seed(9), authoredBoards: boards, authoredTiers: tiers, invulnerable: true,
-      resolve: heartsThrough(copyNow.b, rounds, othersThrough), armor: 0, alive: true,
+      ...poolOf(copyNow.b, othersThrough), alive: true,
       ...(copied?.cosmetics ? { cosmetics: copied.cosmetics } : {}),
     });
   }
@@ -202,9 +220,11 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
     for (const f of r.fights) {
       const a = idOf.get(f.a)!;
       const b = f.copy ? VERSUS_COPY_SEAT_ID : idOf.get(f.b)!;
+      // The capped blow each way (a copy or a ghost is never charged).
       encounters.push({
         round: r.round, a, b, outcome: f.aResult.result, fought: true,
-        damageToA: f.heartLostBy === f.a ? 1 : 0, damageToB: !f.copy && f.heartLostBy === f.b ? 1 : 0,
+        damageToA: f.loser === f.a ? f.damage ?? f.aResult.playerDamage ?? 0 : 0,
+        damageToB: !f.copy && f.loser === f.b ? f.damage ?? f.aResult.enemyDamage ?? 0 : 0,
       });
     }
   }
@@ -216,7 +236,9 @@ export function versusGroupLobby(input: VersusGroupLobbyInput): RunLobby {
     seats,
     encounters,
     finished: false,
-    rules: { seatCount: seats.length, startingResolve: VERSUS_HEARTS, startingArmor: 0, exhaustion: 'repeatFinal', maxRounds: 1000, lossCaps: [] },
+    // The lobby's rules: Health from the hero (Duos: the team's 30), each seat's own start Armor, the normal round cap
+    // (no `lossCaps`: the rail's MAX DMG reads `lossDamageCap`).
+    rules: { seatCount: seats.length, startingResolve: startOf(input.me).health, startingArmor: 0, exhaustion: 'repeatFinal', maxRounds: 1000 },
     unrated: 'all-generated',
     ...(foeId ? { forcedOpponent: { round: Math.max(1, input.wave), seatId: foeId } } : {}),
   };
@@ -227,5 +249,6 @@ export function versusGroupLobbyKey(input: VersusGroupLobbyInput): string {
   const last = input.rounds.reduce((n, r) => Math.max(n, r.round), 0);
   const seats = input.seats.map((s) => `${s.seat}:${s.heroId}:${s.label}:${s.eliminatedRound ?? ''}:${s.placement ?? ''}:${s.cosmetics ? 1 : 0}`).join(',');
   const pairing = input.pairing.map((p) => `${p.a}${p.copy ? '~' : '-'}${p.b}`).join(',') + (input.duos ? `|d${input.duos.first.a}${input.duos.first.b}` : '');
-  return `g|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${seats}|${pairing}`;
+  const vit = input.rounds.filter((r) => Object.keys(r.vitals ?? {}).length).length;
+  return `g|${input.me}|${input.wave}|${input.inCombat ? 1 : 0}${input.combatSettled ? 1 : 0}|${last}|${input.rounds.length}|${vit}|${seats}|${pairing}`;
 }

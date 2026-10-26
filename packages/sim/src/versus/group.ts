@@ -1,8 +1,8 @@
 /**
  * VERSUS GROUP: the 3-4 player round robin (owner 2026-10-24, R-VERSUS-GROUP-01).
  *
- *   "for versus, how hard would it be to make a 4 player round robin lobby version?" Hearts 7 (like 1v1),
- *   last one standing, 3 or 4 players, unrated; "if it's a 3 player game, maybe a player faces a copy of another
+ *   "for versus, how hard would it be to make a 4 player round robin lobby version?" Hearts 7 at first (Health and
+ *   Armor since 2026-10-26), last one standing, 3 or 4 players, unrated; "if it's a 3 player game, maybe a player faces a copy of another
  *   player's board instead of a ghost".
  *
  * PAIRING (`versusGroupPairings`) is a pure function of the match's seats and each seat's elimination round, so every
@@ -22,9 +22,10 @@
  * or forfeits during round r's shop is eliminated in round r, so round r's pairing (already shown to everyone) never
  * changes under the players: it fights that round as a GHOST of its last locked board.
  *
- * HEARTS: a fight's loser loses one heart, a draw costs nobody. A COPY never loses a heart (damage to a copy does not
- * hurt the copied player) and neither does a ghost (its seat is already out); their wins DO cost the facing player a
- * heart, like a Battlegrounds ghost.
+ * HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01; hearts until then): a fight's loser takes the lobby's
+ * damage off the fight's one result, round-capped, Armor first (`vitals.ts`); a draw costs nobody. A COPY never takes
+ * damage (damage to a copy does not hurt the copied player) and neither does a ghost (its seat is already out); their
+ * wins DO damage the facing player, like a Battlegrounds ghost.
  *
  * ONE simulate() per fight, never a re-run with the sides swapped; side `a` is simulate's `player`, `b` takes the
  * mirrored perspective (as p1/p2 do in 1v1). The tie-break chair rotates: `a` on odd rounds, `b` on even ones.
@@ -36,6 +37,7 @@ import { makeRng, simulate, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import { versusSideOrEmpty } from './combat';
 import { mirrorForEnemySeat } from './mirror';
+import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
 
 export type VersusGroupSeat = 'p1' | 'p2' | 'p3' | 'p4';
 export const VERSUS_GROUP_SEATS: readonly VersusGroupSeat[] = ['p1', 'p2', 'p3', 'p4'];
@@ -133,20 +135,26 @@ export interface VersusGroupRoundInput {
   eliminated: VersusGroupEliminations;
   /** Each seat's FINAL side for this round (missing/malformed = the empty side). */
   sides: Partial<Record<VersusGroupSeat, unknown>>;
+  /** Each seat still in's Health and Armor going INTO the round (`versusVitalsBefore`). Absent (a parity fixture from
+   *  before 2026-10-26) = damage is computed and stamped, but no pools are charged. */
+  vitals?: Partial<Record<VersusGroupSeat, VersusVitals>>;
 }
 
 export interface VersusGroupFight {
   fight: number;
   a: VersusGroupSeat;
   b: VersusGroupSeat;
-  /** `b` is a copy of seat b's locked board for this round (never loses a heart). */
+  /** `b` is a copy of seat b's locked board for this round (never takes damage). */
   copy: boolean;
   /** Which side held the tie-break (`firstSide`): `a` on odd rounds, `b` on even ones. */
   chair: 'a' | 'b';
   outcome: 'a' | 'b' | 'draw';
-  /** The seat that loses one heart for this fight, or null (a draw, or the loser is a copy / already out). */
-  heartLostBy: VersusGroupSeat | null;
-  /** Side a's perspective (simulate's `player`) and side b's (the mirror). */
+  /** The seat that takes this fight's damage, or null (a draw, or the loser is a copy / already out). */
+  loser: VersusGroupSeat | null;
+  /** The damage `loser` takes (the lobby formula, round-capped); 0 when nobody does. */
+  damage: number;
+  /** Side a's perspective (simulate's `player`) and side b's (the mirror), each stamped with the cap and its seat's
+   *  pools after the round. */
   aResult: CombatResult;
   bResult: CombatResult;
 }
@@ -154,6 +162,8 @@ export interface VersusGroupFight {
 export interface VersusGroupRoundResult {
   round: number;
   fights: VersusGroupFight[];
+  /** Every charged seat's Health and Armor after the round (only seats the input carried `vitals` for). */
+  vitals?: Partial<Record<VersusGroupSeat, VersusVitals>>;
   /** Side-validation notes for the log (seat → reason), only for sides that were refused. */
   refused: Partial<Record<VersusGroupSeat, string>>;
 }
@@ -170,6 +180,7 @@ export function resolveVersusGroupRound(input: VersusGroupRoundInput): VersusGro
   }
   const stillIn = (s: VersusGroupSeat): boolean => input.eliminated[s] == null;
   const chair: 'a' | 'b' = input.round % 2 === 1 ? 'a' : 'b';
+  const cap = versusRoundCap(input.round);
   const fights = pairings.map((p, i): VersusGroupFight => {
     const A = sides.get(p.a)!;
     const B = sides.get(p.b)!;
@@ -183,10 +194,28 @@ export function resolveVersusGroupRound(input: VersusGroupRoundInput): VersusGro
       { firstSide: chair === 'a' ? 'player' : 'enemy' },
     );
     const outcome: VersusGroupFight['outcome'] = result.result === 'draw' ? 'draw' : result.result === 'win' ? 'a' : 'b';
-    const loser = outcome === 'a' ? p.b : outcome === 'b' ? p.a : null;
+    const lost = outcome === 'a' ? p.b : outcome === 'b' ? p.a : null;
     const loserIsCopy = outcome === 'a' && p.copy;
-    const heartLostBy = loser && !loserIsCopy && stillIn(loser) ? loser : null;
-    return { fight: i, a: p.a, b: p.b, copy: p.copy, chair, outcome, heartLostBy, aResult: result, bResult: mirrorForEnemySeat(result) };
+    const loser = lost && !loserIsCopy && stillIn(lost) ? lost : null;
+    const aResult = stampVersusDamage(result, cap);
+    const bResult = stampVersusDamage(mirrorForEnemySeat(result), cap);
+    const damage = loser === p.a ? aResult.playerDamage : loser === p.b ? bResult.playerDamage : 0;
+    return { fight: i, a: p.a, b: p.b, copy: p.copy, chair, outcome, loser, damage, aResult, bResult };
   });
-  return { round: input.round, fights, refused };
+  // Every seat fights at most once a round (a copy is not its seat), so each charged seat's pools move once.
+  let vitals: Partial<Record<VersusGroupSeat, VersusVitals>> | undefined;
+  if (input.vitals) {
+    vitals = {};
+    for (const s of input.seats) {
+      const before = input.vitals[s];
+      if (!before) continue;
+      const hit = fights.find((f) => f.loser === s);
+      vitals[s] = hitVitals(before, hit ? hit.damage : 0);
+    }
+    for (const f of fights) {
+      if (vitals[f.a]) f.aResult.versusVitals = { ...vitals[f.a]! };
+      if (!f.copy && vitals[f.b]) f.bResult.versusVitals = { ...vitals[f.b]! };
+    }
+  }
+  return { round: input.round, fights, ...(vitals ? { vitals } : {}), refused };
 }

@@ -7,8 +7,10 @@
  * the result as-is, p2 takes `mirrorForEnemySeat` of it (the sides are 1:1 since R-SYMMETRY-01, so the labels change
  * nothing but the tie-break below). There is never a second simulation.
  *
- * HEARTS, NOT RESOLVE (owner ruling 1): the fight lands with `damageTaken: 0`, so Resolve and Armor never move in
- * Versus. A `lose` costs that seat one heart; a draw costs nobody (ruling 4).
+ * HEALTH AND ARMOR, AS IN THE LOBBY (owner 2026-10-26, R-VERSUS-HEALTH-01; hearts until then): the loser takes the
+ * lobby's damage off THIS one result (the winner's tavern tier + its survivors' tiers), capped by the lobby's round cap,
+ * Armor first (`vitals.ts`). A draw costs nobody. Each perspective is stamped with the cap and its seat's pools after
+ * the round (`stampVersusDamage`), and the run lands its pools on them when the fight settles.
  *
  * THE TIE-BREAK SIDE (`chair`). The one ordering choice a fight makes (`CombatConfig.firstSide`: which board mints
  * uids first, runs Start of Combat first, wins the seeded first-attacker coin's "heads") rotates: p1 on odd rounds,
@@ -24,6 +26,7 @@ import { combatSide, makeRng, simulate, type CombatResult } from '@game/core';
 import type { PreparedCombatSide } from '../state';
 import { mirrorForEnemySeat } from './mirror';
 import type { VersusSeat } from './constants';
+import { hitVitals, stampVersusDamage, versusRoundCap, type VersusVitals } from './vitals';
 
 export interface VersusFightInput {
   /** The match's pinned seed (server-owned, never client-chosen). */
@@ -32,6 +35,9 @@ export interface VersusFightInput {
   round: number;
   p1: PreparedCombatSide;
   p2: PreparedCombatSide;
+  /** Each seat's Health and Armor going INTO the fight (`versusVitalsBefore`). Absent (a parity fixture recorded before
+   *  2026-10-26) = the damage is still computed and stamped, but no pools are charged or stamped. */
+  vitals?: Partial<Record<VersusSeat, VersusVitals>>;
 }
 
 export type VersusFightOutcome = VersusSeat | 'draw';
@@ -41,9 +47,13 @@ export interface VersusFightResult {
   chair: VersusSeat;
   /** The seat that WON, or `draw`. */
   outcome: VersusFightOutcome;
-  /** The seat that loses a heart for this fight (`null` on a draw). */
-  heartLostBy: VersusSeat | null;
-  /** Each seat's OWN perspective of the one fight (`player` = that seat). One is the canonical result itself. */
+  /** The seat that LOST the fight and takes its damage (`null` on a draw). */
+  loser: VersusSeat | null;
+  /** The damage each seat takes this round: the lobby formula, round-capped (0 for the winner and on a draw). */
+  damage: Record<VersusSeat, number>;
+  /** Each seat's Health and Armor once the round settled (only when the input carried `vitals`). */
+  vitals?: Partial<Record<VersusSeat, VersusVitals>>;
+  /** Each seat's OWN perspective of the one fight (`player` = that seat), stamped with the cap and its pools. */
   p1: CombatResult;
   p2: CombatResult;
 }
@@ -83,8 +93,22 @@ export function resolveVersusFight(input: VersusFightInput): VersusFightResult {
     config,
   );
   const outcome: VersusFightOutcome = result.result === 'draw' ? 'draw' : result.result === 'win' ? 'p1' : 'p2';
-  const heartLostBy: VersusSeat | null = outcome === 'draw' ? null : outcome === 'p1' ? 'p2' : 'p1';
-  return { chair, outcome, heartLostBy, p1: result, p2: mirrorForEnemySeat(result) };
+  const loser: VersusSeat | null = outcome === 'draw' ? null : outcome === 'p1' ? 'p2' : 'p1';
+  const cap = versusRoundCap(input.round);
+  // The lobby's damage, capped, read off the ONE result: each seat's own `playerDamage` (0 unless it lost).
+  const views = { p1: stampVersusDamage(result, cap), p2: stampVersusDamage(mirrorForEnemySeat(result), cap) };
+  const damage = { p1: views.p1.playerDamage, p2: views.p2.playerDamage };
+  let vitals: Partial<Record<VersusSeat, VersusVitals>> | undefined;
+  if (input.vitals) {
+    vitals = {};
+    for (const seat of ['p1', 'p2'] as const) {
+      const before = input.vitals[seat];
+      if (!before) continue;
+      vitals[seat] = hitVitals(before, damage[seat]);
+      views[seat].versusVitals = { ...vitals[seat]! };
+    }
+  }
+  return { chair, outcome, loser, damage, ...(vitals ? { vitals } : {}), p1: views.p1, p2: views.p2 };
 }
 
 /** The side a seat fights with when it never uploaded anything (blueprint 5: two AFK players never deadlock). */
@@ -119,5 +143,9 @@ export function preparedSideError(side: unknown): string | null {
   }
   if (!s.state || typeof s.state !== 'object') return 'state_not_object';
   if (s.config !== undefined && (s.config === null || typeof s.config !== 'object')) return 'config_not_object';
+  if (s.vitals !== undefined) {
+    const v = s.vitals as { resolve?: unknown; armor?: unknown } | null;
+    if (!v || typeof v !== 'object' || !Number.isFinite(v.resolve) || !Number.isFinite(v.armor)) return 'vitals_shape';
+  }
   return null;
 }

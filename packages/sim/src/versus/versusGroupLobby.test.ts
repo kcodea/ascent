@@ -1,13 +1,14 @@
 /**
  * VERSUS GROUP's display lobby (owner 2026-10-24, R-VERSUS-GROUP-03): the ranked rail's seats for a 3-4 player match,
- * hearts on the seats, the Copy row with who is copied this round, and the player's opponent pinned to the server's
+ * Health and Armor on the seats (R-VERSUS-HEALTH-01), the Copy row with who is copied this round, and the player's opponent pinned to the server's
  * round-robin pairing (`forcedOpponent` -> `playerOpponent`).
  */
 import { describe, expect, it } from 'vitest';
 import type { CombatResult } from '@game/core';
 import { lobbyRailView } from '../lobby/railView';
 import { playerOpponent, resetLobbyDrivers } from '../lobby/runLobby';
-import { VERSUS_HEARTS } from './constants';
+import { getHero } from '../heroes';
+import { roundLossCap } from '../reducer';
 import { versusGroupPairings, type VersusGroupSeat } from './group';
 import { versusGroupLobby, VERSUS_COPY_SEAT_ID, type VersusGroupLobbyInput, type VersusGroupLobbyRound } from './groupLobbyView';
 
@@ -26,11 +27,18 @@ function input(n: 3 | 4, me: VersusGroupSeat, wave: number, rounds: VersusGroupL
 }
 
 describe('Versus Group display lobby (R-VERSUS-GROUP-03)', () => {
-  it('4 players: four rail rows on 7 hearts, me first, my opponent is the server pairing', () => {
+  it('4 players: four rail rows on their hero Health + Armor, me first, my opponent is the server pairing; the lobby cap', () => {
     const lobby = versusGroupLobby(input(4, 'p3', 1, []));
     resetLobbyDrivers(lobby.seats);
     expect(lobby.seats.map((s) => s.label)).toEqual(['P3', 'P1', 'P2', 'P4']);
-    expect(lobby.seats.every((s) => s.resolve === VERSUS_HEARTS && s.armor === 0)).toBe(true);
+    const w = getHero('warden');
+    expect(lobby.seats.every((s) => s.resolve === w.resolve && s.armor === w.armor && s.startArmor === w.armor)).toBe(true);
+    // The rail's MAX DMG is the lobby's own table (no Versus override).
+    expect(lobby.rules.lossCaps).toBeUndefined();
+    expect(lobbyRailView(lobby).lossCap).toBe(roundLossCap(undefined, 1));
+    // Summit: +10 Armor on every seat (R-VERSUS-SUMMIT-01).
+    const summit = versusGroupLobby({ ...input(4, 'p3', 1, []), options: { v: 1, mode: 'group', modifiers: ['summit'] } });
+    expect(summit.seats.every((s) => s.armor === w.armor + 10)).toBe(true);
     // Round 1: p1-p2, p3-p4: I (p3) face p4.
     expect(playerOpponent(lobby)?.seat.label).toBe('P4');
     const rail = lobbyRailView(lobby);
@@ -53,19 +61,20 @@ describe('Versus Group display lobby (R-VERSUS-GROUP-03)', () => {
     expect(versusGroupLobby(input(3, 'p1', 2, [])).seats.find((s) => s.id === VERSUS_COPY_SEAT_ID)!.label).toBe('Copy of P3');
   });
 
-  it('hearts and boards come from the committed rounds; a seat out shows dead with its placement from the next round', () => {
+  it('pools and boards come from the committed rounds; a seat out shows dead with its placement from the next round', () => {
     const r1: VersusGroupLobbyRound = {
-      round: 1, hearts: { p1: 7, p2: 6, p3: 7, p4: 0 },
+      round: 1, vitals: { p1: { health: 30, armor: 10 }, p2: { health: 30, armor: 5 }, p3: { health: 30, armor: 10 }, p4: { health: 0, armor: 0 } },
       fights: [
-        { a: 'p1', b: 'p2', copy: false, heartLostBy: 'p2', aResult: fightResult('a1', 'b1', 'win') },
-        { a: 'p3', b: 'p4', copy: false, heartLostBy: 'p4', aResult: fightResult('c1', 'd1', 'win') },
+        { a: 'p1', b: 'p2', copy: false, loser: 'p2', damage: 5, aResult: fightResult('a1', 'b1', 'win') },
+        { a: 'p3', b: 'p4', copy: false, loser: 'p4', damage: 5, aResult: fightResult('c1', 'd1', 'win') },
       ],
     };
     const lobby = versusGroupLobby(input(4, 'p1', 2, [r1], { p4: 1 }));
     resetLobbyDrivers(lobby.seats);
     const p2 = lobby.seats.find((s) => s.label === 'P2')!;
     const p4 = lobby.seats.find((s) => s.label === 'P4')!;
-    expect(p2.resolve).toBe(6);
+    expect([p2.resolve, p2.armor]).toEqual([30, 5]);
+    expect(lobby.encounters.find((e) => e.b === p2.id)?.damageToB).toBe(5);
     expect(p2.authoredBoards?.[0]?.map((m) => m.cardId)).toEqual(['b1']);
     expect([p4.alive, p4.placement]).toEqual([false, 4]);
     // Three left: a Copy row for round 2, and nobody is paired with the seat that is out.

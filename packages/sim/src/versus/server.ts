@@ -9,16 +9,19 @@
 import { contentRevision } from '@game/content';
 import { canonicalDigest, canonicalJson, digestOf } from './canonical';
 import { emptyVersusSide, preparedSideError, resolveVersusFight, versusChair, versusCombatSeed, versusSideOrEmpty, type VersusFightInput, type VersusFightResult } from './combat';
-import { VERSUS_HEARTS, VERSUS_LIMITS, VERSUS_PROTOCOL } from './constants';
-import { handleVersusFinalize, type VersusFinalizeStore } from './finalize';
+import { VERSUS_LIMITS, VERSUS_PROTOCOL } from './constants';
+import { handleVersusFinalize, versusFightDigest, versusFightPayload, type VersusFinalizeStore } from './finalize';
+import { versusFreshSide } from './vitals';
 import { resolveVersusGroupRound, versusGroupPairings, type VersusGroupRoundInput, type VersusGroupRoundResult } from './group';
 import { groupFightsPayload, groupRoundDigest, handleVersusGroupFinalize, type VersusGroupFinalizeStore } from './groupFinalize';
 import { normalizeVersusOptions, versusOptionsError } from './options';
 import { resolveVersusDuosRound, type VersusDuosRoundInput, type VersusDuosRoundResult } from './duos';
 import { duosFightPayload, duosRoundDigest, handleVersusDuosFinalize, type VersusDuosFinalizeStore } from './duosFinalize';
 
-export { canonicalDigest, canonicalJson, digestOf, emptyVersusSide, preparedSideError, versusSideOrEmpty, resolveVersusFight, versusChair, versusCombatSeed, VERSUS_HEARTS, VERSUS_LIMITS, VERSUS_PROTOCOL };
+export { canonicalDigest, canonicalJson, digestOf, emptyVersusSide, preparedSideError, versusSideOrEmpty, resolveVersusFight, versusChair, versusCombatSeed, VERSUS_LIMITS, VERSUS_PROTOCOL };
 export { handleVersusFinalize };
+// HEALTH AND ARMOR (owner 2026-10-26, R-VERSUS-HEALTH-01): the store drops a stale side's pool report with this.
+export { versusFreshSide };
 export type { VersusFightInput, VersusFightResult, VersusFinalizeStore };
 // VERSUS GROUP (owner 2026-10-24): the 3-4 player round's resolver, its finalize handler and the room options check.
 export { handleVersusGroupFinalize, resolveVersusGroupRound, versusGroupPairings, normalizeVersusOptions, versusOptionsError };
@@ -34,16 +37,18 @@ export function engineContentRevision(): string {
 
 /**
  * The parity view of one resolution: the canonical text of everything a client lands (both perspectives, the
- * chair, the outcome) and its digest. Node and the deployed bundle must agree byte for byte.
+ * chair, the outcome, the damage and the pools) and its digest. Node and the deployed bundle must agree byte for byte.
  */
 export function parityRecord(out: VersusFightResult): { digest: string; canonical: string } {
-  const canonical = canonicalJson({ chair: out.chair, outcome: out.outcome, heartLostBy: out.heartLostBy, p1: out.p1, p2: out.p2 });
-  return { digest: digestOf(canonical), canonical };
+  const canonical = canonicalJson(versusFightPayload(out));
+  const digest = digestOf(canonical);
+  if (digest !== versusFightDigest(out)) throw new Error('duel digest drift');
+  return { digest, canonical };
 }
 
 /** The parity view of one GROUP round: the canonical text of every fight (both perspectives) and its digest. */
 export function parityGroupRecord(out: VersusGroupRoundResult): { digest: string; canonical: string } {
-  const canonical = canonicalJson({ round: out.round, fights: groupFightsPayload(out) });
+  const canonical = canonicalJson({ round: out.round, fights: groupFightsPayload(out), ...(out.vitals ? { vitals: out.vitals } : {}) });
   const digest = digestOf(canonical);
   if (digest !== groupRoundDigest(out)) throw new Error('group digest drift');
   return { digest, canonical };
@@ -51,7 +56,7 @@ export function parityGroupRecord(out: VersusGroupRoundResult): { digest: string
 
 /** The parity view of one DUOS round: the canonical text of its one fight (both team perspectives) and its digest. */
 export function parityDuosRecord(out: VersusDuosRoundResult): { digest: string; canonical: string } {
-  const canonical = canonicalJson({ round: out.round, fight: duosFightPayload(out) });
+  const canonical = canonicalJson({ round: out.round, fight: duosFightPayload(out), ...(out.vitals ? { vitals: out.vitals } : {}) });
   const digest = digestOf(canonical);
   if (digest !== duosRoundDigest(out)) throw new Error('duos digest drift');
   return { digest, canonical };

@@ -13,6 +13,10 @@ import { createRun, mixSeed, TAG, type PreparedCombatSide } from '../state';
 import { canonicalJson } from './canonical';
 import { preparedSideError, resolveVersusFight, versusChair, versusCombatSeed } from './combat';
 import { parityRecord } from './server';
+import { hitVitals, stampVersusDamage, versusArmorFloorMax, versusDuosStartingVitals, versusFreshSide, versusRoundCap, versusStartingVitals, versusVitalsBefore } from './vitals';
+import { lossDamageCap } from '../lossCap';
+import { getHero } from '../heroes';
+import { createVersusRun } from './run';
 
 interface Case { name: string; matchSeed: number; round: number; p1: PreparedCombatSide; p2: PreparedCombatSide }
 const FIXTURE = JSON.parse(readFileSync(fileURLToPath(new URL('./fixtures/parity.v1.json', import.meta.url)), 'utf8')) as { cases: Case[] };
@@ -46,18 +50,21 @@ describe('Versus resolver — one fight, two perspectives', () => {
     expect(canonicalJson([c.p1, c.p2])).toBe(before);
   });
 
-  it('the two perspectives agree: one winner, one heart lost, none on a draw', () => {
+  it('the two perspectives agree: one winner, the loser takes damage, nobody on a draw', () => {
     for (const c of FIXTURE.cases) {
       const out = resolveVersusFight(input(c));
       const r1 = out.p1.result;
       const r2 = out.p2.result;
       if (out.outcome === 'draw') {
         expect([r1, r2]).toEqual(['draw', 'draw']);
-        expect(out.heartLostBy).toBeNull();
+        expect(out.loser).toBeNull();
+        expect(out.damage).toEqual({ p1: 0, p2: 0 });
       } else {
         expect(out[out.outcome].result).toBe('win');
-        expect(out[out.heartLostBy!].result).toBe('lose');
-        expect(out.heartLostBy).not.toBe(out.outcome);
+        expect(out[out.loser!].result).toBe('lose');
+        expect(out.loser).not.toBe(out.outcome);
+        expect(out.damage[out.outcome]).toBe(0);
+        expect(out.damage[out.loser!]).toBeGreaterThan(0);
       }
       // p1's perspective IS the canonical fight; p2's is its mirror (damage and boards swapped).
       expect(out.p2.playerDamage).toBe(out.p1.enemyDamage ?? 0);
@@ -68,9 +75,11 @@ describe('Versus resolver — one fight, two perspectives', () => {
   it('the tie-break side reaches simulate as firstSide: p1 (player) on odd rounds, p2 (enemy) on even ones', () => {
     const c = FIXTURE.cases.find((x) => x.round % 2 === 0)!;
     const direct = (first: 'player' | 'enemy') => canonicalJson(simulate(structuredClone(c.p1.board), structuredClone(c.p2.board), makeRng(versusCombatSeed(c.matchSeed, c.round)), CARD_INDEX, structuredClone(c.p1.state), structuredClone(c.p2.state), { firstSide: first }));
-    expect(canonicalJson(resolveVersusFight(input(c)).p1)).toBe(direct('enemy'));
+    // The resolver's p1 view is the raw fight, stamped with the round's cap (R-VERSUS-HEALTH-01).
+    const stamped = (json: string, round: number): string => canonicalJson(stampVersusDamage(JSON.parse(json), versusRoundCap(round)));
+    expect(canonicalJson(resolveVersusFight(input(c)).p1)).toBe(stamped(direct('enemy'), c.round));
     const odd = FIXTURE.cases.find((x) => x.round % 2 === 1)!;
-    expect(canonicalJson(resolveVersusFight(input(odd)).p1)).toBe(canonicalJson(simulate(structuredClone(odd.p1.board), structuredClone(odd.p2.board), makeRng(versusCombatSeed(odd.matchSeed, odd.round)), CARD_INDEX, structuredClone(odd.p1.state), structuredClone(odd.p2.state), { firstSide: 'player' })));
+    expect(canonicalJson(resolveVersusFight(input(odd)).p1)).toBe(stamped(canonicalJson(simulate(structuredClone(odd.p1.board), structuredClone(odd.p2.board), makeRng(versusCombatSeed(odd.matchSeed, odd.round)), CARD_INDEX, structuredClone(odd.p1.state), structuredClone(odd.p2.state), { firstSide: 'player' })), odd.round));
   });
 
   it('the chair rotates by round: p1 on odd rounds, p2 on even ones (attack-first is out of Versus pools)', () => {
@@ -78,7 +87,7 @@ describe('Versus resolver — one fight, two perspectives', () => {
     for (const c of FIXTURE.cases) expect(resolveVersusFight(input(c)).chair).toBe(versusChair(c.round));
   });
 
-  it('landing with damageTaken 0 never touches Resolve or Armor (hearts, not health)', () => {
+  it('a result with no pools (the hearts era) lands without touching Health or Armor', () => {
     let a = createRun(11, 'warden', 'lobby', undefined, 'set2');
     let b = createRun(12, 'warden', 'lobby', undefined, 'set2');
     a = reduce(a, { type: 'faceOmen', deferFight: true });
@@ -103,6 +112,81 @@ describe('Versus resolver — one fight, two perspectives', () => {
   });
 });
 
+describe('Versus Health and Armor (R-VERSUS-HEALTH-01: the lobby damage, the lobby cap, Armor first)', () => {
+  it('the loser takes the lobby formula (striking tier + survivor tiers), capped by the lobby round cap, Armor first', () => {
+    let checked = 0;
+    for (const c of FIXTURE.cases) {
+      const vitals = { p1: { health: 30, armor: 4 }, p2: { health: 30, armor: 4 } };
+      const out = resolveVersusFight({ ...input(c), vitals });
+      if (!out.loser) { expect(out.vitals).toEqual(vitals); continue; }
+      const view = out[out.loser];
+      const raw = view.damageBreakdown!.oppTier + view.damageBreakdown!.survivorTiers.reduce((x, y) => x + y, 0);
+      expect(view.playerDamageUncapped).toBe(raw);
+      expect(out.damage[out.loser]).toBe(Math.min(raw, lossDamageCap(c.round)));
+      expect(view.playerDamage).toBe(out.damage[out.loser]);
+      if (Number.isFinite(lossDamageCap(c.round))) expect(view.damageCap).toBe(lossDamageCap(c.round));
+      expect(out.vitals![out.loser]).toEqual(hitVitals(vitals[out.loser], out.damage[out.loser]));
+      expect(view.versusVitals).toEqual(out.vitals![out.loser]);
+      // The winner's view shows the same (capped) blow it landed.
+      expect(out[out.outcome as 'p1' | 'p2'].enemyDamage).toBe(out.damage[out.loser]);
+      expect(out.vitals![out.outcome as 'p1' | 'p2']).toEqual(vitals[out.outcome as 'p1' | 'p2']);
+      checked++;
+    }
+    expect(checked).toBeGreaterThan(3);
+  });
+
+  it('Armor absorbs before Health; Health stops at 0 (out)', () => {
+    expect(hitVitals({ health: 30, armor: 10 }, 7)).toEqual({ health: 30, armor: 3 });
+    expect(hitVitals({ health: 30, armor: 3 }, 7)).toEqual({ health: 26, armor: 0 });
+    expect(hitVitals({ health: 2, armor: 0 }, 9)).toEqual({ health: 0, armor: 0 });
+    expect(hitVitals({ health: 5, armor: 5 }, 0)).toEqual({ health: 5, armor: 5 });
+  });
+
+  it('the cap is the lobby table: 5 / 10 / 15 / 20, uncapped from round 15', () => {
+    expect([1, 3, 4, 7, 8, 11, 12, 14, 15, 30].map(versusRoundCap)).toEqual([5, 5, 10, 10, 15, 15, 20, 20, Infinity, Infinity]);
+  });
+
+  it('every seat starts on its hero Health + Armor; Summit adds +10 Armor (R-VERSUS-SUMMIT-01); Duos = 30 + both Armors', () => {
+    const w = getHero('warden');
+    const k = getHero('keshi');
+    expect(versusStartingVitals('warden', null)).toEqual({ health: w.resolve, armor: w.armor });
+    expect(versusStartingVitals('warden', { v: 1, mode: 'group', modifiers: ['summit'] })).toEqual({ health: w.resolve, armor: w.armor + 10 });
+    expect(versusStartingVitals('warden', { v: 1, mode: 'duel', modifiers: ['freedom'] })).toEqual({ health: w.resolve, armor: w.armor });
+    expect(versusDuosStartingVitals('warden', 'keshi', { v: 1, mode: 'duos', modifiers: [] })).toEqual({ health: 30, armor: w.armor + k.armor });
+    expect(versusDuosStartingVitals('warden', 'keshi', { v: 1, mode: 'duos', modifiers: ['summit'] })).toEqual({ health: 30, armor: w.armor + k.armor + 20 });
+    // The run itself starts on the same pools.
+    const run = createVersusRun(5, 'warden', 'set2', { v: 1, mode: 'duel', modifiers: ['summit'] });
+    expect([run.resolve, run.armor, run.rift]).toEqual([w.resolve, w.armor + 10, 'summit']);
+    const duo = createVersusRun(5, 'warden', 'set2', { v: 1, mode: 'duos', modifiers: ['summit'] }, 'keshi');
+    expect([duo.resolve, duo.maxResolve, duo.armor, duo.maxArmor]).toEqual([30, 30, w.armor + k.armor + 20, w.armor + k.armor + 20]);
+  });
+
+  it("a fresh report raises Armor only up to the content's highest floor (Mend: 5); never Health; a stale side is dropped", () => {
+    expect(versusArmorFloorMax()).toBe(5);
+    expect(versusVitalsBefore({ health: 20, armor: 0 }, [{ health: 30, armor: 5 }])).toEqual({ health: 20, armor: 5 });
+    expect(versusVitalsBefore({ health: 20, armor: 0 }, [{ health: 20, armor: 40 }])).toEqual({ health: 20, armor: 5 });
+    expect(versusVitalsBefore({ health: 20, armor: 9 }, [{ health: 20, armor: 12 }])).toEqual({ health: 20, armor: 9 });
+    expect(versusVitalsBefore({ health: 20, armor: 3 }, [{ health: 20, armor: 0 }, null])).toEqual({ health: 20, armor: 3 });
+    const side = { board: [], state: {}, vitals: { resolve: 30, armor: 5 } };
+    expect(versusFreshSide(side, 'lock')).toBe(side);
+    expect(versusFreshSide(side, 'deadline')).toBe(side);
+    expect(versusFreshSide(side, 'auto')).toEqual({ board: [], state: {} });
+  });
+
+  it('the run lands its pools on the stamped result when the fight settles, and reports them at its lock', () => {
+    let a = createVersusRun(11, 'warden', 'set2', null);
+    let b = createVersusRun(12, 'warden', 'set2', null);
+    a = reduce(a, { type: 'faceOmen', deferFight: true });
+    b = reduce(b, { type: 'faceOmen', deferFight: true });
+    expect(a.pendingCombatSide!.vitals).toEqual({ resolve: a.resolve, armor: a.armor });
+    const vitals = { p1: { health: 3, armor: 0 }, p2: { health: 3, armor: 0 } };
+    // An empty-vs-empty fight is a draw (no damage), but the run still lands on the SERVER's pools (3 Health here).
+    const out = resolveVersusFight({ matchSeed: 9, round: 1, p1: a.pendingCombatSide!, p2: b.pendingCombatSide!, vitals });
+    const a2 = reduce(reduce(a, { type: 'landCombat', fight: { result: out.p1, damageTaken: 0 } }), { type: 'settleCombat' });
+    expect([a2.resolve, a2.armor]).toEqual([out.vitals!.p1!.health, out.vitals!.p1!.armor]);
+  });
+});
+
 describe('Versus server bundle — core + content only', () => {
   it('the Edge Function entry never pulls the reducer, the run state or any UI module into the bundle', async () => {
     const res = await build({
@@ -111,7 +195,10 @@ describe('Versus server bundle — core + content only', () => {
       mainFields: ['module', 'main'], metafile: true, logLevel: 'silent',
     });
     const inputs = Object.keys(res.metafile!.inputs);
-    const leaked = inputs.filter((p) => /packages[\\/](sim[\\/]src[\\/](?!versus[\\/])|ui[\\/])/.test(p));
+    // Pure DATA modules are allowed (the hero table, the rift table, the loss cap: R-VERSUS-HEALTH-01); never the
+    // reducer, the run state or any UI.
+    const allowed = /sim[\\/]src[\\/](config|heroes|lossCap)\.ts$/;
+    const leaked = inputs.filter((p) => /packages[\\/](sim[\\/]src[\\/](?!versus[\\/])|ui[\\/])/.test(p) && !allowed.test(p));
     expect(leaked).toEqual([]);
   }, 60_000);
 });

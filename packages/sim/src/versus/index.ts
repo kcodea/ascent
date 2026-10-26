@@ -8,6 +8,8 @@ export * from './lobbyView';
 export * from './options';
 export * from './group';
 export { handleVersusGroupFinalize, groupRoundDigest, type VersusGroupFinalizeStore } from './groupFinalize';
+export { handleVersusFinalize, storedVersusVitals, versusFightDigest, versusFightPayload, type VersusFinalizeStore, type VersusVitalsCommit } from './finalize';
 export * from './groupLobbyView';
 export * from './duos';
+export * from './vitals';
 export { handleVersusDuosFinalize, duosFightPayload, duosRoundDigest, type VersusDuosFinalizeStore, type VersusDuosMatchRow } from './duosFinalize';

@@ -59,6 +59,14 @@ export const PATCH_NOTES: PatchNote[] = [
     date: '2026-10-25',
     changes: [
       {
+        category: 'Balance',
+        text: "Gilded Kennelmaster now adds up its two best copies' bonuses instead of doubling them.",
+        details: [
+          'A +16 and a +10 Kennelmaster now gild into a +26 one. Two fresh copies give the printed +4. Each Avenge after that adds +4.',
+          'Trophy Stalker, Beardsley, Vicious and Alchemist Brisbane gild the same way: the Gilded copy starts at the two best copies added together.',
+        ],
+      },
+      {
         category: 'Systems',
         text: 'Phones: fixed the Shop not drawing on iPhone.',
         details: [

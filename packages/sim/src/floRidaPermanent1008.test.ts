@@ -125,12 +125,13 @@ describe('Gilding Flo Rida / Beardsley in place keeps earned growth at face valu
     });
   }
 
-  it('a natural triple is untouched: the two highest counts combine and read at the golden rate (the universal rule)', () => {
+  it('a natural triple pays the SUM of the two best copies (R-GILD-SUM-01, owner 2026-10-25)', () => {
     const s = recruit(1, { board: [bc('f1', 'b2_florida', { summonBonus: 2 }), bc('f2', 'b2_florida', { summonBonus: 1 })], hand: [bc('f3', 'b2_florida')] });
     const after = reduce(s, { type: 'play', uid: 'f3' }) as RunState;
     const gold = [...after.board, ...after.hand].find((c) => c.cardId === 'b2_florida' && c.golden);
-    // The third Flo is itself a Beast: f1 and f2 each count it first (2 -> 3, 1 -> 2), then the triple sums 3 + 2.
-    expect(gold?.summonBonus).toBe(5);
+    // The third Flo is itself a Beast: f1 and f2 each count it first (2 -> 3, 1 -> 2), so the copies grant +20 and +15.
+    // The golden stores the half-sum 2.5, so its x2 read is (5 + 5 x 2.5) x 2 = +35 = +20 + +15.
+    expect(gold?.summonBonus).toBe(2.5);
   });
 });
 

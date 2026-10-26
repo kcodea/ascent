@@ -1494,10 +1494,16 @@ export function sellValueWithBonus(card: BoardCard, state: Pick<RunState, 'runeB
  *  integer. Scoped to a card list because `summonBonus` is a SHARED field with two conventions: the
  *  `buffOnSummon` family (Mama Bear) reads it RAW ("no golden doubling here — a golden's bonus already
  *  encodes the combined magnitude"), and halving those would destroy real value.
- *  TRIPLES ARE NOT THIS: `checkTriples` builds a golden FROM three bodies and deliberately encodes their
- *  summed grants through the ×2 read — that math is untouched. */
+ *  TRIPLES use the same set: a triple stores the half-sum of its two best copies' accruals, so the ×2 read pays
+ *  the SUM of those two copies' grants (R-GILD-SUM-01, owner 2026-10-25). */
 // Flo Rida + Beardsley joined 2026-10-08 (owner: "yes fix", R-FLORIDA-01): `(base + improve x count) x golden`, every 1.
-const GOLD_SCALED_ACCRUAL_CARDS = new Set(['kennel', 'd2_sovereign', 'packleader', 'dm_broodwright', 'b2_groveweaver', 'b2_florida', 'b2_beardsley']);
+// Trophy Stalker + Alchemist Brisbane joined 2026-10-25 (R-GILD-SUM-01): both read `(base + accrual) x golden` too.
+//
+// A TRIPLE reads the same set (owner ruling 2026-10-25, R-GILD-SUM-01: "it should be at the sum of the 2 highest buff
+// values. so if you had a +16 and a +10 and gilded it, it should be at +26."): `combineIntoGolden` stores the HALF-SUM
+// of the two highest copies' accruals, so the unchanged x2 read pays exactly copy A's grant + copy B's grant, and every
+// later improve runs at the golden step. (Pack Leader keeps its own Mama Bear-family merge, see combineIntoGolden.)
+export const GOLD_SCALED_ACCRUAL_CARDS: ReadonlySet<string> = new Set(['kennel', 'd2_sovereign', 'packleader', 'dm_broodwright', 'b2_groveweaver', 'b2_florida', 'b2_beardsley', 'trophystalker', 'k_alchemist']);
 
 /** Spells the copy-last/first effects (Recaller, Spellvault Drake) may NOT reproduce (owner ruling
  *  2026-08-07). Second Draft is the loop: cast it ON the Recaller, replay the Recaller, receive another

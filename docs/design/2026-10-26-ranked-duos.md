@@ -1,7 +1,7 @@
 # Ranked Duos: design (STEP A, no code yet)
 
-Status: DESIGN FOR REVIEW (2026-10-26). Nothing here is built. Section 11 lists the open questions, each with a
-recommended default; section 12 is the phased plan.
+Status: RULED (owner answers 2026-10-26, section 11); P1 (server) building on `feat/ranked-duos`. Section 12 is the
+phased plan.
 
 ## The owner's design (2026-10-26)
 
@@ -98,9 +98,14 @@ So the rule is one formula: `close = both locked ? now : max(D, firstLockAt) + 5
 meaning no close yet. When the window ends the late teammate's turn is locked from their LATEST candidate side
 (`source: 'deadline'`, the Versus path), any open decision gets the seeded random legal pick (as Versus). On screen: the
 existing End Turn pill ("Players ready 1/2"), the clock face reads 0:00 then a 5 s countdown on the same face (the
-existing `versusClockFx` ticks), the waiting player's board goes quiet as after a lobby End Turn. Overtime behaviour
-(can the shop still be used at 0:00 while nobody has ended?) is open question Q1; it also needs a backstop so an idle
-pair cannot hold a match open forever.
+existing `versusClockFx` ticks), the waiting player's board goes quiet as after a lobby End Turn.
+
+**Past 0:00 (owner 2026-10-26, Q1):** "you can't keep shopping, but can re-order board etc, same as the normal mode
+when you have no time left. freeze/re-order board, view teammate's board". From 0:00 no buy, sell, roll, play, tier up
+or hero power (R-TIMER-LOCK-01 as in the lobby); re-ordering the board, freezing and the teammate view stay open, in
+the waiting time and in the 5 s window alike. **AFK backstop (picked):** if NEITHER teammate has ended 30 s after 0:00,
+the server closes the round as a timeout for both (`source: 'deadline'`), so an idle pair cannot hold a match open
+forever. With shopping already shut at 0:00 this only ever cuts re-ordering time.
 
 Back from combat: the next shop opens when both live players are back (served teams are never waited for); when one is
 back the other has 5 s (the Group rule), 90 s at most from the commit.
@@ -110,8 +115,8 @@ back the other has 5 s (the Group rule), 90 s at most from the commit.
 "Timer cannot stop": **no pause** in Ranked Duos (unlike Versus, whose pause exists because the opponent is live).
 The clock keeps running; a lapsed lease makes that seat count as locked for the gate; its last locked board fights on
 auto every round; coming back clears auto and the run catches up through the committed rounds (the Versus auto path).
-The Versus "three auto rounds = out" rule does NOT carry over by default (it would knock out the teammate who stayed;
-see Q3). Passing to an away teammate is refused (`teammate_away`, already built).
+The Versus "three auto rounds = out" rule does NOT carry over (it would knock out the teammate who stayed; Q3).
+Passing to an away teammate is refused (`teammate_away`, already built).
 
 ## 4. Duo snapshots: what is recorded and how it is served
 
@@ -161,7 +166,7 @@ client downloads the 150-run pool for a Duos game.
 
 ### 5.2 The algorithm
 
-Inputs: match seed, set, build, the band (from the team's Duos medal, Q5), the two live heroes.
+Inputs: match seed, set, build, the band (from the TEAM's own Duos medal, owner Q5), the two live heroes.
 
 1. **Duo runs first.** Seeded shuffle of eligible duo runs inside the band (band filter on the duo run's score, the
    overall cap on its weighted strength, unscored = in). Take runs in shuffle order, skipping a run whose either hero
@@ -192,39 +197,47 @@ placements, the duo-run write for a finished live team, and the rating settle; i
 R-VERSUS-LOCK-ORDER-01). The fight rows store our team's fight in full; the other fight stores only its outcome and the
 damage (the rail needs no more; Q11 if spectators should see it).
 
-## 6. Rating, ranks and the Edge Function
+## 6. Teams, rating, ranks (owner 2026-10-26: the rating belongs to the PAIR)
 
-- **Storage.** A separate track: `duos_rank_profiles` (user_id, season, rules_version, division, points, highest
-  division / points, demotion_ready, revision) and an immutable `duos_rank_results` (user_id, match_id, team,
-  placement, before, after, award, flags). Same shapes as the solo `profiles.rank_*` / `rank_results`, so the medal
-  screen, crest, bar and rank queue components render it with a "Duos" label. Season: the same `c_season` constant;
-  the season reset block resets this table too.
-- **Rules.** `resolveRank` with a Duos placement table (Q2) and gates rescaled to 4 places: division promotion needs a
-  top-2 team finish, medal promotion 1st; a demotion game demotes on 3rd / 4th; no instant demotions; Bronze I floor;
-  Ascendant III uncapped. The table lives in the three agreeing places as today (`settle_duos_rank` SQL,
-  `_shared/lobbyRating.ts`, `sim/rank.ts`), parameterised rather than copied. Strength bonus: off in v1 (it is built
-  on the solo fight ledger; Q2).
-- **Who settles: the server, from its own placement.** `settle_duos_rank(p_user, p_match)` runs inside the round
-  commit the moment a team is placed (both members, same placement, same award; each player's own promotion / demotion
-  gate still applies, so a player in a gate game sees the gate outcome). No client sends a placement. A leaver is
-  settled by the leave RPC (Q3). `versus-resolve` re-derives each settle from the shared TS rules and logs a parity
-  mismatch (the `submit-rating` posture), and the client reads its row from `duos_rank_results` for the rank screen.
-  `submit-rating` is untouched (solo bytes cannot move); if a client-retry path is still wanted for symmetry it is a
-  read, not a writer.
-- **Refused:** unrated tables (all generated), `dev_forced` matches, bot accounts (the existing progression trigger
-  pattern).
-- **Ranked entry / abandon.** Start in the party is the ranked commit (the R-RANK-06 confirmation, Duos wording). From
-  there, leaving costs rating (Q3). Closing the game on hero select is a disconnect, not an abandon.
+Owner: "the team gets their own matchmaking rating i think, so me and lemon have a different duos rating than me and
+ionlime. i think it'd also be fun to be able to name your team. so me and lemon could name our team CITRUS, and me and
+ionlime could name our team Goats or something like that."
+
+- **A team is the unordered pair of accounts.** `duos_teams` (id, `user_lo` < `user_hi` unique, name, created_at,
+  updated_at). It is created the first time a pair starts a Ranked Duos game (or names itself). Kevin + Lemon and
+  Kevin + Ionlime are two teams with two ratings.
+- **Team names.** 2-16 characters, letters / digits / spaces (trimmed, single spaces), the same word filter as handles,
+  NOT unique. Either teammate may rename between games (refused while the team is in a match). Default when unnamed:
+  "Name1 & Name2" (display only, computed, never stored). Shown on the rail, the end screen, the Leaderboard and Live
+  Games. RPC `duos_team_set_name(p_partner, p_name)`.
+- **Storage.** `duos_team_ranks` (team id, season, rules_version, division, points, highest division / points,
+  demotion_ready, revision) and an immutable `duos_rank_results` (team id, match id, season, placement, before, after,
+  award, flags), keyed (team, match) so a settle is once per team per game. Same shapes as the solo
+  `profiles.rank_*` / `rank_results`, so the medal crest, bar and rank screen render it with a "Duos" label. Season:
+  the same live season constant; a team from another season starts fresh at Bronze I on its first settle, as solo.
+- **Rules.** The medal ladder with the Duos placement table: **1st +34, 2nd +11, 3rd -11, 4th -34** (owner Q2); a
+  division promotion game needs a top-2 finish, a medal promotion game 1st; a demotion game demotes on 3rd / 4th; a won
+  promotion lands at 10; no instant demotions; Bronze I floor; Ascendant III uncapped. No strength bonus. The rules live
+  in SQL (`settle_duos_rank`) and TS (`sim/rank.ts` parameterised by a placement table + gate sizes), parity-tested.
+- **Who settles: the server, from its own placement.** `settle_duos_rank(p_team, p_match, p_placement)` runs inside the
+  round commit the moment the live team is placed. No client ever sends a placement. Both teammates see the same result
+  (it is ONE rating). XP stays per player (`settle_progression`, per seat, team place).
+- **Leaving (owner Q3, adapted to the team rating).** The rating is the pair's, so a leaver cannot dodge a loss: the
+  team plays on with the leaver's last locked board on auto and is settled ONCE at its real final place (the stayer
+  plays it out). If BOTH have left (nobody is left to drive the rounds), the team is settled at once at the lowest open
+  place and taken out. A disconnect that comes back is not a leave; a concede is a leave for that player only.
+- **Refused / unrated:** unrated tables (all three served teams generated), `dev_forced` matches, a team with a bot
+  account.
+- **Matchmaking band** = the team's own medal (a new team = Bronze I).
 
 ## 7. Leaderboard, Career, Live Games
 
-- **Leaderboard:** a "Solo / Duos" tab pill (the existing `.cv2-tabs` pill) on the ranked table; Duos reads
-  `duos_rank_profiles` ordered by division then points. One row per player.
-- **Career / Recent Games:** a Duos tab beside Ranked / Practice; a Duos row names the teammate and the team place.
+- **Leaderboard:** a "Solo / Duos" tab pill (the existing `.cv2-tabs` pill) on the ranked table; the Duos tab lists
+  TEAMS (name, both portraits, crest) from `duos_team_ranks`, ordered by division then points.
+- **Career / Recent Games:** a Duos tab beside Ranked / Practice; a Duos row names the team, the teammate and the place.
   Match details: the four teams with places and their boards per round (from the pinned copy, never a driver).
-- **Live Games:** a Ranked Duos match is listed like a ranked lobby game (one row per team, both names, Q10); Watch
-  joins the match's stands and uses the Versus Duos spectator screen (player picker by team). Hero select spectating
-  comes from `feat/hero-select-spectate` once merged.
+- **Live Games:** one row per live team (team name, both players); Watch joins the match's stands and uses the Versus
+  Duos spectator screen (player picker by team). Hero select spectating comes from `feat/hero-select-spectate`.
 
 ## 8. Party lobby and invites (reuse, no new chrome)
 
@@ -241,7 +254,8 @@ damage (the rail needs no more; Q11 if spectators should see it).
 - **Start:** host presses Start with both seated -> ranked confirmation for both -> both crystals -> hero select (the
   Versus hero select with the ranked re-roll and the teammate's options from the hero-select build) -> server seating
   during the intro -> round 1. No queue: the opponents are recordings, so a game starts at once.
-- **After the game:** both are back in the party (rooms are continuous), ready for the next one.
+- **After the game:** both are back in the party (rooms are continuous), ready for the next one. The party shows the team's name and Duos crest; either
+  member renames it there between games.
 
 ## 9. Egress budget
 
@@ -271,21 +285,21 @@ snapshots served to others), so the replay / turn audit already on the pre-go-li
 mode too. What Ranked Duos does better than solo: placement and rating are decided on the server, and the served
 boards cannot be swapped by a client.
 
-## 11. Open questions (only where the owner's answers do not decide it)
+## 11. Owner rulings (2026-10-26)
 
-| # | Question | Recommended default |
+| # | Question | Ruling |
 | --- | --- | --- |
-| Q1 | At 0:00 with neither teammate ended, the game waits for an End Turn. Can the shop still be used during that wait (overtime), or is it locked (R-TIMER-LOCK-01) and only the End Turn press is awaited? And is there a backstop for an idle pair? | **Shop stays usable in overtime** (the only reading where waiting means something); the 5 s window after the first End Turn is also usable by the other. **Backstop: 30 s past 0:00 locks both** as a timeout, so an idle pair cannot hold a server match open forever. |
-| Q2 | Rating points per team place 1-4. | The solo table averaged in pairs: **1st +34, 2nd +11, 3rd -11, 4th -34**; division promotion needs top 2, medal promotion 1st, demotion game demotes on 3rd / 4th; no strength bonus in v1. |
-| Q3 | A teammate who leaves (or never comes back). Versus puts the team out after 3 auto rounds; in ranked that punishes the one who stayed. | **The leaver is settled at once at the lowest open team place** (the abandon rule). The team plays on with the leaver's last board on auto, never forced out by missed rounds; the stayer gets the team's real placement. A concede in the Esc menu is a leave for that player only. A disconnect that comes back is not a leave. |
-| Q4 | Same rating change for both: the AWARD is the same, but a player in a promotion / demotion game sees a different outcome. OK? | Yes: same placement award, each player's own gates apply. |
-| Q5 | Which medal picks the strength band when teammates differ (Bronze with Diamond)? And may any two ranks team up? | **The higher of the two Duos medals**; any ranks may team up in v1 (revisit if boosting shows up). |
-| Q6 | Open parties: listed by default, or friends only by default? | **Listed by default** while a seat is free, with a host toggle to friends only. |
-| Q7 | Do duo runs ever feed the SOLO pool? | **No.** Separate pools both ways, except the owner's fallback (solo runs paired for Duos). |
-| Q8 | Pre-emptive Assault (attack-first cards) is out of Versus. Ranked Duos follows the lobby rules. In or out? | **In** (the opponents are recordings, as in the lobby). |
-| Q9 | Fight order of a served team. | Duo run: **its recorded order** (exact state). Fallback pair: the seeded 50/50 from the match seed (R-DUOS-ORDER-01). |
-| Q10 | XP for a Ranked Duos game. | The ranked lobby's XP for the matching solo places averaged in pairs (team 1st = avg of 1st and 2nd, ...). Live Games: one row per team. |
-| Q11 | Should spectators and the rail be able to watch the snapshot-vs-snapshot fight (costs egress)? | **No**, outcome and damage only. |
+| Q1 | 0:00 with neither ended | "you can't keep shopping, but can re-order board etc, same as the normal mode when you have no time left. freeze/re-order board, view teammate's board". AFK backstop picked: 30 s past 0:00 with nobody ended closes the round (section 3.1). |
+| Q2 | Points per team place | **+34 / +11 / -11 / -34**, promotion top 2 (division) / 1st (medal), demotion on 3rd / 4th. Yes. |
+| Q3 | Leaver | Yes; with the team rating (Q5) it becomes: team plays on, settled once at its real place; both gone = settled at the lowest open place (section 6). |
+| Q4 | Same change for both | Yes; it is one TEAM rating (Q5). |
+| Q5 | Band for mixed ranks | Replaced: **the rating, medal, promotion / demotion state and leaderboard entry belong to the PAIR**, with a team name; the band is the team's own medal. |
+| Q6 | Open parties | Listed by default, friends-only toggle. Yes. |
+| Q7 | Duo runs in the solo pool | Never. |
+| Q8 | Attack-first cards | Allowed. |
+| Q9 | Served team order | A duo run keeps its recorded order; a fallback pair is a seeded 50/50. |
+| Q10 | XP / Live Games | Yes (XP per player by the matching solo places averaged; one Live Games row per team). |
+| Q11 | Watching recorded-vs-recorded fights | Default kept: no live view, result and damage on the rail only. |
 
 Readings made (flag, no answer needed unless wrong): **R1** the fight's damage is the lobby formula on the one result,
 read from the board standing at the end (its owner's tier plus its surviving minions), capped by the round loss cap;
@@ -301,7 +315,7 @@ hero options), `feat/friends-list` (the invite API for P3). None of their files 
 
 | Phase | Scope | Difficulty |
 | --- | --- | --- |
-| **P1 Server** | Migration: `ranked_duos` mode (8 seats: 2 live + 6 served, 4 teams), the end-turn gate columns + close rule (Q1 backstop), team pools on `versus_group_teams` (from the Health builder), `versus_duos_served` (pinned copy), `duo_runs` / `duo_run_rounds` + sample RPC, `duos_rank_profiles` / `duos_rank_results` / `settle_duos_rank` + season reset; leave = abandon settle. `versus-resolve`: `seat_ranked_duos` (section 5, TS selection bundled from sim) and `finalize_ranked_duos` (team pairing over `pairRunLobby`, two fights, ghost, damage, placement, duo-run write, settle). Parity cases for both. PGlite db tests: gate timings, idempotent seating, exact-round serving (holes, before start, past end), unrated, placement ties, rating table. | **Hard.** The gate and rating are medium; seating with the full lobby eligibility / band / cap rules on the server and the served-side prepare in the bundle are the risky parts. |
+| **P1 Server** | Migration: `ranked_duos` mode (8 seats: 2 live + 6 served, 4 teams), the end-turn gate columns + close rule (Q1 backstop), team pools on `versus_group_teams` (from the Health builder), `versus_duos_served` (pinned copy), `duo_runs` / `duo_run_rounds` + sample RPC, `duos_teams` (names) / `duos_team_ranks` / `duos_rank_results` / `settle_duos_rank`; leave rules (section 6). `versus-resolve`: `seat_ranked_duos` (section 5, TS selection bundled from sim) and `finalize_ranked_duos` (team pairing over `pairRunLobby`, two fights, ghost, damage, placement, duo-run write, settle). Parity cases for both. PGlite db tests: gate timings, idempotent seating, exact-round serving (holes, before start, past end), unrated, placement ties, rating table. | **Hard.** The gate and rating are medium; seating with the full lobby eligibility / band / cap rules on the server and the served-side prepare in the bundle are the risky parts. |
 | **P2 Game loop (client)** | A Ranked Duos run mode (rated, no fuse, no local pause), the server clock + gate on the existing clock face and End Turn pill, the projection of 4 teams onto the lobby rail (team pools, served teams' boards for scouting), tag-team playback of our fight against served boards, passing (reused), disconnect / auto / catch-up, reload restore (passes, run checkpoint), board scoring sent with locks. | **Medium-hard.** Mostly reuse of the Versus Duos client; the rail projection over served seats and the overtime states are new. |
 | **P3 UI** | Play > Ranked > Duos door, the duo party (Versus room in `ranked_duos`, invites through the friends-list API, open duo lobbies list, friends-only toggle), ranked confirmation, hero select reuse, end screen with team place 1-4 and the Duos rank animation, Leaderboard Duos tab, Career / Recent Games Duos tab, Live Games listing + Watch, patch note, GAME-RULES section, oracle rules. | **Medium.** All reuse; the party wiring to the invite API is the main new flow. |
 | **P4 Live test + edges** | Claudebot pairs live (bots as teammates only in dev, unrated), the gate cases (both end, one ends early, 0:00 + 5 s, neither at 0, backstop), disconnect / return / leave settlement, a team out mid-round, two teams out together, the ghost round, served-board integrity checks against the pinned copy, season reset dry run, egress measured against the 1.5 MB budget, combat step-in perf on the prod build. | **Medium.** The Versus Duos phase 3 harness and test bots carry over. |

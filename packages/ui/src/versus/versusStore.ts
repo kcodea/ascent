@@ -37,8 +37,9 @@ import { VersusError, versusRemote, type VersusGroupMatchRaw, type VersusGroupRo
 import { duosFirstAt, duosLobbySeatId, groupPairingAt, groupSeatOf, isDuosRaw, projectGroupMatch, projectGroupRounds } from './versusGroupView';
 import { duosAfterRun, duosPull, duosReset } from './duosPasses';
 import { versusOptionsSummary } from './versusOptionsUi';
-import { newPublisher, nextSpectatorMessage, type SpectatorPublisher } from './spectatorView';
-import { installSpectateIo, leaveTeammate, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
+import { heroSelectFrame, newPublisher, nextHeroSelectMessage, nextSpectatorMessage, type HeroSelectFrame, type SpectatorPublisher } from './spectatorView';
+import { useOwnHeroPick } from '../hero-select/ownHeroPick';
+import { installSpectateIo, leaveTeammate, leaveTeammateHero, ownRunWhileWatching, receiveSpectate, receiveSpectatorCursor, resetSpectate, SPECTATE_KEY_EVENT, spectateSync, trackDuosMatch, useSpectate } from './spectate';
 import { othersInStands, setWatchers, type Watcher } from './watchers';
 import { combatBeatFor, hasPendingActs, setSpectatorTap, SPECTATE_CURSOR_EVENT, tapAct, takeActs, takeOdds, takeOverlay } from './spectateTap';
 import { cancelRankedGate, requestRankedGate } from '../rankedGate/rankedGateController';
@@ -347,12 +348,14 @@ let session: {
   publisher: SpectatorPublisher | null;
   unsubRun: (() => void) | null;
   unsubGates: () => void;
+  /** Hero Select's frames (R-SPECTATE-HEROSELECT-01): the watchers' trigger (my screen's inputs moving). */
+  unsubHero: () => void;
 } | null = null;
 
 function enterRoom(room: VersusRoom): void {
   stopSession();
   set({ room, screen: 'room', error: null, seatMove: null, match: null, priv: null, heroOffer: null, rounds: {}, lockedRound: null, readyRound: null, endTurnWave: null });
-  session = { roomId: room.id, matchId: null, channel: null, beat: 0, tick: 0, wake: null, lastFinalize: 0, candidateSeq: 0, publisher: null, unsubRun: null, unsubGates: useVersus.subscribe(driveGates) };
+  session = { roomId: room.id, matchId: null, channel: null, beat: 0, tick: 0, wake: null, lastFinalize: 0, candidateSeq: 0, publisher: null, unsubRun: null, unsubGates: useVersus.subscribe(driveGates), unsubHero: watchMyHeroSelect() };
   installSpectateIo({
     latestFrames: (id) => mx.latestFrames(id),
     requestKey: () => session?.channel?.send(SPECTATE_KEY_EVENT, {}),
@@ -374,6 +377,9 @@ function stopSession(): void {
   session.channel?.close();
   session.unsubRun?.();
   session.unsubGates();
+  session.unsubHero();
+  heroFrames.cancel();
+  heroPub = null;
   if (entryGate) { entryGate.cancelled = true; cancelRankedGate(); entryGate = null; }
   uninstallVersusEmotes();
   uninstallSpectatorEmotes();
@@ -405,7 +411,13 @@ function subscribe(matchId: string | null): void {
     else if (event === 'spectate') { if (!mySeat() || isMateFrame(payload)) receiveSpectate(payload); }
     else if (event === SPECTATE_CURSOR_EVENT) { if (!mySeat() || (useSpectate.getState().teammate && isMateFrame(payload))) receiveSpectatorCursor(payload); }
     // A spectator lost its place: the next deferred publish sends a keyframe (coalesced, never per spectator).
-    else if (event === SPECTATE_KEY_EVENT) { if (mySeat() && session?.matchId) { keyWanted = true; frames.schedule({ matchId: session.matchId, forceKey: true }); } }
+    else if (event === SPECTATE_KEY_EVENT) {
+      if (mySeat() && session?.matchId) {
+        // On Hero Select my screen goes out again (nothing of it is stored for a late joiner); else a keyframe.
+        if (myHeroSelectOnScreen()) { heroKeyWanted = true; heroFrames.schedule({ matchId: session.matchId }); }
+        else { keyWanted = true; frames.schedule({ matchId: session.matchId, forceKey: true }); }
+      }
+    }
   });
   // A channel swap mid-match keeps the emote transport on the live channel.
   const seat = mySeat();
@@ -626,6 +638,8 @@ async function onMatch(match: VersusMatch): Promise<void> {
   // The fight is in (or a pause): back to my own board BEFORE anything below drives the run, so the fight's End Turn
   // and the fight itself play on MY run, never the teammate's on screen (R-DUOS-VIEW-01).
   if (useSpectate.getState().teammate && teammateViewReturns(match)) leaveTeammate();
+  // VERSUS DUOS: my teammate's hero choices are only there while Hero Select is (R-DUOS-HEROSELECT-01).
+  if (match.phase !== 'hero_select' && !myHeroSelectOnScreen()) leaveTeammateHero();
 
   if (!get().priv || get().priv!.match_id !== match.id) {
     const priv = await mx.myPrivate(match.id).catch(() => null);
@@ -1059,7 +1073,8 @@ let readySentFor: string | null = null;
 function startRunWatch(matchId: string, seat: VersusSeat): void {
   if (!session) return;
   session.unsubRun?.();
-  session.publisher = newPublisher(emoteSeatOf(get().match) ?? seat);
+  // Above any Hero Select message this session sent, so the first run keyframe always outranks it.
+  session.publisher = newPublisher(emoteSeatOf(get().match) ?? seat, Math.max(Date.now(), (heroPub?.seq ?? 0) + 1));
   if (session.channel) { uninstallSpectatorEmotes(); installVersusEmotes(emoteSeatOf(get().match) ?? seat, session.channel.send); }
   installVersusHandlers({
     fightFor: (wave) => {
@@ -1115,9 +1130,7 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   // No one watching: no projection work at all (a spectator never costs a player anything it does not need).
   // Who may be watching: the stands, and in a group match every player already out (R-VERSUS-GROUP-06: they watch the
   // rest; before the knockout-stands migration their room role is still their seat).
-  const out = new Set(groupRaw && groupRaw.id === matchId ? groupRaw.seats.filter((x) => x.eliminatedRound != null).map((x) => x.userId) : []);
-  // VERSUS DUOS: my teammate always watches (the live teammate view, R-DUOS-VIEW-01).
-  const watchers = (get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0) + (get().match?.group?.duos ? 1 : 0);
+  const watchers = watcherCount(matchId);
   const arrived = watchers > watchersSeen;
   watchersSeen = watchers;
   setSpectatorTap(watchers > 0, emoteSeatOf(get().match), session.channel?.send ?? null, () => frames.schedule({ matchId, forceKey: false }), () => frames.flush());
@@ -1138,6 +1151,82 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
   session.channel?.send('spectate', cb ? { ...msg, cb } : msg);
   if (msg.kind === 'key') void mx.publishFrame(matchId, msg.seq, msg.round, msg).catch(() => undefined);
 }, 250);
+
+/** Who may be watching my screen: the stands, every player already out of a group match (R-VERSUS-GROUP-06: they watch
+ *  the rest; before the knockout-stands migration their room role is still their seat), and in Duos my teammate, who
+ *  always may (R-DUOS-VIEW-01). Zero: nothing is published at all. */
+function watcherCount(matchId: string): number {
+  const out = new Set(groupRaw && groupRaw.id === matchId ? groupRaw.seats.filter((x) => x.eliminatedRound != null).map((x) => x.userId) : []);
+  return (get().room?.members.filter((m) => m.role === 'spectator' || out.has(m.userId)).length ?? 0) + (get().match?.group?.duos ? 1 : 0);
+}
+
+/**
+ * HERO SELECT, PUBLISHED (owner 2026-10-26: "I want spectating to show up when a player goes into hero select. this should
+ * work in all modes"; R-SPECTATE-HEROSELECT-01, and the Duos teammate's choices, R-DUOS-HEROSELECT-01). While my Hero
+ * Select is on screen, its state (my three, my re-roll, my pick) goes to the people watching me on the room's channel:
+ * on every change (coalesced into one idle publish), and again when a watcher asks. Only while someone may watch; the
+ * same cadence rules as the run's frames, no timer of its own. NEVER stored (`versus_spectator_frames` is readable by
+ * every member, and my offer is private): a late joiner asks and gets it on my next publish. The other team's or my
+ * opponent's client receives the room's broadcast like any member's but never draws it (only the stands and my Duos
+ * teammate render frames).
+ */
+let heroPub: SpectatorPublisher | null = null;
+let heroPubFor: string | null = null;
+let heroKeyWanted = false;
+let heroWatchersSeen = 0;
+/**
+ * Is my Versus Hero Select on my screen? From the offer until the launch curtain takes it (`startVersusRun`). NOT the
+ * match phase: the last pick in ends Hero Select on the server at once, while my screen still plays that pick's ceremony
+ * for seconds, and the people watching me must see it (found live 2026-10-26: the last pick never reached the stands).
+ */
+function myHeroSelectOnScreen(): boolean {
+  const g = useGame.getState();
+  const m = get().match;
+  return g.pendingMode === 'versus' && !!g.heroChoices && !!m && m.phase !== 'complete' && !!mySeat(m);
+}
+/** My Versus Hero Select as it stands, or null when it is not on my screen. */
+export function myVersusHeroFrame(): HeroSelectFrame | null {
+  const g = useGame.getState();
+  const st = get();
+  if (!myHeroSelectOnScreen()) return null;
+  return heroSelectFrame({
+    offer: g.heroChoices, picked: useOwnHeroPick.getState().heroId, reroll: g.heroReroll,
+    canReroll: versusRerollCandidates(st).length > 0, mode: 'versus',
+  });
+}
+const heroFrames = createDeferredWriter<{ matchId: string }>(({ matchId }) => {
+  const match = get().match;
+  const seat = emoteSeatOf(match);
+  if (!session || !match || match.id !== matchId || !seat) return;
+  const frame = myVersusHeroFrame();
+  const watchers = watcherCount(matchId);
+  const arrived = watchers > heroWatchersSeen;
+  heroWatchersSeen = watchers;
+  if (!frame || watchers === 0) return;
+  if (!heroPub || heroPubFor !== matchId || heroPub.seat !== seat) { heroPub = newPublisher(seat); heroPubFor = matchId; }
+  const msg = nextHeroSelectMessage(heroPub, frame, heroKeyWanted || arrived);
+  heroKeyWanted = false;
+  if (!msg) return;
+  msg.m = matchId;
+  session.channel?.send('spectate', msg);
+}, 120);
+/** The trigger: my Hero Select's inputs moved (the offer, its re-roll, my pick, the room's stands, the match). */
+function watchMyHeroSelect(): () => void {
+  let last: unknown[] = [];
+  const poke = (): void => {
+    const g = useGame.getState();
+    const v = get();
+    const now = [g.heroChoices, g.heroReroll, g.pendingMode, useOwnHeroPick.getState().heroId, v.match?.phase, v.match?.id, v.room, v.rerollPending, v.rerollOffFor];
+    if (now.every((x, i) => x === last[i])) return;
+    last = now;
+    const m = v.match;
+    if (session && m && myHeroSelectOnScreen()) heroFrames.schedule({ matchId: m.id });
+  };
+  const a = useGame.subscribe(poke);
+  const b = useVersus.subscribe(poke);
+  const c = useOwnHeroPick.subscribe(poke);
+  return () => { a(); b(); c(); };
+}
 
 /**
  * LOCK this round: End Turn, or the deadline. The final side is built on a clone with every open decision given

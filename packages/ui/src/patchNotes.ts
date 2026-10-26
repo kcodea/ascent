@@ -60,6 +60,15 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'You can now watch a player pick their hero. In Duos, click your teammate to see their hero choices.',
+        details: [
+          'Spectators see Hero Select live in every mode you can watch: Versus 1v1, Group and Duos, and ranked games in Live Games. They see the heroes on offer, a re-roll, and the pick, then follow the player into the game.',
+          'Ranked games now show in Live Games from Hero Select.',
+          "In Duos Hero Select, your teammate's portrait sits bottom right. Click it to see their heroes and their pick. Click your own portrait to go back.",
+        ],
+      },
+      {
+        category: 'Systems',
         text: "Friends: add friends, see who's online, and invite them to your Versus room.",
         details: [
           'Open Friends from the side menu. Add a friend by name and tag (like Name#1234) or from their Career page.',

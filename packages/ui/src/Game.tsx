@@ -13,6 +13,7 @@ import { Recruit } from './Recruit';
 import { PERF_DOM_CONTAINERS } from './perfDomContainers';
 import { EndScreen } from './EndScreen';
 import { HeroSelect } from './HeroSelect';
+import { HeroSelectWatch } from './hero-select/HeroSelectWatch';
 import { HeroLaunchCurtain } from './hero-select/HeroLaunchCurtain';
 import { GoodLuckIntro } from './goodLuck/GoodLuckIntro';
 import { RuneforgeEntrancePreview } from './runeforgeEntrance/RuneforgeEntrancePreview';
@@ -640,6 +641,9 @@ export function Game() {
       {/* Topmost layers: the pre-run hero picker (self-gates on heroChoices), and above it the title
           screen (self-gates on showTitle) — the front door into Ascent / Practice / Settings. */}
       <HeroSelect />
+      {/* Another player's Hero Select, watched (the stands, Live Games, a Duos teammate's choices; R-SPECTATE-HEROSELECT-01).
+          After my own so it draws over it, before the launch curtain so the curtain covers it. */}
+      <HeroSelectWatch />
       {/* Practice setup: a view of the title's mode screen now (Title.tsx, R-MENU-VIEW-SWAP-01), so choosing Practice
           shifts the content beside the sidebar instead of closing the whole menu and fading a new one in. */}
       {/* The hero-select launch curtain: mounted in Game (NOT in HeroSelect) so it survives the unmount

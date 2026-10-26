@@ -95,6 +95,8 @@ export class VersusBotDriver {
   private watchUntil = 0;
   private offer: string[] | null = null;
   private picked = false;
+  /** The hero the bot picked (its Hero Select frame shows it; R-SPECTATE-HEROSELECT-01). */
+  private pickedIndex: number | null = null;
   /** The bot's own run for the current match. */
   run: RunState | null = null;
   private lockedRound: number | null = null;
@@ -113,6 +115,11 @@ export class VersusBotDriver {
   get currentSeat(): VersusSeat | null { return this.seat; }
   /** The bot's REAL seat: p1..p4 in a group / Duos match (the projection's p1 is always itself), else the 1v1 seat. */
   get realSeat(): VersusGroupSeat | null { return this.match?.group ? this.match.group.me : this.seat; }
+  /** The bot's Hero Select as a person's screen would show it (its three and its pick), while the match is on it. */
+  get heroSelectShown(): { offer: string[]; picked: string | null } | null {
+    if (this.match?.phase !== 'hero_select' || !this.offer || this.run) return null;
+    return { offer: [...this.offer], picked: this.pickedIndex != null ? this.offer[this.pickedIndex] ?? null : null };
+  }
   /** The current match row (projected from the bot's seat). */
   get currentMatch(): VersusMatch | null { return this.match; }
   /** The round the bot has locked (null before its first lock). */
@@ -239,6 +246,7 @@ export class VersusBotDriver {
       this.priv = null;
       this.offer = null;
       this.picked = false;
+      this.pickedIndex = null;
       this.run = null;
       this.lockedRound = null;
       this.readyRound = null;
@@ -263,7 +271,8 @@ export class VersusBotDriver {
     }
     if (!this.picked && (this.opts.heroPick ?? 'random') === 'random') {
       this.picked = true;
-      await this.api.pickHero(m.id, this.rng.int(3)).catch(() => undefined);
+      this.pickedIndex = this.rng.int(3);
+      await this.api.pickHero(m.id, this.pickedIndex).catch(() => undefined);
       this.match = (await this.api.match(m.id)) ?? m;
       return 'acted';
     }

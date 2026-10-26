@@ -20,6 +20,23 @@ import { HeroSelectCeremony } from './hero-select/HeroSelectCeremony';
 import { VersusHeroTimer } from './versus/VersusHeroTimer';
 import { crumb } from './crashLog';
 import { lockVersusHeroPick, markVersusPickShown, rerollVersusHero, useVersus, useVersusTimeoutHero, versusRerollCandidates } from './versus/versusStore';
+import type { HeroSelectFrame } from './versus/spectatorView';
+import { setOwnHeroPick } from './hero-select/ownHeroPick';
+import { leaveTeammateHero } from './versus/spectate';
+
+/**
+ * A WATCHED Hero Select (owner 2026-10-26: "hero select should be spectatable"; R-SPECTATE-HEROSELECT-01, and the Duos
+ * teammate's choices, R-DUOS-HEROSELECT-01): the SAME screen drawn from another player's frame, read only. Their three
+ * heroes (hover still shows each power), their re-roll (the buttons while it is unused, inert; the swap when they spend
+ * it), their pick (the full ceremony, which never launches), the Versus clock. Nothing on it acts.
+ */
+export interface HeroSelectWatch {
+  frame: HeroSelectFrame;
+  /** Run the ceremony's Pixi layer (off when the player's own Hero Select may run one underneath: Duos). */
+  fx: boolean;
+  /** The Versus clock: 'drive' it (the only Hero Select on screen), 'show' its face (another screen drives it), 'none'. */
+  clock: 'drive' | 'show' | 'none';
+}
 
 /** How long a re-roll's swap plays (the old portrait's dissolve, then the new one's coalesce); matches styles.css. */
 const REROLL_SWAP_MS = 700;
@@ -34,20 +51,28 @@ const REROLL_SWAP_MS = 700;
  * mounted); HeroSelectCeremony choreographs the presentation; the run is created only when Start Game
  * routes through the Game-owned launch curtain (`requestLaunch` → `pickHero`).
  */
-export function HeroSelect() {
-  const choices = useGame((s) => s.heroChoices);
+export function HeroSelect({ watch }: { watch?: HeroSelectWatch } = {}) {
+  const ownChoices = useGame((s) => s.heroChoices);
+  // A watched screen's offer is one array per distinct offer (a frame re-sent unchanged never resets the ceremony).
+  const watchOfferKey = watch ? watch.frame.offer.join('|') : null;
+  const watchOffer = useMemo(() => (watch ? [...watch.frame.offer] : null), [watchOfferKey]);
+  const choices = watch ? watchOffer : ownChoices;
   // SKINS: the heroes you can pick wear the skins you have equipped for them.
   const loadout = useLiveLoadout();
   // The portrait-frames tuner's ring (null = today's rounded gold card frame). With one on, the card goes round.
   const frame = usePortraitFrame('self');
   const openTitle = useGame((s) => s.openTitle);
-  const mode = useGame((s) => s.pendingMode);
+  const ownMode = useGame((s) => s.pendingMode);
+  const mode = watch ? watch.frame.mode : ownMode;
   const profile = useGame((s) => s.profile);
   const [ceremony, dispatch] = useReducer(ceremonyReduce, CEREMONY_IDLE);
   // THE HERO RE-ROLL (owner 2026-10-15, R-HERO-REROLL-01): one per hero select, any slot. Solo modes draw it locally
   // (seeded, `rerollHero`); Versus asks the server (`rerollVersusHero`). The controls show only while it is unused AND
   // there is a hero left to draw (Practice / Gauntlet already show their whole pool, so they never get one).
-  const heroReroll = useGame((s) => s.heroReroll);
+  const ownReroll = useGame((s) => s.heroReroll);
+  const watchRerollKey = watch?.frame.reroll ? JSON.stringify(watch.frame.reroll) : null;
+  const watchReroll = useMemo(() => (watch?.frame.reroll ? { ...watch.frame.reroll } : null), [watchRerollKey]);
+  const heroReroll = watch ? watchReroll : ownReroll;
   const pendingSeed = useGame((s) => s.pendingSeed);
   const practiceDraft = useGame((s) => s.practiceDraft);
   const rerollHero = useGame((s) => s.rerollHero);
@@ -62,17 +87,21 @@ export function HeroSelect() {
   // slot is armed on press, and `animatedReroll` remembers the last re-roll already shown.
   const [armedSlot, setArmedSlot] = useState<number | null>(null);
   const [animatedReroll, setAnimatedReroll] = useState<HeroReroll | null>(heroReroll);
-  const swapping = heroReroll && heroReroll !== animatedReroll && armedSlot === heroReroll.slot ? heroReroll : null;
+  // A watched re-roll plays its swap when it arrives (the player pressed it); one restored at mount does not.
+  const swapping = heroReroll && heroReroll !== animatedReroll && (watch || armedSlot === heroReroll.slot) ? heroReroll : null;
   // The choice cards, by index — the ceremony snapshots + animates them but never owns their DOM.
   const cardRefs = useRef<(HTMLButtonElement | null)[]>([]);
   // HeroSelect renders null (but stays MOUNTED) once pickHero clears heroChoices — so the machine must be
   // reset whenever a new offer arrives, or a finished `launching` state would eat every click next run.
   useEffect(() => { dispatch({ type: 'reset' }); }, [choices]);
-  useEffect(() => { crumb('hero select shown', { heroes: choices?.length ?? 0 }); }, [choices]);
+  useEffect(() => { if (!watch) crumb('hero select shown', { heroes: choices?.length ?? 0 }); }, [choices, watch]);
+  // MY PICK, for the people watching me (R-SPECTATE-HEROSELECT-01): the hero this screen's ceremony is playing, however
+  // it was chosen (a click, or the Versus clock's pick). The publishers read it; a watched screen reports nothing.
+  useEffect(() => { if (!watch) setOwnHeroPick(ceremony.heroId); }, [watch, ceremony.heroId]);
   // THE RANKED HERO SELECT (owner 2026-10-11, R-RANK-06): the player confirmed a ranked lobby to get here, so Back
   // is an ABANDON that settles as an 8th. One press arms it (the label then names the cost), a second press
   // leaves; pressing anything else, or a new offer, disarms it. Every other mode's Back is free and immediate.
-  const ranked = useGame((s) => s.pendingMode === 'lobby' && s.rankedEntry !== null);
+  const ranked = useGame((s) => !watch && s.pendingMode === 'lobby' && s.rankedEntry !== null);
   const abandonRankedEntry = useGame((s) => s.abandonRankedEntry);
   const [abandonArmed, setAbandonArmed] = useState(false);
   useEffect(() => { setAbandonArmed(false); }, [choices]);
@@ -130,13 +159,23 @@ export function HeroSelect() {
   // VERSUS: the 20 s ran out before a pick, so the server chose (ruling 2). Play the ordinary ceremony for its hero.
   const timeoutHero = useVersusTimeoutHero();
   useEffect(() => {
-    if (mode !== 'versus' || !timeoutHero || !choices || !ceremonyAcceptsClicks(ceremony)) return;
+    if (watch || mode !== 'versus' || !timeoutHero || !choices || !ceremonyAcceptsClicks(ceremony)) return;
     const index = choices.indexOf(timeoutHero);
     const card = cardRefs.current[index];
     if (index < 0 || !card) return;
     markVersusPickShown();
+    leaveTeammateHero(); // Duos: the clock picked for me while I looked at my teammate's choices; my own pick shows
     dispatch({ type: 'select', heroId: timeoutHero, rect: snapshotRect(rectToStage(card.getBoundingClientRect())), index, now: performance.now() });
-  }, [mode, timeoutHero, choices, ceremony]);
+  }, [watch, mode, timeoutHero, choices, ceremony]);
+  // A WATCHED pick: the watched player chose (or their clock did), so their ceremony plays here too, read only.
+  const watchedPick = watch?.frame.picked ?? null;
+  useEffect(() => {
+    if (!watchedPick || !choices || !ceremonyAcceptsClicks(ceremony)) return;
+    const index = choices.indexOf(watchedPick);
+    const card = cardRefs.current[index];
+    if (index < 0 || !card) return;
+    dispatch({ type: 'select', heroId: watchedPick, rect: snapshotRect(rectToStage(card.getBoundingClientRect())), index, now: performance.now() });
+  }, [watchedPick, choices, ceremony]);
 
   // THE SWAP: the old portrait dissolves out (`dyingfade`, the combat death fade) while the new one coalesces in
   // (`summonpop`) under the Refresh crystal's one-shot shine (`rfb-shine`). All CSS, transform/opacity only: the Pixi
@@ -164,7 +203,7 @@ export function HeroSelect() {
   // Ceremony click handler (both card variants): pulse + commit. sfx.heroSelect moved to the voice beat,
   // pickHero to the launch curtain (§2). Geometry is read HERE, once, at commit time (§8).
   const onPick = (id: string, index: number) => (e: MouseEvent<HTMLButtonElement>) => {
-    if (!ceremonyAcceptsClicks(ceremony)) return; // repeats during the ceremony are ignored (§16)
+    if (watch || !ceremonyAcceptsClicks(ceremony)) return; // a watched screen picks nothing // repeats during the ceremony are ignored (§16)
     if (mode === 'versus' && versusRerollPending) return; // the slot may be about to change under the click
     sfx.pulse();
     if (mode === 'versus') lockVersusHeroPick(id); // VERSUS: the pick locks now, not at Start Game (the clock runs on)
@@ -177,9 +216,9 @@ export function HeroSelect() {
     });
   };
   // THE RE-ROLL control (R-HERO-REROLL-01): one press, any slot; every control then disappears.
-  const canReroll = !active && !browse && (mode === 'versus' ? versusCanReroll : soloCanReroll);
+  const canReroll = !active && !browse && (watch ? watch.frame.canReroll : mode === 'versus' ? versusCanReroll : soloCanReroll);
   const onReroll = (slot: number) => (): void => {
-    if (!canReroll) return;
+    if (!canReroll || watch) return;
     sfx.roll();
     setArmedSlot(slot);
     if (mode === 'versus') void rerollVersusHero(slot);
@@ -191,12 +230,12 @@ export function HeroSelect() {
     : undefined;
 
   return (
-    <div className={`heroselect${active ? ' hsc-active' : ''}`} style={rootStyle}>
+    <div className={`heroselect${active ? ' hsc-active' : ''}${watch ? ' hswatch' : ''}`} style={rootStyle} {...(watch ? { 'aria-label': 'Watching Hero Select' } : {})}>
       {/* Return to the main menu (owner ask 2026-09-01) — the same `.hsback` chrome the Title's mode-pick
           wears, top-left. Hidden once a pick's ceremony is running: the launch is committing, and yanking
           the screen out from under the machine mid-choreography is not a state it handles. */}
       {/* VERSUS (owner 2026-10-14): no Back here; leaving a match is the Esc menu's Concede. */}
-      {!active && mode !== 'versus' && (ranked ? (
+      {!active && !watch && mode !== 'versus' && (ranked ? (
         <button
           className={`hsback${abandonArmed ? ' armed' : ''}`}
           onPointerDown={() => { sfx.pulse(); if (abandonArmed) abandonRankedEntry(); else setAbandonArmed(true); }}
@@ -219,7 +258,7 @@ export function HeroSelect() {
             Rating, so none of them show it. The "Oath N" pill that sat beside the Rating is gone: Oath is a
             retired term (owner 2026-10-14, R-TERM-01). `profile.currentLine` is still computed, just not shown. */}
         {/* VERSUS: the 20 s pick clock, the shop's own clock face; a timeout picks one of the three at random. */}
-        {mode === 'versus' && <VersusHeroTimer />}
+        {mode === 'versus' && (!watch || watch.clock !== 'none') && <VersusHeroTimer drive={!watch || watch.clock === 'drive'} />}
         {mode !== 'lobby' && mode !== 'practice' && mode !== 'gauntlet' && mode !== 'versus' && (
           <div className="hsline" aria-label="Your Rating">
             <span className="hsline-rat">Rating {profile.rating}</span>
@@ -327,7 +366,7 @@ export function HeroSelect() {
       {/* The ceremony overlay mounts on commit and lives until pickHero (fired by the launch curtain)
           clears heroChoices — this component then renders null and the ceremony's cleanup aborts every
           timer/animation it owns. */}
-      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} />}
+      {active && <HeroSelectCeremony state={ceremony} dispatch={dispatch} cardEls={cardRefs} {...(watch ? { watch: { versus: mode === 'versus', fx: watch.fx } } : {})} />}
     </div>
   );
 }

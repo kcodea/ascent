@@ -25,6 +25,7 @@ const REFRESH_MS = 10_000;
 /** "Round 6 · Shop" / "Round 6 · Fight" / "Finished 3rd". */
 export function liveStatusText(r: Pick<LiveGameRow, 'round' | 'phase' | 'placement'>): string {
   if (r.phase === 'end') return r.placement ? `Finished #${r.placement}` : 'Finished';
+  if (r.phase === 'hero') return 'Hero Select';
   return `Round ${r.round} · ${r.phase === 'combat' ? 'Fight' : 'Shop'}`;
 }
 
@@ -104,7 +105,7 @@ export function LiveGames(): JSX.Element | null {
                   <div className="lb-row-hero">
                     <LbHeroFrame heroId={r.hero_id} art={heroPortrait(r.hero_id, skins)} frameId={frameIdOf(skins)} />
                     <div className="lb-row-name">{r.display_name}</div>
-                    <div className="lb-row-herosub">{hero?.name ?? 'Unknown hero'}</div>
+                    <div className="lb-row-herosub">{r.phase === 'hero' ? 'Picking a hero' : hero?.name ?? 'Unknown hero'}</div>
                   </div>
                   <div className="lv-rank">
                     <RankCrest divisionIndex={r.division_index} size="row" />

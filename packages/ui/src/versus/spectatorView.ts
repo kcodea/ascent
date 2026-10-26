@@ -15,7 +15,7 @@
  *     `undefined` field never survives JSON, so a clear must travel as a removal, the Replay V2 lesson).
  * A receiver that sees `seq !== last + 1` asks for the latest keyframe and resumes after it.
  */
-import { SHOP_VIEW_EXCLUDED_KEYS, type RunState, type VersusGroupSeat } from '@game/sim';
+import { isHeroReroll, SHOP_VIEW_EXCLUDED_KEYS, type HeroReroll, type RunState, type VersusGroupSeat } from '@game/sim';
 import type { SpectatorAct } from './spectateTap';
 
 /** RunState keys never sent to spectators: RNG internals and identity, on top of the replay exclusions. */
@@ -34,7 +34,30 @@ export interface CombatBeat { w: number; b: number }
 /** `od`: the player's own odds for the fight on (`spectateTap.takeOdds`), for the stands' Summary (R-SPECTATE-LOCAL-01). */
 export interface SpectatorKeyframe { kind: 'key'; seat: VersusGroupSeat; seq: number; round: number; view: VersusSpectatorView; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat; od?: unknown; ov?: unknown }
 export interface SpectatorDelta { kind: 'delta'; seat: VersusGroupSeat; seq: number; round: number; changed: Record<string, unknown>; removed: string[]; acts?: SpectatorAct[]; m?: string; fight?: unknown; cb?: CombatBeat; od?: unknown; ov?: unknown }
-export type SpectatorMessage = SpectatorKeyframe | SpectatorDelta;
+/**
+ * HERO SELECT, WATCHED (owner 2026-10-26: "I want spectating to show up when a player goes into hero select. this should
+ * work in all modes. hero select should be spectatable."; R-SPECTATE-HEROSELECT-01). Before the run exists a player's
+ * screen is Hero Select, so the frame is that screen's state, small and whole (no delta): the offered heroes in their
+ * order, the pick (once made), the one re-roll (spent, and whether it is still on offer) and the mode (the screen differs
+ * by mode: Versus has its clock and no Health pill). Nothing else: no seed, no pool, no entry id. The clock is the
+ * match's own deadline, which every member already reads. Sent on every change and on a key request; the first run
+ * message after it is always a keyframe.
+ */
+export interface HeroSelectFrame {
+  offer: string[];
+  picked: string | null;
+  reroll: HeroReroll | null;
+  /** The player still has their re-roll (the buttons show, inert, on a watcher's screen). */
+  canReroll: boolean;
+  /** `versus` (1v1, Group, Duos) or `lobby` (a ranked game watched from Live Games). */
+  mode: 'versus' | 'lobby';
+}
+export interface SpectatorHeroMessage {
+  kind: 'hero'; seat: VersusGroupSeat; seq: number; round: 0; hero: HeroSelectFrame; m?: string;
+  /** Never on a Hero Select message (typed so the shared receive path reads them as absent). */
+  acts?: undefined; fight?: undefined; cb?: undefined; od?: undefined; ov?: undefined;
+}
+export type SpectatorMessage = SpectatorKeyframe | SpectatorDelta | SpectatorHeroMessage;
 
 /** A keyframe at least this often, so a receiver that missed one never drifts far. */
 export const KEYFRAME_EVERY = 25;
@@ -56,6 +79,8 @@ export interface SpectatorPublisher {
   seq: number;
   last: VersusSpectatorView | null;
   sinceKey: number;
+  /** The last Hero Select frame sent (its JSON), so an unchanged screen sends nothing. */
+  lastHero?: string | null;
 }
 
 /**
@@ -92,10 +117,41 @@ export function nextSpectatorMessage(pub: SpectatorPublisher, run: RunState, rou
   return { kind: 'delta', seat: pub.seat, seq: pub.seq, round, changed, removed };
 }
 
-/** A receiver's state for one seat. */
+/** Hero ids travel as short strings; anything else in a frame from the wire is dropped (the screen never trusts it). */
+const heroIdOk = (v: unknown): v is string => typeof v === 'string' && v.length > 0 && v.length <= 60;
+
+/**
+ * A Hero Select frame, built (the player) or read off the wire (a watcher), or null when it is not one. Pure. The pick
+ * must be one of the offered heroes; the offer is 1 to 8 heroes (Versus and a ranked game offer three).
+ */
+export function heroSelectFrame(v: unknown): HeroSelectFrame | null {
+  const f = v as Partial<HeroSelectFrame> | null;
+  if (!f || typeof f !== 'object' || !Array.isArray(f.offer) || f.offer.length < 1 || f.offer.length > 8 || !f.offer.every(heroIdOk)) return null;
+  if (f.mode !== 'versus' && f.mode !== 'lobby') return null;
+  const picked = heroIdOk(f.picked) && f.offer.includes(f.picked) ? f.picked : null;
+  const reroll = isHeroReroll(f.reroll) && heroIdOk(f.reroll.from) && heroIdOk(f.reroll.to) ? { slot: f.reroll.slot, from: f.reroll.from, to: f.reroll.to } : null;
+  return { offer: [...f.offer], picked, reroll, canReroll: f.canReroll === true && !picked && !reroll, mode: f.mode };
+}
+
+/**
+ * The next Hero Select message for `frame`, or null when the screen is unchanged (`force`: a watcher asked). It takes
+ * the publisher's next seq, and the first run message after it is a keyframe (the run begins). Mutates `pub`.
+ */
+export function nextHeroSelectMessage(pub: SpectatorPublisher, frame: HeroSelectFrame, force = false): SpectatorHeroMessage | null {
+  const key = JSON.stringify(frame);
+  if (!force && pub.lastHero === key) return null;
+  pub.lastHero = key;
+  pub.seq += 1;
+  pub.last = null;
+  pub.sinceKey = 0;
+  return { kind: 'hero', seat: pub.seat, seq: pub.seq, round: 0, hero: frame };
+}
+
+/** A receiver's state for one seat. `hero`: the player is on Hero Select (no run view yet). */
 export interface SpectatorReceiver {
   seq: number;
   view: VersusSpectatorView | null;
+  hero?: HeroSelectFrame | null;
 }
 
 export const newReceiver = (): SpectatorReceiver => ({ seq: 0, view: null });
@@ -105,8 +161,15 @@ export const newReceiver = (): SpectatorReceiver => ({ seq: 0, view: null });
  * with no base). Stale messages (seq at or below the current) are ignored. Never mutates its inputs.
  */
 export function applySpectatorMessage(rx: SpectatorReceiver, msg: SpectatorMessage): { rx: SpectatorReceiver; needKeyframe: boolean } {
+  if (msg.kind === 'hero') {
+    // Hero Select: a whole frame. The same screen arriving again keeps the object on screen (no re-render).
+    const hero = heroSelectFrame(msg.hero);
+    if (!hero || (msg.seq <= rx.seq && (rx.view || rx.hero))) return { rx, needKeyframe: false };
+    const same = rx.hero && JSON.stringify(rx.hero) === JSON.stringify(hero) ? rx.hero : hero;
+    return { rx: { seq: msg.seq, view: null, hero: same }, needKeyframe: false };
+  }
   if (msg.kind === 'key') {
-    if (msg.seq <= rx.seq && rx.view) return { rx, needKeyframe: false };
+    if (msg.seq <= rx.seq && (rx.view || rx.hero)) return { rx, needKeyframe: false };
     return { rx: { seq: msg.seq, view: msg.view }, needKeyframe: false };
   }
   if (msg.seq <= rx.seq) return { rx, needKeyframe: false };

@@ -19,7 +19,8 @@ export interface LiveGameRow {
   rank_points: number;
   rating: number;
   round: number;
-  phase: 'shop' | 'combat' | 'end';
+  /** 'hero': the player is on Hero Select (R-SPECTATE-HEROSELECT-01; needs 2026-10-26-lobby-live-hero-select.sql). */
+  phase: 'hero' | 'shop' | 'combat' | 'end';
   placement: number | null;
   spectators: number;
   started_at: string;
@@ -79,7 +80,7 @@ export function makeLiveRemote(getClient: () => SupabaseClient | null) {
       return (data as LiveGameRow | null) ?? null;
     },
     /** The player registers / refreshes its game; returns the live watcher count. */
-    heartbeat: (game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'shop' | 'combat' | 'end' }) =>
+    heartbeat: (game: { gameId: string; name: string; heroId: string; cosmetics: RunCosmeticSnapshot | null; round: number; phase: 'hero' | 'shop' | 'combat' | 'end' }) =>
       rpc<number>('lobby_live_heartbeat', { p_game: game.gameId, p_name: game.name, p_hero: game.heroId, p_cosmetics: game.cosmetics, p_round: game.round, p_phase: game.phase }),
     end: (gameId: string, placement: number | null) => rpc<void>('lobby_live_end', { p_game: gameId, p_placement: placement }),
     publishFrame: (gameId: string, seq: number, round: number, frame: unknown) =>

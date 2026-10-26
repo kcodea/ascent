@@ -94,9 +94,13 @@ interface Props {
   dispatch: Dispatch<HeroCeremonyEvent>;
   /** HeroSelect's card buttons, by choice index (the ceremony animates them out but never owns them). */
   cardEls: MutableRefObject<(HTMLButtonElement | null)[]>;
+  /** A WATCHED Hero Select (R-SPECTATE-HEROSELECT-01): the watched player's pick, played out read only. It never
+   *  launches (no Start Game, no Versus auto-start); `versus` says which screen it is; `fx: false` skips the Pixi layer
+   *  (a Duos player's own ceremony may already run one underneath). */
+  watch?: { versus: boolean; fx: boolean };
 }
 
-export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
+export function HeroSelectCeremony({ state, dispatch, cardEls, watch }: Props) {
   const heroId = state.heroId!;
   const source = state.sourceRect!;
   const hero = getHero(heroId);
@@ -193,6 +197,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   /* ---- Pixi lifecycle (§11): its own Application, mounted after commit, destroyed with the ceremony.
      Geometry flows one way (setGeometry); the controller never reads the DOM. */
   useEffect(() => {
+    if (watch && !watch.fx) return undefined; // the DOM ceremony is the whole look without it (§19)
     const fx = createHeroCeremonyFx();
     fxRef.current = fx;
     if (layerRef.current) void fx.mount(layerRef.current);
@@ -357,6 +362,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   /* ---- Start Game: reducer first (only `ready` may launch, `launching` is once-only — §5), then the
      curtain seam. The curtain lives in Game and survives our unmount (§7). */
   const onStart = () => {
+    if (watch) return; // a watched ceremony never starts anything
     const next = ceremonyReduce(state, { type: 'startGame' });
     if (next === state || launchedRef.current) return; // not ready, or already launched
     launchedRef.current = true;
@@ -372,10 +378,11 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
   /* ---- VERSUS (owner 2026-10-14: "let the full hero select animation play out"): once both heroes are locked on the
      server, a finished ceremony starts the game on its own after a beat, so a player who has stopped at Start Game
      (or whose hero the 20 s clock picked) still reaches the match with the opponent. */
-  const versusPick = useGame((s) => s.pendingMode === 'versus');
+  const ownVersusPick = useGame((s) => s.pendingMode === 'versus');
+  const versusPick = watch ? watch.versus : ownVersusPick;
   const heroesLocked = useVersusHeroesRevealed();
   useEffect(() => {
-    if (!versusPick || !heroesLocked || state.phase !== 'ready') return undefined;
+    if (watch || !versusPick || !heroesLocked || state.phase !== 'ready') return undefined;
     const id = window.setTimeout(onStart, VERSUS_AUTO_START_MS);
     return () => window.clearTimeout(id);
   }, [versusPick, heroesLocked, state.phase]);
@@ -514,7 +521,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
             <div className="hsc-power">{hero.power.name}</div>
           </div>
           {/* VERSUS (owner 2026-10-14): no Start Game; the game starts on its own a beat after the ceremony. */}
-          {!versusPick && <button
+          {!versusPick && !watch && <button
             ref={startBtnRef}
             className="hsc-start"
             disabled={!ceremonyCanLaunch(state)}
@@ -529,7 +536,7 @@ export function HeroSelectCeremony({ state, dispatch, cardEls }: Props) {
 
       {/* §16: announce readiness to assistive tech. Visually hidden, polite. */}
       <div className="hsc-live" aria-live="polite">
-        {pi >= phaseIndex('ready') ? `${hero.name} selected. ${versusPick ? 'The game starts in a moment.' : 'Start Game is ready.'}` : ''}
+        {pi >= phaseIndex('ready') ? `${hero.name} selected. ${versusPick || watch ? 'The game starts in a moment.' : 'Start Game is ready.'}` : ''}
       </div>
     </div>
   );

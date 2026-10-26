@@ -22,7 +22,7 @@ import { useEffect } from 'react';
 import { sfx } from '../sfx';
 import { useGame } from '../store';
 import { perfMonitor } from '../perfMonitor';
-import { leaveTeammate, useSpectate, watchTeammate } from './spectate';
+import { leaveTeammate, leaveTeammateHero, useSpectate, watchTeammate, watchTeammateHero } from './spectate';
 import { useVersus } from './versusStore';
 
 /**
@@ -81,15 +81,16 @@ function whenNewScreenSettled(changed: () => boolean, done: () => void): void {
 }
 
 /** The swap: freeze the screen I am leaving as a ghost on top, swap under it, cross-fade once the new one is drawn. */
-function turn(swap: () => void): void {
+function turn(swap: () => void, changedSince?: () => () => boolean): void {
   const root = typeof document !== 'undefined' ? document.getElementById('root') : null;
   if (!root || !('animate' in root) || turning) { swap(); return; }
   turning = true;
   perfMonitor.mark?.('duos:turn:start');
   const ghost = ghostOf(root);
   const before = useGame.getState().run;
+  const changed = changedSince ? changedSince() : () => useGame.getState().run !== before;
   swap();
-  whenNewScreenSettled(() => useGame.getState().run !== before, () => {
+  whenNewScreenSettled(changed, () => {
     const out = ghost.animate([{ opacity: 0.999 }, { opacity: 0 }], { duration: FADE_MS, easing: 'cubic-bezier(0.33, 0, 0.2, 1)', fill: 'forwards' });
     const end = (): void => { ghost.remove(); turning = false; perfMonitor.mark?.('duos:turn:end'); };
     out.onfinish = end;
@@ -97,9 +98,45 @@ function turn(swap: () => void): void {
   });
 }
 
-/** Open my teammate's live screen (Duos, in the shop, from my own board). */
+/** My own Versus Hero Select is on screen (from the offer until the launch curtain takes it; the server's phase may
+ *  already be past it while the last pick's ceremony plays). */
+export function ownVersusHeroSelect(): boolean {
+  const g = useGame.getState();
+  const m = useVersus.getState().match;
+  return g.pendingMode === 'versus' && !!g.heroChoices && !!m && m.phase !== 'complete';
+}
+// The launch curtain took my Hero Select (or the match ended under it): my teammate's choices go with it.
+useGame.subscribe((s, prev) => { if (prev.heroChoices && !s.heroChoices) leaveTeammateHero(); });
+
+/** HERO SELECT's swap is done once the store holds the other Hero Select (or the teammate's is still on its way). */
+const heroChanged = (): (() => boolean) => {
+  const before = useSpectate.getState().hero ?? null;
+  return () => (useSpectate.getState().hero ?? null) !== before || !useSpectate.getState().teammateHero;
+};
+
+/**
+ * VERSUS DUOS AT HERO SELECT (owner 2026-10-26; R-DUOS-HEROSELECT-01): my teammate's hero choices, live, over my own
+ * (the same cross-fade). Ranked Duos can open the same view from its own lobby Hero Select: it needs only a teammate seat
+ * whose Hero Select frames reach `spectate.ts` (`trackDuosMatch` + `receiveSpectate`).
+ */
+export function enterTeammateHeroView(): void {
+  const v = useVersus.getState();
+  const mate = v.match?.group?.duos?.mate;
+  if (!mate || !ownVersusHeroSelect() || useSpectate.getState().teammateHero) return;
+  sfx.tick();
+  turn(() => watchTeammateHero(mate), heroChanged);
+}
+/** Back to my own hero choices. */
+export function exitTeammateHeroView(): void {
+  if (!useSpectate.getState().teammateHero) return;
+  sfx.tick();
+  turn(() => leaveTeammateHero(), heroChanged);
+}
+
+/** Open my teammate's live screen (Duos, in the shop, from my own board; on Hero Select, their hero choices). */
 export function enterTeammateView(): void {
   const v = useVersus.getState();
+  if (ownVersusHeroSelect()) { enterTeammateHeroView(); return; }
   const mate = v.match?.group?.duos?.mate;
   const g = useGame.getState();
   if (!mate || !v.match || v.match.phase !== 'shop' || v.match.paused_at || useSpectate.getState().teammate) return;
@@ -113,6 +150,7 @@ export function enterTeammateView(): void {
 
 /** Back to my own board. */
 export function exitTeammateView(): void {
+  if (useSpectate.getState().teammateHero) { exitTeammateHeroView(); return; }
   if (!useSpectate.getState().teammate) return;
   sfx.tick();
   turn(() => {
@@ -132,10 +170,11 @@ export function useTeammateViewKeys(enabled: boolean): void {
     let peeking = false;
     const onDown = (e: KeyboardEvent): void => {
       if (e.ctrlKey || e.metaKey || e.altKey || (e.target instanceof HTMLElement && e.target.closest('input, textarea'))) return;
-      if (e.key === 'Escape' && useSpectate.getState().teammate) { e.preventDefault(); e.stopPropagation(); exitTeammateView(); return; }
+      const viewing = (): boolean => !!useSpectate.getState().teammate || !!useSpectate.getState().teammateHero;
+      if (e.key === 'Escape' && viewing()) { e.preventDefault(); e.stopPropagation(); exitTeammateView(); return; }
       if (e.key === 'Tab' && !e.repeat) {
         e.preventDefault();
-        if (useSpectate.getState().teammate) { exitTeammateView(); return; }
+        if (viewing()) { exitTeammateView(); return; }
         peeking = true;
         enterTeammateView();
       }

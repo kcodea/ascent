@@ -13,12 +13,14 @@ import { turnClock } from '../turnClock';
 import { driveVersusClock, nextObserveMs } from './versusClockFx';
 import { useVersus, versusRemainingMs } from './versusStore';
 
-export function VersusHeroTimer() {
+/** `drive: false` (a Duos player looking at their teammate's Hero Select over their own): the face only. Their own
+ *  screen underneath already drives the one clock and its sounds, so a second driver would tick twice. */
+export function VersusHeroTimer({ drive = true }: { drive?: boolean } = {}) {
   const deadline = useVersus((s) => (s.match?.phase === 'hero_select' ? s.match.hero_deadline : null));
   const pausedAt = useVersus((s) => (s.match?.phase === 'hero_select' ? s.match.paused_at ?? null : null));
   const matchId = useVersus((s) => s.match?.id ?? null);
   useEffect(() => {
-    if (!deadline) return undefined;
+    if (!deadline || !drive) return undefined;
     const end = Date.parse(deadline);
     const key = `${matchId ?? ''}|hero`;
     let id = 0;
@@ -29,6 +31,6 @@ export function VersusHeroTimer() {
     };
     tick();
     return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };
-  }, [deadline, pausedAt, matchId]);
+  }, [deadline, pausedAt, matchId, drive]);
   return <div className="vshstimer"><div className="statstrip"><ShopTimer /></div></div>;
 }

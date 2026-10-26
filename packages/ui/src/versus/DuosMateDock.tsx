@@ -30,6 +30,9 @@ import { useDuosPassNote } from './duosPassUi';
 import { prewarmPassFx } from './passLob';
 import { enterTeammateView, exitTeammateView } from './teammateView';
 import { useVersus } from './versusStore';
+import { useSpectate } from './spectate';
+import { useOwnHeroPick } from '../hero-select/ownHeroPick';
+import { avatarSrc } from '../art';
 
 /** A tap's own release swaps; the browser's click that follows it within this window is the same gesture. */
 const TAP_CLICK_MS = 700;
@@ -64,7 +67,17 @@ function measureDock(): DockGeometry | null {
   return mirrorOfHero(art?.getBoundingClientRect() ?? null, host.getBoundingClientRect(), toStage);
 }
 
-export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = false }: { watching: boolean; inCombat?: boolean }): JSX.Element | null {
+/**
+ * `heroSelect` (owner 2026-10-26: "there should be teammate portrait in the bottom right, like it is in game, but have the
+ * player's portrait to be clickable and view the hero options so they can work together on who to pick";
+ * R-DUOS-HEROSELECT-01): the same dock on Hero Select. Click it to see your teammate's hero choices; while you look, it is
+ * YOU, and clicking it brings you back to your own. The face is the hero picked so far (theirs from their screen, mine
+ * from mine), else the player's profile picture. No passing there (no hand yet).
+ */
+export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = false, heroSelect = false }: { watching: boolean; inCombat?: boolean; heroSelect?: boolean }): JSX.Element | null {
+  // Hero Select: the heroes picked so far (the seat rows carry a hero only once every pick is in).
+  const matePick = useSpectate((s) => (heroSelect ? s.matePick ?? null : null));
+  const myPick = useOwnHeroPick((s) => (heroSelect ? s.heroId : null));
   // Whose face: my teammate on my board, me while I watch them. One primitive key, so the dock only re-renders when
   // the face, its name or its cosmetics change.
   const key = useVersus((s) => {
@@ -74,8 +87,11 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const seat = watching ? g.me : d.mate;
     const row = g.raw.seats.find((x) => x.seat === seat);
     if (!row) return null;
-    const cos = s.room?.members.find((m) => m.userId === row.userId)?.profile?.cosmetics ?? null;
-    return JSON.stringify([row.hero, row.name, cos ?? null]);
+    const profile = s.room?.members.find((m) => m.userId === row.userId)?.profile;
+    const cos = profile?.cosmetics ?? null;
+    const hero = heroSelect ? (watching ? myPick : matePick) : row.hero;
+    const avatar = heroSelect && !hero && typeof profile?.avatar === 'string' ? profile.avatar : null;
+    return JSON.stringify([hero, row.name, cos ?? null, avatar]);
   });
   // My teammate dropped out (their board plays on auto): the portrait says so before any drag.
   const away = useVersus((s) => {
@@ -85,18 +101,20 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
   });
   // The TEAM's pool, exactly as your own Health box shows it (the run carries the team's shared Health and Armor and
-  // lands the resolver's numbers when a lost fight settles, not before).
-  const pool = useGame((s) => (s.run.mode === 'versus' ? `${s.run.resolve}|${s.run.armor}` : null));
+  // lands the resolver's numbers when a lost fight settles, not before). On Hero Select there is no run (and no pool
+  // until the heroes are in), so the box waits for the game.
+  const pool = useGame((s) => (!heroSelect && s.run.mode === 'versus' ? `${s.run.resolve}|${s.run.armor}` : null));
   const showOppSkins = useGame((s) => s.showOpponentSkins);
-  const passOver = useDragSlice((st) => (watching || inCombat ? null : st.passOver), Object.is);
-  const passReason = useDragSlice((st) => (watching || inCombat ? null : st.passReason), Object.is);
-  const note = useDuosPassNote((st) => (watching || !st.text ? null : `${st.n}|${st.text}`));
+  const passOver = useDragSlice((st) => (watching || inCombat || heroSelect ? null : st.passOver), Object.is);
+  const passReason = useDragSlice((st) => (watching || inCombat || heroSelect ? null : st.passReason), Object.is);
+  const note = useDuosPassNote((st) => (watching || heroSelect || !st.text ? null : `${st.n}|${st.text}`));
   const face = useMemo(() => {
     if (!key) return null;
-    const [hero, name, cosRaw] = JSON.parse(key) as [string, string, unknown];
+    const [hero, name, cosRaw, avatar] = JSON.parse(key) as [string | null, string, unknown, string | null];
     const cos = parseCosmeticSnapshot(cosRaw) ?? undefined;
     const skins = watching ? cos ?? null : opponentSkins(showOppSkins, cos);
-    return { name, art: heroPortrait(hero, skins), frameId: frameIdOf(skins) };
+    const art = hero ? heroPortrait(hero, skins) : avatarSrc(avatar);
+    return { name, art, frameId: frameIdOf(skins) };
   }, [key, watching, showOppSkins]);
   // THE SAME RING AS YOUR OWN PORTRAIT: the bottom-left hero's frame surface ('self', 'socket'), worn with THEIR
   // equipped frame (through "Show opponent cosmetics", like every other player's face), or the default look when they
@@ -106,6 +124,8 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   // out) and on a resize.
   const [geo, setGeo] = useState<DockGeometry | null>(null);
   useLayoutEffect(() => {
+    // Hero Select has no hero portrait of mine on screen to mirror: the dock keeps its default place (the same spot).
+    if (heroSelect) return undefined;
     let raf = 0;
     let tries = 0;
     const measure = (): void => {
@@ -117,9 +137,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const onResize = (): void => { cancelAnimationFrame(raf); tries = 0; raf = requestAnimationFrame(measure); };
     window.addEventListener('resize', onResize);
     return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
-  }, []);
+  }, [heroSelect]);
   // The pass stream's FX, pre-warmed (both defs once, invisible) so the first pass links no shader on its frames.
-  useEffect(() => { void ensureDefsReady().then(() => prewarmPassFx()); }, []);
+  useEffect(() => { if (!heroSelect) void ensureDefsReady().then(() => prewarmPassFx()); }, [heroSelect]);
   if (!face) return null;
   const refusal = passOver === 'no' ? passReason : null;
   const shownNote = refusal ?? (note && !inCombat ? note.slice(note.indexOf('|') + 1) : null);
@@ -129,15 +149,20 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
   // the click that follows a tap is ignored, so one tap is one swap.
   const back = watching && !inCombat;
   const style = geo ? ({ '--duos-d': `${geo.d}px`, right: `${geo.right}px`, bottom: `${geo.bottom}px` } as CSSProperties) : undefined;
-  const disc = <FoePortraitDisc art={face.art} gauntlet={false} frame={frame} extraClass=" duosdock-disc" />;
+  // No hero yet and no profile picture (Hero Select): their initial, as the room's portrait ring draws it.
+  const disc = (
+    <FoePortraitDisc art={face.art} gauntlet={false} frame={frame} extraClass=" duosdock-disc">
+      {!face.art && <span className="duosdock-initial" aria-hidden="true">{(face.name.trim()[0] ?? '?').toUpperCase()}</span>}
+    </FoePortraitDisc>
+  );
   return (
     <div
-      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${passOver ? ` pass-${passOver}` : ''}`}
+      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}`}
       style={style}
       {...(back ? {
         role: 'button',
         tabIndex: 0,
-        'aria-label': 'Your portrait. Click to go back to your board.',
+        'aria-label': heroSelect ? 'Your portrait. Click to go back to your hero choices.' : 'Your portrait. Click to go back to your board.',
         onPointerUp: (e: PointerEvent) => { if (e.pointerType !== 'mouse') { lastTap = performance.now(); exitTeammateView(); } },
         onClick: () => { if (performance.now() - lastTap > TAP_CLICK_MS) exitTeammateView(); },
         onKeyDown: (e: KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); exitTeammateView(); } },
@@ -158,7 +183,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           className="duosdock-hold"
           data-duos-mate=""
           role="button"
-          aria-label={`${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
+          aria-label={heroSelect ? `${face.name}, your teammate. Click to see their hero choices.` : `${face.name}, your teammate. Click to watch their board, or drag a card here to pass it.`}
           onClick={() => enterTeammateView()}
         >
           <span className="duosdock-glow" aria-hidden="true" />
@@ -166,7 +191,7 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
           {disc}
         </div>
       )}
-      <span className="duosdock-cap hudpill-name">{watching ? 'Back to your board' : away ? 'Away' : 'Teammate'}</span>
+      <span className="duosdock-cap hudpill-name">{watching ? (heroSelect ? 'Back to your heroes' : 'Back to your board') : away ? 'Away' : 'Teammate'}</span>
       <span className="duosdock-name hudpill-name">{face.name}</span>
       {pool != null && (() => {
         const [hp, arm] = pool.split('|').map(Number) as [number, number];

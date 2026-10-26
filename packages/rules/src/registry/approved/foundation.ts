@@ -9378,4 +9378,37 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Round 5, three teams in: Kevin and Lemon fight team c; team b has the bye and fights team d\x27s boards from round 4, when d fell. Lemon\x27s board is empty, so Kevin\x27s fights first; they lose to c\x27s last board (tier 4, two tier-3 survivors): 10 damage, capped at 10, all of it off their 12 Armor.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosRound.test.ts', 'packages/sim/src/versus/rankedDuos.db.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-SPECTATE-HEROSELECT-01',
+    title: 'Hero Select is spectatable in every watchable mode',
+    statement:
+      'A spectator sees the Hero Select of the watched player live, from the moment the player reaches it: the real Hero Select screen, read only, with their offered heroes, their re-roll (the buttons while it is unused, the swap when they spend it), their pick (its full ceremony, which never starts anything) and, in Versus, the Hero Select clock. Then the screen flows into the shop as before. '
+      + 'This holds for the Versus stands (1v1, Group and Duos, switching players as in the shop) and for a Live Games watcher of a ranked lobby game, which is listed from its Hero Select ("Hero Select" on the list). '
+      + 'Nothing a spectator does on it picks or re-rolls anything. An opponent never sees the options of another player: only the stands and a Duos teammate draw them, and a Versus offer is never stored where other members can read it (a late joiner asks the player for it). The player publishes it only while someone may be watching, on every change and on a request from a watcher, with no timer of its own.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26', quote: 'hero select should be spectatable' },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectatorView.ts (HeroSelectFrame, nextHeroSelectMessage, the hero kind in applySpectatorMessage); packages/ui/src/versus/spectate.ts (heroOnScreen, hero_select is live); packages/ui/src/hero-select/HeroSelectWatch.tsx; packages/ui/src/HeroSelect.tsx (watch mode); packages/ui/src/versus/versusStore.ts (heroFrames); packages/ui/src/live/livePublisher.ts (the hero phase); packages/ui/src/versus/versusBot.ts; supabase/migrations/2026-10-26-lobby-live-hero-select.sql' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/hero-select-spectate). Before, a spectator saw nothing until the first shop (the frames started at the run). The Live Games listing needs 2026-10-26-lobby-live-hero-select.sql; without it a ranked game is listed from its shop, as before.',
+    example: 'Ann and Bo start a Versus match with Cy in the stands. Cy sees the three heroes of Ann and the 20 s clock, sees her re-roll swap Gorr for Flash, then her pick of Flash play out, then her first shop.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateHeroSelect.test.tsx', 'packages/sim/src/lobby/lobbyLiveHeroSelect.db.test.ts', 'packages/ui/src/versus/versusBot.db.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-DUOS-HEROSELECT-01',
+    title: 'In Duos, the hero choices of your teammate are one click away on Hero Select',
+    statement:
+      'On a Versus Duos Hero Select the portrait of your teammate sits bottom right, as it does in game (their picked hero once they have one, else their profile picture). Clicking it shows their Hero Select live over yours, read only: their three heroes, their re-roll and their pick, framed in the team colour, with the same quick cross-fade as the teammate view in the shop. Your own portrait then takes that spot; clicking it (or Esc, or letting go of Tab) brings you back to your own choices, exactly as you left them. '
+      + 'Your own Hero Select keeps running underneath: your clock, your pick and its ceremony. The view closes on its own when your game starts. The other team never sees either of your choices.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26', quote: "in duos, the teammate's hero options should be visible as well" },
+      { kind: 'code', ref: 'packages/ui/src/versus/spectate.ts (watchTeammateHero, leaveTeammateHero, matePick); packages/ui/src/versus/teammateView.tsx (enterTeammateHeroView, exitTeammateHeroView); packages/ui/src/versus/DuosMateDock.tsx (heroSelect); packages/ui/src/hero-select/HeroSelectWatch.tsx' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/hero-select-spectate). A suggestion / ping on a hero of a teammate is a later step (owner 2026-10-26).',
+    example: 'Dee is offered Gorr, Flash and Vale. She clicks the portrait of her teammate, sees Eli has Emissary, Myra and Hunch and has just picked Emissary, clicks her own portrait and picks Vale.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/spectateHeroSelect.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

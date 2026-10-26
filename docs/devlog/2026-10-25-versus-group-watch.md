@@ -33,3 +33,10 @@ cached view they ask the players for a keyframe and re-read the stored ones. Wat
 `spectateGroupWatch.test.ts`: p1 out with an end-screen frame, p1 never seated, Watch after Leave once the watched
 player went out, a seat with no frames asks for a key, and the 1v1 Watch regression. The four group cases fail on the old
 `spectate.ts`.
+
+Live check (prod build of this branch on `vite preview`, live backend, unrated): Claudebot5 hosted a 3-4 player room
+from the stands, with test bots Claudebot6/7/8 on p2/p3/p4 and p1 left empty. The watch screen opened on its own at round
+1 on Claudebot6 (p2), and Leave then the room's Watch reopened it. By round 10, Claudebot7 (p3) was out and in the stands,
+so the room matched the owner's report: two seated, p1 and p3 open. A fresh reload (seat back to p1) re-entered the
+room and opened the live watch screen at round 11 on Claudebot6, with the fight picker listing Claudebot6, Claudebot8 and
+the out Claudebot7. The rooms are gone, the bots left, and the browser and server are closed.

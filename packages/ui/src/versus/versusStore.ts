@@ -518,18 +518,29 @@ function onTick(): void {
   // so the shop held while the clock still read 0:01, the owner's "locking a second early"). The server accepts a final
   // side for 250 ms past its deadline, so a lock sent at 0:00 still lands as my own final side.
   const seat = mySeat(match);
-  // VERSUS DUOS (R-DUOS-VIEW-01): watching my teammate never holds my own game up: back to my board when the shop is
-  // over (the fight), the match pauses, or my own clock is in its last 5 seconds.
-  if (useSpectate.getState().teammate && (match.phase !== 'shop' || !!match.paused_at
-    || (versusShopRemainingMs(match.shop_deadline) ?? Infinity) <= TEAMMATE_VIEW_RETURN_MS)) leaveTeammate();
-  const run = useGame.getState().run;
+  // VERSUS DUOS (R-DUOS-VIEW-01): the teammate view holds until the turn is over (the fight starts) or the match
+  // pauses; never at a clock mark (owner 2026-10-25). Back on my board, the fight plays from my side.
+  if (useSpectate.getState().teammate && teammateViewReturns(match)) {
+    leaveTeammate();
+    if (seat) driveRun(match, seat);
+  }
+  // My own run, even while my screen shows my teammate's: my clock still locks MY turn at 0:00 (`expireVersusShop`).
+  const run = ownRunWhileWatching() ?? useGame.getState().run;
   if (seat && match.phase === 'shop' && !match.paused_at && run.mode === 'versus' && run.wave === match.round && get().lockedRound !== match.round
     && shopClockAt(versusShopRemainingMs(match.shop_deadline)).locked) {
     expireVersusShop();
   }
 }
-/** My clock's last stretch, when the teammate view hands my board back (ms). */
-export const TEAMMATE_VIEW_RETURN_MS = 5000;
+/**
+ * VERSUS DUOS (R-DUOS-VIEW-01; owner 2026-10-25: "don't force the player back from the teammate view until the turn is
+ * 'over.'"): does the game take me back to my own board now? Only when the turn is over: the shop has ended and the
+ * fight is in (or the match ended), or the match paused. Never at a clock mark: my clock running out while I watch
+ * locks my own turn as usual and I stay until the fight starts. 'resolving' (every side locked, the server settling
+ * the round) is still the turn's end, not the fight, so the view holds through it.
+ */
+export function teammateViewReturns(match: Pick<VersusMatch, 'phase' | 'paused_at'>): boolean {
+  return !!match.paused_at || (match.phase !== 'shop' && match.phase !== 'resolving');
+}
 
 // ── the match ──────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -566,6 +577,9 @@ async function onMatch(match: VersusMatch): Promise<void> {
   }
   // VERSUS DUOS: my teammate's frames are tracked for the live teammate view (R-DUOS-VIEW-01).
   trackDuosMatch(match.group?.duos && match.phase !== 'complete' ? match : null, get().rounds);
+  // The fight is in (or a pause): back to my own board BEFORE anything below drives the run, so the fight's End Turn
+  // and the fight itself play on MY run, never the teammate's on screen (R-DUOS-VIEW-01).
+  if (useSpectate.getState().teammate && teammateViewReturns(match)) leaveTeammate();
 
   if (!get().priv || get().priv!.match_id !== match.id) {
     const priv = await mx.myPrivate(match.id).catch(() => null);
@@ -935,6 +949,8 @@ function ackIntro(matchId: string): void {
 /** React to the server state against the live run: land fights, fast-forward a stale fight, open the shop. */
 function driveRun(match: VersusMatch, seat: VersusSeat): void {
   if (endGated.has(match.id)) return;
+  // VERSUS DUOS: the screen shows my teammate's run; mine is set aside and driven once I am back (R-DUOS-VIEW-01).
+  if (ownRunWhileWatching()) return;
   const g = useGame.getState();
   const run = g.run;
   if (run.mode !== 'versus' || builtFor !== match.id) return;
@@ -1071,6 +1087,9 @@ const frames = createDeferredWriter<{ matchId: string; forceKey: boolean }>(({ m
  * Idempotent: the reducer ignores a second expiry and `lockTurn` a second lock.
  */
 export function expireVersusShop(): void {
+  // VERSUS DUOS: 0:00 while I watch my teammate locks MY turn (my run, set aside), never the one on screen; I stay on
+  // the view until the fight starts (R-DUOS-VIEW-01).
+  if (ownRunWhileWatching()) { void lockTurn(); return; }
   const g = useGame.getState();
   if (g.run.mode !== 'versus' || g.run.phase !== 'recruit' || g.replaying) return;
   if (!g.run.shopClockExpired) g.dispatch({ type: 'shopClockExpired' });
@@ -1080,7 +1099,7 @@ export function expireVersusShop(): void {
 export async function lockTurn(): Promise<void> {
   const match = get().match;
   const seat = mySeat(match);
-  const run = useGame.getState().run;
+  const run = ownRunWhileWatching() ?? useGame.getState().run; // VERSUS DUOS: always MY run, even while I watch my teammate
   if (!match || !seat || run.mode !== 'versus' || run.phase !== 'recruit' || run.wave !== match.round || get().lockedRound === match.round) return;
   if (match.paused_at) return; // a paused match takes no End Turn
   set({ lockedRound: match.round });

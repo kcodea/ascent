@@ -1239,8 +1239,10 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
   fades out over it (no panel, no sweep); while you watch, their hero is in the hero slot, a strong team-colour
   frame rims the screen, your shop controls are greyed, and the bottom-right portrait is YOURS (click or tap anywhere on it to go back; Esc and
   letting go of Tab work too). There is no "Watching" plate or "Back to your board" button up top (owner 2026-10-25: the
-  view change and colour make it obvious). You come back
-  on your own when the shop ends, the match pauses, or your clock has under 5 seconds.
+  view change and colour make it obvious). You stay on their screen until your turn is over (owner 2026-10-25): you
+  come back on your own when the round's fight starts (so you watch the fight from your own side) or the match pauses,
+  never at a clock mark. If your clock runs out while you watch, your turn locks at 0:00 as usual (your own board, as
+  you left it) and you come back when the fight starts.
 
 ## Live games: watching ranked lobby games (owner-approved 2026-10-15; R-LIVE-01, R-LIVE-02, R-LIVE-03)
 

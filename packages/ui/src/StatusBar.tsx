@@ -14,8 +14,7 @@ import { CARD_INDEX, EQUIPMENT_INDEX } from '@game/content';
 import type { Keyword } from '@game/core';
 import { equipmentArtFor } from './art';
 import { heroPowerArt, questArt, runeArt } from './art';
-import { heroPortrait, opponentSkins, seatCosmetics, useRunSkins } from './skins/skins';
-import { useDuosCombat } from './versus/duosCombat';
+import { heroPortrait, useRunSkins } from './skins/skins';
 import { Icon } from './Icon';
 import { BuffsFrame } from './BuffsFrame';
 import { QuestBadges } from './QuestBadges';
@@ -196,13 +195,9 @@ export function StatusBar() {
   // 2026-10-14). Their portrait skin and frame already come from the watched run's recorded cosmetics (`useRunSkins`).
   const watchedName = useWatchedName();
   const ownName = useGame((s) => s.replaySession?.authorName ?? s.playerName);
-  // VERSUS DUOS (R-SYMMETRY-01, lead ruling 2026-10-25): while my TEAMMATE's board fights on my side, my hero slot
-  // shows THEIR portrait, skin, frame and name, exactly as the foe's slot follows the foe's board. My buttons stay mine.
-  const duosSelfId = useDuosCombat((s) => s.selfSeatId);
-  const duosOn = useDuosCombat((s) => s.on);
-  const duosSelf = useGame((s) => (duosSelfId && s.run.phase === 'combat' ? s.run.lobby?.seats.find((x) => x.id === duosSelfId) ?? null : null));
-  const showOppSkins = useGame((s) => s.showOpponentSkins);
-  const playerName = duosSelf ? duosSelf.label : watchedName ?? ownName;
+  // VERSUS DUOS (owner 2026-10-26, R-DUOS-SLOTS-02): my hero slot is ALWAYS mine. While my teammate's board fights on my
+  // side their portrait tags in beside mine instead (`DuosMateDock`'s tag-in copy, bottom left), never in my slot.
+  const playerName = watchedName ?? ownName;
   const heroArmed = useGame((s) => s.heroArmed);
   const heroArmedSlot = useGame((s) => s.heroArmedSlot);
   const armHero = useGame((s) => s.armHero);
@@ -219,10 +214,9 @@ export function StatusBar() {
   // the main button always shows slot 0, and a second button (below) appears for slot 1.
   const hero = getHero(run.heroId);
   // SKINS: your portrait (the combat hero too: it is the lunge target) wears the skin recorded on this run.
-  // (Versus Duos: my teammate's skins while their board fights on my side, see `duosSelf`.)
   const ownSkins = useRunSkins();
-  const runSkins = duosSelf ? opponentSkins(showOppSkins, seatCosmetics(duosSelf)) : ownSkins;
-  const heroImg = heroPortrait(duosSelf ? duosSelf.heroId : hero.id, runSkins);
+  const runSkins = ownSkins;
+  const heroImg = heroPortrait(hero.id, runSkins);
   // The portrait frame RECORDED on this run, like the skin (owner 2026-10-01), else the portrait-frames tuner's ring
   // (null = today's look). The disc host is `.herolunge`, so the ring lunges too. `socket`: the owner-tuned seat over
   // the board's baked socket, used here only (SOCKET_FIT).
@@ -865,8 +859,7 @@ export function StatusBar() {
             {/* (The post-combat green attack pill and the red damage-taken number were retired 2026-09-28: the shared
                 damage formation builds the blow and every hero attack punches the same big -N onto the target.) */}
             {heroImg ? (
-              // VERSUS DUOS (owner 2026-10-26): the slot swaps to whoever's board is live on my side, the face fading in.
-              <img key={duosOn && duosSelfId ? `duos:${duosSelfId}` : 'me'} decoding="sync" className={`heroimg${duosOn && duosSelfId ? ' duosswap' : ''}`} src={heroImg} alt={hero.name} draggable={false} />
+              <img decoding="sync" className="heroimg" src={heroImg} alt={hero.name} draggable={false} />
             ) : (
               <Icon name="anvil" />
             )}

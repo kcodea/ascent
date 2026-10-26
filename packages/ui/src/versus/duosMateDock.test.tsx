@@ -18,7 +18,8 @@ const { useVersus } = await import('./versusStore');
 const { dragStore } = await import('../dragStore');
 const view = await import('./teammateView');
 const { playDrop, playEmerge, playArrival, isPassArrival, mateDoor, coinPoses, catchFrames } = await import('./passLob');
-const { mirrorOfHero } = await import('./DuosMateDock');
+const { mirrorOfHero, fitDock, DOCK_CAP_SHARE, DOCK_MIN_SHARE, DOCK_RAIL_GAP } = await import('./DuosMateDock');
+const { useDuosCombat } = await import('./duosCombat');
 
 const seat = (s: string, userId: string, name: string, hero: string) => ({ seat: s, userId, name, hero });
 function setMatch(): void {
@@ -136,15 +137,62 @@ describe('the teammate portrait, bottom right', () => {
     expect(arrive.layers.filter((l) => l.anchor === 'target' && l.primitive !== 'sound').every((l) => l.muted)).toBe(true);
   });
 
-  it('R-DUOS-TAGTEAM-01 (owner 2026-10-26): no "steps in" plate; each side\'s hero slot swaps to the live player', () => {
+  it('R-DUOS-TAGTEAM-01 (owner 2026-10-26): no "steps in" plate; the foe slot swaps to the live foe', () => {
     const read = (f: string) => readFileSync(join(__dirname, f), 'utf8');
-    expect(read('duosCombat.tsx')).not.toMatch(/steps in`|DuosTagInPlate|duostag/);
+    expect(read('duosCombat.tsx')).not.toMatch(/steps in`|DuosTagInPlate/);
     expect(read('../Recruit.tsx')).not.toMatch(/DuosTagInPlate/);
     expect(read('versus.css')).not.toMatch(/\.duostag\b/);
-    // The swap: the player slot keys its art by the live teammate, the foe slot by the live foe, and the new face fades in.
-    expect(read('../StatusBar.tsx')).toMatch(/key=\{duosOn && duosSelfId \? `duos:\$\{duosSelfId\}` : 'me'\}/);
+    // The foe slot keys its art by the live foe, and the new face fades in.
     expect(read('../CombatOpponent.tsx')).toMatch(/artKey=\{duosOn && duosFoe && !gauntlet \? `duos:\$\{seat\.id\}` : undefined\}/);
     expect(read('versus.css')).toMatch(/@keyframes duosswapin \{ from \{ opacity: 0; scale: 0\.94; \}/);
+  });
+
+  it('R-DUOS-SLOTS-02 (owner 2026-10-26: "the player frame doesn\'t need to swap to the teammate\'s when they come in to attack"): my slot never swaps; the teammate tags in over it', () => {
+    const read = (f: string) => readFileSync(join(__dirname, f), 'utf8');
+    const bar = read('../StatusBar.tsx');
+    expect(bar).not.toMatch(/useDuosCombat|duosSelf/);
+    expect(bar).toMatch(/heroPortrait\(hero\.id, runSkins\)/);
+    // The tag-in: one-shot opacity / scale animations, nothing looping.
+    const css = read('versus.css');
+    expect(css).toMatch(/@keyframes duostagin \{ from \{ opacity: 0; scale: 0\.88; \} to \{ opacity: 1; scale: 1; \} \}/);
+    expect(css).toMatch(/\.duosdock\.tagged \{ opacity: 0; \}/);
+    expect(css).not.toMatch(/duostag(in|out)[^;{]*infinite/);
+    // Live: while my teammate's board fights on my side, the bottom-right portrait fades out; then it comes back.
+    const ui = mount(<DuosMateDock watching={false} inCombat />);
+    try {
+      expect(ui.container.querySelector('.duosdock.tagged')).toBeNull();
+      act(() => { useDuosCombat.setState({ on: true, selfSeatId: 's1', foeSeatId: null, tag: null }); });
+      expect(ui.container.querySelector('.duosdock.tagged')).not.toBeNull();
+      act(() => { useDuosCombat.setState({ on: true, selfSeatId: null, foeSeatId: null, tag: null }); });
+      expect(ui.container.querySelector('.duosdock.tagged')).toBeNull();
+    } finally { ui.unmount(); useDuosCombat.setState({ on: false, selfSeatId: null, foeSeatId: null, tag: null }); }
+  });
+
+  it('R-DUOS-VIEW-05 (owner 2026-10-26: "we dont need the health there"): no Health box under the teammate', () => {
+    const ui = mount(<DuosMateDock watching={false} />);
+    try {
+      expect(ui.container.querySelector('.duosdock-hp')).toBeNull();
+      expect(ui.container.textContent).not.toMatch(/Team Health/);
+    } finally { ui.unmount(); }
+  });
+
+  it('R-DUOS-VIEW-05 (owner 2026-10-26: "the teammate is behind the lobby rail"): the dock drops to your Health box and shrinks only to clear the rail', () => {
+    const stage = { left: 0, top: 0, width: 1920, height: 1080 };
+    const hero = { left: 135, top: 1080 - 160 - 270, width: 270, height: 270 };
+    const hp = { left: 220, top: 1080 - 100, width: 100, height: 40 }; // its bottom is 60 px up
+    const id = (v: number): number => v;
+    // A short rail: full size, sitting on the Health box's bottom.
+    const free = fitDock(hero, hp, { left: 1500, top: 100, width: 300, height: 300 }, stage, id)!;
+    expect([free.d, free.right, free.bottom]).toEqual([270, 135, 60]);
+    expect(free.hero).toEqual({ left: 135, bottom: 160, d: 270 });
+    // A tall rail (eight rows) ending at y 760: the cap must clear it, so the disc shrinks around its centre.
+    const tall = fitDock(hero, hp, { left: 1500, top: 100, width: 300, height: 660 }, stage, id)!;
+    const room = 1080 - 60 - 270 * DOCK_CAP_SHARE - 760 - DOCK_RAIL_GAP;
+    expect(tall.d).toBeCloseTo(room, 5);
+    expect(tall.right).toBeCloseTo(135 + (270 - room) / 2, 5);
+    // Never below the floor, however tall the rail.
+    expect(fitDock(hero, hp, { left: 1500, top: 0, width: 300, height: 1060 }, stage, id)!.d).toBeCloseTo(270 * DOCK_MIN_SHARE, 5);
+    expect(fitDock(null, hp, null, stage, id)).toBeNull();
   });
 
   it('the coin lands in the portrait and the portrait pop returns exactly to rest', () => {

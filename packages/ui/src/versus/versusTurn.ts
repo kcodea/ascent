@@ -5,6 +5,12 @@
  *
  *   shop    the round's shop is open and running: fully interactive, no pill.
  *   locked  I ended my turn early THIS round: held, pill (who has locked), until the fight is in.
+ *   ready   EVERY VERSUS MODE (owner 2026-10-26: "hitting end turn shouldn't restrict anything, it should just signal
+ *           that you are ready to move on"; "the end turn ready-signal should be the same for versus modes too";
+ *           R-VERSUS-READY-01): I pressed End Turn and the round is still
+ *           open. NOT held: the shop stays fully playable (the 0:00 engine lock still ends shopping), the pill shows who
+ *           is ready, and the gem stays pressable to take the signal back while the clock is above 0:00. Once the server
+ *           closes the round (`resolving`) it is `locked` again: the fight is coming.
  *   back    I am back from the fight and the next shop has not opened: held, pill (who is back), no clock.
  *   intro   round 1, my Good Luck intro is over and theirs is not: held, pill (whose intro is done), no clock.
  *   waiting held with no pill: the round's shop is not mine to play and I did nothing to be "ready" for (the clock ran
@@ -25,7 +31,7 @@
 import type { RunState, VersusSeat } from '@game/sim';
 import type { VersusMatch } from './versusRemote';
 
-export type VersusTurnKind = 'shop' | 'locked' | 'back' | 'intro' | 'waiting' | 'none' | 'fight' | 'fightReady' | 'foeReady' | 'leave';
+export type VersusTurnKind = 'shop' | 'locked' | 'ready' | 'back' | 'intro' | 'waiting' | 'none' | 'fight' | 'fightReady' | 'foeReady' | 'leave';
 
 export interface VersusTurn {
   kind: VersusTurnKind;
@@ -72,7 +78,9 @@ export function versusTurn({ match: m, seat, lockedRound, readyRound = null, run
   if (m.round === wave) {
     if (m.phase === 'shop') {
       if (!m.shop_deadline) return m[`${seat}_intro`] ? { kind: 'intro', ready: count((s) => m[`${s}_intro`], 'intro'), of } : { kind: 'waiting' };
-      return lockedRound === wave ? { kind: 'locked', ready: count((s) => m[`${s}_locked`], 'locked'), of } : { kind: 'shop' };
+      if (lockedRound !== wave) return { kind: 'shop' };
+      // End Turn is a ready signal while the round is open (R-VERSUS-READY-01).
+      return { kind: 'ready', ready: count((s) => m[`${s}_locked`], 'locked'), of };
     }
     // Resolving / the fight committed: my lock was early only if I pressed End Turn this round.
     return lockedRound === wave ? { kind: 'locked', ready: of, of } : { kind: 'waiting' };
@@ -118,9 +126,11 @@ export const versusTurnHolds = (t: VersusTurn): boolean => t.kind === 'locked' |
 export const versusTurnNote = (t: VersusTurn, secondsLeft = 0): string | null =>
   // RANKED DUOS (lead 2026-10-26): after End Combat the pills name the teammate.
   t.kind === 'fightReady' && t.mate && (t.ready ?? 0) < (t.of ?? 2) ? `Waiting for ${t.mate}`
-    : t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' ? `Players ready ${t.ready}/${t.of ?? 2}`
+    : t.kind === 'locked' || t.kind === 'ready' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' ? `Players ready ${t.ready}/${t.of ?? 2}`
     : t.kind === 'foeReady' ? `${t.mate ?? (t.of && t.of > 2 ? 'Everyone else' : 'Opponent')} is ready · ${Math.max(0, secondsLeft)}s` : null;
 /** The gem is spent (pressed, not pressable) while this player waits on the other. */
+/** The gem shows pressed (ready) but stays live, a second press takes the signal back (R-VERSUS-READY-01). */
+export const versusTurnReady = (t: VersusTurn): boolean => t.kind === 'ready';
 export const versusTurnLocksGem = (t: VersusTurn): boolean => t.kind === 'locked' || t.kind === 'back' || t.kind === 'intro' || t.kind === 'fightReady' || t.kind === 'leave';
 
 /**

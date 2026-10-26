@@ -51,6 +51,8 @@ import { goodLuckIntro } from '../goodLuck/goodLuckIntroStore';
 import { resumeAudio, stopAllAudio } from '../sfx';
 import { buildGroupMatchRecord, buildVersusMatchRecord, type VersusMatchRecord } from './versusMatchRecord';
 import { versusEndsNow, versusTurn, versusTurnHolds } from './versusTurn';
+import { markFlow } from './flowTiming';
+export { versusFlowTimings } from './flowTiming';
 
 export type VersusScreen = 'browser' | 'room';
 
@@ -340,7 +342,9 @@ export async function pressGate(): Promise<void> {
     set({ room: r, error: null });
     if (r.current_match_id) await refreshMatch(r.current_match_id);
   } catch (e) {
-    set({ error: errorText(e) });
+    // A second press after the room already started (or reopened) is not a connection problem (live test 2026-10-26:
+    // a double press showed "Connection problem. Try again."): the room moved on, so just re-read it.
+    if ((e as VersusError)?.code !== 'room_not_sealed') set({ error: errorText(e) });
     await refreshRoom();
   }
 }
@@ -459,7 +463,10 @@ function syncSpectatorEmotes(): void {
 }
 useSpectate.subscribe((s, prev) => { if (s.active !== prev.active && session) syncSpectatorEmotes(); });
 
-/** Realtime is a wake-up only: coalesce bursts and re-read the rows. */
+/** Realtime is a wake-up only: coalesce bursts and re-read the rows. A round commit's events (the match row and the
+ *  round insert) come from one transaction and arrive within a few ms of each other, so a short window still folds them
+ *  into one read (DUOS FLOW 2026-10-26: was 120 ms, pure waiting between the commit and the fight). */
+const WAKE_COALESCE_MS = 50;
 let pendingWhat = new Set<string>();
 function scheduleRefresh(what: string): void {
   if (!session) return;
@@ -472,10 +479,11 @@ function scheduleRefresh(what: string): void {
     pendingWhat = new Set();
     if (w.has('room') || w.has('members')) void refreshRoom();
     const mid = get().room?.current_match_id ?? session.matchId;
-    if (mid && (w.has('match') || w.has('rounds') || w.has('room'))) void refreshMatch(mid);
+    // A round just landed: its rows are read together with the match row (one round trip, R-DUOS-FLOW-01).
+    if (mid && (w.has('match') || w.has('rounds') || w.has('room'))) void refreshMatch(mid, w.has('rounds'));
     // VERSUS DUOS: a teammate's pass (or an answer to mine) landed on the server.
     if (mid && w.has('passes')) pullDuosPasses(mid);
-  }, 120);
+  }, WAKE_COALESCE_MS);
 }
 
 async function refreshRoom(): Promise<void> {
@@ -493,11 +501,13 @@ async function refreshRoom(): Promise<void> {
   } catch { /* transient; the next wake or heartbeat retries */ }
 }
 
-async function refreshMatch(matchId: string): Promise<void> {
+async function refreshMatch(matchId: string, withRounds = false): Promise<void> {
   if (!session) return;
   if (session.matchId !== matchId) subscribe(matchId);
   try {
-    const match = await mx.match(matchId);
+    // A round was just committed (the resolver answered, or its insert woke us): the match row and the new round are read
+    // in parallel, so the fight is ready the moment the row is (R-DUOS-FLOW-01). Otherwise the row alone, as before.
+    const [match] = await Promise.all([mx.match(matchId), withRounds ? prefetchRounds(matchId) : Promise.resolve()]);
     if (!match) return;
     await onMatch(match);
     pullDuosPasses(matchId); // VERSUS DUOS: a no-op outside a Duos match
@@ -517,7 +527,7 @@ async function heartbeat(): Promise<void> {
     // silent pauses the clock within a lease plus one beat (live test 2026-10-14: a 12 s modulo window let it slip
     // to ~20 s).
     const m = get().match;
-    if (m && mySeat(m) && m.phase !== 'complete' && !m.paused_at) void mx.reconcile(m.id).then((x) => onMatch(x)).catch(() => undefined);
+    if (m && mySeat(m) && m.phase !== 'complete' && !m.paused_at) void mx.reconcile(m.id).then((x) => onOwnAnswer(x)).catch(() => undefined);
     // WHO IS BACK, while a match is paused (the "<name> is back" notice reads the absent player's last heartbeat).
     // Heartbeats no longer reach every client as Realtime member updates (R-NET-REALTIME-01: that was ~0.9 KB per
     // member per 4 s to every subscriber); a paused match reads presence from the heartbeat's answer instead, or, from
@@ -585,16 +595,14 @@ function onTick(): void {
     const key = `${match.id}|${match.revision}|${match.phase}|${match.paused_at ? 'p' : ''}|${match.resume_at ?? ''}`;
     if (reconcileGate.ready(key, now)) {
       reconcileGate.asked(key, now, hidden);
-      void mx.reconcile(match.id).then((m) => onMatch(m)).catch(() => undefined);
+      void mx.reconcile(match.id).then((m) => onOwnAnswer(m)).catch(() => undefined);
     }
   }
-  if (player && match.phase === 'resolving') {
-    const key = `${match.id}|${match.round}`;
-    if (finalizeGate.ready(key, now)) {
-      finalizeGate.asked(key, now, hidden);
-      session.lastFinalize = now;
-      void mx.finalize(match.id, match.round, match.content_revision).then(() => refreshMatch(match.id)).catch(() => undefined);
-    }
+  // The round is closed and waits on the resolver. The client whose own call closed it asks at once (`onOwnAnswer`); every
+  // other player asks only as a backstop, once the round has sat closed for a moment (R-DUOS-FLOW-01: one resolver call
+  // per round instead of one per player, and none of them waiting for this 500 ms tick).
+  if (player && match.phase === 'resolving' && (closedSeen?.key !== `${match.id}|${match.round}` || now - closedSeen.at >= FINALIZE_BACKSTOP_MS)) {
+    kickFinalize(match);
   }
   // My shared deadline, the fallback for a screen that is not driving the clock (`useVersusRecruit` locks on the
   // exact edge). It locks AT 0:00, never before (R-VERSUS-CLOCK-LOCK-01: it used to lock 400 ms early on a 500 ms tick,
@@ -614,6 +622,67 @@ function onTick(): void {
     expireVersusShop();
   }
 }
+/** How long a closed round may wait on another client's resolver call before this one asks too (the backstop). Long
+ *  enough that a second call rarely overlaps the first: measured live 2026-10-26, a duplicate call in flight went with
+ *  the 8-11 s resolver answers (a second resolver instance spinning up), the single calls with 1.6-2.6 s. */
+const FINALIZE_BACKSTOP_MS = 4000;
+/** When this client first saw the current round closed (`resolving`). */
+let closedSeen: { key: string; at: number } | null = null;
+
+/**
+ * An answer to MY OWN call (my lock, my re-lock, my reconcile): if it closed the round, I am the one who asks the
+ * resolver, now (R-DUOS-FLOW-01: before, every player waited for its next 500 ms tick and then all of them asked).
+ */
+async function onOwnAnswer(m: VersusMatch): Promise<void> {
+  await onMatch(m);
+  if (m.phase === 'resolving') kickFinalize(m);
+}
+
+/** Ask the resolver to settle the closed round (once per round through the backed-off gate), then read the match row and
+ *  the committed round together, so the fight lands in one round trip. */
+function kickFinalize(match: VersusMatch): void {
+  if (!session || match.phase !== 'resolving' || !mySeat(match)) return;
+  const key = `${match.id}|${match.round}`;
+  const now = Date.now();
+  if (!finalizeGate.ready(key, now)) return;
+  finalizeGate.asked(key, now, pageHidden());
+  session.lastFinalize = now;
+  markFlow(match.id, match.round, 'finalize:start');
+  void mx.finalize(match.id, match.round, match.content_revision)
+    .then(() => { markFlow(match.id, match.round, 'finalize:done'); return refreshMatch(match.id, true); })
+    .catch(() => undefined);
+}
+
+/**
+ * THE CLOSE, ON TIME (R-DUOS-FLOW-01). The moment the shop is due to close (the shop deadline plus the server's grace;
+ * Ranked Duos: the end-turn gate's moment), one reconcile goes out on a timer of its own, instead of on whichever 500 ms
+ * tick comes after it. Re-armed on every match update (a teammate's End Turn moves the Ranked Duos gate).
+ */
+let closeTimer: { at: number; id: number } | null = null;
+const SHOP_GRACE_MS = 250; // the server's `versus__shop_grace()`
+function armCloseTimer(match: VersusMatch): void {
+  if (typeof window === 'undefined') return;
+  const g = match.group?.raw;
+  const ranked = !!g && isRankedDuosRaw(g);
+  const iso = match.phase !== 'shop' || match.paused_at || !mySeat(match) ? null : ranked ? rankedCloseIso(g!) : match.shop_deadline;
+  const at = iso ? Date.parse(iso) + (ranked ? 0 : SHOP_GRACE_MS) + 30 : null;
+  if (closeTimer && closeTimer.at === at) return;
+  if (closeTimer) window.clearTimeout(closeTimer.id);
+  closeTimer = null;
+  if (at == null || !Number.isFinite(at)) return;
+  const wait = Math.max(0, at - versusServerNow());
+  if (wait > 120_000) return; // far off: a later match update re-arms it
+  closeTimer = {
+    at,
+    id: window.setTimeout(() => {
+      closeTimer = null;
+      const m = get().match;
+      if (!session || !m || m.id !== match.id || m.phase !== 'shop' || m.round !== match.round) return;
+      void mx.reconcile(m.id).then((x) => onOwnAnswer(x)).catch(() => undefined);
+    }, wait),
+  };
+}
+
 /**
  * VERSUS DUOS (R-DUOS-VIEW-01; owner 2026-10-25: "don't force the player back from the teammate view until the turn is
  * 'over.'"): does the game take me back to my own board now? Only when the turn is over: the shop has ended and the
@@ -642,6 +711,13 @@ async function onMatch(match: VersusMatch): Promise<void> {
     useGame.setState({ heroArmed: false, equipArmed: false });
   }
   set({ match });
+  // The flow's timeline (R-DUOS-FLOW-01): when this client learned the round closed, and when its fight came in.
+  if (match.phase === 'resolving' || (match.phase === 'combat' && prev?.id === match.id && prev.phase === 'shop' && prev.round === match.round)) {
+    const key = `${match.id}|${match.round}`;
+    if (closedSeen?.key !== key) closedSeen = { key, at: Date.now() };
+    markFlow(match.id, match.round, 'closed:seen');
+  }
+  armCloseTimer(match);
   // ONE ROOM, MANY MATCHES (live bug 2026-10-14: spectators saw "combat from OUR game last game"): the committed rounds
   // are keyed by round NUMBER, which restarts every match, so they belong to one match and are dropped the moment the
   // room's match changes, for every member (players and the stands alike).
@@ -707,10 +783,52 @@ async function loadRounds(match: VersusMatch): Promise<void> {
   const known = Object.keys(have).map(Number);
   const from = known.length ? Math.max(...known) + 1 : 1;
   if (from > committedRound(match)) return;
+  await readDuelRounds(match.id, from);
+}
+
+/** 1v1: read committed rounds from `from` into the store. */
+async function readDuelRounds(matchId: string, from: number): Promise<void> {
   try {
-    const rows = (await versusRemote.rounds(match.id, from)).filter((r) => r.match_id === match.id);
-    if (roundsOf !== match.id) return; // the room moved on to another match while this read was in flight
+    const rows = (await versusRemote.rounds(matchId, from)).filter((r) => r.match_id === matchId);
+    if (roundsOf !== matchId) return; // the room moved on to another match while this read was in flight
     if (rows.length) set({ rounds: { ...get().rounds, ...Object.fromEntries(rows.map((r) => [r.round, r])) } });
+  } catch { /* retried on the next wake */ }
+}
+
+/**
+ * A round was just COMMITTED (the resolver answered, or the round's insert woke this client): read it now, in parallel
+ * with the match row (`refreshMatch(id, true)`), instead of after it. The match row then finds the round already here
+ * and the fight lands in one round trip (R-DUOS-FLOW-01). Reads exactly what `loadRounds` would have read next.
+ */
+async function prefetchRounds(matchId: string): Promise<void> {
+  if (roundsOf !== matchId) return;
+  if (!groupIds.has(matchId)) {
+    if (!duelIds.has(matchId)) return;
+    const known = Object.keys(get().rounds).map(Number);
+    await readDuelRounds(matchId, known.length ? Math.max(...known) + 1 : 1);
+    return;
+  }
+  const raw = groupRaw;
+  if (!raw || raw.id !== matchId) return;
+  const known = Object.keys(groupRoundsRaw).map(Number);
+  await readGroupRounds(raw, known.length ? Math.max(...known) + 1 : 1);
+}
+
+/** Group / Duos / Ranked Duos: read committed rounds from `from` into the raw cache (not projected here). */
+async function readGroupRounds(raw: VersusGroupMatchRaw, from: number): Promise<void> {
+  try {
+    if (isRankedDuosRaw(raw)) {
+      // RANKED DUOS: the committed rounds in the Duos shape (the live team's own fight in full, the other a result).
+      const rows = await versusRemote.rankedRounds(raw.id, from);
+      if (roundsOf !== raw.id || ranked.matchId !== raw.id) return;
+      for (const r of rows) ranked.rows[r.round] = r;
+      ranked = { ...ranked, rounds: Object.values(ranked.rows).sort((a, b) => a.round - b.round) };
+      for (const r of rankedRoundsAsGroup(rows)) groupRoundsRaw[r.round] = r;
+    } else {
+      const rows = await versusRemote.groupRounds(raw.id, from);
+      if (roundsOf !== raw.id) return;
+      for (const r of rows) groupRoundsRaw[r.round] = r;
+    }
   } catch { /* retried on the next wake */ }
 }
 
@@ -915,20 +1033,8 @@ async function loadGroupRounds(match: VersusMatch): Promise<void> {
   const known = Object.keys(groupRoundsRaw).map(Number);
   const from = known.length ? Math.max(...known) + 1 : 1;
   if (from <= committedRound(raw)) {
-    try {
-      if (isRankedDuosRaw(raw)) {
-        // RANKED DUOS: the committed rounds in the Duos shape (the live team's own fight in full, the other a result).
-        const rows = await versusRemote.rankedRounds(match.id, from);
-        if (roundsOf !== match.id || ranked.matchId !== raw.id) return;
-        for (const r of rows) ranked.rows[r.round] = r;
-        ranked = { ...ranked, rounds: Object.values(ranked.rows).sort((a, b) => a.round - b.round) };
-        for (const r of rankedRoundsAsGroup(rows)) groupRoundsRaw[r.round] = r;
-      } else {
-        const rows = await versusRemote.groupRounds(match.id, from);
-        if (roundsOf !== match.id) return;
-        for (const r of rows) groupRoundsRaw[r.round] = r;
-      }
-    } catch { /* retried on the next wake */ }
+    await readGroupRounds(raw, from);
+    if (roundsOf !== match.id) return;
   }
   set({ rounds: projectGroupRounds(viewRaw(raw), Object.values(groupRoundsRaw), groupViewer(raw)) });
 }
@@ -949,6 +1055,8 @@ const mx = {
     return g ? ingestGroup(g) : null;
   },
   reconcile: (id: string): Promise<VersusMatch> => (G(id) ? versusRemote.groupReconcile(id).then(ingestGroup) : versusRemote.reconcile(id)),
+  unready: (id: string, round: number, seq: number): Promise<VersusMatch> =>
+    (G(id) ? versusRemote.groupUnready(id, round, seq).then(ingestGroup) : versusRemote.unready(id, round, seq)),
   finalize: (id: string, round: number, content: string): Promise<void> => (G(id)
     ? (groupRaw?.id === id && isRankedDuosRaw(groupRaw) ? versusRemote.finalizeRankedDuos(id, round, content)
       : groupRaw?.id === id && isDuosRaw(groupRaw) ? versusRemote.finalizeDuos(id, round, content) : versusRemote.finalizeGroup(id, round, content))
@@ -1117,6 +1225,7 @@ function driveRun(match: VersusMatch, seat: VersusSeat): void {
   if (round && run.phase === 'recruit' && !g.presentationTx && get().endTurnWave !== run.wave) {
     const answered = versusAutoResolve(run, versusTimeoutRng(Number(match.seed), run.wave, seat));
     if (answered !== run) useGame.setState({ run: answered });
+    markFlow(match.id, run.wave, 'combat:seen');
     set({ endTurnWave: run.wave });
   }
   // More than a round behind (a long reconnect): finish the old fight at once. One round behind is the ordinary
@@ -1175,10 +1284,12 @@ function startRunWatch(matchId: string, seat: VersusSeat): void {
     if (st.run === lastRun || st.run.mode !== 'versus') return;
     if (ownRunWhileWatching()) return; // VERSUS DUOS: the screen shows my teammate's run; mine is set aside, unchanged
     const shopOpened = lastRun?.phase !== 'recruit' && st.run.phase === 'recruit';
+    if (lastRun?.phase === 'recruit' && st.run.phase === 'combat') markFlow(matchId, st.run.wave, 'fight:on');
     lastRun = st.run;
     syncVersusLobby(); // a no-op unless the wave / fight state moved (a fresh run object then re-enters here once)
     maybeEndGate(); // a finished match ends through the end gate once the last fight has been left
     candidates.schedule({ matchId, seat });
+    relocks.schedule({ matchId, seat }); // a ready player still playing sends the board again (R-VERSUS-READY-01)
     frames.schedule({ matchId, forceKey: shopOpened });
     // VERSUS DUOS: my new passes go out, my hand room is reported (R-DUOS-PASS-01).
     const me = get().match?.group?.me;
@@ -1198,6 +1309,53 @@ const candidates = createDeferredWriter<{ matchId: string; seat: VersusSeat }>((
   session.candidateSeq += 1;
   void mx.submit(matchId, match.round, session.candidateSeq, side, false, null, versusScoutOf(run)).catch(() => undefined);
 }, 600);
+
+/**
+ * END TURN IS A READY SIGNAL, IN EVERY VERSUS MODE (owner 2026-10-26: "hitting end turn shouldn't restrict anything, it
+ * should just signal that you are ready to move on"; "the end turn ready-signal should be the same for versus modes too";
+ * R-VERSUS-READY-01). After End Turn the shop stays fully playable, so the board that
+ * fights is whatever my board is when the round actually CLOSES: every change I make while ready goes to the server again
+ * as my final side (a re-lock: a newer seq, the seat stays ready). Built exactly as the lock is (`readySideOf`), on a clone,
+ * idle, debounced (a drag's several commits are one send), and skipped when nothing in it changed.
+ */
+let lastRelock: string | null = null;
+const relocks = createDeferredWriter<{ matchId: string; seat: VersusSeat }>(({ matchId, seat }) => {
+  const match = get().match;
+  const run = ownRunWhileWatching() ?? useGame.getState().run; // never the teammate's run on screen
+  if (!session || !match || match.id !== matchId || match.phase !== 'shop' || match.paused_at || run.mode !== 'versus'
+    || run.phase !== 'recruit' || run.wave !== match.round || get().lockedRound !== match.round) return;
+  const ready = readySideOf(run, match, seat);
+  if (!ready || ready.checkpoint === lastRelock) return;
+  lastRelock = ready.checkpoint;
+  const seq = nextSeq();
+  void inOrder(() => mx.submit(matchId, match.round, seq, ready.side, true, ready.checkpoint, ready.scout))
+    .then((m) => onOwnAnswer(m)).catch(() => undefined);
+}, 200);
+
+/** The next submission number for my seat this match (candidates, locks, re-locks and un-readies share one counter). */
+function nextSeq(): number {
+  if (!session) return 1;
+  session.candidateSeq += 1;
+  return session.candidateSeq;
+}
+
+/** My ready-state calls (End Turn, its re-locks, un-ready) go out ONE AT A TIME in press order, so an un-ready can never
+ *  overtake the ready it takes back, or a re-lock the un-ready that ended it (R-VERSUS-READY-01). */
+let readyChain: Promise<unknown> = Promise.resolve();
+function inOrder<T>(call: () => Promise<T>): Promise<T> {
+  const next = readyChain.then(call, call);
+  readyChain = next.catch(() => undefined);
+  return next;
+}
+
+/** My final side for this round, built on a clone with every open decision answered (ruling 7), plus the checkpoint (the
+ *  answered run, the reconnect restore point) and my scout. Null when the run cannot end its turn. */
+function readySideOf(run: RunState, match: VersusMatch, seat: VersusSeat): { side: PreparedCombatSide; checkpoint: string; scout: VersusSeatScout } | null {
+  const answered = versusAutoResolve(structuredClone(run), versusTimeoutRng(Number(match.seed), run.wave, seat));
+  const ended = reduce(answered, { type: 'faceOmen', deferFight: true });
+  if (!ended.pendingCombatSide) return null;
+  return { side: ended.pendingCombatSide, checkpoint: serialize(answered), scout: versusScoutOf(answered) };
+}
 
 /** How many spectators were in the room at the last publish: a new arrival gets a keyframe. */
 let watchersSeen = 0;
@@ -1331,6 +1489,8 @@ export function expireVersusShop(): void {
   }
   // VERSUS DUOS: 0:00 while I watch my teammate locks MY turn (my run, set aside), never the one on screen; I stay on
   // the view until the fight starts (R-DUOS-VIEW-01).
+  // READY: a re-lock still waiting for idle time goes NOW, inside the server's grace (R-VERSUS-READY-01).
+  relocks.flush();
   if (ownRunWhileWatching()) { void lockTurn(); return; }
   const g = useGame.getState();
   if (g.run.mode !== 'versus' || g.run.phase !== 'recruit' || g.replaying) return;
@@ -1345,19 +1505,54 @@ export async function lockTurn(): Promise<void> {
   if (!match || !seat || run.mode !== 'versus' || run.phase !== 'recruit' || run.wave !== match.round || get().lockedRound === match.round) return;
   if (match.paused_at) return; // a paused match takes no End Turn
   set({ lockedRound: match.round });
-  const rng = (): ReturnType<typeof versusTimeoutRng> => versusTimeoutRng(Number(match.seed), run.wave, seat);
-  const answered = versusAutoResolve(structuredClone(run), rng());
-  const ended = reduce(answered, { type: 'faceOmen', deferFight: true });
-  if (!ended.pendingCombatSide) { set({ lockedRound: null }); return; }
+  const ready = readySideOf(run, match, seat);
+  if (!ready) { set({ lockedRound: null }); return; }
+  readyPressedAt = Date.now();
+  lastRelock = ready.checkpoint;
+  markFlow(match.id, match.round, 'ready:sent');
+  const seq = nextSeq();
   try {
-    const m = await mx.submit(match.id, match.round, (session?.candidateSeq ?? 0) + 1, ended.pendingCombatSide, true, serialize(answered), versusScoutOf(answered));
-    await onMatch(m);
+    await onOwnAnswer(await inOrder(() => mx.submit(match.id, match.round, seq, ready.side, true, ready.checkpoint, ready.scout)));
   } catch (e) {
-    // `deadline_passed` / `stale_round`: the server already promoted my newest candidate. Keep waiting for the fight.
-    if ((e as VersusError).code !== 'deadline_passed' && (e as VersusError).code !== 'stale_round' && (e as VersusError).code !== 'already_locked') {
-      set({ lockedRound: null, error: errorText(e) });
-    }
+    // `deadline_passed` / `stale_round` / `already_locked`: the server already has my side for this round (it promoted my
+    // newest candidate, or an earlier press got there first). Keep waiting for the fight. Anything else: the lock did not
+    // land, so the gem relights and can be pressed again. No notice: the room screen's error line is not on screen in a
+    // match, and a "Connection problem" waiting there after the match misled (owner 2026-10-26, a double press).
+    const code = (e as VersusError).code;
+    if (code !== 'deadline_passed' && code !== 'stale_round' && code !== 'already_locked' && get().lockedRound === match.round) set({ lockedRound: null });
   }
+}
+
+/** When this client last pressed End Turn: a second press inside a double-click is the same press, not an un-ready. */
+let readyPressedAt = 0;
+const DOUBLE_PRESS_MS = 450;
+
+/**
+ * TAKE BACK MY END TURN, any Versus mode (R-VERSUS-READY-01; lead reading of the owner's 2026-10-26 ask, confirmed for
+ * every mode: "Pressing End Turn again while the clock is above 0:00 un-readies (default)"). Only while the round is open and its clock is above 0:00 (the 0:00 rules stay: from then on
+ * the signal stands). Optimistic: the gem relights at once; if the server says the round already closed (or 0:00 came
+ * first) I am still ready, and the gem goes back to pressed. True when the press was taken as an un-ready.
+ */
+export function unreadyTurn(): boolean {
+  const match = get().match;
+  const seat = mySeat(match);
+  const run = ownRunWhileWatching() ?? useGame.getState().run;
+  if (!match || !seat || run.mode !== 'versus' || run.phase !== 'recruit' || run.wave !== match.round || get().lockedRound !== match.round) return false;
+  if (Date.now() - readyPressedAt < DOUBLE_PRESS_MS) return true; // the second click of a double-click: still the one press
+  if (match.phase !== 'shop' || match.paused_at || run.shopClockExpired || !((versusShopRemainingMs(match.shop_deadline) ?? 0) > 0)) return true;
+  relocks.cancel();
+  lastRelock = null;
+  set({ lockedRound: null });
+  const seq = nextSeq();
+  void inOrder(() => mx.unready(match.id, match.round, seq))
+    .then((m) => onMatch(m))
+    .catch(() => {
+      // The round closed (or the clock hit 0:00) before the un-ready landed: the server still has me ready.
+      const m = get().match;
+      if (m && m.id === match.id && m.round === match.round && get().lockedRound == null) set({ lockedRound: match.round });
+    });
+  candidates.schedule({ matchId: match.id, seat });
+  return true;
 }
 
 /** Hero Select: lock my pick (hidden until both are in or the clock runs out). */

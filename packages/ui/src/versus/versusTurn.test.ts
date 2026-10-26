@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { VersusMatch } from './versusRemote';
-import { versusEndsNow, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, type VersusTurnInput } from './versusTurn';
+import { versusEndsNow, versusTurn, versusTurnHolds, versusTurnLocksGem, versusTurnNote, versusTurnReady, type VersusTurnInput } from './versusTurn';
 
 const T0 = Date.parse('2026-10-14T18:00:00Z');
 const row = (p: Partial<VersusMatch>): VersusMatch => ({
@@ -21,7 +21,8 @@ const view = (i: VersusTurnInput) => { const t = versusTurn(i); return { kind: t
 describe('shop -> end early -> pill -> both locked -> combat', () => {
   it('walks the round', () => {
     expect(view(at(row({}), 2, 'recruit'))).toEqual({ kind: 'shop', held: false, pill: null });
-    expect(view(at(row({ p1_locked: true }), 2, 'recruit', 2))).toEqual({ kind: 'locked', held: true, pill: 'Players ready 1/2' });
+    // End Turn is a ready signal (R-VERSUS-READY-01): not held while the round is open.
+    expect(view(at(row({ p1_locked: true }), 2, 'recruit', 2))).toEqual({ kind: 'ready', held: false, pill: 'Players ready 1/2' });
     expect(view(at(row({ p1_locked: true, p2_locked: true, phase: 'resolving' }), 2, 'recruit', 2))).toEqual({ kind: 'locked', held: true, pill: 'Players ready 2/2' });
     expect(view(at(row({ phase: 'combat', p1_locked: true, p2_locked: true }), 2, 'combat', 2))).toEqual({ kind: 'fight', held: false, pill: null });
   });
@@ -107,5 +108,28 @@ describe('the fight screen: End Combat waits for both, the second player gets 5 
   it('the next shop opened (both pressed, or the 5 s ran out): leave the fight', () => {
     expect(versusTurn(inFight(row({ phase: 'shop', round: 3 }), 2)).kind).toBe('leave');
     expect(versusTurn(inFight(row({ phase: 'shop', round: 3 }))).kind).toBe('leave');
+  });
+});
+
+describe('R-VERSUS-READY-01: End Turn is a ready signal in every Versus mode (owner 2026-10-26)', () => {
+  // "hitting end turn shouldn't restrict anything, it should just signal that you are ready to move on" and "the end turn
+  // ready-signal should be the same for versus modes too. it's a ready signal, not a 'i cant do anything anymore'".
+  const duos = (p: Partial<VersusMatch> = {}): VersusMatch => row({ group: { duos: { team: 'a', mate: 'p2', first: { a: 'p1', b: 'p3' } }, counts: { living: 4, locked: 1, ready: 0, intro: 4 } } as never, p1_locked: true, ...p });
+  const group = (p: Partial<VersusMatch> = {}): VersusMatch => row({ group: { counts: { living: 3, locked: 1, ready: 0, intro: 3 } } as never, p1_locked: true, ...p });
+  for (const [mode, m, pill] of [['1v1', row({ p1_locked: true }), 'Players ready 1/2'], ['group', group(), 'Players ready 1/3'], ['duos', duos(), 'Players ready 1/4']] as const) {
+    it(`${mode}: ready while the round is open is NOT held, the pill counts, the gem stays live`, () => {
+      const t = versusTurn(at(m, 2, 'recruit', 2));
+      expect(t.kind).toBe('ready');
+      expect(versusTurnHolds(t)).toBe(false);
+      expect(versusTurnLocksGem(t)).toBe(false);
+      expect(versusTurnReady(t)).toBe(true);
+      expect(versusTurnNote(t)).toBe(pill);
+    });
+  }
+  it('once the server closes the round the fight is coming: held again (nothing may change the board that fights)', () => {
+    for (const m of [duos({ phase: 'resolving' }), row({ phase: 'resolving', p1_locked: true, p2_locked: true })]) {
+      const t = versusTurn(at(m, 2, 'recruit', 2));
+      expect([t.kind, versusTurnHolds(t)]).toEqual(['locked', true]);
+    }
   });
 });

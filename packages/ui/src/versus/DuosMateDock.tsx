@@ -5,9 +5,18 @@
  *
  * THE MIRROR OF YOUR OWN HERO bottom left (owner 2026-10-25: "can you make the teammate portrait as large as the
  * player's and make sure it's wired to show their custom frame as well if they have one"): the same disc size, the same
- * distance in from the stage's bottom corner (measured off your own portrait, `mirrorOfHero`, so the two can never
- * drift apart), the same frame surface wearing THEIR equipped portrait frame, the same name pill eclipsing the disc's
- * bottom and the same Health box under it (the team's shared Health and Armor, which are theirs too; R-DUOS-HEALTH-01).
+ * distance in from the stage's right edge (measured off your own portrait, `mirrorOfHero`, so the two can never drift
+ * apart), the same frame surface wearing THEIR equipped portrait frame, the same name pill eclipsing the disc's bottom.
+ * CLEAR OF THE LOBBY RAIL, NO HEALTH BOX (owner 2026-10-26: "the teammate is behind the lobby rail, so we need to modify
+ * the size/position of that a bit. we dont need the health there since we have it under the player frame and it's the
+ * same"; R-DUOS-VIEW-05): the team's pool shows only under your own hero; the disc drops into the room that box took
+ * (its bottom on your Health box's bottom) and shrinks, only as far as it must, to sit below the rail (`fitDock`; the
+ * eight-row Ranked Duos rail is the tall case).
+ * THE TAG-IN (owner 2026-10-26: "the player frame doesn't need to swap to the teammate's when they come in to attack. we
+ * can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left";
+ * R-DUOS-SLOTS-02): while your teammate's board fights on your side, this portrait fades out bottom right and its copy
+ * fades in over your own hero, a little up and to the right, then goes back when your own board steps in or the fight
+ * ends. Your hero slot itself never changes. Opacity / transform only, one-shot.
  *  - on your board it is your TEAMMATE: click it to watch their screen; drag a card onto it to pass the card. While a
  *    drag hovers it the disc glows teal (a STATIC shadow on its own layer whose opacity breathes, the `kwglow` pattern:
  *    no animated paint); a refused pass shows a red ring and the reason instead;
@@ -15,10 +24,9 @@
  *    no plate up top (owner 2026-10-25) it is the only on-screen way back (Esc and letting go of Tab work too).
  * A pass drops INTO this disc (`passLob.playDrop`), and a pass to you rises OUT of it (`playArrival`).
  */
-import { memo, useEffect, useLayoutEffect, useMemo, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react';
 import { parseCosmeticSnapshot } from '@game/progression';
 import { FoePortraitDisc } from '../FoePortraitDisc';
-import { Icon } from '../Icon';
 import { frameIdOf, usePortraitFrame } from '../portraitFrame/PortraitFrame';
 import { ensureDefsReady } from '../fx/playDef';
 import { useDragSlice } from '../dragStore';
@@ -31,6 +39,7 @@ import { prewarmPassFx } from './passLob';
 import { enterTeammateView, exitTeammateView } from './teammateView';
 import { useVersus } from './versusStore';
 import { useSpectate } from './spectate';
+import { useDuosCombat } from './duosCombat';
 import { useOwnHeroPick } from '../hero-select/ownHeroPick';
 import { avatarSrc } from '../art';
 
@@ -38,8 +47,40 @@ import { avatarSrc } from '../art';
 const TAP_CLICK_MS = 700;
 let lastTap = -Infinity;
 
-/** Where the dock sits: its disc's diameter and its distance in from the stage's right and bottom edges (stage px). */
-export interface DockGeometry { d: number; right: number; bottom: number }
+/** Where the dock sits: its disc's diameter and its distance in from the stage's right and bottom edges (stage px), plus
+ *  your own hero disc (left / bottom / diameter, stage px), where the tag-in copy lands. */
+export interface DockGeometry { d: number; right: number; bottom: number; hero?: { left: number; bottom: number; d: number } }
+
+type Box = { left: number; top: number; width: number; height: number };
+/** The "Teammate" cap rides above the disc: its overhang as a share of your hero disc (28u over the 252u panel disc). */
+export const DOCK_CAP_SHARE = 28 / 252;
+/** The smallest the dock may shrink to clear the rail, as a share of your hero disc. */
+export const DOCK_MIN_SHARE = 0.55;
+/** The gap kept between the rail's bottom and the top of the dock's cap (stage px). */
+export const DOCK_RAIL_GAP = 10;
+
+/**
+ * CLEAR OF THE RAIL (pure; owner 2026-10-26, R-DUOS-VIEW-05). From your hero disc's mirror (`mirrorOfHero`): no Health box
+ * under the teammate, so the disc's bottom sits where YOUR Health box's bottom is (`hpBox`), and the disc shrinks, keeping
+ * its centre, only as far as it must for its cap to clear the lobby rail's bottom (`rail`), never below
+ * `DOCK_MIN_SHARE` of your own. All boxes in screen px; `stageLen` converts to stage px. Null when the hero is not laid out.
+ */
+export function fitDock(hero: Box | null, hpBox: Box | null, rail: Box | null, stage: Box, stageLen: (px: number) => number): DockGeometry | null {
+  const base = mirrorOfHero(hero, stage, stageLen);
+  if (!base || !hero) return null;
+  const stageH = stageLen(stage.height);
+  const bottom = hpBox && hpBox.height > 0 ? Math.max(0, stageLen(stage.top + stage.height - (hpBox.top + hpBox.height))) : base.bottom;
+  const cap = base.d * DOCK_CAP_SHARE;
+  let d = base.d;
+  if (rail && rail.height > 0) {
+    const room = stageH - bottom - cap - stageLen(rail.top + rail.height - stage.top) - DOCK_RAIL_GAP;
+    d = Math.max(base.d * DOCK_MIN_SHARE, Math.min(base.d, room));
+  }
+  return {
+    d, right: base.right + (base.d - d) / 2, bottom,
+    hero: { left: stageLen(hero.left - stage.left), bottom: stageLen(stage.top + stage.height - (hero.top + hero.height)), d: base.d },
+  };
+}
 
 /**
  * YOUR OWN PORTRAIT, MIRRORED (pure): the hero disc's box and the stage's box (both screen px, plus the stage scale
@@ -59,12 +100,17 @@ export function mirrorOfHero(
   };
 }
 
-/** Measures your own hero disc (one layout read, on mount and on a resize; never per frame). */
+/** The lobby rail on screen (null when there is none). */
+const railEl = (): HTMLElement | null => (typeof document === 'undefined' ? null : document.querySelector<HTMLElement>('.lobbyrail'));
+
+/** Measures your own hero disc, your Health box and the lobby rail (layout reads on mount, on a resize and when the rail
+ *  changes size; never per frame). */
 function measureDock(): DockGeometry | null {
   if (typeof document === 'undefined') return null;
   const art = document.querySelector<HTMLElement>('.statusbar .hero .heroimg') ?? document.querySelector<HTMLElement>('.statusbar .hero .f');
+  const hp = document.querySelector<HTMLElement>('.statusbar .hero .hpbox');
   const host = stageHost();
-  return mirrorOfHero(art?.getBoundingClientRect() ?? null, host.getBoundingClientRect(), toStage);
+  return fitDock(art?.getBoundingClientRect() ?? null, hp?.getBoundingClientRect() ?? null, railEl()?.getBoundingClientRect() ?? null, host.getBoundingClientRect(), toStage);
 }
 
 /**
@@ -100,14 +146,12 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     const row = g.raw.seats.find((x) => x.seat === g.duos!.mate);
     return !!row?.auto || (!!g.raw.paused_at && g.raw.paused_seat === g.duos.mate);
   });
-  // The TEAM's pool, exactly as your own Health box shows it (the run carries the team's shared Health and Armor and
-  // lands the resolver's numbers when a lost fight settles, not before). On Hero Select there is no run (and no pool
-  // until the heroes are in), so the box waits for the game.
-  const pool = useGame((s) => (!heroSelect && s.run.mode === 'versus' ? `${s.run.resolve}|${s.run.armor}` : null));
   const showOppSkins = useGame((s) => s.showOpponentSkins);
   const passOver = useDragSlice((st) => (watching || inCombat || heroSelect ? null : st.passOver), Object.is);
   const passReason = useDragSlice((st) => (watching || inCombat || heroSelect ? null : st.passReason), Object.is);
   const note = useDuosPassNote((st) => (watching || heroSelect || !st.text ? null : `${st.n}|${st.text}`));
+  // THE TAG-IN (R-DUOS-SLOTS-02): my teammate's board is fighting on my side right now.
+  const tagged = useDuosCombat((st) => inCombat && !watching && !heroSelect && st.on && !!st.selfSeatId);
   const face = useMemo(() => {
     if (!key) return null;
     const [hero, name, cosRaw, avatar] = JSON.parse(key) as [string | null, string, unknown, string | null];
@@ -136,7 +180,20 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     measure();
     const onResize = (): void => { cancelAnimationFrame(raf); tries = 0; raf = requestAnimationFrame(measure); };
     window.addEventListener('resize', onResize);
-    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); };
+    // The rail grows with its rows (four in Versus Duos, eight in Ranked Duos) and may mount after the dock: re-fit when
+    // its SIZE changes (its combat slide is a transform, which never fires this).
+    let ro: ResizeObserver | null = null;
+    let watched: HTMLElement | null = null;
+    const watchRail = (): void => {
+      const el = railEl();
+      if (el === watched || typeof ResizeObserver === 'undefined') return;
+      ro?.disconnect();
+      watched = el;
+      if (el) { ro = new ResizeObserver(onResize); ro.observe(el); }
+    };
+    watchRail();
+    const railPoll = window.setInterval(watchRail, 2000); // a rail that mounts later (cheap: one query, no layout read)
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', onResize); ro?.disconnect(); window.clearInterval(railPoll); };
   }, [heroSelect]);
   // The pass stream's FX, pre-warmed (both defs once, invisible) so the first pass links no shader on its frames.
   useEffect(() => { if (!heroSelect) void ensureDefsReady().then(() => prewarmPassFx()); }, [heroSelect]);
@@ -156,8 +213,9 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
     </FoePortraitDisc>
   );
   return (
+    <>
     <div
-      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}`}
+      className={`duosdock${geo ? ' placed' : ''}${watching ? ' self' : ''}${away ? ' away' : ''}${inCombat ? ' combat' : ''}${tagged ? ' tagged' : ''}${heroSelect ? ' hsdock' : ''}${passOver ? ` pass-${passOver}` : ''}`}
       style={style}
       {...(back ? {
         role: 'button',
@@ -193,16 +251,39 @@ export const DuosMateDock = memo(function DuosMateDock({ watching, inCombat = fa
       )}
       <span className="duosdock-cap hudpill-name">{watching ? (heroSelect ? 'Back to your heroes' : 'Back to your board') : away ? 'Away' : 'Teammate'}</span>
       <span className="duosdock-name hudpill-name">{face.name}</span>
-      {pool != null && (() => {
-        const [hp, arm] = pool.split('|').map(Number) as [number, number];
-        return (
-          <div className="duosdock-hp hudpill-hp" aria-label={`Team Health: ${hp}${arm > 0 ? ` · Armor ${arm}` : ''}`}>
-            <Icon name="heartPill" />
-            <span className="hpval">{hp}{arm > 0 && <b className="armval hudpill-arm"><Icon name="armor" /><span className="hp-armplus">+</span>{arm}</b>}</span>
-          </div>
-        );
-      })()}
       {shownNote && <span key={shownNote + (note ?? '')} className="duosdock-note hudpill-name">{shownNote}</span>}
     </div>
+    {inCombat && geo?.hero && <DuosTagIn on={tagged} hero={geo.hero} art={face.art} frame={frame} name={face.name} />}
+    </>
   );
 });
+
+/** How long the tag-in copy takes to fade out before it unmounts (matches `duostagout` in versus.css). */
+const TAG_OUT_MS = 240;
+
+/**
+ * THE TAG-IN COPY (R-DUOS-SLOTS-02): my teammate's portrait over my own hero bottom left, a little up and to the right
+ * (the pair, like a tag team), while their board fights on my side. Fades in, and out again when it ends (it stays
+ * mounted for the fade-out, then goes). Pointer-events none: my hero underneath keeps its own clicks and its lunge.
+ * Fixed in stage px off my hero disc's measured box, so it never reads layout itself.
+ */
+function DuosTagIn({ on, hero, art, frame, name }: { on: boolean; hero: NonNullable<DockGeometry['hero']>; art: string | undefined; frame: ReturnType<typeof usePortraitFrame>; name: string }): JSX.Element | null {
+  const [shown, setShown] = useState(on);
+  const timer = useRef(0);
+  useEffect(() => {
+    window.clearTimeout(timer.current);
+    if (on) setShown(true);
+    else timer.current = window.setTimeout(() => setShown(false), TAG_OUT_MS);
+    return () => window.clearTimeout(timer.current);
+  }, [on]);
+  if (!shown && !on) return null;
+  const style = { '--duos-d': `${hero.d}px`, left: `${hero.left}px`, bottom: `${hero.bottom}px` } as CSSProperties;
+  return (
+    <div className={`duostagin${on ? '' : ' out'}`} style={style} aria-label={`${name} is fighting for your team.`}>
+      <div className="duostagin-hold">
+        <FoePortraitDisc art={art} gauntlet={false} frame={frame} extraClass=" duosdock-disc" />
+        <span className="duosdock-name hudpill-name">{name}</span>
+      </div>
+    </div>
+  );
+}

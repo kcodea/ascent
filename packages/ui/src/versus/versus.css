@@ -824,25 +824,20 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(14 * var(--u)); letter-spacing: 0.02em; line-height: 1.1;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 calc(2 * var(--u)) calc(6 * var(--u)) -2px var(--shadow); pointer-events: none; }
-/* THE HEARTS BOX: your Hearts box's own rule (`.hero .hpbox`), the team's hearts, under the disc where yours is. */
-.duosdock-hp { position: absolute; left: 50%; top: calc(var(--duos-d) + 28 * var(--u)); z-index: 3; transform: translate(-50%, -50%) scale(1.581);
-  display: flex; align-items: center; gap: calc(7 * var(--u)); background: #fff; border: 2px solid var(--gold); border-radius: calc(16 * var(--u));
-  padding: calc(8 * var(--u)) calc(15 * var(--u)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 2px 6px rgba(0, 0, 0, 0.14); pointer-events: none; white-space: nowrap;
-  color: var(--threat-dk); }
-.duosdock-hp svg { flex: none; width: calc(30 * var(--u)); height: calc(30 * var(--u)); color: var(--threat); }
-.duosdock-hp .hpval { font-family: var(--font-ui); font-weight: 800; font-size: calc(30 * var(--u)); line-height: 1; color: inherit; } /* the HUD look (healthPills.css) colours the box */
+/* NO HEALTH BOX here (owner 2026-10-26: "we dont need the health there since we have it under the player frame and it's
+   the same"; R-DUOS-VIEW-05): the team's pool shows once, under your own hero. */
 /* THE CAP ("Teammate" / "Back to your board"), just above the disc. */
 .duosdock-cap { position: absolute; left: 50%; top: calc(-14 * var(--u)); z-index: 4; transform: translate(-50%, -50%); white-space: nowrap; display: inline-flex; align-items: center;
   height: calc(28 * var(--u)); box-sizing: border-box; padding: 0 calc(13 * var(--u)); pointer-events: none;
   border-radius: 999px; font-family: var(--font-ui); font-weight: 800; font-size: calc(13 * var(--u)); letter-spacing: 0.14em; text-transform: uppercase; line-height: 1;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); }
 .duosdock.self .duosdock-cap { letter-spacing: 0.06em; }
-.duosdock.self .duosdock-cap, .duosdock.self .duosdock-name, .duosdock.self .duosdock-hp { pointer-events: auto; }
+.duosdock.self .duosdock-cap, .duosdock.self .duosdock-name { pointer-events: auto; }
 .duosdock-note { position: absolute; right: calc(100% + 16 * var(--u)); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none; z-index: 5;
   display: inline-flex; align-items: center; height: calc(34 * var(--u)); padding: 0 calc(15 * var(--u)); border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: calc(16 * var(--u)); line-height: 1;
   background: linear-gradient(180deg, #fff, #f3ead4); color: var(--ink); border: 2px solid var(--gold); animation: duosviewfade 0.18s ease both; }
-:root[data-hp-look="gem"] .duosdock .hudpill-name { color: var(--ui-title); }
+:root[data-hp-look="gem"] :is(.duosdock, .duostagin) .hudpill-name { color: var(--ui-title); }
 /* The rail row stays a second way in to the teammate view (a click), not a pass target. */
 .lobbyseat.mate { cursor: url('/cursors/gauntlet_open.svg') 6 2, pointer; }
 
@@ -875,6 +870,24 @@ body.duos-viewing .etbwrap, body.duos-viewing .rfbwrap, body.duos-viewing .actio
 .duostuner-select { flex: 1 0 100%; font-size: 12px; padding: 4px; }
 /* IN COMBAT the teammate portrait stays as a face only (owner 2026-10-25): no click, no pass target. */
 .duosdock.combat .duosdock-hold { pointer-events: none; }
+/* THE TAG-IN (owner 2026-10-26: "the player frame doesn't need to swap to the teammate's when they come in to attack. we
+   can fade out their frame from the bottom right, and fade it in eclipsing the player hero in the bottom left or slightly
+   offset"; R-DUOS-SLOTS-02). While my teammate's board fights on my side the bottom-right portrait fades out
+   (`.tagged`: an opacity TRANSITION, one-shot) and its copy (`.duostagin`, DuosMateDock) fades in over my own hero, up
+   and to the right by `--duos-tag-x` / `--duos-tag-y` of the disc, a touch smaller (`--duos-tag-s`), in front of it.
+   Back the same way. Opacity and the individual `scale` property only (the offset is a static transform), no loops. */
+.duosdock { transition: opacity 0.22s ease; }
+.duosdock.tagged { opacity: 0; }
+.duostagin { --duos-tag-x: 0.42; --duos-tag-y: 0.3; --duos-tag-s: 0.82; position: fixed; z-index: 41; pointer-events: none;
+  width: var(--duos-d); height: var(--duos-d);
+  transform: translate(calc(var(--duos-d) * var(--duos-tag-x)), calc(var(--duos-d) * var(--duos-tag-y) * -1)) scale(var(--duos-tag-s));
+  transform-origin: 50% 50%; animation: duostagin 0.26s cubic-bezier(0.2, 0.7, 0.3, 1) both; }
+.duostagin.out { animation: duostagout 0.24s ease both; }
+.duostagin-hold { position: absolute; inset: 0; }
+.duostagin .duosdock-disc { width: 100%; height: 100%; box-sizing: border-box; border-width: calc(4 * var(--u)); }
+@keyframes duostagin { from { opacity: 0; scale: 0.88; } to { opacity: 1; scale: 1; } }
+@keyframes duostagout { from { opacity: 1; scale: 1; } to { opacity: 0; scale: 0.88; } }
+@media (prefers-reduced-motion: reduce) { .duostagin, .duostagin.out { animation-duration: 0.01s; } .duosdock { transition: none; } }
 
 /* HERO SELECT, WATCHED (owner 2026-10-26; R-SPECTATE-HEROSELECT-01, R-DUOS-HEROSELECT-01): another player's Hero Select
    drawn with the real screen (`HeroSelect` watch mode, `.hswatch`), read only. Its cards still lift on hover so their

@@ -47,7 +47,7 @@
   display: block; flex: none; width: 0.92em; height: 0.92em;
 }
 /* Your own number + armor sit on one centred row (the armor used to ride the number's baseline). */
-:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .hpval {
+:root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .statusbar .hero .hpbox .hpval {
   display: inline-flex; align-items: center; font-variant-numeric: tabular-nums;
 }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"], [data-hp-look="minimal"]) .hudpill-hp { font-variant-numeric: tabular-nums; }
@@ -65,7 +65,7 @@
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) :is(.hudpill-hp.hudpill-hp, .combatopp-tier) { border-width: 1px; }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-hp { padding: calc(6 * var(--u) + 1px) calc(14 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .combatopp-tier { padding: calc(4 * var(--u) + 1px) calc(11 * var(--u) + 1px); }
-:root:is([data-hp-look="slate"], [data-hp-look="gem"]) :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) { padding: calc(8 * var(--u) + 1px) calc(15 * var(--u) + 1px); }
+:root:is([data-hp-look="slate"], [data-hp-look="gem"]) .statusbar .hero .hpbox { padding: calc(8 * var(--u) + 1px) calc(15 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .gauntletfoe-group .gauntletfoe-meta { padding: calc(6 * var(--u) + 1px) calc(16 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .gauntletfoe-group .gauntletfoe-cap { padding: calc(4 * var(--u) + 1px) calc(11 * var(--u) + 1px); }
 :root:is([data-hp-look="slate"], [data-hp-look="gem"]) .herocard.big .hchp { padding: 4px 19px; }
@@ -82,19 +82,19 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -1px 0 rgba(0, 0, 0, 0.4), 0 3px 10px -2px rgba(0, 0, 0, 0.62);
 }
 /* The gold top edge the tooltips wear, as a hairline on the Health pills only. */
-:root[data-hp-look="slate"] :is(.combatopp-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp), .herocard.big .hchp) { border-top-color: color-mix(in srgb, var(--gold-lt, #ffd98a) 80%, transparent); }
+:root[data-hp-look="slate"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp) { border-top-color: color-mix(in srgb, var(--gold-lt, #ffd98a) 80%, transparent); }
 :root[data-hp-look="slate"] .herocard.big .hchp { border-radius: 13px; }
 :root[data-hp-look="slate"] .combatopp-tier { border-radius: calc(10 * var(--u)); }
 :root[data-hp-look="slate"] .hudpill-hp.hudpill-hp > svg { color: #ff4d6d; }
 :root[data-hp-look="slate"] .hpi-gloss { display: inline; opacity: 0.42; }
-:root[data-hp-look="slate"] :is(.hudpill-hp.hudpill-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .hpval) { color: #f5f8fc; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
+:root[data-hp-look="slate"] :is(.hudpill-hp.hudpill-hp, .statusbar .hero .hpbox .hpval) { color: #f5f8fc; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55); }
 :root[data-hp-look="slate"] .hudpill-arm.hudpill-arm {
   gap: 0.2em; margin-left: 0.3em; padding: 0.2em 0.45em 0.2em 0.32em;
   border-radius: 999px; background: rgba(120, 152, 194, 0.2); border: 1px solid rgba(190, 214, 240, 0.32);
   color: #dfe9f5; text-shadow: none;
 }
 :root[data-hp-look="slate"] .combatopp-armor { font-size: calc(15 * var(--u)); }
-:root[data-hp-look="slate"] :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .armval { font-size: calc(16 * var(--u)); }
+:root[data-hp-look="slate"] .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
 :root[data-hp-look="slate"] .hudpill-arm.hudpill-arm > svg { color: #9fc3ec; }
 :root[data-hp-look="slate"] .combatopp-tier { color: #a9b7ca; }
 :root[data-hp-look="slate"] .combatopp-tier-n { color: #ffd98a; }
@@ -119,18 +119,18 @@
 }
 /* Filigree studs: a small gold lozenge pinned to each end of a Health pill. Static. (Not on the Gauntlet's
    round / loss-cap pills, which are readouts rather than a life total.) */
-:root[data-hp-look="gem"] :is(.combatopp-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp), .herocard.big .hchp)::before,
-:root[data-hp-look="gem"] :is(.combatopp-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp), .herocard.big .hchp)::after {
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::before,
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::after {
   content: ''; position: absolute; top: 50%; width: 0.3em; height: 0.3em;
   background: var(--ui-stud); border: 1px solid var(--ui-stud-edge); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   transform: translateY(-50%) rotate(45deg); pointer-events: none;
 }
-:root[data-hp-look="gem"] :is(.combatopp-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp), .herocard.big .hchp)::before { left: -0.17em; }
-:root[data-hp-look="gem"] :is(.combatopp-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp), .herocard.big .hchp)::after { right: -0.17em; }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::before { left: -0.17em; }
+:root[data-hp-look="gem"] :is(.combatopp-hp, .statusbar .hero .hpbox, .herocard.big .hchp)::after { right: -0.17em; }
 :root[data-hp-look="gem"] .combatopp-tier { border-radius: calc(8 * var(--u)); color: var(--ui-chip-text); }
 :root[data-hp-look="gem"] .hudpill-hp.hudpill-hp > svg { color: var(--ui-heart); }
 :root[data-hp-look="gem"] :is(.hpi-gloss, .hpi-facet) { display: inline; }
-:root[data-hp-look="gem"] :is(.hudpill-hp.hudpill-hp, :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .hpval) { color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
+:root[data-hp-look="gem"] :is(.hudpill-hp.hudpill-hp, .statusbar .hero .hpbox .hpval) { color: var(--ui-text); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.7); }
 :root[data-hp-look="gem"] .hudpill-arm.hudpill-arm {
   gap: 0.14em; margin-left: 0.3em; padding: 0.2em 0.4em 0.2em 0.27em;
   border-radius: 0.33em; border: 1px solid var(--ui-armor-edge);
@@ -139,7 +139,7 @@
   color: var(--ui-armor-ink); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 :root[data-hp-look="gem"] .combatopp-armor { font-size: calc(15 * var(--u)); }
-:root[data-hp-look="gem"] :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .armval { font-size: calc(16 * var(--u)); }
+:root[data-hp-look="gem"] .statusbar .hero .hpbox .armval { font-size: calc(16 * var(--u)); }
 :root[data-hp-look="gem"] .hudpill-arm.hudpill-arm > svg { color: var(--ui-armor-icon); }
 :root[data-hp-look="gem"] .combatopp-tier-n {
   display: inline-block; min-width: calc(18 * var(--u)); padding: calc(2 * var(--u)) calc(6 * var(--u)); text-align: center;
@@ -240,7 +240,7 @@
 }
 /* Bigger numbers on the SAME line box: the font grows, the line-height shrinks to keep the old height. */
 :root[data-hp-look="minimal"] .combatopp-hp { font-size: calc(28 * var(--u)); line-height: calc(24 / 28); font-weight: 900; color: #fff; }
-:root[data-hp-look="minimal"] :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .hpval { font-size: calc(30 * var(--u)); line-height: calc(26 / 30); font-weight: 900; color: #fff; }
+:root[data-hp-look="minimal"] .statusbar .hero .hpbox .hpval { font-size: calc(30 * var(--u)); line-height: calc(26 / 30); font-weight: 900; color: #fff; }
 :root[data-hp-look="minimal"] .herocard.big .hchp { color: #fff; }
 :root[data-hp-look="minimal"] .hudpill-hp.hudpill-hp > svg { color: #ff4f6a; }
 :root[data-hp-look="minimal"] .hudpill-arm.hudpill-arm {
@@ -248,7 +248,7 @@
   border-left: 1px solid rgba(255, 255, 255, 0.16); background: none; font-weight: 800; color: #c3d1e2;
 }
 :root[data-hp-look="minimal"] .combatopp-armor { font-size: calc(18 * var(--u)); }
-:root[data-hp-look="minimal"] :is(.statusbar .hero .hpbox, .duosdock .duosdock-hp) .armval { font-size: calc(19 * var(--u)); }
+:root[data-hp-look="minimal"] .statusbar .hero .hpbox .armval { font-size: calc(19 * var(--u)); }
 :root[data-hp-look="minimal"] .hudpill-arm.hudpill-arm > svg { color: #8fb3dc; }
 :root[data-hp-look="minimal"] .combatopp-tier { color: rgba(236, 232, 248, 0.6); }
 :root[data-hp-look="minimal"] .combatopp-tier-l { font-size: calc(10 * var(--u)); letter-spacing: 0.12em; }

@@ -155,4 +155,9 @@ describe('R-VERSUS-LOCK-ORDER-01: every Versus RPC takes its row locks in one gl
     expect(report([...ORDER, FIX, EGRESS, '2026-10-28-versus-health.sql', RANKED_DUOS, '2026-10-30-ranked-duos-client.sql',
       '2026-10-31-ranked-duos-live-fixes.sql', '2026-11-01-ranked-duos-party.sql'])).toEqual({});
   });
+
+  it('after 2026-11-01-versus-ready-signal.sql (the re-lock and un-ready in every mode) the order still holds', () => {
+    expect(report([...ORDER, FIX, EGRESS, '2026-10-28-versus-health.sql', RANKED_DUOS, '2026-10-30-ranked-duos-client.sql',
+      '2026-10-31-ranked-duos-live-fixes.sql', '2026-11-01-ranked-duos-party.sql', '2026-11-01-ranked-duos-sweep-cron.sql', '2026-11-01-versus-ready-signal.sql'])).toEqual({});
+  });
 });

@@ -62,6 +62,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Freezing the shop now encases each card in a ring of jagged ice that grows in from the top down.',
       },
+      {
+        category: 'Systems',
+        text: 'Spell cards now glow a cool blue when hovered, and the glow hugs the spell frame instead of spilling past it.',
+      },
     ],
   },
   {

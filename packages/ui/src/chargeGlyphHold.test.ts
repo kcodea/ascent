@@ -134,6 +134,14 @@ describe('R-TIMER-SYNC-01: wiring', () => {
     expect(fuse, 'no infinite CSS animation on the fuse (it would keep moving through a hold)').not.toMatch(/infinite/);
   });
 
+  it('End Turn releases the fuse VISUAL on the press, while the sound keeps following the clock exactly as before', () => {
+    expect(recruit).toMatch(/<ChargeGlyph[^>]*released=\{eotAnimating \|\| versusGate\.gemLocked \|\| versusGate\.gemReady\}/s);
+    expect(glyph).toContain('const shown = lit && !released;');
+    // The sound reads `lit` (the clock), never `shown` (the press): R-TIMER-SYNC-01's audio is unchanged.
+    expect(glyph).toContain('const audible = lit && preview == null && !held;');
+    expect(glyph).toMatch(/const held = lit && preview == null && !running && seconds > 0;/);
+  });
+
   it('the countdown holds the clock whenever its effect tears down, for any reason', () => {
     expect(recruit).toContain('return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };');
     expect(recruit).toContain('id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));');

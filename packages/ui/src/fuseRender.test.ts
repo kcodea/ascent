@@ -7,12 +7,12 @@ const g: FuseGeom = { fuseX0: 0, fuseX1: 1000, fuseY: 0, fuseThick: 16, gemX: 11
 const v: FuseView = { ox: 0, oy: -200, scale: 1, dpr: 1 };
 
 /** A stub 2D context: counts drawImage, and throws on createRadialGradient once `locked`. */
-function stubCtx(state: { locked: boolean; draws: number }): CanvasRenderingContext2D {
+function stubCtx(state: { locked: boolean; draws: number; clears?: number }): CanvasRenderingContext2D {
   const grad = { addColorStop: () => undefined };
   const ctx = {
     canvas: { width: 100, height: 100 },
     globalAlpha: 1, globalCompositeOperation: 'source-over', fillStyle: '', strokeStyle: '', lineWidth: 1,
-    clearRect: () => undefined, fillRect: () => undefined, beginPath: () => undefined, moveTo: () => undefined,
+    clearRect: () => { state.clears = (state.clears ?? 0) + 1; }, fillRect: () => undefined, beginPath: () => undefined, moveTo: () => undefined,
     lineTo: () => undefined, closePath: () => undefined, fill: () => undefined, stroke: () => undefined,
     arc: () => undefined, save: () => undefined, restore: () => undefined,
     setTransform: () => undefined, translate: () => undefined, rotate: () => undefined,
@@ -59,6 +59,21 @@ describe('fuse renderer', () => {
     r.drawBehind(ctx, sim, g, v);
     r.drawGem(ctx, sim, g, v, 0.5, 1);
     expect(state.draws - extras).toBe(n);
+  });
+
+  it('the charged wait does not re-clear an empty behind-cards canvas every frame', () => {
+    const { r, state, ctx } = setup();
+    const sim = new FuseSim(FUSE_DEFAULTS, 1);
+    sim.collapse();
+    sim.step(1 / 60, 1, g); // idle: a few orbiters, all inside the gem pass
+    expect(sim.mode).toBe('idle');
+    r.drawBehind(ctx, sim, g, v); // first frame may clear what was there
+    state.clears = 0;
+    for (let i = 0; i < 60; i++) { sim.step(1 / 60, 1, g); r.drawBehind(ctx, sim, g, v); }
+    expect(state.clears).toBe(0);
+    // ...but a piece that leaves the gem pass is drawn (and the next empty frame clears it once).
+    sim.addParticle({ x: g.gemX - 400, y: g.gemY });
+    expect(r.drawBehind(ctx, sim, g, v)).toBe(1);
   });
 
   it('the collapse burst draws without baking anything new', () => {

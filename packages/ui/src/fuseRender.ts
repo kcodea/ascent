@@ -61,6 +61,8 @@ export class FuseRenderer {
   private core!: Sprite;
   private ring!: Sprite;
   private burstPending = false;
+  /** The behind-cards canvas may hold pixels (true until a frame finds nothing to draw and clears it). */
+  private behindDrawn = true;
   private burstAt = -1;
 
   constructor(cfg: FuseCfg, factory: SpriteFactory = domFactory) {
@@ -79,17 +81,21 @@ export class FuseRenderer {
     this.burstPending = true;
   }
 
-  /** Returns how many particles it drew (0 lets the caller skip clearing an already-empty canvas next frame). */
+  /** Draws the particles outside the gem pass; returns how many. An empty frame on an already-clean canvas does
+   *  nothing at all (the charged wait after 0:00 keeps every orbiter in the gem pass, so this canvas goes idle). */
   drawBehind(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView): number {
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.globalCompositeOperation = 'lighter';
     const R = this.cfg.captureR;
     const ps = sim.particles;
     let n = 0;
-    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) { this.drawParticle(ctx, ps[i], v); n++; }
+    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) n++;
+    if (n === 0 && !this.behindDrawn) return 0;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
+    this.behindDrawn = n > 0;
     return n;
   }
 

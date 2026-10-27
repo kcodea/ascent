@@ -10,7 +10,7 @@
       "params": {
         "count": 176,
         "interval": 410,
-        "spread": 0.24,
+        "spread": 1,
         "aimMode": "travel",
         "angle": -90,
         "speed": 1095,
@@ -26,7 +26,7 @@
             1
           ]
         ],
-        "drag": 0.91,
+        "drag": 0.825,
         "gravity": -900,
         "pointGravity": 0,
         "life": 1190,
@@ -97,13 +97,13 @@
         "fieldMix": 0,
         "tintMode": "palette",
         "palette": [
-          10202878,
-          8427007,
-          10410751,
+          15334142,
+          8446463,
+          12905471,
           16777215
         ],
         "blendMode": "add",
-        "glow": 0,
+        "glow": 0.03,
         "blur": 0,
         "blurCurve": [
           [
@@ -648,9 +648,9 @@
         "fieldMix": 0,
         "tintMode": "palette",
         "palette": [
-          4690174,
-          3774207,
-          10410751,
+          8573694,
+          3782911,
+          13167359,
           16777215
         ],
         "blendMode": "add",

@@ -64,13 +64,13 @@ const DEFAULTS: GlowConfig = {
   bloomStrength: 3,
   width: 1.045,
   height: 1.03,
-  // Spell — starts identical to the minion look, so nothing changes until it is tuned.
+  // Spell — owner-tuned 2026-10-27: same shape + strength as minions, a cool blue-white line and bloom.
   spellLineBlur: 0,
   spellLineAlpha: 1,
-  spellLineColor: '#ffffff',
+  spellLineColor: '#c8d8fe',
   spellBloomBlur: 3,
   spellBloomAlpha: 0.89,
-  spellBloomColor: '#ffffff',
+  spellBloomColor: '#b8cfff',
   spellBloomStrength: 3,
   spellWidth: 1.045,
   spellHeight: 1.03,

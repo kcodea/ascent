@@ -4947,10 +4947,10 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   --hg-w: var(--hg-s-w, 1.045);
   --hg-h: var(--hg-s-h, 1.03);
   --hg-line-blur: var(--hg-s-line-blur, 0px);
-  --hg-line-col: var(--hg-s-line-col, #ffffff);
+  --hg-line-col: var(--hg-s-line-col, rgba(200, 216, 254, 1));
   --hg-bloom-filter: var(--hg-s-bloom-filter,
-    drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.89))
-    drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)));
+    drop-shadow(0 0 3px rgba(184, 207, 255, 0.89)) drop-shadow(0 0 3px rgba(184, 207, 255, 0.89))
+    drop-shadow(0 0 3px rgba(184, 207, 255, 0.89)));
   /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,
      1122/1346), which stretched the glow ~12% wider than the frame (R-SPELL-GLOW-FIT-01). */
   width: calc(var(--ccw) * 1.239 * var(--sh)); aspect-ratio: 705 / 862;

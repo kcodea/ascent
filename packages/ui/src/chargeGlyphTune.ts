@@ -1,19 +1,13 @@
 import { useSyncExternalStore } from 'react';
 
 /**
- * Live-tunable knobs + a preview channel for the end-of-turn CHARGE GLYPH (see `.chargeglyph` in styles.css and the
- * `ChargeGlyph` component in Recruit.tsx). The look (colours/glow/gradient/pulse/feather) rides CSS `--cg-*` vars;
- * these are the two bits that DON'T fit a var: the JS-driven core-bloom curve, and a dev preview override.
- *
- * `chargeTune` — the sigil core-bloom curve, read each frame by ChargeGlyph's rAF. The dev ChargeGlyphTuner mutates
- * it live; production keeps the defaults. Plain object (not a store) — the rAF reads it every frame, no re-render.
+ * The dev PREVIEW channel for the end-of-turn charge (the crystal fuse: `ChargeGlyph` in Recruit.tsx, tuned in the
+ * Crystal Fuse panel, values in fuseTune.ts).
  *
  * `chargePreview` — a tiny pub/sub (mirrors turnClock) holding a forced charge 0→1 or null. When non-null (only the
- * dev tuner sets it), ChargeGlyph renders regardless of the clock and pins `--charge` to it, so the effect can be
+ * dev tuner sets it), ChargeGlyph renders regardless of the clock and pins the burn to it, so the effect can be
  * scrubbed / played on demand without waiting for a real 20s turn. null in production → zero effect.
  */
-export const chargeTune = { bloomAt: 0.65, coreMax: 1 };
-
 let preview: number | null = null;
 const subs = new Set<() => void>();
 

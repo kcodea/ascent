@@ -97,7 +97,7 @@ export const PANEL_EMBLEMS: Record<string, string> = {
   stepprocfx: '🧮',
   stepcounter: '📈',
   questtendril: '🏆',
-  chargeglyph: '🔋',
+  crystalfuse: '🔷',
   runeforgelook: '🔨',
   runeforgeentrance: '🔥',
   discoverentrance: '💫',

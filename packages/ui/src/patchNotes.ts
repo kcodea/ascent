@@ -77,6 +77,16 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'The end-of-turn countdown is now a crystal fuse that burns into the End Turn gem.',
+        details: [
+          'A second before the last 20, a blue crystal fuse appears with a flash and a soft twinkle. It then burns away from left to right, and the broken crystal is pulled into the End Turn gem, swirling faster as time runs out. No two turns look quite the same.',
+          'At 0:00 everything collapses into the gem, which stays charged and humming until you press End Turn.',
+          'End Turn strikes the gem to release the charge. End your turn early and the rest of the fuse flashes and fades away.',
+          'Versus: the gem now strikes when the round starts on its own, too.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Twenty-two new minion skins in chests, including a whole line of cuddly Plushie Beasts.',
         details: [
           'Plushies: Hawkus, Oona, Panther, Tort, T-Rex, Vicious, Wooly, Dawnclaw, Echohorn, Solaris, Beetle, Elderhorn, Grim and Spots.',

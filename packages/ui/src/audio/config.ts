@@ -30,6 +30,8 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // by 10%": 1.56 x 0.9 = 1.404).
   // The final-countdown clock tick at 5..1 left (owner 2026-10-07); the per-tick build rides on top (sfx TURN_TICK_BUILD).
   turntick: 0.5,
+  // The crystal fuse appearing at 0:21 (owner 2026-10-27): the owner's magic-twinkle clip (fuseappear.mp3), kept soft.
+  fuseappear: 0.35,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,
   uihover: 0.08,
@@ -95,7 +97,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
 export const CATEGORY_BUS: Record<string, BusName> = {
   buy: 'ui', sell: 'ui', consume: 'ui', runeBreak: 'ui', roll: 'ui', freeze: 'ui', unfreeze: 'ui', discover: 'ui', discoverSelect: 'ui', inspect: 'ui',
   clickthock: 'ui', cardtouch: 'ui', reorder: 'ui', upgrade: 'ui', deny: 'ui', pulse: 'ui', uihover: 'ui',
-  cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui', turntick: 'ui',
+  cardlanding: 'ui', castspell: 'ui', triple: 'ui', combatStart: 'ui', turncharge: 'ui', turnexplosion: 'ui', turntick: 'ui', fuseappear: 'ui',
   smack: 'combat', crit: 'combat', attack: 'combat', death: 'combat', cast: 'combat', divineshieldbreak: 'combat', rebornshatter: 'combat', rebornsummon: 'combat',
   gemapply: 'combat', skullburst: 'combat', triggerpulse: 'combat', triggerglow: 'combat', buff: 'combat', maxgold: 'combat',
   summon: 'combat', taunt: 'combat', shield: 'combat', flurrylunge: 'combat', flurryhit: 'combat', cleave: 'combat',

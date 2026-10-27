@@ -862,82 +862,59 @@ body.wipe-up .bgrtoast { z-index: 3170; }
    ≥900px behavior) — so any zoom level / window height just slides it a few px, never snaps. */
 .zone[data-zone='warband'] { top: calc(clamp(0px, (var(--lvh, 100vh) - 780px) * 0.16, var(--ch) * 0.07) + (var(--z-wb-y, -136px) + var(--wb-drop, 0px)) * var(--scale)); }
 
-/* End-of-turn CHARGE GLYPH — replaces the burning rope. Over the final CHARGE_SECONDS the board's etched sigil
-   charges with white-hot blue energy, building from BOTH sides inward along the midline conduit and filling the
-   centre sigil LAST, completing exactly as the clock hits 0. Three SVG-masked layers (turn-glyph.svg = the shape)
-   revealed both-sides-in by a wipe mask driven per-frame by --charge (0→1) from ChargeGlyph's rAF (a compositor-
-   friendly custom-prop write; the heavy card tree is never touched — the clock lives in turnClock.ts). Anchored to
-   the measured board midline (--charge-y); --charge-w/-x/-yoff size + nudge it (dev Layout Lab "Charge Glyph"
-   group — keep these fallbacks in sync with layoutConfig.ts). Look tuned in fx/turn-glyph-preview.html. PERF: the
-   per-frame mask recompute repaints the (thin, midline) FX region; the drop-shadow glow is the heaviest bit —
-   move it to the Pixi bloom layer if it costs frames on a full board (see docs/performance.md). */
+/* End-of-turn CRYSTAL FUSE (owner 2026-10-26; the Charge Glyph's look) — over the final CHARGE_SECONDS a blue
+   crystal fuse burns away LEFT → RIGHT along the board midline into the End Turn gem, finishing exactly as the
+   clock hits 0. `.fuse-body` is the owner's art (fx/crystal-fuse.png) masked by a left→right burn driven per-frame
+   by --burn (the front's x as a fraction of the box: the art's left tip → its right tip as charge goes 0→1) from
+   ChargeGlyph's rAF (a custom-prop write; the card tree is never touched). The debris is
+   a seeded force sim (fuseSim.ts) drawn on `.charge-motes` (behind the cards) and `.fuse-gemfx` (over the End Turn
+   button). Anchored to the measured board midline (--charge-y); --charge-w/-x/-yoff size + nudge it (dev Layout
+   Lab "Crystal Fuse" group — keep these fallbacks in sync with layoutConfig.ts). Physics/look dials: Dev Menu →
+   Crystal Fuse (fuseTune.ts). */
 .chargeglyph {
   position: absolute; left: 50%; top: var(--charge-y, 50%);
-  width: calc(var(--charge-w, 1124px) * var(--scale)); aspect-ratio: 1385 / 544;
-  transform: translate(calc(-50% + var(--charge-x, 7px) * var(--scale)), calc(-50% + var(--charge-yoff, -83px) * var(--scale)));
+  width: calc(var(--charge-w, 1320px) * var(--scale)); aspect-ratio: 1929 / 194;
+  transform: translate(calc(-50% + var(--charge-x, -42px) * var(--scale)), calc(-50% + var(--charge-yoff, -63px) * var(--scale)));
   /* z-index 0 (NOT -1): .app is transparent over an opaque dark wrapper, so a NEGATIVE-z child paints behind
-     .app's content and gets covered (invisible). z:0 keeps the glyph painted above the board backdrop while
+     .app's content and gets covered (invisible). z:0 keeps the fuse painted above the board backdrop while
      sitting in .app's paint group with the cards (position:relative / z:auto) — tree order then decides, and the
-     glyph is an EARLIER child of .app than the zones, so it renders BEHIND every card + its drop shadow but above
+     fuse is an EARLIER child of .app than the zones, so it renders BEHIND every card + its drop shadow but above
      `.boardbg`. (It's a direct child of `.app`, NOT the warband zone, so warband x/y/scale never move it.) */
   z-index: 0; overflow: visible; pointer-events: none;
-  --feather: 0%; /* hard reveal edges (Pixi softens the fronts). Raising it dims the sigil at full charge — see the spec. */
-  animation: chargein 0.4s ease both;
+  --burn: 0; --feather: 2.5%;
+  /* APPEAR (owner 2026-10-27): a brief bright flash as the fuse lights (sparkles are thrown off it by the sim). A
+     one-shot (a short filter one-shot is allowed; nothing loops). --appear-ms/--appear-peak from fuseTune. */
+  animation: fuseappear var(--appear-ms, 420ms) ease-out both;
 }
-@keyframes chargein { from { opacity: 0; } to { opacity: 1; } }
-/* Fade-out when the turn ends (End Turn pressed / timer hits 0): ChargeGlyph adds `.fading` to the glyph + its
-   motes canvas for CHARGE_FADEOUT_MS (Recruit.tsx) before unmounting, so the effect eases away instead of a
-   snap-cut. Drop the chargein hold + pulse and ramp opacity to 0 (compositor-only). Keep 450ms in sync with
-   CHARGE_FADEOUT_MS. */
-.chargeglyph.fading, .charge-motes.fading { animation: none; opacity: 0; transition: opacity 450ms ease; }
-.chargeglyph.fading .charge-fill { animation: none; } /* stop the pulse so the fade reads clean */
-/* Held with the shop clock (R-TIMER-SYNC-01): a pause freezes the pulse where it is, like the fill, motes and sound. */
-.chargeglyph.held .charge-fill { animation-play-state: paused; }
-/* each layer = the SVG shape  ∩  a symmetric both-sides-in wipe: lit at both EDGES, an unlit central GAP that
-   closes as --charge → 1, so energy builds inward and the centre sigil fills LAST. Driven per-frame (no CSS
-   transition — a tween would lag the update and desync the charge from the clock). */
-.chargeglyph .masked {
+@keyframes fuseappear {
+  0% { opacity: 0; filter: brightness(var(--appear-peak, 2.2)); }
+  20% { opacity: 1; filter: brightness(var(--appear-peak, 2.2)); }
+  100% { opacity: 1; filter: brightness(1); }
+}
+/* The fuse: the art, eaten away from the LEFT as --burn rises (the burnt part disappears; a soft --feather edge). */
+.chargeglyph .fuse-body {
   position: absolute; inset: 0;
-  -webkit-mask: url('/fx/turn-glyph.svg') center / contain no-repeat,
-    linear-gradient(90deg, #fff 0, #fff calc(var(--charge, 0) * 50% - var(--feather)),
-      transparent calc(var(--charge, 0) * 50%), transparent calc(100% - var(--charge, 0) * 50%),
-      #fff calc(100% - var(--charge, 0) * 50% + var(--feather)), #fff 100%);
-  -webkit-mask-composite: source-in;
-  mask: url('/fx/turn-glyph.svg') center / contain no-repeat,
-    linear-gradient(90deg, #fff 0, #fff calc(var(--charge, 0) * 50% - var(--feather)),
-      transparent calc(var(--charge, 0) * 50%), transparent calc(100% - var(--charge, 0) * 50%),
-      #fff calc(100% - var(--charge, 0) * 50% + var(--feather)), #fff 100%);
-  mask-composite: intersect;
+  background: url('/fx/crystal-fuse.png') center / contain no-repeat;
+  -webkit-mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
+    #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
+  mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
+    #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
 }
-/* steady charged energy — deep blue at the conduit ends → cyan → white-hot core at the sigil, so the bright core
-   is revealed LAST (the climax). Pulses subtly (opacity only, compositor). */
-/* The look (colours/gradient/glow/pulse/core/feather/base) is exposed as --cg-* vars with the baked defaults as
-   fallbacks, so the dev ChargeGlyphTuner can override them LIVE at true game scale (it composes the strings + sets
-   the vars on .chargeglyph); production with no tuner uses the fallbacks. Look first tuned in
-   fx/turn-glyph-preview.html; the in-game tuner re-tunes the scale-dependent bits (glow radii). */
-.chargeglyph .charge-fill {
-  background: var(--cg-fill, linear-gradient(90deg, #0037ff 0%, #009dff 19%, #ffffff 50%, #009dff 81%, #0037ff 100%));
-  filter: var(--cg-glow, drop-shadow(0 0 40px rgba(0, 157, 255, 0.85)) drop-shadow(0 0 80px rgba(0, 55, 255, 1)));
-  animation: chargepulse var(--cg-pulse-s, 4.3s) ease-in-out infinite; mix-blend-mode: screen; will-change: opacity;
+/* Generic fade (turn ended into combat with no strike to carry it). */
+.chargeglyph.fading, .charge-motes.fading, .fuse-gemfx.fading { animation: none; opacity: 0; transition: opacity var(--flash-ms, 180ms) ease; }
+/* Early End Turn (or Versus quiet): the remaining fuse FLASHES bright and fades out very quickly (owner ask). A
+   one-shot (filter allowed for a short profiled one-shot; nothing loops). --flash-ms/--flash-peak from fuseTune. */
+.chargeglyph.flashout { animation: fuseflash var(--flash-ms, 180ms) ease-out both; }
+.charge-motes.flashout, .fuse-gemfx.flashout { animation: none; opacity: 0; transition: opacity var(--flash-ms, 180ms) ease; }
+@keyframes fuseflash {
+  0% { opacity: 1; filter: brightness(1); }
+  30% { opacity: 1; filter: brightness(var(--flash-peak, 2.4)); }
+  100% { opacity: 0; filter: brightness(var(--flash-peak, 2.4)); }
 }
-@keyframes chargepulse { 0%, 100% { opacity: var(--cg-pulse-min, 0.63); } 50% { opacity: 1; } }
-/* the sigil CORE bloom — a white-hot radial that swells in over the final stretch (opacity set per-frame by
-   ChargeGlyph: 0 until charge > bloomAt, then eases to coreMax as t*t; both live-tunable via chargeGlyphTune). */
-.chargeglyph .charge-core {
-  background: var(--cg-core, radial-gradient(ellipse 90% 5% at 50% 50%, #ffffff 0%, #009dff 34%, transparent 62%));
-  filter: var(--cg-core-glow, drop-shadow(0 0 40px #ffffff)); mix-blend-mode: screen; opacity: 0; will-change: opacity;
-}
-/* faint always-on etch so the geometry hints before charging */
-.chargeglyph .charge-base { background: var(--cg-base, #0037ff); opacity: var(--cg-base-a, 0); mix-blend-mode: screen; }
-/* The motes canvas — a 2D particle layer co-located with the glyph (same anchor; 1.5× and SQUARE so the completion
-   flash + gather aren't clipped), at z:0 so it sits BEHIND the cards like the glyph. Driven by ChargeGlyph via
-   chargeMotes.ts (spawns white-hot motes on the lit shape → gather into the mandala + flash). pointer-events off. */
-.charge-motes {
-  position: absolute; left: 50%; top: var(--charge-y, 50%);
-  width: calc(var(--charge-w, 1124px) * var(--scale) * 1.5); aspect-ratio: 1 / 1;
-  transform: translate(calc(-50% + var(--charge-x, 7px) * var(--scale)), calc(-50% + var(--charge-yoff, -83px) * var(--scale)));
-  z-index: 0; pointer-events: none;
-}
+/* Debris behind the cards — sized + placed by ChargeGlyph (measured once per light, stage px), z:0 like the fuse. */
+.charge-motes { position: absolute; left: 0; top: 0; z-index: 0; pointer-events: none; }
+/* The gem swirl over the End Turn button (.etbwrap is z 41) — sized + placed by ChargeGlyph, portalled to the stage. */
+.fuse-gemfx { position: fixed; left: 0; top: 0; z-index: 42; pointer-events: none; }
 
 /* Layout Lab (dev) — hand + HUD region hooks (shop + warband ride the sizing var above; see the Warband note
    for why scaling never uses a transform). The hand carries no combat units, so it can use the standalone

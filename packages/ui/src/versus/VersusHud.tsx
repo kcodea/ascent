@@ -27,6 +27,7 @@ import { markFlow } from './flowTiming';
 import { SpectatorBar } from './SpectatorBar';
 import { useDuosLivePublisher } from './duosLive';
 import { isRankedDuosRaw, rankedCloseIso, rankedSomeoneEnded } from './rankedDuosView';
+import { emitPressCue } from '../pressCue';
 import './versus.css';
 
 /** This player's turn state (`versusTurn`), from the session store and the run. */
@@ -88,6 +89,8 @@ export function useVersusRecruit(run: RunState, endTurn: () => void, endCombat: 
     const t = window.setTimeout(() => {
       firedRef.current = wave;
       markFlow(useVersus.getState().match?.id, wave, 'endturn:fired');
+      // The gem's strike releases the crystal fuse's charge on this path too (it dedupes a ready click's strike).
+      emitPressCue('endTurn');
       endTurn();
     }, 0); // marked when it plays, not when queued
     return () => window.clearTimeout(t);

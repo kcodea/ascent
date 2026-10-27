@@ -56,7 +56,7 @@ export interface FuseCfg {
   collapsePull: number;
   /** Particles left orbiting during the 0:00 → End Turn wait. */
   idleOrbiters: number;
-  /** px/s² calm vortex during the wait. */
+  /** px/s calm orbit speed during the 0:00 → End Turn wait. */
   idleVortex: number;
   /** Gem glow peak alpha and radius (px). */
   gemGlow: number;
@@ -81,8 +81,8 @@ export interface FuseCfg {
 export const FUSE_DEFAULTS: FuseCfg = {
   aggression: 1,
   rampPow: 1.8,
-  rampFloor: 0.18,
-  pull: 420,
+  rampFloor: 0.3,
+  pull: 600,
   vortex: 520,
   vortexR: 70,
   turbulence: 140,
@@ -97,14 +97,14 @@ export const FUSE_DEFAULTS: FuseCfg = {
   shardSize: 7,
   moteSize: 4,
   sizeVar: 0.5,
-  life: 6,
+  life: 8,
   lifeVar: 0.4,
   maxLive: 700,
   captureR: 90,
   absorbR: 14,
   collapsePull: 1600,
   idleOrbiters: 10,
-  idleVortex: 160,
+  idleVortex: 60,
   gemGlow: 0.9,
   gemGlowSize: 90,
   burnFeather: 2.5,

@@ -873,8 +873,8 @@ body.wipe-up .bgrtoast { z-index: 3170; }
    Crystal Fuse (fuseTune.ts). */
 .chargeglyph {
   position: absolute; left: 50%; top: var(--charge-y, 50%);
-  width: calc(var(--charge-w, 1208px) * var(--scale)); aspect-ratio: 1929 / 194;
-  transform: translate(calc(-50% + var(--charge-x, 11px) * var(--scale)), calc(-50% + var(--charge-yoff, -63px) * var(--scale)));
+  width: calc(var(--charge-w, 1320px) * var(--scale)); aspect-ratio: 1929 / 194;
+  transform: translate(calc(-50% + var(--charge-x, -42px) * var(--scale)), calc(-50% + var(--charge-yoff, -63px) * var(--scale)));
   /* z-index 0 (NOT -1): .app is transparent over an opaque dark wrapper, so a NEGATIVE-z child paints behind
      .app's content and gets covered (invisible). z:0 keeps the fuse painted above the board backdrop while
      sitting in .app's paint group with the cards (position:relative / z:auto) — tree order then decides, and the
@@ -882,9 +882,15 @@ body.wipe-up .bgrtoast { z-index: 3170; }
      `.boardbg`. (It's a direct child of `.app`, NOT the warband zone, so warband x/y/scale never move it.) */
   z-index: 0; overflow: visible; pointer-events: none;
   --burn: 0; --feather: 2.5%; --front-boost: 1; --front-glow: 0.85; --front-w: 46px;
-  animation: chargein 0.4s ease both;
+  /* APPEAR (owner 2026-10-27): a brief bright flash as the fuse lights (sparkles are thrown off it by the sim). A
+     one-shot (a short filter one-shot is allowed; nothing loops). --appear-ms/--appear-peak from fuseTune. */
+  animation: fuseappear var(--appear-ms, 420ms) ease-out both;
 }
-@keyframes chargein { from { opacity: 0; } to { opacity: 1; } }
+@keyframes fuseappear {
+  0% { opacity: 0; filter: brightness(var(--appear-peak, 2.2)); }
+  20% { opacity: 1; filter: brightness(var(--appear-peak, 2.2)); }
+  100% { opacity: 1; filter: brightness(1); }
+}
 /* The fuse: the art, eaten away from the LEFT as --burn rises (the burnt part disappears; a soft --feather edge). */
 .chargeglyph .fuse-body {
   position: absolute; inset: 0;

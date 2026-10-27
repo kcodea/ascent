@@ -17,9 +17,10 @@ export interface FuseView { ox: number; oy: number; scale: number; dpr: number }
 /** Makes an offscreen canvas for baking a sprite (injectable for tests). */
 export type SpriteFactory = (w: number, h: number) => { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D };
 
-/** The radius the gem canvas must cover: the capture radius, the waiting orbit, and the glow beyond them. */
-export function gemCanvasHalf(c: FuseCfg): number {
-  return Math.max(c.captureR * 1.8, c.vortexR * 1.3) + c.gemGlowSize;
+/** The radius the gem canvas must cover: the capture radius (at least the button's own half-size, `minCapture`),
+ *  the waiting orbit, and the glow beyond them. */
+export function gemCanvasHalf(c: FuseCfg, minCapture = 0): number {
+  return Math.max(c.captureR * 1.8, c.vortexR * 1.3, minCapture * 1.15) + c.gemGlowSize;
 }
 
 export function inGemPass(p: FuseParticle, g: FuseGeom, captureR: number): boolean {
@@ -66,6 +67,8 @@ export class FuseRenderer {
   private core!: Sprite;
   private ring!: Sprite;
   private burstPending = false;
+  /** The End Turn button's half-size (stage px): pieces over the button always draw on top of it (owner 2026-10-27). */
+  private minCapture = 0;
   /** The behind-cards canvas may hold pixels (true until a frame finds nothing to draw and clears it). */
   private behindDrawn = true;
   private burstAt = -1;
@@ -81,6 +84,10 @@ export class FuseRenderer {
     this.bake();
   }
 
+  setMinCapture(r: number): void {
+    this.minCapture = Math.max(0, r);
+  }
+
   /** The 0:00 collapse burst: a one-shot ring + white flash on the gem pass. */
   burst(): void {
     this.burstPending = true;
@@ -89,7 +96,7 @@ export class FuseRenderer {
   /** Draws the particles outside the gem pass; returns how many. An empty frame on an already-clean canvas does
    *  nothing at all (the charged wait after 0:00 keeps every orbiter in the gem pass, so this canvas goes idle). */
   drawBehind(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView): number {
-    const R = this.cfg.captureR;
+    const R = Math.max(this.cfg.captureR, this.minCapture);
     const ps = sim.particles;
     let n = 0;
     // The charged wait's orbiters always ride the gem pass (whatever the capture radius), so the big canvas goes idle.
@@ -147,7 +154,7 @@ export class FuseRenderer {
       }
     }
 
-    const R = c.captureR;
+    const R = Math.max(c.captureR, this.minCapture);
     const ps = sim.particles;
     const idle = sim.mode === 'idle';
     for (let i = 0; i < ps.length; i++) if (idle || inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);

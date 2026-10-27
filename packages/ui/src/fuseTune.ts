@@ -68,6 +68,11 @@ export interface FuseCfg {
   frontGlowW: number;
   /** Front-glow multiplier as the front crosses a bright seam (1 = no seam flare). */
   seamBoost: number;
+  /** Appear: sparkles thrown off the fuse when it lights (0 = none). */
+  appearSparkles: number;
+  /** Appear: length (ms) and brightness of the flash when the fuse lights. */
+  appearFlashMs: number;
+  appearFlashPeak: number;
   /** Early End Turn flash-and-fade length (ms; owner: very quick). */
   flashOutMs: number;
   /** Brightness multiplier of that flash. */
@@ -112,6 +117,9 @@ export const FUSE_DEFAULTS: FuseCfg = {
   frontGlow: 0.26,
   frontGlowW: 27,
   seamBoost: 3.35,
+  appearSparkles: 90,
+  appearFlashMs: 420,
+  appearFlashPeak: 2.2,
   flashOutMs: 180,
   flashOutPeak: 2.4,
   colorShard: '#5fb8ff',

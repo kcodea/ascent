@@ -24,5 +24,5 @@ its visuals:
   plus scrub / Play 20 s / Show 0:00 / Lock seed. Layout Lab's group is renamed Crystal Fuse.
 - Removed: `chargeMotes.ts`, `turn-glyph.svg`, the two preview pages, `chargeTune`, `ChargeGlyphTuner.tsx`.
 
-**Not yet checked:** the on-screen position (Layout Lab defaults W 1208, X 11, Y -63 were computed, not eyeballed)
+**Not yet checked:** the on-screen position (Layout Lab defaults W 1320, X -42, Y -63 were computed, not eyeballed)
 and a prod-build performance trace of the last 20 s on a full board. Both are for the owner's own pass.

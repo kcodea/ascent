@@ -109,8 +109,8 @@ export const LAYOUT_VARS: LayoutVarDef[] = [
   // to the measured board midline (--charge-y); Size scales the fuse (aspect-locked), X/Y nudge it so its right tip
   // meets the End Turn gem. Defaults are the CSS fallbacks in styles.css `.chargeglyph` — keep the two in sync so
   // production (no tuner) matches a Reset. (Physics/look: Dev Menu → Crystal Fuse.)
-  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Crystal Fuse', min: 200, max: 1800, step: 4, def: 1208, fmt: 'px' },
-  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Crystal Fuse', min: -600, max: 600, step: 1, def: 11, fmt: 'px' },
+  { key: 'glyphW', cssVar: '--charge-w', label: 'Size', group: 'Crystal Fuse', min: 200, max: 1800, step: 4, def: 1320, fmt: 'px' },
+  { key: 'glyphX', cssVar: '--charge-x', label: 'X offset', group: 'Crystal Fuse', min: -600, max: 600, step: 1, def: -42, fmt: 'px' },
   { key: 'glyphY', cssVar: '--charge-yoff', label: 'Y offset', group: 'Crystal Fuse', min: -400, max: 400, step: 1, def: -63, fmt: 'px' },
 
   // The drag-to-BUY / drag-to-SELL drop regions. Unlike the other groups these aren't pure CSS — the boundary is

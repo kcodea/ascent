@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FuseRenderer, inGemPass, type SpriteFactory, type FuseView } from './fuseRender';
+import { FuseRenderer, gemCanvasHalf, inGemPass, type SpriteFactory, type FuseView } from './fuseRender';
 import { FuseSim, type FuseGeom } from './fuseSim';
 import { FUSE_DEFAULTS } from './fuseTune';
 
@@ -75,6 +75,17 @@ describe('fuse renderer', () => {
     const charging = new FuseSim(FUSE_DEFAULTS, 2);
     charging.addParticle({ x: g.gemX - 400, y: g.gemY });
     expect(r.drawBehind(ctx, charging, g, v)).toBe(1);
+  });
+
+  it('pieces over the End Turn button draw on top of it, however small the capture radius', () => {
+    const { r, ctx } = setup();
+    expect(FUSE_DEFAULTS.captureR).toBe(20);
+    const sim = new FuseSim(FUSE_DEFAULTS, 3);
+    sim.addParticle({ x: g.gemX - 60, y: g.gemY + 30 }); // over the button, outside a 20 px capture
+    expect(r.drawBehind(ctx, sim, g, v)).toBe(1);
+    r.setMinCapture(90); // the measured button half-size
+    expect(r.drawBehind(ctx, sim, g, v)).toBe(0);
+    expect(gemCanvasHalf({ ...FUSE_DEFAULTS, captureR: 20 }, 90)).toBeGreaterThanOrEqual(90 + FUSE_DEFAULTS.gemGlowSize);
   });
 
   it('the collapse burst draws without baking anything new', () => {

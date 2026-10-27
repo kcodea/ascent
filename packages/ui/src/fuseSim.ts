@@ -98,6 +98,31 @@ export class FuseSim {
     this.collapseT = 0;
   }
 
+  /** The APPEAR burst (owner 2026-10-27): `n` short-lived sparkles thrown off the unburnt fuse (from the burning
+   *  front at `charge` to the right tip) in every direction. They live under ~1.1 s, so they flash and fade. */
+  sparkle(n: number, charge: number, g: FuseGeom): void {
+    const c = this.cfg;
+    const r = this.rng;
+    const x0 = g.fuseX0 + Math.min(1, Math.max(0, charge)) * (g.fuseX1 - g.fuseX0);
+    for (let i = 0; i < n && this.ps.length < c.maxLive; i++) {
+      const a = r() * Math.PI * 2;
+      const sp = c.spawnSpeed * (1.5 + r() * 1.5);
+      const p = this.alloc();
+      p.kind = 'mote';
+      p.x = x0 + r() * (g.fuseX1 - x0);
+      p.y = g.fuseY + (r() - 0.5) * g.fuseThick;
+      p.vx = Math.cos(a) * sp;
+      p.vy = Math.sin(a) * sp;
+      p.mass = c.moteMass;
+      p.size = c.moteSize * (0.8 + r() * 0.8);
+      p.rot = 0; p.spin = 0; p.age = 0;
+      p.life = 0.5 + r() * 0.6;
+      p.heat = 1;
+      p.orbit = c.vortexR;
+      this.ps.push(p);
+    }
+  }
+
   /** Test/tuner hook: add one particle (defaults: a still mote). */
   addParticle(init: Partial<FuseParticle>): FuseParticle {
     const kind = init.kind ?? 'mote';

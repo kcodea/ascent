@@ -138,6 +138,27 @@ describe('FuseSim', () => {
     expect(s.lastPrewarmSteps).toBeLessThanOrEqual(20);
   });
 
+  it('the appear sparkle burst flies off the unburnt fuse, briefly', () => {
+    const s = new FuseSim(FUSE_DEFAULTS, 4);
+    s.sparkle(60, 0.25, g);
+    expect(s.particles.length).toBe(60);
+    for (const p of s.particles) {
+      expect(p.x).toBeGreaterThanOrEqual(g.fuseX0 + 0.25 * (g.fuseX1 - g.fuseX0) - 1);
+      expect(p.x).toBeLessThanOrEqual(g.fuseX1 + 1);
+      expect(p.life).toBeLessThanOrEqual(1.2);
+      expect(Math.hypot(p.vx, p.vy)).toBeGreaterThan(0);
+    }
+    expect(s.mode).toBe('charging');
+    for (let i = 0; i < 90; i++) s.step(DT, 0.25, g);
+    expect(s.particles.length, 'all faded within 1.5 s').toBe(0);
+  });
+
+  it('the sparkle burst respects maxLive', () => {
+    const s = new FuseSim({ ...FUSE_DEFAULTS, maxLive: 20 }, 4);
+    s.sparkle(60, 0, g);
+    expect(s.particles.length).toBe(20);
+  });
+
   it('reset clears everything', () => {
     const s = fresh();
     ramp(s, 60, 0, 0.4);

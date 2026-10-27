@@ -577,6 +577,8 @@ interface FuseFx {
   /** The fuse box's width in stage px (the burning front's travel). */
   boxW: number;
   seed: number;
+  /** The dev preview's last charge (a jump backwards replays the light). */
+  lastPreview: number;
 }
 /** The end-of-turn CHARGE GLYPH turn timer, drawn as the CRYSTAL FUSE (owner 2026-10-26): over the final `window`
  *  seconds a blue crystal fuse burns away LEFT → RIGHT along the board midline into the End Turn gem, finishing
@@ -689,7 +691,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     const seed = fuseSeed.locked ?? randomSeed();
     const sim = new FuseSim(cfg, seed);
     const fx: FuseFx = {
-      sim, renderer, seed, boxW: 0,
+      sim, renderer, seed, boxW: 0, lastPreview: 0,
       geom: { fuseX0: 0, fuseX1: 0, fuseY: 0, fuseThick: 0, gemX: 0, gemY: 0 },
       behindView: { ox: 0, oy: 0, scale: 1, dpr: 1 }, gemView: { ox: 0, oy: 0, scale: 1, dpr: 1 },
       behindCtx: behind.getContext('2d'), gemCtx: gemC.getContext('2d'),
@@ -699,6 +701,8 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
         el.style.setProperty('--flash-ms', `${cfg.flashOutMs}ms`);
         el.style.setProperty('--flash-peak', String(cfg.flashOutPeak));
       }
+      box.style.setProperty('--appear-ms', `${cfg.appearFlashMs}ms`);
+      box.style.setProperty('--appear-peak', String(cfg.appearFlashPeak));
       box.style.setProperty('--feather', `${cfg.burnFeather}%`);
       box.style.setProperty('--front-glow', String(cfg.frontGlow));
       box.style.setProperty('--front-w', `${cfg.frontGlowW}px`);
@@ -728,7 +732,12 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       behind.height = Math.max(1, Math.round((bottom - top) * scale * dpr));
       fx.behindView = { ox: left, oy: top, scale, dpr };
       // Gem canvas: a square over the button (fixed inside the stage, so stage px are its coordinates).
-      const half = gemCanvasHalf(cfg);
+      // Pieces over the End Turn button draw ON TOP of it (owner 2026-10-27): the gem pass covers the button.
+      const btn = document.querySelector('.etbwrap');
+      const br2 = btn ? rectToStage(btn.getBoundingClientRect()) : null;
+      const buttonR = br2 ? Math.max(br2.width, br2.height) / 2 : 0;
+      renderer.setMinCapture(buttonR);
+      const half = gemCanvasHalf(cfg, buttonR);
       Object.assign(gemC.style, { left: `${g.gemX - half}px`, top: `${g.gemY - half}px`, width: `${half * 2}px`, height: `${half * 2}px` });
       gemC.width = gemC.height = Math.max(1, Math.round(half * 2 * scale * dpr));
       fx.gemView = { ox: g.gemX - half, oy: g.gemY - half, scale, dpr };
@@ -741,8 +750,9 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     if ((pv == null && fusePhaseOnLight(turnClock.get()) === 'charged') || charge >= 1) {
       sim.collapse(); // straight to the charged hum, off-screen and bounded (no burst, no sound)
       for (let i = 0; i < 300 && !sim.collapseDone; i++) sim.step(1 / 60, 1, fx.geom);
-    } else if (charge * (pv == null ? win : CHARGE_SECONDS) > 0.5) {
-      sim.prewarm(charge, fx.geom);
+    } else {
+      if (charge * (pv == null ? win : CHARGE_SECONDS) > 0.5) sim.prewarm(charge, fx.geom);
+      sim.sparkle(cfg.appearSparkles, charge, fx.geom); // the appear burst, with the CSS flash (owner 2026-10-27)
     }
     fxRef.current = fx;
     const onCfg = (): void => { cfg = getFuseCfg(); sim.setCfg(cfg); renderer.setCfg(cfg); applyStatic(); measure(); };
@@ -775,7 +785,15 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       const fx = fxRef.current;
       if (!fx) return;
       const { sim, renderer, geom } = fx;
-      if (previewRef.current != null && charge < 0.999 && sim.mode !== 'charging') { fx.seed = fuseSeed.locked ?? randomSeed(); sim.reset(fx.seed); } // tuner replay
+      // Dev tuner replay (Play / Show 0:00 / a scrub backwards): a fresh light — new roll, the appear burst + flash.
+      if (previewRef.current != null && charge < 0.999 && (sim.mode !== 'charging' || charge < fx.lastPreview - 0.02)) {
+        fx.seed = fuseSeed.locked ?? randomSeed();
+        sim.reset(fx.seed);
+        sim.sparkle(getFuseCfg().appearSparkles, charge, geom);
+        const box = boxRef.current;
+        if (box) { box.style.animation = 'none'; void box.offsetWidth; box.style.animation = ''; }
+      }
+      if (previewRef.current != null) fx.lastPreview = charge;
       // 0:00 reached while lit: everything collapses into the gem with a burst (lands with sfx.turnExplode()).
       if (charge >= 1 && sim.mode === 'charging' && !heldRef.current) { sim.collapse(); renderer.burst(); }
       if (!heldRef.current) sim.step(dt, charge, geom);

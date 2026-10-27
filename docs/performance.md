@@ -429,6 +429,29 @@ First reading (2026-10-27, 22-wave game): the logic grows only gently. Autosave 
 call over budget was **settle + resolve combat with all 8 seats alive (~4-5 ms, waves 4-6)**, which shrinks as
 seats fall. So late-game choppiness is not the run logic piling up; look at the UI side first.
 
+### Live replay — play a REAL recorded game back through the live UI
+
+`?livereplay=<run_telemetry id>&perf=1` (`packages/ui/src/liveReplay.ts`) rebuilds a recorded lobby game and plays
+the player's own actions back through the real game screen at the player's own pace, with the Perf HUD recording.
+It is the repeatable "high-APM late game": measure it, fix something, play the same game again, compare in Perf
+Analytics. Not the replay viewer: the viewer draws recorded snapshots, this runs the live reducer, store commit
+steps, shop, End of Turn, fights and FX.
+
+- **Exact on the build the game was played on** (the row's `patch`). The run is rebuilt from the seed + hero + set,
+  the recorded lobby is put back and its seats' runs are fetched from the `boards` pool, so shops and fights come
+  out as recorded (game 405: 15 waves, 996 actions, 0 differences headlessly). On another build it plays until the
+  first difference and stops: every shop that opens is compared with the recorded one. To replay an older game,
+  check its sha out in a worktree, copy `liveReplay.ts` + `liveReplaySchedule.ts` in, and run that build.
+- **How it plays:** shop actions go through `dispatch` (the path a click takes); End Turn and End Combat are pressed
+  on the real button, so End of Turn and the fight play as they do live; a fight still playing at the player's
+  recorded End Combat moment gets Skip, as the player did. Actions the game dispatches itself (settle, combat
+  previews, the shop clock) are left to the screen. `&lrspeed=2` halves the player's shop gaps (fights never speed up).
+- **Not reproduced:** drags (the drop's action is dispatched, no drag animation), hovers, the autosave (the run is
+  `sandbox`, so nothing is saved or uploaded).
+- **Run it in a visible, focused tab** of the prod build (`npm run build:web` + preview). A hidden tab throttles
+  `requestAnimationFrame`, the fight never finishes, and the replay stops with "timed out waiting for the next shop".
+- Console: `__liveReplay.status()`, `__liveReplay.stop()`; progress logs as `[live replay] …`.
+
 ---
 
 ## 3. Render profiling in the browser (we do this together)

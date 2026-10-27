@@ -95,6 +95,10 @@ export function rebuildLiveReplayRun(b: LiveReplayBundle): RunState {
 
 /** How much longer than the player's fight a live fight may run before the replay treats it as a Skip. */
 const SKIP_GRACE_MS = 1500;
+/** A short human beat between End Combat lighting up and the press. */
+const END_COMBAT_SETTLE_MS = 250;
+/** How long a press may sit unanswered before the driver presses End Combat again. */
+const END_COMBAT_RETRY_MS = 2000;
 
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
@@ -133,6 +137,7 @@ async function drive(steps: LiveReplayStep[], speed: number): Promise<void> {
   let firedAt = anchorLive;
   let refusedQuiet = 0;
   let skips = 0;
+  let presses = 0;
   for (let i = 0; i < steps.length; i++) {
     if (stopRequested) throw new Error('stopped');
     const step = steps[i]!;
@@ -175,12 +180,22 @@ async function drive(steps: LiveReplayStep[], speed: number): Promise<void> {
       }
       await waitFor('End Combat to become available', ready);
       if (step.tMs !== null) await sleep(combatLive + Math.max(0, step.tMs - combatRec) - performance.now());
-      const b = endButton();
-      if (b?.classList.contains('ready')) b.click();
+      // A press the instant the button turns can land before the screen accepts it (seen on game 405 wave 2: the
+      // first press did nothing, a second one left). A player would just press again, so the driver does too, every
+      // `END_COMBAT_RETRY_MS` while the fight is still on screen. A press while the exit runs is ignored by the screen.
+      await sleep(END_COMBAT_SETTLE_MS);
+      let pressedAt = 0;
       firedAt = performance.now();
       await waitFor('the next shop', () => {
         const s = useGame.getState();
-        return gameOver(s.run) || (s.run.phase === 'recruit' && !s.presentationTx);
+        if (gameOver(s.run) || (s.run.phase === 'recruit' && !s.presentationTx)) return true;
+        const btn = endButton();
+        if (s.run.phase === 'combat' && btn?.classList.contains('ready') && performance.now() - pressedAt > END_COMBAT_RETRY_MS) {
+          if (pressedAt) presses++;
+          btn.click();
+          pressedAt = performance.now();
+        }
+        return false;
       });
       if (gameOver(useGame.getState().run)) break;
       const diffs = checkShop(step);
@@ -190,6 +205,7 @@ async function drive(steps: LiveReplayStep[], speed: number): Promise<void> {
       log(`wave ${useGame.getState().run.wave} shop matches the recording`);
     }
   }
+  if (presses) log(`End Combat needed a second press ${presses} time(s)`);
   if (skips) log(`pressed Skip in ${skips} fight(s), as the player did`);
   if (refusedQuiet) log(`${refusedQuiet} action(s) changed nothing (they changed nothing for the player either)`);
 }

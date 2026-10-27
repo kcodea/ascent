@@ -30,7 +30,7 @@ export const CATEGORY_GAINS: Record<string, number> = {
   // by 10%": 1.56 x 0.9 = 1.404).
   // The final-countdown clock tick at 5..1 left (owner 2026-10-07); the per-tick build rides on top (sfx TURN_TICK_BUILD).
   turntick: 0.5,
-  // The crystal fuse appearing at 0:21 (owner 2026-10-27): the equipment-sheen glint, kept soft.
+  // The crystal fuse appearing at 0:21 (owner 2026-10-27): the owner's magic-twinkle clip (fuseappear.mp3), kept soft.
   fuseappear: 0.35,
   flurrylunge: 0.375, flurryhit: 0.375, cleave: 0.11,
   felSpikeEcho: 0.5, felSpikeEchoLand: 0.5,

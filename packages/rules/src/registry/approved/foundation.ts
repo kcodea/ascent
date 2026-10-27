@@ -9774,7 +9774,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     title: 'The end-of-turn charge is a crystal fuse burning into the End Turn gem, and the gem\'s strike releases it',
     statement:
       'Over the last seconds of a Shop turn a crystal fuse burns away left to right into the End Turn gem, finishing '
-      + 'exactly at 0:00 (its timing, holds and sound are R-TIMER-SYNC-01). It appears with a flash, a burst of sparkles and a soft crystal glint (an existing sound) '
+      + 'exactly at 0:00 (its timing, holds and sound are R-TIMER-SYNC-01). It appears with a flash, a burst of sparkles and a soft magic twinkle '
       + 'one second before its burn starts (at 0:21 for a 20-second window) and sits whole until then. Its burning edge carries no glow of its own. The broken crystal is pulled into the gem by '
       + 'a simulation of forces, seeded fresh each time, so no two turns look the same. At 0:00 everything collapses into '
       + 'the gem with a burst, together with the 0:00 sound, and the gem then waits charged, with a few pieces circling '

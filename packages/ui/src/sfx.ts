@@ -2134,11 +2134,11 @@ export const sfx = {
     if (playTailedSample(turnTickClip(n), 'turntick', vol, 0, NO_TAIL, undefined, rate)) return;
     tone({ freq: 880 * rate, dur: 0.09, type: 'triangle', vol: 0.2 * vol, slideTo: 420 * rate, category: 'turntick' });
   },
-  /** THE CRYSTAL FUSE APPEARS (owner 2026-10-27: "a sound effect when the gem first emerges ... nothing crazy - find
-   *  it from our existing sounds"): the equipment-sheen glint, on its own `fuseappear` fader. Lands with the appear
+  /** THE CRYSTAL FUSE APPEARS (owner 2026-10-27: "a sound effect when the gem first emerges ... nothing crazy"; then
+   *  his own pick, a magic twinkle, `audio/fuseappear.mp3`), on its own `fuseappear` fader. Lands with the appear
    *  flash and sparkles; the charge build still starts at 0:20. */
   fuseAppear: () => {
-    if (playSample('equipmentsheen', 'fuseappear')) return;
+    if (playSample('fuseappear', 'fuseappear')) return;
     tone({ freq: 1500, dur: 0.14, type: 'sine', vol: 0.05, slideTo: 2400, category: 'fuseappear' });
   },
   /** Start fetching the tick clip ahead of the count, so FIVE never falls back to the synth on a cold bank. */

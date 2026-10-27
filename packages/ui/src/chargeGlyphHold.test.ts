@@ -149,7 +149,7 @@ describe('R-TIMER-SYNC-01: wiring', () => {
     expect(glyph).toMatch(/sim\.sparkle\(cfg\.appearSparkles[^\n]*\n\s*sfx\.fuseAppear\(\)/);
     expect(glyph, 'no burning-front glow element').not.toContain('fuse-front');
     const sfxSrc = readFileSync(join(here, 'sfx.ts'), 'utf8');
-    expect(sfxSrc).toMatch(/fuseAppear: \(\) => \{\n\s*if \(playSample\('equipmentsheen', 'fuseappear'\)\)/);
+    expect(sfxSrc).toMatch(/fuseAppear: \(\) => \{\n\s*if \(playSample\('fuseappear', 'fuseappear'\)\)/);
   });
 
   it('the countdown holds the clock whenever its effect tears down, for any reason', () => {

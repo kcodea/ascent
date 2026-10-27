@@ -31,15 +31,30 @@ describe('perf gauntlet judging (R-PERF-GAUNTLET-01)', () => {
     expect(hiddenFrames).toBe(1);
   });
 
-  it('only calls a winner when every run of one build beats every run of the other', () => {
-    const run = (worst: number): Record<string, SceneStats> => ({ drag: sceneStats([2.78, worst], 2.78, NO_WORK, []) });
-    const clear = foldRuns([run(20), run(22), run(21)], ['drag']);
-    const better = foldRuns([run(9), run(10), run(11)], ['drag']);
+  it('only calls a winner when every run beats every run of the other AND the gap is big enough', () => {
+    const run = (taskMs: number): Record<string, SceneStats> => ({ drag: sceneStats([2.78, 2.78, 2.78, 2.78], 2.78, { ...NO_WORK, task: taskMs }, []) });
+    const slow = foldRuns([run(20), run(22), run(21)], ['drag']); // 5.0-5.5 ms of work a frame
+    const fast = foldRuns([run(9), run(10), run(11)], ['drag']);
     const overlapping = foldRuns([run(9), run(25), run(11)], ['drag']);
-    expect(winner(clear.drag, better.drag, 'worst')).toBe('Y');
-    expect(winner(better.drag, clear.drag, 'worst')).toBe('X');
-    expect(winner(clear.drag, overlapping.drag, 'worst')).toBe('~'); // one bad run keeps it within noise
+    const barely = foldRuns([run(19), run(19.5), run(19.8)], ['drag']); // every run better, but only ~7%
+    expect(winner(slow.drag, fast.drag, 'workPerFrame')).toBe('Y');
+    expect(winner(fast.drag, slow.drag, 'workPerFrame')).toBe('X');
+    expect(winner(slow.drag, overlapping.drag, 'workPerFrame')).toBe('~'); // one bad run keeps it within noise
+    expect(winner(slow.drag, barely.drag, 'workPerFrame')).toBe('~'); // inside the null A/B's ~5% noise
     expect(median([3, 1, 2])).toBe(2);
+  });
+
+  it('never lets the worst frame alone decide a win (identical builds differed 2.5x on it)', () => {
+    const run = (worst: number): Record<string, SceneStats> => ({ s: sceneStats([2.78, worst], 2.78, NO_WORK, []) });
+    expect(winner(foldRuns([run(160), run(170)], ['s']).s, foldRuns([run(60), run(70)], ['s']).s, 'worst')).toBe('·');
+  });
+
+  it('needs at least one refresh step on the quantized p95 / p99', () => {
+    const run = (p: number): Record<string, SceneStats> => ({ s: sceneStats(Array.from({ length: 100 }, (_, i) => (i < 95 ? 2.78 : p)), 2.78, NO_WORK, []) });
+    const a = foldRuns([run(5.56), run(5.56)], ['s']).s; const b = foldRuns([run(2.9), run(2.9)], ['s']).s;
+    expect(winner(a, b, 'p99', 2.78)).toBe('~'); // 2.66 ms apart: under one 360 Hz refresh
+    const c = foldRuns([run(8.34), run(8.34)], ['s']).s;
+    expect(winner(c, b, 'p99', 2.78)).toBe('Y'); // two refreshes apart
   });
 
   it('passes a scene only under budget on a fast display, and refuses to judge where it cannot see a miss', () => {

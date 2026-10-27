@@ -95,12 +95,30 @@ export function foldRuns(runs: readonly Record<string, SceneStats>[], scenes: re
   return out;
 }
 
-/** Which build wins one metric (lower is better for all of them). A win must be CLEAR: every run of the winner beats
- *  every run of the other (the bands do not overlap). Otherwise it is noise ('~'), however different the medians. */
-export function winner(x: FoldedScene | undefined, y: FoldedScene | undefined, k: keyof SceneStats): 'X' | 'Y' | '~' | '' {
+/** The smallest gap between the two builds' medians that can count as a win, per metric: a relative gap, and an
+ *  absolute floor (`interval` = one refresh, since p95 / p99 frame times move in whole refresh steps). Calibrated on a
+ *  null A/B of two identical builds (2026-10-27): p95 / p99 / work agreed within ~5%, dropped-frame counts within
+ *  ~20%, and the worst frame differed 2.5x, so the worst frame never decides a win (`null`). */
+export const WIN_GAP: Partial<Record<keyof SceneStats, (interval: number) => { rel: number; abs: number } | null>> = {
+  worst: () => null,
+  p99: (iv) => ({ rel: 0.1, abs: iv }), p95: (iv) => ({ rel: 0.1, abs: iv }), p50: (iv) => ({ rel: 0.1, abs: iv }),
+  workPerFrame: () => ({ rel: 0.1, abs: 0.1 }), scriptPerFrame: () => ({ rel: 0.1, abs: 0.1 }), stylePerFrame: () => ({ rel: 0.1, abs: 0.1 }),
+  long: () => ({ rel: 0.25, abs: 10 }), jank: () => ({ rel: 0.25, abs: 10 }), overBudget: () => ({ rel: 0.25, abs: 10 }),
+  loaf: () => ({ rel: 0.25, abs: 2 }), loafBlocking: () => ({ rel: 0.25, abs: 50 }),
+};
+
+/** Which build wins one metric (lower is better for all of them). A win must be CLEAR on two counts: every run of the
+ *  winner beats every run of the other (the bands do not overlap), AND the medians differ by at least the metric's
+ *  WIN_GAP. Anything else is noise ('~'). The worst frame is shown but never wins ('·'). */
+export function winner(x: FoldedScene | undefined, y: FoldedScene | undefined, k: keyof SceneStats, interval = 2.78): 'X' | 'Y' | '~' | '·' | '' {
   if (!x || !y) return '';
-  if (x[k].max < y[k].min) return 'X';
-  if (y[k].max < x[k].min) return 'Y';
+  const gapOf = WIN_GAP[k];
+  const gap = gapOf ? gapOf(interval) : { rel: 0.1, abs: 0 };
+  if (!gap) return '·';
+  const a = x[k].med; const b = y[k].med;
+  const big = Math.abs(a - b) >= Math.max(gap.abs, gap.rel * Math.max(a, b));
+  if (big && x[k].max < y[k].min) return 'X';
+  if (big && y[k].max < x[k].min) return 'Y';
   return '~';
 }
 

@@ -615,7 +615,7 @@ function report(folded, hz, names) {
   const lines = [];
   const p = (l = '') => { lines.push(l); };
   p(`PERF GAUNTLET  budget ${BUDGET} ms (240 Hz)  display ~${Math.round(hz)} Hz  ${RUNS} run(s)/build, measured rounds ${FROM}-${TO} (1-${FROM - 1} fast-forwarded)${HEADLESS ? '  HEADLESS: frame intervals are NOT real, judge on work/frame' : ''}`);
-  p(`Per scene, the median across runs. Winner column: X / Y = that build better on EVERY run (ranges do not overlap), ~ = within noise.`);
+  p(`Per scene, the median across runs. Winner: X / Y = better on EVERY run AND by a real margin (10% on times/work, 25% on counts, 1 refresh on p95/p99); ~ = noise; worst never decides (·).`);
   p(`Order of judgement (docs/performance.md §0): worst, then long/jank, then p95. work = main-thread ms per frame.`);
   p();
   const cols = [['worst', 1], ['long', 0], ['jank', 0], ['p95', 1], ['p99', 1], ['workPerFrame', 2], ['loafBlocking', 0]];
@@ -630,7 +630,7 @@ function report(folded, hz, names) {
     }
     if (names.length === 2) {
       const [a, b] = names.map((n) => folded[n]?.[s]);
-      p(`   winner  ` + cols.map(([k]) => `${k === 'workPerFrame' ? 'work' : k === 'loafBlocking' ? 'LoAF' : k}:${winner(a, b, k) || '-'}`).join('  '));
+      p(`   winner  ` + cols.map(([k]) => `${k === 'workPerFrame' ? 'work' : k === 'loafBlocking' ? 'LoAF' : k}:${winner(a, b, k, 1000 / hz) || '-'}`).join('  '));
     }
   }
   return lines.join('\n');

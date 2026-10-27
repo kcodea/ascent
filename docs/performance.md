@@ -494,8 +494,12 @@ npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b
   refresh, so a 60 Hz panel cannot show a 4.17 ms miss. Headless frame intervals are not real (§3i); judge a headless
   run on `work` only.
 - **Blind A/B.** The two builds are shuffled into X and Y and run alternately (X Y Y X ...). A metric names a winner
-  only when **every** run of one build beats **every** run of the other; anything else prints `~` (within noise).
-  Two identical builds must print `~` everywhere; if they do not, the machine is too noisy for that run.
+  only when **every** run of one build beats **every** run of the other **and** the medians differ by a real margin:
+  10% on frame times and work (and at least one refresh step on the quantized p95 / p99), 25% on dropped-frame
+  counts. Anything else prints `~` (within noise). The **worst** frame is shown but never decides (`·`).
+- **Calibration (2026-10-27).** A null A/B of two builds of the same code: p95 / p99 / work agreed within ~5%,
+  dropped-frame counts within ~20%, the worst frame differed 2.5x (67 vs 167 ms). The first rule (no overlap alone)
+  made ~12 false calls out of 70 there; the margins above make 0. Re-run a null A/B if the machine changes.
 - **Running it.** Headed Chrome windows open at 1920 x 1080 on your screen. Keep them visible and leave the machine
   alone; frames that ran while the page was hidden are dropped and counted in a warning.
 

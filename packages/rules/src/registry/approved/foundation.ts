@@ -9957,7 +9957,8 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'frame and long-animation-frame blocking. A scene PASSES only when its worst frame is within 4.17 ms (with 20% vsync '
       + 'slack) and no frame went over; a display under 240 Hz or a headless run reports n/a instead. Runs alternate between '
       + 'the builds, which are shuffled into X and Y; a metric names a winner only when every run of one beats every run of '
-      + 'the other, otherwise it is within noise. --blind keeps the X/Y key in a file so a critic judges before it knows '
+      + 'the other AND the medians differ by a real margin (10% on frame times and work, at least one refresh on p95 / p99, '
+      + '25% on dropped-frame counts); otherwise it is within noise, and the worst frame alone never decides. --blind keeps the X/Y key in a file so a critic judges before it knows '
       + 'which build is ours.',
     domain: 'foundation',
     status: 'approved',

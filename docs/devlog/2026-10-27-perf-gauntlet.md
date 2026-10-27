@@ -53,3 +53,18 @@ The two bundles are the same game code (only their build stamps differ), so it i
 Skip at those moments would presumably hit it too. Worth a look at `Recruit.tsx` `skipCombat` / `endCombat`
 (`wipeExitRef`). The walk now NEVER presses Skip (fast-forward fights play out unmeasured), and it presses End combat
 up to five times, logging "End combat needed N presses ... a possible game bug" if one is ignored.
+
+**The null A/B, and the judging rule it forced.** Two builds of the same code, 3 runs each, rounds 9-14 (one run lost
+to the stuck End combat, below):
+- The metrics that matter agreed closely: shop-actions p95 26.4 / 25.1 ms, p99 38.8 / 38.9 ms, work 6.26 / 6.06 ms per
+  frame. The noise on them is about 5%.
+- The worst frame did not: 167 vs 67 ms on shop-actions, 217 vs 72 ms on combat.
+- The first rule ("every run of one beats every run of the other") made about 12 false calls out of 70. With 2 vs 3
+  runs that happens by chance about 20% of the time per metric.
+- A win now also needs a real margin: 10% on times and work (at least one refresh step on p95 / p99), and 25% on
+  dropped-frame counts. The worst frame never decides alone. Re-judging the same data gives 0 false calls of 70.
+
+**Correction to the bug note below: Skip is not the cause.** With Skip never pressed, End combat still needed about
+4 presses (around 12 s) in 3 fights, and in one it never responded (round 7), so that run was lost. Both stuck
+screenshots show the hero-damage banner ("35 DAMAGE", "DAMAGE CAPPED") still up over the portrait. A guess: the exit
+waits on that animation, which sometimes does not finish.

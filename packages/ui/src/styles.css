@@ -2981,8 +2981,10 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   animation: frostin var(--frz-ice-dur, 1.05s) cubic-bezier(0.25, 0.7, 0.35, 1) both;
 }
 /* The attack + health medallions (and their plate / milestone-frame backplates, which live inside `.badge`) stay
-   IN FRONT of the ice (owner ask 2026-10-27), so the numbers read clearly on a frozen card. */
-[data-zone="tavern"].frozen .card .badge { z-index: 10; }
+   IN FRONT of the ice (owner ask 2026-10-27), so the numbers read clearly on a frozen card. Same for a spell's
+   Gold cost coin in the top-left (owner ask 2026-10-27). */
+[data-zone="tavern"].frozen .card .badge,
+[data-zone="tavern"].frozen .card .cost { z-index: 10; }
 /* slight per-card stagger so the freeze sweeps across the row instead of all at once */
 [data-zone="tavern"].frozen .card:nth-child(2)::after { animation-delay: 0.05s; }
 [data-zone="tavern"].frozen .card:nth-child(3)::after { animation-delay: 0.1s; }

@@ -9811,4 +9811,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-26 (feat/skins-batch-11). Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05). The tidied names are Claude\x27s reading of the filenames, for the owner to confirm.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-SPELL-GLOW-FIT-01',
+    title: 'The hover glow of a spell card hugs its own frame, the same snug fit a minion gets',
+    statement:
+      'The hover / select glow around a spell card (and the colour overlay of the spell frame) sits on the spell frame '
+      + 'itself: the same size and shape as the frame you see, so the bright rim traces the arch instead of spilling '
+      + 'past it. Any change to the art or size of a frame moves its glow and overlay with it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (screenshot: a hovered Vault spell, the glow well outside the arch)', quote: 'the glow when h overing a spell is way to large' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'ok so can you do this for me then?' },
+      { kind: 'fix-pr', ref: 'feat/spell-hover-glow-tuner: packages/ui/src/styles.css (.card.compact.spellframe .cglow / .cframe-tint now use the .cframe-img box)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-27. The spell .cglow and .cframe-tint had kept the box of an older spell frame (1.387 wide, '
+      + '1122/1346) after the arch frame (1.239, 705/862) replaced it, so the glow rim was stretched ~12% wider than the '
+      + 'frame. Both now share the .cframe-img box; the Hover Glow tuner also has separate Spell dials since the same PR.',
+    example: 'Hovering a Vault spell in the Shop draws a thin white rim just outside its arch frame, the same snug fit a hovered minion gets.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/spellGlowFit.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

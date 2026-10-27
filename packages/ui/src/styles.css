@@ -4951,9 +4951,11 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   --hg-bloom-filter: var(--hg-s-bloom-filter,
     drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.89))
     drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)));
-  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
-  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+  /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,
+     1122/1346), which stretched the glow ~12% wider than the frame (R-SPELL-GLOW-FIT-01). */
+  width: calc(var(--ccw) * 1.239 * var(--sh)); aspect-ratio: 705 / 862;
+  left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
 }
 .card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp'); }
 .card.compact.taunt .cglow {
@@ -4984,9 +4986,11 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png');
 }
 .card.compact.spellframe .cframe-tint {
-  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
-  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+  /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,
+     1122/1346), which stretched the glow ~12% wider than the frame (R-SPELL-GLOW-FIT-01). */
+  width: calc(var(--ccw) * 1.239 * var(--sh)); aspect-ratio: 705 / 862;
+  left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp');
 }
 /* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify

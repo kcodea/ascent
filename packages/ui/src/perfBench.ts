@@ -1,3 +1,4 @@
+import gsap from 'gsap';
 import { useGame } from './store';
 import { useProgression } from './progression/progressionStore';
 import { pixiFx } from './pixiFx';
@@ -19,6 +20,9 @@ export function installPerfBench(): void {
   if (import.meta.env.VITE_PERF_BENCH !== '1' || typeof window === 'undefined') return;
   (window as unknown as Record<string, unknown>).__bench = {
     store: useGame,
+    // GSAP itself (perf:gauntlet --anim-census, 2026-10-27): lists the tweens alive during a scene, since GSAP's ticker
+    // writes (and reads) styles every frame with no app code on the stack, which a trace cannot attribute.
+    gsap,
     // The progression store (UI refinement 2026-10-16): a bench capture can show the signed-in menus (Collection plaque).
     progression: useProgression,
     // The spectator's end notice (phone menus pass 2026-10-24): a bench capture can show it without watching a game.

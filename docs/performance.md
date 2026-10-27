@@ -464,6 +464,9 @@ which is which.
 npm run perf:gauntlet                         # candidate = this working tree, baseline = origin/main, 1 run each
 npm run perf:gauntlet -- --runs 5 --from 11 --to 13  # more runs = a tighter noise band; pick the rounds to measure
 npm run perf:gauntlet -- --blind              # the X/Y key goes to <out>/key.json instead of the console
+npm run perf:gauntlet -- --games 5 --from 4 --to 5  # THE SOAK: 5 games in one page; per game, after a full GC: heap,
+                                              # DOM nodes, listeners, shop frames. A climbing column = buildup
+                                              # (found the R-PERF-LUNGE-LEAK-01 leak, 2026-10-27)
 npm run perf:gauntlet -- --trace shop-actions    # Chrome trace of one scene: style / layout / paint time, which code FORCED
                                               # each recalc, who dirtied style, the costliest CSS selectors
 npm run perf:gauntlet -- --profile shop-actions  # CPU profile of one scene: top functions by self time, named

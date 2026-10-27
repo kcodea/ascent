@@ -46,6 +46,8 @@
  *   npm run perf:gauntlet -- --trace shop-actions     trace that scene: style / layout / paint time, and which code FORCED each layout
  *   npm run perf:gauntlet -- --anim-census shop-actions   list the animations running during that scene (name, properties, target)
  *   npm run perf:gauntlet -- --debug-end              log the wipe / End Turn state after each End combat press that did not land
+ *   npm run perf:gauntlet -- --games 5 --from 4 --to 5   THE SOAK: 5 games in one page; per game (after a full GC) heap, DOM
+ *                                                  nodes, listeners and shop frames, so buildup across a session shows
  *   A run that loses a scene is run again once (--no-retry turns that off).
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
  *   npm run perf:gauntlet -- --scenes drag,combat   report only these scenes
@@ -73,6 +75,8 @@ const CACHE = path.join(ROOT, '.perf-gauntlet');
 // single pair made a false call on the target scene's p95 / p99 / work in about 1 of 9 pairings (one odd run), so
 // confirm a win with another pair (--runs 2) before shipping it.
 const RUNS = Number(arg('runs', '1'));
+const GAMES = Number(arg('games', '1')); // --games N: N games back to back in one page (the soak)
+let soakRows = [];
 const FROM = Number(arg('from', '9')); // the first MEASURED round: everything before it is fast-forwarded
 const TO = Number(arg('to', '14')); // the last measured round
 const FF_ACTION_MS = Number(arg('ff-ms', '40')); // the pause between the bot's shop actions
@@ -250,7 +254,8 @@ function driver(c) {
 /** One full pass of the scenes. Returns the scenes it failed to reach. */
 async function playScenes(c) {
   const d = driver(c);
-  const mark = (s) => d.ev(`window.__pg.mark(${JSON.stringify(s)})`);
+  let prefix = ''; // --games: 'gN:' on every measured scene of game N ('ff' and 'end' stay bare: they are never judged)
+  const mark = (s) => d.ev(`window.__pg.mark(${JSON.stringify(s === 'ff' || s === 'end' ? s : prefix + s)})`);
   const missed = [];
   const need = (ok, what) => { if (!ok) missed.push(what); return ok; };
   const g = `window.__bench.store.getState()`;
@@ -261,6 +266,10 @@ async function playScenes(c) {
   await sleep(2500);
   await mark('title'); await sleep(4000);
 
+  // --games N: the whole game below N times in the SAME page (the way a player plays a session), each game's scenes
+  // marked "gN:<scene>", so anything that builds up across games (memory, DOM, listeners, frame time) shows.
+  for (let game = 1; game <= GAMES; game++) {
+  prefix = GAMES > 1 ? `g${game}:` : '';
   // A Practice game against level-10 bots at a fixed seed: no clock, unlimited health, every hero. The seed is pinned
   // AFTER the setup rolls its own, so both builds play the identical game. Bot seats need no network (God Mode's
   // real-player boards do, and every request off 127.0.0.1 is blocked), and the Gold is topped up each round below
@@ -504,6 +513,40 @@ async function playScenes(c) {
   }
   await mark('end');
   await d.ev(`${g}.openTitle()`).catch(() => {});
+  // --games N (the soak): what this game left behind, AFTER a full garbage collection, so growth game over game is
+  // something still referenced (a leak), not garbage waiting to be collected.
+  if (GAMES > 1) {
+    await sleep(3000);
+    await c.send('HeapProfiler.collectGarbage').catch(() => {});
+    await sleep(500);
+    const heap = await c.send('Runtime.getHeapUsage').catch(() => null);
+    const dom = await c.send('Memory.getDOMCounters').catch(() => null);
+    const extra = await d.ev(`({ ls: (() => { let n = 0; try { for (let i = 0; i < localStorage.length; i++) n += (localStorage.getItem(localStorage.key(i)) || '').length; } catch {} return n; })(), anims: document.getAnimations().length, canvases: document.querySelectorAll('canvas').length, imgs: document.images.length })`).catch(() => ({}));
+    // A DOM census (what is in the page, by its nearest classed ancestor's class), diffed game over game below, so a
+    // growing node count names the component that holds the nodes.
+    const census = await d.ev(`(() => {
+      const by = {};
+      for (const el of document.querySelectorAll('*')) {
+        let host = el; let depth = 0;
+        while (host && depth < 30 && !(typeof host.className === 'string' && host.className.trim())) { host = host.parentElement; depth++; }
+        const k = host && typeof host.className === 'string' ? host.tagName.toLowerCase() + '.' + host.className.trim().split(/\\s+/)[0] : '(unclassed)';
+        by[k] = (by[k] || 0) + 1;
+      }
+      return by;
+    })()`).catch(() => ({}));
+    const prev = soakRows.length ? soakRows[soakRows.length - 1].census : null;
+    if (prev) {
+      const grew = Object.keys(census).map((k) => [k, (census[k] || 0) - (prev[k] || 0)]).filter(([, dlt]) => dlt > 0).sort((a, b) => b[1] - a[1]).slice(0, 12);
+      if (grew.length) log(`   grew since game ${game - 1}: ${grew.map(([k, dlt]) => `${k} +${dlt}`).join(', ')}`);
+    }
+    soakRows.push({ game, heapMB: heap ? heap.usedSize / 1048576 : null, nodes: dom?.nodes, listeners: dom?.jsEventListeners, documents: dom?.documents, ...extra, census });
+    log(`   game ${game} done: heap ${heap ? (heap.usedSize / 1048576).toFixed(1) : '?'} MB, DOM nodes ${dom?.nodes ?? '?'}, listeners ${dom?.jsEventListeners ?? '?'}, animations ${extra.anims}, canvases ${extra.canvases}, localStorage ${((extra.ls || 0) / 1024).toFixed(0)} KB`);
+  }
+  if (game < GAMES) {
+    if (!need(await d.waitFor(`[...document.querySelectorAll('button,[role=button]')].some((x) => x.getClientRects().length > 0 && (x.innerText || '').trim().toUpperCase() === 'PLAY')`, 30_000), `title after game ${game}`)) return missed;
+    await sleep(2000);
+  }
+  } // the --games loop
   return missed;
 }
 
@@ -514,6 +557,7 @@ async function playScenes(c) {
 const METRIC_KEYS = ['TaskDuration', 'ScriptDuration', 'RecalcStyleDuration', 'LayoutDuration'];
 
 async function measureOnce(dist, runIdx) {
+  soakRows = [];
   const port = PORT + runIdx * 2;
   const server = await serve(dist, port);
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ascent-perf-gauntlet-'));
@@ -568,7 +612,16 @@ async function measureOnce(dist, runIdx) {
               const key = name + ' [' + props + '] on ' + cls;
               by.set(key, (by.get(key) || 0) + 1);
             }
-            return [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+            // GSAP's own tweens (bench builds expose gsap): GSAP renders through its ticker, invisible to getAnimations().
+            const gs = window.__bench && window.__bench.gsap;
+            if (gs) for (const tw of gs.globalTimeline.getChildren(true, true, false)) {
+              if (!tw.isActive()) continue;
+              const ts = (tw.targets ? tw.targets() : []).map((t) => t && t.nodeType === 1 ? t.tagName.toLowerCase() + (typeof t.className === 'string' && t.className ? '.' + t.className.trim().split(/\\s+/).slice(0, 2).join('.') : '') : (t && t.constructor ? t.constructor.name : typeof t));
+              const props = Object.keys(tw.vars || {}).filter((k) => !['duration', 'ease', 'delay', 'onComplete', 'onUpdate', 'overwrite', 'immediateRender', 'onStart', 'repeat', 'yoyo', 'id', 'data', 'callbackScope', 'lazy'].includes(k)).join('+');
+              const key = 'GSAP [' + props + '] dur ' + (tw.duration ? tw.duration().toFixed(2) : '?') + (tw.vars && tw.vars.repeat ? ' repeat ' + tw.vars.repeat : '') + ' on ' + (ts.slice(0, 2).join(',') || '?') + (ts.length > 2 ? ' +' + (ts.length - 2) : '');
+              by.set(key, (by.get(key) || 0) + 1);
+            }
+            return [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25);
           })()` }).then((r) => log(`   anim census @${ms}ms in ${scene}:\n` + (r.result.value || []).map(([k, n]) => `     x${String(n).padEnd(4)} ${k}`).join('\n'))).catch(() => {}); }, ms);
         }
         if (tracing && scene !== TRACE) await stopTrace(origSend);
@@ -584,7 +637,7 @@ async function measureOnce(dist, runIdx) {
     if (profiling) profiles.push((await c.send('Profiler.stop')).profile);
     if (tracing) await stopTrace(c.send);
     const dump = await evaluate(c, 'window.__pg.dump()');
-    return { missed, dump, metricMarks, profiles, traceEvents };
+    return { missed, dump, metricMarks, profiles, traceEvents, soak: soakRows };
   } finally {
     c.close(); server.close();
     await sleep(600);
@@ -824,6 +877,13 @@ for (let i = 0; i < schedule.length; i++) {
       log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
     }
     const a = analyse(raw);
+    if (GAMES > 1 && raw.soak?.length) {
+      // THE SOAK TABLE: one row a game, the same seeded game each time, so any column that climbs is buildup.
+      const pick = (gm, sc, k) => a.scenes[`g${gm}:${sc}`]?.[k];
+      const rows = raw.soak.map((r) => `   game ${String(r.game).padStart(2)}  heap ${r.heapMB?.toFixed(1).padStart(6) ?? '?'} MB  nodes ${String(r.nodes ?? '?').padStart(6)}  listeners ${String(r.listeners ?? '?').padStart(5)}  anims ${String(r.anims ?? '?').padStart(3)}  canvases ${String(r.canvases ?? '?').padStart(2)}  | shop-idle p95 ${fmt(pick(r.game, 'shop-idle', 'p95'))}  shop-actions p95 ${fmt(pick(r.game, 'shop-actions', 'p95'))} p99 ${fmt(pick(r.game, 'shop-actions', 'p99'))} work ${fmt(pick(r.game, 'shop-actions', 'workPerFrame'), 2)}  drag p99 ${fmt(pick(r.game, 'drag', 'p99'))}  combat p95 ${fmt(pick(r.game, 'combat', 'p95'))}`);
+      log(['   SOAK (after a full GC at the end of each game; a column that climbs game over game is buildup):', ...rows].join('\n'));
+      fs.writeFileSync(path.join(OUT, `soak-run${i + 1}-${n}.txt`), [...rows, ''].join('\n'));
+    }
     if (a.missed.length) { failed++; log(`   missed: ${a.missed.join(', ')}`); }
     if (a.hiddenFrames) log(`   WARNING: ${a.hiddenFrames} frame(s) inside a scene ran while the page was hidden (dropped from the report). Keep the window visible.`);
     log(`   display ~${Math.round(a.hz)} Hz, ${Object.values(a.scenes).reduce((s, x) => s + x.frames, 0)} frames`);

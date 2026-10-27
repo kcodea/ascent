@@ -17,6 +17,11 @@ export interface FuseView { ox: number; oy: number; scale: number; dpr: number }
 /** Makes an offscreen canvas for baking a sprite (injectable for tests). */
 export type SpriteFactory = (w: number, h: number) => { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D };
 
+/** The radius the gem canvas must cover: the capture radius, the waiting orbit, and the glow beyond them. */
+export function gemCanvasHalf(c: FuseCfg): number {
+  return Math.max(c.captureR * 1.8, c.vortexR * 1.3) + c.gemGlowSize;
+}
+
 export function inGemPass(p: FuseParticle, g: FuseGeom, captureR: number): boolean {
   const dx = p.x - g.gemX;
   const dy = p.y - g.gemY;
@@ -87,12 +92,14 @@ export class FuseRenderer {
     const R = this.cfg.captureR;
     const ps = sim.particles;
     let n = 0;
-    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) n++;
+    // The charged wait's orbiters always ride the gem pass (whatever the capture radius), so the big canvas goes idle.
+    const idle = sim.mode === 'idle';
+    if (!idle) for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) n++;
     if (n === 0 && !this.behindDrawn) return 0;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.globalCompositeOperation = 'lighter';
-    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
+    if (!idle) for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     this.behindDrawn = n > 0;
@@ -142,7 +149,8 @@ export class FuseRenderer {
 
     const R = c.captureR;
     const ps = sim.particles;
-    for (let i = 0; i < ps.length; i++) if (inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
+    const idle = sim.mode === 'idle';
+    for (let i = 0; i < ps.length; i++) if (idle || inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
   }

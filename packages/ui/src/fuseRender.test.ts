@@ -61,7 +61,7 @@ describe('fuse renderer', () => {
     expect(state.draws - extras).toBe(n);
   });
 
-  it('the charged wait does not re-clear an empty behind-cards canvas every frame', () => {
+  it('the charged wait does not re-clear an empty behind-cards canvas every frame (any capture radius)', () => {
     const { r, state, ctx } = setup();
     const sim = new FuseSim(FUSE_DEFAULTS, 1);
     sim.collapse();
@@ -71,9 +71,10 @@ describe('fuse renderer', () => {
     state.clears = 0;
     for (let i = 0; i < 60; i++) { sim.step(1 / 60, 1, g); r.drawBehind(ctx, sim, g, v); }
     expect(state.clears).toBe(0);
-    // ...but a piece that leaves the gem pass is drawn (and the next empty frame clears it once).
-    sim.addParticle({ x: g.gemX - 400, y: g.gemY });
-    expect(r.drawBehind(ctx, sim, g, v)).toBe(1);
+    // ...while charging, a piece outside the gem pass is drawn behind the cards as usual.
+    const charging = new FuseSim(FUSE_DEFAULTS, 2);
+    charging.addParticle({ x: g.gemX - 400, y: g.gemY });
+    expect(r.drawBehind(ctx, charging, g, v)).toBe(1);
   });
 
   it('the collapse burst draws without baking anything new', () => {

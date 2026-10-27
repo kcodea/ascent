@@ -247,7 +247,7 @@ import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
 import { FuseSim, type FuseGeom } from './fuseSim';
-import { FuseRenderer, type FuseView } from './fuseRender';
+import { FuseRenderer, gemCanvasHalf, type FuseView } from './fuseRender';
 import { FUSE_ART_SPAN, FUSE_CFG_EVENT, fuseSeed, getFuseCfg, seamBoostAt } from './fuseTune';
 import { fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
 import { randomSeed } from './fx/rng';
@@ -728,7 +728,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       behind.height = Math.max(1, Math.round((bottom - top) * scale * dpr));
       fx.behindView = { ox: left, oy: top, scale, dpr };
       // Gem canvas: a square over the button (fixed inside the stage, so stage px are its coordinates).
-      const half = cfg.captureR * 1.8 + cfg.gemGlowSize;
+      const half = gemCanvasHalf(cfg);
       Object.assign(gemC.style, { left: `${g.gemX - half}px`, top: `${g.gemY - half}px`, width: `${half * 2}px`, height: `${half * 2}px` });
       gemC.width = gemC.height = Math.max(1, Math.round(half * 2 * scale * dpr));
       fx.gemView = { ox: g.gemX - half, oy: g.gemY - half, scale, dpr };

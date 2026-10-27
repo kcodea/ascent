@@ -19,7 +19,7 @@ describe('crystal fuse tuning', () => {
   });
 
   it('aggression scales the whole ramp', () => {
-    expect(forceRamp({ ...FUSE_DEFAULTS, aggression: 2 }, 0.5)).toBeCloseTo(2 * forceRamp(FUSE_DEFAULTS, 0.5), 10);
+    expect(forceRamp({ ...FUSE_DEFAULTS, aggression: 2 }, 0.5)).toBeCloseTo(2 * forceRamp({ ...FUSE_DEFAULTS, aggression: 1 }, 0.5), 10);
   });
 
   it('setFuseValue overrides and resetFuseCfg restores', () => {

@@ -2972,13 +2972,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   /* The art fills the box and the BOX is scaled (a background can never paint past its own box, so sizing the
      background instead would crop the ring at the frame's edges). */
   background: url('/frames/freeze-ice.webp') center / 100% 100% no-repeat;
-  translate: var(--frz-ice-x, 0%) var(--frz-ice-y, 0%);
-  scale: var(--frz-ice-w, 1.12) var(--frz-ice-h, 1.08);
+  translate: var(--frz-ice-x, 0.25%) var(--frz-ice-y, 6.75%);
+  scale: var(--frz-ice-w, 1.16) var(--frz-ice-h, 1.095);
   /* A tall mask: solid at the top, a soft fade band, clear below. Sliding it from 100% to 0% drags the band
      from above the card to below it, so the ice appears top → bottom with a feathered leading edge. */
-  -webkit-mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 42%), transparent var(--frz-ice-f1, 58%), transparent 100%) 0 0 / 100% 300% no-repeat;
-          mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 42%), transparent var(--frz-ice-f1, 58%), transparent 100%) 0 0 / 100% 300% no-repeat;
-  animation: frostin var(--frz-ice-dur, 0.38s) cubic-bezier(0.25, 0.7, 0.35, 1) both;
+  -webkit-mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 43.5%), transparent var(--frz-ice-f1, 56.5%), transparent 100%) 0 0 / 100% 300% no-repeat;
+          mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 43.5%), transparent var(--frz-ice-f1, 56.5%), transparent 100%) 0 0 / 100% 300% no-repeat;
+  animation: frostin var(--frz-ice-dur, 1.05s) cubic-bezier(0.25, 0.7, 0.35, 1) both;
 }
 /* The attack + health medallions (and their plate / milestone-frame backplates, which live inside `.badge`) stay
    IN FRONT of the ice (owner ask 2026-10-27), so the numbers read clearly on a frozen card. */
@@ -2994,13 +2994,13 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   0% {
     opacity: 0.4;
     -webkit-mask-position: 0 100%; mask-position: 0 100%;
-    filter: brightness(var(--frz-ice-flash, 1.7)) drop-shadow(0 0 10px rgba(170, 225, 255, 0.95));
+    filter: brightness(var(--frz-ice-flash, 1.05)) drop-shadow(0 0 10px rgba(170, 225, 255, 0.95));
   }
-  70% { filter: brightness(calc(1 + (var(--frz-ice-flash, 1.7) - 1) * 0.35)) drop-shadow(0 0 6px rgba(170, 225, 255, 0.7)); opacity: var(--frz-ice-op, 1); }
+  70% { filter: brightness(calc(1 + (var(--frz-ice-flash, 1.05) - 1) * 0.35)) drop-shadow(0 0 6px rgba(170, 225, 255, 0.7)); opacity: var(--frz-ice-op, 0.88); }
   100% {
-    opacity: var(--frz-ice-op, 1);
+    opacity: var(--frz-ice-op, 0.88);
     -webkit-mask-position: 0 0; mask-position: 0 0;
-    filter: var(--frz-ice-glow, none);
+    filter: var(--frz-ice-glow, drop-shadow(0 0 5px rgba(150, 215, 255, 0.58)));
   }
 }
 /* tier pill rides the arch top */
@@ -5277,7 +5277,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   aspect-ratio: 705 / 862;
   /* the spell arch is squarer than the oval ice ring: its own fit, stretched taller to reach the bottom corners */
-  scale: var(--frz-ice-sw, 1.14) var(--frz-ice-sh, 1.2);
+  scale: var(--frz-ice-sw, 1.165) var(--frz-ice-sh, 1.235);
 }
 
 /* ============================ HAND CARD BACKPLATE ============================

@@ -60,7 +60,7 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Freezing the shop now encases each card in a ring of jagged ice that grows quickly from the top down.',
+        text: 'Freezing the shop now encases each card in a ring of jagged ice that grows in from the top down.',
       },
     ],
   },

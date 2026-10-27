@@ -881,7 +881,7 @@ body.wipe-up .bgrtoast { z-index: 3170; }
      fuse is an EARLIER child of .app than the zones, so it renders BEHIND every card + its drop shadow but above
      `.boardbg`. (It's a direct child of `.app`, NOT the warband zone, so warband x/y/scale never move it.) */
   z-index: 0; overflow: visible; pointer-events: none;
-  --burn: 0; --feather: 2.5%; --front-boost: 1; --front-glow: 0.85; --front-w: 46px;
+  --burn: 0; --feather: 2.5%;
   /* APPEAR (owner 2026-10-27): a brief bright flash as the fuse lights (sparkles are thrown off it by the sim). A
      one-shot (a short filter one-shot is allowed; nothing loops). --appear-ms/--appear-peak from fuseTune. */
   animation: fuseappear var(--appear-ms, 420ms) ease-out both;
@@ -899,16 +899,6 @@ body.wipe-up .bgrtoast { z-index: 3170; }
     #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
   mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
     #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
-}
-/* The white-hot burning front: a static radial blob moved by transform (compositor) and faded by opacity, flaring
-   as it crosses a bright seam (--front-boost, ChargeGlyph). Both written per frame; nothing here loops. */
-.chargeglyph .fuse-front {
-  position: absolute; left: 0; top: 50%;
-  width: calc(var(--front-w) * var(--scale)); aspect-ratio: 0.6;
-  background: radial-gradient(closest-side, #ffffff 0%, rgba(190, 240, 255, 0.85) 35%, rgba(60, 170, 255, 0.35) 65%, transparent 100%);
-  mix-blend-mode: screen; will-change: transform, opacity;
-  transform: translate(calc(-50% + var(--front-x, 0px)), -50%);
-  opacity: min(1, calc(var(--front-glow) * var(--front-boost)));
 }
 /* Generic fade (turn ended into combat with no strike to carry it). */
 .chargeglyph.fading, .charge-motes.fading, .fuse-gemfx.fading { animation: none; opacity: 0; transition: opacity var(--flash-ms, 180ms) ease; }

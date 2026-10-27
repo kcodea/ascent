@@ -145,6 +145,13 @@ describe('R-TIMER-SYNC-01: wiring', () => {
     expect(glyph).toMatch(/const held = lit && preview == null && !running && seconds > 0;/);
   });
 
+  it('R-CHARGE-FUSE-01: the fuse appears with the crystal glint, and its burning edge has no glow of its own', () => {
+    expect(glyph).toMatch(/sim\.sparkle\(cfg\.appearSparkles[^\n]*\n\s*sfx\.fuseAppear\(\)/);
+    expect(glyph, 'no burning-front glow element').not.toContain('fuse-front');
+    const sfxSrc = readFileSync(join(here, 'sfx.ts'), 'utf8');
+    expect(sfxSrc).toMatch(/fuseAppear: \(\) => \{\n\s*if \(playSample\('equipmentsheen', 'fuseappear'\)\)/);
+  });
+
   it('the countdown holds the clock whenever its effect tears down, for any reason', () => {
     expect(recruit).toContain('return () => { window.clearTimeout(id); turnClock.hold(performance.now()); };');
     expect(recruit).toContain('id = window.setTimeout(tick, turnClock.startSecond(tickMs(), performance.now()));');

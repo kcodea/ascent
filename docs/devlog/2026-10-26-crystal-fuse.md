@@ -9,7 +9,7 @@ is actually slightly different each time". Design and plan: `docs/superpowers/sp
 **What changed.** `ChargeGlyph` (Recruit.tsx) keeps every clock, hold, sound, covered/quiet and perf-mark line, and swaps
 its visuals:
 - `.fuse-body` is the owner's art (`apps/web/public/fx/crystal-fuse.png`) masked left to right by `--burn`, the art's
-  tip-to-tip span (`FUSE_ART_SPAN`) as charge goes 0 to 1. A front glow rides it and flares at each bright seam (`FUSE_SEAMS`).
+  tip-to-tip span (`FUSE_ART_SPAN`) as charge goes 0 to 1. (The burning-edge glow that flared at each seam was removed on 2026-10-27, owner ask.)
 - `fuseSim.ts`: a seeded force sim (pull to the gem, a clockwise vortex, the workbench's layered-sine turbulence, drag,
   mass). Spawns follow the CHARGE delta, not frame time, so a hitch leaves no gap. `step(0)` is a no-op and the
   component never steps it while the clock is held (R-TIMER-SYNC-01). Modes: charging, collapsing (0:00), idle (the

@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { FUSE_DEFAULTS, FUSE_SEAMS, forceRamp, getFuseCfg, resetFuseCfg, setFuseValue } from './fuseTune';
+import { FUSE_DEFAULTS, forceRamp, getFuseCfg, resetFuseCfg, setFuseValue } from './fuseTune';
 
 describe('crystal fuse tuning', () => {
   afterEach(() => resetFuseCfg());
@@ -31,14 +31,5 @@ describe('crystal fuse tuning', () => {
 
   it('the early End Turn flash-and-fade is very quick (owner ask)', () => {
     expect(FUSE_DEFAULTS.flashOutMs).toBeLessThanOrEqual(200);
-  });
-
-  it('seam fractions are sorted and inside the art', () => {
-    expect(FUSE_SEAMS.length).toBeGreaterThan(5);
-    for (let i = 0; i < FUSE_SEAMS.length; i++) {
-      expect(FUSE_SEAMS[i]).toBeGreaterThan(0);
-      expect(FUSE_SEAMS[i]).toBeLessThan(1);
-      if (i) expect(FUSE_SEAMS[i]).toBeGreaterThan(FUSE_SEAMS[i - 1]);
-    }
   });
 });

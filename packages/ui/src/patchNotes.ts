@@ -62,7 +62,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'The end-of-turn countdown is now a crystal fuse that burns into the End Turn gem.',
         details: [
-          'Over the last 20 seconds a blue crystal fuse burns away from left to right, and the broken crystal is pulled into the End Turn gem, swirling faster as time runs out. No two turns look quite the same.',
+          'A second before the last 20, a blue crystal fuse appears with a flash and a soft chime. It then burns away from left to right, and the broken crystal is pulled into the End Turn gem, swirling faster as time runs out. No two turns look quite the same.',
           'At 0:00 everything collapses into the gem, which stays charged and humming until you press End Turn.',
           'End Turn strikes the gem to release the charge. End your turn early and the rest of the fuse flashes and fades away.',
           'Versus: the gem now strikes when the round starts on its own, too.',

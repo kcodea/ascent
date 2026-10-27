@@ -248,7 +248,7 @@ import { visibleHandPreviews } from './handPreview';
 import { useChargePreview } from './chargeGlyphTune';
 import { FuseSim, type FuseGeom } from './fuseSim';
 import { FuseRenderer, gemCanvasHalf, type FuseView } from './fuseRender';
-import { FUSE_ART_SPAN, FUSE_CFG_EVENT, fuseSeed, getFuseCfg, seamBoostAt } from './fuseTune';
+import { FUSE_ART_SPAN, FUSE_CFG_EVENT, fuseSeed, getFuseCfg } from './fuseTune';
 import { fuseAppearsAt, fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
 import { randomSeed } from './fx/rng';
 import { gateFx } from './rankedGate/gateFx';
@@ -711,8 +711,6 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       box.style.setProperty('--appear-ms', `${cfg.appearFlashMs}ms`);
       box.style.setProperty('--appear-peak', String(cfg.appearFlashPeak));
       box.style.setProperty('--feather', `${cfg.burnFeather}%`);
-      box.style.setProperty('--front-glow', String(cfg.frontGlow));
-      box.style.setProperty('--front-w', `${cfg.frontGlowW}px`);
     };
     const measure = (): void => {
       const br = rectToStage(box.getBoundingClientRect());
@@ -760,6 +758,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     } else {
       if (charge * (pv == null ? win : CHARGE_SECONDS) > 0.5) sim.prewarm(charge, fx.geom);
       sim.sparkle(cfg.appearSparkles, charge, fx.geom); // the appear burst, with the CSS flash (owner 2026-10-27)
+      sfx.fuseAppear(); // ...and a soft crystal glint (owner 2026-10-27: "nothing crazy", an existing sound)
     }
     fxRef.current = fx;
     const onCfg = (): void => { cfg = getFuseCfg(); sim.setCfg(cfg); renderer.setCfg(cfg); applyStatic(); measure(); };
@@ -785,8 +784,6 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       if (key === lastBurn) return;         // the charged wait writes nothing (flat cost however long it lasts)
       lastBurn = key;
       box.style.setProperty('--burn', key);
-      box.style.setProperty('--front-x', `${(burn * (fxRef.current?.boxW ?? 0)).toFixed(1)}px`);
-      box.style.setProperty('--front-boost', charge >= 1 ? '0' : seamBoostAt(getFuseCfg(), burn).toFixed(3));
     };
     const simFrame = (charge: number, dt: number, now: number): void => {
       const fx = fxRef.current;
@@ -797,6 +794,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
         fx.seed = fuseSeed.locked ?? randomSeed();
         sim.reset(fx.seed);
         sim.sparkle(getFuseCfg().appearSparkles, charge, geom);
+        sfx.fuseAppear();
         const box = boxRef.current;
         if (box) { box.style.animation = 'none'; void box.offsetWidth; box.style.animation = ''; }
       }
@@ -849,7 +847,6 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     <>
       <div className={`chargeglyph${exitCls}${heldFx ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
         <div className="fuse-body" />
-        <div className="fuse-front" />
       </div>
       <canvas className={`charge-motes${exitCls}`} ref={canvasRef} aria-hidden="true" />
       {createPortal(<canvas className={`fuse-gemfx${exitCls}`} ref={gemRef} aria-hidden="true" />, stageHost())}

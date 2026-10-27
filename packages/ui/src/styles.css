@@ -865,7 +865,8 @@ body.wipe-up .bgrtoast { z-index: 3170; }
 /* End-of-turn CRYSTAL FUSE (owner 2026-10-26; the Charge Glyph's look) — over the final CHARGE_SECONDS a blue
    crystal fuse burns away LEFT → RIGHT along the board midline into the End Turn gem, finishing exactly as the
    clock hits 0. `.fuse-body` is the owner's art (fx/crystal-fuse.png) masked by a left→right burn driven per-frame
-   by --charge (0→1) from ChargeGlyph's rAF (a custom-prop write; the card tree is never touched). The debris is
+   by --burn (the front's x as a fraction of the box: the art's left tip → its right tip as charge goes 0→1) from
+   ChargeGlyph's rAF (a custom-prop write; the card tree is never touched). The debris is
    a seeded force sim (fuseSim.ts) drawn on `.charge-motes` (behind the cards) and `.fuse-gemfx` (over the End Turn
    button). Anchored to the measured board midline (--charge-y); --charge-w/-x/-yoff size + nudge it (dev Layout
    Lab "Crystal Fuse" group — keep these fallbacks in sync with layoutConfig.ts). Physics/look dials: Dev Menu →
@@ -880,18 +881,18 @@ body.wipe-up .bgrtoast { z-index: 3170; }
      fuse is an EARLIER child of .app than the zones, so it renders BEHIND every card + its drop shadow but above
      `.boardbg`. (It's a direct child of `.app`, NOT the warband zone, so warband x/y/scale never move it.) */
   z-index: 0; overflow: visible; pointer-events: none;
-  --charge: 0; --feather: 2.5%; --front-boost: 1; --front-glow: 0.85; --front-w: 46px;
+  --burn: 0; --feather: 2.5%; --front-boost: 1; --front-glow: 0.85; --front-w: 46px;
   animation: chargein 0.4s ease both;
 }
 @keyframes chargein { from { opacity: 0; } to { opacity: 1; } }
-/* The fuse: the art, eaten away from the LEFT as --charge rises (the burnt part disappears; a soft --feather edge). */
+/* The fuse: the art, eaten away from the LEFT as --burn rises (the burnt part disappears; a soft --feather edge). */
 .chargeglyph .fuse-body {
   position: absolute; inset: 0;
   background: url('/fx/crystal-fuse.png') center / contain no-repeat;
-  -webkit-mask: linear-gradient(90deg, transparent 0, transparent calc(var(--charge) * 100%),
-    #fff calc(var(--charge) * 100% + var(--feather)), #fff 100%);
-  mask: linear-gradient(90deg, transparent 0, transparent calc(var(--charge) * 100%),
-    #fff calc(var(--charge) * 100% + var(--feather)), #fff 100%);
+  -webkit-mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
+    #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
+  mask: linear-gradient(90deg, transparent 0, transparent calc(var(--burn) * 100%),
+    #fff calc(var(--burn) * 100% + var(--feather)), #fff 100%);
 }
 /* The white-hot burning front: a static radial blob moved by transform (compositor) and faded by opacity, flaring
    as it crosses a bright seam (--front-boost, ChargeGlyph). Both written per frame; nothing here loops. */

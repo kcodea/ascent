@@ -125,6 +125,17 @@ export const FUSE_SEAMS: readonly number[] = [
   0.083, 0.136, 0.199, 0.269, 0.354, 0.441, 0.527, 0.625, 0.712, 0.749, 0.811, 0.89, 0.951,
 ];
 
+/** Where the crystal starts and ends inside `crystal-fuse.png` (x fractions of its width): the burn runs tip to tip. */
+export const FUSE_ART_SPAN: readonly [number, number] = [0.027, 0.971];
+
+/** Front-glow multiplier at burn position `x` (image fraction): `seamBoost` at a seam, easing to 1 over ±2%. */
+export function seamBoostAt(c: FuseCfg, x: number): number {
+  let near = 1;
+  for (const s of FUSE_SEAMS) near = Math.min(near, Math.abs(x - s));
+  const w = 0.02;
+  return near >= w ? 1 : 1 + (c.seamBoost - 1) * (1 - near / w);
+}
+
 /** Seed control for the tuner's "Lock seed" toggle: a number replays one look; null = fresh per light. */
 export const fuseSeed: { locked: number | null } = { locked: null };
 

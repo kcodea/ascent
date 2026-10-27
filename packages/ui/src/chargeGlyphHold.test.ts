@@ -125,11 +125,13 @@ describe('R-TIMER-SYNC-01: wiring', () => {
     expect(glyph).toMatch(/if \(held\) stopTurnCharge\(CHARGE_HOLD_FADE_MS\)/);
   });
 
-  it('the motes and the pulse freeze while held', () => {
-    expect(glyph).toMatch(/if \(!heldRef\.current\) engine\.frame\(/);
+  it('the crystal fuse debris freezes while held (no sim step), and nothing in the fuse loops on its own', () => {
+    expect(glyph).toMatch(/if \(!heldRef\.current\)[^\n]*sim\.step\(/);
+    expect(glyph, 'the old motes engine is gone').not.toContain('ChargeMotes');
     expect(glyph).toContain("${held ? ' held' : ''}");
     const css = readFileSync(join(here, 'styles.css'), 'utf8');
-    expect(css).toMatch(/\.chargeglyph\.held \.charge-fill \{ animation-play-state: paused; \}/);
+    const fuse = css.slice(css.indexOf('.chargeglyph {'), css.indexOf('.fuse-gemfx {'));
+    expect(fuse, 'no infinite CSS animation on the fuse (it would keep moving through a hold)').not.toMatch(/infinite/);
   });
 
   it('the countdown holds the clock whenever its effect tears down, for any reason', () => {

@@ -79,15 +79,18 @@ export class FuseRenderer {
     this.burstPending = true;
   }
 
-  drawBehind(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView): void {
+  /** Returns how many particles it drew (0 lets the caller skip clearing an already-empty canvas next frame). */
+  drawBehind(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView): number {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     ctx.globalCompositeOperation = 'lighter';
     const R = this.cfg.captureR;
     const ps = sim.particles;
-    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) this.drawParticle(ctx, ps[i], v);
+    let n = 0;
+    for (let i = 0; i < ps.length; i++) if (!inGemPass(ps[i], g, R)) { this.drawParticle(ctx, ps[i], v); n++; }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
+    return n;
   }
 
   drawGem(ctx: CanvasRenderingContext2D, sim: FuseSim, g: FuseGeom, v: FuseView, charge: number, timeSec: number): void {

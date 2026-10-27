@@ -245,8 +245,12 @@ import { endCombatReady } from './endCombatGate';
 import { CHARGE_SECONDS, chargeElapsed, shopClockStep, standardTurnSeconds, turnClock, turnClockMayTick, turnClockReset, useTurnClockRunning, useTurnSeconds, useTurnTimeUp } from './turnClock';
 import { useGoodLuckIntroActive } from './goodLuck/goodLuckIntroStore';
 import { visibleHandPreviews } from './handPreview';
-import { chargeTune, useChargePreview } from './chargeGlyphTune';
-import { ChargeMotes } from './chargeMotes';
+import { useChargePreview } from './chargeGlyphTune';
+import { FuseSim, type FuseGeom } from './fuseSim';
+import { FuseRenderer, type FuseView } from './fuseRender';
+import { FUSE_ART_SPAN, FUSE_CFG_EVENT, fuseSeed, getFuseCfg, seamBoostAt } from './fuseTune';
+import { fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
+import { randomSeed } from './fx/rng';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
 import { fxNote } from './fxLedger';
@@ -441,8 +445,6 @@ const END_TURN_LOCK_MS = 2000; // 5000 → 2000 (owner re-tune 2026-07-31: the l
 // px the pointer must move before a click becomes a drag — live-tunable via the DEV Drag tuner (dragFeel.ts).
 // The round timer's schedule (base 18s, +4s/wave, …) and the charge window (CHARGE_SECONDS) live in turnClock.ts
 // (`standardTurnSeconds`), shared with the Gold Fuse so the two can never drift.
-const CHARGE_MAX_FEATHER = 24; // % — the reveal feather = this × (1−charge): soft incoming fronts, 0 at completion (no sigil dimming)
-const CHARGE_FADEOUT_MS = 450; // when the glyph stops being lit (End Turn / timer end) it fades out over this, not a snap-cut (keep in sync with `.chargeglyph.fading` transition in styles.css)
 const CHARGE_HOLD_FADE_MS = 120; // the charge-build sound's fade when the clock is held mid-turn (quick, so it reads as a stop, without a click)
 
 /** The cast count a spell shows (its ×N badge + cast-spark replay): Implosion resolves 1 + your Demons times
@@ -563,61 +565,85 @@ export const ShopTimer = memo(function ShopTimer({ practice, goldGoal }: { pract
 
 /** A phone repaints the charge glyph at most this often (R-PHONE-CHARGE-30HZ-01): ~30 Hz. */
 const PHONE_CHARGE_PAINT_MS = 32;
-/** The end-of-turn CHARGE GLYPH turn timer — the board's etched sigil charging with white-hot blue energy over the
- *  final `window` seconds, building from BOTH sides inward along the midline conduit and filling the centre sigil
- *  LAST, completing exactly as the clock hits 0. Anchored to the measured board midline (`--charge-y`); replaces the
- *  burning rope. Hidden during combat. (Pixi motes + the converging-front flare layer on top — added at wire-in.)
+/** The crystal fuse's live pieces for one light: the sim, its renderer, and the measured geometry (stage px). */
+interface FuseFx {
+  sim: FuseSim;
+  renderer: FuseRenderer;
+  geom: FuseGeom;
+  behindView: FuseView;
+  gemView: FuseView;
+  behindCtx: CanvasRenderingContext2D | null;
+  gemCtx: CanvasRenderingContext2D | null;
+  /** The fuse box's width in stage px (the burning front's travel). */
+  boxW: number;
+  /** The behind-cards canvas still shows particles (an empty one is not re-cleared every frame). */
+  behindDirty: boolean;
+  seed: number;
+}
+/** The end-of-turn CHARGE GLYPH turn timer, drawn as the CRYSTAL FUSE (owner 2026-10-26): over the final `window`
+ *  seconds a blue crystal fuse burns away LEFT → RIGHT along the board midline into the End Turn gem, finishing
+ *  exactly as the clock hits 0. The broken crystal becomes debris and energy pulled into the gem by a seeded force
+ *  simulation (`fuseSim.ts`, drawn by `fuseRender.ts`: behind the cards on `.charge-motes`, over the button on
+ *  `.fuse-gemfx`), so every turn's swirl comes out a little different. At 0:00 everything collapses into the gem
+ *  with a burst (landing with `sfx.turnExplode()`); the gem then hums, charged, until End Turn fires its strike.
+ *  An End Turn before 0:00 makes the remaining fuse flash and fade out very quickly. Hidden during combat.
  *
  *  Timing is 100% synced to the turn clock: the charge window is the ACTUAL turn length (`min(CHARGE_SECONDS,
  *  turnSeconds)`, so short early-wave turns calibrate correctly, not a fixed 20s), and a rAF interpolates WITHIN
  *  each integer second from the clock's own sub-second position (`turnClock.secondProgress`) — so charge starts at
- *  0 on the first lit second and hits 1 EXACTLY as the clock reaches 0. Writes `--charge` (0→1) straight to the box
- *  ref each frame + the core-bloom opacity to its ref (no per-frame React render) — the heavy card tree is never
- *  touched (the clock lives in an external store; see turnClock.ts). The wipe/reveal is a compositor-friendly
- *  custom-prop write; the mask does the both-sides-in fill.
+ *  0 on the first lit second and hits 1 EXACTLY as the clock reaches 0. The burn writes `--burn` straight to the box
+ *  ref each frame (no per-frame React render) — the heavy card tree is never touched (the clock lives in an external
+ *  store; see turnClock.ts). Debris spawns follow the charge, not frame time, so a hitch leaves no gap.
  *
  *  HELD WITH THE CLOCK (owner 2026-10-07, R-TIMER-SYNC-01): whether time is passing is read from the clock itself
  *  (`useTurnClockRunning`), never from a pause list of the glyph's own — that private list drifted from the real gate
  *  (it missed the Ancients offer, the Good Luck intro, the wipe and the Gold Fuse wait), and nothing paused the sound
- *  at all. While the clock is held mid-turn the fill, the pulse, the motes AND the charge-build sound all stop; on
- *  resume they continue from exactly where the clock is, so the build still peaks as the clock hits 0. */
+ *  at all. While the clock is held mid-turn the burn, the debris sim AND the charge-build sound all stop; on resume
+ *  they continue from exactly where the clock is, so the build still peaks as the clock hits 0. */
 const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, covered, quiet = false }: { inCombat: boolean; window: number; covered: boolean; /** Versus: the player on screen ended the turn early (the shop stays up, the glyph fades as after a lobby End Turn). */ quiet?: boolean }) {
   const seconds = Math.max(0, useTurnSeconds());
   const running = useTurnClockRunning();
-  const preview = useChargePreview();          // dev tuner force-shows + scrubs the glyph; null in normal play
+  const preview = useChargePreview();          // dev tuner force-shows + scrubs the fuse; null in normal play
   const boxRef = useRef<HTMLDivElement>(null);
-  const coreRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const chargeRef = useRef(0);                  // the live charge (0→1), read by the motes loop each frame
+  const canvasRef = useRef<HTMLCanvasElement>(null); // the debris stream, behind the cards
+  const gemRef = useRef<HTMLCanvasElement>(null);    // the gem swirl, over the End Turn button
+  const fxRef = useRef<FuseFx | null>(null);
+  const windowRef = useRef(chargeWindow);
+  windowRef.current = chargeWindow;
+  const previewRef = useRef(preview);
+  previewRef.current = preview;
   // `covered` = a full-screen surface (title / hero select / career / compendium / leaderboard / balance) is
   // hiding the game — the glyph must not be lit behind it: Recruit stays mounted across EVERY phase, so on the
   // MAIN MENU the wave-1 clock (18s ≤ the 20s window) had it lighting invisibly and firing the ~30s charge-build
   // swell at players sitting on the title (owner-reported). Unlit-when-covered kills the sound (via the fade
-  // path's stopTurnCharge), the invisible paint, and the motes rAF. Mid-run POPUPS (Discover / quest / forge)
+  // path's stopTurnCharge), the invisible paint, and the sim rAF. Mid-run POPUPS (Discover / quest / forge)
   // are NOT covered — the board stays visible behind them, so the glyph stays lit and merely pauses.
   const lit = preview != null || (!inCombat && !covered && !quiet && seconds <= chargeWindow);
   // Held = the clock has time left but is not moving (a decision, the Esc menu, the intro, the wipe, ...). A clock at
-  // 0 is FINISHED, not held: the completion flash, the motes' gather and the build's tail all play out over it.
+  // 0 is FINISHED, not held: the collapse, the charged hum and the build's tail all play out over it.
   const held = lit && preview == null && !running && seconds > 0;
   const heldRef = useRef(held);
   heldRef.current = held;
-  // Keep the glyph mounted for a short fade-out when it stops being lit (End Turn pressed / timer ends → combat)
-  // instead of snapping to null. `mounted` holds the DOM through the fade; `fading` drives the opacity→0 transition
-  // (the paint/motes rAFs are gated on `lit`, so during the fade the glyph freezes at its last frame and just fades).
+  // Keep the fuse mounted for a short exit when it stops being lit instead of snapping to null. `mounted` holds the
+  // DOM through it; `exit` picks the look (fusePhase.ts): before 0:00 the remaining fuse FLASHES and fades very
+  // quickly (owner ask); at/after 0:00 the gem's End Turn strike carries the release, so it just clears.
   const [mounted, setMounted] = useState(lit);
-  const [fading, setFading] = useState(false);
+  const [exit, setExit] = useState<FuseExit | null>(null);
   useEffect(() => {
-    // Perf-log correlator (audit 2026-08-06): the glyph window is a HYPOTHESIS for shop sluggishness (its
-    // blend mode + per-frame mask writes disqualify compositor-only animation). These marks bracket the lit
-    // window in the frame timeline, so an exported slow session shows whether bad frames cluster inside it —
-    // measurement before surgery, per the perf doctrine.
+    // Perf-log correlator (audit 2026-08-06): the glyph window is a HYPOTHESIS for shop sluggishness. These marks
+    // bracket the lit window in the frame timeline, so an exported slow session shows whether bad frames cluster
+    // inside it — measurement before surgery, per the perf doctrine.
     perfMonitor.mark(lit ? 'chargeglyph:lit' : 'chargeglyph:out');
-    if (lit) { setMounted(true); setFading(false); return; }
+    if (lit) { setMounted(true); setExit(null); return; }
     if (!mounted) return;                 // already unmounted — nothing to fade
-    setFading(true);                       // lit → unlit while on screen: begin the fade-out
+    const kind = fuseExitKind(turnClock.get());
+    setExit(kind);                         // lit → unlit while on screen: flash-and-fade, or release with the strike
+    if (kind === 'release') {
+      for (const c of [canvasRef.current, gemRef.current]) c?.getContext('2d')?.clearRect(0, 0, c.width, c.height);
+    }
     stopTurnCharge();                      // + fade the long charge-build sound out alongside the visual (it's a
                                            // fire-and-forget clip that would otherwise keep playing under combat)
-    const t = window.setTimeout(() => { setMounted(false); setFading(false); }, CHARGE_FADEOUT_MS);
+    const t = window.setTimeout(() => { setMounted(false); setExit(null); }, getFuseCfg().flashOutMs);
     return () => window.clearTimeout(t);
   }, [lit, mounted]);
   // If the whole component unmounts mid-charge (a new run remounts Recruit via its runKey), the long build clip
@@ -630,7 +656,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   // entry: the clock ticking into the window (offset 0), a resume from a hold (offset = where the clock froze), a
   // Save & Continue or a covering surface closing onto an in-window clock (offset = the time already gone). A hold
   // fades it out quickly; unlighting is the fade-out path's job above. A light at a dead clock (menu closed after
-  // time-up) stays silent, and reaching 0 does not flip `audible`, so the tail rings out over the completion flash.
+  // time-up) stays silent, and reaching 0 does not flip `audible`, so the tail rings out over the collapse.
   const audible = lit && preview == null && !held;
   useEffect(() => {
     if (!audible) {
@@ -641,81 +667,162 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     sfx.turnCharge(chargeElapsed(chargeWindow, performance.now()));
   }, [audible, held, chargeWindow]);
 
+  // SET-UP, once per light: measure the fuse box and the End Turn gem ONCE (screen space → stage px; never per frame,
+  // perf north star; again only on a window resize), size both canvases, and start a fresh seeded sim. A light that
+  // starts mid-window is pre-warmed (a short, step-capped fast-forward so debris is already in flight); a light onto
+  // a dead clock goes straight to the charged hum — no collapse burst, no sound.
   useEffect(() => {
     if (!lit) return;
-    // Paint --charge + the core-bloom opacity for a fill fraction (0→1). Core stays dark until bloomAt, then eases
-    // in as t² up to coreMax (both live-tunable via chargeTune).
-    const paint = (charge: number): void => {
-      chargeRef.current = charge;
-      if (boxRef.current) {
-        boxRef.current.style.setProperty('--charge', charge.toFixed(4));
-        boxRef.current.style.setProperty('--feather', (CHARGE_MAX_FEATHER * (1 - charge)).toFixed(2) + '%'); // soft fronts → 0 at completion
-      }
-      if (coreRef.current) {
-        const t = charge <= chargeTune.bloomAt ? 0 : (charge - chargeTune.bloomAt) / (1 - chargeTune.bloomAt);
-        coreRef.current.style.opacity = (t * t * chargeTune.coreMax).toFixed(3);
-      }
+    const box = boxRef.current, behind = canvasRef.current, gemC = gemRef.current;
+    if (!box || !behind || !gemC) return;
+    let cfg = getFuseCfg();
+    let renderer: FuseRenderer;
+    try { renderer = new FuseRenderer(cfg); } catch { return; } // no 2D canvas (a test DOM): the burn still paints
+    const seed = fuseSeed.locked ?? randomSeed();
+    const sim = new FuseSim(cfg, seed);
+    const fx: FuseFx = {
+      sim, renderer, seed, boxW: 0, behindDirty: true,
+      geom: { fuseX0: 0, fuseX1: 0, fuseY: 0, fuseThick: 0, gemX: 0, gemY: 0 },
+      behindView: { ox: 0, oy: 0, scale: 1, dpr: 1 }, gemView: { ox: 0, oy: 0, scale: 1, dpr: 1 },
+      behindCtx: behind.getContext('2d'), gemCtx: gemC.getContext('2d'),
     };
-    if (preview != null) { paint(preview); return; } // dev preview: pin to the forced charge (no clock)
-    // Live: the fill is a pure function of the clock (whole seconds gone + how far into this one), so it hits 1
-    // EXACTLY as the clock reaches 0, and a held clock reads the same value every call.
-    const chargeNow = (): number => (chargeWindow > 0 ? chargeElapsed(chargeWindow, performance.now()) / chargeWindow : 0);
-    if (held) { paint(chargeNow()); return; } // frozen where the clock stopped: one paint, no rAF while held
+    const applyStatic = (): void => {
+      for (const el of [box, behind, gemC]) {
+        el.style.setProperty('--flash-ms', `${cfg.flashOutMs}ms`);
+        el.style.setProperty('--flash-peak', String(cfg.flashOutPeak));
+      }
+      box.style.setProperty('--feather', `${cfg.burnFeather}%`);
+      box.style.setProperty('--front-glow', String(cfg.frontGlow));
+      box.style.setProperty('--front-w', `${cfg.frontGlowW}px`);
+    };
+    const measure = (): void => {
+      const br = rectToStage(box.getBoundingClientRect());
+      const parent = (box.offsetParent as HTMLElement | null) ?? box.parentElement;
+      const pr = parent ? rectToStage(parent.getBoundingClientRect()) : { left: 0, top: 0 };
+      const gemEl = document.querySelector('.etbwrap .etb-gembox') ?? document.querySelector('.etbwrap');
+      const gr = gemEl ? rectToStage(gemEl.getBoundingClientRect()) : null;
+      const [a0, a1] = FUSE_ART_SPAN;
+      const fuseY = br.top + br.height / 2;
+      const g: FuseGeom = {
+        fuseX0: br.left + a0 * br.width, fuseX1: br.left + a1 * br.width, fuseY, fuseThick: br.height * 0.18,
+        gemX: gr ? gr.left + gr.width / 2 : br.right, gemY: gr ? gr.top + gr.height / 2 : fuseY,
+      };
+      fx.geom = g;
+      fx.boxW = br.width;
+      const scale = stageScale();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2) * pageScale();
+      // Behind-cards canvas: from the fuse's left tip to past the gem, tall enough for the debris to fan out.
+      const pad = 180;
+      const left = Math.min(g.fuseX0, g.gemX) - pad, right = Math.max(g.fuseX1, g.gemX) + cfg.captureR + pad;
+      const top = Math.min(g.fuseY, g.gemY) - pad, bottom = Math.max(g.fuseY, g.gemY) + pad;
+      Object.assign(behind.style, { left: `${left - pr.left}px`, top: `${top - pr.top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
+      behind.width = Math.max(1, Math.round((right - left) * scale * dpr));
+      behind.height = Math.max(1, Math.round((bottom - top) * scale * dpr));
+      fx.behindView = { ox: left, oy: top, scale, dpr };
+      // Gem canvas: a square over the button (fixed inside the stage, so stage px are its coordinates).
+      const half = cfg.captureR * 1.8 + cfg.gemGlowSize;
+      Object.assign(gemC.style, { left: `${g.gemX - half}px`, top: `${g.gemY - half}px`, width: `${half * 2}px`, height: `${half * 2}px` });
+      gemC.width = gemC.height = Math.max(1, Math.round(half * 2 * scale * dpr));
+      fx.gemView = { ox: g.gemX - half, oy: g.gemY - half, scale, dpr };
+      fx.behindDirty = true;
+    };
+    applyStatic();
+    measure();
+    const pv = previewRef.current;
+    const win = windowRef.current;
+    const charge = pv != null ? pv : (win > 0 ? chargeElapsed(win, performance.now()) / win : 0);
+    if ((pv == null && fusePhaseOnLight(turnClock.get()) === 'charged') || charge >= 1) {
+      sim.collapse(); // straight to the charged hum, off-screen and bounded (no burst, no sound)
+      for (let i = 0; i < 300 && !sim.collapseDone; i++) sim.step(1 / 60, 1, fx.geom);
+    } else if (charge * (pv == null ? win : CHARGE_SECONDS) > 0.5) {
+      sim.prewarm(charge, fx.geom);
+    }
+    fxRef.current = fx;
+    const onCfg = (): void => { cfg = getFuseCfg(); sim.setCfg(cfg); renderer.setCfg(cfg); applyStatic(); measure(); };
+    window.addEventListener('resize', measure);
+    window.addEventListener(FUSE_CFG_EVENT, onCfg);
+    return () => {
+      window.removeEventListener('resize', measure);
+      window.removeEventListener(FUSE_CFG_EVENT, onCfg);
+      fxRef.current = null;
+    };
+  }, [lit]);
+
+  // THE FRAME LOOP: one rAF while lit and running — paint the burn, step the sim, draw both passes.
+  useEffect(() => {
+    if (!lit) return;
+    let lastBurn = '';
+    const paint = (charge: number): void => {
+      const box = boxRef.current;
+      if (!box) return;
+      const [a0, a1] = FUSE_ART_SPAN;
+      const burn = a0 + (a1 - a0) * Math.min(1, Math.max(0, charge));
+      const key = burn.toFixed(4);
+      if (key === lastBurn) return;         // the charged wait writes nothing (flat cost however long it lasts)
+      lastBurn = key;
+      box.style.setProperty('--burn', key);
+      box.style.setProperty('--front-x', `${(burn * (fxRef.current?.boxW ?? 0)).toFixed(1)}px`);
+      box.style.setProperty('--front-boost', charge >= 1 ? '0' : seamBoostAt(getFuseCfg(), burn).toFixed(3));
+    };
+    const simFrame = (charge: number, dt: number, now: number): void => {
+      const fx = fxRef.current;
+      if (!fx) return;
+      const { sim, renderer, geom } = fx;
+      if (previewRef.current != null && charge < 0.999 && sim.mode !== 'charging') sim.reset(fx.seed); // tuner replay
+      // 0:00 reached while lit: everything collapses into the gem with a burst (lands with sfx.turnExplode()).
+      if (charge >= 1 && sim.mode === 'charging' && !heldRef.current) { sim.collapse(); renderer.burst(); }
+      if (!heldRef.current) sim.step(dt, charge, geom);
+      if (fx.behindCtx && (fx.behindDirty || sim.particles.length > 0)) {
+        fx.behindDirty = renderer.drawBehind(fx.behindCtx, sim, geom, fx.behindView) > 0;
+      }
+      if (fx.gemCtx) renderer.drawGem(fx.gemCtx, sim, geom, fx.gemView, charge, now / 1000);
+    };
+    const chargeNow = (): number => {
+      if (previewRef.current != null) return previewRef.current; // dev preview: pin to the forced charge (no clock)
+      // Live: a pure function of the clock (whole seconds gone + how far into this one), so it hits 1 EXACTLY as the
+      // clock reaches 0, and a held clock reads the same value every call.
+      return chargeWindow > 0 ? chargeElapsed(chargeWindow, performance.now()) / chargeWindow : 0;
+    };
+    // Frozen where the clock stopped: one paint + one draw (no sim step), no rAF while held.
+    if (held) { const c = chargeNow(); paint(c); simFrame(c, 0, performance.now()); return; }
     let raf = 0;
-    // PHONES (R-PHONE-CHARGE-30HZ-01): each write of --charge changes the glyph's mask, which repaints the whole glyph
-    // under its two big drop-shadow glows. A 120 Hz iPhone paid that 120 times a second for the last 20 s of every
-    // shop. The fill moves about a layout px a frame, so ~30 writes a second look the same and cost a quarter.
+    // PHONES (R-PHONE-CHARGE-30HZ-01): each write of the burn changes the fuse's mask, which repaints it. A 120 Hz
+    // iPhone paid that 120 times a second for the last 20 s of every shop. The fuse moves about a layout px a frame,
+    // so ~30 writes a second look the same and cost a quarter; the sim steps on the same beat.
     // Desktop paints every frame, as before.
     let last = -Infinity;
+    let lastStep = performance.now();
     const draw = (now: number): void => {
-      if (!PHONE_GPU || now - last >= PHONE_CHARGE_PAINT_MS) { last = now; paint(chargeNow()); }
+      if (!PHONE_GPU || now - last >= PHONE_CHARGE_PAINT_MS) {
+        last = now;
+        const c = chargeNow();
+        paint(c);
+        // Never one giant catch-up step (a backgrounded tab, a long frame): cap it.
+        const dt = Math.min(0.25, Math.max(0, (now - lastStep) / 1000));
+        lastStep = now;
+        simFrame(c, dt, now);
+      }
       raf = requestAnimationFrame(draw);
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
   }, [lit, held, chargeWindow, preview]);
 
-  // Motes: a light 2D-canvas particle layer co-located with the glyph (z:0, behind the cards — the main Pixi canvas
-  // is z110, the wrong layer). A continuous rAF (started once per charge session, keyed on `lit`) reads the live
-  // charge from chargeRef and drives the engine: white-hot motes onto the lit shape, gathering into the mandala + a
-  // flash at completion. Glyph/canvas rects are measured ONCE at start (never per frame — perf north star). Runs
-  // only while lit; the card tree is never touched. Tuned in fx/turn-glyph-motes-preview.html (see chargeMotes.ts).
-  useEffect(() => {
-    if (!lit) return;
-    const canvas = canvasRef.current, glyph = boxRef.current;
-    if (!canvas || !glyph) return;
-    const engine = new ChargeMotes(canvas);
-    const gr = glyph.getBoundingClientRect(), cr = canvas.getBoundingClientRect();
-    const glyphCssW = gr.width, glyphCssH = gr.height;
-    // Backing px = the canvas's ON-SCREEN size x DPR: on the page scale (R-PHONE-PAGESCALE-01) a rect is layout px.
-    engine.resize(cr.width, cr.height, Math.min(window.devicePixelRatio || 1, 2) * pageScale());
-    engine.reset();
-    let raf = 0, last = performance.now();
-    const loop = (t: number): void => {
-      // Held with the clock (R-TIMER-SYNC-01): skip the step so every mote freezes in place, and keep `last` current
-      // so the resume does not hand the engine one giant catch-up step.
-      if (!heldRef.current) engine.frame(chargeRef.current, glyphCssW, glyphCssH, t - last);
-      last = t;
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [lit]);
-
-  // Render the moment `lit` is true — `mounted` only HOLDS the DOM through the fade-out. `mounted` alone lags one
-  // commit behind `lit` (it's set by an effect), and gating the render on it meant the `[lit]`-keyed motes/paint
-  // effects fired BEFORE the canvas/glyph existed on any re-light where the glyph had been away (turn 2+, where it
-  // lights mid-shop) — the motes engine grabbed null refs and never started. Turn 1 escaped only because the very
+  // Render the moment `lit` is true — `mounted` only HOLDS the DOM through the exit. `mounted` alone lags one
+  // commit behind `lit` (it's set by an effect), and gating the render on it meant the `[lit]`-keyed set-up/paint
+  // effects fired BEFORE the canvas/fuse existed on any re-light where the fuse had been away (turn 2+, where it
+  // lights mid-shop) — the engine grabbed null refs and never started. Turn 1 escaped only because the very
   // first render seeded `mounted` from an already-true `lit`.
   if (!lit && !mounted) return null;
+  const exitCls = exit === 'flashFade' ? ' flashout' : exit === 'release' ? ' fading' : '';
   return (
     <>
-      <div className={`chargeglyph${fading ? ' fading' : ''}${held ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
-        <div className="masked charge-base" />
-        <div className="masked charge-fill" />
-        <div className="masked charge-core" ref={coreRef} />
+      <div className={`chargeglyph${exitCls}${held ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
+        <div className="fuse-body" />
+        <div className="fuse-front" />
       </div>
-      <canvas className={`charge-motes${fading ? ' fading' : ''}`} ref={canvasRef} aria-hidden="true" />
+      <canvas className={`charge-motes${exitCls}`} ref={canvasRef} aria-hidden="true" />
+      {createPortal(<canvas className={`fuse-gemfx${exitCls}`} ref={gemRef} aria-hidden="true" />, stageHost())}
     </>
   );
 });

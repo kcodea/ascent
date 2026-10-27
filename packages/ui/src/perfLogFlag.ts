@@ -43,8 +43,14 @@ function readShow(): { q: string | null; remembered: boolean } {
 
 const SHOW = readShow();
 
-/** True when this load records the perf log (a phone, or the flag). Fixed for the session. */
-export const PERF_LOG_ON: boolean = typeof window !== 'undefined' && perfLogWantedFor(LITE_ART, SHOW.q, SHOW.remembered);
+function benchFlag(): boolean {
+  try { return new URLSearchParams(window.location.search).get('phonebench') === '1'; } catch { return false; }
+}
+/** `?phonebench=1`: the on-device auto-bench runs this load (phoneBench.ts, R-PHONE-BENCH-01); it records on any device. */
+export const PHONE_BENCH_ON: boolean = typeof window !== 'undefined' && benchFlag();
+
+/** True when this load records the perf log (a phone, the flag, or the bench). Fixed for the session. */
+export const PERF_LOG_ON: boolean = typeof window !== 'undefined' && (PHONE_BENCH_ON || perfLogWantedFor(LITE_ART, SHOW.q, SHOW.remembered));
 
 /** True when the on-screen readout shows this load. */
 export const PERF_READOUT_ON: boolean = perfReadoutWantedFor(SHOW.q, SHOW.remembered);

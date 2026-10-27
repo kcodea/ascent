@@ -33,7 +33,8 @@ export interface Crumb {
   /** ms since the page loaded */ t: number;
   /** decoded audio MB */ a?: number;
   /** decoded <img> count on the page */ i?: number;
-  /** decoded <img> MB on the page */ im?: number;
+  /** decoded <img> MB on the page (summed per ELEMENT: a URL shown by three <img> counts three times) */ im?: number;
+  /** distinct image URLs among them, and their MB counted once each (what the browser actually decodes) */ iu?: number; ium?: number;
   /** WebGL contexts made / still in the page */ g?: number; gl?: number;
   /** WebGL contexts still ALIVE (made and not lost, in the page or not) and their drawing buffers, MB (w x h x 4) */
   ga?: number; gmb?: number;
@@ -84,7 +85,7 @@ export function lastStep(session: CrashSession): Crumb | undefined {
 export function describeCrumb(c: Crumb): string {
   const parts = [`${(c.t / 1000).toFixed(1)} s`];
   if (c.a !== undefined) parts.push(`audio ${c.a} MB`);
-  if (c.i !== undefined) parts.push(`images ${c.i} (${c.im ?? 0} MB)`);
+  if (c.i !== undefined) parts.push(`images ${c.i} (${c.im ?? 0} MB)${c.iu !== undefined ? `, ${c.iu} distinct (${c.ium ?? 0} MB)` : ''}`);
   if (c.ga !== undefined) parts.push(`WebGL ${c.ga} alive (${c.gl ?? 0} in page) of ${c.g ?? 0} made, ${c.gmb ?? 0} MB`);
   else if (c.g !== undefined) parts.push(`WebGL ${c.gl ?? 0} of ${c.g}`);
   if (c.an !== undefined) parts.push(`anims ${c.an}, will-change ${c.wc ?? 0}, filters ${c.fl ?? 0}, 2D canvases ${c.c2 ?? 0}`);
@@ -173,9 +174,8 @@ function measure(s: string, x?: Record<string, string | number>, scan: 'full' | 
   const c: Crumb = { s, t: Math.round(typeof performance !== 'undefined' ? performance.now() : 0) };
   try { if (probes.audio) c.a = round(probes.audio()); } catch { /* probe failed */ }
   try {
-    let n = 0; let b = 0;
-    for (const img of Array.from(document.images)) if (img.complete && img.naturalWidth) { n++; b += img.naturalWidth * img.naturalHeight * 4; }
-    c.i = n; c.im = round(b / 1048576);
+    const d = decodedImagesSnapshot();
+    c.i = d.n; c.im = d.mb; c.iu = d.urls; c.ium = d.umb;
   } catch { /* no DOM */ }
   c.g = glCanvases.length;
   c.gl = glCanvases.filter((cv) => cv.isConnected).length;
@@ -331,13 +331,25 @@ export function webglSnapshot(): { made: number; inPage: number; alive: number; 
   };
 }
 
+/** The decoded audio MB the SFX module reports (null when no probe is registered). */
+export function audioMbSnapshot(): number | null {
+  try { return probes.audio ? round(probes.audio()) : null; } catch { return null; }
+}
+
 /** Decoded <img> elements on the page right now: count and MB (w x h x 4). A model of the image memory, not a reading. */
-export function decodedImagesSnapshot(): { n: number; mb: number } {
-  let n = 0; let b = 0;
+export function decodedImagesSnapshot(): { n: number; mb: number; urls: number; umb: number } {
+  let n = 0; let b = 0; let ub = 0;
+  const seen = new Set<string>();
   try {
-    for (const img of Array.from(document.images)) if (img.complete && img.naturalWidth) { n++; b += img.naturalWidth * img.naturalHeight * 4; }
+    for (const img of Array.from(document.images)) if (img.complete && img.naturalWidth) {
+      const px = img.naturalWidth * img.naturalHeight * 4;
+      n++; b += px;
+      // The browser decodes a URL once however many <img> show it: `umb` is the de-duplicated figure (R-PHONE-PERFLOG-01).
+      const u = img.currentSrc || img.src;
+      if (!seen.has(u)) { seen.add(u); ub += px; }
+    }
   } catch { /* no DOM */ }
-  return { n, mb: round(b / 1048576) };
+  return { n, mb: round(b / 1048576), urls: seen.size, umb: round(ub / 1048576) };
 }
 
 function start(): void {

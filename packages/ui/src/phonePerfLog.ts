@@ -29,7 +29,7 @@
 import { FLAG_WARM, perfMonitor, type PerfBucket } from './perfMonitor';
 import { dragStore } from './dragStore';
 import { PERF_LOG_ON } from './perfLogFlag';
-import { decodedImagesSnapshot, webglSnapshot } from './crashLog';
+import { audioMbSnapshot, decodedImagesSnapshot, webglSnapshot } from './crashLog';
 import { fxLedgerMisses, fxLedgerSnapshot, fxLedgerTotals, pixiAppsSnapshot, type FxLedgerRow } from './fxLedger';
 import { LITE_ART, LITE_ART_REASON } from './phoneArt';
 import { activeDiagLabel } from './phoneDiag';
@@ -157,6 +157,7 @@ interface StateSnap {
   pixi: ReturnType<typeof pixiAppsSnapshot>;
   img: ReturnType<typeof decodedImagesSnapshot>;
   heap: number | null;
+  /** decoded audio MB (the SFX bank on a phone) */ audioMb: number | null;
   anims: number; nodes: number; hz: number; hzDetected: boolean;
 }
 
@@ -178,7 +179,7 @@ let lastScene: PerfScene | null = null;
 let lastScreen: PerfScreen | null = null;
 let lastGl = { lostEvents: 0, restoredEvents: 0 };
 let snap: StateSnap | null = null;
-const peak = { glAlive: 0, glMb: 0, pixiAlive: 0, imgMb: 0, heap: 0, anims: 0, nodes: 0, glLostNow: 0 };
+const peak = { glAlive: 0, glMb: 0, pixiAlive: 0, imgMb: 0, imgUniqueMb: 0, audioMb: 0, heap: 0, anims: 0, nodes: 0, glLostNow: 0 };
 let lastSnapAt = -Infinity;
 let lastLostLabels = '';
 let persistQueued = false;
@@ -283,14 +284,14 @@ function takeSnap(b: PerfBucket | null): StateSnap {
   let anims = 0;
   try { anims = typeof document.getAnimations === 'function' ? document.getAnimations().length : 0; } catch { /* none */ }
   const s: StateSnap = {
-    t: secs(now()), gl, pixi, img, heap: mem ? r1(mem.usedJSHeapSize / 1048576) : null, anims,
+    t: secs(now()), gl, pixi, img, heap: mem ? r1(mem.usedJSHeapSize / 1048576) : null, audioMb: audioMbSnapshot(), anims,
     nodes: b?.nodes ?? (typeof document !== 'undefined' ? document.getElementsByTagName('*').length : 0),
     hz: perfMonitor.display.refreshHz, hzDetected: perfMonitor.display.detected,
   };
   peak.glAlive = Math.max(peak.glAlive, gl.alive); peak.glMb = Math.max(peak.glMb, gl.mb);
   peak.glLostNow = Math.max(peak.glLostNow, gl.lostNow);
-  peak.pixiAlive = Math.max(peak.pixiAlive, pixi.alive.length); peak.imgMb = Math.max(peak.imgMb, img.mb);
-  peak.heap = Math.max(peak.heap, s.heap ?? 0); peak.anims = Math.max(peak.anims, anims); peak.nodes = Math.max(peak.nodes, s.nodes);
+  peak.pixiAlive = Math.max(peak.pixiAlive, pixi.alive.length); peak.imgMb = Math.max(peak.imgMb, img.mb); peak.imgUniqueMb = Math.max(peak.imgUniqueMb, img.umb);
+  peak.heap = Math.max(peak.heap, s.heap ?? 0); peak.audioMb = Math.max(peak.audioMb, s.audioMb ?? 0); peak.anims = Math.max(peak.anims, anims); peak.nodes = Math.max(peak.nodes, s.nodes);
   const lostLabels = pixi.alive.filter((a) => a.lost).map((a) => a.label).join(',');
   if (lostLabels !== lastLostLabels) { note(lostLabels ? 'pixi renderer lost' : 'pixi renderers ok', lostLabels || undefined); lastLostLabels = lostLabels; }
   snap = s;
@@ -373,6 +374,7 @@ export function perfPayload(): Record<string, unknown> {
     events: [...events],
     state: st, peak: { ...peak },
     fx: ledgerForPayload(led.rows, led.overflow),
+    ...(benchInfo ? { bench: { ...benchInfo } } : {}),
     counters,
   };
 }
@@ -474,7 +476,7 @@ export interface PerfLogView {
   scenes: { scene: PerfScene; sum: SceneSummary }[];
   gl: ReturnType<typeof webglSnapshot> | null;
   pixi: ReturnType<typeof pixiAppsSnapshot> | null;
-  imgMb: number; heap: number | null;
+  imgMb: number; imgUniqueMb: number; heap: number | null; audioMb: number | null;
   fx: { req: number; started: number; missed: number; top: { kind: string; missed: number; why: string }[] };
   upload: string; uploads: number;
 }
@@ -484,14 +486,19 @@ export function perfLogView(): PerfLogView {
   drain(null);
   const rows = fxLedgerSnapshot().rows;
   const tot = fxLedgerTotals(rows);
+  const img = decodedImagesSnapshot();
   return {
     durS: secs(now()), frames: totalFrames, hz: perfMonitor.display.refreshHz, hzDetected: perfMonitor.display.detected,
     scenes: PERF_SCENES.filter((s) => (scenes.get(s)?.n ?? 0) > 0).map((s) => ({ scene: s, sum: summarizeAcc(scenes.get(s)!) })),
-    gl: webglSnapshot(), pixi: pixiAppsSnapshot(), imgMb: decodedImagesSnapshot().mb, heap: snap?.heap ?? null,
+    gl: webglSnapshot(), pixi: pixiAppsSnapshot(), imgMb: img.mb, imgUniqueMb: img.umb, heap: snap?.heap ?? null, audioMb: audioMbSnapshot(),
     fx: { req: tot.req, started: tot.out.started ?? 0, missed: missedOf(tot.out), top: fxLedgerMisses(rows, 6) },
     upload: lastUploadNote, uploads,
   };
 }
+
+let benchInfo: Record<string, unknown> | null = null;
+/** The on-device bench (phoneBench.ts, R-PHONE-BENCH-01) tags the log with its progress; the payload carries it. */
+export function setPerfBenchInfo(info: Record<string, unknown>): void { benchInfo = { ...(benchInfo ?? {}), ...info }; }
 
 /** True when this load records (the readout reads it). */
 export function perfLogActive(): boolean { return PERF_LOG_ON; }

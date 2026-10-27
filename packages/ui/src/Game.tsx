@@ -32,6 +32,9 @@ import { AvatarPicker } from './AvatarPicker';
 import { TutorialController } from './tutorial/TutorialController';
 import { CrashLogReadout } from './CrashLogReadout';
 import { PerfLogReadout } from './PerfLogReadout';
+import { PHONE_BENCH_ON } from './perfLogFlag';
+// The on-device auto-bench (R-PHONE-BENCH-01): fetched only with ?phonebench=1.
+const PhoneBenchCard = lazy(() => import('./PhoneBenchCard'));
 import { installPerfLog } from './phonePerfLog';
 import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
 import { anonRestInsert, supabaseClient } from './remoteBoards';
@@ -721,6 +724,7 @@ export function Game() {
           standalone phone app. Counter-scaled so it reads at full size. */}
       <CrashLogReadout />
       <PerfLogReadout />
+      {PHONE_BENCH_ON && <Suspense fallback={null}><PhoneBenchCard /></Suspense>}
       {/* First-launch welcome RETIRED as an auto-popup (owner 2026-08-17): the tutorial nudge now fires when a
           new player first hits Play (see Title's `onPlay` + tutorial prompt), not on load. */}
     </ErrorBoundary>

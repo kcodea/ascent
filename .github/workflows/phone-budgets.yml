@@ -1,0 +1,41 @@
+name: Phone budgets
+
+# PHONE BUDGETS (R-PHONE-BENCH-01, owner 2026-10-26: "make this game run flawlessly on mobile devices ... performance
+# is a pillar"). Walks a production build as an iPhone in headless Chrome (title -> Play -> hero select -> the first
+# shop -> a touch-drag buy + play -> End Turn -> the first fight; scripts/phone-run-memory.mjs) and fails when a peak
+# goes over its ceiling:
+#   - the iOS memory estimate (layers + WebGL buffers + textures + decoded images + audio): 300 MB
+#   - live WebGL contexts: 6 (measured 5 on 2026-10-26; the target is fewer, tighten as contexts are consolidated)
+#   - decoded audio: 80 MB (measured 68 at the CI context rate)
+#   - decoded images: 140 MB (measured 108)
+# Ceilings sit above today's numbers so a REGRESSION fails, not today's game; lower them as fixes land.
+#
+# NOT a required check (it drives a real browser and can be noisier than `verify`): read it on every UI PR, and treat
+# red as a perf defect to fix before merge (CLAUDE.md: a frame drop or hitch is a defect).
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/ui/**'
+      - 'apps/web/**'
+      - 'scripts/phone-run-memory.mjs'
+      - '.github/workflows/phone-budgets.yml'
+
+concurrency:
+  group: phone-budgets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phone-budgets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - name: Phone memory + WebGL + audio + image budgets (iPhone, headless Chrome)
+        run: npm run perf:phone-run -- --interact --budget 300 --max-gl 6 --max-audio 80 --max-img 140

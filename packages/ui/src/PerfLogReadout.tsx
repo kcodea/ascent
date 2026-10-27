@@ -42,7 +42,7 @@ export function PerfLogReadout(): React.ReactElement | null {
       </table>
       {gl && <div className="perflog-line">WebGL {gl.alive} alive of {gl.made} made, {gl.mb} MB, lost {gl.lostEvents} / restored {gl.restoredEvents}{gl.lostNow ? `, ${gl.lostNow} LOST IN PAGE` : ''}</div>}
       {v.pixi && <div className="perflog-line">Pixi {v.pixi.alive.map((a) => `${a.label} ${a.bw}x${a.bh} r${a.res}${a.lost ? ' LOST' : ''}`).join('; ') || 'none'}</div>}
-      <div className="perflog-line">Images {v.imgMb} MB{v.heap !== null ? `, heap ${v.heap} MB` : ''}</div>
+      <div className="perflog-line">Images {v.imgMb} MB ({v.imgUniqueMb} MB distinct){v.audioMb !== null ? `, audio ${v.audioMb} MB` : ''}{v.heap !== null ? `, heap ${v.heap} MB` : ''}</div>
       <div className="perflog-line">FX asked {v.fx.req}, drew {v.fx.started}, missed {v.fx.missed}</div>
       {v.fx.top.length > 0 && <ol className="perflog-miss">{v.fx.top.map((m) => <li key={m.kind}><b>{m.kind}</b> {m.why}</li>)}</ol>}
       {v.upload && <div className="perflog-line">{v.upload}</div>}

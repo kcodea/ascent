@@ -31,7 +31,6 @@ const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefine
   iceOpacity: ['Ice opacity', 'opacity', 'How solid the ice reads once it has formed.'],
   iceGlowSize: ['Resting glow size', 'px', 'A cold glow that stays around the ice after it forms. 0 = off.'],
   iceGlowAlpha: ['Resting glow strength', 'opacity', 'How strong that resting glow is.'],
-  iceFlash: ['Grow-in flash', '×', 'Brightness flash while the ice grows in. 1 = no flash.'],
   iceDur: ['Grow-in time', 's', 'How long the top-to-bottom grow takes. Toggle Freeze to replay it.'],
   iceFeather: ['Edge softness', '%', 'How soft the growing edge is. 0 = a hard line.'],
   iceSpellX: ['Spell ice X', '%', 'Shift the spell ice sideways, as % of the spell frame.'],
@@ -39,7 +38,6 @@ const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefine
   iceSpellOpacity: ['Spell ice opacity', 'opacity', 'How solid the spell ice reads once formed.'],
   iceSpellGlowSize: ['Resting glow size', 'px', 'A cold glow that stays around the spell ice. 0 = off.'],
   iceSpellGlowAlpha: ['Resting glow strength', 'opacity', 'How strong that resting glow is.'],
-  iceSpellFlash: ['Grow-in flash', '×', 'Brightness flash while the spell ice grows in. 1 = no flash.'],
   iceSpellDur: ['Grow-in time', 's', 'How long the top-to-bottom grow takes. Toggle Freeze to replay it.'],
   iceSpellFeather: ['Edge softness', '%', 'How soft the growing edge is. 0 = a hard line.'],
 };
@@ -47,8 +45,8 @@ const SPECS: Record<(typeof FRZ_NUM_KEYS)[number], [string, TunerUnit | undefine
 const controls: TunerControl<Extract<keyof FreezeConfig, string>>[] = FRZ_NUM_KEYS.map((key) => {
   const [label, unit, hint] = SPECS[key];
   const [min, max, step] = FRZ_RANGES[key];
-  const group = key.startsWith('iceSpell') ? (['iceSpellFlash', 'iceSpellDur', 'iceSpellFeather'].includes(key) ? 'Spell ice — grow-in' : 'Spell ice — look')
-    : key.startsWith('ice') ? (['iceFlash', 'iceDur', 'iceFeather'].includes(key) ? 'Minion ice — grow-in' : 'Minion ice — look')
+  const group = key.startsWith('iceSpell') ? (['iceSpellDur', 'iceSpellFeather'].includes(key) ? 'Spell ice — grow-in' : 'Spell ice — look')
+    : key.startsWith('ice') ? (['iceDur', 'iceFeather'].includes(key) ? 'Minion ice — grow-in' : 'Minion ice — look')
     : key.startsWith('gemGlow') || key === 'gemHoverBright' ? 'Gem glow'
     : key.startsWith('gem') ? 'Gem overlay'
     : key.startsWith('pill') ? 'Freeze label'

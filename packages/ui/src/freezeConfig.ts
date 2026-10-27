@@ -52,8 +52,6 @@ export interface FreezeConfig {
   iceGlowSize: number;
   /** Shop ice ring — resting glow strength (0–1 alpha of the glow colour). */
   iceGlowAlpha: number;
-  /** Shop ice ring — brightness of the flash while the ice grows in (×; 1 = no flash). */
-  iceFlash: number;
   /** Shop ice ring — how long the top-to-bottom grow takes (s). */
   iceDur: number;
   /** Shop ice ring — height of the feathered leading edge (% of the sweep; bigger = softer). */
@@ -68,8 +66,6 @@ export interface FreezeConfig {
   iceSpellGlowSize: number;
   /** SPELL ice — resting glow strength (0–1). */
   iceSpellGlowAlpha: number;
-  /** SPELL ice — grow-in brightness flash (×; 1 = none). */
-  iceSpellFlash: number;
   /** SPELL ice — grow-in time (s). */
   iceSpellDur: number;
   /** SPELL ice — softness of the growing edge (%). */
@@ -102,7 +98,6 @@ const DEFAULTS: FreezeConfig = {
   iceOpacity: 0.88,
   iceGlowSize: 5,
   iceGlowAlpha: 0.58,
-  iceFlash: 1.05,
   iceDur: 1.05,
   iceFeather: 13,
   // Spell ice — owner-tuned 2026-10-27.
@@ -111,7 +106,6 @@ const DEFAULTS: FreezeConfig = {
   iceSpellOpacity: 0.86,
   iceSpellGlowSize: 3,
   iceSpellGlowAlpha: 0,
-  iceSpellFlash: 1.05,
   iceSpellDur: 1.05,
   iceSpellFeather: 13,
 };
@@ -139,7 +133,6 @@ export const FRZ_RANGES: Record<keyof FreezeConfig, [number, number, number]> = 
   iceOpacity: [0, 1, 0.01],
   iceGlowSize: [0, 30, 0.5],
   iceGlowAlpha: [0, 1, 0.01],
-  iceFlash: [1, 3, 0.05],
   iceDur: [0.1, 1.5, 0.01],
   iceFeather: [0, 60, 1],
   iceSpellX: [-30, 30, 0.25],
@@ -147,7 +140,6 @@ export const FRZ_RANGES: Record<keyof FreezeConfig, [number, number, number]> = 
   iceSpellOpacity: [0, 1, 0.01],
   iceSpellGlowSize: [0, 30, 0.5],
   iceSpellGlowAlpha: [0, 1, 0.01],
-  iceSpellFlash: [1, 3, 0.05],
   iceSpellDur: [0.1, 1.5, 0.01],
   iceSpellFeather: [0, 60, 1],
 };
@@ -175,7 +167,6 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
   iceOpacity: 'Shop ice ring — opacity once formed.',
   iceGlowSize: 'Shop ice ring — resting cold glow blur. 0 = off.',
   iceGlowAlpha: 'Shop ice ring — resting glow strength.',
-  iceFlash: 'Shop ice ring — brightness flash while it grows in. 1 = no flash.',
   iceDur: 'Shop ice ring — how long the top-to-bottom grow takes (s).',
   iceFeather: 'Shop ice ring — softness of the growing edge.',
   iceSpellX: 'Spell ice — horizontal shift (% of the spell frame).',
@@ -183,14 +174,13 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
   iceSpellOpacity: 'Spell ice — opacity once formed.',
   iceSpellGlowSize: 'Spell ice — resting cold glow blur. 0 = off.',
   iceSpellGlowAlpha: 'Spell ice — resting glow strength.',
-  iceSpellFlash: 'Spell ice — brightness flash while it grows in. 1 = no flash.',
   iceSpellDur: 'Spell ice — how long the top-to-bottom grow takes (s).',
   iceSpellFeather: 'Spell ice — softness of the growing edge.',
 };
 
 export const FRZ_NUM_KEYS = ['x', 'y', 'scale', 'gemX', 'gemY', 'gemS', 'pillX', 'pillY', 'pillS', 'gemGlowSize', 'gemGlowStrength', 'gemHoverBright',
-  'iceW', 'iceH', 'iceSpellW', 'iceSpellH', 'iceX', 'iceY', 'iceOpacity', 'iceGlowSize', 'iceGlowAlpha', 'iceFlash', 'iceDur', 'iceFeather',
-  'iceSpellX', 'iceSpellY', 'iceSpellOpacity', 'iceSpellGlowSize', 'iceSpellGlowAlpha', 'iceSpellFlash', 'iceSpellDur', 'iceSpellFeather'] as const;
+  'iceW', 'iceH', 'iceSpellW', 'iceSpellH', 'iceX', 'iceY', 'iceOpacity', 'iceGlowSize', 'iceGlowAlpha', 'iceDur', 'iceFeather',
+  'iceSpellX', 'iceSpellY', 'iceSpellOpacity', 'iceSpellGlowSize', 'iceSpellGlowAlpha', 'iceSpellDur', 'iceSpellFeather'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FRZ_DEFAULTS };
 
@@ -241,7 +231,6 @@ export function applyFreezeVars(): void {
   root.setProperty('--frz-ice-glow', cfg.iceGlowSize > 0 && cfg.iceGlowAlpha > 0
     ? `drop-shadow(0 0 ${cfg.iceGlowSize}px rgba(150, 215, 255, ${cfg.iceGlowAlpha}))`
     : 'none');
-  root.setProperty('--frz-ice-flash', String(cfg.iceFlash));
   root.setProperty('--frz-ice-dur', `${cfg.iceDur}s`);
   // The reveal mask is 300% tall, so the solid→clear band is centred at 50% and spans the feather each side.
   root.setProperty('--frz-ice-f0', `${50 - cfg.iceFeather / 2}%`);
@@ -253,7 +242,6 @@ export function applyFreezeVars(): void {
   root.setProperty('--frz-ice-s-glow', cfg.iceSpellGlowSize > 0 && cfg.iceSpellGlowAlpha > 0
     ? `drop-shadow(0 0 ${cfg.iceSpellGlowSize}px rgba(150, 215, 255, ${cfg.iceSpellGlowAlpha}))`
     : 'none');
-  root.setProperty('--frz-ice-s-flash', String(cfg.iceSpellFlash));
   root.setProperty('--frz-ice-s-dur', `${cfg.iceSpellDur}s`);
   root.setProperty('--frz-ice-s-f0', `${50 - cfg.iceSpellFeather / 2}%`);
   root.setProperty('--frz-ice-s-f1', `${50 + cfg.iceSpellFeather / 2}%`);

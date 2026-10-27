@@ -2959,8 +2959,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 .card.compact.dscard::after, .card.compact.reborncard::after { border-radius: var(--arch-radius); }
 /* Frozen tavern — each held shop card is wrapped in the painted ice ring (`/frames/freeze-ice.webp`, owner
    art 2026-10-27; its centre is clear so the card art still reads). The ice GROWS from the top edge down: a
-   soft-edged mask band sweeps down the card (the "edge fade") while a brief brightness + cold-glow flash
-   settles (the "subtle glow"). One-shot, not a loop, so the paint cost is bounded. Every dial is a `--frz-ice-*`
+   soft-edged mask band sweeps down the card (the "edge fade") with the resting cold glow already on (no
+   brightness flash, owner 2026-10-27). One-shot, not a loop, so the paint cost is bounded. Every dial is a `--frz-ice-*`
    var written by freezeConfig.ts (DevMenu → Freeze → "Shop ice"); the fallbacks here MIRROR its DEFAULTS. The
    `frozen` class is recruit-only, so combat enemy units never frost. */
 [data-zone="tavern"].frozen .card::after {
@@ -2978,6 +2978,8 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
      from above the card to below it, so the ice appears top → bottom with a feathered leading edge. */
   -webkit-mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 43.5%), transparent var(--frz-ice-f1, 56.5%), transparent 100%) 0 0 / 100% 300% no-repeat;
           mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 43.5%), transparent var(--frz-ice-f1, 56.5%), transparent 100%) 0 0 / 100% 300% no-repeat;
+  /* The resting glow is on the WHOLE time, grow-in included — no brightness flash (owner ask 2026-10-27). */
+  filter: var(--frz-ice-glow, drop-shadow(0 0 5px rgba(150, 215, 255, 0.58)));
   animation: frostin var(--frz-ice-dur, 1.05s) cubic-bezier(0.25, 0.7, 0.35, 1) both;
 }
 /* The attack + health medallions (and their plate / milestone-frame backplates, which live inside `.badge`) stay
@@ -2993,17 +2995,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 [data-zone="tavern"].frozen .card:nth-child(6)::after { animation-delay: 0.25s; }
 [data-zone="tavern"].frozen .card:nth-child(7)::after { animation-delay: 0.3s; }
 @keyframes frostin {
-  0% {
-    opacity: 0.4;
-    -webkit-mask-position: 0 100%; mask-position: 0 100%;
-    filter: brightness(var(--frz-ice-flash, 1.05)) drop-shadow(0 0 10px rgba(170, 225, 255, 0.95));
-  }
-  70% { filter: brightness(calc(1 + (var(--frz-ice-flash, 1.05) - 1) * 0.35)) drop-shadow(0 0 6px rgba(170, 225, 255, 0.7)); opacity: var(--frz-ice-op, 0.88); }
-  100% {
-    opacity: var(--frz-ice-op, 0.88);
-    -webkit-mask-position: 0 0; mask-position: 0 0;
-    filter: var(--frz-ice-glow, drop-shadow(0 0 5px rgba(150, 215, 255, 0.58)));
-  }
+  0% { opacity: 0.4; -webkit-mask-position: 0 100%; mask-position: 0 100%; }
+  70% { opacity: var(--frz-ice-op, 0.88); }
+  100% { opacity: var(--frz-ice-op, 0.88); -webkit-mask-position: 0 0; mask-position: 0 0; }
 }
 /* tier pill rides the arch top */
 /* SPELL tier badge gets its OWN nudge. A spell's frame is a square whose banner seat differs from the minion
@@ -5286,7 +5280,6 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   --frz-ice-y: var(--frz-ice-s-y, 6.75%);
   --frz-ice-op: var(--frz-ice-s-op, 0.86);
   --frz-ice-glow: var(--frz-ice-s-glow, none);
-  --frz-ice-flash: var(--frz-ice-s-flash, 1.05);
   --frz-ice-dur: var(--frz-ice-s-dur, 1.05s);
   --frz-ice-f0: var(--frz-ice-s-f0, 43.5%);
   --frz-ice-f1: var(--frz-ice-s-f1, 56.5%);

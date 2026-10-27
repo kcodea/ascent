@@ -35,6 +35,7 @@ import { RecentGames } from './RecentGames';
 import { EscMenu } from './EscMenu';
 import { sfx } from './sfx';
 import { useGame } from './store';
+import { setPlayParty } from './versus/playParty';
 
 // Collection (2026-09-28) shows once crates are live, and always in DEV builds, which is what this test runs as.
 const LABELS = ['Play', 'Career', 'Collection', 'Leaderboard', 'Hall of Champions', 'Recent Games', 'Live Games', 'Friends', 'Settings'];
@@ -120,6 +121,18 @@ describe('navigation', () => {
     expect(flagsOf()).toEqual({ ...PAGES_CLOSED, showCareer: true }); // your OWN career: careerOf cleared
     goTo('hall');
     expect(flagsOf()).toEqual({ ...PAGES_CLOSED, showLeaderboard: true });
+  });
+
+  it('the rail carries no Solo / Duo switch, and its Play opens the mode screen even with Duo picked (R-RANKED-DUOS-MODECARD-01)', () => {
+    setPlayParty('duo');
+    try {
+      useGame.setState({ showRecentGames: true });
+      ui = mount(<RecentGames />);
+      expect(ui.container.querySelector('.msb .playparty')).toBeNull();
+      click(ui.container.querySelector('.sbbtn'));
+      expect(useGame.getState().titleView).toBe('modes');
+      expect(flagsOf()).toEqual(PAGES_CLOSED);
+    } finally { act(() => setPlayParty('solo')); }
   });
 
   it('Play opens the mode picker view with every page closed; Back on the picker returns to the main menu', () => {

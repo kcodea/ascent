@@ -9595,7 +9595,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-RANKED-DUOS-PARTY-01',
     title: 'Ranked Duos: Solo | Duo above Play; Duo + Play opens my party; friends-only parties stay private; the team owns its boards and Live Games row',
     statement:
-      'A Solo | Duo switch sits above Play (sidebar and main menu), remembered per viewer; Solo + Play is unchanged, Duo + Play asks the ranked confirmation then puts the player in their own two-seat Ranked Duos party (re-entering one they are already in). A teammate joins by a duos_party friend invite or from the open parties list. The host may set the party friends-only: it is then listed, counted and joinable only for the host\x27s friends and its members, and never on Live Games. Ranked Duos parties are counted apart from Versus rooms. The Leaderboard has a Duos tab of TEAMS ordered by division then points; the Career lists a player\x27s rated teams. Live Games carries one row per live team (duos:<room>), published by the first seat only, named by the team, removed at the game\x27s end. After a game each teammate sees the team\x27s place out of 4 and its rating change on the ranked end sequence.',
+      'A Solo | Duo switch sits on the mode screen\x27s Ranked card (R-RANKED-DUOS-MODECARD-01; it was above Play on the sidebar and main menu until 2026-10-26), remembered per viewer; Solo + the card\x27s PLAY is unchanged, Duo + PLAY asks the ranked confirmation then puts the player in their own two-seat Ranked Duos party (re-entering one they are already in). A teammate joins by a duos_party friend invite or from the open parties list. The host may set the party friends-only: it is then listed, counted and joinable only for the host\x27s friends and its members, and never on Live Games. Ranked Duos parties are counted apart from Versus rooms. The Leaderboard has a Duos tab of TEAMS ordered by division then points; the Career lists a player\x27s rated teams. Live Games carries one row per live team (duos:<room>), published by the first seat only, named by the team, removed at the game\x27s end. After a game each teammate sees the team\x27s place out of 4 and its rating change on the ranked end sequence.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -9606,6 +9606,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-26 on feat/ranked-duos-p3.',
     example: 'Kevin picks Duo, presses Play, confirms, and lands in his own party; he invites Lemon, who accepts and takes the second seat. Kevin sets Friends only, so Ionlime never sees the party. After the game both see 2nd of 4, +11.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosParty.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-MODECARD-01',
+    title: 'Solo | Duo lives on the mode screen\x27s Ranked card (bottom-left, eclipsing its edge), not on the sidebar or main menu',
+    statement:
+      'ONE Solo | Duo switch sits on the mode screen\x27s Ranked card, anchored at its bottom-left corner and overlapping the card\x27s bottom edge '
+      + '(half on the art, half below, as the PLAY button overlaps the bottom centre), in PLAY\x27s gold family; on phones it sits in the same spot, '
+      + 'finger-sized. The menu sidebar and the main menu carry no switch: their Play always opens the mode screen, whichever side is picked. '
+      + 'The card\x27s PLAY with Solo is the solo ranked flow (tutorial nudge for a new player, then the ranked confirmation); with Duo it asks '
+      + 'the Ranked Duos confirmation, whose Yes opens the player\x27s party. The choice stays remembered per viewer.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (screenshot of the Choose a mode screen)', quote: 'move the solo/duo toggle so that it is here, not at the main menu. put it in the bottom left corner below/eclipsing the play art' },
+      { kind: 'code', ref: 'packages/ui/src/Title.tsx (mode picker, onPlay); packages/ui/src/versus/playParty.tsx; packages/ui/src/styles.css (.mc-party); packages/ui/src/phoneMenus.css; packages/ui/src/MenuSidebar.tsx' },
+    ],
+    currentBehaviour: 'Moved 2026-10-26 on fix/solo-duo-on-mode-card.',
+    example: 'Kevin opens Play from the sidebar with Duo remembered: the mode screen opens, the Ranked card shows Duo lit at its bottom-left, and its PLAY asks the Ranked Duos confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/rankedEntry.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-VERSUS-READY-01',

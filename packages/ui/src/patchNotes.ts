@@ -104,7 +104,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Ranked Duos: team up with a friend and face three other teams.',
         details: [
-          'Pick Duo above Play, then Play. You land in your own party. Invite a friend, or join an open party.',
+          'Pick Duo on the Ranked card, then Play. You land in your own party. Invite a friend, or join an open party.',
           'You and your teammate share one Health pool and fight together. The last team standing wins.',
           'Your team has its own rating and medal. Name your team between games.',
           'The host can keep the party to friends only.',

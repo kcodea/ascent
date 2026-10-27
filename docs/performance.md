@@ -454,6 +454,55 @@ steps, shop, End of Turn, fights and FX.
 
 ---
 
+## 2b. The perf gauntlet — `npm run perf:gauntlet` (desktop frames, blind A/B)
+
+The judge for a perf pass (R-PERF-GAUNTLET-01). `npm run perf` only sees the engine; this one sees **frames**, on the
+**production** build, on **your** display, and compares a change against `origin/main` without either side knowing
+which is which.
+
+```
+npm run perf:gauntlet                         # candidate = this working tree, baseline = origin/main, 3 runs each
+npm run perf:gauntlet -- --runs 5 --from 11 --to 13  # more runs = a tighter noise band; pick the rounds to measure
+npm run perf:gauntlet -- --blind              # the X/Y key goes to <out>/key.json instead of the console
+npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
+```
+
+- **Builds.** Both are `VITE_PERF_BENCH=1` prod bundles. The baseline is built once per sha in a throwaway worktree
+  with its own `npm install` (so its packages resolve to its own sources) and cached under `.perf-gauntlet/`.
+- **The late game is what is measured** (owner 2026-10-27: the slow part is turns 9-14, "when a LOT of cards have been
+  played throughout the game"). One Dwarf-only Practice game against level-10 bots at a fixed seed (`--seed`), so both
+  builds play the identical game:
+  - **Turn 1, the owner's board:** a gilded Edward Keg-hands, two gilded Tapkeepers, Mountainbond and Chef Gary Toast,
+    built through the game's own paths (God Mode's print action into the shop, three bought copies triple into the
+    gilded card, each played from hand). The walk never sells these five.
+  - **Every turn, buy and play as many cards as possible** with the Gold topped up to 999: cast Ales and spells as
+    they land, buy (refreshing when the shop runs dry), tier up once. **When the hand is full:** sell every non-key
+    unit, play the hand (selling a non-key unit again whenever the board fills), sell the non-key units, carry on.
+    **A Discover** (triple reward or anything else) takes the middle option and sells the card it gave; any other
+    choice gets the balance bot's pick.
+  - **Rounds 1-8 are fast-forwarded** (that turn loop, fights skipped, unmeasured). **Rounds 9-14 are measured**
+    (`--from` / `--to`): shop idle, tier up + refresh, mouse drags (sell a filler, buy, play, reorder),
+    `shop-actions` (the buy-and-play turn), End Turn, the whole fight, the return. Plus title, hero select and run
+    start once per run. Real mouse input through CDP; every request off 127.0.0.1 is blocked.
+- **Numbers per scene:** worst / p99 / p95 frame, long (2+ refresh intervals), jank (3+), frames over budget,
+  main-thread ms per frame (`Performance.getMetrics`) and long-animation-frame blocking. Judged in the §0 order: worst,
+  then long / jank, then p95.
+- **Verdict.** A scene **PASSES** only when its worst frame is within 4.17 ms (20% vsync slack) and no frame went
+  over. On a display under 240 Hz, or `--headless`, it says `n/a` instead: an interval can never be shorter than one
+  refresh, so a 60 Hz panel cannot show a 4.17 ms miss. Headless frame intervals are not real (§3i); judge a headless
+  run on `work` only.
+- **Blind A/B.** The two builds are shuffled into X and Y and run alternately (X Y Y X ...). A metric names a winner
+  only when **every** run of one build beats **every** run of the other; anything else prints `~` (within noise).
+  Two identical builds must print `~` everywhere; if they do not, the machine is too noisy for that run.
+- **Running it.** Headed Chrome windows open at 1920 x 1080 on your screen. Keep them visible and leave the machine
+  alone; frames that ran while the page was hidden are dropped and counted in a warning.
+
+**The loop it is built for:** pick the worst failing scene, a builder fixes it in its own worktree, a separate critic
+agent runs `perf:gauntlet --blind` and picks X or Y from the numbers alone, then names the biggest remaining gap.
+Repeat until the critic picks ours. The exit code never fails on the budget: it is a judge, not a CI gate.
+
+---
+
 ## 3. Render profiling in the browser (we do this together)
 
 The harness can't catch frame drops — those come from the browser painting/compositing. When the game feels

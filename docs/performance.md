@@ -413,6 +413,22 @@ npm run perf        # a 2×+ jump on the same machine is a real regression — i
 
 Add a new archetype/scenario to `packages/tools/src/perf.ts` whenever a feature introduces a new hot path.
 
+### `npm run perf:late` — does the logic slow down as a game gets longer?
+
+`npm run perf` measures fresh, small states. `perf:late` (`packages/tools/src/perf-late-game.ts`) plays a whole
+8-seat **lobby** game with a greedy bot (the longest of `--seeds N`, default 12) and prints one row per wave: the
+reducer (plus a fixed `freeze` probe so waves compare on the same action), End Turn, the settle/resolve table
+step, the store's commit steps (telemetry + derive, the replay frame) and the autosave's serialize + stringify,
+next to the sizes they carry (save payload, run state, replay frames). It ends with an early-vs-late ratio per
+step (2x or more is flagged) and lists any single call over the 4.17 ms frame budget. Informational: it never
+fails the build. It cannot see React, paint, GC from the UI or localStorage's own write: for those, record a
+game with the Perf HUD.
+
+First reading (2026-10-27, 22-wave game): the logic grows only gently. Autosave grew ~4x (0.2 → ~1 ms, payload
+29 → 125 KB, it runs on idle time), the `freeze` probe ~2x (0.08 → 0.18 ms), everything else under 1.5x. The one
+call over budget was **settle + resolve combat with all 8 seats alive (~4-5 ms, waves 4-6)**, which shrinks as
+seats fall. So late-game choppiness is not the run logic piling up; look at the UI side first.
+
 ---
 
 ## 3. Render profiling in the browser (we do this together)

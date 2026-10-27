@@ -44,6 +44,7 @@
     "player": "tsx packages/tools/src/player-curve.ts",
     "audit": "tsx packages/tools/src/card-audit.ts",
     "perf": "tsx packages/tools/src/perf.ts",
+    "perf:late": "tsx packages/tools/src/perf-late-game.ts",
     "perf:odds": "tsx packages/tools/src/perf-odds.ts",
     "perf:phone-menus": "node scripts/phone-menu-memory.mjs",
     "perf:phone-play": "node scripts/phone-play-memory.mjs",

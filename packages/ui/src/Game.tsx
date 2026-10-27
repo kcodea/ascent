@@ -38,6 +38,7 @@ const PhoneBenchCard = lazy(() => import('./PhoneBenchCard'));
 import { installPerfLog } from './phonePerfLog';
 import { CRASH_REPORT_TABLE, scheduleCrashReportUpload } from './crashReport';
 import { anonRestInsert, supabaseClient } from './remoteBoards';
+import { maybeStartLiveReplayFromUrl } from './liveReplay';
 import { PHONE_GPU } from './phoneDiag';
 import { AccountPanel } from './AccountPanel';
 import { EmoteLayer } from './emotes/EmoteLayer';
@@ -160,6 +161,7 @@ export function Game() {
   const phase = useGame((s) => s.run.phase);
   const replayHasStream = useGame((s) => s.replaySession?.hasStream === true);
   const sandbox = useGame((s) => s.run.sandbox);
+  const liveReplay = useGame((s) => s.liveReplay);
   // GOD MODE (owner 2026-10-08) rides the sandbox flag, but the DEV rig's panels never mount over it.
   const godMode = useGame((s) => s.run.godMode === true);
   const bugScenarioLoaded = useGame((s) => s.bugScenario !== null);
@@ -203,6 +205,8 @@ export function Game() {
   // FRIENDS (owner 2026-10-26, R-FRIENDS-05): the one presence + inbox beat (accounts only; 60 s visible, 120 s hidden),
   // and the built-in Versus room invite. Nothing runs for a guest or without a backend.
   useEffect(() => { installFriendInvites(); return startFriendsPresence(); }, []);
+  // LIVE REPLAY (perf tool): `?livereplay=<game id>` plays a recorded game back through the real UI.
+  useEffect(() => { maybeStartLiveReplayFromUrl(); }, []);
   // LIVE RANKED LOBBY GAMES (2026-10-15): list the player's ranked lobby game and publish to its watchers (only while
   // someone watches; see live/livePublisher.ts).
   useEffect(() => installLivePublisher(), []);
@@ -633,7 +637,7 @@ export function Game() {
       {EditorOverlay && <Suspense fallback={null}><EditorOverlay /></Suspense>}
       {/* Scene Builder control panel — mounts alongside the live sandbox run (its own title-launched mode). While
           the Stage Builder (Gauntlet authoring) is open, its board canvas + panel take the Scene Builder's place. */}
-      {SandboxDevPanels && sandbox && !godMode && <Suspense fallback={null}><SandboxDevPanels /></Suspense>}
+      {SandboxDevPanels && sandbox && !godMode && !liveReplay && <Suspense fallback={null}><SandboxDevPanels /></Suspense>}
       {/* Bug-scenario report side panel (PR 4) — mounts with a loaded scenario. Independent of `sandbox`:
           a content-mismatch load is READ-ONLY (the run is never entered), but its evidence still shows. */}
       {BugScenarioPanel && bugScenarioLoaded && <Suspense fallback={null}><BugScenarioPanel /></Suspense>}

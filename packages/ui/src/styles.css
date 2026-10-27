@@ -2957,20 +2957,24 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */
 .card.compact.dscard::after, .card.compact.reborncard::after { border-radius: var(--arch-radius); }
-/* Frozen tavern — each held shop card ices over, the frost RAMPING UP from the top edge down (a quick
-   one-shot clip-path reveal, not a continuous loop → cheap). The `frozen` class is recruit-only, so combat
-   enemy units never frost. */
+/* Frozen tavern — each held shop card is wrapped in the painted ice ring (`/frames/freeze-ice.webp`, owner
+   art 2026-10-27; its centre is clear so the card art still reads). The ice GROWS from the top edge down: a
+   soft-edged mask band sweeps down the card (the "edge fade") while a brief brightness + cold-glow flash
+   settles (the "subtle glow"). One-shot, not a loop, so the paint cost is bounded. `--frz-ice-w/h` scale the
+   art against the card box if the ring needs nudging. The `frozen` class is recruit-only, so combat enemy
+   units never frost. */
 [data-zone="tavern"].frozen .card::after {
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: var(--arch-radius);
   pointer-events: none;
   z-index: 9;
-  background: linear-gradient(158deg, rgba(192, 231, 255, 0.5), rgba(135, 198, 242, 0.26) 48%, rgba(216, 245, 255, 0.55));
-  border: 2px solid rgba(228, 248, 255, 0.82);
-  box-shadow: inset 0 0 18px 3px rgba(205, 238, 255, 0.7), 0 0 12px rgba(165, 218, 255, 0.5);
-  animation: frostin 0.45s ease-out both;
+  background: url('/frames/freeze-ice.webp') center / var(--frz-ice-w, 112%) var(--frz-ice-h, 108%) no-repeat;
+  /* A tall mask: solid at the top, a soft fade band, clear below. Sliding it from 100% to 0% drags the band
+     from above the card to below it, so the ice appears top → bottom with a feathered leading edge. */
+  -webkit-mask: linear-gradient(to bottom, #000 0%, #000 42%, transparent 58%, transparent 100%) 0 0 / 100% 300% no-repeat;
+          mask: linear-gradient(to bottom, #000 0%, #000 42%, transparent 58%, transparent 100%) 0 0 / 100% 300% no-repeat;
+  animation: frostin 0.38s cubic-bezier(0.25, 0.7, 0.35, 1) both;
 }
 /* slight per-card stagger so the freeze sweeps across the row instead of all at once */
 [data-zone="tavern"].frozen .card:nth-child(2)::after { animation-delay: 0.05s; }
@@ -2980,9 +2984,17 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 [data-zone="tavern"].frozen .card:nth-child(6)::after { animation-delay: 0.25s; }
 [data-zone="tavern"].frozen .card:nth-child(7)::after { animation-delay: 0.3s; }
 @keyframes frostin {
-  0% { opacity: 0; clip-path: inset(0 0 100% 0); }
-  55% { opacity: 1; }
-  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+  0% {
+    opacity: 0.4;
+    -webkit-mask-position: 0 100%; mask-position: 0 100%;
+    filter: brightness(1.7) drop-shadow(0 0 10px rgba(170, 225, 255, 0.95));
+  }
+  70% { filter: brightness(1.25) drop-shadow(0 0 6px rgba(170, 225, 255, 0.7)); opacity: 1; }
+  100% {
+    opacity: 1;
+    -webkit-mask-position: 0 0; mask-position: 0 0;
+    filter: none;
+  }
 }
 /* tier pill rides the arch top */
 /* SPELL tier badge gets its OWN nudge. A spell's frame is a square whose banner seat differs from the minion
@@ -5242,23 +5254,23 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px rgba(255, 205, 80, 0.67));
 }
-/* Frozen (held shop card): ice the frame silhouette by masking the frost `::after` to the frame PNG. */
+/* Frozen (held shop card): seat the ice ring over the frame's own box, so it wraps the frame silhouette
+   (the reveal mask comes from the base `.frozen .card::after` rule). */
 [data-zone='tavern'].frozen .card.stdframe::after {
-  inset: auto; border: none; border-radius: 0; box-shadow: none;
+  inset: auto;
   width: calc(var(--ccw) * 1.481 * var(--sh));
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
   aspect-ratio: 1059 / 1427;
-  -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
-          mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
 }
 [data-zone='tavern'].frozen .card.spellframe::after {
+  inset: auto;
   width: calc(var(--ccw) * 1.239 * var(--sh));
   left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   aspect-ratio: 705 / 862;
-  -webkit-mask: url('/frames/spell-frame-arch.webp') center / 100% 100% no-repeat;
-          mask: url('/frames/spell-frame-arch.webp') center / 100% 100% no-repeat;
+  /* the spell arch is squarer than the oval ice ring: stretch it taller so it reaches the bottom corners */
+  --frz-ice-w: 114%; --frz-ice-h: 120%;
 }
 
 /* ============================ HAND CARD BACKPLATE ============================

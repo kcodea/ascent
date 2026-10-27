@@ -56,6 +56,15 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-27',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Freezing the shop now encases each card in a ring of jagged ice that grows quickly from the top down.',
+      },
+    ],
+  },
+  {
     date: '2026-10-26',
     changes: [
       {

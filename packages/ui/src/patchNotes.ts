@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Sixteen new Card Plates in chests.',
+        details: [
+          'Legendary: Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',
+          'Rare: Gryphon, Huffle, Raven and Slyther. Epic: Elder, Nimbus 2K, Tattle and Trichalice. Ancient: Gjally.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Nine more Plushie Beasts in chests.',
         details: [
           'Plushie Beardsley, Beev, Sunmane, Bullseye, Packstrider, Wolvie, Kennelmaster, Raven and Sea Urchin.',

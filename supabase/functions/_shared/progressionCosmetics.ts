@@ -820,6 +820,25 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_the_howl', 'The Howl', 'ancient', 'The Howl.png'), // owner 2026-10-19: Ancient
   // Owner 2026-10-19: "i added one more, can you add it with dark brown interior?"
   cardPlate('plate_vintage_oak', 'Vintage Oak', 'legendary', 'Vintage Oak.png'),
+  // Card plates batch 7 (owner 2026-10-27: "ive added a bunch of card plates to the skins folder to add to the collection in
+  // their respecttive tiers. use the dark card back for all of them"). All seven sit in the Legendary folder.
+  cardPlate('plate_burden', 'Burden', 'legendary', 'Burden Plate.png'),
+  cardPlate('plate_divine', 'Divine', 'legendary', 'Divine Plate.png'),
+  cardPlate('plate_mytho', 'Mytho', 'legendary', 'Mytho Plate.png'),
+  cardPlate('plate_plasma', 'Plasma', 'legendary', 'Plasma Plate.png'),
+  cardPlate('plate_shotsun', 'Shotsun', 'legendary', 'Shotsun Plate.png'),
+  cardPlate('plate_the_last', 'The Last Plate', 'legendary', 'The Last Plate.png'),
+  cardPlate('plate_wither', 'Wither', 'legendary', 'Wither Plate.png'),
+  // Then (same day) "i added them all": four Rare, four Epic and one Ancient, rarity from the folder, also on Dark.
+  cardPlate('plate_gryphon', 'Gryphon', 'rare', 'Gryphon Plate.png'),
+  cardPlate('plate_huffle', 'Huffle', 'rare', 'Huffle Plate.png'),
+  cardPlate('plate_raven', 'Raven', 'rare', 'Raven Plate.png'),
+  cardPlate('plate_slyther', 'Slyther', 'rare', 'Slyther Plate.png'),
+  cardPlate('plate_elder', 'Elder', 'epic', 'Elder Plate.png'),
+  cardPlate('plate_nimbus_2k', 'Nimbus 2K', 'epic', 'Nimbus 2K Plate.png'),
+  cardPlate('plate_tattle', 'Tattle', 'epic', 'Tattle Plate.png'),
+  cardPlate('plate_trichalice', 'Trichalice', 'epic', 'Trichalice Plate.png'),
+  cardPlate('plate_gjally', 'Gjally', 'ancient', 'Gjally Plate.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

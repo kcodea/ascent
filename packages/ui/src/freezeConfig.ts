@@ -34,6 +34,30 @@ export interface FreezeConfig {
   gemGlowStrength: number;
   /** Gem — brightness multiplier while the button is hovered (×). */
   gemHoverBright: number;
+  /** Shop ice ring (the art over each frozen shop card) — width, % of the card's frame box. */
+  iceW: number;
+  /** Shop ice ring — height, % of the card's frame box. */
+  iceH: number;
+  /** Shop ice ring on SPELL cards — width, % of the spell frame box (the arch is squarer than the ring). */
+  iceSpellW: number;
+  /** Shop ice ring on SPELL cards — height, % of the spell frame box. */
+  iceSpellH: number;
+  /** Shop ice ring — horizontal shift, % of the card's frame box. +x → right. */
+  iceX: number;
+  /** Shop ice ring — vertical shift, % of the card's frame box. +y → down. */
+  iceY: number;
+  /** Shop ice ring — resting opacity once it has formed (0–1). */
+  iceOpacity: number;
+  /** Shop ice ring — resting cold glow around the ice: blur (px). 0 = none. */
+  iceGlowSize: number;
+  /** Shop ice ring — resting glow strength (0–1 alpha of the glow colour). */
+  iceGlowAlpha: number;
+  /** Shop ice ring — brightness of the flash while the ice grows in (×; 1 = no flash). */
+  iceFlash: number;
+  /** Shop ice ring — how long the top-to-bottom grow takes (s). */
+  iceDur: number;
+  /** Shop ice ring — height of the feathered leading edge (% of the sweep; bigger = softer). */
+  iceFeather: number;
 }
 
 // Mirrors the Tavern stone's anchor on the opposite side (its x is 8 at 0.155 of the stage; this sits at
@@ -52,6 +76,18 @@ const DEFAULTS: FreezeConfig = {
   gemGlowSize: 8,
   gemGlowStrength: 4,
   gemHoverBright: 1.2,
+  iceW: 112,
+  iceH: 108,
+  iceSpellW: 114,
+  iceSpellH: 120,
+  iceX: 0,
+  iceY: 0,
+  iceOpacity: 1,
+  iceGlowSize: 0,
+  iceGlowAlpha: 0.7,
+  iceFlash: 1.7,
+  iceDur: 0.38,
+  iceFeather: 16,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -68,6 +104,18 @@ export const FRZ_RANGES: Record<keyof FreezeConfig, [number, number, number]> = 
   gemGlowSize: [0, 40, 0.5],
   gemGlowStrength: [0, 8, 1],
   gemHoverBright: [1, 2.2, 0.01],
+  iceW: [60, 160, 0.5],
+  iceH: [60, 160, 0.5],
+  iceSpellW: [60, 160, 0.5],
+  iceSpellH: [60, 160, 0.5],
+  iceX: [-30, 30, 0.25],
+  iceY: [-30, 30, 0.25],
+  iceOpacity: [0, 1, 0.01],
+  iceGlowSize: [0, 30, 0.5],
+  iceGlowAlpha: [0, 1, 0.01],
+  iceFlash: [1, 3, 0.05],
+  iceDur: [0.1, 1.5, 0.01],
+  iceFeather: [0, 60, 1],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -84,9 +132,22 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
   gemGlowSize: 'Gem hover glow — halo blur (bigger = softer/wider).',
   gemGlowStrength: 'Gem hover glow — intensity (stacked passes). 0 turns the halo off.',
   gemHoverBright: 'Gem brightness while hovered (×).',
+  iceW: 'Shop ice ring — width (% of the card frame).',
+  iceH: 'Shop ice ring — height (% of the card frame).',
+  iceSpellW: 'Shop ice ring on spells — width (% of the spell frame).',
+  iceSpellH: 'Shop ice ring on spells — height (% of the spell frame).',
+  iceX: 'Shop ice ring — horizontal shift (% of the card frame).',
+  iceY: 'Shop ice ring — vertical shift (% of the card frame). Positive = down.',
+  iceOpacity: 'Shop ice ring — opacity once formed.',
+  iceGlowSize: 'Shop ice ring — resting cold glow blur. 0 = off.',
+  iceGlowAlpha: 'Shop ice ring — resting glow strength.',
+  iceFlash: 'Shop ice ring — brightness flash while it grows in. 1 = no flash.',
+  iceDur: 'Shop ice ring — how long the top-to-bottom grow takes (s).',
+  iceFeather: 'Shop ice ring — softness of the growing edge.',
 };
 
-export const FRZ_NUM_KEYS = ['x', 'y', 'scale', 'gemX', 'gemY', 'gemS', 'pillX', 'pillY', 'pillS', 'gemGlowSize', 'gemGlowStrength', 'gemHoverBright'] as const;
+export const FRZ_NUM_KEYS = ['x', 'y', 'scale', 'gemX', 'gemY', 'gemS', 'pillX', 'pillY', 'pillS', 'gemGlowSize', 'gemGlowStrength', 'gemHoverBright',
+  'iceW', 'iceH', 'iceSpellW', 'iceSpellH', 'iceX', 'iceY', 'iceOpacity', 'iceGlowSize', 'iceGlowAlpha', 'iceFlash', 'iceDur', 'iceFeather'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FRZ_DEFAULTS };
 
@@ -126,6 +187,22 @@ export function applyFreezeVars(): void {
     ? Array(Math.round(cfg.gemGlowStrength)).fill(frzGlowOne).join(' ')
     : 'none');
   root.setProperty('--frz-gem-hover', String(cfg.gemHoverBright));
+  // Shop ice ring over each frozen shop card (styles.css "Frozen tavern"). The fallbacks there mirror DEFAULTS.
+  root.setProperty('--frz-ice-w', `${cfg.iceW}%`);
+  root.setProperty('--frz-ice-h', `${cfg.iceH}%`);
+  root.setProperty('--frz-ice-sw', `${cfg.iceSpellW}%`);
+  root.setProperty('--frz-ice-sh', `${cfg.iceSpellH}%`);
+  root.setProperty('--frz-ice-x', `${cfg.iceX}%`);
+  root.setProperty('--frz-ice-y', `${cfg.iceY}%`);
+  root.setProperty('--frz-ice-op', String(cfg.iceOpacity));
+  root.setProperty('--frz-ice-glow', cfg.iceGlowSize > 0 && cfg.iceGlowAlpha > 0
+    ? `drop-shadow(0 0 ${cfg.iceGlowSize}px rgba(150, 215, 255, ${cfg.iceGlowAlpha}))`
+    : 'none');
+  root.setProperty('--frz-ice-flash', String(cfg.iceFlash));
+  root.setProperty('--frz-ice-dur', `${cfg.iceDur}s`);
+  // The reveal mask is 300% tall, so the solid→clear band is centred at 50% and spans the feather each side.
+  root.setProperty('--frz-ice-f0', `${50 - cfg.iceFeather / 2}%`);
+  root.setProperty('--frz-ice-f1', `${50 + cfg.iceFeather / 2}%`);
 }
 
 export function setFreezeValue(key: keyof FreezeConfig, value: number): void {

@@ -38,6 +38,9 @@ import { publicArt } from './phoneArt';
  * Position/scale come from `--etb-*` vars (stage-pinned like the hero power); the DEV tuner
  * (`EndTurnTuner.tsx`) dials everything live.
  */
+/** A press cue this soon after a strike is the same press (it lands before `pressed` flips on). */
+const STRIKE_DEDUPE_MS = 1500;
+
 export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, pressed, urgent, combatReady, onEndCombat, skipReady, onSkip, note }: {
   onEndTurn: () => void;
   disabled: boolean;
@@ -61,6 +64,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   const pressedRef = useRef(pressed);
   pressedRef.current = pressed;
   const burstRef = useRef(0); // timestamp of a pending strike burst — the rAF loop consumes it
+  const struckAtRef = useRef(-1); // when this press last struck (-1: not yet this turn) — one strike per End Turn
   const wakeRef = useRef<() => void>(() => {}); // re-arms the (idling) bolt loop — see the arc effect
   const [striking, setStriking] = useState(false); // the one-shot strike flash is playing
   const [relighting, setRelighting] = useState(false); // the one-shot END-COMBAT shine is playing
@@ -76,8 +80,12 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
     setRelighting(true);
     window.setTimeout(() => setRelighting(false), 700);
   };
-  /** The End Turn strike (dust, rings, bolts, the flash): on a click, and on a spectator's replay of one. */
+  /** The End Turn strike (dust, rings, bolts, the flash): on a click, and on a press cue (a spectator's replay of
+   *  one, Versus's automatic End Turn). It also releases the crystal fuse's stored charge, so it plays ONCE per End
+   *  Turn: a cue for a press that already struck (the gem still pressed, or a strike just now) is skipped. */
   const playStrike = (): void => {
+    if (struckAtRef.current >= 0 && (pressedRef.current || performance.now() - struckAtRef.current < STRIKE_DEDUPE_MS)) return;
+    struckAtRef.current = performance.now();
     const cfg = getEndTurnConfig();
     const r = wrapRef.current?.getBoundingClientRect();
     if (r) {
@@ -268,7 +276,7 @@ export const EndTurnButton = memo(function EndTurnButton({ onEndTurn, disabled, 
   // Relight: when the shop reopens (pressed flips false) the ambient crackle resumes — the loop stopped
   // itself the moment the pressed gem's last arc faded, so it needs this nudge to start spawning again.
   useEffect(() => {
-    if (!pressed) wakeRef.current();
+    if (!pressed) { wakeRef.current(); struckAtRef.current = -1; } // a new turn: the next End Turn strikes again
   }, [pressed]);
 
   return (

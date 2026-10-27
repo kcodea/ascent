@@ -4940,7 +4940,17 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
 }
 .card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png'); }
+/* Spell cards have their OWN glow dials (🔆 Hover Glow tuner → "Spell …" groups, owner ask 2026-10-27):
+   re-pointing the shared --hg-* vars here lets the base .cglow / .cglow-rim rules pick the spell values up
+   unchanged. The fallbacks mirror glowConfig.ts DEFAULTS (spell*). */
 .card.compact.spellframe .cglow {
+  --hg-w: var(--hg-s-w, 1.045);
+  --hg-h: var(--hg-s-h, 1.03);
+  --hg-line-blur: var(--hg-s-line-blur, 0px);
+  --hg-line-col: var(--hg-s-line-col, #ffffff);
+  --hg-bloom-filter: var(--hg-s-bloom-filter,
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.89))
+    drop-shadow(0 0 3px rgba(255, 255, 255, 0.89)));
   width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
   left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));

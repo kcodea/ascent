@@ -20,7 +20,7 @@ fixed seed, so both builds play the identical game:
 - Every turn the walk buys and plays as many cards as it can, with the Gold topped up.
 - When the hand is full, it sells every other unit, plays the hand and sells those too, then carries on.
 - A Discover takes the middle option and sells what it gave.
-- Rounds 1-8 are fast-forwarded with the fights skipped. Rounds 9-14 are measured in full.
+- Rounds 1-8 are fast-forwarded: played, fights included, but unmeasured. Rounds 9-14 are measured in full.
 
 **Gotchas found while building it.**
 - God Mode's real-player opponent boards come from the network, which the bench blocks. The bundled
@@ -42,9 +42,14 @@ fixed seed, so both builds play the identical game:
 A full run takes about 9 minutes, so the default A/B (3 runs per build) takes about an hour; `--from` / `--to` /
 `--runs` shorten it.
 
-**A possible game bug it surfaced (not fixed here).** On the `origin/main` bench bundle, twice in two runs, the walk
-skipped a fast-forward fight (round 3) and then the "End combat and go back to shop" press was ignored, leaving the
-game stuck in combat. The same game code in the other bundle never hit it, and the two bundles differ only by
-their build stamps, so it is timing-dependent. The walk now presses up to five times and logs "End combat needed N
-presses ... a possible game bug" whenever a press was ignored. One retest on that bundle got past round 3, but it ran
-before the retry log existed, so it is unknown whether a press was ignored there. Not yet confirmed as a bug. Worth a look at `Recruit.tsx` `endCombat` (`wipeExitRef`).
+**A likely game bug it surfaced (not fixed here): Skip can leave the game stuck in combat.** While the walk still
+pressed Skip on fast-forward fights, it got stuck in combat in 3 of about 10 runs, in two ways:
+- Twice, on the `origin/main` bundle at round 3: the fight was skipped, "End combat and go back to shop" showed
+  (`.etbwrap.ready`), and pressing it did nothing (screenshot showed the empty enemy side and a full hand).
+- Once, on the other bundle at round 1: Skip was pressed as the gate fell. `run.phase` stayed `combat`, but the screen
+  showed the shop's "End your turn and start combat" button, and the replay never finished.
+
+The two bundles are the same game code (only their build stamps differ), so it is timing-dependent. A player pressing
+Skip at those moments would presumably hit it too. Worth a look at `Recruit.tsx` `skipCombat` / `endCombat`
+(`wipeExitRef`). The walk now NEVER presses Skip (fast-forward fights play out unmeasured), and it presses End combat
+up to five times, logging "End combat needed N presses ... a possible game bug" if one is ignored.

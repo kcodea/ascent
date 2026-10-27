@@ -464,6 +464,8 @@ which is which.
 npm run perf:gauntlet                         # candidate = this working tree, baseline = origin/main, 3 runs each
 npm run perf:gauntlet -- --runs 5 --from 11 --to 13  # more runs = a tighter noise band; pick the rounds to measure
 npm run perf:gauntlet -- --blind              # the X/Y key goes to <out>/key.json instead of the console
+npm run perf:gauntlet -- --profile shop-actions  # CPU profile of one scene: top functions by self time, named
+                                              # through the bench build's hidden source maps (VITE_PERF_BENCH only)
 npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
 ```
 
@@ -480,7 +482,7 @@ npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b
     unit, play the hand (selling a non-key unit again whenever the board fills), sell the non-key units, carry on.
     **A Discover** (triple reward or anything else) takes the middle option and sells the card it gave; any other
     choice gets the balance bot's pick.
-  - **Rounds 1-8 are fast-forwarded** (that turn loop, fights skipped, unmeasured). **Rounds 9-14 are measured**
+  - **Rounds 1-8 are fast-forwarded** (that turn loop, fights played out, all unmeasured). **Rounds 9-14 are measured**
     (`--from` / `--to`): shop idle, tier up + refresh, mouse drags (sell a filler, buy, play, reorder),
     `shop-actions` (the buy-and-play turn), End Turn, the whole fight, the return. Plus title, hero select and run
     start once per run. Real mouse input through CDP; every request off 127.0.0.1 is blocked.

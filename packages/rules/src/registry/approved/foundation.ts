@@ -9951,7 +9951,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       + 'Mountainbond and Chef Gary Toast (printed into the shop, tripled by buying three copies, played from hand), and the '
       + 'walk never sells those five. Every turn, with the Gold topped up, it buys and plays as many cards as it can; when the '
       + 'hand is full it sells every other unit, plays the hand and sells those units too, then carries on; a Discover takes '
-      + 'the middle option and sells the card it gave. Rounds 1-8 are fast-forwarded with fights skipped; rounds 9-14 are '
+      + 'the middle option and sells the card it gave. Rounds 1-8 are fast-forwarded (played, unmeasured); rounds 9-14 are '
       + 'MEASURED (shop idle, refresh, drags, the buy-and-play turn, End Turn, the whole fight, the return). Each scene '
       + 'reports worst / p99 / p95 frame, long (2+ refresh intervals) and jank (3+), frames over budget, main-thread ms per '
       + 'frame and long-animation-frame blocking. A scene PASSES only when its worst frame is within 4.17 ms (with 20% vsync '

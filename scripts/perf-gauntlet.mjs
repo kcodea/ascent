@@ -15,8 +15,7 @@
  * THE LATE GAME IS WHAT IS MEASURED (owner 2026-10-27: "early game performance is not where we should be looking to
  * optimize. its on turns 9-14 when a LOT of cards have been played throughout the game"). One Practice game against
  * level-10 bots, a fixed seed and hero, so both builds play the identical game, in a throwaway Chrome profile:
- *   rounds 1..8   FAST-FORWARD, unmeasured: the balance bot's greedy policy plays every shop turn through the store
- *                 with the Gold topped up (lots of buys, plays and spells), and every fight is skipped
+ *   rounds 1..8   FAST-FORWARD, unmeasured: the same buy-and-play turns, and the fights play out unmeasured
  *   rounds 9..14  MEASURED (--from / --to), each one:
  *     shop-idle     idle in the shop
  *     reroll        tier up + refresh the shop
@@ -43,6 +42,7 @@
  *   npm run perf:gauntlet -- --a <dist> --b <dist>   skip building: compare two existing bench dists
  *   npm run perf:gauntlet -- --only <dist>      one build, no A/B: just the budget verdict
  *   npm run perf:gauntlet -- --blind --out <dir>    report without the key (the key goes to <dir>/key.json)
+ *   npm run perf:gauntlet -- --profile shop-actions   CPU-profile that scene; prints its top functions (source-mapped)
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
  *   npm run perf:gauntlet -- --scenes drag,combat   report only these scenes
  * Exit code: 0 = done; 1 = a run failed to reach a scene; 2 = setup error. The budget verdict never fails the exit
@@ -52,6 +52,7 @@
  * heavy work, inflates every frame. Every request off 127.0.0.1 is blocked, so nothing reaches the live backend.
  */
 import { execFileSync, execSync, spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -75,6 +76,7 @@ const HERO = arg('hero', '');
 const HEADLESS = flag('headless');
 const BLIND = flag('blind');
 const OUT = path.resolve(arg('out', path.join(CACHE, 'reports', new Date().toISOString().replace(/[:.]/g, '-'))));
+const PROFILE = arg('profile', ''); // a scene to CPU-profile (e.g. shop-actions): its top functions are printed per run
 const ONLY_SCENES = arg('scenes', '') ? new Set(arg('scenes', '').split(',')) : null;
 const W = 1920; const H = 1080;
 const SCENES = ['title', 'heroselect', 'run-start', 'shop-idle', 'reroll', 'drag', 'shop-actions', 'end-turn', 'combat', 'return'];
@@ -398,7 +400,7 @@ async function playScenes(c) {
     await window.__pgResolve(); // never leave a choice open: it blocks End Turn
     return n + ' (' + cycles + ' sell cycles)';
   })()`);
-  /** End Turn, then either watch the whole fight (measured) or skip it (fast-forward). */
+  /** End Turn, then the whole fight: measured, or (fast-forward) played out unmeasured. */
   const fight = async (label, watch) => {
     let fought = false;
     for (let i = 0; i < 10 && !fought; i++) {
@@ -414,12 +416,10 @@ async function playScenes(c) {
     }
     if (watch) { await sleep(1200); await mark('combat'); }
     // The replay is over when End Turn turns into "End combat and go back to shop" (`.etbwrap.ready`); during the
-    // fight it is the Skip diamond, pressed only when fast-forwarding.
-    let replayed = false;
-    for (let t0 = Date.now(); !replayed && Date.now() - t0 < 180_000;) {
-      if (!watch) await d.click(await d.visible('.etbwrap.skip'));
-      replayed = await d.waitFor(`${g}.run.phase !== 'combat' || !!document.querySelector('.etbwrap.ready')`, watch ? 180_000 : 1500);
-    }
+    // fight it is the Skip diamond, which the walk NEVER presses: pressing it right as the gate falls, or then ending
+    // the fight, left the game stuck in combat in 3 of ~10 runs (2026-10-27, a likely game bug, see the devlog). So
+    // fast-forward fights play out in full too, just unmeasured.
+    const replayed = await d.waitFor(`${g}.run.phase !== 'combat' || !!document.querySelector('.etbwrap.ready')`, 180_000);
     if (watch) await mark('return');
     // End combat: a press can be swallowed (seen once in ~40 fights, under load), so press again a few times.
     let back = false; let endPresses = 0;
@@ -440,7 +440,7 @@ async function playScenes(c) {
     return true;
   };
 
-  // FAST-FORWARD (unmeasured) to round FROM: the bot plays every shop turn and the fights are skipped, so the run
+  // FAST-FORWARD (unmeasured) to round FROM: every shop turn is the buy-and-play turn and the fights play out, so the run
   // arrives at the late game carrying everything a long game piles up (a full board, tallies, quests, runes).
   await mark('ff');
   log(`   board: ${await setupBoard()}`);
@@ -501,8 +501,10 @@ async function measureOnce(dist, runIdx) {
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'ascent-perf-gauntlet-'));
   const c = await launch(profile, port + 1);
   const metricMarks = []; // [wallclock page time, scene, metrics]
+  const profiles = []; let profiling = false;
   try {
     await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable', { timeDomain: 'timeTicks' });
+    if (PROFILE) { await c.send('Profiler.enable'); await c.send('Profiler.setSamplingInterval', { interval: 250 }); }
     c.on('Runtime.exceptionThrown', (p) => log(`   (page exception: ${String(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || '').split('\n')[0]})`));
     await c.send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
     c.on('Fetch.requestPaused', (p) => {
@@ -521,18 +523,62 @@ async function measureOnce(dist, runIdx) {
         const r = await origSend(method, params);
         const scene = /mark\("([^"]+)"\)/.exec(params.expression)?.[1];
         metricMarks.push([scene, await metrics()]);
+        // --profile: the CPU profiler runs only while the chosen scene is on.
+        if (profiling && scene !== PROFILE) { profiles.push((await origSend('Profiler.stop')).profile); profiling = false; }
+        if (!profiling && PROFILE && scene === PROFILE) { await origSend('Profiler.start'); profiling = true; }
         return r;
       }
       return origSend(method, params);
     } };
     const missed = await playScenes(cc);
+    if (profiling) profiles.push((await c.send('Profiler.stop')).profile);
     const dump = await evaluate(c, 'window.__pg.dump()');
-    return { missed, dump, metricMarks };
+    return { missed, dump, metricMarks, profiles };
   } finally {
     c.close(); server.close();
     await sleep(600);
     try { fs.rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome may still hold a file */ }
   }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// --profile: where the CPU went during one scene, by function, named through the bench build's hidden source maps
+// ---------------------------------------------------------------------------------------------------------------
+
+const require_ = createRequire(import.meta.url);
+const mapCache = new Map();
+function mapFor(dist, url) {
+  if (mapCache.has(url)) return mapCache.get(url);
+  let consumer = null;
+  try {
+    const file = path.join(dist, new URL(url).pathname + '.map');
+    if (fs.existsSync(file)) { const { SourceMapConsumer } = require_('source-map-js'); consumer = new SourceMapConsumer(JSON.parse(fs.readFileSync(file, 'utf8'))); }
+  } catch { /* no map: minified names */ }
+  mapCache.set(url, consumer);
+  return consumer;
+}
+
+/** Self time per function over every profiled stretch of a run, biggest first. */
+function summariseProfiles(profiles, dist) {
+  const self = new Map(); let total = 0;
+  for (const prof of profiles) {
+    const byId = new Map(prof.nodes.map((n) => [n.id, n]));
+    for (let i = 0; i < prof.samples.length; i++) {
+      const node = byId.get(prof.samples[i]); const dt = (prof.timeDeltas[i] || 0) / 1000; // ms
+      if (!node) continue;
+      total += dt;
+      const f = node.callFrame;
+      let key = f.functionName || '(anonymous)';
+      if (f.url && /^https?:/.test(f.url)) {
+        const m = mapFor(dist, f.url);
+        const o = m ? m.originalPositionFor({ line: f.lineNumber + 1, column: f.columnNumber }) : null;
+        key = o && o.source ? `${o.name || f.functionName || '(anonymous)'}  ${o.source.replace(/^.*?(packages|node_modules)\//, '$1/')}:${o.line}` : `${key}  ${f.url.replace(/^.*\//, '')}:${f.lineNumber + 1}`;
+      }
+      self.set(key, (self.get(key) || 0) + dt);
+    }
+  }
+  const rows = [...self.entries()].sort((a, b) => b[1] - a[1]);
+  return { total, rows };
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -620,6 +666,12 @@ for (let i = 0; i < schedule.length; i++) {
   log(`run ${i + 1}/${schedule.length}: build ${n}`);
   try {
     const raw = await measureOnce(blind[n].dist, i);
+    if (PROFILE && raw.profiles?.length) {
+      const { total, rows } = summariseProfiles(raw.profiles, blind[n].dist);
+      const lines = rows.slice(0, 40).map(([k, ms]) => `${ms.toFixed(0).padStart(7)} ms ${(100 * ms / total).toFixed(1).padStart(5)}%  ${k}`);
+      fs.writeFileSync(path.join(OUT, `profile-run${i + 1}-${n}.txt`), [`${PROFILE}: ${total.toFixed(0)} ms profiled (self time)`, ...lines, ''].join('\n'));
+      log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
+    }
     const a = analyse(raw);
     if (a.missed.length) { failed++; log(`   missed: ${a.missed.join(', ')}`); }
     if (a.hiddenFrames) log(`   WARNING: ${a.hiddenFrames} frame(s) inside a scene ran while the page was hidden (dropped from the report). Keep the window visible.`);

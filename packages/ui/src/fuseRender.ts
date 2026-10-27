@@ -180,7 +180,7 @@ export class FuseRenderer {
   }
 
   /** A soft radial glow: a hot centre fading to transparent. `coreStop` = how far the solid core reaches. */
-  private bakeGlow(size: number, color: string, coreStop: number): Sprite {
+  private bakeGlow(size: number, color: string | Rgb, coreStop: number): Sprite {
     const { canvas, ctx } = this.factory(size, size);
     const r = size / 2;
     const grad = ctx.createRadialGradient(r, r, 0, r, r, r);
@@ -194,7 +194,7 @@ export class FuseRenderer {
   }
 
   /** A crystal shard: a faceted diamond with a bright edge and a faint halo. */
-  private bakeShard(size: number, color: string): Sprite {
+  private bakeShard(size: number, color: Rgb): Sprite {
     const { canvas, ctx } = this.factory(size, size);
     const r = size / 2;
     const halo = ctx.createRadialGradient(r, r, 0, r, r, r);

@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Nine more Plushie Beasts in chests.',
+        details: [
+          'Plushie Beardsley, Beev, Sunmane, Bullseye, Packstrider, Wolvie, Kennelmaster, Raven and Sea Urchin.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Freezing the shop now encases each card in a ring of jagged ice that grows in from the top down.',
       },
       {

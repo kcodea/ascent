@@ -453,6 +453,17 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_elderhorn_1', 'minion_skin', 'Plushie Elderhorn', 'legendary', 'b2_elderhorn', 'Plushie Elderhorn.png'),
   skin('skin_grim_1', 'minion_skin', 'Plushie Grim', 'legendary', 'grim', 'Plushie Grim.png'),
   skin('skin_spots_2', 'minion_skin', 'Plushie Spots', 'legendary', 'b2_spots', 'Plushy Spots.png'),
+  // Skins batch 12 (owner 2026-10-27: "i just added new cosmetic plushie versions of all of those remaining beasts").
+  // Nine more Plushies, finishing the Set 2 Beast line except Armadiyo (no master yet). Rarity = the folder.
+  skin('skin_beardsley_1', 'minion_skin', 'Plushie Beardsley', 'common', 'b2_beardsley', 'Plushie Beardsley.png'),
+  skin('skin_beev_1', 'minion_skin', 'Plushie Beev', 'common', 'b2_beev', 'Plushie Beev.png'),
+  skin('skin_sunmane_1', 'minion_skin', 'Plushie Sunmane', 'common', 'b2_sunmane', 'Plushie Sunmane.png'),
+  skin('skin_bullseye_1', 'minion_skin', 'Plushie Bullseye', 'rare', 'b2_bullseye', 'Plushie Bullseye.png'),
+  skin('skin_packstrider_1', 'minion_skin', 'Plushie Packstrider', 'rare', 'b2_packstrider', 'Plushie Packstrider.png'),
+  skin('skin_wolvie_1', 'minion_skin', 'Plushie Wolvie', 'rare', 'b2_wolvie', 'Plushie Wolvie.png'),
+  skin('skin_kennel_2', 'minion_skin', 'Plushie Kennelmaster', 'epic', 'kennel', 'Plushie Kennelmaster.png'),
+  skin('skin_raven_1', 'minion_skin', 'Plushie Raven', 'legendary', 'b2_raven', 'Plushie Raven.png'),
+  skin('skin_seaurchin_3', 'minion_skin', 'Plushie Sea Urchin', 'legendary', 'seaurchin', 'Plushie Sea Urchin.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

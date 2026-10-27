@@ -9860,4 +9860,23 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Hovering a Vault spell in the Shop draws a thin white rim just outside its arch frame, the same snug fit a hovered minion gets.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/spellGlowFit.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PROG-SKINS-20',
+    title: 'Skins batch 12: nine more Plushie Beasts join the crates at their folder rarity',
+    statement:
+      'Nine Plushie minion skins are crate items, each targeting one Set 2 Beast by stable id and shipping its own 512px '
+      + 'WebP in packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). '
+      + 'Common: Plushie Beardsley, Plushie Beev, Plushie Sunmane. Rare: Plushie Bullseye, Plushie Packstrider, Plushie '
+      + 'Wolvie. Epic: Plushie Kennelmaster. Legendary: Plushie Raven, Plushie Sea Urchin. With them in, a first crate holds '
+      + '45 Common, 86 Rare, 84 Epic, 76 Legendary and 28 Ancient items (each Common 0.778%, Rare 0.36%, Epic 0.262%, '
+      + 'Legendary 0.118%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (skins batch 12)', quote: 'i just added new cosmetic plushie versions of all of those remaining beasts' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 12); packages/ui/src/art/skins/ (9 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-27 (feat/skins-batch-12). Armadiyo had no Plushie master in the folder, so it is the one Set 2 Beast still without one. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

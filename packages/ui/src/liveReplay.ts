@@ -15,6 +15,7 @@
  * opens is compared with the recorded one, and a refused action that the recording says changed something stops the
  * replay with the difference printed, rather than playing on as a different game.
  *
+ * Fights: End Combat is pressed at the player's own moment; a fight still playing then gets Skip, as the player did.
  * What it does not reproduce: drags (it dispatches the drop's action, so no drag animation), hovers, and the
  * autosave (the run is flagged `sandbox`, which is what keeps it from saving or uploading anything).
  */
@@ -92,6 +93,9 @@ export function rebuildLiveReplayRun(b: LiveReplayBundle): RunState {
 
 // ── The driver ──────────────────────────────────────────────────────────────────────────────────────────────────
 
+/** How much longer than the player's fight a live fight may run before the replay treats it as a Skip. */
+const SKIP_GRACE_MS = 1500;
+
 const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
 /** Poll `ok` every frame-ish until true; throws after `timeoutMs` so a stuck replay reports instead of hanging. */
@@ -128,6 +132,7 @@ async function drive(steps: LiveReplayStep[], speed: number): Promise<void> {
   let combatLive = 0;
   let firedAt = anchorLive;
   let refusedQuiet = 0;
+  let skips = 0;
   for (let i = 0; i < steps.length; i++) {
     if (stopRequested) throw new Error('stopped');
     const step = steps[i]!;
@@ -158,10 +163,18 @@ async function drive(steps: LiveReplayStep[], speed: number): Promise<void> {
       combatLive = performance.now();
       combatRec = step.tMs ?? 0;
     } else {
-      // End Combat: once the fight has played (the button turns to End Combat) AND the player's own wait has
-      // passed. Never the Skip state: the player watched the fight, so the replay does too.
-      await waitFor('End Combat to become available', () => endButton()?.classList.contains('ready') === true || gameOver(useGame.getState().run));
-      if (step.tMs !== null) await sleep(combatLive + Math.max(0, step.tMs - combatRec) / Math.max(0.01, speed) - performance.now());
+      // End Combat at the player's own moment (the recorded time from End Turn to the next shop; fights are never
+      // sped up by `speed`). If the fight is still playing then, plus a grace for a slower machine, the player had
+      // pressed Skip: press it too, then End Combat once the fight has wrapped up.
+      const ready = (): boolean => endButton()?.classList.contains('ready') === true || gameOver(useGame.getState().run);
+      if (step.tMs !== null) {
+        const dueAt = combatLive + Math.max(0, step.tMs - combatRec) + SKIP_GRACE_MS;
+        await waitFor('End Combat or the player\'s moment', () => ready() || performance.now() >= dueAt);
+        const sk = endButton();
+        if (!ready() && sk?.classList.contains('skip')) { sk.click(); skips++; }
+      }
+      await waitFor('End Combat to become available', ready);
+      if (step.tMs !== null) await sleep(combatLive + Math.max(0, step.tMs - combatRec) - performance.now());
       const b = endButton();
       if (b?.classList.contains('ready')) b.click();
       firedAt = performance.now();
@@ -177,6 +190,7 @@ async function drive(steps: LiveReplayStep[], speed: number): Promise<void> {
       log(`wave ${useGame.getState().run.wave} shop matches the recording`);
     }
   }
+  if (skips) log(`pressed Skip in ${skips} fight(s), as the player did`);
   if (refusedQuiet) log(`${refusedQuiet} action(s) changed nothing (they changed nothing for the player either)`);
 }
 

@@ -44,6 +44,9 @@
  *   npm run perf:gauntlet -- --blind --out <dir>    report without the key (the key goes to <dir>/key.json)
  *   npm run perf:gauntlet -- --profile shop-actions   CPU-profile that scene; prints its top functions (source-mapped)
  *   npm run perf:gauntlet -- --trace shop-actions     trace that scene: style / layout / paint time, and which code FORCED each layout
+ *   npm run perf:gauntlet -- --anim-census shop-actions   list the animations running during that scene (name, properties, target)
+ *   npm run perf:gauntlet -- --debug-end              log the wipe / End Turn state after each End combat press that did not land
+ *   A run that loses a scene is run again once (--no-retry turns that off).
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
  *   npm run perf:gauntlet -- --scenes drag,combat   report only these scenes
  * Exit code: 0 = done; 1 = a run failed to reach a scene; 2 = setup error. The budget verdict never fails the exit
@@ -430,8 +433,11 @@ async function playScenes(c) {
     let back = false; let endPresses = 0;
     for (let i = 0; replayed && !back && i < 5; i++) {
       endPresses++;
-      await d.click(await d.visible('.etbwrap.ready'));
+      const btn = await d.visible('.etbwrap.ready');
+      await d.click(btn);
       back = await d.waitFor(`${g}.run.phase !== 'combat'`, 4000);
+      // --debug-end: what the exit's wipe machine (wipeMachine.ts curtainClassFor / vistaClassFor) shows after each press.
+      if (!back && flag('debug-end')) log(`   (End combat press ${endPresses} at ${label}: ${btn ? 'button found' : 'NO .etbwrap.ready'}, ${await d.ev(`(() => { const c = document.querySelector('.wipecurtain'); const v = document.querySelector('.wipevista, [class*=wipevista]'); const e = document.querySelector('.etbwrap'); return 'curtain=' + (c ? c.className : 'none') + ' | vista=' + (v ? v.className : 'none') + ' | etb=' + (e ? e.className : 'none') + ' | presentationTx=' + JSON.stringify(window.__bench.store.getState().presentationTx?.action?.type ?? null) + ' | endTurnAnimating=' + window.__bench.store.getState().endTurnAnimating; })()`)})`);
     }
     if (back && endPresses > 1) log(`   (End combat needed ${endPresses} presses at ${label}: a press was ignored, a possible game bug)`);
     if (replayed && !back) {
@@ -548,6 +554,23 @@ async function measureOnce(dist, runIdx) {
         // --profile: the CPU profiler runs only while the chosen scene is on.
         if (profiling && scene !== PROFILE) { profiles.push((await origSend('Profiler.stop')).profile); profiling = false; }
         if (!profiling && PROFILE && scene === PROFILE) { await origSend('Profiler.start'); profiling = true; }
+        // --anim-census <scene>: which CSS animations / transitions / WAAPI animations are running during that scene,
+        // by name and target, sampled three times (an animation dirties its element's style every frame).
+        if (arg('anim-census', '') === scene) {
+          for (const ms of [1500, 3000, 4500]) setTimeout(() => { void origSend('Runtime.evaluate', { returnByValue: true, expression: `(() => {
+            const by = new Map();
+            for (const a of document.getAnimations()) {
+              if (a.playState !== 'running') continue;
+              const t = a.effect && a.effect.target; const el = t && (t.nodeType === 1 ? t : null);
+              const cls = el ? (el.tagName.toLowerCase() + (typeof el.className === 'string' && el.className ? '.' + el.className.trim().split(/\\s+/).slice(0, 2).join('.') : '')) : '?';
+              const name = a.animationName || (a.transitionProperty ? 'transition:' + a.transitionProperty : (a.id || 'waapi'));
+              const props = a.effect && a.effect.getKeyframes ? [...new Set(a.effect.getKeyframes().flatMap((k) => Object.keys(k).filter((p) => !['offset', 'easing', 'composite', 'computedOffset'].includes(p))))].join('+') : '';
+              const key = name + ' [' + props + '] on ' + cls;
+              by.set(key, (by.get(key) || 0) + 1);
+            }
+            return [...by.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20);
+          })()` }).then((r) => log(`   anim census @${ms}ms in ${scene}:\n` + (r.result.value || []).map(([k, n]) => `     x${String(n).padEnd(4)} ${k}`).join('\n'))).catch(() => {}); }, ms);
+        }
         if (tracing && scene !== TRACE) await stopTrace(origSend);
         if (!tracing && TRACE && scene === TRACE) {
           await origSend('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-blink.debug', 'v8.execute', '__metadata'] } });
@@ -775,7 +798,13 @@ for (let i = 0; i < schedule.length; i++) {
   const n = schedule[i];
   log(`run ${i + 1}/${schedule.length}: build ${n}`);
   try {
-    const raw = await measureOnce(blind[n].dist, i);
+    let raw = await measureOnce(blind[n].dist, i);
+    // A run that lost a scene (the intermittent stuck End combat, 2026-10-27) is run again once, so one stuck fight
+    // does not cost the comparison. The retry's numbers replace the failed run's.
+    if (raw.missed.length && !flag('no-retry')) {
+      log(`   missed: ${raw.missed.join(', ')}; running build ${n} again`);
+      raw = await measureOnce(blind[n].dist, i);
+    }
     if (TRACE && raw.traceEvents?.length) {
       const tl = summariseTrace(raw.traceEvents, blind[n].dist);
       fs.writeFileSync(path.join(OUT, `trace-run${i + 1}-${n}.json`), JSON.stringify({ traceEvents: raw.traceEvents })); // DevTools > Performance > Load

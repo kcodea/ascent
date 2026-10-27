@@ -9769,4 +9769,29 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The owner opens https://<build>/?phonebench=1 on his iPhone and waits about three minutes; the card reads "shop: p50 8.3 p95 16.7 ... WebGL 5 alive / 7 made ... report sent", and the same row lands in client_crash_reports.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePerfLogDesktop.test.ts', 'packages/ui/src/phonePerfLog.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-CHARGE-FUSE-01',
+    title: 'The end-of-turn charge is a crystal fuse burning into the End Turn gem, and the gem\'s strike releases it',
+    statement:
+      'Over the last seconds of a Shop turn a crystal fuse burns away left to right into the End Turn gem, finishing '
+      + 'exactly at 0:00 (its timing, holds and sound are R-TIMER-SYNC-01). The broken crystal is pulled into the gem by '
+      + 'a simulation of forces, seeded fresh each time, so no two turns look the same. At 0:00 everything collapses into '
+      + 'the gem with a burst, together with the 0:00 sound, and the gem then waits charged, with a few pieces circling '
+      + 'it and no new ones, for as long as the player takes. End Turn releases the charge with the gem\'s strike, once '
+      + 'per End Turn, on every path that ends the turn (a click, Versus\'s own End Turn when the fight is released, a '
+      + 'spectator\'s replay of the press). An End Turn before 0:00 makes the remaining fuse flash and fade out very '
+      + 'quickly instead. A fuse that lights on a clock already at 0:00 (Save & Continue, a closed screen) shows the '
+      + 'charged wait straight away, with no burst and no sound.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-26 (crystal fuse countdown)', quote: 'a fuse made up of blue crystal or some element, and then it disintegrates from left to right (similar to a burning rope), but all of the crystal that is broken down into energy is pulled towards and into the gemstone on the right side' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-26 (crystal fuse countdown)', quote: 'can we have the remaining fuse just flash and fade out very quickly?' },
+      { kind: 'owner-chat', ref: 'Mike, 2026-10-26 (crystal fuse countdown)', quote: 'i want the swirl to not look like an animation adn rather a simulation, so the effect is actually slightly different each time' },
+      { kind: 'code', ref: 'packages/ui/src/Recruit.tsx ChargeGlyph; fuseSim.ts; fuseRender.ts; fusePhase.ts; fuseTune.ts; EndTurnButton.tsx playStrike (one strike per End Turn); versus/VersusHud.tsx (strike cue before the automatic End Turn)' },
+    ],
+    currentBehaviour: 'Since 2026-10-26 (feat/crystal-fuse). Before, the charge was a blue sigil on the board midline that filled from both ends with motes gathering into its centre, and Versus\'s automatic End Turn played no strike.',
+    example: 'With 20 s left the fuse lights at the board\'s left; shards and motes break off the burning front and stream, spiralling, into the gem, faster as time runs out. At 0:00 they collapse into the gem with a flash; it hums with ten pieces circling until the player presses End Turn, which strikes.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseSim.test.ts', 'packages/ui/src/fusePhase.test.ts', 'packages/ui/src/endTurnStrikeOnce.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

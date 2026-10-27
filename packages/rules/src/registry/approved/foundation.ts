@@ -9794,7 +9794,7 @@ export const FOUNDATION_RULES: GameRule[] = [
       { kind: 'code', ref: 'packages/ui/src/Recruit.tsx ChargeGlyph; fuseSim.ts; fuseRender.ts; fusePhase.ts; fuseTune.ts; EndTurnButton.tsx playStrike (one strike per End Turn); versus/VersusHud.tsx (strike cue before the automatic End Turn)' },
     ],
     currentBehaviour: 'Since 2026-10-26 (feat/crystal-fuse). Before, the charge was a blue sigil on the board midline that filled from both ends with motes gathering into its centre, and Versus\'s automatic End Turn played no strike.',
-    example: 'With 20 s left the fuse lights at the board\'s left; shards and motes break off the burning front and stream, spiralling, into the gem, faster as time runs out. At 0:00 they collapse into the gem with a flash; it hums with ten pieces circling until the player presses End Turn, which strikes.',
+    example: 'With 20 s left the fuse lights at the board\'s left; shards and motes break off the burning front and stream, spiralling, into the gem, faster as time runs out. At 0:00 they collapse into the gem with a flash; it hums with thirty pieces circling until the player presses End Turn, which strikes.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseSim.test.ts', 'packages/ui/src/fusePhase.test.ts', 'packages/ui/src/endTurnStrikeOnce.test.tsx', 'packages/ui/src/chargeGlyphHold.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
 ];

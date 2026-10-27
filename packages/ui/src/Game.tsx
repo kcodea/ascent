@@ -3,6 +3,7 @@ import './styles.css';
 import './uiTheme.css'; // the shared colour tokens (--ui-*) for tooltips + HUD pills
 import './tooltips.css';
 import './touchUi.css'; // THE TOUCH UI: every rule keyed off html[data-touch-ui] (touch devices only, R-TOUCH-UISCALE-01)
+import './phoneMenus.css'; // THE PHONE MENUS: each menu page laid out for a phone (html[data-touch-small][data-page-scale], R-PHONE-MENUS-03)
 import './phoneLayout.css'; // THE PHONE LAYOUT: html[data-phone-layout] only (a phone in landscape, R-PHONE-LAYOUT-01)
 import './runeCard.css'; // the forge card: rune cards + rune rack badges (owner reference 2026-10-07)
 import './tooltipConfig';

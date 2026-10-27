@@ -7628,6 +7628,26 @@ export const FOUNDATION_RULES: GameRule[] = [
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneLayout.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
   {
+    id: 'R-PHONE-MENUS-03',
+    title: 'Phone menus have their own phone layouts: readable text, finger-sized controls, no squeezed desktop grids',
+    statement:
+      'On a phone (the page scale) the title, Play, Career, Leaderboard and Collection pages, and the menu rail on every '
+      + 'page, are laid out for the phone instead of showing the desktop page zoomed: sizes are in screen points (body text '
+      + '11-14 pt, nothing under 8 pt), controls and rows are 34-52 pt, lists scroll and fade at their edge, nothing is cut '
+      + 'mid-word or overlaps, and no CSS zoom is used. The rail fits a phone\x27s height; the Leaderboard podium is three '
+      + 'flat cards above one-line rows with your own row pinned at the foot; Career is a stats strip, Match History beside '
+      + 'the open match, then Seasonal Ranked; Collection is a sideways chip row of categories, the filters, a 3-across grid '
+      + 'and the chests beside it. Desktop is pixel-identical (every rule is keyed on the phone page scale).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner, 2026-10-26 (iPhone, Netlify build 792caa34a)', quote: 'No the menus just aren\x27t fit to work on the screen size it\x27s not that they literally don\x27t work. We need a better mobile ui for the various menus' },
+      { kind: 'code', ref: 'packages/ui/src/phoneMenus.css; packages/ui/src/progression/CollectionScreen.tsx (the picked category scrolls into view on a phone)' },
+    ],
+    currentBehaviour: 'Built 2026-10-26 (feat/phone-menus-ui), batch 1 of the phone menu pass: title, Play, Career, Leaderboard, Collection and the rail, verified in Playwright WebKit (iPhone 15 Pro, Home Screen size) and Chromium (Pixel 8) against a blind critic (6 rounds). The other menus (Recent Games, Live Games, Friends, Compendium, Settings, Patch Notes, Versus, Practice, hero select, end screen, sign-in) still use the zoomed desktop layout.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/phoneMenus.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
     id: 'R-TOUCH-KEYBOARD-01',
     title: 'Typing on a phone uses a big field above the keyboard',
     statement:

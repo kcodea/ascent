@@ -188,10 +188,10 @@ export function applyFreezeVars(): void {
     : 'none');
   root.setProperty('--frz-gem-hover', String(cfg.gemHoverBright));
   // Shop ice ring over each frozen shop card (styles.css "Frozen tavern"). The fallbacks there mirror DEFAULTS.
-  root.setProperty('--frz-ice-w', `${cfg.iceW}%`);
-  root.setProperty('--frz-ice-h', `${cfg.iceH}%`);
-  root.setProperty('--frz-ice-sw', `${cfg.iceSpellW}%`);
-  root.setProperty('--frz-ice-sh', `${cfg.iceSpellH}%`);
+  root.setProperty('--frz-ice-w', String(cfg.iceW / 100)); // a scale factor on the box
+  root.setProperty('--frz-ice-h', String(cfg.iceH / 100)); // a scale factor on the box
+  root.setProperty('--frz-ice-sw', String(cfg.iceSpellW / 100)); // a scale factor on the box
+  root.setProperty('--frz-ice-sh', String(cfg.iceSpellH / 100)); // a scale factor on the box
   root.setProperty('--frz-ice-x', `${cfg.iceX}%`);
   root.setProperty('--frz-ice-y', `${cfg.iceY}%`);
   root.setProperty('--frz-ice-op', String(cfg.iceOpacity));

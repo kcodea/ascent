@@ -2969,8 +2969,11 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
   inset: -2px;
   pointer-events: none;
   z-index: 9;
-  background: url('/frames/freeze-ice.webp') center / var(--frz-ice-w, 112%) var(--frz-ice-h, 108%) no-repeat;
+  /* The art fills the box and the BOX is scaled (a background can never paint past its own box, so sizing the
+     background instead would crop the ring at the frame's edges). */
+  background: url('/frames/freeze-ice.webp') center / 100% 100% no-repeat;
   translate: var(--frz-ice-x, 0%) var(--frz-ice-y, 0%);
+  scale: var(--frz-ice-w, 1.12) var(--frz-ice-h, 1.08);
   /* A tall mask: solid at the top, a soft fade band, clear below. Sliding it from 100% to 0% drags the band
      from above the card to below it, so the ice appears top → bottom with a feathered leading edge. */
   -webkit-mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 42%), transparent var(--frz-ice-f1, 58%), transparent 100%) 0 0 / 100% 300% no-repeat;
@@ -5274,7 +5277,7 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   aspect-ratio: 705 / 862;
   /* the spell arch is squarer than the oval ice ring: its own fit, stretched taller to reach the bottom corners */
-  background-size: var(--frz-ice-sw, 114%) var(--frz-ice-sh, 120%);
+  scale: var(--frz-ice-sw, 1.14) var(--frz-ice-sh, 1.2);
 }
 
 /* ============================ HAND CARD BACKPLATE ============================

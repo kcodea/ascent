@@ -17,7 +17,7 @@ afterEach(() => setServerCatalogState(null));
 
 const skins = COSMETICS.filter((c) => c.category === 'hero_skin' || c.category === 'minion_skin');
 
-describe('the one hundred and eight skins', () => {
+describe('the one hundred and thirty skins', () => {
   // 2026-09-28: a third Black Belt Brian (Legendary) joined; owner: "i added a legendary black belt brian skin and
   // renaemd skins to match their rarity" (masters renamed SkinRare / SkinEpic / SkinLegendary; ids unchanged); then
   // "put the bellringer voss skin in too" (an Epic for Bellringer Voss). Then skins batch 2: "i added some skins here:
@@ -37,7 +37,10 @@ describe('the one hundred and eight skins', () => {
   // Then skins batch 10 (2026-10-21): "i added various skins/collections items. can you find them and wire them up?"
   // (7 hero + 7 minion skins at their folder rarity: four Midas, Runesmith, Robin, Membrance; Anvilshade, Bellringer
   // Voss, Rad Rachel, two Mushy, Kennelmaster, Jensen & Fi).
-  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 10, and the hero skins; crate items with art keys and attributed masters', () => {
+  // Then skins batch 11 (2026-10-26): "i just added a ton of new images to the art folder ... IMPORT them into
+  // collections" (22 minion skins at their folder rarity, nearly all Set 2 Beasts: the Plushie line, Frostclaw,
+  // Stoneclaw, Pinata Claw, Stormhorn, Snowyhorn, Solar Spots, Voidworks, Cyborg Roomworks).
+  it('four Black Belt Brian minion skins (Rare, Epic, Legendary, Common), Bellringer Voss, batches 2 to 11, and the hero skins; crate items with art keys and attributed masters', () => {
     expect(skins.map((c) => [c.id, c.category, c.target, c.rarity])).toEqual([
       ['skin_blackbelt_1', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'common'],
       ['skin_blackbelt_2', 'minion_skin', { type: 'card', id: 'blackbelt' }, 'epic'],
@@ -148,11 +151,33 @@ describe('the one hundred and eight skins', () => {
       ['skin_scalefeather_2', 'minion_skin', { type: 'card', id: 'd2_scalefeather' }, 'epic'],
       ['skin_kennel_1', 'minion_skin', { type: 'card', id: 'kennel' }, 'epic'],
       ['skin_jenkins_2', 'minion_skin', { type: 'card', id: 'jenkins' }, 'epic'],
+      ['skin_hawkus_1', 'minion_skin', { type: 'card', id: 'b2_hawkus' }, 'common'],
+      ['skin_oona_2', 'minion_skin', { type: 'card', id: 'b2_oona' }, 'common'],
+      ['skin_manasaber_1', 'minion_skin', { type: 'card', id: 'manasaber' }, 'common'],
+      ['skin_tort_1', 'minion_skin', { type: 'card', id: 'b2_tort' }, 'common'],
+      ['skin_roomworks_1', 'minion_skin', { type: 'card', id: 'd2_roomworks' }, 'rare'],
+      ['skin_roomworks_2', 'minion_skin', { type: 'card', id: 'd2_roomworks' }, 'rare'],
+      ['skin_dawnclaw_1', 'minion_skin', { type: 'card', id: 'b2_dawnclaw' }, 'rare'],
+      ['skin_dawnclaw_2', 'minion_skin', { type: 'card', id: 'b2_dawnclaw' }, 'rare'],
+      ['skin_trex_1', 'minion_skin', { type: 'card', id: 'b2_trex' }, 'rare'],
+      ['skin_florida_1', 'minion_skin', { type: 'card', id: 'b2_florida' }, 'rare'],
+      ['skin_mammoth_1', 'minion_skin', { type: 'card', id: 'b2_mammoth' }, 'rare'],
+      ['skin_spots_1', 'minion_skin', { type: 'card', id: 'b2_spots' }, 'rare'],
+      ['skin_echohorn_1', 'minion_skin', { type: 'card', id: 'b2_echohorn' }, 'rare'],
+      ['skin_dawnclaw_3', 'minion_skin', { type: 'card', id: 'b2_dawnclaw' }, 'epic'],
+      ['skin_dawnclaw_4', 'minion_skin', { type: 'card', id: 'b2_dawnclaw' }, 'epic'],
+      ['skin_echohorn_2', 'minion_skin', { type: 'card', id: 'b2_echohorn' }, 'epic'],
+      ['skin_echohorn_3', 'minion_skin', { type: 'card', id: 'b2_echohorn' }, 'epic'],
+      ['skin_solaris_1', 'minion_skin', { type: 'card', id: 'b2_solaris' }, 'epic'],
+      ['skin_beetle_1', 'minion_skin', { type: 'card', id: 'beetle' }, 'legendary'],
+      ['skin_elderhorn_1', 'minion_skin', { type: 'card', id: 'b2_elderhorn' }, 'legendary'],
+      ['skin_grim_1', 'minion_skin', { type: 'card', id: 'grim' }, 'legendary'],
+      ['skin_spots_2', 'minion_skin', { type: 'card', id: 'b2_spots' }, 'legendary'],
     ]);
     for (const c of skins) {
       expect(c.acquisition).toEqual({ type: 'crate' });
       expect(c.assets.art, c.id).toBe(c.id);
-      expect(c.assets.master, c.id).toMatch(/^[A-Za-z0-9][A-Za-z0-9 ]*\.(png|jpg)$/); // JPEG masters: BlackFridayFrank.jpg (batch 4), DarkNimbus.jpg and QuartetChorusdrake.jpg (batch 5); one master has spaces, 'Midas and Melon.png' (batch 8; art:wire ignores them)
+      expect(c.assets.master, c.id).toMatch(/^[A-Za-z0-9][A-Za-z0-9 -]*\.(png|jpg)$/); // batch 11: 'Plushie T-Rex.png' has a hyphen. // JPEG masters: BlackFridayFrank.jpg (batch 4), DarkNimbus.jpg and QuartetChorusdrake.jpg (batch 5); one master has spaces, 'Midas and Melon.png' (batch 8; art:wire ignores them)
       expect(c.active).toBe(true);
     }
     expect(skinsForTarget('minion_skin', 'blackbelt').map((c) => c.id)).toEqual(['skin_blackbelt_1', 'skin_blackbelt_2', 'skin_blackbelt_3', 'skin_blackbelt_4']);
@@ -163,6 +188,9 @@ describe('the one hundred and eight skins', () => {
     expect(skinsForTarget('hero_skin', 'midas').map((c) => c.id)).toEqual(['skin_midas_1', 'skin_midas_2', 'skin_midas_3', 'skin_midas_4', 'skin_midas_5']); // batch 10
     expect(skinsForTarget('minion_skin', 'd2_scalefeather').map((c) => c.id)).toEqual(['skin_scalefeather_1', 'skin_scalefeather_2']); // batch 10 (Mushy)
     expect(skinsForTarget('minion_skin', 'jenkins').map((c) => c.id)).toEqual(['skin_jenkins_1', 'skin_jenkins_2']); // batch 10
+    expect(skinsForTarget('minion_skin', 'b2_dawnclaw').map((c) => c.id)).toEqual(['skin_dawnclaw_1', 'skin_dawnclaw_2', 'skin_dawnclaw_3', 'skin_dawnclaw_4']); // batch 11
+    expect(skinsForTarget('minion_skin', 'b2_echohorn').map((c) => c.id)).toEqual(['skin_echohorn_1', 'skin_echohorn_2', 'skin_echohorn_3']); // batch 11
+    expect(skinsForTarget('minion_skin', 'b2_oona').map((c) => c.id)).toEqual(['skin_oona_1', 'skin_oona_2']); // batch 11
     expect(skinsForTarget('minion_skin', 'drummer').map((c) => c.id)).toEqual(['skin_drummer_1', 'skin_drummer_2', 'skin_drummer_3', 'skin_drummer_4']);
     expect(skinsForTarget('minion_skin', 'buddy').map((c) => c.id)).toEqual(['skin_buddy_1', 'skin_buddy_2', 'skin_buddy_3']);
     expect(skinsForTarget('minion_skin', 'd2_recaller').map((c) => c.id)).toEqual(['skin_recaller_1', 'skin_recaller_2', 'skin_recaller_3']);

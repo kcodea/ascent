@@ -30,7 +30,7 @@ import { schedulePrefetchSocial } from './socialPrefetch';
 import { VersusTitle } from './versus/VersusTitle';
 import { VersusRoom } from './versus/VersusRoom';
 import { enterDuosParty, openVersus, resumeVersusMatch, useVersus } from './versus/versusStore';
-import { defaultPartyName, onDuoPlayRequest, playParty, PlayPartyToggle } from './versus/playParty';
+import { defaultPartyName, PlayPartyToggle, usePlayParty } from './versus/playParty';
 import { versusEnabled } from './versus/versusFlag';
 import { useVersusOpenRooms, versusRoomsTip } from './versus/versusOpenRooms';
 import { VsOpenBadge } from './versus/VsOpenBadge';
@@ -109,6 +109,8 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   const versusScreen = useVersus((s) => s.screen);
   // RANKED DUOS (phase 3): the room browser shows the Ranked Duos parties when the Duos tile opened it.
   const versusArea = useVersus((s) => s.area);
+  // SOLO / DUO: the Ranked card's switch (playParty.tsx); its PLAY reads it.
+  const party = usePlayParty();
   const practiceOpen = useGame((s) => s.practiceSetupOpen);
   // The portrait-frames tuner's ring for your own avatar corner (null = today's copper ring).
   const avatarFrame = usePortraitFrame('self');
@@ -186,9 +188,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
 
   // Practice's setup closes the title flag (`startPractice`: showTitle false), but it is a view of the mode screen, so
   // the title stays mounted under it: the sidebar and backdrop stay put and only the content shifts (R-MENU-VIEW-SWAP-01).
-  // SOLO / DUO: the sidebar's Duo + Play asks this title for the Ranked Duos confirmation (set once the title renders).
-  const duoPlayRef = useRef<(() => void) | null>(null);
-  useEffect(() => { onDuoPlayRequest(() => duoPlayRef.current?.()); return () => onDuoPlayRequest(null); }, []);
   if (!showTitle && !practiceOpen) return null;
 
   // A player who has never finished (or skipped) the guided course is "new" — hitting Play offers the tutorial
@@ -201,8 +200,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
     setRankedConfirm('open');
     warmRankedGate(); // the gate "Yes" plays: its art, cues and FX layer are ready before the answer
   };
-  // The sidebar's Play with Duo selected asks for the same confirmation (playParty.tsx; registered above the early return).
-  duoPlayRef.current = () => openRankedConfirm('duos');
   // "Yes, let's go." (owner 2026-10-12): the window leaves, the ranked gate slams shut over the mode picker, and
   // `startLobby` (the entry + hero select) runs BEHIND the shut doors, so they open on hero select. With no gate
   // (reduced motion, a test) `requestRankedGate` runs it at once.
@@ -230,10 +227,13 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   };
   // Play from the mode picker: nudge a new player to the tutorial first; everyone else gets the ranked
   // confirmation, and only its "Yes" starts the lobby.
+  // SOLO / DUO on this card (owner 2026-10-26, R-RANKED-DUOS-MODECARD-01): with Duo picked, PLAY asks the Ranked Duos
+  // confirmation, whose "Yes" opens my party room (the switch's old behaviour above Play, unchanged).
   const onPlay = () => {
     crumb('play tile pressed');
     sfx.pulse();
-    if (isNewPlayer) setTutorialPrompt(true);
+    if (party === 'duo') openRankedConfirm('duos');
+    else if (isNewPlayer) setTutorialPrompt(true);
     else openRankedConfirm();
   };
   // Saying yes with an unfinished RATED game in the save slot also gives that game up once a hero is picked (the
@@ -251,11 +251,7 @@ export function Title({ onSettings }: { onSettings: () => void }) {
   // bubble on a WRAPPER (`.tn-item`, positioned like the sidebar's `.msb-item`): the plaque's own ::after is
   // its sheen, so a tip on the plaque itself is inert by the tooltip rule. No native `title=` on the title.
   const playPlaque = (
-    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => {
-      crumb('play pressed'); sfx.pulse();
-      // SOLO / DUO (owner 2026-10-26): Duo + Play asks the Ranked Duos confirmation, then opens my party room.
-      if (playParty() === 'duo') openRankedConfirm('duos'); else setTitleView('modes');
-    }}>
+    <button className={`menubtn${savedRun ? '' : ' active'}`} onClick={() => { crumb('play pressed'); sfx.pulse(); setTitleView('modes'); }}>
       <span className="mbicon"><Crest /></span>
       <span className="mblabel">{txt.play}</span>
       {vsTip && <VsOpenBadge n={vsOpen} paused={!focused} />}
@@ -328,6 +324,9 @@ export function Title({ onSettings }: { onSettings: () => void }) {
                 <span className="mcname mc-cta"><Crest /><span>Play</span></span>
               </div>
             </button>
+            {/* SOLO / DUO (owner 2026-10-26: "put it in the bottom left corner below/eclipsing the play art"): a sibling
+                sharing the card's grid cell (a button can't hold buttons), eclipsing its bottom-left edge. */}
+            <PlayPartyToggle className="mc-party" />
             <div className="mpside">
               {modeTile('practice', 'practice', 'Practice', 'More time and unlimited Health.', () => { rememberMode('practice'); sfx.pulse(); startPractice(); }, <IconHelm />)}
               {versusEnabled() && modeTile('versus', 'versus', 'Versus', 'Real-time 1v1. Health and Armor, like a normal game. Unranked.', () => { rememberMode('versus'); sfx.pulse(); openVersus(); }, <Crest />)}
@@ -501,7 +500,6 @@ export function Title({ onSettings }: { onSettings: () => void }) {
               </button>
             </div>
           )}
-          <PlayPartyToggle className="tn-playparty" />
           {playTip ? <div className="tn-item" data-tip={playTip}>{playPlaque}</div> : playPlaque}
           {/* Learn moved OFF the main menu (owner 2026-08-17): it now lives in the mode picker as its own card,
               opening a learning hub (Tutorial + future advanced lessons). A new player is also offered the

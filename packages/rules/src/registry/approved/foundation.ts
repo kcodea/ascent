@@ -9595,7 +9595,7 @@ export const FOUNDATION_RULES: GameRule[] = [
     id: 'R-RANKED-DUOS-PARTY-01',
     title: 'Ranked Duos: Solo | Duo above Play; Duo + Play opens my party; friends-only parties stay private; the team owns its boards and Live Games row',
     statement:
-      'A Solo | Duo switch sits above Play (sidebar and main menu), remembered per viewer; Solo + Play is unchanged, Duo + Play asks the ranked confirmation then puts the player in their own two-seat Ranked Duos party (re-entering one they are already in). A teammate joins by a duos_party friend invite or from the open parties list. The host may set the party friends-only: it is then listed, counted and joinable only for the host\x27s friends and its members, and never on Live Games. Ranked Duos parties are counted apart from Versus rooms. The Leaderboard has a Duos tab of TEAMS ordered by division then points; the Career lists a player\x27s rated teams. Live Games carries one row per live team (duos:<room>), published by the first seat only, named by the team, removed at the game\x27s end. After a game each teammate sees the team\x27s place out of 4 and its rating change on the ranked end sequence.',
+      'A Solo | Duo switch sits on the mode screen\x27s Ranked card (R-RANKED-DUOS-MODECARD-01; it was above Play on the sidebar and main menu until 2026-10-26), remembered per viewer; Solo + the card\x27s PLAY is unchanged, Duo + PLAY asks the ranked confirmation then puts the player in their own two-seat Ranked Duos party (re-entering one they are already in). A teammate joins by a duos_party friend invite or from the open parties list. The host may set the party friends-only: it is then listed, counted and joinable only for the host\x27s friends and its members, and never on Live Games. Ranked Duos parties are counted apart from Versus rooms. The Leaderboard has a Duos tab of TEAMS ordered by division then points; the Career lists a player\x27s rated teams. Live Games carries one row per live team (duos:<room>), published by the first seat only, named by the team, removed at the game\x27s end. After a game each teammate sees the team\x27s place out of 4 and its rating change on the ranked end sequence.',
     domain: 'foundation',
     status: 'approved',
     evidence: [
@@ -9606,6 +9606,25 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Built 2026-10-26 on feat/ranked-duos-p3.',
     example: 'Kevin picks Duo, presses Play, confirms, and lands in his own party; he invites Lemon, who accepts and takes the second seat. Kevin sets Friends only, so Ionlime never sees the party. After the game both see 2nd of 4, +11.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/versus/rankedDuosParty.db.test.ts', 'packages/sim/src/versus/versusLockOrder.test.ts'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-RANKED-DUOS-MODECARD-01',
+    title: 'Solo | Duo lives on the mode screen\x27s Ranked card (bottom-left, eclipsing its edge), not on the sidebar or main menu',
+    statement:
+      'ONE Solo | Duo switch sits on the mode screen\x27s Ranked card, anchored at its bottom-left corner and overlapping the card\x27s bottom edge '
+      + '(half on the art, half below, as the PLAY button overlaps the bottom centre), in PLAY\x27s gold family; on phones it sits in the same spot, '
+      + 'finger-sized. The menu sidebar and the main menu carry no switch: their Play always opens the mode screen, whichever side is picked. '
+      + 'The card\x27s PLAY with Solo is the solo ranked flow (tutorial nudge for a new player, then the ranked confirmation); with Duo it asks '
+      + 'the Ranked Duos confirmation, whose Yes opens the player\x27s party. The choice stays remembered per viewer.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner via the coordinator, 2026-10-26 (screenshot of the Choose a mode screen)', quote: 'move the solo/duo toggle so that it is here, not at the main menu. put it in the bottom left corner below/eclipsing the play art' },
+      { kind: 'code', ref: 'packages/ui/src/Title.tsx (mode picker, onPlay); packages/ui/src/versus/playParty.tsx; packages/ui/src/styles.css (.mc-party); packages/ui/src/phoneMenus.css; packages/ui/src/MenuSidebar.tsx' },
+    ],
+    currentBehaviour: 'Moved 2026-10-26 on fix/solo-duo-on-mode-card.',
+    example: 'Kevin opens Play from the sidebar with Duo remembered: the mode screen opens, the Ranked card shows Duo lit at its bottom-left, and its PLAY asks the Ranked Duos confirmation.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/rank/rankedEntry.test.tsx', 'packages/ui/src/MenuSidebar.test.tsx'], lastVerifiedAt: '2026-10-26' },
   },
   {
     id: 'R-VERSUS-READY-01',
@@ -9796,5 +9815,49 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Since 2026-10-26 (feat/crystal-fuse). Before, the charge was a blue sigil on the board midline that filled from both ends with motes gathering into its centre, and Versus\'s automatic End Turn played no strike.',
     example: 'With 20 s left the fuse lights at the board\'s left; shards and motes break off the burning front and stream, spiralling, into the gem, faster as time runs out. At 0:00 they collapse into the gem with a flash; it hums with thirty pieces circling until the player presses End Turn, which strikes.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/fuseSim.test.ts', 'packages/ui/src/fusePhase.test.ts', 'packages/ui/src/endTurnStrikeOnce.test.tsx', 'packages/ui/src/chargeGlyphHold.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-PROG-SKINS-19',
+    title: 'Skins batch 11: twenty-two minion skins (the Plushie line and element spins) join the crates at their folder rarity',
+    statement:
+      'Twenty-two minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). Common: '
+      + 'Plushie Hawkus (Hawkus), Plushie Oona (King Oona), Plushie Panther (Void Panther), Plushie Tort (Tort). Rare: Cyborg '
+      + 'Roomworks and Voidworks (Roomworks), Frostclaw and Stoneclaw (Dawnclaw), Plushie T-Rex (T-Rex), Plushie Vicious '
+      + '(Vicious), Plushie Wooly (Wooly), Solar Spots (Spots), Stormhorn (Echohorn). Epic: Pinata Claw and Plushie Dawnclaw '
+      + '(Dawnclaw), Plushie Echohorn and Snowyhorn (Echohorn), Plushie Solaris (Solaris). Legendary: Plushie Beetle (Runic '
+      + 'Beetle), Plushie Elderhorn (Elderhorn), Plushie Grim (Grim), Plushie Spots (Spots). Names are the master filenames '
+      + 'with the spelling tidied (Plushy to Plushie, Dawnclaww, Viscious after the card Vicious, Snowwyhorn). With them in, '
+      + 'a first crate holds 42 Common, 83 Rare, 83 Epic, 74 Legendary and 28 Ancient items (each Common 0.833%, Rare '
+      + '0.373%, Epic 0.265%, Legendary 0.122%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-26 (skins batch 11)', quote: 'ok i just added a ton of new images to the art folder ... IMPORT them into collections' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 11); packages/ui/src/art/skins/ (22 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-26 (feat/skins-batch-11). Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05). The tidied names are Claude\x27s reading of the filenames, for the owner to confirm.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
+  {
+    id: 'R-SPELL-GLOW-FIT-01',
+    title: 'The hover glow of a spell card hugs its own frame, the same snug fit a minion gets',
+    statement:
+      'The hover / select glow around a spell card (and the colour overlay of the spell frame) sits on the spell frame '
+      + 'itself: the same size and shape as the frame you see, so the bright rim traces the arch instead of spilling '
+      + 'past it. Any change to the art or size of a frame moves its glow and overlay with it.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (screenshot: a hovered Vault spell, the glow well outside the arch)', quote: 'the glow when h overing a spell is way to large' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'ok so can you do this for me then?' },
+      { kind: 'fix-pr', ref: 'feat/spell-hover-glow-tuner: packages/ui/src/styles.css (.card.compact.spellframe .cglow / .cframe-tint now use the .cframe-img box)' },
+    ],
+    currentBehaviour:
+      'Conforms, FIXED 2026-10-27. The spell .cglow and .cframe-tint had kept the box of an older spell frame (1.387 wide, '
+      + '1122/1346) after the arch frame (1.239, 705/862) replaced it, so the glow rim was stretched ~12% wider than the '
+      + 'frame. Both now share the .cframe-img box; the Hover Glow tuner also has separate Spell dials since the same PR.',
+    example: 'Hovering a Vault spell in the Shop draws a thin white rim just outside its arch frame, the same snug fit a hovered minion gets.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/spellGlowFit.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
 ];

@@ -76,6 +76,7 @@ export const DIRECT_CALL_SITES: Readonly<Record<string, readonly string[]>> = {
   // five seconds, with the turntick sound; fired from `ShopTimer` in Recruit, building in intensity toward ONE.
   'final-countdown-tick': ['Recruit.tsx'],
   'freeze-blast': ['FreezeButton.tsx'],
+  'freeze-break': ['FreezeButton.tsx'],
   // The Versus room's VS slam (R-VERSUS-ROOM-ENTER-01): the entrance and the face-off beat, under the VS mark.
   'ground-slam': ['versus/VersusRoom.tsx'],
   // THE GILD (owner redesign 2026-09-24, replacing plateGild's centre-screen fuse): one play PER consumed copy,

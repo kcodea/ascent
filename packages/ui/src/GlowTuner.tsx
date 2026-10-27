@@ -27,6 +27,16 @@ const SPECS: Record<keyof GlowConfig, [string, TunerUnit | undefined, string, st
   bloomAlpha:    ['Opacity', 'opacity', 'Bloom opacity. Lower is milder.', 'Outer bloom'],
   bloomStrength: ['Intensity', undefined, 'How many times the bloom is stacked. 1 is soft; higher is a hotter, denser glow.', 'Outer bloom'],
   bloomColor:    ['Colour', undefined, 'Colour of the outer bloom.', 'Outer bloom'],
+
+  spellWidth:         ['Width', '×', 'Spell glow width, relative to the spell frame.', 'Spell shape'],
+  spellHeight:        ['Height', '×', 'Spell glow height, relative to the spell frame.', 'Spell shape'],
+  spellLineBlur:      ['Softness', 'px', 'Softness of the spell glow inner line.', 'Spell inner line'],
+  spellLineAlpha:     ['Opacity', 'opacity', 'Opacity of the spell glow inner line.', 'Spell inner line'],
+  spellLineColor:     ['Colour', undefined, 'Colour of the spell glow inner line.', 'Spell inner line'],
+  spellBloomBlur:     ['Radius', 'px', 'Radius of the spell glow soft outer bloom.', 'Spell outer bloom'],
+  spellBloomAlpha:    ['Opacity', 'opacity', 'Spell bloom opacity. Lower is milder.', 'Spell outer bloom'],
+  spellBloomStrength: ['Intensity', undefined, 'How many times the spell bloom is stacked.', 'Spell outer bloom'],
+  spellBloomColor:    ['Colour', undefined, 'Colour of the spell glow outer bloom.', 'Spell outer bloom'],
 };
 
 /** Declaration order IS render order; each colour sits inside its own group's run. */
@@ -34,6 +44,9 @@ const ORDER: (keyof GlowConfig)[] = [
   'width', 'height',
   'lineBlur', 'lineAlpha', 'lineColor',
   'bloomBlur', 'bloomAlpha', 'bloomStrength', 'bloomColor',
+  'spellWidth', 'spellHeight',
+  'spellLineBlur', 'spellLineAlpha', 'spellLineColor',
+  'spellBloomBlur', 'spellBloomAlpha', 'spellBloomStrength', 'spellBloomColor',
 ];
 
 const controls: TunerControl<Extract<keyof GlowConfig, string>>[] = ORDER.map((key) => {

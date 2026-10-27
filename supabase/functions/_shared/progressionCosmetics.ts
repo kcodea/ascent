@@ -427,6 +427,35 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   skin('skin_scalefeather_2', 'minion_skin', 'Cosmic Mushy', 'epic', 'd2_scalefeather', 'CosmicMushy.png'),
   skin('skin_kennel_1', 'minion_skin', 'Gilded Kennelmaster', 'epic', 'kennel', 'GoldenKennelmaster.png'),
   skin('skin_jenkins_2', 'minion_skin', 'Jensen & Fi Sky', 'epic', 'jenkins', 'JensenFiSky.png'),
+  // Skins batch 11 (owner 2026-10-26: "i just added a ton of new images to the art folder ... IMPORT them into
+  // collections"). Twenty-two minion skins, nearly all Set 2 Beasts: a toy-plushie line and element / fun spins.
+  // Rarity = the Minion Skins rarity folder each master sits in (R-PROG-SKINS-11); names are the filenames, humanized,
+  // with the spelling tidied (Plushy -> Plushie for one line, Dawnclaww -> Dawnclaw, Viscious -> Vicious after the
+  // card, Snowwyhorn -> Snowyhorn). Targets matched by the art: Frostclaw, Stoneclaw and Pinata Claw are Dawnclaw;
+  // Stormhorn and Snowyhorn are Echohorn; Plushie Panther is Void Panther (manasaber); Plushie Wooly is Wooly
+  // (b2_mammoth); Plushie Vicious is Vicious (b2_florida); Voidworks and Cyborg Roomworks are Roomworks.
+  skin('skin_hawkus_1', 'minion_skin', 'Plushie Hawkus', 'common', 'b2_hawkus', 'Plushie Hawkus.png'),
+  skin('skin_oona_2', 'minion_skin', 'Plushie Oona', 'common', 'b2_oona', 'Plushie Oona.png'),
+  skin('skin_manasaber_1', 'minion_skin', 'Plushie Panther', 'common', 'manasaber', 'Plushie Panther.png'),
+  skin('skin_tort_1', 'minion_skin', 'Plushie Tort', 'common', 'b2_tort', 'Plushie Tort.png'),
+  skin('skin_roomworks_1', 'minion_skin', 'Cyborg Roomworks', 'rare', 'd2_roomworks', 'Cyborg Roomworks.png'),
+  skin('skin_roomworks_2', 'minion_skin', 'Voidworks', 'rare', 'd2_roomworks', 'Voidworks.png'),
+  skin('skin_dawnclaw_1', 'minion_skin', 'Frostclaw', 'rare', 'b2_dawnclaw', 'Frostclaw.png'),
+  skin('skin_dawnclaw_2', 'minion_skin', 'Stoneclaw', 'rare', 'b2_dawnclaw', 'Stoneclaw.png'),
+  skin('skin_trex_1', 'minion_skin', 'Plushie T-Rex', 'rare', 'b2_trex', 'Plushie T-Rex.png'),
+  skin('skin_florida_1', 'minion_skin', 'Plushie Vicious', 'rare', 'b2_florida', 'Plushie Viscious.png'),
+  skin('skin_mammoth_1', 'minion_skin', 'Plushie Wooly', 'rare', 'b2_mammoth', 'Plushie Wooly.png'),
+  skin('skin_spots_1', 'minion_skin', 'Solar Spots', 'rare', 'b2_spots', 'Solar Spots.png'),
+  skin('skin_echohorn_1', 'minion_skin', 'Stormhorn', 'rare', 'b2_echohorn', 'Stormhorn.png'),
+  skin('skin_dawnclaw_3', 'minion_skin', 'Pinata Claw', 'epic', 'b2_dawnclaw', 'PinataClaw.png'),
+  skin('skin_dawnclaw_4', 'minion_skin', 'Plushie Dawnclaw', 'epic', 'b2_dawnclaw', 'Plushie Dawnclaww.png'),
+  skin('skin_echohorn_2', 'minion_skin', 'Plushie Echohorn', 'epic', 'b2_echohorn', 'Plushie Echohorn.png'),
+  skin('skin_echohorn_3', 'minion_skin', 'Snowyhorn', 'epic', 'b2_echohorn', 'Snowwyhorn.png'),
+  skin('skin_solaris_1', 'minion_skin', 'Plushie Solaris', 'epic', 'b2_solaris', 'Plushy Solaris.png'),
+  skin('skin_beetle_1', 'minion_skin', 'Plushie Beetle', 'legendary', 'beetle', 'Plushie Beetle.png'),
+  skin('skin_elderhorn_1', 'minion_skin', 'Plushie Elderhorn', 'legendary', 'b2_elderhorn', 'Plushie Elderhorn.png'),
+  skin('skin_grim_1', 'minion_skin', 'Plushie Grim', 'legendary', 'grim', 'Plushie Grim.png'),
+  skin('skin_spots_2', 'minion_skin', 'Plushie Spots', 'legendary', 'b2_spots', 'Plushy Spots.png'),
   // HERO ATTACKS. Owner 2026-09-28: "the new blast attack is going to be a cosmetic unlock, not a new default". The
   // numbers combine, the hero charges, the view shakes and pushes in, bolts carry the blow. Then, on seeing it: "those
   // are good thresholds, this blast animation looks good! make it a legendary reward" (Epic -> Legendary). The name is

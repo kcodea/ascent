@@ -165,7 +165,7 @@ html[data-touch-ui][data-phone-gpu] :is(.titlescreen, .lbpage) *::after { animat
 /* The menus' `menu-rise` entrances end on the element's own style (opacity 1, no transform) but were filled `both`: a
    finished, filling transform animation stays a composited layer for as long as the page is up (measured: the mode
    home's Play tile, 23 MB). Filled `backwards` they look the same and let go of the layer at the end. */
-html[data-touch-ui][data-phone-gpu] :is(.mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-table > .lb-trow-btn, .lb-rows > .lb-lazy, .cv2-list > .cv2-lazy) { animation-fill-mode: backwards !important; }
+html[data-touch-ui][data-phone-gpu] :is(.mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mc-party, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-table > .lb-trow-btn, .lb-rows > .lb-lazy, .cv2-list > .cv2-lazy) { animation-fill-mode: backwards !important; }
 html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *,
 html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *::before,
 html[data-touch-ui][data-pd-noanim] :is(.titlescreen, .lbpage) *::after {

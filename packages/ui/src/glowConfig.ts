@@ -32,6 +32,26 @@ export interface GlowConfig {
   width: number;
   /** Shape HEIGHT scale (×). 1 = exact frame height; >1 pushes the teal rim out past the frame top/bottom. */
   height: number;
+  /* SPELL cards get their own copy of every dial (owner ask 2026-10-27): the spell arch is a different shape,
+     so one shared size made the spell glow far too large. Minion + Taunt frames keep the fields above. */
+  /** Spell — inner line softness (px). */
+  spellLineBlur: number;
+  /** Spell — inner line opacity (0–1). */
+  spellLineAlpha: number;
+  /** Spell — inner line colour (hex). */
+  spellLineColor: string;
+  /** Spell — outer bloom radius (px). */
+  spellBloomBlur: number;
+  /** Spell — outer bloom opacity (0–1). */
+  spellBloomAlpha: number;
+  /** Spell — outer bloom colour (hex). */
+  spellBloomColor: string;
+  /** Spell — outer bloom intensity (stacked passes). */
+  spellBloomStrength: number;
+  /** Spell — shape width scale (×). */
+  spellWidth: number;
+  /** Spell — shape height scale (×). */
+  spellHeight: number;
 }
 
 const DEFAULTS: GlowConfig = {
@@ -44,11 +64,22 @@ const DEFAULTS: GlowConfig = {
   bloomStrength: 3,
   width: 1.045,
   height: 1.03,
+  // Spell — owner-tuned 2026-10-27: same shape + strength as minions, a cool blue-white line and bloom.
+  spellLineBlur: 0,
+  spellLineAlpha: 1,
+  spellLineColor: '#c8d8fe',
+  spellBloomBlur: 3,
+  spellBloomAlpha: 0.89,
+  spellBloomColor: '#b8cfff',
+  spellBloomStrength: 3,
+  spellWidth: 1.045,
+  spellHeight: 1.03,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per NUMERIC key. */
 export const GLOW_RANGES: Record<
-  'lineBlur' | 'lineAlpha' | 'bloomBlur' | 'bloomAlpha' | 'bloomStrength' | 'width' | 'height',
+  'lineBlur' | 'lineAlpha' | 'bloomBlur' | 'bloomAlpha' | 'bloomStrength' | 'width' | 'height'
+  | 'spellLineBlur' | 'spellLineAlpha' | 'spellBloomBlur' | 'spellBloomAlpha' | 'spellBloomStrength' | 'spellWidth' | 'spellHeight',
   [number, number, number]
 > = {
   lineBlur: [0, 12, 0.5],
@@ -58,6 +89,13 @@ export const GLOW_RANGES: Record<
   bloomStrength: [1, 8, 1],
   width: [0.85, 1.25, 0.005],
   height: [0.85, 1.25, 0.005],
+  spellLineBlur: [0, 12, 0.5],
+  spellLineAlpha: [0, 1, 0.01],
+  spellBloomBlur: [0, 70, 1],
+  spellBloomAlpha: [0, 1, 0.01],
+  spellBloomStrength: [1, 8, 1],
+  spellWidth: [0.7, 1.25, 0.005],
+  spellHeight: [0.7, 1.25, 0.005],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -71,9 +109,18 @@ export const GLOW_DESC: Record<keyof GlowConfig, string> = {
   bloomStrength: 'Bloom INTENSITY — how many times the bloom is stacked. 1 = soft, higher = a hotter, denser glow.',
   width: 'Glow shape WIDTH (× frame). >1 pushes the bright teal rim out past the frame sides.',
   height: 'Glow shape HEIGHT (× frame). >1 pushes the bright teal rim out past the frame top/bottom.',
+  spellLineBlur: 'Spell cards — bright inner line softness (px).',
+  spellLineAlpha: 'Spell cards — bright inner line opacity.',
+  spellLineColor: 'Spell cards — bright inner line colour.',
+  spellBloomBlur: 'Spell cards — soft outer bloom radius (px).',
+  spellBloomAlpha: 'Spell cards — soft outer bloom opacity.',
+  spellBloomColor: 'Spell cards — soft outer bloom colour.',
+  spellBloomStrength: 'Spell cards — bloom intensity (stacked passes).',
+  spellWidth: 'Spell cards — glow shape width (× frame).',
+  spellHeight: 'Spell cards — glow shape height (× frame).',
 };
 
-export const GLOW_COLOR_KEYS = ['lineColor', 'bloomColor'] as const;
+export const GLOW_COLOR_KEYS = ['lineColor', 'bloomColor', 'spellLineColor', 'spellBloomColor'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as GLOW_DEFAULTS };
 
@@ -114,6 +161,14 @@ export function applyGlowVars(): void {
   root.setProperty('--hg-bloom-filter', Array(n).fill(one).join(' '));
   root.setProperty('--hg-w', String(cfg.width));
   root.setProperty('--hg-h', String(cfg.height));
+  // Spell set — the spellframe .cglow rule in styles.css re-points the --hg-* vars at these.
+  root.setProperty('--hg-s-line-blur', `${cfg.spellLineBlur}px`);
+  root.setProperty('--hg-s-line-col', rgba(cfg.spellLineColor, cfg.spellLineAlpha));
+  const sOne = `drop-shadow(0 0 ${cfg.spellBloomBlur}px ${rgba(cfg.spellBloomColor, cfg.spellBloomAlpha)})`;
+  const sN = Math.max(1, Math.round(cfg.spellBloomStrength));
+  root.setProperty('--hg-s-bloom-filter', Array(sN).fill(sOne).join(' '));
+  root.setProperty('--hg-s-w', String(cfg.spellWidth));
+  root.setProperty('--hg-s-h', String(cfg.spellHeight));
 }
 export function setGlowValue(key: keyof GlowConfig, value: number | string): void {
   cfg = { ...cfg, [key]: value };

@@ -2934,21 +2934,36 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 /* keyword glows ring the card box — give it the arch radius so they follow the silhouette, and
    re-shape the rectangular Divine-Shield / Reborn washes to the arch too (no more squared-off top). */
 .card.compact.dscard::after, .card.compact.reborncard::after { border-radius: var(--arch-radius); }
-/* Frozen tavern — each held shop card ices over, the frost RAMPING UP from the top edge down (a quick
-   one-shot clip-path reveal, not a continuous loop → cheap). The `frozen` class is recruit-only, so combat
-   enemy units never frost. */
+/* Frozen tavern — each held shop card is wrapped in the painted ice ring (`/frames/freeze-ice.webp`, owner
+   art 2026-10-27; its centre is clear so the card art still reads). The ice GROWS from the top edge down: a
+   soft-edged mask band sweeps down the card (the "edge fade") with the resting cold glow already on (no
+   brightness flash, owner 2026-10-27). One-shot, not a loop, so the paint cost is bounded. Every dial is a `--frz-ice-*`
+   var written by freezeConfig.ts (DevMenu → Freeze → "Shop ice"); the fallbacks here MIRROR its DEFAULTS. The
+   `frozen` class is recruit-only, so combat enemy units never frost. */
 [data-zone="tavern"].frozen .card::after {
   content: '';
   position: absolute;
   inset: -2px;
-  border-radius: var(--arch-radius);
   pointer-events: none;
   z-index: 9;
-  background: linear-gradient(158deg, rgba(192, 231, 255, 0.5), rgba(135, 198, 242, 0.26) 48%, rgba(216, 245, 255, 0.55));
-  border: 2px solid rgba(228, 248, 255, 0.82);
-  box-shadow: inset 0 0 18px 3px rgba(205, 238, 255, 0.7), 0 0 12px rgba(165, 218, 255, 0.5);
-  animation: frostin 0.45s ease-out both;
+  /* The art fills the box and the BOX is scaled (a background can never paint past its own box, so sizing the
+     background instead would crop the ring at the frame's edges). */
+  background: url('/frames/freeze-ice.webp') center / 100% 100% no-repeat;
+  translate: var(--frz-ice-x, 0.25%) var(--frz-ice-y, 6.75%);
+  scale: var(--frz-ice-w, 1.16) var(--frz-ice-h, 1.095);
+  /* A tall mask: solid at the top, a soft fade band, clear below. Sliding it from 100% to 0% drags the band
+     from above the card to below it, so the ice appears top → bottom with a feathered leading edge. */
+  -webkit-mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 43.5%), transparent var(--frz-ice-f1, 56.5%), transparent 100%) 0 0 / 100% 300% no-repeat;
+          mask: linear-gradient(to bottom, #000 0%, #000 var(--frz-ice-f0, 43.5%), transparent var(--frz-ice-f1, 56.5%), transparent 100%) 0 0 / 100% 300% no-repeat;
+  /* The resting glow is on the WHOLE time, grow-in included — no brightness flash (owner ask 2026-10-27). */
+  filter: var(--frz-ice-glow, drop-shadow(0 0 5px rgba(150, 215, 255, 0.58)));
+  animation: frostin var(--frz-ice-dur, 1.05s) cubic-bezier(0.25, 0.7, 0.35, 1) both;
 }
+/* The attack + health medallions (and their plate / milestone-frame backplates, which live inside `.badge`) stay
+   IN FRONT of the ice (owner ask 2026-10-27), so the numbers read clearly on a frozen card. Same for a spell's
+   Gold cost coin in the top-left (owner ask 2026-10-27). */
+[data-zone="tavern"].frozen .card .badge,
+[data-zone="tavern"].frozen .card .cost { z-index: 10; }
 /* slight per-card stagger so the freeze sweeps across the row instead of all at once */
 [data-zone="tavern"].frozen .card:nth-child(2)::after { animation-delay: 0.05s; }
 [data-zone="tavern"].frozen .card:nth-child(3)::after { animation-delay: 0.1s; }
@@ -2957,9 +2972,9 @@ body.dragging .zone[data-zone='tavern'] .card:hover { --hglow-ring: 0px; --hglow
 [data-zone="tavern"].frozen .card:nth-child(6)::after { animation-delay: 0.25s; }
 [data-zone="tavern"].frozen .card:nth-child(7)::after { animation-delay: 0.3s; }
 @keyframes frostin {
-  0% { opacity: 0; clip-path: inset(0 0 100% 0); }
-  55% { opacity: 1; }
-  100% { opacity: 1; clip-path: inset(0 0 0 0); }
+  0% { opacity: 0.4; -webkit-mask-position: 0 100%; mask-position: 0 100%; }
+  70% { opacity: var(--frz-ice-op, 0.88); }
+  100% { opacity: var(--frz-ice-op, 0.88); -webkit-mask-position: 0 0; mask-position: 0 0; }
 }
 /* tier pill rides the arch top */
 /* SPELL tier badge gets its OWN nudge. A spell's frame is a square whose banner seat differs from the minion
@@ -4902,10 +4917,22 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh) + var(--dy) + var(--frameY)));
 }
 .card.compact.stdframe .cglow-rim { -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png'); }
+/* Spell cards have their OWN glow dials (🔆 Hover Glow tuner → "Spell …" groups, owner ask 2026-10-27):
+   re-pointing the shared --hg-* vars here lets the base .cglow / .cglow-rim rules pick the spell values up
+   unchanged. The fallbacks mirror glowConfig.ts DEFAULTS (spell*). */
 .card.compact.spellframe .cglow {
-  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
-  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+  --hg-w: var(--hg-s-w, 1.045);
+  --hg-h: var(--hg-s-h, 1.03);
+  --hg-line-blur: var(--hg-s-line-blur, 0px);
+  --hg-line-col: var(--hg-s-line-col, rgba(200, 216, 254, 1));
+  --hg-bloom-filter: var(--hg-s-bloom-filter,
+    drop-shadow(0 0 3px rgba(184, 207, 255, 0.89)) drop-shadow(0 0 3px rgba(184, 207, 255, 0.89))
+    drop-shadow(0 0 3px rgba(184, 207, 255, 0.89)));
+  /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,
+     1122/1346), which stretched the glow ~12% wider than the frame (R-SPELL-GLOW-FIT-01). */
+  width: calc(var(--ccw) * 1.239 * var(--sh)); aspect-ratio: 705 / 862;
+  left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
 }
 .card.compact.spellframe .cglow-rim { -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp'); }
 .card.compact.taunt .cglow {
@@ -4936,9 +4963,11 @@ body.dsh-preview .card.compact.taunt .tframe.cshadow {
   -webkit-mask-image: url('/frames/standard-oval-v2.png'); mask-image: url('/frames/standard-oval-v2.png');
 }
 .card.compact.spellframe .cframe-tint {
-  width: calc(var(--ccw) * 1.387 * var(--sh)); aspect-ratio: 1122 / 1346;
-  left: calc(var(--ccw) * (0.5 - 0.6928 * var(--sh)));
-  top: calc(var(--ccw) * (0.5 - 0.9009 * var(--sh) + var(--dy) + var(--frameY)));
+  /* Same box as the spell .cframe-img (the ARCH frame, 705x862) — was an older, larger spell frame's box (1.387,
+     1122/1346), which stretched the glow ~12% wider than the frame (R-SPELL-GLOW-FIT-01). */
+  width: calc(var(--ccw) * 1.239 * var(--sh)); aspect-ratio: 705 / 862;
+  left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
+  top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   -webkit-mask-image: url('/frames/spell-frame-arch.webp'); mask-image: url('/frames/spell-frame-arch.webp');
 }
 /* Light on hover — or when the tuner pins `body.hglow-preview`. Scoped to the frame class so they out-specify
@@ -5219,23 +5248,32 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   filter: var(--frame-tone) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45))
           drop-shadow(0 0 4px rgba(255, 205, 80, 0.67));
 }
-/* Frozen (held shop card): ice the frame silhouette by masking the frost `::after` to the frame PNG. */
+/* Frozen (held shop card): seat the ice ring over the frame's own box, so it wraps the frame silhouette
+   (the reveal mask comes from the base `.frozen .card::after` rule). */
 [data-zone='tavern'].frozen .card.stdframe::after {
-  inset: auto; border: none; border-radius: 0; box-shadow: none;
+  inset: auto;
   width: calc(var(--ccw) * 1.481 * var(--sh));
   left: calc(var(--ccw) * (0.5 - 0.737 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 1.126 * var(--sh)));
   aspect-ratio: 1059 / 1427;
-  -webkit-mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
-          mask: url('/frames/standard-oval.png') center / 100% 100% no-repeat;
 }
 [data-zone='tavern'].frozen .card.spellframe::after {
+  inset: auto;
   width: calc(var(--ccw) * 1.239 * var(--sh));
   left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   aspect-ratio: 705 / 862;
-  -webkit-mask: url('/frames/spell-frame-arch.webp') center / 100% 100% no-repeat;
-          mask: url('/frames/spell-frame-arch.webp') center / 100% 100% no-repeat;
+  /* SPELL ice: its own art and its own dials (DevMenu → Freeze → "Spell ice"). Re-pointing the shared
+     --frz-ice-* vars here means the base rule and the frostin keyframes pick the spell values up unchanged. */
+  background-image: url('/frames/freeze-ice-spell.webp');
+  scale: var(--frz-ice-sw, 1.165) var(--frz-ice-sh, 1.165);
+  --frz-ice-x: var(--frz-ice-s-x, 0.75%);
+  --frz-ice-y: var(--frz-ice-s-y, 6.75%);
+  --frz-ice-op: var(--frz-ice-s-op, 0.86);
+  --frz-ice-glow: var(--frz-ice-s-glow, none);
+  --frz-ice-dur: var(--frz-ice-s-dur, 1.05s);
+  --frz-ice-f0: var(--frz-ice-s-f0, 43.5%);
+  --frz-ice-f1: var(--frz-ice-s-f1, 56.5%);
 }
 
 /* ============================ HAND CARD BACKPLATE ============================
@@ -9284,6 +9322,20 @@ body:has(.lb-ladder) .cardref { z-index: 490; }
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25), 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
 .mcframe[data-mp] .mcname.mc-cta .crest { font-size: 34px; }
 .modecard.mc-hero:active .mc-cta { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 0 var(--cta-depth), 0 6px 12px -8px rgba(0, 0, 0, 0.8); }
+/* ON THE RANKED CARD (owner 2026-10-26: "put it in the bottom left corner below/eclipsing the play art",
+   R-RANKED-DUOS-MODECARD-01): a sibling sharing the card's grid cell, half on the art and half below it, the way PLAY
+   eclipses the bottom centre. PLAY's own family: a pill on its gold edge and drop, the picked side in the gold face,
+   the other on the dark plate. It rises in with the card (same one-shot; off under reduced motion with the WS-7 set).
+   The overlap is a negative margin, not a
+   transform, so the entrance keyframe never fights it. */
+.mpgrid > .playparty.mc-party { grid-area: hero; align-self: end; justify-self: start; z-index: 2; position: relative;
+  width: auto; height: 52px; margin: 0 0 -26px 44px; border-radius: 999px; border: 2px solid var(--cta-edge);
+  background: rgba(8, 14, 30, 0.9); box-shadow: 0 5px 0 var(--cta-depth), 0 14px 26px -10px rgba(0, 0, 0, 0.8); }
+.mc-party .playparty-btn { flex: none; min-width: 118px; padding: 0 26px; font-size: 21px; font-weight: 900; letter-spacing: 0.14em;
+  color: rgba(255, 246, 228, 0.78); background: transparent; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6); }
+.mc-party .playparty-btn + .playparty-btn { border-left: 2px solid var(--cta-edge); }
+.mc-party .playparty-btn.on { color: var(--cta-ink); background: var(--cta-face); text-shadow: 0 1px 0 rgba(255, 240, 200, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), inset 0 -2px 0 rgba(120, 70, 10, 0.25); }
 /* "Last played": a small plate in the top-right corner, the UI theme's own plate (no new chrome). */
 .mclast { position: absolute; top: 14px; right: 14px; z-index: 3; padding: 4px 12px; border-radius: 999px;
   font-family: var(--font-ui); font-weight: 800; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
@@ -13903,6 +13955,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 @keyframes menu-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
 .mp-home .pstrip { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) both; }
 .mp-home .mpgrid .mc-hero { animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) 0.04s both; }
+.mp-home .mpgrid .mc-party { animation: menu-rise 0.26s cubic-bezier(0, 0, 0.2, 1) 0.04s both; }
 .mp-home .mpgrid .mpside > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.08s both; }
 .mp-home .mpgrid .mpside > :nth-child(2) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.12s both; }
 .mp-home .mpgrid .mprow2 > :nth-child(1) { animation: menu-rise 0.24s cubic-bezier(0, 0, 0.2, 1) 0.16s both; }
@@ -13916,7 +13969,7 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .lb-table > .lb-trow-btn:nth-of-type(n+7) { animation-delay: 0.25s; }
 /* A hop between pages re-mounts these, so they never animate while you are just looking: one entrance per open. */
 @media (prefers-reduced-motion: reduce) {
-  .mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-podium .lb-trow, .lb-table > .lb-trow-btn { animation: none; }
+  .mp-home .pstrip, .mp-home .mpgrid .mc-hero, .mp-home .mpgrid .mc-party, .mp-home .mpgrid .mpside > *, .mp-home .mpgrid .mprow2 > *, .lb-podium .lb-trow, .lb-table > .lb-trow-btn { animation: none; }
   .modecard[data-mp]:active, .modecard[data-mp]:hover:active { transform: none; }
 }
 
@@ -14820,12 +14873,10 @@ body:has(.heroselect.rankend) .pixifx-above { z-index: 470; }
 .cv2-duos-sub { grid-row: 2; font-family: var(--font-ui); font-weight: 600; font-size: 13px; color: rgba(244, 238, 226, 0.65); }
 .cv2-duos-rank { grid-row: 1 / span 2; grid-column: 2; }
 
-/* SOLO / DUO over Play (owner 2026-10-26): the Career's segmented control, full width above the Play plaque. Static. */
+/* SOLO / DUO (owner 2026-10-26): the segmented switch's base look. Static. */
 .playparty { display: flex; width: 100%; box-sizing: border-box; border-radius: 8px; overflow: hidden; border: 1px solid rgba(196, 160, 92, 0.4); }
 .playparty-btn { flex: 1; padding: 7px 0; font-family: var(--font-ui); font-weight: 800; font-size: 14px; letter-spacing: 0.1em; text-transform: uppercase;
   color: rgba(255, 255, 255, 0.7); background: rgba(0, 0, 0, 0.28); border: none; }
 .playparty-btn + .playparty-btn { border-left: 1px solid rgba(196, 160, 92, 0.3); }
 .playparty-btn:hover { color: #fff; }
 .playparty-btn.on { color: #241705; background: linear-gradient(180deg, #f0d089, #c99d4e); }
-.msb-playparty { margin-bottom: -2px; }
-.tn-playparty { margin-bottom: 6px; }

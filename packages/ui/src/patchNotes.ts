@@ -56,6 +56,23 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-27',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Freezing the shop now encases each card in a ring of jagged ice that grows in from the top down.',
+      },
+      {
+        category: 'Systems',
+        text: 'Spell cards now glow a cool blue when hovered, and the glow hugs the spell frame instead of spilling past it.',
+      },
+      {
+        category: 'Systems',
+        text: 'Unfreezing the shop now shatters the ice off each card in a burst of frost.',
+      },
+    ],
+  },
+  {
     date: '2026-10-26',
     changes: [
       {
@@ -66,6 +83,14 @@ export const PATCH_NOTES: PatchNote[] = [
           'At 0:00 everything collapses into the gem, which stays charged and humming until you press End Turn.',
           'End Turn strikes the gem to release the charge. End your turn early and the rest of the fuse flashes and fades away.',
           'Versus: the gem now strikes when the round starts on its own, too.',
+        ],
+      },
+      {
+        category: 'Systems',
+        text: 'Twenty-two new minion skins in chests, including a whole line of cuddly Plushie Beasts.',
+        details: [
+          'Plushies: Hawkus, Oona, Panther, Tort, T-Rex, Vicious, Wooly, Dawnclaw, Echohorn, Solaris, Beetle, Elderhorn, Grim and Spots.',
+          'Dawnclaw: Frostclaw, Stoneclaw and Pinata Claw. Echohorn: Stormhorn and Snowyhorn. Spots: Solar Spots. Roomworks: Cyborg Roomworks and Voidworks.',
         ],
       },
       {
@@ -114,7 +139,7 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Ranked Duos: team up with a friend and face three other teams.',
         details: [
-          'Pick Duo above Play, then Play. You land in your own party. Invite a friend, or join an open party.',
+          'Pick Duo on the Ranked card, then Play. You land in your own party. Invite a friend, or join an open party.',
           'You and your teammate share one Health pool and fight together. The last team standing wins.',
           'Your team has its own rating and medal. Name your team between games.',
           'The host can keep the party to friends only.',

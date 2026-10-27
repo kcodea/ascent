@@ -9899,4 +9899,24 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-27 (feat/card-plates-batch-7). The masters are drawn on the standard plate template (aspect 1.555), so none needs an artScale; frameX centres each opening where Galaxy\x27s sits and the interior fit is `plates:build --fit`. The owner can fine-tune any of them in the Card Plate Editor. The Plushie Plate in the same folder is NOT in this batch (it is planned as an achievement reward). Reaches the database on the next deploy of progression-inventory.',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/cardPlates.test.ts', 'packages/progression/src/cardPlates.db.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PERF-LUNGE-LEAK-01',
+    title: 'Leaving a game frees its screen: no lunge timeline or perf-ring event keeps an old game alive',
+    statement:
+      'When a game is left, nothing it animated keeps its screen in memory. Every combat lunge timeline is tracked from '
+      + 'creation until it completes or is killed, and the combat replay kills any still alive (a parked held-windup '
+      + 'swing whose release never came, or one a release path dropped) when it unmounts. The perf monitor\'s input-event '
+      + 'ring holds its DOM targets weakly. So the DOM nodes and event listeners alive after a game (after a full garbage '
+      + 'collection) do not grow game over game in one session.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (perf pass)', quote: 'are there things like data that are building up over games? sometimes interactions just start to feel chopppy even when im not moving that quickly' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27', quote: 'like memory or cpu issues?' },
+      { kind: 'code', ref: 'packages/ui/src/choreo/channels/lunge.ts (liveLunges, killLiveLunges); packages/ui/src/useCombatReplay.ts (unmount cleanup); packages/ui/src/perfEventRing.ts (WeakRef targets)' },
+    ],
+    currentBehaviour: 'Conforms from 2026-10-27 (fix/parked-lunge-leak). Found with npm run perf:gauntlet --games 5 (five seeded games in one page): before, each game left ~1,100 DOM nodes and ~420 listeners alive (its whole shop screen, held by a paused lunge timeline in gsap\'s global timeline, and by the perf ring\'s event targets), and per-frame shop work climbed 4.9 to 7.3 ms over five games; after, +~50 nodes and +~25 listeners a game.',
+    example: 'A player finishes a game whose last fight ended with an Echohorn swing parked at its wind-up, goes back to the title and starts another: the old game\'s screen is freed instead of staying in memory behind the paused swing.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/choreo/parkedLungeLeak.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

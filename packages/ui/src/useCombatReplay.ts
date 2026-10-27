@@ -38,7 +38,7 @@ import { HIT_REACTION_LEAD_MS, chainEligible, chainTendrilPlan, chainTickCount, 
 import { groupBuffCasts, type BuffCast } from './choreo/channels/buffCast';
 import { groupSelfBuffs, type SelfBuff } from './choreo/channels/buffSelf';
 import { runAttackExchangeCues, runRiseReturn } from './choreo/engine';
-import { setTransition } from './choreo/channels/lunge';
+import { killLiveLunges, setTransition } from './choreo/channels/lunge';
 import { burstDeathAuras, breakShieldAura, crackResilientWard, reformReborn, reformRebirth } from './choreo/channels/aura';
 import { type Float, type DeathFloat, KW_FLOAT } from './choreo/channels/float';
 import { combatBuffDelta, combatPreviewFold, type CombatBuffDelta, type CombatPreviewFold } from './runBuffs';
@@ -1687,6 +1687,21 @@ export function useCombatReplay(
   /** A PARKED lunge: the attacker, the body it was swinging at, and the timeline holding its pose. The
    *  `defender` is what lets a CANCELLED swing be told apart from a pending one — see the release below. */
   const heldLungeRef = useRef<{ uid: string; defender: string; tl: ReturnType<typeof gsap.timeline>; resumed: boolean } | null>(null);
+  // A PARKED SWING NEVER OUTLIVES THE REPLAY (R-PERF-LUNGE-LEAK-01, 2026-10-27). A held-windup lunge is a PAUSED gsap
+  // timeline (`tl.addPause`, lunge.ts), and a paused timeline stays in gsap's global timeline until it is resumed or
+  // killed. The next fight's reset kills it, but leaving the game unmounts this hook with no next fight, so the park
+  // survived: its onUpdate closes over the lunge callbacks, which close over the shop screen, so every game's whole
+  // screen (~1,160 DOM nodes, ~455 listeners) stayed in memory for the rest of the session (perf:gauntlet --games soak).
+  // Other lunges could be stranded the same way (a release path that nulls the ref without a kill), so every live
+  // lunge is killed here too (`killLiveLunges`, lunge.ts).
+  useEffect(() => () => {
+    heldLungeRef.current?.tl.kill();
+    killLiveLunges(); // any other lunge left paused or in flight (a release path that dropped its reference)
+    heldLungeRef.current = null;
+    parkedCommitRef.uid = null;
+    parkedCommitRef.defender = null;
+    parkedContactRef.current = null;
+  }, []);
   /** Event indices of Ward breaks / Resilient downgrades already shattered AT A LUNGE'S CONTACT (`breakWards`), so
    *  the swing's result moment does not play them a second time through its `auraBreak` cue (owner report
    *  2026-09-26: "the ward lost isnt playing when a normal ward breaks"). */

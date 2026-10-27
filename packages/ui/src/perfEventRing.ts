@@ -53,11 +53,13 @@ export class EventRing {
     this.ts = new Float64Array(size);
   }
 
-  /** One store per event. `t` is the event's own timestamp — no clock read. */
+  /** One store per event. `t` is the event's own timestamp — no clock read. An object target is held WEAKLY
+   *  (R-PERF-LUNGE-LEAK-01, 2026-10-27): a strong reference to an event's DOM target kept a whole left screen (an old
+   *  game's Runeforge overlay and everything around it) alive until 32 newer events overwrote the slot. */
   push(type: string, target: unknown, t: number): void {
     const i = this.head;
     this.types[i] = type;
-    this.targets[i] = target;
+    this.targets[i] = target !== null && typeof target === 'object' && typeof WeakRef !== 'undefined' ? new WeakRef(target) : target;
     this.ts[i] = t;
     this.head = (i + 1) % this.size;
     if (this.n < this.size) this.n++;
@@ -67,7 +69,10 @@ export class EventRing {
   lastBefore(t: number): RingEvent | null {
     for (let k = 0; k < this.n; k++) {
       const i = (this.head - 1 - k + this.size) % this.size;
-      if (this.ts[i]! <= t) return { type: this.types[i]!, target: this.targets[i], t: this.ts[i]! };
+      if (this.ts[i]! <= t) {
+        const held = this.targets[i];
+        return { type: this.types[i]!, target: typeof WeakRef !== 'undefined' && held instanceof WeakRef ? held.deref() ?? null : held, t: this.ts[i]! };
+      }
     }
     return null;
   }

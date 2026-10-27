@@ -768,7 +768,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       const fx = fxRef.current;
       if (!fx) return;
       const { sim, renderer, geom } = fx;
-      if (previewRef.current != null && charge < 0.999 && sim.mode !== 'charging') sim.reset(fx.seed); // tuner replay
+      if (previewRef.current != null && charge < 0.999 && sim.mode !== 'charging') { fx.seed = fuseSeed.locked ?? randomSeed(); sim.reset(fx.seed); } // tuner replay
       // 0:00 reached while lit: everything collapses into the gem with a burst (lands with sfx.turnExplode()).
       if (charge >= 1 && sim.mode === 'charging' && !heldRef.current) { sim.collapse(); renderer.burst(); }
       if (!heldRef.current) sim.step(dt, charge, geom);

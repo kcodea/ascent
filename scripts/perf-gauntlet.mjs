@@ -36,13 +36,14 @@
  *   - long animation frames (LoAF, > 50 ms) and their blocking time.
  *
  * Usage:
- *   npm run perf:gauntlet                       build both, 3 runs each, headed Chrome, print the report + key
+ *   npm run perf:gauntlet                       build both, 1 run each (a quick screen), headed Chrome, report + key
  *   npm run perf:gauntlet -- --runs 5 --from 10 --to 12
  *   npm run perf:gauntlet -- --base <ref>       compare against another ref (default origin/main)
  *   npm run perf:gauntlet -- --a <dist> --b <dist>   skip building: compare two existing bench dists
  *   npm run perf:gauntlet -- --only <dist>      one build, no A/B: just the budget verdict
  *   npm run perf:gauntlet -- --blind --out <dir>    report without the key (the key goes to <dir>/key.json)
  *   npm run perf:gauntlet -- --profile shop-actions   CPU-profile that scene; prints its top functions (source-mapped)
+ *   npm run perf:gauntlet -- --trace shop-actions     trace that scene: style / layout / paint time, and which code FORCED each layout
  *   npm run perf:gauntlet -- --headless         no window (main-thread numbers only; frame intervals are not real)
  *   npm run perf:gauntlet -- --scenes drag,combat   report only these scenes
  * Exit code: 0 = done; 1 = a run failed to reach a scene; 2 = setup error. The budget verdict never fails the exit
@@ -65,7 +66,10 @@ const arg = (k, d) => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i
 const flag = (k) => args.includes(`--${k}`);
 const ROOT = process.cwd();
 const CACHE = path.join(ROOT, '.perf-gauntlet');
-const RUNS = Number(arg('runs', '3'));
+// One run a build by default (owner 2026-10-27: "2 would suffice"): a quick screen. On the identical-builds data a
+// single pair made a false call on the target scene's p95 / p99 / work in about 1 of 9 pairings (one odd run), so
+// confirm a win with another pair (--runs 2) before shipping it.
+const RUNS = Number(arg('runs', '1'));
 const FROM = Number(arg('from', '9')); // the first MEASURED round: everything before it is fast-forwarded
 const TO = Number(arg('to', '14')); // the last measured round
 const FF_ACTION_MS = Number(arg('ff-ms', '40')); // the pause between the bot's shop actions
@@ -76,6 +80,7 @@ const HERO = arg('hero', '');
 const HEADLESS = flag('headless');
 const BLIND = flag('blind');
 const OUT = path.resolve(arg('out', path.join(CACHE, 'reports', new Date().toISOString().replace(/[:.]/g, '-'))));
+const TRACE = arg('trace', ''); // a scene to trace: layout / style / paint time, and which JS FORCED each layout
 const PROFILE = arg('profile', ''); // a scene to CPU-profile (e.g. shop-actions): its top functions are printed per run
 const ONLY_SCENES = arg('scenes', '') ? new Set(arg('scenes', '').split(',')) : null;
 const W = 1920; const H = 1080;
@@ -429,6 +434,13 @@ async function playScenes(c) {
       back = await d.waitFor(`${g}.run.phase !== 'combat'`, 4000);
     }
     if (back && endPresses > 1) log(`   (End combat needed ${endPresses} presses at ${label}: a press was ignored, a possible game bug)`);
+    if (replayed && !back) {
+      // Still stuck after five presses (about 1 run in 4, 2026-10-27): resolve the fight through the store, the same
+      // resolveCombat the End combat handler commits, so one stuck button does not cost the whole run.
+      await d.ev(`(() => { const st = window.__bench.store.getState(); if (st.preparePresentationAction({ type: 'resolveCombat' })) st.commitPresentationAction(); })()`);
+      back = await d.waitFor(`${g}.run.phase !== 'combat'`, 5000);
+      log(`   (End combat ignored 5 presses at ${label}: resolved through the store${back ? '' : ', still stuck'}; a likely game bug)`);
+    }
     if (!need(back, `fight end ${label}`)) {
       // Stalled: leave a screenshot + the visible buttons, so the walk can be fixed.
       const shot = await c.send('Page.captureScreenshot', { format: 'png' }).catch(() => null);
@@ -502,7 +514,17 @@ async function measureOnce(dist, runIdx) {
   const c = await launch(profile, port + 1);
   const metricMarks = []; // [wallclock page time, scene, metrics]
   const profiles = []; let profiling = false;
+  const traceEvents = []; let tracing = false;
+  // --trace: Chrome's own timeline events while the chosen scene is on. Tracing.end flushes them asynchronously,
+  // so stopping waits for tracingComplete.
+  const stopTrace = async (send) => {
+    const complete = new Promise((r) => c.on('Tracing.tracingComplete', r));
+    await send('Tracing.end');
+    await Promise.race([complete, sleep(20000)]);
+    tracing = false;
+  };
   try {
+    if (TRACE) c.on('Tracing.dataCollected', (p) => { for (const e of p.value) traceEvents.push(e); });
     await c.send('Page.enable'); await c.send('Runtime.enable'); await c.send('Performance.enable', { timeDomain: 'timeTicks' });
     if (PROFILE) { await c.send('Profiler.enable'); await c.send('Profiler.setSamplingInterval', { interval: 250 }); }
     c.on('Runtime.exceptionThrown', (p) => log(`   (page exception: ${String(p.exceptionDetails?.exception?.description || p.exceptionDetails?.text || '').split('\n')[0]})`));
@@ -526,14 +548,20 @@ async function measureOnce(dist, runIdx) {
         // --profile: the CPU profiler runs only while the chosen scene is on.
         if (profiling && scene !== PROFILE) { profiles.push((await origSend('Profiler.stop')).profile); profiling = false; }
         if (!profiling && PROFILE && scene === PROFILE) { await origSend('Profiler.start'); profiling = true; }
+        if (tracing && scene !== TRACE) await stopTrace(origSend);
+        if (!tracing && TRACE && scene === TRACE) {
+          await origSend('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline', 'disabled-by-default-devtools.timeline.stack', 'disabled-by-default-blink.debug', 'v8.execute', '__metadata'] } });
+          tracing = true;
+        }
         return r;
       }
       return origSend(method, params);
     } };
     const missed = await playScenes(cc);
     if (profiling) profiles.push((await c.send('Profiler.stop')).profile);
+    if (tracing) await stopTrace(c.send);
     const dump = await evaluate(c, 'window.__pg.dump()');
-    return { missed, dump, metricMarks, profiles };
+    return { missed, dump, metricMarks, profiles, traceEvents };
   } finally {
     c.close(); server.close();
     await sleep(600);
@@ -558,27 +586,108 @@ function mapFor(dist, url) {
   return consumer;
 }
 
-/** Self time per function over every profiled stretch of a run, biggest first. */
+/** Self time per function over every profiled stretch of a run, biggest first. For a NATIVE function (a browser API
+ *  such as getBoundingClientRect or drawImage, which has no source of its own) the time is also split by the JS that
+ *  called it, two frames deep, since "who forced the layout" is the actual question. */
 function summariseProfiles(profiles, dist) {
-  const self = new Map(); let total = 0;
+  const self = new Map(); const callers = new Map(); let total = 0;
+  const nameOf = (f) => {
+    let key = f.functionName || '(anonymous)';
+    if (f.url && /^https?:/.test(f.url)) {
+      const m = mapFor(dist, f.url);
+      const o = m ? m.originalPositionFor({ line: f.lineNumber + 1, column: f.columnNumber }) : null;
+      key = o && o.source ? `${o.name || f.functionName || '(anonymous)'}  ${o.source.replace(/^.*?(packages|node_modules)\//, '$1/')}:${o.line}` : `${key}  ${f.url.replace(/^.*\//, '')}:${f.lineNumber + 1}`;
+    }
+    return key;
+  };
   for (const prof of profiles) {
     const byId = new Map(prof.nodes.map((n) => [n.id, n]));
+    const parent = new Map();
+    for (const n of prof.nodes) for (const ch of n.children || []) parent.set(ch, n.id);
+    const names = new Map();
+    const nm = (n) => { if (!names.has(n.id)) names.set(n.id, nameOf(n.callFrame)); return names.get(n.id); };
     for (let i = 0; i < prof.samples.length; i++) {
       const node = byId.get(prof.samples[i]); const dt = (prof.timeDeltas[i] || 0) / 1000; // ms
       if (!node) continue;
       total += dt;
-      const f = node.callFrame;
-      let key = f.functionName || '(anonymous)';
-      if (f.url && /^https?:/.test(f.url)) {
-        const m = mapFor(dist, f.url);
-        const o = m ? m.originalPositionFor({ line: f.lineNumber + 1, column: f.columnNumber }) : null;
-        key = o && o.source ? `${o.name || f.functionName || '(anonymous)'}  ${o.source.replace(/^.*?(packages|node_modules)\//, '$1/')}:${o.line}` : `${key}  ${f.url.replace(/^.*\//, '')}:${f.lineNumber + 1}`;
-      }
+      const key = nm(node);
       self.set(key, (self.get(key) || 0) + dt);
+      if (!node.callFrame.url && !/^\(/.test(key)) {
+        const chain = []; let p = parent.get(node.id);
+        while (p !== undefined && chain.length < 2) { const pn = byId.get(p); if (pn.callFrame.url) chain.push(nm(pn).replace(/\s+/, ' @ ')); p = parent.get(p); }
+        const c = callers.get(key) || new Map(); const ck = chain.join('  <  ') || '(no JS caller)';
+        c.set(ck, (c.get(ck) || 0) + dt); callers.set(key, c);
+      }
     }
   }
   const rows = [...self.entries()].sort((a, b) => b[1] - a[1]);
-  return { total, rows };
+  const callerRows = new Map([...callers.entries()].map(([k, c]) => [k, [...c.entries()].sort((a, b) => b[1] - a[1])]));
+  return { total, rows, callerRows };
+}
+
+/** --trace: main-thread time by event (style, layout, paint, script, GC), and the layouts / style recalcs that JS
+ *  FORCED, grouped by the code that forced them (source-mapped). A forced layout is the expensive kind: it runs in
+ *  the middle of the frame, and if anything writes after it, the browser lays out a second time before paint. */
+function summariseTrace(events, dist) {
+  const mains = events.filter((e) => e.name === 'thread_name' && e.args?.name === 'CrRendererMain');
+  const count = new Map();
+  for (const e of events) if (e.ph === 'X') { const k = `${e.pid}:${e.tid}`; count.set(k, (count.get(k) || 0) + 1); }
+  const main = mains.map((m) => `${m.pid}:${m.tid}`).sort((a, b) => (count.get(b) || 0) - (count.get(a) || 0))[0];
+  const on = events.filter((e) => e.ph === 'X' && `${e.pid}:${e.tid}` === main);
+  const NAMES = ['RunTask', 'FunctionCall', 'FireAnimationFrame', 'TimerFire', 'EventDispatch', 'UpdateLayoutTree', 'Layout', 'PrePaint', 'Paint', 'Layerize', 'Commit', 'MinorGC', 'MajorGC', 'V8.GC_SCAVENGER', 'BeginMainThreadFrame'];
+  const byName = new Map();
+  for (const e of on) if (NAMES.includes(e.name)) { const r = byName.get(e.name) || { ms: 0, n: 0 }; r.ms += (e.dur || 0) / 1000; r.n++; byName.set(e.name, r); }
+  const frame = (f) => {
+    const m = f.url && /^https?:/.test(f.url) ? mapFor(dist, f.url) : null;
+    const o = m ? m.originalPositionFor({ line: f.lineNumber, column: Math.max(0, (f.columnNumber || 1) - 1) }) : null;
+    return o && o.source ? `${o.name || f.functionName || '(anonymous)'} @ ${o.source.replace(/^.*?(packages|node_modules)\//, '$1/')}:${o.line}` : `${f.functionName || '(anonymous)'} @ ${(f.url || '').replace(/^.*\//, '')}:${f.lineNumber}`;
+  };
+  const forced = { Layout: new Map(), UpdateLayoutTree: new Map() };
+  const forcedTotal = { Layout: 0, UpdateLayoutTree: 0 };
+  for (const e of on) {
+    if (e.name !== 'Layout' && e.name !== 'UpdateLayoutTree') continue;
+    const st = e.args?.beginData?.stackTrace;
+    if (!st || !st.length) continue;
+    const ms = (e.dur || 0) / 1000;
+    forcedTotal[e.name] += ms;
+    const key = st.slice(0, 2).map(frame).join('  <  ');
+    const r = forced[e.name].get(key) || { ms: 0, n: 0 }; r.ms += ms; r.n++; forced[e.name].set(key, r);
+  }
+  // Who DIRTIED style: ScheduleStyleRecalculation / InvalidateLayout carry the JS stack that wrote (with the .stack category).
+  const dirtied = new Map();
+  for (const e of events) {
+    if ((e.name !== 'ScheduleStyleRecalculation' && e.name !== 'InvalidateLayout') || `${e.pid}:${e.tid}` !== main) continue;
+    const st = e.args?.data?.stackTrace;
+    const key = `${e.name === 'InvalidateLayout' ? 'layout' : 'style'}  ${st && st.length ? st.slice(0, 2).map(frame).join('  <  ') : '(no JS: animation / browser)'}`;
+    dirtied.set(key, (dirtied.get(key) || 0) + 1);
+  }
+  // The biggest single style recalcs (element count = how much of the tree each one touched).
+  const bigRecalcs = on.filter((e) => e.name === 'UpdateLayoutTree').sort((a, b) => b.dur - a.dur).slice(0, 8)
+    .map((e) => `${(e.dur / 1000).toFixed(1)} ms, ${e.args?.elementCount ?? '?'} elements${e.args?.beginData?.stackTrace ? ', forced by ' + frame(e.args.beginData.stackTrace[0]) : ''}`);
+  const lines = [];
+  const frames = on.filter((e) => e.name === 'AnimationFrame' || e.name === 'BeginMainThreadFrame').length;
+  lines.push(`main thread: ${frames} frames begun`);
+  for (const n of NAMES) { const r = byName.get(n); if (r && n !== 'BeginMainThreadFrame') lines.push(`  ${n.padEnd(20)} ${r.ms.toFixed(0).padStart(7)} ms  x${r.n}`); }
+  for (const kind of ['Layout', 'UpdateLayoutTree']) {
+    const all = byName.get(kind) || { ms: 0, n: 0 };
+    lines.push(`FORCED ${kind === 'Layout' ? 'layout' : 'style recalc'}: ${forcedTotal[kind].toFixed(0)} ms of ${all.ms.toFixed(0)} ms (${all.n} in all, ${frames ? (all.n / frames).toFixed(2) : '?'} a frame), by the code that forced it:`);
+    for (const [k, r] of [...forced[kind].entries()].sort((a, b) => b[1].ms - a[1].ms).slice(0, 12)) lines.push(`  ${r.ms.toFixed(0).padStart(7)} ms  x${String(r.n).padEnd(6)} ${k}`);
+  }
+  lines.push('biggest single style recalcs:', ...bigRecalcs.map((l) => '  ' + l));
+  // CSS selector cost (DevTools 'selector stats', the blink.debug category): which rules the recalcs spent their time on.
+  const sel = new Map();
+  for (const e of events) {
+    const t = e.args?.selector_stats?.selector_timings;
+    if (!t) continue;
+    for (const x of t) { const r = sel.get(x.selector) || { us: 0, attempts: 0, matches: 0 }; r.us += x['elapsed (us)'] || 0; r.attempts += x.match_attempts || 0; r.matches += x.match_count || 0; sel.set(x.selector, r); }
+  }
+  if (sel.size) {
+    lines.push('costliest CSS selectors (total match time over the scene):');
+    for (const [k, r] of [...sel.entries()].sort((a, b) => b[1].us - a[1].us).slice(0, 20)) lines.push(`  ${(r.us / 1000).toFixed(1).padStart(7)} ms  ${String(r.attempts).padStart(8)} tries ${String(r.matches).padStart(7)} hits  ${k.slice(0, 140)}`);
+  }
+  lines.push('who dirtied style / layout (count):');
+  for (const [k, n] of [...dirtied.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15)) lines.push(`  x${String(n).padEnd(6)} ${k}`);
+  return lines;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -616,6 +725,7 @@ function report(folded, hz, names) {
   const p = (l = '') => { lines.push(l); };
   p(`PERF GAUNTLET  budget ${BUDGET} ms (240 Hz)  display ~${Math.round(hz)} Hz  ${RUNS} run(s)/build, measured rounds ${FROM}-${TO} (1-${FROM - 1} fast-forwarded)${HEADLESS ? '  HEADLESS: frame intervals are NOT real, judge on work/frame' : ''}`);
   p(`Per scene, the median across runs. Winner: X / Y = better on EVERY run AND by a real margin (10% on times/work, 25% on counts, 1 refresh on p95/p99); ~ = noise; worst never decides (·).`);
+  if (RUNS === 1) p('ONE run a build: a quick screen (a single odd run fakes a win ~1 time in 9 on the target scene); confirm a win with --runs 2.');
   p(`Order of judgement (docs/performance.md §0): worst, then long/jank, then p95. work = main-thread ms per frame.`);
   p();
   const cols = [['worst', 1], ['long', 0], ['jank', 0], ['p95', 1], ['p99', 1], ['workPerFrame', 2], ['loafBlocking', 0]];
@@ -666,9 +776,21 @@ for (let i = 0; i < schedule.length; i++) {
   log(`run ${i + 1}/${schedule.length}: build ${n}`);
   try {
     const raw = await measureOnce(blind[n].dist, i);
+    if (TRACE && raw.traceEvents?.length) {
+      const tl = summariseTrace(raw.traceEvents, blind[n].dist);
+      fs.writeFileSync(path.join(OUT, `trace-run${i + 1}-${n}.json`), JSON.stringify({ traceEvents: raw.traceEvents })); // DevTools > Performance > Load
+      fs.writeFileSync(path.join(OUT, `trace-run${i + 1}-${n}.txt`), [`${TRACE}:`, ...tl, ''].join('\n'));
+      log([`   trace (${TRACE}):`, ...tl.map((l) => '     ' + l)].join('\n'));
+    }
     if (PROFILE && raw.profiles?.length) {
-      const { total, rows } = summariseProfiles(raw.profiles, blind[n].dist);
-      const lines = rows.slice(0, 40).map(([k, ms]) => `${ms.toFixed(0).padStart(7)} ms ${(100 * ms / total).toFixed(1).padStart(5)}%  ${k}`);
+      const { total, rows, callerRows } = summariseProfiles(raw.profiles, blind[n].dist);
+      fs.writeFileSync(path.join(OUT, `profile-run${i + 1}-${n}.cpuprofile.json`), JSON.stringify(raw.profiles)); // DevTools > Performance can load one
+      const pct = (ms) => `${ms.toFixed(0).padStart(7)} ms ${(100 * ms / total).toFixed(1).padStart(5)}%`;
+      const lines = [];
+      for (const [k, ms] of rows.slice(0, 40)) {
+        lines.push(`${pct(ms)}  ${k}`);
+        for (const [c, cms] of (callerRows.get(k) || []).slice(0, 6)) if (cms >= ms * 0.03) lines.push(`          ${pct(cms)}    from ${c}`);
+      }
       fs.writeFileSync(path.join(OUT, `profile-run${i + 1}-${n}.txt`), [`${PROFILE}: ${total.toFixed(0)} ms profiled (self time)`, ...lines, ''].join('\n'));
       log([`   profile (${PROFILE}, ${total.toFixed(0)} ms, top 12 by self time):`, ...lines.slice(0, 12).map((l) => '     ' + l)].join('\n'));
     }

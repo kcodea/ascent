@@ -461,9 +461,11 @@ The judge for a perf pass (R-PERF-GAUNTLET-01). `npm run perf` only sees the eng
 which is which.
 
 ```
-npm run perf:gauntlet                         # candidate = this working tree, baseline = origin/main, 3 runs each
+npm run perf:gauntlet                         # candidate = this working tree, baseline = origin/main, 1 run each
 npm run perf:gauntlet -- --runs 5 --from 11 --to 13  # more runs = a tighter noise band; pick the rounds to measure
 npm run perf:gauntlet -- --blind              # the X/Y key goes to <out>/key.json instead of the console
+npm run perf:gauntlet -- --trace shop-actions    # Chrome trace of one scene: style / layout / paint time, which code FORCED
+                                              # each recalc, who dirtied style, the costliest CSS selectors
 npm run perf:gauntlet -- --profile shop-actions  # CPU profile of one scene: top functions by self time, named
                                               # through the bench build's hidden source maps (VITE_PERF_BENCH only)
 npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b <dist> skips building; --only <dist>
@@ -500,6 +502,9 @@ npm run perf:gauntlet -- --base <ref>         # another baseline; --a <dist> --b
 - **Calibration (2026-10-27).** A null A/B of two builds of the same code: p95 / p99 / work agreed within ~5%,
   dropped-frame counts within ~20%, the worst frame differed 2.5x (67 vs 167 ms). The first rule (no overlap alone)
   made ~12 false calls out of 70 there; the margins above make 0. Re-run a null A/B if the machine changes.
+- **One run a build is the default** (owner 2026-10-27: "2 would suffice"): a quick screen, about 20 minutes for
+  rounds 9-10. On the same identical-builds data, a single pair made a false call on the buy-and-play scene's
+  p95 / p99 / work in 1 of 9 pairings (one odd run). So confirm a win with `--runs 2` before shipping it.
 - **Running it.** Headed Chrome windows open at 1920 x 1080 on your screen. Keep them visible and leave the machine
   alone; frames that ran while the page was hidden are dropped and counted in a warning.
 

@@ -9881,17 +9881,19 @@ export const FOUNDATION_RULES: GameRule[] = [
   },
   {
     id: 'R-PROG-PLATE-06',
-    title: 'Card plates batch 7: seven Legendary plates on the Dark interior join the crates at their folder rarity',
+    title: 'Card plates batch 7: sixteen plates on the Dark interior join the crates at their folder rarity',
     statement:
-      'Seven layered card plates are crate items at the rarity of the Card Plates folder their master sits in (Legendary): '
-      + 'Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither. Each sits on the Dark interior with no text '
+      'Sixteen layered card plates are crate items at the rarity of the Card Plates folder their master sits in. Legendary: '
+      + 'Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate, Wither. Rare: Gryphon, Huffle, Raven, Slyther. Epic: Elder, '
+      + 'Nimbus 2K, Tattle, Trichalice. Ancient: Gjally. Each sits on the Dark interior with no text '
       + 'darkening (R-PROG-PLATE-05), its frame and Collection image built by `plates:build` into apps/web/public/frames/plates/. '
-      + 'With them in, a first crate holds 45 Common, 86 Rare, 84 Epic, 83 Legendary and 28 Ancient items (each Legendary '
-      + '0.108%).',
+      + 'With them in, a first crate holds 45 Common, 90 Rare, 88 Epic, 83 Legendary and 29 Ancient items (each Rare 0.344%, '
+      + 'Epic 0.25%, Legendary 0.108%, Ancient 0.103%).',
     domain: 'foundation',
     status: 'approved',
     evidence: [
       { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (card plates batch 7)', quote: 'ive added a bunch of card plates to the skins folder to add to the collection in their respecttive tiers. use the dark card back for all of them' },
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (card plates batch 7, second drop)', quote: 'ok i added them all' },
       { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (card plates batch 7); packages/ui/src/cardPlate/cardPlateLook.ts (SETTINGS)' },
     ],
     currentBehaviour: 'Conforms, built 2026-10-27 (feat/card-plates-batch-7). The masters are drawn on the standard plate template (aspect 1.555), so none needs an artScale; frameX centres each opening where Galaxy\x27s sits and the interior fit is `plates:build --fit`. The owner can fine-tune any of them in the Card Plate Editor. The Plushie Plate in the same folder is NOT in this batch (it is planned as an achievement reward). Reaches the database on the next deploy of progression-inventory.',

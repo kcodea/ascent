@@ -826,6 +826,16 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_shotsun', 'Shotsun', 'legendary', 'Shotsun Plate.png'),
   cardPlate('plate_the_last', 'The Last Plate', 'legendary', 'The Last Plate.png'),
   cardPlate('plate_wither', 'Wither', 'legendary', 'Wither Plate.png'),
+  // Then (same day) "i added them all": four Rare, four Epic and one Ancient, rarity from the folder, also on Dark.
+  cardPlate('plate_gryphon', 'Gryphon', 'rare', 'Gryphon Plate.png'),
+  cardPlate('plate_huffle', 'Huffle', 'rare', 'Huffle Plate.png'),
+  cardPlate('plate_raven', 'Raven', 'rare', 'Raven Plate.png'),
+  cardPlate('plate_slyther', 'Slyther', 'rare', 'Slyther Plate.png'),
+  cardPlate('plate_elder', 'Elder', 'epic', 'Elder Plate.png'),
+  cardPlate('plate_nimbus_2k', 'Nimbus 2K', 'epic', 'Nimbus 2K Plate.png'),
+  cardPlate('plate_tattle', 'Tattle', 'epic', 'Tattle Plate.png'),
+  cardPlate('plate_trichalice', 'Trichalice', 'epic', 'Trichalice Plate.png'),
+  cardPlate('plate_gjally', 'Gjally', 'ancient', 'Gjally Plate.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

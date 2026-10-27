@@ -60,9 +60,10 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
-        text: 'Seven new Legendary Card Plates in chests.',
+        text: 'Sixteen new Card Plates in chests.',
         details: [
-          'Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',
+          'Legendary: Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',
+          'Rare: Gryphon, Huffle, Raven and Slyther. Epic: Elder, Nimbus 2K, Tattle and Trichalice. Ancient: Gjally.',
         ],
       },
       {

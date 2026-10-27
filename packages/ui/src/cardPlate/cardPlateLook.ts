@@ -270,6 +270,15 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_shotsun: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.039, interiorSy: 1.005, interiorY: 0.0009, darken: false },
   plate_the_last: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.051, interiorSy: 1.02, interiorY: -0.0094, darken: false },
   plate_wither: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.01, interiorSx: 1.051, interiorSy: 1.009, interiorY: -0.0028, darken: false },
+  plate_gryphon: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.04, interiorSy: 1.018, interiorY: 0, darken: false },
+  plate_huffle: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.044, interiorSy: 1.024, interiorY: -0.0019, darken: false },
+  plate_raven: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.04, interiorSy: 1.017, interiorY: -0.0066, darken: false },
+  plate_slyther: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.04, interiorSy: 1.016, interiorY: 0, darken: false },
+  plate_elder: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.054, interiorSy: 1.022, interiorY: 0.0038, darken: false },
+  plate_nimbus_2k: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.06, interiorSy: 1.025, interiorY: -0.0028, darken: false },
+  plate_tattle: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.047, interiorSy: 1.025, interiorY: 0.0009, darken: false },
+  plate_trichalice: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 1.055, interiorSy: 1.026, interiorY: -0.0028, darken: false },
+  plate_gjally: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.051, interiorSy: 1.026, interiorY: -0.0019, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

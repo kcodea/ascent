@@ -5276,8 +5276,18 @@ body.dragging .zone[data-zone='tavern'] .card:hover .cglow { opacity: 0; }
   left: calc(var(--ccw) * (0.5 - 0.6194 * var(--sh)));
   top: calc(var(--ccw) * (0.5 - 0.8517 * var(--sh) + var(--dy) + var(--frameY)));
   aspect-ratio: 705 / 862;
-  /* the spell arch is squarer than the oval ice ring: its own fit, stretched taller to reach the bottom corners */
-  scale: var(--frz-ice-sw, 1.165) var(--frz-ice-sh, 1.235);
+  /* SPELL ice: its own art and its own dials (DevMenu → Freeze → "Spell ice"). Re-pointing the shared
+     --frz-ice-* vars here means the base rule and the frostin keyframes pick the spell values up unchanged. */
+  background-image: url('/frames/freeze-ice-spell.webp');
+  scale: var(--frz-ice-sw, 1.12) var(--frz-ice-sh, 1.12);
+  --frz-ice-x: var(--frz-ice-s-x, 0%);
+  --frz-ice-y: var(--frz-ice-s-y, 0%);
+  --frz-ice-op: var(--frz-ice-s-op, 0.88);
+  --frz-ice-glow: var(--frz-ice-s-glow, drop-shadow(0 0 5px rgba(150, 215, 255, 0.58)));
+  --frz-ice-flash: var(--frz-ice-s-flash, 1.05);
+  --frz-ice-dur: var(--frz-ice-s-dur, 1.05s);
+  --frz-ice-f0: var(--frz-ice-s-f0, 43.5%);
+  --frz-ice-f1: var(--frz-ice-s-f1, 56.5%);
 }
 
 /* ============================ HAND CARD BACKPLATE ============================

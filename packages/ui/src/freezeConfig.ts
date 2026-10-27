@@ -58,6 +58,22 @@ export interface FreezeConfig {
   iceDur: number;
   /** Shop ice ring — height of the feathered leading edge (% of the sweep; bigger = softer). */
   iceFeather: number;
+  /** SPELL ice (its own art, `freeze-ice-spell.webp`) — horizontal shift, % of the spell frame box. */
+  iceSpellX: number;
+  /** SPELL ice — vertical shift, % of the spell frame box. +y → down. */
+  iceSpellY: number;
+  /** SPELL ice — resting opacity once formed (0–1). */
+  iceSpellOpacity: number;
+  /** SPELL ice — resting cold glow blur (px). 0 = none. */
+  iceSpellGlowSize: number;
+  /** SPELL ice — resting glow strength (0–1). */
+  iceSpellGlowAlpha: number;
+  /** SPELL ice — grow-in brightness flash (×; 1 = none). */
+  iceSpellFlash: number;
+  /** SPELL ice — grow-in time (s). */
+  iceSpellDur: number;
+  /** SPELL ice — softness of the growing edge (%). */
+  iceSpellFeather: number;
 }
 
 // Mirrors the Tavern stone's anchor on the opposite side (its x is 8 at 0.155 of the stage; this sits at
@@ -79,8 +95,8 @@ const DEFAULTS: FreezeConfig = {
   // Shop ice — owner-tuned 2026-10-27.
   iceW: 116,
   iceH: 109.5,
-  iceSpellW: 116.5,
-  iceSpellH: 123.5,
+  iceSpellW: 112,
+  iceSpellH: 112,
   iceX: 0.25,
   iceY: 6.75,
   iceOpacity: 0.88,
@@ -89,6 +105,15 @@ const DEFAULTS: FreezeConfig = {
   iceFlash: 1.05,
   iceDur: 1.05,
   iceFeather: 13,
+  // Spell ice — starts from the minion look; owner to tune against the new spell art.
+  iceSpellX: 0,
+  iceSpellY: 0,
+  iceSpellOpacity: 0.88,
+  iceSpellGlowSize: 5,
+  iceSpellGlowAlpha: 0.58,
+  iceSpellFlash: 1.05,
+  iceSpellDur: 1.05,
+  iceSpellFeather: 13,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */
@@ -117,6 +142,14 @@ export const FRZ_RANGES: Record<keyof FreezeConfig, [number, number, number]> = 
   iceFlash: [1, 3, 0.05],
   iceDur: [0.1, 1.5, 0.01],
   iceFeather: [0, 60, 1],
+  iceSpellX: [-30, 30, 0.25],
+  iceSpellY: [-30, 30, 0.25],
+  iceSpellOpacity: [0, 1, 0.01],
+  iceSpellGlowSize: [0, 30, 0.5],
+  iceSpellGlowAlpha: [0, 1, 0.01],
+  iceSpellFlash: [1, 3, 0.05],
+  iceSpellDur: [0.1, 1.5, 0.01],
+  iceSpellFeather: [0, 60, 1],
 };
 
 /** One-line definitions, shown as a hover tooltip on each slider's name in the DEV tuner. */
@@ -145,10 +178,19 @@ export const FRZ_DESC: Record<keyof FreezeConfig, string> = {
   iceFlash: 'Shop ice ring — brightness flash while it grows in. 1 = no flash.',
   iceDur: 'Shop ice ring — how long the top-to-bottom grow takes (s).',
   iceFeather: 'Shop ice ring — softness of the growing edge.',
+  iceSpellX: 'Spell ice — horizontal shift (% of the spell frame).',
+  iceSpellY: 'Spell ice — vertical shift (% of the spell frame). Positive = down.',
+  iceSpellOpacity: 'Spell ice — opacity once formed.',
+  iceSpellGlowSize: 'Spell ice — resting cold glow blur. 0 = off.',
+  iceSpellGlowAlpha: 'Spell ice — resting glow strength.',
+  iceSpellFlash: 'Spell ice — brightness flash while it grows in. 1 = no flash.',
+  iceSpellDur: 'Spell ice — how long the top-to-bottom grow takes (s).',
+  iceSpellFeather: 'Spell ice — softness of the growing edge.',
 };
 
 export const FRZ_NUM_KEYS = ['x', 'y', 'scale', 'gemX', 'gemY', 'gemS', 'pillX', 'pillY', 'pillS', 'gemGlowSize', 'gemGlowStrength', 'gemHoverBright',
-  'iceW', 'iceH', 'iceSpellW', 'iceSpellH', 'iceX', 'iceY', 'iceOpacity', 'iceGlowSize', 'iceGlowAlpha', 'iceFlash', 'iceDur', 'iceFeather'] as const;
+  'iceW', 'iceH', 'iceSpellW', 'iceSpellH', 'iceX', 'iceY', 'iceOpacity', 'iceGlowSize', 'iceGlowAlpha', 'iceFlash', 'iceDur', 'iceFeather',
+  'iceSpellX', 'iceSpellY', 'iceSpellOpacity', 'iceSpellGlowSize', 'iceSpellGlowAlpha', 'iceSpellFlash', 'iceSpellDur', 'iceSpellFeather'] as const;
 /** The shipped values, exported so the tuner can mark which controls you have moved away from them. */
 export { DEFAULTS as FRZ_DEFAULTS };
 
@@ -204,6 +246,17 @@ export function applyFreezeVars(): void {
   // The reveal mask is 300% tall, so the solid→clear band is centred at 50% and spans the feather each side.
   root.setProperty('--frz-ice-f0', `${50 - cfg.iceFeather / 2}%`);
   root.setProperty('--frz-ice-f1', `${50 + cfg.iceFeather / 2}%`);
+  // Spell ice — its own set; the spellframe rule in styles.css re-points the --frz-ice-* vars at these.
+  root.setProperty('--frz-ice-s-x', `${cfg.iceSpellX}%`);
+  root.setProperty('--frz-ice-s-y', `${cfg.iceSpellY}%`);
+  root.setProperty('--frz-ice-s-op', String(cfg.iceSpellOpacity));
+  root.setProperty('--frz-ice-s-glow', cfg.iceSpellGlowSize > 0 && cfg.iceSpellGlowAlpha > 0
+    ? `drop-shadow(0 0 ${cfg.iceSpellGlowSize}px rgba(150, 215, 255, ${cfg.iceSpellGlowAlpha}))`
+    : 'none');
+  root.setProperty('--frz-ice-s-flash', String(cfg.iceSpellFlash));
+  root.setProperty('--frz-ice-s-dur', `${cfg.iceSpellDur}s`);
+  root.setProperty('--frz-ice-s-f0', `${50 - cfg.iceSpellFeather / 2}%`);
+  root.setProperty('--frz-ice-s-f1', `${50 + cfg.iceSpellFeather / 2}%`);
 }
 
 export function setFreezeValue(key: keyof FreezeConfig, value: number): void {

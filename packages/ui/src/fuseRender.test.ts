@@ -23,8 +23,8 @@ function stubCtx(state: { locked: boolean; draws: number; clears?: number }): Ca
   return ctx as unknown as CanvasRenderingContext2D;
 }
 
-function setup(): { r: FuseRenderer; state: { locked: boolean; draws: number }; ctx: CanvasRenderingContext2D } {
-  const state = { locked: false, draws: 0 };
+function setup(): { r: FuseRenderer; state: { locked: boolean; draws: number; clears?: number }; ctx: CanvasRenderingContext2D } {
+  const state: { locked: boolean; draws: number; clears?: number } = { locked: false, draws: 0 };
   const factory: SpriteFactory = (w, h) => {
     const ctx = stubCtx(state);
     return { canvas: { width: w, height: h } as unknown as HTMLCanvasElement, ctx };

@@ -53,12 +53,21 @@ vi.mock('../tutorial/tutorialProfile', async (importOriginal) => {
   return { ...mod, getCourseProgress: () => ({ status: 'completed' }) };
 });
 
+// Ranked Duos' door: "Yes" with Duo picked opens my party room (a network call in the store), mocked to a spy here.
+vi.mock('../versus/versusStore', async (importOriginal) => {
+  const mod = await importOriginal<typeof import('../versus/versusStore')>();
+  return { ...mod, enterDuosParty: vi.fn(async () => {}) };
+});
+
 import { Title } from '../Title';
+import { enterDuosParty } from '../versus/versusStore';
+import { setPlayParty } from '../versus/playParty';
 import { HeroSelect } from '../HeroSelect';
 import { useGame } from '../store';
 import { sfx } from '../sfx';
 import { enqueuePendingRank, flushPendingRanks } from './rankSubmission';
 import {
+  DUOS_CONFIRM_TEXT, DUOS_CONFIRM_TITLE,
   RANKED_CONFIRM_EXIT_MS, RANKED_CONFIRM_NO, RANKED_CONFIRM_TEXT, RANKED_CONFIRM_TITLE, RANKED_CONFIRM_YES, RANKED_ENTRY_PLACEMENT,
   clearRankedEntry, loadRankedEntry, saveRankedEntry, type RankedEntry,
 } from './rankedEntry';
@@ -260,6 +269,58 @@ describe('the Play card asks before it starts a ranked lobby', () => {
     expect(st.rankedEntry!.runId.length).toBeGreaterThan(0);
     expect(stored(), 'the entry survives the game being closed').toEqual(st.rankedEntry);
     expect(queued(), 'confirming settles nothing').toHaveLength(0);
+  });
+});
+
+describe('SOLO / DUO lives on the Ranked card (owner 2026-10-26, R-RANKED-DUOS-MODECARD-01)', () => {
+  afterEach(() => { act(() => setPlayParty('solo')); vi.mocked(enterDuosParty).mockClear(); });
+  const sw = (): HTMLElement | null => document.querySelector('.mpgrid > .playparty.mc-party');
+  const side = (label: string): HTMLButtonElement => [...sw()!.querySelectorAll<HTMLButtonElement>('.playparty-btn')].find((b) => b.textContent === label)!;
+
+  it('the mode screen carries ONE switch, beside the Ranked card in its grid cell (not inside the card button)', () => {
+    ui = mount(<Title onSettings={() => {}} />);
+    expect(document.querySelectorAll('.playparty')).toHaveLength(1);
+    expect(sw()).not.toBeNull();
+    expect(sw()!.closest('button'), 'a button never holds the switch').toBeNull();
+    expect(sw()!.previousElementSibling?.matches('.modecard[data-mp="play"]'), 'it follows the Ranked card').toBe(true);
+    expect([...sw()!.querySelectorAll('button')].map((b) => b.textContent)).toEqual(['Solo', 'Duo']);
+    expect(side('Solo').getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('the main menu has no switch, and its Play opens the mode screen whichever side is picked', () => {
+    setPlayParty('duo');
+    useGame.setState({ titleView: 'menu' });
+    ui = mount(<Title onSettings={() => {}} />);
+    expect(document.querySelector('.playparty')).toBeNull();
+    const play = [...document.querySelectorAll<HTMLButtonElement>('.titlenav .menubtn')].find((b) => b.textContent?.includes('Play'))!;
+    act(() => play.click());
+    expect(useGame.getState().titleView).toBe('modes');
+    expect(document.querySelector(DIALOG), 'no confirmation from the main menu').toBeNull();
+    expect(enterDuosParty).not.toHaveBeenCalled();
+  });
+
+  it('Duo + the card PLAY asks the Ranked Duos confirmation; Yes opens my party and starts no solo lobby', () => {
+    ui = mount(<Title onSettings={() => {}} />);
+    act(() => side('Duo').click());
+    expect(side('Duo').getAttribute('aria-pressed')).toBe('true');
+    expect(localStorage.getItem('ascent.playParty'), 'remembered per viewer').toBe('duo');
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
+    const dialog = document.querySelector(DIALOG)!;
+    expect(dialog.querySelector('.rc-title')!.textContent).toBe(DUOS_CONFIRM_TITLE);
+    expect(dialog.querySelector('.rankedconfirm-text')!.textContent).toBe(DUOS_CONFIRM_TEXT);
+    act(() => button(RANKED_CONFIRM_YES)!.click());
+    expect(enterDuosParty).toHaveBeenCalledWith("Mike's party");
+    expect(useGame.getState().rankedEntry, 'no solo entry').toBeNull();
+    expect(useGame.getState().heroChoices).toBeNull();
+  });
+
+  it('Solo + the card PLAY is the solo ranked confirmation, unchanged', () => {
+    ui = mount(<Title onSettings={() => {}} />);
+    act(() => side('Duo').click());
+    act(() => side('Solo').click());
+    act(() => document.querySelector<HTMLButtonElement>('.modecard[data-mp="play"]')!.click());
+    expect(document.querySelector(DIALOG)!.querySelector('.rc-title')!.textContent).toBe(RANKED_CONFIRM_TITLE);
+    expect(enterDuosParty).not.toHaveBeenCalled();
   });
 });
 

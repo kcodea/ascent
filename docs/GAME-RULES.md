@@ -1311,9 +1311,12 @@ Source: `packages/progression/src/rules.ts` (curve, XP, level titles, chests per
 > `2026-11-01-ranked-duos-party.sql` (+ the `ranked-duos-sweep` pg_cron job, `2026-11-01-ranked-duos-sweep-cron.sql`).
 
 - **Getting in** (phase 3, R-RANKED-DUOS-PARTY-01; owner 2026-10-26: "a toggle above 'play' that says solo/duo. if
-  duo is selected it then puts you into a room specific for duo's where you can invite a friend"). A **Solo | Duo**
-  switch sits directly above Play (the menu sidebar and the main menu), remembered per viewer. Solo + Play is the usual
-  flow. Duo + Play asks the ranked confirmation, then puts you in YOUR PARTY: a two-seat room playing Ranked Duos with
+  duo is selected it then puts you into a room specific for duo's where you can invite a friend"; moved the same day,
+  R-RANKED-DUOS-MODECARD-01: "move the solo/duo toggle so that it is here, not at the main menu. put it in the bottom
+  left corner below/eclipsing the play art"). A **Solo | Duo** switch sits on the mode screen's Ranked card, at its
+  bottom-left corner, eclipsing the card's bottom edge; remembered per viewer. The menu sidebar and the main menu have
+  no switch: their Play opens the mode screen. Solo + the card's PLAY is the usual flow. Duo + PLAY asks the ranked
+  confirmation, then puts you in YOUR PARTY: a two-seat room playing Ranked Duos with
   you in the first seat (back into it if you are already in one). The teammate takes the second seat by accepting a
   friend invite (Invite a friend; kind `duos_party`, accounts only) or by Join on the open parties list ("Open duo
   parties", reached from a party you are alone in with Join a party). The host starts the game once both seats are

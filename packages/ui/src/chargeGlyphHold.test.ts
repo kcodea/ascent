@@ -128,7 +128,8 @@ describe('R-TIMER-SYNC-01: wiring', () => {
   it('the crystal fuse debris freezes while held (no sim step), and nothing in the fuse loops on its own', () => {
     expect(glyph).toMatch(/if \(!heldRef\.current\)[^\n]*sim\.step\(/);
     expect(glyph, 'the old motes engine is gone').not.toContain('ChargeMotes');
-    expect(glyph).toContain("${held ? ' held' : ''}");
+    expect(glyph).toContain("${heldFx ? ' held' : ''}");
+    expect(glyph, 'the visual hold covers the appear lead').toContain('const heldFx = shown && preview == null && !running && seconds > 0;');
     const css = readFileSync(join(here, 'styles.css'), 'utf8');
     const fuse = css.slice(css.indexOf('.chargeglyph {'), css.indexOf('.fuse-gemfx {'));
     expect(fuse, 'no infinite CSS animation on the fuse (it would keep moving through a hold)').not.toMatch(/infinite/);
@@ -136,7 +137,9 @@ describe('R-TIMER-SYNC-01: wiring', () => {
 
   it('End Turn releases the fuse VISUAL on the press, while the sound keeps following the clock exactly as before', () => {
     expect(recruit).toMatch(/<ChargeGlyph[^>]*released=\{eotAnimating \|\| versusGate\.gemLocked \|\| versusGate\.gemReady\}/s);
-    expect(glyph).toContain('const shown = lit && !released;');
+    expect(glyph).toMatch(/const shown = \(lit \|\| appearing\) && !released;/);
+    // The appear lead (0:21) is VISUAL: the burn and the sound still start at the window (0:20).
+    expect(glyph).toContain('seconds <= fuseAppearsAt(chargeWindow, getFuseCfg().appearLeadS)');
     // The sound reads `lit` (the clock), never `shown` (the press): R-TIMER-SYNC-01's audio is unchanged.
     expect(glyph).toContain('const audible = lit && preview == null && !held;');
     expect(glyph).toMatch(/const held = lit && preview == null && !running && seconds > 0;/);

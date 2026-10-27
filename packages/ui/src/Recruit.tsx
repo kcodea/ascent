@@ -249,7 +249,7 @@ import { useChargePreview } from './chargeGlyphTune';
 import { FuseSim, type FuseGeom } from './fuseSim';
 import { FuseRenderer, gemCanvasHalf, type FuseView } from './fuseRender';
 import { FUSE_ART_SPAN, FUSE_CFG_EVENT, fuseSeed, getFuseCfg, seamBoostAt } from './fuseTune';
-import { fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
+import { fuseAppearsAt, fuseExitKind, fusePhaseOnLight, type FuseExit } from './fusePhase';
 import { randomSeed } from './fx/rng';
 import { gateFx } from './rankedGate/gateFx';
 import { PHONE_GPU } from './phoneDiag';
@@ -624,10 +624,17 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   // Held = the clock has time left but is not moving (a decision, the Esc menu, the intro, the wipe, ...). A clock at
   // 0 is FINISHED, not held: the collapse, the charged hum and the build's tail all play out over it.
   const held = lit && preview == null && !running && seconds > 0;
-  // What is DRAWN: lit, and End Turn not yet pressed. Everything visual keys on `shown`; the sound keys on `lit`.
-  const shown = lit && !released;
-  const heldRef = useRef(held);
-  heldRef.current = held;
+  // The fuse APPEARS a lead before the burn window (owner 2026-10-27: appear at 0:21, break down from 0:20). The
+  // charge reads 0 through the lead (chargeElapsed clamps), so it sits whole; the sound still waits for `lit`.
+  const appearing = preview == null && !inCombat && !covered && !quiet
+    && seconds <= fuseAppearsAt(chargeWindow, getFuseCfg().appearLeadS);
+  // What is DRAWN: lit (or appearing), and End Turn not yet pressed. Everything visual keys on `shown`; the sound
+  // keys on `lit`.
+  const shown = (lit || appearing) && !released;
+  // The VISUAL hold: the clock is held while the fuse shows (the appear lead included). `held` above stays the sound's.
+  const heldFx = shown && preview == null && !running && seconds > 0;
+  const heldRef = useRef(heldFx);
+  heldRef.current = heldFx;
   // Keep the fuse mounted for a short exit when it stops being lit instead of snapping to null. `mounted` holds the
   // DOM through it; `exit` picks the look (fusePhase.ts): before 0:00 the remaining fuse FLASHES and fades very
   // quickly (owner ask); at/after 0:00 the gem's End Turn strike carries the release, so it just clears.
@@ -807,7 +814,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
       return chargeWindow > 0 ? chargeElapsed(chargeWindow, performance.now()) / chargeWindow : 0;
     };
     // Frozen where the clock stopped: one paint + one draw (no sim step), no rAF while held.
-    if (held) { const c = chargeNow(); paint(c); simFrame(c, 0, performance.now()); return; }
+    if (heldFx) { const c = chargeNow(); paint(c); simFrame(c, 0, performance.now()); return; }
     let raf = 0;
     // PHONES (R-PHONE-CHARGE-30HZ-01): each write of the burn changes the fuse's mask, which repaints it. A 120 Hz
     // iPhone paid that 120 times a second for the last 20 s of every shop. The fuse moves about a layout px a frame,
@@ -829,7 +836,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
     };
     raf = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(raf);
-  }, [shown, held, chargeWindow, preview]);
+  }, [shown, heldFx, chargeWindow, preview]);
 
   // Render the moment `lit` is true — `mounted` only HOLDS the DOM through the exit. `mounted` alone lags one
   // commit behind `lit` (it's set by an effect), and gating the render on it meant the `[lit]`-keyed set-up/paint
@@ -840,7 +847,7 @@ const ChargeGlyph = memo(function ChargeGlyph({ inCombat, window: chargeWindow, 
   const exitCls = exit === 'flashFade' ? ' flashout' : exit === 'release' ? ' fading' : '';
   return (
     <>
-      <div className={`chargeglyph${exitCls}${held ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
+      <div className={`chargeglyph${exitCls}${heldFx ? ' held' : ''}`} ref={boxRef} aria-label={`${seconds}s left`} aria-hidden="true">
         <div className="fuse-body" />
         <div className="fuse-front" />
       </div>

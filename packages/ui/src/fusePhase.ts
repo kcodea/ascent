@@ -11,6 +11,13 @@ export function fusePhaseOnLight(secondsLeft: number): FuseLightPhase {
   return secondsLeft > 0 ? 'charging' : 'charged';
 }
 
+/** The clock reading (seconds left) at which the fuse APPEARS: `leadS` before its burn window opens (owner
+ *  2026-10-27: appear at 0:21, start breaking down at 0:20). The lead is visual only; the burn and the sound still
+ *  start at the window, so the fuse sits whole through the lead. */
+export function fuseAppearsAt(chargeWindow: number, leadS: number): number {
+  return chargeWindow + Math.max(0, leadS);
+}
+
 export type FuseExit = 'flashFade' | 'release';
 export function fuseExitKind(secondsLeftAtUnlight: number): FuseExit {
   return secondsLeftAtUnlight > 0 ? 'flashFade' : 'release';

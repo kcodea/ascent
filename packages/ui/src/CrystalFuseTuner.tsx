@@ -58,6 +58,7 @@ const controls: TunerControl<K>[] = [
   r('frontGlow', 'Front glow', 'Fuse', 0, 1, 0.01, 'Brightness of the white-hot burning front.', 'opacity'),
   r('frontGlowW', 'Front glow width', 'Fuse', 4, 200, 1, 'Width of that front glow.', 'px'),
   r('seamBoost', 'Seam flare', 'Fuse', 1, 4, 0.05, 'How much the front flares as it crosses a bright seam. 1 = no flare.', '×'),
+  r('appearLeadS', 'Appears early by', 'Fuse', 0, 5, 0.5, 'Seconds the fuse shows, whole, before it starts burning at 0:20 (1 = it appears at 0:21).', 's'),
   r('appearSparkles', 'Appear sparkles', 'Fuse', 0, 400, 5, 'How many sparkles fly off the fuse the moment it lights.'),
   r('appearFlashMs', 'Appear flash length', 'Fuse', 80, 1500, 10, 'How long the bright flash lasts when the fuse lights.', 'ms'),
   r('appearFlashPeak', 'Appear flash brightness', 'Fuse', 1, 5, 0.05, 'How bright that flash is.', '×'),

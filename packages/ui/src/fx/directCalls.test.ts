@@ -193,6 +193,9 @@ describe('DIRECT_CALL_SITES is a derivation, not a list', () => {
       // 'ruby-bounce' + 'spell-bounce' joined on 2026-09-15: the cross-target re-cast ribbon, fired from the `bounceFx`
       // watcher in `Recruit.tsx` (shop) and the `bounceFx` channel in `choreo/score.ts` (combat).
       'freeze-blast',
+      // 'freeze-break' joined on 2026-10-27: the owner-authored ice shatter off each frozen shop card when the player
+      // unfreezes the tavern (`FreezeButton.tsx`).
+      'freeze-break',
       // 'funeral-on-loan' joined on 2026-10-13: the owner-authored On Loan smoke, a looping play that follows a
       // Funeral on Loan hand card (`useOnLoanFx.ts`).
       'funeral-on-loan',

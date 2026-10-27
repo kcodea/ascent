@@ -46,6 +46,17 @@ export const FreezeButton = memo(function FreezeButton({
       const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
       playDef('freeze-blast', { source: { x: cx, y: cy }, target: { x: cx, y: cy } });
     }
+    // UNFREEZING: the authored 'freeze-break' FX explodes off each iced shop card (owner ask 2026-10-27). The
+    // press fires BEFORE the toggle lands, so `frozen` is still true here and the tavern still carries `.frozen`.
+    // Rects are screen space, which is what Pixi wants (stage rule). `index` drives any authored per-card stagger.
+    if (frozen) {
+      document.querySelectorAll<HTMLElement>('[data-zone="tavern"].frozen .card').forEach((card, index) => {
+        const c = card.getBoundingClientRect();
+        const at = { x: c.left + c.width / 2, y: c.top + c.height / 2 };
+        const uid = card.dataset.uid ?? null;
+        playDef('freeze-break', { source: at, target: at }, { index, uids: { source: uid, target: uid } });
+      });
+    }
   };
   useEffect(() => onPressCue('freeze', playPress));
   const click = (): void => {

@@ -85,6 +85,13 @@ describe('the card plate catalog', () => {
       ['plate_spades', 'Spades', 'legendary', 'crate', 'plate_spades', 'Spades.png', undefined],
       ['plate_the_howl', 'The Howl', 'ancient', 'crate', 'plate_the_howl', 'The Howl.png', undefined],
       ['plate_vintage_oak', 'Vintage Oak', 'legendary', 'crate', 'plate_vintage_oak', 'Vintage Oak.png', undefined],
+      ['plate_burden', 'Burden', 'legendary', 'crate', 'plate_burden', 'Burden Plate.png', undefined],
+      ['plate_divine', 'Divine', 'legendary', 'crate', 'plate_divine', 'Divine Plate.png', undefined],
+      ['plate_mytho', 'Mytho', 'legendary', 'crate', 'plate_mytho', 'Mytho Plate.png', undefined],
+      ['plate_plasma', 'Plasma', 'legendary', 'crate', 'plate_plasma', 'Plasma Plate.png', undefined],
+      ['plate_shotsun', 'Shotsun', 'legendary', 'crate', 'plate_shotsun', 'Shotsun Plate.png', undefined],
+      ['plate_the_last', 'The Last Plate', 'legendary', 'crate', 'plate_the_last', 'The Last Plate.png', undefined],
+      ['plate_wither', 'Wither', 'legendary', 'crate', 'plate_wither', 'Wither Plate.png', undefined],
     ]);
     expect(eligibleCrateCosmetics([]).map((c) => c.id)).toContain('plate_aquarium_rocks');
     expect(eligibleCrateCosmetics(['plate_aquarium_rocks']).map((c) => c.id)).not.toContain('plate_aquarium_rocks');

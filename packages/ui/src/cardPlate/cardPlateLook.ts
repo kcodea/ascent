@@ -261,6 +261,15 @@ const SETTINGS: Readonly<Record<string, LookSettings>> = {
   plate_the_howl: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 0.95, interiorSy: 0.965, interiorY: -0.0291, darken: false, artScale: 1.113 },
   // Owner 2026-10-19: "add it with dark brown interior".
   plate_vintage_oak: { ...AQUARIUM_ROCKS, layered: true, interior: 'darkbrown', frameX: 0.007, interiorSx: 1.007, interiorSy: 0.995, interiorY: 0.015, darken: false, artScale: 1.052 },
+  // Card plates batch 7 (owner 2026-10-27: "use the dark card back for all of them"). Drawn on the standard template
+  // (aspect 1.555), so no artScale; frameX seats each opening where Galaxy's sits, the interior fit is `plates:build --fit`.
+  plate_burden: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.043, interiorSy: 1.01, interiorY: 0.0038, darken: false },
+  plate_divine: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.026, interiorSy: 0.997, interiorY: 0.0075, darken: false },
+  plate_mytho: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.006, interiorSx: 1.022, interiorSy: 1.008, interiorY: 0, darken: false },
+  plate_plasma: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.004, interiorSx: 1.087, interiorSy: 1, interiorY: 0.0075, darken: false },
+  plate_shotsun: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.039, interiorSy: 1.005, interiorY: 0.0009, darken: false },
+  plate_the_last: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.005, interiorSx: 1.051, interiorSy: 1.02, interiorY: -0.0094, darken: false },
+  plate_wither: { ...AQUARIUM_ROCKS, layered: true, interior: 'dark', frameX: 0.01, interiorSx: 1.051, interiorSy: 1.009, interiorY: -0.0028, darken: false },
 };
 
 /** The look of every plate the client ships, keyed by art key. Frozen, so a context value is stable per plate. */

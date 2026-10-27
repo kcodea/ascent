@@ -817,6 +817,15 @@ export const COSMETICS: readonly CosmeticDef[] = Object.freeze([
   cardPlate('plate_the_howl', 'The Howl', 'ancient', 'The Howl.png'), // owner 2026-10-19: Ancient
   // Owner 2026-10-19: "i added one more, can you add it with dark brown interior?"
   cardPlate('plate_vintage_oak', 'Vintage Oak', 'legendary', 'Vintage Oak.png'),
+  // Card plates batch 7 (owner 2026-10-27: "ive added a bunch of card plates to the skins folder to add to the collection in
+  // their respecttive tiers. use the dark card back for all of them"). All seven sit in the Legendary folder.
+  cardPlate('plate_burden', 'Burden', 'legendary', 'Burden Plate.png'),
+  cardPlate('plate_divine', 'Divine', 'legendary', 'Divine Plate.png'),
+  cardPlate('plate_mytho', 'Mytho', 'legendary', 'Mytho Plate.png'),
+  cardPlate('plate_plasma', 'Plasma', 'legendary', 'Plasma Plate.png'),
+  cardPlate('plate_shotsun', 'Shotsun', 'legendary', 'Shotsun Plate.png'),
+  cardPlate('plate_the_last', 'The Last Plate', 'legendary', 'The Last Plate.png'),
+  cardPlate('plate_wither', 'Wither', 'legendary', 'Wither Plate.png'),
   // HERO TITLES (owner 2026-09-29), 33 heroes x (title + golden master). Achievement rewards, never in a crate.
   ...HERO_TITLE_COSMETICS,
 ]);

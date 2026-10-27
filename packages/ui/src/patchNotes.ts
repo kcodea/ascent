@@ -60,6 +60,13 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Seven new Legendary Card Plates in chests.',
+        details: [
+          'Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Nine more Plushie Beasts in chests.',
         details: [
           'Plushie Beardsley, Beev, Sunmane, Bullseye, Packstrider, Wolvie, Kennelmaster, Raven and Sea Urchin.',

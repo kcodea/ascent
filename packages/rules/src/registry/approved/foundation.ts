@@ -9879,4 +9879,22 @@ export const FOUNDATION_RULES: GameRule[] = [
     currentBehaviour: 'Conforms, built 2026-10-27 (feat/skins-batch-12). Armadiyo had no Plushie master in the folder, so it is the one Set 2 Beast still without one. Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05).',
     enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-PROG-PLATE-06',
+    title: 'Card plates batch 7: seven Legendary plates on the Dark interior join the crates at their folder rarity',
+    statement:
+      'Seven layered card plates are crate items at the rarity of the Card Plates folder their master sits in (Legendary): '
+      + 'Burden, Divine, Mytho, Plasma, Shotsun, The Last Plate and Wither. Each sits on the Dark interior with no text '
+      + 'darkening (R-PROG-PLATE-05), its frame and Collection image built by `plates:build` into apps/web/public/frames/plates/. '
+      + 'With them in, a first crate holds 45 Common, 86 Rare, 84 Epic, 83 Legendary and 28 Ancient items (each Legendary '
+      + '0.108%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-27 (card plates batch 7)', quote: 'ive added a bunch of card plates to the skins folder to add to the collection in their respecttive tiers. use the dark card back for all of them' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (card plates batch 7); packages/ui/src/cardPlate/cardPlateLook.ts (SETTINGS)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-27 (feat/card-plates-batch-7). The masters are drawn on the standard plate template (aspect 1.555), so none needs an artScale; frameX centres each opening where Galaxy\x27s sits and the interior fit is `plates:build --fit`. The owner can fine-tune any of them in the Card Plate Editor. The Plushie Plate in the same folder is NOT in this batch (it is planned as an achievement reward). Reaches the database on the next deploy of progression-inventory.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/cardPlates.test.ts', 'packages/progression/src/cardPlates.db.test.ts', 'packages/progression/src/cosmetics.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
 ];

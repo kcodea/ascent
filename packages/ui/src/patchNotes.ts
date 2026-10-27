@@ -66,6 +66,10 @@ export const PATCH_NOTES: PatchNote[] = [
         category: 'Systems',
         text: 'Spell cards now glow a cool blue when hovered, and the glow hugs the spell frame instead of spilling past it.',
       },
+      {
+        category: 'Systems',
+        text: 'Unfreezing the shop now shatters the ice off each card in a burst of frost.',
+      },
     ],
   },
   {

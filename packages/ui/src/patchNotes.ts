@@ -60,6 +60,14 @@ export const PATCH_NOTES: PatchNote[] = [
     changes: [
       {
         category: 'Systems',
+        text: 'Twenty-two new minion skins in chests, including a whole line of cuddly Plushie Beasts.',
+        details: [
+          'Plushies: Hawkus, Oona, Panther, Tort, T-Rex, Vicious, Wooly, Dawnclaw, Echohorn, Solaris, Beetle, Elderhorn, Grim and Spots.',
+          'Dawnclaw: Frostclaw, Stoneclaw and Pinata Claw. Echohorn: Stormhorn and Snowyhorn. Spots: Solar Spots. Roomworks: Cyborg Roomworks and Voidworks.',
+        ],
+      },
+      {
+        category: 'Systems',
         text: 'Phones: smoother play and effects no longer go missing.',
         details: [
           'Effects come back on their own if the phone drops its graphics, for example after you switch apps.',

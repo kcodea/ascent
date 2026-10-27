@@ -9788,4 +9788,27 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'The owner opens https://<build>/?phonebench=1 on his iPhone and waits about three minutes; the card reads "shop: p50 8.3 p95 16.7 ... WebGL 5 alive / 7 made ... report sent", and the same row lands in client_crash_reports.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/phonePerfLogDesktop.test.ts', 'packages/ui/src/phonePerfLog.test.ts'], lastVerifiedAt: '2026-10-26' },
   },
+  {
+    id: 'R-PROG-SKINS-19',
+    title: 'Skins batch 11: twenty-two minion skins (the Plushie line and element spins) join the crates at their folder rarity',
+    statement:
+      'Twenty-two minion skins are crate items, each targeting one card by stable id and shipping its own 512px WebP in '
+      + 'packages/ui/src/art/skins/, at the rarity of the Minion Skins folder its master sits in (R-PROG-SKINS-11). Common: '
+      + 'Plushie Hawkus (Hawkus), Plushie Oona (King Oona), Plushie Panther (Void Panther), Plushie Tort (Tort). Rare: Cyborg '
+      + 'Roomworks and Voidworks (Roomworks), Frostclaw and Stoneclaw (Dawnclaw), Plushie T-Rex (T-Rex), Plushie Vicious '
+      + '(Vicious), Plushie Wooly (Wooly), Solar Spots (Spots), Stormhorn (Echohorn). Epic: Pinata Claw and Plushie Dawnclaw '
+      + '(Dawnclaw), Plushie Echohorn and Snowyhorn (Echohorn), Plushie Solaris (Solaris). Legendary: Plushie Beetle (Runic '
+      + 'Beetle), Plushie Elderhorn (Elderhorn), Plushie Grim (Grim), Plushie Spots (Spots). Names are the master filenames '
+      + 'with the spelling tidied (Plushy to Plushie, Dawnclaww, Viscious after the card Vicious, Snowwyhorn). With them in, '
+      + 'a first crate holds 42 Common, 83 Rare, 83 Epic, 74 Legendary and 28 Ancient items (each Common 0.833%, Rare '
+      + '0.373%, Epic 0.265%, Legendary 0.122%).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Claude Code session, 2026-10-26 (skins batch 11)', quote: 'ok i just added a ton of new images to the art folder ... IMPORT them into collections' },
+      { kind: 'code', ref: 'packages/progression/src/cosmetics.ts (COSMETICS, skins batch 11); packages/ui/src/art/skins/ (22 new webps)' },
+    ],
+    currentBehaviour: 'Conforms, built 2026-10-26 (feat/skins-batch-11). Reaches the database on the next deploy of progression-inventory (the catalog sync, R-PROG-SKINS-05). The tidied names are Claude\x27s reading of the filenames, for the owner to confirm.',
+    enforcement: { kind: 'scenario', refs: ['packages/progression/src/skins.test.ts', 'packages/progression/src/cosmetics.test.ts', 'packages/ui/src/progression/CollectionSkins.test.tsx'], lastVerifiedAt: '2026-10-26' },
+  },
 ];

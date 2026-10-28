@@ -97,6 +97,29 @@ git log --oneline origin/main -10   # what just landed
   switched the shared checkout).
 - **Never push to `main` directly** (see the main collaboration rules); every change lands via PR + green CI.
 
+## 7. CI: what runs where
+
+`.github/workflows/ci.yml` produces the required **`verify`** check. Since 2026-10-28 it splits its tests so
+parallel PRs stop queueing behind GitHub's concurrent-job cap:
+
+| Job | Pull request | Push to `main` | Nightly (07:31 UTC) | Manual dispatch |
+| --- | --- | --- | --- | --- |
+| `checks` (typecheck, lint, build:web) | yes | yes | yes | yes |
+| `test (light 1-3/3)` | yes | yes | yes | yes |
+| `test-heavy` (4 self-play shards, ~13-15 min) | only with the `ci:heavy` label | yes | yes | yes |
+| `verify` (aggregator) | yes | yes | yes | yes |
+
+- `verify` fails unless `checks` and every light shard **succeeded**. The heavy shards may be `skipped` (their
+  normal PR state); when they did run, anything but success fails `verify` too. So a heavy regression shows as
+  a **red CI run on `main`** (and on the nightly), not on the PR that caused it. Whoever sees it fixes forward.
+- **Opt a PR in** when it touches bots, self-play, lobby pairing or armor: add the `ci:heavy` label (adding it
+  re-runs CI with the heavy shards; they keep running on later pushes while the label stays). Or run the
+  workflow by hand from the Actions tab on your branch.
+- **Concurrency:** a new push to a PR cancels that PR's in-flight run. Runs on `main`, nightly and dispatch are
+  never cancelled. Adding an unrelated label starts a separate run that does not cancel the real one.
+- The strategist benchmark stays in `nightly-slow-tests.yml`; phone budgets stay in `phone-budgets.yml` (own
+  concurrency group, UI paths only). Neither is part of `verify`.
+
 ---
 
 ### TL;DR

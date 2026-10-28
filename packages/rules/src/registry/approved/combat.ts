@@ -209,4 +209,24 @@ export const COMBAT_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-18.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/immuneAttackFlag.test.ts', 'packages/ui/src/choreo/immuneShield.test.ts', 'packages/ui/src/dragons1015.test.ts'], lastVerifiedAt: '2026-10-18' },
   },
+  {
+    id: 'R-COMBAT-BODY-GUARD-01',
+    title: 'A runaway summon loop is bounded: one side\x27s board holds at most 400 bodies in a fight, then summons are refused',
+    statement:
+      'A side\x27s combat board keeps its dead in place, so a self-feeding summon loop that keeps the living count under 7 '
+      + 'could grow it without end (found 2026-10-28 by the tag-team fuzz: a dev-only Ancient pair, Xerox\x27s Avenge copy plus '
+      + 'Genesis\x27s extra body, on a Wolves Den board; every death scan walks the whole board, so the fight never finished). '
+      + 'Once a side has held 400 bodies in one fight, any further summon on that side is refused silently, like a full '
+      + 'board but with no overflow payoff, and the fight ends normally through the usual attack budget. It is symmetric: '
+      + 'the same loop on either side is cut at the same point. Ordinary boards never come near it.',
+    domain: 'combat',
+    status: 'approved',
+    evidence: [
+      { kind: 'fix-pr', ref: 'PR #2361 (CI light 1/3 shard hung twice in packages/core/src/combat/tagTeam.test.ts)' },
+      { kind: 'code', ref: 'packages/core/src/combat/simulate.ts BODY_GUARD / placeSummon' },
+    ],
+    contentIds: [],
+    currentBehaviour: 'Conforms (built 2026-10-28).',
+    enforcement: { kind: 'scenario', refs: ['packages/core/src/combat/bodyGuard.test.ts', 'packages/core/src/combat/tagTeam.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

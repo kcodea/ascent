@@ -53,6 +53,12 @@ const OTHER: Record<Side, Side> = { player: 'enemy', enemy: 'player' };
 // (`rallyDerivation` in packages/sim/src/docbot/firePaths.ts) and fails when a watcher misses either path.
 export const RALLY_WATCHER_EFFECTS = new Set<string>(['onRallyBuffOnePerTribe', 'onRallyProcLeftmostEcho', 'onRallyPlayRubiesTribe']);
 const ITERATION_GUARD = 300;
+/** BODY GUARD (2026-10-28): the most bodies one side's board array may ever hold in one fight (the dead stay in it). A
+ *  self-feeding summon loop (a dev-only Ancient pair, Xerox's Avenge copy + Genesis's extra body, on a Wolves Den board)
+ *  re-summoned forever under the 7-living cap; every death scan walks the whole array, so the fight never ended (the
+ *  tag-team fuzz in CI hung). Past this many bodies a summon is refused silently, like a full board but with no overflow
+ *  payoff (an overflow watcher must not keep a runaway loop alive). Real boards stay far below it. */
+const BODY_GUARD = 400;
 const REATTACK_GUARD = 50;
 /** Rune of Ruins: the flat per-stat grant each landed friendly-Demon hit gives that side's board. */
 const RUNE_RUINS_BUFF = 2;
@@ -2574,6 +2580,13 @@ export function simulate(
     // mid-Rise still holds its slot (owner 2026-09-09).
     const fromHand = pendingHandSummon[side];
     pendingHandSummon[side] = false; // consumed by THIS placement, landed or not
+    if (boards[side].length >= BODY_GUARD) {
+      // BODY GUARD: a runaway summon loop stops here, silently (see BODY_GUARD). Same bookkeeping as an overflow.
+      if (undertowWarded.delete(minion)) undertowUsed[side] -= 1;
+      rubiesOnLanding.delete(minion);
+      if (foodChainTaken.delete(minion)) foodChainUsed[side] = false;
+      return minion;
+    }
     if (occupied(side) >= 7) {
       // Rune of the Undertow: a deferred body that took a Ward at queue time but never landed gives it back
       // (R-UNDERTOW-LANDED-01) — the allowance counts bodies that were really summoned.

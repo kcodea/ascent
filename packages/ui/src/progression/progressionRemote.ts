@@ -110,29 +110,63 @@ function parseSubmitResponse(data: unknown): ProgressionSubmitOutcome {
   return { status: 'confirmed', result, profile, deduped: o.deduped === true };
 }
 
+// ── progression_config, read ONCE per session (Supabase cleanup P1.2, 2026-10-28) ──────────────────────────
+/** Row 1 of `progression_config` as the client reads it. Every column is optional: an older server lacks the newer ones. */
+export interface ProgressionConfigRow {
+  epoch?: unknown; crates_enabled?: unknown; aether_enabled?: unknown; achievements_epoch?: unknown;
+  /** md5 of the kill-switch state the client reads (`cosmetic_catalog` + `cosmetic_categories`), kept by a trigger. */
+  catalog_state_hash?: unknown;
+}
+/** `row` = answered (null = no table / no row: every probe is off); `undefined` = could not ask. */
+type ConfigAnswer = { row: ProgressionConfigRow | null } | undefined;
+let configRead: Promise<ConfigAnswer> | null = null;
+/** DEV/tests: how many `progression_config` requests this session has sent. */
+export const progressionConfigStats = { requests: 0 };
+
+/**
+ * The ONE `progression_config` read. The four probes (epoch, crates, achievements, Aether) and the catalog hash all
+ * come from this row, which used to be four single-column requests on every auth event. A successful answer is kept
+ * for the session (the switches change a few times a month; a new session picks a flip up); a failed one is not, so
+ * the next probe asks again. `select('*')` so an older server simply lacks the newer columns instead of erroring.
+ */
+export function fetchProgressionConfig(): Promise<ConfigAnswer> {
+  if (configRead) return configRead;
+  const p = (async (): Promise<ConfigAnswer> => {
+    try {
+      const c = supabaseClient();
+      if (!c) return undefined;
+      progressionConfigStats.requests++;
+      const res = await Promise.race([
+        Promise.resolve(c.from('progression_config').select('*').eq('id', 1).limit(1)),
+        timeout(READ_TIMEOUT_MS, null),
+      ]);
+      if (!res) return undefined;
+      if (res.error) {
+        // A missing table (the migration not run) is a definite "off"; anything else is "could not ask".
+        const code = String((res.error as { code?: string }).code ?? '');
+        return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? { row: null } : undefined;
+      }
+      return { row: (res.data as ProgressionConfigRow[] | null)?.[0] ?? null };
+    } catch {
+      return undefined;
+    }
+  })();
+  configRead = p;
+  void p.then((a) => { if (a === undefined && configRead === p) configRead = null; });
+  return p;
+}
+/** Tests: forget the session's config answer. */
+export function resetProgressionConfigForTests(): void { configRead = null; progressionConfigStats.requests = 0; }
+
+const nonEmptyString = (v: unknown): boolean => typeof v === 'string' && v.length > 0;
+
 /**
  * THE CAPABILITY PROBE. `true` = the migration has run AND the owner set the epoch; `false` = asked, and it is
  * off (no table yet, or no epoch); `undefined` = could not ask (no backend, offline, timeout).
  */
 export async function fetchProgressionEnabled(): Promise<boolean | undefined> {
-  const c = supabaseClient();
-  if (!c) return undefined;
-  try {
-    const res = await Promise.race([
-      Promise.resolve(c.from('progression_config').select('epoch').eq('id', 1).limit(1)),
-      timeout(READ_TIMEOUT_MS, null),
-    ]);
-    if (!res) return undefined;
-    if (res.error) {
-      // A missing table (the migration not run) is a definite "off"; anything else is "could not ask".
-      const code = String((res.error as { code?: string }).code ?? '');
-      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
-    }
-    const row = (res.data as Array<{ epoch?: unknown }> | null)?.[0];
-    return typeof row?.epoch === 'string' && row.epoch.length > 0;
-  } catch {
-    return undefined;
-  }
+  const a = await fetchProgressionConfig();
+  return a && nonEmptyString(a.row?.epoch);
 }
 
 const PROFILE_COLUMNS = 'account_xp, account_level, progression_revision, equipped_title_id';
@@ -345,9 +379,14 @@ export async function fetchServerCatalogState(): Promise<ServerCatalogState | un
   try {
     // The owner's emergency switch (`admin_off`) is read with the code-owned flag. A server from before the skins
     // SQL has no such column: read the flags alone rather than lose the answer.
+    // SUPABASE CLEANUP P1.2 (2026-10-28): only the switched-off items cross the wire. `parseServerCatalogState` keeps
+    // nothing else, so the answer is identical, and the read drops from the whole 458-row list (33.8 KB) to the few
+    // retired ids. Categories are a handful of rows and stay a full read.
     const read = (withAdmin: boolean) => Promise.race([
       Promise.all([
-        fetchAllRows((from, to) => c.from('cosmetic_catalog').select(withAdmin ? 'cosmetic_id, active, admin_off' : 'cosmetic_id, active').order('cosmetic_id', { ascending: true }).range(from, to)),
+        fetchAllRows((from, to) => (withAdmin
+          ? c.from('cosmetic_catalog').select('cosmetic_id, active, admin_off').or('active.eq.false,admin_off.eq.true')
+          : c.from('cosmetic_catalog').select('cosmetic_id, active').eq('active', false)).order('cosmetic_id', { ascending: true }).range(from, to)),
         fetchAllRows((from, to) => c.from('cosmetic_categories').select(withAdmin ? 'category, enabled, admin_off' : 'category, enabled').order('category', { ascending: true }).range(from, to)),
       ]),
       timeout(READ_TIMEOUT_MS, null),
@@ -368,22 +407,8 @@ export async function fetchServerCatalogState(): Promise<ServerCatalogState | un
  * `false` = asked, and it is not (no column yet, or switched off); `undefined` = could not ask.
  */
 export async function fetchCratesEnabled(): Promise<boolean | undefined> {
-  const c = supabaseClient();
-  if (!c) return undefined;
-  try {
-    const res = await Promise.race([
-      Promise.resolve(c.from('progression_config').select('crates_enabled').eq('id', 1).limit(1)),
-      timeout(READ_TIMEOUT_MS, null),
-    ]);
-    if (!res) return undefined;
-    if (res.error) {
-      const code = String((res.error as { code?: string }).code ?? '');
-      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
-    }
-    return (res.data as Array<{ crates_enabled?: unknown }> | null)?.[0]?.crates_enabled === true;
-  } catch {
-    return undefined;
-  }
+  const a = await fetchProgressionConfig();
+  return a && a.row?.crates_enabled === true;
 }
 
 const CRATE_COLUMNS = 'crate_id, earned_level, state, reward_cosmetic_id, earned_at, opened_at';
@@ -497,22 +522,8 @@ export async function buyCrateRemote(req: BuyCrateRequest): Promise<InventoryOut
  * crates probe, so crates and the shop can be switched independently.
  */
 export async function fetchAetherEnabled(): Promise<boolean | undefined> {
-  const c = supabaseClient();
-  if (!c) return undefined;
-  try {
-    const res = await Promise.race([
-      Promise.resolve(c.from('progression_config').select('aether_enabled').eq('id', 1).limit(1)),
-      timeout(READ_TIMEOUT_MS, null),
-    ]);
-    if (!res) return undefined;
-    if (res.error) {
-      const code = String((res.error as { code?: string }).code ?? '');
-      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
-    }
-    return (res.data as Array<{ aether_enabled?: unknown }> | null)?.[0]?.aether_enabled === true;
-  } catch {
-    return undefined;
-  }
+  const a = await fetchProgressionConfig();
+  return a && a.row?.aether_enabled === true;
 }
 
 /**
@@ -562,23 +573,8 @@ export async function equipCosmeticRemote(slot: EquipSlot, targetId: string, cos
  * While it is not `true` there is no Achievements tab and settlements send V1 facts.
  */
 export async function fetchAchievementsEnabled(): Promise<boolean | undefined> {
-  const c = supabaseClient();
-  if (!c) return undefined;
-  try {
-    const res = await Promise.race([
-      Promise.resolve(c.from('progression_config').select('achievements_epoch').eq('id', 1).limit(1)),
-      timeout(READ_TIMEOUT_MS, null),
-    ]);
-    if (!res) return undefined;
-    if (res.error) {
-      const code = String((res.error as { code?: string }).code ?? '');
-      return code === '42P01' || code === 'PGRST205' || code === 'PGRST204' || code === '42703' ? false : undefined;
-    }
-    const v = (res.data as Array<{ achievements_epoch?: unknown }> | null)?.[0]?.achievements_epoch;
-    return typeof v === 'string' && v.length > 0;
-  } catch {
-    return undefined;
-  }
+  const a = await fetchProgressionConfig();
+  return a && nonEmptyString(a.row?.achievements_epoch);
 }
 
 /** One completed achievement (public: anyone's Career shows them). */

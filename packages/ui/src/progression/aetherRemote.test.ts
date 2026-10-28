@@ -42,6 +42,7 @@ const crateJson = { crateId: 'c-1', earnedLevel: null, source: 'shop:00000000-00
 
 beforeEach(() => {
   reads.length = 0; invokes.length = 0;
+  R.resetProgressionConfigForTests(); // the progression_config row is read once per session (Supabase cleanup P1.2)
   tableImpl = () => ({ data: [], error: null });
   invokeImpl = async () => ({ data: null, error: new Error('unset') });
 });
@@ -50,8 +51,11 @@ describe('fetchAetherEnabled', () => {
   it('reads aether_enabled from the progression_config row', async () => {
     tableImpl = () => ({ data: [{ aether_enabled: true }], error: null });
     expect(await R.fetchAetherEnabled()).toBe(true);
-    expect(reads).toEqual([{ table: 'progression_config', columns: 'aether_enabled' }]);
+    expect(reads).toEqual([{ table: 'progression_config', columns: '*' }]);
     tableImpl = () => ({ data: [{ aether_enabled: false }], error: null });
+    expect(await R.fetchAetherEnabled()).toBe(true); // the session's answer: no second read
+    expect(reads).toHaveLength(1);
+    R.resetProgressionConfigForTests();
     expect(await R.fetchAetherEnabled()).toBe(false);
   });
   it.each(['42703', 'PGRST204', '42P01', 'PGRST205'])('a server from before the migration (%s) is off', async (code) => {

@@ -28,3 +28,11 @@ unknown refusal as "not locked" (the gem relights), so no client change was need
 - `ChaosEvent.beforeDeadlineMs`: fire an event a set time before a round's 0:00.
 - `workers/versus/test/roomCore.test.ts`: the refused lock, the restored deadline and a fresh lock after the resume
   (fails without the fix).
+
+## Supabase under the new invariant
+
+`pausedClose` is judged on both hosts. Supabase fails it in hang (1v1, Group 3, Group 4, Duos) and dropRestore (Group 4,
+Duos): a hung lock that finally lands, or the lock a client sends the moment it is back, closes the round during the
+pause (the SQL accepts a lock from the paused seat). Recorded in `chaosKnown.ts`, not fixed (Supabase is the outgoing
+host). dropAtZero passes on Supabase apart from the known slow pause lift in 1v1. Full Supabase matrix: 113/113
+against the ledger.

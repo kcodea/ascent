@@ -116,11 +116,11 @@ const DEFAULTS: FreezeConfig = {
   iceSpellGlowAlpha: 0,
   iceSpellDur: 1.05,
   iceSpellFeather: 13,
-  // Taunt ice fit — starts equal to the minion fit; owner to tune on the shield frame.
-  iceTauntW: 116,
-  iceTauntH: 109.5,
+  // Taunt ice fit — owner-tuned 2026-10-28 on the shield frame.
+  iceTauntW: 118,
+  iceTauntH: 104.5,
   iceTauntX: 0.25,
-  iceTauntY: 6.75,
+  iceTauntY: 0.75,
 };
 
 /** Slider bounds for the DEV tuner — [min, max, step] per key. */

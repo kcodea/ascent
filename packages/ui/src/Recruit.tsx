@@ -1347,10 +1347,13 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   // offer already reads the stats it'll buy in at — the reducer's buy path bakes exactly these.
   // Rune of the Grim Toast: a NON-Undead Dwarf offer shows the Undead Aura it will carry once bought.
   const grimOffer = !undead && opts.grimToast && defIsTribe(c, 'dwarf') ? opts.grimToast : undefined;
-  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (grimOffer?.attack ?? 0)
+  // The Imp Aura: an Imp offer (Membrance restocking a foe's Imps) buys in carrying it (`undeadBuyBonus`), R-IMP-AURA-01.
+  const impA = c.imp ? opts.impAura?.attack ?? 0 : 0;
+  const impH = c.imp ? opts.impAura?.health ?? 0 : 0;
+  const addAtk = (card.atk ?? 0) + cb.attack + tavernAtk + (grimOffer?.attack ?? 0) + impA
     + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0)
     + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0);
-  const addHp = (card.hp ?? 0) + cb.health + tavernHp + (grimOffer?.health ?? 0)
+  const addHp = (card.hp ?? 0) + cb.health + tavernHp + (grimOffer?.health ?? 0) + impH
     + (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0);
   // Golden Touch: a gilded offer shows doubled stats + the golden frame (offer stores base + a flag; the buy
   // bakes the doubling in, mirrored here for display).
@@ -1377,8 +1380,8 @@ export function shopView(card: ShopCard, opts: ShopViewOpts = {}): CardView { //
   }
   pushBuff('Shop Stats', restA, restH);
   pushBuff('Tribe Bond',
-    (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
-    (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
+    impA + (undead ? (opts.undeadAtk ?? 0) + (opts.undeadBuyAtk ?? 0) : 0) + (beast ? opts.beastBuyAtk ?? 0 : 0) + (magnetic ? opts.magneticBuyAtk ?? 0 : 0),
+    impH + (undead ? opts.undeadHp ?? 0 : 0) + (beast ? opts.beastBuyHp ?? 0 : 0) + (magnetic ? opts.magneticBuyHp ?? 0 : 0));
   if (card.golden) pushBuff('Golden Touch', c.attack, c.health); // gilded doubles the base stats
   return {
     name: c.name, cardId: c.id, ...tribeFace(c, undefined, opts.cardTribes), universalTribe: !!c.universalTribe,
@@ -10311,7 +10314,12 @@ const DiscoverOverlay = memo(function DiscoverOverlay({ overlaysHeld, run, disco
             // place of the Attack/Health badges (owner 2026-07-24: spells were showing a meaningless
             // 0/1 here). Every other surface passes these through `instView`; this panel builds its
             // card view by hand, which is how they got dropped.
-            return { name: c.name, cardId: c.id, ...tribeFace(c, undefined, run.cardTribes), universalTribe: !!c.universalTribe, attack: c.attack, health: c.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
+            // A MINION option shows the stats it will land with: the same creation auras the pick bakes in
+            // (`conjuredStats`: per-card enchant, the tribe buy auras, the Imp Aura), not the printed base. An Imp
+            // Discovered by Underdweller read 1/1 here and landed bigger (owner report 2026-10-28, R-IMP-AURA-01).
+            // Rune of the Second Path's SET stats replace them, as the pick does.
+            const stats = c.spell || c.ruby ? { attack: c.attack, health: c.health } : (run.discoverSetStats ?? conjuredStats(run, c));
+            return { name: c.name, cardId: c.id, ...tribeFace(c, undefined, run.cardTribes), universalTribe: !!c.universalTribe, attack: stats.attack, health: stats.health, keywords: c.keywords, text: lt.text, goldenText: lt.goldenText, tier: c.tier, spell: !!c.spell, ruby: !!c.ruby,
               // (Both) marker hook — a Discover option has no uid, so it is keyed by its slot.
               chooseBothKey: chooseBothActive(run, undefined, c) ? `disc:${i}` : undefined };
           })}

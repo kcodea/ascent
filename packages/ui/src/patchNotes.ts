@@ -56,6 +56,20 @@ export interface PatchNote {
 /** Newest first. PREPEND new entries. */
 export const PATCH_NOTES: PatchNote[] = [
   {
+    date: '2026-10-28',
+    changes: [
+      {
+        category: 'Systems',
+        text: 'Fix: an Imp you get from any source now carries your Imp buffs.',
+        details: [
+          'An Imp from Underdweller\'s Discover used to arrive as a plain 1/1. It now lands with your Imp buffs.',
+          'The same goes for a bought Imp and an Imp sent to your hand during combat.',
+          'Discover options now show the stats the minion will land with.',
+        ],
+      },
+    ],
+  },
+  {
     date: '2026-10-27',
     changes: [
       {

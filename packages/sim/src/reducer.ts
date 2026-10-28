@@ -151,12 +151,15 @@ function tiffBuyDiscount(s: RunState, card: CardDef): void {
   }
 }
 
-/** Push a PLAIN, base-stat copy of a card to hand (Re-Pete's Second Hand / Gorr's Four Peat) — a CONJURED
- *  card: no per-instance buffs/golden/welds carried, and it does NOT take from the shared pool. Hand-cap-safe. */
+/** Push a PLAIN copy of a card to hand (Re-Pete's Second Hand / Gorr's Four Peat) — a CONJURED card: no
+ *  per-instance buffs/golden/welds carried, and it does NOT take from the shared pool. Hand-cap-safe. Plain still
+ *  receives the run's creation auras (per-card enchant, tribe buy auras, the Imp Aura): "plain copies remain plain
+ *  but receive any independently applicable Aura" (R-AURA-01, R-IMP-AURA-01). Spells have no stats to aura. */
 function conjurePlainCopy(s: RunState, cardId: string): BoardCard | undefined {
   const def = CARD_INDEX[cardId];
   if (!def || s.hand.length >= handCap(s)) return undefined;
-  const card: BoardCard = { uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, attack: def.attack, health: def.health, keywords: [...def.keywords], golden: false };
+  const stats = def.spell || def.ruby ? { attack: def.attack, health: def.health } : conjuredStats(s, def);
+  const card: BoardCard = { uid: `b${s.uidSeq++}`, cardId: def.id, tribe: def.tribe, ...stats, keywords: [...def.keywords], golden: false };
   s.hand.push(card);
   return card;
 }

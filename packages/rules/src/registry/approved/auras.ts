@@ -176,4 +176,27 @@ export const AURAS_RULES: GameRule[] = [
     currentBehaviour: 'Conforms as of 2026-10-23.',
     enforcement: { kind: 'scenario', refs: ['packages/sim/src/set3T7VellumEnding.test.ts'], lastVerifiedAt: '2026-10-23' },
   },
+  {
+    id: 'R-IMP-AURA-01',
+    title: 'Every Imp is born carrying the Imp Aura, from any source, exactly once',
+    statement:
+      'The Imp Aura (R-AURA-04) is baked into an Imp the moment the Imp is made, whatever made it: a Shop summon, a buy '
+      + '(Membrance restocking a foe Imp), a Discover (Underdweller offering an Imp that died last combat), a card a combat '
+      + 'effect sends to your hand, a Trophy copy, or a plain copy (Re-Pete, Gorr). The same holds for the other '
+      + 'creation auras (the Beast, Undead and Attachment buy auras, per-card enchants): a plain copy is still born with them. '
+      + 'An Imp lands in hand already carrying the Aura, keeps exactly those stats '
+      + 'when played, and a later Aura gain is paid to it once like any held Imp. The Discover window and the Shop offer show '
+      + 'the stats it will land with. An Imp copied from one you hold keeps the stats of that body and is never paid again.',
+    domain: 'auras',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Owner bug 2026-10-28 (Underdweller)', quote: "i discovered an imp from the underdweller hero power but it didnt have my imp's buffs on it. this is a bug" },
+      { kind: 'code', ref: 'packages/sim/src/recruit.ts undeadBuyBonus / buyHealthAura (the creation-aura helpers every creation site calls now include impBuff); conjuredStats; offerBuyStats; packages/ui/src/Recruit.tsx Discover option stats + shop offer preview' },
+    ],
+    contentIds: ['impscrap'],
+    currentBehaviour:
+      'Conforms as of 2026-10-28. Before, only the Shop summon added the Aura by hand; a Discovered, bought or '
+      + 'combat-granted Imp arrived at the printed 1/1 and only caught up on the next Aura gain.',
+    enforcement: { kind: 'scenario', refs: ['packages/sim/src/underdwellerImpAura.test.ts'], lastVerifiedAt: '2026-10-28' },
+  },
 ];

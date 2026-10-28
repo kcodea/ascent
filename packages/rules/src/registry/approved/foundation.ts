@@ -10339,4 +10339,95 @@ export const FOUNDATION_RULES: GameRule[] = [
     example: 'Both teams ready. Ann has two End of Turn minions: their beats play while the server settles the round, and the fight opens as soon as it is in.',
     enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusEarlyEot.test.ts'], lastVerifiedAt: '2026-10-27' },
   },
+  {
+    id: 'R-VERSUS-RELIABLE-01',
+    title: 'Versus: Realtime never silently dies; each match has its own topic and a dropped channel re-opens',
+    statement:
+      'The room\x27s Realtime channel uses a topic that names the match (versus:<room>:<match>, or :room before the first match), so a match\x27s channel never shares a topic with the room\x27s or the previous match\x27s, and a re-open of the same topic waits for any channel still on it. The join status is watched: CHANNEL_ERROR, TIMED_OUT or a CLOSED the client did not ask for re-opens the channel with a backoff (1 s doubling to 30 s; a channel realtime-js already re-joined is left alone). A successful re-join reports the room, match and rounds as changed so anything missed while down is read again. A close the client asked for never re-opens.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'Versus 1v1, Group (3-4), Versus Duos and Ranked Duos need to be spotless experiences' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (subscribeRoom, versusTopic)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27 (fix/versus-client-reliability). The audit named a same-topic swap handing back a leaving channel; against the shipped realtime-js 2.108.2 the leave closes locally at once, so that exact path did not reproduce in the fake-server test. What did reproduce: a channel the server closed was never re-opened (nothing watched the join status), leaving the client on the 4 s heartbeat and 12 s polls.',
+    example: 'The Realtime server closes the match channel mid-round: one second later the client joins again and re-reads the match and its rounds, so the fight still arrives on the wake-up, not the next poll.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusRealtime.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-RELIABLE-02',
+    title: 'Versus: only the client that closed the round asks the resolver at once; the rest wait a jittered backstop; one call in flight',
+    statement:
+      'An answer to a client\x27s own submit or reconcile that reads `resolving` makes it ask the resolver at once only when the server says that call closed the round (`closed_by_me`, snake or camel case). Without the field (an older server) exactly one deterministic asker does: seat p1 in 1v1, else the table\x27s first seat still playing in person (not out, not on auto, not a recorded Ranked Duos member). Every other client asks only after its backstop: 4 s plus up to 1.5 s of per-client jitter from when it saw the round closed. A client never has two resolver calls in flight.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'Versus 1v1, Group (3-4), Versus Duos and Ranked Duos need to be spotless experiences' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusReliability.ts (finalizeAsk, groupLeader, finalizeBackstopMs, createResolverFlight); packages/ui/src/versus/versusStore.ts (onOwnAnswer, kickFinalize, ingestOwn)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27. Before, onOwnAnswer kicked the resolver whenever the answer read resolving, so at 0:00 every client called it (prod: timer-closed Duos rounds median 4.8 s, p90 12.7 s to the fight, against 0.9 s when everyone readied).',
+    example: 'Four Duos players hit 0:00 together; all four reconciles answer resolving. Only the player whose call closed it calls versus-resolve; the other three wait about 4 to 5.5 s and find the fight already in.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusReliability.test.ts', 'packages/ui/src/versus/versusReliabilityStore.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-RELIABLE-03',
+    title: 'Versus: a waking tab sends its heartbeat first and never pauses the match on itself',
+    statement:
+      'On visibilitychange to visible, online, pageshow from the back-forward cache, or a 500 ms session tick that arrives more than 3 s late on a visible tab, the client sends its heartbeat first and holds every reconcile (the tick, the on-time close timer, the stale-row re-read) until that heartbeat settles; then it re-reads the room and the match. A reconcile is also held whenever this client has no heartbeat answered in the last 9 s (inside the 12 s lease), and a fresh heartbeat is sent first (at most every 2 s).',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'it would simply pause when someone returned' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusReliability.ts (createWakeGate, beatFresh); packages/ui/src/versus/versusStore.ts (resyncVersusSession, mayReconcile, onTick)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27. Before, no Versus code reacted to a wake: a frozen tab\x27s throttled tick could reconcile with its own seat\x27s heartbeat minutes old and pause the match on the player who had just come back. Builds on R-PHONE-RESUME-01 (#2353), with the heartbeat ordered first.',
+    example: 'A phone player backgrounds the game for a minute and comes back: the heartbeat goes out first, the server sees them present, and only then does their client reconcile; no pause on themselves.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusReliability.test.ts', 'packages/ui/src/versus/versusReliabilityStore.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-RELIABLE-04',
+    title: 'Versus: a pause is never a dead end; others may Unpause after the reconnect time, and Hero Select shows the pause too',
+    statement:
+      'When the absent player is back (heartbeat inside the lease) but has not pressed Unpause, everyone else sees \x22<name> is back\x22 with no button until the reconnect time ends, then with an Unpause of their own. A pause during a Versus Hero Select shows the same veil over the picker for a seated player. A running 3-2-1 (any Unpause, or the server resuming on a returning heartbeat) shows only the count, and the client reconciles on a timer at the countdown\x27s end rather than on the next tick.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'it would simply pause when someone returned' },
+      { kind: 'code', ref: 'packages/ui/src/versus/VersusHud.tsx (versusPauseView, VersusPauseVeil, VersusHeroSelectPause); packages/ui/src/Game.tsx; packages/ui/src/versus/versusStore.ts (armCloseTimer resume timer)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27. Before, the other players only ever saw \x22X is back. Waiting for them to unpause\x22, and a Hero Select pause showed nothing (the shop HUD that draws the veil is not mounted there).',
+    example: 'Kev drops, comes back, and never presses Unpause. Once his reconnect time is over his opponent sees \x22Kev is back\x22 with Unpause, and both see 3, 2, 1.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusPauseVeil.test.tsx'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-RELIABLE-05',
+    title: 'Versus: lost calls recover (8 s RPC timeout, End Combat re-sent, End Turn retried or deferred, ready state follows the server, a neutral slow-fight notice)',
+    statement:
+      'Every Versus RPC is aborted after 8 s (the resolver call after 20 s) and fails as a network error, so one hung request cannot block the queued ready calls. A ready or un-ready call that fails as a network error re-reads the match and sets the End Turn gem from the server\x27s own lock flag. While the server waits on this player\x27s End Combat (this client is back from the fight but the row does not say so) it is re-sent, backed off, one at a time. A fight that arrives while a card play animates is driven again as soon as the animation ends, never dropped. While the fight is in and the run is still shopping with nothing animating and no pause, End Turn is asked again every 1.5 s (End Turn ignores a call while its beats play). After three failed resolver calls in a row for one round the End Turn pill reads \x22The fight is on its way\x22 until the round moves on.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'Versus 1v1, Group (3-4), Versus Duos and Ranked Duos need to be spotless experiences' },
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'completely locking us out' },
+      { kind: 'code', ref: 'packages/ui/src/versus/versusRemote.ts (rpc timeout); packages/ui/src/versus/versusStore.ts (readyTruth, onTick End Combat resend, driveDeferred, resolveSlow); packages/ui/src/versus/VersusHud.tsx (End Turn watchdog, VERSUS_SLOW_NOTE)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27. Before: no fetch timeout; a lost combatReady was never re-sent; firedRef marked End Turn as played even when it returned without starting; a fight that came in during a card animation waited for the next heartbeat; resolver failures were silent.',
+    example: 'A player\x27s End Combat request is lost on a bad connection: two seconds later the client sends it again and the next shop opens for everyone without waiting out the combat cap.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/versusReliability.test.ts', 'packages/ui/src/versus/versusReliabilityStore.test.ts'], lastVerifiedAt: '2026-10-27' },
+  },
+  {
+    id: 'R-VERSUS-RELIABLE-06',
+    title: 'Duos: the teammate dock is placed on a full-size window (the stage with no box is the viewport)',
+    statement:
+      'The teammate dock and its tag-in copy measure the stage as the window when `#stage` has no box (unscaled at the design size and above, where it is display: contents and its rect is all zeros), so the dock always gets its measured geometry instead of sitting at its CSS fallback.',
+    domain: 'foundation',
+    status: 'approved',
+    evidence: [
+      { kind: 'owner-chat', ref: 'Kevin via the coordinator, 2026-10-27 (versus client reliability)', quote: 'Versus 1v1, Group (3-4), Versus Duos and Ranked Duos need to be spotless experiences' },
+      { kind: 'code', ref: 'packages/ui/src/versus/DuosMateDock.tsx (stageBox, measureDock)' },
+    ],
+    currentBehaviour: 'Built 2026-10-27. Found on the bench prod build (devlog 2026-10-27-duos-portrait-signals-rail): the dock\x27s inline style stayed empty in shop and fight and the tag-in never mounted.',
+    example: 'On a 1920 x 1080 window the teammate portrait sits mirrored off the player\x27s own hero, and in a fight its copy tags in over the player\x27s hero.',
+    enforcement: { kind: 'scenario', refs: ['packages/ui/src/versus/duosDockStage.test.tsx'], lastVerifiedAt: '2026-10-27' },
+  },
 ];
